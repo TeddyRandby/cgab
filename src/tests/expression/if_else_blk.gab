@@ -1,0 +1,5 @@
+let a = if false then
+  2
+end else
+  1
+end
