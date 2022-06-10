@@ -1,5 +1,5 @@
-#ifndef BLUF_TYPES_H
-#define BLUF_TYPES_H
+#ifndef GAB_TYPES_H
+#define GAB_TYPES_H
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -287,7 +287,7 @@ static inline void d_u64_index_set_value(d_u64 *self, u64 index, u64 value) {
   v_u64_set(&self->values, index, value);
 }
 
-#include "../gab/compiler/nanbox.h"
+#include "../gab/compiler/value.h"
 static inline boolean d_u64_index_remove(d_u64 *self, u64 index) {
   if (self->size == 0)
     return false;

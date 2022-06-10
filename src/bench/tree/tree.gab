@@ -10,11 +10,10 @@ let bottom_up_tree = fn(item, depth) then
 end
 
 let item_check = fn(tree) then
-    if tree[1] then
-        return tree[0] + item_check(tree[1]) - item_check(tree[2])
-    end else
-        return tree[0]
-    end
+    if tree[1] =>
+        tree[0] + item_check(tree[1]) - item_check(tree[2])
+    else
+        tree[0]
 end
 
 let pow_two = fn(n) =>
@@ -23,7 +22,7 @@ let pow_two = fn(n) =>
     else
         pow_two(n-1) * 2
 
-let run = fn(N) then
+!run = fn(N) then
   let mindepth = 4
   let maxdepth = mindepth + 2
 
@@ -32,20 +31,21 @@ let run = fn(N) then
   let stretchdepth = maxdepth + 1
   let tree = bottom_up_tree(0, stretchdepth)
 
-  item_check(tree)::log.info()
+  item_check(tree):!print()
 
   let longlivedtree = bottom_up_tree(0, maxdepth)
 
   let depth = mindepth
-  while depth < maxdepth + 1 then do
+  while depth < maxdepth + 1 then
+
       let iters = pow_two(maxdepth - depth + mindepth)
       let check = 0
       let checks = 0
 
-      while check < iters then do
+      while check < iters then
           let tree1 = bottom_up_tree(1, depth)
 
-          #item_check(tree1):std.log.info()
+          #item_check(tree1):!print()
 
           checks = checks + item_check(tree1) 
 
@@ -56,12 +56,12 @@ let run = fn(N) then
           check = check + 1
       end
 
-      :log.info(checks)
+      (checks):!print()
 
       depth = depth + 2
   end
 
-  :log.info(item_check(longlivedtree))
+  !print(item_check(longlivedtree))
 end
 
-run(13)
+!run(13)

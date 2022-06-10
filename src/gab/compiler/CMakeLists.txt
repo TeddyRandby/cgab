@@ -5,7 +5,7 @@ target_sources(
   cgab
   PRIVATE
   bytecode.h
-  nanbox.h
+  value.h
   compiler.c
   module.h
   module.c

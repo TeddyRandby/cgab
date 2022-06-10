@@ -103,8 +103,8 @@ typedef enum gab_precedence {
   PREC_TERM,        // + -
   PREC_FACTOR,      // * /
   PREC_UNARY,       // ! -
-  PREC_CALL,        // ()
-  PREC_PROPERTY,    // .
+  PREC_CALL,        // (
+  PREC_PROPERTY,    // . ->
   PREC_PRIMARY
 } gab_precedence;
 

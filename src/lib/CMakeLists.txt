@@ -11,6 +11,7 @@ target_sources(
   lib_time.c
   lib_term.c
   lib_math.c
+  lib_import.c
   lib_str.h
   lib_io.h
   lib_obj.h
@@ -18,4 +19,5 @@ target_sources(
   lib_time.h
   lib_term.h
   lib_math.h
+  lib_import.h
 )

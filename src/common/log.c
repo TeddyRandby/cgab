@@ -57,7 +57,8 @@ u64 dumpJumpInstruction(gab_module *self, const char *name, u64 sign,
 }
 
 u64 dumpInstruction(gab_module *self, u64 offset) {
-  switch (v_u8_val_at(&self->bytecode, offset)) {
+  u8 op = v_u8_val_at(&self->bytecode, offset);
+  switch (op) {
   case OP_RETURN_1:
   case OP_RETURN_2:
   case OP_RETURN_3:
@@ -79,9 +80,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_VARRETURN: {
     return dumpByteInstruction(self, "OP_VARRETURN", offset);
   }
-  case OP_IMPORT: {
-    return dumpSimpleInstruction("OP_IMPORT", offset);
-  }
   case OP_CONSTANT: {
     return dumpConstantInstruction(self, "OP_CONSTANT", offset);
   }
@@ -97,8 +95,11 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_ADD: {
     return dumpSimpleInstruction("OP_ADD", offset);
   }
-  case OP_NOT_NULL: {
+  case OP_ASSERT: {
     return dumpSimpleInstruction("OP_NOT_NULL", offset);
+  }
+  case OP_TYPE: {
+    return dumpSimpleInstruction("OP_TYPE", offset);
   }
   case OP_SUBTRACT: {
     return dumpSimpleInstruction("OP_SUBTRACT", offset);
@@ -168,10 +169,20 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_LOAD_LOCAL_6:
   case OP_LOAD_LOCAL_7:
   case OP_LOAD_LOCAL_8: {
+    printf("(%d)", op - OP_LOAD_LOCAL_0);
     return dumpSimpleInstruction("OP_LOAD_LOCAL_FAST", offset);
+  }
+  case OP_POP_STORE_LOCAL: {
+    return dumpByteInstruction(self, "OP_POP_STORE_LOCAL", offset);
+  }
+  case OP_POP_STORE_UPVALUE: {
+    return dumpByteInstruction(self, "OP_POP_STORE_UPVALUE", offset);
   }
   case OP_LOAD_LOCAL: {
     return dumpByteInstruction(self, "OP_LOAD_LOCAL", offset);
+  }
+  case OP_MATCH: {
+    return dumpSimpleInstruction("OP_MATCH", offset);
   }
   case OP_POP: {
     return dumpSimpleInstruction("OP_POP", offset);

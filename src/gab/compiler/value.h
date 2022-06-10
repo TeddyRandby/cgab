@@ -1,5 +1,5 @@
-#ifndef GAB_NANBOX_H
-#define GAB_NANBOX_H
+#ifndef GAB_VALUE_H
+#define GAB_VALUE_H
 
 // An IEEE 754 double-precision float is a 64-bit value with bits laid out like:
 //
@@ -57,6 +57,7 @@
 // all stuffed into a single 64-bit sequence. Even better, we don't have to
 // do any masking or work to extract number values: they are unmodified. This
 // means math on numbers is fast.
+
 #define QNAN ((u64)0x7ffc000000000000)
 
 #define SIGN_BIT ((u64)1 << 63)

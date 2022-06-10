@@ -21,8 +21,8 @@ typedef enum comp_result {
   COMP_LOCAL_NOT_FOUND = -4,
   COMP_UPVALUE_NOT_FOUND = -5,
   COMP_ID_NOT_FOUND = -6,
-  COMP_REGABVED_TO_LOCAL = -7,
-  COMP_REGABVED_TO_UPVALUE = -8,
+  COMP_RESOLVED_TO_LOCAL = -7,
+  COMP_RESOLVED_TO_UPVALUE = -8,
   COMP_FIN = -9,
   COMP_MAX = INT32_MAX,
 } comp_result;
@@ -108,6 +108,11 @@ static comp_result expect_token(gab_compiler *self, gab_token tok) {
   }
 }
 
+static u16 add_constant(gab_compiler *self, gab_value value) {
+  u16 index = gab_engine_add_constant(self->mod->engine, value);
+  return index;
+}
+
 //----------------- 'PUSH' helpers ----------------------
 /*
     These helper functions emit bytecode into the module.
@@ -122,11 +127,6 @@ static void push_byte(gab_compiler *self, u8 byte) {
 static void push_bytes(gab_compiler *self, u8 byte_1, u8 byte_2) {
   push_byte(self, byte_1);
   push_byte(self, byte_2);
-}
-
-static u16 push_constant(gab_compiler *self, gab_value value) {
-  u16 index = gab_engine_add_constant(self->mod->engine, value);
-  return index;
 }
 
 static void push_short(gab_compiler *self, u16 val) {
@@ -329,7 +329,7 @@ static comp_result add_upvalue(gab_compiler *self, u32 depth, u8 index,
  * COMP_LOCAL_NOT_FOUND if no matching local is found,
  * and otherwise the offset of the local.
  */
-static comp_result regabve_local(gab_compiler *self, s_u8_ref name, u32 depth) {
+static comp_result resolve_local(gab_compiler *self, s_u8_ref name, u32 depth) {
   for (i32 local = peek_frame(self, depth)->local_count - 1; local >= 0;
        local--) {
     if (s_u8_ref_match(name, peek_frame(self, depth)->locals_name[local])) {
@@ -349,7 +349,7 @@ static comp_result regabve_local(gab_compiler *self, s_u8_ref name, u32 depth) {
  * COMP_UPVALUE_NOT_FOUND if no matching upvalue is found,
  * and otherwise the offset of the upvalue.
  */
-static comp_result regabve_upvalue(gab_compiler *self, s_u8_ref name,
+static comp_result resolve_upvalue(gab_compiler *self, s_u8_ref name,
                                    u32 depth) {
   // Base case, hopefully conversion doesn't cause issues
   i32 frame_index = self->frame_count - depth - 1;
@@ -357,14 +357,14 @@ static comp_result regabve_upvalue(gab_compiler *self, s_u8_ref name,
     return COMP_UPVALUE_NOT_FOUND;
   }
 
-  i32 local = regabve_local(self, name, depth);
+  i32 local = resolve_local(self, name, depth);
   if (local >= 0) {
     /* printf("Found local in slot %d\n", local); */
     peek_frame(self, depth)->locals_captured[local] = true;
     return COMP_OK_VALUE(add_upvalue(self, depth - 1, (u8)local, true));
   }
 
-  i32 upvalue = regabve_upvalue(self, name, depth + 1);
+  i32 upvalue = resolve_upvalue(self, name, depth + 1);
   if (upvalue >= 0) {
     return COMP_OK_VALUE(add_upvalue(self, depth - 1, (u8)upvalue, false));
   }
@@ -377,25 +377,25 @@ static comp_result regabve_upvalue(gab_compiler *self, s_u8_ref name,
  * COMP_REGABVED_TO_LOCAL if the id was a local, and
  * COMP_REGABVED_TO_UPVALUE if the id was an upvalue.
  */
-static comp_result regabve_id(gab_compiler *self, s_u8_ref name, u8 *value_in) {
+static comp_result resolve_id(gab_compiler *self, s_u8_ref name, u8 *value_in) {
 
-  i32 arg = regabve_local(self, name, 0);
+  i32 arg = resolve_local(self, name, 0);
   ASSERT_NOT_ERR(arg);
 
   if (arg == COMP_LOCAL_NOT_FOUND) {
 
-    arg = regabve_upvalue(self, name, 0);
+    arg = resolve_upvalue(self, name, 0);
     ASSERT_NOT_ERR(arg);
 
     if (arg == COMP_UPVALUE_NOT_FOUND)
       return COMP_ID_NOT_FOUND;
 
     *value_in = (u8)arg;
-    return COMP_REGABVED_TO_UPVALUE;
+    return COMP_RESOLVED_TO_UPVALUE;
   }
 
   *value_in = (u8)arg;
-  return COMP_REGABVED_TO_LOCAL;
+  return COMP_RESOLVED_TO_LOCAL;
 }
 
 static void down_scope(gab_compiler *self) { self->scope_depth++; }
@@ -433,8 +433,7 @@ static void up_frame(gab_compiler *self) {
 // Forward declare some functions
 gab_compile_rule get_rule(gab_token k);
 comp_result compile_exp_prec(gab_compiler *self, gab_precedence prec);
-comp_result compile_exp(gab_compiler *self);
-comp_result compile_comma_list(gab_compiler *self, u8 want, exp_list *out);
+comp_result compile_expressions(gab_compiler *self, u8 want, exp_list *out);
 
 //---------------- Compiling Helpers -------------------
 /*
@@ -497,7 +496,7 @@ comp_result compile_function_args(gab_compiler *self,
   return COMP_OK;
 }
 
-comp_result skip_newlines(gab_compiler *self) {
+static inline comp_result skip_newlines(gab_compiler *self) {
   while (match_token(self, TOKEN_NEWLINE)) {
     ASSERT_NOT_ERR(eat_token(self));
   }
@@ -508,17 +507,33 @@ comp_result skip_newlines(gab_compiler *self) {
   return COMP_OK;
 }
 
-comp_result compile_block_body(gab_compiler *self) {
+static inline comp_result optional_newline(gab_compiler *self) {
+  return match_and_eat_token(self, TOKEN_NEWLINE);
+}
+
+static inline comp_result expect_newline(gab_compiler *self) {
+  if (match_token(self, TOKEN_NEWLINE)) {
+    ASSERT_NOT_ERR(eat_token(self));
+  }
+
+  if (match_token(self, TOKEN_EOF))
+    return COMP_FIN;
+
+  return COMP_OK;
+}
+
+comp_result compile_block_body(gab_compiler *self, u8 want, exp_list *exps) {
 
   comp_result result;
 
-  ASSIGN_SKIP_NEWLINES(result);
+  ASSERT_NOT_ERR(skip_newlines((self)));
 
-  ASSERT_NOT_ERR(compile_exp(self));
+  if (match_token(self, TOKEN_EOF))
+    return COMP_FIN;
 
-  expect_token(self, TOKEN_NEWLINE);
+  ASSERT_NOT_ERR(compile_expressions(self, want, exps));
 
-  ASSIGN_SKIP_NEWLINES(result);
+  ASSERT_NOT_ERR(expect_token(self, TOKEN_NEWLINE));
 
   if (match_token(self, TOKEN_EOF))
     return COMP_FIN;
@@ -527,12 +542,14 @@ comp_result compile_block_body(gab_compiler *self) {
 
     push_byte(self, OP_POP);
 
-    ASSERT_NOT_ERR(compile_exp(self));
+    ASSERT_NOT_ERR(skip_newlines((self)));
 
-    expect_token(self, TOKEN_NEWLINE);
-    self->line++;
+    if (match_token(self, TOKEN_EOF))
+      return COMP_FIN;
 
-    ASSIGN_SKIP_NEWLINES(result);
+    ASSERT_NOT_ERR(compile_expressions(self, want, exps));
+
+    ASSERT_NOT_ERR(expect_token(self, TOKEN_NEWLINE));
 
     if (match_token(self, TOKEN_EOF))
       return COMP_FIN;
@@ -552,31 +569,10 @@ comp_result compile_function_body(gab_compiler *self,
   // Because if the vector is EVER resized,
   // Then all your functions are suddenly invalid.
   function->offset = self->mod->bytecode.size;
-  // Here is where we can determine whether or not this function evaluates to an
-  // expression.
-  switch (match_and_eat_token(self, TOKEN_FAT_ARROW)) {
 
-  // This function just returns an expression
-  case COMP_TOKEN_MATCH: {
-    exp_list ret_value;
-    ASSERT_NOT_ERR(compile_comma_list(self, VAR_RET, &ret_value));
-    ASSERT_NOT_ERR(push_return(self, ret_value));
-    break;
-  }
-
-  case COMP_TOKEN_NO_MATCH: {
-    // Expect a stm function
-    ASSERT_NOT_ERR(expect_token(self, TOKEN_THEN));
-    ASSERT_NOT_ERR(compile_block_body(self));
-    push_byte(self, OP_RETURN_1);
-    break;
-  }
-
-  // there was an error in the match
-  default:
-    error(self, gab_compile_fail(self, "Unexpected result compiling function"));
-    return COMP_ERR;
-  }
+  exp_list ret_value;
+  ASSERT_NOT_ERR(compile_expressions(self, VAR_RET, &ret_value));
+  ASSERT_NOT_ERR(push_return(self, ret_value));
 
   // Update the functions upvalue state and pop the function's compile_frame
   gab_compile_frame *frame = peek_frame(self, 0);
@@ -591,7 +587,7 @@ comp_result compile_function_body(gab_compiler *self,
 
   // Push a closure wrapping the function
   push_byte(self, OP_CLOSURE);
-  push_short(self, push_constant(self, GAB_VAL_OBJ(function)));
+  push_short(self, add_constant(self, GAB_VAL_OBJ(function)));
 
   for (int i = 0; i < function->nupvalues; i++) {
     push_byte(self, frame->upvs_is_local[i]);
@@ -601,11 +597,8 @@ comp_result compile_function_body(gab_compiler *self,
   return COMP_OK;
 }
 
-/*
-  Returns COMP_ERR if an error was encountered, and otherwise COMP_OK
- */
-comp_result compile_function(gab_compiler *self, s_u8_ref name) {
-
+comp_result compile_function(gab_compiler *self, s_u8_ref name,
+                             gab_token closing) {
   u64 skip_jump = push_jump(self, OP_JUMP);
 
   // Doesnt need a pop scope because the scope is popped with the callframe.
@@ -615,15 +608,16 @@ comp_result compile_function(gab_compiler *self, s_u8_ref name) {
 
   down_frame(self, name);
 
-  ASSERT_NOT_ERR(expect_token(self, TOKEN_LPAREN));
-
-  if (!match_token(self, TOKEN_RPAREN)) {
+  if (!match_token(self, closing)) {
     ASSERT_NOT_ERR(compile_function_args(self, function));
   }
 
-  ASSERT_NOT_ERR(expect_token(self, TOKEN_RPAREN));
+  ASSERT_NOT_ERR(expect_token(self, closing));
+  ASSERT_NOT_ERR(expect_token(self, TOKEN_COLON));
 
   ASSERT_NOT_ERR(compile_function_body(self, function, skip_jump));
+
+  function->nlocals = peek_frame(self, 0)->deepest_local - function->narguments;
 
   up_frame(self);
 
@@ -632,14 +626,14 @@ comp_result compile_function(gab_compiler *self, s_u8_ref name) {
 
 /* Returns COMP_ERR if an error was encountered, and otherwise COMP_OK
  */
-comp_result compile_comma_list(gab_compiler *self, u8 want, exp_list *out) {
+comp_result compile_expressions(gab_compiler *self, u8 want, exp_list *out) {
 
   u8 have = 0;
   boolean is_var;
 
   i32 result;
   do {
-    comp_result exp_count = compile_exp(self);
+    comp_result exp_count = compile_exp_prec(self, PREC_ASSIGNMENT);
     ASSERT_NOT_ERR(exp_count);
     // We successfully compiled an expression
     is_var = exp_count == VAR_RET;
@@ -695,7 +689,7 @@ comp_result compile_id_constant(gab_compiler *self) {
   gab_obj_string *obj =
       gab_obj_string_create(self->mod->engine, self->lex.previous_token_src);
 
-  return COMP_OK_VALUE(push_constant(self, GAB_VAL_OBJ(obj)));
+  return COMP_OK_VALUE(add_constant(self, GAB_VAL_OBJ(obj)));
 }
 
 comp_result compile_property(gab_compiler *self, boolean assignable) {
@@ -705,18 +699,19 @@ comp_result compile_property(gab_compiler *self, boolean assignable) {
   switch (match_and_eat_token(self, TOKEN_EQUAL)) {
 
   case COMP_TOKEN_MATCH: {
-    if (assignable) {
-      ASSERT_NOT_ERR(compile_exp(self));
-      push_byte(self, OP_SET_PROPERTY);
-      push_short(self, prop);
-      // The shape at this get
-      push_cache(self);
-      // The cache'd offset
-      push_short(self, 0);
-    } else {
+    if (!assignable) {
       error(self, gab_compile_fail(self, "Expression is not assignable"));
       return COMP_ERR;
     }
+
+    ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+    push_byte(self, OP_SET_PROPERTY);
+    push_short(self, prop);
+    // The shape at this get
+    push_cache(self);
+    // The cache'd offset
+    push_short(self, 0);
+
     break;
   }
 
@@ -739,22 +734,24 @@ comp_result compile_property(gab_compiler *self, boolean assignable) {
   return COMP_OK;
 }
 
+comp_result compile_lst_internal_item(gab_compiler *self, u8 index) {
+
+  // Push the key, which is just the index.
+  push_byte(self, OP_CONSTANT);
+  push_short(self, add_constant(self, GAB_VAL_NUMBER(index)));
+
+  ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+
+  return COMP_OK;
+}
+
 comp_result compile_lst_internals(gab_compiler *self) {
   u8 size = 0;
-  comp_result result = COMP_OK;
 
-  do {
-    ASSIGN_SKIP_NEWLINES(result);
-    ASSERT_NOT_ERR(result);
+  ASSERT_NOT_ERR(skip_newlines(self));
+  while (!match_token(self, TOKEN_RBRACE)) {
 
-    if (match_token(self, TOKEN_RBRACE)) {
-      break;
-    }
-
-    push_byte(self, OP_CONSTANT);
-    push_short(self, push_constant(self, GAB_VAL_NUMBER(size)));
-
-    ASSERT_NOT_ERR(compile_exp(self));
+    ASSERT_NOT_ERR(compile_lst_internal_item(self, size));
 
     if (size == UINT8_MAX) {
       error(self,
@@ -762,108 +759,103 @@ comp_result compile_lst_internals(gab_compiler *self) {
                 self, "Can't initialize an object with more than 255 values"));
       return COMP_ERR;
     }
+
+    ASSERT_NOT_ERR(skip_newlines(self));
     size++;
+  }
 
-  } while (ASSIGN_HAS_MATCH(result, TOKEN_COMMA));
-
+  ASSERT_NOT_ERR(expect_token(self, TOKEN_RBRACE));
   return COMP_OK_VALUE(size);
+}
+
+// Forward decl
+comp_result compile_definition(gab_compiler *self, s_u8_ref name);
+
+comp_result compile_obj_internal_item(gab_compiler *self) {
+
+  if (match_and_eat_token(self, TOKEN_IDENTIFIER) == COMP_TOKEN_MATCH) {
+
+    // Get the string for the key and push the key.
+    s_u8_ref name = self->lex.previous_token_src;
+
+    gab_obj_string *obj =
+        gab_obj_string_create(self->mod->engine, self->lex.previous_token_src);
+
+    // Push the constant onto the stack.
+    push_byte(self, OP_CONSTANT);
+    push_short(self, add_constant(self, GAB_VAL_OBJ(obj)));
+
+    // Compile the expression if theres a colon, or look for a local with
+    // the name and use that as the value.
+    switch (match_and_eat_token(self, TOKEN_EQUAL)) {
+
+    case COMP_TOKEN_MATCH: {
+      ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+      return COMP_OK;
+    }
+
+    case COMP_TOKEN_NO_MATCH: {
+      u8 value_in;
+      boolean mut_in;
+
+      i32 result = resolve_id(self, name, &value_in);
+      ASSERT_NOT_ERR(result);
+
+      if (result == COMP_RESOLVED_TO_LOCAL) {
+        // If the id exists and is local, get it.
+        push_load_local(self, value_in);
+      } else if (result == COMP_RESOLVED_TO_UPVALUE) {
+        // If the id exists and is an upvalue, get it.
+        push_load_upvalue(self, value_in);
+      } else if (result == COMP_ID_NOT_FOUND) {
+        // If the id doesn't exist, push true.
+        push_byte(self, OP_PUSH_TRUE);
+      }
+      return COMP_OK;
+    }
+
+    default:
+      goto fin;
+    }
+  }
+
+  if (match_and_eat_token(self, TOKEN_LBRACE) == COMP_TOKEN_MATCH) {
+
+    ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+
+    ASSERT_NOT_ERR(expect_token(self, TOKEN_RBRACE));
+
+    ASSERT_NOT_ERR(expect_token(self, TOKEN_COLON));
+
+    ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+    return COMP_OK;
+  }
+
+  if (match_and_eat_token(self, TOKEN_DEF) == COMP_TOKEN_MATCH) {
+    i32 prop = compile_id_constant(self);
+    ASSERT_NOT_ERR(prop);
+
+    s_u8_ref name = self->lex.previous_token_src;
+
+    push_byte(self, OP_CONSTANT);
+    push_short(self, prop);
+
+    ASSERT_NOT_ERR(compile_definition(self, name));
+    return COMP_OK;
+  }
+
+fin:
+  error(self, gab_compile_fail(self, "Unexpected token in object item"));
+  return COMP_ERR;
 }
 
 comp_result compile_obj_internals(gab_compiler *self) {
   u8 size = 0;
-  comp_result result = COMP_OK;
 
-  do {
-    ASSIGN_SKIP_NEWLINES(result);
-    ASSERT_NOT_ERR(result);
+  ASSERT_NOT_ERR(skip_newlines(self));
+  while (match_and_eat_token(self, TOKEN_RBRACK) == COMP_TOKEN_NO_MATCH) {
 
-    // Check if the comma was just a trailing comma.
-    if (match_token(self, TOKEN_RBRACK)) {
-      break;
-    }
-
-    switch (match_and_eat_token(self, TOKEN_IDENTIFIER)) {
-
-    case COMP_TOKEN_MATCH: {
-      // Get the string for the key and push the key.
-      s_u8_ref name = self->lex.previous_token_src;
-
-      gab_obj_string *obj = gab_obj_string_create(self->mod->engine,
-                                                  self->lex.previous_token_src);
-
-      // Push the constant onto the stack.
-      push_byte(self, OP_CONSTANT);
-      push_short(self, push_constant(self, GAB_VAL_OBJ(obj)));
-
-      // Compile the expression if theres a colon, or look for a local with
-      // the name and use that as the value.
-      switch (match_and_eat_token(self, TOKEN_COLON)) {
-
-      case COMP_TOKEN_MATCH: {
-        ASSERT_NOT_ERR(compile_exp(self));
-        break;
-      }
-
-      case COMP_TOKEN_NO_MATCH: {
-        u8 value_in;
-        boolean mut_in;
-
-        i32 result = regabve_id(self, name, &value_in);
-        ASSERT_NOT_ERR(result);
-
-        if (result == COMP_REGABVED_TO_LOCAL) {
-          // If the id exists and is local, get it.
-          push_load_local(self, value_in);
-        } else if (result == COMP_REGABVED_TO_UPVALUE) {
-          // If the id exists and is an upvalue, get it.
-          push_load_upvalue(self, value_in);
-        } else if (result == COMP_ID_NOT_FOUND) {
-          // If the id doesn't exist, push true.
-          push_byte(self, OP_PUSH_TRUE);
-        }
-        break;
-      }
-
-      default:
-        error(self,
-              gab_compile_fail(self, "Unexpected result compiling object"));
-        return COMP_ERR;
-      }
-
-      break;
-    }
-
-    case COMP_TOKEN_NO_MATCH: {
-      // We didn't match an identifier for the key. Now try to evaluate an
-      // expression as the key.
-      switch (match_and_eat_token(self, TOKEN_LBRACE)) {
-
-      case COMP_TOKEN_MATCH: {
-        ASSERT_NOT_ERR(compile_exp(self));
-
-        ASSERT_NOT_ERR(expect_token(self, TOKEN_RBRACE));
-
-        ASSERT_NOT_ERR(expect_token(self, TOKEN_COLON));
-
-        ASSERT_NOT_ERR(compile_exp(self));
-        break;
-      }
-
-      default: {
-        eat_token(self);
-        error(self,
-              gab_compile_fail(self, "Unexpected result compiling object"));
-        return COMP_ERR;
-      }
-      }
-
-      break;
-    }
-
-    default:
-      error(self, gab_compile_fail(self, "Unexpected result compiling object"));
-      return COMP_ERR;
-    }
+    ASSERT_NOT_ERR(compile_obj_internal_item(self));
 
     if (size == UINT8_MAX) {
       error(self,
@@ -871,12 +863,43 @@ comp_result compile_obj_internals(gab_compiler *self) {
                 self, "Can't initialize an object with more than 255 values"));
       return COMP_ERR;
     }
+
+    ASSERT_NOT_ERR(skip_newlines(self));
+
     size++;
+  };
 
-  } while (ASSIGN_HAS_MATCH(result, TOKEN_COMMA));
-
-  ASSERT_NOT_ERR(result);
   return COMP_OK_VALUE(size);
+}
+
+comp_result compile_definition(gab_compiler *self, s_u8_ref name) {
+  if (match_and_eat_token(self, TOKEN_LPAREN) == COMP_TOKEN_MATCH) {
+
+    ASSERT_NOT_ERR(compile_function(self, name, TOKEN_RPAREN));
+
+    return COMP_OK;
+  }
+
+  if (match_and_eat_token(self, TOKEN_LBRACK) == COMP_TOKEN_MATCH) {
+    i32 size = compile_obj_internals(self);
+    ASSERT_NOT_ERR(size);
+
+    push_bytes(self, OP_OBJECT, size);
+
+    return COMP_OK;
+  }
+
+  if (match_and_eat_token(self, TOKEN_LBRACE) == COMP_TOKEN_MATCH) {
+    i32 size = compile_lst_internals(self);
+    ASSERT_NOT_ERR(size);
+
+    push_bytes(self, OP_OBJECT, size);
+
+    return COMP_OK;
+  }
+
+  error(self, gab_compile_fail(self, "Unknown definition"));
+  return COMP_ERR;
 }
 
 //---------------- Compiling Expressions ------------------
@@ -884,7 +907,7 @@ comp_result compile_obj_internals(gab_compiler *self) {
 comp_result compile_exp_blk(gab_compiler *self, boolean assignable) {
 
   down_scope(self);
-  comp_result res = compile_block_body(self);
+  comp_result res = compile_block_body(self, 1, NULL);
   up_scope(self);
 
   ASSERT_NOT_ERR(res);
@@ -900,12 +923,9 @@ comp_result compile_exp_let(gab_compiler *self, boolean assignable) {
 
   boolean allow_new = true;
 
-  u8 locals[16];
-  boolean is_locals[16];
-  boolean is_news[16];
-  memset(locals, 0, sizeof(locals));
-  memset(is_locals, 0, sizeof(is_locals));
-  memset(is_news, 0, sizeof(is_news));
+  u8 locals[16] = {0};
+  boolean is_locals[16] = {0};
+  boolean is_news[16] = {0};
 
   u8 local_count = 0;
 
@@ -923,7 +943,7 @@ comp_result compile_exp_let(gab_compiler *self, boolean assignable) {
 
     s_u8_ref name = self->lex.previous_token_src;
 
-    i32 result = regabve_id(self, self->lex.previous_token_src, &value_in);
+    i32 result = resolve_id(self, self->lex.previous_token_src, &value_in);
 
     switch (result) {
 
@@ -943,7 +963,7 @@ comp_result compile_exp_let(gab_compiler *self, boolean assignable) {
       break;
     }
 
-    case COMP_REGABVED_TO_LOCAL: {
+    case COMP_RESOLVED_TO_LOCAL: {
       allow_new = false;
       is_news[local_count] = false;
 
@@ -953,7 +973,7 @@ comp_result compile_exp_let(gab_compiler *self, boolean assignable) {
       break;
     }
 
-    case COMP_REGABVED_TO_UPVALUE: {
+    case COMP_RESOLVED_TO_UPVALUE: {
       allow_new = false;
       is_news[local_count] = false;
 
@@ -977,7 +997,7 @@ comp_result compile_exp_let(gab_compiler *self, boolean assignable) {
   switch (match_and_eat_token(self, TOKEN_EQUAL)) {
 
   case COMP_TOKEN_MATCH: {
-    ASSERT_NOT_ERR(compile_comma_list(self, local_count, NULL));
+    ASSERT_NOT_ERR(compile_expressions(self, local_count, NULL));
     break;
   }
 
@@ -1023,42 +1043,21 @@ comp_result compile_exp_let(gab_compiler *self, boolean assignable) {
 
 comp_result compile_exp_if(gab_compiler *self, boolean assignable) {
 
-  ASSERT_NOT_ERR(compile_exp(self));
+  ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+
+  ASSERT_NOT_ERR(expect_token(self, TOKEN_COLON));
+  ASSERT_NOT_ERR(optional_newline(self));
 
   u64 then_jump = push_jump(self, OP_POP_JUMP_IF_FALSE);
 
-  boolean is_blk = false;
-
-  switch (match_and_eat_token(self, TOKEN_FAT_ARROW)) {
-
-  case COMP_TOKEN_MATCH: {
-    ASSERT_NOT_ERR(compile_exp(self));
-    break;
-  }
-
-  case COMP_TOKEN_NO_MATCH: {
-    ASSERT_NOT_ERR(expect_token(self, TOKEN_THEN));
-    ASSERT_NOT_ERR(expect_token(self, TOKEN_NEWLINE));
-    ASSERT_NOT_ERR(compile_block_body(self));
-    is_blk = true;
-    break;
-  }
-
-  default:
-    error(self, gab_compile_fail(self, "Unexpected result compiling if"));
-    return COMP_ERR;
-  }
+  ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
   u64 else_jump = push_jump(self, OP_JUMP);
   ASSERT_NOT_ERR(patch_jump(self, then_jump));
 
   switch (match_and_eat_token(self, TOKEN_ELSE)) {
   case COMP_TOKEN_MATCH:
-    if (is_blk) {
-      ASSERT_NOT_ERR(compile_block_body(self));
-    } else {
-      ASSERT_NOT_ERR(compile_exp(self));
-    }
+    ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
     break;
 
   case COMP_TOKEN_NO_MATCH:
@@ -1076,11 +1075,81 @@ comp_result compile_exp_if(gab_compiler *self, boolean assignable) {
   return COMP_OK;
 }
 
+comp_result compile_exp_mch(gab_compiler *self, boolean assignable) {
+  ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+
+  ASSERT_NOT_ERR(expect_token(self, TOKEN_COLON));
+  ASSERT_NOT_ERR(optional_newline(self));
+
+  u64 next = 0;
+
+  v_u64 done_jumps;
+  v_u64_create(&done_jumps);
+
+  while (match_and_eat_token(self, TOKEN_IF) == COMP_TOKEN_MATCH) {
+    if (next != 0)
+      ASSERT_NOT_ERR(patch_jump(self, next));
+
+    ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+
+    push_byte(self, OP_MATCH);
+
+    next = push_jump(self, OP_POP_JUMP_IF_FALSE);
+
+    ASSERT_NOT_ERR(expect_token(self, TOKEN_FAT_ARROW));
+
+    ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+
+    // Push a jump out of the match statement at the end of every case.
+    v_u64_push(&done_jumps, push_jump(self, OP_JUMP));
+
+    ASSERT_NOT_ERR(expect_token(self, TOKEN_NEWLINE));
+  }
+
+  // If none of the cases match, the last jump should end up here.
+  ASSERT_NOT_ERR(patch_jump(self, next));
+
+  if (match_and_eat_token(self, TOKEN_ELSE) == COMP_TOKEN_MATCH) {
+    ASSERT_NOT_ERR(expect_token(self, TOKEN_FAT_ARROW));
+    ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+  } else {
+    push_byte(self, OP_PUSH_NULL);
+  }
+
+  for (i32 i = 0; i < done_jumps.size; i++) {
+    // Patch all the jumps to the end of the match expression.
+    patch_jump(self, v_u64_val_at(&done_jumps, i));
+  }
+
+  return COMP_OK;
+}
+
 /*
- * Postfix Bang expression.
+ * Postfix assert expression.
  */
-comp_result compile_exp_bng(gab_compiler *self, boolean assignable) {
-  push_byte(self, OP_NOT_NULL);
+comp_result compile_exp_asrt(gab_compiler *self, boolean assignable) {
+  push_byte(self, OP_ASSERT);
+  return COMP_OK;
+}
+
+/*
+ * Postfix type expression.
+ */
+comp_result compile_exp_type(gab_compiler *self, boolean assignable) {
+  push_byte(self, OP_TYPE);
+  return COMP_OK;
+}
+
+/*
+ * Infix is expression.
+ */
+comp_result compile_exp_is(gab_compiler *self, boolean assignable) {
+  push_byte(self, OP_TYPE);
+
+  ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+
+  push_byte(self, OP_EQUAL);
+
   return COMP_OK;
 }
 
@@ -1199,7 +1268,7 @@ s_u8 *parse_raw_str(gab_compiler *self, s_u8_ref raw_str) {
     if (c == '\\') {
 
       u8 code;
-      switch (raw_str.data[i]) {
+      switch (raw_str.data[i + 1]) {
 
       case 'n': {
         code = '\n';
@@ -1261,7 +1330,7 @@ comp_result compile_exp_str(gab_compiler *self, boolean assignable) {
   s_u8_destroy(parsed);
 
   push_byte(self, OP_CONSTANT);
-  push_short(self, push_constant(self, GAB_VAL_OBJ(obj)));
+  push_short(self, add_constant(self, GAB_VAL_OBJ(obj)));
 
   return COMP_OK;
 }
@@ -1278,17 +1347,26 @@ comp_result compile_exp_itp(gab_compiler *self, boolean assignable) {
     goto fin;
   }
 
-  ASSERT_NOT_ERR(compile_exp(self));
+  if (!match_token(self, TOKEN_INTERPOLATION)) {
+    ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
-  push_bytes(self, OP_STRINGIFY, OP_CONCAT);
+    push_bytes(self, OP_STRINGIFY, OP_CONCAT);
+  }
 
   i32 result;
   while (ASSIGN_HAS_MATCH(result, TOKEN_INTERPOLATION)) {
     ASSERT_NOT_ERR(compile_exp_str(self, assignable));
 
-    ASSERT_NOT_ERR(compile_exp(self));
-    // concat the new string and expression
-    push_bytes(self, OP_STRINGIFY, OP_CONCAT);
+    if (match_token(self, TOKEN_INTERPOLATION_END)) {
+      goto fin;
+    }
+
+    if (!match_token(self, TOKEN_INTERPOLATION)) {
+      ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+
+      push_bytes(self, OP_STRINGIFY, OP_CONCAT);
+    }
+
     // concat this to the long-running string.
     push_byte(self, OP_CONCAT);
   }
@@ -1307,7 +1385,7 @@ fin:
 
 comp_result compile_exp_grp(gab_compiler *self, boolean assignable) {
 
-  ASSERT_NOT_ERR(compile_exp(self));
+  ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
   ASSERT_NOT_ERR(expect_token(self, TOKEN_RPAREN));
 
@@ -1317,7 +1395,7 @@ comp_result compile_exp_grp(gab_compiler *self, boolean assignable) {
 comp_result compile_exp_num(gab_compiler *self, boolean assignable) {
   f64 num = strtod((char *)self->lex.previous_token_src.data, NULL);
   push_byte(self, OP_CONSTANT);
-  push_short(self, push_constant(self, GAB_VAL_NUMBER(num)));
+  push_short(self, add_constant(self, GAB_VAL_NUMBER(num)));
 
   return COMP_OK;
 }
@@ -1333,27 +1411,27 @@ comp_result compile_exp_null(gab_compiler *self, boolean assignable) {
   return COMP_OK;
 }
 
-comp_result compile_exp_fnc(gab_compiler *self, boolean assignable) {
-
-  u8 recent_local = peek_frame(self, 0)->local_count - 1;
-
+comp_result compile_exp_lmd(gab_compiler *self, boolean assignable) {
   s_u8_ref name = s_u8_ref_create_cstr("anonymous");
 
-  if (peek_frame(self, 0)->locals_depth[recent_local] == -1) {
-
-    initialize_local(self, recent_local);
-
-    name = peek_frame(self, 0)->locals_name[recent_local];
-  }
-
-  ASSERT_NOT_ERR(compile_function(self, name));
-
+  compile_function(self, name, TOKEN_PIPE);
   return COMP_OK;
 }
 
-comp_result compile_exp_imp(gab_compiler *self, boolean assignable) {
-  ASSERT_NOT_ERR(compile_exp(self));
-  push_byte(self, OP_IMPORT);
+comp_result compile_exp_def(gab_compiler *self, boolean assignable) {
+
+  ASSERT_NOT_ERR(expect_token(self, TOKEN_IDENTIFIER));
+
+  s_u8_ref name = self->lex.previous_token_src;
+
+  u8 local = add_local(self, name);
+
+  initialize_local(self, local);
+
+  ASSERT_NOT_ERR(compile_definition(self, name));
+
+  push_store_local(self, local);
+
   return COMP_OK;
 }
 
@@ -1361,8 +1439,6 @@ comp_result compile_exp_lst(gab_compiler *self, boolean assignable) {
 
   comp_result size = compile_lst_internals(self);
   ASSERT_NOT_ERR(size);
-
-  ASSERT_NOT_ERR(expect_token(self, TOKEN_RBRACE));
 
   push_bytes(self, OP_OBJECT, size);
   return COMP_OK;
@@ -1372,8 +1448,6 @@ comp_result compile_exp_obj(gab_compiler *self, boolean assignable) {
 
   i32 size = compile_obj_internals(self);
   ASSERT_NOT_ERR(size);
-
-  ASSERT_NOT_ERR(expect_token(self, TOKEN_RBRACK));
 
   push_bytes(self, OP_OBJECT, size);
   return COMP_OK;
@@ -1386,20 +1460,20 @@ comp_result compile_exp_idn(gab_compiler *self, boolean assignable) {
   u8 var;
   boolean is_local_var;
 
-  switch (regabve_id(self, name, &value_in)) {
+  switch (resolve_id(self, name, &value_in)) {
 
   case COMP_ID_NOT_FOUND: {
     error(self, gab_compile_fail(self, "Unknown identifier"));
     return COMP_ERR;
   }
 
-  case COMP_REGABVED_TO_LOCAL: {
+  case COMP_RESOLVED_TO_LOCAL: {
     var = value_in;
     is_local_var = true;
     break;
   }
 
-  case COMP_REGABVED_TO_UPVALUE: {
+  case COMP_RESOLVED_TO_UPVALUE: {
     var = value_in;
     is_local_var = false;
     break;
@@ -1415,7 +1489,7 @@ comp_result compile_exp_idn(gab_compiler *self, boolean assignable) {
 
   case COMP_TOKEN_MATCH: {
     if (assignable) {
-      ASSERT_NOT_ERR(compile_exp(self));
+      ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
       if (is_local_var) {
         push_store_local(self, var);
@@ -1448,7 +1522,7 @@ comp_result compile_exp_idn(gab_compiler *self, boolean assignable) {
 }
 
 comp_result compile_exp_idx(gab_compiler *self, boolean assignable) {
-  ASSERT_NOT_ERR(compile_exp(self));
+  ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
   ASSERT_NOT_ERR(expect_token(self, TOKEN_RBRACE));
 
@@ -1456,7 +1530,7 @@ comp_result compile_exp_idx(gab_compiler *self, boolean assignable) {
 
   case COMP_TOKEN_MATCH: {
     if (assignable) {
-      ASSERT_NOT_ERR(compile_exp(self));
+      ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
       push_byte(self, OP_SET_INDEX);
     } else {
       error(self, gab_compile_fail(self, "Invalid assignment target"));
@@ -1490,7 +1564,7 @@ comp_result compile_exp_call(gab_compiler *self, boolean assignable) {
   exp_list args;
 
   if (!match_token(self, TOKEN_RPAREN)) {
-    ASSERT_NOT_ERR(compile_comma_list(self, VAR_RET, &args));
+    ASSERT_NOT_ERR(compile_expressions(self, VAR_RET, &args));
   } else {
     args.have = 0;
     args.is_var = false;
@@ -1513,16 +1587,16 @@ comp_result compile_exp_dot(gab_compiler *self, boolean assignable) {
 comp_result compile_exp_glb(gab_compiler *self, boolean assignable) {
   u8 global;
   comp_result res =
-      regabve_id(self, s_u8_ref_create_cstr("__global__"), &global);
+      resolve_id(self, s_u8_ref_create_cstr("__global__"), &global);
   ASSERT_NOT_ERR(res);
 
   switch (res) {
-  case COMP_REGABVED_TO_LOCAL: {
+  case COMP_RESOLVED_TO_LOCAL: {
     push_load_local(self, global);
     break;
   }
 
-  case COMP_REGABVED_TO_UPVALUE: {
+  case COMP_RESOLVED_TO_UPVALUE: {
     push_load_upvalue(self, global);
     break;
   }
@@ -1549,27 +1623,29 @@ comp_result compile_exp_mth(gab_compiler *self, boolean assignable) {
   // Swap the method and receiver
   push_byte(self, OP_SWAP);
 
+  exp_list args;
+
   ASSERT_NOT_ERR(expect_token(self, TOKEN_LPAREN));
 
-  // Compile the args.
-  exp_list args;
   if (!match_token(self, TOKEN_RPAREN)) {
-    ASSERT_NOT_ERR(compile_comma_list(self, VAR_RET, &args));
+    ASSERT_NOT_ERR(compile_expressions(self, VAR_RET, &args));
   } else {
     args.have = 0;
     args.is_var = false;
   }
 
-  // Count the self argument
-  args.have++;
-
   ASSERT_NOT_ERR(expect_token(self, TOKEN_RPAREN));
 
-  /* Stack has now
+  /*
     | args..    |
     | receiver  |
     | method    |
+
+   Stack has now
   */
+
+  // Count the self argument
+  args.have++;
 
   ASSERT_NOT_ERR(push_call(self, args));
 
@@ -1594,39 +1670,29 @@ comp_result compile_exp_or(gab_compiler *self, boolean assignable) {
   return COMP_OK;
 }
 
-comp_result compile_exp_nop(gab_compiler *self, boolean assignable) {
-  return COMP_OK;
-}
-
 comp_result compile_exp_prec(gab_compiler *self, gab_precedence prec) {
 
   ASSERT_NOT_ERR(eat_token(self));
 
-  gab_compile_func prefix_rule = get_rule(self->previous_token).prefix;
+  gab_compile_rule rule = get_rule(self->previous_token);
 
-  if (prefix_rule == NULL) {
+  if (rule.prefix == NULL) {
     error(self, gab_compile_fail(self, "Expected an expression"));
     return COMP_ERR;
   }
 
   boolean assignable = prec <= PREC_ASSIGNMENT;
 
-  i32 have = prefix_rule(self, assignable);
+  i32 have = rule.prefix(self, assignable);
+  u64 line = self->line;
+
   ASSERT_NOT_ERR(have);
 
   while (prec <= get_rule(self->current_token).prec) {
 
     ASSERT_NOT_ERR(eat_token(self));
 
-    gab_compile_rule rule = get_rule(self->previous_token);
-
-    if (rule.multi_line) {
-      comp_result res = skip_newlines(self);
-      if (res == COMP_ERR || res == COMP_FIN) {
-        error(self, gab_compile_fail(self, "Error"));
-        return COMP_ERR;
-      }
-    }
+    rule = get_rule(self->previous_token);
 
     // Maybe try and see if the current token has a rule for prefix here?
     if (rule.infix == NULL) {
@@ -1640,10 +1706,10 @@ comp_result compile_exp_prec(gab_compiler *self, gab_precedence prec) {
 
       have = rule.postfix(self, assignable);
       ASSERT_NOT_ERR(have);
-      break;
     } else {
       // Treat this as an infix expression.
       have = rule.infix(self, assignable);
+      line = self->line;
       ASSERT_NOT_ERR(have);
     }
   }
@@ -1680,7 +1746,7 @@ comp_result compile_exp_for(gab_compiler *self, boolean assignable) {
   ASSERT_NOT_ERR(expect_token(self, TOKEN_IN));
 
   // This is the iterator function, store into iter local
-  ASSERT_NOT_ERR(compile_exp(self));
+  ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
   push_store_local(self, iter);
 
   u64 loop_start = self->mod->bytecode.size - 1;
@@ -1699,11 +1765,12 @@ comp_result compile_exp_for(gab_compiler *self, boolean assignable) {
   // Exit the for loop if the last loop local is false.
   u64 jump_start = push_jump(self, OP_JUMP_IF_FALSE);
 
-  ASSERT_NOT_ERR(expect_token(self, TOKEN_FAT_ARROW));
+  ASSERT_NOT_ERR(expect_token(self, TOKEN_COLON));
+  ASSERT_NOT_ERR(optional_newline(self));
 
   push_byte(self, OP_POP);
 
-  ASSERT_NOT_ERR(compile_exp(self));
+  ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
   push_byte(self, OP_POP);
 
@@ -1719,13 +1786,17 @@ comp_result compile_exp_for(gab_compiler *self, boolean assignable) {
 comp_result compile_exp_whl(gab_compiler *self, boolean assignable) {
   u64 loop_start = self->mod->bytecode.size - 1;
 
-  ASSERT_NOT_ERR(compile_exp(self));
+  ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+
+  ASSERT_NOT_ERR(expect_token(self, TOKEN_COLON));
 
   u64 jump = push_jump(self, OP_POP_JUMP_IF_FALSE);
 
-  ASSERT_NOT_ERR(expect_token(self, TOKEN_THEN));
+  down_scope(self);
 
-  ASSERT_NOT_ERR(compile_exp(self));
+  ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+
+  up_scope(self);
 
   ASSERT_NOT_ERR(push_loop(self, loop_start));
 
@@ -1744,17 +1815,12 @@ comp_result compile_exp_rtn(gab_compiler *self, boolean assignable) {
   } else {
     exp_list ret_value;
 
-    ASSERT_NOT_ERR(compile_comma_list(self, VAR_RET, &ret_value));
+    ASSERT_NOT_ERR(compile_expressions(self, VAR_RET, &ret_value));
 
     ASSERT_NOT_ERR(push_return(self, ret_value));
   }
 
   return COMP_OK;
-}
-
-// Returns -1 for an error, and otherwise the number of expressions.
-comp_result compile_exp(gab_compiler *self) {
-  return compile_exp_prec(self, PREC_ASSIGNMENT);
 }
 
 // All of the expression compiling functions follow the naming convention
@@ -1775,36 +1841,37 @@ comp_result compile_exp(gab_compiler *self) {
 // ----------------Pratt Parsing Table ----------------------
 const gab_compile_rule gab_compiler_rules[] = {
     PREFIX(let),                       // LET
+    PREFIX(mch),                       // MATCH
     PREFIX(if),                        // IF
     NONE(),                            // THEN
     NONE(),                            // ELSE
     PREFIX(blk),                       // DO
     PREFIX(for),                       // FOR
     NONE(),                            // IN
+    INFIX(is, COMPARISON, false),                            // IS
     NONE(),                            // END
-    PREFIX(fnc),                       // FUNCTION
+    PREFIX(def),                       // DEF
     PREFIX(rtn),                       // RETURN
     PREFIX(whl),                       // WHILE
-    PREFIX(imp),                       // IMPORT
     INFIX(bin, TERM, false),                  // PLUS
     PREFIX_INFIX(una, bin, TERM, false),      // MINUS
     INFIX(bin, FACTOR, false),                // STAR
     INFIX(bin, FACTOR, false),                // SLASH
     INFIX(bin, FACTOR, false),                // PERCENT
     NONE(),                            // COMMA
-    INFIX(mth, CALL, true),       // COLON
+    NONE(),       // COLON
     INFIX(bin, BITWISE_AND, false),           // AMPERSAND
     INFIX(dot, PROPERTY, true),              // DOT
     INFIX(bin, TERM, false),                  // DOT_DOT
     NONE(),                            // EQUAL
     INFIX(bin, EQUALITY, false),              // EQUALEQUAL
-    NONE(),                            // QUESTION
-    PREFIX_POSTFIX(glb, bng),                      // BANG
+    POSTFIX(type),                            // QUESTION
+    PREFIX_POSTFIX(glb, asrt),                      // BANG
     INFIX(bin, COMPARISON, false),            // LESSER
     INFIX(bin, EQUALITY, false),              // LESSEREQUAL
     INFIX(bin, COMPARISON, false),            // GREATER
     INFIX(bin, EQUALITY, false),              // GREATEREQUAL
-    NONE(),                            // ARROW
+    INFIX(mth, CALL, true),                            // ARROW
     NONE(),                            // FATARROW
     INFIX(and, AND, false),                   // AND
     INFIX(or, OR, false),                     // OR
@@ -1815,8 +1882,8 @@ const gab_compile_rule gab_compiler_rules[] = {
     NONE(),                            // RBRACK
     PREFIX_INFIX(grp, call, CALL, false),     // LPAREN
     NONE(),                            // RPAREN
-    INFIX(bin, BITWISE_OR, false),            // PIPE
-    POSTFIX(nop),                            // SEMI
+    PREFIX_INFIX(lmd, bin, BITWISE_OR, false),            // PIPE
+    NONE(),                            // SEMI
     PREFIX(idn),                       // ID
     PREFIX(str),                       // STRING
     PREFIX(itp),                       // INTERPOLATION
@@ -1853,7 +1920,7 @@ comp_result compile(gab_compiler *self, s_u8_ref src, s_u8_ref name) {
   // Add the std library
   initialize_local(self, add_local(self, s_u8_ref_create_cstr("__global__")));
 
-  comp_result res = compile_block_body(self);
+  comp_result res = compile_block_body(self, 1, NULL);
 
   ASSERT_NOT_ERR(res);
 
@@ -1878,7 +1945,10 @@ gab_result *gab_engine_compile(gab_engine *eng, s_u8 *src, s_u8_ref name,
 
   compiler->mod = module;
 
-  if (compile(compiler, s_u8_ref_create_s_u8(src), name) != COMP_OK) {
+  // Deactive garbage collection during compilation
+  comp_result status = compile(compiler, s_u8_ref_create_s_u8(src), name);
+
+  if (status != COMP_OK) {
     gab_result *error = compiler->error;
     DESTROY_STRUCT(compiler);
     return error;

@@ -67,8 +67,9 @@ Method chaining and OOP programming galore! Lets refer to our example above:
 
 ```
 let Person = {
-    New: fn (name, age) => { name, age },
-    Celebrate_birthday: fn (self) then do
+    class = { name, age }
+    new = |name, age|: { name, age },
+    celebrate_birthday = |self|: do
         std.log.info('Happy Birthday {self.name}')
         self.age = self.age + 1
     end

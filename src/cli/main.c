@@ -1,4 +1,6 @@
 #include "../gab/gab.h"
+#include "../lib/lib_import.h"
+#include "../lib/lib_io.h"
 #include "../lib/lib_log.h"
 #include "../lib/lib_math.h"
 
@@ -6,7 +8,6 @@ s_u8 *collect_line() {
   printf(">");
   return gab_io_read_line();
 }
-
 #define VAL_ARRAY_LEN(arr) (sizeof(arr) / sizeof(gab_value))
 
 void bind_std(gab_engine *gab) {
@@ -29,7 +30,15 @@ void bind_std(gab_engine *gab) {
       {.key = "floor",
        .value = GAB_VAL_OBJ(
            gab_obj_builtin_create(gab, gab_lib_math_floor, "floor"))},
-  };
+      {.key = "write",
+       .value =
+           GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_io_write, "write"))},
+      {.key = "read",
+       .value =
+           GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_io_read, "read"))},
+      {.key = "require",
+       .value = GAB_VAL_OBJ(
+           gab_obj_builtin_create(gab, gab_lib_require, "require"))}};
 
   gab_bind_library(gab, sizeof(kvps) / sizeof(gab_lib_kvp), kvps);
 }
@@ -50,17 +59,20 @@ void gab_repl() {
       break;
     }
 
-    gab_result *result =
-        gab_run_source(gab, (char *)src->data, "Main", GAB_FLAG_NONE);
+    if (src->size > 1 && src->data[0] != '\n') {
+      gab_result *result =
+          gab_run_source(gab, (char *)src->data, "Main", GAB_FLAG_NONE);
 
-    if (gab_result_has_error(result)) {
-      gab_result_dump_error(result);
-    } else if (!GAB_VAL_IS_NULL(result->as.result)) {
-      gab_val_dump(result->as.result);
-      printf("\n");
+      if (gab_result_has_error(result)) {
+        gab_result_dump_error(result);
+      } else if (!GAB_VAL_IS_NULL(result->as.result)) {
+        gab_val_dump(result->as.result);
+        printf("\n");
+      }
+
+      gab_result_destroy(result);
     }
 
-    gab_result_destroy(result);
     s_u8_destroy(prev_src);
     prev_src = src;
   }
@@ -73,8 +85,8 @@ void gab_run_file(const char *path) {
   gab_engine *gab = gab_create();
   bind_std(gab);
 
-  gab_result *result =
-      gab_run_source(gab, (char *)src->data, "__main__", GAB_FLAG_NONE);
+  gab_result *result = gab_run_source(gab, (char *)src->data, "__main__",
+                                      GAB_FLAG_DUMP_BYTECODE);
 
   if (gab_result_has_error(result)) {
     gab_result_dump_error(result);

@@ -75,6 +75,9 @@ gab_token identifier(gab_lexer *self) {
     if (s_u8_ref_match_lit(self->current_token_src, "do")) {
       return TOKEN_DO;
     }
+    if (s_u8_ref_match_lit(self->current_token_src, "def")) {
+      return TOKEN_DEF;
+    }
   }
   case 'e': {
     switch (self->current_token_src.data[1]) {
@@ -102,11 +105,6 @@ gab_token identifier(gab_lexer *self) {
         return TOKEN_FOR;
       }
     }
-    case 'n': {
-      if (s_u8_ref_match_lit(self->current_token_src, "fn")) {
-        return TOKEN_FUNCTION;
-      }
-    }
     }
   }
   case 'i': {
@@ -120,17 +118,22 @@ gab_token identifier(gab_lexer *self) {
       if (s_u8_ref_match_lit(self->current_token_src, "in")) {
         return TOKEN_IN;
       }
-    case 'm': {
-      if (s_u8_ref_match_lit(self->current_token_src, "import")) {
-        return TOKEN_IMPORT;
-      }
     }
+    case 's': {
+      if (s_u8_ref_match_lit(self->current_token_src, "is")) {
+        return TOKEN_IS;
+      }
     }
     }
   }
   case 'l': {
     if (s_u8_ref_match_lit(self->current_token_src, "let")) {
       return TOKEN_LET;
+    }
+  }
+  case 'm': {
+    if (s_u8_ref_match_lit(self->current_token_src, "match")) {
+      return TOKEN_MATCH;
     }
   }
   case 'n': {
@@ -182,10 +185,12 @@ gab_token identifier(gab_lexer *self) {
   }
 }
 
-gab_token string(gab_lexer *self, boolean is_quote) {
+gab_token string(gab_lexer *self) {
   start_token(self);
 
-  u8 end = is_quote ? '"' : '\'';
+  u8 start = peek(self);
+  u8 stop = start == '"' ? '"' : '\'';
+
   do {
     cursor_advance(self);
 
@@ -193,7 +198,7 @@ gab_token string(gab_lexer *self, boolean is_quote) {
       return return_error(self, "Unexpected EOF in string literal");
     }
 
-    if (!is_quote) {
+    if (start != '"') {
       if (peek(self) == '\n') {
         return return_error(self, "Unexpected New Line in string literal");
       }
@@ -204,12 +209,12 @@ gab_token string(gab_lexer *self, boolean is_quote) {
         return TOKEN_INTERPOLATION;
       }
     }
-  } while (peek(self) != end);
+  } while (peek(self) != stop);
 
   // Eat the end
   cursor_advance(self);
 
-  return TOKEN_STRING;
+  return start == '}' ? TOKEN_INTERPOLATION_END : TOKEN_STRING;
 }
 
 gab_token number(gab_lexer *self) {
@@ -368,17 +373,16 @@ gab_token gab_lexer_next(gab_lexer *self) {
   }
 
   if (peek(self) == '"') {
-    return string(self, true);
+    return string(self);
   }
 
   if (peek(self) == '\'') {
-    return string(self, false);
+    return string(self);
   }
 
   if (self->nested_curly == 1 && peek(self) == '}') {
     self->nested_curly--;
-    string(self, false);
-    return TOKEN_INTERPOLATION_END;
+    return string(self);
   }
 
   return other(self);

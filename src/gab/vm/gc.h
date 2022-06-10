@@ -16,6 +16,7 @@ struct gab_gc {
   u16 increment_count;
   u16 decrement_count;
   u16 root_count;
+  boolean active;
 
   gab_obj *increments[INC_DEC_MAX];
   gab_obj *decrements[INC_DEC_MAX];

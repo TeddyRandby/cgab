@@ -424,10 +424,10 @@ void gab_gc_collect_cycles(gab_gc *gc) {
 }
 
 void gab_gc_collect(gab_gc *gc) {
+  if (gc->active) {
 #if GAB_LOG_GC
-  printf("Beginning collection...\n");
+    printf("Beginning collection...\n");
 #endif
-  if (gc->eng->vm != NULL) {
     increment_stack(gc);
 
     process_increments(gc);
@@ -437,10 +437,10 @@ void gab_gc_collect(gab_gc *gc) {
     decrement_stack(gc);
 
     trigger_destroy(gc);
-  }
 #if GAB_LOG_GC
-  printf("Collection done.\n");
+    printf("Collection done.\n");
 #endif
+  }
 }
 
 gab_gc *gab_gc_create(gab_engine *eng) {
@@ -448,10 +448,12 @@ gab_gc *gab_gc_create(gab_engine *eng) {
   self->root_count = 0;
   self->decrement_count = 0;
   self->increment_count = 0;
+  self->active = false;
 
   d_u64_create(&self->queue, MODULE_CONSTANTS_MAX);
   d_u64_create(&self->roots, MODULE_CONSTANTS_MAX);
   self->eng = eng;
+
   return self;
 }
 

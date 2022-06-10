@@ -1,0 +1,18 @@
+def fizzbuzz(n): do
+  let i = 0
+
+  while i < n + 1: do
+
+    if i % 3 == 0: do
+      !print("fizz")
+    end else if i % 5 == 0: do
+      !print("buzz")
+    end else do
+      !print(i)
+    end
+
+    i = i + 1
+  end
+end
+
+15->fizzbuzz

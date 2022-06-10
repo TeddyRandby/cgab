@@ -2,7 +2,7 @@
 #define BLUF_OBJECT_H
 
 #include "../../common/common.h"
-#include "nanbox.h"
+#include "value.h"
 
 static inline f64 value_to_f64(gab_value value) { return *(f64 *)(&value); }
 static inline gab_value f64_to_value(f64 value) {
@@ -46,9 +46,9 @@ typedef enum gab_obj_kind {
 */
 typedef struct gab_obj gab_obj;
 struct gab_obj {
+  i32 references;
   gab_obj_kind kind;
   u8 flags;
-  i32 references;
 };
 
 /*
@@ -160,7 +160,6 @@ gab_obj_builtin *gab_obj_builtin_create(gab_engine *eng, gab_builtin function,
 typedef struct gab_obj_function gab_obj_function;
 struct gab_obj_function {
   gab_obj header;
-  s_u8_ref name;
 
   /*
     The number of arguments the function takes.
@@ -172,10 +171,7 @@ struct gab_obj_function {
   */
   u8 nupvalues;
 
-  /*
-    The number of local variables in the function.
-  */
-  u8 nlocals;
+  s_u8_ref name;
 
   /*
     The offset into the module where the function's instructions begin.
@@ -189,6 +185,11 @@ struct gab_obj_function {
     The module where the function is defined.
   */
   gab_module *module;
+
+  /*
+    The number of local variables in the function.
+  */
+  u8 nlocals;
 };
 
 #define GAB_VAL_IS_FUNCTION(value) (gab_val_is_obj_kind(value, OBJECT_FUNCTION))
@@ -295,16 +296,17 @@ static inline i64 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
 typedef struct gab_obj_object gab_obj_object;
 struct gab_obj_object {
   gab_obj header;
-  /*
-    The shape of this object.
-  */
-  gab_obj_shape *shape;
 
   boolean is_dynamic;
   /*
     The number of properties.
   */
   u8 static_size;
+
+  /*
+    The shape of this object.
+  */
+  gab_obj_shape *shape;
 
   v_u64 dynamic_values;
   /*
@@ -368,5 +370,66 @@ static inline u64 gab_val_intern_hash(gab_value value) {
 */
 static inline boolean gab_val_falsey(gab_value self) {
   return GAB_VAL_IS_NULL(self) || GAB_VAL_IS_FALSE(self);
+}
+
+static inline gab_value gab_val_type(gab_engine *eng, gab_value value) {
+  if (GAB_VAL_IS_OBJECT(value)) {
+    gab_obj_object *obj = GAB_VAL_TO_OBJECT(value);
+    return GAB_VAL_OBJ(obj->shape);
+  }
+
+  if (GAB_VAL_IS_NUMBER(value)) {
+    gab_obj_string *num =
+        gab_obj_string_create(eng, s_u8_ref_create_cstr("number"));
+    return GAB_VAL_OBJ(num);
+  }
+
+  if (GAB_VAL_IS_BOOLEAN(value)) {
+    gab_obj_string *num =
+        gab_obj_string_create(eng, s_u8_ref_create_cstr("boolean"));
+    return GAB_VAL_OBJ(num);
+  }
+
+  if (GAB_VAL_IS_NULL(value)) {
+    gab_obj_string *num =
+        gab_obj_string_create(eng, s_u8_ref_create_cstr("null"));
+    return GAB_VAL_OBJ(num);
+  }
+
+  if (GAB_VAL_IS_STRING(value)) {
+    gab_obj_string *num =
+        gab_obj_string_create(eng, s_u8_ref_create_cstr("string"));
+    return GAB_VAL_OBJ(num);
+  }
+
+  if (GAB_VAL_IS_FUNCTION(value)) {
+    gab_obj_string *num =
+        gab_obj_string_create(eng, s_u8_ref_create_cstr("function"));
+    return GAB_VAL_OBJ(num);
+  }
+
+  if (GAB_VAL_IS_CLOSURE(value)) {
+    gab_obj_string *num =
+        gab_obj_string_create(eng, s_u8_ref_create_cstr("closure"));
+    return GAB_VAL_OBJ(num);
+  }
+
+  if (GAB_VAL_IS_SHAPE(value)) {
+    gab_obj_string *num =
+        gab_obj_string_create(eng, s_u8_ref_create_cstr("shape"));
+    return GAB_VAL_OBJ(num);
+  }
+
+  if (GAB_VAL_IS_UPVALUE(value)) {
+    gab_obj_string *num =
+        gab_obj_string_create(eng, s_u8_ref_create_cstr("upvalue"));
+    return GAB_VAL_OBJ(num);
+  }
+
+  if (GAB_VAL_IS_BUILTIN(value)) {
+    gab_obj_string *num =
+        gab_obj_string_create(eng, s_u8_ref_create_cstr("builtin"));
+    return GAB_VAL_OBJ(num);
+  }
 }
 #endif

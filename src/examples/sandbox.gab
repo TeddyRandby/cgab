@@ -1,5 +1,19 @@
-let test = {}
+let ss = import("../src/examples/ssgen.gab")
 
-test.prop = 'hi'
+let node = ss.Node
+let div = ss.div
+let h = ss.h
 
-test
+let page = node.new()
+
+page->node.add(h('Hello World', 2))
+
+page->node.add(div('This is generated'))
+
+let sub_page = node.new()->node.add(h('Sub Header', 4))
+
+page->node.add(sub_page)
+
+let output = page->node.build()
+
+!write("../src/examples/output.html", output)

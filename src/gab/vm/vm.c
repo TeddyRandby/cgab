@@ -102,7 +102,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 #undef OP_CODE
   };
 
-#define LOG() printf("OP_%s\n", instr_name[instruction])
+#define LOG() printf("OP_%s\n", instr_name[*(ip + 1)])
 
 #else
 #define LOG()
@@ -121,11 +121,8 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 
 #define CASE_CODE(name) code_##name
 #define LOOP()
-#define NEXT()                                                                 \
-  do {                                                                         \
-    LOG();                                                                     \
-    goto *dispatch_table[instruction = READ_BYTE];                             \
-  } while (0);
+#define NEXT() goto *dispatch_table[instr = READ_BYTE]
+
 #else
   /*
     Without computed gotos, we just use a hugt switch statement.
@@ -165,8 +162,9 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 */
 #define ENGINE() (eng)
 #define GC() (ENGINE()->gc)
-#define LOCAL(i) (locals[i])
-#define UPVALUE(i) (upvalues[i])
+#define LOCAL(i) (vm.frame->slots[i])
+#define UPVALUE(i) (vm.frame->closure->upvalues[i])
+#define INSTR() (instr)
 
 #define PUSH(value) (*vm.stack_top++ = value)
 #define POP() (*(--vm.stack_top))
@@ -180,19 +178,13 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 #define READ_BYTE (*ip++)
 #define READ_SHORT (ip += 2, (((u16)ip[-2] << 8) | ip[-1]))
 #define WRITE_SHORT(n) ((ip[-2] = ((n) >> 8) & 0xff), ip[-1] = (n)&0xff)
-#define READ_SHAPE (ip += 8, (gab_obj_shape **)(ip - 8))
-#define READ_VALUE (ip += 8, (gab_value *)(ip - 8))
+#define READ_INLINECACHE(type) (ip += 8, (type **)(ip - 8))
 
 #define READ_CONSTANT (ENGINE()->constants.keys.data[READ_SHORT])
 #define READ_STRING (GAB_VAL_TO_STRING(READ_CONSTANT))
 
 #define STORE_FRAME() (vm.frame->ip = ip)
-#define LOAD_FRAME()                                                           \
-  do {                                                                         \
-    ip = vm.frame->ip;                                                         \
-    upvalues = vm.frame->closure->upvalues;                                    \
-    locals = vm.frame->slots;                                                  \
-  } while (0)
+#define LOAD_FRAME() (ip = vm.frame->ip)
 
   /*
    ----------- BEGIN RUN BODY -----------
@@ -202,6 +194,9 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
   gab_vm_create(&vm);
   eng->vm = &vm;
 
+  // Turn on garbage collection.
+  eng->gc->active = true;
+
   gab_value main = GAB_VAL_OBJ(gab_obj_closure_create(eng, func, NULL));
   PUSH(main);
   PUSH(eng->std);
@@ -209,59 +204,19 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
   gab_gc_push_dec_obj_ref(GC(), GAB_VAL_TO_OBJ(main));
 
   register u8 *ip;
-  register gab_value *locals;
-  register gab_obj_upvalue **upvalues;
+  register u8 instr;
 
-  u8 instruction;
+  // Fallthrough into setting up for calling the pushed closure.
 
   LOOP() {
     {
       u8 arity, want;
       gab_value callee;
 
-      // Fallthrough into setting up for calling the pushed closure.
       arity = 1;
       want = 1;
       callee = PEEK2();
-
       goto complete_call;
-
-      CASE_CODE(IMPORT) : {
-        gab_value pth = POP();
-
-        if (!GAB_VAL_IS_STRING(pth)) {
-          STORE_FRAME();
-          return gab_run_fail(eng, "Import target must be a string");
-        }
-
-        gab_obj_string *path = GAB_VAL_TO_STRING(pth);
-
-        s_u8 *file = gab_io_read_file((char *)path->data);
-
-        eng->vm = NULL;
-        gab_result *compile_result = gab_engine_compile(
-            eng, file, gab_obj_string_get_ref(path), GAB_FLAG_NONE);
-        eng->vm = &vm;
-
-        if (gab_result_has_error(compile_result)) {
-          STORE_FRAME();
-          gab_result_dump_error(compile_result);
-          return gab_run_fail(eng, "Import failed");
-        }
-
-        gab_value imported = GAB_VAL_OBJ(
-            gab_obj_closure_create(eng, compile_result->as.func, NULL));
-        PUSH(imported);
-        PUSH(eng->std);
-
-        gab_result_destroy(compile_result);
-
-        arity = 1;
-        want = 1;
-        callee = PEEK_N(arity);
-
-        goto complete_call;
-      }
 
       CASE_CODE(VARCALL) : {
         u8 addtl = READ_BYTE;
@@ -293,14 +248,14 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
           : CASE_CODE(CALL_12)
           : CASE_CODE(CALL_13)
           : CASE_CODE(CALL_14) : CASE_CODE(CALL_15) : CASE_CODE(CALL_16) : {
+        arity = INSTR() - OP_CALL_0;
 
         want = READ_BYTE;
-        arity = instruction - OP_CALL_0;
         callee = PEEK_N(arity);
 
         if (!GAB_VAL_IS_OBJ(callee)) {
           STORE_FRAME();
-          return gab_run_fail(eng, "Expected a callable");
+          return gab_run_fail(eng, "Expected a callable object");
         }
 
         goto complete_call;
@@ -349,10 +304,9 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
         vm.frame->slots = vm.stack_top - arity - 1;
         vm.frame->expected_results = want;
 
-        vm.stack_top += closure->func->nlocals - arity + 1;
+        vm.stack_top += closure->func->nlocals + 1;
 
         LOAD_FRAME();
-
         break;
       }
       default: {
@@ -393,7 +347,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
     CASE_CODE(RETURN_14):
     CASE_CODE(RETURN_15):
     CASE_CODE(RETURN_16): {
-      have = instruction - OP_RETURN_1 + 1;
+      have = INSTR()- OP_RETURN_1 + 1;
 
       goto complete_return;
     }
@@ -451,7 +405,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
         prop = READ_CONSTANT;
         index = POP();
 
-        gab_obj_shape **cached_shape = READ_SHAPE;
+        gab_obj_shape **cached_shape = READ_INLINECACHE(gab_obj_shape);
         prop_offset = READ_SHORT;
 
         if (!GAB_VAL_IS_OBJECT(index)) {
@@ -524,7 +478,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 
         gab_gc_push_inc_if_obj_ref(GC(), value);
 
-        gab_obj_shape **shape = READ_SHAPE;
+        gab_obj_shape **cached_shape = READ_INLINECACHE(gab_obj_shape);
 
         prop_offset = READ_SHORT;
 
@@ -535,9 +489,9 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 
         obj = GAB_VAL_TO_OBJECT(index);
 
-        if (*shape == NULL || *shape != obj->shape) {
+        if (*cached_shape == NULL || *cached_shape != obj->shape) {
           // The cache hasn't been created yet.
-          *shape = obj->shape;
+          *cached_shape = obj->shape;
 
           prop_offset = gab_obj_shape_find(obj->shape, prop);
           // Writes into the short just before the ip.
@@ -547,10 +501,11 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
         if (prop_offset < 0) {
           // The key didn't exist on the old shape.
           // Create a new shape and update the cache.
-          *shape = gab_obj_shape_extend(*shape, ENGINE(), prop);
+          *cached_shape = gab_obj_shape_extend(*cached_shape, ENGINE(), prop);
 
           // Update the obj and get the new offset.
-          prop_offset = gab_obj_object_extend(obj, ENGINE(), *shape, value);
+          prop_offset =
+              gab_obj_object_extend(obj, ENGINE(), *cached_shape, value);
 
           // Write the offset.
           WRITE_SHORT(prop_offset);
@@ -722,10 +677,27 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
       NEXT();
     }
 
-    CASE_CODE(NOT_NULL) : {
+    CASE_CODE(ASSERT) : {
       if (GAB_VAL_IS_NULL(PEEK())) {
         STORE_FRAME();
         return gab_run_fail(eng, "Expected value to not be null");
+      }
+      NEXT();
+    }
+
+    CASE_CODE(TYPE) : {
+      PUSH(gab_val_type(eng, POP()));
+      NEXT();
+    }
+
+    CASE_CODE(MATCH) : {
+      gab_value test = POP();
+      gab_value pattern = PEEK();
+      if (gab_val_equal(test, pattern)) {
+        POP();
+        PUSH(GAB_VAL_BOOLEAN(true));
+      } else {
+        PUSH(GAB_VAL_BOOLEAN(false));
       }
       NEXT();
     }
@@ -750,7 +722,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
     CASE_CODE(LOAD_LOCAL_6):
     CASE_CODE(LOAD_LOCAL_7):
     CASE_CODE(LOAD_LOCAL_8): {
-      PUSH(LOCAL(instruction - OP_LOAD_LOCAL_0));
+      PUSH(LOCAL(INSTR()- OP_LOAD_LOCAL_0));
       NEXT();
     }
 
@@ -763,7 +735,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
     CASE_CODE(STORE_LOCAL_6):
     CASE_CODE(STORE_LOCAL_7):
     CASE_CODE(STORE_LOCAL_8): {
-      LOCAL(instruction - OP_STORE_LOCAL_0) = PEEK();
+      LOCAL(INSTR()- OP_STORE_LOCAL_0) = PEEK();
       NEXT();
     }
 
@@ -776,7 +748,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
     CASE_CODE(LOAD_UPVALUE_6) :
     CASE_CODE(LOAD_UPVALUE_7) :
     CASE_CODE(LOAD_UPVALUE_8) : {
-      PUSH(*UPVALUE(instruction - OP_LOAD_UPVALUE_0)->data);
+      PUSH(*UPVALUE(INSTR() - OP_LOAD_UPVALUE_0)->data);
       NEXT();
     }
 
@@ -789,7 +761,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
     CASE_CODE(STORE_UPVALUE_6) :
     CASE_CODE(STORE_UPVALUE_7) :
     CASE_CODE(STORE_UPVALUE_8) : {
-      *UPVALUE(instruction - OP_STORE_UPVALUE_0)->data = PEEK();
+      *UPVALUE(INSTR()- OP_STORE_UPVALUE_0)->data = PEEK();
       NEXT();
     }
     // clang-format on
