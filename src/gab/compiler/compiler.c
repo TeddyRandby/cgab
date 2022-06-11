@@ -623,6 +623,7 @@ comp_result compile_function(gab_compiler *self, s_u8_ref name,
 
   ASSERT_NOT_ERR(expect_token(self, closing));
   ASSERT_NOT_ERR(expect_token(self, TOKEN_COLON));
+  ASSERT_NOT_ERR(optional_newline(self));
 
   ASSERT_NOT_ERR(compile_function_body(self, function, skip_jump));
 
@@ -1056,6 +1057,7 @@ comp_result compile_exp_if(gab_compiler *self, boolean assignable) {
 
   switch (match_and_eat_token(self, TOKEN_ELSE)) {
   case COMP_TOKEN_MATCH:
+    ASSERT_NOT_ERR(optional_newline(self));
     ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
     break;
 
@@ -1788,6 +1790,7 @@ comp_result compile_exp_whl(gab_compiler *self, boolean assignable) {
   ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
   ASSERT_NOT_ERR(expect_token(self, TOKEN_COLON));
+  ASSERT_NOT_ERR(optional_newline(self));
 
   u64 jump = push_jump(self, OP_POP_JUMP_IF_FALSE);
 

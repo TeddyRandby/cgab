@@ -122,6 +122,27 @@ The object is also useful wherever global state is - like in the REPL!
 > !print(!msg)
 ```
 
+### Iterators
+Right now, iterators in Gab are just normal old Gab functions.
+Here is an example of one to iterate over all the elements in an ordered object:
+
+```
+def iter(i): do
+  let v = -1
+  ||: (v = v + 1), i[v]
+end
+```
+The iterator accepts the object as the argument, and returns a lambda.
+(`| args |: body`) is the syntax for a lambda - when there are no arguments it makes this funny face `||:`
+
+The lambda returns the index, and the item at the index. When the list is out of elements, i[v] will return `null`
+Since null is falsey, this will trigger the end of the iterator. Using it looks like this:
+```
+let nums = [ 1 2 3 4 ]
+
+for index, num in iter(nums):
+  !print('nums has {num} at index {index}')
+```
 
 ### Dependencies
 
