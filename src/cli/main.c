@@ -85,8 +85,8 @@ void gab_run_file(const char *path) {
   gab_engine *gab = gab_create();
   bind_std(gab);
 
-  gab_result *result = gab_run_source(gab, (char *)src->data, "__main__",
-                                      GAB_FLAG_DUMP_BYTECODE);
+  gab_result *result =
+      gab_run_source(gab, (char *)src->data, "__main__", GAB_FLAG_NONE);
 
   if (gab_result_has_error(result)) {
     gab_result_dump_error(result);
