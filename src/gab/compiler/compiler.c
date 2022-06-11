@@ -889,22 +889,12 @@ comp_result compile_definition(gab_compiler *self, s_u8_ref name) {
     return COMP_OK;
   }
 
-  if (match_and_eat_token(self, TOKEN_LBRACK) == COMP_TOKEN_MATCH) {
-    i32 size = compile_obj_internals(self);
-    ASSERT_NOT_ERR(size);
-
-    push_bytes(self, OP_OBJECT, size);
-
-    return COMP_OK;
+  if (match_token(self, TOKEN_LBRACK)) {
+    return compile_expressions(self, 1, NULL);
   }
 
-  if (match_and_eat_token(self, TOKEN_LBRACE) == COMP_TOKEN_MATCH) {
-    i32 size = compile_lst_internals(self);
-    ASSERT_NOT_ERR(size);
-
-    push_bytes(self, OP_OBJECT, size);
-
-    return COMP_OK;
+  if (match_token(self, TOKEN_LBRACE)) {
+    return compile_expressions(self, 1, NULL);
   }
 
   error(self, gab_compile_fail(self, "Unknown definition"));

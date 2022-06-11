@@ -3,16 +3,17 @@
 Sol is a simple and embeddable scripting language.
 
 ```
-let Person = {
-    new: fn (name, age) => { name, age },
-    celebrate_birthday: fn (person) then do
-        std.log.info('Happy Birthday {person.name}')
+def Person {
+    def new(name, age): { name, age }
+
+    def celebrate_birthday(person): do
+        !print('Happy Birthday {person.name}')
         person.age = person.age + 1
-    end,
+    end
 }
 
 let bob = Person.new('Bob', 20)
-bob:Person.celebrate_birthday()
+bob->Person.celebrate_birthday()
 
 ```
 
@@ -30,34 +31,34 @@ bob:Person.celebrate_birthday()
 The classic recursive fibonacci benchmark. It is mostly good for measuring arithmetic operations and function calls. Here is what it looks like in Sol:
 
 ```
-fn fib(n) =>
-  if (n < 2) => n
-  else fib(n - 1) + fib(n - 2)
+def fib(n): if (n < 2): n else fib(n - 1) + fib(n - 2)
 ```
 
 The benchmarks were run for `n = 30` 
 
 # Features
 
-Sol's more defining features include:
+Gab's more defining features include:
 
 ### Expression focused
 
-As seen in the fib example, simple functions can often be rewritten as an expression. The `=>` syntax indicates that the function body is an expression, not a statement. In the same vein, `if` can be an expression or a statement, indicated with a `=>` as well.
+In Gab, everything is an expression. 
 
-`let a = if (cond) => 1 else 2`
+`let a = if (cond): 1 else 2`
 
-`fn square(num) => num * num`
+`def square(num): num * num`
 
-When a statement is needed, use `then`
+When you need to a block of code, use the `do` expression!
+
+It evaluates to the last expression in the block.
 
 ```
-if (cond) then std.log.info('Hello World')
+if (cond): !print('Hello World')
 
-if (cond) then do
-  std.log.info('Here are')
+if (cond): do
+  !print('Here are')
 
-  std.log.info('multiple statements')
+  !print('multiple expressions')
 end
 ```
 
@@ -66,28 +67,61 @@ end
 Method chaining and OOP programming galore! Lets refer to our example above:
 
 ```
-let Person = {
-    class = { name, age }
-    new = |name, age|: { name, age },
-    celebrate_birthday = |self|: do
-        std.log.info('Happy Birthday {self.name}')
-        self.age = self.age + 1
+def Person {
+    def new(name, age): { name, age }
+
+    def celebrate_birthday(person): do
+        !print('Happy Birthday {person.name}')
+        person.age = person.age + 1
     end
 }
 
 let bob = Person.new('Bob', 20)
-
-bob:Person.celebrate_birthday()
-
-```
-
-`Person` is just a normal object, but is serving as a namespace here. There are two functions belonging two person, `New` and `Celebrate_birthday`. 
-
-The `:` operator is where the magic happens. Calling a function with the colon operator automatically inserts the target as the first argument. And this can work with *any* target and *any* function. That is the beauty of *Universal Function Call Syntax*.
+bob->Person.celebrate_birthday()
 
 ```
-'Hello World':std.log.info()
+
+`Person` is just a normal object, but is serving as a namespace here. There are two functions belonging to person, `new` and `celebrate_birthday`. 
+
+The `->` operator is where the magic happens. Calling a function with the colon operator automatically inserts the target as the first argument. And this can work with *any* target and *any* function. That is the beauty of *Universal Function Call Syntax*.
+
 ```
+'Hello World'->!print()
+```
+
+### Shapes
+
+Objects in Gab are governed by their *shape*. This sort of looks like *duck typing*.
+```
+def Point {
+    x
+    y
+}?
+```
+This says *set point to the shape of an object with an x and y property*
+
+Now, code like this works as expected:
+```
+let pos = { x = 10 y = 20 }
+!print(pos is point)
+```
+This prints `true`!
+
+### Globals
+Global state in Gab is all kept in a top-level object accessed by - you guessed it - the `!` operator!
+
+All this time, the `!print(...)` statements are calling out to a function kept in the global top level object.
+
+The Gab CLI stores all the builtin functions in this object. If you embed Gab in your c projects, you can easily
+extend this object with your own built-ins.
+
+The object is also useful wherever global state is - like in the REPL!
+
+```
+> !msg = 'hello world'
+> !print(!msg)
+```
+
 
 ### Dependencies
 
@@ -100,10 +134,11 @@ libc is the only dependency for the language - but the repo here uses check for 
  - [X] Shape transitions
  - [X] Extensible stdlib
  - [X] More expression based
+ - [X] Pattern Matching
+ - [X] String interpolation 
  - [ ] Custom allocator
  - [ ] Concurrency
  - [ ] Unicode Support
- - [ ] Pattern Matching
  - [ ] Finalize c-api and documentation
  - [ ] CI/CD for builds and releases
  - [ ] Tooling
