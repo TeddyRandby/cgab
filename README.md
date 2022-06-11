@@ -1,6 +1,6 @@
 # GAB
 
-Sol is a simple and embeddable scripting language.
+Gab is a simple and embeddable scripting language.
 
 ```
 def Person {
