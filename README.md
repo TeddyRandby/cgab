@@ -26,15 +26,15 @@ bob->Person.celebrate_birthday()
 
 # Speed
 
-![Fibonacci Benchmark](fib.png)
+![Fibonacci Benchmark](res/fib-bench.png)
 
-The classic recursive fibonacci benchmark. It is mostly good for measuring arithmetic operations and function calls. Here is what it looks like in Sol:
+The classic recursive fibonacci benchmark. It is mostly good for measuring arithmetic operations and function calls. Here is what it looks like in Gab:
 
 ```
 def fib(n): if (n < 2): n else fib(n - 1) + fib(n - 2)
 ```
 
-The benchmarks were run for `n = 30` 
+The benchmarks were run to a depth of 30.
 
 # Features
 
@@ -83,7 +83,7 @@ bob->Person.celebrate_birthday()
 
 `Person` is just a normal object, but is serving as a namespace here. There are two functions belonging to person, `new` and `celebrate_birthday`. 
 
-The `->` operator is where the magic happens. Calling a function with the colon operator automatically inserts the target as the first argument. And this can work with *any* target and *any* function. That is the beauty of *Universal Function Call Syntax*.
+The `->` operator is where the magic happens. Calling a function with the arrow operator automatically inserts the target as the first argument. And this can work with *any* target and *any* function. That is the beauty of *Universal Function Call Syntax*.
 
 ```
 'Hello World'->!print()
