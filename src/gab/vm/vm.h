@@ -1,5 +1,5 @@
-#ifndef BLUF_VM_H
-#define BLUF_VM_H
+#ifndef GAB_VM_H
+#define GAB_VM_H
 
 #include "../../common/common.h"
 #include "../compiler/compiler.h"

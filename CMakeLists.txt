@@ -6,8 +6,6 @@ include(GNUInstallDirs)
 
 add_library(cgab "")
 
-set_property(TARGET cgab PROPERTY C_STANDARD 17)
-
 add_subdirectory(src/common)
 add_subdirectory(src/gab)
 add_subdirectory(src/lib)
@@ -18,6 +16,7 @@ set_target_properties(
   VERSION 1
   SOVERSION 1
   PUBLIC_HEADER src/gab/gab.h
+  C_STANDARD 17
 )
 
 configure_file(gab.pc.in gab.pc @ONLY)

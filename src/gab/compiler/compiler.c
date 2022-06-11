@@ -5,13 +5,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+void gab_compiler_create(gab_compiler *self) {
+  self->scope_depth = 0;
+  self->frame_count = 0;
+  self->error = NULL;
+  self->mod = NULL;
+
+  memset(self->frames, 0, sizeof(self->frames));
+}
+
 // Helper macros for creating the specialized instructions
 #define MAKE_RETURN(n) (OP_RETURN_1 + (n - 1))
-#define MAKE_CALL(n) (OP_CALL_0 + n)
-#define MAKE_STORE_LOCAL(n) (OP_STORE_LOCAL_0 + n)
-#define MAKE_LOAD_LOCAL(n) (OP_LOAD_LOCAL_0 + n)
-#define MAKE_STORE_UPVALUE(n) (OP_STORE_UPVALUE_0 + n)
-#define MAKE_LOAD_UPVALUE(n) (OP_LOAD_UPVALUE_0 + n)
+#define MAKE_CALL(n) (OP_CALL_0 + (n))
+#define MAKE_STORE_LOCAL(n) (OP_STORE_LOCAL_0 + (n))
+#define MAKE_LOAD_LOCAL(n) (OP_LOAD_LOCAL_0 + (n))
+#define MAKE_STORE_UPVALUE(n) (OP_STORE_UPVALUE_0 + (n))
+#define MAKE_LOAD_UPVALUE(n) (OP_LOAD_UPVALUE_0 + (n))
 
 // A positive result is known to be OK, and can carry a value.
 typedef enum comp_result {
@@ -1898,15 +1907,6 @@ const gab_compile_rule gab_compiler_rules[] = {
 };
 
 gab_compile_rule get_rule(gab_token k) { return gab_compiler_rules[k]; }
-
-void gab_compiler_create(gab_compiler *self) {
-  self->scope_depth = 0;
-  self->frame_count = 0;
-  self->error = NULL;
-  self->mod = NULL;
-
-  memset(self->frames, 0, sizeof(self->frames));
-}
 
 comp_result compile(gab_compiler *self, s_u8_ref src, s_u8_ref name) {
 

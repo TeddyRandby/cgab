@@ -38,15 +38,6 @@ struct gab_compile_frame {
 };
 
 /*
-  The bytecode of the vm.
-*/
-typedef enum gab_opcode {
-#define OP_CODE(name) OP_##name,
-#include "bytecode.h"
-#undef OP_CODE
-} gab_opcode;
-
-/*
   State for compiling source code to a gab module.
 */
 typedef struct gab_compiler gab_compiler;

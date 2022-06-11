@@ -8,6 +8,15 @@ typedef struct gab_engine gab_engine;
 typedef struct gab_module gab_module;
 
 /*
+  The bytecode of the vm.
+*/
+typedef enum gab_opcode {
+#define OP_CODE(name) OP_##name,
+#include "bytecode.h"
+#undef OP_CODE
+} gab_opcode;
+
+/*
   State required to run a gab program.
   This is the result of compilation.
 */
@@ -103,4 +112,6 @@ void gab_module_push_byte(gab_module *self, u8 b);
   Defined in common/log.c
 */
 void gab_module_dump(gab_module *self, s_u8_ref name);
+
+void gab_module_optimize(gab_module *self);
 #endif

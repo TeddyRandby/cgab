@@ -431,5 +431,7 @@ static inline gab_value gab_val_type(gab_engine *eng, gab_value value) {
         gab_obj_string_create(eng, s_u8_ref_create_cstr("builtin"));
     return GAB_VAL_OBJ(num);
   }
+
+  return GAB_VAL_NULL();
 }
 #endif

@@ -4,26 +4,26 @@
 #include <sys/types.h>
 
 void gab_vm_create(gab_vm *self) {
+  self->open_upvalues = NULL;
   self->stack_top = self->stack;
   self->frame = self->call_stack;
-  self->open_upvalues = NULL;
 }
 
-void dump_frame(gab_vm *self, const char *name) {
+void dump_frame(gab_vm *vm, const char *name) {
   printf("Frame at %s:\n-----------------\n", name);
-  gab_value *tracker = self->stack_top - 1;
-  while (tracker >= self->frame->slots) {
-    printf("|%lu|", tracker - self->frame->slots);
+  gab_value *tracker = vm->stack_top - 1;
+  while (tracker >= vm->frame->slots) {
+    printf("|%lu|", tracker - vm->frame->slots);
     gab_val_dump(*tracker--);
     printf("\n");
   }
   printf("---------------\n");
 };
 
-void dump_stack(gab_vm *self, const char *name) {
+void dump_stack(gab_vm *vm, const char *name) {
   printf("Stack at %s:\n-----------------\n", name);
-  gab_value *tracker = self->stack_top - 1;
-  while (tracker >= self->stack) {
+  gab_value *tracker = vm->stack_top - 1;
+  while (tracker >= vm->stack) {
     printf("|");
     gab_val_dump(*tracker--);
     printf("\n");
@@ -31,8 +31,7 @@ void dump_stack(gab_vm *self, const char *name) {
   printf("---------------\n");
 }
 
-static inline void trim_return(gab_vm *self, gab_value *from, u8 have,
-                               u8 want) {
+static inline void trim_return(gab_vm *vm, gab_value *from, u8 have, u8 want) {
   u8 nulls = 0;
   if ((have != want) && (want != VAR_RET)) {
     if (have > want)
@@ -42,10 +41,10 @@ static inline void trim_return(gab_vm *self, gab_value *from, u8 have,
   }
 
   while (have--)
-    *self->stack_top++ = *from++;
+    *vm->stack_top++ = *from++;
 
   while (nulls--)
-    *self->stack_top++ = GAB_VAL_NULL();
+    *vm->stack_top++ = GAB_VAL_NULL();
 }
 
 static inline gab_obj_upvalue *capture_upvalue(gab_engine *eng,
@@ -121,7 +120,11 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 
 #define CASE_CODE(name) code_##name
 #define LOOP()
-#define NEXT() goto *dispatch_table[instr = READ_BYTE]
+#define NEXT()                                                                 \
+  do {                                                                         \
+    LOG();                                                                     \
+    goto *dispatch_table[instr = READ_BYTE];                                   \
+  } while (0)
 
 #else
   /*
@@ -130,14 +133,12 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 
 #define CASE_CODE(name) case OP_##name
 #define NEXT()                                                                 \
-  do {                                                                         \
-    LOG();                                                                     \
-    goto loop;                                                                 \
-  } while (0)
+  LOG();                                                                       \
+  goto loop;
 
 #define LOOP()                                                                 \
   loop:                                                                        \
-  switch (instruction = READ_BYTE)
+  switch (instr = READ_BYTE)
 
 #endif
 
@@ -147,15 +148,13 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
      and short circuiting can't help us.
   */
 #define BINARY_OPERATION(value_type, operation_type, operation)                \
-  do {                                                                         \
-    if ((GAB_VAL_IS_NUMBER(PEEK()) + GAB_VAL_IS_NUMBER(PEEK2())) < 2) {        \
-      STORE_FRAME();                                                           \
-      return gab_run_fail(eng, "Binary operations only work on numbers");      \
-    }                                                                          \
-    operation_type b = GAB_VAL_TO_NUMBER(POP());                               \
-    operation_type a = GAB_VAL_TO_NUMBER(POP());                               \
-    PUSH(value_type(a operation b));                                           \
-  } while (0)
+  if ((GAB_VAL_IS_NUMBER(PEEK()) + GAB_VAL_IS_NUMBER(PEEK2())) < 2) {          \
+    STORE_FRAME();                                                             \
+    return gab_run_fail(eng, "Binary operations only work on numbers");        \
+  }                                                                            \
+  operation_type b = GAB_VAL_TO_NUMBER(POP());                                 \
+  operation_type a = GAB_VAL_TO_NUMBER(POP());                                 \
+  PUSH(value_type(a operation b));
 
 /*
   Lots of helper macros.
@@ -207,29 +206,29 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
   register u8 *ip;
   register u8 instr;
 
-  // Fallthrough into setting up for calling the pushed closure.
+  goto vm_start;
 
   LOOP() {
-    {
-      u8 arity, want;
-      gab_value callee;
+  vm_start : {
+    u8 arity, want;
+    gab_value callee;
 
-      arity = 1;
-      want = 1;
-      callee = PEEK2();
+    arity = 1;
+    want = 1;
+    callee = PEEK2();
+    goto complete_call;
+
+    CASE_CODE(VARCALL) : {
+      u8 addtl = READ_BYTE;
+
+      want = READ_BYTE;
+      arity = *vm.stack_top + addtl;
+      callee = PEEK_N(arity);
+
       goto complete_call;
+    }
 
-      CASE_CODE(VARCALL) : {
-        u8 addtl = READ_BYTE;
-
-        want = READ_BYTE;
-        arity = *vm.stack_top + addtl;
-        callee = PEEK_N(arity);
-
-        goto complete_call;
-      }
-
-      // clang-format off
+    // clang-format off
       CASE_CODE(CALL_0):
       CASE_CODE(CALL_1):
       CASE_CODE(CALL_2):
@@ -254,58 +253,58 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 
         goto complete_call;
       }
-      // clang-format on
+    // clang-format on
 
-    complete_call : {
+  complete_call : {
 
-      STORE_FRAME();
+    STORE_FRAME();
 
-      if (!GAB_VAL_IS_OBJ(callee)) {
-        return gab_run_fail(eng, "Expected a callable");
+    if (!GAB_VAL_IS_OBJ(callee)) {
+      return gab_run_fail(eng, "Expected a callable");
+    }
+
+    if (GAB_VAL_TO_OBJ(callee)->kind == OBJECT_CLOSURE) {
+      gab_obj_closure *closure = GAB_VAL_TO_CLOSURE(callee);
+
+      // Combine the two error branches into a single case.
+      // Check for stack overflow here
+      if (arity != closure->func->narguments) {
+        return gab_run_fail(eng, "Wrong number of arguments");
       }
 
-      if (GAB_VAL_TO_OBJ(callee)->kind == OBJECT_CLOSURE) {
-        gab_obj_closure *closure = GAB_VAL_TO_CLOSURE(callee);
+      VM()->frame++;
+      VM()->frame->closure = closure;
+      VM()->frame->ip =
+          closure->func->module->bytecode.data + closure->func->offset;
+      VM()->frame->slots = VM()->stack_top - arity - 1;
+      VM()->frame->expected_results = want;
 
-        // Combine the two error branches into a single case.
-        // Check for stack overflow here
-        if (arity != closure->func->narguments) {
-          return gab_run_fail(eng, "Wrong number of arguments");
-        }
+      VM()->stack_top += closure->func->nlocals + 1;
 
-        VM()->frame++;
-        VM()->frame->closure = closure;
-        VM()->frame->ip =
-            closure->func->module->bytecode.data + closure->func->offset;
-        VM()->frame->slots = VM()->stack_top - arity - 1;
-        VM()->frame->expected_results = want;
+      LOAD_FRAME();
+    } else if (GAB_VAL_TO_OBJ(callee)->kind == OBJECT_BUILTIN) {
+      gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(callee);
 
-        VM()->stack_top += closure->func->nlocals + 1;
+      char *err = NULL;
+      gab_value result =
+          (*builtin->function)(arity, VM()->stack_top - arity, ENGINE(), &err);
 
-        LOAD_FRAME();
-      } else if (GAB_VAL_TO_OBJ(callee)->kind == OBJECT_BUILTIN) {
-        gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(callee);
+      VM()->stack_top -= arity + 1;
+      u8 have = 1;
 
-        char *err = NULL;
-        gab_value result = (*builtin->function)(arity, VM()->stack_top - arity,
-                                                ENGINE(), &err);
-
-        VM()->stack_top -= arity + 1;
-        u8 have = 1;
-
-        if (err != NULL) {
-          return gab_run_fail(eng, err);
-        }
-
-        trim_return(VM(), &result, have, want);
-
-        *VM()->stack_top = have;
-      } else {
-        return gab_run_fail(eng, "Expected a callable");
+      if (err != NULL) {
+        return gab_run_fail(eng, err);
       }
-      NEXT();
+
+      trim_return(VM(), &result, have, want);
+
+      *VM()->stack_top = have;
+    } else {
+      return gab_run_fail(eng, "Expected a callable");
     }
-    }
+    NEXT();
+  }
+  }
 
     {
 
@@ -699,16 +698,41 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
     }
 
     // clang-format off
-    CASE_CODE(LOAD_LOCAL_0):
-    CASE_CODE(LOAD_LOCAL_1):
-    CASE_CODE(LOAD_LOCAL_2):
-    CASE_CODE(LOAD_LOCAL_3):
-    CASE_CODE(LOAD_LOCAL_4):
-    CASE_CODE(LOAD_LOCAL_5):
-    CASE_CODE(LOAD_LOCAL_6):
-    CASE_CODE(LOAD_LOCAL_7):
+    CASE_CODE(LOAD_LOCAL_0): {
+      PUSH(LOCAL(0));
+      NEXT();
+    }
+
+    CASE_CODE(LOAD_LOCAL_1): {
+      PUSH(LOCAL(1));
+      NEXT();
+    }
+    CASE_CODE(LOAD_LOCAL_2): {
+      PUSH(LOCAL(2));
+      NEXT();
+    }
+    CASE_CODE(LOAD_LOCAL_3): {
+      PUSH(LOCAL(3));
+      NEXT();
+    }
+    CASE_CODE(LOAD_LOCAL_4): {
+      PUSH(LOCAL(4));
+      NEXT();
+    }
+    CASE_CODE(LOAD_LOCAL_5): {
+      PUSH(LOCAL(5));
+      NEXT();
+    }
+    CASE_CODE(LOAD_LOCAL_6): {
+      PUSH(LOCAL(6));
+      NEXT();
+    }
+    CASE_CODE(LOAD_LOCAL_7): {
+      PUSH(LOCAL(7));
+      NEXT();
+    }
     CASE_CODE(LOAD_LOCAL_8): {
-      PUSH(LOCAL(INSTR()- OP_LOAD_LOCAL_0));
+      PUSH(LOCAL(8));
       NEXT();
     }
 
