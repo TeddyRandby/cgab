@@ -46,8 +46,8 @@ typedef enum comp_result {
   }
 
 #define ASSERT_NOT_ERR_FIN(exp)                                                \
-  if (exp == COMP_ERR exp == COMP_FIN) {                                       \
-    return COMP_ERR;                                                           \
+  if ((exp) == COMP_ERR || (exp) == COMP_FIN) {                                \
+    return exp;                                                                \
   }
 // Helper macros for comp_result error handling
 #define ASSIGN_HAS_MATCH(var, token)                                           \
@@ -531,10 +531,8 @@ static inline comp_result expect_newline(gab_compiler *self) {
   return COMP_OK;
 }
 
-comp_result compile_block_body(gab_compiler *self, u8 want, exp_list *exps) {
-
-  comp_result result;
-
+comp_result compile_block_expression(gab_compiler *self, u8 want,
+                                     exp_list *exps) {
   ASSERT_NOT_ERR(skip_newlines((self)));
 
   if (match_token(self, TOKEN_EOF))
@@ -547,21 +545,22 @@ comp_result compile_block_body(gab_compiler *self, u8 want, exp_list *exps) {
   if (match_token(self, TOKEN_EOF))
     return COMP_FIN;
 
+  return COMP_OK;
+}
+
+comp_result compile_block_body(gab_compiler *self, u8 want, exp_list *exps) {
+
+  comp_result result;
+
+  result = compile_block_expression(self, want, exps);
+  ASSERT_NOT_ERR_FIN(result);
+
   while (!match_token(self, TOKEN_END)) {
 
     push_byte(self, OP_POP);
 
-    ASSERT_NOT_ERR(skip_newlines((self)));
-
-    if (match_token(self, TOKEN_EOF))
-      return COMP_FIN;
-
-    ASSERT_NOT_ERR(compile_expressions(self, want, exps));
-
-    ASSERT_NOT_ERR(expect_token(self, TOKEN_NEWLINE));
-
-    if (match_token(self, TOKEN_EOF))
-      return COMP_FIN;
+    result = compile_block_expression(self, want, exps);
+    ASSERT_NOT_ERR_FIN(result);
   }
 
   ASSERT_NOT_ERR(expect_token(self, TOKEN_END));
@@ -912,7 +911,7 @@ comp_result compile_exp_blk(gab_compiler *self, boolean assignable) {
 
   ASSERT_NOT_ERR(res);
   if (res == COMP_FIN) {
-    error(self, gab_compile_fail(self, "Unfinished do expression"));
+    error(self, gab_compile_fail(self, "Open do expression"));
     return COMP_ERR;
   }
   return COMP_OK;

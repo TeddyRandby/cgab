@@ -687,6 +687,16 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
       NEXT();
     }
 
+    CASE_CODE(POP_SCOPE) : {
+      u8 depth = READ_BYTE;
+      gab_value result = POP();
+
+      DROP_N(depth);
+      close_upvalue(VM(), VM()->stack_top);
+
+      PUSH(result);
+    }
+
     CASE_CODE(POP) : {
       DROP();
       NEXT();
