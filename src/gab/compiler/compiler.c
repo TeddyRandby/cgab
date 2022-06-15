@@ -24,6 +24,7 @@ void gab_compiler_create(gab_compiler *self) {
 
 // A positive result is known to be OK, and can carry a value.
 typedef enum comp_result {
+  COMP_OK = 1,
   COMP_ERR = -1,
   COMP_TOKEN_MATCH = -2,
   COMP_TOKEN_NO_MATCH = -3,
@@ -36,9 +37,7 @@ typedef enum comp_result {
   COMP_MAX = INT32_MAX,
 } comp_result;
 
-// This macro doesn't do anything, but it helps communicate intent.
 #define COMP_OK_VALUE(n) n
-#define COMP_OK 1
 
 #define ASSERT_NOT_ERR(exp)                                                    \
   if (exp == COMP_ERR) {                                                       \
@@ -413,10 +412,14 @@ static void up_scope(gab_compiler *self) {
   self->scope_depth--;
 
   gab_compile_frame *frame = peek_frame(self, 0);
+  u8 scope_locals = 0;
   while (frame->local_count > 1 &&
          frame->locals_depth[frame->local_count - 1] > self->scope_depth) {
     frame->local_count--;
+    scope_locals++;
   }
+
+  push_bytes(self, OP_POP_SCOPE, scope_locals);
 }
 
 static void down_frame(gab_compiler *self, s_u8_ref name) {
@@ -561,6 +564,8 @@ comp_result compile_block_body(gab_compiler *self, u8 want, exp_list *exps) {
 
     result = compile_block_expression(self, want, exps);
     ASSERT_NOT_ERR_FIN(result);
+
+    ASSERT_NOT_ERR(skip_newlines((self)));
   }
 
   ASSERT_NOT_ERR(expect_token(self, TOKEN_END));
@@ -883,9 +888,7 @@ comp_result compile_obj_internals(gab_compiler *self) {
 
 comp_result compile_definition(gab_compiler *self, s_u8_ref name) {
   if (match_and_eat_token(self, TOKEN_LPAREN) == COMP_TOKEN_MATCH) {
-
     ASSERT_NOT_ERR(compile_function(self, name, TOKEN_RPAREN));
-
     return COMP_OK;
   }
 
@@ -914,129 +917,6 @@ comp_result compile_exp_blk(gab_compiler *self, boolean assignable) {
     error(self, gab_compile_fail(self, "Open do expression"));
     return COMP_ERR;
   }
-  return COMP_OK;
-}
-
-comp_result compile_exp_let(gab_compiler *self, boolean assignable) {
-  u8 value_in;
-
-  boolean allow_new = true;
-
-  u8 locals[16] = {0};
-  boolean is_locals[16] = {0};
-  boolean is_news[16] = {0};
-
-  u8 local_count = 0;
-
-  i32 comma_result;
-  do {
-    if (local_count == 16) {
-      error(self,
-            gab_compile_fail(
-                self,
-                "Can't have more than 16 variables in one let declaration"));
-      return COMP_ERR;
-    }
-
-    ASSERT_NOT_ERR(expect_token(self, TOKEN_IDENTIFIER));
-
-    s_u8_ref name = self->lex.previous_token_src;
-
-    i32 result = resolve_id(self, self->lex.previous_token_src, &value_in);
-
-    switch (result) {
-
-    case COMP_ID_NOT_FOUND: {
-      if (!allow_new) {
-        error(self, gab_compile_fail(
-                        self, "New declarations must occur before shadowing"));
-        return COMP_ERR;
-      }
-
-      i32 loc = compile_local(self, name);
-      ASSERT_NOT_ERR(loc);
-
-      locals[local_count] = loc;
-      is_news[local_count] = true;
-      is_locals[local_count] = true;
-      break;
-    }
-
-    case COMP_RESOLVED_TO_LOCAL: {
-      allow_new = false;
-      is_news[local_count] = false;
-
-      locals[local_count] = value_in;
-      is_locals[local_count] = true;
-
-      break;
-    }
-
-    case COMP_RESOLVED_TO_UPVALUE: {
-      allow_new = false;
-      is_news[local_count] = false;
-
-      locals[local_count] = value_in;
-      is_locals[local_count] = false;
-      break;
-    }
-
-    default:
-      error(self, gab_compile_fail(
-                      self, "Unexpected result compiling let expression"));
-      return COMP_ERR;
-    }
-
-    local_count++;
-
-  } while (ASSIGN_HAS_MATCH(comma_result, TOKEN_COMMA));
-
-  ASSERT_NOT_ERR(comma_result);
-
-  switch (match_and_eat_token(self, TOKEN_EQUAL)) {
-
-  case COMP_TOKEN_MATCH: {
-    ASSERT_NOT_ERR(compile_expressions(self, local_count, NULL));
-    break;
-  }
-
-  case COMP_TOKEN_NO_MATCH:
-    for (u8 i = 0; i < local_count; i++) {
-      push_byte(self, OP_PUSH_NULL);
-    }
-    break;
-
-  default:
-    error(self,
-          gab_compile_fail(self, "Unexpected result compiling let expression"));
-    return COMP_ERR;
-  }
-
-  while (local_count--) {
-    u8 local = locals[local_count];
-    u8 is_new = is_news[local_count];
-    u8 is_local = is_locals[local_count];
-
-    if (is_new) {
-      // Initialize all the new locals.
-      initialize_local(self, local);
-    }
-
-    if (local_count > 0) {
-      if (is_local) {
-        push_bytes(self, OP_POP_STORE_LOCAL, local);
-      } else {
-        push_bytes(self, OP_POP_STORE_UPVALUE, local);
-      }
-    } else {
-      if (is_local) {
-        push_store_local(self, local);
-      } else {
-        push_store_upvalue(self, local);
-      }
-    }
-  }
-
   return COMP_OK;
 }
 
@@ -1108,8 +988,11 @@ comp_result compile_exp_mch(gab_compiler *self, boolean assignable) {
 
   // If none of the cases match, the last jump should end up here.
   ASSERT_NOT_ERR(patch_jump(self, next));
+  // Pop the pattern that we never matched
+  push_byte(self, OP_POP);
 
   if (match_and_eat_token(self, TOKEN_ELSE) == COMP_TOKEN_MATCH) {
+    printf("Compiling else on match\n");
     ASSERT_NOT_ERR(expect_token(self, TOKEN_FAT_ARROW));
     ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
   } else {
@@ -1120,6 +1003,8 @@ comp_result compile_exp_mch(gab_compiler *self, boolean assignable) {
     // Patch all the jumps to the end of the match expression.
     patch_jump(self, v_u64_val_at(&done_jumps, i));
   }
+
+  v_u64_destroy(&done_jumps);
 
   return COMP_OK;
 }
@@ -1429,8 +1314,7 @@ comp_result compile_exp_def(gab_compiler *self, boolean assignable) {
   initialize_local(self, local);
 
   ASSERT_NOT_ERR(compile_definition(self, name));
-
-  push_store_local(self, local);
+  push_byte(self, OP_DUP);
 
   return COMP_OK;
 }
@@ -1458,18 +1342,19 @@ comp_result compile_exp_idn(gab_compiler *self, boolean assignable) {
   s_u8_ref name = self->lex.previous_token_src;
 
   u8 var;
-  boolean is_local_var;
+  boolean is_local_var = true;
+  boolean is_new_var = false;
 
   switch (resolve_id(self, name, &value_in)) {
 
   case COMP_ID_NOT_FOUND: {
-    error(self, gab_compile_fail(self, "Unknown identifier"));
-    return COMP_ERR;
+    var = add_local(self, name);
+    is_new_var = true;
+    break;
   }
 
   case COMP_RESOLVED_TO_LOCAL: {
     var = value_in;
-    is_local_var = true;
     break;
   }
 
@@ -1491,7 +1376,10 @@ comp_result compile_exp_idn(gab_compiler *self, boolean assignable) {
     if (assignable) {
       ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
-      if (is_local_var) {
+      if (is_new_var) {
+        initialize_local(self, var);
+        push_byte(self, OP_DUP);
+      } else if (is_local_var) {
         push_store_local(self, var);
       } else {
         push_store_upvalue(self, var);
@@ -1505,6 +1393,11 @@ comp_result compile_exp_idn(gab_compiler *self, boolean assignable) {
   }
 
   case COMP_TOKEN_NO_MATCH:
+    if (is_new_var) {
+      error(self, gab_compile_fail(self, "Unknown identifier"));
+      return COMP_ERR;
+    }
+
     if (is_local_var) {
       push_load_local(self, var);
     } else {
@@ -1745,22 +1638,14 @@ comp_result compile_exp_for(gab_compiler *self, boolean assignable) {
 
   ASSERT_NOT_ERR(expect_token(self, TOKEN_IN));
 
-  // This is the iterator function, store into iter local
+  // This is the iterator function, falls into iter local
   ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
-  push_store_local(self, iter);
 
   u64 loop_start = self->mod->bytecode.size - 1;
 
   // Push the iterator and call it
-  push_load_local(self, iter);
+  push_byte(self, OP_DUP);
   push_bytes(self, OP_CALL_0, loop_locals);
-  // Store the results of this call into the loop locals.
-  for (u16 i = 0; i < loop_locals; i++) {
-    push_bytes(self, OP_POP_STORE_LOCAL, iter + loop_locals - i);
-  }
-
-  // Load the last loop local
-  push_load_local(self, iter + loop_locals);
 
   // Exit the for loop if the last loop local is false.
   u64 jump_start = push_jump(self, OP_JUMP_IF_FALSE);
@@ -1768,15 +1653,17 @@ comp_result compile_exp_for(gab_compiler *self, boolean assignable) {
   ASSERT_NOT_ERR(expect_token(self, TOKEN_COLON));
   ASSERT_NOT_ERR(optional_newline(self));
 
-  push_byte(self, OP_POP);
-
   ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
-  push_byte(self, OP_POP);
+  push_bytes(self, OP_POP_N, loop_locals + 1);
 
   ASSERT_NOT_ERR(push_loop(self, loop_start));
 
   ASSERT_NOT_ERR(patch_jump(self, jump_start));
+
+  // The for expression has to evaluate to somethiing.
+  // just dup when we jump out of the loop.
+  push_byte(self, OP_DUP);
 
   up_scope(self);
 
@@ -1841,7 +1728,6 @@ comp_result compile_exp_rtn(gab_compiler *self, boolean assignable) {
 
 // ----------------Pratt Parsing Table ----------------------
 const gab_compile_rule gab_compiler_rules[] = {
-    PREFIX(let),                       // LET
     PREFIX(mch),                       // MATCH
     PREFIX(if),                        // IF
     NONE(),                            // THEN

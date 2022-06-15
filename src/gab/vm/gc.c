@@ -248,11 +248,6 @@ static inline void inc_if_obj_ref(gab_value val) {
 }
 
 static inline void increment_stack(gab_gc *self) {
-
-#if GAB_LOG_GC
-  printf("Incrementing stack...\n");
-#endif
-
   gab_value *tracker = self->eng->vm->stack_top - 1;
 
   while (tracker >= self->eng->vm->stack) {
@@ -261,9 +256,6 @@ static inline void increment_stack(gab_gc *self) {
 }
 
 static inline void decrement_stack(gab_gc *self) {
-#if GAB_LOG_GC
-  printf("Decrementing stack...\n");
-#endif
   gab_value *tracker = self->eng->vm->stack_top - 1;
   while (tracker >= self->eng->vm->stack) {
     gab_gc_push_dec_if_obj_ref(self, *tracker--);
@@ -308,11 +300,6 @@ static inline void dec_and_mark_gray(gab_obj *child) {
 static inline void mark_gray(gab_obj *obj) {
   if (!GAB_OBJ_IS_GRAY(obj)) {
     GAB_OBJ_GRAY(obj);
-#if GAB_LOG_GC
-    printf("Marking gray: ");
-    gab_obj_dump(GAB_VAL_OBJ(obj));
-    printf("\n");
-#endif
     for_child_do(obj, &dec_and_mark_gray);
   }
 }
@@ -346,11 +333,6 @@ static inline void inc_and_scan_black(gab_obj *child) {
 
 static inline void scan_root_black(gab_obj *obj) {
   GAB_OBJ_BLACK(obj);
-#if GAB_LOG_GC
-  printf("Turned root ");
-  gab_obj_dump(GAB_VAL_OBJ(obj));
-  printf(" black.\n");
-#endif
   for_child_do(obj, &inc_and_scan_black);
 }
 
@@ -379,12 +361,6 @@ static inline void collect_white(gab_gc *self, gab_obj *obj) {
   if (GAB_OBJ_IS_WHITE(obj) && !GAB_OBJ_IS_BUFFERED(obj)) {
     GAB_OBJ_BLACK(obj);
 
-#if GAB_LOG_GC
-    printf("Collected white: ");
-    gab_obj_dump(GAB_VAL_OBJ(obj));
-    printf(".\n");
-#endif
-
     for_child_and_gc_do(self, obj, collect_white);
     queue_destroy(self, obj);
   }
@@ -400,12 +376,6 @@ static inline void collect_roots(gab_gc *gc) {
       d_u64_remove(&gc->roots, key, key);
       GAB_OBJ_NOT_BUFFERED(obj);
 
-#if GAB_LOG_GC
-      printf("Removed ");
-      gab_obj_dump(GAB_VAL_OBJ(obj));
-      printf(" from the root buffer.\n");
-#endif
-
       collect_white(gc, obj);
     }
   }
@@ -413,9 +383,6 @@ static inline void collect_roots(gab_gc *gc) {
 }
 
 void gab_gc_collect_cycles(gab_gc *gc) {
-#if GAB_LOG_GC
-  printf("Beginning cycle collection.\nMarking roots...\n");
-#endif
   mark_roots(gc);
 
   scan_roots(gc);
@@ -425,9 +392,6 @@ void gab_gc_collect_cycles(gab_gc *gc) {
 
 void gab_gc_collect(gab_gc *gc) {
   if (gc->active) {
-#if GAB_LOG_GC
-    printf("Beginning collection...\n");
-#endif
     increment_stack(gc);
 
     process_increments(gc);
@@ -437,9 +401,6 @@ void gab_gc_collect(gab_gc *gc) {
     decrement_stack(gc);
 
     trigger_destroy(gc);
-#if GAB_LOG_GC
-    printf("Collection done.\n");
-#endif
   }
 }
 

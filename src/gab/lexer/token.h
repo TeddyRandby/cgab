@@ -3,7 +3,6 @@
 #include "../../common/common.h"
 
 typedef enum {
-  TOKEN_LET,
   TOKEN_MATCH,
   TOKEN_IF,
   TOKEN_THEN,

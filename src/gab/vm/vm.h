@@ -62,6 +62,6 @@ struct gab_vm {
 
   A value of 0 means an error was encountered.
 */
-gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func);
+gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_function *func);
 
 #endif

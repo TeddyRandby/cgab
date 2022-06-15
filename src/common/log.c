@@ -75,6 +75,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_RETURN_14:
   case OP_RETURN_15:
   case OP_RETURN_16: {
+    printf("(%d)", op - OP_RETURN_1 + 1);
     return dumpSimpleInstruction("OP_RETURN", offset);
   }
   case OP_VARRETURN: {
@@ -146,6 +147,9 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_SWAP: {
     return dumpSimpleInstruction("OP_SWAP", offset);
   }
+  case OP_DUP: {
+    return dumpSimpleInstruction("OP_DUP", offset);
+  }
   case OP_STORE_LOCAL_0:
   case OP_STORE_LOCAL_1:
   case OP_STORE_LOCAL_2:
@@ -155,6 +159,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_STORE_LOCAL_6:
   case OP_STORE_LOCAL_7:
   case OP_STORE_LOCAL_8: {
+    printf("(%d)", op - OP_STORE_LOCAL_0);
     return dumpSimpleInstruction("OP_STORE_LOCAL_FAST", offset);
   }
   case OP_STORE_LOCAL: {
@@ -186,6 +191,9 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   }
   case OP_POP: {
     return dumpSimpleInstruction("OP_POP", offset);
+  }
+  case OP_POP_N: {
+    return dumpByteInstruction(self, "OP_POP_N", offset);
   }
   case OP_JUMP_IF_FALSE: {
     return dumpJumpInstruction(self, "OP_JUMP_IF_FALSE", 1, offset);
@@ -223,6 +231,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_CALL_14:
   case OP_CALL_15:
   case OP_CALL_16: {
+    printf("(%d)", op - OP_CALL_0);
     return dumpByteInstruction(self, "OP_CALL", offset);
   }
   case OP_VARCALL: {
@@ -237,6 +246,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_LOAD_UPVALUE_6:
   case OP_LOAD_UPVALUE_7:
   case OP_LOAD_UPVALUE_8: {
+    printf("(%d)", op - OP_LOAD_UPVALUE_0);
     return dumpSimpleInstruction("OP_LOAD_UPVALUE_FAST", offset);
   }
   case OP_LOAD_UPVALUE: {
@@ -251,6 +261,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_STORE_UPVALUE_6:
   case OP_STORE_UPVALUE_7:
   case OP_STORE_UPVALUE_8: {
+    printf("(%d)", op - OP_STORE_UPVALUE_0);
     return dumpSimpleInstruction("OP_STORE_UPVALUE_FAST", offset);
   }
   case OP_STORE_UPVALUE: {
@@ -275,20 +286,20 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     }
     return offset;
   }
-  case OP_CLOSE_UPVALUE: {
-    return dumpSimpleInstruction("OP_CLOSE_UPVALUE", offset);
-  }
   case OP_GET_PROPERTY: {
     return dumpConstantInstruction(self, "OP_GET_PROPERTY", offset) + 10;
   }
   case OP_SET_PROPERTY: {
     return dumpConstantInstruction(self, "OP_SET_PROPERTY", offset) + 10;
   }
+  case OP_POP_SCOPE: {
+    return dumpByteInstruction(self, "OP_POP_SCOPE", offset);
+  }
   case OP_GET_INDEX: {
-    return dumpSimpleInstruction("OP_GET_INDEX", offset) + 1;
+    return dumpSimpleInstruction("OP_GET_INDEX", offset);
   }
   case OP_SET_INDEX: {
-    return dumpSimpleInstruction("OP_SET_INDEX", offset) + 1;
+    return dumpSimpleInstruction("OP_SET_INDEX", offset);
   }
   case OP_CONCAT: {
     return dumpSimpleInstruction("OP_CONCAT", offset);
@@ -297,7 +308,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     return dumpSimpleInstruction("OP_STRINGIFY", offset);
   }
   case OP_OBJECT: {
-    return dumpDictInstruction(self, "OP_DICT", offset);
+    return dumpDictInstruction(self, "OP_OBJECT", offset);
   }
   default: {
     u8 code = v_u8_val_at(&self->bytecode, offset);

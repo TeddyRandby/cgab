@@ -24,7 +24,11 @@ gab_value gab_lib_require(u8 argc, gab_value *argv, gab_engine *eng,
     return GAB_VAL_NULL();
   }
 
-  gab_result *run_result = gab_engine_run(eng, compile_result->as.func);
+  gab_vm vm;
+
+  gab_vm *old_vm = eng->vm;
+  gab_result *run_result = gab_engine_run(eng, &vm, compile_result->as.func);
+  eng->vm = old_vm;
 
   gab_result_destroy(compile_result);
 

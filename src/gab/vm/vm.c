@@ -47,10 +47,10 @@ static inline void trim_return(gab_vm *vm, gab_value *from, u8 have, u8 want) {
     *vm->stack_top++ = GAB_VAL_NULL();
 }
 
-static inline gab_obj_upvalue *capture_upvalue(gab_engine *eng,
+static inline gab_obj_upvalue *capture_upvalue(gab_engine *eng, gab_vm *vm,
                                                gab_value *local) {
   gab_obj_upvalue *prev_upvalue = NULL;
-  gab_obj_upvalue *upvalue = eng->vm->open_upvalues;
+  gab_obj_upvalue *upvalue = vm->open_upvalues;
 
   while (upvalue != NULL && upvalue->data > local) {
     prev_upvalue = upvalue;
@@ -72,7 +72,7 @@ static inline gab_obj_upvalue *capture_upvalue(gab_engine *eng,
 
   new_upvalue->next = upvalue;
   if (prev_upvalue == NULL) {
-    eng->vm->open_upvalues = new_upvalue;
+    vm->open_upvalues = new_upvalue;
   } else {
     prev_upvalue->next = new_upvalue;
   }
@@ -88,7 +88,8 @@ static inline void close_upvalue(gab_vm *vm, gab_value *local) {
   }
 }
 
-gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
+gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm,
+                           gab_obj_function *func) {
 
 #if GAB_LOG_EXECUTION
   /*
@@ -159,21 +160,21 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 /*
   Lots of helper macros.
 */
-#define VM() (&vm)
+#define VM() (vm)
 #define ENGINE() (eng)
 #define GC() (ENGINE()->gc)
-#define LOCAL(i) (vm.frame->slots[i])
-#define UPVALUE(i) (vm.frame->closure->upvalues[i])
+#define LOCAL(i) (VM()->frame->slots[i])
+#define UPVALUE(i) (VM()->frame->closure->upvalues[i])
 #define INSTR() (instr)
 
-#define PUSH(value) (*vm.stack_top++ = value)
-#define POP() (*(--vm.stack_top))
-#define DROP() (vm.stack_top--)
-#define POP_N(n) (vm.stack_top -= n)
-#define DROP_N(n) (vm.stack_top -= n)
-#define PEEK() (*(vm.stack_top - 1))
-#define PEEK2() (*(vm.stack_top - 2))
-#define PEEK_N(n) (*(vm.stack_top - 1 - n))
+#define PUSH(value) (*VM()->stack_top++ = value)
+#define POP() (*(--VM()->stack_top))
+#define DROP() (VM()->stack_top--)
+#define POP_N(n) (VM()->stack_top -= n)
+#define DROP_N(n) (VM()->stack_top -= n)
+#define PEEK() (*(VM()->stack_top - 1))
+#define PEEK2() (*(VM()->stack_top - 2))
+#define PEEK_N(n) (*(VM()->stack_top - n))
 
 #define READ_BYTE (*ip++)
 #define READ_SHORT (ip += 2, (((u16)ip[-2] << 8) | ip[-1]))
@@ -183,14 +184,13 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 #define READ_CONSTANT (ENGINE()->constants.keys.data[READ_SHORT])
 #define READ_STRING (GAB_VAL_TO_STRING(READ_CONSTANT))
 
-#define STORE_FRAME() (vm.frame->ip = ip)
-#define LOAD_FRAME() (ip = vm.frame->ip)
+#define STORE_FRAME() (VM()->frame->ip = ip)
+#define LOAD_FRAME() (ip = VM()->frame->ip)
 
   /*
    ----------- BEGIN RUN BODY -----------
   */
 
-  gab_vm vm;
   gab_vm_create(VM());
   ENGINE()->vm = VM();
 
@@ -206,29 +206,27 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
   register u8 *ip;
   register u8 instr;
 
-  goto vm_start;
-
   LOOP() {
-  vm_start : {
-    u8 arity, want;
-    gab_value callee;
+    {
+      u8 arity, want;
+      gab_value callee;
 
-    arity = 1;
-    want = 1;
-    callee = PEEK2();
-    goto complete_call;
-
-    CASE_CODE(VARCALL) : {
-      u8 addtl = READ_BYTE;
-
-      want = READ_BYTE;
-      arity = *vm.stack_top + addtl;
-      callee = PEEK_N(arity);
-
+      arity = 1;
+      want = 1;
+      callee = PEEK2();
       goto complete_call;
-    }
 
-    // clang-format off
+      CASE_CODE(VARCALL) : {
+        u8 addtl = READ_BYTE;
+
+        want = READ_BYTE;
+        arity = *VM()->stack_top + addtl;
+        callee = PEEK_N(arity - 1);
+
+        goto complete_call;
+      }
+
+      // clang-format off
       CASE_CODE(CALL_0):
       CASE_CODE(CALL_1):
       CASE_CODE(CALL_2):
@@ -249,62 +247,61 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
         want = READ_BYTE;
 
         arity = INSTR() - OP_CALL_0;
-        callee = PEEK_N(arity);
+        callee = PEEK_N(arity - 1);
 
         goto complete_call;
       }
-    // clang-format on
+      // clang-format on
 
-  complete_call : {
+    complete_call : {
+      STORE_FRAME();
 
-    STORE_FRAME();
-
-    if (!GAB_VAL_IS_OBJ(callee)) {
-      return gab_run_fail(eng, "Expected a callable");
-    }
-
-    if (GAB_VAL_TO_OBJ(callee)->kind == OBJECT_CLOSURE) {
-      gab_obj_closure *closure = GAB_VAL_TO_CLOSURE(callee);
-
-      // Combine the two error branches into a single case.
-      // Check for stack overflow here
-      if (arity != closure->func->narguments) {
-        return gab_run_fail(eng, "Wrong number of arguments");
+      if (!GAB_VAL_IS_OBJ(callee)) {
+        return gab_run_fail(eng, "Expected a callable");
       }
 
-      VM()->frame++;
-      VM()->frame->closure = closure;
-      VM()->frame->ip =
-          closure->func->module->bytecode.data + closure->func->offset;
-      VM()->frame->slots = VM()->stack_top - arity - 1;
-      VM()->frame->expected_results = want;
+      if (GAB_VAL_TO_OBJ(callee)->kind == OBJECT_CLOSURE) {
+        gab_obj_closure *closure = GAB_VAL_TO_CLOSURE(callee);
 
-      VM()->stack_top += closure->func->nlocals + 1;
+        // Combine the two error branches into a single case.
+        // Check for stack overflow here
+        if (arity != closure->func->narguments) {
+          return gab_run_fail(eng, "Wrong number of arguments");
+        }
 
-      LOAD_FRAME();
-    } else if (GAB_VAL_TO_OBJ(callee)->kind == OBJECT_BUILTIN) {
-      gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(callee);
+        VM()->frame++;
+        VM()->frame->closure = closure;
+        VM()->frame->ip =
+            closure->func->module->bytecode.data + closure->func->offset;
+        VM()->frame->slots = VM()->stack_top - arity - 1;
+        VM()->frame->expected_results = want;
 
-      char *err = NULL;
-      gab_value result =
-          (*builtin->function)(arity, VM()->stack_top - arity, ENGINE(), &err);
+        LOAD_FRAME();
+      } else if (GAB_VAL_TO_OBJ(callee)->kind == OBJECT_BUILTIN) {
+        gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(callee);
 
-      VM()->stack_top -= arity + 1;
-      u8 have = 1;
+        char *err = NULL;
 
-      if (err != NULL) {
-        return gab_run_fail(eng, err);
+        gab_value result = (*builtin->function)(arity, VM()->stack_top - arity,
+                                                ENGINE(), &err);
+
+        VM()->stack_top -= arity + 1;
+        u8 have = 1;
+
+        if (err != NULL) {
+          return gab_run_fail(eng, err);
+        }
+
+        trim_return(VM(), &result, have, want);
+
+        *VM()->stack_top = have;
+      } else {
+        return gab_run_fail(eng, "Expected a callable");
       }
 
-      trim_return(VM(), &result, have, want);
-
-      *VM()->stack_top = have;
-    } else {
-      return gab_run_fail(eng, "Expected a callable");
+      NEXT();
     }
-    NEXT();
-  }
-  }
+    }
 
     {
 
@@ -344,9 +341,9 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 
       gab_value *from = VM()->stack_top - have;
 
-      close_upvalue(VM(), VM()->frame->slots);
-
       VM()->stack_top = VM()->frame->slots;
+
+      close_upvalue(VM(), VM()->frame->slots);
 
       trim_return(VM(), from, have, VM()->frame->expected_results);
 
@@ -354,6 +351,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
       *VM()->stack_top = have;
 
       if (--VM()->frame == VM()->call_stack) {
+
         gab_value module = POP();
         gab_gc_push_inc_if_obj_ref(GC(), module);
         return gab_run_success(module);
@@ -371,8 +369,8 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
       gab_obj_object *obj;
 
       CASE_CODE(GET_INDEX) : {
-        prop = POP();
-        index = POP();
+        prop = PEEK();
+        index = PEEK2();
 
         if (!GAB_VAL_IS_OBJECT(index)) {
           STORE_FRAME();
@@ -383,12 +381,14 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 
         prop_offset = gab_obj_shape_find(obj->shape, prop);
 
+        DROP_N(2);
+
         goto complete_obj_get;
       }
 
       CASE_CODE(GET_PROPERTY) : {
         prop = READ_CONSTANT;
-        index = POP();
+        index = PEEK();
 
         gab_obj_shape **cached_shape = READ_INLINECACHE(gab_obj_shape);
         prop_offset = READ_SHORT;
@@ -408,6 +408,8 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
           WRITE_SHORT(prop_offset);
         }
 
+        DROP();
+
         goto complete_obj_get;
       }
 
@@ -424,11 +426,10 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
       gab_obj_object *obj;
 
       CASE_CODE(SET_INDEX) : {
-        value = POP();
-        prop = POP();
-        index = POP();
-
-        PUSH(value);
+        // Leave these on the stack for now in case we collect.
+        value = PEEK();
+        prop = PEEK2();
+        index = PEEK_N(3);
 
         gab_gc_push_inc_if_obj_ref(GC(), value);
 
@@ -451,15 +452,17 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
           prop_offset = gab_obj_object_extend(obj, ENGINE(), shape, value);
         }
 
+        // Now its safe to drop the three values
+        DROP_N(3);
+
+        PUSH(value);
         goto complete_obj_set;
       }
 
       CASE_CODE(SET_PROPERTY) : {
         prop = READ_CONSTANT;
-        value = POP();
-        index = POP();
-
-        PUSH(value);
+        value = PEEK();
+        index = PEEK2();
 
         gab_gc_push_inc_if_obj_ref(GC(), value);
 
@@ -495,6 +498,10 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
           // Write the offset.
           WRITE_SHORT(prop_offset);
         }
+
+        DROP_N(2);
+
+        PUSH(value);
 
         goto complete_obj_set;
       }
@@ -589,6 +596,11 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
       NEXT();
     }
 
+    CASE_CODE(DUP) : {
+      PUSH(PEEK());
+      NEXT();
+    }
+
     CASE_CODE(CONCAT) : {
       if (!GAB_VAL_IS_STRING(PEEK()) + !GAB_VAL_IS_STRING(PEEK2())) {
         STORE_FRAME();
@@ -601,8 +613,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
       gab_obj_string *obj = gab_obj_string_concat(ENGINE(), a, b);
 
       PUSH(GAB_VAL_OBJ(obj));
-
-      gab_gc_push_dec_obj_ref(GC(), (gab_obj *)obj);
 
       NEXT();
     }
@@ -671,7 +681,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
     }
 
     CASE_CODE(TYPE) : {
-      PUSH(gab_val_type(ENGINE(), POP()));
+      PEEK() = gab_val_type(ENGINE(), PEEK());
       NEXT();
     }
 
@@ -689,12 +699,14 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
 
     CASE_CODE(POP_SCOPE) : {
       u8 depth = READ_BYTE;
+
       gab_value result = POP();
 
-      DROP_N(depth);
-      close_upvalue(VM(), VM()->stack_top);
+      close_upvalue(VM(), DROP_N(depth));
 
       PUSH(result);
+
+      NEXT();
     }
 
     CASE_CODE(POP) : {
@@ -708,41 +720,17 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
     }
 
     // clang-format off
-    CASE_CODE(LOAD_LOCAL_0): {
-      PUSH(LOCAL(0));
-      NEXT();
-    }
 
-    CASE_CODE(LOAD_LOCAL_1): {
-      PUSH(LOCAL(1));
-      NEXT();
-    }
-    CASE_CODE(LOAD_LOCAL_2): {
-      PUSH(LOCAL(2));
-      NEXT();
-    }
-    CASE_CODE(LOAD_LOCAL_3): {
-      PUSH(LOCAL(3));
-      NEXT();
-    }
-    CASE_CODE(LOAD_LOCAL_4): {
-      PUSH(LOCAL(4));
-      NEXT();
-    }
-    CASE_CODE(LOAD_LOCAL_5): {
-      PUSH(LOCAL(5));
-      NEXT();
-    }
-    CASE_CODE(LOAD_LOCAL_6): {
-      PUSH(LOCAL(6));
-      NEXT();
-    }
-    CASE_CODE(LOAD_LOCAL_7): {
-      PUSH(LOCAL(7));
-      NEXT();
-    }
+    CASE_CODE(LOAD_LOCAL_0):
+    CASE_CODE(LOAD_LOCAL_1):
+    CASE_CODE(LOAD_LOCAL_2):
+    CASE_CODE(LOAD_LOCAL_3):
+    CASE_CODE(LOAD_LOCAL_4):
+    CASE_CODE(LOAD_LOCAL_5):
+    CASE_CODE(LOAD_LOCAL_6):
+    CASE_CODE(LOAD_LOCAL_7):
     CASE_CODE(LOAD_LOCAL_8): {
-      PUSH(LOCAL(8));
+      PUSH(LOCAL(INSTR()- OP_LOAD_LOCAL_0));
       NEXT();
     }
 
@@ -852,22 +840,18 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
       NEXT();
     }
 
-    CASE_CODE(CLOSE_UPVALUE) : {
-      close_upvalue(VM(), DROP());
-      NEXT();
-    }
-
     CASE_CODE(CLOSURE) : {
       gab_obj_function *func = GAB_VAL_TO_FUNCTION(READ_CONSTANT);
 
-      static gab_obj_upvalue *upvalues[UPVALUE_MAX];
+      gab_obj_upvalue *upvalues[UPVALUE_MAX];
 
       for (int i = 0; i < func->nupvalues; i++) {
         u8 is_local = READ_BYTE;
         u8 index = READ_BYTE;
 
         if (is_local) {
-          upvalues[i] = capture_upvalue(ENGINE(), VM()->frame->slots + index);
+          upvalues[i] =
+              capture_upvalue(ENGINE(), VM(), VM()->frame->slots + index);
         } else {
           upvalues[i] = VM()->frame->closure->upvalues[index];
         }
@@ -887,15 +871,17 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_function *func) {
     CASE_CODE(OBJECT) : {
       u8 size = READ_BYTE;
 
+      for (u64 i = 0; i < size * 2; i++) {
+        gab_gc_push_inc_if_obj_ref(ENGINE()->gc, PEEK_N(i));
+      }
+
       gab_obj_shape *shape =
           gab_obj_shape_create(ENGINE(), VM()->stack_top - (size * 2), size, 2);
 
       gab_obj_object *obj = gab_obj_object_create(
           ENGINE(), shape, VM()->stack_top + 1 - (size * 2), size, 2);
 
-      for (u64 i = 0; i < size * 2; i++) {
-        gab_gc_push_inc_if_obj_ref(ENGINE()->gc, POP());
-      }
+      DROP_N(size * 2);
 
       PUSH(GAB_VAL_OBJ(obj));
 

@@ -1,5 +1,5 @@
 def iter(i): do
-  let v = -1
+  v = -1
   ||: (v = v + 1), i[v]
 end
 
@@ -18,23 +18,24 @@ def Node {
   def add(self, content): do
     self.children[self.size] = content
     self.size = self.size + 1
-
-    return self
+    self
   end
 
   def build(self): do
-    let str = '<section>'
+    str = '<section>'
 
-    for _, child in iter(self.children): do
-      let child_content = match child?:
+    iterator = iter(self.children)
+
+    for _, child in iterator: do
+
+      child_content = match child?:
         if "string" => child
         if Node.shape => child->Node.build()
-        else => ''
 
-      str = str ..  child_content .. ''
+      str = str ..  child_content! .. ''
     end
 
-    return str .. '</section>'
+    str .. '</section>'
   end
 }
 
@@ -43,7 +44,7 @@ def div(content):  '<div>{content}</div>'
 def h(content, size):  '<h{size}>{content}</h{size}>'
 
 {
-  Node
-  div
-  h
+    Node
+    div
+    h
 }
