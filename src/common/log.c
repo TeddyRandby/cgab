@@ -295,6 +295,9 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_POP_SCOPE: {
     return dumpByteInstruction(self, "OP_POP_SCOPE", offset);
   }
+  case OP_DROP_SCOPE: {
+    return dumpByteInstruction(self, "OP_DROP_SCOPE", offset);
+  }
   case OP_GET_INDEX: {
     return dumpSimpleInstruction("OP_GET_INDEX", offset);
   }

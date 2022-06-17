@@ -7,6 +7,7 @@
 
 s_u8 *gab_token_to_string(gab_token tok) {
   switch (tok) {
+    GAB_TOKEN_PRINT(LET)
     GAB_TOKEN_PRINT(MATCH)
     GAB_TOKEN_PRINT(NEWLINE)
     GAB_TOKEN_PRINT(IF)

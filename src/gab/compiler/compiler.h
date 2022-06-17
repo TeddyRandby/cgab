@@ -47,6 +47,7 @@ struct gab_compiler {
   */
   gab_token current_token;
   gab_token previous_token;
+  u8 previous_op;
   gab_lexer lex;
   u64 line;
 

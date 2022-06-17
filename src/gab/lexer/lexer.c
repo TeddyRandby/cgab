@@ -126,6 +126,11 @@ gab_token identifier(gab_lexer *self) {
     }
     }
   }
+  case 'l': {
+    if (s_u8_ref_match_lit(self->current_token_src, "let")) {
+      return TOKEN_LET;
+    }
+  }
   case 'm': {
     if (s_u8_ref_match_lit(self->current_token_src, "match")) {
       return TOKEN_MATCH;

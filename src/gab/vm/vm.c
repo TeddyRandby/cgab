@@ -697,6 +697,14 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm,
       NEXT();
     }
 
+    CASE_CODE(DROP_SCOPE) : {
+      u8 depth = READ_BYTE;
+
+      close_upvalue(VM(), DROP_N(depth + 1));
+
+      NEXT();
+    }
+
     CASE_CODE(POP_SCOPE) : {
       u8 depth = READ_BYTE;
 

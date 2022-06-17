@@ -132,6 +132,28 @@ static void push_byte(gab_compiler *self, u8 byte) {
   v_u64_push(&self->mod->lines, self->line);
 }
 
+static void push_op(gab_compiler *self, gab_opcode op) {
+  gab_opcode prev = self->previous_op;
+  self->previous_op = op;
+
+  if (op == OP_POP) {
+    if (prev == OP_DUP) {
+      // If we're pushing a POP instruction and we just pushed a dup
+      // instruction, We can optimize both instructions away.
+      self->mod->bytecode.size--;
+      return;
+    }
+
+    if (prev == OP_POP_SCOPE) {
+      v_u8_set(&self->mod->bytecode, self->mod->bytecode.size - 2,
+               OP_DROP_SCOPE);
+      return;
+    }
+  }
+
+  push_byte(self, op);
+}
+
 static void push_bytes(gab_compiler *self, u8 byte_1, u8 byte_2) {
   push_byte(self, byte_1);
   push_byte(self, byte_2);
@@ -143,33 +165,37 @@ static void push_short(gab_compiler *self, u16 val) {
 
 static inline void push_load_local(gab_compiler *self, u8 local) {
   if (local < 9) {
-    push_byte(self, MAKE_LOAD_LOCAL(local));
+    push_op(self, MAKE_LOAD_LOCAL(local));
   } else {
-    push_bytes(self, OP_LOAD_LOCAL, local);
+    push_op(self, OP_LOAD_LOCAL);
+    push_byte(self, local);
   }
 }
 
 static inline void push_store_local(gab_compiler *self, u8 local) {
   if (local < 9) {
-    push_byte(self, MAKE_STORE_LOCAL(local));
+    push_op(self, MAKE_STORE_LOCAL(local));
   } else {
-    push_bytes(self, OP_STORE_LOCAL, local);
+    push_op(self, OP_STORE_LOCAL);
+    push_byte(self, local);
   }
 }
 
 static inline void push_load_upvalue(gab_compiler *self, u8 upvalue) {
   if (upvalue < 9) {
-    push_byte(self, MAKE_LOAD_UPVALUE(upvalue));
+    push_op(self, MAKE_LOAD_UPVALUE(upvalue));
   } else {
-    push_bytes(self, OP_LOAD_UPVALUE, upvalue);
+    push_op(self, OP_LOAD_UPVALUE);
+    push_byte(self, upvalue);
   }
 }
 
 static inline void push_store_upvalue(gab_compiler *self, u8 upvalue) {
   if (upvalue < 9) {
-    push_byte(self, MAKE_STORE_UPVALUE(upvalue));
+    push_op(self, MAKE_STORE_UPVALUE(upvalue));
   } else {
-    push_bytes(self, OP_STORE_UPVALUE, upvalue);
+    push_op(self, OP_STORE_UPVALUE);
+    push_byte(self, upvalue);
   }
 }
 
@@ -182,7 +208,7 @@ static void push_cache(gab_compiler *self) {
 }
 
 static u64 push_jump(gab_compiler *self, u8 op) {
-  push_byte(self, op);
+  push_op(self, op);
   push_bytes(self, 0xff, 0xff);
   return self->mod->bytecode.size - 2;
 }
@@ -211,7 +237,7 @@ static void patch_call(gab_compiler *self, u8 want) {
 static comp_result push_loop(gab_compiler *self, u64 dist) {
   i32 jump = self->mod->bytecode.size - dist + 2;
 
-  push_byte(self, OP_LOOP);
+  push_op(self, OP_LOOP);
 
   if (jump > UINT16_MAX) {
     error(self, gab_compile_fail(self, "Tried to jump over too much code"));
@@ -225,23 +251,23 @@ static comp_result push_loop(gab_compiler *self, u64 dist) {
 
 static comp_result push_return(gab_compiler *self, exp_list result) {
   if (result.is_var) {
-    push_bytes(self, OP_VARRETURN, result.have);
+    push_op(self, OP_VARRETURN);
+    push_byte(self, result.have);
   } else {
     if (result.have > FRET_MAX) {
       error(self, gab_compile_fail(
                       self, "Functions cannot return more than 16 values"));
       return COMP_ERR;
     }
-
-    push_byte(self, MAKE_RETURN(result.have));
+    push_op(self, MAKE_RETURN(result.have));
   }
-
   return COMP_OK;
 }
 
 static comp_result push_call(gab_compiler *self, exp_list args) {
   if (args.is_var) {
-    push_bytes(self, OP_VARCALL, args.have);
+    push_op(self, OP_VARCALL);
+    push_byte(self, args.have);
   } else {
     if (args.have > FARG_MAX) {
       error(self, gab_compile_fail(
@@ -249,7 +275,7 @@ static comp_result push_call(gab_compiler *self, exp_list args) {
       return COMP_ERR;
     }
 
-    push_byte(self, MAKE_CALL(args.have));
+    push_op(self, MAKE_CALL(args.have));
   }
   // Want byte
   // This can be patched later, but it is assumed to be one.
@@ -419,7 +445,8 @@ static void up_scope(gab_compiler *self) {
     scope_locals++;
   }
 
-  push_bytes(self, OP_POP_SCOPE, scope_locals);
+  push_op(self, OP_POP_SCOPE);
+  push_byte(self, scope_locals);
 }
 
 static void down_frame(gab_compiler *self, s_u8_ref name) {
@@ -560,7 +587,7 @@ comp_result compile_block_body(gab_compiler *self, u8 want, exp_list *exps) {
 
   while (!match_token(self, TOKEN_END)) {
 
-    push_byte(self, OP_POP);
+    push_op(self, OP_POP);
 
     result = compile_block_expression(self, want, exps);
     ASSERT_NOT_ERR_FIN(result);
@@ -583,9 +610,8 @@ comp_result compile_function_body(gab_compiler *self,
   // Then all your functions are suddenly invalid.
   function->offset = self->mod->bytecode.size;
 
-  exp_list ret_value;
-  ASSERT_NOT_ERR(compile_expressions(self, VAR_RET, &ret_value));
-  ASSERT_NOT_ERR(push_return(self, ret_value));
+  ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+  push_op(self, OP_RETURN_1);
 
   // Update the functions upvalue state and pop the function's compile_frame
   gab_compile_frame *frame = peek_frame(self, 0);
@@ -599,7 +625,7 @@ comp_result compile_function_body(gab_compiler *self,
   ASSERT_NOT_ERR(patch_jump(self, skip_jump));
 
   // Push a closure wrapping the function
-  push_byte(self, OP_CLOSURE);
+  push_op(self, OP_CLOSURE);
   push_short(self, add_constant(self, GAB_VAL_OBJ(function)));
 
   for (int i = 0; i < function->nupvalues; i++) {
@@ -678,7 +704,7 @@ comp_result compile_expressions(gab_compiler *self, u8 want, exp_list *out) {
       // If we want a fixed number of expressions
       while (have < want) {
         // While we have fewer expressions than we want, push nulls.
-        push_byte(self, OP_PUSH_NULL);
+        push_op(self, OP_PUSH_NULL);
         have++;
       }
     }
@@ -719,7 +745,7 @@ comp_result compile_property(gab_compiler *self, boolean assignable) {
     }
 
     ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
-    push_byte(self, OP_SET_PROPERTY);
+    push_op(self, OP_SET_PROPERTY);
     push_short(self, prop);
     // The shape at this get
     push_cache(self);
@@ -730,7 +756,7 @@ comp_result compile_property(gab_compiler *self, boolean assignable) {
   }
 
   case COMP_TOKEN_NO_MATCH: {
-    push_byte(self, OP_GET_PROPERTY);
+    push_op(self, OP_GET_PROPERTY);
     push_short(self, prop);
     // The shape at this get
     push_cache(self);
@@ -751,7 +777,7 @@ comp_result compile_property(gab_compiler *self, boolean assignable) {
 comp_result compile_lst_internal_item(gab_compiler *self, u8 index) {
 
   // Push the key, which is just the index.
-  push_byte(self, OP_CONSTANT);
+  push_op(self, OP_CONSTANT);
   push_short(self, add_constant(self, GAB_VAL_NUMBER(index)));
 
   ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
@@ -796,7 +822,7 @@ comp_result compile_obj_internal_item(gab_compiler *self) {
         gab_obj_string_create(self->mod->engine, self->lex.previous_token_src);
 
     // Push the constant onto the stack.
-    push_byte(self, OP_CONSTANT);
+    push_op(self, OP_CONSTANT);
     push_short(self, add_constant(self, GAB_VAL_OBJ(obj)));
 
     // Compile the expression if theres a colon, or look for a local with
@@ -823,7 +849,7 @@ comp_result compile_obj_internal_item(gab_compiler *self) {
         push_load_upvalue(self, value_in);
       } else if (result == COMP_ID_NOT_FOUND) {
         // If the id doesn't exist, push true.
-        push_byte(self, OP_PUSH_TRUE);
+        push_op(self, OP_PUSH_TRUE);
       }
       return COMP_OK;
     }
@@ -851,7 +877,7 @@ comp_result compile_obj_internal_item(gab_compiler *self) {
 
     s_u8_ref name = self->lex.previous_token_src;
 
-    push_byte(self, OP_CONSTANT);
+    push_op(self, OP_CONSTANT);
     push_short(self, prop);
 
     ASSERT_NOT_ERR(compile_definition(self, name));
@@ -891,6 +917,8 @@ comp_result compile_definition(gab_compiler *self, s_u8_ref name) {
     ASSERT_NOT_ERR(compile_function(self, name, TOKEN_RPAREN));
     return COMP_OK;
   }
+
+  ASSERT_NOT_ERR(expect_token(self, TOKEN_COLON));
 
   if (match_token(self, TOKEN_LBRACK)) {
     return compile_expressions(self, 1, NULL);
@@ -941,7 +969,7 @@ comp_result compile_exp_if(gab_compiler *self, boolean assignable) {
     break;
 
   case COMP_TOKEN_NO_MATCH:
-    push_byte(self, OP_PUSH_NULL);
+    push_op(self, OP_PUSH_NULL);
     break;
 
   default:
@@ -966,13 +994,13 @@ comp_result compile_exp_mch(gab_compiler *self, boolean assignable) {
   v_u64 done_jumps;
   v_u64_create(&done_jumps);
 
-  while (match_and_eat_token(self, TOKEN_IF) == COMP_TOKEN_MATCH) {
+  while (match_and_eat_token(self, TOKEN_QUESTION) == COMP_TOKEN_NO_MATCH) {
     if (next != 0)
       ASSERT_NOT_ERR(patch_jump(self, next));
 
     ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
-    push_byte(self, OP_MATCH);
+    push_op(self, OP_MATCH);
 
     next = push_jump(self, OP_POP_JUMP_IF_FALSE);
 
@@ -989,15 +1017,10 @@ comp_result compile_exp_mch(gab_compiler *self, boolean assignable) {
   // If none of the cases match, the last jump should end up here.
   ASSERT_NOT_ERR(patch_jump(self, next));
   // Pop the pattern that we never matched
-  push_byte(self, OP_POP);
+  push_op(self, OP_POP);
 
-  if (match_and_eat_token(self, TOKEN_ELSE) == COMP_TOKEN_MATCH) {
-    printf("Compiling else on match\n");
-    ASSERT_NOT_ERR(expect_token(self, TOKEN_FAT_ARROW));
-    ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
-  } else {
-    push_byte(self, OP_PUSH_NULL);
-  }
+  ASSERT_NOT_ERR(expect_token(self, TOKEN_FAT_ARROW));
+  ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
   for (i32 i = 0; i < done_jumps.size; i++) {
     // Patch all the jumps to the end of the match expression.
@@ -1013,7 +1036,7 @@ comp_result compile_exp_mch(gab_compiler *self, boolean assignable) {
  * Postfix assert expression.
  */
 comp_result compile_exp_asrt(gab_compiler *self, boolean assignable) {
-  push_byte(self, OP_ASSERT);
+  push_op(self, OP_ASSERT);
   return COMP_OK;
 }
 
@@ -1021,7 +1044,7 @@ comp_result compile_exp_asrt(gab_compiler *self, boolean assignable) {
  * Postfix type expression.
  */
 comp_result compile_exp_type(gab_compiler *self, boolean assignable) {
-  push_byte(self, OP_TYPE);
+  push_op(self, OP_TYPE);
   return COMP_OK;
 }
 
@@ -1029,11 +1052,11 @@ comp_result compile_exp_type(gab_compiler *self, boolean assignable) {
  * Infix is expression.
  */
 comp_result compile_exp_is(gab_compiler *self, boolean assignable) {
-  push_byte(self, OP_TYPE);
+  push_op(self, OP_TYPE);
 
   ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
-  push_byte(self, OP_EQUAL);
+  push_op(self, OP_EQUAL);
 
   return COMP_OK;
 }
@@ -1048,55 +1071,47 @@ i32 compile_exp_bin(gab_compiler *self, boolean assignable) {
 
   switch (op) {
   case TOKEN_MINUS: {
-    push_byte(self, OP_SUBTRACT);
+    push_op(self, OP_SUBTRACT);
     break;
   }
   case TOKEN_PLUS: {
-    push_byte(self, OP_ADD);
+    push_op(self, OP_ADD);
     break;
   }
   case TOKEN_STAR: {
-    push_byte(self, OP_MULTIPLY);
+    push_op(self, OP_MULTIPLY);
     break;
   }
   case TOKEN_SLASH: {
-    push_byte(self, OP_DIVIDE);
+    push_op(self, OP_DIVIDE);
     break;
   }
   case TOKEN_PERCENT: {
-    push_byte(self, OP_MODULO);
+    push_op(self, OP_MODULO);
     break;
   }
   case TOKEN_DOT_DOT: {
-    push_byte(self, OP_CONCAT);
+    push_op(self, OP_CONCAT);
     break;
   }
   case TOKEN_EQUAL_EQUAL: {
-    push_byte(self, OP_EQUAL);
+    push_op(self, OP_EQUAL);
     break;
   }
   case TOKEN_LESSER: {
-    push_byte(self, OP_LESSER);
+    push_op(self, OP_LESSER);
     break;
   }
   case TOKEN_LESSER_EQUAL: {
-    push_byte(self, OP_LESSER_EQUAL);
+    push_op(self, OP_LESSER_EQUAL);
     break;
   }
   case TOKEN_GREATER: {
-    push_byte(self, OP_GREATER);
+    push_op(self, OP_GREATER);
     break;
   }
   case TOKEN_GREATER_EQUAL: {
-    push_byte(self, OP_GREATER_EQUAL);
-    break;
-  }
-  case TOKEN_AMPERSAND: {
-    push_byte(self, OP_BITWISE_AND);
-    break;
-  }
-  case TOKEN_PIPE: {
-    push_byte(self, OP_BITWISE_OR);
+    push_op(self, OP_GREATER_EQUAL);
     break;
   }
   default: {
@@ -1118,15 +1133,14 @@ comp_result compile_exp_una(gab_compiler *self, boolean assignable) {
 
   switch (op) {
   case TOKEN_MINUS: {
-    push_byte(self, OP_NEGATE);
+    push_op(self, OP_NEGATE);
     break;
   }
   case TOKEN_NOT: {
-    push_byte(self, OP_NOT);
+    push_op(self, OP_NOT);
     break;
   }
   default: {
-    s_u8 *tok = gab_token_to_string(op);
     error(self, gab_compile_fail(self, "Unknown unary operator"));
     return COMP_ERR;
   }
@@ -1214,7 +1228,7 @@ comp_result compile_exp_str(gab_compiler *self, boolean assignable) {
 
   s_u8_destroy(parsed);
 
-  push_byte(self, OP_CONSTANT);
+  push_op(self, OP_CONSTANT);
   push_short(self, add_constant(self, GAB_VAL_OBJ(obj)));
 
   return COMP_OK;
@@ -1235,7 +1249,8 @@ comp_result compile_exp_itp(gab_compiler *self, boolean assignable) {
   if (!match_token(self, TOKEN_INTERPOLATION)) {
     ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
-    push_bytes(self, OP_STRINGIFY, OP_CONCAT);
+    push_op(self, OP_STRINGIFY);
+    push_op(self, OP_CONCAT);
   }
 
   i32 result;
@@ -1249,11 +1264,12 @@ comp_result compile_exp_itp(gab_compiler *self, boolean assignable) {
     if (!match_token(self, TOKEN_INTERPOLATION)) {
       ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
-      push_bytes(self, OP_STRINGIFY, OP_CONCAT);
+      push_op(self, OP_STRINGIFY);
+      push_op(self, OP_CONCAT);
     }
 
     // concat this to the long-running string.
-    push_byte(self, OP_CONCAT);
+    push_op(self, OP_CONCAT);
   }
 
   ASSERT_NOT_ERR(result);
@@ -1264,7 +1280,7 @@ fin:
   ASSERT_NOT_ERR(compile_exp_str(self, assignable));
 
   // Concat the final string.
-  push_byte(self, OP_CONCAT);
+  push_op(self, OP_CONCAT);
   return COMP_OK;
 }
 
@@ -1279,7 +1295,7 @@ comp_result compile_exp_grp(gab_compiler *self, boolean assignable) {
 
 comp_result compile_exp_num(gab_compiler *self, boolean assignable) {
   f64 num = strtod((char *)self->lex.previous_token_src.data, NULL);
-  push_byte(self, OP_CONSTANT);
+  push_op(self, OP_CONSTANT);
   push_short(self, add_constant(self, GAB_VAL_NUMBER(num)));
 
   return COMP_OK;
@@ -1292,7 +1308,7 @@ comp_result compile_exp_bool(gab_compiler *self, boolean assignable) {
 }
 
 comp_result compile_exp_null(gab_compiler *self, boolean assignable) {
-  push_byte(self, OP_PUSH_NULL);
+  push_op(self, OP_PUSH_NULL);
   return COMP_OK;
 }
 
@@ -1314,7 +1330,7 @@ comp_result compile_exp_def(gab_compiler *self, boolean assignable) {
   initialize_local(self, local);
 
   ASSERT_NOT_ERR(compile_definition(self, name));
-  push_byte(self, OP_DUP);
+  push_op(self, OP_DUP);
 
   return COMP_OK;
 }
@@ -1324,7 +1340,8 @@ comp_result compile_exp_lst(gab_compiler *self, boolean assignable) {
   comp_result size = compile_lst_internals(self);
   ASSERT_NOT_ERR(size);
 
-  push_bytes(self, OP_OBJECT, size);
+  push_op(self, OP_OBJECT);
+  push_byte(self, size);
   return COMP_OK;
 }
 
@@ -1333,7 +1350,142 @@ comp_result compile_exp_obj(gab_compiler *self, boolean assignable) {
   i32 size = compile_obj_internals(self);
   ASSERT_NOT_ERR(size);
 
-  push_bytes(self, OP_OBJECT, size);
+  push_op(self, OP_OBJECT);
+  push_byte(self, size);
+  return COMP_OK;
+}
+
+comp_result compile_exp_let(gab_compiler *self, boolean assignable) {
+  u8 value_in;
+
+  boolean allow_new = true;
+
+  u8 locals[16] = {0};
+  boolean is_locals[16] = {0};
+  boolean is_news[16] = {0};
+
+  u8 local_count = 0;
+
+  i32 comma_result;
+  do {
+    if (local_count == 16) {
+      error(self,
+            gab_compile_fail(
+                self,
+                "Can't have more than 16 variables in one let declaration"));
+      return COMP_ERR;
+    }
+
+    ASSERT_NOT_ERR(expect_token(self, TOKEN_IDENTIFIER));
+
+    s_u8_ref name = self->lex.previous_token_src;
+
+    i32 result = resolve_id(self, self->lex.previous_token_src, &value_in);
+
+    switch (result) {
+
+    case COMP_ID_NOT_FOUND: {
+      if (!allow_new) {
+        error(self, gab_compile_fail(
+                        self, "New declarations must occur before shadowing"));
+        return COMP_ERR;
+      }
+
+      i32 loc = compile_local(self, name);
+      ASSERT_NOT_ERR(loc);
+
+      locals[local_count] = loc;
+      is_news[local_count] = true;
+      is_locals[local_count] = true;
+      break;
+    }
+
+    case COMP_RESOLVED_TO_LOCAL: {
+      allow_new = false;
+      is_news[local_count] = false;
+
+      locals[local_count] = value_in;
+      is_locals[local_count] = true;
+
+      break;
+    }
+
+    case COMP_RESOLVED_TO_UPVALUE: {
+      allow_new = false;
+      is_news[local_count] = false;
+
+      locals[local_count] = value_in;
+      is_locals[local_count] = false;
+      break;
+    }
+
+    default:
+      error(self, gab_compile_fail(
+                      self, "Unexpected result compiling let expression"));
+      return COMP_ERR;
+    }
+
+    local_count++;
+
+  } while (ASSIGN_HAS_MATCH(comma_result, TOKEN_COMMA));
+
+  ASSERT_NOT_ERR(comma_result);
+
+  switch (match_and_eat_token(self, TOKEN_EQUAL)) {
+
+  case COMP_TOKEN_MATCH: {
+    ASSERT_NOT_ERR(compile_expressions(self, local_count, NULL));
+    break;
+  }
+
+  case COMP_TOKEN_NO_MATCH:
+    for (u8 i = 0; i < local_count; i++) {
+      push_op(self, OP_PUSH_NULL);
+    }
+    break;
+
+  default:
+    error(self,
+          gab_compile_fail(self, "Unexpected result compiling let expression"));
+    return COMP_ERR;
+  }
+
+  while (local_count--) {
+    u8 local = locals[local_count];
+    u8 is_new = is_news[local_count];
+    u8 is_local = is_locals[local_count];
+
+    if (local_count > 0) {
+
+      if (is_new) {
+        // Initialize all the new locals.
+        initialize_local(self, local);
+        continue;
+      }
+
+      if (is_local) {
+        push_op(self, OP_POP_STORE_LOCAL);
+        push_byte(self, local);
+      } else {
+        push_op(self, OP_POP_STORE_UPVALUE);
+        push_byte(self, local);
+      }
+    } else {
+      if (is_new) {
+        // Initialize all the new locals.
+        initialize_local(self, local);
+        push_op(self, OP_DUP);
+        continue;
+      }
+
+      if (is_local) {
+        push_store_local(self, local);
+      } else {
+        push_store_upvalue(self, local);
+      }
+    }
+  }
+
   return COMP_OK;
 }
 
@@ -1343,14 +1495,12 @@ comp_result compile_exp_idn(gab_compiler *self, boolean assignable) {
 
   u8 var;
   boolean is_local_var = true;
-  boolean is_new_var = false;
 
   switch (resolve_id(self, name, &value_in)) {
 
   case COMP_ID_NOT_FOUND: {
-    var = add_local(self, name);
-    is_new_var = true;
-    break;
+    error(self, gab_compile_fail(self, "Unexpected identifier"));
+    return COMP_ERR;
   }
 
   case COMP_RESOLVED_TO_LOCAL: {
@@ -1376,10 +1526,7 @@ comp_result compile_exp_idn(gab_compiler *self, boolean assignable) {
     if (assignable) {
       ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
-      if (is_new_var) {
-        initialize_local(self, var);
-        push_byte(self, OP_DUP);
-      } else if (is_local_var) {
+      if (is_local_var) {
         push_store_local(self, var);
       } else {
         push_store_upvalue(self, var);
@@ -1393,11 +1540,6 @@ comp_result compile_exp_idn(gab_compiler *self, boolean assignable) {
   }
 
   case COMP_TOKEN_NO_MATCH:
-    if (is_new_var) {
-      error(self, gab_compile_fail(self, "Unknown identifier"));
-      return COMP_ERR;
-    }
-
     if (is_local_var) {
       push_load_local(self, var);
     } else {
@@ -1424,7 +1566,7 @@ comp_result compile_exp_idx(gab_compiler *self, boolean assignable) {
   case COMP_TOKEN_MATCH: {
     if (assignable) {
       ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
-      push_byte(self, OP_SET_INDEX);
+      push_op(self, OP_SET_INDEX);
     } else {
       error(self, gab_compile_fail(self, "Invalid assignment target"));
       return COMP_ERR;
@@ -1433,7 +1575,7 @@ comp_result compile_exp_idx(gab_compiler *self, boolean assignable) {
   }
 
   case COMP_TOKEN_NO_MATCH: {
-    push_byte(self, OP_GET_INDEX);
+    push_op(self, OP_GET_INDEX);
     break;
   }
 
@@ -1514,7 +1656,7 @@ comp_result compile_exp_mth(gab_compiler *self, boolean assignable) {
   */
 
   // Swap the method and receiver
-  push_byte(self, OP_SWAP);
+  push_op(self, OP_SWAP);
 
   exp_list args;
 
@@ -1644,8 +1786,9 @@ comp_result compile_exp_for(gab_compiler *self, boolean assignable) {
   u64 loop_start = self->mod->bytecode.size - 1;
 
   // Push the iterator and call it
-  push_byte(self, OP_DUP);
-  push_bytes(self, OP_CALL_0, loop_locals);
+  push_op(self, OP_DUP);
+  push_op(self, OP_CALL_0);
+  push_byte(self, loop_locals);
 
   // Exit the for loop if the last loop local is false.
   u64 jump_start = push_jump(self, OP_JUMP_IF_FALSE);
@@ -1655,7 +1798,8 @@ comp_result compile_exp_for(gab_compiler *self, boolean assignable) {
 
   ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
-  push_bytes(self, OP_POP_N, loop_locals + 1);
+  push_op(self, OP_POP_N);
+  push_byte(self, loop_locals + 1);
 
   ASSERT_NOT_ERR(push_loop(self, loop_start));
 
@@ -1663,7 +1807,7 @@ comp_result compile_exp_for(gab_compiler *self, boolean assignable) {
 
   // The for expression has to evaluate to somethiing.
   // just dup when we jump out of the loop.
-  push_byte(self, OP_DUP);
+  push_op(self, OP_PUSH_NULL);
 
   up_scope(self);
 
@@ -1690,7 +1834,7 @@ comp_result compile_exp_whl(gab_compiler *self, boolean assignable) {
 
   ASSERT_NOT_ERR(patch_jump(self, jump));
 
-  push_byte(self, OP_PUSH_NULL);
+  push_op(self, OP_PUSH_NULL);
 
   return COMP_OK;
 }
@@ -1698,14 +1842,21 @@ comp_result compile_exp_whl(gab_compiler *self, boolean assignable) {
 comp_result compile_exp_rtn(gab_compiler *self, boolean assignable) {
   if (match_token(self, TOKEN_NEWLINE) || match_token(self, TOKEN_END)) {
     // This doesn't seem foolproof here.
-    push_byte(self, OP_PUSH_NULL);
-    ASSERT_NOT_ERR(push_return(self, (exp_list){.have = 1, .is_var = false}));
-  } else {
+    push_op(self, OP_PUSH_NULL);
+    push_op(self, OP_RETURN_1);
+  } else if (match_and_eat_token(self, TOKEN_LPAREN) == COMP_TOKEN_MATCH) {
     exp_list ret_value;
 
     ASSERT_NOT_ERR(compile_expressions(self, VAR_RET, &ret_value));
 
+    expect_token(self, TOKEN_RPAREN);
+
     ASSERT_NOT_ERR(push_return(self, ret_value));
+  } else {
+    error(self,
+          gab_compile_fail(self, "Return expressions should be follwed by an "
+                                 "end or a tuple."));
+    return COMP_ERR;
   }
 
   return COMP_OK;
@@ -1728,6 +1879,7 @@ comp_result compile_exp_rtn(gab_compiler *self, boolean assignable) {
 
 // ----------------Pratt Parsing Table ----------------------
 const gab_compile_rule gab_compiler_rules[] = {
+    PREFIX(let),                       // LET
     PREFIX(mch),                       // MATCH
     PREFIX(if),                        // IF
     NONE(),                            // THEN
@@ -1747,7 +1899,7 @@ const gab_compile_rule gab_compiler_rules[] = {
     INFIX(bin, FACTOR, false),                // PERCENT
     NONE(),                            // COMMA
     NONE(),       // COLON
-    INFIX(bin, BITWISE_AND, false),           // AMPERSAND
+    NONE(),           // AMPERSAND
     INFIX(dot, PROPERTY, true),              // DOT
     INFIX(bin, TERM, false),                  // DOT_DOT
     NONE(),                            // EQUAL
@@ -1769,7 +1921,7 @@ const gab_compile_rule gab_compiler_rules[] = {
     NONE(),                            // RBRACK
     PREFIX_INFIX(grp, call, CALL, false),     // LPAREN
     NONE(),                            // RPAREN
-    PREFIX_INFIX(lmd, bin, BITWISE_OR, false),            // PIPE
+    PREFIX(lmd),            // PIPE
     NONE(),                            // SEMI
     PREFIX(idn),                       // ID
     PREFIX(str),                       // STRING
@@ -1806,7 +1958,7 @@ comp_result compile(gab_compiler *self, s_u8_ref src, s_u8_ref name) {
 
   up_frame(self);
 
-  push_byte(self, OP_RETURN_1);
+  push_op(self, OP_RETURN_1);
 
   return COMP_OK;
 }
