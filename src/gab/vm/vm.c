@@ -276,21 +276,21 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm,
         VM()->frame->slots = VM()->stack_top - arity - 1;
         VM()->frame->expected_results = want;
 
+        VM()->stack_top += closure->func->nlocals + 1;
+
         LOAD_FRAME();
       } else if (GAB_VAL_TO_OBJ(callee)->kind == OBJECT_BUILTIN) {
         gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(callee);
 
-        char *err = NULL;
+        if (arity != builtin->narguments && builtin->narguments != VAR_RET) {
+          return gab_run_fail(eng, "Wrong number of arguments");
+        }
 
-        gab_value result = (*builtin->function)(arity, VM()->stack_top - arity,
-                                                ENGINE(), &err);
+        gab_value result =
+            (*builtin->function)(ENGINE(), VM()->stack_top - arity, arity);
 
         VM()->stack_top -= arity + 1;
         u8 have = 1;
-
-        if (err != NULL) {
-          return gab_run_fail(eng, err);
-        }
 
         trim_return(VM(), &result, have, want);
 

@@ -6,6 +6,11 @@ gab_engine *gab_create() { return gab_engine_create(); }
 void gab_destroy(gab_engine *gab) { gab_engine_destroy(gab); }
 
 void gab_bind_library(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]) {
+
+  if (GAB_VAL_IS_OBJ(gab->std)) {
+    gab_obj_destroy(GAB_VAL_TO_OBJ(gab->std), gab);
+  }
+
   gab_value keys[size], values[size];
 
   for (u64 i = 0; i < size; i++) {

@@ -247,12 +247,13 @@ gab_obj_function *gab_obj_function_create(gab_engine *eng, s_u8_ref name) {
 }
 
 gab_obj_builtin *gab_obj_builtin_create(gab_engine *eng, gab_builtin function,
-                                        const char *name) {
+                                        const char *name, u8 arity) {
 
   gab_obj_builtin *self = GAB_CREATE_OBJ(gab_obj_builtin, eng, OBJECT_BUILTIN);
 
   self->function = function;
   self->name = s_u8_ref_create_cstr(name);
+  self->narguments = arity;
 
   // Functions cannot reference other objects - mark them green.
   GAB_OBJ_GREEN((gab_obj *)self);
@@ -279,12 +280,22 @@ gab_obj_upvalue *gab_obj_upvalue_create(gab_engine *eng, gab_value *slot) {
   return self;
 }
 
-gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value values[],
-                                    u64 size, u64 stride) {
-  u64 hash = keys_hash(values, size, stride);
+gab_obj_shape *gab_obj_shape_create_arr(gab_engine *eng, u64 size) {
+  gab_value keys[size];
+
+  for (u64 i = 0; i < size; i++) {
+    keys[i] = GAB_VAL_NUMBER(i);
+  }
+
+  return gab_obj_shape_create(eng, keys, size, 1);
+}
+
+gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value keys[], u64 size,
+                                    u64 stride) {
+  u64 hash = keys_hash(keys, size, stride);
 
   gab_obj_shape *interned =
-      gab_engine_find_shape(eng, size, values, stride, hash);
+      gab_engine_find_shape(eng, size, keys, stride, hash);
 
   if (interned != NULL)
     return interned;
@@ -297,7 +308,7 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value values[],
   d_u64_create(&self->properties, OBJECT_INITIAL_CAP);
 
   for (u64 i = 0; i < size; i++) {
-    gab_value key = values[i * stride];
+    gab_value key = keys[i * stride];
 
     self->keys[i] = key;
 

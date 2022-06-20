@@ -1,44 +1,23 @@
 #include "../gab/gab.h"
-#include "../lib/lib_import.h"
-#include "../lib/lib_io.h"
-#include "../lib/lib_log.h"
-#include "../lib/lib_math.h"
+#include "../lib/lib.h"
 
 s_u8 *collect_line() {
   printf(">");
   return gab_io_read_line();
 }
-#define VAL_ARRAY_LEN(arr) (sizeof(arr) / sizeof(gab_value))
+
+#define BUILTIN(lib, name, arity)                                              \
+  {                                                                            \
+    .key = #name, .value = GAB_VAL_OBJ(gab_obj_builtin_create(                 \
+                      gab, gab_lib_##lib##_##name, #name, arity))              \
+  }
 
 void bind_std(gab_engine *gab) {
   gab_lib_kvp kvps[] = {
-      {.key = "info",
-       .value =
-           GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_log_info, "info"))},
-      {.key = "error",
-       .value = GAB_VAL_OBJ(
-           gab_obj_builtin_create(gab, gab_lib_log_error, "error"))},
-      {.key = "warn",
-       .value =
-           GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_log_warn, "warn"))},
-      {.key = "print",
-       .value = GAB_VAL_OBJ(
-           gab_obj_builtin_create(gab, gab_lib_log_print, "print"))},
-      {.key = "rand",
-       .value =
-           GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_math_rand, "rand"))},
-      {.key = "floor",
-       .value = GAB_VAL_OBJ(
-           gab_obj_builtin_create(gab, gab_lib_math_floor, "floor"))},
-      {.key = "write",
-       .value =
-           GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_io_write, "write"))},
-      {.key = "read",
-       .value =
-           GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_io_read, "read"))},
-      {.key = "require",
-       .value = GAB_VAL_OBJ(
-           gab_obj_builtin_create(gab, gab_lib_require, "require"))}};
+      BUILTIN(log, info, VAR_RET),  BUILTIN(log, warn, VAR_RET),
+      BUILTIN(log, error, VAR_RET), BUILTIN(require, require, 1),
+      BUILTIN(obj, keys, 1),
+  };
 
   gab_bind_library(gab, sizeof(kvps) / sizeof(gab_lib_kvp), kvps);
 }

@@ -257,11 +257,11 @@ gab_token other(gab_lexer *self) {
     CHAR_CASE(')', RPAREN)
     CHAR_CASE(',', COMMA)
     CHAR_CASE(';', SEMICOLON)
-    CHAR_CASE(':', COLON)
     CHAR_CASE('|', PIPE)
     CHAR_CASE('?', QUESTION)
     CHAR_CASE('&', AMPERSAND)
     CHAR_CASE('!', BANG)
+    CHAR_CASE('@', AT)
   case '{': {
     cursor_advance(self);
     if (self->nested_curly > 0)
@@ -289,6 +289,15 @@ gab_token other(gab_lexer *self) {
       CHAR_CASE('>', ARROW)
     default: {
       return TOKEN_MINUS;
+    }
+    }
+  }
+  case ':': {
+    cursor_advance(self);
+    switch (peek(self)) {
+      CHAR_CASE('=', COLON_EQUAL)
+    default: {
+      return TOKEN_COLON;
     }
     }
   }

@@ -1,19 +1,8 @@
-let ss = !require("../src/examples/ssgen.gab")
+def iter(i): do
+  let v := -1
+  ||: return ((v = v + 1), i[v])
+end
 
-let node, div, h = ss.Node, ss.div, ss.h
 
-let page = node.new()
-
-page->node.add(h('Hello World', 2))
-
-page->node.add(div('This is generated'))
-
-let sub_page = node.new()->node.add(h('Sub Header', 4))
-
-page->node.add(sub_page)
-
-page->node.add(div('New Div'))
-
-let output = page->node.build()
-
-!write("../src/examples/output.html", output)
+for index, key in { hello world }->!keys()->iter():
+  !info(index, key)

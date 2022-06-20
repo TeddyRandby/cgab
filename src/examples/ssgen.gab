@@ -1,8 +1,9 @@
+
+
 def iter(i): do
   let v = -1
   ||: return ((v = v + 1), i[v])
 end
-
 
 def Node: {
 

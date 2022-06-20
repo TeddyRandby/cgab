@@ -1,14 +1,9 @@
-#include "lib_import.h"
+#include "lib.h"
 
-gab_value gab_lib_require(u8 argc, gab_value *argv, gab_engine *eng,
-                          char **err) {
-  if (argc != 1) {
-    *err = "Import expects one argument";
-    return GAB_VAL_NULL();
-  }
+gab_value gab_lib_require_require(gab_engine *eng, gab_value *argv, u8 argc) {
 
   if (!GAB_VAL_IS_STRING(argv[0])) {
-    *err = "Import target must be a string";
+    return GAB_VAL_NULL();
   }
 
   gab_obj_string *path = GAB_VAL_TO_STRING(argv[0]);
@@ -19,7 +14,6 @@ gab_value gab_lib_require(u8 argc, gab_value *argv, gab_engine *eng,
       eng, file, gab_obj_string_get_ref(path), GAB_FLAG_NONE);
 
   if (gab_result_has_error(compile_result)) {
-    *err = "Import failed";
     gab_result_destroy(compile_result);
     return GAB_VAL_NULL();
   }
@@ -33,7 +27,6 @@ gab_value gab_lib_require(u8 argc, gab_value *argv, gab_engine *eng,
   gab_result_destroy(compile_result);
 
   if (gab_result_has_error(run_result)) {
-    *err = "Import failed";
     gab_result_destroy(run_result);
     return GAB_VAL_NULL();
   }

@@ -4,7 +4,7 @@
 #include "vm/vm.h"
 
 /*
-  Create a Sol Engine. If you want libraries included, build and bind them
+  Create a Gab Engine. If you want libraries included, build and bind them
   before running any code.
 
   @return The allocated Sol Engine.
@@ -12,7 +12,7 @@
 gab_engine *gab_create();
 
 /*
-  Cleanup a Sol Engine. Also cleans up all the modules which have been compiled
+  Cleanup a Gab Engine. Also cleans up all the modules which have been compiled
   with this engine.
 
   @param gab: The engine to clean up.
@@ -25,7 +25,7 @@ typedef struct gab_lib_kvp {
 } gab_lib_kvp;
 
 /*
-  Bind a list of libraries and names into the engine.
+  Bind a library to the Gab engine.
 
   @param gab: The owning Sol Engine.
 

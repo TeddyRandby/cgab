@@ -138,20 +138,20 @@ gab_obj_string *gab_val_to_obj_string(gab_value self, gab_engine *eng);
   ------------- OBJ_BUILTIN-------------
   A function pointer. to a native c function.
 */
-typedef gab_value (*gab_builtin)(u8 argc, gab_value *argv, gab_engine *eng,
-                                 char **err);
+typedef gab_value (*gab_builtin)(gab_engine *, gab_value *, u8);
 typedef struct gab_obj_builtin gab_obj_builtin;
 struct gab_obj_builtin {
   gab_obj header;
   gab_builtin function;
   s_u8_ref name;
+  u8 narguments;
 };
 
 #define GAB_VAL_IS_BUILTIN(value) (gab_val_is_obj_kind(value, OBJECT_BUILTIN))
 #define GAB_VAL_TO_BUILTIN(value) ((gab_obj_builtin *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_BUILTIN(value) ((gab_obj_builtin *)value)
 gab_obj_builtin *gab_obj_builtin_create(gab_engine *eng, gab_builtin function,
-                                        const char *name);
+                                        const char *name, u8 args);
 
 /*
   ------------- OBJ_FUNCTION -------------
@@ -273,8 +273,10 @@ struct gab_obj_shape {
 #define GAB_VAL_TO_SHAPE(value) ((gab_obj_shape *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SHAPE(value) ((gab_obj_shape *)value)
 
-gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value values[],
-                                    u64 size, u64 stride);
+gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value key[], u64 size,
+                                    u64 stride);
+
+gab_obj_shape *gab_obj_shape_create_arr(gab_engine *eng, u64 size);
 
 gab_obj_shape *gab_obj_shape_extend(gab_obj_shape *self, gab_engine *eng,
                                     gab_value property);

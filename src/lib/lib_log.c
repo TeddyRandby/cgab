@@ -1,4 +1,4 @@
-#include "lib_log.h"
+#include "lib.h"
 
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_GREEN "\x1b[32m"
@@ -8,78 +8,40 @@
 #define ANSI_COLOR_CYAN "\x1b[36m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
-gab_value gab_lib_log_error(u8 argc, gab_value *argv, gab_engine *eng,
-                            char **err) {
+static inline void print_values(gab_value *argv, u8 argc) {
+  for (i32 i = 0; i < argc; i++) {
+    gab_value arg = argv[i];
+    gab_val_dump(arg);
+
+    if (i == (argc - 1)) {
+      // last iteration
+      printf("\n");
+    } else {
+      printf(", ");
+    }
+  }
+}
+
+gab_value gab_lib_log_error(gab_engine *eng, gab_value *argv, u8 argc) {
 
   printf(ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET ": ");
 
-  for (i32 i = 0; i < argc; i++) {
-    gab_value arg = argv[i];
-    gab_val_dump(arg);
-
-    if (i == (argc - 1)) {
-      // last iteration
-      printf("\n");
-    } else {
-      printf(", ");
-    }
-  }
-
   return GAB_VAL_NULL();
 }
 
-gab_value gab_lib_log_warn(u8 argc, gab_value *argv, gab_engine *eng,
-                           char **err) {
+gab_value gab_lib_log_warn(gab_engine *eng, gab_value *argv, u8 argc) {
 
   printf(ANSI_COLOR_YELLOW "WARNING" ANSI_COLOR_RESET ": ");
 
-  for (i32 i = 0; i < argc; i++) {
-    gab_value arg = argv[i];
-    gab_val_dump(arg);
-
-    if (i == (argc - 1)) {
-      // last iteration
-      printf("\n");
-    } else {
-      printf(", ");
-    }
-  }
+  print_values(argv, argc);
 
   return GAB_VAL_NULL();
 }
 
-gab_value gab_lib_log_info(u8 argc, gab_value *argv, gab_engine *eng,
-                           char **err) {
+gab_value gab_lib_log_info(gab_engine *eng, gab_value *argv, u8 argc) {
   printf(ANSI_COLOR_BLUE "INFO" ANSI_COLOR_RESET ": ");
 
-  for (i32 i = 0; i < argc; i++) {
-    gab_value arg = argv[i];
-    gab_val_dump(arg);
-
-    if (i == (argc - 1)) {
-      // last iteration
-      printf("\n");
-    } else {
-      printf(", ");
-    }
-  }
-
-  return GAB_VAL_NULL();
-}
-
-gab_value gab_lib_log_print(u8 argc, gab_value *argv, gab_engine *eng,
-                            char **err) {
-  for (i32 i = 0; i < argc; i++) {
-    gab_value arg = argv[i];
-    gab_val_dump(arg);
-
-    if (i == (argc - 1)) {
-      // last iteration
-      printf("\n");
-    } else {
-      printf(", ");
-    }
-  }
+  print_values(argv, argc);
 
   return GAB_VAL_NULL();
 }

@@ -4,16 +4,16 @@ Gab is a simple and embeddable scripting language.
 
 ```
 def Person {
-    def new(name, age): { name, age }
+    def New(name, age): { name, age }
 
-    def celebrate_birthday(person): do
-        !print('Happy Birthday {person.name}')
+    def Celebrate_birthday(person): do
+        !info('Happy Birthday {person.name}')
         person.age = person.age + 1
     end
 }
 
-let bob = Person.new('Bob', 20)
-bob->Person.celebrate_birthday()
+let bob = Person.New('Bob', 20)
+bob->Person.Celebrate_birthday()
 
 ```
 
@@ -53,12 +53,12 @@ When you need to a block of code, use the `do` expression!
 It evaluates to the last expression in the block.
 
 ```
-if (cond): !print('Hello World')
+if (cond): !info('Hello World')
 
 if (cond): do
-  !print('Here are')
+  !info('Here are')
 
-  !print('multiple expressions')
+  !info('multiple expressions')
 end
 ```
 
@@ -68,20 +68,20 @@ Method chaining and OOP programming galore! Lets refer to our example above:
 
 ```
 def Person {
-    def new(name, age): { name, age }
+    def New(name, age): { name, age }
 
-    def celebrate_birthday(person): do
-        !print('Happy Birthday {person.name}')
+    def Celebrate_birthday(person): do
+        !info('Happy Birthday {person.name}')
         person.age = person.age + 1
     end
 }
 
-let bob = Person.new('Bob', 20)
-bob->Person.celebrate_birthday()
+let bob = Person.New('Bob', 20)
+bob->Person.Celebrate_birthday()
 
 ```
 
-`Person` is just a normal object, but is serving as a namespace here. There are two functions belonging to person, `new` and `celebrate_birthday`. 
+`Person` is just a normal object, but is serving as a namespace here. There are two functions belonging to person, `New` and `Celebrate_birthday`. 
 
 The `->` operator is where the magic happens. Calling a function with the arrow operator automatically inserts the target as the first argument. And this can work with *any* target and *any* function. That is the beauty of *Universal Function Call Syntax*.
 
@@ -103,7 +103,7 @@ This says *set point to the shape of an object with an x and y property*
 Now, code like this works as expected:
 ```
 let pos = { x = 10 y = 20 }
-!print(pos is point)
+!info(pos is point)
 ```
 This prints `true`!
 
@@ -119,7 +119,7 @@ The object is also useful wherever global state is - like in the REPL!
 
 ```
 > !msg = 'hello world'
-> !print(!msg)
+> !info(!msg)
 ```
 
 ### Iterators
@@ -129,19 +129,19 @@ Here is an example of one to iterate over all the elements in an ordered object:
 ```
 def iter(i): do
   let v = -1
-  ||: (v = v + 1), i[v]
+  ||: return ((v = v + 1), i[v])
 end
 ```
 The iterator accepts the object as the argument, and returns a lambda.
 (`| args |: body`) is the syntax for a lambda - when there are no arguments it makes this funny face `||:`
 
-The lambda returns the index, and the item at the index. When the list is out of elements, i[v] will return `null`
+The lambda uses the `return` expression to return multiple values -  the index, and the item at the index. When the list is out of elements, i[v] will return `null`
 Since null is falsey, this will trigger the end of the iterator. Using it looks like this:
 ```
 let nums = [ 1 2 3 4 ]
 
 for index, num in iter(nums):
-  !print('nums has {num} at index {index}')
+  !info('nums has {num} at index {index}')
 ```
 
 ### Dependencies
@@ -150,16 +150,8 @@ libc is the only dependency for the language - but the repo here uses check for 
 
 ### Whats coming up (in no particular order):
 
- - [X] Inline-caching
- - [X] More efficient object implementation (Using shapes)
- - [X] Shape transitions
- - [X] Extensible stdlib
- - [X] More expression based
- - [X] Pattern Matching
- - [X] String interpolation 
- - [ ] Custom allocator
+ - [ ] Decorators
  - [ ] Concurrency
  - [ ] Unicode Support
- - [ ] Finalize c-api and documentation
+ - [ ] Finalize c api and documentation
  - [ ] CI/CD for builds and releases
- - [ ] Tooling

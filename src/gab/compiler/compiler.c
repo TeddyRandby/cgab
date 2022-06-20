@@ -1330,7 +1330,8 @@ comp_result compile_exp_def(gab_compiler *self, boolean assignable) {
   initialize_local(self, local);
 
   ASSERT_NOT_ERR(compile_definition(self, name));
-  push_op(self, OP_DUP);
+  push_op(self, OP_STORE_LOCAL);
+  push_byte(self, local);
 
   return COMP_OK;
 }
@@ -1387,7 +1388,7 @@ comp_result compile_exp_let(gab_compiler *self, boolean assignable) {
     case COMP_ID_NOT_FOUND: {
       if (!allow_new) {
         error(self, gab_compile_fail(
-                        self, "New declarations must occur before shadowing"));
+                        self, "New declarations must appear before shadowing"));
         return COMP_ERR;
       }
 
@@ -1431,7 +1432,7 @@ comp_result compile_exp_let(gab_compiler *self, boolean assignable) {
 
   ASSERT_NOT_ERR(comma_result);
 
-  switch (match_and_eat_token(self, TOKEN_EQUAL)) {
+  switch (match_and_eat_token(self, TOKEN_COLON_EQUAL)) {
 
   case COMP_TOKEN_MATCH: {
     ASSERT_NOT_ERR(compile_expressions(self, local_count, NULL));
@@ -1455,14 +1456,12 @@ comp_result compile_exp_let(gab_compiler *self, boolean assignable) {
     u8 is_new = is_news[local_count];
     u8 is_local = is_locals[local_count];
 
+    // Initialize all the new locals.
+    if (is_new) {
+      initialize_local(self, local);
+    }
+
     if (local_count > 0) {
-
-      if (is_new) {
-        // Initialize all the new locals.
-        initialize_local(self, local);
-        continue;
-      }
-
       if (is_local) {
         push_op(self, OP_POP_STORE_LOCAL);
         push_byte(self, local);
@@ -1471,13 +1470,6 @@ comp_result compile_exp_let(gab_compiler *self, boolean assignable) {
         push_byte(self, local);
       }
     } else {
-      if (is_new) {
-        // Initialize all the new locals.
-        initialize_local(self, local);
-        push_op(self, OP_DUP);
-        continue;
-      }
-
       if (is_local) {
         push_store_local(self, local);
       } else {
@@ -1780,15 +1772,29 @@ comp_result compile_exp_for(gab_compiler *self, boolean assignable) {
 
   ASSERT_NOT_ERR(expect_token(self, TOKEN_IN));
 
-  // This is the iterator function, falls into iter local
+  // This is the iterator function
   ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
+
+  // Store the iterator into the iter local.
+  push_op(self, OP_POP_STORE_LOCAL);
+  push_byte(self, iter);
 
   u64 loop_start = self->mod->bytecode.size - 1;
 
-  // Push the iterator and call it
-  push_op(self, OP_DUP);
+  // Load the funciton.
+  push_load_local(self, iter);
+
+  // Call the function, wanting loop_locals results.
   push_op(self, OP_CALL_0);
   push_byte(self, loop_locals);
+
+  // Pop the results in reverse order, assigning them to each loop local.
+  for (u8 ll = 0; ll < loop_locals; ll++) {
+    push_op(self, OP_POP_STORE_LOCAL);
+    push_byte(self, iter + loop_locals - ll);
+  }
+
+  push_load_local(self, iter + loop_locals);
 
   // Exit the for loop if the last loop local is false.
   u64 jump_start = push_jump(self, OP_JUMP_IF_FALSE);
@@ -1796,18 +1802,15 @@ comp_result compile_exp_for(gab_compiler *self, boolean assignable) {
   ASSERT_NOT_ERR(expect_token(self, TOKEN_COLON));
   ASSERT_NOT_ERR(optional_newline(self));
 
+  push_op(self, OP_POP);
+
   ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
 
-  push_op(self, OP_POP_N);
-  push_byte(self, loop_locals + 1);
+  push_op(self, OP_POP);
 
   ASSERT_NOT_ERR(push_loop(self, loop_start));
 
   ASSERT_NOT_ERR(patch_jump(self, jump_start));
-
-  // The for expression has to evaluate to somethiing.
-  // just dup when we jump out of the loop.
-  push_op(self, OP_PUSH_NULL);
 
   up_scope(self);
 
@@ -1906,6 +1909,8 @@ const gab_compile_rule gab_compiler_rules[] = {
     INFIX(bin, EQUALITY, false),              // EQUALEQUAL
     POSTFIX(type),                            // QUESTION
     PREFIX_POSTFIX(glb, asrt),                      // BANG
+    NONE(),                            // AT
+    NONE(),                            // COLON_EQUAL
     INFIX(bin, COMPARISON, false),            // LESSER
     INFIX(bin, EQUALITY, false),              // LESSEREQUAL
     INFIX(bin, COMPARISON, false),            // GREATER
