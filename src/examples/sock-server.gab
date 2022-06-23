@@ -1,0 +1,32 @@
+let server, port, max_connections := !sock.sock()!, 5050, 10
+
+server->!sock.bind(port)!
+server->!sock.listen(max_connections)!
+
+!info('Server is listening on port {port}!')
+
+def response(code, msg): 'HTTP/2 {code} {msg}\n'
+
+def with_header(res, field, value): '{res}{field}: {value}\n'
+
+def with_html(res, html): '{res}\n<!DOCTYPE HTML>{html}'
+
+while true: do
+  let conn := server->!sock.accept()!
+
+  let msg := conn->!sock.recv()!
+  !info('Received: {msg}')
+
+  let res := response(200, "OK")
+
+  res = res->with_header('content-type', 'text/html')
+
+  res = res->with_html('<html><body><div>Hello, connection {conn}</div><body></html>')
+
+  conn->!sock.send(res)
+
+  conn->!sock.close()
+end
+
+!info('Shutting down.')
+server->!sock.close()

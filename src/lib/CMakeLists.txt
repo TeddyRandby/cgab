@@ -8,4 +8,5 @@ target_sources(
   lib_log.c
   lib_require.c
   lib_obj.c
+  lib_sock.c
 )

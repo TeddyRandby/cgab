@@ -1,7 +1,7 @@
 
 
 def iter(i): do
-  let v = -1
+  let v := -1
   ||: return ((v = v + 1), i[v])
 end
 
@@ -24,11 +24,11 @@ def Node: {
   end
 
   def build(self): do
-    let str = '<section>'
+    let str := '<section>'
 
     for _, child in iter(self.children): do
 
-      let child_content = match child?:
+      let child_content := match child?:
         "string"   => child
         Node.shape => child->Node.build()
         ?          => null

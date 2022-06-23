@@ -438,15 +438,11 @@ static void up_scope(gab_compiler *self) {
   self->scope_depth--;
 
   gab_compile_frame *frame = peek_frame(self, 0);
-  u8 scope_locals = 0;
+
   while (frame->local_count > 1 &&
          frame->locals_depth[frame->local_count - 1] > self->scope_depth) {
     frame->local_count--;
-    scope_locals++;
   }
-
-  push_op(self, OP_POP_SCOPE);
-  push_byte(self, scope_locals);
 }
 
 static void down_frame(gab_compiler *self, s_u8_ref name) {
@@ -688,20 +684,20 @@ comp_result compile_expressions(gab_compiler *self, u8 want, exp_list *out) {
   }
 
   if (is_var) {
+    // If our expression list is variable length
     have--; // Don't count the variable expression itself.
 
-    // If our expression is variable
+    // If we want a variable number or more than we have
     if (want == VAR_RET || want > have) {
-      // If we want a variable number or more than we have
       // If the expression is variable because it ends
       // with a function call, try to patch that call to want
       // either variable or the additional number of exps.
       patch_call(self, want - have);
     }
   } else {
-    // If our expression is not variable
+    // If our expression list is constant length
     if (want != VAR_RET) {
-      // If we want a fixed number of expressions
+      // If we want a constant number of expressions
       while (have < want) {
         // While we have fewer expressions than we want, push nulls.
         push_op(self, OP_PUSH_NULL);
@@ -865,7 +861,7 @@ comp_result compile_obj_internal_item(gab_compiler *self) {
 
     ASSERT_NOT_ERR(expect_token(self, TOKEN_RBRACE));
 
-    ASSERT_NOT_ERR(expect_token(self, TOKEN_COLON));
+    ASSERT_NOT_ERR(expect_token(self, TOKEN_EQUAL));
 
     ASSERT_NOT_ERR(compile_expressions(self, 1, NULL));
     return COMP_OK;

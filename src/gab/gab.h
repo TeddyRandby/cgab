@@ -25,17 +25,12 @@ typedef struct gab_lib_kvp {
 } gab_lib_kvp;
 
 /*
+   Bundle a list of KVPS into a Gab object.
+*/
+gab_value gab_bundle(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]);
+
+/*
   Bind a library to the Gab engine.
-
-  @param gab: The owning Sol Engine.
-
-  @param libraries: The array of libraries to bind.
-
-  @param names: The corresponding array of names.
-
-  @param size: The length og the arrays.
-
-  @return void
 */
 void gab_bind_library(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]);
 

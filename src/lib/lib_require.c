@@ -1,6 +1,6 @@
 #include "lib.h"
 
-gab_value gab_lib_require_require(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_require(gab_engine *eng, gab_value *argv, u8 argc) {
 
   if (!GAB_VAL_IS_STRING(argv[0])) {
     return GAB_VAL_NULL();

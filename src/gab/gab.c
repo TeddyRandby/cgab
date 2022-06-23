@@ -5,12 +5,7 @@ gab_engine *gab_create() { return gab_engine_create(); }
 
 void gab_destroy(gab_engine *gab) { gab_engine_destroy(gab); }
 
-void gab_bind_library(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]) {
-
-  if (GAB_VAL_IS_OBJ(gab->std)) {
-    gab_obj_destroy(GAB_VAL_TO_OBJ(gab->std), gab);
-  }
-
+gab_value gab_bundle(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]) {
   gab_value keys[size], values[size];
 
   for (u64 i = 0; i < size; i++) {
@@ -19,10 +14,21 @@ void gab_bind_library(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]) {
     values[i] = kvps[i].value;
   }
 
-  gab_obj_shape *std_shape = gab_obj_shape_create(gab, keys, size, 1);
+  gab_obj_shape *bundle_shape = gab_obj_shape_create(gab, keys, size, 1);
 
-  gab_value std =
-      GAB_VAL_OBJ(gab_obj_object_create(gab, std_shape, values, size, 1));
+  gab_value bundle =
+      GAB_VAL_OBJ(gab_obj_object_create(gab, bundle_shape, values, size, 1));
+
+  return bundle;
+}
+
+void gab_bind_library(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]) {
+
+  if (GAB_VAL_IS_OBJ(gab->std)) {
+    gab_obj_destroy(GAB_VAL_TO_OBJ(gab->std), gab);
+  }
+
+  gab_value std = gab_bundle(gab, size, kvps);
 
   gab->std = std;
 }

@@ -1,8 +1,14 @@
-def iter(i): do
-  let v := -1
-  ||: return ((v = v + 1), i[v])
-end
+let server, port := !sock()!, 5050
 
+server->!bind(port)!
+server->!listen(10)!
+!info('Server is listening on port {port}!')
 
-for index, key in { hello world }->!keys()->iter():
-  !info(index, key)
+let conn := server->!accept()!
+
+let msg := conn->!read()!
+
+!info(msg)
+
+conn->!shutdown()
+server->!shutdown()
