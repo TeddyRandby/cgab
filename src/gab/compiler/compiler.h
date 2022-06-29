@@ -1,7 +1,8 @@
 #ifndef BLUF_COMPILER_H
 #define BLUF_COMPILER_H
-#include "../../common/common.h"
+
 #include "../lexer/lexer.h"
+#include "module.h"
 
 /*
   A compile frame is the compile-time equivalent of a call frame.
@@ -53,7 +54,7 @@ struct gab_compiler {
     If the compiler encounters an error, panic_mode will
     be turned on, until it is turned off by a statement.
   */
-  gab_result *error;
+  const char *error;
 
   /*
     The module where bytecode is being compiled into.

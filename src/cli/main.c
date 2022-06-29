@@ -2,7 +2,7 @@
 #include "../lib/lib.h"
 
 s_u8 *collect_line() {
-  printf(">");
+  printf(">>>");
   return gab_io_read_line();
 }
 
@@ -53,7 +53,9 @@ void gab_repl() {
 
   s_u8 *prev_src = NULL;
 
-  printf("gab v 0.1\n");
+  printf("Welcome to Gab v%d.%d\nPress CTRL+D to exit\n", GAB_VERSION_MAJOR,
+         GAB_VERSION_MINOR);
+
   while (true) {
 
     s_u8 *src = collect_line();
@@ -68,7 +70,7 @@ void gab_repl() {
 
       if (gab_result_has_error(result)) {
         gab_result_dump_error(result);
-      } else if (!GAB_VAL_IS_NULL(result->as.result)) {
+      } else {
         gab_val_dump(result->as.result);
         printf("\n");
       }

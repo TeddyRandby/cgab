@@ -345,7 +345,7 @@ void dump_compile_error(gab_compiler *compiler, const char *msg) {
   fprintf(stderr, ANSI_COLOR_YELLOW "%s.\n" ANSI_COLOR_RESET, msg);
 }
 
-void dump_run_error(gab_engine *eng, gab_vm *vm, const char *msg) {
+void dump_run_error(gab_vm *vm, const char *msg) {
 
   gab_call_frame *frame = vm->call_stack + 1;
 
@@ -366,7 +366,6 @@ void dump_run_error(gab_engine *eng, gab_vm *vm, const char *msg) {
     const char *tok = gab_token_names[v_u8_val_at(&mod->tokens, offset)];
 
     if (frame == vm->frame) {
-
       fprintf(stderr,
               "[" ANSI_COLOR_GREEN "%s" ANSI_COLOR_RESET
               "] line: " ANSI_COLOR_RED "%04lu" ANSI_COLOR_RESET
@@ -378,7 +377,6 @@ void dump_run_error(gab_engine *eng, gab_vm *vm, const char *msg) {
 
       fprintf(stderr, ANSI_COLOR_YELLOW "%s.\n" ANSI_COLOR_RESET, msg);
     } else {
-
       fprintf(stderr,
               "[" ANSI_COLOR_GREEN "%s" ANSI_COLOR_RESET
               "] line: " ANSI_COLOR_RED "%04lu" ANSI_COLOR_RESET " Called from"
@@ -402,8 +400,7 @@ void gab_result_dump_error(gab_result *self) {
     dump_compile_error(self->as.compile_fail.compiler,
                        self->as.compile_fail.msg);
   } else if (self->type == RESULT_RUN_FAIL) {
-    dump_run_error(self->as.run_fail.eng, self->as.run_fail.vm,
-                   self->as.run_fail.msg);
+    dump_run_error(self->as.run_fail.vm, self->as.run_fail.msg);
   }
 };
 
@@ -420,24 +417,23 @@ gab_result *gab_compile_fail(gab_compiler *compiler, const char *msg) {
   return self;
 };
 
-gab_result *gab_compile_success(gab_engine *eng, gab_obj_closure *main) {
+gab_result *gab_compile_success(gab_obj_closure *main) {
   gab_result *self = CREATE_STRUCT(gab_result);
   self->type = RESULT_COMPILE_SUCCESS;
   self->as.main = main;
   return self;
 };
 
-gab_result *gab_run_fail(gab_engine *eng, const char *msg) {
+gab_result *gab_run_fail(gab_vm *vm, const char *msg) {
   gab_result *self = CREATE_STRUCT(gab_result);
   self->type = RESULT_RUN_FAIL;
 
-  self->as.run_fail.eng = eng;
   self->as.run_fail.vm = CREATE_STRUCT(gab_vm);
 
-  COPY(self->as.run_fail.vm, eng->vm, sizeof(gab_vm));
+  COPY(self->as.run_fail.vm, vm, sizeof(gab_vm));
 
   self->as.run_fail.vm->frame =
-      self->as.run_fail.vm->call_stack + (eng->vm->frame - eng->vm->call_stack);
+      self->as.run_fail.vm->call_stack + (vm->frame - vm->call_stack);
 
   self->as.run_fail.msg = msg;
   return self;

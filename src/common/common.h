@@ -1,11 +1,12 @@
 #ifndef GAB_COMMON_H
 #define GAB_COMMON_H
-// COmpilation options
+// Compilation options
+
 // Collect as frequently as possible (on every allocation)
-#define GAB_DEBUG_GC 0
-// Log what is happening durin collection.
+#define GAB_DEBUG_GC 1
+// Log what is happening during collection.
 #define GAB_LOG_GC 0
-// Log what is happening durin execution.
+// Log what is happening during execution.
 #define GAB_LOG_EXECUTION 0
 // TODO: Concurrent garbage collection.
 #define GAB_CONCURRENT_GC 0
@@ -34,7 +35,7 @@
 // Maximum number of function defintions that can be nested.
 #define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
 
-// Not configurable
+// Not configurable, just constants
 // Maximum index of a local.
 #define LOCAL_MAX 256
 // Maximum index of an upvalues.
@@ -49,6 +50,10 @@
 // GAB optional flags
 #define GAB_FLAG_NONE 0
 #define GAB_FLAG_DUMP_BYTECODE 1
+
+// VERSION
+#define GAB_VERSION_MAJOR 0
+#define GAB_VERSION_MINOR 1
 
 #include "assert.h"
 #include "io.h"

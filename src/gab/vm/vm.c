@@ -155,7 +155,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
 #define BINARY_OPERATION(value_type, operation_type, operation)                \
   if ((GAB_VAL_IS_NUMBER(PEEK()) + GAB_VAL_IS_NUMBER(PEEK2())) < 2) {          \
     STORE_FRAME();                                                             \
-    return gab_run_fail(eng, "Binary operations only work on numbers");        \
+    return gab_run_fail(VM(), "Binary operations only work on numbers");       \
   }                                                                            \
   operation_type b = GAB_VAL_TO_NUMBER(POP());                                 \
   operation_type a = GAB_VAL_TO_NUMBER(POP());                                 \
@@ -260,7 +260,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
       STORE_FRAME();
 
       if (!GAB_VAL_IS_OBJ(callee)) {
-        return gab_run_fail(eng, "Expected a callable");
+        return gab_run_fail(VM(), "Expected a callable");
       }
 
       if (GAB_VAL_TO_OBJ(callee)->kind == OBJECT_CLOSURE) {
@@ -269,7 +269,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
         // Combine the two error branches into a single case.
         // Check for stack overflow here
         if (arity != closure->func->narguments) {
-          return gab_run_fail(eng, "Wrong number of arguments");
+          return gab_run_fail(VM(), "Wrong number of arguments");
         }
 
         VM()->frame++;
@@ -286,7 +286,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
         gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(callee);
 
         if (arity != builtin->narguments && builtin->narguments != VAR_RET) {
-          return gab_run_fail(eng, "Wrong number of arguments");
+          return gab_run_fail(VM(), "Wrong number of arguments");
         }
 
         gab_value result =
@@ -298,7 +298,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
         trim_return(VM(), &result, have, want);
 
       } else {
-        return gab_run_fail(eng, "Expected a callable");
+        return gab_run_fail(VM(), "Expected a callable");
       }
 
       NEXT();
@@ -350,9 +350,10 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
       trim_return(VM(), from, have, VM()->frame->expected_results);
 
       if (--VM()->frame == VM()->call_stack) {
-
         gab_value module = POP();
+
         gab_gc_push_inc_if_obj_ref(GC(), module);
+
         return gab_run_success(module);
       }
 
@@ -373,7 +374,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
 
         if (!GAB_VAL_IS_OBJECT(index)) {
           STORE_FRAME();
-          return gab_run_fail(eng, "Only objects have properties");
+          return gab_run_fail(VM(), "Only objects have properties");
         }
 
         obj = GAB_VAL_TO_OBJECT(index);
@@ -394,7 +395,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
 
         if (!GAB_VAL_IS_OBJECT(index)) {
           STORE_FRAME();
-          return gab_run_fail(eng, "Only objects have properties");
+          return gab_run_fail(VM(), "Only objects have properties");
         }
 
         obj = GAB_VAL_TO_OBJECT(index);
@@ -434,7 +435,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
 
         if (!GAB_VAL_IS_OBJECT(index)) {
           STORE_FRAME();
-          return gab_run_fail(eng, "Only objects have properties");
+          return gab_run_fail(VM(), "Only objects have properties");
         }
 
         obj = GAB_VAL_TO_OBJECT(index);
@@ -470,7 +471,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
 
         if (!GAB_VAL_IS_OBJECT(index)) {
           STORE_FRAME();
-          return gab_run_fail(eng, "Only objects have properties");
+          return gab_run_fail(VM(), "Only objects have properties");
         }
 
         obj = GAB_VAL_TO_OBJECT(index);
@@ -521,7 +522,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
     CASE_CODE(NEGATE) : {
       if (!GAB_VAL_IS_NUMBER(PEEK())) {
         STORE_FRAME();
-        return gab_run_fail(eng, "Can only negate numbers.");
+        return gab_run_fail(VM(), "Can only negate numbers.");
       }
       PUSH(GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP())));
       NEXT();
@@ -602,7 +603,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
     CASE_CODE(CONCAT) : {
       if (!GAB_VAL_IS_STRING(PEEK()) + !GAB_VAL_IS_STRING(PEEK2())) {
         STORE_FRAME();
-        return gab_run_fail(eng, "Can only concatenate strings");
+        return gab_run_fail(VM(), "Can only concatenate strings");
       }
 
       gab_obj_string *b = GAB_VAL_TO_STRING(POP());
@@ -673,7 +674,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
     CASE_CODE(ASSERT) : {
       if (GAB_VAL_IS_NULL(PEEK())) {
         STORE_FRAME();
-        return gab_run_fail(ENGINE(), "Expected value to not be null");
+        return gab_run_fail(VM(), "Expected value to not be null");
       }
       NEXT();
     }
@@ -702,7 +703,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
 
       if (!GAB_VAL_IS_OBJECT(index)) {
         STORE_FRAME();
-        return gab_run_fail(ENGINE(), "Spread operator only works on objects");
+        return gab_run_fail(VM(), "Spread operator only works on objects");
       }
 
       gab_obj_object *obj = GAB_VAL_TO_OBJECT(index);

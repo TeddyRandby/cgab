@@ -1,6 +1,51 @@
 #ifndef GAB_ENGINE_H
 #define GAB_ENGINE_H
-#include "module.h"
+#include "compiler.h"
+
+/*
+  The result type returned by the compiler and vm.
+*/
+
+typedef enum gab_result_kind {
+  RESULT_COMPILE_FAIL,
+  RESULT_COMPILE_SUCCESS,
+  RESULT_RUN_FAIL,
+  RESULT_RUN_SUCCESS,
+} gab_result_kind;
+
+typedef struct gab_result {
+  gab_result_kind type;
+  union {
+    /* Successful compile */
+    gab_obj_closure *main;
+    /* Successful run */
+    gab_value result;
+
+    struct {
+      gab_compiler *compiler;
+      const char *msg;
+    } compile_fail;
+
+    struct {
+      gab_vm *vm;
+      const char *msg;
+    } run_fail;
+  } as;
+} gab_result;
+
+boolean gab_result_has_error(gab_result *self);
+
+void gab_result_dump_error(gab_result *self);
+
+gab_result *gab_compile_fail(gab_compiler *self, const char *msg);
+
+gab_result *gab_run_fail(gab_vm *self, const char *msg);
+
+gab_result *gab_compile_success(gab_obj_closure *main);
+
+gab_result *gab_run_success(gab_value data);
+
+void gab_result_destroy(gab_result *self);
 
 typedef struct gab_engine gab_engine;
 

@@ -4,6 +4,8 @@
 #include "../../common/common.h"
 #include "value.h"
 
+typedef struct gab_module gab_module;
+
 static inline f64 value_to_f64(gab_value value) { return *(f64 *)(&value); }
 static inline gab_value f64_to_value(f64 value) {
   return *(gab_value *)(&value);

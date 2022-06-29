@@ -44,12 +44,10 @@ static boolean match_token(gab_compiler *self, gab_token tok);
 
 static i32 eat_token(gab_compiler *self);
 
-void error(gab_compiler *self, gab_result *err) {
+void error(gab_compiler *self, const char *err) {
   if (self->error == NULL) {
     gab_lexer_finish_line(&self->lex);
     self->error = err;
-  } else {
-    gab_result_destroy(err);
   }
 }
 
@@ -66,7 +64,7 @@ static i32 eat_token(gab_compiler *self) {
   self->line = self->lex.current_row;
 
   if (match_token(self, TOKEN_ERROR)) {
-    error(self, gab_compile_fail(self, self->lex.error_msg));
+    error(self, self->lex.error_msg);
     return COMP_ERR;
   }
 
@@ -83,6 +81,7 @@ static i32 match_and_eat_token(gab_compiler *self, gab_token tok) {
 static i32 expect_token(gab_compiler *self, gab_token tok) {
   if (!match_token(self, tok)) {
     eat_token(self);
+    error(self, "Unexpected token");
     return COMP_ERR;
   }
 
@@ -174,7 +173,7 @@ static i32 patch_jump(gab_compiler *self, u64 dist) {
   i32 jump = self->mod->bytecode.size - dist - 2;
 
   if (jump > UINT16_MAX) {
-    error(self, gab_compile_fail(self, "Tried to jump over too much code"));
+    error(self, "Tried to jump over too much code");
     return COMP_ERR;
   }
 
@@ -202,7 +201,7 @@ static i32 push_loop(gab_compiler *self, u64 dist) {
   push_op(self, OP_LOOP);
 
   if (jump > UINT16_MAX) {
-    error(self, gab_compile_fail(self, "Tried to jump over too much code"));
+    error(self, "Tried to jump over too much code");
     return COMP_ERR;
   }
 
@@ -217,8 +216,7 @@ static i32 push_return(gab_compiler *self, exp_list result) {
     push_byte(self, result.have);
   } else {
     if (result.have > FRET_MAX) {
-      error(self, gab_compile_fail(
-                      self, "Functions cannot return more than 16 values"));
+      error(self, "Functions cannot return more than 16 values");
       return COMP_ERR;
     }
     push_op(self, MAKE_RETURN(result.have));
@@ -232,8 +230,7 @@ static i32 push_call(gab_compiler *self, exp_list args) {
     push_byte(self, args.have);
   } else {
     if (args.have > FARG_MAX) {
-      error(self, gab_compile_fail(
-                      self, "Functions cannot take more than 16 arguments"));
+      error(self, "Functions cannot take more than 16 arguments");
       return COMP_ERR;
     }
 
@@ -258,8 +255,7 @@ static i32 add_invisible_local(gab_compiler *self) {
   gab_compile_frame *frame = peek_frame(self, 0);
 
   if (frame->local_count == LOCAL_MAX) {
-    error(self, gab_compile_fail(
-                    self, "Can't have more than 255 variables in a function"));
+    error(self, "Can't have more than 255 variables in a function");
     return COMP_ERR;
   }
 
@@ -280,8 +276,7 @@ static i32 add_invisible_local(gab_compiler *self) {
 static i32 add_local(gab_compiler *self, s_u8_ref name) {
   gab_compile_frame *frame = peek_frame(self, 0);
   if (frame->local_count == LOCAL_MAX) {
-    error(self, gab_compile_fail(
-                    self, "Can't have more than 255 variables in a function"));
+    error(self, "Can't have more than 255 variables in a function");
     return COMP_ERR;
   }
 
@@ -312,9 +307,7 @@ static i32 add_upvalue(gab_compiler *self, u32 depth, u8 index,
   }
 
   if (count == UPVALUE_MAX) {
-    error(self,
-          gab_compile_fail(
-              self, "Can't capture more than 255 variables in one closure"));
+    error(self, "Can't capture more than 255 variables in one closure");
     return COMP_ERR;
   }
 
@@ -334,9 +327,7 @@ static i32 resolve_local(gab_compiler *self, s_u8_ref name, u32 depth) {
        local--) {
     if (s_u8_ref_match(name, peek_frame(self, depth)->locals_name[local])) {
       if (peek_frame(self, depth)->locals_depth[local] == -1) {
-        error(self,
-              gab_compile_fail(
-                  self, "Can't reference a variable before it is initialized"));
+        error(self, "Can't reference a variable before it is initialized");
         return COMP_ERR;
       }
       return local;
@@ -454,9 +445,7 @@ static i32 compile_local(gab_compiler *self, s_u8_ref name) {
     }
 
     if (s_u8_ref_match(name, peek_frame(self, 0)->locals_name[local])) {
-      error(self,
-            gab_compile_fail(
-                self, "There is already a variable with this name in scope"));
+      error(self, "There is already a variable with this name in scope");
       return COMP_ERR;
     }
   }
@@ -474,8 +463,7 @@ i32 compile_function_args(gab_compiler *self, gab_obj_function *function) {
     function->narguments++;
     if (function->narguments == FARG_MAX) {
       s_u8 *arg = s_u8_create_sref(function->name);
-      error(self, gab_compile_fail(
-                      self, "Functions can't have more than 16 parameters"));
+      error(self, "Functions can't have more than 16 parameters");
       return COMP_ERR;
     }
 
@@ -650,7 +638,7 @@ i32 compile_expressions(gab_compiler *self, u8 want, exp_list *out) {
     return result;
 
   if (have > want) {
-    error(self, gab_compile_fail(self, "Too many expressions in list"));
+    error(self, "Too many expressions in list");
     return COMP_ERR;
   }
 
@@ -710,7 +698,7 @@ i32 compile_property(gab_compiler *self, boolean assignable) {
 
   case COMP_OK: {
     if (!assignable) {
-      error(self, gab_compile_fail(self, "Expression is not assignable"));
+      error(self, "Expression is not assignable");
       return COMP_ERR;
     }
 
@@ -739,8 +727,7 @@ i32 compile_property(gab_compiler *self, boolean assignable) {
   }
 
   default:
-    error(self, gab_compile_fail(
-                    self, "Unexpected result compiling property access"));
+    error(self, "Unexpected result compiling property access");
     return COMP_ERR;
   }
 
@@ -771,9 +758,7 @@ i32 compile_lst_internals(gab_compiler *self) {
       return COMP_ERR;
 
     if (size == UINT8_MAX) {
-      error(self,
-            gab_compile_fail(
-                self, "Can't initialize an object with more than 255 values"));
+      error(self, "Can't initialize an object with more than 255 values");
       return COMP_ERR;
     }
 
@@ -835,7 +820,7 @@ i32 compile_obj_internal_item(gab_compiler *self) {
         break;
 
       default:
-        error(self, gab_compile_fail(self, "Unexpected result"));
+        error(self, "Unexpected result");
         return COMP_ERR;
       }
 
@@ -855,7 +840,7 @@ i32 compile_obj_internal_item(gab_compiler *self) {
     if (expect_token(self, TOKEN_RBRACE) < 0)
       return COMP_ERR;
 
-    if (expect_token(self, TOKEN_EQUAL) < 0)
+    if (expect_token(self, TOKEN_COLON) < 0)
       return COMP_ERR;
 
     if (compile_expressions(self, 1, NULL) < 0)
@@ -884,7 +869,7 @@ i32 compile_obj_internal_item(gab_compiler *self) {
 
 fin:
   eat_token(self);
-  error(self, gab_compile_fail(self, "Unexpected token in object literal"));
+  error(self, "Unexpected token in object literal");
   return COMP_ERR;
 }
 
@@ -900,9 +885,7 @@ i32 compile_obj_internals(gab_compiler *self) {
       return COMP_ERR;
 
     if (size == UINT8_MAX) {
-      error(self,
-            gab_compile_fail(
-                self, "Can't initialize an object with more than 255 values"));
+      error(self, "Can't initialize an object with more than 255 values");
       return COMP_ERR;
     }
 
@@ -932,7 +915,7 @@ i32 compile_definition(gab_compiler *self, s_u8_ref name) {
     return compile_expressions(self, 1, NULL);
   }
 
-  error(self, gab_compile_fail(self, "Unknown definition"));
+  error(self, "Unknown definition");
   return COMP_ERR;
 }
 
@@ -950,7 +933,7 @@ i32 compile_exp_blk(gab_compiler *self, boolean assignable) {
     return COMP_ERR;
 
   if (match_token(self, TOKEN_EOF)) {
-    error(self, gab_compile_fail(self, "Open do expression"));
+    error(self, "Open do expression");
     return COMP_ERR;
   }
 
@@ -998,8 +981,7 @@ i32 compile_exp_if(gab_compiler *self, boolean assignable) {
     break;
 
   default:
-    error(self,
-          gab_compile_fail(self, "Unexpected result compiling if expression"));
+    error(self, "Unexpected result compiling if expression");
     return COMP_ERR;
   }
 
@@ -1156,7 +1138,7 @@ i32 compile_exp_bin(gab_compiler *self, boolean assignable) {
     break;
   }
   default: {
-    error(self, gab_compile_fail(self, "Unknown binary operator"));
+    error(self, "Unknown binary operator");
     return COMP_ERR;
   }
   }
@@ -1184,7 +1166,7 @@ i32 compile_exp_una(gab_compiler *self, boolean assignable) {
     break;
   }
   default: {
-    error(self, gab_compile_fail(self, "Unknown unary operator"));
+    error(self, "Unknown unary operator");
     return COMP_ERR;
   }
   }
@@ -1255,7 +1237,7 @@ i32 compile_exp_str(gab_compiler *self, boolean assignable) {
   s_u8 *parsed = parse_raw_str(self, raw_token);
 
   if (parsed == NULL) {
-    error(self, gab_compile_fail(self, "String parsing failed"));
+    error(self, "String parsing failed");
     return COMP_ERR;
   }
 
@@ -1433,9 +1415,8 @@ i32 compile_exp_let(gab_compiler *self, boolean assignable) {
   do {
     if (local_count == 16) {
       error(self,
-            gab_compile_fail(
-                self,
-                "Can't have more than 16 variables in one let declaration"));
+
+            "Can't have more than 16 variables in one let declaration");
       return COMP_ERR;
     }
 
@@ -1461,14 +1442,12 @@ i32 compile_exp_let(gab_compiler *self, boolean assignable) {
 
     case COMP_RESOLVED_TO_LOCAL:
     case COMP_RESOLVED_TO_UPVALUE: {
-      error(self,
-            gab_compile_fail(self, "A variable with this name already exists"));
+      error(self, "A variable with this name already exists");
       break;
     }
 
     default:
-      error(self, gab_compile_fail(
-                      self, "Unexpected result compiling let expression"));
+      error(self, "Unexpected result compiling let expression");
       return COMP_ERR;
     }
 
@@ -1495,8 +1474,7 @@ i32 compile_exp_let(gab_compiler *self, boolean assignable) {
     break;
 
   default:
-    error(self,
-          gab_compile_fail(self, "Unexpected result compiling let expression"));
+    error(self, "Unexpected result compiling let expression");
     return COMP_ERR;
   }
 
@@ -1536,7 +1514,7 @@ i32 compile_exp_idn(gab_compiler *self, boolean assignable) {
   switch (resolve_id(self, name, &value_in)) {
 
   case COMP_ID_NOT_FOUND: {
-    error(self, gab_compile_fail(self, "Unexpected identifier"));
+    error(self, "Unexpected identifier");
     return COMP_ERR;
   }
 
@@ -1552,8 +1530,7 @@ i32 compile_exp_idn(gab_compiler *self, boolean assignable) {
   }
 
   default:
-    error(self,
-          gab_compile_fail(self, "Unexpected result compiling identifier"));
+    error(self, "Unexpected result compiling identifier");
     return COMP_ERR;
   }
 
@@ -1571,7 +1548,7 @@ i32 compile_exp_idn(gab_compiler *self, boolean assignable) {
       }
 
     } else {
-      error(self, gab_compile_fail(self, "Invalid assignment target"));
+      error(self, "Invalid assignment target");
       return COMP_ERR;
     }
     break;
@@ -1586,8 +1563,7 @@ i32 compile_exp_idn(gab_compiler *self, boolean assignable) {
     break;
 
   default:
-    error(self,
-          gab_compile_fail(self, "Unexpected result compiling identifier"));
+    error(self, "Unexpected result compiling identifier");
     return COMP_ERR;
   }
 
@@ -1610,7 +1586,7 @@ i32 compile_exp_idx(gab_compiler *self, boolean assignable) {
 
       push_op(self, OP_SET_INDEX);
     } else {
-      error(self, gab_compile_fail(self, "Invalid assignment target"));
+      error(self, "Invalid assignment target");
       return COMP_ERR;
     }
     break;
@@ -1622,7 +1598,7 @@ i32 compile_exp_idx(gab_compiler *self, boolean assignable) {
   }
 
   default:
-    error(self, gab_compile_fail(self, "Unexpected result compiling index"));
+    error(self, "Unexpected result compiling index");
     return COMP_ERR;
   }
 
@@ -1684,7 +1660,7 @@ i32 compile_exp_glb(gab_compiler *self, boolean assignable) {
   }
 
   default:
-    error(self, gab_compile_fail(self, "Unexpected result compiling global"));
+    error(self, "Unexpected result compiling global");
     return COMP_ERR;
   }
 
@@ -1780,7 +1756,7 @@ i32 compile_exp_prec(gab_compiler *self, gab_precedence prec) {
   gab_compile_rule rule = get_rule(self->previous_token);
 
   if (rule.prefix == NULL) {
-    error(self, gab_compile_fail(self, "Expected an expression"));
+    error(self, "Expected an expression");
     return COMP_ERR;
   }
 
@@ -1806,8 +1782,7 @@ i32 compile_exp_prec(gab_compiler *self, gab_precedence prec) {
       // No infix rule for this token it might be a postfix though.
 
       if (rule.postfix == NULL) {
-        error(self,
-              gab_compile_fail(self, "Unknown infix or postfix expression"));
+        error(self, "Unknown infix or postfix expression");
         return COMP_ERR;
       }
 
@@ -1821,7 +1796,7 @@ i32 compile_exp_prec(gab_compiler *self, gab_precedence prec) {
 
   // TODO: See if this actually does anything.
   if (assignable && match_token(self, TOKEN_EQUAL)) {
-    error(self, gab_compile_fail(self, "Invalid assignment target"));
+    error(self, "Invalid assignment target");
     return COMP_ERR;
   }
 
@@ -1960,9 +1935,8 @@ i32 compile_exp_rtn(gab_compiler *self, boolean assignable) {
       return COMP_ERR;
 
   } else {
-    error(self,
-          gab_compile_fail(self, "Return expressions should be follwed by an "
-                                 "end or a tuple."));
+    error(self, "Return expressions should be follwed by an "
+                "end or a tuple.");
     return COMP_ERR;
   }
 
@@ -2092,7 +2066,7 @@ gab_result *gab_engine_compile(gab_engine *eng, s_u8 *src, s_u8_ref name,
   gab_obj_closure *main = compile(&compiler, src, name);
 
   if (main == NULL) {
-    gab_result *error = compiler.error;
+    gab_result *error = gab_compile_fail(&compiler, compiler.error);
     return error;
   }
 
@@ -2100,5 +2074,5 @@ gab_result *gab_engine_compile(gab_engine *eng, s_u8 *src, s_u8_ref name,
     gab_module_dump(module, name);
   }
 
-  return gab_compile_success(eng, main);
+  return gab_compile_success(main);
 }
