@@ -12,4 +12,6 @@ target_sources(
   object.h
   object.c
   compiler.h
+  engine.h
+  engine.c
 )

@@ -22,18 +22,26 @@ s_u8 *collect_line() {
 
 void bind_std(gab_engine *gab) {
 
-  gab_lib_kvp sock_kvps[] = {
-      BUILTIN(sock, 0),   BUILTIN(bind, 2),    BUILTIN(listen, 2),
-      BUILTIN(accept, 1), BUILTIN(recv, 1),    BUILTIN(send, 2),
-      BUILTIN(close, 1),  BUILTIN(connect, 3), BUILTIN(close, 1)};
+  gab_lib_kvp socket_kvps[] = {BUILTIN(sock, 0),    BUILTIN(bind, 2),
+                               BUILTIN(listen, 2),  BUILTIN(accept, 1),
+                               BUILTIN(recv, 1),    BUILTIN(send, 2),
+                               BUILTIN(connect, 3), BUILTIN(close, 1)};
+
+  gab_lib_kvp re_kvps[] = {BUILTIN(exec, 2)};
+
+  gab_lib_kvp str_kvps[] = {BUILTIN(num, 1)};
 
   gab_lib_kvp kvps[] = {BUILTIN(info, VAR_RET),
                         BUILTIN(warn, VAR_RET),
                         BUILTIN(error, VAR_RET),
+                        BUILTIN(push, VAR_RET),
                         BUILTIN(require, 1),
                         BUILTIN(keys, 1),
                         BUILTIN(len, 1),
-                        BUNDLE(sock)};
+                        BUILTIN(slice, 3),
+                        BUNDLE(socket),
+                        BUNDLE(str),
+                        BUNDLE(re)};
 
   gab_bind_library(gab, sizeof(kvps) / sizeof(gab_lib_kvp), kvps);
 }

@@ -1,10 +1,7 @@
 #ifndef GAB_VM_H
 #define GAB_VM_H
 
-#include "../../common/common.h"
-#include "../compiler/compiler.h"
-#include "../compiler/object.h"
-#include "gc.h"
+#include "../compiler/engine.h"
 /*
   A run-time representation of a callframe.
 */
@@ -56,12 +53,5 @@ struct gab_vm {
   */
   gab_call_frame call_stack[FRAMES_MAX];
 };
-
-/*
-  Run a gab function.
-
-  A value of 0 means an error was encountered.
-*/
-gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_function *func);
 
 #endif

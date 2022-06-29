@@ -1,5 +1,5 @@
 #include "object.h"
-#include "module.h"
+#include "engine.h"
 
 /*
   Helper macros for allocating gab objects.

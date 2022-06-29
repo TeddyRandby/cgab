@@ -339,14 +339,14 @@ typedef u64 gab_value;
 typedef struct gab_vm gab_vm;
 typedef struct gab_engine gab_engine;
 typedef struct gab_module gab_module;
-typedef struct gab_obj_function gab_obj_function;
+typedef struct gab_obj_closure gab_obj_closure;
 typedef struct gab_compiler gab_compiler;
 
 typedef struct gab_result {
   gab_result_kind type;
   union {
     /* Successful compile */
-    gab_obj_function *func;
+    gab_obj_closure *main;
     /* Successful run*/
     gab_value result;
 
@@ -367,7 +367,7 @@ boolean gab_result_has_error(gab_result *self);
 void gab_result_dump_error(gab_result *self);
 
 gab_result *gab_compile_fail(gab_compiler *self, const char *msg);
-gab_result *gab_compile_success(gab_engine *eng, gab_module *module);
+gab_result *gab_compile_success(gab_engine *eng, gab_obj_closure *main);
 
 gab_result *gab_run_fail(gab_engine *eng, const char *msg);
 gab_result *gab_run_success(gab_value data);

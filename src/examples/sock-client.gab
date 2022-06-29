@@ -1,11 +1,11 @@
-let sock := !sock()!
+let sock := !socket.soc()!
 
 let host, port := "127.0.0.1", 5050
 
-sock->!connect(host, port)!
+sock->!socket.connect(host, port)!
 
-sock->!send("Hello server!")
+sock->!socket.send("Hello server!")
 
-let msg := sock->!recv()!
+let msg := sock->!socket.recv()!
 
 !info(msg)

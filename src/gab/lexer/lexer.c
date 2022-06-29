@@ -1,6 +1,5 @@
 #include "lexer.h"
 #include "char.h"
-#include "token.h"
 #include <stdio.h>
 
 static void cursor_advance(gab_lexer *self) {

@@ -5,7 +5,6 @@ target_sources(
   cgab
   PRIVATE
   token.h
-  token.c
   lexer.c
   char.h
   char.c

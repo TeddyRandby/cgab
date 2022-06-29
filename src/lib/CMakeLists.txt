@@ -9,4 +9,6 @@ target_sources(
   lib_require.c
   lib_obj.c
   lib_sock.c
+  lib_str.c
+  lib_regex.c
 )

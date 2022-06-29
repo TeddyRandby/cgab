@@ -265,10 +265,13 @@ struct gab_obj_shape {
 
   u64 hash;
 
+  s_u8_ref name;
+
   d_u64 properties;
 
   gab_value keys[FLEXIBLE_ARRAY];
 };
+
 #define GAB_VAL_IS_SHAPE(value) (gab_val_is_obj_kind(value, OBJECT_SHAPE))
 #define GAB_VAL_TO_SHAPE(value) ((gab_obj_shape *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SHAPE(value) ((gab_obj_shape *)value)
@@ -320,6 +323,7 @@ struct gab_obj_object {
 #define GAB_VAL_IS_OBJECT(value) (gab_val_is_obj_kind(value, OBJECT_OBJECT))
 #define GAB_VAL_TO_OBJECT(value) ((gab_obj_object *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_OBJECT(value) ((gab_obj_object *)value)
+
 gab_obj_object *gab_obj_object_create(gab_engine *eng, gab_obj_shape *shape,
                                       gab_value values[], u64 size, u64 stride);
 
@@ -329,22 +333,39 @@ i16 gab_obj_object_extend(gab_obj_object *self, gab_engine *eng,
 static inline void gab_obj_object_set(gab_obj_object *self, i16 offset,
                                       gab_value value) {
 
-  if (self->is_dynamic)
-    v_u64_set(&self->dynamic_values, offset, value);
+  if (!self->is_dynamic)
+    self->static_values[offset] = value;
 
   else
-    self->static_values[offset] = value;
+    v_u64_set(&self->dynamic_values, offset, value);
 }
 
 static inline gab_value gab_obj_object_get(gab_obj_object *self, i16 offset) {
   if (offset < 0)
     return GAB_VAL_NULL();
 
-  else if (self->is_dynamic)
-    return v_u64_val_at(&self->dynamic_values, offset);
+  else if (!self->is_dynamic)
+    return self->static_values[offset];
 
   else
-    return self->static_values[offset];
+    return v_u64_val_at(&self->dynamic_values, offset);
+}
+
+static inline gab_value gab_obj_object_insert(gab_obj_object *self,
+                                              gab_engine *eng, gab_value prop,
+                                              gab_value value) {
+
+  i16 prop_offset = gab_obj_shape_find(self->shape, prop);
+
+  if (prop_offset < 0) {
+    gab_obj_shape *shape = gab_obj_shape_extend(self->shape, eng, prop);
+
+    prop_offset = gab_obj_object_extend(self, eng, shape, value);
+  }
+
+  gab_obj_object_set(self, prop_offset, value);
+
+  return value;
 }
 
 /*

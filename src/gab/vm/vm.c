@@ -32,7 +32,8 @@ void dump_stack(gab_vm *vm, const char *name) {
 }
 
 static inline void trim_return(gab_vm *vm, gab_value *from, u8 have, u8 want) {
-  u8 nulls = 0;
+  u8 nulls = have == 0;
+
   if ((have != want) && (want != VAR_RET)) {
     if (have > want)
       have = want;
@@ -40,11 +41,15 @@ static inline void trim_return(gab_vm *vm, gab_value *from, u8 have, u8 want) {
       nulls = want - have;
   }
 
+  const u8 got = have + nulls;
+
   while (have--)
     *vm->stack_top++ = *from++;
 
   while (nulls--)
     *vm->stack_top++ = GAB_VAL_NULL();
+
+  *vm->stack_top = got;
 }
 
 static inline gab_obj_upvalue *capture_upvalue(gab_engine *eng, gab_vm *vm,
@@ -88,8 +93,7 @@ static inline void close_upvalue(gab_vm *vm, gab_value *local) {
   }
 }
 
-gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm,
-                           gab_obj_function *func) {
+gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
 
 #if GAB_LOG_EXECUTION
   /*
@@ -197,11 +201,10 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm,
   // Turn on garbage collection.
   ENGINE()->gc->active = true;
 
-  gab_value main = GAB_VAL_OBJ(gab_obj_closure_create(ENGINE(), func, NULL));
-  PUSH(main);
+  PUSH(GAB_VAL_OBJ(main));
   PUSH(ENGINE()->std);
 
-  gab_gc_push_dec_obj_ref(GC(), GAB_VAL_TO_OBJ(main));
+  gab_gc_push_dec_obj_ref(GC(), (gab_obj *)main);
 
   register u8 *ip;
   register u8 instr;
@@ -276,7 +279,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm,
         VM()->frame->slots = VM()->stack_top - arity - 1;
         VM()->frame->expected_results = want;
 
-        VM()->stack_top += closure->func->nlocals + 1;
+        VM()->stack_top += closure->func->nlocals;
 
         LOAD_FRAME();
       } else if (GAB_VAL_TO_OBJ(callee)->kind == OBJECT_BUILTIN) {
@@ -294,7 +297,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm,
 
         trim_return(VM(), &result, have, want);
 
-        *VM()->stack_top = have;
       } else {
         return gab_run_fail(eng, "Expected a callable");
       }
@@ -346,9 +348,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm,
       close_upvalue(VM(), VM()->frame->slots);
 
       trim_return(VM(), from, have, VM()->frame->expected_results);
-
-      // This is used if the return is variable, and otherwise is ignored.
-      *VM()->stack_top = have;
 
       if (--VM()->frame == VM()->call_stack) {
 
@@ -453,9 +452,8 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm,
         }
 
         // Now its safe to drop the three values
-        DROP_N(3);
+        DROP_N(2);
 
-        PUSH(value);
         goto complete_obj_set;
       }
 
@@ -697,22 +695,23 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm,
       NEXT();
     }
 
-    CASE_CODE(DROP_SCOPE) : {
-      u8 depth = READ_BYTE;
+    CASE_CODE(SPREAD) : {
+      u8 want = READ_BYTE;
 
-      close_upvalue(VM(), DROP_N(depth + 1));
+      gab_value index = POP();
 
-      NEXT();
-    }
+      if (!GAB_VAL_IS_OBJECT(index)) {
+        STORE_FRAME();
+        return gab_run_fail(ENGINE(), "Spread operator only works on objects");
+      }
 
-    CASE_CODE(POP_SCOPE) : {
-      u8 depth = READ_BYTE;
+      gab_obj_object *obj = GAB_VAL_TO_OBJECT(index);
 
-      gab_value result = POP();
+      u8 have = obj->is_dynamic ? obj->dynamic_values.size : obj->static_size;
 
-      close_upvalue(VM(), DROP_N(depth));
-
-      PUSH(result);
+      trim_return(
+          VM(), obj->is_dynamic ? obj->dynamic_values.data : obj->static_values,
+          have, want);
 
       NEXT();
     }

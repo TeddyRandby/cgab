@@ -1,13 +1,5 @@
-#include "../gab/compiler/module.h"
-#include "../gab/compiler/object.h"
+#include "../gab/compiler/compiler.h"
 #include "../gab/vm/vm.h"
-#include "types.h"
-
-const char *bc_strs[] = {
-#define OP_CODE(name) #name,
-#include "../gab/compiler/bytecode.h"
-#undef OP_CODE
-};
 
 #include <stdarg.h>
 
@@ -21,38 +13,50 @@ const char *bc_strs[] = {
 
 u64 dumpInstruction(gab_module *self, u64 offset);
 
-u64 dumpSimpleInstruction(const char *name, u64 offset) {
+u64 dumpSimpleInstruction(gab_module *self, u64 offset) {
+  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   printf("%-16s\n", name);
   return offset + 1;
 }
 
-u64 dumpByteInstruction(gab_module *self, const char *name, u64 offset) {
+u64 dumpByteInstruction(gab_module *self, u64 offset) {
   u8 operand = v_u8_val_at(&self->bytecode, offset + 1);
+  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   printf("%-16s %hhx\n", name, operand);
   return offset + 2;
 }
 
-u64 dumpDictInstruction(gab_module *self, const char *name, u64 offset) {
+u64 dumpTwoByteInstruction(gab_module *self, u64 offset) {
+  u8 operandA = v_u8_val_at(&self->bytecode, offset + 1);
+  u8 operandB = v_u8_val_at(&self->bytecode, offset + 2);
+  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
+  printf("%-16s %hhx %hhx\n", name, operandA, operandB);
+  return offset + 2;
+}
+
+u64 dumpDictInstruction(gab_module *self, u64 offset) {
   u8 operand = v_u8_val_at(&self->bytecode, offset + 1);
+  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   printf("%-16s %hhx\n", name, operand);
   return offset + 2;
 };
 
-u64 dumpConstantInstruction(gab_module *self, const char *name, u64 offset) {
+u64 dumpConstantInstruction(gab_module *self, u64 offset) {
   u16 constant = v_u8_val_at(&self->bytecode, offset + 1) << 8 |
                  v_u8_val_at(&self->bytecode, offset + 2);
-  printf("%-16s'", name);
+  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
+  printf("%-16s ", name);
   gab_val_dump(d_u64_index_key(&self->engine->constants, constant));
-  printf("'\n");
+  printf("\n");
   return offset + 3;
 }
 
-u64 dumpJumpInstruction(gab_module *self, const char *name, u64 sign,
-                        u64 offset) {
+u64 dumpJumpInstruction(gab_module *self, u64 sign, u64 offset) {
+  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   u16 dist = (u16)v_u8_val_at(&self->bytecode, offset + 1) << 8;
   dist |= v_u8_val_at(&self->bytecode, offset + 2);
 
-  printf("%-16s %4lu -> %lu\n", name, offset, offset + 3 + (sign * (dist)));
+  printf("%-16s %04lu -> %04lu\n", name, offset, offset + 3 + (sign * (dist)));
   return offset + 3;
 }
 
@@ -74,82 +78,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_RETURN_13:
   case OP_RETURN_14:
   case OP_RETURN_15:
-  case OP_RETURN_16: {
-    printf("(%d)", op - OP_RETURN_1 + 1);
-    return dumpSimpleInstruction("OP_RETURN", offset);
-  }
-  case OP_VARRETURN: {
-    return dumpByteInstruction(self, "OP_VARRETURN", offset);
-  }
-  case OP_CONSTANT: {
-    return dumpConstantInstruction(self, "OP_CONSTANT", offset);
-  }
-  case OP_PUSH_FALSE: {
-    return dumpSimpleInstruction("OP_PUSH_FALSE", offset);
-  }
-  case OP_PUSH_NULL: {
-    return dumpSimpleInstruction("OP_PUSH_NULL", offset);
-  }
-  case OP_PUSH_TRUE: {
-    return dumpSimpleInstruction("OP_PUSH_TRUE", offset);
-  }
-  case OP_ADD: {
-    return dumpSimpleInstruction("OP_ADD", offset);
-  }
-  case OP_ASSERT: {
-    return dumpSimpleInstruction("OP_NOT_NULL", offset);
-  }
-  case OP_TYPE: {
-    return dumpSimpleInstruction("OP_TYPE", offset);
-  }
-  case OP_SUBTRACT: {
-    return dumpSimpleInstruction("OP_SUBTRACT", offset);
-  }
-  case OP_DIVIDE: {
-    return dumpSimpleInstruction("OP_DIVIDE", offset);
-  }
-  case OP_MULTIPLY: {
-    return dumpSimpleInstruction("OP_MULTIPLY", offset);
-  }
-  case OP_NOT: {
-    return dumpSimpleInstruction("OP_NOT", offset);
-  }
-  case OP_NEGATE: {
-    return dumpSimpleInstruction("OP_NEGATE", offset);
-  }
-  case OP_LESSER: {
-    return dumpSimpleInstruction("OP_LESSER", offset);
-  }
-  case OP_LESSER_EQUAL: {
-    return dumpSimpleInstruction("OP_LESSER_EQUAL", offset);
-  }
-  case OP_GREATER_EQUAL: {
-    return dumpSimpleInstruction("OP_GREATER_EQUAL", offset);
-  }
-  case OP_GREATER: {
-    return dumpSimpleInstruction("OP_GREATER", offset);
-  }
-  case OP_EQUAL: {
-    return dumpSimpleInstruction("OP_EQUAL", offset);
-  }
-  case OP_BITWISE_AND: {
-    return dumpJumpInstruction(self, "OP_BITWISE_AND", 1, offset);
-  }
-  case OP_BITWISE_OR: {
-    return dumpJumpInstruction(self, "OP_BITWISE_OR", 1, offset);
-  }
-  case OP_LOGICAL_AND: {
-    return dumpJumpInstruction(self, "OP_LOGICAL_AND", 1, offset);
-  }
-  case OP_LOGICAL_OR: {
-    return dumpJumpInstruction(self, "OP_LOGICAL_OR", 1, offset);
-  }
-  case OP_SWAP: {
-    return dumpSimpleInstruction("OP_SWAP", offset);
-  }
-  case OP_DUP: {
-    return dumpSimpleInstruction("OP_DUP", offset);
-  }
+  case OP_RETURN_16:
   case OP_STORE_LOCAL_0:
   case OP_STORE_LOCAL_1:
   case OP_STORE_LOCAL_2:
@@ -158,13 +87,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_STORE_LOCAL_5:
   case OP_STORE_LOCAL_6:
   case OP_STORE_LOCAL_7:
-  case OP_STORE_LOCAL_8: {
-    printf("(%d)", op - OP_STORE_LOCAL_0);
-    return dumpSimpleInstruction("OP_STORE_LOCAL_FAST", offset);
-  }
-  case OP_STORE_LOCAL: {
-    return dumpByteInstruction(self, "OP_STORE_LOCAL", offset);
-  }
+  case OP_STORE_LOCAL_8:
   case OP_LOAD_LOCAL_0:
   case OP_LOAD_LOCAL_1:
   case OP_LOAD_LOCAL_2:
@@ -173,47 +96,77 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_LOAD_LOCAL_5:
   case OP_LOAD_LOCAL_6:
   case OP_LOAD_LOCAL_7:
-  case OP_LOAD_LOCAL_8: {
-    printf("(%d)", op - OP_LOAD_LOCAL_0);
-    return dumpSimpleInstruction("OP_LOAD_LOCAL_FAST", offset);
+  case OP_LOAD_LOCAL_8:
+  case OP_LOAD_UPVALUE_0:
+  case OP_LOAD_UPVALUE_1:
+  case OP_LOAD_UPVALUE_2:
+  case OP_LOAD_UPVALUE_3:
+  case OP_LOAD_UPVALUE_4:
+  case OP_LOAD_UPVALUE_5:
+  case OP_LOAD_UPVALUE_6:
+  case OP_LOAD_UPVALUE_7:
+  case OP_LOAD_UPVALUE_8:
+  case OP_STORE_UPVALUE_0:
+  case OP_STORE_UPVALUE_1:
+  case OP_STORE_UPVALUE_2:
+  case OP_STORE_UPVALUE_3:
+  case OP_STORE_UPVALUE_4:
+  case OP_STORE_UPVALUE_5:
+  case OP_STORE_UPVALUE_6:
+  case OP_STORE_UPVALUE_7:
+  case OP_STORE_UPVALUE_8:
+  case OP_PUSH_FALSE:
+  case OP_PUSH_NULL:
+  case OP_PUSH_TRUE:
+  case OP_ADD:
+  case OP_ASSERT:
+  case OP_TYPE:
+  case OP_SUBTRACT:
+  case OP_DIVIDE:
+  case OP_MULTIPLY:
+  case OP_NOT:
+  case OP_NEGATE:
+  case OP_LESSER:
+  case OP_LESSER_EQUAL:
+  case OP_GREATER_EQUAL:
+  case OP_GREATER:
+  case OP_SWAP:
+  case OP_MATCH:
+  case OP_POP:
+  case OP_GET_INDEX:
+  case OP_SET_INDEX:
+  case OP_CONCAT:
+  case OP_STRINGIFY:
+  case OP_EQUAL: {
+    return dumpSimpleInstruction(self, offset);
   }
-  case OP_POP_STORE_LOCAL: {
-    return dumpByteInstruction(self, "OP_POP_STORE_LOCAL", offset);
-  }
-  case OP_POP_STORE_UPVALUE: {
-    return dumpByteInstruction(self, "OP_POP_STORE_UPVALUE", offset);
-  }
-  case OP_LOAD_LOCAL: {
-    return dumpByteInstruction(self, "OP_LOAD_LOCAL", offset);
-  }
-  case OP_MATCH: {
-    return dumpSimpleInstruction("OP_MATCH", offset);
-  }
-  case OP_POP: {
-    return dumpSimpleInstruction("OP_POP", offset);
-  }
-  case OP_POP_N: {
-    return dumpByteInstruction(self, "OP_POP_N", offset);
-  }
-  case OP_JUMP_IF_FALSE: {
-    return dumpJumpInstruction(self, "OP_JUMP_IF_FALSE", 1, offset);
-  }
-  case OP_JUMP_IF_TRUE: {
-    return dumpJumpInstruction(self, "OP_JUMP_IF_TRUE", 1, offset);
-  }
-  case OP_JUMP: {
-    return dumpJumpInstruction(self, "OP_JUMP", 1, offset);
+  case OP_BITWISE_AND:
+  case OP_BITWISE_OR:
+  case OP_LOGICAL_AND:
+  case OP_JUMP_IF_FALSE:
+  case OP_JUMP_IF_TRUE:
+  case OP_JUMP:
+  case OP_POP_JUMP_IF_FALSE:
+  case OP_POP_JUMP_IF_TRUE:
+  case OP_LOGICAL_OR: {
+    return dumpJumpInstruction(self, 1, offset);
   }
   case OP_LOOP: {
-    return dumpJumpInstruction(self, "OP_LOOP", -1, offset);
+    return dumpJumpInstruction(self, -1, offset);
   }
-  case OP_POP_JUMP_IF_FALSE: {
-    return dumpJumpInstruction(self, "OP_POP_JUMP_IF_FALSE", 1, offset);
+  case OP_VARCALL:
+  case OP_VARRETURN: {
+    return dumpTwoByteInstruction(self, offset);
   }
-  case OP_POP_JUMP_IF_TRUE: {
-    return dumpJumpInstruction(self, "OP_POP_JUMP_IF_TRUE", 1, offset);
+  case OP_CONSTANT: {
+    return dumpConstantInstruction(self, offset);
   }
-
+  case OP_GET_PROPERTY: {
+    return dumpConstantInstruction(self, offset) + 10;
+  }
+  case OP_SET_PROPERTY: {
+    return dumpConstantInstruction(self, offset) + 10;
+  }
   case OP_CALL_0:
   case OP_CALL_1:
   case OP_CALL_2:
@@ -230,42 +183,16 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_CALL_13:
   case OP_CALL_14:
   case OP_CALL_15:
-  case OP_CALL_16: {
-    printf("(%d)", op - OP_CALL_0);
-    return dumpByteInstruction(self, "OP_CALL", offset);
-  }
-  case OP_VARCALL: {
-    return dumpByteInstruction(self, "OP_VARCALL", offset);
-  }
-  case OP_LOAD_UPVALUE_0:
-  case OP_LOAD_UPVALUE_1:
-  case OP_LOAD_UPVALUE_2:
-  case OP_LOAD_UPVALUE_3:
-  case OP_LOAD_UPVALUE_4:
-  case OP_LOAD_UPVALUE_5:
-  case OP_LOAD_UPVALUE_6:
-  case OP_LOAD_UPVALUE_7:
-  case OP_LOAD_UPVALUE_8: {
-    printf("(%d)", op - OP_LOAD_UPVALUE_0);
-    return dumpSimpleInstruction("OP_LOAD_UPVALUE_FAST", offset);
-  }
-  case OP_LOAD_UPVALUE: {
-    return dumpByteInstruction(self, "OP_LOAD_UPVALUE", offset);
-  }
-  case OP_STORE_UPVALUE_0:
-  case OP_STORE_UPVALUE_1:
-  case OP_STORE_UPVALUE_2:
-  case OP_STORE_UPVALUE_3:
-  case OP_STORE_UPVALUE_4:
-  case OP_STORE_UPVALUE_5:
-  case OP_STORE_UPVALUE_6:
-  case OP_STORE_UPVALUE_7:
-  case OP_STORE_UPVALUE_8: {
-    printf("(%d)", op - OP_STORE_UPVALUE_0);
-    return dumpSimpleInstruction("OP_STORE_UPVALUE_FAST", offset);
-  }
-  case OP_STORE_UPVALUE: {
-    return dumpByteInstruction(self, "OP_STORE_UPVALUE", offset);
+  case OP_CALL_16:
+  case OP_SPREAD:
+  case OP_POP_N:
+  case OP_STORE_LOCAL:
+  case OP_STORE_UPVALUE:
+  case OP_POP_STORE_LOCAL:
+  case OP_POP_STORE_UPVALUE:
+  case OP_LOAD_UPVALUE:
+  case OP_LOAD_LOCAL: {
+    return dumpByteInstruction(self, offset);
   }
   case OP_CLOSURE: {
     u16 constant = ((((u16)self->bytecode.data[offset + 1]) << 8) |
@@ -286,36 +213,12 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     }
     return offset;
   }
-  case OP_GET_PROPERTY: {
-    return dumpConstantInstruction(self, "OP_GET_PROPERTY", offset) + 10;
-  }
-  case OP_SET_PROPERTY: {
-    return dumpConstantInstruction(self, "OP_SET_PROPERTY", offset) + 10;
-  }
-  case OP_POP_SCOPE: {
-    return dumpByteInstruction(self, "OP_POP_SCOPE", offset);
-  }
-  case OP_DROP_SCOPE: {
-    return dumpByteInstruction(self, "OP_DROP_SCOPE", offset);
-  }
-  case OP_GET_INDEX: {
-    return dumpSimpleInstruction("OP_GET_INDEX", offset);
-  }
-  case OP_SET_INDEX: {
-    return dumpSimpleInstruction("OP_SET_INDEX", offset);
-  }
-  case OP_CONCAT: {
-    return dumpSimpleInstruction("OP_CONCAT", offset);
-  }
-  case OP_STRINGIFY: {
-    return dumpSimpleInstruction("OP_STRINGIFY", offset);
-  }
   case OP_OBJECT: {
-    return dumpDictInstruction(self, "OP_OBJECT", offset);
+    return dumpDictInstruction(self, offset);
   }
   default: {
     u8 code = v_u8_val_at(&self->bytecode, offset);
-    printf("Unknown opcode %d (%s?)\n", code, bc_strs[code]);
+    printf("Unknown opcode %d (%s?)\n", code, gab_opcode_names[code]);
     return offset + 1;
   }
   }
@@ -323,7 +226,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
 
 void gab_module_dump(gab_module *self, s_u8_ref name) {
   if (self) {
-    printf(" == %.*s ==\n", (int)name.size, name.data);
+    printf("     %.*s\n", (int)name.size, name.data);
     u64 offset = 0;
     while (offset < self->bytecode.size) {
       printf("%04lu ", offset);
@@ -412,7 +315,7 @@ void dump_compile_error(gab_compiler *compiler, const char *msg) {
   u8 *tok_start, *tok_end;
   tok_start = curr_token.data;
   tok_end = curr_token.data + curr_token.size;
-  s_u8 *tok = gab_token_to_string(compiler->previous_token);
+  const char *tok = gab_token_names[compiler->previous_token];
 
   for (u8 i = 0; i < curr_under->size; i++) {
     if (curr_src.data + i >= tok_start && curr_src.data + i < tok_end)
@@ -432,10 +335,9 @@ void dump_compile_error(gab_compiler *compiler, const char *msg) {
           "%s" ANSI_COLOR_RESET "\n\t%s%s %.4lu " ANSI_COLOR_RESET "%s"
           "\n\t\u2502      " ANSI_COLOR_YELLOW "%s" ANSI_COLOR_RESET
           "\n\t\u2570\u2500> ",
-          func_name->data, compiler->line, tok->data, curr_box, curr_color,
+          func_name->data, compiler->line, tok, curr_box, curr_color,
           curr_src_index + 1, curr_line->data, curr_under->data);
 
-  s_u8_destroy(tok);
   s_u8_destroy(func_name);
   s_u8_destroy(curr_line);
   s_u8_destroy(curr_under);
@@ -461,7 +363,7 @@ void dump_run_error(gab_engine *eng, gab_vm *vm, const char *msg) {
 
     s_u8 *curr_line = s_u8_create_sref(curr_src);
 
-    s_u8 *tok = gab_token_to_string(v_u8_val_at(&mod->tokens, offset));
+    const char *tok = gab_token_names[v_u8_val_at(&mod->tokens, offset)];
 
     if (frame == vm->frame) {
 
@@ -472,15 +374,14 @@ void dump_run_error(gab_engine *eng, gab_vm *vm, const char *msg) {
               "\n\t\u256d " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%s"
               "\n\t\u2502"
               "\n\t\u2570\u2500> ",
-              func_name->data, curr_row, tok->data, curr_row, curr_line->data);
+              func_name->data, curr_row, tok, curr_row, curr_line->data);
 
       fprintf(stderr, ANSI_COLOR_YELLOW "%s.\n" ANSI_COLOR_RESET, msg);
     } else {
 
       fprintf(stderr,
               "[" ANSI_COLOR_GREEN "%s" ANSI_COLOR_RESET
-              "] line: " ANSI_COLOR_GREEN "%04lu" ANSI_COLOR_RESET
-              " Called from"
+              "] line: " ANSI_COLOR_RED "%04lu" ANSI_COLOR_RESET " Called from"
               "\n\t  " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%s"
               "\n\t"
               "\n",
@@ -519,18 +420,10 @@ gab_result *gab_compile_fail(gab_compiler *compiler, const char *msg) {
   return self;
 };
 
-gab_result *gab_compile_success(gab_engine *eng, gab_module *mod) {
+gab_result *gab_compile_success(gab_engine *eng, gab_obj_closure *main) {
   gab_result *self = CREATE_STRUCT(gab_result);
   self->type = RESULT_COMPILE_SUCCESS;
-
-  gab_obj_function *mod_func = gab_obj_function_create(eng, mod->name);
-
-  mod_func->module = mod;
-  mod_func->narguments = 1;
-  mod_func->nlocals = mod->ntop_level;
-
-  gab_engine_add_constant(eng, GAB_VAL_OBJ(mod_func));
-  self->as.func = mod_func;
+  self->as.main = main;
   return self;
 };
 

@@ -45,7 +45,7 @@ gab_result *gab_run_source(gab_engine *gab, const char *source,
 
   gab_vm vm;
 
-  gab_result *run_result = gab_engine_run(gab, &vm, compile_result->as.func);
+  gab_result *run_result = gab_engine_run(gab, &vm, compile_result->as.main);
 
   gab_result_destroy(compile_result);
 

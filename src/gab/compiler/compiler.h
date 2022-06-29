@@ -2,8 +2,6 @@
 #define BLUF_COMPILER_H
 #include "../../common/common.h"
 #include "../lexer/lexer.h"
-#include "./object.h"
-#include "module.h"
 
 /*
   A compile frame is the compile-time equivalent of a call frame.
@@ -112,10 +110,4 @@ struct gab_compile_rule {
   gab_precedence prec;
   boolean multi_line;
 };
-
-/*
-  Compile a single source string into a single contiguous module.
-*/
-gab_result *gab_engine_compile(gab_engine *eng, s_u8 *src, s_u8_ref name,
-                               u8 compile_flags);
 #endif

@@ -1,10 +1,8 @@
-#ifndef BLUF_MODULE_H
-#define BLUF_MODULE_H
-#include "../../common/common.h"
+#ifndef GAB_MODULE_H
+#define GAB_MODULE_H
+#include "../lexer/lexer.h"
 #include "../vm/gc.h"
-#include "object.h"
-typedef struct gab_vm gab_vm;
-typedef struct gab_engine gab_engine;
+
 typedef struct gab_module gab_module;
 
 /*
@@ -16,14 +14,20 @@ typedef enum gab_opcode {
 #undef OP_CODE
 } gab_opcode;
 
+static const char *gab_opcode_names[] = {
+#define OP_CODE(name) #name,
+#include "bytecode.h"
+#undef OP_CODE
+};
+
 /*
   State required to run a gab program.
-  This is the result of compilation.
 */
 struct gab_module {
+  /*
+    The name of the module
+  */
   s_u8_ref name;
-
-  u8 ntop_level;
 
   /*
     The instructions, a contiguous vector of single-byte op-codes and args.
@@ -46,6 +50,9 @@ struct gab_module {
   */
   v_s_u8_ref *source_lines;
 
+  /*
+     A pointer to the string of source code.
+  */
   s_u8 *source;
 
   /*
@@ -59,52 +66,18 @@ struct gab_module {
   gab_module *next;
 };
 
-struct gab_engine {
-  /*
-    The constant table.
-  */
-  d_u64 constants;
-
-  /*
-    The std lib object.
-  */
-  gab_value std;
-
-  /*
-    A pointer to the vm running this module.
-  */
-  gab_vm *vm;
-
-  /*
-    The gargabe collector for the engine
-  */
-  gab_gc *gc;
-
-  /*
-    A linked list of loaded modules.
-  */
-  gab_module *modules;
-};
-
-gab_engine *gab_engine_create();
-void gab_engine_destroy(gab_engine *self);
-
-gab_obj_string *gab_engine_find_string(gab_engine *self, s_u8_ref str,
-                                       u64 hash);
-gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size,
-                                     gab_value values[size], u64 stride,
-                                     u64 hash);
-
-u16 gab_engine_add_constant(gab_engine *self, gab_value value);
-
-void gab_engine_add_module(gab_engine *self, gab_module *mod);
-
 /*
   Creating and destroying modules, from nothing and from a base module.
 */
-gab_module *gab_module_create(s_u8_ref name, s_u8 *source);
+gab_module *gab_module_create(gab_module *self, s_u8_ref name, s_u8 *source);
+
 void gab_module_destroy(gab_module *self);
-void gab_module_push_byte(gab_module *self, u8 b);
+
+/*
+   Push a byte and its metadata into the module.
+*/
+void gab_module_push_byte(gab_module *self, gab_opcode op, gab_token token,
+                          u64 line);
 
 /*
   A debug function for printing the instructions in a module.

@@ -1,14 +1,3 @@
-let server, port := !sock()!, 5050
-
-server->!bind(port)!
-server->!listen(10)!
-!info('Server is listening on port {port}!')
-
-let conn := server->!accept()!
-
-let msg := conn->!read()!
-
-!info(msg)
-
-conn->!shutdown()
-server->!shutdown()
+def example: {
+    Shape: { x y }?
+} 
