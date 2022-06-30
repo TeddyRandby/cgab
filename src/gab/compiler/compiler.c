@@ -736,10 +736,6 @@ i32 compile_property(gab_compiler *self, boolean assignable) {
 
 i32 compile_lst_internal_item(gab_compiler *self, u8 index) {
 
-  // Push the key, which is just the index.
-  push_op(self, OP_CONSTANT);
-  push_short(self, add_constant(self, GAB_VAL_NUMBER(index)));
-
   if (compile_expressions(self, 1, NULL) < 0)
     return COMP_ERR;
 
@@ -1374,7 +1370,7 @@ i32 compile_exp_lst(gab_compiler *self, boolean assignable) {
   if (size < 0)
     return COMP_ERR;
 
-  push_op(self, OP_OBJECT);
+  push_op(self, OP_OBJECT_ARRAY);
   push_byte(self, size);
   return COMP_OK;
 }

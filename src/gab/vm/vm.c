@@ -897,6 +897,27 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
 
       NEXT();
     }
+
+    CASE_CODE(OBJECT_ARRAY) : {
+      u8 size = READ_BYTE;
+
+      for (u64 i = 0; i < size; i++) {
+        gab_gc_push_inc_if_obj_ref(ENGINE()->gc, PEEK_N(i));
+      }
+
+      gab_obj_shape *shape = gab_obj_shape_create_array(ENGINE(), size);
+
+      gab_obj_object *obj = gab_obj_object_create(
+          ENGINE(), shape, VM()->stack_top - (size), size, 1);
+
+      DROP_N(size);
+
+      PUSH(GAB_VAL_OBJ(obj));
+
+      gab_gc_push_dec_obj_ref(GC(), (gab_obj *)obj);
+
+      NEXT();
+    }
   }
   // This should be unreachable
   return NULL;

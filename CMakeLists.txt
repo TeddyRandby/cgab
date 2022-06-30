@@ -8,12 +8,6 @@ configure_file(gab.pc.in gab.pc @ONLY)
 
 add_library(cgab "")
 
-add_executable(gab src/cli/main.c)
-
-add_subdirectory(src/common)
-add_subdirectory(src/gab)
-add_subdirectory(src/cli)
-
 set_target_properties(
   cgab
   PROPERTIES
@@ -23,7 +17,14 @@ set_target_properties(
   C_STANDARD 17
 )
 
+add_executable(gab src/cli/main.c)
+
 target_link_libraries(gab cgab)
+
+add_subdirectory(src/common)
+add_subdirectory(src/gab)
+add_subdirectory(src/cli)
+
 
 install(
   TARGETS cgab gab

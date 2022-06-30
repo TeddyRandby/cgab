@@ -9,7 +9,7 @@ gab_value gab_lib_keys(gab_engine *eng, gab_value *argv, u8 argc) {
 
   u64 size = obj->is_dynamic ? obj->dynamic_values.size : obj->static_size;
 
-  gab_obj_shape *shape = gab_obj_shape_create_arr(eng, size);
+  gab_obj_shape *shape = gab_obj_shape_create_array(eng, size);
 
   gab_obj_object *list =
       gab_obj_object_create(eng, shape, obj->shape->keys, size, 1);

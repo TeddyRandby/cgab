@@ -282,7 +282,7 @@ gab_obj_upvalue *gab_obj_upvalue_create(gab_engine *eng, gab_value *slot) {
   return self;
 }
 
-gab_obj_shape *gab_obj_shape_create_arr(gab_engine *eng, u64 size) {
+gab_obj_shape *gab_obj_shape_create_array(gab_engine *eng, u64 size) {
   gab_value keys[size];
 
   for (u64 i = 0; i < size; i++) {

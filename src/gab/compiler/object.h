@@ -281,7 +281,7 @@ struct gab_obj_shape {
 gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value key[], u64 size,
                                     u64 stride);
 
-gab_obj_shape *gab_obj_shape_create_arr(gab_engine *eng, u64 size);
+gab_obj_shape *gab_obj_shape_create_array(gab_engine *eng, u64 size);
 
 gab_obj_shape *gab_obj_shape_extend(gab_obj_shape *self, gab_engine *eng,
                                     gab_value property);
