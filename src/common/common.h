@@ -56,7 +56,6 @@
 #define GAB_VERSION_MINOR 1
 
 #include "assert.h"
-#include "io.h"
 #include "memory.h"
 #include "types.h"
 

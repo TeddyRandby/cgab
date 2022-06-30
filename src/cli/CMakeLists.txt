@@ -1,14 +1,12 @@
 cmake_minimum_required(VERSION 3.21.3)
 project(gab LANGUAGES C VERSION 0.1)
 
+add_subdirectory(lib)
+
 target_sources(
-  cgab
+  gab
   PRIVATE
-  lib.h
-  lib_log.c
-  lib_require.c
-  lib_obj.c
-  lib_sock.c
-  lib_str.c
-  lib_regex.c
+  os.c
+  os.h
+  main.c
 )

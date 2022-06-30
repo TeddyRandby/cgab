@@ -1,6 +1,6 @@
-#include "io.h"
+#include "os.h"
 
-s_u8 *gab_io_read_file(const char *path) {
+s_u8 *gab_os_read_file(const char *path) {
   FILE *file = fopen(path, "rb");
   if (file == NULL) {
     fprintf(stderr, "Could not open file \"%s\".\n", path);
@@ -31,7 +31,7 @@ s_u8 *gab_io_read_file(const char *path) {
   return result;
 }
 
-s_u8 *gab_io_read_line() {
+s_u8 *gab_os_read_line() {
   char data[1024];
 
   if (fgets(data, sizeof(data), stdin)) {

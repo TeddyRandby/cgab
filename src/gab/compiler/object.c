@@ -1,6 +1,8 @@
 #include "object.h"
 #include "engine.h"
 
+#include <stdio.h>
+
 /*
   Helper macros for allocating gab objects.
 */

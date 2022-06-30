@@ -1,9 +1,12 @@
 #include "../gab/gab.h"
-#include "../lib/lib.h"
+#include "lib/lib.h"
+#include "os.h"
+
+#include <stdio.h>
 
 s_u8 *collect_line() {
   printf(">>>");
-  return gab_io_read_line();
+  return gab_os_read_line();
 }
 
 #define BUILTIN(name, arity)                                                   \
@@ -86,7 +89,7 @@ void gab_repl() {
 }
 
 void gab_run_file(const char *path) {
-  s_u8 *src = gab_io_read_file(path);
+  s_u8 *src = gab_os_read_file(path);
   gab_engine *gab = gab_create();
   bind_std(gab);
 

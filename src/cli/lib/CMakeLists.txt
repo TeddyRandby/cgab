@@ -2,15 +2,13 @@ cmake_minimum_required(VERSION 3.21.3)
 project(gab LANGUAGES C VERSION 0.1)
 
 target_sources(
-  cgab
+  gab
   PRIVATE
-  types.h
-  string.c
-  vector.c
-  dict.c
-  assert.c
-  memory.c
-  log.c
-  common.h
-  PUBLIC
+  lib.h
+  lib_log.c
+  lib_require.c
+  lib_obj.c
+  lib_sock.c
+  lib_str.c
+  lib_regex.c
 )

@@ -1,6 +1,6 @@
 #ifndef GAB_LIB_H
 #define GAB_LIB_H
-#include "../gab/gab.h"
+#include "../../gab/gab.h"
 
 gab_value gab_lib_error(gab_engine *, gab_value *, u8);
 

@@ -4,11 +4,15 @@ project(gab LANGUAGES C VERSION 1.0)
 
 include(GNUInstallDirs)
 
+configure_file(gab.pc.in gab.pc @ONLY)
+
 add_library(cgab "")
+
+add_executable(gab src/cli/main.c)
 
 add_subdirectory(src/common)
 add_subdirectory(src/gab)
-add_subdirectory(src/lib)
+add_subdirectory(src/cli)
 
 set_target_properties(
   cgab
@@ -19,15 +23,7 @@ set_target_properties(
   C_STANDARD 17
 )
 
-configure_file(gab.pc.in gab.pc @ONLY)
-
-add_executable(gab src/cli/main.c)
 target_link_libraries(gab cgab)
-
-find_library(check check)
-
-add_executable(test src/tests/main.c)
-target_link_libraries(test cgab check)
 
 install(
   TARGETS cgab gab

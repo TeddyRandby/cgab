@@ -1,3 +1,0 @@
-let test = fn(arg1) => arg1
-
-test()
