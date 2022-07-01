@@ -79,36 +79,4 @@ struct gab_compiler {
   u8 frame_count;
 };
 
-/*
-  Precedence rules for the parsing of expressions.
-*/
-typedef enum gab_precedence {
-  PREC_NONE,
-  PREC_ASSIGNMENT,  // =
-  PREC_OR,          // or
-  PREC_AND,         // and
-  PREC_EQUALITY,    // == !=
-  PREC_COMPARISON,  // < > <= >=
-  PREC_BITWISE_OR,  // |
-  PREC_BITWISE_AND, // &
-  PREC_TERM,        // + -
-  PREC_FACTOR,      // * /
-  PREC_UNARY,       // ! -
-  PREC_CALL,        // (
-  PREC_PROPERTY,    // . ->
-  PREC_PRIMARY
-} gab_precedence;
-
-/*
-  Compile rules used for Pratt parsing of expressions.
-*/
-typedef i32 (*gab_compile_func)(gab_compiler *, boolean assignable);
-typedef struct gab_compile_rule gab_compile_rule;
-struct gab_compile_rule {
-  gab_compile_func prefix;
-  gab_compile_func infix;
-  gab_compile_func postfix;
-  gab_precedence prec;
-  boolean multi_line;
-};
 #endif

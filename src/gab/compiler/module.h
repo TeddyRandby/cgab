@@ -64,20 +64,39 @@ struct gab_module {
     The next module in the linked list of modules.
   */
   gab_module *next;
+
+  u8 previous_compiled_op;
 };
 
 /*
   Creating and destroying modules, from nothing and from a base module.
 */
-gab_module *gab_module_create(gab_module *self, s_u8_ref name, s_u8 *source);
+gab_module *gab_module_create(gab_module *, s_u8_ref, s_u8 *);
 
-void gab_module_destroy(gab_module *self);
+void gab_module_destroy(gab_module *);
 
 /*
-   Push a byte and its metadata into the module.
+  Helpers for pushing ops into the module.
 */
-void gab_module_push_byte(gab_module *self, gab_opcode op, gab_token token,
-                          u64 line);
+void gab_module_push_op(gab_module *, gab_opcode, gab_token, u64);
+void gab_module_push_byte(gab_module *, u8, gab_token, u64);
+
+void gab_module_push_short(gab_module *, u16, gab_token, u64);
+
+/* These helpers return the instruction they push. */
+u8 gab_module_push_load_local(gab_module *, u8, gab_token, u64);
+u8 gab_module_push_load_upvalue(gab_module *self, u8, gab_token, u64);
+u8 gab_module_push_store_local(gab_module *, u8, gab_token, u64);
+u8 gab_module_push_store_upvalue(gab_module *, u8, gab_token, u64);
+u8 gab_module_push_return(gab_module *, u8, u8, gab_token, u64);
+u8 gab_module_push_call(gab_module *, u8, u8, gab_token, u64);
+
+void gab_module_push_inline_cache(gab_module *, gab_token, u64);
+void gab_module_push_loop(gab_module *, u64, gab_token, u64);
+u64 gab_module_push_jump(gab_module *, u8, gab_token, u64);
+
+void gab_module_patch_jump(gab_module *, u64);
+void gab_module_try_patch_vse(gab_module *, u8);
 
 /*
   A debug function for printing the instructions in a module.
@@ -85,6 +104,4 @@ void gab_module_push_byte(gab_module *self, gab_opcode op, gab_token token,
   Defined in common/log.c
 */
 void gab_module_dump(gab_module *self, s_u8_ref name);
-
-void gab_module_optimize(gab_module *self);
 #endif

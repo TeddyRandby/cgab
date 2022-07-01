@@ -3,8 +3,44 @@
 #include "module.h"
 #include "object.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+/*
+  Precedence rules for the parsing of expressions.
+*/
+typedef enum gab_precedence {
+  PREC_NONE,
+  PREC_ASSIGNMENT,  // =
+  PREC_OR,          // or
+  PREC_AND,         // and
+  PREC_EQUALITY,    // == !=
+  PREC_COMPARISON,  // < > <= >=
+  PREC_BITWISE_OR,  // |
+  PREC_BITWISE_AND, // &
+  PREC_TERM,        // + -
+  PREC_FACTOR,      // * /
+  PREC_UNARY,       // ! -
+  PREC_CALL,        // (
+  PREC_PROPERTY,    // . ->
+  PREC_PRIMARY
+} gab_precedence;
+
+/*
+  Compile rules used for Pratt parsing of expressions.
+*/
+
+typedef i32 (*gab_compile_func)(gab_compiler *, boolean);
+
+typedef struct gab_compile_rule gab_compile_rule;
+struct gab_compile_rule {
+  gab_compile_func prefix;
+  gab_compile_func infix;
+  gab_compile_func postfix;
+  gab_precedence prec;
+  boolean multi_line;
+};
 
 void gab_compiler_create(gab_compiler *self, gab_module *mod) {
   self->scope_depth = 0;
@@ -14,16 +50,8 @@ void gab_compiler_create(gab_compiler *self, gab_module *mod) {
   memset(self->frames, 0, sizeof(self->frames));
 }
 
-// Helper macros for creating the specialized instructions
-#define MAKE_RETURN(n) (OP_RETURN_1 + (n - 1))
-#define MAKE_CALL(n) (OP_CALL_0 + (n))
-#define MAKE_STORE_LOCAL(n) (OP_STORE_LOCAL_0 + (n))
-#define MAKE_LOAD_LOCAL(n) (OP_LOAD_LOCAL_0 + (n))
-#define MAKE_STORE_UPVALUE(n) (OP_STORE_UPVALUE_0 + (n))
-#define MAKE_LOAD_UPVALUE(n) (OP_LOAD_UPVALUE_0 + (n))
-
 // A positive result is known to be OK, and can carry a value.
-enum comp_result {
+enum comp_status {
   COMP_OK = 1,
   COMP_TOKEN_NO_MATCH = 0,
   COMP_ERR = -1,
@@ -34,11 +62,6 @@ enum comp_result {
   COMP_RESOLVED_TO_UPVALUE = -6,
   COMP_MAX = INT32_MAX,
 };
-
-typedef struct exp_list {
-  u8 have;
-  boolean is_var;
-} exp_list;
 
 static boolean match_token(gab_compiler *self, gab_token tok);
 
@@ -88,158 +111,21 @@ static i32 expect_token(gab_compiler *self, gab_token tok) {
   return eat_token(self);
 }
 
-static u16 add_constant(gab_compiler *self, gab_value value) {
+static inline u16 add_constant(gab_compiler *self, gab_value value) {
   u16 index = gab_engine_add_constant(self->mod->engine, value);
   return index;
 }
 
-//----------------- 'PUSH' helpers ----------------------
-/*
-    These helper functions emit bytecode into the module.
-*/
-
-static void push_byte(gab_compiler *self, u8 byte) {
-  gab_module_push_byte(self->mod, byte, self->previous_token, self->line);
+static inline void push_op(gab_compiler *self, gab_opcode op) {
+  gab_module_push_op(self->mod, op, self->previous_token, self->line);
 }
 
-static void push_op(gab_compiler *self, gab_opcode op) {
-  gab_opcode prev = self->previous_op;
-
-  self->previous_op = op;
-
-  gab_module_push_byte(self->mod, op, self->previous_token, self->line);
+static inline void push_byte(gab_compiler *self, u8 data) {
+  gab_module_push_byte(self->mod, data, self->previous_token, self->line);
 }
 
-static void push_bytes(gab_compiler *self, u8 byte_1, u8 byte_2) {
-  push_byte(self, byte_1);
-  push_byte(self, byte_2);
-}
-
-static void push_short(gab_compiler *self, u16 val) {
-  push_bytes(self, (val >> 8) & 0xff, val & 0xff);
-}
-
-static inline void push_load_local(gab_compiler *self, u8 local) {
-  if (local < 9) {
-    push_op(self, MAKE_LOAD_LOCAL(local));
-  } else {
-    push_op(self, OP_LOAD_LOCAL);
-    push_byte(self, local);
-  }
-}
-
-static inline void push_store_local(gab_compiler *self, u8 local) {
-  if (local < 9) {
-    push_op(self, MAKE_STORE_LOCAL(local));
-  } else {
-    push_op(self, OP_STORE_LOCAL);
-    push_byte(self, local);
-  }
-}
-
-static inline void push_load_upvalue(gab_compiler *self, u8 upvalue) {
-  if (upvalue < 9) {
-    push_op(self, MAKE_LOAD_UPVALUE(upvalue));
-  } else {
-    push_op(self, OP_LOAD_UPVALUE);
-    push_byte(self, upvalue);
-  }
-}
-
-static inline void push_store_upvalue(gab_compiler *self, u8 upvalue) {
-  if (upvalue < 9) {
-    push_op(self, MAKE_STORE_UPVALUE(upvalue));
-  } else {
-    push_op(self, OP_STORE_UPVALUE);
-    push_byte(self, upvalue);
-  }
-}
-
-static void push_cache(gab_compiler *self) {
-  // Push 8 bytes of space.
-  push_bytes(self, 0, 0);
-  push_bytes(self, 0, 0);
-  push_bytes(self, 0, 0);
-  push_bytes(self, 0, 0);
-}
-
-static u64 push_jump(gab_compiler *self, u8 op) {
-  push_op(self, op);
-  push_bytes(self, 0xff, 0xff);
-  return self->mod->bytecode.size - 2;
-}
-
-static i32 patch_jump(gab_compiler *self, u64 dist) {
-  i32 jump = self->mod->bytecode.size - dist - 2;
-
-  if (jump > UINT16_MAX) {
-    error(self, "Tried to jump over too much code");
-    return COMP_ERR;
-  }
-
-  v_u8_set(&self->mod->bytecode, dist, (jump >> 8) & 0xff);
-  v_u8_set(&self->mod->bytecode, dist + 1, jump & 0xff);
-
-  return COMP_OK;
-}
-
-static void try_patch_call(gab_compiler *self, u8 want) {
-  if (self->previous_op >= OP_CALL_0 && self->previous_op <= OP_CALL_16) {
-    v_u8_set(&self->mod->bytecode, self->mod->bytecode.size - 1, want);
-  }
-}
-
-static void try_patch_spread(gab_compiler *self, u8 want) {
-  if (self->previous_op == OP_SPREAD) {
-    v_u8_set(&self->mod->bytecode, self->mod->bytecode.size - 1, want);
-  }
-}
-
-static i32 push_loop(gab_compiler *self, u64 dist) {
-  i32 jump = self->mod->bytecode.size - dist + 2;
-
-  push_op(self, OP_LOOP);
-
-  if (jump > UINT16_MAX) {
-    error(self, "Tried to jump over too much code");
-    return COMP_ERR;
-  }
-
-  push_byte(self, (jump >> 8) & 0xff);
-  push_byte(self, jump & 0xff);
-  return COMP_OK;
-}
-
-static i32 push_return(gab_compiler *self, exp_list result) {
-  if (result.is_var) {
-    push_op(self, OP_VARRETURN);
-    push_byte(self, result.have);
-  } else {
-    if (result.have > FRET_MAX) {
-      error(self, "Functions cannot return more than 16 values");
-      return COMP_ERR;
-    }
-    push_op(self, MAKE_RETURN(result.have));
-  }
-  return COMP_OK;
-}
-
-static i32 push_call(gab_compiler *self, exp_list args) {
-  if (args.is_var) {
-    push_op(self, OP_VARCALL);
-    push_byte(self, args.have);
-  } else {
-    if (args.have > FARG_MAX) {
-      error(self, "Functions cannot take more than 16 arguments");
-      return COMP_ERR;
-    }
-
-    push_op(self, MAKE_CALL(args.have));
-  }
-  // Want byte
-  // This can be patched later, but it is assumed to be one.
-  push_byte(self, 1);
-  return COMP_OK;
+static inline void push_short(gab_compiler *self, u16 data) {
+  gab_module_push_short(self->mod, data, self->previous_token, self->line);
 }
 
 //--------------------- Local Variable Helpers --------------
@@ -426,7 +312,7 @@ static void up_frame(gab_compiler *self) {
 // Forward declare some functions
 gab_compile_rule get_rule(gab_token k);
 i32 compile_exp_prec(gab_compiler *self, gab_precedence prec);
-i32 compile_expressions(gab_compiler *self, u8 want, exp_list *out);
+i32 compile_expressions(gab_compiler *self, u8 want, boolean *vse_out);
 
 //---------------- Compiling Helpers -------------------
 /*
@@ -479,7 +365,7 @@ i32 compile_function_args(gab_compiler *self, gab_obj_function *function) {
     // here as well.
     initialize_local(self, local);
 
-  } while ((result = match_and_eat_token(self, TOKEN_COMMA)) > 0);
+  } while ((result = match_and_eat_token(self, TOKEN_COMMA)));
 
   if (result < 0)
     return result;
@@ -501,13 +387,13 @@ static inline i32 optional_newline(gab_compiler *self) {
   return COMP_OK;
 }
 
-i32 compile_block_expression(gab_compiler *self, u8 want, exp_list *exps) {
+i32 compile_block_expression(gab_compiler *self, u8 want, boolean *vse_out) {
   i32 result = skip_newlines(self);
 
   if (result < 0)
     return result;
 
-  result = compile_expressions(self, want, exps);
+  result = compile_expressions(self, want, vse_out);
 
   if (result < 0)
     return result;
@@ -520,8 +406,8 @@ i32 compile_block_expression(gab_compiler *self, u8 want, exp_list *exps) {
   return COMP_OK;
 }
 
-i32 compile_block_body(gab_compiler *self, u8 want, exp_list *exps) {
-  i32 result = compile_block_expression(self, want, exps);
+i32 compile_block_body(gab_compiler *self, u8 want, boolean *vse_out) {
+  i32 result = compile_block_expression(self, want, vse_out);
 
   if (result < 0)
     return result;
@@ -529,7 +415,7 @@ i32 compile_block_body(gab_compiler *self, u8 want, exp_list *exps) {
   while (!match_token(self, TOKEN_END) && !match_token(self, TOKEN_EOF)) {
     push_op(self, OP_POP);
 
-    result = compile_block_expression(self, want, exps);
+    result = compile_block_expression(self, want, vse_out);
 
     if (result < 0)
       return result;
@@ -567,8 +453,7 @@ i32 compile_function_body(gab_compiler *self, gab_obj_function *function,
   function->nlocals = frame->deepest_local - function->narguments - 1;
 
   // Patch the jump to skip over the function body
-  if (patch_jump(self, skip_jump) < 0)
-    return COMP_ERR;
+  gab_module_patch_jump(self->mod, skip_jump);
 
   // Push a closure wrapping the function
   push_op(self, OP_CLOSURE);
@@ -583,7 +468,8 @@ i32 compile_function_body(gab_compiler *self, gab_obj_function *function,
 }
 
 i32 compile_function(gab_compiler *self, s_u8_ref name, gab_token closing) {
-  u64 skip_jump = push_jump(self, OP_JUMP);
+  u64 skip_jump = gab_module_push_jump(self->mod, OP_JUMP, self->previous_token,
+                                       self->line);
 
   // Doesnt need a pop scope because the scope is popped with the callframe.
   down_scope(self);
@@ -618,7 +504,7 @@ i32 compile_function(gab_compiler *self, s_u8_ref name, gab_token closing) {
 
 /* Returns COMP_ERR if an error was encountered, and otherwise COMP_OK
  */
-i32 compile_expressions(gab_compiler *self, u8 want, exp_list *out) {
+i32 compile_expressions(gab_compiler *self, u8 want, boolean *vse_out) {
 
   u8 have = 0;
   boolean is_var;
@@ -632,7 +518,7 @@ i32 compile_expressions(gab_compiler *self, u8 want, exp_list *out) {
 
     is_var = result == VAR_RET;
     have++;
-  } while ((result = match_and_eat_token(self, TOKEN_COMMA)) > 0);
+  } while ((result = match_and_eat_token(self, TOKEN_COMMA)));
 
   if (result < 0)
     return result;
@@ -651,8 +537,7 @@ i32 compile_expressions(gab_compiler *self, u8 want, exp_list *out) {
       // If the expression is variable because it ends
       // with a function call, try to patch that call to want
       // either variable or the additional number of exps.
-      try_patch_call(self, want - have);
-      try_patch_spread(self, want - have);
+      gab_module_try_patch_vse(self->mod, want - have);
     }
   } else {
     // If our expression list is constant length
@@ -667,12 +552,11 @@ i32 compile_expressions(gab_compiler *self, u8 want, exp_list *out) {
   }
 
   // If we have an out argument, set its values.
-  if (out != NULL) {
-    out->have = have;
-    out->is_var = is_var;
+  if (vse_out != NULL) {
+    *vse_out = is_var;
   }
 
-  return COMP_OK;
+  return have;
 }
 
 /*
@@ -709,7 +593,7 @@ i32 compile_property(gab_compiler *self, boolean assignable) {
 
     push_short(self, prop);
     // The shape at this get
-    push_cache(self);
+    gab_module_push_inline_cache(self->mod, self->previous_token, self->line);
     // The cache'd offset
     push_short(self, 0);
 
@@ -720,7 +604,7 @@ i32 compile_property(gab_compiler *self, boolean assignable) {
     push_op(self, OP_GET_PROPERTY);
     push_short(self, prop);
     // The shape at this get
-    push_cache(self);
+    gab_module_push_inline_cache(self->mod, self->previous_token, self->line);
     // The cache'd offset
     push_short(self, 0);
     break;
@@ -804,11 +688,13 @@ i32 compile_obj_internal_item(gab_compiler *self) {
       switch (result) {
 
       case COMP_RESOLVED_TO_LOCAL:
-        push_load_local(self, value_in);
+        gab_module_push_load_local(self->mod, value_in, self->previous_token,
+                                   self->line);
         break;
 
       case COMP_RESOLVED_TO_UPVALUE:
-        push_load_upvalue(self, value_in);
+        gab_module_push_load_upvalue(self->mod, value_in, self->previous_token,
+                                     self->line);
         break;
 
       case COMP_ID_NOT_FOUND:
@@ -952,15 +838,16 @@ i32 compile_exp_if(gab_compiler *self, boolean assignable) {
   if (optional_newline(self) < 0)
     return COMP_ERR;
 
-  u64 then_jump = push_jump(self, OP_POP_JUMP_IF_FALSE);
+  u64 then_jump = gab_module_push_jump(self->mod, OP_POP_JUMP_IF_FALSE,
+                                       self->previous_token, self->line);
 
   if (compile_expressions(self, 1, NULL) < 0)
     return COMP_ERR;
 
-  u64 else_jump = push_jump(self, OP_JUMP);
+  u64 else_jump = gab_module_push_jump(self->mod, OP_JUMP, self->previous_token,
+                                       self->line);
 
-  if (patch_jump(self, then_jump) < 0)
-    return COMP_ERR;
+  gab_module_patch_jump(self->mod, then_jump);
 
   switch (match_and_eat_token(self, TOKEN_ELSE)) {
   case COMP_OK:
@@ -981,7 +868,7 @@ i32 compile_exp_if(gab_compiler *self, boolean assignable) {
     return COMP_ERR;
   }
 
-  patch_jump(self, else_jump);
+  gab_module_patch_jump(self->mod, else_jump);
 
   return COMP_OK;
 }
@@ -1002,15 +889,16 @@ i32 compile_exp_mch(gab_compiler *self, boolean assignable) {
   v_u64_create(&done_jumps);
 
   while (match_and_eat_token(self, TOKEN_QUESTION) == COMP_TOKEN_NO_MATCH) {
-    if (next != 0 && patch_jump(self, next) < 0)
-      return COMP_ERR;
+    if (next != 0)
+      gab_module_patch_jump(self->mod, next);
 
     if (compile_expressions(self, 1, NULL) < 0)
       return COMP_ERR;
 
     push_op(self, OP_MATCH);
 
-    next = push_jump(self, OP_POP_JUMP_IF_FALSE);
+    next = gab_module_push_jump(self->mod, OP_POP_JUMP_IF_FALSE,
+                                self->previous_token, self->line);
 
     if (expect_token(self, TOKEN_FAT_ARROW) < 0)
       return COMP_ERR;
@@ -1019,15 +907,17 @@ i32 compile_exp_mch(gab_compiler *self, boolean assignable) {
       return COMP_ERR;
 
     // Push a jump out of the match statement at the end of every case.
-    v_u64_push(&done_jumps, push_jump(self, OP_JUMP));
+    v_u64_push(&done_jumps,
+               gab_module_push_jump(self->mod, OP_JUMP, self->previous_token,
+                                    self->line));
 
     if (expect_token(self, TOKEN_NEWLINE) < 0)
       return COMP_ERR;
   }
 
   // If none of the cases match, the last jump should end up here.
-  if (patch_jump(self, next) < 0)
-    return COMP_ERR;
+  gab_module_patch_jump(self->mod, next);
+
   // Pop the pattern that we never matched
   push_op(self, OP_POP);
 
@@ -1039,7 +929,7 @@ i32 compile_exp_mch(gab_compiler *self, boolean assignable) {
 
   for (i32 i = 0; i < done_jumps.size; i++) {
     // Patch all the jumps to the end of the match expression.
-    patch_jump(self, v_u64_val_at(&done_jumps, i));
+    gab_module_patch_jump(self->mod, v_u64_val_at(&done_jumps, i));
   }
 
   v_u64_destroy(&done_jumps);
@@ -1270,7 +1160,7 @@ i32 compile_exp_itp(gab_compiler *self, boolean assignable) {
   }
 
   i32 result;
-  while ((result = match_and_eat_token(self, TOKEN_INTERPOLATION)) > 0) {
+  while ((result = match_and_eat_token(self, TOKEN_INTERPOLATION))) {
 
     if (compile_exp_str(self, assignable) < 0)
       return COMP_ERR;
@@ -1358,7 +1248,8 @@ i32 compile_exp_def(gab_compiler *self, boolean assignable) {
   if (compile_definition(self, name) < 0)
     return COMP_ERR;
 
-  push_store_local(self, local);
+  gab_module_push_store_local(self->mod, local, self->previous_token,
+                              self->line);
 
   return COMP_OK;
 }
@@ -1449,7 +1340,7 @@ i32 compile_exp_let(gab_compiler *self, boolean assignable) {
 
     local_count++;
 
-  } while ((result = match_and_eat_token(self, TOKEN_COMMA)) > 0);
+  } while ((result = match_and_eat_token(self, TOKEN_COMMA)));
 
   if (result == COMP_ERR)
     return COMP_ERR;
@@ -1490,9 +1381,11 @@ i32 compile_exp_let(gab_compiler *self, boolean assignable) {
       }
     } else {
       if (is_local) {
-        push_store_local(self, local);
+        gab_module_push_store_local(self->mod, local, self->previous_token,
+                                    self->line);
       } else {
-        push_store_upvalue(self, local);
+        gab_module_push_store_upvalue(self->mod, local, self->previous_token,
+                                      self->line);
       }
     }
   }
@@ -1538,9 +1431,11 @@ i32 compile_exp_idn(gab_compiler *self, boolean assignable) {
         return COMP_ERR;
 
       if (is_local_var) {
-        push_store_local(self, var);
+        gab_module_push_store_local(self->mod, var, self->previous_token,
+                                    self->line);
       } else {
-        push_store_upvalue(self, var);
+        gab_module_push_store_upvalue(self->mod, var, self->previous_token,
+                                      self->line);
       }
 
     } else {
@@ -1552,9 +1447,11 @@ i32 compile_exp_idn(gab_compiler *self, boolean assignable) {
 
   case COMP_TOKEN_NO_MATCH:
     if (is_local_var) {
-      push_load_local(self, var);
+      gab_module_push_load_local(self->mod, var, self->previous_token,
+                                 self->line);
     } else {
-      push_load_upvalue(self, var);
+      gab_module_push_load_upvalue(self->mod, var, self->previous_token,
+                                   self->line);
     }
     break;
 
@@ -1605,27 +1502,29 @@ i32 compile_exp_obj_call(gab_compiler *self, boolean assignable) {
   if (compile_exp_obj(self, assignable) < 0)
     return COMP_ERR;
 
-  if (push_call(self, (exp_list){.have = 1, .is_var = false}) < 0)
-    return COMP_ERR;
+  gab_module_push_call(self->mod, 1, false, self->previous_token, self->line);
 
   return VAR_RET;
 }
 
 i32 compile_exp_call(gab_compiler *self, boolean assignable) {
-  exp_list args;
+  boolean vse = false;
+  i32 result = 0;
 
   if (!match_token(self, TOKEN_RPAREN)) {
+    result = compile_expressions(self, VAR_RET, &vse);
 
-    if (compile_expressions(self, VAR_RET, &args) < 0)
+    if (result < 0)
       return COMP_ERR;
-
-  } else {
-    args.have = 0;
-    args.is_var = false;
   }
 
-  if (push_call(self, args) < 0)
+  if (!vse && result > 16) {
+    error(self, "Too many arguments to function call");
     return COMP_ERR;
+  }
+
+  gab_module_push_call(self->mod, result, vse, self->previous_token,
+                       self->line);
 
   if (expect_token(self, TOKEN_RPAREN) < 0)
     return COMP_ERR;
@@ -1634,7 +1533,6 @@ i32 compile_exp_call(gab_compiler *self, boolean assignable) {
 }
 
 i32 compile_exp_dot(gab_compiler *self, boolean assignable) {
-
   if (compile_property(self, assignable) < 0)
     return COMP_ERR;
 
@@ -1646,12 +1544,14 @@ i32 compile_exp_glb(gab_compiler *self, boolean assignable) {
 
   switch (resolve_id(self, s_u8_ref_create_cstr("__global__"), &global)) {
   case COMP_RESOLVED_TO_LOCAL: {
-    push_load_local(self, global);
+    gab_module_push_load_local(self->mod, global, self->previous_token,
+                               self->line);
     break;
   }
 
   case COMP_RESOLVED_TO_UPVALUE: {
-    push_load_upvalue(self, global);
+    gab_module_push_load_upvalue(self->mod, global, self->previous_token,
+                                 self->line);
     break;
   }
 
@@ -1668,9 +1568,8 @@ i32 compile_exp_glb(gab_compiler *self, boolean assignable) {
 
 i32 compile_exp_mth(gab_compiler *self, boolean assignable) {
   // Compile the function that is being called on the top of the stack.
-  i32 result = compile_exp_prec(self, PREC_PROPERTY);
-  if (result < 0)
-    return result;
+  if (compile_exp_prec(self, PREC_PROPERTY) < 0)
+    return COMP_ERR;
 
   /* Stack has now
     | method    |
@@ -1680,19 +1579,18 @@ i32 compile_exp_mth(gab_compiler *self, boolean assignable) {
   // Swap the method and receiver
   push_op(self, OP_SWAP);
 
-  exp_list args;
+  boolean vse = false;
+  i32 result = 0;
 
   if (expect_token(self, TOKEN_LPAREN) < 0)
     return COMP_ERR;
 
   if (!match_token(self, TOKEN_RPAREN)) {
 
-    if (compile_expressions(self, VAR_RET, &args) < 0)
-      return COMP_ERR;
+    result = compile_expressions(self, VAR_RET, &vse);
 
-  } else {
-    args.have = 0;
-    args.is_var = false;
+    if (result < 0)
+      return COMP_ERR;
   }
 
   if (expect_token(self, TOKEN_RPAREN) < 0)
@@ -1707,47 +1605,47 @@ i32 compile_exp_mth(gab_compiler *self, boolean assignable) {
   */
 
   // Count the self argument
-  args.have++;
+  result++;
 
-  if (push_call(self, args) < 0)
+  if (result > 16) {
+    error(self, "Too many arguments to method call");
     return COMP_ERR;
+  }
+
+  gab_module_push_call(self->mod, result, vse, self->previous_token,
+                       self->line);
 
   return VAR_RET;
 }
 
 i32 compile_exp_and(gab_compiler *self, boolean assignable) {
-  u64 end_jump = push_jump(self, OP_LOGICAL_AND);
+  u64 end_jump = gab_module_push_jump(self->mod, OP_LOGICAL_AND,
+                                      self->previous_token, self->line);
 
-  i32 result = compile_exp_prec(self, PREC_AND);
-
-  if (result < 0)
-    return result;
-
-  if (patch_jump(self, end_jump) < 0)
+  if (compile_exp_prec(self, PREC_AND) < 0)
     return COMP_ERR;
+
+  gab_module_patch_jump(self->mod, end_jump);
 
   return COMP_OK;
 }
 
 i32 compile_exp_or(gab_compiler *self, boolean assignable) {
-  u64 end_jump = push_jump(self, OP_LOGICAL_OR);
+  u64 end_jump = gab_module_push_jump(self->mod, OP_LOGICAL_OR,
+                                      self->previous_token, self->line);
 
-  i32 result = compile_exp_prec(self, PREC_OR);
-
-  if (result < 0)
+  if (compile_exp_prec(self, PREC_OR) < 0)
     return COMP_ERR;
 
-  if (patch_jump(self, end_jump) < 0)
-    return COMP_ERR;
+  gab_module_patch_jump(self->mod, end_jump);
 
   return COMP_OK;
 }
 
 i32 compile_exp_prec(gab_compiler *self, gab_precedence prec) {
-  i32 result = eat_token(self);
 
-  if (result < 0)
-    return result;
+  if (eat_token(self) < 0)
+    return COMP_ERR;
 
   gab_compile_rule rule = get_rule(self->previous_token);
 
@@ -1766,10 +1664,8 @@ i32 compile_exp_prec(gab_compiler *self, gab_precedence prec) {
 
   while (prec <= get_rule(self->current_token).prec) {
 
-    result = eat_token(self);
-
-    if (result < 0)
-      return result;
+    if (eat_token(self) < 0)
+      return COMP_ERR;
 
     rule = get_rule(self->previous_token);
 
@@ -1822,7 +1718,7 @@ i32 compile_exp_for(gab_compiler *self, boolean assignable) {
 
     initialize_local(self, loc);
     loop_locals++;
-  } while ((result = match_and_eat_token(self, TOKEN_COMMA)) > 0);
+  } while ((result = match_and_eat_token(self, TOKEN_COMMA)));
 
   if (result == COMP_ERR)
     return COMP_ERR;
@@ -1841,7 +1737,7 @@ i32 compile_exp_for(gab_compiler *self, boolean assignable) {
   u64 loop_start = self->mod->bytecode.size - 1;
 
   // Load the funciton.
-  push_load_local(self, iter);
+  gab_module_push_load_local(self->mod, iter, self->previous_token, self->line);
 
   // Call the function, wanting loop_locals results.
   push_op(self, OP_CALL_0);
@@ -1853,10 +1749,12 @@ i32 compile_exp_for(gab_compiler *self, boolean assignable) {
     push_byte(self, iter + loop_locals - ll);
   }
 
-  push_load_local(self, iter + loop_locals);
+  gab_module_push_load_local(self->mod, iter + loop_locals,
+                             self->previous_token, self->line);
 
   // Exit the for loop if the last loop local is false.
-  u64 jump_start = push_jump(self, OP_JUMP_IF_FALSE);
+  u64 jump_start = gab_module_push_jump(self->mod, OP_JUMP_IF_FALSE,
+                                        self->previous_token, self->line);
 
   if (expect_token(self, TOKEN_COLON) < 0)
     return COMP_ERR;
@@ -1871,11 +1769,9 @@ i32 compile_exp_for(gab_compiler *self, boolean assignable) {
 
   push_op(self, OP_POP);
 
-  if (push_loop(self, loop_start) < 0)
-    return COMP_ERR;
+  gab_module_push_loop(self->mod, loop_start, self->previous_token, self->line);
 
-  if (patch_jump(self, jump_start) < 0)
-    return COMP_ERR;
+  gab_module_patch_jump(self->mod, jump_start);
 
   up_scope(self);
 
@@ -1894,7 +1790,8 @@ i32 compile_exp_whl(gab_compiler *self, boolean assignable) {
   if (optional_newline(self) < 0)
     return COMP_ERR;
 
-  u64 jump = push_jump(self, OP_POP_JUMP_IF_FALSE);
+  u64 jump = gab_module_push_jump(self->mod, OP_POP_JUMP_IF_FALSE,
+                                  self->previous_token, self->line);
 
   down_scope(self);
 
@@ -1903,11 +1800,9 @@ i32 compile_exp_whl(gab_compiler *self, boolean assignable) {
 
   up_scope(self);
 
-  if (push_loop(self, loop_start) < 0)
-    return COMP_ERR;
+  gab_module_push_loop(self->mod, loop_start, self->previous_token, self->line);
 
-  if (patch_jump(self, jump) < 0)
-    return COMP_ERR;
+  gab_module_patch_jump(self->mod, jump);
 
   push_op(self, OP_PUSH_NULL);
 
@@ -1920,15 +1815,22 @@ i32 compile_exp_rtn(gab_compiler *self, boolean assignable) {
     push_op(self, OP_PUSH_NULL);
     push_op(self, OP_RETURN_1);
   } else if (match_and_eat_token(self, TOKEN_LPAREN)) {
-    exp_list ret_value;
 
-    if (compile_expressions(self, VAR_RET, &ret_value) < 0)
+    boolean vse;
+    i32 result;
+
+    if ((result = compile_expressions(self, VAR_RET, &vse)) < 0)
       return COMP_ERR;
 
     expect_token(self, TOKEN_RPAREN);
 
-    if (push_return(self, ret_value) < 0)
+    if (result > 16) {
+      error(self, "Tried to return too many expressions");
       return COMP_ERR;
+    }
+
+    gab_module_push_return(self->mod, result, vse, self->previous_token,
+                           self->line);
 
   } else {
     error(self, "Return expressions should be follwed by an "

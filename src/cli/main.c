@@ -34,19 +34,13 @@ void bind_std(gab_engine *gab) {
 
   gab_lib_kvp str_kvps[] = {BUILTIN(num, 1)};
 
-  gab_lib_kvp kvps[] = {BUILTIN(info, VAR_RET),
-                        BUILTIN(warn, VAR_RET),
-                        BUILTIN(error, VAR_RET),
-                        BUILTIN(push, VAR_RET),
-                        BUILTIN(require, 1),
-                        BUILTIN(keys, 1),
-                        BUILTIN(len, 1),
-                        BUILTIN(slice, 3),
-                        BUNDLE(socket),
-                        BUNDLE(str),
-                        BUNDLE(re)};
-
-  gab_bind_library(gab, sizeof(kvps) / sizeof(gab_lib_kvp), kvps);
+  gab_bind_library(
+      gab, 11,
+      (gab_lib_kvp[]){BUILTIN(info, VAR_RET), BUILTIN(warn, VAR_RET),
+                      BUILTIN(error, VAR_RET), BUILTIN(push, VAR_RET),
+                      BUILTIN(require, 1), BUILTIN(keys, 1), BUILTIN(len, 1),
+                      BUILTIN(slice, 3), BUNDLE(socket), BUNDLE(str),
+                      BUNDLE(re)});
 }
 
 void gab_repl() {
