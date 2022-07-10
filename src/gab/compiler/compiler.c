@@ -467,7 +467,7 @@ i32 compile_function_body(gab_compiler *self, gab_obj_function *function,
   return COMP_OK;
 }
 
-i32 compile_function(gab_compiler *self, s_u8_ref name, gab_token closing) {
+i32 compile_function(gab_compiler *self, s_u8_ref name, boolean is_lambda) {
   u64 skip_jump = gab_module_push_jump(self->mod, OP_JUMP, self->previous_token,
                                        self->line);
 
@@ -478,6 +478,8 @@ i32 compile_function(gab_compiler *self, s_u8_ref name, gab_token closing) {
 
   down_frame(self, name);
 
+  gab_token closing = is_lambda ? TOKEN_PIPE : TOKEN_RPAREN;
+
   if (!match_token(self, closing)) {
     if (compile_function_args(self, function) < 0)
       return COMP_ERR;
@@ -486,7 +488,7 @@ i32 compile_function(gab_compiler *self, s_u8_ref name, gab_token closing) {
   if (expect_token(self, closing) < 0)
     return COMP_ERR;
 
-  if (expect_token(self, TOKEN_COLON) < 0)
+  if (is_lambda && expect_token(self, TOKEN_FAT_ARROW) < 0)
     return COMP_ERR;
 
   if (optional_newline(self) < 0)
@@ -670,7 +672,7 @@ i32 compile_obj_internal_item(gab_compiler *self) {
 
     // Compile the expression if theres a colon, or look for a local with
     // the name and use that as the value.
-    switch (match_and_eat_token(self, TOKEN_COLON)) {
+    switch (match_and_eat_token(self, TOKEN_EQUAL)) {
 
     case COMP_OK: {
       if (compile_expressions(self, 1, NULL) < 0)
@@ -720,9 +722,6 @@ i32 compile_obj_internal_item(gab_compiler *self) {
       return COMP_ERR;
 
     if (expect_token(self, TOKEN_RBRACE) < 0)
-      return COMP_ERR;
-
-    if (expect_token(self, TOKEN_COLON) < 0)
       return COMP_ERR;
 
     if (compile_expressions(self, 1, NULL) < 0)
@@ -786,9 +785,6 @@ i32 compile_definition(gab_compiler *self, s_u8_ref name) {
     return compile_function(self, name, TOKEN_RPAREN);
   }
 
-  if (expect_token(self, TOKEN_COLON) < 0)
-    return COMP_ERR;
-
   if (match_token(self, TOKEN_LBRACK)) {
     return compile_expressions(self, 1, NULL);
   }
@@ -832,9 +828,6 @@ i32 compile_exp_if(gab_compiler *self, boolean assignable) {
   if (compile_expressions(self, 1, NULL) < 0)
     return COMP_ERR;
 
-  if (expect_token(self, TOKEN_COLON) < 0)
-    return COMP_ERR;
-
   if (optional_newline(self) < 0)
     return COMP_ERR;
 
@@ -875,9 +868,6 @@ i32 compile_exp_if(gab_compiler *self, boolean assignable) {
 
 i32 compile_exp_mch(gab_compiler *self, boolean assignable) {
   if (compile_expressions(self, 1, NULL) < 0)
-    return COMP_ERR;
-
-  if (expect_token(self, TOKEN_COLON) < 0)
     return COMP_ERR;
 
   if (optional_newline(self) < 0)
@@ -1756,9 +1746,6 @@ i32 compile_exp_for(gab_compiler *self, boolean assignable) {
   u64 jump_start = gab_module_push_jump(self->mod, OP_JUMP_IF_FALSE,
                                         self->previous_token, self->line);
 
-  if (expect_token(self, TOKEN_COLON) < 0)
-    return COMP_ERR;
-
   if (optional_newline(self) < 0)
     return COMP_ERR;
 
@@ -1782,9 +1769,6 @@ i32 compile_exp_whl(gab_compiler *self, boolean assignable) {
   u64 loop_start = self->mod->bytecode.size - 1;
 
   if (compile_expressions(self, 1, NULL) < 0)
-    return COMP_ERR;
-
-  if (expect_token(self, TOKEN_COLON) < 0)
     return COMP_ERR;
 
   if (optional_newline(self) < 0)
@@ -1877,7 +1861,7 @@ const gab_compile_rule gab_compiler_rules[] = {
     INFIX(bin, FACTOR, false),                // SLASH
     INFIX(bin, FACTOR, false),                // PERCENT
     NONE(),                            // COMMA
-    NONE(),       // COLON
+    INFIX(mth, CALL, true),       // COLON
     NONE(),           // AMPERSAND
     INFIX(dot, PROPERTY, true),              // DOT
     PREFIX_INFIX(spd, bin, TERM, false),                  // DOT_DOT
@@ -1891,7 +1875,7 @@ const gab_compile_rule gab_compiler_rules[] = {
     INFIX(bin, EQUALITY, false),              // LESSEREQUAL
     INFIX(bin, COMPARISON, false),            // GREATER
     INFIX(bin, EQUALITY, false),              // GREATEREQUAL
-    INFIX(mth, CALL, true),                            // ARROW
+    NONE(),                            // ARROW
     NONE(),                            // FATARROW
     INFIX(and, AND, false),                   // AND
     INFIX(or, OR, false),                     // OR
