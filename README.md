@@ -155,3 +155,5 @@ libc is the only dependency for the language - but the repo here uses check for 
  - [ ] Unicode Support
  - [ ] Finalize c api and documentation
  - [ ] CI/CD for builds and releases
+ - [ ] More sophisticated require builtin
+ - [ ] Pretty Printing for objects

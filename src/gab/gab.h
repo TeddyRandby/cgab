@@ -1,7 +1,7 @@
 #ifndef GAB_H
 #define GAB_H
 
-#include "vm/vm.h"
+#include "compiler/engine.h"
 
 /*
   Create a Gab Engine. If you want libraries included, build and bind them
@@ -10,6 +10,10 @@
   @return The allocated Sol Engine.
 */
 gab_engine *gab_create();
+
+gab_engine *gab_create_fork(gab_engine *gab);
+
+void gab_destroy_fork(gab_engine *fork);
 
 /*
   Cleanup a Gab Engine. Also cleans up all the modules which have been compiled
@@ -48,7 +52,7 @@ void gab_bind_library(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]);
 
   @return A gab result object.
 */
-gab_result *gab_run_source(gab_engine *gab, const char *source,
-                           const char *module_name, u8 flags);
+gab_result *gab_run_source(gab_engine *gab, const char *module_name,
+                           s_u8 *source, u8 flags);
 
 #endif

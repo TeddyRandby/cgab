@@ -1,28 +1,39 @@
 #include "object.h"
 #include "engine.h"
-
 #include <stdio.h>
+
+#define GAB_CREATE_ARRAY(type, count, eng)                                     \
+  ((type *)gab_reallocate(eng, NULL, 0, sizeof(type) * count))
+#define GAB_CREATE_STRUCT(obj_type, eng)                                       \
+  ((obj_type *)gab_reallocate(eng, NULL, 0, sizeof(obj_type)))
+#define GAB_CREATE_FLEX_STRUCT(obj_type, flex_type, flex_count, eng)           \
+  ((obj_type *)gab_reallocate(                                                 \
+      eng, NULL, 0, sizeof(obj_type) + sizeof(flex_type) * flex_count))
+
+#define GAB_DESTROY_STRUCT(ptr, eng) gab_reallocate(eng, ptr, 0, 0)
+#define GAB_DESTROY_ARRAY(type, loc, count, eng)                               \
+  (gab_reallocate(eng, loc, sizeof(type) * count, 0))
 
 /*
   Helper macros for allocating gab objects.
 */
 #define GAB_CREATE_OBJ(obj_type, eng, kind)                                    \
-  ((obj_type *)gab_obj_create((gab_obj *)GAB_CREATE_STRUCT(obj_type, eng->gc), \
+  ((obj_type *)gab_obj_create((gab_obj *)GAB_CREATE_STRUCT(obj_type, eng),     \
                               eng, kind))
 
 #define GAB_CREATE_FLEX_OBJ(obj_type, flex_type, flex_count, eng, kind)        \
-  ((obj_type *)gab_obj_create((gab_obj *)GAB_CREATE_FLEX_STRUCT(               \
-                                  obj_type, flex_type, flex_count, eng->gc),   \
-                              eng, kind))
+  ((obj_type *)gab_obj_create(                                                 \
+      (gab_obj *)GAB_CREATE_FLEX_STRUCT(obj_type, flex_type, flex_count, eng), \
+      eng, kind))
 
 /*
   Initialize the header of any gab objects, with kind (k)
 */
 gab_obj *gab_obj_create(gab_obj *self, gab_engine *eng, gab_obj_kind k) {
   self->kind = k;
-  // References start at one
+  // Objects start out with one reference.
   self->references = 1;
-  // Zero out the flags.
+
   self->flags = 0;
   return self;
 }
@@ -55,22 +66,22 @@ gab_obj_string *gab_obj_to_obj_string(gab_obj *self, gab_engine *eng) {
     return (gab_obj_string *)self;
   }
   case OBJECT_CLOSURE: {
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr("<closure>"));
+    return gab_obj_string_create(eng, s_u8_ref_create_cstr("[closure]"));
   }
   case OBJECT_OBJECT: {
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr("<object>"));
+    return gab_obj_string_create(eng, s_u8_ref_create_cstr("[object]"));
   }
   case OBJECT_UPVALUE: {
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr("<upvalue>"));
+    return gab_obj_string_create(eng, s_u8_ref_create_cstr("[upvalue]"));
   }
   case OBJECT_FUNCTION: {
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr("<function>"));
+    return gab_obj_string_create(eng, s_u8_ref_create_cstr("[function]"));
   }
   case OBJECT_BUILTIN: {
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr("<builtin>"));
+    return gab_obj_string_create(eng, s_u8_ref_create_cstr("[builtin]"));
   }
   default: {
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr("<unknown>"));
+    return gab_obj_string_create(eng, s_u8_ref_create_cstr("[unknown]"));
   }
   }
 }
@@ -80,15 +91,15 @@ gab_obj_string *gab_obj_to_obj_string(gab_obj *self, gab_engine *eng) {
 */
 void gab_obj_destroy(gab_obj *self, gab_engine *eng) {
 #if GAB_LOG_GC
-  printf("Freeing obj: [");
+  printf("Freeing: <");
   gab_val_dump(GAB_VAL_OBJ(self));
-  printf("]\n");
+  printf(">\n");
 #endif
   switch (self->kind) {
   case OBJECT_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)(self);
     d_u64_destroy(&shape->properties);
-    GAB_DESTROY_STRUCT(shape, eng->gc);
+    GAB_DESTROY_STRUCT(shape, eng);
     return;
   }
 
@@ -97,7 +108,7 @@ void gab_obj_destroy(gab_obj *self, gab_engine *eng) {
     if (object->is_dynamic) {
       v_u64_destroy(&object->dynamic_values);
     }
-    GAB_DESTROY_STRUCT(object, eng->gc);
+    GAB_DESTROY_STRUCT(object, eng);
     return;
   }
 
@@ -110,7 +121,7 @@ void gab_obj_destroy(gab_obj *self, gab_engine *eng) {
   case OBJECT_UPVALUE:
   case OBJECT_BUILTIN:
   case OBJECT_STRING: {
-    GAB_DESTROY_STRUCT(self, eng->gc);
+    GAB_DESTROY_STRUCT(self, eng);
     return;
   }
   }
@@ -134,25 +145,21 @@ static inline u64 keys_hash(gab_value values[], u64 size, u64 stride) {
   return hash;
 };
 
-gab_obj_string *gab_obj_string_create(gab_engine *eng, s_u8_ref other) {
-  u64 hash = s_u8_ref_hash(other);
+gab_obj_string *gab_obj_string_create(gab_engine *eng, s_u8_ref str) {
+  u64 hash = s_u8_ref_hash(str);
 
-  gab_obj_string *interned = gab_engine_find_string(eng, other, hash);
-  if (interned != NULL)
+  gab_obj_string *interned = gab_engine_find_string(eng, str, hash);
+
+  if (interned)
     return interned;
 
-  gab_obj_string *self = GAB_CREATE_FLEX_OBJ(gab_obj_string, u8, other.size + 1,
-                                             eng, OBJECT_STRING);
+  gab_obj_string *self =
+      GAB_CREATE_FLEX_OBJ(gab_obj_string, u8, str.size, eng, OBJECT_STRING);
+
+  memcpy(self->data, str.data, str.size);
+  self->size = str.size;
   self->hash = hash;
 
-  // Then copy the string data.
-  COPY(self->data, other.data, other.size);
-
-  // Copy the size and insert the null char.
-  self->size = other.size + 1;
-  self->data[other.size] = '\0';
-
-  // Intern the string in the module
   gab_engine_add_constant(eng, GAB_VAL_OBJ(self));
 
   // Strings cannot reference other objects - mark them green.
@@ -173,27 +180,17 @@ gab_obj_string *gab_obj_string_concat(gab_engine *eng, gab_obj_string *a,
   if (b->size == 0)
     return a;
 
-  u64 size = a->size + b->size - 1;
+  u64 size = a->size + b->size;
 
   gab_obj_string *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_string, u8, size, eng, OBJECT_STRING);
 
   // Copy the data into the string obj.
-  // printf("Copying %lu bytes from a to concated.\n", a->size - 1);
-  COPY(self->data, a->data, a->size);
+  memcpy(self->data, a->data, a->size);
 
-  // printf("a before copy: [%s]\n", a->data);
-
-  // printf("Copying %lu bytes from b to concated, starting %lu bytes in.\n",
-  //        b->size - 1, a->size - 1);
-  COPY(self->data + a->size - 1, b->data, b->size);
-
-  // printf("a after copy: [%s]\n", a->data);
+  memcpy(self->data + a->size, b->data, b->size);
 
   self->size = size;
-
-  // Add the null
-  self->data[self->size - 1] = '\0';
 
   // Pre compute the hash
   s_u8_ref ref = s_u8_ref_create(self->data, self->size);
@@ -206,7 +203,7 @@ gab_obj_string *gab_obj_string_concat(gab_engine *eng, gab_obj_string *a,
     hash.
   */
   gab_obj_string *interned = gab_engine_find_string(eng, ref, self->hash);
-  if (interned != NULL) {
+  if (interned) {
     gab_obj_destroy((gab_obj *)self, eng);
     return interned;
   }
@@ -224,9 +221,9 @@ gab_obj_string *gab_obj_string_concat(gab_engine *eng, gab_obj_string *a,
 /*
   Get a reference to a gab string's string data.
 */
-s_u8_ref gab_obj_string_get_ref(gab_obj_string *self) {
+s_u8_ref gab_obj_string_ref(gab_obj_string *self) {
   // Ignore the null character.
-  s_u8_ref ref = {.data = self->data, .size = self->size - 1};
+  s_u8_ref ref = {.data = self->data, .size = self->size};
   return ref;
 }
 
@@ -269,8 +266,7 @@ gab_obj_closure *gab_obj_closure_create(gab_engine *eng, gab_obj_function *func,
 
   self->func = func;
 
-  COPY(self->upvalues, upvs, sizeof(gab_obj_upvalue *) * func->nupvalues);
-
+  memcpy(self->upvalues, upvs, sizeof(gab_obj_upvalue *) * func->nupvalues);
   return self;
 }
 
@@ -299,13 +295,14 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value keys[], u64 size,
   gab_obj_shape *interned =
       gab_engine_find_shape(eng, size, keys, stride, hash);
 
-  if (interned != NULL)
+  if (interned)
     return interned;
 
   gab_obj_shape *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_shape, gab_value, size, eng, OBJECT_SHAPE);
 
   self->hash = hash;
+  self->name = (s_u8_ref){0};
 
   d_u64_create(&self->properties, OBJECT_INITIAL_CAP);
 
@@ -326,9 +323,7 @@ gab_obj_shape *gab_obj_shape_extend(gab_obj_shape *self, gab_engine *eng,
                                     gab_value property) {
   gab_value keys[self->properties.size + 1];
 
-  for (u64 i = 0; i < self->properties.size; i++) {
-    keys[i] = self->keys[i];
-  }
+  memcpy(keys, self->keys, self->properties.size);
 
   keys[self->properties.size] = property;
 

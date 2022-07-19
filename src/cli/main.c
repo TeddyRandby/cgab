@@ -1,12 +1,12 @@
+#include "../common/os.h"
 #include "../gab/gab.h"
 #include "lib/lib.h"
-#include "os.h"
 
 #include <stdio.h>
 
 s_u8 *collect_line() {
   printf(">>>");
-  return gab_os_read_line();
+  return os_read_line();
 }
 
 #define BUILTIN(name, arity)                                                   \
@@ -34,21 +34,25 @@ void bind_std(gab_engine *gab) {
 
   gab_lib_kvp str_kvps[] = {BUILTIN(num, 1)};
 
-  gab_bind_library(
-      gab, 11,
-      (gab_lib_kvp[]){BUILTIN(info, VAR_RET), BUILTIN(warn, VAR_RET),
-                      BUILTIN(error, VAR_RET), BUILTIN(push, VAR_RET),
-                      BUILTIN(require, 1), BUILTIN(keys, 1), BUILTIN(len, 1),
-                      BUILTIN(slice, 3), BUNDLE(socket), BUNDLE(str),
-                      BUNDLE(re)});
+  gab_lib_kvp std_kvps[] = {BUILTIN(info, VAR_RET),
+                            BUILTIN(warn, VAR_RET),
+                            BUILTIN(error, VAR_RET),
+                            BUILTIN(push, VAR_RET),
+                            BUILTIN(require, 1),
+                            BUILTIN(keys, 1),
+                            BUILTIN(len, 1),
+                            BUILTIN(slice, 3),
+                            BUNDLE(socket),
+                            BUNDLE(str),
+                            BUNDLE(re)};
+
+  gab_bind_library(gab, sizeof(std_kvps) / sizeof(gab_lib_kvp), std_kvps);
 }
 
 void gab_repl() {
 
   gab_engine *gab = gab_create();
   bind_std(gab);
-
-  s_u8 *prev_src = NULL;
 
   printf("Welcome to Gab v%d.%d\nPress CTRL+D to exit\n", GAB_VERSION_MAJOR,
          GAB_VERSION_MINOR);
@@ -57,13 +61,12 @@ void gab_repl() {
 
     s_u8 *src = collect_line();
 
-    if (src == NULL || s_u8_match_cstr(src, "exit\n")) {
+    if (src == NULL) {
       break;
     }
 
     if (src->size > 1 && src->data[0] != '\n') {
-      gab_result *result =
-          gab_run_source(gab, (char *)src->data, "Main", GAB_FLAG_NONE);
+      gab_result *result = gab_run_source(gab, "Main", src, GAB_FLAG_NONE);
 
       if (gab_result_has_error(result)) {
         gab_result_dump_error(result);
@@ -74,28 +77,23 @@ void gab_repl() {
 
       gab_result_destroy(result);
     }
-
-    s_u8_destroy(prev_src);
-    prev_src = src;
   }
 
   gab_destroy(gab);
 }
 
 void gab_run_file(const char *path) {
-  s_u8 *src = gab_os_read_file(path);
+  s_u8 *src = os_read_file(path);
   gab_engine *gab = gab_create();
   bind_std(gab);
 
-  gab_result *result =
-      gab_run_source(gab, (char *)src->data, "__main__", GAB_FLAG_NONE);
+  gab_result *result = gab_run_source(gab, "__main__", src, GAB_FLAG_NONE);
 
   if (gab_result_has_error(result)) {
     gab_result_dump_error(result);
   }
 
   gab_result_destroy(result);
-  s_u8_destroy(src);
   gab_destroy(gab);
 }
 

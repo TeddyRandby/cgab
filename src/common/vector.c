@@ -21,18 +21,6 @@ void v_u8_create(v_u8 *self) {
 
 void v_u8_destroy(v_u8 *self) { DESTROY_ARRAY(self->data); }
 
-inline void v_u8_slice(v_u8 *self, v_u8 *other, u64 start, u64 end) {
-  ASSERT_TRUE(end < other->size, "Source vector too small for slice");
-
-  v_u8_destroy(self);
-
-  self->capacity = (end - start) * 2;
-  self->size = end - start;
-
-  self->data = CREATE_ARRAY(u8, self->capacity);
-  COPY(self->data, other->data + start, end - start);
-}
-
 // ~ 64 bit vector begin
 void v_u64_create(v_u64 *self) {
   self->capacity = 8;

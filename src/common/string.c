@@ -35,35 +35,36 @@ boolean s_u8_ref_match_lit(s_u8_ref a, const char *b) {
 s_u8 *s_u8_create_cstr(const char *cstr) {
   u64 length = strlen(cstr);
 
-  s_u8 *self = CREATE_FLEX_STRUCT(s_u8, u8, length + 1);
-  self->size = length;
+  s_u8 *self = CREATE_FLEX_STRUCT(s_u8, u8, length);
 
-  COPY(self->data, cstr, length + 1);
+  self->size = length;
+  memcpy(self->data, cstr, length);
 
   return self;
 }
 
 s_u8 *s_u8_create_sref(const s_u8_ref other) {
-  s_u8 *self = CREATE_FLEX_STRUCT(s_u8, u8, other.size + 1);
+  s_u8 *self = CREATE_FLEX_STRUCT(s_u8, u8, other.size);
+
   self->size = other.size;
-  COPY(self->data, other.data, other.size);
-  self->data[self->size] = '\0';
+  memcpy(self->data, other.data, other.size);
+
   return self;
 }
 
 s_u8 *s_u8_create_empty(u64 size) {
   s_u8 *self = CREATE_FLEX_STRUCT(s_u8, u8, size + 1);
-  memset(self->data, 0, size);
+
   self->size = size;
-  self->data[size] = '\0';
+  memset(self->data, 0, size);
+
   return self;
 }
 
 // Assumes the s_u8 is the right size
 void s_u8_copy_ref(s_u8 *self, s_u8_ref other) {
-  COPY(self->data, other.data, other.size);
+  memcpy(self->data, other.data, other.size);
   self->size = other.size;
-  self->data[other.size] = '\0';
 }
 
 s_u8 *s_u8_append_s_u8(s_u8 *self, s_u8 *other, boolean free_self) {
@@ -71,8 +72,11 @@ s_u8 *s_u8_append_s_u8(s_u8 *self, s_u8 *other, boolean free_self) {
     return other;
   s_u8 *new_str = CREATE_FLEX_STRUCT(s_u8, u8, self->size + other->size);
   new_str->size = self->size + other->size;
-  COPY(new_str->data, self->data, self->size);
-  COPY(new_str->data + self->size, other->data, other->size);
+
+  memcpy(new_str->data, self->data, self->size);
+
+  memcpy(new_str->data + self->size, other->data, other->size);
+
   if (free_self) {
     s_u8_destroy(self);
   }

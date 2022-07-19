@@ -1,68 +1,85 @@
-def iter(i): do
-  let v := -1
-  ||: return ((v = v + 1), i[v]) 
+def iter(i) do
+  let v = -1
+  || => return (v = v + 1), i[v]
 end
 
-def Routes: {
-    get
-    post
-}
-def parseHeaders(req):
+def parseHeaders(req)
   !re.exec(req, "([A-Za-z\-]+): ([a-zA-Z0-9]*)")
 
-def parseMeta(req):
+def parseMeta(req)
   !re.exec(req, "^([A-Z]+) ([a-zA-Z0-9\/\.\-]+) HTTP\/([0-9]\.[0-9])")
+  
+def connections(sock) || => do
+  let conn = sock:!socket.accept()!
 
+  let req = conn:!socket.recv()!
+  
+  return conn, req
 
-def HTTP: {
-  Shape: { port routes }?
+end
 
-  def New(port): do
-    {
-      port
-      routes: { get: {} post: {} }
-    }
+  
+def HTTP {
+
+  def Config {
+    port
+    routes
+  }
+
+  def Routes {
+      get
+      post
+  }
+
+  def New(config) do
+    if (not (config is HTTP.Config?))
+      return null, "Misshapen config"
+      
+    if (not (config.routes is HTTP.Routes?))
+      return null, "Misshapen routes"
+      
+    config
   end
+  
 
-  def Start(self): do
-    let sock := !socket.sock()!
+  def Start(self) do
+    let sock = !socket.sock()!
 
-    sock->!socket.bind(self.port)!
+    sock:!socket.bind(self.port)!
 
-    sock->!socket.listen(5)!
+    sock:!socket.listen(5)!
+    
+    !info('Server is listening on port: {self.port}')
 
-    while true: do
-      let conn := sock->!socket.accept()!
+    for (conn, req in sock:connections()) do
+      let _, method, url, version = ..req:parseMeta()
+      
+      !info('Connecection Established. ({version})')
+      
+      !info(url)
 
-      let req := conn->!socket.recv()!
+      conn:!socket.send("EMPTY")!
 
-      let _, method, url, version := ..req->parseMeta()
-
-      let headers := req->parseHeaders()
-
-      for _, header in iter(headers): do
-        !info(header)
-      end
-
-      # Parse the msg and dispatch the request to the matching handler
-
-      conn->!socket.send("EMPTY")!
-
-      conn->!socket.close()!
+      conn:!socket.close()!
     end
   end
 
-  def Get(self, url, handler): do
+  def Get(self, url, handler) do
     self.routes.get[url] = handler
   end
 }
 
-let server := HTTP.New(5050)
+let server, err = HTTP.New {
+  port: 5050
+  routes: { get post }
+}
 
-server->HTTP.Get("/", ||: do
-  !info("Request sent for home")
 
-  !html('<h1>Hello World!</h1>')
-end)
 
-server->HTTP.Start()
+if (err) do
+  !error(err)
+  return
+end
+
+
+server:HTTP.Start()

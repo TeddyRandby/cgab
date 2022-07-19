@@ -5,6 +5,8 @@ target_sources(
   cgab
   PRIVATE
   types.h
+  os.h
+  os.c
   string.c
   vector.c
   dict.c

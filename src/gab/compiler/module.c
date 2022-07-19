@@ -4,6 +4,7 @@
 gab_module *gab_module_create(gab_module *self, s_u8_ref name, s_u8 *source) {
   self->name = name;
   self->source = source;
+
   v_u8_create(&self->bytecode);
   v_u8_create(&self->tokens);
   v_u64_create(&self->lines);
@@ -13,12 +14,11 @@ gab_module *gab_module_create(gab_module *self, s_u8_ref name, s_u8 *source) {
 }
 
 void gab_module_destroy(gab_module *self) {
-  s_u8_destroy(self->source);
-
   v_u8_destroy(&self->bytecode);
   v_u8_destroy(&self->tokens);
   v_u64_destroy(&self->lines);
   v_s_u8_ref_destroy(self->source_lines);
+  s_u8_destroy(self->source);
 
   DESTROY_STRUCT(self->source_lines);
   DESTROY_STRUCT(self);
@@ -130,6 +130,17 @@ u8 gab_module_push_call(gab_module *self, u8 have, u8 var, gab_token t, u64 l) {
   gab_module_push_byte(self, have, t, l);
   gab_module_push_byte(self, 1, t, l);
   return OP_VARCALL;
+}
+
+u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l) {
+  if (n == 1) {
+    gab_module_push_op(self, OP_POP, t, l);
+    return OP_POP;
+  }
+
+  gab_module_push_op(self, OP_POP_N, t, l);
+  gab_module_push_byte(self, n, t, l);
+  return OP_POP_N;
 }
 
 void gab_module_push_inline_cache(gab_module *self, gab_token t, u64 l) {

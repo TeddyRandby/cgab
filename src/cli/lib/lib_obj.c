@@ -14,7 +14,7 @@ gab_value gab_lib_keys(gab_engine *eng, gab_value *argv, u8 argc) {
   gab_obj_object *list =
       gab_obj_object_create(eng, shape, obj->shape->keys, size, 1);
 
-  gab_gc_push_dec_obj_ref(eng->gc, (gab_obj *)list);
+  gab_engine_obj_dref(eng, (gab_obj *)list);
 
   return GAB_VAL_OBJ(list);
 }

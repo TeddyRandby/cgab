@@ -24,24 +24,21 @@ static inline void print_values(gab_value *argv, u8 argc) {
 }
 
 gab_value gab_lib_error(gab_engine *eng, gab_value *argv, u8 argc) {
-
   printf(ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET ": ");
-
-  return GAB_VAL_NULL();
-}
-
-gab_value gab_lib_warn(gab_engine *eng, gab_value *argv, u8 argc) {
-
-  printf(ANSI_COLOR_YELLOW "WARNING" ANSI_COLOR_RESET ": ");
 
   print_values(argv, argc);
 
   return GAB_VAL_NULL();
 }
 
-gab_value gab_lib_info(gab_engine *eng, gab_value *argv, u8 argc) {
-  printf(ANSI_COLOR_BLUE "INFO" ANSI_COLOR_RESET ": ");
+gab_value gab_lib_warn(gab_engine *eng, gab_value *argv, u8 argc) {
+  printf(ANSI_COLOR_YELLOW "WARNING" ANSI_COLOR_RESET ": ");
 
+  print_values(argv, argc);
+  return GAB_VAL_NULL();
+}
+
+gab_value gab_lib_info(gab_engine *eng, gab_value *argv, u8 argc) {
   print_values(argv, argc);
 
   return GAB_VAL_NULL();

@@ -1,7 +1,7 @@
 #ifndef GAB_VM_H
 #define GAB_VM_H
 
-#include "../compiler/engine.h"
+#include "../compiler/object.h"
 /*
   A run-time representation of a callframe.
 */
@@ -37,14 +37,14 @@ struct gab_vm {
   gab_obj_upvalue *open_upvalues;
 
   /*
-    The value stack.
-  */
-  gab_value *stack_top;
-
-  /*
    The current frame
   */
   gab_call_frame *frame;
+
+  /*
+    The value stack.
+  */
+  gab_value *stack_top;
 
   gab_value stack[STACK_MAX];
 

@@ -6,7 +6,5 @@ add_subdirectory(lib)
 target_sources(
   gab
   PRIVATE
-  os.c
-  os.h
   main.c
 )

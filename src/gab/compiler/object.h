@@ -5,6 +5,8 @@
 #include "value.h"
 
 typedef struct gab_module gab_module;
+typedef struct gab_gc gab_gc;
+typedef struct gab_engine gab_engine;
 
 static inline f64 value_to_f64(gab_value value) { return *(f64 *)(&value); }
 static inline gab_value f64_to_value(f64 value) {
@@ -21,8 +23,6 @@ static inline boolean gab_val_equal(gab_value self, gab_value other) {
 static inline u64 gab_val_hash(gab_value value) { return value; }
 
 void gab_val_dump(gab_value self);
-
-typedef struct gab_gc gab_gc;
 
 /*
   An enumeration of the heap-allocated value types in gab.
@@ -94,8 +94,6 @@ struct gab_obj {
 #define GAB_OBJ_NOT_PURPLE(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_PURPLE)
 #define GAB_OBJ_NOT_GREEN(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_GREEN)
 
-typedef struct gab_engine gab_engine;
-
 /*
   'Generic' functions which handle all the different kinds of gab objects.
 */
@@ -132,7 +130,7 @@ struct gab_obj_string {
 gab_obj_string *gab_obj_string_create(gab_engine *eng, s_u8_ref data);
 gab_obj_string *gab_obj_string_concat(gab_engine *eng, gab_obj_string *a,
                                       gab_obj_string *b);
-s_u8_ref gab_obj_string_get_ref(gab_obj_string *self);
+s_u8_ref gab_obj_string_ref(gab_obj_string *self);
 gab_obj_string *gab_obj_to_obj_string(gab_obj *self, gab_engine *engine);
 gab_obj_string *gab_val_to_obj_string(gab_value self, gab_engine *eng);
 
@@ -285,6 +283,7 @@ gab_obj_shape *gab_obj_shape_create_array(gab_engine *eng, u64 size);
 
 gab_obj_shape *gab_obj_shape_extend(gab_obj_shape *self, gab_engine *eng,
                                     gab_value property);
+
 static inline i64 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
   u64 offset = d_u64_read(&self->properties, gab_val_hash(key), key);
 

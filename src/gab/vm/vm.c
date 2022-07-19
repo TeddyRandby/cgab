@@ -1,5 +1,4 @@
-#include "vm.h"
-#include "gc.h"
+#include "../compiler/engine.h"
 #include <stdio.h>
 #include <sys/types.h>
 
@@ -69,11 +68,11 @@ static inline gab_obj_upvalue *capture_upvalue(gab_engine *eng, gab_vm *vm,
   // The captured value's reference count has to be incremented
   // Before the allocation which creates the new upvalue.
   // This occurs in 'capture_upvalue'
-  gab_gc_push_inc_if_obj_ref(eng->gc, *local);
+  gab_engine_val_iref(eng, *local);
 
   gab_obj_upvalue *new_upvalue = gab_obj_upvalue_create(eng, local);
 
-  gab_gc_push_dec_obj_ref(eng->gc, (gab_obj *)new_upvalue);
+  gab_engine_obj_dref(eng, (gab_obj *)new_upvalue);
 
   new_upvalue->next = upvalue;
   if (prev_upvalue == NULL) {
@@ -93,7 +92,7 @@ static inline void close_upvalue(gab_vm *vm, gab_value *local) {
   }
 }
 
-gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
+gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
 
 #if GAB_LOG_EXECUTION
   /*
@@ -106,7 +105,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
 #undef OP_CODE
   };
 
-#define LOG() printf("OP_%s\n", instr_name[*(ip + 1)])
+#define LOG() printf("OP_%s\n", instr_name[*(ip)])
 
 #else
 #define LOG()
@@ -164,9 +163,9 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
 /*
   Lots of helper macros.
 */
-#define VM() (vm)
 #define ENGINE() (eng)
-#define GC() (ENGINE()->gc)
+#define VM() (&ENGINE()->vm)
+#define GC() (&ENGINE()->gc)
 #define LOCAL(i) (VM()->frame->slots[i])
 #define UPVALUE(i) (VM()->frame->closure->upvalues[i])
 #define INSTR() (instr)
@@ -185,7 +184,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
 #define WRITE_SHORT(n) ((ip[-2] = ((n) >> 8) & 0xff), ip[-1] = (n)&0xff)
 #define READ_INLINECACHE(type) (ip += 8, (type **)(ip - 8))
 
-#define READ_CONSTANT (ENGINE()->constants.keys.data[READ_SHORT])
+#define READ_CONSTANT (ENGINE()->constants->keys.data[READ_SHORT])
 #define READ_STRING (GAB_VAL_TO_STRING(READ_CONSTANT))
 
 #define STORE_FRAME() (VM()->frame->ip = ip)
@@ -196,15 +195,11 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
   */
 
   gab_vm_create(VM());
-  ENGINE()->vm = VM();
-
-  // Turn on garbage collection.
-  ENGINE()->gc->active = true;
 
   PUSH(GAB_VAL_OBJ(main));
   PUSH(ENGINE()->std);
 
-  gab_gc_push_dec_obj_ref(GC(), (gab_obj *)main);
+  gab_engine_obj_dref(ENGINE(), (gab_obj *)main);
 
   register u8 *ip;
   register u8 instr;
@@ -350,9 +345,10 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
       trim_return(VM(), from, have, VM()->frame->expected_results);
 
       if (--VM()->frame == VM()->call_stack) {
-        gab_value module = POP();
+        // Increment and pop the module.
+        gab_engine_val_iref(ENGINE(), PEEK());
 
-        gab_gc_push_inc_if_obj_ref(GC(), module);
+        gab_value module = POP();
 
         return gab_run_success(module);
       }
@@ -431,7 +427,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
         prop = PEEK2();
         index = PEEK_N(3);
 
-        gab_gc_push_inc_if_obj_ref(GC(), value);
+        gab_engine_val_iref(ENGINE(), value);
 
         if (!GAB_VAL_IS_OBJECT(index)) {
           STORE_FRAME();
@@ -463,7 +459,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
         value = PEEK();
         index = PEEK2();
 
-        gab_gc_push_inc_if_obj_ref(GC(), value);
+        gab_engine_val_iref(ENGINE(), value);
 
         gab_obj_shape **cached_shape = READ_INLINECACHE(gab_obj_shape);
 
@@ -506,7 +502,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
       }
 
     complete_obj_set : {
-      gab_gc_push_dec_if_obj_ref(GC(), gab_obj_object_get(obj, prop_offset));
+      gab_engine_val_dref(ENGINE(), gab_obj_object_get(obj, prop_offset));
 
       gab_obj_object_set(obj, prop_offset, value);
 
@@ -864,28 +860,53 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
           upvalues[i] = VM()->frame->closure->upvalues[index];
         }
 
-        gab_gc_push_inc_obj_ref(GC(), (gab_obj *)upvalues[i]);
+        gab_engine_obj_iref(ENGINE(), (gab_obj *)upvalues[i]);
       }
 
       gab_obj_closure *obj = gab_obj_closure_create(ENGINE(), func, upvalues);
 
       PUSH(GAB_VAL_OBJ(obj));
 
-      gab_gc_push_dec_obj_ref(GC(), (gab_obj *)obj);
+      gab_engine_obj_dref(ENGINE(), (gab_obj *)obj);
 
       NEXT();
     }
 
-    CASE_CODE(OBJECT) : {
-      u8 size = READ_BYTE;
+    {
+      gab_obj_shape *shape;
+      u8 size;
 
-      for (u64 i = 0; i < size * 2; i++) {
-        gab_gc_push_inc_if_obj_ref(ENGINE()->gc, PEEK_N(i));
+      CASE_CODE(OBJECT_RECORD_DEF) : {
+        gab_obj_string *name = READ_STRING;
+
+        size = READ_BYTE;
+
+        for (u64 i = 0; i < size * 2; i++) {
+          gab_engine_val_iref(ENGINE(), PEEK_N(i));
+        }
+
+        shape = gab_obj_shape_create(ENGINE(), VM()->stack_top - (size * 2),
+                                     size, 2);
+
+        shape->name = gab_obj_string_ref(name);
+
+        goto complete_shape;
       }
 
-      gab_obj_shape *shape =
-          gab_obj_shape_create(ENGINE(), VM()->stack_top - (size * 2), size, 2);
+      CASE_CODE(OBJECT_RECORD) : {
+        size = READ_BYTE;
 
+        for (u64 i = 0; i < size * 2; i++) {
+          gab_engine_val_iref(ENGINE(), PEEK_N(i));
+        }
+
+        shape = gab_obj_shape_create(ENGINE(), VM()->stack_top - (size * 2),
+                                     size, 2);
+
+        goto complete_shape;
+      }
+
+    complete_shape : {
       gab_obj_object *obj = gab_obj_object_create(
           ENGINE(), shape, VM()->stack_top + 1 - (size * 2), size, 2);
 
@@ -893,16 +914,17 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
 
       PUSH(GAB_VAL_OBJ(obj));
 
-      gab_gc_push_dec_obj_ref(GC(), (gab_obj *)obj);
+      gab_engine_obj_dref(ENGINE(), (gab_obj *)obj);
 
       NEXT();
+    }
     }
 
     CASE_CODE(OBJECT_ARRAY) : {
       u8 size = READ_BYTE;
 
       for (u64 i = 0; i < size; i++) {
-        gab_gc_push_inc_if_obj_ref(ENGINE()->gc, PEEK_N(i));
+        gab_engine_val_iref(ENGINE(), PEEK_N(i));
       }
 
       gab_obj_shape *shape = gab_obj_shape_create_array(ENGINE(), size);
@@ -914,7 +936,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_vm *vm, gab_obj_closure *main) {
 
       PUSH(GAB_VAL_OBJ(obj));
 
-      gab_gc_push_dec_obj_ref(GC(), (gab_obj *)obj);
+      gab_engine_obj_dref(ENGINE(), (gab_obj *)obj);
 
       NEXT();
     }

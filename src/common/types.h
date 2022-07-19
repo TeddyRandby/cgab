@@ -42,39 +42,16 @@ void failure(const char *file, const u32 line, const char *msg);
 #define ASSERT_TRUE(expr, msg)
 #else
 #define ASSERT_TRUE(expr, msg)                                                 \
-  if (!(expr))                                                                 \
-  failure(__FILE__, __LINE__, msg)
+  ((expr) ? 1 : (failure(__func__, __LINE__, msg), 0))
 #endif
 
-// ~ Memory helpers
-void copy(void *dest, const void *src, u64 size);
-void move(void *dest, const void *src, u64 size);
-void destroy(void *loc);
-
-#define GAB_CREATE_ARRAY(type, count, gc)                                      \
-  ((type *)gab_gc_reallocate(gc, NULL, 0, sizeof(type) * count))
-#define CREATE_ARRAY(type, count) (malloc(sizeof(type) * count))
-
-#define GAB_CREATE_STRUCT(obj_type, gc)                                        \
-  ((obj_type *)gab_gc_reallocate(gc, NULL, 0, sizeof(obj_type)))
-
 #define CREATE_STRUCT(type) (malloc(sizeof(type)))
-
-#define GAB_CREATE_FLEX_STRUCT(obj_type, flex_type, flex_count, gc)            \
-  ((obj_type *)gab_gc_reallocate(                                              \
-      gc, NULL, 0, sizeof(obj_type) + sizeof(flex_type) * flex_count))
-
 #define CREATE_FLEX_STRUCT(obj_type, flex_type, flex_count)                    \
   (malloc(sizeof(obj_type) + sizeof(flex_type) * (flex_count)))
+#define CREATE_ARRAY(type, count) (malloc(sizeof(type) * count))
 
-#define GAB_DESTROY_ARRAY(type, loc, count, gc)                                \
-  (gab_gc_reallocate(gc, loc, sizeof(type) * count, 0))
-#define DESTROY_ARRAY(arr) (free(arr))
-
-#define GAB_DESTROY_STRUCT(ptr, gc) gab_gc_reallocate(gc, ptr, 0, 0)
 #define DESTROY_STRUCT(ptr) (free(ptr))
-
-#define COPY(dest, src, size) copy(dest, src, size);
+#define DESTROY_ARRAY(arr) (free(arr))
 
 #define GROW(type, loc, old_count, new_count)                                  \
   (type *)realloc(loc, sizeof(type) * (new_count))
@@ -320,8 +297,9 @@ static inline u64 d_u64_next_index(d_u64 *self, u64 index) {
   return index;
 }
 
-#define D_U64_FOR_INDEX_DO(d, i) for (u64 i = 0; i < d.capacity; i++)
+#define D_U64_FOR_INDEX_DO(d, i) for (u64 i = 0; i < (d)->capacity; i++)
 #define D_U64_FOR_INDEX_WITH_KEY_DO(d, i)                                      \
-  for (u64 i = d_u64_next_index(d, 0); i != -1; i = d_u64_next_index(d, i + 1))
+  for (u64 i = d_u64_next_index((d), 0); i != -1;                              \
+       i = d_u64_next_index((d), i + 1))
 
 #endif
