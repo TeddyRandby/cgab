@@ -31,6 +31,7 @@ void gab_module_destroy(gab_module *self) {
 #define MAKE_LOAD_LOCAL(n) (OP_LOAD_LOCAL_0 + (n))
 #define MAKE_STORE_UPVALUE(n) (OP_STORE_UPVALUE_0 + (n))
 #define MAKE_LOAD_UPVALUE(n) (OP_LOAD_UPVALUE_0 + (n))
+#define MAKE_LOAD_CONST_UPVALUE(n) (OP_LOAD_CONST_UPVALUE_0 + (n))
 
 /*
   Helpers for pushing ops into the module.
@@ -75,6 +76,20 @@ u8 gab_module_push_load_upvalue(gab_module *self, u8 upvalue, gab_token t,
   }
 
   gab_module_push_op(self, OP_LOAD_UPVALUE, t, l);
+  gab_module_push_byte(self, upvalue, t, l);
+
+  return OP_LOAD_UPVALUE;
+};
+
+u8 gab_module_push_load_const_upvalue(gab_module *self, u8 upvalue, gab_token t,
+                                      u64 l) {
+  if (upvalue < 9) {
+    u8 op = MAKE_LOAD_CONST_UPVALUE(upvalue);
+    gab_module_push_op(self, op, t, l);
+    return op;
+  }
+
+  gab_module_push_op(self, OP_LOAD_CONST_UPVALUE, t, l);
   gab_module_push_byte(self, upvalue, t, l);
 
   return OP_LOAD_UPVALUE;

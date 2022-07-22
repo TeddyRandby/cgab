@@ -86,6 +86,7 @@ void gab_module_push_short(gab_module *, u16, gab_token, u64);
 /* These helpers return the instruction they push. */
 u8 gab_module_push_load_local(gab_module *, u8, gab_token, u64);
 u8 gab_module_push_load_upvalue(gab_module *self, u8, gab_token, u64);
+u8 gab_module_push_load_const_upvalue(gab_module *self, u8, gab_token, u64);
 u8 gab_module_push_store_local(gab_module *, u8, gab_token, u64);
 u8 gab_module_push_store_upvalue(gab_module *, u8, gab_token, u64);
 u8 gab_module_push_return(gab_module *, u8, u8, gab_token, u64);

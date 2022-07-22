@@ -179,8 +179,7 @@ static inline void dec_child_refs(gab_engine *self, gab_obj *obj) {
   case OBJECT_CLOSURE: {
     gab_obj_closure *closure = (gab_obj_closure *)obj;
     for (u8 i = 0; i < closure->func->nupvalues; i++) {
-      gab_obj *upv = (gab_obj *)(closure->upvalues[i]);
-      dec_obj_ref(self, upv);
+      dec_if_obj_ref(self, closure->upvalues[i]);
     }
     return;
   }

@@ -1,2 +1,14 @@
-!socket = !require("libsocket")
+let i = 10
 
+def HTTP {
+    get: 1
+}
+
+def testUpvalue() do 
+  i = 2
+  HTTP
+end
+
+!print(testUpvalue())
+
+!print(i)

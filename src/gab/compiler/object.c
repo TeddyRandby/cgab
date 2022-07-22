@@ -250,13 +250,13 @@ gab_obj_builtin *gab_obj_builtin_create(gab_engine *eng, gab_builtin function,
 }
 
 gab_obj_closure *gab_obj_closure_create(gab_engine *eng, gab_obj_function *func,
-                                        gab_obj_upvalue *upvs[]) {
+                                        gab_value upvs[]) {
   gab_obj_closure *self = GAB_CREATE_FLEX_OBJ(
       gab_obj_closure, gab_obj_upvalue, func->nupvalues, eng, OBJECT_CLOSURE);
 
   self->func = func;
 
-  memcpy(self->upvalues, upvs, sizeof(gab_obj_upvalue *) * func->nupvalues);
+  memcpy(self->upvalues, upvs, sizeof(gab_value) * func->nupvalues);
   return self;
 }
 

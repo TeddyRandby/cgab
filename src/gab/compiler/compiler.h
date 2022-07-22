@@ -17,23 +17,30 @@
   Therefore the maximum number of locals/upvalues in a function is
   256, or UINT8_COUNT.
 */
+
+typedef enum gab_variable_flag {
+  FLAG_CAPTURED = 1 << 0,
+  FLAG_MUTABLE = 1 << 1,
+  FLAG_LOCAL = 1 << 2,
+} gab_variable_flag;
+
 typedef struct gab_compile_frame gab_compile_frame;
 struct gab_compile_frame {
 
-  u16 local_count;
-
   u16 deepest_local;
+
+  u16 local_count;
 
   u16 upv_count;
 
   s_u8_ref function_name;
 
-  s_u8_ref locals_name[UINT8_COUNT];
-  i32 locals_depth[UINT8_COUNT];
-  boolean locals_captured[UINT8_COUNT];
+  s_u8_ref locals_name[LOCAL_MAX];
+  i32 locals_depth[LOCAL_MAX];
+  u8 locals_flag[LOCAL_MAX];
 
-  u8 upvs_index[UINT8_COUNT];
-  boolean upvs_is_local[UINT8_COUNT];
+  u8 upvs_index[UPVALUE_MAX];
+  u8 upvs_flag[UPVALUE_MAX];
 };
 
 /*

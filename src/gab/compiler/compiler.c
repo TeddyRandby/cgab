@@ -21,9 +21,9 @@ typedef enum gab_precedence {
   PREC_BITWISE_AND, // &
   PREC_TERM,        // + -
   PREC_FACTOR,      // * /
-  PREC_UNARY,       // ! -
-  PREC_CALL,        // (
-  PREC_PROPERTY,    // . ->
+  PREC_UNARY,       // ! - not
+  PREC_CALL,        // ( {
+  PREC_PROPERTY,    // . :
   PREC_PRIMARY
 } gab_precedence;
 
@@ -160,7 +160,7 @@ static i32 add_invisible_local(gab_compiler *self) {
 /* Returns COMP_ERR if an error is encountered, and otherwise the offset of the
  * local.
  */
-static i32 add_local(gab_compiler *self, s_u8_ref name) {
+static i32 add_local(gab_compiler *self, s_u8_ref name, u8 flags) {
   gab_compile_frame *frame = peek_frame(self, 0);
   if (frame->local_count == LOCAL_MAX) {
     set_err(self, "Can't have more than 255 variables in a function");
@@ -170,7 +170,7 @@ static i32 add_local(gab_compiler *self, s_u8_ref name) {
   u8 local = frame->local_count;
   frame->locals_name[local] = name;
   frame->locals_depth[local] = -1;
-  frame->locals_captured[local] = false;
+  frame->locals_flag[local] = flags;
 
   if (++frame->local_count > frame->deepest_local)
     frame->deepest_local = frame->local_count;
@@ -181,14 +181,13 @@ static i32 add_local(gab_compiler *self, s_u8_ref name) {
 /* Returns COMP_ERR if an error is encountered, and otherwise the offset of the
  * upvalue.
  */
-static i32 add_upvalue(gab_compiler *self, u32 depth, u8 index,
-                       boolean is_local) {
+static i32 add_upvalue(gab_compiler *self, u32 depth, u8 index, u8 flags) {
   gab_compile_frame *frame = peek_frame(self, depth);
   u16 count = frame->upv_count;
 
   // Don't pull redundant upvalues
   for (int i = 0; i < count; i++) {
-    if (frame->upvs_index[i] == index && frame->upvs_is_local[i] == is_local) {
+    if (frame->upvs_index[i] == index && (frame->upvs_flag[i]) == flags) {
       return i;
     }
   }
@@ -199,7 +198,7 @@ static i32 add_upvalue(gab_compiler *self, u32 depth, u8 index,
   }
 
   frame->upvs_index[count] = index;
-  frame->upvs_is_local[count] = is_local;
+  frame->upvs_flag[count] = flags;
   frame->upv_count++;
 
   return count;
@@ -236,13 +235,14 @@ static i32 resolve_upvalue(gab_compiler *self, s_u8_ref name, u32 depth) {
 
   i32 local = resolve_local(self, name, depth);
   if (local >= 0) {
-    peek_frame(self, depth)->locals_captured[local] = true;
-    return add_upvalue(self, depth - 1, (u8)local, true);
+    u8 flags = (peek_frame(self, depth)->locals_flag[local] |= FLAG_CAPTURED);
+    return add_upvalue(self, depth - 1, (u8)local, flags | FLAG_LOCAL);
   }
 
   i32 upvalue = resolve_upvalue(self, name, depth + 1);
   if (upvalue >= 0) {
-    return add_upvalue(self, depth - 1, (u8)upvalue, false);
+    u8 flags = peek_frame(self, depth)->upvs_flag[upvalue];
+    return add_upvalue(self, depth - 1, (u8)upvalue, flags);
   }
 
   return COMP_UPVALUE_NOT_FOUND;
@@ -299,7 +299,7 @@ static void down_frame(gab_compiler *self, s_u8_ref name) {
   peek_frame(self, 0)->deepest_local = 0;
   peek_frame(self, 0)->function_name = name;
 
-  i32 loc = add_local(self, name);
+  i32 loc = add_local(self, name, 0);
   initialize_local(self, loc);
 }
 
@@ -324,7 +324,7 @@ i32 compile_expression(gab_compiler *self);
 /* Returns COMP_ERR if an error was encountered, and otherwise the offset of the
  * local.
  */
-static i32 compile_local(gab_compiler *self, s_u8_ref name) {
+static i32 compile_local(gab_compiler *self, s_u8_ref name, u8 flags) {
 
   for (i32 local = peek_frame(self, 0)->local_count - 1; local >= 0; local--) {
     if (peek_frame(self, 0)->locals_depth[local] != -1 &&
@@ -338,7 +338,7 @@ static i32 compile_local(gab_compiler *self, s_u8_ref name) {
     }
   }
 
-  return add_local(self, name);
+  return add_local(self, name, flags);
 }
 
 /* Returns COMP_ERR if an error was encountered, and otherwise COMP_OK
@@ -361,7 +361,7 @@ i32 compile_function_args(gab_compiler *self) {
       return COMP_ERR;
 
     s_u8_ref name = self->lex.previous_token_src;
-    i32 local = compile_local(self, name);
+    i32 local = compile_local(self, name, 0);
     if (local < 0)
       return COMP_ERR;
 
@@ -456,15 +456,6 @@ i32 compile_function_body(gab_compiler *self, gab_obj_function *function,
   // Patch the jump to skip over the function body
   gab_module_patch_jump(self->mod, skip_jump);
 
-  // Push a closure wrapping the function
-  push_op(self, OP_CLOSURE);
-  push_short(self, add_constant(self, GAB_VAL_OBJ(function)));
-
-  for (int i = 0; i < function->nupvalues; i++) {
-    push_byte(self, frame->upvs_is_local[i]);
-    push_byte(self, frame->upvs_index[i]);
-  }
-
   return COMP_OK;
 }
 
@@ -501,6 +492,16 @@ i32 compile_function(gab_compiler *self, s_u8_ref name, boolean is_lambda) {
 
   if (compile_function_body(self, function, skip_jump) < 0)
     return COMP_ERR;
+
+  // Push a closure wrapping the function
+  push_op(self, OP_CLOSURE);
+  push_short(self, add_constant(self, GAB_VAL_OBJ(function)));
+
+  gab_compile_frame *frame = peek_frame(self, 0);
+  for (int i = 0; i < function->nupvalues; i++) {
+    push_byte(self, frame->upvs_flag[i]);
+    push_byte(self, frame->upvs_index[i]);
+  }
 
   function->nlocals = peek_frame(self, 0)->deepest_local - function->narguments;
 
@@ -1272,7 +1273,7 @@ i32 compile_exp_def(gab_compiler *self, boolean assignable) {
 
   s_u8_ref name = self->lex.previous_token_src;
 
-  u8 local = add_local(self, name);
+  u8 local = add_local(self, name, 0);
 
   initialize_local(self, local);
 
@@ -1316,9 +1317,7 @@ i32 compile_exp_let(gab_compiler *self, boolean assignable) {
   i32 result;
   do {
     if (local_count == 16) {
-      set_err(self,
-
-              "Can't have more than 16 variables in one let declaration");
+      set_err(self, "Can't have more than 16 variables in one let declaration");
       return COMP_ERR;
     }
 
@@ -1332,7 +1331,7 @@ i32 compile_exp_let(gab_compiler *self, boolean assignable) {
     switch (result) {
 
     case COMP_ID_NOT_FOUND: {
-      i32 loc = compile_local(self, name);
+      i32 loc = compile_local(self, name, FLAG_MUTABLE);
 
       if (loc < 0)
         return COMP_ERR;
@@ -1409,28 +1408,24 @@ i32 compile_exp_let(gab_compiler *self, boolean assignable) {
 }
 
 i32 compile_exp_idn(gab_compiler *self, boolean assignable) {
-  u8 value_in;
   s_u8_ref name = self->lex.previous_token_src;
 
   u8 var;
   boolean is_local_var = true;
 
-  switch (resolve_id(self, name, &value_in)) {
-
-  case COMP_ID_NOT_FOUND: {
-    set_err(self, "Unexpected identifier");
-    return COMP_ERR;
-  }
-
+  switch (resolve_id(self, name, &var)) {
   case COMP_RESOLVED_TO_LOCAL: {
-    var = value_in;
     break;
   }
 
   case COMP_RESOLVED_TO_UPVALUE: {
-    var = value_in;
     is_local_var = false;
     break;
+  }
+
+  case COMP_ID_NOT_FOUND: {
+    set_err(self, "Unexpected identifier");
+    return COMP_ERR;
   }
 
   default:
@@ -1441,21 +1436,31 @@ i32 compile_exp_idn(gab_compiler *self, boolean assignable) {
   switch (match_and_eat_token(self, TOKEN_EQUAL)) {
 
   case COMP_OK: {
-    if (assignable) {
-      if (compile_expression(self) < 0)
-        return COMP_ERR;
-
-      if (is_local_var) {
-        gab_module_push_store_local(self->mod, var, self->previous_token,
-                                    self->line);
-      } else {
-        gab_module_push_store_upvalue(self->mod, var, self->previous_token,
-                                      self->line);
-      }
-
-    } else {
+    if (!assignable) {
       set_err(self, "Invalid assignment target");
       return COMP_ERR;
+    }
+
+    gab_compile_frame *frame = peek_frame(self, 0);
+    if (is_local_var) {
+      if (!(frame->locals_flag[var] & FLAG_MUTABLE)) {
+        set_err(self, "Variable is not mutable");
+      }
+    } else {
+      if (!(frame->upvs_flag[var] & FLAG_MUTABLE)) {
+        set_err(self, "Variable is not mutable");
+      }
+    }
+
+    if (compile_expression(self) < 0)
+      return COMP_ERR;
+
+    if (is_local_var) {
+      gab_module_push_store_local(self->mod, var, self->previous_token,
+                                  self->line);
+    } else {
+      gab_module_push_store_upvalue(self->mod, var, self->previous_token,
+                                    self->line);
     }
     break;
   }
@@ -1465,8 +1470,13 @@ i32 compile_exp_idn(gab_compiler *self, boolean assignable) {
       gab_module_push_load_local(self->mod, var, self->previous_token,
                                  self->line);
     } else {
-      gab_module_push_load_upvalue(self->mod, var, self->previous_token,
-                                   self->line);
+      if (peek_frame(self, 0)->upvs_flag[var] & FLAG_MUTABLE) {
+        gab_module_push_load_upvalue(self->mod, var, self->previous_token,
+                                     self->line);
+      } else {
+        gab_module_push_load_const_upvalue(self->mod, var, self->previous_token,
+                                           self->line);
+      }
     }
     break;
 
@@ -1730,7 +1740,7 @@ i32 compile_exp_for(gab_compiler *self, boolean assignable) {
 
     s_u8_ref name = self->lex.previous_token_src;
 
-    i32 loc = compile_local(self, name);
+    i32 loc = compile_local(self, name, 0);
 
     if (loc < 0)
       return COMP_ERR;
@@ -1934,7 +1944,8 @@ gab_obj_closure *compile(gab_compiler *self, s_u8_ref name) {
   if (eat_token(self) == COMP_ERR)
     return NULL;
 
-  initialize_local(self, add_local(self, s_u8_ref_create_cstr("__global__")));
+  initialize_local(self,
+                   add_local(self, s_u8_ref_create_cstr("__global__"), 0));
 
   if (compile_block_body(self) == COMP_ERR)
     return NULL;

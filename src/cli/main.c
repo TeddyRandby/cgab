@@ -203,8 +203,8 @@ void gab_run_file(const char *path) {
   gab_engine *gab = gab_create();
   bind_std(gab);
 
-  gab_result *result =
-      gab_run_source(gab, "__main__", s_u8_ref_create_s_u8(src), GAB_FLAG_NONE);
+  gab_result *result = gab_run_source(
+      gab, "__main__", s_u8_ref_create_s_u8(src), GAB_FLAG_DUMP_BYTECODE);
 
   if (gab_result_has_error(result)) {
     gab_result_dump_error(result);

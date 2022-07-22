@@ -245,14 +245,14 @@ struct gab_obj_closure {
     An array of upvalue pointers - since multiple closures can capture
     the same upvalue.
   */
-  gab_obj_upvalue *upvalues[FLEXIBLE_ARRAY];
+  gab_value upvalues[FLEXIBLE_ARRAY];
 };
 
 #define GAB_VAL_IS_CLOSURE(value) (gab_val_is_obj_kind(value, OBJECT_CLOSURE))
 #define GAB_VAL_TO_CLOSURE(value) ((gab_obj_closure *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_CLOSURE(value) ((gab_obj_closure *)value)
 gab_obj_closure *gab_obj_closure_create(gab_engine *eng, gab_obj_function *fn,
-                                        gab_obj_upvalue *upvs[]);
+                                        gab_value upvs[]);
 
 /*
   ------------- OBJ_SHAPE-------------

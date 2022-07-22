@@ -106,6 +106,15 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_LOAD_UPVALUE_6:
   case OP_LOAD_UPVALUE_7:
   case OP_LOAD_UPVALUE_8:
+  case OP_LOAD_CONST_UPVALUE_0:
+  case OP_LOAD_CONST_UPVALUE_1:
+  case OP_LOAD_CONST_UPVALUE_2:
+  case OP_LOAD_CONST_UPVALUE_3:
+  case OP_LOAD_CONST_UPVALUE_4:
+  case OP_LOAD_CONST_UPVALUE_5:
+  case OP_LOAD_CONST_UPVALUE_6:
+  case OP_LOAD_CONST_UPVALUE_7:
+  case OP_LOAD_CONST_UPVALUE_8:
   case OP_STORE_UPVALUE_0:
   case OP_STORE_UPVALUE_1:
   case OP_STORE_UPVALUE_2:
@@ -191,6 +200,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_POP_STORE_LOCAL:
   case OP_POP_STORE_UPVALUE:
   case OP_LOAD_UPVALUE:
+  case OP_LOAD_CONST_UPVALUE:
   case OP_LOAD_LOCAL: {
     return dumpByteInstruction(self, offset);
   }

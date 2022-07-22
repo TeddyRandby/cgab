@@ -167,7 +167,8 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
 #define VM() (&ENGINE()->vm)
 #define GC() (&ENGINE()->gc)
 #define LOCAL(i) (VM()->frame->slots[i])
-#define UPVALUE(i) (VM()->frame->closure->upvalues[i])
+#define UPVALUE(i) (GAB_VAL_TO_UPVALUE(VM()->frame->closure->upvalues[i]))
+#define CONST_UPVALUE(i) (VM()->frame->closure->upvalues[i])
 #define INSTR() (instr)
 
 #define PUSH(value) (*VM()->stack_top++ = value)
@@ -773,6 +774,19 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       *UPVALUE(INSTR()- OP_STORE_UPVALUE_0)->data = PEEK();
       NEXT();
     }
+
+    CASE_CODE(LOAD_CONST_UPVALUE_0) :
+    CASE_CODE(LOAD_CONST_UPVALUE_1) :
+    CASE_CODE(LOAD_CONST_UPVALUE_2) :
+    CASE_CODE(LOAD_CONST_UPVALUE_3) :
+    CASE_CODE(LOAD_CONST_UPVALUE_4) :
+    CASE_CODE(LOAD_CONST_UPVALUE_5) :
+    CASE_CODE(LOAD_CONST_UPVALUE_6) :
+    CASE_CODE(LOAD_CONST_UPVALUE_7) :
+    CASE_CODE(LOAD_CONST_UPVALUE_8) : {
+      PUSH(CONST_UPVALUE(INSTR() - OP_LOAD_CONST_UPVALUE_0));
+      NEXT();
+    }
     // clang-format on
 
     CASE_CODE(LOAD_LOCAL) : {
@@ -792,6 +806,11 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
 
     CASE_CODE(LOAD_UPVALUE) : {
       PUSH(*UPVALUE(READ_BYTE)->data);
+      NEXT();
+    }
+
+    CASE_CODE(LOAD_CONST_UPVALUE) : {
+      PUSH(CONST_UPVALUE(READ_BYTE));
       NEXT();
     }
 
@@ -844,20 +863,24 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     CASE_CODE(CLOSURE) : {
       gab_obj_function *func = GAB_VAL_TO_FUNCTION(READ_CONSTANT);
 
-      gab_obj_upvalue *upvalues[UPVALUE_MAX];
+      gab_value upvalues[UPVALUE_MAX];
 
       for (int i = 0; i < func->nupvalues; i++) {
-        u8 is_local = READ_BYTE;
+        u8 flags = READ_BYTE;
         u8 index = READ_BYTE;
 
-        if (is_local) {
-          upvalues[i] =
-              capture_upvalue(ENGINE(), VM(), VM()->frame->slots + index);
+        if (flags & FLAG_LOCAL) {
+          if (flags & FLAG_MUTABLE) {
+            upvalues[i] = GAB_VAL_OBJ(
+                capture_upvalue(ENGINE(), VM(), VM()->frame->slots + index));
+          } else {
+            upvalues[i] = VM()->frame->slots[index];
+          }
         } else {
           upvalues[i] = VM()->frame->closure->upvalues[index];
         }
 
-        gab_engine_obj_iref(ENGINE(), (gab_obj *)upvalues[i]);
+        gab_engine_obj_iref(ENGINE(), GAB_VAL_TO_OBJ(upvalues[i]));
       }
 
       gab_obj_closure *obj = gab_obj_closure_create(ENGINE(), func, upvalues);
