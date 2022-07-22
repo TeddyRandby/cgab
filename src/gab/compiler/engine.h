@@ -55,19 +55,52 @@ void gab_result_dump_error(gab_result *self);
 
 void gab_result_destroy(gab_result *self);
 
-typedef struct gab_engine gab_engine;
+typedef enum gab_import_kind {
+  IMPORT_SHARED,
+  IMPORT_SOURCE,
+} gab_import_kind;
 
+typedef struct gab_import gab_import;
+struct gab_import {
+  gab_import_kind k;
+  union {
+    void *shared;
+    s_u8 *source;
+  };
+  gab_value cache;
+};
+
+gab_import *gab_import_shared(void *, gab_value);
+gab_import *gab_import_source(s_u8 *, gab_value);
+
+void gab_import_destroy(gab_import *);
+
+typedef struct gab_engine gab_engine;
 struct gab_engine {
+  // These properties are shared with forked engines.
   /*
     The constant table.
   */
   d_u64 *constants;
 
   /*
+    A linked list of loaded modules.
+  */
+  gab_module *modules;
+
+  /*
+     A dictionary of imports
+
+     import_name -> cached value
+  */
+  d_u64 *imports;
+
+  /*
     The std lib object.
   */
   gab_value std;
 
+  // These properties are unique per engine.
   /*
     A pointer to the vm running this module.
   */
@@ -77,24 +110,20 @@ struct gab_engine {
     The gargabe collector for the engine
   */
   gab_gc gc;
-
-  /*
-    A linked list of loaded modules.
-  */
-  gab_module *modules;
 };
 
-gab_obj_string *gab_engine_find_string(gab_engine *self, s_u8_ref str,
-                                       u64 hash);
+gab_obj_string *gab_engine_find_string(gab_engine *, s_u8_ref, u64);
 
-gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size,
-                                     gab_value values[size], u64 stride,
-                                     u64 hash);
+gab_obj_shape *gab_engine_find_shape(gab_engine *, u64, gab_value values[], u64,
+                                     u64);
 
-u16 gab_engine_add_constant(gab_engine *self, gab_value value);
+u16 gab_engine_add_constant(gab_engine *, gab_value);
 
-gab_module *gab_engine_create_module(gab_engine *self, s_u8_ref name,
-                                     s_u8 *source);
+gab_module *gab_engine_add_module(gab_engine *, s_u8_ref, s_u8_ref);
+
+void gab_engine_add_import(gab_engine *, gab_import *, s_u8_ref);
+
+void gab_engine_add_import();
 
 void gab_engine_collect(gab_engine *eng);
 
@@ -103,14 +132,14 @@ void gab_engine_collect(gab_engine *eng);
 
   DEFINED IN COMPILER/COMPILER.H
 */
-gab_result *gab_engine_compile(gab_engine *eng, s_u8_ref name, s_u8 *src,
-                               u8 compile_flags);
+gab_result *gab_engine_compile(gab_engine *, s_u8_ref, s_u8_ref, u8);
+
 /*
   Run a gab closure.
 
   DEFINED IN VM/VM.H
 */
-gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main);
+gab_result *gab_engine_run(gab_engine *, gab_obj_closure *);
 
 static inline void gab_engine_obj_iref(gab_engine *self, gab_obj *obj) {
   ASSERT_TRUE(obj != NULL, "Don't try to gc null");

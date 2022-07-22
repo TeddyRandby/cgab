@@ -127,22 +127,12 @@ void gab_obj_destroy(gab_obj *self, gab_engine *eng) {
   }
 }
 
-static inline u64 s_u8_ref_hash(s_u8_ref str) {
-  u64 hash = 2166136261u;
-  for (int i = 0; i < str.size; i++) {
-    hash ^= (u8)str.data[i];
-    hash *= 16777619;
+static inline u64 keys_hash(u64 size, u64 stride, gab_value values[size]) {
+  gab_value words[size];
+  for (u64 i = 0; i < size; i++) {
+    words[i] = values[i * stride];
   }
-  return hash;
-};
-
-static inline u64 keys_hash(gab_value values[], u64 size, u64 stride) {
-  u64 hash = 2166136261u;
-  for (int i = 0; i < size; i++) {
-    hash ^= (u8)values[i * stride];
-    hash *= 16777619;
-  }
-  return hash;
+  return hash_words(size, words);
 };
 
 gab_obj_string *gab_obj_string_create(gab_engine *eng, s_u8_ref str) {
@@ -150,7 +140,7 @@ gab_obj_string *gab_obj_string_create(gab_engine *eng, s_u8_ref str) {
 
   gab_obj_string *interned = gab_engine_find_string(eng, str, hash);
 
-  if (interned)
+  if (interned != NULL)
     return interned;
 
   gab_obj_string *self =
@@ -254,7 +244,7 @@ gab_obj_builtin *gab_obj_builtin_create(gab_engine *eng, gab_builtin function,
   self->name = s_u8_ref_create_cstr(name);
   self->narguments = arity;
 
-  // Functions cannot reference other objects - mark them green.
+  // Builtins cannot reference other objects - mark them green.
   GAB_OBJ_GREEN((gab_obj *)self);
   return self;
 }
@@ -290,7 +280,7 @@ gab_obj_shape *gab_obj_shape_create_array(gab_engine *eng, u64 size) {
 
 gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value keys[], u64 size,
                                     u64 stride) {
-  u64 hash = keys_hash(keys, size, stride);
+  u64 hash = keys_hash(size, stride, keys);
 
   gab_obj_shape *interned =
       gab_engine_find_shape(eng, size, keys, stride, hash);
@@ -323,7 +313,7 @@ gab_obj_shape *gab_obj_shape_extend(gab_obj_shape *self, gab_engine *eng,
                                     gab_value property) {
   gab_value keys[self->properties.size + 1];
 
-  memcpy(keys, self->keys, self->properties.size);
+  memcpy(keys, self->keys, self->properties.size * sizeof(gab_value));
 
   keys[self->properties.size] = property;
 

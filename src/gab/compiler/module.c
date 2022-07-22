@@ -1,7 +1,8 @@
 #include "module.h"
 #include <stdio.h>
 
-gab_module *gab_module_create(gab_module *self, s_u8_ref name, s_u8 *source) {
+gab_module *gab_module_create(gab_module *self, s_u8_ref name,
+                              s_u8_ref source) {
   self->name = name;
   self->source = source;
 
@@ -18,7 +19,6 @@ void gab_module_destroy(gab_module *self) {
   v_u8_destroy(&self->tokens);
   v_u64_destroy(&self->lines);
   v_s_u8_ref_destroy(self->source_lines);
-  s_u8_destroy(self->source);
 
   DESTROY_STRUCT(self->source_lines);
   DESTROY_STRUCT(self);

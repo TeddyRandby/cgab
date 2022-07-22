@@ -1,3 +1,2 @@
-def Test(name) do
-  !info('Hello {name}!')
-end
+!socket = !require("libsocket")
+

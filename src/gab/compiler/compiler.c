@@ -315,7 +315,6 @@ gab_compile_rule get_rule(gab_token k);
 i32 compile_exp_prec(gab_compiler *self, gab_precedence prec);
 i32 compile_expressions(gab_compiler *self, u8 want, boolean *vse_out);
 i32 compile_expression(gab_compiler *self);
-i32 compile_parenthesized_expression(gab_compiler *self);
 
 //---------------- Compiling Helpers -------------------
 /*
@@ -569,20 +568,6 @@ i32 compile_expressions(gab_compiler *self, u8 want, boolean *vse_out) {
 
 i32 compile_expression(gab_compiler *self) {
   return compile_expressions(self, 1, NULL);
-}
-i32 compile_parenthesized_expression(gab_compiler *self) {
-  if (expect_token(self, TOKEN_LPAREN) < 0)
-    return COMP_ERR;
-
-  i32 result = compile_expression(self);
-
-  if (result < 0)
-    return COMP_ERR;
-
-  if (expect_token(self, TOKEN_RPAREN) < 0)
-    return COMP_ERR;
-
-  return result;
 }
 
 i32 add_string_constant(gab_compiler *self, s_u8_ref str) {
@@ -885,7 +870,7 @@ i32 compile_exp_blk(gab_compiler *self, boolean assignable) {
 
 i32 compile_exp_if(gab_compiler *self, boolean assignable) {
 
-  if (compile_parenthesized_expression(self) < 0)
+  if (compile_expression(self) < 0)
     return COMP_ERR;
 
   if (optional_newline(self) < 0)
@@ -927,7 +912,7 @@ i32 compile_exp_if(gab_compiler *self, boolean assignable) {
 }
 
 i32 compile_exp_mch(gab_compiler *self, boolean assignable) {
-  if (compile_parenthesized_expression(self) < 0)
+  if (compile_expression(self) < 0)
     return COMP_ERR;
 
   if (optional_newline(self) < 0)
@@ -1738,9 +1723,6 @@ i32 compile_exp_for(gab_compiler *self, boolean assignable) {
   u16 loop_locals = 0;
   i32 result;
 
-  if (expect_token(self, TOKEN_LPAREN) < 0)
-    return COMP_ERR;
-
   do {
 
     if (expect_token(self, TOKEN_IDENTIFIER) < 0)
@@ -1765,9 +1747,6 @@ i32 compile_exp_for(gab_compiler *self, boolean assignable) {
 
   // This is the iterator function
   if (compile_expression(self) < 0)
-    return COMP_ERR;
-
-  if (expect_token(self, TOKEN_RPAREN) < 0)
     return COMP_ERR;
 
   // Store the iterator into the iter local.
@@ -1818,7 +1797,7 @@ i32 compile_exp_for(gab_compiler *self, boolean assignable) {
 i32 compile_exp_whl(gab_compiler *self, boolean assignable) {
   u64 loop_start = self->mod->bytecode.size - 1;
 
-  if (compile_parenthesized_expression(self) < 0)
+  if (compile_expression(self) < 0)
     return COMP_ERR;
 
   if (optional_newline(self) < 0)
@@ -1948,7 +1927,7 @@ gab_obj_closure *compile(gab_compiler *self, s_u8_ref name) {
 
   down_frame(self, name);
 
-  gab_lexer_create(&self->lex, s_u8_ref_create_s_u8(self->mod->source));
+  gab_lexer_create(&self->lex, self->mod->source);
 
   self->mod->source_lines = self->lex.source_lines;
 
@@ -1980,10 +1959,10 @@ gab_obj_closure *compile(gab_compiler *self, s_u8_ref name) {
   ;
 }
 
-gab_result *gab_engine_compile(gab_engine *eng, s_u8_ref name, s_u8 *src,
+gab_result *gab_engine_compile(gab_engine *eng, s_u8_ref name, s_u8_ref src,
                                u8 flags) {
 
-  gab_module *module = gab_engine_create_module(eng, name, src);
+  gab_module *module = gab_engine_add_module(eng, name, src);
 
   gab_compiler compiler;
   gab_compiler_create(&compiler, module);

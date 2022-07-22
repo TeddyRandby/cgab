@@ -1,4 +1,4 @@
-#include "lib.h"
+#include "../gab/gab.h"
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -149,4 +149,14 @@ gab_value gab_lib_close(gab_engine *eng, gab_value *argv, u8 argc) {
   }
 
   return GAB_VAL_BOOLEAN(true);
+}
+
+gab_value gab_mod(gab_engine *gab) {
+
+  gab_lib_kvp socket_kvps[] = {GAB_BUILTIN(sock, 0),    GAB_BUILTIN(bind, 2),
+                               GAB_BUILTIN(listen, 2),  GAB_BUILTIN(accept, 1),
+                               GAB_BUILTIN(recv, 1),    GAB_BUILTIN(send, 2),
+                               GAB_BUILTIN(connect, 3), GAB_BUILTIN(close, 1)};
+
+  return gab_bundle(gab, GAB_KVPSIZE(socket_kvps), socket_kvps);
 }

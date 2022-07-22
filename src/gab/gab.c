@@ -30,7 +30,7 @@ void gab_bind_library(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]) {
   gab->std = std;
 }
 
-gab_result *gab_run_source(gab_engine *gab, const char *name, s_u8 *source,
+gab_result *gab_run_source(gab_engine *gab, const char *name, s_u8_ref source,
                            u8 flags) {
 
   gab_result *compile_result =

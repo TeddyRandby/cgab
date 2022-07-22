@@ -53,7 +53,7 @@ struct gab_module {
   /*
      A pointer to the string of source code.
   */
-  s_u8 *source;
+  s_u8_ref source;
 
   /*
     The running engine.
@@ -71,7 +71,7 @@ struct gab_module {
 /*
   Creating and destroying modules, from nothing and from a base module.
 */
-gab_module *gab_module_create(gab_module *, s_u8_ref, s_u8 *);
+gab_module *gab_module_create(gab_module *, s_u8_ref, s_u8_ref);
 
 void gab_module_destroy(gab_module *);
 

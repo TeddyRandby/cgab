@@ -80,6 +80,72 @@ boolean s_u8_ref_match(s_u8_ref a, s_u8_ref b);
 boolean s_u8_ref_match_lit(s_u8_ref a, const char *b);
 
 /*
+   https://github.com/ztanml/fast-hash/blob/master/fasthash.c
+*/
+
+#define mix(h)                                                                 \
+  ({                                                                           \
+    (h) ^= (h) >> 23;                                                          \
+    (h) *= 0x2127599bf4325c37ULL;                                              \
+    (h) ^= (h) >> 47;                                                          \
+  })
+
+static uint64_t hash(const void *buf, size_t len, uint64_t seed) {
+  const uint64_t m = 0x880355f21e6d1965ULL;
+  const uint64_t *pos = (const uint64_t *)buf;
+  const uint64_t *end = pos + (len / 8);
+  const unsigned char *pos2;
+  uint64_t h = seed ^ (len * m);
+  uint64_t v;
+
+  while (pos != end) {
+    v = *pos++;
+    h ^= mix(v);
+    h *= m;
+  }
+
+  pos2 = (const unsigned char *)pos;
+  v = 0;
+
+  switch (len & 7) {
+  case 7:
+    v ^= (uint64_t)pos2[6] << 48;
+  case 6:
+    v ^= (uint64_t)pos2[5] << 40;
+  case 5:
+    v ^= (uint64_t)pos2[4] << 32;
+  case 4:
+    v ^= (uint64_t)pos2[3] << 24;
+  case 3:
+    v ^= (uint64_t)pos2[2] << 16;
+  case 2:
+    v ^= (uint64_t)pos2[1] << 8;
+  case 1:
+    v ^= (uint64_t)pos2[0];
+    h ^= mix(v);
+    h *= m;
+  }
+
+  return mix(h);
+}
+
+#undef mix
+
+static inline u64 hash_bytes(u64 size, u8 bytes[size]) {
+  u64 seed = 2166136261u;
+  return hash(bytes, size * sizeof(u8), seed);
+}
+
+static inline u64 hash_words(u64 size, u64 words[size]) {
+  u64 seed = 2166136261u;
+  return hash(words, size * sizeof(u64), seed);
+}
+
+static inline u64 s_u8_ref_hash(s_u8_ref str) {
+  return hash_bytes(str.size, str.data);
+};
+
+/*
   ~ 8bit-char string.
 
 This string is immutable - using FAM.

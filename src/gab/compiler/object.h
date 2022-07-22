@@ -284,6 +284,7 @@ gab_obj_shape *gab_obj_shape_create_array(gab_engine *eng, u64 size);
 gab_obj_shape *gab_obj_shape_extend(gab_obj_shape *self, gab_engine *eng,
                                     gab_value property);
 
+#include <stdio.h>
 static inline i64 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
   u64 offset = d_u64_read(&self->properties, gab_val_hash(key), key);
 

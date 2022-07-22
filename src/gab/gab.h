@@ -28,6 +28,22 @@ typedef struct gab_lib_kvp {
   gab_value value;
 } gab_lib_kvp;
 
+#define GAB_BUILTIN(name, arity)                                               \
+  {                                                                            \
+    .key = #name,                                                              \
+    .value =                                                                   \
+        GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_##name, #name, arity)) \
+  }
+
+#define GAB_BUNDLE(name)                                                       \
+  {                                                                            \
+    .key = #name,                                                              \
+    .value = GAB_VAL_OBJ(gab_bundle(                                           \
+        gab, sizeof(name##_kvps) / sizeof(gab_lib_kvp), name##_kvps))          \
+  }
+
+#define GAB_KVPSIZE(kvps) (sizeof(kvps) / sizeof(gab_lib_kvp))
+
 /*
    Bundle a list of KVPS into a Gab object.
 */
@@ -53,6 +69,6 @@ void gab_bind_library(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]);
   @return A gab result object.
 */
 gab_result *gab_run_source(gab_engine *gab, const char *module_name,
-                           s_u8 *source, u8 flags);
+                           s_u8_ref source, u8 flags);
 
 #endif

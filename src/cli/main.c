@@ -1,52 +1,167 @@
 #include "../common/os.h"
 #include "../gab/gab.h"
-#include "lib/lib.h"
-
+#include <dlfcn.h>
 #include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+typedef gab_value (*handler_f)(gab_engine *, const s_u8 *path,
+                               const s_u8_ref module);
+
+typedef gab_value (*module_f)(gab_engine *);
+
+typedef struct {
+  handler_f handler;
+  const char *prefix;
+  const char *suffix;
+} resource;
+
+gab_value gab_shared_object_handler(gab_engine *eng, const s_u8 *path,
+                                    const s_u8_ref module) {
+  gab_engine *fork = gab_create_fork(eng);
+
+  void *handle = dlopen((char *)path->data, RTLD_LAZY);
+
+  if (!handle)
+    return GAB_VAL_NULL();
+
+  module_f symbol = dlsym(handle, "gab_mod");
+
+  if (!symbol) {
+    dlclose(handle);
+    return GAB_VAL_NULL();
+  }
+
+  gab_value val = symbol(eng);
+
+  gab_import *import = gab_import_shared(handle, val);
+
+  gab_engine_add_import(eng, import, module);
+
+  return val;
+}
+
+gab_value gab_source_file_handler(gab_engine *eng, const s_u8 *path,
+                                  const s_u8_ref module) {
+  gab_engine *fork = gab_create_fork(eng);
+
+  s_u8 *src = os_read_file((char *)path->data);
+
+  gab_result *result = gab_run_source(fork, "__main__",
+                                      s_u8_ref_create_s_u8(src), GAB_FLAG_NONE);
+
+  if (gab_result_has_error(result)) {
+    gab_result_dump_error(result);
+
+    gab_result_destroy(result);
+    gab_destroy_fork(fork);
+    return GAB_VAL_NULL();
+  }
+
+  gab_value val = result->as.result;
+
+  gab_import *import = gab_import_source(src, val);
+
+  gab_engine_add_import(eng, import, module);
+
+  gab_result_destroy(result);
+  gab_destroy_fork(fork);
+
+  return val;
+}
+
+resource resources[] = {
+    // Local resources
+    {.prefix = "./", .suffix = ".gab", .handler = gab_source_file_handler},
+    {.prefix = "./", .suffix = "/mod.gab", .handler = gab_source_file_handler},
+    {.prefix = "./", .suffix = ".so", .handler = gab_shared_object_handler},
+    // Installed resources
+    {.prefix = "/usr/local/lib/gab/",
+     .suffix = ".gab",
+     .handler = gab_source_file_handler},
+    {.prefix = "/usr/local/lib/gab/",
+     .suffix = "/mod.gab",
+     .handler = gab_source_file_handler},
+    {.prefix = "/usr/local/lib/gab/",
+     .suffix = ".so",
+     .handler = gab_shared_object_handler},
+};
+
+s_u8 *match_resource(resource *res, s_u8_ref name) {
+  const u64 p_len = strlen(res->prefix);
+  const u64 s_len = strlen(res->suffix);
+
+  s_u8 *buffer = s_u8_create_empty(p_len + name.size + s_len + 1);
+
+  memcpy(buffer->data, res->prefix, p_len);
+  memcpy(buffer->data + p_len, name.data, name.size);
+  memcpy(buffer->data + p_len + name.size, res->suffix, s_len + 1);
+
+  if (access((char *)buffer->data, F_OK) == 0) {
+    return buffer;
+  }
+
+  s_u8_destroy(buffer);
+
+  return NULL;
+}
+
+gab_value gab_lib_require(gab_engine *eng, gab_value *argv, u8 argc) {
+  if (!GAB_VAL_IS_STRING(argv[0])) {
+    return GAB_VAL_NULL();
+  }
+
+  gab_obj_string *arg = GAB_VAL_TO_STRING(argv[0]);
+  const s_u8_ref module = gab_obj_string_ref(arg);
+
+  for (i32 i = 0; i < sizeof(resources) / sizeof(resource); i++) {
+    resource *res = resources + i;
+    s_u8 *path = match_resource(res, module);
+
+    if (path) {
+      gab_value result = res->handler(eng, path, module);
+      s_u8_destroy(path);
+      return result;
+    }
+
+    s_u8_destroy(path);
+  }
+
+  return GAB_VAL_NULL();
+}
+
+static inline void print_values(gab_value *argv, u8 argc) {
+  for (i32 i = 0; i < argc; i++) {
+    gab_value arg = argv[i];
+    gab_val_dump(arg);
+
+    if (i == (argc - 1)) {
+      // last iteration
+      printf("\n");
+    } else {
+      printf(", ");
+    }
+  }
+}
+
+gab_value gab_lib_print(gab_engine *eng, gab_value *argv, u8 argc) {
+  print_values(argv, argc);
+  return GAB_VAL_NULL();
+}
 
 s_u8 *collect_line() {
   printf(">>>");
   return os_read_line();
 }
 
-#define BUILTIN(name, arity)                                                   \
-  {                                                                            \
-    .key = #name,                                                              \
-    .value =                                                                   \
-        GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_##name, #name, arity)) \
-  }
-
-#define BUNDLE(name)                                                           \
-  {                                                                            \
-    .key = #name,                                                              \
-    .value = GAB_VAL_OBJ(gab_bundle(                                           \
-        gab, sizeof(name##_kvps) / sizeof(gab_lib_kvp), name##_kvps))          \
-  }
-
 void bind_std(gab_engine *gab) {
 
-  gab_lib_kvp socket_kvps[] = {BUILTIN(sock, 0),    BUILTIN(bind, 2),
-                               BUILTIN(listen, 2),  BUILTIN(accept, 1),
-                               BUILTIN(recv, 1),    BUILTIN(send, 2),
-                               BUILTIN(connect, 3), BUILTIN(close, 1)};
+  gab_lib_kvp builtins[] = {
+      GAB_BUILTIN(print, VAR_RET),
+      GAB_BUILTIN(require, 1),
+  };
 
-  gab_lib_kvp re_kvps[] = {BUILTIN(exec, 2)};
-
-  gab_lib_kvp str_kvps[] = {BUILTIN(num, 1)};
-
-  gab_lib_kvp std_kvps[] = {BUILTIN(info, VAR_RET),
-                            BUILTIN(warn, VAR_RET),
-                            BUILTIN(error, VAR_RET),
-                            BUILTIN(push, VAR_RET),
-                            BUILTIN(require, 1),
-                            BUILTIN(keys, 1),
-                            BUILTIN(len, 1),
-                            BUILTIN(slice, 3),
-                            BUNDLE(socket),
-                            BUNDLE(str),
-                            BUNDLE(re)};
-
-  gab_bind_library(gab, sizeof(std_kvps) / sizeof(gab_lib_kvp), std_kvps);
+  gab_bind_library(gab, GAB_KVPSIZE(builtins), builtins);
 }
 
 void gab_repl() {
@@ -66,7 +181,8 @@ void gab_repl() {
     }
 
     if (src->size > 1 && src->data[0] != '\n') {
-      gab_result *result = gab_run_source(gab, "Main", src, GAB_FLAG_NONE);
+      gab_result *result =
+          gab_run_source(gab, "Main", s_u8_ref_create_s_u8(src), GAB_FLAG_NONE);
 
       if (gab_result_has_error(result)) {
         gab_result_dump_error(result);
@@ -87,7 +203,8 @@ void gab_run_file(const char *path) {
   gab_engine *gab = gab_create();
   bind_std(gab);
 
-  gab_result *result = gab_run_source(gab, "__main__", src, GAB_FLAG_NONE);
+  gab_result *result =
+      gab_run_source(gab, "__main__", s_u8_ref_create_s_u8(src), GAB_FLAG_NONE);
 
   if (gab_result_has_error(result)) {
     gab_result_dump_error(result);

@@ -255,6 +255,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       STORE_FRAME();
 
       if (!GAB_VAL_IS_OBJ(callee)) {
+        gab_val_dump(callee);
         return gab_run_fail(VM(), "Expected a callable");
       }
 
@@ -378,7 +379,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
         prop_offset = gab_obj_shape_find(obj->shape, prop);
 
         DROP_N(2);
-
         goto complete_obj_get;
       }
 
@@ -396,7 +396,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
 
         obj = GAB_VAL_TO_OBJECT(index);
 
-        if (*cached_shape == NULL || *cached_shape != obj->shape) {
+        if (*cached_shape != obj->shape) {
           // The cache hasn't been created yet.
           *cached_shape = obj->shape;
           prop_offset = gab_obj_shape_find(obj->shape, prop);
@@ -405,7 +405,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
         }
 
         DROP();
-
         goto complete_obj_get;
       }
 
@@ -449,8 +448,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
         }
 
         // Now its safe to drop the three values
-        DROP_N(2);
-
+        DROP_N(3);
         goto complete_obj_set;
       }
 
@@ -458,8 +456,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
         prop = READ_CONSTANT;
         value = PEEK();
         index = PEEK2();
-
-        gab_engine_val_iref(ENGINE(), value);
 
         gab_obj_shape **cached_shape = READ_INLINECACHE(gab_obj_shape);
 
@@ -472,7 +468,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
 
         obj = GAB_VAL_TO_OBJECT(index);
 
-        if (*cached_shape == NULL || *cached_shape != obj->shape) {
+        if (*cached_shape != obj->shape) {
           // The cache hasn't been created yet.
           *cached_shape = obj->shape;
 
@@ -495,16 +491,17 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
         }
 
         DROP_N(2);
-
-        PUSH(value);
-
         goto complete_obj_set;
       }
 
     complete_obj_set : {
+
+      gab_engine_val_iref(ENGINE(), value);
       gab_engine_val_dref(ENGINE(), gab_obj_object_get(obj, prop_offset));
 
       gab_obj_object_set(obj, prop_offset, value);
+
+      PUSH(value);
 
       NEXT();
     }

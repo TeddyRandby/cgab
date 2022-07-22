@@ -5,7 +5,7 @@
 // Collect as frequently as possible (on every allocation)
 #define GAB_DEBUG_GC 1
 // Log what is happening during collection.
-#define GAB_LOG_GC 1
+#define GAB_LOG_GC 0
 // Log what is happening during execution.
 #define GAB_LOG_EXECUTION 0
 // TODO: Concurrent garbage collection.

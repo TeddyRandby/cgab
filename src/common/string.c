@@ -28,7 +28,7 @@ boolean s_u8_ref_match(s_u8_ref a, s_u8_ref b) {
 }
 
 boolean s_u8_ref_match_lit(s_u8_ref a, const char *b) {
-  s_u8_ref other = s_u8_ref_create((u8 *)b, strlen(b));
+  s_u8_ref other = s_u8_ref_create_cstr(b);
   return s_u8_ref_match(a, other);
 }
 
