@@ -1,4 +1,5 @@
-!socket = !require("libsocket")
+let socket = !require("socket")
+let re = !require("regex")
 
 def iter(i) do
   let v = -1
@@ -6,79 +7,60 @@ def iter(i) do
 end
 
 def parseHeaders(req)
-  !re.exec(req, "([A-Za-z\-]+): ([a-zA-Z0-9]*)")
+  re.exec(req, "([A-Za-z\-]+): ([a-zA-Z0-9]*)")
 
 def parseMeta(req)
-  !re.exec(req, "^([A-Z]+) ([a-zA-Z0-9\/\.\-]+) HTTP\/([0-9]\.[0-9])")
+  re.exec(req, "^([A-Z]+) ([a-zA-Z0-9\/\.\-]+) HTTP\/([0-9]\.[0-9])")
   
 def connections(sock) || => do
-  let conn = sock:!socket.accept()!
+  let conn = sock:socket.accept()!
 
-  let req = conn:!socket.recv()!
+  let req = conn:socket.recv()!
   
   return conn, req
 
 end
 
 def HTTP {
+  port
+}
 
-  def Config {
-    port
-    routes
-  }
-
-  def Routes {
-      get
-      post
-  }
-
-  def New(config) do
-    if (not (config is HTTP.Config?))
-      return null, "Misshapen config"
-      
-    if (not (config.routes is HTTP.Routes?))
-      return null, "Misshapen routes"
-      
-    config
-  end
-  
-
-  def Start(self) do
-    let sock = !socket.sock()!
-
-    sock:!socket.bind(self.port)!
-
-    sock:!socket.listen(5)!
+def New(config) do
+  if not (config is HTTP?)
+    return null, "Misshapen config"
     
-    !print('Server is listening on port: {self.port}')
-
-    for conn, req in sock:connections() do
-      let _, method, url, version = ..req:parseMeta()
-      
-      !print('Connecection Established. ({version})')
-      
-      !print(url)
-
-      conn:!socket.send("EMPTY")!
-
-      conn:!socket.close()!
-    end
-  end
-
-  def Get(self, url, handler) do
-    self.routes.get[url] = handler
-  end
-}
-
-let server, err = HTTP.New {
-  port: 5050
-  routes: { get post }
-}
-
-if (err) do
-  !print(err)
-  return
+  config
 end
 
 
-server:HTTP.Start()
+def Start(self) do
+  let sock = socket.sock()!
+
+  sock:socket.bind(self.port)!
+
+  sock:socket.listen(5)!
+  
+  !print('Server is listening on port: {self.port}')
+
+  for conn, req in sock:connections() do
+    let _, method, url, version = ..req:parseMeta()
+    
+    !print('Connecection Established. ({version})')
+    
+    !print(url)
+
+    conn:socket.send("EMPTY")!
+
+    conn:socket.close()!
+  end
+end
+
+def HttpModule {
+  New
+  Start
+}
+
+let server = HttpModule.New { port: 5050 }
+
+server:HttpModule.Start()
+

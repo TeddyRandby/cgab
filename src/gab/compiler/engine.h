@@ -65,15 +65,21 @@ struct gab_import {
   gab_import_kind k;
   union {
     void *shared;
-    s_u8 *source;
+    a_i8 *source;
   };
   gab_value cache;
 };
 
 gab_import *gab_import_shared(void *, gab_value);
-gab_import *gab_import_source(s_u8 *, gab_value);
+gab_import *gab_import_source(a_i8 *, gab_value);
 
 void gab_import_destroy(gab_import *);
+
+#define K gab_value
+#define HASH(a) (gab_val_intern_hash(a))
+#define EQUAL(a, b) (a == b)
+#define LOAD DICT_MAX_LOAD
+#include "../../core/dict.h"
 
 typedef struct gab_engine gab_engine;
 struct gab_engine {
@@ -81,7 +87,7 @@ struct gab_engine {
   /*
     The constant table.
   */
-  d_u64 *constants;
+  d_gab_value *constants;
 
   /*
     A linked list of loaded modules.
@@ -93,7 +99,7 @@ struct gab_engine {
 
      import_name -> cached value
   */
-  d_u64 *imports;
+  d_s_i8 *imports;
 
   /*
     The std lib object.
@@ -112,16 +118,16 @@ struct gab_engine {
   gab_gc gc;
 };
 
-gab_obj_string *gab_engine_find_string(gab_engine *, s_u8_ref, u64);
+gab_obj_string *gab_engine_find_string(gab_engine *, s_i8, u64);
 
 gab_obj_shape *gab_engine_find_shape(gab_engine *, u64, gab_value values[], u64,
                                      u64);
 
 u16 gab_engine_add_constant(gab_engine *, gab_value);
 
-gab_module *gab_engine_add_module(gab_engine *, s_u8_ref, s_u8_ref);
+gab_module *gab_engine_add_module(gab_engine *, s_i8, s_i8);
 
-void gab_engine_add_import(gab_engine *, gab_import *, s_u8_ref);
+void gab_engine_add_import(gab_engine *, gab_import *, s_i8);
 
 void gab_engine_add_import();
 
@@ -132,7 +138,7 @@ void gab_engine_collect(gab_engine *eng);
 
   DEFINED IN COMPILER/COMPILER.H
 */
-gab_result *gab_engine_compile(gab_engine *, s_u8_ref, s_u8_ref, u8);
+gab_result *gab_engine_compile(gab_engine *, s_i8, s_i8, u8);
 
 /*
   Run a gab closure.
@@ -142,7 +148,6 @@ gab_result *gab_engine_compile(gab_engine *, s_u8_ref, s_u8_ref, u8);
 gab_result *gab_engine_run(gab_engine *, gab_obj_closure *);
 
 static inline void gab_engine_obj_iref(gab_engine *self, gab_obj *obj) {
-  ASSERT_TRUE(obj != NULL, "Don't try to gc null");
   self->gc.increments[self->gc.increment_count++] = obj;
   if (self->gc.increment_count == INC_DEC_MAX) {
     gab_engine_collect(self);
@@ -150,7 +155,6 @@ static inline void gab_engine_obj_iref(gab_engine *self, gab_obj *obj) {
 }
 
 static inline void gab_engine_obj_dref(gab_engine *self, gab_obj *obj) {
-  ASSERT_TRUE(obj != NULL, "Don't try to gc null");
   if (self->gc.decrement_count == INC_DEC_MAX) {
     gab_engine_collect(self);
   }

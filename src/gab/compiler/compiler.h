@@ -33,9 +33,9 @@ struct gab_compile_frame {
 
   u16 upv_count;
 
-  s_u8_ref function_name;
+  s_i8 function_name;
 
-  s_u8_ref locals_name[LOCAL_MAX];
+  s_i8 locals_name[LOCAL_MAX];
   i32 locals_depth[LOCAL_MAX];
   u8 locals_flag[LOCAL_MAX];
 

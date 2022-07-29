@@ -34,7 +34,7 @@ target_link_libraries(regex cgab)
 target_link_libraries(socket cgab)
 target_link_libraries(gab cgab)
 
-add_subdirectory(src/common)
+add_subdirectory(src/core)
 add_subdirectory(src/gab)
 add_subdirectory(src/cli)
 

@@ -1,7 +1,7 @@
 #ifndef BLUF_OBJECT_H
 #define BLUF_OBJECT_H
 
-#include "../../common/common.h"
+#include "../../core/core.h"
 #include "value.h"
 
 typedef struct gab_module gab_module;
@@ -12,15 +12,6 @@ static inline f64 value_to_f64(gab_value value) { return *(f64 *)(&value); }
 static inline gab_value f64_to_value(f64 value) {
   return *(gab_value *)(&value);
 }
-
-/* Because of NaN tagging, identical bit-representations are guaranteed
-  to be identical values.
-*/
-static inline boolean gab_val_equal(gab_value self, gab_value other) {
-  return self == other;
-}
-
-static inline u64 gab_val_hash(gab_value value) { return value; }
 
 void gab_val_dump(gab_value self);
 
@@ -121,16 +112,16 @@ struct gab_obj_string {
   */
   u64 hash;
   u64 size;
-  u8 data[FLEXIBLE_ARRAY];
+  i8 data[FLEXIBLE_ARRAY];
 };
 #define GAB_VAL_IS_STRING(value) (gab_val_is_obj_kind(value, OBJECT_STRING))
 #define GAB_VAL_TO_STRING(value) ((gab_obj_string *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_STRING(value) ((gab_obj_string *)value)
 
-gab_obj_string *gab_obj_string_create(gab_engine *eng, s_u8_ref data);
+gab_obj_string *gab_obj_string_create(gab_engine *eng, s_i8 data);
 gab_obj_string *gab_obj_string_concat(gab_engine *eng, gab_obj_string *a,
                                       gab_obj_string *b);
-s_u8_ref gab_obj_string_ref(gab_obj_string *self);
+s_i8 gab_obj_string_ref(gab_obj_string *self);
 gab_obj_string *gab_obj_to_obj_string(gab_obj *self, gab_engine *engine);
 gab_obj_string *gab_val_to_obj_string(gab_value self, gab_engine *eng);
 
@@ -143,7 +134,7 @@ typedef struct gab_obj_builtin gab_obj_builtin;
 struct gab_obj_builtin {
   gab_obj header;
   gab_builtin function;
-  s_u8_ref name;
+  s_i8 name;
   u8 narguments;
 };
 
@@ -171,7 +162,7 @@ struct gab_obj_function {
   */
   u8 nupvalues;
 
-  s_u8_ref name;
+  s_i8 name;
 
   /*
     The offset into the module where the function's instructions begin.
@@ -195,7 +186,7 @@ struct gab_obj_function {
 #define GAB_VAL_IS_FUNCTION(value) (gab_val_is_obj_kind(value, OBJECT_FUNCTION))
 #define GAB_VAL_TO_FUNCTION(value) ((gab_obj_function *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_FUNCTION(value) ((gab_obj_function *)value)
-gab_obj_function *gab_obj_function_create(gab_engine *eng, s_u8_ref name);
+gab_obj_function *gab_obj_function_create(gab_engine *eng, s_i8 name);
 
 /*
   ------------- OBJ_UPVALUE -------------
@@ -265,7 +256,7 @@ struct gab_obj_shape {
 
   u64 hash;
 
-  s_u8_ref name;
+  s_i8 name;
 
   d_u64 properties;
 
@@ -286,13 +277,12 @@ gab_obj_shape *gab_obj_shape_extend(gab_obj_shape *self, gab_engine *eng,
 
 #include <stdio.h>
 static inline i64 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
-  u64 offset = d_u64_read(&self->properties, gab_val_hash(key), key);
+  u64 i = d_u64_index_of(&self->properties, key);
 
-  if (GAB_VAL_IS_NULL(offset)) {
+  if (!d_u64_iexists(&self->properties, i))
     return -1;
-  }
 
-  return offset;
+  return d_u64_ival(&self->properties, i);
 };
 
 /*
@@ -405,55 +395,55 @@ static inline gab_value gab_val_type(gab_engine *eng, gab_value value) {
 
   if (GAB_VAL_IS_NUMBER(value)) {
     gab_obj_string *num =
-        gab_obj_string_create(eng, s_u8_ref_create_cstr("number"));
+        gab_obj_string_create(eng, s_i8_create((i8 *)"number", 6));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_BOOLEAN(value)) {
     gab_obj_string *num =
-        gab_obj_string_create(eng, s_u8_ref_create_cstr("boolean"));
+        gab_obj_string_create(eng, s_i8_create((i8 *)"boolean", 7));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_NULL(value)) {
     gab_obj_string *num =
-        gab_obj_string_create(eng, s_u8_ref_create_cstr("null"));
+        gab_obj_string_create(eng, s_i8_create((i8 *)"null", 4));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_STRING(value)) {
     gab_obj_string *num =
-        gab_obj_string_create(eng, s_u8_ref_create_cstr("string"));
+        gab_obj_string_create(eng, s_i8_create((i8 *)"string", 6));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_FUNCTION(value)) {
     gab_obj_string *num =
-        gab_obj_string_create(eng, s_u8_ref_create_cstr("function"));
+        gab_obj_string_create(eng, s_i8_create((i8 *)"function", 8));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_CLOSURE(value)) {
     gab_obj_string *num =
-        gab_obj_string_create(eng, s_u8_ref_create_cstr("closure"));
+        gab_obj_string_create(eng, s_i8_create((i8 *)"closure", 7));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_SHAPE(value)) {
     gab_obj_string *num =
-        gab_obj_string_create(eng, s_u8_ref_create_cstr("shape"));
+        gab_obj_string_create(eng, s_i8_create((i8 *)"shape", 5));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_UPVALUE(value)) {
     gab_obj_string *num =
-        gab_obj_string_create(eng, s_u8_ref_create_cstr("upvalue"));
+        gab_obj_string_create(eng, s_i8_create((i8 *)"upvalue", 7));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_BUILTIN(value)) {
     gab_obj_string *num =
-        gab_obj_string_create(eng, s_u8_ref_create_cstr("builtin"));
+        gab_obj_string_create(eng, s_i8_create((i8 *)"builtin", 7));
     return GAB_VAL_OBJ(num);
   }
 

@@ -7,7 +7,7 @@
   Create a Gab Engine. If you want libraries included, build and bind them
   before running any code.
 
-  @return The allocated Sol Engine.
+  @return The allocated Gab Engine.
 */
 gab_engine *gab_create();
 
@@ -69,6 +69,6 @@ void gab_bind_library(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]);
   @return A gab result object.
 */
 gab_result *gab_run_source(gab_engine *gab, const char *module_name,
-                           s_u8_ref source, u8 flags);
+                           s_i8 source, u8 flags);
 
 #endif

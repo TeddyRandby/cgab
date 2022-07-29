@@ -6,7 +6,5 @@ target_sources(
   PRIVATE
   token.h
   lexer.c
-  char.h
-  char.c
   lexer.h
 )

@@ -103,7 +103,7 @@ gab_value gab_lib_recv(gab_engine *eng, gab_value *argv, u8 argc) {
     return GAB_VAL_NULL();
   }
 
-  u8 buffer[1024] = {0};
+  i8 buffer[1024] = {0};
 
   i32 result = recv(GAB_VAL_TO_NUMBER(argv[0]), buffer, 1024, 0);
 
@@ -111,7 +111,7 @@ gab_value gab_lib_recv(gab_engine *eng, gab_value *argv, u8 argc) {
     return GAB_VAL_NULL();
   }
 
-  s_u8_ref msg = {.data = buffer, .size = result};
+  s_i8 msg = {.data = buffer, .len = result};
 
   return GAB_VAL_OBJ(gab_obj_string_create(eng, msg));
 }

@@ -3,4 +3,4 @@ def fib(n)
     n else fib(n - 1) + fib(n - 2)
   
 
-fib(30):!print()
+fib(28):!print()

@@ -30,8 +30,8 @@ gab_value gab_lib_exec(gab_engine *eng, gab_value *argv, u8 argc) {
 
   u8 i = 0;
   while (matches[i].rm_so >= 0) {
-    s_u8_ref match = s_u8_ref_create(str->data + matches[i].rm_so,
-                                     matches[i].rm_eo - matches[i].rm_so);
+    s_i8 match = s_i8_create(str->data + matches[i].rm_so,
+                             matches[i].rm_eo - matches[i].rm_so);
 
     gab_value key = GAB_VAL_NUMBER(i);
     gab_value value = GAB_VAL_OBJ(gab_obj_string_create(eng, match));

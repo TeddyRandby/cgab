@@ -44,17 +44,17 @@ gab_obj *gab_obj_create(gab_obj *self, gab_engine *eng, gab_obj_kind k) {
 gab_obj_string *gab_val_to_obj_string(gab_value self, gab_engine *eng) {
   if (GAB_VAL_IS_BOOLEAN(self)) {
     return gab_obj_string_create(
-        eng, s_u8_ref_create_cstr(GAB_VAL_TO_BOOLEAN(self) ? "true" : "false"));
+        eng, s_i8_cstr(GAB_VAL_TO_BOOLEAN(self) ? "true" : "false"));
   }
 
   if (GAB_VAL_IS_NULL(self)) {
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr("null"));
+    return gab_obj_string_create(eng, s_i8_cstr("null"));
   }
 
   if (GAB_VAL_IS_NUMBER(self)) {
     char str[24];
     snprintf(str, 24, "%g", GAB_VAL_TO_NUMBER(self));
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr(str));
+    return gab_obj_string_create(eng, s_i8_cstr(str));
   }
 
   return gab_obj_to_obj_string(GAB_VAL_TO_OBJ(self), eng);
@@ -66,22 +66,22 @@ gab_obj_string *gab_obj_to_obj_string(gab_obj *self, gab_engine *eng) {
     return (gab_obj_string *)self;
   }
   case OBJECT_CLOSURE: {
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr("[closure]"));
+    return gab_obj_string_create(eng, s_i8_cstr("[closure]"));
   }
   case OBJECT_OBJECT: {
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr("[object]"));
+    return gab_obj_string_create(eng, s_i8_cstr("[object]"));
   }
   case OBJECT_UPVALUE: {
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr("[upvalue]"));
+    return gab_obj_string_create(eng, s_i8_cstr("[upvalue]"));
   }
   case OBJECT_FUNCTION: {
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr("[function]"));
+    return gab_obj_string_create(eng, s_i8_cstr("[function]"));
   }
   case OBJECT_BUILTIN: {
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr("[builtin]"));
+    return gab_obj_string_create(eng, s_i8_cstr("[builtin]"));
   }
   default: {
-    return gab_obj_string_create(eng, s_u8_ref_create_cstr("[unknown]"));
+    return gab_obj_string_create(eng, s_i8_cstr("[unknown]"));
   }
   }
 }
@@ -135,8 +135,8 @@ static inline u64 keys_hash(u64 size, u64 stride, gab_value values[size]) {
   return hash_words(size, words);
 };
 
-gab_obj_string *gab_obj_string_create(gab_engine *eng, s_u8_ref str) {
-  u64 hash = s_u8_ref_hash(str);
+gab_obj_string *gab_obj_string_create(gab_engine *eng, s_i8 str) {
+  u64 hash = s_i8_hash(str);
 
   gab_obj_string *interned = gab_engine_find_string(eng, str, hash);
 
@@ -144,10 +144,10 @@ gab_obj_string *gab_obj_string_create(gab_engine *eng, s_u8_ref str) {
     return interned;
 
   gab_obj_string *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_string, u8, str.size, eng, OBJECT_STRING);
+      GAB_CREATE_FLEX_OBJ(gab_obj_string, u8, str.len, eng, OBJECT_STRING);
 
-  memcpy(self->data, str.data, str.size);
-  self->size = str.size;
+  memcpy(self->data, str.data, str.len);
+  self->size = str.len;
   self->hash = hash;
 
   gab_engine_add_constant(eng, GAB_VAL_OBJ(self));
@@ -183,8 +183,8 @@ gab_obj_string *gab_obj_string_concat(gab_engine *eng, gab_obj_string *a,
   self->size = size;
 
   // Pre compute the hash
-  s_u8_ref ref = s_u8_ref_create(self->data, self->size);
-  self->hash = s_u8_ref_hash(ref);
+  s_i8 ref = s_i8_create(self->data, self->size);
+  self->hash = s_i8_hash(ref);
 
   /*
     If this string was interned already, destroy and return.
@@ -211,13 +211,13 @@ gab_obj_string *gab_obj_string_concat(gab_engine *eng, gab_obj_string *a,
 /*
   Get a reference to a gab string's string data.
 */
-s_u8_ref gab_obj_string_ref(gab_obj_string *self) {
+s_i8 gab_obj_string_ref(gab_obj_string *self) {
   // Ignore the null character.
-  s_u8_ref ref = {.data = self->data, .size = self->size};
+  s_i8 ref = {.data = self->data, .len = self->size};
   return ref;
 }
 
-gab_obj_function *gab_obj_function_create(gab_engine *eng, s_u8_ref name) {
+gab_obj_function *gab_obj_function_create(gab_engine *eng, s_i8 name) {
 
   gab_obj_function *self =
       GAB_CREATE_OBJ(gab_obj_function, eng, OBJECT_FUNCTION);
@@ -241,7 +241,7 @@ gab_obj_builtin *gab_obj_builtin_create(gab_engine *eng, gab_builtin function,
   gab_obj_builtin *self = GAB_CREATE_OBJ(gab_obj_builtin, eng, OBJECT_BUILTIN);
 
   self->function = function;
-  self->name = s_u8_ref_create_cstr(name);
+  self->name = s_i8_cstr(name);
   self->narguments = arity;
 
   // Builtins cannot reference other objects - mark them green.
@@ -292,7 +292,7 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value keys[], u64 size,
       GAB_CREATE_FLEX_OBJ(gab_obj_shape, gab_value, size, eng, OBJECT_SHAPE);
 
   self->hash = hash;
-  self->name = (s_u8_ref){0};
+  self->name = (s_i8){0};
 
   d_u64_create(&self->properties, OBJECT_INITIAL_CAP);
 
@@ -301,7 +301,7 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value keys[], u64 size,
 
     self->keys[i] = key;
 
-    d_u64_insert(&self->properties, key, i, key);
+    d_u64_insert(&self->properties, key, i);
   }
 
   gab_engine_add_constant(eng, GAB_VAL_OBJ(self));
@@ -311,14 +311,14 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value keys[], u64 size,
 
 gab_obj_shape *gab_obj_shape_extend(gab_obj_shape *self, gab_engine *eng,
                                     gab_value property) {
-  gab_value keys[self->properties.size + 1];
+  gab_value keys[self->properties.len + 1];
 
-  memcpy(keys, self->keys, self->properties.size * sizeof(gab_value));
+  memcpy(keys, self->keys, self->properties.len * sizeof(gab_value));
 
-  keys[self->properties.size] = property;
+  keys[self->properties.len] = property;
 
   gab_obj_shape *new_shape =
-      gab_obj_shape_create(eng, keys, self->properties.size + 1, 1);
+      gab_obj_shape_create(eng, keys, self->properties.len + 1, 1);
 
   return new_shape;
 }
@@ -334,8 +334,8 @@ gab_obj_object *gab_obj_object_create(gab_engine *eng, gab_obj_shape *shape,
   self->static_size = size;
 
   self->is_dynamic = false;
-  self->dynamic_values.size = 0;
-  self->dynamic_values.capacity = 0;
+  self->dynamic_values.len = 0;
+  self->dynamic_values.cap = 0;
   self->dynamic_values.data = NULL;
 
   for (u64 i = 0; i < size; i++) {
@@ -353,7 +353,10 @@ i16 gab_obj_object_extend(gab_obj_object *self, gab_engine *eng,
   if (!self->is_dynamic) {
     self->is_dynamic = true;
 
-    v_u64_create(&self->dynamic_values);
+    u64 len = self->static_size < 8 ? 8 : self->static_size * 2;
+
+    v_u64_create(&self->dynamic_values, len);
+
     for (u8 i = 0; i < self->static_size; i++) {
       v_u64_push(&self->dynamic_values, self->static_values[i]);
     }

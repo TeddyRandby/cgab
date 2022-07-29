@@ -10,8 +10,6 @@
 #define GAB_LOG_EXECUTION 0
 // TODO: Concurrent garbage collection.
 #define GAB_CONCURRENT_GC 0
-// Use computed go to instead of a switch statement in the vm.
-#define GAB_GOTO 1
 
 // Configurable macros
 // Dictionary maximum load
@@ -24,8 +22,6 @@
 #define FUNCTION_DEF_NESTING_MAX 64
 // Maximum number of roots inthe root buffer before triggering a collection.
 #define ROOT_MAX 1024
-// Test directory prefix
-#define GAB_TEST_DIR "../src/tests"
 
 // Derived macros
 // Garbage collection increment/decrement buffer size
@@ -33,7 +29,7 @@
 // Size of the engines constant table.
 #define MODULE_CONSTANTS_MAX (UINT16_MAX + 1)
 // Maximum number of function defintions that can be nested.
-#define STACK_MAX (FRAMES_MAX * UINT8_COUNT)
+#define STACK_MAX (FRAMES_MAX * 256)
 
 // Not configurable, just constants
 // Maximum index of a local.
@@ -55,8 +51,42 @@
 #define GAB_VERSION_MAJOR 0
 #define GAB_VERSION_MINOR 1
 
-#include "assert.h"
-#include "memory.h"
 #include "types.h"
+
+#define T i8
+#include "slice.h"
+
+static inline s_i8 s_i8_cstr(const char *str) {
+  return (s_i8){.data = (i8 *)str, .len = strlen(str)};
+}
+
+#define T i8
+#include "array.h"
+
+#define T u8
+#include "vector.h"
+
+#define T u32
+#include "vector.h"
+
+#define T u64
+#include "vector.h"
+
+#define T s_i8
+#include "vector.h"
+
+#define K u64
+#define V u64
+#define HASH(a) a
+#define EQUAL(a, b) (a == b)
+#define LOAD DICT_MAX_LOAD
+#include "dict.h"
+
+#define K s_i8
+#define V void *
+#define HASH(a) (s_i8_hash(a))
+#define EQUAL(a, b) (s_i8_match(a, b))
+#define LOAD DICT_MAX_LOAD
+#include "dict.h"
 
 #endif

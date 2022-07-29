@@ -134,6 +134,8 @@ OP_CODE(OBJECT_ARRAY)
 OP_CODE(GET_INDEX)
 OP_CODE(SET_INDEX)
 
+OP_CODE(CLOSE_UPVALUE)
+
 /*
   -------------- Single Short Arguments -------------
 */

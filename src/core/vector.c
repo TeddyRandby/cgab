@@ -1,5 +1,5 @@
 #include "assert.h"
-#include "common.h"
+#include "core.h"
 #include "memory.h"
 #include <stdlib.h>
 // ~ String ref vector begin

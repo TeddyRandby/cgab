@@ -5,11 +5,9 @@ gab_value gab_bundle(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]) {
   gab_value keys[size], values[size];
 
   for (u64 i = 0; i < size; i++) {
-
-    keys[i] = GAB_VAL_OBJ(
-        gab_obj_string_create(gab, s_u8_ref_create_cstr(kvps[i].key)));
-
+    keys[i] = GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr(kvps[i].key)));
     values[i] = kvps[i].value;
+    gab_engine_add_constant(gab, values[i]);
   }
 
   gab_obj_shape *bundle_shape = gab_obj_shape_create(gab, keys, size, 1);
@@ -30,11 +28,11 @@ void gab_bind_library(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]) {
   gab->std = std;
 }
 
-gab_result *gab_run_source(gab_engine *gab, const char *name, s_u8_ref source,
+gab_result *gab_run_source(gab_engine *gab, const char *name, s_i8 source,
                            u8 flags) {
 
   gab_result *compile_result =
-      gab_engine_compile(gab, s_u8_ref_create_cstr(name), source, flags);
+      gab_engine_compile(gab, s_i8_cstr(name), source, flags);
 
   if (gab_result_has_error(compile_result)) {
     return compile_result;

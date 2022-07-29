@@ -3,13 +3,13 @@
 #include <dlfcn.h>
 
 gab_engine *gab_create() {
-  gab_engine *self = CREATE_STRUCT(gab_engine);
+  gab_engine *self = NEW(gab_engine);
 
-  self->constants = CREATE_STRUCT(d_u64);
-  d_u64_create(self->constants, MODULE_CONSTANTS_MAX);
+  self->constants = NEW(d_gab_value);
+  d_gab_value_create(self->constants, MODULE_CONSTANTS_MAX);
 
-  self->imports = CREATE_STRUCT(d_u64);
-  d_u64_create(self->imports, MODULE_CONSTANTS_MAX);
+  self->imports = NEW(d_s_i8);
+  d_s_i8_create(self->imports, MODULE_CONSTANTS_MAX);
 
   self->modules = NULL;
   self->std = GAB_VAL_NULL();
@@ -24,7 +24,7 @@ gab_engine *gab_create() {
 }
 
 gab_engine *gab_create_fork(gab_engine *parent) {
-  gab_engine *self = CREATE_STRUCT(gab_engine);
+  gab_engine *self = NEW(gab_engine);
 
   self->constants = parent->constants;
   self->modules = parent->modules;
@@ -51,22 +51,28 @@ void gab_destroy(gab_engine *self) {
   gab_engine_val_dref(self, self->std);
   gab_engine_collect(self);
 
-  D_U64_FOR_INDEX_WITH_KEY_DO(self->imports, i) {
-    gab_import *import = (gab_import *)d_u64_index_key(self->imports, i);
-    gab_import_destroy(import);
+  for (i32 i = 0; i < self->imports->cap; i++) {
+    if (d_s_i8_iexists(self->imports, i)) {
+      gab_import *import = (gab_import *)d_s_i8_ival(self->imports, i);
+      gab_import_destroy(import);
+    }
   }
 
-  D_U64_FOR_INDEX_WITH_KEY_DO(self->constants, i) {
-    gab_value v = d_u64_index_key(self->constants, i);
-    if (GAB_VAL_IS_OBJ(v))
-      gab_obj_destroy(GAB_VAL_TO_OBJ(v), self);
+  for (i32 i = 0; i < self->constants->cap; i++) {
+    if (d_gab_value_iexists(self->constants, i)) {
+      gab_value v = d_gab_value_ikey(self->constants, i);
+      if (GAB_VAL_IS_OBJ(v))
+        gab_obj_destroy(GAB_VAL_TO_OBJ(v), self);
+    }
   }
 
   d_u64_destroy(&self->gc.roots);
   d_u64_destroy(&self->gc.queue);
-  d_u64_destroy(self->constants);
-  d_u64_destroy(self->imports);
-  DESTROY_STRUCT(self);
+
+  d_gab_value_destroy(self->constants);
+  d_s_i8_destroy(self->imports);
+
+  DESTROY(self);
 }
 
 void gab_destroy_fork(gab_engine *self) {
@@ -76,11 +82,11 @@ void gab_destroy_fork(gab_engine *self) {
   d_u64_destroy(&self->gc.roots);
   d_u64_destroy(&self->gc.queue);
 
-  DESTROY_STRUCT(self);
+  DESTROY(self);
 }
 
 gab_import *gab_import_shared(void *shared, gab_value result) {
-  gab_import *self = CREATE_STRUCT(gab_import);
+  gab_import *self = NEW(gab_import);
 
   self->k = IMPORT_SHARED;
   self->shared = shared;
@@ -88,8 +94,8 @@ gab_import *gab_import_shared(void *shared, gab_value result) {
   return self;
 }
 
-gab_import *gab_import_source(s_u8 *source, gab_value result) {
-  gab_import *self = CREATE_STRUCT(gab_import);
+gab_import *gab_import_source(a_i8 *source, gab_value result) {
+  gab_import *self = NEW(gab_import);
 
   self->k = IMPORT_SOURCE;
   self->source = source;
@@ -103,17 +109,16 @@ void gab_import_destroy(gab_import *self) {
     dlclose(self->shared);
     break;
   case IMPORT_SOURCE:
-    s_u8_destroy(self->source);
+    a_i8_destroy(self->source);
     break;
   }
-  DESTROY_STRUCT(self);
+  DESTROY(self);
   return;
 }
 
-gab_module *gab_engine_add_module(gab_engine *self, s_u8_ref name,
-                                  s_u8_ref source) {
+gab_module *gab_engine_add_module(gab_engine *self, s_i8 name, s_i8 source) {
 
-  gab_module *module = CREATE_STRUCT(gab_module);
+  gab_module *module = NEW(gab_module);
 
   gab_module_create(module, name, source);
 
@@ -124,53 +129,44 @@ gab_module *gab_engine_add_module(gab_engine *self, s_u8_ref name,
   return module;
 }
 
-void gab_engine_add_import(gab_engine *self, gab_import *import,
-                           s_u8_ref module) {
-  d_u64_insert(self->imports, (uintptr_t)import, GAB_VAL_NULL(),
-               s_u8_ref_hash(module));
+void gab_engine_add_import(gab_engine *self, gab_import *import, s_i8 module) {
+  d_s_i8_insert(self->imports, module, import);
 }
 
 u16 gab_engine_add_constant(gab_engine *self, gab_value value) {
-  if (self->constants->capacity > MODULE_CONSTANTS_MAX) {
-    failure(__FILE__, __LINE__, "Too many constants in this module.");
+  if (self->constants->cap > MODULE_CONSTANTS_MAX) {
+    fprintf(stderr, "Too many constants\n");
+    exit(1);
   }
 
-  u64 hash = value;
-  if (GAB_VAL_IS_STRING(value))
-    hash = GAB_VAL_TO_STRING(value)->hash;
-  else if (GAB_VAL_IS_SHAPE(value))
-    hash = GAB_VAL_TO_SHAPE(value)->hash;
+  d_gab_value_insert(self->constants, value, 0);
 
-  d_u64_insert(self->constants, value, GAB_VAL_NULL(), hash);
-
-  u64 val = d_u64_index_of(self->constants, value, hash);
+  u64 val = d_gab_value_index_of(self->constants, value);
 
   return val;
 }
 
-gab_obj_string *gab_engine_find_string(gab_engine *self, s_u8_ref str,
-                                       u64 hash) {
-  if (self->constants->size == 0)
+gab_obj_string *gab_engine_find_string(gab_engine *self, s_i8 str, u64 hash) {
+  if (self->constants->len == 0)
     return NULL;
 
-  u64 index = hash & (self->constants->capacity - 1);
+  u64 index = hash & (self->constants->cap - 1);
 
   for (;;) {
-    u64 key = v_u64_val_at(&self->constants->keys, index);
-    u64 value = v_u64_val_at(&self->constants->values, index);
+    gab_value key = d_gab_value_ikey(self->constants, index);
+    d_status status = d_gab_value_istatus(self->constants, index);
 
-    if (GAB_VAL_IS_UNDEFINED(key)) {
-      if (GAB_VAL_IS_NULL(value))
-        return NULL;
+    if (status != D_FULL) {
+      return NULL;
     } else if (GAB_VAL_IS_STRING(key)) {
       gab_obj_string *str_key = GAB_VAL_TO_STRING(key);
       if (str_key->hash == hash &&
-          s_u8_ref_match(str, gab_obj_string_ref(str_key))) {
+          s_i8_match(str, gab_obj_string_ref(str_key))) {
         return str_key;
       }
     }
 
-    index = (index + 1) & (self->constants->capacity - 1);
+    index = (index + 1) & (self->constants->cap - 1);
   }
 }
 
@@ -178,13 +174,13 @@ static inline boolean shape_matches_keys(gab_obj_shape *self,
                                          gab_value values[], u64 size,
                                          u64 stride) {
 
-  if (self->properties.size != size) {
+  if (self->properties.len != size) {
     return false;
   }
 
   for (u64 i = 0; i < size; i++) {
     gab_value key = values[i * stride];
-    if (!d_u64_has_key(&self->properties, key, key)) {
+    if (!d_u64_exists(&self->properties, key)) {
       return false;
     }
   }
@@ -195,19 +191,17 @@ static inline boolean shape_matches_keys(gab_obj_shape *self,
 gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size,
                                      gab_value values[size], u64 stride,
                                      u64 hash) {
-  if (self->constants->size == 0)
+  if (self->constants->len == 0)
     return NULL;
 
-  u64 index = hash & (self->constants->capacity - 1);
+  u64 index = hash & (self->constants->cap - 1);
 
   for (;;) {
-    u64 key = v_u64_val_at(&self->constants->keys, index);
-    u64 value = v_u64_val_at(&self->constants->values, index);
+    gab_value key = d_gab_value_ikey(self->constants, index);
+    d_status status = d_gab_value_istatus(self->constants, index);
 
-    if (GAB_VAL_IS_UNDEFINED(key)) {
-      if (GAB_VAL_IS_NULL(value)) {
-        return NULL;
-      }
+    if (status != D_FULL) {
+      return NULL;
     } else if (GAB_VAL_IS_SHAPE(key)) {
       gab_obj_shape *shape_key = GAB_VAL_TO_SHAPE(key);
       if (shape_key->hash == hash &&
@@ -216,6 +210,6 @@ gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size,
       }
     }
 
-    index = (index + 1) & (self->constants->capacity - 1);
+    index = (index + 1) & (self->constants->cap - 1);
   }
 }

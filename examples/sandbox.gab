@@ -1,14 +1,15 @@
-let i = 10
 
-def HTTP {
-    get: 1
-}
+let test = null
 
-def testUpvalue() do 
-  i = 2
-  HTTP
+do
+  let i = 0
+  test = || => (i = i + 1)
 end
 
-!print(testUpvalue())
+do
+  let i = "HI"
+end
 
-!print(i)
+test():!print()
+test():!print()
+test():!print()

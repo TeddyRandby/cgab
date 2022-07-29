@@ -1,17 +1,17 @@
 #include "lexer.h"
-#include "char.h"
+#include "../../core/char.h"
 #include <stdio.h>
 
 static void cursor_advance(gab_lexer *self) {
   self->cursor++;
   self->col++;
-  self->current_token_src.size++;
-  self->current_row_src.size++;
+  self->current_token_src.len++;
+  self->current_row_src.len++;
 }
 
 static void start_row(gab_lexer *self) {
   self->current_row_src.data = self->cursor;
-  self->current_row_src.size = 0;
+  self->current_row_src.len = 0;
   self->col = 0;
   self->row++;
   self->previous_row = self->current_row;
@@ -19,7 +19,7 @@ static void start_row(gab_lexer *self) {
 
 static void start_token(gab_lexer *self) {
   self->current_token_src.data = self->cursor;
-  self->current_token_src.size = 0;
+  self->current_token_src.len = 0;
 }
 
 static void finish_row(gab_lexer *self) {
@@ -27,12 +27,12 @@ static void finish_row(gab_lexer *self) {
 
   self->previous_row_src = self->current_row_src;
   // Skip the newline at the end of the row.
-  self->previous_row_src.size--;
-  v_s_u8_ref_push(self->source_lines, self->previous_row_src);
+  self->previous_row_src.len--;
+  v_s_i8_push(self->source_lines, self->previous_row_src);
   start_row(self);
 }
 
-void gab_lexer_create(gab_lexer *self, s_u8_ref src) {
+void gab_lexer_create(gab_lexer *self, s_i8 src) {
   self->source = src;
   self->cursor = src.data;
   self->row_start = src.data;
@@ -43,8 +43,8 @@ void gab_lexer_create(gab_lexer *self, s_u8_ref src) {
   self->row = 0;
   self->col = 0;
 
-  self->source_lines = CREATE_STRUCT(v_s_u8_ref);
-  v_s_u8_ref_create(self->source_lines);
+  self->source_lines = NEW(v_s_i8);
+  v_s_i8_create(self->source_lines, 8);
   start_row(self);
 }
 
@@ -57,6 +57,91 @@ gab_token return_error(gab_lexer *self, const char *msg) {
   return TOKEN_ERROR;
 }
 
+typedef struct keyword {
+  const char *literal;
+  gab_token token;
+} keyword;
+
+const keyword keywords[] = {{
+                                "and",
+                                TOKEN_AND,
+                            },
+                            {
+
+                                "do",
+                                TOKEN_DO,
+                            },
+                            {
+
+                                "def",
+                                TOKEN_DEF,
+                            },
+                            {
+
+                                "else",
+                                TOKEN_ELSE,
+                            },
+                            {
+                                "end",
+                                TOKEN_END,
+                            },
+                            {
+                                "false",
+                                TOKEN_FALSE,
+                            },
+                            {
+                                "for",
+                                TOKEN_FOR,
+                            },
+                            {
+                                "if",
+                                TOKEN_IF,
+                            },
+                            {
+                                "in",
+                                TOKEN_IN,
+                            },
+                            {
+                                "is",
+                                TOKEN_IS,
+                            },
+                            {
+                                "let",
+                                TOKEN_LET,
+                            },
+                            {
+                                "match",
+                                TOKEN_MATCH,
+                            },
+                            {
+                                "null",
+                                TOKEN_NULL,
+                            },
+                            {
+                                "not",
+                                TOKEN_NOT,
+                            },
+                            {
+                                "or",
+                                TOKEN_OR,
+                            },
+                            {
+                                "return",
+                                TOKEN_RETURN,
+                            },
+                            {
+                                "true",
+                                TOKEN_TRUE,
+                            },
+                            {
+                                "then",
+                                TOKEN_THEN,
+                            },
+                            {
+                                "while",
+                                TOKEN_WHILE,
+                            }};
+
 gab_token identifier(gab_lexer *self) {
   start_token(self);
 
@@ -64,124 +149,15 @@ gab_token identifier(gab_lexer *self) {
     cursor_advance(self);
   }
 
-  switch (self->current_token_src.data[0]) {
-  case 'a': {
-    if (s_u8_ref_match_lit(self->current_token_src, "and")) {
-      return TOKEN_AND;
+  for (i32 i = 0; i < sizeof(keywords) / sizeof(keyword); i++) {
+    keyword k = keywords[i];
+    s_i8 lit = s_i8_create((i8 *)k.literal, strlen(k.literal));
+    if (s_i8_match(self->current_token_src, lit)) {
+      return k.token;
     }
   }
-  case 'd': {
-    if (s_u8_ref_match_lit(self->current_token_src, "do")) {
-      return TOKEN_DO;
-    }
-    if (s_u8_ref_match_lit(self->current_token_src, "def")) {
-      return TOKEN_DEF;
-    }
-  }
-  case 'e': {
-    switch (self->current_token_src.data[1]) {
-    case 'l': {
-      if (s_u8_ref_match_lit(self->current_token_src, "else")) {
-        return TOKEN_ELSE;
-      }
-    }
-    case 'n': {
-      if (s_u8_ref_match_lit(self->current_token_src, "end")) {
-        return TOKEN_END;
-      }
-    }
-    }
-  }
-  case 'f': {
-    switch (self->current_token_src.data[1]) {
-    case 'a': {
-      if (s_u8_ref_match_lit(self->current_token_src, "false")) {
-        return TOKEN_FALSE;
-      }
-    }
-    case 'o': {
-      if (s_u8_ref_match_lit(self->current_token_src, "for")) {
-        return TOKEN_FOR;
-      }
-    }
-    }
-  }
-  case 'i': {
-    switch (self->current_token_src.data[1]) {
-    case 'f': {
-      if (s_u8_ref_match_lit(self->current_token_src, "if")) {
-        return TOKEN_IF;
-      }
-    }
-    case 'n': {
-      if (s_u8_ref_match_lit(self->current_token_src, "in")) {
-        return TOKEN_IN;
-      }
-    }
-    case 's': {
-      if (s_u8_ref_match_lit(self->current_token_src, "is")) {
-        return TOKEN_IS;
-      }
-    }
-    }
-  }
-  case 'l': {
-    if (s_u8_ref_match_lit(self->current_token_src, "let")) {
-      return TOKEN_LET;
-    }
-  }
-  case 'm': {
-    if (s_u8_ref_match_lit(self->current_token_src, "match")) {
-      return TOKEN_MATCH;
-    }
-  }
-  case 'n': {
-    switch (self->current_token_src.data[1]) {
-    case 'u': {
-      if (s_u8_ref_match_lit(self->current_token_src, "null")) {
-        return TOKEN_NULL;
-      }
-    }
-    case 'o': {
-      if (s_u8_ref_match_lit(self->current_token_src, "not")) {
-        return TOKEN_NOT;
-      }
-    }
-    }
-  }
-  case 'o': {
-    if (s_u8_ref_match_lit(self->current_token_src, "or")) {
-      return TOKEN_OR;
-    }
-  }
-  case 'r': {
-    if (s_u8_ref_match_lit(self->current_token_src, "return")) {
-      return TOKEN_RETURN;
-    }
-  }
-  case 't': {
-    switch (self->current_token_src.data[1]) {
-    case 'r': {
-      if (s_u8_ref_match_lit(self->current_token_src, "true")) {
-        return TOKEN_TRUE;
-      }
-    }
-    case 'h': {
-      if (s_u8_ref_match_lit(self->current_token_src, "then")) {
-        return TOKEN_THEN;
-      }
-    }
-    }
-  }
-  case 'w': {
-    if (s_u8_ref_match_lit(self->current_token_src, "while")) {
-      return TOKEN_WHILE;
-    }
-  }
-  default: {
-    return TOKEN_IDENTIFIER;
-  }
-  }
+
+  return TOKEN_IDENTIFIER;
 }
 
 gab_token string(gab_lexer *self) {

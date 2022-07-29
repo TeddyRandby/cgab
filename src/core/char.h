@@ -1,7 +1,7 @@
-#ifndef BLUF_CHAR_H
-#define BLUF_CHAR_H
+#ifndef GAB_CHAR_H
+#define GAB_CHAR_H
 
-#include "../../common/common.h"
+#include "core.h"
 
 boolean is_whitespace(u8 c);
 

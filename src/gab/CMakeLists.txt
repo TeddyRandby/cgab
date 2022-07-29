@@ -9,6 +9,7 @@ target_sources(
   cgab
   PRIVATE
   gab.c
+  log.c
   PUBLIC
   gab.h
 )

@@ -46,7 +46,7 @@ u64 dumpConstantInstruction(gab_module *self, u64 offset) {
                  v_u8_val_at(&self->bytecode, offset + 2);
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   printf("%-16s ", name);
-  gab_val_dump(d_u64_index_key(self->engine->constants, constant));
+  gab_val_dump(d_gab_value_ikey(self->engine->constants, constant));
   printf("\n");
   return offset + 3;
 }
@@ -195,6 +195,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_CALL_16:
   case OP_SPREAD:
   case OP_POP_N:
+  case OP_CLOSE_UPVALUE:
   case OP_STORE_LOCAL:
   case OP_STORE_UPVALUE:
   case OP_POP_STORE_LOCAL:
@@ -208,12 +209,12 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     u16 constant = ((((u16)self->bytecode.data[offset + 1]) << 8) |
                     self->bytecode.data[offset + 2]);
     printf("%-16s ", "OP_CLOSURE");
-    gab_val_dump(v_u64_val_at(&self->engine->constants->keys, constant));
+    gab_val_dump(d_gab_value_ikey(self->engine->constants, constant));
     printf("\n");
     offset += 3;
 
     gab_obj_function *function = GAB_VAL_TO_FUNCTION(
-        v_u64_val_at(&self->engine->constants->keys, constant));
+        d_gab_value_ikey(self->engine->constants, constant));
 
     for (int j = 0; j < function->nupvalues; j++) {
       int isLocal = self->bytecode.data[offset++];
@@ -237,11 +238,11 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   }
 }
 
-void gab_module_dump(gab_module *self, s_u8_ref name) {
+void gab_module_dump(gab_module *self, s_i8 name) {
   if (self) {
-    printf("     %.*s\n", (int)name.size, name.data);
+    printf("     %.*s\n", (int)name.len, name.data);
     u64 offset = 0;
-    while (offset < self->bytecode.size) {
+    while (offset < self->bytecode.len) {
       printf("%04lu ", offset);
       offset = dumpInstruction(self, offset);
     }
@@ -257,7 +258,7 @@ void gab_obj_dump(gab_value value) {
   }
   case OBJECT_FUNCTION: {
     gab_obj_function *obj = GAB_VAL_TO_FUNCTION(value);
-    printf("[function:%.*s]", (i32)obj->name.size, obj->name.data);
+    printf("[function:%.*s]", (i32)obj->name.len, obj->name.data);
     break;
   }
   case OBJECT_SHAPE: {
@@ -265,13 +266,13 @@ void gab_obj_dump(gab_value value) {
     if (shape->name.data == NULL) {
       printf("[shape:anonymous]");
     } else {
-      printf("[shape:%.*s]", (i32)shape->name.size, shape->name.data);
+      printf("[shape:%.*s]", (i32)shape->name.len, shape->name.data);
     }
     break;
   }
   case OBJECT_CLOSURE: {
     gab_obj_closure *obj = GAB_VAL_TO_CLOSURE(value);
-    printf("[closure:%.*s]", (i32)obj->func->name.size,
+    printf("[closure:%.*s]", (i32)obj->func->name.len,
            (char *)obj->func->name.data);
     break;
   }
@@ -287,14 +288,14 @@ void gab_obj_dump(gab_value value) {
     if (obj->shape->name.data == NULL) {
       printf("[object:anonymous %p]", obj);
     } else {
-      printf("[object:%.*s %p]", (i32)obj->shape->name.size,
+      printf("[object:%.*s %p]", (i32)obj->shape->name.len,
              obj->shape->name.data, obj);
     }
     break;
   }
   case OBJECT_BUILTIN: {
     gab_obj_builtin *obj = GAB_VAL_TO_BUILTIN(value);
-    printf("[builtin:%.*s]", (i32)obj->name.size, obj->name.data);
+    printf("[builtin:%.*s]", (i32)obj->name.len, obj->name.data);
     break;
   }
   default:
@@ -317,29 +318,29 @@ void gab_val_dump(gab_value self) {
 void dump_compile_error(gab_compiler *compiler, const char *msg) {
   gab_compile_frame *frame = &compiler->frames[compiler->frame_count - 1];
 
-  s_u8_ref curr_token = compiler->lex.previous_token_src;
+  s_i8 curr_token = compiler->lex.previous_token_src;
 
   u64 curr_src_index = compiler->line - 1;
 
-  s_u8_ref curr_src;
-  if (curr_src_index < compiler->lex.source_lines->size) {
-    curr_src = v_s_u8_ref_val_at(compiler->lex.source_lines, curr_src_index);
+  s_i8 curr_src;
+  if (curr_src_index < compiler->lex.source_lines->len) {
+    curr_src = v_s_i8_val_at(compiler->lex.source_lines, curr_src_index);
   } else {
-    curr_src = s_u8_ref_create_cstr("");
+    curr_src = s_i8_cstr("");
   }
 
-  s_u8_ref func_name = frame->locals_name[0];
+  s_i8 func_name = frame->locals_name[0];
 
-  s_u8 *curr_under = s_u8_create_empty(curr_src.size);
+  a_i8 *curr_under = a_i8_empty(curr_src.len);
 
-  u8 *tok_start, *tok_end;
+  i8 *tok_start, *tok_end;
 
   tok_start = curr_token.data;
-  tok_end = curr_token.data + curr_token.size;
+  tok_end = curr_token.data + curr_token.len;
 
   const char *tok = gab_token_names[compiler->previous_token];
 
-  for (u8 i = 0; i < curr_under->size; i++) {
+  for (u8 i = 0; i < curr_under->len; i++) {
     if (curr_src.data + i >= tok_start && curr_src.data + i < tok_end)
       curr_under->data[i] = '^';
     else
@@ -357,11 +358,11 @@ void dump_compile_error(gab_compiler *compiler, const char *msg) {
           "%s" ANSI_COLOR_RESET "\n\t%s%s %.4lu " ANSI_COLOR_RESET "%.*s"
           "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
           "\n\t\u2570\u2500> ",
-          (i32)func_name.size, func_name.data, compiler->line, tok, curr_box,
-          curr_color, curr_src_index + 1, (i32)curr_src.size, curr_src.data,
-          (i32)curr_under->size, curr_under->data);
+          (i32)func_name.len, func_name.data, compiler->line, tok, curr_box,
+          curr_color, curr_src_index + 1, (i32)curr_src.len, curr_src.data,
+          (i32)curr_under->len, curr_under->data);
 
-  s_u8_destroy(curr_under);
+  a_i8_destroy(curr_under);
 
   fprintf(stderr, ANSI_COLOR_YELLOW "%s.\n" ANSI_COLOR_RESET, msg);
 }
@@ -373,14 +374,14 @@ void dump_run_error(gab_vm *vm, const char *msg) {
   while (frame <= vm->frame) {
     gab_module *mod = frame->closure->func->module;
 
-    s_u8_ref func_name = frame->closure->func->name;
+    s_i8 func_name = frame->closure->func->name;
 
     u64 offset = frame->ip - mod->bytecode.data - 1;
 
     u64 curr_row = v_u64_val_at(&mod->lines, offset);
 
     // Row numbers start at one, so the index is one less.
-    s_u8_ref curr_src = v_s_u8_ref_val_at(mod->source_lines, curr_row - 1);
+    s_i8 curr_src = v_s_i8_val_at(mod->source_lines, curr_row - 1);
 
     const char *tok = gab_token_names[v_u8_val_at(&mod->tokens, offset)];
 
@@ -392,8 +393,8 @@ void dump_run_error(gab_vm *vm, const char *msg) {
               "\n\t\u256d " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
               "\n\t\u2502"
               "\n\t\u2570\u2500> ",
-              (i32)func_name.size, func_name.data, curr_row, tok, curr_row,
-              (i32)curr_src.size, curr_src.data);
+              (i32)func_name.len, func_name.data, curr_row, tok, curr_row,
+              (i32)curr_src.len, curr_src.data);
 
       fprintf(stderr, ANSI_COLOR_YELLOW "%s.\n" ANSI_COLOR_RESET, msg);
     } else {
@@ -403,8 +404,8 @@ void dump_run_error(gab_vm *vm, const char *msg) {
               "\n\t  " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
               "\n\t"
               "\n",
-              (i32)func_name.size, func_name.data, curr_row, curr_row,
-              (i32)curr_src.size, curr_src.data);
+              (i32)func_name.len, func_name.data, curr_row, curr_row,
+              (i32)curr_src.len, curr_src.data);
     }
 
     frame++;
@@ -425,11 +426,11 @@ void gab_result_dump_error(gab_result *self) {
 };
 
 gab_result *gab_compile_fail(gab_compiler *compiler, const char *msg) {
-  gab_result *self = CREATE_STRUCT(gab_result);
+  gab_result *self = NEW(gab_result);
   self->type = RESULT_COMPILE_FAIL;
 
   // Copy the compiler's state at the point of the error.
-  self->as.compile_fail.compiler = CREATE_STRUCT(gab_compiler);
+  self->as.compile_fail.compiler = NEW(gab_compiler);
   memcpy(self->as.compile_fail.compiler, compiler, sizeof(gab_compiler));
 
   self->as.compile_fail.msg = msg;
@@ -438,17 +439,17 @@ gab_result *gab_compile_fail(gab_compiler *compiler, const char *msg) {
 };
 
 gab_result *gab_compile_success(gab_obj_closure *main) {
-  gab_result *self = CREATE_STRUCT(gab_result);
+  gab_result *self = NEW(gab_result);
   self->type = RESULT_COMPILE_SUCCESS;
   self->as.main = main;
   return self;
 };
 
 gab_result *gab_run_fail(gab_vm *vm, const char *msg) {
-  gab_result *self = CREATE_STRUCT(gab_result);
+  gab_result *self = NEW(gab_result);
   self->type = RESULT_RUN_FAIL;
 
-  self->as.run_fail.vm = CREATE_STRUCT(gab_vm);
+  self->as.run_fail.vm = NEW(gab_vm);
 
   memcpy(self->as.run_fail.vm, vm, sizeof(gab_vm));
 
@@ -460,7 +461,7 @@ gab_result *gab_run_fail(gab_vm *vm, const char *msg) {
 };
 
 gab_result *gab_run_success(gab_value data) {
-  gab_result *self = CREATE_STRUCT(gab_result);
+  gab_result *self = NEW(gab_result);
 
   self->type = RESULT_RUN_SUCCESS;
   self->as.result = data;
@@ -470,14 +471,14 @@ gab_result *gab_run_success(gab_value data) {
 void gab_result_destroy(gab_result *self) {
   switch (self->type) {
   case RESULT_RUN_FAIL:
-    DESTROY_STRUCT(self->as.run_fail.vm);
+    DESTROY(self->as.run_fail.vm);
     break;
   case RESULT_COMPILE_FAIL:
-    DESTROY_STRUCT(self->as.compile_fail.compiler);
+    DESTROY(self->as.compile_fail.compiler);
     break;
   default:
     break;
   }
 
-  DESTROY_STRUCT(self);
+  DESTROY(self);
 };

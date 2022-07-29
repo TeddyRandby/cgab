@@ -27,7 +27,7 @@ struct gab_module {
   /*
     The name of the module
   */
-  s_u8_ref name;
+  s_i8 name;
 
   /*
     The instructions, a contiguous vector of single-byte op-codes and args.
@@ -48,12 +48,12 @@ struct gab_module {
   /*
      A vector of each line of source code.
   */
-  v_s_u8_ref *source_lines;
+  v_s_i8 *source_lines;
 
   /*
      A pointer to the string of source code.
   */
-  s_u8_ref source;
+  s_i8 source;
 
   /*
     The running engine.
@@ -71,7 +71,7 @@ struct gab_module {
 /*
   Creating and destroying modules, from nothing and from a base module.
 */
-gab_module *gab_module_create(gab_module *, s_u8_ref, s_u8_ref);
+gab_module *gab_module_create(gab_module *, s_i8, s_i8);
 
 void gab_module_destroy(gab_module *);
 
@@ -85,7 +85,7 @@ void gab_module_push_short(gab_module *, u16, gab_token, u64);
 
 /* These helpers return the instruction they push. */
 u8 gab_module_push_load_local(gab_module *, u8, gab_token, u64);
-u8 gab_module_push_load_upvalue(gab_module *self, u8, gab_token, u64);
+u8 gab_module_push_load_upvalue(gab_module *self, u8, gab_token, u64, boolean);
 u8 gab_module_push_load_const_upvalue(gab_module *self, u8, gab_token, u64);
 u8 gab_module_push_store_local(gab_module *, u8, gab_token, u64);
 u8 gab_module_push_store_upvalue(gab_module *, u8, gab_token, u64);
@@ -105,5 +105,5 @@ void gab_module_try_patch_vse(gab_module *, u8);
 
   Defined in common/log.c
 */
-void gab_module_dump(gab_module *self, s_u8_ref name);
+void gab_module_dump(gab_module *self, s_i8 name);
 #endif

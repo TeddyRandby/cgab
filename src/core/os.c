@@ -1,12 +1,12 @@
 #include "os.h"
+#include "core.h"
 #include "stdio.h"
-#include "types.h"
 
 #if OS_UNIX
 #include <unistd.h>
 #endif
 
-s_u8 *os_read_file(const char *path) {
+a_i8 *os_read_file(const char *path) {
   FILE *file = fopen(path, "rb");
   if (file == NULL) {
     fprintf(stderr, "Could not open file \"%s\".\n", path);
@@ -17,7 +17,7 @@ s_u8 *os_read_file(const char *path) {
   size_t fileSize = ftell(file);
   rewind(file);
 
-  s_u8 *buffer = s_u8_create_empty(fileSize + 1);
+  a_i8 *buffer = a_i8_empty(fileSize + 1);
 
   if (buffer == NULL) {
     fprintf(stderr, "Not enough memory to read \"%s\".\n", path);
@@ -37,8 +37,8 @@ s_u8 *os_read_file(const char *path) {
 }
 
 #define BUFFER_MAX 1024
-s_u8 *os_read_line() {
-  s_u8 *result = s_u8_create_empty(BUFFER_MAX);
+a_i8 *os_read_line() {
+  a_i8 *result = a_i8_empty(BUFFER_MAX);
 
   if (fgets((char *)result->data, BUFFER_MAX, stdin)) {
     return result;
@@ -47,9 +47,9 @@ s_u8 *os_read_line() {
   return NULL;
 }
 
-s_u8 *os_pwd() {
+a_i8 *os_pwd() {
 #if OS_UNIX
-  s_u8 *result = s_u8_create_empty(BUFFER_MAX);
+  a_i8 *result = a_i8_empty(BUFFER_MAX);
   getcwd((char *)result->data, BUFFER_MAX);
 
   return result;

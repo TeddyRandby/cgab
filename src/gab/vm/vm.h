@@ -41,10 +41,7 @@ struct gab_vm {
   */
   gab_call_frame *frame;
 
-  /*
-    The value stack.
-  */
-  gab_value *stack_top;
+  gab_value *top;
 
   gab_value stack[STACK_MAX];
 

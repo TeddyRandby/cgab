@@ -6,9 +6,9 @@
 typedef struct gab_gc gab_gc;
 
 struct gab_gc {
-  u16 increment_count;
-  u16 decrement_count;
-  u16 root_count;
+  i32 increment_count;
+  i32 decrement_count;
+  i32 root_count;
 
   d_u64 queue;
   d_u64 roots;

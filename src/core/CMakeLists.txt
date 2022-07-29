@@ -7,12 +7,12 @@ target_sources(
   types.h
   os.h
   os.c
-  string.c
-  vector.c
-  dict.c
-  assert.c
-  memory.c
-  log.c
-  common.h
+  array.h
+  slice.h
+  vector.h
+  dict.h
+  core.h
+  char.h
+  char.c
   PUBLIC
 )
