@@ -122,7 +122,7 @@ The object is also useful wherever global state is - like in the REPL!
 ```
 
 ### Iterators
-Right now, iterators in Gab are just normal old Gab functions.
+Right now, iterators in Gab are just normal old Gab closures.
 Here is an example of one to iterate over all the elements in an ordered object:
 
 ```
@@ -163,6 +163,7 @@ The implementation searches for the following, in order:
 There are two modules that have been developed so far:
   - regex
   - socket
+
 They are just simple wrappers for the POSIX regular expressions, and Linux sockets APIs. They are built as part of this project, so a simple `sudo make install` should install the modules alongside Gab.
 
 ### Dependencies

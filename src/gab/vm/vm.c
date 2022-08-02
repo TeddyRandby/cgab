@@ -30,8 +30,7 @@ void dump_stack(gab_engine *gab, gab_value *top, const char *name) {
   printf("---------------\n");
 }
 
-static inline gab_value *trim_return(gab_vm *restrict vm,
-                                     gab_value *restrict from, gab_value *to,
+static inline gab_value *trim_return(gab_vm *vm, gab_value *from, gab_value *to,
                                      u8 have, u8 want) {
   u8 nulls = have == 0;
 
@@ -126,7 +125,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
 #define NEXT()                                                                 \
   ({                                                                           \
     LOG();                                                                     \
-    goto *dispatch_table[*IP()];                                               \
+    goto *dispatch_table[(INSTR() = *IP()++)];                                 \
   })
 
   /*
@@ -149,7 +148,8 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
 #define ENGINE() (eng)
 #define VM() (&ENGINE()->vm)
 #define GC() (&ENGINE()->gc)
-#define FRAME() (VM()->frame)
+#define INSTR() (instr)
+#define FRAME() (frame)
 #define CLOSURE() (FRAME()->closure)
 #define IP() (ip)
 #define TOP() (VM()->top)
@@ -175,7 +175,11 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
 #define READ_CONSTANT (d_gab_value_ikey(ENGINE()->constants, (READ_SHORT)))
 #define READ_STRING (GAB_VAL_TO_STRING(READ_CONSTANT))
 
-#define STORE_FRAME() ({ VM()->frame->ip = IP(); })
+#define STORE_FRAME()                                                          \
+  ({                                                                           \
+    FRAME()->ip = IP();                                                        \
+    VM()->frame = FRAME();                                                     \
+  })
 
 #define LOAD_FRAME()                                                           \
   ({                                                                           \
@@ -189,8 +193,9 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
 
   gab_vm_create(VM());
 
+  register u8 instr;
   register u8 *ip;
-  // register gab_call_frame *frame = VM()->frame;
+  register gab_call_frame *frame = VM()->frame;
   register gab_value *slots = TOP();
 
   PUSH(GAB_VAL_OBJ(main));
@@ -209,7 +214,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       goto complete_call;
 
       CASE_CODE(VARCALL) : {
-        u8 instr = *IP()++;
         u8 addtl = READ_BYTE;
 
         want = READ_BYTE;
@@ -237,10 +241,9 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       CASE_CODE(CALL_14):
       CASE_CODE(CALL_15):
       CASE_CODE(CALL_16): {
-        u8 instr = *IP()++;
         want = READ_BYTE;
 
-        arity = instr - OP_CALL_0;
+        arity = INSTR()- OP_CALL_0;
         callee = PEEK_N(arity - 1);
 
         goto complete_call;
@@ -296,7 +299,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       u8 have, addtl;
 
       CASE_CODE(VARRETURN) : {
-        u8 instr = *IP()++;
         addtl = READ_BYTE;
         have = *TOP() + addtl;
         goto complete_return;
@@ -319,8 +321,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       CASE_CODE(RETURN_14):
       CASE_CODE(RETURN_15):
       CASE_CODE(RETURN_16): {
-        u8 instr = *IP()++;
-        have = instr - OP_RETURN_1 + 1;
+        have = INSTR()- OP_RETURN_1 + 1;
         goto complete_return;
       }
       // clang-format on
@@ -330,10 +331,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       gab_value *from = TOP() - have;
 
       close_upvalue(VM(), FRAME()->slots);
-
-      // gab_value result = POP();
-      // TOP() = FRAME()->slots;
-      // PUSH(result);
 
       TOP() = trim_return(VM(), from, FRAME()->slots, have,
                           FRAME()->expected_results);
@@ -359,7 +356,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       gab_obj_object *obj;
 
       CASE_CODE(GET_INDEX) : {
-        u8 instr = *IP()++;
         prop = PEEK();
         index = PEEK2();
 
@@ -377,7 +373,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       }
 
       CASE_CODE(GET_PROPERTY) : {
-        u8 instr = *IP()++;
         prop = READ_CONSTANT;
         index = PEEK();
 
@@ -416,7 +411,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       gab_obj_object *obj;
 
       CASE_CODE(SET_INDEX) : {
-        u8 instr = *IP()++;
         // Leave these on the stack for now in case we collect.
         value = PEEK();
         prop = PEEK2();
@@ -449,7 +443,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       }
 
       CASE_CODE(SET_PROPERTY) : {
-        u8 instr = *IP()++;
         prop = READ_CONSTANT;
         value = PEEK();
         index = PEEK2();
@@ -505,13 +498,11 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     }
 
     CASE_CODE(CONSTANT) : {
-      u8 instr = *IP()++;
       PUSH(READ_CONSTANT);
       NEXT();
     }
 
     CASE_CODE(NEGATE) : {
-      u8 instr = *IP()++;
       if (!GAB_VAL_IS_NUMBER(PEEK())) {
         STORE_FRAME();
         return gab_run_fail(VM(), "Can only negate numbers.");
@@ -522,73 +513,61 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     }
 
     CASE_CODE(SUBTRACT) : {
-      u8 instr = *IP()++;
       BINARY_OPERATION(GAB_VAL_NUMBER, f64, -);
       NEXT();
     }
 
     CASE_CODE(ADD) : {
-      u8 instr = *IP()++;
       BINARY_OPERATION(GAB_VAL_NUMBER, f64, +);
       NEXT();
     }
 
     CASE_CODE(DIVIDE) : {
-      u8 instr = *IP()++;
       BINARY_OPERATION(GAB_VAL_NUMBER, f64, /);
       NEXT();
     }
 
     CASE_CODE(MODULO) : {
-      u8 instr = *IP()++;
       BINARY_OPERATION(GAB_VAL_NUMBER, u64, %);
       NEXT();
     }
 
     CASE_CODE(MULTIPLY) : {
-      u8 instr = *IP()++;
       BINARY_OPERATION(GAB_VAL_NUMBER, f64, *);
       NEXT();
     }
 
     CASE_CODE(GREATER) : {
-      u8 instr = *IP()++;
       BINARY_OPERATION(GAB_VAL_BOOLEAN, f64, >);
       NEXT();
     }
 
     CASE_CODE(GREATER_EQUAL) : {
-      u8 instr = *IP()++;
       BINARY_OPERATION(GAB_VAL_BOOLEAN, f64, >=);
       NEXT();
     }
 
     CASE_CODE(LESSER) : {
-      u8 instr = *IP()++;
       BINARY_OPERATION(GAB_VAL_BOOLEAN, f64, <);
       NEXT();
     }
 
     CASE_CODE(LESSER_EQUAL) : {
-      u8 instr = *IP()++;
       BINARY_OPERATION(GAB_VAL_BOOLEAN, f64, <=);
       NEXT();
     }
 
     CASE_CODE(BITWISE_AND) : {
-      u8 instr = *IP()++;
       BINARY_OPERATION(GAB_VAL_NUMBER, u64, &);
       NEXT();
     }
 
     CASE_CODE(BITWISE_OR) : {
-      u8 instr = *IP()++;
       BINARY_OPERATION(GAB_VAL_NUMBER, u64, |);
       NEXT();
     }
 
     CASE_CODE(EQUAL) : {
-      u8 instr = *IP()++;
       gab_value a = POP();
       gab_value b = POP();
       PUSH(GAB_VAL_BOOLEAN(a == b));
@@ -596,7 +575,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     }
 
     CASE_CODE(SWAP) : {
-      u8 instr = *IP()++;
       gab_value tmp = PEEK();
       PEEK() = PEEK2();
       PEEK2() = tmp;
@@ -604,14 +582,12 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     }
 
     CASE_CODE(DUP) : {
-      u8 instr = *IP()++;
       gab_value peek = PEEK();
       PUSH(peek);
       NEXT();
     }
 
     CASE_CODE(CONCAT) : {
-      u8 instr = *IP()++;
       if (!GAB_VAL_IS_STRING(PEEK()) + !GAB_VAL_IS_STRING(PEEK2())) {
         STORE_FRAME();
         return gab_run_fail(VM(), "Can only concatenate strings");
@@ -628,7 +604,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     }
 
     CASE_CODE(STRINGIFY) : {
-      u8 instr = *IP()++;
       if (!GAB_VAL_IS_STRING(PEEK())) {
         gab_obj_string *obj = gab_val_to_obj_string(POP(), ENGINE());
 
@@ -638,7 +613,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     }
 
     CASE_CODE(LOGICAL_AND) : {
-      u8 instr = *IP()++;
       u16 offset = READ_SHORT;
       gab_value cond = PEEK();
 
@@ -652,7 +626,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     }
 
     CASE_CODE(LOGICAL_OR) : {
-      u8 instr = *IP()++;
       u16 offset = READ_SHORT;
       gab_value cond = PEEK();
 
@@ -666,32 +639,27 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     }
 
     CASE_CODE(PUSH_NULL) : {
-      u8 instr = *IP()++;
       PUSH(GAB_VAL_NULL());
       NEXT();
     }
 
     CASE_CODE(PUSH_TRUE) : {
-      u8 instr = *IP()++;
       PUSH(GAB_VAL_BOOLEAN(true));
       NEXT();
     }
 
     CASE_CODE(PUSH_FALSE) : {
-      u8 instr = *IP()++;
       PUSH(GAB_VAL_BOOLEAN(false));
       NEXT();
     }
 
     CASE_CODE(NOT) : {
-      u8 instr = *IP()++;
       gab_value val = GAB_VAL_BOOLEAN(gab_val_falsey(POP()));
       PUSH(val);
       NEXT();
     }
 
     CASE_CODE(ASSERT) : {
-      u8 instr = *IP()++;
       if (GAB_VAL_IS_NULL(PEEK())) {
         STORE_FRAME();
         return gab_run_fail(VM(), "Expected value to not be null");
@@ -700,13 +668,11 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     }
 
     CASE_CODE(TYPE) : {
-      u8 instr = *IP()++;
       PEEK() = gab_val_type(ENGINE(), PEEK());
       NEXT();
     }
 
     CASE_CODE(MATCH) : {
-      u8 instr = *IP()++;
       gab_value test = POP();
       gab_value pattern = PEEK();
       if (test == pattern) {
@@ -719,7 +685,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     }
 
     CASE_CODE(SPREAD) : {
-      u8 instr = *IP()++;
       u8 want = READ_BYTE;
 
       gab_value index = POP();
@@ -748,13 +713,11 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     }
 
     CASE_CODE(POP) : {
-      u8 instr = *IP()++;
       DROP();
       NEXT();
     }
 
     CASE_CODE(POP_N) : {
-      u8 instr = *IP()++;
       DROP_N(READ_BYTE);
       NEXT();
     }
@@ -770,8 +733,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     CASE_CODE(LOAD_LOCAL_6):
     CASE_CODE(LOAD_LOCAL_7):
     CASE_CODE(LOAD_LOCAL_8): {
-      u8 instr = *IP()++;
-      PUSH(LOCAL(instr- OP_LOAD_LOCAL_0));
+      PUSH(LOCAL(INSTR()- OP_LOAD_LOCAL_0));
       NEXT();
     }
 
@@ -784,8 +746,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     CASE_CODE(STORE_LOCAL_6):
     CASE_CODE(STORE_LOCAL_7):
     CASE_CODE(STORE_LOCAL_8): {
-      u8 instr = *IP()++;
-      LOCAL(instr - OP_STORE_LOCAL_0) = PEEK();
+      LOCAL(INSTR()- OP_STORE_LOCAL_0) = PEEK();
       NEXT();
     }
 
@@ -798,8 +759,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     CASE_CODE(LOAD_UPVALUE_6) :
     CASE_CODE(LOAD_UPVALUE_7) :
     CASE_CODE(LOAD_UPVALUE_8) : {
-      u8 instr = *IP()++;
-      PUSH(UPVALUE(instr - OP_LOAD_UPVALUE_0));
+      PUSH(UPVALUE(INSTR()- OP_LOAD_UPVALUE_0));
       NEXT();
     }
 
@@ -812,8 +772,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     CASE_CODE(STORE_UPVALUE_6) :
     CASE_CODE(STORE_UPVALUE_7) :
     CASE_CODE(STORE_UPVALUE_8) : {
-      u8 instr = *IP()++;
-      UPVALUE(instr - OP_STORE_UPVALUE_0) = PEEK();
+      UPVALUE(INSTR()- OP_STORE_UPVALUE_0) = PEEK();
       NEXT();
     }
 
@@ -826,104 +785,88 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     CASE_CODE(LOAD_CONST_UPVALUE_6) :
     CASE_CODE(LOAD_CONST_UPVALUE_7) :
     CASE_CODE(LOAD_CONST_UPVALUE_8) : {
-      u8 instr = *IP()++;
-      PUSH(CONST_UPVALUE(instr - OP_LOAD_CONST_UPVALUE_0));
+      PUSH(CONST_UPVALUE(INSTR()- OP_LOAD_CONST_UPVALUE_0));
       NEXT();
     }
     // clang-format on
 
     CASE_CODE(LOAD_LOCAL) : {
-      u8 instr = *IP()++;
       PUSH(LOCAL(READ_BYTE));
       NEXT();
     }
 
     CASE_CODE(STORE_LOCAL) : {
-      u8 instr = *IP()++;
       LOCAL(READ_BYTE) = PEEK();
       NEXT();
     }
 
     CASE_CODE(POP_STORE_LOCAL) : {
-      u8 instr = *IP()++;
       LOCAL(READ_BYTE) = POP();
       NEXT();
     }
 
     CASE_CODE(LOAD_UPVALUE) : {
-      u8 instr = *IP()++;
       PUSH(UPVALUE(READ_BYTE));
       NEXT();
     }
 
     CASE_CODE(LOAD_CONST_UPVALUE) : {
-      u8 instr = *IP()++;
       PUSH(CONST_UPVALUE(READ_BYTE));
       NEXT();
     }
 
     CASE_CODE(STORE_UPVALUE) : {
-      u8 instr = *IP()++;
       UPVALUE(READ_BYTE) = PEEK();
       NEXT();
     }
 
     CASE_CODE(POP_STORE_UPVALUE) : {
-      u8 instr = *IP()++;
       UPVALUE(READ_BYTE) = POP();
       NEXT();
     }
 
     CASE_CODE(CLOSE_UPVALUE) : {
-      u8 instr = *IP()++;
       close_upvalue(VM(), SLOTS() + READ_BYTE);
       NEXT();
     }
 
     CASE_CODE(POP_JUMP_IF_TRUE) : {
-      u8 instr = *IP()++;
       u16 dist = READ_SHORT;
       ip += dist * !gab_val_falsey(POP());
       NEXT();
     }
 
     CASE_CODE(POP_JUMP_IF_FALSE) : {
-      u8 instr = *IP()++;
       u16 dist = READ_SHORT;
       ip += dist * gab_val_falsey(POP());
       NEXT();
     }
 
     CASE_CODE(JUMP_IF_TRUE) : {
-      u8 instr = *IP()++;
       u16 dist = READ_SHORT;
       ip += dist * !gab_val_falsey(PEEK());
       NEXT();
     }
 
     CASE_CODE(JUMP_IF_FALSE) : {
-      u8 instr = *IP()++;
       u16 dist = READ_SHORT;
       ip += dist * gab_val_falsey(PEEK());
       NEXT();
     }
 
     CASE_CODE(JUMP) : {
-      u8 instr = *IP()++;
       u16 dist = READ_SHORT;
       ip += dist;
       NEXT();
     }
 
     CASE_CODE(LOOP) : {
-      u8 instr = *IP()++;
       u16 dist = READ_SHORT;
       ip -= dist;
       NEXT();
     }
 
     CASE_CODE(CLOSURE) : {
-      u8 instr = *IP()++;
       gab_obj_function *func = GAB_VAL_TO_FUNCTION(READ_CONSTANT);
 
       gab_value upvalues[UPVALUE_MAX];
@@ -960,7 +903,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       u8 size;
 
       CASE_CODE(OBJECT_RECORD_DEF) : {
-        u8 instr = *IP()++;
         gab_obj_string *name = READ_STRING;
 
         size = READ_BYTE;
@@ -977,7 +919,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       }
 
       CASE_CODE(OBJECT_RECORD) : {
-        u8 instr = *IP()++;
         size = READ_BYTE;
 
         for (u64 i = 0; i < size * 2; i++) {
@@ -1004,7 +945,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
     }
 
     CASE_CODE(OBJECT_ARRAY) : {
-      u8 instr = *IP()++;
       u8 size = READ_BYTE;
 
       for (u64 i = 0; i < size; i++) {
