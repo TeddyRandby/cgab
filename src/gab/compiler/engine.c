@@ -47,10 +47,6 @@ void gab_destroy(gab_engine *self) {
     self->modules = next;
   }
 
-  // Decrement the std and the constants.
-  gab_engine_val_dref(self, self->std);
-  gab_engine_collect(self);
-
   for (i32 i = 0; i < self->imports->cap; i++) {
     if (d_s_i8_iexists(self->imports, i)) {
       gab_import *import = (gab_import *)d_s_i8_ival(self->imports, i);
@@ -58,13 +54,16 @@ void gab_destroy(gab_engine *self) {
     }
   }
 
-  for (i32 i = 0; i < self->constants->cap; i++) {
+  for (u64 i = 0; i < self->constants->cap; i++) {
     if (d_gab_value_iexists(self->constants, i)) {
       gab_value v = d_gab_value_ikey(self->constants, i);
-      if (GAB_VAL_IS_OBJ(v))
-        gab_obj_destroy(GAB_VAL_TO_OBJ(v), self);
+      gab_engine_val_dref(self, v);
     }
   }
+
+  // Decrement the std and the constants.
+  gab_engine_val_dref(self, self->std);
+  gab_engine_collect(self);
 
   d_u64_destroy(&self->gc.roots);
   d_u64_destroy(&self->gc.queue);

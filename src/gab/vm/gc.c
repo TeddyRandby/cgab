@@ -38,7 +38,7 @@ static inline void queue_destroy(gab_engine *self, gab_obj *obj) {
 
 static inline void trigger_destroy(gab_engine *self) {
   for (i32 i = 0; i < self->gc.queue.cap; i++) {
-    if (d_u64_istatus(&self->gc.queue, i) == D_FULL) {
+    if (d_u64_iexists(&self->gc.queue, i)) {
       gab_value key = d_u64_ikey(&self->gc.queue, i);
       gab_obj_destroy(GAB_VAL_TO_OBJ(key), self);
       d_u64_iremove(&self->gc.queue, i);

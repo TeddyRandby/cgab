@@ -74,7 +74,7 @@ resource resources[] = {
     // Local resources
     {.prefix = "./", .suffix = ".gab", .handler = gab_source_file_handler},
     {.prefix = "./", .suffix = "/mod.gab", .handler = gab_source_file_handler},
-    {.prefix = "./", .suffix = ".so", .handler = gab_shared_object_handler},
+    {.prefix = "./lib", .suffix = ".so", .handler = gab_shared_object_handler},
     // Installed resources
     {.prefix = "/usr/local/lib/gab/",
      .suffix = ".gab",
