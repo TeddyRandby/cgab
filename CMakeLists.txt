@@ -33,6 +33,7 @@ add_executable(gab src/cli/main.c)
 target_link_libraries(cgabregex cgab)
 target_link_libraries(cgabsocket cgab)
 target_link_libraries(gab cgab)
+target_link_libraries(gab ${CMAKE_DL_LIBS})
 
 add_subdirectory(src/core)
 add_subdirectory(src/gab)
