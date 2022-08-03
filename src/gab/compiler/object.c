@@ -38,6 +38,18 @@ gab_obj *gab_obj_create(gab_obj *self, gab_engine *eng, gab_obj_kind k) {
   return self;
 }
 
+void gab_val_dump(gab_value self) {
+  if (GAB_VAL_IS_BOOLEAN(self)) {
+    printf("%s", GAB_VAL_TO_BOOLEAN(self) ? "true" : "false");
+  } else if (GAB_VAL_IS_NUMBER(self)) {
+    printf("%g", GAB_VAL_TO_NUMBER(self));
+  } else if (GAB_VAL_IS_NULL(self)) {
+    printf("null");
+  } else if (GAB_VAL_IS_OBJ(self)) {
+    gab_obj_dump(self);
+  }
+}
+
 /*
   Helpers for converting a gab value to a string object.
 */
@@ -83,6 +95,59 @@ gab_obj_string *gab_obj_to_obj_string(gab_obj *self, gab_engine *eng) {
   default: {
     return gab_obj_string_create(eng, s_i8_cstr("[unknown]"));
   }
+  }
+}
+
+void gab_obj_dump(gab_value value) {
+  switch (GAB_VAL_TO_OBJ(value)->kind) {
+  case OBJECT_STRING: {
+    gab_obj_string *obj = GAB_VAL_TO_STRING(value);
+    printf("%.*s", (i32)obj->size, (const char *)obj->data);
+    break;
+  }
+  case OBJECT_FUNCTION: {
+    gab_obj_function *obj = GAB_VAL_TO_FUNCTION(value);
+    printf("[function:%.*s]", (i32)obj->name.len, obj->name.data);
+    break;
+  }
+  case OBJECT_SHAPE: {
+    gab_obj_shape *shape = GAB_VAL_TO_SHAPE(value);
+    if (shape->name.data == NULL) {
+      printf("[shape:anonymous]");
+    } else {
+      printf("[shape:%.*s]", (i32)shape->name.len, shape->name.data);
+    }
+    break;
+  }
+  case OBJECT_CLOSURE: {
+    gab_obj_closure *obj = GAB_VAL_TO_CLOSURE(value);
+    printf("[closure:%.*s]", (i32)obj->func->name.len,
+           (char *)obj->func->name.data);
+    break;
+  }
+  case OBJECT_UPVALUE: {
+    gab_obj_upvalue *upv = GAB_VAL_TO_UPVALUE(value);
+    printf("[upvalue:");
+    gab_val_dump(*upv->data);
+    printf("]");
+    break;
+  }
+  case OBJECT_OBJECT: {
+    gab_obj_object *obj = GAB_VAL_TO_OBJECT(value);
+    if (obj->shape->name.data == NULL) {
+      printf("[object:anonymous]");
+    } else {
+      printf("[object:%.*s]", (i32)obj->shape->name.len, obj->shape->name.data);
+    }
+    break;
+  }
+  case OBJECT_BUILTIN: {
+    gab_obj_builtin *obj = GAB_VAL_TO_BUILTIN(value);
+    printf("[builtin:%.*s]", (i32)obj->name.len, obj->name.data);
+    break;
+  }
+  default:
+    printf("Uh oh: Unknown type (%d).", GAB_VAL_TO_OBJ(value)->kind);
   }
 }
 

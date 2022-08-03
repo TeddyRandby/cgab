@@ -6,13 +6,13 @@ include(GNUInstallDirs)
 
 add_library(cgab)
 
-add_library(regex SHARED src/lib/regex.c)
-add_library(socket SHARED src/lib/socket.c)
+add_library(cgabregex SHARED src/lib/regex.c)
+add_library(cgabsocket SHARED src/lib/socket.c)
 
 set_target_properties(
   cgab
   PROPERTIES
-  C_STANDARD 17
+  C_STANDARD 23
   VERSION 1
   SOVERSION 1
   PUBLIC_HEADER src/gab/gab.h
@@ -20,9 +20,9 @@ set_target_properties(
 )
 
 set_target_properties(
-  regex socket
+  cgabregex cgabsocket
   PROPERTIES
-  C_STANDARD 17
+  C_STANDARD 23
   VERSION 1
   SOVERSION 1
   POSITION_INDEPENDENT_CODE ON
@@ -30,8 +30,8 @@ set_target_properties(
 
 add_executable(gab src/cli/main.c)
 
-target_link_libraries(regex cgab)
-target_link_libraries(socket cgab)
+target_link_libraries(cgabregex cgab)
+target_link_libraries(cgabsocket cgab)
 target_link_libraries(gab cgab)
 
 add_subdirectory(src/core)
@@ -39,7 +39,7 @@ add_subdirectory(src/gab)
 add_subdirectory(src/cli)
 
 install(
-  TARGETS cgab gab socket regex
+  TARGETS cgab cgabsocket cgabregex gab
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/gab
   PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )

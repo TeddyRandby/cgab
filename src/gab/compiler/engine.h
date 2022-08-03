@@ -13,7 +13,6 @@ void *gab_reallocate(gab_engine *self, void *loc, u64 old_size, u64 new_size);
 /*
   The result type returned by the compiler and vm.
 */
-
 typedef enum gab_result_kind {
   RESULT_COMPILE_FAIL,
   RESULT_COMPILE_SUCCESS,
@@ -30,7 +29,7 @@ typedef struct gab_result {
     gab_value result;
 
     struct {
-      gab_compiler *compiler;
+      gab_bc *compiler;
       const char *msg;
     } compile_fail;
 
@@ -41,7 +40,7 @@ typedef struct gab_result {
   } as;
 } gab_result;
 
-gab_result *gab_compile_fail(gab_compiler *self, const char *msg);
+gab_result *gab_compile_fail(gab_bc *self, const char *msg);
 
 gab_result *gab_run_fail(gab_vm *self, const char *msg);
 
@@ -83,7 +82,6 @@ void gab_import_destroy(gab_import *);
 
 typedef struct gab_engine gab_engine;
 struct gab_engine {
-  // These properties are shared with forked engines.
   /*
     The constant table.
   */
@@ -106,15 +104,8 @@ struct gab_engine {
   */
   gab_value std;
 
-  // These properties are unique per engine.
-  /*
-    A pointer to the vm running this module.
-  */
+  gab_bc bc;
   gab_vm vm;
-
-  /*
-    The gargabe collector for the engine
-  */
   gab_gc gc;
 };
 

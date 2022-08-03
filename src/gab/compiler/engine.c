@@ -1,6 +1,8 @@
 #include "engine.h"
-#include "module.h"
+#include "../vm/vm.h"
 #include <dlfcn.h>
+#include <stdarg.h>
+#include <stdio.h>
 
 gab_engine *gab_create() {
   gab_engine *self = NEW(gab_engine);
@@ -14,11 +16,9 @@ gab_engine *gab_create() {
   self->modules = NULL;
   self->std = GAB_VAL_NULL();
 
-  self->gc = (gab_gc){0};
-  d_u64_create(&self->gc.roots, MODULE_CONSTANTS_MAX);
-  d_u64_create(&self->gc.queue, MODULE_CONSTANTS_MAX);
-
-  self->vm = (gab_vm){0};
+  gab_bc_create(&self->bc);
+  gab_vm_create(&self->vm);
+  gab_gc_create(&self->gc);
 
   return self;
 }
@@ -212,3 +212,179 @@ gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size,
     index = (index + 1) & (self->constants->cap - 1);
   }
 }
+
+#define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_GREEN "\x1b[32m"
+#define ANSI_COLOR_YELLOW "\x1b[33m"
+#define ANSI_COLOR_BLUE "\x1b[34m"
+#define ANSI_COLOR_MAGENTA "\x1b[35m"
+#define ANSI_COLOR_CYAN "\x1b[36m"
+#define ANSI_COLOR_RESET "\x1b[0m"
+
+void dump_compile_error(gab_bc *compiler, const char *msg) {
+  gab_bc_frame *frame = &compiler->frames[compiler->frame_count - 1];
+
+  s_i8 curr_token = compiler->lex.previous_token_src;
+
+  u64 curr_src_index = compiler->line - 1;
+
+  s_i8 curr_src;
+  if (curr_src_index < compiler->lex.source_lines->len) {
+    curr_src = v_s_i8_val_at(compiler->lex.source_lines, curr_src_index);
+  } else {
+    curr_src = s_i8_cstr("");
+  }
+
+  s_i8 func_name = frame->locals_name[0];
+
+  a_i8 *curr_under = a_i8_empty(curr_src.len);
+
+  i8 *tok_start, *tok_end;
+
+  tok_start = curr_token.data;
+  tok_end = curr_token.data + curr_token.len;
+
+  const char *tok = gab_token_names[compiler->previous_token];
+
+  for (u8 i = 0; i < curr_under->len; i++) {
+    if (curr_src.data + i >= tok_start && curr_src.data + i < tok_end)
+      curr_under->data[i] = '^';
+    else
+      curr_under->data[i] = ' ';
+  }
+
+  const char *prev_color = ANSI_COLOR_GREEN;
+  const char *curr_color = ANSI_COLOR_RED;
+
+  const char *curr_box = "\u256d";
+
+  fprintf(stderr,
+          "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET "] line " ANSI_COLOR_RED
+          "%04lu" ANSI_COLOR_RESET ": Error near " ANSI_COLOR_BLUE
+          "%s" ANSI_COLOR_RESET "\n\t%s%s %.4lu " ANSI_COLOR_RESET "%.*s"
+          "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
+          "\n\t\u2570\u2500> ",
+          (i32)func_name.len, func_name.data, compiler->line, tok, curr_box,
+          curr_color, curr_src_index + 1, (i32)curr_src.len, curr_src.data,
+          (i32)curr_under->len, curr_under->data);
+
+  a_i8_destroy(curr_under);
+
+  fprintf(stderr, ANSI_COLOR_YELLOW "%s.\n" ANSI_COLOR_RESET, msg);
+}
+
+void dump_run_error(gab_vm *vm, const char *msg) {
+
+  gab_call_frame *frame = vm->call_stack + 1;
+
+  while (frame <= vm->frame) {
+    gab_module *mod = frame->closure->func->module;
+
+    s_i8 func_name = frame->closure->func->name;
+
+    u64 offset = frame->ip - mod->bytecode.data - 1;
+
+    u64 curr_row = v_u64_val_at(&mod->lines, offset);
+
+    // Row numbers start at one, so the index is one less.
+    s_i8 curr_src = v_s_i8_val_at(mod->source_lines, curr_row - 1);
+
+    const char *tok = gab_token_names[v_u8_val_at(&mod->tokens, offset)];
+
+    if (frame == vm->frame) {
+      fprintf(stderr,
+              "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET
+              "] line: " ANSI_COLOR_RED "%04lu" ANSI_COLOR_RESET
+              " Error near " ANSI_COLOR_BLUE "%s" ANSI_COLOR_RESET
+              "\n\t\u256d " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
+              "\n\t\u2502"
+              "\n\t\u2570\u2500> ",
+              (i32)func_name.len, func_name.data, curr_row, tok, curr_row,
+              (i32)curr_src.len, curr_src.data);
+
+      fprintf(stderr, ANSI_COLOR_YELLOW "%s.\n" ANSI_COLOR_RESET, msg);
+    } else {
+      fprintf(stderr,
+              "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET
+              "] line: " ANSI_COLOR_RED "%04lu" ANSI_COLOR_RESET " Called from"
+              "\n\t  " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
+              "\n\t"
+              "\n",
+              (i32)func_name.len, func_name.data, curr_row, curr_row,
+              (i32)curr_src.len, curr_src.data);
+    }
+
+    frame++;
+  }
+}
+
+boolean gab_result_has_error(gab_result *self) {
+  return self->type == RESULT_COMPILE_FAIL || self->type == RESULT_RUN_FAIL;
+};
+
+void gab_result_dump_error(gab_result *self) {
+  if (self->type == RESULT_COMPILE_FAIL) {
+    dump_compile_error(self->as.compile_fail.compiler,
+                       self->as.compile_fail.msg);
+  } else if (self->type == RESULT_RUN_FAIL) {
+    dump_run_error(self->as.run_fail.vm, self->as.run_fail.msg);
+  }
+};
+
+gab_result *gab_compile_fail(gab_bc *compiler, const char *msg) {
+  gab_result *self = NEW(gab_result);
+  self->type = RESULT_COMPILE_FAIL;
+
+  // Copy the compiler's state at the point of the error.
+  self->as.compile_fail.compiler = NEW(gab_bc);
+  memcpy(self->as.compile_fail.compiler, compiler, sizeof(gab_bc));
+
+  self->as.compile_fail.msg = msg;
+
+  return self;
+};
+
+gab_result *gab_compile_success(gab_obj_closure *main) {
+  gab_result *self = NEW(gab_result);
+  self->type = RESULT_COMPILE_SUCCESS;
+  self->as.main = main;
+  return self;
+};
+
+gab_result *gab_run_fail(gab_vm *vm, const char *msg) {
+  gab_result *self = NEW(gab_result);
+  self->type = RESULT_RUN_FAIL;
+
+  self->as.run_fail.vm = NEW(gab_vm);
+
+  memcpy(self->as.run_fail.vm, vm, sizeof(gab_vm));
+
+  self->as.run_fail.vm->frame =
+      self->as.run_fail.vm->call_stack + (vm->frame - vm->call_stack);
+
+  self->as.run_fail.msg = msg;
+  return self;
+};
+
+gab_result *gab_run_success(gab_value data) {
+  gab_result *self = NEW(gab_result);
+
+  self->type = RESULT_RUN_SUCCESS;
+  self->as.result = data;
+  return self;
+};
+
+void gab_result_destroy(gab_result *self) {
+  switch (self->type) {
+  case RESULT_RUN_FAIL:
+    DESTROY(self->as.run_fail.vm);
+    break;
+  case RESULT_COMPILE_FAIL:
+    DESTROY(self->as.compile_fail.compiler);
+    break;
+  default:
+    break;
+  }
+
+  DESTROY(self);
+};

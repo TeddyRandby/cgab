@@ -24,14 +24,8 @@ typedef enum gab_variable_flag {
   FLAG_LOCAL = 1 << 2,
 } gab_variable_flag;
 
-typedef struct gab_compile_frame gab_compile_frame;
-struct gab_compile_frame {
-
-  u16 deepest_local;
-
-  u16 local_count;
-
-  u16 upv_count;
+typedef struct gab_bc_frame gab_bc_frame;
+struct gab_bc_frame {
 
   s_i8 function_name;
 
@@ -41,13 +35,17 @@ struct gab_compile_frame {
 
   u8 upvs_index[UPVALUE_MAX];
   u8 upvs_flag[UPVALUE_MAX];
+
+  u8 deepest_local;
+  u8 local_count;
+  u8 upv_count;
 };
 
 /*
   State for compiling source code to a gab module.
 */
-typedef struct gab_compiler gab_compiler;
-struct gab_compiler {
+typedef struct gab_bc gab_bc;
+struct gab_bc {
   /*
     State for lexing source code into tokens.
   */
@@ -82,8 +80,10 @@ struct gab_compiler {
 
     The max is an arbitrary chosen number for the maximum function nesting.
   */
-  gab_compile_frame frames[FUNCTION_DEF_NESTING_MAX];
+  gab_bc_frame frames[FUNCTION_DEF_NESTING_MAX];
   u8 frame_count;
 };
+
+void gab_bc_create(gab_bc *self);
 
 #endif

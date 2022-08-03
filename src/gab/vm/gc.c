@@ -1,6 +1,11 @@
 #include "../compiler/engine.h"
 #include <stdio.h>
 
+void gab_gc_create(gab_gc *self) {
+  d_u64_create(&self->roots, MODULE_CONSTANTS_MAX);
+  d_u64_create(&self->queue, MODULE_CONSTANTS_MAX);
+};
+
 void *gab_reallocate(gab_engine *self, void *loc, u64 old_count,
                      u64 new_count) {
   if (new_count == 0) {

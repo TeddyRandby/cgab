@@ -31,3 +31,5 @@ jobs:
         path: |
           build/gab
           build/libcgab.a
+          build/libcgabregex.so
+          build/libcgabsocket.so

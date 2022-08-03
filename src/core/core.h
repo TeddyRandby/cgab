@@ -32,10 +32,10 @@
 #define STACK_MAX (FRAMES_MAX * 256)
 
 // Not configurable, just constants
-// Maximum index of a local.
-#define LOCAL_MAX 256
-// Maximum index of an upvalues.
-#define UPVALUE_MAX 256
+// Maximum value of a local.
+#define LOCAL_MAX 255
+// Maximum value of an upvalues.
+#define UPVALUE_MAX 255
 // Maximum number of function arguments.
 #define FARG_MAX 16
 // Maximum number of function return values.

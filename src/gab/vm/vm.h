@@ -51,4 +51,6 @@ struct gab_vm {
   gab_call_frame call_stack[FRAMES_MAX];
 };
 
+void gab_vm_create(gab_vm *);
+
 #endif
