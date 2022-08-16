@@ -1,6 +1,7 @@
 #include "engine.h"
 #include "../vm/vm.h"
 #include <dlfcn.h>
+#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -20,6 +21,11 @@ gab_engine *gab_create() {
   gab_vm_create(&self->vm);
   gab_gc_create(&self->gc);
 
+  self->owning = true;
+
+  pthread_mutexattr_t attr;
+  pthread_mutex_init(&self->lock, &attr);
+
   return self;
 }
 
@@ -36,50 +42,51 @@ gab_engine *gab_create_fork(gab_engine *parent) {
   d_u64_create(&self->gc.queue, MODULE_CONSTANTS_MAX);
 
   self->vm = (gab_vm){0};
+
+  self->owning = false;
+
+  pthread_mutexattr_t attr;
+  pthread_mutex_init(&self->lock, &attr);
   return self;
 };
 
 void gab_destroy(gab_engine *self) {
-  // Walk the linked list of modules and clean them up.
-  while (self->modules != NULL) {
-    gab_module *next = self->modules->next;
-    gab_module_destroy(self->modules);
-    self->modules = next;
-  }
-
-  for (i32 i = 0; i < self->imports->cap; i++) {
-    if (d_s_i8_iexists(self->imports, i)) {
-      gab_import *import = (gab_import *)d_s_i8_ival(self->imports, i);
-      gab_import_destroy(import);
+  if (self->owning) {
+    // Walk the linked list of modules and clean them up.
+    while (self->modules != NULL) {
+      gab_module *next = self->modules->next;
+      gab_module_destroy(self->modules);
+      self->modules = next;
     }
-  }
 
-  for (u64 i = 0; i < self->constants->cap; i++) {
-    if (d_gab_value_iexists(self->constants, i)) {
-      gab_value v = d_gab_value_ikey(self->constants, i);
-      gab_engine_val_dref(self, v);
+    for (i32 i = 0; i < self->imports->cap; i++) {
+      if (d_s_i8_iexists(self->imports, i)) {
+        gab_import *import = (gab_import *)d_s_i8_ival(self->imports, i);
+        gab_import_destroy(import);
+      }
     }
+
+    for (u64 i = 0; i < self->constants->cap; i++) {
+      if (d_gab_value_iexists(self->constants, i)) {
+        gab_value v = d_gab_value_ikey(self->constants, i);
+        gab_engine_val_dref(self, v);
+      }
+    }
+
+    gab_engine_val_dref(self, self->std);
   }
 
-  // Decrement the std and the constants.
-  gab_engine_val_dref(self, self->std);
   gab_engine_collect(self);
 
   d_u64_destroy(&self->gc.roots);
   d_u64_destroy(&self->gc.queue);
 
-  d_gab_value_destroy(self->constants);
-  d_s_i8_destroy(self->imports);
+  pthread_mutex_destroy(&self->lock);
 
-  DESTROY(self);
-}
-
-void gab_destroy_fork(gab_engine *self) {
-  // Collect one last time.
-  gab_engine_collect(self);
-
-  d_u64_destroy(&self->gc.roots);
-  d_u64_destroy(&self->gc.queue);
+  if (self->owning) {
+    d_gab_value_destroy(self->constants);
+    d_s_i8_destroy(self->imports);
+  }
 
   DESTROY(self);
 }

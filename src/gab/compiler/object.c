@@ -110,19 +110,12 @@ void gab_obj_dump(gab_value value) {
     printf("[function:%.*s]", (i32)obj->name.len, obj->name.data);
     break;
   }
-  case OBJECT_SHAPE: {
-    gab_obj_shape *shape = GAB_VAL_TO_SHAPE(value);
-    if (shape->name.data == NULL) {
-      printf("[shape:anonymous]");
-    } else {
-      printf("[shape:%.*s]", (i32)shape->name.len, shape->name.data);
-    }
-    break;
-  }
   case OBJECT_CLOSURE: {
     gab_obj_closure *obj = GAB_VAL_TO_CLOSURE(value);
-    printf("[closure:%.*s]", (i32)obj->func->name.len,
-           (char *)obj->func->name.data);
+    printf("[closure");
+    if (obj->func->name.len > 0)
+      printf(":%.*s", (i32)obj->func->name.len, (char *)obj->func->name.data);
+    printf("]");
     break;
   }
   case OBJECT_UPVALUE: {
@@ -132,13 +125,20 @@ void gab_obj_dump(gab_value value) {
     printf("]");
     break;
   }
+  case OBJECT_SHAPE: {
+    gab_obj_shape *shape = GAB_VAL_TO_SHAPE(value);
+    printf("[shape");
+    if (shape->name.len > 0)
+      printf(":%.*s", (i32)shape->name.len, shape->name.data);
+    printf("]");
+    break;
+  }
   case OBJECT_OBJECT: {
     gab_obj_object *obj = GAB_VAL_TO_OBJECT(value);
-    if (obj->shape->name.data == NULL) {
-      printf("[object:anonymous]");
-    } else {
-      printf("[object:%.*s]", (i32)obj->shape->name.len, obj->shape->name.data);
-    }
+    printf("[object");
+    if (obj->shape->name.len > 0)
+      printf(":%.*s", (i32)obj->shape->name.len, obj->shape->name.data);
+    printf("]");
     break;
   }
   case OBJECT_BUILTIN: {

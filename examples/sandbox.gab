@@ -1,15 +1,1 @@
-
-let test = null
-
-do
-  let i = 0
-  test = || => (i = i + 1)
-end
-
-do
-  let i = "HI"
-end
-
-test():!print()
-test():!print()
-test():!print()
+!print('😿')

@@ -158,5 +158,5 @@ gab_value gab_mod(gab_engine *gab) {
                                GAB_BUILTIN(recv, 1),    GAB_BUILTIN(send, 2),
                                GAB_BUILTIN(connect, 3), GAB_BUILTIN(close, 1)};
 
-  return gab_bundle(gab, GAB_KVPSIZE(socket_kvps), socket_kvps);
+  return gab_bundle(gab, GAB_BUNDLESIZE(socket_kvps), socket_kvps);
 }

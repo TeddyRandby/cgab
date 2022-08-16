@@ -4,6 +4,8 @@
 #include "../vm/vm.h"
 #include "compiler.h"
 
+#include <pthread.h>
+
 #if GAB_LOG_GC
 #include <stdio.h>
 #endif
@@ -11,7 +13,7 @@
 void *gab_reallocate(gab_engine *self, void *loc, u64 old_size, u64 new_size);
 
 /*
-  The result type returned by the compiler and vm.
+   -------------========= RESULTS =========-------------
 */
 typedef enum gab_result_kind {
   RESULT_COMPILE_FAIL,
@@ -54,6 +56,9 @@ void gab_result_dump_error(gab_result *self);
 
 void gab_result_destroy(gab_result *self);
 
+/*
+   -------------========= IMPORTS =========-------------
+*/
 typedef enum gab_import_kind {
   IMPORT_SHARED,
   IMPORT_SOURCE,
@@ -104,10 +109,19 @@ struct gab_engine {
   */
   gab_value std;
 
+  // The engine lock required in order to operate on the shared properties.
+  pthread_mutex_t lock;
+
+  // Per Engine
   gab_bc bc;
   gab_vm vm;
   gab_gc gc;
+  boolean owning;
 };
+
+i32 gab_engine_lock(gab_engine*);
+
+i32 gab_engine_unlock(gab_engine*);
 
 gab_obj_string *gab_engine_find_string(gab_engine *, s_i8, u64);
 

@@ -54,7 +54,7 @@ gab_value gab_source_file_handler(gab_engine *eng, const a_i8 *path,
     gab_result_dump_error(result);
 
     gab_result_destroy(result);
-    gab_destroy_fork(fork);
+    gab_destroy(fork);
     return GAB_VAL_NULL();
   }
 
@@ -65,7 +65,7 @@ gab_value gab_source_file_handler(gab_engine *eng, const a_i8 *path,
   gab_engine_add_import(eng, import, module);
 
   gab_result_destroy(result);
-  gab_destroy_fork(fork);
+  gab_destroy(fork);
 
   return val;
 }
@@ -163,7 +163,7 @@ void bind_std(gab_engine *gab) {
       GAB_BUILTIN(require, 1),
   };
 
-  gab_bind_library(gab, GAB_KVPSIZE(builtins), builtins);
+  gab_bind_library(gab, GAB_BUNDLESIZE(builtins), builtins);
 }
 
 void gab_repl() {

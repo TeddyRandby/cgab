@@ -11,9 +11,12 @@
 */
 gab_engine *gab_create();
 
-gab_engine *gab_create_fork(gab_engine *gab);
+/*
+  Create a Gab Engine, forking from a parent engine.
 
-void gab_destroy_fork(gab_engine *fork);
+  @return The allocated Gab Engine.
+*/
+gab_engine *gab_create_fork(gab_engine *gab);
 
 /*
   Cleanup a Gab Engine. Also cleans up all the modules which have been compiled
@@ -42,7 +45,7 @@ typedef struct gab_lib_kvp {
         gab, sizeof(name##_kvps) / sizeof(gab_lib_kvp), name##_kvps))          \
   }
 
-#define GAB_KVPSIZE(kvps) (sizeof(kvps) / sizeof(gab_lib_kvp))
+#define GAB_BUNDLESIZE(kvps) (sizeof(kvps) / sizeof(gab_lib_kvp))
 
 /*
    Bundle a list of KVPS into a Gab object.

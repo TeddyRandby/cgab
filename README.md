@@ -172,11 +172,10 @@ libc is the only dependency for the language
 
 ### Whats coming up (in no particular order):
 
- - [ ] Decorators
  - [ ] Concurrency
  - [ ] Unicode Support
  - [ ] More syntax sugar in definitions
  - [ ] Symbols
- - [ ] Finalize c api and documentation
  - [ ] Pretty Printing for objects
  - [ ] Windows support
+ - [ ] Finalize c api and documentation

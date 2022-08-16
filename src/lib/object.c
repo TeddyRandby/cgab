@@ -1,4 +1,4 @@
-#include "lib.h"
+#include "../gab/gab.h"
 
 gab_value gab_lib_keys(gab_engine *eng, gab_value *argv, u8 argc) {
   if (!GAB_VAL_IS_OBJECT(argv[0])) {
@@ -7,7 +7,7 @@ gab_value gab_lib_keys(gab_engine *eng, gab_value *argv, u8 argc) {
 
   gab_obj_object *obj = GAB_VAL_TO_OBJECT(argv[0]);
 
-  u64 size = obj->is_dynamic ? obj->dynamic_values.size : obj->static_size;
+  u64 size = obj->is_dynamic ? obj->dynamic_values.len: obj->static_size;
 
   gab_obj_shape *shape = gab_obj_shape_create_array(eng, size);
 
@@ -40,7 +40,7 @@ gab_value gab_lib_slice(gab_engine *eng, gab_value *argv, u8 argc) {
       return GAB_VAL_NULL();
     }
 
-    s_u8_ref result = s_u8_ref_create(src->data + offset, size);
+    s_i8 result = s_i8_create(src->data + offset, size);
 
     return GAB_VAL_OBJ(gab_obj_string_create(eng, result));
   }
@@ -54,7 +54,7 @@ gab_value gab_lib_len(gab_engine *eng, gab_value *argv, u8 argc) {
   if (GAB_VAL_IS_OBJECT(argv[0])) {
     gab_obj_object *obj = GAB_VAL_TO_OBJECT(argv[0]);
 
-    return GAB_VAL_NUMBER(obj->is_dynamic ? obj->dynamic_values.size
+    return GAB_VAL_NUMBER(obj->is_dynamic ? obj->dynamic_values.len
                                           : obj->static_size);
   }
 
@@ -79,7 +79,7 @@ gab_value gab_lib_push(gab_engine *eng, gab_value *argv, u8 argc) {
   gab_obj_object *obj = GAB_VAL_TO_OBJECT(argv[0]);
 
   for (u8 i = 1; i < argc; i++) {
-    u64 index = obj->is_dynamic ? obj->dynamic_values.size : obj->static_size;
+    u64 index = obj->is_dynamic ? obj->dynamic_values.len : obj->static_size;
     gab_obj_object_insert(obj, eng, GAB_VAL_NUMBER(index), argv[i]);
   }
 

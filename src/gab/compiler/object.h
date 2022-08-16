@@ -1,5 +1,5 @@
-#ifndef BLUF_OBJECT_H
-#define BLUF_OBJECT_H
+#ifndef GAB_OBJECT_H
+#define GAB_OBJECT_H
 
 #include "../../core/core.h"
 #include "value.h"

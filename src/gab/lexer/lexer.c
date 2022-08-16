@@ -44,7 +44,8 @@ void gab_lexer_create(gab_lexer *self, s_i8 src) {
   self->col = 0;
 
   self->source_lines = NEW(v_s_i8);
-  v_s_i8_create(self->source_lines, 8);
+  v_s_i8_create(self->source_lines, 16);
+
   start_row(self);
 }
 
