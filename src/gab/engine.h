@@ -1,7 +1,7 @@
 #ifndef GAB_ENGINE_H
 #define GAB_ENGINE_H
 
-#include "../vm/vm.h"
+#include "vm.h"
 #include "compiler.h"
 
 #include <pthread.h>
@@ -83,7 +83,7 @@ void gab_import_destroy(gab_import *);
 #define HASH(a) (gab_val_intern_hash(a))
 #define EQUAL(a, b) (a == b)
 #define LOAD DICT_MAX_LOAD
-#include "../../core/dict.h"
+#include "../core/dict.h"
 
 typedef struct gab_engine gab_engine;
 struct gab_engine {

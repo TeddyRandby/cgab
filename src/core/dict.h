@@ -117,7 +117,7 @@ LINKAGE TYPENAME METHOD(create)(TYPENAME *self, u64 cap) {
   self->len = 0;
 }
 
-LINKAGE TYPENAME METHOD(destroy)(TYPENAME *self) { DESTROY(self->buckets); }
+LINKAGE void METHOD(destroy)(TYPENAME *self) { DESTROY(self->buckets); }
 
 LINKAGE u64 METHOD(index_of)(TYPENAME *self, K key) {
   u64 index = HASH(key) & (self->cap - 1);
@@ -126,7 +126,7 @@ LINKAGE u64 METHOD(index_of)(TYPENAME *self, K key) {
   for (;;) {
     BUCKET_T *bucket = self->buckets + index;
     K test_key = bucket->key;
-    V test_val = bucket->val;
+    // V test_val = bucket->val;
 
     switch (bucket->status) {
     case D_TOMBSTONE:
@@ -151,9 +151,6 @@ LINKAGE void METHOD(cap)(TYPENAME *self, u64 cap) {
   self->len = 0;
   for (u64 i = 0; i < self->cap; i++) {
     BUCKET_T *bucket = self->buckets + i;
-    d_status status = self->buckets[i].status;
-    K key = self->buckets[i].key;
-    V val = self->buckets[i].val;
 
     if (!(bucket->status == D_FULL))
       continue;

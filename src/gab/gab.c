@@ -1,5 +1,5 @@
 #include "gab.h"
-#include "compiler/object.h"
+#include "object.h"
 
 gab_value gab_bundle(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]) {
   gab_value keys[size], values[size];

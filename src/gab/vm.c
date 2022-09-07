@@ -1,6 +1,5 @@
-#include "../compiler/engine.h"
+#include "engine.h"
 #include <stdio.h>
-#include <sys/types.h>
 
 void gab_vm_create(gab_vm *self) {
   self->open_upvalues = NULL;
@@ -116,7 +115,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
   */
   static const void *dispatch_table[256] = {
 #define OP_CODE(name) &&code_##name,
-#include "../compiler/bytecode.h"
+#include "bytecode.h"
 #undef OP_CODE
   };
 
@@ -578,12 +577,6 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       gab_value tmp = PEEK();
       PEEK() = PEEK2();
       PEEK2() = tmp;
-      NEXT();
-    }
-
-    CASE_CODE(DUP) : {
-      gab_value peek = PEEK();
-      PUSH(peek);
       NEXT();
     }
 

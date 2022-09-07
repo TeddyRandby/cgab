@@ -1,5 +1,5 @@
 #include "engine.h"
-#include "../vm/vm.h"
+#include "vm.h"
 #include <dlfcn.h>
 #include <pthread.h>
 #include <stdarg.h>

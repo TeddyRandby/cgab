@@ -1,7 +1,7 @@
 #ifndef GAB_OBJECT_H
 #define GAB_OBJECT_H
 
-#include "../../core/core.h"
+#include "../core/core.h"
 #include "value.h"
 
 typedef struct gab_module gab_module;

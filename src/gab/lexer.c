@@ -1,5 +1,5 @@
 #include "lexer.h"
-#include "../../core/char.h"
+#include "../core/char.h"
 #include <stdio.h>
 
 static void cursor_advance(gab_lexer *self) {

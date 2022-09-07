@@ -1,7 +1,7 @@
 #ifndef GAB_GC_H
 #define GAB_GC_H
 
-#include "../compiler/object.h"
+#include "object.h"
 
 typedef struct gab_gc gab_gc;
 struct gab_gc {

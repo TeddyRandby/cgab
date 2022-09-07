@@ -1,7 +1,7 @@
 #ifndef BLUF_COMPILER_H
 #define BLUF_COMPILER_H
 
-#include "../lexer/lexer.h"
+#include "lexer.h"
 #include "module.h"
 
 /*

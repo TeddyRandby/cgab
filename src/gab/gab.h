@@ -1,7 +1,7 @@
 #ifndef GAB_H
 #define GAB_H
 
-#include "compiler/engine.h"
+#include "engine.h"
 
 /*
   Create a Gab Engine. If you want libraries included, build and bind them

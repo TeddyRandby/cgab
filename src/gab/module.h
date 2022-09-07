@@ -1,7 +1,7 @@
 #ifndef GAB_MODULE_H
 #define GAB_MODULE_H
-#include "../lexer/lexer.h"
-#include "../vm/gc.h"
+#include "lexer.h"
+#include "gc.h"
 
 typedef struct gab_module gab_module;
 

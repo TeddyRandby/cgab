@@ -1,7 +1,7 @@
 #ifndef BLUF_LEXER_H
 #define BLUF_LEXER_H
 
-#include "../../core/core.h"
+#include "../core/core.h"
 
 typedef enum gab_token {
 #define TOKEN(name) TOKEN##_##name,

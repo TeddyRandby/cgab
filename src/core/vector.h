@@ -24,7 +24,7 @@ struct TYPENAME {
   u32 cap;
 };
 
-LINKAGE TYPENAME METHOD(create)(TYPENAME *self, u32 cap) {
+LINKAGE void METHOD(create)(TYPENAME *self, u32 cap) {
   self->cap = cap;
   self->len = 0;
   self->data = NEW_ARRAY(T, cap);

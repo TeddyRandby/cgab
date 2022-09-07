@@ -1,6 +1,6 @@
 #ifndef GAB_VALUE_H
 #define GAB_VALUE_H
-#include "../../core/core.h"
+#include "../core/core.h"
 
 // An IEEE 754 double-precision float is a 64-bit value with bits laid out like:
 //

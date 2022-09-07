@@ -1,4 +1,4 @@
-#include "../compiler/engine.h"
+#include "engine.h"
 #include <stdio.h>
 
 void gab_gc_create(gab_gc *self) {
