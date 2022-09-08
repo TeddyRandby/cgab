@@ -1966,6 +1966,9 @@ gab_result *gab_engine_compile(gab_engine *eng, s_i8 name, s_i8 src, u8 flags) {
 
   gab_module *module = gab_engine_add_module(eng, name, src);
 
+  // Reset the bytecode compiler.
+  memset(&eng->bc, 0, sizeof(gab_bc));
+
   gab_obj_closure *main = compile(&eng->bc, module, name);
 
   if (main == NULL) {

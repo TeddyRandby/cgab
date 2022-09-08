@@ -669,7 +669,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
       gab_value test = POP();
       gab_value pattern = PEEK();
       if (test == pattern) {
-        POP();
+        DROP();
         PUSH(GAB_VAL_BOOLEAN(true));
       } else {
         PUSH(GAB_VAL_BOOLEAN(false));

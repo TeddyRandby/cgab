@@ -107,7 +107,7 @@ LINKAGE u64 METHOD(next)(TYPENAME *self, u64 index) {
   return index;
 }
 
-LINKAGE TYPENAME METHOD(create)(TYPENAME *self, u64 cap) {
+LINKAGE void METHOD(create)(TYPENAME *self, u64 cap) {
   assert(cap % 2 == 0);
 
   self->buckets = NEW_ARRAY(BUCKET_T, cap);
