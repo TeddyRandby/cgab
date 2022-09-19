@@ -10,6 +10,7 @@ typedef gab_value (*handler_f)(gab_engine *, const a_i8 *path,
 
 typedef gab_value (*module_f)(gab_engine *);
 
+
 typedef struct {
   handler_f handler;
   const char *prefix;
@@ -18,7 +19,6 @@ typedef struct {
 
 gab_value gab_shared_object_handler(gab_engine *eng, const a_i8 *path,
                                     const s_i8 module) {
-  gab_engine *fork = gab_create_fork(eng);
 
   void *handle = dlopen((char *)path->data, RTLD_LAZY);
 
