@@ -1,7 +1,7 @@
 #include "gab.h"
 #include "object.h"
 
-gab_value gab_bundle(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]) {
+gab_value gab_bundle_kvps(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]) {
   gab_value keys[size], values[size];
 
   for (u64 i = 0; i < size; i++) {
@@ -24,7 +24,7 @@ void gab_bind_library(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]) {
     gab_obj_destroy(GAB_VAL_TO_OBJ(gab->std), gab);
   }
 
-  gab_value std = gab_bundle(gab, size, kvps);
+  gab_value std = gab_bundle_kvps(gab, size, kvps);
   gab->std = std;
 }
 

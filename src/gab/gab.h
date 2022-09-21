@@ -31,26 +31,26 @@ typedef struct gab_lib_kvp {
   gab_value value;
 } gab_lib_kvp;
 
-#define GAB_BUILTIN(name, arity)                                               \
+#define GAB_KVP_BUILTIN(name, arity)                                               \
   {                                                                            \
     .key = #name,                                                              \
     .value =                                                                   \
         GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_##name, #name, arity)) \
   }
 
-#define GAB_BUNDLE(name)                                                       \
+#define GAB_KVP_BUNDLE(name)                                                       \
   {                                                                            \
     .key = #name,                                                              \
     .value = GAB_VAL_OBJ(gab_bundle(                                           \
         gab, sizeof(name##_kvps) / sizeof(gab_lib_kvp), name##_kvps))          \
   }
 
-#define GAB_BUNDLESIZE(kvps) (sizeof(kvps) / sizeof(gab_lib_kvp))
+#define GAB_KVP_BUNDLESIZE(kvps) (sizeof(kvps) / sizeof(gab_lib_kvp))
 
 /*
    Bundle a list of KVPS into a Gab object.
 */
-gab_value gab_bundle(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]);
+gab_value gab_bundle_kvps(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]);
 
 /*
   Bind a library to the Gab engine.

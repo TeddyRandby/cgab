@@ -1,4 +1,5 @@
-#include "lib_math.h"
+
+#include "../gab/gab.h"
 #include <time.h>
 
 typedef struct {
@@ -55,15 +56,13 @@ static f64 random_float() {
   return result;
 }
 
-gab_value gab_lib_math_rand(u8 argc, gab_value *argv, gab_engine *eng,
-                            char **err) {
+gab_value gab_lib_random(gab_engine *eng, gab_value *argv, u8 argc) {
 
   f64 min, max;
 
   switch (argc) {
   case 1: {
     if (!GAB_VAL_IS_NUMBER(argv[0])) {
-      *err = "Expected max to be a number";
       return GAB_VAL_NULL();
     }
 
@@ -75,12 +74,10 @@ gab_value gab_lib_math_rand(u8 argc, gab_value *argv, gab_engine *eng,
 
   case 2: {
     if (!GAB_VAL_IS_NUMBER(argv[0])) {
-      *err = "Expected min to be a number";
       return GAB_VAL_NULL();
     }
 
     if (!GAB_VAL_IS_NUMBER(argv[1])) {
-      *err = "Expected max to be a number";
       return GAB_VAL_NULL();
     }
 
@@ -90,7 +87,6 @@ gab_value gab_lib_math_rand(u8 argc, gab_value *argv, gab_engine *eng,
   }
 
   default:
-    *err = "Expected one or two number arguments";
     return GAB_VAL_NULL();
   }
 
@@ -99,11 +95,9 @@ gab_value gab_lib_math_rand(u8 argc, gab_value *argv, gab_engine *eng,
   return GAB_VAL_NUMBER(num);
 }
 
-gab_value gab_lib_math_floor(u8 argc, gab_value *argv, gab_engine *eng,
-                             char **err) {
+gab_value gab_lib_floor(gab_engine *eng, gab_value *argv, u8 argc) {
 
   if (argc != 1 || !GAB_VAL_IS_NUMBER(argv[0])) {
-    *err = "Expected a number argument";
     return GAB_VAL_NULL();
   }
 
@@ -111,4 +105,11 @@ gab_value gab_lib_math_floor(u8 argc, gab_value *argv, gab_engine *eng,
   i64 int_num = GAB_VAL_TO_NUMBER(argv[0]);
 
   return GAB_VAL_NUMBER(int_num + (float_num < 0));
+}
+
+gab_value gab_mod(gab_engine *gab) {
+  gab_lib_kvp math_kvps[] = {GAB_KVP_BUILTIN(random, 3),
+                             GAB_KVP_BUILTIN(floor, 1)};
+
+  return gab_bundle_kvps(gab, GAB_KVP_BUNDLESIZE(math_kvps), math_kvps);
 }

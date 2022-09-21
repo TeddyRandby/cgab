@@ -127,8 +127,7 @@ gab_value gab_lib_send(gab_engine *eng, gab_value *argv, u8 argc) {
 
   gab_obj_string *msg = GAB_VAL_TO_STRING(argv[1]);
 
-  // Drop the null character at the end.
-  i32 result = send(GAB_VAL_TO_NUMBER(argv[0]), msg->data, msg->size - 1, 0);
+  i32 result = send(GAB_VAL_TO_NUMBER(argv[0]), msg->data, msg->size, 0);
 
   if (result < 0) {
     return GAB_VAL_NULL();
@@ -152,11 +151,11 @@ gab_value gab_lib_close(gab_engine *eng, gab_value *argv, u8 argc) {
 }
 
 gab_value gab_mod(gab_engine *gab) {
+  gab_lib_kvp socket_kvps[] = {
+      GAB_KVP_BUILTIN(sock, 0),    GAB_KVP_BUILTIN(bind, 2),
+      GAB_KVP_BUILTIN(listen, 2),  GAB_KVP_BUILTIN(accept, 1),
+      GAB_KVP_BUILTIN(recv, 1),    GAB_KVP_BUILTIN(send, 2),
+      GAB_KVP_BUILTIN(connect, 3), GAB_KVP_BUILTIN(close, 1)};
 
-  gab_lib_kvp socket_kvps[] = {GAB_BUILTIN(sock, 0),    GAB_BUILTIN(bind, 2),
-                               GAB_BUILTIN(listen, 2),  GAB_BUILTIN(accept, 1),
-                               GAB_BUILTIN(recv, 1),    GAB_BUILTIN(send, 2),
-                               GAB_BUILTIN(connect, 3), GAB_BUILTIN(close, 1)};
-
-  return gab_bundle(gab, GAB_BUNDLESIZE(socket_kvps), socket_kvps);
+  return gab_bundle_kvps(gab, GAB_KVP_BUNDLESIZE(socket_kvps), socket_kvps);
 }

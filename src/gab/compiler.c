@@ -1676,8 +1676,6 @@ i32 compile_exp_prec(gab_bc *self, gab_precedence prec) {
   if (have < 0)
     return COMP_ERR;
 
-  u64 line = self->line;
-
   while (prec <= get_rule(self->current_token).prec) {
 
     if (have < 0)
@@ -1701,7 +1699,6 @@ i32 compile_exp_prec(gab_bc *self, gab_precedence prec) {
     } else {
       // Treat this as an infix expression.
       have = rule.infix(self, assignable);
-      line = self->line;
     }
   }
 
@@ -1925,6 +1922,9 @@ const gab_compile_rule gab_bc_rules[] = {
 gab_compile_rule get_rule(gab_token k) { return gab_bc_rules[k]; }
 
 gab_obj_closure *compile(gab_bc *self, gab_module *mod, s_i8 name) {
+  // Reset the bytecode compiler.
+  memset(self, 0, sizeof(gab_bc));
+
   self->mod = mod;
 
   down_frame(self, name);
@@ -1966,8 +1966,6 @@ gab_result *gab_engine_compile(gab_engine *eng, s_i8 name, s_i8 src, u8 flags) {
 
   gab_module *module = gab_engine_add_module(eng, name, src);
 
-  // Reset the bytecode compiler.
-  memset(&eng->bc, 0, sizeof(gab_bc));
 
   gab_obj_closure *main = compile(&eng->bc, module, name);
 

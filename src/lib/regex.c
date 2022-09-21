@@ -2,8 +2,8 @@
 #include <regex.h>
 #include <stdio.h>
 
-gab_value gab_lib_exec(gab_engine *eng, gab_value *argv, u8 argc) {
-  if (!GAB_VAL_IS_STRING(argv[0]) | !GAB_VAL_IS_STRING(argv[1])) {
+gab_value gab_lib_match(gab_engine *eng, gab_value *argv, u8 argc) {
+  if (!GAB_VAL_IS_STRING(argv[0]) || !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
   }
 
@@ -44,6 +44,6 @@ gab_value gab_lib_exec(gab_engine *eng, gab_value *argv, u8 argc) {
 }
 
 gab_value gab_mod(gab_engine *gab) {
-  gab_lib_kvp re_kvps[] = {GAB_BUILTIN(exec, 2)};
-  return gab_bundle(gab, sizeof(re_kvps) / sizeof(gab_lib_kvp), re_kvps);
+  gab_lib_kvp re_kvps[] = {GAB_KVP_BUILTIN(match, 2)};
+  return gab_bundle_kvps(gab, GAB_KVP_BUNDLESIZE(re_kvps), re_kvps);
 }
