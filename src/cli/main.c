@@ -1,7 +1,9 @@
 #include "../core/os.h"
 #include "../gab/gab.h"
-#include "require.h"
 #include "print.h"
+#include "require.h"
+#include "src/gab/engine.h"
+#include "src/gab/object.h"
 #include <dlfcn.h>
 #include <stdio.h>
 #include <string.h>
@@ -33,6 +35,7 @@ void gab_repl() {
     a_i8 *src = collect_line();
 
     if (src == NULL) {
+      a_i8_destroy(src);
       break;
     }
 
@@ -45,12 +48,17 @@ void gab_repl() {
       } else {
         gab_val_dump(result->as.result);
         printf("\n");
+
+        gab_engine_val_dref(gab, result->as.result);
       }
 
       gab_result_destroy(result);
     }
+
+    a_i8_destroy(src);
   }
 
+  gab_engine_val_dref(gab, gab->std);
   gab_destroy(gab);
 }
 
@@ -66,7 +74,13 @@ void gab_run_file(const char *path) {
     gab_result_dump_error(result);
   }
 
+  a_i8_destroy(src);
+
+  gab_engine_val_dref(gab, gab->std);
+  gab_engine_val_dref(gab, result->as.result);
+
   gab_result_destroy(result);
+
   gab_destroy(gab);
 }
 

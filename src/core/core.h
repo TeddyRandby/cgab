@@ -3,7 +3,7 @@
 // Compilation options
 
 // Collect as frequently as possible (on every allocation)
-#define GAB_DEBUG_GC 0
+#define GAB_DEBUG_GC 1
 // Log what is happening during collection.
 #define GAB_LOG_GC 0
 // Log what is happening during execution.
@@ -79,13 +79,6 @@ static inline s_i8 s_i8_cstr(const char *str) {
 #define V u64
 #define HASH(a) a
 #define EQUAL(a, b) (a == b)
-#define LOAD DICT_MAX_LOAD
-#include "dict.h"
-
-#define K s_i8
-#define V void *
-#define HASH(a) (s_i8_hash(a))
-#define EQUAL(a, b) (s_i8_match(a, b))
 #define LOAD DICT_MAX_LOAD
 #include "dict.h"
 

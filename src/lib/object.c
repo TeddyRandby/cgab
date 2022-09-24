@@ -56,7 +56,9 @@ gab_value gab_lib_push(gab_engine *eng, gab_value *argv, u8 argc) {
 }
 
 gab_value gab_mod(gab_engine *gab) {
-  gab_lib_kvp obj_kvps[] = {GAB_KVP_BUILTIN(keys, 1), GAB_KVP_BUILTIN(len, 1),
+  // return GAB_VAL_NULL();
+  gab_lib_kvp obj_kvps[] = {GAB_KVP_BUILTIN(keys, 1), GAB_KVP_BUILTIN(len,
+  1),
                             GAB_KVP_BUILTIN(push, 2)};
   return gab_bundle_kvps(gab, GAB_KVP_BUNDLESIZE(obj_kvps), obj_kvps);
 }

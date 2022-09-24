@@ -2,6 +2,12 @@
 #include "engine.h"
 #include <stdio.h>
 
+static const char *gab_opcode_names[] = {
+#define OP_CODE(name) #name,
+#include "bytecode.h"
+#undef OP_CODE
+};
+
 gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
   self->name = name;
   self->source = source;
@@ -225,7 +231,7 @@ u64 dumpConstantInstruction(gab_module *self, u64 offset) {
                  v_u8_val_at(&self->bytecode, offset + 2);
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   printf("%-16s ", name);
-  gab_val_dump(d_gab_value_ikey(self->engine->constants, constant));
+  gab_val_dump(d_gab_constant_ikey(self->engine->constants, constant));
   printf("\n");
   return offset + 3;
 }
@@ -388,12 +394,12 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     u16 constant = ((((u16)self->bytecode.data[offset + 1]) << 8) |
                     self->bytecode.data[offset + 2]);
     printf("%-16s ", "OP_CLOSURE");
-    gab_val_dump(d_gab_value_ikey(self->engine->constants, constant));
+    gab_val_dump(d_gab_constant_ikey(self->engine->constants, constant));
     printf("\n");
     offset += 3;
 
     gab_obj_function *function = GAB_VAL_TO_FUNCTION(
-        d_gab_value_ikey(self->engine->constants, constant));
+        d_gab_constant_ikey(self->engine->constants, constant));
 
     for (int j = 0; j < function->nupvalues; j++) {
       int isLocal = self->bytecode.data[offset++];

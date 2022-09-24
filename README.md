@@ -23,18 +23,6 @@ bob:Person.Celebrate_birthday()
  - Be *small*
  - Be *extensible*
 
-# Speed
-
-![Fibonacci Benchmark](res/fib-bench.png)
-
-The classic recursive fibonacci benchmark. It is mostly good for measuring arithmetic operations and function calls. Here is what it looks like in Gab:
-
-```
-def fib(n) if (n < 2) n else fib(n - 1) + fib(n - 2)
-```
-
-The benchmarks were run to a depth of 30.
-
 # Features
 
 Gab's more defining features include:
@@ -163,6 +151,8 @@ The implementation searches for the following, in order:
 There are two modules that have been developed so far:
   - regex
   - socket
+  - time
+  - object
 
 They are just simple wrappers for the POSIX regular expressions, and Linux sockets APIs. They are built as part of this project, so a simple `sudo make install` should install the modules alongside Gab.
 

@@ -44,6 +44,7 @@ a_i8 *os_read_line() {
     return result;
   }
 
+  a_i8_destroy(result);
   return NULL;
 }
 

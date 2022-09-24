@@ -1,18 +1,28 @@
 #include "engine.h"
+#include "src/core/types.h"
 #include "vm.h"
 #include <dlfcn.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 
+static const char *gab_token_names[] = {
+#define TOKEN(name) #name,
+#include "token.h"
+#undef TOKEN
+};
+
 gab_engine *gab_create() {
   gab_engine *self = NEW(gab_engine);
 
-  self->constants = NEW(d_gab_value);
-  d_gab_value_create(self->constants, MODULE_CONSTANTS_MAX);
+  self->constants = NEW(d_gab_constant);
+  d_gab_constant_create(self->constants, MODULE_CONSTANTS_MAX);
 
-  self->imports = NEW(d_s_i8);
-  d_s_i8_create(self->imports, MODULE_CONSTANTS_MAX);
+  self->imports = NEW(d_gab_import);
+  d_gab_import_create(self->imports, MODULE_CONSTANTS_MAX);
+
+  self->tags = NEW(d_gab_container_tag);
+  d_gab_container_tag_create(self->tags, MODULE_CONSTANTS_MAX);
 
   self->modules = NULL;
   self->std = GAB_VAL_NULL();
@@ -59,21 +69,12 @@ void gab_destroy(gab_engine *self) {
       self->modules = next;
     }
 
-    for (i32 i = 0; i < self->imports->cap; i++) {
-      if (d_s_i8_iexists(self->imports, i)) {
-        gab_import *import = (gab_import *)d_s_i8_ival(self->imports, i);
-        gab_import_destroy(import);
-      }
-    }
-
     for (u64 i = 0; i < self->constants->cap; i++) {
-      if (d_gab_value_iexists(self->constants, i)) {
-        gab_value v = d_gab_value_ikey(self->constants, i);
+      if (d_gab_constant_iexists(self->constants, i)) {
+        gab_value v = d_gab_constant_ikey(self->constants, i);
         gab_engine_val_dref(self, v);
       }
     }
-
-    gab_engine_val_dref(self, self->std);
   }
 
   gab_engine_collect(self);
@@ -84,8 +85,19 @@ void gab_destroy(gab_engine *self) {
   pthread_mutex_destroy(&self->lock);
 
   if (self->owning) {
-    d_gab_value_destroy(self->constants);
-    d_s_i8_destroy(self->imports);
+    for (i32 i = 0; i < self->imports->cap; i++) {
+      if (d_gab_import_iexists(self->imports, i)) {
+        gab_import *import = (gab_import *)d_gab_import_ival(self->imports, i);
+        gab_import_destroy(import);
+      }
+    }
+
+    d_gab_constant_destroy(self->constants);
+    d_gab_import_destroy(self->imports);
+    d_gab_container_tag_destroy(self->tags);
+    DESTROY(self->constants);
+    DESTROY(self->imports);
+    DESTROY(self->tags);
   }
 
   DESTROY(self);
@@ -136,7 +148,11 @@ gab_module *gab_engine_add_module(gab_engine *self, s_i8 name, s_i8 source) {
 }
 
 void gab_engine_add_import(gab_engine *self, gab_import *import, s_i8 module) {
-  d_s_i8_insert(self->imports, module, import);
+  d_gab_import_insert(self->imports, module, import);
+}
+
+void gab_engine_register_tag(gab_engine *self, gab_value tag, gab_obj_container_cb destroy_cb) {
+    d_gab_container_tag_insert(self->tags, tag, destroy_cb);
 }
 
 u16 gab_engine_add_constant(gab_engine *self, gab_value value) {
@@ -145,9 +161,9 @@ u16 gab_engine_add_constant(gab_engine *self, gab_value value) {
     exit(1);
   }
 
-  d_gab_value_insert(self->constants, value, 0);
+  d_gab_constant_insert(self->constants, value, 0);
 
-  u64 val = d_gab_value_index_of(self->constants, value);
+  u64 val = d_gab_constant_index_of(self->constants, value);
 
   return val;
 }
@@ -159,8 +175,8 @@ gab_obj_string *gab_engine_find_string(gab_engine *self, s_i8 str, u64 hash) {
   u64 index = hash & (self->constants->cap - 1);
 
   for (;;) {
-    gab_value key = d_gab_value_ikey(self->constants, index);
-    d_status status = d_gab_value_istatus(self->constants, index);
+    gab_value key = d_gab_constant_ikey(self->constants, index);
+    d_status status = d_gab_constant_istatus(self->constants, index);
 
     if (status != D_FULL) {
       return NULL;
@@ -203,8 +219,8 @@ gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size,
   u64 index = hash & (self->constants->cap - 1);
 
   for (;;) {
-    gab_value key = d_gab_value_ikey(self->constants, index);
-    d_status status = d_gab_value_istatus(self->constants, index);
+    gab_value key = d_gab_constant_ikey(self->constants, index);
+    d_status status = d_gab_constant_istatus(self->constants, index);
 
     if (status != D_FULL) {
       return NULL;
@@ -260,7 +276,6 @@ void dump_compile_error(gab_bc *compiler, const char *msg) {
       curr_under->data[i] = ' ';
   }
 
-  const char *prev_color = ANSI_COLOR_GREEN;
   const char *curr_color = ANSI_COLOR_RED;
 
   const char *curr_box = "\u256d";

@@ -1,7 +1,12 @@
 #include "engine.h"
+#include "src/gab/object.h"
 #include <stdio.h>
 
 void gab_gc_create(gab_gc *self) {
+  self->decrement_count = 0;
+  self->increment_count = 0;
+  self->root_count = 0;
+
   d_u64_create(&self->roots, MODULE_CONSTANTS_MAX);
   d_u64_create(&self->queue, MODULE_CONSTANTS_MAX);
 };
@@ -12,12 +17,6 @@ void *gab_reallocate(gab_engine *self, void *loc, u64 old_count,
     free(loc);
     return NULL;
   }
-
-#if GAB_DEBUG_GC
-  if (new_count > old_count) {
-    gab_engine_collect(self);
-  };
-#endif
 
   void *new_ptr = realloc(loc, new_count);
 
@@ -31,11 +30,14 @@ void *gab_reallocate(gab_engine *self, void *loc, u64 old_count,
     }
   }
 
+#if GAB_DEBUG_GC
+  if (new_count > old_count) {
+    gab_engine_collect(self);
+  };
+#endif
+
   return new_ptr;
 }
-
-// Forward declare
-void gab_engine_collect_cycles(gab_engine *gc);
 
 static inline void queue_destroy(gab_engine *self, gab_obj *obj) {
   d_u64_insert(&self->gc.queue, GAB_VAL_OBJ(obj), GAB_VAL_NULL());
@@ -57,10 +59,6 @@ static inline void push_root(gab_engine *self, gab_obj *obj) {
   }
 
   d_u64_insert(&self->gc.roots, GAB_VAL_OBJ(obj), GAB_VAL_NULL());
-
-#if GAB_DEBUG_GC
-  gab_engine_collect_cycles(self);
-#endif
 }
 
 static inline void obj_possible_root(gab_engine *self, gab_obj *obj) {
@@ -177,8 +175,8 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
 }
 
 // Forward declarations - these functions recurse into each other.
-static inline boolean dec_obj_ref(gab_engine *self, gab_obj *obj);
-static inline boolean dec_if_obj_ref(gab_engine *self, gab_value val);
+static inline void dec_obj_ref(gab_engine *self, gab_obj *obj);
+static inline void dec_if_obj_ref(gab_engine *self, gab_value val);
 static inline void dec_child_refs(gab_engine *self, gab_obj *obj) {
   switch (obj->kind) {
   case OBJECT_CLOSURE: {
@@ -222,7 +220,7 @@ static inline void dec_child_refs(gab_engine *self, gab_obj *obj) {
   }
 }
 
-static inline boolean dec_obj_ref(gab_engine *self, gab_obj *obj) {
+static inline void dec_obj_ref(gab_engine *self, gab_obj *obj) {
   if (--obj->references == 0) {
     dec_child_refs(self, obj);
 
@@ -230,22 +228,16 @@ static inline boolean dec_obj_ref(gab_engine *self, gab_obj *obj) {
 
     if (!GAB_OBJ_IS_BUFFERED(obj)) {
       queue_destroy(self, obj);
-      return true;
     }
-
   } else {
     obj_possible_root(self, obj);
   }
-
-  return false;
 }
 
-static inline boolean dec_if_obj_ref(gab_engine *self, gab_value val) {
+static inline void dec_if_obj_ref(gab_engine *self, gab_value val) {
   if (GAB_VAL_IS_OBJ(val)) {
-    gab_obj *obj = GAB_VAL_TO_OBJ(val);
-    return dec_obj_ref(self, obj);
+    dec_obj_ref(self, GAB_VAL_TO_OBJ(val));
   }
-  return false;
 }
 
 static inline void inc_obj_ref(gab_obj *obj) {
@@ -261,38 +253,36 @@ static inline void inc_if_obj_ref(gab_value val) {
 }
 
 static inline void increment_stack(gab_engine *self) {
-  if (!self->vm.frame)
-    return;
-
-  gab_value *stack_top = self->vm.top;
-
-  gab_value *tracker = stack_top - 1;
-  while (tracker >= self->vm.stack) {
-    inc_if_obj_ref(*tracker--);
+  gab_value *tracker = self->vm.top;
+  printf("%ld\n", tracker - self->vm.stack);
+  while (--tracker > self->vm.stack) {
+    inc_if_obj_ref(*tracker);
   }
 }
 
 static inline void decrement_stack(gab_engine *self) {
-  if (!self->vm.frame)
-    return;
-
-  gab_value *stack_top = self->vm.top;
-
-  gab_value *tracker = stack_top - 1;
-
-  while (tracker >= self->vm.stack) {
-    gab_engine_val_dref(self, *tracker--);
+  gab_value *tracker = self->vm.top;
+  while (--tracker > self->vm.stack) {
+    gab_engine_val_dref(self, *tracker);
   }
 }
 
 static inline void process_increments(gab_engine *self) {
-  while (self->gc.increment_count-- > 0) {
+#if GAB_LOG_GC
+  printf("Processing %i increments.\n", self->gc.increment_count);
+#endif
+  while (self->gc.increment_count > 0) {
+    self->gc.increment_count--;
     inc_obj_ref(self->gc.increments[self->gc.increment_count]);
   }
 }
 
 static inline void process_decrements(gab_engine *self) {
-  while (self->gc.decrement_count-- > 0) {
+#if GAB_LOG_GC
+  printf("Processing %i decrements.\n", self->gc.decrement_count);
+#endif
+  while (self->gc.decrement_count > 0) {
+    self->gc.decrement_count--;
     dec_obj_ref(self, self->gc.decrements[self->gc.decrement_count]);
   }
 }
@@ -316,8 +306,8 @@ static inline void mark_gray(gab_obj *obj) {
 }
 
 static inline void mark_roots(gab_engine *self) {
-  for (i32 i = 0; i < self->gc.queue.cap; i++) {
-    if (d_u64_istatus(&self->gc.queue, i) == D_FULL) {
+  for (i32 i = 0; i < self->gc.roots.cap; i++) {
+    if (d_u64_iexists(&self->gc.roots, i)) {
       gab_value key = d_u64_ikey(&self->gc.roots, i);
       gab_obj *obj = GAB_VAL_TO_OBJ(key);
 
@@ -327,6 +317,7 @@ static inline void mark_roots(gab_engine *self) {
         GAB_OBJ_NOT_BUFFERED(obj);
 
         d_u64_remove(&self->gc.roots, key);
+        // SHould this be a not?
         if (GAB_OBJ_IS_BLACK(obj) && obj->references == 0) {
           queue_destroy(self, obj);
         }
@@ -359,8 +350,8 @@ static inline void scan_root(gab_obj *obj) {
 }
 
 static inline void scan_roots(gab_engine *self) {
-  for (i32 i = 0; i < self->gc.queue.cap; i++) {
-    if (d_u64_istatus(&self->gc.queue, i) == D_FULL) {
+  for (i32 i = 0; i < self->gc.roots.cap; i++) {
+    if (d_u64_iexists(&self->gc.roots, i)) {
       gab_obj *obj = GAB_VAL_TO_OBJ(d_u64_ikey(&self->gc.roots, i));
       scan_root(obj);
     }
@@ -379,8 +370,8 @@ static inline void collect_white(gab_engine *self, gab_obj *obj) {
 
 // Collecting roots is putting me in an infinte loop somehow
 static inline void collect_roots(gab_engine *self) {
-  for (i32 i = 0; i < self->gc.queue.cap; i++) {
-    if (d_u64_istatus(&self->gc.queue, i) == D_FULL) {
+  for (u64 i = 0; i < self->gc.roots.cap; i++) {
+    if (d_u64_iexists(&self->gc.roots, i)) {
       gab_value key = d_u64_ikey(&self->gc.roots, i);
       gab_obj *obj = GAB_VAL_TO_OBJ(key);
 
@@ -404,5 +395,8 @@ void gab_engine_collect(gab_engine *self) {
   process_increments(self);
   process_decrements(self);
   decrement_stack(self);
+
+  gab_engine_collect_cycles(self);
+
   trigger_destroy(self);
 }

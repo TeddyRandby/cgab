@@ -1,6 +1,7 @@
 #ifndef GAB_ENGINE_H
 #define GAB_ENGINE_H
 
+#include "src/gab/object.h"
 #include "vm.h"
 #include "compiler.h"
 
@@ -79,7 +80,24 @@ gab_import *gab_import_source(a_i8 *, gab_value);
 
 void gab_import_destroy(gab_import *);
 
+#define NAME gab_constant
 #define K gab_value
+#define HASH(a) (gab_val_intern_hash(a))
+#define EQUAL(a, b) (a == b)
+#define LOAD DICT_MAX_LOAD
+#include "../core/dict.h"
+
+#define NAME gab_import
+#define K s_i8
+#define V void *
+#define HASH(a) (s_i8_hash(a))
+#define EQUAL(a, b) (s_i8_match(a, b))
+#define LOAD DICT_MAX_LOAD
+#include "../core/dict.h"
+
+#define NAME gab_container_tag
+#define K gab_value
+#define V gab_obj_container_cb
 #define HASH(a) (gab_val_intern_hash(a))
 #define EQUAL(a, b) (a == b)
 #define LOAD DICT_MAX_LOAD
@@ -90,19 +108,26 @@ struct gab_engine {
   /*
     The constant table.
   */
-  d_gab_value *constants;
-
-  /*
-    A linked list of loaded modules.
-  */
-  gab_module *modules;
+  d_gab_constant *constants;
 
   /*
      A dictionary of imports
 
      import_name -> cached value
   */
-  d_s_i8 *imports;
+  d_gab_import *imports;
+
+  /*
+     A dictionary of imports
+
+     import_name -> cached value
+  */
+  d_gab_container_tag *tags;
+
+  /*
+    A linked list of loaded modules.
+  */
+  gab_module *modules;
 
   /*
     The std lib object.
@@ -134,7 +159,7 @@ gab_module *gab_engine_add_module(gab_engine *, s_i8, s_i8);
 
 void gab_engine_add_import(gab_engine *, gab_import *, s_i8);
 
-void gab_engine_add_import();
+void gab_engine_register_tag(gab_engine *, gab_value, gab_obj_container_cb);
 
 void gab_engine_collect(gab_engine *eng);
 
@@ -153,13 +178,23 @@ gab_result *gab_engine_compile(gab_engine *, s_i8, s_i8, u8);
 gab_result *gab_engine_run(gab_engine *, gab_obj_closure *);
 
 static inline void gab_engine_obj_iref(gab_engine *self, gab_obj *obj) {
-  self->gc.increments[self->gc.increment_count++] = obj;
+#if GAB_LOG_GC
+  printf("Pushing increment to ");
+  gab_val_dump(GAB_VAL_OBJ(obj));
+  printf("\n");
+#endif
   if (self->gc.increment_count == INC_DEC_MAX) {
     gab_engine_collect(self);
   }
+  self->gc.increments[self->gc.increment_count++] = obj;
 }
 
 static inline void gab_engine_obj_dref(gab_engine *self, gab_obj *obj) {
+#if GAB_LOG_GC
+  printf("Pushing decrement to ");
+  gab_val_dump(GAB_VAL_OBJ(obj));
+  printf("\n");
+#endif
   if (self->gc.decrement_count == INC_DEC_MAX) {
     gab_engine_collect(self);
   }

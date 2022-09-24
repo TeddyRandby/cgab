@@ -37,8 +37,15 @@ shared_library('cgabtime',
   link_with: libcgab,
   install: true,
 )
+
 shared_library('cgabobject',
   'src/lib/object.c',
+  link_with: libcgab,
+  install: true,
+)
+
+shared_library('cgabio',
+  'src/lib/io.c',
   link_with: libcgab,
   install: true,
 )

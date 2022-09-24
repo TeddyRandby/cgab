@@ -1,5 +1,6 @@
 #include "../core/os.h"
 #include "require.h"
+#include "src/gab/engine.h"
 #include <dlfcn.h>
 #include <unistd.h>
 
@@ -35,6 +36,7 @@ gab_value gab_shared_object_handler(gab_engine *eng, const a_i8 *path,
 
   gab_engine_add_import(eng, import, module);
 
+  gab_engine_val_dref(eng, val);
   return val;
 }
 
@@ -64,6 +66,7 @@ gab_value gab_source_file_handler(gab_engine *eng, const a_i8 *path,
   gab_result_destroy(result);
   gab_destroy(fork);
 
+  gab_engine_val_dref(eng, val);
   return val;
 }
 

@@ -26,6 +26,7 @@ typedef enum gab_obj_kind {
   OBJECT_UPVALUE,
   OBJECT_OBJECT,
   OBJECT_SHAPE,
+  OBJECT_CONTAINER,
 } gab_obj_kind;
 
 /*
@@ -359,10 +360,29 @@ static inline gab_value gab_obj_object_insert(gab_obj_object *self,
 
   return value;
 }
+/*
+  ------------- OBJ_CONTAINER-------------
+  A container to some unknown data.
+*/
+typedef struct gab_obj_container gab_obj_container;
+typedef void (*gab_obj_container_cb)(gab_engine* eng, gab_obj_container* self);
+struct gab_obj_container {
+  gab_obj header;
+
+  /* The pointer owned by this object */
+  void* data;
+
+  /* This unique tag maps this container to a gab_container_cb */
+  gab_value tag;
+};
+
+#define GAB_VAL_IS_CONTAINER(value) (gab_val_is_obj_kind(value, OBJECT_CONTAINER))
+#define GAB_VAL_TO_CONTAINER(value) ((gab_obj_container *)GAB_VAL_TO_OBJ(value))
+#define GAB_OBJ_TO_CONTAINER(value) ((gab_obj_container *)value)
+
+gab_obj_container *gab_obj_container_create(gab_engine *eng, gab_value tag, void* data);
 
 /*
-  The exception here is when interning needs to be done.
-
   This means that the hash depends on the actual value of the object.
 
   For example, strings hash based on their content.
@@ -444,6 +464,12 @@ static inline gab_value gab_val_type(gab_engine *eng, gab_value value) {
   if (GAB_VAL_IS_BUILTIN(value)) {
     gab_obj_string *num =
         gab_obj_string_create(eng, s_i8_create((i8 *)"builtin", 7));
+    return GAB_VAL_OBJ(num);
+  }
+
+  if (GAB_VAL_IS_CONTAINER(value)) {
+    gab_obj_string *num =
+        gab_obj_string_create(eng, s_i8_create((i8 *)"container", 9));
     return GAB_VAL_OBJ(num);
   }
 

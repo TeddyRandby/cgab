@@ -146,6 +146,13 @@ void gab_obj_dump(gab_value value) {
     printf("[builtin:%.*s]", (i32)obj->name.len, obj->name.data);
     break;
   }
+  case OBJECT_CONTAINER: {
+    gab_obj_container *obj = GAB_VAL_TO_CONTAINER(value);
+    printf("[container:");
+    gab_val_dump(obj->tag);
+    printf("]");
+    break;
+  }
   default:
     printf("Uh oh: Unknown type (%d).", GAB_VAL_TO_OBJ(value)->kind);
   }
@@ -156,9 +163,9 @@ void gab_obj_dump(gab_value value) {
 */
 void gab_obj_destroy(gab_obj *self, gab_engine *eng) {
 #if GAB_LOG_GC
-  printf("Freeing: <");
+  printf("Destroying: ");
   gab_val_dump(GAB_VAL_OBJ(self));
-  printf(">\n");
+  printf("\n");
 #endif
   switch (self->kind) {
   case OBJECT_SHAPE: {
@@ -174,6 +181,20 @@ void gab_obj_destroy(gab_obj *self, gab_engine *eng) {
       v_u64_destroy(&object->dynamic_values);
     }
     GAB_DESTROY_STRUCT(object, eng);
+    return;
+  }
+
+  case OBJECT_CONTAINER: {
+    gab_obj_container *container = (gab_obj_container *)(self);
+
+    gab_obj_container_cb destroy_cb =
+        d_gab_container_tag_read(eng->tags, container->tag);
+
+    printf("%p\n", destroy_cb);
+
+    destroy_cb(eng, container);
+
+    GAB_DESTROY_STRUCT(container, eng);
     return;
   }
 
@@ -428,6 +449,18 @@ i16 gab_obj_object_extend(gab_obj_object *self, gab_engine *eng,
   }
 
   return v_u64_push(&self->dynamic_values, value);
+}
+
+gab_obj_container *gab_obj_container_create(gab_engine *eng, gab_value tag,
+                                            void *data) {
+
+  gab_obj_container *self =
+      GAB_CREATE_OBJ(gab_obj_container, eng, OBJECT_CONTAINER);
+
+  self->data = data;
+  self->tag = tag;
+
+  return self;
 }
 
 #undef CREATE_GAB_FLEX_OBJ

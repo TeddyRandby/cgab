@@ -18,6 +18,10 @@
 #define V u8
 #endif
 
+#ifndef NAME
+#define NAME K
+#endif
+
 #ifndef LOAD
 #define LOAD 0.75
 #endif
@@ -25,7 +29,7 @@
 #define CONCAT(a, b) CONCAT_(a, b)
 #define CONCAT_(a, b) a##b
 
-#define TYPENAME CONCAT(d_, K)
+#define TYPENAME CONCAT(d_, NAME)
 #define BUCKET_T CONCAT(TYPENAME, _BUCKET)
 #define PREFIX TYPENAME
 #define LINKAGE static inline
@@ -218,6 +222,19 @@ LINKAGE boolean METHOD(exists)(TYPENAME *self, K key) {
   return bucket->status == D_FULL;
 }
 
+LINKAGE V METHOD(read)(TYPENAME *self, K key) {
+  if (self->len == 0) {
+    return false;
+  }
+
+  u64 index = METHOD(index_of)(self, key);
+
+  BUCKET_T *bucket = self->buckets + index;
+
+  return bucket->val;
+}
+
+#undef NAME
 #undef K
 #undef V
 #undef HASH

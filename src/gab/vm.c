@@ -171,7 +171,7 @@ gab_result *gab_engine_run(gab_engine *eng, gab_obj_closure *main) {
 #define WRITE_SHORT(n) ((IP()[-2] = ((n) >> 8) & 0xff), IP()[-1] = (n)&0xff)
 #define READ_INLINECACHE(type) (IP() += 8, (type **)(IP() - 8))
 
-#define READ_CONSTANT (d_gab_value_ikey(ENGINE()->constants, (READ_SHORT)))
+#define READ_CONSTANT (d_gab_constant_ikey(ENGINE()->constants, (READ_SHORT)))
 #define READ_STRING (GAB_VAL_TO_STRING(READ_CONSTANT))
 
 #define STORE_FRAME()                                                          \
