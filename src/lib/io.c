@@ -118,7 +118,7 @@ void gab_container_file_cb(gab_engine *eng, gab_obj_container *self) {
 
 gab_value gab_mod(gab_engine *gab) {
   // Register the file container
-  gab_engine_register_tag(gab, GAB_VAL_NULL(), gab_container_file_cb);
+  gab_engine_add_container_tag(gab, GAB_VAL_NULL(), gab_container_file_cb);
 
   gab_lib_kvp io_kvps[] = {GAB_KVP_BUILTIN(open, 1), GAB_KVP_BUILTIN(read, 1),
                            GAB_KVP_BUILTIN(write, 2)};

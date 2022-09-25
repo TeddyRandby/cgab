@@ -1,6 +1,31 @@
 #include "engine.h"
+#include "gc.h"
 #include "src/gab/object.h"
 #include <stdio.h>
+
+void gab_obj_iref(gab_engine *gab, gab_obj *obj) {
+  if (gab->gc.increment_count == INC_DEC_MAX) {
+    gab_collect(gab);
+  }
+  gab->gc.increments[gab->gc.increment_count++] = obj;
+}
+
+void gab_obj_dref(gab_engine *gab, gab_obj *obj) {
+  if (gab->gc.decrement_count == INC_DEC_MAX) {
+    gab_collect(gab);
+  }
+  gab->gc.decrements[gab->gc.decrement_count++] = obj;
+}
+
+void gab_iref(gab_engine *gab, gab_value obj) {
+  if (GAB_VAL_IS_OBJ(obj))
+    gab_obj_iref(gab, GAB_VAL_TO_OBJ(obj));
+}
+
+void gab_dref(gab_engine *gab, gab_value obj) {
+  if (GAB_VAL_IS_OBJ(obj))
+    gab_obj_dref(gab, GAB_VAL_TO_OBJ(obj));
+}
 
 void gab_gc_create(gab_gc *self) {
   self->decrement_count = 0;
@@ -22,7 +47,7 @@ void *gab_reallocate(gab_engine *self, void *loc, u64 old_count,
 
   if (!new_ptr) {
 
-    gab_engine_collect(self);
+    gab_collect(self);
     new_ptr = realloc(loc, new_count);
 
     if (!new_ptr) {
@@ -32,7 +57,7 @@ void *gab_reallocate(gab_engine *self, void *loc, u64 old_count,
 
 #if GAB_DEBUG_GC
   if (new_count > old_count) {
-    gab_engine_collect(self);
+    gab_collect(self);
   };
 #endif
 
@@ -55,7 +80,7 @@ static inline void trigger_destroy(gab_engine *self) {
 
 static inline void push_root(gab_engine *self, gab_obj *obj) {
   if (self->gc.root_count >= INC_DEC_MAX) {
-    gab_engine_collect(self);
+    gab_collect(self);
   }
 
   d_u64_insert(&self->gc.roots, GAB_VAL_OBJ(obj), GAB_VAL_NULL());
@@ -254,7 +279,6 @@ static inline void inc_if_obj_ref(gab_value val) {
 
 static inline void increment_stack(gab_engine *self) {
   gab_value *tracker = self->vm.top;
-  printf("%ld\n", tracker - self->vm.stack);
   while (--tracker > self->vm.stack) {
     inc_if_obj_ref(*tracker);
   }
@@ -263,7 +287,7 @@ static inline void increment_stack(gab_engine *self) {
 static inline void decrement_stack(gab_engine *self) {
   gab_value *tracker = self->vm.top;
   while (--tracker > self->vm.stack) {
-    gab_engine_val_dref(self, *tracker);
+    gab_dref(self, *tracker);
   }
 }
 
@@ -384,19 +408,19 @@ static inline void collect_roots(gab_engine *self) {
   self->gc.root_count = 0;
 }
 
-void gab_engine_collect_cycles(gab_engine *self) {
+void gab_collect_cycles(gab_engine *self) {
   mark_roots(self);
   scan_roots(self);
   collect_roots(self);
 }
 
-void gab_engine_collect(gab_engine *self) {
+void gab_collect(gab_engine *self) {
   increment_stack(self);
   process_increments(self);
   process_decrements(self);
   decrement_stack(self);
 
-  gab_engine_collect_cycles(self);
+  gab_collect_cycles(self);
 
   trigger_destroy(self);
 }

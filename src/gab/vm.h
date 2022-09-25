@@ -1,12 +1,12 @@
 #ifndef GAB_VM_H
 #define GAB_VM_H
 
-#include "object.h"
+#include "src/gab/gab.h"
+
 /*
   A run-time representation of a callframe.
 */
-typedef struct gab_call_frame gab_call_frame;
-struct gab_call_frame {
+typedef struct gab_call_frame {
   /*
     The closure being called.
   */
@@ -26,9 +26,8 @@ struct gab_call_frame {
     This is set during when the values are called.
   */
   u8 expected_results;
-};
+} gab_call_frame;
 
-typedef struct gab_vm gab_vm;
 struct gab_vm {
 
   /*
@@ -51,6 +50,8 @@ struct gab_vm {
   gab_call_frame call_stack[FRAMES_MAX];
 };
 
-void gab_vm_create(gab_vm *);
+void gab_vm_create(gab_vm *vm);
+
+gab_result gab_vm_run(gab_engine *gab, gab_value closure);
 
 #endif

@@ -1,8 +1,9 @@
 #ifndef BLUF_COMPILER_H
 #define BLUF_COMPILER_H
 
-#include "lexer.h"
-#include "module.h"
+#include "src/gab/gab.h"
+#include "src/gab/lexer.h"
+#include "src/gab/module.h"
 
 /*
   A compile frame is the compile-time equivalent of a call frame.
@@ -44,7 +45,6 @@ struct gab_bc_frame {
 /*
   State for compiling source code to a gab module.
 */
-typedef struct gab_bc gab_bc;
 struct gab_bc {
   /*
     State for lexing source code into tokens.
@@ -54,12 +54,6 @@ struct gab_bc {
   u8 previous_op;
   gab_lexer lex;
   u64 line;
-
-  /*
-    If the compiler encounters an error, panic_mode will
-    be turned on, until it is turned off by a statement.
-  */
-  const char *error;
 
   /*
     The module where bytecode is being compiled into.
@@ -76,14 +70,25 @@ struct gab_bc {
   i32 scope_depth;
 
   /*
+   * If an error occurrs, this boolean will be set.
+   */
+  boolean panic;
+
+  /**
+   * The number of compile frames
+   */
+  u8 frame_count;
+
+  /*
     Static array of compile frames.
 
     The max is an arbitrary chosen number for the maximum function nesting.
   */
   gab_bc_frame frames[FUNCTION_DEF_NESTING_MAX];
-  u8 frame_count;
 };
 
 void gab_bc_create(gab_bc *self);
+
+gab_result gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags);
 
 #endif

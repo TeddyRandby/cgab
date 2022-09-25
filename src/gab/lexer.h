@@ -9,6 +9,12 @@ typedef enum gab_token {
 #undef TOKEN
 } gab_token;
 
+static const char *gab_token_names[] = {
+#define TOKEN(name) #name,
+#include "token.h"
+#undef TOKEN
+};
+
 typedef struct gab_lexer gab_lexer;
 struct gab_lexer {
 

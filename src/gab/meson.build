@@ -18,4 +18,5 @@ sources = files(
   'object.c',
   'token.h',
   'vm.c',
+  'error.h',
   )

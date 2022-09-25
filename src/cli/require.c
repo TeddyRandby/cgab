@@ -1,5 +1,5 @@
-#include "../core/os.h"
 #include "require.h"
+#include "../core/os.h"
 #include "src/gab/engine.h"
 #include <dlfcn.h>
 #include <unistd.h>
@@ -34,39 +34,37 @@ gab_value gab_shared_object_handler(gab_engine *eng, const a_i8 *path,
 
   gab_import *import = gab_import_shared(handle, val);
 
-  gab_engine_add_import(eng, import, module);
+  gab_add_import(eng, module, import);
 
-  gab_engine_val_dref(eng, val);
+  gab_dref(eng, val);
   return val;
 }
 
-gab_value gab_source_file_handler(gab_engine *eng, const a_i8 *path,
+gab_value gab_source_file_handler(gab_engine *gab, const a_i8 *path,
                                   const s_i8 module) {
-  gab_engine *fork = gab_create_fork(eng);
+  gab_engine *fork = gab_fork(gab);
 
   a_i8 *src = os_read_file((char *)path->data);
 
-  gab_result *result = gab_run_source(
-      fork, "__main__", s_i8_create(src->data, src->len), GAB_FLAG_NONE);
+  gab_result result = gab_run(fork, s_i8_cstr("__main__"),
+                              s_i8_create(src->data, src->len), GAB_FLAG_NONE);
 
-  if (gab_result_has_error(result)) {
-    gab_result_dump_error(result);
+  if (!gab_result_ok(result)) {
+    fprintf(stderr, "%.*s", (i32)gab->error->len, gab->error->data);
 
-    gab_result_destroy(result);
     gab_destroy(fork);
     return GAB_VAL_NULL();
   }
 
-  gab_value val = result->as.result;
+  gab_value val = gab_result_value(result);
 
   gab_import *import = gab_import_source(src, val);
 
-  gab_engine_add_import(eng, import, module);
+  gab_add_import(gab, module, import);
 
-  gab_result_destroy(result);
   gab_destroy(fork);
 
-  gab_engine_val_dref(eng, val);
+  gab_dref(gab, val);
   return val;
 }
 

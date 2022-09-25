@@ -14,6 +14,12 @@ typedef enum gab_opcode {
 #undef OP_CODE
 } gab_opcode;
 
+static const char *gab_opcode_names[] = {
+#define OP_CODE(name) #name,
+#include "bytecode.h"
+#undef OP_CODE
+};
+
 
 /*
   State required to run a gab program.

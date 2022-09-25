@@ -1,77 +1,114 @@
 #ifndef GAB_H
 #define GAB_H
 
-#include "engine.h"
+#include "object.h"
 
-/*
-  Create a Gab Engine. If you want libraries included, build and bind them
-  before running any code.
+typedef struct gab_engine gab_engine;
 
-  @return The allocated Gab Engine.
-*/
-gab_engine *gab_create();
+typedef struct gab_bc gab_bc;
+typedef struct gab_gc gab_gc;
+typedef struct gab_vm gab_vm;
 
-/*
-  Create a Gab Engine, forking from a parent engine.
+typedef enum gab_error_k gab_error_k;
 
-  @return The allocated Gab Engine.
-*/
-gab_engine *gab_create_fork(gab_engine *gab);
+typedef enum gab_result_k gab_result_k;
+typedef struct gab_result gab_result;
 
-/*
-  Cleanup a Gab Engine. Also cleans up all the modules which have been compiled
-  with this engine.
+typedef enum gab_import_k gab_import_k;
+typedef struct gab_import gab_import;
 
-  @param gab: The engine to clean up.
+/**
+ * Create a Gab Engine. If you want libraries included, build and bind them
+ * before running any code.
+ *
+ * @param error An output parameter for the engine to write errors into.
+ *
+ * @return The allocated Gab Engine.
+ */
+gab_engine *gab_create(a_i8* error);
+
+/**
+ * Create a Gab Engine, forking from a parent engine.
+ *
+ * @return The allocated Gab Engine.
+ */
+gab_engine *gab_fork(gab_engine *gab);
+
+/**
+ * Cleanup a Gab Engine.
+ *
+ * @param gab: The engine to clean up.
  */
 void gab_destroy(gab_engine *gab);
 
-typedef struct gab_lib_kvp {
-  const char *key;
-  gab_value value;
-} gab_lib_kvp;
+/**
+ * Bundle a list of KVPS into a Gab object.
+ *
+ * @param gab The engine
+ *
+ * @param size The length of keys and values arrays
+ *
+ * @param keys The keys of the gab object to bind.
+ *
+ * @param values The values of the gab object to bind.
+ *
+ * @return The gab value that the keys and values were bundled into
+ */
+gab_value gab_bundle(gab_engine *gab, u64 size, s_i8 keys[size],
+                     gab_value values[size]);
 
-#define GAB_KVP_BUILTIN(name, arity)                                               \
-  {                                                                            \
-    .key = #name,                                                              \
-    .value =                                                                   \
-        GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_##name, #name, arity)) \
-  }
+/**
+ * Bundle the keys and values into a gab object and bind it to the engine.
+ *
+ * @param gab The engine to bind to
+ *
+ * @param size The length of keys and values arrays
+ *
+ * @param keys The keys of the gab object to bind.
+ *
+ * @param values The values of the gab object to bind.
+ */
+void gab_bind(gab_engine *gab, u64 size, s_i8 keys[size],
+              gab_value values[size]);
 
-#define GAB_KVP_BUNDLE(name)                                                       \
-  {                                                                            \
-    .key = #name,                                                              \
-    .value = GAB_VAL_OBJ(gab_bundle(                                           \
-        gab, sizeof(name##_kvps) / sizeof(gab_lib_kvp), name##_kvps))          \
-  }
+/**
+ * Compile and run a c-str of gab code.
+ *
+ * @param gab The engine to run the code with.
+ *
+ * @param source The source code.
+ *
+ * @param module_name Give a name to the module that will be compiled from the
+ * source.
+ *
+ * @param flags The set of flags to pass to the compiler and vm.
+ *
+ * @return A gab result object.
+ */
+gab_result gab_run(gab_engine *gab, s_i8 module_name, s_i8 source, u8 flags);
 
-#define GAB_KVP_BUNDLESIZE(kvps) (sizeof(kvps) / sizeof(gab_lib_kvp))
+i32 gab_lock(gab_engine *gab);
 
-/*
-   Bundle a list of KVPS into a Gab object.
-*/
-gab_value gab_bundle_kvps(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]);
+i32 gab_unlock(gab_engine *gab);
 
-/*
-  Bind a library to the Gab engine.
-*/
-void gab_bind_library(gab_engine *gab, u64 size, gab_lib_kvp kvps[size]);
+gab_obj_string *gab_find_string(gab_engine *gab, s_i8 string, u64 hash);
 
-/*
-  Compile and run a c-str of gab code.
+gab_obj_shape *gab_find_shape(gab_engine *gab, u64 size, u64 stride, u64 has,
+                              gab_value values[size]);
 
-  @param gab: The engine to run the code with.
+u16 gab_add_constant(gab_engine *gab, gab_value constant);
 
-  @param source: The source code.
+gab_module *gab_add_module(gab_engine *gab, s_i8 name, s_i8 source);
 
-  @param module_name: Give a name to the module that will be compiled from the
-  source.
+void gab_add_import(gab_engine *gab, s_i8 name, gab_import *import);
 
-  @param flags: The set of flags to pass to the compiler and vm.
+void gab_add_container_tag(gab_engine *gab, gab_value tag,
+                           gab_obj_container_cb destructor);
 
-  @return A gab result object.
-*/
-gab_result *gab_run_source(gab_engine *gab, const char *module_name,
-                           s_i8 source, u8 flags);
+void gab_collect(gab_engine *gab);
+
+void gab_iref(gab_engine *gab, gab_value obj);
+
+void gab_dref(gab_engine *gab, gab_value obj);
 
 #endif

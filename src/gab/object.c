@@ -224,7 +224,7 @@ static inline u64 keys_hash(u64 size, u64 stride, gab_value values[size]) {
 gab_obj_string *gab_obj_string_create(gab_engine *eng, s_i8 str) {
   u64 hash = s_i8_hash(str);
 
-  gab_obj_string *interned = gab_engine_find_string(eng, str, hash);
+  gab_obj_string *interned = gab_find_string(eng, str, hash);
 
   if (interned != NULL)
     return interned;
@@ -236,7 +236,7 @@ gab_obj_string *gab_obj_string_create(gab_engine *eng, s_i8 str) {
   self->size = str.len;
   self->hash = hash;
 
-  gab_engine_add_constant(eng, GAB_VAL_OBJ(self));
+  gab_add_constant(eng, GAB_VAL_OBJ(self));
 
   // Strings cannot reference other objects - mark them green.
   GAB_OBJ_GREEN((gab_obj *)self);
@@ -278,14 +278,14 @@ gab_obj_string *gab_obj_string_concat(gab_engine *eng, gab_obj_string *a,
     Unfortunately, we can't check for this before copying and computing the
     hash.
   */
-  gab_obj_string *interned = gab_engine_find_string(eng, ref, self->hash);
+  gab_obj_string *interned = gab_find_string(eng, ref, self->hash);
   if (interned) {
     gab_obj_destroy((gab_obj *)self, eng);
     return interned;
   }
 
   // Intern the string in the module
-  gab_engine_add_constant(eng, GAB_VAL_OBJ(self));
+  gab_add_constant(eng, GAB_VAL_OBJ(self));
 
   // Strings cannot reference other objects - mark them green.
   GAB_OBJ_GREEN((gab_obj *)self);
@@ -368,8 +368,7 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value keys[], u64 size,
                                     u64 stride) {
   u64 hash = keys_hash(size, stride, keys);
 
-  gab_obj_shape *interned =
-      gab_engine_find_shape(eng, size, keys, stride, hash);
+  gab_obj_shape *interned = gab_find_shape(eng, size, stride, hash, keys);
 
   if (interned)
     return interned;
@@ -390,7 +389,7 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value keys[], u64 size,
     d_u64_insert(&self->properties, key, i);
   }
 
-  gab_engine_add_constant(eng, GAB_VAL_OBJ(self));
+  gab_add_constant(eng, GAB_VAL_OBJ(self));
 
   return self;
 }

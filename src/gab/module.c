@@ -2,12 +2,6 @@
 #include "engine.h"
 #include <stdio.h>
 
-static const char *gab_opcode_names[] = {
-#define OP_CODE(name) #name,
-#include "bytecode.h"
-#undef OP_CODE
-};
-
 gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
   self->name = name;
   self->source = source;

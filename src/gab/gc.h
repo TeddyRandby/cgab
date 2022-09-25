@@ -1,9 +1,8 @@
 #ifndef GAB_GC_H
 #define GAB_GC_H
 
-#include "object.h"
+#include "src/gab/gab.h"
 
-typedef struct gab_gc gab_gc;
 struct gab_gc {
   i32 increment_count;
   i32 decrement_count;
@@ -16,6 +15,6 @@ struct gab_gc {
   gab_obj *decrements[INC_DEC_MAX];
 };
 
-void gab_gc_create(gab_gc *);
+void gab_gc_create(gab_gc *gc);
 
 #endif

@@ -2,6 +2,7 @@
 #include "../gab/gab.h"
 #include "print.h"
 #include "require.h"
+#include "src/core/core.h"
 #include "src/gab/engine.h"
 #include "src/gab/object.h"
 #include <dlfcn.h>
@@ -10,21 +11,27 @@
 #include <unistd.h>
 
 a_i8 *collect_line() {
-  printf(">>>");
+  printf(">>> ");
   return os_read_line();
 }
 
+#define GAB_BUILTIN(name, arity)                                               \
+  GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_##name, #name, arity))
+
 void bind_std(gab_engine *gab) {
-  gab_lib_kvp builtins[] = {
-      GAB_KVP_BUILTIN(print, VAR_RET),
-      GAB_KVP_BUILTIN(require, 1),
+  s_i8 keys[] = {s_i8_cstr("print"), s_i8_cstr("require")};
+
+  gab_value values[] = {
+      GAB_BUILTIN(print, VAR_RET),
+      GAB_BUILTIN(require, 1),
   };
 
-  gab_bind_library(gab, GAB_KVP_BUNDLESIZE(builtins), builtins);
+  gab_bind(gab, 2, keys, values);
 }
 
 void gab_repl() {
-  gab_engine *gab = gab_create();
+  a_i8 *error = a_i8_empty(4096);
+  gab_engine *gab = gab_create(error);
   bind_std(gab);
 
   printf("Welcome to Gab v%d.%d\nPress CTRL+D to exit\n", GAB_VERSION_MAJOR,
@@ -40,48 +47,48 @@ void gab_repl() {
     }
 
     if (src->len > 1 && src->data[0] != '\n') {
-      gab_result *result = gab_run_source(
-          gab, "__repl__", s_i8_create(src->data, src->len), GAB_FLAG_NONE);
+      gab_result result =
+          gab_run(gab, s_i8_cstr("__repl__"), s_i8_create(src->data, src->len),
+                  GAB_FLAG_NONE);
 
-      if (gab_result_has_error(result)) {
-        gab_result_dump_error(result);
+      if (!gab_result_ok(result)) {
+        fprintf(stderr, "%.*s", (i32)gab->error->len, gab->error->data);
       } else {
-        gab_val_dump(result->as.result);
+        gab_value mod = gab_result_value(result);
+        gab_val_dump(mod);
         printf("\n");
-
-        gab_engine_val_dref(gab, result->as.result);
+        gab_dref(gab, mod);
       }
-
-      gab_result_destroy(result);
     }
 
     a_i8_destroy(src);
   }
 
-  gab_engine_val_dref(gab, gab->std);
+  gab_dref(gab, gab->std);
   gab_destroy(gab);
+  a_i8_destroy(error);
 }
 
 void gab_run_file(const char *path) {
+  a_i8 *error = a_i8_empty(4096);
   a_i8 *src = os_read_file(path);
-  gab_engine *gab = gab_create();
+  gab_engine *gab = gab_create(error);
   bind_std(gab);
 
-  gab_result *result = gab_run_source(
-      gab, "__main__", s_i8_create(src->data, src->len), GAB_FLAG_NONE);
+  gab_result result = gab_run(gab, s_i8_cstr("__main__"),
+                              s_i8_create(src->data, src->len), GAB_FLAG_NONE);
 
-  if (gab_result_has_error(result)) {
-    gab_result_dump_error(result);
+  if (!gab_result_ok(result)) {
+    fprintf(stderr, "%.*s", (i32)gab->error->len, gab->error->data);
   }
 
-  a_i8_destroy(src);
 
-  gab_engine_val_dref(gab, gab->std);
-  gab_engine_val_dref(gab, result->as.result);
-
-  gab_result_destroy(result);
+  gab_dref(gab, gab->std);
+  gab_dref(gab, gab_result_value(result));
 
   gab_destroy(gab);
+  a_i8_destroy(src);
+  a_i8_destroy(error);
 }
 
 i32 main(i32 argc, const char **argv) {
