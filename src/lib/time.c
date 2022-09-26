@@ -1,8 +1,10 @@
 #include "../gab/gab.h"
+#include "src/core/core.h"
+#include "src/gab/object.h"
 #include <time.h>
 #include <unistd.h>
 
-gab_value gab_lib_clock(gab_engine *eng, gab_value *argv,u8 argc) {
+gab_value gab_lib_clock(gab_engine *eng, gab_value *argv, u8 argc) {
   if (argc != 0) {
     return GAB_VAL_NULL();
   }
@@ -12,7 +14,7 @@ gab_value gab_lib_clock(gab_engine *eng, gab_value *argv,u8 argc) {
   return GAB_VAL_NUMBER((f64)t / CLOCKS_PER_SEC);
 };
 
-gab_value gab_lib_sleep(gab_engine *eng, gab_value *argv,u8 argc) {
+gab_value gab_lib_sleep(gab_engine *eng, gab_value *argv, u8 argc) {
   if (argc != 1) {
     return GAB_VAL_NULL();
   }
@@ -27,6 +29,15 @@ gab_value gab_lib_sleep(gab_engine *eng, gab_value *argv,u8 argc) {
 }
 
 gab_value gab_mod(gab_engine *gab) {
-  gab_lib_kvp time_kvps[] = {GAB_KVP_BUILTIN(clock, 0), GAB_KVP_BUILTIN(sleep, 1)};
-  return gab_bundle_kvps(gab, GAB_KVP_BUNDLESIZE(time_kvps), time_kvps);
+  s_i8 keys[] = {
+      s_i8_cstr("clock"),
+      s_i8_cstr("sleep"),
+  };
+
+  gab_value values[] = {
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_clock, "clock", 0)),
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_sleep, "sleep", 1)),
+  };
+
+  return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);
 }

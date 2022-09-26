@@ -57,7 +57,6 @@ void gab_repl() {
         gab_value mod = gab_result_value(result);
         gab_val_dump(mod);
         printf("\n");
-        gab_dref(gab, mod);
       }
     }
 

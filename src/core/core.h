@@ -3,7 +3,7 @@
 // Compilation options
 
 // Collect as frequently as possible (on every allocation)
-#define GAB_DEBUG_GC 1
+#define GAB_DEBUG_GC 0
 // Log what is happening during collection.
 #define GAB_LOG_GC 0
 // Log what is happening during execution.

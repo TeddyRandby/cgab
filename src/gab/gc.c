@@ -292,9 +292,6 @@ static inline void decrement_stack(gab_engine *self) {
 }
 
 static inline void process_increments(gab_engine *self) {
-#if GAB_LOG_GC
-  printf("Processing %i increments.\n", self->gc.increment_count);
-#endif
   while (self->gc.increment_count > 0) {
     self->gc.increment_count--;
     inc_obj_ref(self->gc.increments[self->gc.increment_count]);
@@ -302,9 +299,6 @@ static inline void process_increments(gab_engine *self) {
 }
 
 static inline void process_decrements(gab_engine *self) {
-#if GAB_LOG_GC
-  printf("Processing %i decrements.\n", self->gc.decrement_count);
-#endif
   while (self->gc.decrement_count > 0) {
     self->gc.decrement_count--;
     dec_obj_ref(self, self->gc.decrements[self->gc.decrement_count]);

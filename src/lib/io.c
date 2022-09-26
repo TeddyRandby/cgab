@@ -22,12 +22,12 @@ gab_value gab_lib_open(gab_engine *eng, gab_value *argv, u8 argc) {
     return GAB_VAL_NULL();
   }
 
-  gab_obj_container *container =
-      gab_obj_container_create(eng, GAB_VAL_NULL(), file);
+  gab_value container =
+      GAB_VAL_OBJ(gab_obj_container_create(eng, GAB_VAL_NULL(), file));
 
-  gab_engine_obj_dref(eng, (gab_obj *)container);
+  gab_dref(eng, container);
 
-  return GAB_VAL_OBJ(container);
+  return container;
 }
 
 gab_value gab_lib_read(gab_engine *eng, gab_value *argv, u8 argc) {
@@ -118,10 +118,19 @@ void gab_container_file_cb(gab_engine *eng, gab_obj_container *self) {
 
 gab_value gab_mod(gab_engine *gab) {
   // Register the file container
-  gab_engine_add_container_tag(gab, GAB_VAL_NULL(), gab_container_file_cb);
+  gab_add_container_tag(gab, GAB_VAL_NULL(), gab_container_file_cb);
 
-  gab_lib_kvp io_kvps[] = {GAB_KVP_BUILTIN(open, 1), GAB_KVP_BUILTIN(read, 1),
-                           GAB_KVP_BUILTIN(write, 2)};
+  s_i8 keys[] = {
+      s_i8_cstr("open"),
+      s_i8_cstr("read"),
+      s_i8_cstr("write"),
+  };
 
-  return gab_bundle_kvps(gab, GAB_KVP_BUNDLESIZE(io_kvps), io_kvps);
+  gab_value values[] = {
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_open, "open", 1)),
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_read, "read", 1)),
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_write, "write", 2)),
+  };
+
+  return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);
 }

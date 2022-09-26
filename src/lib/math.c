@@ -1,5 +1,8 @@
 
 #include "../gab/gab.h"
+#include "src/core/core.h"
+#include "src/gab/object.h"
+#include "src/gab/value.h"
 #include <time.h>
 
 typedef struct {
@@ -108,8 +111,15 @@ gab_value gab_lib_floor(gab_engine *eng, gab_value *argv, u8 argc) {
 }
 
 gab_value gab_mod(gab_engine *gab) {
-  gab_lib_kvp math_kvps[] = {GAB_KVP_BUILTIN(random, 3),
-                             GAB_KVP_BUILTIN(floor, 1)};
+  s_i8 keys[] = {
+      s_i8_cstr("random"),
+      s_i8_cstr("floor"),
+  };
 
-  return gab_bundle_kvps(gab, GAB_KVP_BUNDLESIZE(math_kvps), math_kvps);
+  gab_value values[] = {
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_random, "random", 3)),
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_floor, "floor", 1)),
+  };
+
+  return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);
 }

@@ -36,7 +36,6 @@ gab_result gab_run(gab_engine *gab, s_i8 module_name, s_i8 source, u8 flags) {
     return compile_result;
   }
 
-
   gab_result run_result = gab_vm_run(gab, gab_result_value(compile_result));
 
   return run_result;

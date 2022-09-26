@@ -1,4 +1,7 @@
 #include "../gab/gab.h"
+#include "src/core/core.h"
+#include "src/gab/object.h"
+#include "src/gab/value.h"
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -151,11 +154,22 @@ gab_value gab_lib_close(gab_engine *eng, gab_value *argv, u8 argc) {
 }
 
 gab_value gab_mod(gab_engine *gab) {
-  gab_lib_kvp socket_kvps[] = {
-      GAB_KVP_BUILTIN(sock, 0),    GAB_KVP_BUILTIN(bind, 2),
-      GAB_KVP_BUILTIN(listen, 2),  GAB_KVP_BUILTIN(accept, 1),
-      GAB_KVP_BUILTIN(recv, 1),    GAB_KVP_BUILTIN(send, 2),
-      GAB_KVP_BUILTIN(connect, 3), GAB_KVP_BUILTIN(close, 1)};
+  s_i8 keys[] = {
+      s_i8_cstr("sock"),    s_i8_cstr("bind"),    s_i8_cstr("listen"),
+      s_i8_cstr("accept"),  s_i8_cstr("receive"), s_i8_cstr("send"),
+      s_i8_cstr("connect"), s_i8_cstr("close"),
+  };
 
-  return gab_bundle_kvps(gab, GAB_KVP_BUNDLESIZE(socket_kvps), socket_kvps);
+  gab_value values[] = {
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_sock, "sock", 0)),
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_bind, "bind", 2)),
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_listen, "listen", 2)),
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_accept, "accept", 1)),
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_recv, "receive", 1)),
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_send, "send", 2)),
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_connect, "connect", 3)),
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_close, "close", 1)),
+  };
+
+  return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);
 }

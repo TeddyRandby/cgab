@@ -1,9 +1,11 @@
 #include "../gab/gab.h"
+#include "src/core/core.h"
+#include "src/gab/object.h"
 #include <regex.h>
 #include <stdio.h>
 
 gab_value gab_lib_match(gab_engine *eng, gab_value *argv, u8 argc) {
-  if (!GAB_VAL_IS_STRING(argv[0]) || !GAB_VAL_IS_STRING(argv[1])) {
+  if (argc != 2 || !GAB_VAL_IS_STRING(argv[0]) || !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
   }
 
@@ -44,6 +46,13 @@ gab_value gab_lib_match(gab_engine *eng, gab_value *argv, u8 argc) {
 }
 
 gab_value gab_mod(gab_engine *gab) {
-  gab_lib_kvp re_kvps[] = {GAB_KVP_BUILTIN(match, 2)};
-  return gab_bundle_kvps(gab, GAB_KVP_BUNDLESIZE(re_kvps), re_kvps);
+  s_i8 keys[] = {
+      s_i8_cstr("match"),
+  };
+
+  gab_value values[] = {
+      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_match, "match", 2)),
+  };
+
+  return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);
 }
