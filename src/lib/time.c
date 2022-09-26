@@ -1,6 +1,6 @@
-#include "../gab/gab.h"
-#include "src/core/core.h"
-#include "src/gab/object.h"
+#include "include/gab.h"
+#include "include/core.h"
+#include "include/object.h"
 #include <time.h>
 #include <unistd.h>
 

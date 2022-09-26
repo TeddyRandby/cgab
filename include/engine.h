@@ -1,9 +1,9 @@
 #ifndef GAB_ENGINE_H
 #define GAB_ENGINE_H
 
-#include "src/gab/compiler.h"
-#include "src/gab/vm.h"
-#include "src/gab/gab.h"
+#include "compiler.h"
+#include "vm.h"
+#include "gab.h"
 
 #include <pthread.h>
 
@@ -11,13 +11,13 @@ void *gab_reallocate(gab_engine *self, void *loc, u64 old_size, u64 new_size);
 
 enum gab_error_k {
 #define ERROR(name, message) GAB_ERROR_##name,
-#include "src/gab/error.h"
+#include "include/error.h"
 #undef ERROR
 };
 
 static const char* gab_error_names[] = {
 #define ERROR(name, message) message,
-#include "src/gab/error.h"
+#include "include/error.h"
 #undef ERROR
 };
 
@@ -51,7 +51,7 @@ struct gab_import {
 #define HASH(a) (gab_val_intern_hash(a))
 #define EQUAL(a, b) (a == b)
 #define LOAD DICT_MAX_LOAD
-#include "../core/dict.h"
+#include "include/dict.h"
 
 #define NAME gab_import
 #define K s_i8
@@ -59,7 +59,7 @@ struct gab_import {
 #define HASH(a) (s_i8_hash(a))
 #define EQUAL(a, b) (s_i8_match(a, b))
 #define LOAD DICT_MAX_LOAD
-#include "../core/dict.h"
+#include "include/dict.h"
 
 #define NAME gab_container_tag
 #define K gab_value
@@ -67,7 +67,7 @@ struct gab_import {
 #define HASH(a) (gab_val_intern_hash(a))
 #define EQUAL(a, b) (a == b)
 #define LOAD DICT_MAX_LOAD
-#include "../core/dict.h"
+#include "include/dict.h"
 
 struct gab_engine {
   /*

@@ -1,14 +1,4 @@
 sources = files(
-  'bytecode.h',
-  'compiler.h',
-  'engine.h',
-  'gab.h',
-  'gc.h',
-  'lexer.h',
-  'module.h',
-  'object.h',
-  'value.h',
-  'vm.h',
   'compiler.c',
   'engine.c',
   'gab.c',
@@ -16,7 +6,5 @@ sources = files(
   'lexer.c',
   'module.c',
   'object.c',
-  'token.h',
   'vm.c',
-  'error.h',
-  )
+)

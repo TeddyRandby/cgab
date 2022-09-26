@@ -1,7 +1,7 @@
-#include "../gab/gab.h"
-#include "src/core/core.h"
-#include "src/gab/object.h"
-#include "src/gab/value.h"
+#include "include/gab.h"
+#include "include/core.h"
+#include "include/object.h"
+#include "include/value.h"
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>

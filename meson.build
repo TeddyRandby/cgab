@@ -50,6 +50,14 @@ shared_library('cgabio',
   install: true,
 )
 
+install_headers(
+  'include/gab.h',
+  'include/object.h',
+  'include/types.h',
+  'include/core.h',
+  install_dir: '/usr/local/include/gab/'
+  )
+
 executable('gab',
   'src/cli/main.c',
   dependencies: [ dl ],

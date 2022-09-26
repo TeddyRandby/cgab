@@ -1,9 +1,7 @@
-#include "src/core/types.h"
-
-#include "src/gab/engine.h"
-#include "src/gab/gc.h"
-#include "src/gab/compiler.h"
-#include "src/gab/vm.h"
+#include "include/engine.h"
+#include "include/gc.h"
+#include "include/compiler.h"
+#include "include/vm.h"
 
 #include <dlfcn.h>
 #include <pthread.h>

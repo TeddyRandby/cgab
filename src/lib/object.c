@@ -1,6 +1,6 @@
-#include "src/gab/object.h"
-#include "../gab/gab.h"
-#include "src/core/core.h"
+#include "include/object.h"
+#include "include/gab.h"
+#include "include/core.h"
 
 gab_value gab_lib_keys(gab_engine *eng, gab_value *argv, u8 argc) {
   if (!GAB_VAL_IS_OBJECT(argv[0])) {

@@ -1,4 +1,4 @@
-#include "char.h"
+#include "include/char.h"
 
 boolean is_whitespace(u8 c) { return c == ' ' || c == '\t' || c == '\f'; }
 

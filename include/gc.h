@@ -1,7 +1,7 @@
 #ifndef GAB_GC_H
 #define GAB_GC_H
 
-#include "src/gab/gab.h"
+#include "gab.h"
 
 struct gab_gc {
   i32 increment_count;

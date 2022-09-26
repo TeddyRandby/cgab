@@ -1,5 +1,5 @@
-#include "src/gab/engine.h"
-#include "src/gab/gab.h"
+#include "include/engine.h"
+#include "include/gab.h"
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -197,7 +197,7 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
   */
   static const void *dispatch_table[256] = {
 #define OP_CODE(name) &&code_##name,
-#include "bytecode.h"
+#include "include/bytecode.h"
 #undef OP_CODE
   };
 

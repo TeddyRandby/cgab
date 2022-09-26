@@ -1,8 +1,8 @@
-#include "compiler.h"
-#include "engine.h"
-#include "module.h"
-#include "object.h"
-#include "src/gab/gab.h"
+#include "include/compiler.h"
+#include "include/engine.h"
+#include "include/module.h"
+#include "include/object.h"
+#include "include/gab.h"
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>

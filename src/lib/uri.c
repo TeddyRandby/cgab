@@ -1,4 +1,6 @@
 #include "../gab/gab.h"
+#include "src/core/core.h"
+#include "src/gab/object.h"
 #include "src/gab/value.h"
 
 #include <uriparser/Uri.h>
@@ -10,7 +12,7 @@ gab_value gab_lib_parse(gab_engine* eng, gab_value* argv, u8 argc) {
         return GAB_VAL_NULL();
     }
 
-    gab_obj_string *request = GAB_VAL_TO_OBJ(argv[0]);
+    gab_obj_string *request = GAB_VAL_TO_STRING(argv[0]);
 
     static llhttp_t parser;
     static llhttp_settings_t settings;
@@ -23,10 +25,16 @@ gab_value gab_lib_parse(gab_engine* eng, gab_value* argv, u8 argc) {
         return GAB_VAL_NULL();
     }
 
-
 }
 
 gab_value gab_mod(gab_engine *gab) {
-  gab_lib_kvp url_kvps[] = {};
-  return gab_bundle_kvps(gab, GAB_KVP_BUNDLESIZE(url_kvps), url_kvps);
+    s_i8 keys[] = {
+        s_i8_cstr("parse"),
+    };
+
+    gab_value values[] = {
+        GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_parse, "parse", 1)),
+    };
+
+    return gab_bundle(gab, 1, keys, values);
 }

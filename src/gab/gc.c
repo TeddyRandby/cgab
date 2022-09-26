@@ -1,6 +1,6 @@
-#include "engine.h"
-#include "gc.h"
-#include "src/gab/object.h"
+#include "include/engine.h"
+#include "include/gc.h"
+#include "include/object.h"
 #include <stdio.h>
 
 void gab_obj_iref(gab_engine *gab, gab_obj *obj) {

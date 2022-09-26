@@ -1,5 +1,5 @@
-#include "module.h"
-#include "engine.h"
+#include "include/module.h"
+#include "include/engine.h"
 #include <stdio.h>
 
 gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {

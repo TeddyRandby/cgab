@@ -1,9 +1,9 @@
-#ifndef BLUF_COMPILER_H
-#define BLUF_COMPILER_H
+#ifndef GAB_COMPILER_H
+#define GAB_COMPILER_H
 
-#include "src/gab/gab.h"
-#include "src/gab/lexer.h"
-#include "src/gab/module.h"
+#include "gab.h"
+#include "lexer.h"
+#include "module.h"
 
 /*
   A compile frame is the compile-time equivalent of a call frame.

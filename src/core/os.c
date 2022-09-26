@@ -1,5 +1,5 @@
-#include "os.h"
-#include "core.h"
+#include "include/os.h"
+#include "include/core.h"
 #include "stdio.h"
 
 #if OS_UNIX

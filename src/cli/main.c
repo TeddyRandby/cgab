@@ -1,10 +1,12 @@
-#include "../core/os.h"
-#include "../gab/gab.h"
+#include "include/os.h"
+#include "include/gab.h"
+#include "include/core.h"
+#include "include/engine.h"
+#include "include/object.h"
+
 #include "print.h"
 #include "require.h"
-#include "src/core/core.h"
-#include "src/gab/engine.h"
-#include "src/gab/object.h"
+
 #include <dlfcn.h>
 #include <stdio.h>
 #include <string.h>

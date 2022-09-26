@@ -1,6 +1,5 @@
-#include "src/gab/gab.h"
-#include "src/core/core.h"
-#include "src/gab/engine.h"
+#include "include/gab.h"
+#include "include/engine.h"
 
 gab_value gab_bundle(gab_engine *gab, u64 size, s_i8 keys[size],
                      gab_value values[size]) {

@@ -1,6 +1,6 @@
 #include "require.h"
-#include "../core/os.h"
-#include "src/gab/engine.h"
+#include "include/os.h"
+#include "include/engine.h"
 #include <dlfcn.h>
 #include <unistd.h>
 
