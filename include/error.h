@@ -6,7 +6,7 @@ ERROR(TOO_MANY_UPVALUES, "Functions cannot capture more than 255 locals")
 ERROR(TOO_MANY_PARAMETERS, "Functions cannot have more than 16 parameters")
 ERROR(TOO_MANY_ARGUMENTS, "Function calls cannot have more than 16 arguments")
 ERROR(TOO_MANY_RETURN_VALUES, "Functions cannot return more than 16 values")
-ERROR(TOO_MANY_EXPRESSIONS, "Tuples cannot have more than 255 values")
+ERROR(TOO_MANY_EXPRESSIONS, "Expected fewer expressions")
 ERROR(TOO_MANY_EXPRESSIONS_IN_INITIALIZER,
       "'{}' expressions cannot initialize more than 255 properties")
 ERROR(TOO_MANY_EXPRESSIONS_IN_LET, "'let' expressions cannot declare more than 16 locals")

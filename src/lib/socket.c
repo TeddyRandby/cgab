@@ -45,7 +45,7 @@ gab_value gab_lib_bind(gab_engine *eng, gab_value *argv, u8 argc) {
 }
 
 gab_value gab_lib_listen(gab_engine *eng, gab_value *argv, u8 argc) {
-  if (!GAB_VAL_IS_NUMBER(argv[0]) || !GAB_VAL_IS_NUMBER(argv[1])) {
+  if (argc != 2 || !GAB_VAL_IS_NUMBER(argv[0]) || !GAB_VAL_IS_NUMBER(argv[1])) {
     return GAB_VAL_NULL();
   }
 
@@ -59,7 +59,7 @@ gab_value gab_lib_listen(gab_engine *eng, gab_value *argv, u8 argc) {
 }
 
 gab_value gab_lib_accept(gab_engine *eng, gab_value *argv, u8 argc) {
-  if (!GAB_VAL_IS_NUMBER(argv[0])) {
+  if (argc != 1 || !GAB_VAL_IS_NUMBER(argv[0])) {
     return GAB_VAL_NULL();
   }
 
@@ -76,7 +76,7 @@ gab_value gab_lib_accept(gab_engine *eng, gab_value *argv, u8 argc) {
 }
 
 gab_value gab_lib_connect(gab_engine *eng, gab_value *argv, u8 argc) {
-  if (!GAB_VAL_IS_NUMBER(argv[0]) || !GAB_VAL_TO_NUMBER(argv[2]) ||
+  if (argc != 3 || !GAB_VAL_IS_NUMBER(argv[0]) || !GAB_VAL_TO_NUMBER(argv[2]) ||
       !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
   }
@@ -102,7 +102,7 @@ gab_value gab_lib_connect(gab_engine *eng, gab_value *argv, u8 argc) {
 }
 
 gab_value gab_lib_recv(gab_engine *eng, gab_value *argv, u8 argc) {
-  if (!GAB_VAL_IS_NUMBER(argv[0])) {
+  if (argc != 1 || !GAB_VAL_IS_NUMBER(argv[0])) {
     return GAB_VAL_NULL();
   }
 

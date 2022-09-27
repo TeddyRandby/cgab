@@ -76,13 +76,13 @@ resource resources[] = {
      .suffix = ".so",
      .handler = gab_shared_object_handler},
     // Installed resources
-    {.prefix = "/usr/local/lib/",
+    {.prefix = "/usr/local/lib/gab/",
      .suffix = ".gab",
      .handler = gab_source_file_handler},
-    {.prefix = "/usr/local/lib/",
+    {.prefix = "/usr/local/lib/gab/",
      .suffix = "/mod.gab",
      .handler = gab_source_file_handler},
-    {.prefix = "/usr/local/lib/libcgab",
+    {.prefix = "/usr/local/lib/gab/libcgab",
      .suffix = ".so",
      .handler = gab_shared_object_handler},
 };

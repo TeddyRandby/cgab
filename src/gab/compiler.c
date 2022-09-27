@@ -890,7 +890,13 @@ i32 compile_exp_if(gab_engine *self, boolean assignable) {
 
   down_scope(self);
 
+  if (expect_token(self, TOKEN_LPAREN) < 0)
+    return COMP_ERR;
+
   if (compile_expression(self) < 0)
+    return COMP_ERR;
+    
+  if (expect_token(self, TOKEN_RPAREN) < 0)
     return COMP_ERR;
 
   if (optional_newline(self) < 0)
@@ -1886,7 +1892,6 @@ const gab_compile_rule gab_bc_rules[] = {
     PREFIX(let),                       // LET
     PREFIX(mch),                       // MATCH
     PREFIX(if),                        // IF
-    NONE(),                            // THEN
     NONE(),                            // ELSE
     PREFIX(blk),                       // DO
     PREFIX(for),                       // FOR

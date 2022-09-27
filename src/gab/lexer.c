@@ -135,10 +135,6 @@ const keyword keywords[] = {{
                                 TOKEN_TRUE,
                             },
                             {
-                                "then",
-                                TOKEN_THEN,
-                            },
-                            {
                                 "while",
                                 TOKEN_WHILE,
                             }};
