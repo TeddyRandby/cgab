@@ -32,7 +32,7 @@ gab_value gab_lib_len(gab_engine *eng, gab_value *argv, u8 argc) {
   if (GAB_VAL_IS_STRING(argv[0])) {
     gab_obj_string *obj = GAB_VAL_TO_STRING(argv[0]);
 
-    return GAB_VAL_NUMBER(obj->size);
+    return GAB_VAL_NUMBER(obj->len);
   }
 
   return GAB_VAL_NULL();
@@ -65,9 +65,9 @@ gab_value gab_mod(gab_engine *gab) {
   };
 
   gab_value values[] = {
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_keys, "keys", 1)),
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_len, "len", 1)),
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_push, "push", 2)),
+      GAB_BUILTIN(keys, 1),
+      GAB_BUILTIN(len, 1),
+      GAB_BUILTIN(push, 1),
   };
 
   return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);

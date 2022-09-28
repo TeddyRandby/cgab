@@ -1,5 +1,5 @@
-#include "include/gab.h"
 #include "include/core.h"
+#include "include/gab.h"
 #include "include/object.h"
 #include "include/value.h"
 #include <arpa/inet.h>
@@ -63,10 +63,12 @@ gab_value gab_lib_accept(gab_engine *eng, gab_value *argv, u8 argc) {
     return GAB_VAL_NULL();
   }
 
-  struct sockaddr addr;
-  socklen_t addrlen;
+  struct sockaddr addr = {0};
+  socklen_t addrlen = 0;
 
-  i32 result = accept(GAB_VAL_TO_NUMBER(argv[0]), &addr, &addrlen);
+  i32 socket = GAB_VAL_TO_NUMBER(argv[0]);
+
+  i32 result = accept(socket, &addr, &addrlen);
 
   if (result < 0) {
     return GAB_VAL_NULL();
@@ -101,7 +103,7 @@ gab_value gab_lib_connect(gab_engine *eng, gab_value *argv, u8 argc) {
   return GAB_VAL_BOOLEAN(true);
 }
 
-gab_value gab_lib_recv(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_receive(gab_engine *eng, gab_value *argv, u8 argc) {
   if (argc != 1 || !GAB_VAL_IS_NUMBER(argv[0])) {
     return GAB_VAL_NULL();
   }
@@ -130,7 +132,7 @@ gab_value gab_lib_send(gab_engine *eng, gab_value *argv, u8 argc) {
 
   gab_obj_string *msg = GAB_VAL_TO_STRING(argv[1]);
 
-  i32 result = send(GAB_VAL_TO_NUMBER(argv[0]), msg->data, msg->size, 0);
+  i32 result = send(GAB_VAL_TO_NUMBER(argv[0]), msg->data, msg->len, 0);
 
   if (result < 0) {
     return GAB_VAL_NULL();
@@ -161,14 +163,14 @@ gab_value gab_mod(gab_engine *gab) {
   };
 
   gab_value values[] = {
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_sock, "sock", 0)),
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_bind, "bind", 2)),
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_listen, "listen", 2)),
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_accept, "accept", 1)),
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_recv, "receive", 1)),
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_send, "send", 2)),
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_connect, "connect", 3)),
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_close, "close", 1)),
+      GAB_BUILTIN(sock, 0),
+      GAB_BUILTIN(bind, 2),
+      GAB_BUILTIN(listen, 2),
+      GAB_BUILTIN(accept, 1),
+      GAB_BUILTIN(receive, 1),
+      GAB_BUILTIN(send, 2),
+      GAB_BUILTIN(connect, 3),
+      GAB_BUILTIN(close, 1),
   };
 
   return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);

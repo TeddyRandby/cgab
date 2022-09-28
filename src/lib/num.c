@@ -1,6 +1,6 @@
 
-#include "include/gab.h"
 #include "include/core.h"
+#include "include/gab.h"
 #include "include/object.h"
 #include "include/value.h"
 #include <time.h>
@@ -110,15 +110,31 @@ gab_value gab_lib_floor(gab_engine *eng, gab_value *argv, u8 argc) {
   return GAB_VAL_NUMBER(int_num + (float_num < 0));
 }
 
+gab_value gab_lib_from(gab_engine *eng, gab_value *argv, u8 argc) {
+  if (!GAB_VAL_IS_STRING(argv[0])) {
+    return GAB_VAL_NULL();
+  }
+
+  gab_obj_string *str = GAB_VAL_TO_STRING(argv[0]);
+
+  char cstr[str->len];
+
+  memcpy(cstr + 0, str, str->len);
+
+  return GAB_VAL_NUMBER(strtod(cstr + 0, NULL));
+};
+
 gab_value gab_mod(gab_engine *gab) {
   s_i8 keys[] = {
       s_i8_cstr("random"),
       s_i8_cstr("floor"),
+      s_i8_cstr("from"),
   };
 
   gab_value values[] = {
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_random, "random", 3)),
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_floor, "floor", 1)),
+      GAB_BUILTIN(random, VAR_RET),
+      GAB_BUILTIN(floor, 1),
+      GAB_BUILTIN(from, 1),
   };
 
   return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);

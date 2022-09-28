@@ -1,5 +1,5 @@
-#include "include/gab.h"
 #include "include/core.h"
+#include "include/gab.h"
 #include "include/object.h"
 #include <regex.h>
 #include <stdio.h>
@@ -51,7 +51,7 @@ gab_value gab_mod(gab_engine *gab) {
   };
 
   gab_value values[] = {
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_match, "match", 2)),
+      GAB_BUILTIN(match, 2),
   };
 
   return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);

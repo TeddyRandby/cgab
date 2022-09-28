@@ -25,7 +25,7 @@ typedef struct gab_import gab_import;
  *
  * @return The allocated Gab Engine.
  */
-gab_engine *gab_create(a_i8* error);
+gab_engine *gab_create(a_i8 *error);
 
 /**
  * Create a Gab Engine, forking from a parent engine.
@@ -56,6 +56,10 @@ void gab_destroy(gab_engine *gab);
  */
 gab_value gab_bundle(gab_engine *gab, u64 size, s_i8 keys[size],
                      gab_value values[size]);
+
+#define GAB_BUILTIN(name, arity)                                               \
+  GAB_VAL_OBJ(                                                                 \
+      gab_obj_builtin_create(gab, gab_lib_##name, s_i8_cstr(#name), arity))
 
 /**
  * Bundle the keys and values into a gab object and bind it to the engine.

@@ -3,11 +3,11 @@ def fizzbuzz(n) do
 
   while i < (n + 1) do
 
-    if i % 15 == 0 do
+    if (i % 15 == 0) do
       !print('{i}: fizzbuzz')
-    end else if i % 3 == 0 do
+    end else if (i % 3 == 0) do
       !print('{i}: fizz')
-    end else if i % 5 == 0 do
+    end else if (i % 5 == 0) do
       !print('{i}: buzz')
     end
 

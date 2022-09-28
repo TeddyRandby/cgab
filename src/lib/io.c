@@ -1,9 +1,9 @@
-#include "include/gab.h"
 #include "include/core.h"
 #include "include/engine.h"
+#include "include/gab.h"
 #include "include/object.h"
 #include "include/value.h"
-#include <string.h>
+#include <stdio.h>
 
 gab_value gab_lib_open(gab_engine *eng, gab_value *argv, u8 argc) {
   if (argc != 1) {
@@ -127,9 +127,9 @@ gab_value gab_mod(gab_engine *gab) {
   };
 
   gab_value values[] = {
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_open, "open", 1)),
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_read, "read", 1)),
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_write, "write", 2)),
+      GAB_BUILTIN(open, 1),
+      GAB_BUILTIN(read, 1),
+      GAB_BUILTIN(write, 2),
   };
 
   return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);

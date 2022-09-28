@@ -1,14 +1,16 @@
+#include "include/char.h"
 #include "include/engine.h"
 #include "include/gab.h"
+
 #include <stdarg.h>
 #include <stdio.h>
 
-static u64 write_safe(a_i8 *dest, u64 offset, const char *fmt, ...) {
+static u64 write_safe(a_i8 *dest, u64 bytes_so_far, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
 
-  const u64 bytes_written =
-      vsnprintf((char *)dest->data + offset, dest->len - offset, fmt, args);
+  const u64 bytes_written = vsnprintf((char *)dest->data + bytes_so_far,
+                                      dest->len - bytes_so_far, fmt, args);
 
   va_end(args);
 
@@ -23,7 +25,7 @@ static u64 write_safe(a_i8 *dest, u64 offset, const char *fmt, ...) {
 #define ANSI_COLOR_CYAN "\x1b[36m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
-void write_error(gab_engine *gab, gab_error_k e, const char *help_fmt, ...) {
+void write_vm_error(gab_engine *gab, gab_error_k e, const char *help_fmt, ...) {
   gab_vm *vm = &gab->vm;
 
   u64 bytes_written = 0;
@@ -42,22 +44,32 @@ void write_error(gab_engine *gab, gab_error_k e, const char *help_fmt, ...) {
     // Row numbers start at one, so the index is one less.
     s_i8 curr_src = v_s_i8_val_at(mod->source_lines, curr_row - 1);
 
+    i8 *curr_src_start = curr_src.data;
+    i32 curr_src_len = curr_src.len;
+
+    while (is_whitespace(*curr_src_start)) {
+      curr_src_start++;
+      curr_src_len--;
+      if (curr_src_len == 0)
+        break;
+    }
+
     const char *tok = gab_token_names[v_u8_val_at(&mod->tokens, offset)];
 
     if (frame == vm->frame) {
       bytes_written += write_safe(
-          gab->error, 0,
-          "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET "] line: " ANSI_COLOR_RED
-          "%04lu" ANSI_COLOR_RESET " Error near " ANSI_COLOR_BLUE
-          "%s" ANSI_COLOR_RESET "\n\t\u256d " ANSI_COLOR_RED
+          gab->error, bytes_written,
+          "[" ANSI_COLOR_MAGENTA "%.*s" ANSI_COLOR_RESET ":" ANSI_COLOR_GREEN
+          "%.*s" ANSI_COLOR_RESET "] Error near " ANSI_COLOR_BLUE
+          "%s" ANSI_COLOR_RESET ":\n\t\u256d " ANSI_COLOR_RED
           "%04lu " ANSI_COLOR_RESET "%.*s"
           "\n\t\u2502"
           "\n\t\u2570\u2500> ",
-          (i32)func_name.len, func_name.data, curr_row, tok, curr_row,
-          (i32)curr_src.len, curr_src.data);
+          (i32)mod->name.len, mod->name.data, (i32)func_name.len,
+          func_name.data, tok, curr_row, curr_src_len, curr_src_start);
 
       bytes_written +=
-          write_safe(gab->error, bytes_written, ANSI_COLOR_YELLOW "%s\n\t\t",
+          write_safe(gab->error, bytes_written, ANSI_COLOR_YELLOW "%s\n\t",
                      gab_error_names[e]);
 
       va_list args;
@@ -67,17 +79,18 @@ void write_error(gab_engine *gab, gab_error_k e, const char *help_fmt, ...) {
 
       va_end(args);
 
-      bytes_written += write_safe(gab->error, bytes_written, "\n"ANSI_COLOR_RESET);
+      bytes_written +=
+          write_safe(gab->error, bytes_written, "\n" ANSI_COLOR_RESET);
     } else {
       bytes_written += write_safe(
           gab->error, bytes_written,
-          "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET "] line: " ANSI_COLOR_RED
-          "%04lu" ANSI_COLOR_RESET " Called from"
+          "[" ANSI_COLOR_MAGENTA "%.*s" ANSI_COLOR_RESET ":" ANSI_COLOR_GREEN
+          "%.*s" ANSI_COLOR_RESET "] Called at:"
           "\n\t  " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
           "\n\t"
           "\n",
-          (i32)func_name.len, func_name.data, curr_row, curr_row,
-          (i32)curr_src.len, curr_src.data);
+          (i32)mod->name.len, mod->name.data, (i32)func_name.len,
+          func_name.data, curr_row, curr_src_len, curr_src_start);
     }
 
     frame++;
@@ -217,8 +230,8 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
 #define BINARY_OPERATION(value_type, operation_type, operation)                \
   if ((GAB_VAL_IS_NUMBER(PEEK()) + GAB_VAL_IS_NUMBER(PEEK2())) < 2) {          \
     STORE_FRAME();                                                             \
-    write_error(gab, GAB_ERROR_NOT_NUMERIC,                                    \
-                "Binary '" #operation "' operation only works on numbers");    \
+    write_vm_error(gab, GAB_ERROR_NOT_NUMERIC,                                 \
+                   "Binary '" #operation "' operation only works on numbers"); \
     return (gab_result){.k = GAB_RESULT_RUN_ERROR};                            \
   }                                                                            \
   operation_type b = GAB_VAL_TO_NUMBER(POP());                                 \
@@ -284,8 +297,6 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
   PUSH(main);
   PUSH(ENGINE()->std);
 
-  gab_dref(ENGINE(), main);
-
   LOOP() {
     {
       u8 arity, want;
@@ -302,7 +313,6 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
         want = READ_BYTE;
         arity = *TOP() + addtl;
         callee = PEEK_N(arity - 1);
-
         goto complete_call;
       }
 
@@ -328,23 +338,22 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
 
         arity = INSTR()- OP_CALL_0;
         callee = PEEK_N(arity - 1);
-
         goto complete_call;
       }
       // clang-format on
 
     complete_call : {
-      STORE_FRAME();
 
       if (GAB_VAL_IS_CLOSURE(callee)) {
+        STORE_FRAME();
         gab_obj_closure *closure = GAB_VAL_TO_CLOSURE(callee);
 
         // Combine the two error branches into a single case.
         // Check for stack overflow here
         if (arity != closure->func->narguments) {
-          write_error(gab, GAB_ERROR_WRONG_ARITY,
-                      "Expected %d arguments but got %d",
-                      closure->func->narguments, arity);
+          write_vm_error(gab, GAB_ERROR_WRONG_ARITY,
+                         "Expected %d arguments but got %d",
+                         closure->func->narguments, arity);
           return (gab_result){.k = GAB_RESULT_RUN_ERROR};
         }
 
@@ -363,20 +372,20 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
         gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(callee);
 
         if (arity != builtin->narguments && builtin->narguments != VAR_RET) {
-          write_error(gab, GAB_ERROR_WRONG_ARITY,
-                      "Expected %d arguments but got %d", builtin->narguments,
-                      arity);
+          write_vm_error(gab, GAB_ERROR_WRONG_ARITY,
+                         "Expected %d arguments but got %d",
+                         builtin->narguments, arity);
           return (gab_result){.k = GAB_RESULT_RUN_ERROR};
         }
 
         gab_value result = (*builtin->function)(ENGINE(), TOP() - arity, arity);
 
         TOP() -= arity + 1;
-        u8 have = 1;
 
-        TOP() = trim_return(VM(), &result, TOP(), have, want);
+        TOP() = trim_return(VM(), &result, TOP(), 1, want);
       } else {
-        write_error(gab, GAB_ERROR_NOT_FUNCTION, "");
+        STORE_FRAME();
+        write_vm_error(gab, GAB_ERROR_NOT_FUNCTION, "");
         return (gab_result){.k = GAB_RESULT_RUN_ERROR};
       }
 
@@ -427,6 +436,10 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
 
       if (--FRAME() == VM()->call_stack) {
         FRAME()++;
+
+        // Decrement the main closure
+        gab_dref(ENGINE(), main);
+
         // Increment and pop the module.
         gab_iref(ENGINE(), PEEK());
 
@@ -451,8 +464,8 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
 
         if (!GAB_VAL_IS_OBJECT(index)) {
           STORE_FRAME();
-          write_error(gab, GAB_ERROR_NOT_OBJECT,
-                      "Only objects can have propoerties");
+          write_vm_error(gab, GAB_ERROR_NOT_OBJECT,
+                         "Only objects can have propoerties");
           return (gab_result){.k = GAB_RESULT_RUN_ERROR};
         }
 
@@ -473,8 +486,8 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
 
         if (!GAB_VAL_IS_OBJECT(index)) {
           STORE_FRAME();
-          write_error(gab, GAB_ERROR_NOT_OBJECT,
-                      "Only objects can have propoerties");
+          write_vm_error(gab, GAB_ERROR_NOT_OBJECT,
+                         "Only objects can have propoerties");
           return (gab_result){.k = GAB_RESULT_RUN_ERROR};
         }
 
@@ -514,8 +527,8 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
 
         if (!GAB_VAL_IS_OBJECT(index)) {
           STORE_FRAME();
-          write_error(gab, GAB_ERROR_NOT_OBJECT,
-                      "Only objects can have propoerties");
+          write_vm_error(gab, GAB_ERROR_NOT_OBJECT,
+                         "Only objects can have propoerties");
           return (gab_result){.k = GAB_RESULT_RUN_ERROR};
         }
 
@@ -549,8 +562,8 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
 
         if (!GAB_VAL_IS_OBJECT(index)) {
           STORE_FRAME();
-          write_error(gab, GAB_ERROR_NOT_OBJECT,
-                      "Only objects can have propoerties");
+          write_vm_error(gab, GAB_ERROR_NOT_OBJECT,
+                         "Only objects can have propoerties");
           return (gab_result){.k = GAB_RESULT_RUN_ERROR};
         }
 
@@ -603,8 +616,8 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
     CASE_CODE(NEGATE) : {
       if (!GAB_VAL_IS_NUMBER(PEEK())) {
         STORE_FRAME();
-        write_error(gab, GAB_ERROR_NOT_NUMERIC,
-                    "Unary '-' only works on numbers");
+        write_vm_error(gab, GAB_ERROR_NOT_NUMERIC,
+                       "Unary '-' only works on numbers");
         return (gab_result){.k = GAB_RESULT_RUN_ERROR};
       }
       gab_value num = GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP()));
@@ -684,8 +697,8 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
     CASE_CODE(CONCAT) : {
       if (!GAB_VAL_IS_STRING(PEEK()) + !GAB_VAL_IS_STRING(PEEK2())) {
         STORE_FRAME();
-        write_error(gab, GAB_ERROR_NOT_STRING,
-                    "Binary '..' operation only works on strings");
+        write_vm_error(gab, GAB_ERROR_NOT_STRING,
+                       "Binary '..' operation only works on strings");
         return (gab_result){.k = GAB_RESULT_RUN_ERROR};
       }
 
@@ -758,7 +771,7 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
     CASE_CODE(ASSERT) : {
       if (GAB_VAL_IS_NULL(PEEK())) {
         STORE_FRAME();
-        write_error(gab, GAB_ERROR_ASSERTION_FAILED, "");
+        write_vm_error(gab, GAB_ERROR_ASSERTION_FAILED, "");
         return (gab_result){.k = GAB_RESULT_RUN_ERROR};
       }
       NEXT();
@@ -803,8 +816,8 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
         TOP() = trim_return(VM(), shape->keys, TOP(), have, want);
       } else {
         STORE_FRAME();
-        write_error(gab, GAB_ERROR_NOT_OBJECT,
-                    "Unary '..' operation only works on objects");
+        write_vm_error(gab, GAB_ERROR_NOT_OBJECT,
+                       "Unary '..' operation only works on objects");
         return (gab_result){.k = GAB_RESULT_RUN_ERROR};
       }
 

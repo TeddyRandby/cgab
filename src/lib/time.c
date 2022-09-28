@@ -35,8 +35,8 @@ gab_value gab_mod(gab_engine *gab) {
   };
 
   gab_value values[] = {
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_clock, "clock", 0)),
-      GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_sleep, "sleep", 1)),
+      GAB_BUILTIN(clock, 0),
+      GAB_BUILTIN(sleep, 1),
   };
 
   return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);

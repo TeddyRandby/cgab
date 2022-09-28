@@ -26,6 +26,7 @@ typedef enum gab_obj_kind {
   OBJECT_UPVALUE,
   OBJECT_OBJECT,
   OBJECT_SHAPE,
+  OBJECT_SYMBOL,
   OBJECT_CONTAINER,
 } gab_obj_kind;
 
@@ -112,7 +113,9 @@ struct gab_obj_string {
     The pre-computed hash of the string.
   */
   u64 hash;
-  u64 size;
+
+  u64 len;
+
   i8 data[FLEXIBLE_ARRAY];
 };
 #define GAB_VAL_IS_STRING(value) (gab_val_is_obj_kind(value, OBJECT_STRING))
@@ -134,8 +137,11 @@ typedef gab_value (*gab_builtin)(gab_engine *, gab_value *, u8);
 typedef struct gab_obj_builtin gab_obj_builtin;
 struct gab_obj_builtin {
   gab_obj header;
+
   gab_builtin function;
+
   s_i8 name;
+
   u8 narguments;
 };
 
@@ -143,7 +149,7 @@ struct gab_obj_builtin {
 #define GAB_VAL_TO_BUILTIN(value) ((gab_obj_builtin *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_BUILTIN(value) ((gab_obj_builtin *)value)
 gab_obj_builtin *gab_obj_builtin_create(gab_engine *eng, gab_builtin function,
-                                        const char *name, u8 args);
+                                        s_i8 name, u8 args);
 
 /*
   ------------- OBJ_FUNCTION -------------
@@ -276,7 +282,6 @@ gab_obj_shape *gab_obj_shape_create_array(gab_engine *eng, u64 size);
 gab_obj_shape *gab_obj_shape_extend(gab_obj_shape *self, gab_engine *eng,
                                     gab_value property);
 
-#include <stdio.h>
 static inline i64 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
   u64 i = d_u64_index_of(&self->properties, key);
 
@@ -306,10 +311,11 @@ struct gab_obj_object {
   */
   gab_obj_shape *shape;
 
-  v_u64 dynamic_values;
   /*
     The object's properties.
   */
+  v_u64 dynamic_values;
+
   gab_value static_values[FLEXIBLE_ARRAY];
 };
 
@@ -365,23 +371,41 @@ static inline gab_value gab_obj_object_insert(gab_obj_object *self,
   A container to some unknown data.
 */
 typedef struct gab_obj_container gab_obj_container;
-typedef void (*gab_obj_container_cb)(gab_engine* eng, gab_obj_container* self);
+typedef void (*gab_obj_container_cb)(gab_engine *eng, gab_obj_container *self);
 struct gab_obj_container {
   gab_obj header;
 
   /* The pointer owned by this object */
-  void* data;
+  void *data;
 
   /* This unique tag maps this container to a gab_container_cb */
   gab_value tag;
 };
 
-#define GAB_VAL_IS_CONTAINER(value) (gab_val_is_obj_kind(value, OBJECT_CONTAINER))
+#define GAB_VAL_IS_CONTAINER(value)                                            \
+  (gab_val_is_obj_kind(value, OBJECT_CONTAINER))
 #define GAB_VAL_TO_CONTAINER(value) ((gab_obj_container *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_CONTAINER(value) ((gab_obj_container *)value)
 
-gab_obj_container *gab_obj_container_create(gab_engine *eng, gab_value tag, void* data);
+gab_obj_container *gab_obj_container_create(gab_engine *eng, gab_value tag,
+                                            void *data);
 
+/*
+  ------------- OBJ_SYMBOL-------------
+  A unique symbol.
+*/
+typedef struct gab_obj_symbol gab_obj_symbol;
+struct gab_obj_symbol {
+  gab_obj header;
+
+  s_i8 name;
+};
+
+#define GAB_VAL_IS_SYMBOL(value) (gab_val_is_obj_kind(value, OBJECT_SYMBOL))
+#define GAB_VAL_TO_SYMBOL(value) ((gab_obj_symbol *)GAB_VAL_TO_OBJ(value))
+#define GAB_OBJ_TO_SYMBOL(value) ((gab_obj_symbol *)value)
+
+gab_obj_symbol *gab_obj_symbol_create(gab_engine *eng, s_i8 name);
 /*
   This means that the hash depends on the actual value of the object.
 
@@ -407,6 +431,7 @@ static inline boolean gab_val_falsey(gab_value self) {
   return GAB_VAL_IS_NULL(self) || GAB_VAL_IS_FALSE(self);
 }
 
+// This can be heavily optimized.
 static inline gab_value gab_val_type(gab_engine *eng, gab_value value) {
   if (GAB_VAL_IS_OBJECT(value)) {
     gab_obj_object *obj = GAB_VAL_TO_OBJECT(value);
@@ -414,62 +439,57 @@ static inline gab_value gab_val_type(gab_engine *eng, gab_value value) {
   }
 
   if (GAB_VAL_IS_NUMBER(value)) {
-    gab_obj_string *num =
-        gab_obj_string_create(eng, s_i8_create((i8 *)"number", 6));
+    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("number"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_BOOLEAN(value)) {
-    gab_obj_string *num =
-        gab_obj_string_create(eng, s_i8_create((i8 *)"boolean", 7));
+    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("boolean"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_NULL(value)) {
-    gab_obj_string *num =
-        gab_obj_string_create(eng, s_i8_create((i8 *)"null", 4));
+    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("null"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_STRING(value)) {
-    gab_obj_string *num =
-        gab_obj_string_create(eng, s_i8_create((i8 *)"string", 6));
+    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("string"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_FUNCTION(value)) {
-    gab_obj_string *num =
-        gab_obj_string_create(eng, s_i8_create((i8 *)"function", 8));
+    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("function"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_CLOSURE(value)) {
-    gab_obj_string *num =
-        gab_obj_string_create(eng, s_i8_create((i8 *)"closure", 7));
+    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("closure"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_SHAPE(value)) {
-    gab_obj_string *num =
-        gab_obj_string_create(eng, s_i8_create((i8 *)"shape", 5));
+    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("shape"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_UPVALUE(value)) {
-    gab_obj_string *num =
-        gab_obj_string_create(eng, s_i8_create((i8 *)"upvalue", 7));
+    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("upvalue"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_BUILTIN(value)) {
-    gab_obj_string *num =
-        gab_obj_string_create(eng, s_i8_create((i8 *)"builtin", 7));
+    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("builtin"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_CONTAINER(value)) {
-    gab_obj_string *num =
-        gab_obj_string_create(eng, s_i8_create((i8 *)"container", 9));
+    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("container"));
+    return GAB_VAL_OBJ(num);
+  }
+
+  if (GAB_VAL_IS_SYMBOL(value)) {
+    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("symbol"));
     return GAB_VAL_OBJ(num);
   }
 

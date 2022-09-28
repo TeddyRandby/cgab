@@ -3,6 +3,7 @@
 #include "include/engine.h"
 #include <dlfcn.h>
 #include <unistd.h>
+#include <stdio.h>
 
 typedef gab_value (*handler_f)(gab_engine *, const a_i8 *path,
                                const s_i8 module);
