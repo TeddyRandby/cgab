@@ -12,45 +12,11 @@ boolean gab_result_ok(gab_result self) { return self.k >= 0; };
 
 gab_value gab_result_value(gab_result self) { return self.result; }
 
-gab_import *gab_import_shared(void *shared, gab_value result) {
-  gab_import *self = NEW(gab_import);
-
-  self->k = GAB_IMPORT_SHARED;
-  self->shared = shared;
-  self->cache = result;
-  return self;
-}
-
-gab_import *gab_import_source(a_i8 *source, gab_value result) {
-  gab_import *self = NEW(gab_import);
-
-  self->k = GAB_IMPORT_SOURCE;
-  self->source = source;
-  self->cache = result;
-  return self;
-}
-
-void gab_import_destroy(gab_import *self) {
-  switch (self->k) {
-  case GAB_IMPORT_SHARED:
-    dlclose(self->shared);
-    break;
-  case GAB_IMPORT_SOURCE:
-    a_i8_destroy(self->source);
-    break;
-  }
-  DESTROY(self);
-  return;
-}
-
 gab_engine *gab_create(a_i8* error) {
   gab_engine *self = NEW(gab_engine);
 
   self->constants = NEW(d_gab_constant);
   d_gab_constant_create(self->constants, MODULE_CONSTANTS_MAX);
-
-  self->imports = NEW(d_gab_import);
-  d_gab_import_create(self->imports, MODULE_CONSTANTS_MAX);
 
   self->tags = NEW(d_gab_container_tag);
   d_gab_container_tag_create(self->tags, MODULE_CONSTANTS_MAX);
@@ -77,7 +43,6 @@ gab_engine *gab_fork(gab_engine *parent) {
 
   self->constants = parent->constants;
   self->modules = parent->modules;
-  self->imports = parent->imports;
   self->std = parent->std;
 
   self->gc = (gab_gc){0};
@@ -118,18 +83,9 @@ void gab_destroy(gab_engine *self) {
   pthread_mutex_destroy(&self->lock);
 
   if (self->owning) {
-    for (i32 i = 0; i < self->imports->cap; i++) {
-      if (d_gab_import_iexists(self->imports, i)) {
-        gab_import *import = (gab_import *)d_gab_import_ival(self->imports, i);
-        gab_import_destroy(import);
-      }
-    }
-
     d_gab_constant_destroy(self->constants);
-    d_gab_import_destroy(self->imports);
     d_gab_container_tag_destroy(self->tags);
     DESTROY(self->constants);
-    DESTROY(self->imports);
     DESTROY(self->tags);
   }
 
@@ -149,13 +105,13 @@ gab_module *gab_add_module(gab_engine *self, s_i8 name, s_i8 source) {
   return module;
 }
 
-void gab_add_import(gab_engine *self, s_i8 name, gab_import *import) {
-  d_gab_import_insert(self->imports, name, import);
-}
-
-void gab_add_container_tag(gab_engine *self, gab_value tag,
+boolean gab_add_container_tag(gab_engine *self, gab_value tag,
                                   gab_obj_container_cb destructor) {
-  d_gab_container_tag_insert(self->tags, tag, destructor);
+  if (d_gab_container_tag_exists(self->tags, tag)) {
+    return false;
+  }
+
+  return d_gab_container_tag_insert(self->tags, tag, destructor);
 }
 
 u16 gab_add_constant(gab_engine *self, gab_value value) {
@@ -214,7 +170,7 @@ static inline boolean shape_matches_keys(gab_obj_shape *self,
 }
 
 gab_obj_shape *gab_find_shape(gab_engine *self, u64 size, u64 stride,
-                                     u64 hash, gab_value values[size]) {
+                                     u64 hash, gab_value keys[size]) {
   if (self->constants->len == 0)
     return NULL;
 
@@ -229,7 +185,7 @@ gab_obj_shape *gab_find_shape(gab_engine *self, u64 size, u64 stride,
     } else if (GAB_VAL_IS_SHAPE(key)) {
       gab_obj_shape *shape_key = GAB_VAL_TO_SHAPE(key);
       if (shape_key->hash == hash &&
-          shape_matches_keys(shape_key, values, size, stride)) {
+          shape_matches_keys(shape_key, keys, size, stride)) {
         return shape_key;
       }
     }

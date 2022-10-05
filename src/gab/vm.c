@@ -4,6 +4,7 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <string.h>
 
 static u64 write_safe(a_i8 *dest, u64 bytes_so_far, const char *fmt, ...) {
   va_list args;
@@ -101,6 +102,8 @@ void gab_vm_create(gab_vm *self) {
   self->open_upvalues = NULL;
   self->frame = self->call_stack;
   self->top = self->stack;
+  // A NULL value is 8 bytes of 0, so this if fine.
+  memset(self->stack, 0, sizeof(self->stack));
 }
 
 void dump_frame(gab_engine *gab, gab_value *top, const char *name) {
@@ -383,6 +386,8 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
         TOP() -= arity + 1;
 
         TOP() = trim_return(VM(), &result, TOP(), 1, want);
+
+        gab_dref(ENGINE(), result);
       } else {
         STORE_FRAME();
         write_vm_error(gab, GAB_ERROR_NOT_FUNCTION, "");

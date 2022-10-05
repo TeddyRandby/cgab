@@ -366,6 +366,14 @@ static inline gab_value gab_obj_object_insert(gab_obj_object *self,
 
   return value;
 }
+
+static inline gab_value gab_obj_object_read(gab_obj_object *self,
+                                            gab_value prop) {
+
+  i16 prop_offset = gab_obj_shape_find(self->shape, prop);
+
+  return gab_obj_object_get(self, prop_offset);
+}
 /*
   ------------- OBJ_CONTAINER-------------
   A container to some unknown data.
@@ -378,8 +386,8 @@ struct gab_obj_container {
   /* The pointer owned by this object */
   void *data;
 
-  /* This unique tag maps this container to a gab_container_cb */
-  gab_value tag;
+  /* A callback to clean up the owned data */
+  gab_obj_container_cb destructor;
 };
 
 #define GAB_VAL_IS_CONTAINER(value)                                            \
@@ -387,7 +395,8 @@ struct gab_obj_container {
 #define GAB_VAL_TO_CONTAINER(value) ((gab_obj_container *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_CONTAINER(value) ((gab_obj_container *)value)
 
-gab_obj_container *gab_obj_container_create(gab_engine *eng, gab_value tag,
+gab_obj_container *gab_obj_container_create(gab_engine *eng,
+                                            gab_obj_container_cb destructor,
                                             void *data);
 
 /*
@@ -397,7 +406,6 @@ gab_obj_container *gab_obj_container_create(gab_engine *eng, gab_value tag,
 typedef struct gab_obj_symbol gab_obj_symbol;
 struct gab_obj_symbol {
   gab_obj header;
-
   s_i8 name;
 };
 

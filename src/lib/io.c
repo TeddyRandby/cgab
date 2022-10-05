@@ -25,8 +25,6 @@ gab_value gab_lib_open(gab_engine *eng, gab_value *argv, u8 argc) {
   gab_value container =
       GAB_VAL_OBJ(gab_obj_container_create(eng, GAB_VAL_NULL(), file));
 
-  gab_dref(eng, container);
-
   return container;
 }
 

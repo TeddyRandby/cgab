@@ -4,7 +4,7 @@
 #include <regex.h>
 #include <stdio.h>
 
-gab_value gab_lib_match(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_find(gab_engine *eng, gab_value *argv, u8 argc) {
   if (argc != 2 || !GAB_VAL_IS_STRING(argv[0]) || !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
   }
@@ -47,11 +47,11 @@ gab_value gab_lib_match(gab_engine *eng, gab_value *argv, u8 argc) {
 
 gab_value gab_mod(gab_engine *gab) {
   s_i8 keys[] = {
-      s_i8_cstr("match"),
+      s_i8_cstr("find"),
   };
 
   gab_value values[] = {
-      GAB_BUILTIN(match, 2),
+      GAB_BUILTIN(find, 2),
   };
 
   return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);

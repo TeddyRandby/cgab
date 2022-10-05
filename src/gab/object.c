@@ -141,9 +141,7 @@ void gab_obj_dump(gab_value value) {
   }
   case OBJECT_CONTAINER: {
     gab_obj_container *obj = GAB_VAL_TO_CONTAINER(value);
-    printf("[container:");
-    gab_val_dump(obj->tag);
-    printf("]");
+    printf("[container:%p]", obj->destructor);
     break;
   }
   case OBJECT_SYMBOL: {
@@ -183,12 +181,7 @@ void gab_obj_destroy(gab_obj *self, gab_engine *gab) {
   case OBJECT_CONTAINER: {
     gab_obj_container *container = (gab_obj_container *)(self);
 
-    gab_obj_container_cb destroy_cb =
-        d_gab_container_tag_read(gab->tags, container->tag);
-
-    printf("%p\n", destroy_cb);
-
-    destroy_cb(gab, container);
+    container->destructor(gab, container);
 
     GAB_DESTROY_STRUCT(container, gab);
     return;
@@ -447,14 +440,15 @@ i16 gab_obj_object_extend(gab_obj_object *self, gab_engine *gab,
   return v_u64_push(&self->dynamic_values, value);
 }
 
-gab_obj_container *gab_obj_container_create(gab_engine *gab, gab_value tag,
+gab_obj_container *gab_obj_container_create(gab_engine *gab,
+                                            gab_obj_container_cb destructor,
                                             void *data) {
 
   gab_obj_container *self =
       GAB_CREATE_OBJ(gab_obj_container, gab, OBJECT_CONTAINER);
 
   self->data = data;
-  self->tag = tag;
+  self->destructor = destructor;
 
   return self;
 }

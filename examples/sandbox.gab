@@ -1,1 +1,6 @@
-!print('hi')
+let uri = !require('uri-parser')
+
+let path, query = ..'/usr/local/lib/gab/':uri.parse()
+
+!print(..path)
+!print(query)

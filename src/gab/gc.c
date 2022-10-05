@@ -1,5 +1,5 @@
-#include "include/engine.h"
 #include "include/gc.h"
+#include "include/engine.h"
 #include "include/object.h"
 #include <stdio.h>
 
@@ -278,8 +278,7 @@ static inline void inc_if_obj_ref(gab_value val) {
 }
 
 static inline void increment_stack(gab_engine *self) {
-  gab_value *tracker = self->vm.top;
-  while (--tracker > self->vm.stack) {
+  for (gab_value *tracker = self->vm.top; tracker > self->vm.stack; tracker--) {
     inc_if_obj_ref(*tracker);
   }
 }

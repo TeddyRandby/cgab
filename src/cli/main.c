@@ -3,25 +3,29 @@
 #include "include/gab.h"
 #include "include/object.h"
 #include "include/os.h"
-
 #include "print.h"
 #include "require.h"
-
 #include <dlfcn.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
 
-
 void bind_std(gab_engine *gab) {
-  s_i8 keys[] = {s_i8_cstr("print"), s_i8_cstr("require")};
+  gab_obj_shape *mod_shape = gab_obj_shape_create(gab, NULL, 0, 1);
+
+  gab_value mod =
+      GAB_VAL_OBJ(gab_obj_object_create(gab, mod_shape, NULL, 0, 1));
+
+  s_i8 keys[] = {s_i8_cstr("print"), s_i8_cstr("require"),
+                 s_i8_cstr("__mod__")};
 
   gab_value values[] = {
       GAB_BUILTIN(print, VAR_RET),
       GAB_BUILTIN(require, 1),
+      mod,
   };
 
-  gab_bind(gab, 2, keys, values);
+  gab_bind(gab, sizeof(values) / sizeof(gab_value), keys, values);
 }
 
 void gab_run_file(const char *path) {

@@ -1,5 +1,6 @@
 #include "include/gab.h"
 #include "include/engine.h"
+#include "include/object.h"
 
 gab_value gab_bundle(gab_engine *gab, u64 size, s_i8 keys[size],
                      gab_value values[size]) {
@@ -17,12 +18,19 @@ gab_value gab_bundle(gab_engine *gab, u64 size, s_i8 keys[size],
   return bundle;
 }
 
+gab_value gab_bundle_array(gab_engine *gab, u64 size, gab_value values[size]) {
+  gab_obj_shape *bundle_shape = gab_obj_shape_create_array(gab, size);
+
+  gab_value bundle =
+      GAB_VAL_OBJ(gab_obj_object_create(gab, bundle_shape, values, size, 1));
+
+  return bundle;
+}
+
 void gab_bind(gab_engine *gab, u64 size, s_i8 keys[size],
               gab_value values[size]) {
 
-  if (GAB_VAL_IS_OBJ(gab->std)) {
-    gab_obj_destroy(GAB_VAL_TO_OBJ(gab->std), gab);
-  }
+  gab_dref(gab, gab->std);
 
   gab->std = gab_bundle(gab, size, keys, values);
 }
