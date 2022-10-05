@@ -95,17 +95,17 @@ static i32 eat_token(gab_engine *self) {
   return COMP_OK;
 }
 
-static i32 match_and_eat_token(gab_engine *self, gab_token tok) {
+static inline i32 match_and_eat_token(gab_engine *self, gab_token tok) {
   if (!match_token(self, tok))
     return COMP_TOKEN_NO_MATCH;
 
   return eat_token(self);
 }
 
-static i32 expect_token(gab_engine *self, gab_token tok) {
+static inline i32 expect_token(gab_engine *self, gab_token tok) {
   if (!match_token(self, tok)) {
     eat_token(self);
-    write_compiler_error(self, GAB_ERROR_UNEXPECTED_TOKEN, "Expected %s",
+    write_compiler_error(self, GAB_ERROR_UNEXPECTED_TOKEN, "Expected TOKEN_%s",
                          gab_token_names[tok]);
     return COMP_ERR;
   }
@@ -677,6 +677,8 @@ i32 compile_lst_internals(gab_engine *self) {
       return COMP_ERR;
     }
 
+    match_and_eat_token(self, TOKEN_COMMA);
+
     if (skip_newlines(self) < 0)
       return COMP_ERR;
     size++;
@@ -808,6 +810,8 @@ i32 compile_obj_internals(gab_engine *self) {
                            "");
       return COMP_ERR;
     }
+
+    match_and_eat_token(self, TOKEN_COMMA);
 
     if (skip_newlines(self) < 0)
       return COMP_ERR;
@@ -1382,7 +1386,7 @@ i32 compile_exp_let(gab_engine *self, boolean assignable) {
     case COMP_RESOLVED_TO_LOCAL:
     case COMP_RESOLVED_TO_UPVALUE: {
       write_compiler_error(self, GAB_ERROR_LOCAL_ALREADY_EXISTS, "");
-      break;
+      return COMP_ERR;
     }
 
     default:

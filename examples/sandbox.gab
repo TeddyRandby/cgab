@@ -1,11 +1,5 @@
-let uri = !require('uri-parser')
-let uri = !require('uri-parser')
-let uri = !require('uri-parser')
-let uri = !require('uri-parser')
-let uri = !require('uri-parser')
-let uri = !require('uri-parser')
-let uri = !require('uri-parser')
+# let literal = { test: 2, ['other']: 2, third: 3 }
 
-'/usr/local/lib/gab/':uri.parse()
+let literal = [ 1 2 3 ]
 
-!print(..uri)
+!print(..literal)
