@@ -1,6 +1,11 @@
 let uri = !require('uri-parser')
+let uri = !require('uri-parser')
+let uri = !require('uri-parser')
+let uri = !require('uri-parser')
+let uri = !require('uri-parser')
+let uri = !require('uri-parser')
+let uri = !require('uri-parser')
 
-let path, query = ..'/usr/local/lib/gab/':uri.parse()
+'/usr/local/lib/gab/':uri.parse()
 
-!print(..path)
-!print(query)
+!print(..uri)

@@ -1,6 +1,7 @@
 #include "require.h"
 #include "include/core.h"
 #include "include/engine.h"
+#include "include/gab.h"
 #include "include/object.h"
 #include "include/os.h"
 #include "include/types.h"
@@ -202,20 +203,29 @@ a_i8 *match_resource(resource *res, s_i8 name) {
   return NULL;
 }
 
-gab_value gab_lib_require(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_require(gab_engine *gab, gab_value *argv, u8 argc) {
   if (!GAB_VAL_IS_STRING(argv[0])) {
     return GAB_VAL_NULL();
   }
 
+
   gab_obj_string *arg = GAB_VAL_TO_STRING(argv[0]);
   const s_i8 module = gab_obj_string_ref(arg);
+
+  gab_value cached = check_import(gab, module);
+  if (!GAB_VAL_IS_NULL(cached)) {
+      // Because the result of a builtin is always decremented,
+      // increment the cached values when they are returned.
+      gab_iref(gab, cached);
+      return cached;
+  }
 
   for (i32 i = 0; i < sizeof(resources) / sizeof(resource); i++) {
     resource *res = resources + i;
     a_i8 *path = match_resource(res, module);
 
     if (path) {
-      gab_value result = res->handler(eng, path, module);
+      gab_value result = res->handler(gab, path, module);
       a_i8_destroy(path);
       return result;
     }
