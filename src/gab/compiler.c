@@ -11,6 +11,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+const char *gab_token_names[] = {
+#define TOKEN(name) #name,
+#include "include/token.h"
+#undef TOKEN
+};
+
 /*
   Precedence rules for the parsing of expressions.
 */
@@ -473,7 +479,7 @@ i32 compile_function_body(gab_engine *self, gab_obj_function *function,
   return COMP_OK;
 }
 
-i32 compile_function(gab_engine *self, s_i8 name, boolean is_lambda) {
+i32 compile_function(gab_engine *self, s_i8 name, gab_token closing) {
   u64 skip_jump = gab_module_push_jump(self->bc.mod, OP_JUMP,
                                        self->bc.previous_token, self->bc.line);
 
@@ -484,8 +490,6 @@ i32 compile_function(gab_engine *self, s_i8 name, boolean is_lambda) {
       gab_obj_function_create(self->bc.mod->engine, name);
 
   down_frame(self, name);
-
-  gab_token closing = is_lambda ? TOKEN_PIPE : TOKEN_RPAREN;
 
   if (!match_token(self, closing)) {
     i32 narguments = compile_function_args(self);
@@ -499,7 +503,7 @@ i32 compile_function(gab_engine *self, s_i8 name, boolean is_lambda) {
   if (expect_token(self, closing) < 0)
     return COMP_ERR;
 
-  if (is_lambda && expect_token(self, TOKEN_FAT_ARROW) < 0)
+  if (expect_token(self, TOKEN_THEN) < 0)
     return COMP_ERR;
 
   if (optional_newline(self) < 0)
@@ -858,7 +862,7 @@ i32 compile_array(gab_engine *self) {
 i32 compile_definition(gab_engine *self, s_i8 name) {
 
   if (match_and_eat_token(self, TOKEN_LPAREN)) {
-    return compile_function(self, name, false);
+    return compile_function(self, name, TOKEN_RPAREN);
   }
 
   if (match_and_eat_token(self, TOKEN_LBRACK)) {
@@ -905,13 +909,10 @@ i32 compile_exp_if(gab_engine *self, boolean assignable) {
 
   down_scope(self);
 
-  if (expect_token(self, TOKEN_LPAREN) < 0)
-    return COMP_ERR;
-
   if (compile_expression(self) < 0)
     return COMP_ERR;
 
-  if (expect_token(self, TOKEN_RPAREN) < 0)
+  if (expect_token(self, TOKEN_THEN) < 0)
     return COMP_ERR;
 
   if (optional_newline(self) < 0)
@@ -959,6 +960,9 @@ i32 compile_exp_mch(gab_engine *self, boolean assignable) {
   if (compile_expression(self) < 0)
     return COMP_ERR;
 
+  if (expect_token(self, TOKEN_THEN) < 0)
+    return COMP_ERR;
+
   if (optional_newline(self) < 0)
     return COMP_ERR;
 
@@ -967,6 +971,7 @@ i32 compile_exp_mch(gab_engine *self, boolean assignable) {
   v_u64 done_jumps;
   v_u64_create(&done_jumps, 8);
 
+  // While we don't match the closing question 
   while (match_and_eat_token(self, TOKEN_QUESTION) == COMP_TOKEN_NO_MATCH) {
     if (next != 0)
       gab_module_patch_jump(self->bc.mod, next);
@@ -982,7 +987,8 @@ i32 compile_exp_mch(gab_engine *self, boolean assignable) {
     if (expect_token(self, TOKEN_FAT_ARROW) < 0)
       return COMP_ERR;
 
-    if (compile_expression(self) < 0)
+    i32 res = compile_expression(self);
+    if (res < 0)
       return COMP_ERR;
 
     // Push a jump out of the match statement at the end of every case.
@@ -1274,14 +1280,15 @@ fin:
 }
 
 i32 compile_exp_grp(gab_engine *self, boolean assignable) {
+  i32 res = compile_tuple(self, VAR_RET, NULL);
 
-  if (compile_expression(self) < 0)
+  if (res < 0)
     return COMP_ERR;
 
   if (expect_token(self, TOKEN_RPAREN) < 0)
     return COMP_ERR;
 
-  return COMP_OK;
+  return res;
 }
 
 i32 compile_exp_num(gab_engine *self, boolean assignable) {
@@ -1821,6 +1828,9 @@ i32 compile_exp_for(gab_engine *self, boolean assignable) {
   u64 jump_start = gab_module_push_jump(self->bc.mod, OP_JUMP_IF_FALSE,
                                         self->bc.previous_token, self->bc.line);
 
+  if (expect_token(self, TOKEN_THEN) < 0)
+    return COMP_ERR;
+
   if (optional_newline(self) < 0)
     return COMP_ERR;
 
@@ -1847,6 +1857,9 @@ i32 compile_exp_whl(gab_engine *self, boolean assignable) {
   down_scope(self);
 
   if (compile_expression(self) < 0)
+    return COMP_ERR;
+
+  if (expect_token(self, TOKEN_THEN) < 0)
     return COMP_ERR;
 
   if (optional_newline(self) < 0)
@@ -1913,6 +1926,7 @@ const gab_compile_rule gab_bc_rules[] = {
     PREFIX(let),                       // LET
     PREFIX(mch),                       // MATCH
     PREFIX(if),                        // IF
+    NONE(),                            // THEN
     NONE(),                            // ELSE
     PREFIX(blk),                       // DO
     PREFIX(for),                       // FOR
@@ -2055,6 +2069,9 @@ static void write_compiler_error(gab_engine *gab, gab_error_k e,
   if (gab->bc.panic)
     return;
 
+  va_list args;
+  va_start(args, help_fmt);
+
   gab_lexer_finish_line(&gab->bc.lex);
   gab->bc.panic = true;
 
@@ -2120,12 +2137,9 @@ static void write_compiler_error(gab_engine *gab, gab_error_k e,
   bytes_written += write_safe(gab->error, bytes_written,
                               ANSI_COLOR_YELLOW "%s\n\t", gab_error_names[e]);
 
-  va_list args;
-  va_start(args, help_fmt);
-
   bytes_written += write_safe(gab->error, bytes_written, help_fmt, args);
 
-  va_end(args);
-
   bytes_written += write_safe(gab->error, bytes_written, "\n" ANSI_COLOR_RESET);
+
+  va_end(args);
 }

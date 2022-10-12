@@ -3,3 +3,7 @@
 let literal = [ 1 2 3 ]
 
 !print(..literal)
+
+def factorial(n) then do
+  s
+end

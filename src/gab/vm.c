@@ -6,6 +6,12 @@
 #include <stdio.h>
 #include <string.h>
 
+static const char *gab_token_names[] = {
+#define TOKEN(name) #name,
+#include "include/token.h"
+#undef TOKEN
+};
+
 static u64 write_safe(a_i8 *dest, u64 bytes_so_far, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
