@@ -1,7 +1,6 @@
 #ifndef GAB_COMPILER_H
 #define GAB_COMPILER_H
 
-#include "gab.h"
 #include "lexer.h"
 #include "module.h"
 
@@ -45,7 +44,7 @@ struct gab_bc_frame {
 /*
   State for compiling source code to a gab module.
 */
-struct gab_bc {
+typedef struct gab_bc {
   /*
     State for lexing source code into tokens.
   */
@@ -69,11 +68,6 @@ struct gab_bc {
   */
   i32 scope_depth;
 
-  /*
-   * If an error occurrs, this boolean will be set.
-   */
-  boolean panic;
-
   /**
    * The number of compile frames
    */
@@ -85,10 +79,10 @@ struct gab_bc {
     The max is an arbitrary chosen number for the maximum function nesting.
   */
   gab_bc_frame frames[FUNCTION_DEF_NESTING_MAX];
-};
+} gab_bc;
 
 void gab_bc_create(gab_bc *self);
 
-gab_result gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags);
+gab_value gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags);
 
 #endif

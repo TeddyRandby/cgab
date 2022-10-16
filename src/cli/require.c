@@ -49,17 +49,17 @@ void import_destroy_cb(gab_engine *gab, gab_obj_container *self) {
   DESTROY(i);
 }
 
-void add_import(gab_engine *gab, s_i8 name, import* i) {
-  if (!GAB_VAL_IS_OBJECT(gab->std)) {
+void add_import(gab_engine *gab, s_i8 name, import *i) {
+  if (!GAB_VAL_IS_RECORD(gab->std)) {
     return;
   }
 
   gab_value mod_prop =
       GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("__mod__")));
 
-  gab_value mod = gab_obj_object_read(GAB_VAL_TO_OBJECT(gab->std), mod_prop);
+  gab_value mod = gab_obj_record_read(GAB_VAL_TO_RECORD(gab->std), mod_prop);
 
-  if (!GAB_VAL_IS_OBJECT(mod)) {
+  if (!GAB_VAL_IS_RECORD(mod)) {
     return;
   }
 
@@ -68,43 +68,43 @@ void add_import(gab_engine *gab, s_i8 name, import* i) {
 
   gab_value import_prop = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
 
-  gab_obj_object_insert(GAB_VAL_TO_OBJECT(mod), gab, import_prop, container);
+  gab_obj_record_insert(GAB_VAL_TO_RECORD(mod), gab, import_prop, container);
 }
 
 gab_value check_import(gab_engine *gab, s_i8 name) {
   // Check that we have a std object.
-  if (!GAB_VAL_IS_OBJECT(gab->std)) {
+  if (!GAB_VAL_IS_RECORD(gab->std)) {
     return GAB_VAL_NULL();
   }
 
   gab_value mod_prop =
       GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("__mod__")));
 
-  gab_value mod = gab_obj_object_read(GAB_VAL_TO_OBJECT(gab->std), mod_prop);
+  gab_value mod = gab_obj_record_read(GAB_VAL_TO_RECORD(gab->std), mod_prop);
 
   // Check that we have a mod property as we expect.
-  if (!GAB_VAL_IS_OBJECT(mod)) {
+  if (!GAB_VAL_IS_RECORD(mod)) {
     return GAB_VAL_NULL();
   }
 
   gab_value import_prop = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
 
-  gab_value i = gab_obj_object_read(GAB_VAL_TO_OBJECT(mod), import_prop);
- 
+  gab_value i = gab_obj_record_read(GAB_VAL_TO_RECORD(mod), import_prop);
+
   // Check that the property off of mod is as we expect.
   if (!GAB_VAL_IS_CONTAINER(i)) {
-      return GAB_VAL_NULL();
+    return GAB_VAL_NULL();
   }
 
-  gab_obj_container* container = GAB_VAL_TO_CONTAINER(i);
+  gab_obj_container *container = GAB_VAL_TO_CONTAINER(i);
 
   // If the destructors match, we can reasonably expect that the
   // container is the type we hope it is.
   if (container->destructor != import_destroy_cb) {
-      return GAB_VAL_NULL();
+    return GAB_VAL_NULL();
   }
 
-  return ((import *) container->data)->cache;
+  return ((import *)container->data)->cache;
 }
 
 gab_value gab_shared_object_handler(gab_engine *eng, const a_i8 *path,
@@ -123,8 +123,8 @@ gab_value gab_shared_object_handler(gab_engine *eng, const a_i8 *path,
   }
 
   gab_value result = symbol(eng);
-  
-  import* i = NEW(import);
+
+  import *i = NEW(import);
 
   i->k = IMPORT_SHARED;
   i->cache = result;
@@ -141,28 +141,33 @@ gab_value gab_source_file_handler(gab_engine *gab, const a_i8 *path,
 
   a_i8 *src = os_read_file((char *)path->data);
 
-  gab_result run_result = gab_run(fork, s_i8_cstr("__main__"),
-                              s_i8_create(src->data, src->len), GAB_FLAG_NONE);
+  gab_value pkg = gab_package_source(gab, s_i8_create(src->data, src->len),
+                                     s_i8_cstr("__main__"), 0);
 
-  if (!gab_result_ok(run_result)) {
-    fprintf(stderr, "%.*s", (i32)gab->error->len, gab->error->data);
-
+  if (GAB_VAL_IS_NULL(pkg)) {
+    fprintf(stderr, "%s", gab_err(gab));
     gab_destroy(fork);
     return GAB_VAL_NULL();
   }
 
-  gab_value result = gab_result_value(run_result);
+  gab_value res = gab_run(gab, pkg);
 
-  import* i = NEW(import);
+  if (!gab_ok(gab)) {
+    fprintf(stderr, "%s", gab_err(gab));
+    gab_destroy(fork);
+    return GAB_VAL_NULL();
+  }
+
+  import *i = NEW(import);
 
   i->k = IMPORT_SOURCE;
-  i->cache = result;
+  i->cache = res;
   i->as.source = src;
   add_import(gab, module, i);
 
   gab_destroy(fork);
 
-  return result;
+  return res;
 }
 
 resource resources[] = {
@@ -208,16 +213,15 @@ gab_value gab_lib_require(gab_engine *gab, gab_value *argv, u8 argc) {
     return GAB_VAL_NULL();
   }
 
-
   gab_obj_string *arg = GAB_VAL_TO_STRING(argv[0]);
   const s_i8 module = gab_obj_string_ref(arg);
 
   gab_value cached = check_import(gab, module);
   if (!GAB_VAL_IS_NULL(cached)) {
-      // Because the result of a builtin is always decremented,
-      // increment the cached values when they are returned.
-      gab_iref(gab, cached);
-      return cached;
+    // Because the result of a builtin is always decremented,
+    // increment the cached values when they are returned.
+    gab_iref(gab, cached);
+    return cached;
   }
 
   for (i32 i = 0; i < sizeof(resources) / sizeof(resource); i++) {

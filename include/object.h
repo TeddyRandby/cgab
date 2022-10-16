@@ -24,7 +24,7 @@ typedef enum gab_obj_kind {
   OBJECT_BUILTIN,
   OBJECT_CLOSURE,
   OBJECT_UPVALUE,
-  OBJECT_OBJECT,
+  OBJECT_RECORD,
   OBJECT_SHAPE,
   OBJECT_SYMBOL,
   OBJECT_CONTAINER,
@@ -296,8 +296,8 @@ static inline i64 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
   A javascript object, or a python dictionary, or a lua table.
   Known by many names.
 */
-typedef struct gab_obj_object gab_obj_object;
-struct gab_obj_object {
+typedef struct gab_obj_record gab_obj_record;
+struct gab_obj_record {
   gab_obj header;
 
   boolean is_dynamic;
@@ -319,17 +319,17 @@ struct gab_obj_object {
   gab_value static_values[FLEXIBLE_ARRAY];
 };
 
-#define GAB_VAL_IS_OBJECT(value) (gab_val_is_obj_kind(value, OBJECT_OBJECT))
-#define GAB_VAL_TO_OBJECT(value) ((gab_obj_object *)GAB_VAL_TO_OBJ(value))
-#define GAB_OBJ_TO_OBJECT(value) ((gab_obj_object *)value)
+#define GAB_VAL_IS_RECORD(value) (gab_val_is_obj_kind(value, OBJECT_RECORD))
+#define GAB_VAL_TO_RECORD(value) ((gab_obj_record *)GAB_VAL_TO_OBJ(value))
+#define GAB_OBJ_TO_RECORD(value) ((gab_obj_record *)value)
 
-gab_obj_object *gab_obj_object_create(gab_engine *eng, gab_obj_shape *shape,
+gab_obj_record *gab_obj_record_create(gab_engine *eng, gab_obj_shape *shape,
                                       gab_value values[], u64 size, u64 stride);
 
-i16 gab_obj_object_extend(gab_obj_object *self, gab_engine *eng,
+i16 gab_obj_record_extend(gab_obj_record *self, gab_engine *eng,
                           gab_obj_shape *new_shape, gab_value value);
 
-static inline void gab_obj_object_set(gab_obj_object *self, i16 offset,
+static inline void gab_obj_record_set(gab_obj_record *self, i16 offset,
                                       gab_value value) {
 
   if (!self->is_dynamic)
@@ -339,7 +339,7 @@ static inline void gab_obj_object_set(gab_obj_object *self, i16 offset,
     v_u64_set(&self->dynamic_values, offset, value);
 }
 
-static inline gab_value gab_obj_object_get(gab_obj_object *self, i16 offset) {
+static inline gab_value gab_obj_record_get(gab_obj_record *self, i16 offset) {
   if (offset < 0)
     return GAB_VAL_NULL();
 
@@ -350,7 +350,7 @@ static inline gab_value gab_obj_object_get(gab_obj_object *self, i16 offset) {
     return v_u64_val_at(&self->dynamic_values, offset);
 }
 
-static inline gab_value gab_obj_object_insert(gab_obj_object *self,
+static inline gab_value gab_obj_record_insert(gab_obj_record *self,
                                               gab_engine *eng, gab_value prop,
                                               gab_value value) {
 
@@ -359,20 +359,20 @@ static inline gab_value gab_obj_object_insert(gab_obj_object *self,
   if (prop_offset < 0) {
     gab_obj_shape *shape = gab_obj_shape_extend(self->shape, eng, prop);
 
-    prop_offset = gab_obj_object_extend(self, eng, shape, value);
+    prop_offset = gab_obj_record_extend(self, eng, shape, value);
   }
 
-  gab_obj_object_set(self, prop_offset, value);
+  gab_obj_record_set(self, prop_offset, value);
 
   return value;
 }
 
-static inline gab_value gab_obj_object_read(gab_obj_object *self,
+static inline gab_value gab_obj_record_read(gab_obj_record *self,
                                             gab_value prop) {
 
   i16 prop_offset = gab_obj_shape_find(self->shape, prop);
 
-  return gab_obj_object_get(self, prop_offset);
+  return gab_obj_record_get(self, prop_offset);
 }
 /*
   ------------- OBJ_CONTAINER-------------
@@ -441,8 +441,8 @@ static inline boolean gab_val_falsey(gab_value self) {
 
 // This can be heavily optimized.
 static inline gab_value gab_val_type(gab_engine *eng, gab_value value) {
-  if (GAB_VAL_IS_OBJECT(value)) {
-    gab_obj_object *obj = GAB_VAL_TO_OBJECT(value);
+  if (GAB_VAL_IS_RECORD(value)) {
+    gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
     return GAB_VAL_OBJ(obj->shape);
   }
 

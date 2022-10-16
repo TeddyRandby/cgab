@@ -40,5 +40,5 @@ gab_value gab_mod(gab_engine *gab) {
         GAB_BUILTIN(slice, 3),
     };
 
-    return gab_bundle(gab, 2, keys, values); 
+    return gab_bundle_record(gab, 2, keys, values); 
 }

@@ -81,7 +81,7 @@ gab_obj_string *gab_obj_to_obj_string(gab_obj *self, gab_engine *gab) {
   case OBJECT_CLOSURE: {
     return gab_obj_string_create(gab, s_i8_cstr("[closure]"));
   }
-  case OBJECT_OBJECT: {
+  case OBJECT_RECORD: {
     return gab_obj_string_create(gab, s_i8_cstr("[object]"));
   }
   case OBJECT_UPVALUE: {
@@ -129,8 +129,8 @@ void gab_obj_dump(gab_value value) {
     printf("[shape:%.*s]", (i32)shape->name.len, shape->name.data);
     break;
   }
-  case OBJECT_OBJECT: {
-    gab_obj_object *obj = GAB_VAL_TO_OBJECT(value);
+  case OBJECT_RECORD: {
+    gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
     printf("[object:%.*s]", (i32)obj->shape->name.len, obj->shape->name.data);
     break;
   }
@@ -169,8 +169,8 @@ void gab_obj_destroy(gab_obj *self, gab_engine *gab) {
     return;
   }
 
-  case OBJECT_OBJECT: {
-    gab_obj_object *object = (gab_obj_object *)(self);
+  case OBJECT_RECORD: {
+    gab_obj_record *object = (gab_obj_record *)(self);
     if (object->is_dynamic) {
       v_u64_destroy(&object->dynamic_values);
     }
@@ -180,9 +180,7 @@ void gab_obj_destroy(gab_obj *self, gab_engine *gab) {
 
   case OBJECT_CONTAINER: {
     gab_obj_container *container = (gab_obj_container *)(self);
-
     container->destructor(gab, container);
-
     GAB_DESTROY_STRUCT(container, gab);
     return;
   }
@@ -214,7 +212,7 @@ static inline u64 keys_hash(u64 size, u64 stride, gab_value values[size]) {
 gab_obj_string *gab_obj_string_create(gab_engine *gab, s_i8 str) {
   u64 hash = s_i8_hash(str);
 
-  gab_obj_string *interned = gab_find_string(gab, str, hash);
+  gab_obj_string *interned = gab_engine_find_string(gab, str, hash);
 
   if (interned != NULL)
     return interned;
@@ -226,7 +224,7 @@ gab_obj_string *gab_obj_string_create(gab_engine *gab, s_i8 str) {
   self->len = str.len;
   self->hash = hash;
 
-  gab_add_constant(gab, GAB_VAL_OBJ(self));
+  gab_engine_add_constant(gab, GAB_VAL_OBJ(self));
 
   // Strings cannot reference other objects - mark them green.
   GAB_OBJ_GREEN((gab_obj *)self);
@@ -268,14 +266,14 @@ gab_obj_string *gab_obj_string_concat(gab_engine *gab, gab_obj_string *a,
     Unfortunately, we can't check for this before copying and computing the
     hash.
   */
-  gab_obj_string *interned = gab_find_string(gab, ref, self->hash);
+  gab_obj_string *interned = gab_engine_find_string(gab, ref, self->hash);
   if (interned) {
     gab_obj_destroy((gab_obj *)self, gab);
     return interned;
   }
 
   // Intern the string in the module
-  gab_add_constant(gab, GAB_VAL_OBJ(self));
+  gab_engine_add_constant(gab, GAB_VAL_OBJ(self));
 
   // Strings cannot reference other objects - mark them green.
   GAB_OBJ_GREEN((gab_obj *)self);
@@ -358,7 +356,7 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_value keys[], u64 size,
                                     u64 stride) {
   u64 hash = keys_hash(size, stride, keys);
 
-  gab_obj_shape *interned = gab_find_shape(gab, size, stride, hash, keys);
+  gab_obj_shape *interned = gab_engine_find_shape(gab, size, stride, hash, keys);
 
   if (interned)
     return interned;
@@ -379,7 +377,7 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_value keys[], u64 size,
     d_u64_insert(&self->properties, key, i);
   }
 
-  gab_add_constant(gab, GAB_VAL_OBJ(self));
+  gab_engine_add_constant(gab, GAB_VAL_OBJ(self));
 
   return self;
 }
@@ -398,12 +396,12 @@ gab_obj_shape *gab_obj_shape_extend(gab_obj_shape *self, gab_engine *gab,
   return new_shape;
 }
 
-gab_obj_object *gab_obj_object_create(gab_engine *gab, gab_obj_shape *shape,
+gab_obj_record *gab_obj_record_create(gab_engine *gab, gab_obj_shape *shape,
                                       gab_value values[], u64 size,
                                       u64 stride) {
 
-  gab_obj_object *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_object, gab_value, size, gab, OBJECT_OBJECT);
+  gab_obj_record *self =
+      GAB_CREATE_FLEX_OBJ(gab_obj_record, gab_value, size, gab, OBJECT_RECORD);
 
   self->shape = shape;
   self->static_size = size;
@@ -420,7 +418,7 @@ gab_obj_object *gab_obj_object_create(gab_engine *gab, gab_obj_shape *shape,
   return self;
 }
 
-i16 gab_obj_object_extend(gab_obj_object *self, gab_engine *gab,
+i16 gab_obj_record_extend(gab_obj_record *self, gab_engine *gab,
                           gab_obj_shape *new_shape, gab_value value) {
 
   self->shape = new_shape;

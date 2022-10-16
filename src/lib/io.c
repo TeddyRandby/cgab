@@ -5,98 +5,85 @@
 #include "include/value.h"
 #include <stdio.h>
 
+void gab_container_file_cb(gab_engine *eng, gab_obj_container *self) {
+  if (fclose(self->data)) {
+    fprintf(stderr, "Uh oh, file close failed.");
+    exit(1);
+  }
+}
+
 gab_value gab_lib_open(gab_engine *eng, gab_value *argv, u8 argc) {
-  if (argc != 1) {
+  if (argc != 2 || !GAB_VAL_IS_STRING(argv[0]) || !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
   }
 
-  if (!GAB_VAL_IS_STRING(argv[0])) {
-    return GAB_VAL_NULL();
-  }
+  gab_obj_string *path_obj = GAB_VAL_TO_STRING(argv[0]);
+  char path[path_obj->len + 1];
+  memcpy(path, path_obj->data, sizeof(i8) * path_obj->len);
+  path[path_obj->len] = '\0';
 
-  gab_obj_string *path = GAB_VAL_TO_STRING(argv[0]);
-  char *cpath = (char *)path->data;
+  gab_obj_string *perms_obj = GAB_VAL_TO_STRING(argv[1]);
+  char perms[perms_obj->len + 1];
+  memcpy(perms, perms_obj->data, sizeof(i8) * perms_obj->len);
+  perms[perms_obj->len] = '\0';
 
-  FILE *file = fopen(cpath, "rb");
+  FILE *file = fopen(path, perms);
   if (file == NULL) {
     return GAB_VAL_NULL();
   }
 
   gab_value container =
-      GAB_VAL_OBJ(gab_obj_container_create(eng, GAB_VAL_NULL(), file));
+      GAB_VAL_OBJ(gab_obj_container_create(eng, gab_container_file_cb, file));
 
   return container;
 }
 
 gab_value gab_lib_read(gab_engine *eng, gab_value *argv, u8 argc) {
-  if (argc != 1) {
+  if (argc != 1 || !GAB_VAL_TO_CONTAINER(argv[0])) {
     return GAB_VAL_NULL();
   }
 
-  if (!GAB_VAL_IS_STRING(argv[0])) {
+  gab_obj_container *file_obj = GAB_VAL_TO_CONTAINER(argv[0]);
+  if (file_obj->destructor != gab_container_file_cb) {
     return GAB_VAL_NULL();
   }
 
-  gab_obj_string *path = GAB_VAL_TO_STRING(argv[0]);
-  char *cpath = (char *)path->data;
-
-  FILE *file = fopen(cpath, "rb");
-  if (file == NULL) {
-    return GAB_VAL_NULL();
-  }
+  FILE *file = file_obj->data;
 
   fseek(file, 0L, SEEK_END);
   size_t fileSize = ftell(file);
   rewind(file);
 
-  char *buffer = NEW_ARRAY(char, fileSize + 1);
-  if (buffer == NULL) {
-    fclose(file);
-    DESTROY(buffer);
-    exit(1);
-  }
+  char buffer[fileSize];
 
   size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
   if (bytesRead < fileSize) {
-    fclose(file);
-    DESTROY(buffer);
     return GAB_VAL_NULL();
   }
 
-  buffer[bytesRead] = '\0';
+  gab_obj_string *result =
+      gab_obj_string_create(eng, s_i8_create((i8 *)buffer + 0, bytesRead));
 
-  fclose(file);
-
-  gab_obj_string *result = gab_obj_string_create(eng, s_i8_cstr(buffer));
-
-  DESTROY(buffer);
   return GAB_VAL_OBJ(result);
 }
 
 gab_value gab_lib_write(gab_engine *eng, gab_value *argv, u8 argc) {
-  if (argc != 2) {
+  if (argc != 2 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
+      !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
   }
 
-  if (!GAB_VAL_IS_STRING(argv[0])) {
+  gab_obj_container *handle = GAB_VAL_TO_CONTAINER(argv[0]);
+  if (handle->destructor != gab_container_file_cb || handle->data == NULL) {
     return GAB_VAL_NULL();
   }
 
-  if (!GAB_VAL_IS_STRING(argv[1])) {
-    return GAB_VAL_NULL();
-  }
+  gab_obj_string *data_obj = GAB_VAL_TO_STRING(argv[1]);
+  char data[data_obj->len + 1];
+  memccpy(data, data_obj->data, sizeof(i8), data_obj->len);
+  data[data_obj->len] = '0';
 
-  gab_obj_string *path = GAB_VAL_TO_STRING(argv[0]);
-  char *cpath = (char *)path->data;
-  gab_obj_string *data = GAB_VAL_TO_STRING(argv[1]);
-  char *cdata = (char *)data->data;
-  FILE *file = fopen(cpath, "w");
-  if (file == NULL) {
-    return GAB_VAL_NULL();
-  }
-
-  i32 result = fputs(cdata, file);
-  fclose(file);
+  i32 result = fputs(data, handle->data);
 
   if (result > 0) {
     return GAB_VAL_BOOLEAN(true);
@@ -105,19 +92,7 @@ gab_value gab_lib_write(gab_engine *eng, gab_value *argv, u8 argc) {
   }
 }
 
-void gab_container_file_cb(gab_engine *eng, gab_obj_container *self) {
-  printf("Calling cb\n");
-  if (!fclose(self->data)) {
-    fprintf(stderr, "Uh oh, file close failed.");
-    exit(1);
-  }
-  printf("Closed file\n");
-}
-
 gab_value gab_mod(gab_engine *gab) {
-  // Register the file container
-  gab_add_container_tag(gab, GAB_VAL_NULL(), gab_container_file_cb);
-
   s_i8 keys[] = {
       s_i8_cstr("open"),
       s_i8_cstr("read"),
@@ -125,10 +100,10 @@ gab_value gab_mod(gab_engine *gab) {
   };
 
   gab_value values[] = {
-      GAB_BUILTIN(open, 1),
+      GAB_BUILTIN(open, 2),
       GAB_BUILTIN(read, 1),
       GAB_BUILTIN(write, 2),
   };
 
-  return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);
+  return gab_bundle_record(gab, sizeof(values) / sizeof(gab_value), keys, values);
 }

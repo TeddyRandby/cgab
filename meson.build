@@ -11,7 +11,6 @@ dl = dependency('dl')
 
 libcgab = library('cgab',
   sources,
-  dependencies: [ dl ],
   install: true,
 )
 

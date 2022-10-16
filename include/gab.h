@@ -5,24 +5,13 @@
 
 typedef struct gab_engine gab_engine;
 
-typedef struct gab_bc gab_bc;
-typedef struct gab_gc gab_gc;
-typedef struct gab_vm gab_vm;
-
-typedef enum gab_error_k gab_error_k;
-
-typedef enum gab_result_k gab_result_k;
-typedef struct gab_result gab_result;
-
 /**
  * Create a Gab Engine. If you want libraries included, build and bind them
  * before running any code.
  *
- * @param error An output parameter for the engine to write errors into.
- *
  * @return The allocated Gab Engine.
  */
-gab_engine *gab_create(a_i8 *error);
+gab_engine *gab_create();
 
 /**
  * Create a Gab Engine, forking from a parent engine.
@@ -34,12 +23,50 @@ gab_engine *gab_fork(gab_engine *gab);
 /**
  * Cleanup a Gab Engine.
  *
- * @param gab: The engine to clean up.
+ * @param gab The engine to clean up.
  */
 void gab_destroy(gab_engine *gab);
 
 /**
- * Bundle a list of KVPS into a Gab object.
+ * Compile a source string into a gab_obj_closure.
+ *
+ * @param gab The engine
+ *
+ * @param source The source code
+ *
+ * @param name A name for the package
+ *
+ * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
+ */
+gab_value gab_package_source(gab_engine* gab, s_i8 name, s_i8 source, u8 flags);
+
+/**
+ * Run a gab_obj_closure in the gab vm.
+ *
+ * @param gab The engine
+ *
+ * @param main The gab_obj_closure to call
+ *
+ * @return The return value of the closure
+ */
+gab_value gab_run(gab_engine* gab, gab_value main);
+
+/**
+ * Returns false if the engine has encountered an error.
+ *
+ * @param gab The engine
+ *
+ * @return state of the engine
+ */
+boolean gab_ok(gab_engine* gab);
+
+/**
+ * Returns a null-terminated 
+ */
+i8* gab_err(gab_engine* gab);
+
+/**
+ * Bundle a list of keys and values into a Gab object.
  *
  * @param gab The engine
  *
@@ -51,11 +78,11 @@ void gab_destroy(gab_engine *gab);
  *
  * @return The gab value that the keys and values were bundled into
  */
-gab_value gab_bundle(gab_engine *gab, u64 size, s_i8 keys[size],
+gab_value gab_bundle_record(gab_engine *gab, u64 size, s_i8 keys[size],
                      gab_value values[size]);
 
 /**
- * Bundle a list of valuesinto a Gab object.
+ * Bundle a list of values into a Gab object.
  *
  * @param gab The engine
  *
@@ -67,9 +94,30 @@ gab_value gab_bundle(gab_engine *gab, u64 size, s_i8 keys[size],
  */
 gab_value gab_bundle_array(gab_engine *gab, u64 size, gab_value values[size]);
 
+/**
+ * A helper macro for creating a gab_obj_record
+ */
+#define GAB_RECORD(size, keys, values)                                         \
+  GAB_VAL_OBJ(gab_bundle_record(gab, size, keys, values))
+
+/**
+ * A helper macro for creating a gab_obj_record
+ */
+#define GAB_ARRAY(size, values)                                         \
+  GAB_VAL_OBJ(gab_bundle_array(gab, size, values))
+
+/**
+ * A helper macro for creating a gab_obj_builtin
+ */
 #define GAB_BUILTIN(name, arity)                                               \
   GAB_VAL_OBJ(                                                                 \
       gab_obj_builtin_create(gab, gab_lib_##name, s_i8_cstr(#name), arity))
+
+/**
+ * A helper macro for creating a gab_obj_string
+ */
+#define GAB_STRING(cstr) \
+    GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr(cstr)))
 
 /**
  * Bundle the keys and values into a gab object and bind it to the engine.
@@ -85,89 +133,28 @@ gab_value gab_bundle_array(gab_engine *gab, u64 size, gab_value values[size]);
 void gab_bind(gab_engine *gab, u64 size, s_i8 keys[size],
               gab_value values[size]);
 
-/**
- * Compile and run a c-str of gab code.
- *
- * @param gab The engine to run the code with.
- *
- * @param source The source code.
- *
- * @param module_name Give a name to the module that will be compiled from the
- * source.
- *
- * @param flags The set of flags to pass to the compiler and vm.
- *
- * @return A gab result object.
- */
-gab_result gab_run(gab_engine *gab, s_i8 module_name, s_i8 source, u8 flags);
-
-i32 gab_lock(gab_engine *gab);
-
-i32 gab_unlock(gab_engine *gab);
-
-/**
- * If the engine has an interned string matching the parameters
- *
- * @param gab The engine to search through.
- *
- * @param string The string data to match against.
- *
- * @param hash The hash to match against.
- *
- * @return The matching object if found, otherwise NULL.
- */
-gab_obj_string *gab_find_string(gab_engine *gab, s_i8 string, u64 hash);
-
-/**
- * If the engine has an interned shape matching the parameters, it returns it.
- * Otherwise, returns NULL.
- *
- * @param gab The engine to search through.
- *
- * @param size The number of keys.
- *
- * @param stride The stride to check along in keys.
- *
- * @param hash The hash to match against.
- *
- * @param keys The keys to match against.
- *
- * @return The matching object if found, otherwise NULL.
- */
-gab_obj_shape *gab_find_shape(gab_engine *gab, u64 size, u64 stride, u64 hash,
-                              gab_value keys[size]);
-
 /*
- * Add a constant into the engine's constant table.
+ * Manually trigger a garbage collection.
  *
- * @param gab The engine to add the constant to.
- *
- * @param constant The constant to add.
- *
- * @param The offset of the constant in the constant table.
+ * @param gab The engine to collect.
  */
-u16 gab_add_constant(gab_engine *gab, gab_value constant);
-
-/*
- * Compile a module with the given source code, and add it to the engine.
- *
- * @param gab The engine to add the module to.
- *
- * @param name The name to give the module.
- *
- * @param source The source code of the module.
- *
- * @return A pointer to the module that was added.
- */
-gab_module *gab_add_module(gab_engine *gab, s_i8 name, s_i8 source);
-
-boolean gab_add_container_tag(gab_engine *gab, gab_value tag,
-                           gab_obj_container_cb destructor);
-
 void gab_collect(gab_engine *gab);
 
-void gab_iref(gab_engine *gab, gab_value obj);
+/*
+ * Increment the RC on the value
+ *
+ * @param gab The engine.
+ *
+ * @param obj The value.
+ */
+void gab_iref(gab_engine *gab, gab_value val);
 
-void gab_dref(gab_engine *gab, gab_value obj);
-
+/*
+ * Decrement the RC on the value
+ *
+ * @param gab The engine.
+ *
+ * @param obj The value.
+ */
+void gab_dref(gab_engine *gab, gab_value val);
 #endif

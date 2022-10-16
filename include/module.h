@@ -52,14 +52,14 @@ struct gab_module {
   v_s_i8 *source_lines;
 
   /*
-     A pointer to the string of source code.
+     A slice over the source code.
   */
   s_i8 source;
 
   /*
     The running engine.
   */
-  gab_engine *engine;
+  // gab_engine *engine;
 
   /*
     The next module in the linked list of modules.
@@ -106,5 +106,5 @@ void gab_module_try_patch_vse(gab_module *, u8);
 
   Defined in common/log.c
 */
-void gab_module_dump(gab_module *self, s_i8 name);
+void gab_module_dump(gab_engine* gab, gab_module *self, s_i8 name);
 #endif

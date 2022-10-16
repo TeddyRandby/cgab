@@ -1,6 +1,5 @@
-
-
 #include "print.h"
+#include <stdio.h>
 
 static inline void print_values(gab_value *argv, u8 argc) {
   for (i32 i = 0; i < argc; i++) {

@@ -147,20 +147,20 @@ u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l) {
 }
 
 void gab_module_push_inline_cache(gab_module *self, gab_token t, u64 l) {
-  gab_module_push_byte(self, 0, t, l);
-  gab_module_push_byte(self, 0, t, l);
-  gab_module_push_byte(self, 0, t, l);
-  gab_module_push_byte(self, 0, t, l);
-  gab_module_push_byte(self, 0, t, l);
-  gab_module_push_byte(self, 0, t, l);
-  gab_module_push_byte(self, 0, t, l);
-  gab_module_push_byte(self, 0, t, l);
+  gab_module_push_byte(self, OP_NOP, t, l);
+  gab_module_push_byte(self, OP_NOP, t, l);
+  gab_module_push_byte(self, OP_NOP, t, l);
+  gab_module_push_byte(self, OP_NOP, t, l);
+  gab_module_push_byte(self, OP_NOP, t, l);
+  gab_module_push_byte(self, OP_NOP, t, l);
+  gab_module_push_byte(self, OP_NOP, t, l);
+  gab_module_push_byte(self, OP_NOP, t, l);
 }
 
 u64 gab_module_push_jump(gab_module *self, u8 op, gab_token t, u64 l) {
   gab_module_push_byte(self, op, t, l);
-  gab_module_push_byte(self, 0, t, l);
-  gab_module_push_byte(self, 0, t, l);
+  gab_module_push_byte(self, OP_NOP, t, l);
+  gab_module_push_byte(self, OP_NOP, t, l);
   return self->bytecode.len - 2;
 }
 
@@ -190,7 +190,7 @@ void gab_module_try_patch_vse(gab_module *self, u8 want) {
   }
 }
 
-u64 dumpInstruction(gab_module *self, u64 offset);
+u64 dumpInstruction(gab_module *self, gab_engine* gab, u64 offset);
 
 u64 dumpSimpleInstruction(gab_module *self, u64 offset) {
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
@@ -220,12 +220,12 @@ u64 dumpDictInstruction(gab_module *self, u64 offset) {
   return offset + 2;
 };
 
-u64 dumpConstantInstruction(gab_module *self, u64 offset) {
+u64 dumpConstantInstruction(gab_module *self, gab_engine* gab, u64 offset) {
   u16 constant = v_u8_val_at(&self->bytecode, offset + 1) << 8 |
                  v_u8_val_at(&self->bytecode, offset + 2);
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   printf("%-16s ", name);
-  gab_val_dump(d_gab_constant_ikey(self->engine->constants, constant));
+  gab_val_dump(d_gab_constant_ikey(gab->constants, constant));
   printf("\n");
   return offset + 3;
 }
@@ -239,7 +239,7 @@ u64 dumpJumpInstruction(gab_module *self, u64 sign, u64 offset) {
   return offset + 3;
 }
 
-u64 dumpInstruction(gab_module *self, u64 offset) {
+u64 dumpInstruction(gab_module *self, gab_engine* gab, u64 offset) {
   u8 op = v_u8_val_at(&self->bytecode, offset);
   switch (op) {
   case OP_RETURN_1:
@@ -325,6 +325,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_SET_INDEX:
   case OP_CONCAT:
   case OP_STRINGIFY:
+  case OP_NOP:
   case OP_EQUAL: {
     return dumpSimpleInstruction(self, offset);
   }
@@ -347,13 +348,13 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     return dumpTwoByteInstruction(self, offset);
   }
   case OP_CONSTANT: {
-    return dumpConstantInstruction(self, offset);
+    return dumpConstantInstruction(self, gab, offset);
   }
   case OP_GET_PROPERTY: {
-    return dumpConstantInstruction(self, offset) + 10;
+    return dumpConstantInstruction(self, gab, offset) + 10;
   }
   case OP_SET_PROPERTY: {
-    return dumpConstantInstruction(self, offset) + 10;
+    return dumpConstantInstruction(self, gab, offset) + 10;
   }
   case OP_CALL_0:
   case OP_CALL_1:
@@ -388,12 +389,12 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     u16 constant = ((((u16)self->bytecode.data[offset + 1]) << 8) |
                     self->bytecode.data[offset + 2]);
     printf("%-16s ", "OP_CLOSURE");
-    gab_val_dump(d_gab_constant_ikey(self->engine->constants, constant));
+    gab_val_dump(d_gab_constant_ikey(gab->constants, constant));
     printf("\n");
     offset += 3;
 
     gab_obj_function *function = GAB_VAL_TO_FUNCTION(
-        d_gab_constant_ikey(self->engine->constants, constant));
+        d_gab_constant_ikey(gab->constants, constant));
 
     for (int j = 0; j < function->nupvalues; j++) {
       int isLocal = self->bytecode.data[offset++];
@@ -417,13 +418,13 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   }
 }
 
-void gab_module_dump(gab_module *self, s_i8 name) {
+void gab_module_dump(gab_engine* gab, gab_module *self, s_i8 name) {
   if (self) {
     printf("     %.*s\n", (int)name.len, name.data);
     u64 offset = 0;
     while (offset < self->bytecode.len) {
       printf("%04lu ", offset);
-      offset = dumpInstruction(self, offset);
+      offset = dumpInstruction(self, gab, offset);
     }
   }
 }

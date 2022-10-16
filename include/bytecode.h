@@ -2,6 +2,7 @@
 /*
   -------------- Zero Arguments -------------
 */
+OP_CODE(NOP)
 OP_CODE(SWAP)
 OP_CODE(MATCH)
 OP_CODE(CONCAT)

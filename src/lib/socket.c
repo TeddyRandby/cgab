@@ -173,5 +173,5 @@ gab_value gab_mod(gab_engine *gab) {
       GAB_BUILTIN(close, 1),
   };
 
-  return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);
+  return gab_bundle_record(gab, sizeof(values) / sizeof(gab_value), keys, values);
 }

@@ -12,18 +12,6 @@ static const char *gab_token_names[] = {
 #undef TOKEN
 };
 
-static u64 write_safe(a_i8 *dest, u64 bytes_so_far, const char *fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-
-  const u64 bytes_written = vsnprintf((char *)dest->data + bytes_so_far,
-                                      dest->len - bytes_so_far, fmt, args);
-
-  va_end(args);
-
-  return bytes_written;
-}
-
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_YELLOW "\x1b[33m"
@@ -32,7 +20,9 @@ static u64 write_safe(a_i8 *dest, u64 bytes_so_far, const char *fmt, ...) {
 #define ANSI_COLOR_CYAN "\x1b[36m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
-void write_vm_error(gab_engine *gab, gab_error_k e, const char *help_fmt, ...) {
+void write_vm_error(gab_engine *gab, gab_status e, const char *help_fmt, ...) {
+  gab->status = e;
+
   gab_vm *vm = &gab->vm;
 
   u64 bytes_written = 0;
@@ -64,8 +54,8 @@ void write_vm_error(gab_engine *gab, gab_error_k e, const char *help_fmt, ...) {
     const char *tok = gab_token_names[v_u8_val_at(&mod->tokens, offset)];
 
     if (frame == vm->frame) {
-      bytes_written += write_safe(
-          gab->error, bytes_written,
+      bytes_written += gab_engine_write_error(
+          gab, bytes_written,
           "[" ANSI_COLOR_MAGENTA "%.*s" ANSI_COLOR_RESET ":" ANSI_COLOR_GREEN
           "%.*s" ANSI_COLOR_RESET "] Error near " ANSI_COLOR_BLUE
           "%s" ANSI_COLOR_RESET ":\n\t\u256d " ANSI_COLOR_RED
@@ -75,22 +65,22 @@ void write_vm_error(gab_engine *gab, gab_error_k e, const char *help_fmt, ...) {
           (i32)mod->name.len, mod->name.data, (i32)func_name.len,
           func_name.data, tok, curr_row, curr_src_len, curr_src_start);
 
-      bytes_written +=
-          write_safe(gab->error, bytes_written, ANSI_COLOR_YELLOW "%s\n\t",
-                     gab_error_names[e]);
+      bytes_written += gab_engine_write_error(
+          gab, bytes_written, ANSI_COLOR_YELLOW "%s\n\t", gab_status_names[e]);
 
       va_list args;
       va_start(args, help_fmt);
 
-      bytes_written += write_safe(gab->error, bytes_written, help_fmt, args);
+      bytes_written +=
+          gab_engine_write_error(gab, bytes_written, help_fmt, args);
 
       va_end(args);
 
       bytes_written +=
-          write_safe(gab->error, bytes_written, "\n" ANSI_COLOR_RESET);
+          gab_engine_write_error(gab, bytes_written, "\n" ANSI_COLOR_RESET);
     } else {
-      bytes_written += write_safe(
-          gab->error, bytes_written,
+      bytes_written += gab_engine_write_error(
+          gab, bytes_written,
           "[" ANSI_COLOR_MAGENTA "%.*s" ANSI_COLOR_RESET ":" ANSI_COLOR_GREEN
           "%.*s" ANSI_COLOR_RESET "] Called at:"
           "\n\t  " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
@@ -195,20 +185,9 @@ static inline void close_upvalue(gab_vm *vm, gab_value *local) {
   }
 }
 
-gab_result gab_vm_run(gab_engine *gab, gab_value main) {
+gab_value gab_vm_run(gab_engine *gab, gab_value main) {
 #if GAB_LOG_EXECUTION
-  /*
-    If we're logging execution, create the instruction name table and the
-    log macro.
-  */
-  static const char *instr_name[] = {
-#define OP_CODE(name) #name,
-#include "../compiler/bytecode.h"
-#undef OP_CODE
-  };
-
-#define LOG() printf("OP_%s\n", instr_name[*(ip)])
-
+#define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
 #else
 #define LOG()
 #endif
@@ -239,9 +218,9 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
 #define BINARY_OPERATION(value_type, operation_type, operation)                \
   if ((GAB_VAL_IS_NUMBER(PEEK()) + GAB_VAL_IS_NUMBER(PEEK2())) < 2) {          \
     STORE_FRAME();                                                             \
-    write_vm_error(gab, GAB_ERROR_NOT_NUMERIC,                                 \
+    write_vm_error(gab, GAB_NOT_NUMERIC,                                       \
                    "Binary '" #operation "' operation only works on numbers"); \
-    return (gab_result){.k = GAB_RESULT_RUN_ERROR};                            \
+    return GAB_VAL_NULL();                                                     \
   }                                                                            \
   operation_type b = GAB_VAL_TO_NUMBER(POP());                                 \
   operation_type a = GAB_VAL_TO_NUMBER(POP());                                 \
@@ -360,10 +339,10 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
         // Combine the two error branches into a single case.
         // Check for stack overflow here
         if (arity != closure->func->narguments) {
-          write_vm_error(gab, GAB_ERROR_WRONG_ARITY,
+          write_vm_error(gab, GAB_WRONG_ARITY,
                          "Expected %d arguments but got %d",
                          closure->func->narguments, arity);
-          return (gab_result){.k = GAB_RESULT_RUN_ERROR};
+          return GAB_VAL_NULL();
         }
 
         FRAME()++;
@@ -381,10 +360,10 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
         gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(callee);
 
         if (arity != builtin->narguments && builtin->narguments != VAR_RET) {
-          write_vm_error(gab, GAB_ERROR_WRONG_ARITY,
+          write_vm_error(gab, GAB_WRONG_ARITY,
                          "Expected %d arguments but got %d",
                          builtin->narguments, arity);
-          return (gab_result){.k = GAB_RESULT_RUN_ERROR};
+          return GAB_VAL_NULL();
         }
 
         gab_value result = (*builtin->function)(ENGINE(), TOP() - arity, arity);
@@ -396,8 +375,8 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
         gab_dref(ENGINE(), result);
       } else {
         STORE_FRAME();
-        write_vm_error(gab, GAB_ERROR_NOT_FUNCTION, "");
-        return (gab_result){.k = GAB_RESULT_RUN_ERROR};
+        write_vm_error(gab, GAB_NOT_FUNCTION, "");
+        return GAB_VAL_NULL();
       }
 
       NEXT();
@@ -431,7 +410,7 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
       CASE_CODE(RETURN_14):
       CASE_CODE(RETURN_15):
       CASE_CODE(RETURN_16): {
-        have = INSTR()- OP_RETURN_1 + 1;
+        have = INSTR() - OP_RETURN_1 + 1;
         goto complete_return;
       }
       // clang-format on
@@ -454,9 +433,7 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
         // Increment and pop the module.
         gab_iref(ENGINE(), PEEK());
 
-        gab_value module = POP();
-
-        return (gab_result){.k = GAB_RESULT_OK, .result = module};
+        return POP();
       }
 
       LOAD_FRAME();
@@ -467,20 +444,20 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
     {
       gab_value prop, index;
       i16 prop_offset;
-      gab_obj_object *obj;
+      gab_obj_record *obj;
 
       CASE_CODE(GET_INDEX) : {
         prop = PEEK();
         index = PEEK2();
 
-        if (!GAB_VAL_IS_OBJECT(index)) {
+        if (!GAB_VAL_IS_RECORD(index)) {
           STORE_FRAME();
-          write_vm_error(gab, GAB_ERROR_NOT_OBJECT,
+          write_vm_error(gab, GAB_NOT_OBJECT,
                          "Only objects can have propoerties");
-          return (gab_result){.k = GAB_RESULT_RUN_ERROR};
+          return GAB_VAL_NULL();
         }
 
-        obj = GAB_VAL_TO_OBJECT(index);
+        obj = GAB_VAL_TO_RECORD(index);
 
         prop_offset = gab_obj_shape_find(obj->shape, prop);
 
@@ -495,14 +472,14 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
         gab_obj_shape **cached_shape = READ_INLINECACHE(gab_obj_shape);
         prop_offset = READ_SHORT;
 
-        if (!GAB_VAL_IS_OBJECT(index)) {
+        if (!GAB_VAL_IS_RECORD(index)) {
           STORE_FRAME();
-          write_vm_error(gab, GAB_ERROR_NOT_OBJECT,
+          write_vm_error(gab, GAB_NOT_OBJECT,
                          "Only objects can have propoerties");
-          return (gab_result){.k = GAB_RESULT_RUN_ERROR};
+          return GAB_VAL_NULL();
         }
 
-        obj = GAB_VAL_TO_OBJECT(index);
+        obj = GAB_VAL_TO_RECORD(index);
 
         if (*cached_shape != obj->shape) {
           // The cache hasn't been created yet.
@@ -517,7 +494,7 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
       }
 
     complete_obj_get : {
-      PUSH(gab_obj_object_get(obj, prop_offset));
+      PUSH(gab_obj_record_get(obj, prop_offset));
       NEXT();
     }
     }
@@ -526,7 +503,7 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
 
       gab_value value, prop, index;
       i16 prop_offset;
-      gab_obj_object *obj;
+      gab_obj_record *obj;
 
       CASE_CODE(SET_INDEX) : {
         // Leave these on the stack for now in case we collect.
@@ -536,14 +513,14 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
 
         gab_iref(ENGINE(), value);
 
-        if (!GAB_VAL_IS_OBJECT(index)) {
+        if (!GAB_VAL_IS_RECORD(index)) {
           STORE_FRAME();
-          write_vm_error(gab, GAB_ERROR_NOT_OBJECT,
+          write_vm_error(gab, GAB_NOT_OBJECT,
                          "Only objects can have propoerties");
-          return (gab_result){.k = GAB_RESULT_RUN_ERROR};
+          return GAB_VAL_NULL();
         }
 
-        obj = GAB_VAL_TO_OBJECT(index);
+        obj = GAB_VAL_TO_RECORD(index);
 
         prop_offset = gab_obj_shape_find(obj->shape, prop);
 
@@ -554,7 +531,7 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
               gab_obj_shape_extend(obj->shape, ENGINE(), prop);
 
           // Update the obj and get the new offset.
-          prop_offset = gab_obj_object_extend(obj, ENGINE(), shape, value);
+          prop_offset = gab_obj_record_extend(obj, ENGINE(), shape, value);
         }
 
         // Now its safe to drop the three values
@@ -571,14 +548,14 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
 
         prop_offset = READ_SHORT;
 
-        if (!GAB_VAL_IS_OBJECT(index)) {
+        if (!GAB_VAL_IS_RECORD(index)) {
           STORE_FRAME();
-          write_vm_error(gab, GAB_ERROR_NOT_OBJECT,
+          write_vm_error(gab, GAB_NOT_OBJECT,
                          "Only objects can have propoerties");
-          return (gab_result){.k = GAB_RESULT_RUN_ERROR};
+          return GAB_VAL_NULL();
         }
 
-        obj = GAB_VAL_TO_OBJECT(index);
+        obj = GAB_VAL_TO_RECORD(index);
 
         if (*cached_shape != obj->shape) {
           // The cache hasn't been created yet.
@@ -596,7 +573,7 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
 
           // Update the obj and get the new offset.
           prop_offset =
-              gab_obj_object_extend(obj, ENGINE(), *cached_shape, value);
+              gab_obj_record_extend(obj, ENGINE(), *cached_shape, value);
 
           // Write the offset.
           WRITE_SHORT(prop_offset);
@@ -609,15 +586,17 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
     complete_obj_set : {
 
       gab_iref(ENGINE(), value);
-      gab_dref(ENGINE(), gab_obj_object_get(obj, prop_offset));
+      gab_dref(ENGINE(), gab_obj_record_get(obj, prop_offset));
 
-      gab_obj_object_set(obj, prop_offset, value);
+      gab_obj_record_set(obj, prop_offset, value);
 
       PUSH(value);
 
       NEXT();
     }
     }
+
+    CASE_CODE(NOP) : { NEXT(); }
 
     CASE_CODE(CONSTANT) : {
       PUSH(READ_CONSTANT);
@@ -627,9 +606,8 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
     CASE_CODE(NEGATE) : {
       if (!GAB_VAL_IS_NUMBER(PEEK())) {
         STORE_FRAME();
-        write_vm_error(gab, GAB_ERROR_NOT_NUMERIC,
-                       "Unary '-' only works on numbers");
-        return (gab_result){.k = GAB_RESULT_RUN_ERROR};
+        write_vm_error(gab, GAB_NOT_NUMERIC, "Unary '-' only works on numbers");
+        return GAB_VAL_NULL();
       }
       gab_value num = GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP()));
       PUSH(num);
@@ -708,9 +686,9 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
     CASE_CODE(CONCAT) : {
       if (!GAB_VAL_IS_STRING(PEEK()) + !GAB_VAL_IS_STRING(PEEK2())) {
         STORE_FRAME();
-        write_vm_error(gab, GAB_ERROR_NOT_STRING,
+        write_vm_error(gab, GAB_NOT_STRING,
                        "Binary '..' operation only works on strings");
-        return (gab_result){.k = GAB_RESULT_RUN_ERROR};
+        return GAB_VAL_NULL();
       }
 
       gab_obj_string *b = GAB_VAL_TO_STRING(POP());
@@ -782,8 +760,8 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
     CASE_CODE(ASSERT) : {
       if (GAB_VAL_IS_NULL(PEEK())) {
         STORE_FRAME();
-        write_vm_error(gab, GAB_ERROR_ASSERTION_FAILED, "");
-        return (gab_result){.k = GAB_RESULT_RUN_ERROR};
+        write_vm_error(gab, GAB_ASSERTION_FAILED, "");
+        return GAB_VAL_NULL();
       }
       NEXT();
     }
@@ -810,8 +788,8 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
 
       gab_value index = POP();
 
-      if (GAB_VAL_IS_OBJECT(index)) {
-        gab_obj_object *obj = GAB_VAL_TO_OBJECT(index);
+      if (GAB_VAL_IS_RECORD(index)) {
+        gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
 
         u8 have = obj->is_dynamic ? obj->dynamic_values.len : obj->static_size;
 
@@ -827,9 +805,9 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
         TOP() = trim_return(VM(), shape->keys, TOP(), have, want);
       } else {
         STORE_FRAME();
-        write_vm_error(gab, GAB_ERROR_NOT_OBJECT,
+        write_vm_error(gab, GAB_NOT_OBJECT,
                        "Unary '..' operation only works on objects");
-        return (gab_result){.k = GAB_RESULT_RUN_ERROR};
+        return GAB_VAL_NULL();
       }
 
       NEXT();
@@ -1055,7 +1033,7 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
       }
 
     complete_shape : {
-      gab_value obj = GAB_VAL_OBJ(gab_obj_object_create(
+      gab_value obj = GAB_VAL_OBJ(gab_obj_record_create(
           ENGINE(), shape, TOP() + 1 - (size * 2), size, 2));
 
       DROP_N(size * 2);
@@ -1078,7 +1056,7 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
       gab_obj_shape *shape = gab_obj_shape_create_array(ENGINE(), size);
 
       gab_value obj = GAB_VAL_OBJ(
-          gab_obj_object_create(ENGINE(), shape, TOP() - (size), size, 1));
+          gab_obj_record_create(ENGINE(), shape, TOP() - (size), size, 1));
 
       DROP_N(size);
 
@@ -1090,7 +1068,7 @@ gab_result gab_vm_run(gab_engine *gab, gab_value main) {
     }
   }
   // This should be unreachable
-  return (gab_result){.k = GAB_RESULT_RUN_ERROR};
+  return GAB_VAL_NULL();
 }
 
 #undef READ_BYTE

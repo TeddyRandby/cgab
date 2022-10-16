@@ -139,10 +139,6 @@ const keyword keywords[] = {
         "while",
         TOKEN_WHILE,
     },
-    {
-        "then",
-        TOKEN_THEN,
-    },
 };
 
 gab_token identifier(gab_lexer *self) {
@@ -240,6 +236,8 @@ gab_token other(gab_lexer *self) {
     CHAR_CASE('&', AMPERSAND)
     CHAR_CASE('!', BANG)
     CHAR_CASE('@', AT)
+    CHAR_CASE('$', DOLLAR)
+
   case '{': {
     cursor_advance(self);
     if (self->nested_curly > 0)

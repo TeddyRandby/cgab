@@ -125,8 +125,8 @@ static inline void for_child_and_gc_do(gab_engine *self, gab_obj *obj,
     }
     return;
   }
-  case (OBJECT_OBJECT): {
-    gab_obj_object *object = (gab_obj_object *)obj;
+  case (OBJECT_RECORD): {
+    gab_obj_record *object = (gab_obj_record *)obj;
     if (object->is_dynamic) {
       for (u64 i = 0; i < object->dynamic_values.len; i++) {
         if (GAB_VAL_IS_OBJ(object->dynamic_values.data[i])) {
@@ -175,8 +175,8 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
     }
     return;
   }
-  case (OBJECT_OBJECT): {
-    gab_obj_object *object = (gab_obj_object *)obj;
+  case (OBJECT_RECORD): {
+    gab_obj_record *object = (gab_obj_record *)obj;
 
     if (object->is_dynamic) {
       for (u64 i = 0; i < object->dynamic_values.len; i++) {
@@ -223,8 +223,8 @@ static inline void dec_child_refs(gab_engine *self, gab_obj *obj) {
     }
     return;
   }
-  case OBJECT_OBJECT: {
-    gab_obj_object *object = (gab_obj_object *)obj;
+  case OBJECT_RECORD: {
+    gab_obj_record *object = (gab_obj_record *)obj;
     if (object->is_dynamic) {
       for (u64 i = 0; i < object->dynamic_values.len; i++) {
         if (GAB_VAL_IS_OBJ(object->dynamic_values.data[i])) {

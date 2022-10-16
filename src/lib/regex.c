@@ -27,7 +27,7 @@ gab_value gab_lib_find(gab_engine *eng, gab_value *argv, u8 argc) {
     return GAB_VAL_NULL();
   }
 
-  gab_obj_object *list = gab_obj_object_create(
+  gab_obj_record *list = gab_obj_record_create(
       eng, gab_obj_shape_create(eng, NULL, 0, 0), NULL, 0, 0);
 
   u8 i = 0;
@@ -38,7 +38,7 @@ gab_value gab_lib_find(gab_engine *eng, gab_value *argv, u8 argc) {
     gab_value key = GAB_VAL_NUMBER(i);
     gab_value value = GAB_VAL_OBJ(gab_obj_string_create(eng, match));
 
-    gab_obj_object_insert(list, eng, key, value);
+    gab_obj_record_insert(list, eng, key, value);
     i++;
   }
 
@@ -54,5 +54,5 @@ gab_value gab_mod(gab_engine *gab) {
       GAB_BUILTIN(find, 2),
   };
 
-  return gab_bundle(gab, sizeof(values) / sizeof(gab_value), keys, values);
+  return gab_bundle_record(gab, sizeof(values) / sizeof(gab_value), keys, values);
 }
