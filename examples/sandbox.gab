@@ -28,36 +28,19 @@
 !condition = true
 
 def one()
-    1
+  1
 end
 
 def two()
-    2
+  2
 end
 
 def oneTwo()
-    1,2
+  return 1,2
 end
 
 let a,b = if !condition
-    oneTwo()
-end else
-    3,4
+  oneTwo()
 end
 
 !print(a,b)
-
-let c,d = if !condition
-    one(), 2
-end
-
-!print(c,d)
-
-let e,f = if not !condition
-    one(), 2
-end else
-    3, two()
-end
-
-!print(e,f)
-    
