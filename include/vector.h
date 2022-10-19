@@ -15,7 +15,7 @@
 #define METHOD(name) CONCAT(PREFIX, CONCAT(_, name))
 
 #define GROW(type, loc, new_count)                                             \
-  (type *)realloc(loc, sizeof(type) * (new_count))
+  ((type *)realloc(loc, sizeof(type) * (new_count)))
 
 typedef struct TYPENAME TYPENAME;
 struct TYPENAME {
@@ -41,7 +41,7 @@ LINKAGE u32 METHOD(set)(TYPENAME *self, u32 index, T value) {
 LINKAGE u32 METHOD(push)(TYPENAME *self, T value) {
   if (self->len >= self->cap) {
     self->data = GROW(T, self->data, self->cap * 2);
-    self->cap *= 2;
+    self->cap = self->cap * 2;
   }
 
   return METHOD(set)(self, self->len++, value);

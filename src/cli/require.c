@@ -34,8 +34,8 @@ typedef struct {
   gab_value cache;
 } import;
 
-void import_destroy_cb(gab_engine *gab, gab_obj_container *self) {
-  import *i = self->data;
+void import_destroy_cb(gab_obj_container *container) {
+  import *i = container->data;
 
   switch (i->k) {
   case IMPORT_SHARED:
@@ -64,11 +64,11 @@ void add_import(gab_engine *gab, s_i8 name, import *i) {
   }
 
   gab_value container =
-      GAB_VAL_OBJ(gab_obj_container_create(gab, import_destroy_cb, i));
+      GAB_VAL_OBJ(gab_obj_container_create(import_destroy_cb, i));
 
   gab_value import_prop = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
 
-  gab_obj_record_insert(GAB_VAL_TO_RECORD(mod), gab, import_prop, container);
+  gab_obj_record_insert(gab, GAB_VAL_TO_RECORD(mod), import_prop, container);
 }
 
 gab_value check_import(gab_engine *gab, s_i8 name) {
@@ -137,26 +137,16 @@ gab_value gab_shared_object_handler(gab_engine *eng, const a_i8 *path,
 
 gab_value gab_source_file_handler(gab_engine *gab, const a_i8 *path,
                                   const s_i8 module) {
-  gab_engine *fork = gab_fork(gab);
-
   a_i8 *src = os_read_file((char *)path->data);
 
-  gab_value pkg = gab_package_source(gab, s_i8_create(src->data, src->len),
-                                     s_i8_cstr("__main__"), 0);
+  gab_value pkg = gab_compile(gab, s_i8_create(path->data, path->len),
+                              s_i8_create(src->data, src->len));
 
   if (GAB_VAL_IS_NULL(pkg)) {
-    fprintf(stderr, "%s", gab_err(gab));
-    gab_destroy(fork);
     return GAB_VAL_NULL();
   }
 
   gab_value res = gab_run(gab, pkg);
-
-  if (!gab_ok(gab)) {
-    fprintf(stderr, "%s", gab_err(gab));
-    gab_destroy(fork);
-    return GAB_VAL_NULL();
-  }
 
   import *i = NEW(import);
 
@@ -164,8 +154,6 @@ gab_value gab_source_file_handler(gab_engine *gab, const a_i8 *path,
   i->cache = res;
   i->as.source = src;
   add_import(gab, module, i);
-
-  gab_destroy(fork);
 
   return res;
 }

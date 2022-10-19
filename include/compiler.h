@@ -48,16 +48,13 @@ typedef struct gab_bc {
   /*
     State for lexing source code into tokens.
   */
+  boolean panic;
+  u8 flags;
   gab_token current_token;
   gab_token previous_token;
   u8 previous_op;
   gab_lexer lex;
   u64 line;
-
-  /*
-    The module where bytecode is being compiled into.
-  */
-  gab_module *mod;
 
   /*
     Scope keeps track of local variables, prevents name collisions,
@@ -81,8 +78,7 @@ typedef struct gab_bc {
   gab_bc_frame frames[FUNCTION_DEF_NESTING_MAX];
 } gab_bc;
 
-void gab_bc_create(gab_bc *self);
-
-gab_value gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags);
+void gab_bc_create(gab_bc *bc, u8 flags);
+gab_value gab_bc_compile(gab_engine* gab, gab_bc *bc, s_i8 name, s_i8 source);
 
 #endif

@@ -1,105 +1,91 @@
 #include "include/engine.h"
 #include "include/compiler.h"
 #include "include/gc.h"
+#include "include/module.h"
+#include "include/object.h"
 #include "include/vm.h"
 
 #include <pthread.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 /**
  * Gab API stuff
  */
-gab_engine *gab_create() {
+gab_engine *gab_create(u8 flags) {
   gab_engine *self = NEW(gab_engine);
 
-  self->constants = NEW(d_gab_constant);
-  d_gab_constant_create(self->constants, MODULE_CONSTANTS_MAX);
+  d_gab_intern_create(&self->interned, 256);
 
   self->modules = NULL;
   self->std = GAB_VAL_NULL();
-
-  gab_bc_create(&self->bc);
-  gab_vm_create(&self->vm);
-  gab_gc_create(&self->gc);
-
-  self->status = GAB_OK;
-  self->owning = true;
+  self->flags = flags;
 
   pthread_mutexattr_t attr;
   pthread_mutex_init(&self->lock, &attr);
 
-  return self;
-}
-
-gab_engine *gab_fork(gab_engine *parent) {
-  gab_engine *self = NEW(gab_engine);
-
-  self->constants = parent->constants;
-  self->modules = parent->modules;
-  self->std = parent->std;
-
-  gab_bc_create(&self->bc);
+  gab_bc_create(&self->bc, flags);
   gab_vm_create(&self->vm);
-  gab_gc_create(&self->gc);
-
-  self->status = GAB_OK;
-  self->owning = false;
-
-  pthread_mutexattr_t attr;
-  pthread_mutex_init(&self->lock, &attr);
 
   return self;
-};
+}
 
-void gab_destroy(gab_engine *self) {
-  if (self->owning) {
-    // Walk the linked list of modules and clean them up.
-    while (self->modules != NULL) {
-      gab_module *next = self->modules->next;
-      gab_module_destroy(self->modules);
-      self->modules = next;
-    }
+void gab_destroy(gab_engine *gab) {
+  // Walk the linked list of modules and clean them up.
+  while (gab->modules != NULL) {
+    gab_module *next = gab->modules->next;
 
-    for (u64 i = 0; i < self->constants->cap; i++) {
-      if (d_gab_constant_iexists(self->constants, i)) {
-        gab_value v = d_gab_constant_ikey(self->constants, i);
-        gab_dref(self, v);
-      }
+    gab_module_dref_all(gab, gab->modules);
+
+    gab_module_destroy(gab->modules);
+
+    gab->modules = next;
+  }
+
+  for (u64 i = 0; i < gab->interned.cap; i++) {
+    if (d_gab_intern_iexists(&gab->interned, i)) {
+      gab_value v = d_gab_intern_ikey(&gab->interned, i);
+      gab_dref(gab, v);
     }
   }
 
-  gab_collect(self);
+  gab_dref(gab, gab->std);
 
-  d_u64_destroy(&self->gc.roots);
-  d_u64_destroy(&self->gc.queue);
+  pthread_mutex_destroy(&gab->lock);
 
-  pthread_mutex_destroy(&self->lock);
+  d_gab_intern_destroy(&gab->interned);
 
-  if (self->owning) {
-    d_gab_constant_destroy(self->constants);
-    DESTROY(self->constants);
-  }
+  gab_gc_collect(&gab->gc, &gab->vm);
 
-  DESTROY(self);
+  gab_gc_destroy(&gab->gc);
+
+  DESTROY(gab);
 }
 
-gab_value gab_package_source(gab_engine* gab, s_i8 name, s_i8 source, u8 flags) {
-    return gab_bc_compile(gab, name, source, flags);
+gab_value gab_compile(gab_engine *gab, s_i8 name, s_i8 source) {
+  gab_bc bc;
+  gab_bc_create(&bc, gab->flags);
+  return gab_bc_compile(gab, &bc, name, source);
 }
 
-gab_value gab_run(gab_engine* gab, gab_value main) {
-    return gab_vm_run(gab, main);
+void gab_dref(gab_engine* gab, gab_value value) {
+    gab_gc_dref(&gab->gc, &gab->vm, value);
 };
 
+void gab_iref(gab_engine* gab, gab_value value) {
+    gab_gc_iref(&gab->gc, &gab->vm, value);
+};
 
-boolean gab_ok(gab_engine *gab) {
-    return gab->status == GAB_OK;
-}
+gab_value gab_run(gab_engine *gab, gab_value main) {
+  gab_gc_create(&gab->gc);
+  gab_vm_create(&gab->vm);
 
-i8* gab_err(gab_engine *gab) {
-    return gab->err_msg;
-}
+  gab_value result = gab_vm_run(&gab->vm, gab, &gab->gc, main);
+
+  gab_gc_collect(&gab->gc, &gab->vm);
+
+  return result;
+};
 
 gab_value gab_bundle_record(gab_engine *gab, u64 size, s_i8 keys[size],
                             gab_value values[size]) {
@@ -112,7 +98,7 @@ gab_value gab_bundle_record(gab_engine *gab, u64 size, s_i8 keys[size],
   gab_obj_shape *bundle_shape = gab_obj_shape_create(gab, value_keys, size, 1);
 
   gab_value bundle =
-      GAB_VAL_OBJ(gab_obj_record_create(gab, bundle_shape, values, size, 1));
+      GAB_VAL_OBJ(gab_obj_record_create(bundle_shape, values, size, 1));
 
   return bundle;
 }
@@ -121,14 +107,13 @@ gab_value gab_bundle_array(gab_engine *gab, u64 size, gab_value values[size]) {
   gab_obj_shape *bundle_shape = gab_obj_shape_create_array(gab, size);
 
   gab_value bundle =
-      GAB_VAL_OBJ(gab_obj_record_create(gab, bundle_shape, values, size, 1));
+      GAB_VAL_OBJ(gab_obj_record_create(bundle_shape, values, size, 1));
 
   return bundle;
 }
 
 void gab_bind(gab_engine *gab, u64 size, s_i8 keys[size],
               gab_value values[size]) {
-
   gab_dref(gab, gab->std);
 
   gab->std = gab_bundle_record(gab, size, keys, values);
@@ -150,28 +135,23 @@ gab_module *gab_engine_add_module(gab_engine *self, s_i8 name, s_i8 source) {
  * Gab internal stuff
  */
 
-u16 gab_engine_add_constant(gab_engine *self, gab_value value) {
-  if (self->constants->cap > MODULE_CONSTANTS_MAX) {
-    fprintf(stderr, "Too many constants\n");
-    exit(1);
-  }
+u16 gab_engine_intern(gab_engine *self, gab_value value) {
+  d_gab_intern_insert(&self->interned, value, 0);
 
-  d_gab_constant_insert(self->constants, value, 0);
-
-  u64 val = d_gab_constant_index_of(self->constants, value);
+  u64 val = d_gab_intern_index_of(&self->interned, value);
 
   return val;
 }
 
 gab_obj_string *gab_engine_find_string(gab_engine *self, s_i8 str, u64 hash) {
-  if (self->constants->len == 0)
+  if (self->interned.len == 0)
     return NULL;
 
-  u64 index = hash & (self->constants->cap - 1);
+  u64 index = hash & (self->interned.cap - 1);
 
   for (;;) {
-    gab_value key = d_gab_constant_ikey(self->constants, index);
-    d_status status = d_gab_constant_istatus(self->constants, index);
+    gab_value key = d_gab_intern_ikey(&self->interned, index);
+    d_status status = d_gab_intern_istatus(&self->interned, index);
 
     if (status != D_FULL) {
       return NULL;
@@ -183,7 +163,7 @@ gab_obj_string *gab_engine_find_string(gab_engine *self, s_i8 str, u64 hash) {
       }
     }
 
-    index = (index + 1) & (self->constants->cap - 1);
+    index = (index + 1) & (self->interned.cap - 1);
   }
 }
 
@@ -207,14 +187,14 @@ static inline boolean shape_matches_keys(gab_obj_shape *self,
 
 gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size, u64 stride,
                                      u64 hash, gab_value keys[size]) {
-  if (self->constants->len == 0)
+  if (self->interned.len == 0)
     return NULL;
 
-  u64 index = hash & (self->constants->cap - 1);
+  u64 index = hash & (self->interned.cap - 1);
 
   for (;;) {
-    gab_value key = d_gab_constant_ikey(self->constants, index);
-    d_status status = d_gab_constant_istatus(self->constants, index);
+    gab_value key = d_gab_intern_ikey(&self->interned, index);
+    d_status status = d_gab_intern_istatus(&self->interned, index);
 
     if (status != D_FULL) {
       return NULL;
@@ -226,19 +206,6 @@ gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size, u64 stride,
       }
     }
 
-    index = (index + 1) & (self->constants->cap - 1);
+    index = (index + 1) & (self->interned.cap - 1);
   }
-}
-
-u64 gab_engine_write_error(gab_engine *gab, u64 offset, const char *fmt,
-                                  ...) {
-  va_list args;
-  va_start(args, fmt);
-
-  const u64 bytes_written = vsnprintf((char *)gab->err_msg + offset,
-                                      GAB_ENGINE_ERROR_LEN - offset, fmt, args);
-
-  va_end(args);
-
-  return bytes_written;
 }

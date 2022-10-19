@@ -1,0 +1,9 @@
+!require('utils')
+
+!print(!describe)
+
+!describe('Numbers', do ||
+  !it('Should be equal to itself', do ||
+    5:!assert.EqualTo(5)
+  end)
+end)

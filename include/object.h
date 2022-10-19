@@ -90,7 +90,7 @@ struct gab_obj {
 /*
   'Generic' functions which handle all the different kinds of gab objects.
 */
-void gab_obj_destroy(gab_obj *self, gab_engine *eng);
+void gab_obj_destroy(gab_obj *self);
 
 /*
   Defined in common/log.c
@@ -122,12 +122,14 @@ struct gab_obj_string {
 #define GAB_VAL_TO_STRING(value) ((gab_obj_string *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_STRING(value) ((gab_obj_string *)value)
 
-gab_obj_string *gab_obj_string_create(gab_engine *eng, s_i8 data);
-gab_obj_string *gab_obj_string_concat(gab_engine *eng, gab_obj_string *a,
+gab_obj_string *gab_obj_string_create(gab_engine *gab, s_i8 data);
+gab_obj_string *gab_obj_string_concat(gab_engine *gab, gab_obj_string *a,
                                       gab_obj_string *b);
+
+gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self);
+gab_obj_string *gab_val_to_obj_string(gab_engine *gab, gab_value self);
+
 s_i8 gab_obj_string_ref(gab_obj_string *self);
-gab_obj_string *gab_obj_to_obj_string(gab_obj *self, gab_engine *engine);
-gab_obj_string *gab_val_to_obj_string(gab_value self, gab_engine *eng);
 
 /*
   ------------- OBJ_BUILTIN-------------
@@ -148,8 +150,8 @@ struct gab_obj_builtin {
 #define GAB_VAL_IS_BUILTIN(value) (gab_val_is_obj_kind(value, OBJECT_BUILTIN))
 #define GAB_VAL_TO_BUILTIN(value) ((gab_obj_builtin *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_BUILTIN(value) ((gab_obj_builtin *)value)
-gab_obj_builtin *gab_obj_builtin_create(gab_engine *eng, gab_builtin function,
-                                        s_i8 name, u8 args);
+gab_obj_builtin *gab_obj_builtin_create(gab_builtin function, s_i8 name,
+                                        u8 args);
 
 /*
   ------------- OBJ_FUNCTION -------------
@@ -193,7 +195,7 @@ struct gab_obj_function {
 #define GAB_VAL_IS_FUNCTION(value) (gab_val_is_obj_kind(value, OBJECT_FUNCTION))
 #define GAB_VAL_TO_FUNCTION(value) ((gab_obj_function *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_FUNCTION(value) ((gab_obj_function *)value)
-gab_obj_function *gab_obj_function_create(gab_engine *eng, s_i8 name);
+gab_obj_function *gab_obj_function_create(s_i8 name);
 
 /*
   ------------- OBJ_UPVALUE -------------
@@ -226,7 +228,7 @@ struct gab_obj_upvalue {
 #define GAB_VAL_IS_UPVALUE(value) (gab_val_is_obj_kind(value, OBJECT_UPVALUE))
 #define GAB_VAL_TO_UPVALUE(value) ((gab_obj_upvalue *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_UPVALUE(value) ((gab_obj_upvalue *)value)
-gab_obj_upvalue *gab_obj_upvalue_create(gab_engine *eng, gab_value *slot);
+gab_obj_upvalue *gab_obj_upvalue_create(gab_value *slot);
 
 /*
   ------------- OBJ_CLOSURE-------------
@@ -249,8 +251,7 @@ struct gab_obj_closure {
 #define GAB_VAL_IS_CLOSURE(value) (gab_val_is_obj_kind(value, OBJECT_CLOSURE))
 #define GAB_VAL_TO_CLOSURE(value) ((gab_obj_closure *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_CLOSURE(value) ((gab_obj_closure *)value)
-gab_obj_closure *gab_obj_closure_create(gab_engine *eng, gab_obj_function *fn,
-                                        gab_value upvs[]);
+gab_obj_closure *gab_obj_closure_create(gab_obj_function *fn, gab_value upvs[]);
 
 /*
   ------------- OBJ_SHAPE-------------
@@ -274,12 +275,12 @@ struct gab_obj_shape {
 #define GAB_VAL_TO_SHAPE(value) ((gab_obj_shape *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SHAPE(value) ((gab_obj_shape *)value)
 
-gab_obj_shape *gab_obj_shape_create(gab_engine *eng, gab_value key[], u64 size,
+gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_value key[], u64 size,
                                     u64 stride);
 
-gab_obj_shape *gab_obj_shape_create_array(gab_engine *eng, u64 size);
+gab_obj_shape *gab_obj_shape_create_array(gab_engine *gab, u64 size);
 
-gab_obj_shape *gab_obj_shape_extend(gab_obj_shape *self, gab_engine *eng,
+gab_obj_shape *gab_obj_shape_extend(gab_engine *gab, gab_obj_shape *self,
                                     gab_value property);
 
 static inline i64 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
@@ -323,11 +324,11 @@ struct gab_obj_record {
 #define GAB_VAL_TO_RECORD(value) ((gab_obj_record *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_RECORD(value) ((gab_obj_record *)value)
 
-gab_obj_record *gab_obj_record_create(gab_engine *eng, gab_obj_shape *shape,
-                                      gab_value values[], u64 size, u64 stride);
+gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, gab_value values[],
+                                      u64 size, u64 stride);
 
-i16 gab_obj_record_extend(gab_obj_record *self, gab_engine *eng,
-                          gab_obj_shape *new_shape, gab_value value);
+i16 gab_obj_record_extend(gab_obj_record *self, gab_obj_shape *new_shape,
+                          gab_value value);
 
 static inline void gab_obj_record_set(gab_obj_record *self, i16 offset,
                                       gab_value value) {
@@ -350,16 +351,15 @@ static inline gab_value gab_obj_record_get(gab_obj_record *self, i16 offset) {
     return v_u64_val_at(&self->dynamic_values, offset);
 }
 
-static inline gab_value gab_obj_record_insert(gab_obj_record *self,
-                                              gab_engine *eng, gab_value prop,
-                                              gab_value value) {
+static inline gab_value gab_obj_record_insert(gab_engine* gab, gab_obj_record *self,
+                                              gab_value prop, gab_value value) {
 
   i16 prop_offset = gab_obj_shape_find(self->shape, prop);
 
   if (prop_offset < 0) {
-    gab_obj_shape *shape = gab_obj_shape_extend(self->shape, eng, prop);
+    gab_obj_shape *shape = gab_obj_shape_extend(gab, self->shape, prop);
 
-    prop_offset = gab_obj_record_extend(self, eng, shape, value);
+    prop_offset = gab_obj_record_extend(self, shape, value);
   }
 
   gab_obj_record_set(self, prop_offset, value);
@@ -379,7 +379,7 @@ static inline gab_value gab_obj_record_read(gab_obj_record *self,
   A container to some unknown data.
 */
 typedef struct gab_obj_container gab_obj_container;
-typedef void (*gab_obj_container_cb)(gab_engine *eng, gab_obj_container *self);
+typedef void (*gab_obj_container_cb)(gab_obj_container *self);
 struct gab_obj_container {
   gab_obj header;
 
@@ -395,8 +395,7 @@ struct gab_obj_container {
 #define GAB_VAL_TO_CONTAINER(value) ((gab_obj_container *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_CONTAINER(value) ((gab_obj_container *)value)
 
-gab_obj_container *gab_obj_container_create(gab_engine *eng,
-                                            gab_obj_container_cb destructor,
+gab_obj_container *gab_obj_container_create(gab_obj_container_cb destructor,
                                             void *data);
 
 /*
@@ -413,7 +412,7 @@ struct gab_obj_symbol {
 #define GAB_VAL_TO_SYMBOL(value) ((gab_obj_symbol *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SYMBOL(value) ((gab_obj_symbol *)value)
 
-gab_obj_symbol *gab_obj_symbol_create(gab_engine *eng, s_i8 name);
+gab_obj_symbol *gab_obj_symbol_create(s_i8 name);
 /*
   This means that the hash depends on the actual value of the object.
 
@@ -440,64 +439,64 @@ static inline boolean gab_val_falsey(gab_value self) {
 }
 
 // This can be heavily optimized.
-static inline gab_value gab_val_type(gab_engine *eng, gab_value value) {
+static inline gab_value gab_val_type(gab_engine *gab, gab_value value) {
   if (GAB_VAL_IS_RECORD(value)) {
     gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
     return GAB_VAL_OBJ(obj->shape);
   }
 
   if (GAB_VAL_IS_NUMBER(value)) {
-    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("number"));
+    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("number"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_BOOLEAN(value)) {
-    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("boolean"));
+    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("boolean"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_NULL(value)) {
-    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("null"));
+    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("null"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_STRING(value)) {
-    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("string"));
+    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("string"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_FUNCTION(value)) {
-    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("function"));
+    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("function"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_CLOSURE(value)) {
-    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("closure"));
+    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("closure"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_SHAPE(value)) {
-    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("shape"));
+    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("shape"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_UPVALUE(value)) {
-    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("upvalue"));
+    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("upvalue"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_BUILTIN(value)) {
-    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("builtin"));
+    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("builtin"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_CONTAINER(value)) {
-    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("container"));
+    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("container"));
     return GAB_VAL_OBJ(num);
   }
 
   if (GAB_VAL_IS_SYMBOL(value)) {
-    gab_obj_string *num = gab_obj_string_create(eng, s_i8_cstr("symbol"));
+    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("symbol"));
     return GAB_VAL_OBJ(num);
   }
 

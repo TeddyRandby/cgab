@@ -13,8 +13,7 @@
 void bind_std(gab_engine *gab) {
   gab_obj_shape *mod_shape = gab_obj_shape_create(gab, NULL, 0, 1);
 
-  gab_value mod =
-      GAB_VAL_OBJ(gab_obj_record_create(gab, mod_shape, NULL, 0, 1));
+  gab_value mod = GAB_VAL_OBJ(gab_obj_record_create(mod_shape, NULL, 0, 1));
 
   s_i8 keys[] = {s_i8_cstr("print"), s_i8_cstr("require"),
                  s_i8_cstr("__mod__")};
@@ -30,27 +29,22 @@ void bind_std(gab_engine *gab) {
 
 void gab_run_file(const char *path) {
   a_i8 *src = os_read_file(path);
-  gab_engine *gab = gab_create();
+  gab_engine *gab = gab_create(GAB_FLAG_DUMP_ERROR);
   bind_std(gab);
 
-  gab_value pkg = gab_package_source(gab, s_i8_cstr("__main__"),
-                                     s_i8_create(src->data, src->len), GAB_FLAG_DUMP_BYTECODE);
+  gab_value pkg =
+      gab_compile(gab, s_i8_cstr("__main__"), s_i8_create(src->data, src->len));
 
-  if (!gab_ok(gab)) {
-    fprintf(stderr, "%s", gab_err(gab));
+  gab_value result = GAB_VAL_NULL();
+
+  if (GAB_VAL_IS_NULL(pkg)) {
     goto fin;
   }
 
-  gab_value res = gab_run(gab, pkg);
-  gab_dref(gab, res);
-
-  if (!gab_ok(gab)) {
-    fprintf(stderr, "%s", gab_err(gab));
-    goto fin;
-  }
+  result = gab_run(gab, pkg);
 
 fin:
-  gab_dref(gab, gab->std);
+  gab_dref(gab, result);
   gab_destroy(gab);
   a_i8_destroy(src);
 }

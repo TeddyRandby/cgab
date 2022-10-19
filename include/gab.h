@@ -11,14 +11,7 @@ typedef struct gab_engine gab_engine;
  *
  * @return The allocated Gab Engine.
  */
-gab_engine *gab_create();
-
-/**
- * Create a Gab Engine, forking from a parent engine.
- *
- * @return The allocated Gab Engine.
- */
-gab_engine *gab_fork(gab_engine *gab);
+gab_engine *gab_create(u8 flags);
 
 /**
  * Cleanup a Gab Engine.
@@ -38,7 +31,7 @@ void gab_destroy(gab_engine *gab);
  *
  * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
  */
-gab_value gab_package_source(gab_engine* gab, s_i8 name, s_i8 source, u8 flags);
+gab_value gab_compile(gab_engine* gab, s_i8 name, s_i8 source);
 
 /**
  * Run a gab_obj_closure in the gab vm.
@@ -52,18 +45,18 @@ gab_value gab_package_source(gab_engine* gab, s_i8 name, s_i8 source, u8 flags);
 gab_value gab_run(gab_engine* gab, gab_value main);
 
 /**
- * Returns false if the engine has encountered an error.
+ * Decrement the RC of a gab value
  *
- * @param gab The engine
- *
- * @return state of the engine
+ * @param val The value to clean up
  */
-boolean gab_ok(gab_engine* gab);
+void gab_dref(gab_engine* gab, gab_value value);
 
 /**
- * Returns a null-terminated 
+ * Increment the RC of a gab value
+ *
+ * @param val The value to clean up
  */
-i8* gab_err(gab_engine* gab);
+void gab_iref(gab_engine* gab, gab_value value);
 
 /**
  * Bundle a list of keys and values into a Gab object.
@@ -111,7 +104,7 @@ gab_value gab_bundle_array(gab_engine *gab, u64 size, gab_value values[size]);
  */
 #define GAB_BUILTIN(name, arity)                                               \
   GAB_VAL_OBJ(                                                                 \
-      gab_obj_builtin_create(gab, gab_lib_##name, s_i8_cstr(#name), arity))
+      gab_obj_builtin_create(gab_lib_##name, s_i8_cstr(#name), arity))
 
 /**
  * A helper macro for creating a gab_obj_string
@@ -132,29 +125,4 @@ gab_value gab_bundle_array(gab_engine *gab, u64 size, gab_value values[size]);
  */
 void gab_bind(gab_engine *gab, u64 size, s_i8 keys[size],
               gab_value values[size]);
-
-/*
- * Manually trigger a garbage collection.
- *
- * @param gab The engine to collect.
- */
-void gab_collect(gab_engine *gab);
-
-/*
- * Increment the RC on the value
- *
- * @param gab The engine.
- *
- * @param obj The value.
- */
-void gab_iref(gab_engine *gab, gab_value val);
-
-/*
- * Decrement the RC on the value
- *
- * @param gab The engine.
- *
- * @param obj The value.
- */
-void gab_dref(gab_engine *gab, gab_value val);
 #endif

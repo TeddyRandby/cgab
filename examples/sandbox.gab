@@ -1,46 +1,19 @@
-# [1, 2, 3]:each(|num| then !print(num))
-
-# [1, 2, 3]:each(do |num| !print(num) end)
-
-# def centsToCoin(num)
-#  match num
-#    1  => 'penny'
-#    5  => 'nickel'
-#    10 => 'dime'
-#    25 => 'quarter'
-# end
-#
-# for key, value in items(record)
-# 
-# end
-#
-# if condition
-#
-# end else
-#
-# end
-#
-# def multiReturn()
-#   1,2,3
-# end
-#
-
-!condition = true
-
-def one()
-  1
+def odd(num)
+  match num?
+    'number' => match num % 2
+        1 => return true
+        0 => return false
+        ? => return null
+    ? => return null, 'expected a number'
 end
 
-def two()
-  2
+def times(i)
+  let v = 0
+  do ||
+    v < i and (v = v + 1)
+  end
 end
 
-def oneTwo()
-  return 1,2
+for i in 5:times()
+  !print('{i} is odd: {i:odd()}')
 end
-
-let a,b = if !condition
-  oneTwo()
-end
-
-!print(a,b)

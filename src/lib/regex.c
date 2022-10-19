@@ -4,7 +4,7 @@
 #include <regex.h>
 #include <stdio.h>
 
-gab_value gab_lib_find(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_find(gab_engine *gab, gab_value *argv, u8 argc) {
   if (argc != 2 || !GAB_VAL_IS_STRING(argv[0]) || !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
   }
@@ -27,8 +27,8 @@ gab_value gab_lib_find(gab_engine *eng, gab_value *argv, u8 argc) {
     return GAB_VAL_NULL();
   }
 
-  gab_obj_record *list = gab_obj_record_create(
-      eng, gab_obj_shape_create(eng, NULL, 0, 0), NULL, 0, 0);
+  gab_obj_record *list =
+      gab_obj_record_create(gab_obj_shape_create(gab, NULL, 0, 0), NULL, 0, 0);
 
   u8 i = 0;
   while (matches[i].rm_so >= 0) {
@@ -36,9 +36,9 @@ gab_value gab_lib_find(gab_engine *eng, gab_value *argv, u8 argc) {
                              matches[i].rm_eo - matches[i].rm_so);
 
     gab_value key = GAB_VAL_NUMBER(i);
-    gab_value value = GAB_VAL_OBJ(gab_obj_string_create(eng, match));
+    gab_value value = GAB_VAL_OBJ(gab_obj_string_create(gab, match));
 
-    gab_obj_record_insert(list, eng, key, value);
+    gab_obj_record_insert(gab, list, key, value);
     i++;
   }
 
@@ -54,5 +54,6 @@ gab_value gab_mod(gab_engine *gab) {
       GAB_BUILTIN(find, 2),
   };
 
-  return gab_bundle_record(gab, sizeof(values) / sizeof(gab_value), keys, values);
+  return gab_bundle_record(gab, sizeof(values) / sizeof(gab_value), keys,
+                           values);
 }

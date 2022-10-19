@@ -46,6 +46,7 @@
 // GAB optional flags
 #define GAB_FLAG_NONE 0
 #define GAB_FLAG_DUMP_BYTECODE 1
+#define GAB_FLAG_DUMP_ERROR 2
 
 // VERSION
 #define GAB_VERSION_MAJOR 0
