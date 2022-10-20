@@ -1,5 +1,7 @@
 // Compile-time errors
 STATUS(OK, "OK")
+STATUS(EOF_IN_STRING, "Unexpected EOF in string literal")
+STATUS(NL_IN_STRING, "Unexpected return in string literal")
 STATUS(MALFORMED_TOKEN, "Unrecognized token")
 STATUS(UNEXPECTED_TOKEN, "Unexpected token")
 STATUS(TOO_MANY_LOCALS, "Functions cannot have more than 255 locals")
@@ -15,14 +17,14 @@ STATUS(REFERENCE_BEFORE_INITIALIZE,
       "Variables cannot be referenced before they are initialized")
 STATUS(LOCAL_ALREADY_EXISTS, "A local with this name already exists")
 STATUS(EXPRESSION_NOT_ASSIGNABLE, "The expression is not assignable")
-STATUS(MISSING_END, "'do' expressions need a corresponding 'end'")
+STATUS(MISSING_END, "'do' blocks need a corresponding 'end'")
 STATUS(MISSING_INITIALIZER, "Variables must be initialized")
 STATUS(MISSING_IDENTIFIER, "Identifier could not be resolved")
 
 // Run-time errors
-STATUS(NOT_NUMERIC, "Could not do numeric operations on a non-number")
-STATUS(NOT_OBJECT, "Could not do object operations on a non-object")
-STATUS(NOT_STRING, "Could not do string operations on a non-string")
-STATUS(NOT_FUNCTION, "Could not do function operations a non-function")
+STATUS(NOT_NUMERIC, "Expected a number")
+STATUS(NOT_RECORD, "Expected a record")
+STATUS(NOT_STRING, "Expected a string")
+STATUS(NOT_FUNCTION, "Expected a function")
 STATUS(WRONG_ARITY, "Could not call a function with the wrong number of arguments")
 STATUS(ASSERTION_FAILED, "A runtime assertion failed")

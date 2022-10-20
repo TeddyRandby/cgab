@@ -126,9 +126,6 @@ gab_obj_string *gab_obj_string_create(gab_engine *gab, s_i8 data);
 gab_obj_string *gab_obj_string_concat(gab_engine *gab, gab_obj_string *a,
                                       gab_obj_string *b);
 
-gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self);
-gab_obj_string *gab_val_to_obj_string(gab_engine *gab, gab_value self);
-
 s_i8 gab_obj_string_ref(gab_obj_string *self);
 
 /*
@@ -413,6 +410,11 @@ struct gab_obj_symbol {
 #define GAB_OBJ_TO_SYMBOL(value) ((gab_obj_symbol *)value)
 
 gab_obj_symbol *gab_obj_symbol_create(s_i8 name);
+
+/*
+ * ------------- HELPERS ------------
+ */
+gab_value gab_val_to_string(gab_engine *gab, gab_value self);
 /*
   This means that the hash depends on the actual value of the object.
 

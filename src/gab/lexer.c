@@ -2,7 +2,7 @@
 #include "include/char.h"
 #include <stdio.h>
 
-static void cursor_advance(gab_lexer *self) {
+static void advance(gab_lexer *self) {
   self->cursor++;
   self->col++;
   self->current_token_src.len++;
@@ -53,8 +53,8 @@ static inline u8 peek(gab_lexer *self) { return *self->cursor; }
 
 static inline u8 peek_next(gab_lexer *self) { return *(self->cursor + 1); }
 
-gab_token return_error(gab_lexer *self, const char *msg) {
-  self->error_msg = msg;
+gab_token return_error(gab_lexer *self, gab_status s) {
+  self->status = s;
   return TOKEN_ERROR;
 }
 
@@ -145,7 +145,7 @@ gab_token identifier(gab_lexer *self) {
   start_token(self);
 
   while (is_alpha(peek(self)) || is_digit(peek(self))) {
-    cursor_advance(self);
+    advance(self);
   }
 
   for (i32 i = 0; i < sizeof(keywords) / sizeof(keyword); i++) {
@@ -166,19 +166,19 @@ gab_token string(gab_lexer *self) {
   u8 stop = start == '"' ? '"' : '\'';
 
   do {
-    cursor_advance(self);
+    advance(self);
 
     if (peek(self) == '\0') {
-      return return_error(self, "Unexpected EOF in string literal");
+      return return_error(self, GAB_EOF_IN_STRING);
     }
 
     if (start != '"') {
       if (peek(self) == '\n') {
-        return return_error(self, "Unexpected New Line in string literal");
+        return return_error(self, GAB_NL_IN_STRING);
       }
 
       if (peek(self) == '{') {
-        cursor_advance(self);
+        advance(self);
         self->nested_curly++;
         return TOKEN_INTERPOLATION;
       }
@@ -186,7 +186,7 @@ gab_token string(gab_lexer *self) {
   } while (peek(self) != stop);
 
   // Eat the end
-  cursor_advance(self);
+  advance(self);
 
   return start == '}' ? TOKEN_INTERPOLATION_END : TOKEN_STRING;
 }
@@ -195,14 +195,14 @@ gab_token number(gab_lexer *self) {
   start_token(self);
 
   while (is_digit(peek(self))) {
-    cursor_advance(self);
+    advance(self);
   }
 
   if (peek(self) == '.' && is_digit(peek_next(self))) {
-    cursor_advance(self);
+    advance(self);
 
     while (is_digit(peek(self))) {
-      cursor_advance(self);
+      advance(self);
     }
   }
 
@@ -211,7 +211,7 @@ gab_token number(gab_lexer *self) {
 
 #define CHAR_CASE(char, name)                                                  \
   case char: {                                                                 \
-    cursor_advance(self);                                                      \
+    advance(self);                                                      \
     return TOKEN_##name;                                                       \
   }
 
@@ -239,19 +239,19 @@ gab_token other(gab_lexer *self) {
     CHAR_CASE('$', DOLLAR)
 
   case '{': {
-    cursor_advance(self);
+    advance(self);
     if (self->nested_curly > 0)
       self->nested_curly++;
     return TOKEN_LBRACK;
   }
   case '}': {
-    cursor_advance(self);
+    advance(self);
     if (self->nested_curly > 0)
       self->nested_curly--;
     return TOKEN_RBRACK;
   }
   case '.': {
-    cursor_advance(self);
+    advance(self);
     switch (peek(self)) {
       CHAR_CASE('.', DOT_DOT);
     default: {
@@ -260,7 +260,7 @@ gab_token other(gab_lexer *self) {
     }
   }
   case '-': {
-    cursor_advance(self);
+    advance(self);
     switch (peek(self)) {
       CHAR_CASE('>', ARROW)
     default: {
@@ -269,7 +269,7 @@ gab_token other(gab_lexer *self) {
     }
   }
   case ':': {
-    cursor_advance(self);
+    advance(self);
     switch (peek(self)) {
       CHAR_CASE('=', COLON_EQUAL)
     default: {
@@ -278,7 +278,7 @@ gab_token other(gab_lexer *self) {
     }
   }
   case '=': {
-    cursor_advance(self);
+    advance(self);
     switch (peek(self)) {
       CHAR_CASE('=', EQUAL_EQUAL)
       CHAR_CASE('>', FAT_ARROW)
@@ -288,7 +288,7 @@ gab_token other(gab_lexer *self) {
     }
   }
   case '<': {
-    cursor_advance(self);
+    advance(self);
     switch (peek(self)) {
       CHAR_CASE('=', LESSER_EQUAL)
     default: {
@@ -297,7 +297,7 @@ gab_token other(gab_lexer *self) {
     }
   }
   case '>': {
-    cursor_advance(self);
+    advance(self);
     switch (peek(self)) {
       CHAR_CASE('=', GREATER_EQUAL)
     default: {
@@ -306,19 +306,19 @@ gab_token other(gab_lexer *self) {
     }
   }
   default: {
-    cursor_advance(self);
-    return return_error(self, "Unknown character");
+    advance(self);
+    return return_error(self, GAB_MALFORMED_TOKEN);
   }
   }
 }
 
 static inline void parse_comment(gab_lexer *self) {
   while (peek(self) != '\n') {
-    cursor_advance(self);
+    advance(self);
   }
 }
 
-static inline void parse_whitespace(gab_lexer *self) { cursor_advance(self); }
+static inline void parse_whitespace(gab_lexer *self) { advance(self); }
 
 void handle_ignored(gab_lexer *self) {
   while (is_whitespace(peek(self)) || is_comment(peek(self))) {
@@ -337,11 +337,12 @@ gab_token gab_lexer_next(gab_lexer *self) {
   handle_ignored(self);
 
   if (peek(self) == '\0') {
+    self->current_token_src = s_i8_create(self->cursor, 0); 
     return TOKEN_EOF;
   }
 
   if (peek(self) == '\n') {
-    cursor_advance(self);
+    advance(self);
     finish_row(self);
     return TOKEN_NEWLINE;
   }
@@ -375,10 +376,10 @@ gab_token gab_lexer_next(gab_lexer *self) {
 
 void gab_lexer_finish_line(gab_lexer *self) {
   while (peek(self) != '\n' && peek(self) != '\0') {
-    cursor_advance(self);
+    advance(self);
   }
 
-  cursor_advance(self);
+  advance(self);
   finish_row(self);
 
   self->current_row += self->skip_lines;

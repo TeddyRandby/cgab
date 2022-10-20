@@ -79,23 +79,23 @@ gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self) {
   }
 }
 
-gab_obj_string *gab_val_to_obj_string(gab_engine *gab, gab_value self) {
+gab_value gab_val_to_string(gab_engine *gab, gab_value self) {
   if (GAB_VAL_IS_BOOLEAN(self)) {
-    return gab_obj_string_create(
-        gab, s_i8_cstr(GAB_VAL_TO_BOOLEAN(self) ? "true" : "false"));
+    return GAB_VAL_OBJ(gab_obj_string_create(
+        gab, s_i8_cstr(GAB_VAL_TO_BOOLEAN(self) ? "true" : "false")));
   }
 
   if (GAB_VAL_IS_NULL(self)) {
-    return gab_obj_string_create(gab, s_i8_cstr("null"));
+    return GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("null")));
   }
 
   if (GAB_VAL_IS_NUMBER(self)) {
     char str[24];
     snprintf(str, 24, "%g", GAB_VAL_TO_NUMBER(self));
-    return gab_obj_string_create(gab, s_i8_cstr(str));
+    return GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr(str)));
   }
 
-  return gab_obj_to_obj_string(gab, GAB_VAL_TO_OBJ(self));
+  return GAB_VAL_OBJ(gab_obj_to_obj_string(gab, GAB_VAL_TO_OBJ(self)));
 }
 
 void gab_obj_dump(gab_value value) {

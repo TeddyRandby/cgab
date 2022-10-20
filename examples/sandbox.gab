@@ -1,9 +1,17 @@
-def odd(num)
-  match num?
-    'number' => match num % 2
-        1 => return true
-        0 => return false
-        ? => return null
+let num = !require('num')
+let io = !require('io')
+
+def odd(number)
+  match number?
+    'number' =>
+        match number % 2
+            1 => return true
+            0 => return false
+            ? => return null # Unreachable
+    'string' =>
+        number:
+            num.from():
+            odd()
     ? => return null, 'expected a number'
 end
 
@@ -14,6 +22,8 @@ def times(i)
   end
 end
 
+let FILE = io.open('result.txt', 'w+')
+
 for i in 5:times()
-  !print('{i} is odd: {i:odd()}')
+    FILE:io.write('{ i } is { i:odd() and 'odd' or 'even' }\n') 
 end

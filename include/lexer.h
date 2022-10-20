@@ -9,6 +9,12 @@ typedef enum gab_token {
 #undef TOKEN
 } gab_token;
 
+typedef enum gab_status {
+#define STATUS(name, message) GAB_##name,
+#include "include/status_code.h"
+#undef STATUS
+} gab_status;
+
 typedef struct gab_lexer gab_lexer;
 struct gab_lexer {
 
@@ -18,6 +24,7 @@ struct gab_lexer {
   u64 col;
 
   u8 nested_curly;
+  u8 status;
 
   s_i8 source;
   v_s_i8 *source_lines;
@@ -30,13 +37,13 @@ struct gab_lexer {
   s_i8 current_token_src;
   u64 current_row;
 
-  const char *error_msg;
-
   u64 skip_lines;
 };
 
 void gab_lexer_create(gab_lexer *self, s_i8 src);
+
 gab_token gab_lexer_next(gab_lexer *self);
+
 void gab_lexer_finish_line(gab_lexer *self);
 
 #endif

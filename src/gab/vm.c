@@ -2,6 +2,7 @@
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
+#include "include/object.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -22,7 +23,7 @@ static const char *gab_token_names[] = {
 #define ANSI_COLOR_RESET "\x1b[0m"
 
 void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
-                    const char *help_fmt, ...) {
+                   const char *help_fmt, ...) {
   if (!(gab->flags & GAB_FLAG_DUMP_ERROR)) {
     return;
   }
@@ -55,21 +56,22 @@ void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
 
     if (frame == vm->frame) {
       fprintf(stderr,
-              "[" ANSI_COLOR_MAGENTA "%.*s" ANSI_COLOR_RESET
-              ":" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET
+              "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET
               "] Error near " ANSI_COLOR_BLUE "%s" ANSI_COLOR_RESET
               ":\n\t\u256d " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
               "\n\t\u2502"
               "\n\t\u2570\u2500> ",
-              (i32)mod->name.len, mod->name.data, (i32)func_name.len,
-              func_name.data, tok, curr_row, curr_src_len, curr_src_start);
+              (i32)func_name.len, func_name.data, tok, curr_row, curr_src_len,
+              curr_src_start);
 
-      fprintf(stderr, ANSI_COLOR_YELLOW "%s\n\t", gab_status_names[e]);
+      fprintf(stderr,
+              ANSI_COLOR_YELLOW "%s. " ANSI_COLOR_RESET ANSI_COLOR_GREEN,
+              gab_status_names[e]);
 
       va_list args;
       va_start(args, help_fmt);
 
-      fprintf(stderr, help_fmt, args);
+      vfprintf(stderr, help_fmt, args);
 
       va_end(args);
 
@@ -142,7 +144,8 @@ static inline gab_value *trim_return(gab_vm *vm, gab_value *from, gab_value *to,
   return to;
 }
 
-static inline gab_obj_upvalue *capture_upvalue(gab_vm *vm, gab_gc *gc, gab_value *local) {
+static inline gab_obj_upvalue *capture_upvalue(gab_vm *vm, gab_gc *gc,
+                                               gab_value *local) {
   gab_obj_upvalue *prev_upvalue = NULL;
   gab_obj_upvalue *upvalue = vm->open_upvalues;
 
@@ -179,6 +182,12 @@ static inline void close_upvalue(gab_vm *vm, gab_value *local) {
   }
 }
 
+static inline gab_value failure(gab_vm *vm) {
+  vm->top = vm->stack;
+  vm->frame = vm->call_stack;
+  return GAB_VAL_NULL();
+}
+
 gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
 #if GAB_LOG_EXECUTION
 #define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
@@ -212,9 +221,16 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
 #define BINARY_OPERATION(value_type, operation_type, operation)                \
   if ((GAB_VAL_IS_NUMBER(PEEK()) + GAB_VAL_IS_NUMBER(PEEK2())) < 2) {          \
     STORE_FRAME();                                                             \
-    dump_vm_error(ENGINE(), VM(), GAB_NOT_NUMERIC,                                        \
-                   "Binary '" #operation "' operation only works on numbers"); \
-    return GAB_VAL_NULL();                                                     \
+    gab_obj_string *a =                                                        \
+        GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK()));                \
+                                                                               \
+    gab_obj_string *b =                                                        \
+        GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK2()));               \
+                                                                               \
+    dump_vm_error(ENGINE(), VM(), GAB_NOT_NUMERIC,                             \
+                  "Tried to" #operation " %.*s and %.*s", (i32)b->len,         \
+                  b->data, (i32)a->len, a->data);                              \
+    return failure(VM());                                                      \
   }                                                                            \
   operation_type b = GAB_VAL_TO_NUMBER(POP());                                 \
   operation_type a = GAB_VAL_TO_NUMBER(POP());                                 \
@@ -277,6 +293,9 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
   PUSH(main);
   PUSH(ENGINE()->std);
 
+  // Decrement the main closure
+  gab_gc_dref(GC(), VM(), main);
+
   LOOP() {
     {
       u8 arity, want;
@@ -332,9 +351,9 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
         // Check for stack overflow here
         if (arity != closure->func->narguments) {
           dump_vm_error(ENGINE(), VM(), GAB_WRONG_ARITY,
-                         "Expected %d arguments but got %d",
-                         closure->func->narguments, arity);
-          return GAB_VAL_NULL();
+                        "Expected %d arguments but got %d",
+                        closure->func->narguments, arity);
+          return failure(VM());
         }
 
         FRAME()++;
@@ -353,8 +372,8 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
 
         if (arity != builtin->narguments && builtin->narguments != VAR_RET) {
           dump_vm_error(ENGINE(), VM(), GAB_WRONG_ARITY,
-                         "Expected %d arguments but got %d",
-                         builtin->narguments, arity);
+                        "Expected %d arguments but got %d", builtin->narguments,
+                        arity);
           return GAB_VAL_NULL();
         }
 
@@ -367,8 +386,11 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
         gab_gc_dref(GC(), VM(), result);
       } else {
         STORE_FRAME();
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "");
-        return GAB_VAL_NULL();
+        gab_obj_string *a =
+            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "Tried to call %.*s",
+                      (i32)a->len, a->data);
+        return failure(VM());
       }
 
       NEXT();
@@ -419,9 +441,6 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
       if (--FRAME() == VM()->call_stack) {
         FRAME()++;
 
-        // Decrement the main closure
-        gab_gc_dref(GC(), VM(), main);
-
         // Increment and pop the module.
         gab_gc_iref(GC(), VM(), PEEK());
 
@@ -444,9 +463,11 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
 
         if (!GAB_VAL_IS_RECORD(index)) {
           STORE_FRAME();
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_OBJECT,
-                         "Only objects can have propoerties");
-          return GAB_VAL_NULL();
+          gab_obj_string *a =
+              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
+                        (i32)a->len, a->data);
+          return failure(VM());
         }
 
         obj = GAB_VAL_TO_RECORD(index);
@@ -466,9 +487,11 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
 
         if (!GAB_VAL_IS_RECORD(index)) {
           STORE_FRAME();
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_OBJECT,
-                         "Only objects can have propoerties");
-          return GAB_VAL_NULL();
+          gab_obj_string *a =
+              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
+                        (i32)a->len, a->data);
+          return failure(VM());
         }
 
         obj = GAB_VAL_TO_RECORD(index);
@@ -507,9 +530,11 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
 
         if (!GAB_VAL_IS_RECORD(index)) {
           STORE_FRAME();
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_OBJECT,
-                         "Only objects can have propoerties");
-          return GAB_VAL_NULL();
+          gab_obj_string *a =
+              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
+                        (i32)a->len, a->data);
+          return failure(VM());
         }
 
         obj = GAB_VAL_TO_RECORD(index);
@@ -542,9 +567,11 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
 
         if (!GAB_VAL_IS_RECORD(index)) {
           STORE_FRAME();
-          dump_vm_error(ENGINE(),VM(), GAB_NOT_OBJECT,
-                         "Only objects can have propoerties");
-          return GAB_VAL_NULL();
+          gab_obj_string *a =
+              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
+                        (i32)a->len, a->data);
+          return failure(VM());
         }
 
         obj = GAB_VAL_TO_RECORD(index);
@@ -597,8 +624,11 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
     CASE_CODE(NEGATE) : {
       if (!GAB_VAL_IS_NUMBER(PEEK())) {
         STORE_FRAME();
-        dump_vm_error(ENGINE(),VM(), GAB_NOT_NUMERIC, "Unary '-' only works on numbers");
-        return GAB_VAL_NULL();
+        gab_obj_string *a =
+            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK()));
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_NUMERIC, "Tried to negate %.*s",
+                      (i32)a->len, a->data);
+        return failure(VM());
       }
       gab_value num = GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP()));
       PUSH(num);
@@ -677,9 +707,15 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
     CASE_CODE(CONCAT) : {
       if (!GAB_VAL_IS_STRING(PEEK()) + !GAB_VAL_IS_STRING(PEEK2())) {
         STORE_FRAME();
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_STRING,
-                       "Binary '..' operation only works on strings");
-        return GAB_VAL_NULL();
+        gab_obj_string *a =
+            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK()));
+
+        gab_obj_string *b =
+            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK2()));
+
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_STRING, "Tried to concatenate %.*s and %.*s",
+                      (i32)b->len, b->data, (i32)a->len, a->data);
+        return failure(VM());
       }
 
       gab_obj_string *b = GAB_VAL_TO_STRING(POP());
@@ -694,9 +730,9 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
 
     CASE_CODE(STRINGIFY) : {
       if (!GAB_VAL_IS_STRING(PEEK())) {
-        gab_obj_string *obj = gab_val_to_obj_string(ENGINE(), POP());
+        gab_value str = gab_val_to_string(ENGINE(), POP());
 
-        PUSH(GAB_VAL_OBJ(obj));
+        PUSH(str);
       }
       NEXT();
     }
@@ -752,7 +788,7 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
       if (GAB_VAL_IS_NULL(PEEK())) {
         STORE_FRAME();
         dump_vm_error(ENGINE(), VM(), GAB_ASSERTION_FAILED, "");
-        return GAB_VAL_NULL();
+        return failure(VM());
       }
       NEXT();
     }
@@ -796,9 +832,11 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
         TOP() = trim_return(VM(), shape->keys, TOP(), have, want);
       } else {
         STORE_FRAME();
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_OBJECT,
-                       "Unary '..' operation only works on objects");
-        return GAB_VAL_NULL();
+        gab_obj_string *a =
+            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to spread %.*s",
+                      (i32)a->len, a->data);
+        return failure(VM());
       }
 
       NEXT();
@@ -982,8 +1020,8 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
 
         if (flags & FLAG_LOCAL) {
           if (flags & FLAG_MUTABLE) {
-            upvalues[i] =
-                GAB_VAL_OBJ(capture_upvalue(VM(), GC(), FRAME()->slots + index));
+            upvalues[i] = GAB_VAL_OBJ(
+                capture_upvalue(VM(), GC(), FRAME()->slots + index));
           } else {
             upvalues[i] = LOCAL(index);
             gab_gc_iref(GC(), VM(), upvalues[i]);

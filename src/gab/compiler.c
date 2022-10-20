@@ -74,7 +74,7 @@ enum comp_status {
 };
 
 static void dump_compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
-                                 ...);
+                                ...);
 
 static boolean match_token(gab_bc *bc, gab_token tok);
 
@@ -94,7 +94,7 @@ static i32 eat_token(gab_bc *bc) {
 
   if (match_token(bc, TOKEN_ERROR)) {
     eat_token(bc);
-    dump_compiler_error(bc, GAB_MALFORMED_TOKEN, bc->lex.error_msg);
+    dump_compiler_error(bc, bc->lex.status, "");
     return COMP_ERR;
   }
 
@@ -111,8 +111,8 @@ static inline i32 match_and_eat_token(gab_bc *bc, gab_token tok) {
 static inline i32 expect_token(gab_bc *bc, gab_token tok) {
   if (!match_token(bc, tok)) {
     eat_token(bc);
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected TOKEN_%s",
-                         gab_token_names[tok]);
+    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected %s",
+                        gab_token_names[tok]);
     return COMP_ERR;
   }
 
@@ -433,8 +433,20 @@ i32 compile_block_expression(gab_engine *gab, gab_bc *bc, gab_module *mod) {
 }
 
 i32 compile_block_body(gab_engine *gab, gab_bc *bc, gab_module *mod) {
+  if (match_token(bc, TOKEN_EOF)) {
+    eat_token(bc);
+    dump_compiler_error(bc, GAB_MISSING_END, "");
+    return COMP_ERR;
+  }
+
   if (skip_newlines(bc) < 0)
     return COMP_ERR;
+
+  if (match_token(bc, TOKEN_EOF)) {
+    eat_token(bc);
+    dump_compiler_error(bc, GAB_MISSING_END, "");
+    return COMP_ERR;
+  }
 
   i32 result = compile_block_expression(gab, bc, mod);
 
@@ -667,7 +679,7 @@ i32 compile_property(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   default:
     dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                         "While compiling property access");
+                        "While compiling property access");
     return COMP_ERR;
   }
 
@@ -759,7 +771,7 @@ i32 compile_obj_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod) {
 
       default:
         dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                             "While compiling object literal");
+                            "While compiling object literal");
         return COMP_ERR;
       }
 
@@ -809,7 +821,7 @@ i32 compile_obj_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod) {
 fin:
   eat_token(bc);
   dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                       "While compiling object literal");
+                      "While compiling object literal");
   return COMP_ERR;
 }
 
@@ -943,7 +955,7 @@ i32 compile_exp_if(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   default:
     dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                         "While compiling if expression");
+                        "While compiling if expression");
     return COMP_ERR;
   }
 
@@ -979,6 +991,9 @@ i32 compile_exp_mch(gab_engine *gab, gab_bc *bc, gab_module *mod,
                                 bc->line);
 
     if (expect_token(bc, TOKEN_FAT_ARROW) < 0)
+      return COMP_ERR;
+
+    if (optional_newline(bc) < 0)
       return COMP_ERR;
 
     if (compile_expression(gab, bc, mod) < 0)
@@ -1106,7 +1121,7 @@ i32 compile_exp_bin(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
   default: {
     dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                         "While compiling binary expression");
+                        "While compiling binary expression");
     return COMP_ERR;
   }
   }
@@ -1134,7 +1149,7 @@ i32 compile_exp_una(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
   default: {
     dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                         "While compiling unary expression");
+                        "While compiling unary expression");
     return COMP_ERR;
   }
   }
@@ -1199,7 +1214,7 @@ i32 compile_exp_str(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   if (parsed == NULL) {
     dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                         "While compiling string literal");
+                        "While compiling string literal");
     return COMP_ERR;
   }
 
@@ -1386,7 +1401,7 @@ i32 compile_exp_let(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
     default:
       dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                           "While compiling let expression");
+                          "While compiling let expression");
       return COMP_ERR;
     }
 
@@ -1411,7 +1426,7 @@ i32 compile_exp_let(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   default:
     dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                         "While compiling 'let' expression");
+                        "While compiling 'let' expression");
     return COMP_ERR;
   }
 
@@ -1453,8 +1468,7 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   default:
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                         "While compiling identifier");
+    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN, "While compiling identifier");
     return COMP_ERR;
   }
 
@@ -1463,7 +1477,7 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
   case COMP_OK: {
     if (!assignable) {
       dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                           "While compiling identifier");
+                          "While compiling identifier");
       return COMP_ERR;
     }
 
@@ -1471,12 +1485,12 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
     if (is_local_var) {
       if (!(frame->locals_flag[var] & FLAG_MUTABLE)) {
         dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                             "Variable is not mutable");
+                            "Variable is not mutable");
       }
     } else {
       if (!(frame->upvs_flag[var] & FLAG_MUTABLE)) {
         dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                             "Variable is not mutable");
+                            "Variable is not mutable");
       }
     }
 
@@ -1503,7 +1517,7 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   default:
     dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                         "While compiling 'identifier' expression");
+                        "While compiling 'identifier' expression");
     return COMP_ERR;
   }
 
@@ -1528,7 +1542,7 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
       push_op(bc, mod, OP_SET_INDEX);
     } else {
       dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                           "While compiling 'index' expression");
+                          "While compiling 'index' expression");
       return COMP_ERR;
     }
     break;
@@ -1541,7 +1555,7 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   default:
     dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                         "While compiling 'index' expression");
+                        "While compiling 'index' expression");
     return COMP_ERR;
   }
 
@@ -1623,6 +1637,8 @@ i32 compile_exp_glb(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
 i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
+  if (optional_newline(bc) < 0)
+    return COMP_ERR;
   // Compile the function that is being called on the top of the stack.
   if (compile_exp_prec(gab, bc, mod, PREC_PROPERTY) < 0)
     return COMP_ERR;
@@ -2012,7 +2028,7 @@ gab_value gab_bc_compile(gab_engine *gab, gab_bc *bc, s_i8 name, s_i8 source) {
 #define ANSI_COLOR_RESET "\x1b[0m"
 
 static void dump_compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
-                                 ...) {
+                                ...) {
   if (bc->panic || !(bc->flags & GAB_FLAG_DUMP_ERROR)) {
     return;
   }
@@ -2078,9 +2094,10 @@ static void dump_compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
 
   a_i8_destroy(curr_under);
 
-  fprintf(stderr, ANSI_COLOR_YELLOW "%s\n\t", gab_status_names[e]);
+  fprintf(stderr, ANSI_COLOR_YELLOW "%s. " ANSI_COLOR_RESET ANSI_COLOR_GREEN,
+          gab_status_names[e]);
 
-  fprintf(stderr, help_fmt, args);
+  vfprintf(stderr, help_fmt, args);
 
   fprintf(stderr, "\n" ANSI_COLOR_RESET);
 

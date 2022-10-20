@@ -25,18 +25,18 @@ typedef enum {
   IMPORT_SOURCE,
 } import_k;
 
-typedef struct {
+struct import {
   import_k k;
   union {
     a_i8 *source;
     void *shared;
   } as;
   gab_value cache;
-} import;
+};
 
-void import_destroy_cb(gab_obj_container *container) {
-  import *i = container->data;
+d_import imports = {0};
 
+void import_destroy(import *i) {
   switch (i->k) {
   case IMPORT_SHARED:
     dlclose(i->as.shared);
@@ -45,66 +45,31 @@ void import_destroy_cb(gab_obj_container *container) {
     a_i8_destroy(i->as.source);
     break;
   }
-
   DESTROY(i);
 }
 
+void imports_create() { d_import_create(&imports, 8); };
+
+void imports_destroy() {
+  for (u64 i = 0; i < imports.cap; i++) {
+    if (d_import_iexists(&imports, i)) {
+      import_destroy(d_import_ival(&imports, i));
+    }
+  }
+
+  d_import_destroy(&imports);
+};
+
 void add_import(gab_engine *gab, s_i8 name, import *i) {
-  if (!GAB_VAL_IS_RECORD(gab->std)) {
-    return;
-  }
-
-  gab_value mod_prop =
-      GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("__mod__")));
-
-  gab_value mod = gab_obj_record_read(GAB_VAL_TO_RECORD(gab->std), mod_prop);
-
-  if (!GAB_VAL_IS_RECORD(mod)) {
-    return;
-  }
-
-  gab_value container =
-      GAB_VAL_OBJ(gab_obj_container_create(import_destroy_cb, i));
-
-  gab_value import_prop = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
-
-  gab_obj_record_insert(gab, GAB_VAL_TO_RECORD(mod), import_prop, container);
+  d_import_insert(&imports, name, i);
 }
 
 gab_value check_import(gab_engine *gab, s_i8 name) {
-  // Check that we have a std object.
-  if (!GAB_VAL_IS_RECORD(gab->std)) {
-    return GAB_VAL_NULL();
+  if (d_import_exists(&imports, name)) {
+    import *i = d_import_read(&imports, name);
+    return i->cache;
   }
-
-  gab_value mod_prop =
-      GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("__mod__")));
-
-  gab_value mod = gab_obj_record_read(GAB_VAL_TO_RECORD(gab->std), mod_prop);
-
-  // Check that we have a mod property as we expect.
-  if (!GAB_VAL_IS_RECORD(mod)) {
-    return GAB_VAL_NULL();
-  }
-
-  gab_value import_prop = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
-
-  gab_value i = gab_obj_record_read(GAB_VAL_TO_RECORD(mod), import_prop);
-
-  // Check that the property off of mod is as we expect.
-  if (!GAB_VAL_IS_CONTAINER(i)) {
-    return GAB_VAL_NULL();
-  }
-
-  gab_obj_container *container = GAB_VAL_TO_CONTAINER(i);
-
-  // If the destructors match, we can reasonably expect that the
-  // container is the type we hope it is.
-  if (container->destructor != import_destroy_cb) {
-    return GAB_VAL_NULL();
-  }
-
-  return ((import *)container->data)->cache;
+  return GAB_VAL_NULL();
 }
 
 gab_value gab_shared_object_handler(gab_engine *eng, const a_i8 *path,
@@ -197,6 +162,7 @@ a_i8 *match_resource(resource *res, s_i8 name) {
 }
 
 gab_value gab_lib_require(gab_engine *gab, gab_value *argv, u8 argc) {
+
   if (!GAB_VAL_IS_STRING(argv[0])) {
     return GAB_VAL_NULL();
   }

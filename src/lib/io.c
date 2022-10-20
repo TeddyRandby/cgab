@@ -5,7 +5,7 @@
 #include "include/value.h"
 #include <stdio.h>
 
-void gab_container_file_cb(gab_engine *eng, gab_obj_container *self) {
+void gab_container_file_cb(gab_obj_container *self) {
   if (fclose(self->data)) {
     fprintf(stderr, "Uh oh, file close failed.");
     exit(1);
@@ -33,7 +33,7 @@ gab_value gab_lib_open(gab_engine *eng, gab_value *argv, u8 argc) {
   }
 
   gab_value container =
-      GAB_VAL_OBJ(gab_obj_container_create(eng, gab_container_file_cb, file));
+      GAB_VAL_OBJ(gab_obj_container_create(gab_container_file_cb, file));
 
   return container;
 }
@@ -80,7 +80,7 @@ gab_value gab_lib_write(gab_engine *eng, gab_value *argv, u8 argc) {
 
   gab_obj_string *data_obj = GAB_VAL_TO_STRING(argv[1]);
   char data[data_obj->len + 1];
-  memccpy(data, data_obj->data, sizeof(i8), data_obj->len);
+  memcpy(data, data_obj->data, sizeof(i8) * data_obj->len);
   data[data_obj->len] = '0';
 
   i32 result = fputs(data, handle->data);

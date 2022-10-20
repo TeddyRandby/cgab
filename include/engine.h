@@ -13,12 +13,6 @@ typedef struct gab_vm gab_vm;
 
 void *gab_reallocate(void *loc, u64 old_size, u64 new_size);
 
-enum gab_status {
-#define STATUS(name, message) GAB_##name,
-#include "include/status_code.h"
-#undef STATUS
-};
-
 static const char* gab_status_names[] = {
 #define STATUS(name, message) message,
 #include "include/status_code.h"
@@ -51,9 +45,6 @@ struct gab_engine {
     The std lib object.
   */
   gab_value std;
-
-  // The engine lock required in order to operate on the shared properties.
-  pthread_mutex_t lock;
 
   gab_bc bc;
   gab_vm vm;

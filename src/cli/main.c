@@ -28,9 +28,12 @@ void bind_std(gab_engine *gab) {
 }
 
 void gab_run_file(const char *path) {
-  a_i8 *src = os_read_file(path);
+  imports_create();
+
   gab_engine *gab = gab_create(GAB_FLAG_DUMP_ERROR);
   bind_std(gab);
+
+  a_i8 *src = os_read_file(path);
 
   gab_value pkg =
       gab_compile(gab, s_i8_cstr("__main__"), s_i8_create(src->data, src->len));
@@ -47,6 +50,7 @@ fin:
   gab_dref(gab, result);
   gab_destroy(gab);
   a_i8_destroy(src);
+  imports_destroy();
 }
 
 i32 main(i32 argc, const char **argv) {

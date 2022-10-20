@@ -5,7 +5,6 @@
 #include "include/object.h"
 #include "include/vm.h"
 
-#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -13,21 +12,30 @@
  * Gab API stuff
  */
 gab_engine *gab_create(u8 flags) {
-  gab_engine *self = NEW(gab_engine);
+  gab_engine *gab = NEW(gab_engine);
 
-  d_gab_intern_create(&self->interned, 256);
+  d_gab_intern_create(&gab->interned, 256);
 
-  self->modules = NULL;
-  self->std = GAB_VAL_NULL();
-  self->flags = flags;
+  gab->modules = NULL;
+  gab->std = GAB_VAL_NULL();
+  gab->flags = flags;
 
-  pthread_mutexattr_t attr;
-  pthread_mutex_init(&self->lock, &attr);
+  gab_bc_create(&gab->bc, flags);
+  gab_vm_create(&gab->vm);
+  gab_gc_create(&gab->gc);
 
-  gab_bc_create(&self->bc, flags);
-  gab_vm_create(&self->vm);
+  return gab;
+}
 
-  return self;
+void gab_engine_dref_all(gab_engine* gab) {
+  for (u64 i = 0; i < gab->interned.cap; i++) {
+    if (d_gab_intern_iexists(&gab->interned, i)) {
+      gab_value v = d_gab_intern_ikey(&gab->interned, i);
+      gab_dref(gab, v);
+    }
+  }
+
+  gab_dref(gab, gab->std);
 }
 
 void gab_destroy(gab_engine *gab) {
@@ -42,30 +50,19 @@ void gab_destroy(gab_engine *gab) {
     gab->modules = next;
   }
 
-  for (u64 i = 0; i < gab->interned.cap; i++) {
-    if (d_gab_intern_iexists(&gab->interned, i)) {
-      gab_value v = d_gab_intern_ikey(&gab->interned, i);
-      gab_dref(gab, v);
-    }
-  }
-
-  gab_dref(gab, gab->std);
-
-  pthread_mutex_destroy(&gab->lock);
-
-  d_gab_intern_destroy(&gab->interned);
+  gab_engine_dref_all(gab);
 
   gab_gc_collect(&gab->gc, &gab->vm);
 
   gab_gc_destroy(&gab->gc);
 
+  d_gab_intern_destroy(&gab->interned);
+
   DESTROY(gab);
 }
 
 gab_value gab_compile(gab_engine *gab, s_i8 name, s_i8 source) {
-  gab_bc bc;
-  gab_bc_create(&bc, gab->flags);
-  return gab_bc_compile(gab, &bc, name, source);
+  return gab_bc_compile(gab, &gab->bc, name, source);
 }
 
 void gab_dref(gab_engine* gab, gab_value value) {
@@ -77,13 +74,7 @@ void gab_iref(gab_engine* gab, gab_value value) {
 };
 
 gab_value gab_run(gab_engine *gab, gab_value main) {
-  gab_gc_create(&gab->gc);
-  gab_vm_create(&gab->vm);
-
   gab_value result = gab_vm_run(&gab->vm, gab, &gab->gc, main);
-
-  gab_gc_collect(&gab->gc, &gab->vm);
-
   return result;
 };
 

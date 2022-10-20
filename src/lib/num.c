@@ -4,6 +4,7 @@
 #include "include/object.h"
 #include "include/value.h"
 #include <time.h>
+#include <stdio.h>
 
 typedef struct {
   u32 state[16];
@@ -117,11 +118,13 @@ gab_value gab_lib_from(gab_engine *eng, gab_value *argv, u8 argc) {
 
   gab_obj_string *str = GAB_VAL_TO_STRING(argv[0]);
 
-  char cstr[str->len];
+  char cstr[str->len + 1];
 
-  memcpy(cstr + 0, str, str->len);
+  memcpy(cstr, str->data, str->len);
 
-  return GAB_VAL_NUMBER(strtod(cstr + 0, NULL));
+  cstr[str->len] = '\0';
+
+  return GAB_VAL_NUMBER(strtod(cstr, NULL));
 };
 
 gab_value gab_mod(gab_engine *gab) {
