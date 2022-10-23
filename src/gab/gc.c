@@ -52,9 +52,7 @@ void *gab_reallocate(void *loc, u64 old_count, u64 new_count) {
   void *new_ptr = realloc(loc, new_count);
 
   if (!new_ptr) {
-    if (!new_ptr) {
-      exit(1);
-    }
+    exit(1);
   }
 
   return new_ptr;

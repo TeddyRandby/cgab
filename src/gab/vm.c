@@ -440,9 +440,6 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
         // Increment and pop the module.
         gab_gc_iref(GC(), VM(), PEEK());
 
-        // Decrement the main closure
-        gab_gc_dref(GC(), VM(), main);
-
         return POP();
       }
 
@@ -1017,8 +1014,6 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
       // Artificially use the stack to store the upvalues
       // as we're finding them to capture.
       // This is done so that the GC knows they're there.
-      //
-      STORE_FRAME();
 
       for (int i = 0; i < func->nupvalues; i++) {
         u8 flags = READ_BYTE;
@@ -1035,8 +1030,6 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
           PUSH(CLOSURE()->upvalues[index]);
           gab_gc_iref(GC(), VM(), upvalues[i]);
         }
-
-        dump_frame(VM(), TOP(), "UPVALUES");
       }
 
       DROP_N(func->nupvalues);

@@ -48,6 +48,7 @@ void gab_run_file(const char *path) {
 
 fin:
   gab_dref(gab, result);
+  gab_dref(gab, pkg);
   gab_destroy(gab);
   a_i8_destroy(src);
   imports_destroy();
