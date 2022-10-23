@@ -62,7 +62,10 @@ gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self) {
     return gab_obj_string_create(gab, s_i8_cstr("[closure]"));
   }
   case OBJECT_RECORD: {
-    return gab_obj_string_create(gab, s_i8_cstr("[object]"));
+    return gab_obj_string_create(gab, s_i8_cstr("[record]"));
+  }
+  case OBJECT_SHAPE: {
+    return gab_obj_string_create(gab, s_i8_cstr("[shape]"));
   }
   case OBJECT_UPVALUE: {
     return gab_obj_string_create(gab, s_i8_cstr("[upvalue]"));
@@ -73,8 +76,11 @@ gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self) {
   case OBJECT_BUILTIN: {
     return gab_obj_string_create(gab, s_i8_cstr("[builtin]"));
   }
-  default: {
-    return gab_obj_string_create(gab, s_i8_cstr("[unknown]"));
+  case OBJECT_SYMBOL: {
+    return gab_obj_string_create(gab, s_i8_cstr("[symbol]"));
+  }
+  case OBJECT_CONTAINER: {
+    return gab_obj_string_create(gab, s_i8_cstr("[container]"));
   }
   }
 }

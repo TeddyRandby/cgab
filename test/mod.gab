@@ -1,7 +1,121 @@
-!require('utils')
+def describe(name, cb)
+  !print('\n--{name}--')
+  cb()
+end
 
-!describe('Numbers', do ||
-  !it('Should be equal to itself', do ||
-    5:!assert.EqualTo(5)
+def it(name, cb)
+  !print('{cb() and '✓' or '×'} it {name}')
+end
+
+def check(result, msg)
+  if not result
+    !print(msg)
+  end else
+    true
+  end
+end
+
+def assert {
+  def equalTo(a, b)
+    check(a == b, 'Expected {a} to be equal to {b}')!
+  end
+
+  def notNull(a)
+    check(not (a == null), 'Expected {a} to not be null')!
+  end
+}
+
+describe('Numbers', do ||
+  it('should be equal to itself', do ||
+    5:assert.equalTo(5)
+  end)
+  it('should do math', do ||
+    (5 * 2):assert.equalTo(10) and
+    (10 % 3):assert.equalTo(1)
+  end)
+end)
+
+describe('Strings', do ||
+  it('should be equal to itself', do ||
+    'hello':assert.equalTo('hello')
+  end)
+
+  it('should concatenate', do ||
+    ('hello'..' world'):assert.equalTo('hello world')
+  end)
+
+  it('should interpolate', do ||
+    ('{1} + {2} is {1 + 2}'):assert.equalTo('1 + 2 is 3')
+  end)
+end)
+
+describe('Objects', do ||
+  it('should have properties', do ||
+    let Point = {
+      x: 1
+      y: 2
+    }
+
+    assert.equalTo(Point.x, 1) and
+    assert.equalTo(Point.y, 2)
+  end)
+
+  it('should be structurally shaped', do ||
+    let pone = { x: 1 y: 2}
+    let ptwo = { x: 3 y: 4}
+
+    (pone?):assert.equalTo(ptwo?)
+  end)
+
+  it('should set properties dynamically', do ||
+    let obj = { [[]?]: 'test' }
+    obj['y'] = 2
+
+    (obj.y):assert.equalTo(2) and
+    (obj[[]?]):assert.equalTo('test')
+  end)
+
+  it('should work for all kinds of keys', do ||
+    let obj = {}
+    obj[obj] = 2
+    obj[{}?] = 3
+
+    let i = do ||
+      1
+    end
+
+    obj[i] = i 
+
+    assert.equalTo(obj[obj], 2) and
+    assert.equalTo(obj[{}?], 3) and
+    assert.equalTo(obj[i], i)
+  end)
+
+  it('should spread out the keys', do ||
+    let obj = {
+      test: 'hello'
+      [{}?]: 'world'
+    }
+
+    let a, b = ..obj
+    let c, d = ..obj?
+
+    a:assert.equalTo('hello') and
+    b:assert.equalTo('world') and
+    c:assert.equalTo('test') and
+    d:assert.equalTo({}?)
+  end)
+
+  it('should withstand this tricky mess', do ||
+    let obj = {}
+
+    def try_segfault()
+      { try: 'segv' }
+    end
+
+    obj[try_segfault()] = 2
+
+    assert.equalTo(..obj, 2)
+    assert.equalTo(..((..obj?)?), 'try')
   end)
 end)

@@ -114,7 +114,7 @@ void dump_stack(gab_vm *vm, gab_value *top, const char *name) {
   printf("Stack at %s:\n-----------------\n", name);
   gab_value *tracker = top - 1;
   while (tracker >= vm->stack) {
-    printf("|");
+    printf("|%lu|", tracker - vm->stack);
     gab_val_dump(*tracker--);
     printf("\n");
   }
@@ -144,8 +144,8 @@ static inline gab_value *trim_return(gab_vm *vm, gab_value *from, gab_value *to,
   return to;
 }
 
-static inline gab_obj_upvalue *capture_upvalue(gab_vm *vm, gab_gc *gc,
-                                               gab_value *local) {
+static inline gab_value capture_upvalue(gab_vm *vm, gab_gc *gc,
+                                        gab_value *local) {
   gab_obj_upvalue *prev_upvalue = NULL;
   gab_obj_upvalue *upvalue = vm->open_upvalues;
 
@@ -155,13 +155,12 @@ static inline gab_obj_upvalue *capture_upvalue(gab_vm *vm, gab_gc *gc,
   }
 
   if (upvalue != NULL && upvalue->data == local) {
-    return upvalue;
+    // Capture this upvalue with a new referemce
+    gab_gc_iref(gc, vm, GAB_VAL_OBJ(upvalue));
+    return GAB_VAL_OBJ(upvalue);
   }
 
-  // The captured value's reference count has to be incremented
-  // Before the allocation which creates the new upvalue.
   gab_gc_iref(gc, vm, *local);
-
   gab_obj_upvalue *new_upvalue = gab_obj_upvalue_create(local);
 
   new_upvalue->next = upvalue;
@@ -170,7 +169,7 @@ static inline gab_obj_upvalue *capture_upvalue(gab_vm *vm, gab_gc *gc,
   } else {
     prev_upvalue->next = new_upvalue;
   }
-  return new_upvalue;
+  return GAB_VAL_OBJ(new_upvalue);
 }
 
 static inline void close_upvalue(gab_vm *vm, gab_value *local) {
@@ -292,9 +291,6 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
 
   PUSH(main);
   PUSH(ENGINE()->std);
-
-  // Decrement the main closure
-  gab_gc_dref(GC(), VM(), main);
 
   LOOP() {
     {
@@ -444,6 +440,9 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
         // Increment and pop the module.
         gab_gc_iref(GC(), VM(), PEEK());
 
+        // Decrement the main closure
+        gab_gc_dref(GC(), VM(), main);
+
         return POP();
       }
 
@@ -526,8 +525,6 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
         prop = PEEK2();
         index = PEEK_N(3);
 
-        gab_gc_iref(GC(), VM(), value);
-
         if (!GAB_VAL_IS_RECORD(index)) {
           STORE_FRAME();
           gab_obj_string *a =
@@ -542,6 +539,7 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
         prop_offset = gab_obj_shape_find(obj->shape, prop);
 
         if (prop_offset < 0) {
+          // gab_gc_iref(GC(), VM(), prop);
           // The key didn't exist on the old shape.
           // Create a new shape and update the cache.
           gab_obj_shape *shape =
@@ -586,6 +584,7 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
         }
 
         if (prop_offset < 0) {
+          // gab_gc_iref(GC(), VM(), prop);
           // The key didn't exist on the old shape.
           // Create a new shape and update the cache.
           *cached_shape = gab_obj_shape_extend(ENGINE(), *cached_shape, prop);
@@ -713,8 +712,9 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
         gab_obj_string *b =
             GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK2()));
 
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_STRING, "Tried to concatenate %.*s and %.*s",
-                      (i32)b->len, b->data, (i32)a->len, a->data);
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_STRING,
+                      "Tried to concatenate %.*s and %.*s", (i32)b->len,
+                      b->data, (i32)a->len, a->data);
         return failure(VM());
       }
 
@@ -1012,7 +1012,13 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
     CASE_CODE(CLOSURE) : {
       gab_obj_function *func = GAB_VAL_TO_FUNCTION(READ_CONSTANT);
 
-      gab_value upvalues[UPVALUE_MAX];
+      gab_value *upvalues = TOP();
+
+      // Artificially use the stack to store the upvalues
+      // as we're finding them to capture.
+      // This is done so that the GC knows they're there.
+      //
+      STORE_FRAME();
 
       for (int i = 0; i < func->nupvalues; i++) {
         u8 flags = READ_BYTE;
@@ -1020,17 +1026,20 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
 
         if (flags & FLAG_LOCAL) {
           if (flags & FLAG_MUTABLE) {
-            upvalues[i] = GAB_VAL_OBJ(
-                capture_upvalue(VM(), GC(), FRAME()->slots + index));
+            PUSH(capture_upvalue(VM(), GC(), FRAME()->slots + index));
           } else {
-            upvalues[i] = LOCAL(index);
+            PUSH(LOCAL(index));
             gab_gc_iref(GC(), VM(), upvalues[i]);
           }
         } else {
-          upvalues[i] = CLOSURE()->upvalues[index];
+          PUSH(CLOSURE()->upvalues[index]);
           gab_gc_iref(GC(), VM(), upvalues[i]);
         }
+
+        dump_frame(VM(), TOP(), "UPVALUES");
       }
+
+      DROP_N(func->nupvalues);
 
       gab_value obj = GAB_VAL_OBJ(gab_obj_closure_create(func, upvalues));
 
@@ -1050,30 +1059,32 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
 
         size = READ_BYTE;
 
-        for (u64 i = 0; i < size * 2; i++) {
+        // Increment the ref count of the VALUES- only
+        for (u64 i = 1; i < size * 2; i += 2) {
           gab_gc_iref(GC(), VM(), PEEK_N(i));
         }
 
-        shape = gab_obj_shape_create(ENGINE(), TOP() - (size * 2), size, 2);
+        shape = gab_obj_shape_create(ENGINE(), TOP() - size * 2, size, 2);
 
         shape->name = gab_obj_string_ref(name);
 
-        goto complete_shape;
+        goto complete_record;
       }
 
       CASE_CODE(OBJECT_RECORD) : {
         size = READ_BYTE;
 
-        for (u64 i = 0; i < size * 2; i++) {
+        // Increment the ref count of the VALUES- only
+        for (u64 i = 1; i < size * 2; i += 2) {
           gab_gc_iref(GC(), VM(), PEEK_N(i));
         }
 
-        shape = gab_obj_shape_create(ENGINE(), TOP() - (size * 2), size, 2);
+        shape = gab_obj_shape_create(ENGINE(), TOP() - size * 2, size, 2);
 
-        goto complete_shape;
+        goto complete_record;
       }
 
-    complete_shape : {
+    complete_record : {
       gab_value obj = GAB_VAL_OBJ(
           gab_obj_record_create(shape, TOP() + 1 - (size * 2), size, 2));
 

@@ -27,7 +27,7 @@ gab_engine *gab_create(u8 flags) {
   return gab;
 }
 
-void gab_engine_dref_all(gab_engine* gab) {
+void gab_engine_dref_all(gab_engine *gab) {
   for (u64 i = 0; i < gab->interned.cap; i++) {
     if (d_gab_intern_iexists(&gab->interned, i)) {
       gab_value v = d_gab_intern_ikey(&gab->interned, i);
@@ -65,12 +65,12 @@ gab_value gab_compile(gab_engine *gab, s_i8 name, s_i8 source) {
   return gab_bc_compile(gab, &gab->bc, name, source);
 }
 
-void gab_dref(gab_engine* gab, gab_value value) {
-    gab_gc_dref(&gab->gc, &gab->vm, value);
+void gab_dref(gab_engine *gab, gab_value value) {
+  gab_gc_dref(&gab->gc, &gab->vm, value);
 };
 
-void gab_iref(gab_engine* gab, gab_value value) {
-    gab_gc_iref(&gab->gc, &gab->vm, value);
+void gab_iref(gab_engine *gab, gab_value value) {
+  gab_gc_iref(&gab->gc, &gab->vm, value);
 };
 
 gab_value gab_run(gab_engine *gab, gab_value main) {

@@ -522,6 +522,7 @@ i32 compile_function(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
   down_scope(bc);
 
   gab_obj_function *function = gab_obj_function_create(name);
+  u16 function_constant = add_constant(mod, GAB_VAL_OBJ(function));
 
   down_frame(bc, name);
 
@@ -545,7 +546,7 @@ i32 compile_function(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
 
   // Push a closure wrapping the function
   push_op(bc, mod, OP_CLOSURE);
-  push_short(bc, mod, add_constant(mod, GAB_VAL_OBJ(function)));
+  push_short(bc, mod, function_constant);
 
   gab_bc_frame *frame = peek_frame(bc, 0);
   for (int i = 0; i < function->nupvalues; i++) {
@@ -1694,6 +1695,9 @@ i32 compile_exp_and(gab_engine *gab, gab_bc *bc, gab_module *mod,
   u64 end_jump =
       gab_module_push_jump(mod, OP_LOGICAL_AND, bc->previous_token, bc->line);
 
+  if (optional_newline(bc) < 0)
+      return COMP_ERR;
+
   if (compile_exp_prec(gab, bc, mod, PREC_AND) < 0)
     return COMP_ERR;
 
@@ -1706,6 +1710,9 @@ i32 compile_exp_or(gab_engine *gab, gab_bc *bc, gab_module *mod,
                    boolean assignable) {
   u64 end_jump =
       gab_module_push_jump(mod, OP_LOGICAL_OR, bc->previous_token, bc->line);
+
+  if (optional_newline(bc) < 0)
+      return COMP_ERR;
 
   if (compile_exp_prec(gab, bc, mod, PREC_OR) < 0)
     return COMP_ERR;

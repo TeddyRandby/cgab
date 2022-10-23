@@ -1,6 +1,7 @@
 #include "include/module.h"
 #include "include/core.h"
 #include "include/engine.h"
+#include "include/object.h"
 #include <stdio.h>
 
 gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
@@ -28,7 +29,7 @@ void gab_module_destroy(gab_module *self) {
   DESTROY(self);
 }
 
-void gab_module_dref_all(gab_engine* gab, gab_module *mod) {
+void gab_module_dref_all(gab_engine *gab, gab_module *mod) {
   for (u64 i = 0; i < mod->constants.cap; i++) {
     if (d_gab_constant_iexists(&mod->constants, i)) {
       gab_value v = d_gab_constant_ikey(&mod->constants, i);
@@ -243,13 +244,13 @@ boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
   return false;
 }
 
-u16 gab_module_add_constant(gab_module* self, gab_value value) {
-    if (self->constants.len == MODULE_CONSTANTS_MAX) {
-        fprintf(stderr, "Uh oh, too many constants in the module.\n");
-        exit(1);
-    }
-    d_gab_constant_insert(&self->constants, value, 0);
-    return d_gab_constant_index_of(&self->constants, value);
+u16 gab_module_add_constant(gab_module *self, gab_value value) {
+  if (self->constants.len == MODULE_CONSTANTS_MAX) {
+    fprintf(stderr, "Uh oh, too many constants in the module.\n");
+    exit(1);
+  }
+  d_gab_constant_insert(&self->constants, value, 0);
+  return d_gab_constant_index_of(&self->constants, value);
 };
 
 u64 dumpInstruction(gab_module *self, u64 offset);

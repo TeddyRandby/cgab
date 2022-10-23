@@ -1,18 +1,22 @@
 #include "include/gc.h"
 #include "include/engine.h"
+#include "include/object.h"
 
 void gab_obj_iref(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
+  gc->increments[gc->increment_count++] = obj;
+#if GAB_DEBUG_GC
+  gab_gc_collect(gc, vm);
+#endif
   if (gc->increment_count == INC_DEC_MAX) {
     gab_gc_collect(gc, vm);
   }
-  gc->increments[gc->increment_count++] = obj;
 }
 
 void gab_obj_dref(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
+  gc->decrements[gc->decrement_count++] = obj;
   if (gc->decrement_count == INC_DEC_MAX) {
     gab_gc_collect(gc, vm);
   }
-  gc->decrements[gc->decrement_count++] = obj;
 }
 
 void gab_gc_iref(gab_gc *gc, gab_vm *vm, gab_value obj) {
