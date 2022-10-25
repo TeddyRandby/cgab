@@ -313,12 +313,10 @@ gab_obj_function *gab_obj_function_create(s_i8 name) {
   return self;
 }
 
-gab_obj_builtin *gab_obj_builtin_create(gab_builtin function, s_i8 name,
-                                        u8 arity) {
+gab_obj_builtin *gab_obj_builtin_create(gab_builtin function, s_i8 name) {
 
   gab_obj_builtin *self = GAB_CREATE_OBJ(gab_obj_builtin, OBJECT_BUILTIN);
 
-  self->narguments = arity;
   self->function = function;
   self->name = name;
 
@@ -353,15 +351,19 @@ gab_obj_shape *gab_obj_shape_create_array(gab_engine *gab, u64 size) {
     keys[i] = GAB_VAL_NUMBER(i);
   }
 
-  return gab_obj_shape_create(gab, keys, size, 1);
+  return gab_obj_shape_create(gab, NULL, size, 1, keys);
 }
 
-gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_value keys[], u64 size,
-                                    u64 stride) {
+gab_obj_shape *gab_obj_shape_create(gab_engine *gab, boolean *was_interned,
+                                    u64 size, u64 stride,
+                                    gab_value keys[size]) {
   u64 hash = keys_hash(size, stride, keys);
 
   gab_obj_shape *interned =
       gab_engine_find_shape(gab, size, stride, hash, keys);
+
+  if (was_interned)
+    *was_interned = interned != NULL;
 
   if (interned)
     return interned;
@@ -388,17 +390,15 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_value keys[], u64 size,
 }
 
 gab_obj_shape *gab_obj_shape_extend(gab_engine *gab, gab_obj_shape *self,
-                                    gab_value property) {
+                                    boolean *was_interned, gab_value property) {
   gab_value keys[self->properties.len + 1];
 
   memcpy(keys, self->keys, self->properties.len * sizeof(gab_value));
 
   keys[self->properties.len] = property;
 
-  gab_obj_shape *new_shape =
-      gab_obj_shape_create(gab, keys, self->properties.len + 1, 1);
-
-  return new_shape;
+  return gab_obj_shape_create(gab, was_interned, self->properties.len + 1, 1,
+                              keys);
 }
 
 gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, gab_value values[],

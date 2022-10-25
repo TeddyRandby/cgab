@@ -1,5 +1,6 @@
 let num = !require('num')
 let io = !require('io')
+let re = !require('regex')
 
 def odd(number)
   match number?
@@ -27,3 +28,19 @@ let FILE = io.open('result.txt', 'w+')
 for i in 5:times()
     FILE:io.write('{ i } is { i:odd() and 'odd' or 'even' }\n') 
 end
+
+def has_optional(val, opt)
+    !print(val)
+    if (opt)
+        !print('Got opt {opt}')
+    end
+end
+
+has_optional(1)
+
+has_optional(2, 'option', 'extra')
+
+let p = re.comp('[0-9]+')
+
+!print(..'123':re.exec(p))
+!print('abc':re.exec(p))

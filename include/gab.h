@@ -31,7 +31,7 @@ void gab_destroy(gab_engine *gab);
  *
  * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
  */
-gab_value gab_compile(gab_engine* gab, s_i8 name, s_i8 source);
+gab_value gab_compile(gab_engine *gab, s_i8 name, s_i8 source);
 
 /**
  * Run a gab_obj_closure in the gab vm.
@@ -42,21 +42,21 @@ gab_value gab_compile(gab_engine* gab, s_i8 name, s_i8 source);
  *
  * @return The return value of the closure
  */
-gab_value gab_run(gab_engine* gab, gab_value main);
+gab_value gab_run(gab_engine *gab, gab_value main);
 
 /**
  * Decrement the RC of a gab value
  *
  * @param val The value to clean up
  */
-void gab_dref(gab_engine* gab, gab_value value);
+void gab_dref(gab_engine *gab, gab_value value);
 
 /**
  * Increment the RC of a gab value
  *
  * @param val The value to clean up
  */
-void gab_iref(gab_engine* gab, gab_value value);
+void gab_iref(gab_engine *gab, gab_value value);
 
 /**
  * Bundle a list of keys and values into a Gab object.
@@ -72,7 +72,7 @@ void gab_iref(gab_engine* gab, gab_value value);
  * @return The gab value that the keys and values were bundled into
  */
 gab_value gab_bundle_record(gab_engine *gab, u64 size, s_i8 keys[size],
-                     gab_value values[size]);
+                            gab_value values[size]);
 
 /**
  * Bundle a list of values into a Gab object.
@@ -96,21 +96,24 @@ gab_value gab_bundle_array(gab_engine *gab, u64 size, gab_value values[size]);
 /**
  * A helper macro for creating a gab_obj_record
  */
-#define GAB_ARRAY(size, values)                                         \
-  GAB_VAL_OBJ(gab_bundle_array(gab, size, values))
+#define GAB_ARRAY(size, values) GAB_VAL_OBJ(gab_bundle_array(gab, size, values))
 
 /**
  * A helper macro for creating a gab_obj_builtin
  */
-#define GAB_BUILTIN(name, arity)                                               \
-  GAB_VAL_OBJ(                                                                 \
-      gab_obj_builtin_create(gab_lib_##name, s_i8_cstr(#name), arity))
+#define GAB_BUILTIN(name)                                                      \
+  GAB_VAL_OBJ(gab_obj_builtin_create(gab_lib_##name, s_i8_cstr(#name)))
 
 /**
  * A helper macro for creating a gab_obj_string
  */
-#define GAB_STRING(cstr) \
-    GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr(cstr)))
+#define GAB_STRING(cstr)                                                       \
+  GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr(cstr)))
+
+/**
+ * A helper macro for creating a gab_obj_container
+ */
+#define GAB_CONTAINER(cb, data) GAB_VAL_OBJ(gab_obj_container_create(cb, data))
 
 /**
  * Bundle the keys and values into a gab object and bind it to the engine.

@@ -63,10 +63,10 @@ gab_value gab_mod(gab_engine *gab) {
   };
 
   gab_value values[] = {
-      GAB_BUILTIN(keys, 1),
-      GAB_BUILTIN(len, 1),
-      GAB_BUILTIN(push, 2),
+      GAB_BUILTIN(keys),
+      GAB_BUILTIN(len),
+      GAB_BUILTIN(push),
   };
 
-  return gab_bundle_record(gab, sizeof(values) / sizeof(gab_value), keys, values);
+  return gab_bundle_record(gab, LEN_CARRAY(values), keys, values);
 }

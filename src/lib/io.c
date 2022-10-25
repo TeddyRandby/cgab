@@ -81,7 +81,7 @@ gab_value gab_lib_write(gab_engine *eng, gab_value *argv, u8 argc) {
   gab_obj_string *data_obj = GAB_VAL_TO_STRING(argv[1]);
   char data[data_obj->len + 1];
   memcpy(data, data_obj->data, sizeof(i8) * data_obj->len);
-  data[data_obj->len] = '0';
+  data[data_obj->len] = '\0';
 
   i32 result = fputs(data, handle->data);
 
@@ -100,10 +100,10 @@ gab_value gab_mod(gab_engine *gab) {
   };
 
   gab_value values[] = {
-      GAB_BUILTIN(open, 2),
-      GAB_BUILTIN(read, 1),
-      GAB_BUILTIN(write, 2),
+      GAB_BUILTIN(open),
+      GAB_BUILTIN(read),
+      GAB_BUILTIN(write),
   };
 
-  return gab_bundle_record(gab, sizeof(values) / sizeof(gab_value), keys, values);
+  return gab_bundle_record(gab, LEN_CARRAY(values), keys, values);
 }

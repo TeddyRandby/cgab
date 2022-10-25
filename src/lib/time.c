@@ -35,9 +35,9 @@ gab_value gab_mod(gab_engine *gab) {
   };
 
   gab_value values[] = {
-      GAB_BUILTIN(clock, 0),
-      GAB_BUILTIN(sleep, 1),
+      GAB_BUILTIN(clock),
+      GAB_BUILTIN(sleep),
   };
 
-  return gab_bundle_record(gab, sizeof(values) / sizeof(gab_value), keys, values);
+  return gab_bundle_record(gab, LEN_CARRAY(values), keys, values);
 }

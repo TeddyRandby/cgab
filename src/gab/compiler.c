@@ -259,7 +259,7 @@ static i32 resolve_upvalue(gab_bc *bc, s_i8 name, u32 depth) {
   i32 upvalue = resolve_upvalue(bc, name, depth + 1);
   if (upvalue >= 0) {
     u8 flags = peek_frame(bc, depth + 1)->upvs_flag[upvalue];
-    return add_upvalue(bc, depth, upvalue, flags ^ FLAG_LOCAL);
+    return add_upvalue(bc, depth, upvalue, flags & ~FLAG_LOCAL);
   }
 
   return COMP_UPVALUE_NOT_FOUND;

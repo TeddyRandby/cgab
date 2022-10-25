@@ -140,15 +140,12 @@ struct gab_obj_builtin {
   gab_builtin function;
 
   s_i8 name;
-
-  u8 narguments;
 };
 
 #define GAB_VAL_IS_BUILTIN(value) (gab_val_is_obj_kind(value, OBJECT_BUILTIN))
 #define GAB_VAL_TO_BUILTIN(value) ((gab_obj_builtin *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_BUILTIN(value) ((gab_obj_builtin *)value)
-gab_obj_builtin *gab_obj_builtin_create(gab_builtin function, s_i8 name,
-                                        u8 args);
+gab_obj_builtin *gab_obj_builtin_create(gab_builtin function, s_i8 name);
 
 /*
   ------------- OBJ_FUNCTION -------------
@@ -272,13 +269,13 @@ struct gab_obj_shape {
 #define GAB_VAL_TO_SHAPE(value) ((gab_obj_shape *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SHAPE(value) ((gab_obj_shape *)value)
 
-gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_value key[], u64 size,
-                                    u64 stride);
+gab_obj_shape *gab_obj_shape_create(gab_engine *gab, boolean *was_interned,
+                                    u64 size, u64 stride, gab_value key[size]);
 
 gab_obj_shape *gab_obj_shape_create_array(gab_engine *gab, u64 size);
 
 gab_obj_shape *gab_obj_shape_extend(gab_engine *gab, gab_obj_shape *self,
-                                    gab_value property);
+                                    boolean *was_interned, gab_value property);
 
 static inline i64 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
   u64 i = d_u64_index_of(&self->properties, key);
@@ -348,13 +345,14 @@ static inline gab_value gab_obj_record_get(gab_obj_record *self, i16 offset) {
     return v_u64_val_at(&self->dynamic_values, offset);
 }
 
-static inline gab_value gab_obj_record_insert(gab_engine* gab, gab_obj_record *self,
+static inline gab_value gab_obj_record_insert(gab_engine *gab,
+                                              gab_obj_record *self,
                                               gab_value prop, gab_value value) {
 
   i16 prop_offset = gab_obj_shape_find(self->shape, prop);
 
   if (prop_offset < 0) {
-    gab_obj_shape *shape = gab_obj_shape_extend(gab, self->shape, prop);
+    gab_obj_shape *shape = gab_obj_shape_extend(gab, self->shape, NULL, prop);
 
     prop_offset = gab_obj_record_extend(self, shape, value);
   }

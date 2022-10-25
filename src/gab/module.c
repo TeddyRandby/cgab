@@ -1,4 +1,5 @@
 #include "include/module.h"
+#include "include/compiler.h"
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/object.h"
@@ -470,10 +471,12 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
         GAB_VAL_TO_FUNCTION(d_gab_constant_ikey(&self->constants, constant));
 
     for (int j = 0; j < function->nupvalues; j++) {
-      int isLocal = self->bytecode.data[offset++];
+      int flags = self->bytecode.data[offset++];
       int index = self->bytecode.data[offset++];
-      printf("%04lu      |                     %s %d\n", offset - 2,
-             isLocal ? "local" : "upvalue", index);
+      int isLocal = flags & FLAG_LOCAL;
+      int isMutable = flags & FLAG_MUTABLE;
+      printf("%04lu      |                     %d %s %s\n", offset - 2, index,
+             isLocal ? "local" : "upvalue", isMutable ? "mut" : "const");
     }
     return offset;
   }

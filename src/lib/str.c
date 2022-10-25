@@ -32,13 +32,13 @@ gab_value gab_lib_slice(gab_engine *eng, gab_value *argv, u8 argc) {
 };
 
 gab_value gab_mod(gab_engine *gab) {
-    s_i8 keys[] = {
-        s_i8_cstr("slice"),
-    };
+  s_i8 keys[] = {
+      s_i8_cstr("slice"),
+  };
 
-    gab_value values[] = {
-        GAB_BUILTIN(slice, 3),
-    };
+  gab_value values[] = {
+      GAB_BUILTIN(slice),
+  };
 
-    return gab_bundle_record(gab, 2, keys, values); 
+  return gab_bundle_record(gab, LEN_CARRAY(values), keys, values);
 }

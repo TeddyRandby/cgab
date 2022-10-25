@@ -2,7 +2,7 @@
 #define GAB_COMMON_H
 // Compilation options
 
-// Collect as frequently as possible (on every allocation)
+// Collect as frequently as possible (on every RC push)
 #define GAB_DEBUG_GC 0
 // Log what is happening during collection.
 #define GAB_LOG_GC 0
@@ -51,6 +51,8 @@
 // VERSION
 #define GAB_VERSION_MAJOR 0
 #define GAB_VERSION_MINOR 1
+
+#define LEN_CARRAY(arr) (sizeof(arr) / sizeof(arr[0]))
 
 #include "types.h"
 

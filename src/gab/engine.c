@@ -86,7 +86,8 @@ gab_value gab_bundle_record(gab_engine *gab, u64 size, s_i8 keys[size],
     value_keys[i] = GAB_VAL_OBJ(gab_obj_string_create(gab, keys[i]));
   }
 
-  gab_obj_shape *bundle_shape = gab_obj_shape_create(gab, value_keys, size, 1);
+  gab_obj_shape *bundle_shape =
+      gab_obj_shape_create(gab, NULL, size, 1, value_keys);
 
   gab_value bundle =
       GAB_VAL_OBJ(gab_obj_record_create(bundle_shape, values, size, 1));

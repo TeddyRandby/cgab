@@ -135,10 +135,10 @@ gab_value gab_mod(gab_engine *gab) {
   };
 
   gab_value values[] = {
-      GAB_BUILTIN(random, VAR_RET),
-      GAB_BUILTIN(floor, 1),
-      GAB_BUILTIN(from, 1),
+      GAB_BUILTIN(random),
+      GAB_BUILTIN(floor),
+      GAB_BUILTIN(from),
   };
 
-  return gab_bundle_record(gab, sizeof(values) / sizeof(gab_value), keys, values);
+  return gab_bundle_record(gab, LEN_CARRAY(values), keys, values);
 }

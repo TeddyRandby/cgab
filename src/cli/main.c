@@ -11,17 +11,11 @@
 #include <unistd.h>
 
 void bind_std(gab_engine *gab) {
-  gab_obj_shape *mod_shape = gab_obj_shape_create(gab, NULL, 0, 1);
-
-  gab_value mod = GAB_VAL_OBJ(gab_obj_record_create(mod_shape, NULL, 0, 1));
-
-  s_i8 keys[] = {s_i8_cstr("print"), s_i8_cstr("require"),
-                 s_i8_cstr("__mod__")};
+  s_i8 keys[] = {s_i8_cstr("print"), s_i8_cstr("require")};
 
   gab_value values[] = {
-      GAB_BUILTIN(print, VAR_RET),
-      GAB_BUILTIN(require, 1),
-      mod,
+      GAB_BUILTIN(print),
+      GAB_BUILTIN(require),
   };
 
   gab_bind(gab, sizeof(values) / sizeof(gab_value), keys, values);
