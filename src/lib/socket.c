@@ -7,7 +7,6 @@
 #include <netinet/in.h>
 #include <stdint.h>
 #include <sys/socket.h>
-#include <stdio.h>
 
 void gab_container_socket_cb(gab_obj_container *self) {
   shutdown((i64)self->data, SHUT_RDWR);
@@ -119,10 +118,8 @@ gab_value gab_lib_receive(gab_engine *eng, gab_value *argv, u8 argc) {
   i8 buffer[1024] = {0};
 
   i64 socket = (i64)GAB_VAL_TO_CONTAINER(argv[0])->data;
-  printf("receiving on %li\n", socket);
 
   i32 result = recv(socket, buffer, 1024, 0);
-  printf("Result: %i\n", result);
 
   if (result < 0) {
     return GAB_VAL_NULL();
