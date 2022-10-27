@@ -55,6 +55,24 @@ void __gab_gc_dref(gab_gc *gc, gab_vm *vm, gab_value obj, const char *file,
     gab_gc_collect(gc, vm);
 }
 
+static inline void dump_rcs_for(gab_gc *gc, gab_value val) {
+
+  for (u64 j = 0; j < gc->tracked_increments.len; j++) {
+    rc_update *u = v_rc_update_ref_at(&gc->tracked_increments, j);
+    if (u->val == val) {
+      fprintf(stdout, "+1 %s:%i.\n", u->file, u->line);
+    }
+  }
+
+  for (u64 j = 0; j < gc->tracked_decrements.len; j++) {
+    rc_update *u = v_rc_update_ref_at(&gc->tracked_decrements, j);
+    if (u->val == val) {
+      fprintf(stdout, "-1 %s:%i.\n", u->file, u->line);
+    }
+  }
+}
+
+
 #else
 
 void gab_gc_iref(gab_gc *gc, gab_vm *vm, gab_value obj) {
@@ -98,20 +116,7 @@ void gab_gc_destroy(gab_gc *self) {
       if (GAB_VAL_IS_OBJ(k) && v > 0 && v < 200) {
         gab_val_dump(k);
         fprintf(stdout, " had %i remaining references.\n", v);
-
-        for (u64 j = 0; j < self->tracked_increments.len; j++) {
-          rc_update *u = v_rc_update_ref_at(&self->tracked_increments, j);
-          if (u->val == k) {
-            fprintf(stdout, "An increment was pushed at %s:%i.\n", u->file, u->line);
-          }
-        }
-
-        for (u64 j = 0; j < self->tracked_decrements.len; j++) {
-          rc_update *u = v_rc_update_ref_at(&self->tracked_decrements, j);
-          if (u->val == k) {
-            fprintf(stdout, "A decrement was pushed at %s:%i.\n", u->file, u->line);
-          }
-        }
+        dump_rcs_for(self, k);
       }
     }
   }
@@ -146,6 +151,14 @@ static inline void cleanup(gab_gc *gc) {
   for (i32 i = 0; i < gc->queue.cap; i++) {
     if (d_u64_iexists(&gc->queue, i)) {
       gab_value key = d_u64_ikey(&gc->queue, i);
+#if GAB_LOG_GC
+      printf("Destroying: ");
+      gab_val_dump(key);
+      printf("\n");
+#if GAB_DEBUG_GC
+      dump_rcs_for(gc, key);
+#endif
+#endif
       gab_obj_destroy(GAB_VAL_TO_OBJ(key));
       d_u64_iremove(&gc->queue, i);
     }
@@ -361,7 +374,7 @@ static inline void inc_if_obj_ref(gab_gc *gc, gab_value val) {
 
 static inline void increment_stack(gab_gc *gc, gab_vm *vm) {
   gab_value *tracker = vm->top;
-  while (--tracker > vm->stack) {
+  while (--tracker >= vm->stack) {
 #if GAB_DEBUG_GC
     v_rc_update_push(&gc->tracked_increments, (rc_update){
                                                   .val = *tracker,
@@ -378,7 +391,7 @@ static inline void decrement_stack(gab_gc *gc, gab_vm *vm) {
   debug_collect = false;
 #endif
   gab_value *tracker = vm->top;
-  while (--tracker > vm->stack) {
+  while (--tracker >= vm->stack) {
     gab_gc_dref(gc, vm, *tracker);
   }
 #if GAB_DEBUG_GC

@@ -1590,13 +1590,13 @@ i32 compile_exp_call(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
   }
 
-  gab_module_push_call(mod, result, vse, bc->previous_token, bc->line);
-
   if (optional_newline(bc) < 0)
     return COMP_ERR;
 
   if (expect_token(bc, TOKEN_RPAREN) < 0)
     return COMP_ERR;
+
+  gab_module_push_call(mod, result, vse, bc->previous_token, bc->line);
 
   return VAR_RET;
 }

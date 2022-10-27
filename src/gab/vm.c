@@ -78,13 +78,12 @@ void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
       fprintf(stderr, "\n" ANSI_COLOR_RESET);
     } else {
       fprintf(stderr,
-              "[" ANSI_COLOR_MAGENTA "%.*s" ANSI_COLOR_RESET
-              ":" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET "] Called at:"
+              "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET "] Called at:"
               "\n\t  " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
               "\n\t"
               "\n",
-              (i32)mod->name.len, mod->name.data, (i32)func_name.len,
-              func_name.data, curr_row, curr_src_len, curr_src_start);
+              (i32)func_name.len, func_name.data, curr_row, curr_src_len,
+              curr_src_start);
     }
 
     frame++;
@@ -347,10 +346,10 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
         gab_obj_closure *closure = GAB_VAL_TO_CLOSURE(callee);
 
         while (arity < closure->func->narguments)
-            PUSH(GAB_VAL_NULL()), arity++;
+          PUSH(GAB_VAL_NULL()), arity++;
 
         while (arity > closure->func->narguments)
-            DROP(), arity--;
+          DROP(), arity--;
 
         FRAME()++;
         FRAME()->closure = closure;
@@ -1054,6 +1053,18 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
 
         shape->name = gab_obj_string_ref(name);
 
+        if (was_interned) {
+          // Increment the rc of the values only
+          for (u64 i = 1; i < size * 2; i += 2) {
+            gab_gc_iref(GC(), VM(), PEEK_N(i));
+          }
+        } else {
+          // Increment the rc for values and keys.
+          for (u64 i = 1; i < size * 2; i++) {
+            gab_gc_iref(GC(), VM(), PEEK_N(i));
+          }
+        }
+
         goto complete_record;
       }
 
@@ -1095,7 +1106,7 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
     CASE_CODE(OBJECT_ARRAY) : {
       u8 size = READ_BYTE;
 
-      for (u64 i = 0; i < size; i++) {
+      for (u64 i = 1; i < size; i++) {
         gab_gc_iref(GC(), VM(), PEEK_N(i));
       }
 

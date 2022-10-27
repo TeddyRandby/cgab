@@ -161,11 +161,6 @@ void gab_obj_dump(gab_value value) {
   A generic function used to free a gab object of any kind.
 */
 void gab_obj_destroy(gab_obj *self) {
-#if GAB_LOG_GC
-  printf("Destroying: ");
-  gab_val_dump(GAB_VAL_OBJ(self));
-  printf("\n");
-#endif
   switch (self->kind) {
   case OBJECT_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)(self);

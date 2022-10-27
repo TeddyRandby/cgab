@@ -15,64 +15,94 @@ def check(result, msg)
   end
 end
 
-def assert {
-  def equalTo(a, b)
+def expect {
+  def toBe(a, b)
     check(a == b, 'Expected {a} to be equal to {b}')!
-  end
-
-  def notNull(a)
-    check(not (a == null), 'Expected {a} to not be null')!
   end
 }
 
 describe('Numbers', do ||
   it('should be equal to itself', do ||
-    5:assert.equalTo(5)
+    5:expect.toBe(5)
   end)
   it('should do math', do ||
-    (5 * 2):assert.equalTo(10) and
-    (10 % 3):assert.equalTo(1)
+    (5 * 2):expect.toBe(10) and
+    (10 % 3):expect.toBe(1)
   end)
 end)
 
 describe('Strings', do ||
   it('should be equal to itself', do ||
-    'hello':assert.equalTo('hello')
+    'hello':expect.toBe('hello')
   end)
 
   it('should concatenate', do ||
-    ('hello'..' world'):assert.equalTo('hello world')
+    ('hello'..' world'):expect.toBe('hello world')
   end)
 
   it('should interpolate', do ||
-    ('{1} + {2} is {1 + 2}'):assert.equalTo('1 + 2 is 3')
+    ('{1} + {2} is {1 + 2}'):expect.toBe('1 + 2 is 3')
   end)
 end)
 
-describe('Objects', do ||
+describe('Closures', do ||
+    let a = 1
+    it('should capture', do ||
+        a:expect.toBe(1)
+
+        def test()
+           a:expect.toBe(1)
+           a  
+        end
+
+        test():expect.toBe(1)
+        test():expect.toBe(1)
+        test():expect.toBe(1)
+    end)
+    it('should capture by reference', do ||
+        let b = 2
+
+        def addOne()
+            b = b + 1
+        end
+
+        b:expect.toBe(2)
+
+        addOne()
+
+        b:expect.toBe(3)
+
+        addOne()
+        addOne()
+
+        b:expect.toBe(5)
+    end)
+end)
+
+describe('Records', do ||
   it('should have properties', do ||
     let Point = {
       x: 1
       y: 2
     }
 
-    assert.equalTo(Point.x, 1) and
-    assert.equalTo(Point.y, 2)
+    expect.toBe(Point.x, 1) and
+    expect.toBe(Point.y, 2)
   end)
 
   it('should be structurally shaped', do ||
     let pone = { x: 1 y: 2}
     let ptwo = { x: 3 y: 4}
 
-    (pone?):assert.equalTo(ptwo?)
+    (pone?):expect.toBe(ptwo?)
   end)
 
   it('should set properties dynamically', do ||
     let obj = { [[]?]: 'test' }
     obj['y'] = 2
 
-    (obj.y):assert.equalTo(2) and
-    (obj[[]?]):assert.equalTo('test')
+    (obj.y):expect.toBe(2) and
+    (obj[[]?]):expect.toBe('test')
   end)
 
   it('should work for all kinds of keys', do ||
@@ -86,9 +116,9 @@ describe('Objects', do ||
 
     obj[i] = i 
 
-    assert.equalTo(obj[obj], 2) and
-    assert.equalTo(obj[{}?], 3) and
-    assert.equalTo(obj[i], i)
+    expect.toBe(obj[obj], 2) and
+    expect.toBe(obj[{}?], 3) and
+    expect.toBe(obj[i], i)
   end)
 
   it('should spread out the keys', do ||
@@ -100,10 +130,10 @@ describe('Objects', do ||
     let a, b = ..obj
     let c, d = ..obj?
 
-    a:assert.equalTo('hello') and
-    b:assert.equalTo('world') and
-    c:assert.equalTo('test') and
-    d:assert.equalTo({}?)
+    a:expect.toBe('hello') and
+    b:expect.toBe('world') and
+    c:expect.toBe('test') and
+    d:expect.toBe({}?)
   end)
 
   it('should withstand this tricky mess', do ||
@@ -115,7 +145,7 @@ describe('Objects', do ||
 
     obj[try_segfault()] = 2
 
-    assert.equalTo(..obj, 2)
-    assert.equalTo(..((..obj?)?), 'try')
+    expect.toBe(..obj, 2)
+    expect.toBe(..((..obj?)?), 'try')
   end)
 end)
