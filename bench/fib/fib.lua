@@ -3,4 +3,4 @@ function Fib(n)
   return Fib(n - 1) + Fib(n - 2)
 end
 
-print(Fib(28))
+Fib(28)

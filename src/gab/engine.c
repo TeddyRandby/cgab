@@ -73,8 +73,14 @@ void gab_iref(gab_engine *gab, gab_value value) {
   gab_gc_iref(&gab->gc, &gab->vm, value);
 };
 
-gab_value gab_run(gab_engine *gab, gab_value main) {
-  gab_value result = gab_vm_run(&gab->vm, gab, &gab->gc, main);
+gab_value gab_run(gab_engine *gab, gab_value main, u8 argc,
+                  gab_value argv[argc]) {
+  gab_value result = gab_vm_run(&gab->vm, gab, &gab->gc, main, argc, argv);
+  return result;
+};
+
+gab_value gab_run_main(gab_engine *gab, gab_value main) {
+  gab_value result = gab_vm_run(&gab->vm, gab, &gab->gc, main, 1, &gab->std);
   return result;
 };
 

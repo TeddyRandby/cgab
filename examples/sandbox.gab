@@ -23,24 +23,8 @@ def times(i)
   end
 end
 
-let FILE = io.open('result.txt', 'w+')
+let FILE = io.open('result.txt', 'a')
 
-for i in 5:times()
+for i in 20:times()
     FILE:io.write('{ i } is { i:odd() and 'odd' or 'even' }\n') 
 end
-
-def has_optional(val, opt)
-    !print(val)
-    if (opt)
-        !print('Got opt {opt}')
-    end
-end
-
-has_optional(1)
-
-has_optional(2, 'option', 'extra')
-
-let p = re.comp('[0-9]+')
-
-!print(..'123':re.exec(p))
-!print('abc':re.exec(p))

@@ -108,10 +108,11 @@ u8 gab_module_push_call(gab_module *, u8, u8, gab_token, u64);
 u8 gab_module_push_pop(gab_module *, u8, gab_token, u64);
 
 void gab_module_push_inline_cache(gab_module *, gab_token, u64);
-void gab_module_push_loop(gab_module *, u64, gab_token, u64);
+u64 gab_module_push_loop(gab_module *);
 u64 gab_module_push_jump(gab_module *, u8, gab_token, u64);
 
 void gab_module_patch_jump(gab_module *, u64);
+void gab_module_patch_loop(gab_module*, u64, gab_token, u64);
 boolean gab_module_try_patch_vse(gab_module *, u8);
 
 u16 gab_module_add_constant(gab_module *, gab_value);

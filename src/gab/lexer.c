@@ -136,8 +136,12 @@ const keyword keywords[] = {
         TOKEN_TRUE,
     },
     {
-        "while",
-        TOKEN_WHILE,
+        "loop",
+        TOKEN_LOOP,
+    },
+    {
+        "until",
+        TOKEN_UNTIL,
     },
 };
 

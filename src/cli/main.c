@@ -38,7 +38,7 @@ void gab_run_file(const char *path) {
     goto fin;
   }
 
-  result = gab_run(gab, pkg);
+  result = gab_run_main(gab, pkg);
 
 fin:
   gab_dref(gab, result);

@@ -40,9 +40,26 @@ gab_value gab_compile(gab_engine *gab, s_i8 name, s_i8 source);
  *
  * @param main The gab_obj_closure to call
  *
+ * @param argc The number of arguments to the closure
+ *
+ * @param argv The array of arguments to pass to the main closure
+ *
  * @return The return value of the closure
  */
-gab_value gab_run(gab_engine *gab, gab_value main);
+gab_value gab_run(gab_engine *gab, gab_value main, u8 argc,
+                  gab_value argv[argc]);
+
+/**
+ * Run a gab_obj_closure in the gab vm. This will implicitly pass
+ * the globals record as the single argument to the function.
+ *
+ * @param gab The engine
+ *
+ * @param main The gab_obj_closure to call
+ *
+ * @return The return value of the closure
+ */
+gab_value gab_run_main(gab_engine* gab, gab_value main);
 
 /**
  * Decrement the RC of a gab value

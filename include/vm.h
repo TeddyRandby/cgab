@@ -1,8 +1,8 @@
 #ifndef GAB_VM_H
 #define GAB_VM_H
 
-#include "object.h"
 #include "gc.h"
+#include "object.h"
 
 /*
   A run-time representation of a callframe.
@@ -53,6 +53,7 @@ typedef struct gab_vm {
 
 void gab_vm_create(gab_vm *vm);
 
-gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc* gc, gab_value main);
+gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main,
+                     u8 argc, gab_value argv[argc]);
 
 #endif

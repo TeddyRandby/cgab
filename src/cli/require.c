@@ -111,7 +111,7 @@ gab_value gab_source_file_handler(gab_engine *gab, const a_i8 *path,
     return GAB_VAL_NULL();
   }
 
-  gab_value res = gab_run(gab, pkg);
+  gab_value res = gab_run_main(gab, pkg);
 
   import *i = NEW(import);
 

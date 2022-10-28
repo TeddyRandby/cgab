@@ -189,7 +189,8 @@ static inline gab_value failure(gab_vm *vm) {
   return GAB_VAL_NULL();
 }
 
-gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
+gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main,
+                     u8 argc, gab_value argv[argc]) {
 #if GAB_LOG_EXECUTION
 #define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
 #else
@@ -291,17 +292,21 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
   register gab_call_frame *frame = VM()->frame;
   register gab_value *slots = TOP();
 
+  // Setup for call to main function
   PUSH(main);
-  PUSH(ENGINE()->std);
+  for (u8 i = 0; i < argc; i++) {
+    PUSH(argv[i]);
+  }
 
   LOOP() {
     {
       u8 arity, want;
       gab_value callee;
 
-      arity = 1;
+      // Setup the call to main function
+      arity = argc;
       want = 1;
-      callee = PEEK2();
+      callee = PEEK_N(argc - 1);
       goto complete_call;
 
       CASE_CODE(VARCALL) : {
@@ -685,6 +690,12 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main) {
       gab_value a = POP();
       gab_value b = POP();
       PUSH(GAB_VAL_BOOLEAN(a == b));
+      NEXT();
+    }
+
+    CASE_CODE(DUP) : {
+      gab_value a = PEEK();
+      PUSH(a);
       NEXT();
     }
 

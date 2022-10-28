@@ -79,6 +79,20 @@ void gab_module_push_short(gab_module *self, u16 data, gab_token t, u64 l) {
 u8 gab_module_push_load_local(gab_module *self, u8 local, gab_token t, u64 l) {
   if (local < 9) {
     u8 op = MAKE_LOAD_LOCAL(local);
+    switch (self->previous_compiled_op) {
+    case OP_POP_STORE_LOCAL_0:
+    case OP_POP_STORE_LOCAL_1:
+    case OP_POP_STORE_LOCAL_2:
+    case OP_POP_STORE_LOCAL_3:
+    case OP_POP_STORE_LOCAL_4:
+    case OP_POP_STORE_LOCAL_5:
+    case OP_POP_STORE_LOCAL_6:
+    case OP_POP_STORE_LOCAL_7:
+    case OP_POP_STORE_LOCAL_8: {
+      if (op == self->previous_compiled_op - 9)
+        return replace_previous_op(self, self->previous_compiled_op - 9);
+    }
+    }
     gab_module_push_op(self, op, t, l);
     return op;
   }
@@ -210,13 +224,16 @@ void gab_module_patch_jump(gab_module *self, u64 jump) {
   v_u8_set(&self->bytecode, jump + 1, dist & 0xff);
 }
 
-void gab_module_push_loop(gab_module *self, u64 dist, gab_token t, u64 l) {
-  assert(dist < UINT16_MAX);
+u64 gab_module_push_loop(gab_module *self) {
+  return self->bytecode.len;
+}
 
-  u16 jump = self->bytecode.len - dist + 2;
+void gab_module_patch_loop(gab_module *self, u64 start, gab_token t, u64 l) {
+  u64 diff = self->bytecode.len - start + 3;
+  assert(diff < UINT16_MAX);
 
   gab_module_push_op(self, OP_LOOP, t, l);
-  gab_module_push_short(self, jump, t, l);
+  gab_module_push_short(self, diff, t, l);
 }
 
 boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
@@ -393,6 +410,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_GREATER_EQUAL:
   case OP_GREATER:
   case OP_SWAP:
+  case OP_DUP:
   case OP_MATCH:
   case OP_POP:
   case OP_GET_INDEX:

@@ -135,7 +135,7 @@ static inline void push_store(gab_bc *bc, gab_module *mod, u8 local) {
   gab_module_push_store_local(mod, local, bc->previous_token, bc->line);
 }
 
-static inline void push_load(gab_bc *bc, gab_module *mod, u8 local) {
+static inline void push_load_local(gab_bc *bc, gab_module *mod, u8 local) {
   gab_module_push_load_local(mod, local, bc->previous_token, bc->line);
 }
 
@@ -154,25 +154,6 @@ static gab_bc_frame *peek_frame(gab_bc *bc, u32 depth) {
 
 static void initialize_local(gab_bc *bc, u8 local) {
   peek_frame(bc, 0)->locals_depth[local] = bc->scope_depth;
-}
-
-static i32 add_invisible_local(gab_bc *bc) {
-  gab_bc_frame *frame = peek_frame(bc, 0);
-
-  if (frame->local_count == LOCAL_MAX) {
-    dump_compiler_error(bc, GAB_TOO_MANY_LOCALS, "");
-    return COMP_ERR;
-  }
-
-  u8 local = frame->local_count;
-
-  frame->locals_name[local] = s_i8_create(NULL, 0);
-  initialize_local(bc, local);
-
-  if (++frame->local_count > frame->deepest_local)
-    frame->deepest_local = frame->local_count;
-
-  return local;
 }
 
 /* Returns COMP_ERR if an error is encountered, and otherwise the offset of the
@@ -757,7 +738,7 @@ i32 compile_obj_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod) {
       switch (result) {
 
       case COMP_RESOLVED_TO_LOCAL:
-        gab_module_push_load_local(mod, value_in, bc->previous_token, bc->line);
+        push_load_local(bc, mod, value_in);
         break;
 
       case COMP_RESOLVED_TO_UPVALUE:
@@ -1508,7 +1489,7 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   case COMP_TOKEN_NO_MATCH:
     if (is_local_var) {
-      gab_module_push_load_local(mod, var, bc->previous_token, bc->line);
+      push_load_local(bc, mod, var);
     } else {
       gab_module_push_load_upvalue(mod, var, bc->previous_token, bc->line,
                                    peek_frame(bc, 0)->upvs_flag[var] &
@@ -1615,7 +1596,7 @@ i32 compile_exp_glb(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   switch (resolve_id(bc, s_i8_create((i8 *)"__global__", 10), &global)) {
   case COMP_RESOLVED_TO_LOCAL: {
-    gab_module_push_load_local(mod, global, bc->previous_token, bc->line);
+    push_load_local(bc, mod, global);
     break;
   }
 
@@ -1696,7 +1677,7 @@ i32 compile_exp_and(gab_engine *gab, gab_bc *bc, gab_module *mod,
       gab_module_push_jump(mod, OP_LOGICAL_AND, bc->previous_token, bc->line);
 
   if (optional_newline(bc) < 0)
-      return COMP_ERR;
+    return COMP_ERR;
 
   if (compile_exp_prec(gab, bc, mod, PREC_AND) < 0)
     return COMP_ERR;
@@ -1712,7 +1693,7 @@ i32 compile_exp_or(gab_engine *gab, gab_bc *bc, gab_module *mod,
       gab_module_push_jump(mod, OP_LOGICAL_OR, bc->previous_token, bc->line);
 
   if (optional_newline(bc) < 0)
-      return COMP_ERR;
+    return COMP_ERR;
 
   if (compile_exp_prec(gab, bc, mod, PREC_OR) < 0)
     return COMP_ERR;
@@ -1779,15 +1760,11 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   down_scope(bc);
 
-  i32 iter = add_invisible_local(bc);
-  if (iter < 0)
-    return COMP_ERR;
-
+  u8 local_start = peek_frame(bc, 0)->local_count - 1;
   u16 loop_locals = 0;
   i32 result;
 
   do {
-
     if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
       return COMP_ERR;
 
@@ -1812,14 +1789,10 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (compile_expression(gab, bc, mod) < 0)
     return COMP_ERR;
 
-  // Store the iterator into the iter local.
-  push_store(bc, mod, iter);
-  push_pop(bc, mod, 1);
-
-  u64 loop_start = mod->bytecode.len - 1;
+  u64 loop = gab_module_push_loop(mod);
 
   // Load the funciton.
-  push_load(bc, mod, iter);
+  push_op(bc, mod, OP_DUP);
 
   // Call the function, wanting loop_locals results.
   push_op(bc, mod, OP_CALL_0);
@@ -1828,10 +1801,9 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
   // Exit the for loop if the last loop local is false.
   u64 jump_start =
       gab_module_push_jump(mod, OP_JUMP_IF_FALSE, bc->previous_token, bc->line);
-
   // Pop the results in reverse order, assigning them to each loop local.
   for (u8 ll = 0; ll < loop_locals; ll++) {
-    push_store(bc, mod, iter + loop_locals - ll);
+    push_store(bc, mod, local_start + loop_locals - ll);
     push_pop(bc, mod, 1);
   }
 
@@ -1843,37 +1815,50 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   push_pop(bc, mod, 1);
 
-  gab_module_push_loop(mod, loop_start, bc->previous_token, bc->line);
+  gab_module_patch_loop(mod, loop, bc->previous_token, bc->line);
 
   gab_module_patch_jump(mod, jump_start);
 
   up_scope(bc, mod);
 
+  push_pop(bc, mod, 1);
+
   return COMP_OK;
 }
 
-i32 compile_exp_whl(gab_engine *gab, gab_bc *bc, gab_module *mod,
+i32 compile_exp_lop(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
-  u64 loop_start = mod->bytecode.len - 1;
+  down_scope(bc);
 
-  if (compile_expression(gab, bc, mod) < 0)
-    return COMP_ERR;
+  u64 loop = gab_module_push_loop(mod);
 
   if (expect_token(bc, TOKEN_NEWLINE) < 0)
     return COMP_ERR;
 
-  u64 jump = gab_module_push_jump(mod, OP_POP_JUMP_IF_FALSE, bc->previous_token,
-                                  bc->line);
-
   if (compile_block(gab, bc, mod) < 0)
     return COMP_ERR;
 
-  gab_module_push_loop(mod, loop_start, bc->previous_token, bc->line);
+  if (match_and_eat_token(bc, TOKEN_UNTIL)) {
+    if (compile_expression(gab, bc, mod) < 0)
+      return COMP_ERR;
 
-  gab_module_patch_jump(mod, jump);
+    u64 jump = gab_module_push_jump(mod, OP_POP_JUMP_IF_TRUE,
+                                    bc->previous_token, bc->line);
+
+    push_pop(bc, mod, 1);
+
+    gab_module_patch_loop(mod, loop, bc->previous_token, bc->line);
+
+    gab_module_patch_jump(mod, jump);
+  } else {
+    push_pop(bc, mod, 1);
+
+    gab_module_patch_loop(mod, loop, bc->previous_token, bc->line);
+  }
 
   push_op(bc, mod, OP_PUSH_NULL);
 
+  up_scope(bc, mod);
   return COMP_OK;
 }
 
@@ -1928,7 +1913,8 @@ const gab_compile_rule gab_bc_rules[] = {
     NONE(),                            // END
     PREFIX(def),                       // DEF
     PREFIX(rtn),                       // RETURN
-    PREFIX(whl),                       // WHILE
+    PREFIX(lop),                       // LOOP
+    NONE(),                       // UNTIL
     INFIX(bin, TERM, false),                  // PLUS
     PREFIX_INFIX(una, bin, TERM, false),      // MINUS
     INFIX(bin, FACTOR, false),                // STAR
@@ -2000,7 +1986,7 @@ gab_obj_closure *compile(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   main_func->module = mod;
   main_func->narguments = 1;
-  main_func->nlocals = peek_frame(bc, 0)->deepest_local;
+  main_func->nlocals = peek_frame(bc, 0)->deepest_local - 1;
 
   gab_obj_closure *main = gab_obj_closure_create(main_func, NULL);
 
