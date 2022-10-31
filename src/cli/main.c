@@ -1,16 +1,12 @@
-#include "include/core.h"
-#include "include/engine.h"
 #include "include/gab.h"
-#include "include/object.h"
 #include "include/os.h"
 #include "print.h"
 #include "require.h"
-#include <dlfcn.h>
 #include <stdio.h>
-#include <string.h>
-#include <unistd.h>
 
-void bind_std(gab_engine *gab) {
+gab_value globals = GAB_VAL_NULL();
+
+void make_globals(gab_engine *gab) {
   s_i8 keys[] = {s_i8_cstr("print"), s_i8_cstr("require")};
 
   gab_value values[] = {
@@ -18,31 +14,32 @@ void bind_std(gab_engine *gab) {
       GAB_BUILTIN(require),
   };
 
-  gab_bind(gab, sizeof(values) / sizeof(gab_value), keys, values);
+  globals = GAB_RECORD(sizeof(values) / sizeof(gab_value), keys, values);
 }
 
 void gab_run_file(const char *path) {
   imports_create();
 
   gab_engine *gab = gab_create(GAB_FLAG_DUMP_ERROR);
-  bind_std(gab);
 
   a_i8 *src = os_read_file(path);
 
-  gab_value pkg =
-      gab_compile(gab, s_i8_cstr("__main__"), s_i8_create(src->data, src->len));
+  make_globals(gab);
+
+  gab_value main = gab_compile_main(gab, s_i8_create(src->data, src->len));
 
   gab_value result = GAB_VAL_NULL();
 
-  if (GAB_VAL_IS_NULL(pkg)) {
+  if (GAB_VAL_IS_NULL(main)) {
     goto fin;
   }
 
-  result = gab_run_main(gab, pkg);
+  result = gab_run_main(gab, main, globals);
 
 fin:
+  gab_dref(gab, main);
+  gab_dref(gab, globals);
   gab_dref(gab, result);
-  gab_dref(gab, pkg);
   gab_destroy(gab);
   a_i8_destroy(src);
   imports_destroy();

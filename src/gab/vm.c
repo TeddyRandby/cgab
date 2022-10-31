@@ -189,7 +189,7 @@ static inline gab_value failure(gab_vm *vm) {
   return GAB_VAL_NULL();
 }
 
-gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main,
+gab_value gab_vm_run(gab_engine *gab, gab_value main,
                      u8 argc, gab_value argv[argc]) {
 #if GAB_LOG_EXECUTION
 #define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
@@ -241,9 +241,9 @@ gab_value gab_vm_run(gab_vm *vm, gab_engine *gab, gab_gc *gc, gab_value main,
 /*
   Lots of helper macros.
 */
-#define VM() (vm)
+#define VM() (&gab->vm)
 #define ENGINE() (gab)
-#define GC() (gc)
+#define GC() (&gab->gc)
 #define INSTR() (instr)
 #define FRAME() (frame)
 #define CLOSURE() (FRAME()->closure)

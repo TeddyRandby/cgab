@@ -52,11 +52,10 @@ struct gab_compile_rule {
   boolean multi_line;
 };
 
-void gab_bc_create(gab_bc *self, u8 flags) {
+void gab_bc_create(gab_bc *self) {
   self->scope_depth = 0;
   self->frame_count = 0;
   self->panic = false;
-  self->flags = flags;
   memset(self->frames, 0, sizeof(self->frames));
 }
 
@@ -1964,20 +1963,19 @@ const gab_compile_rule gab_bc_rules[] = {
 
 gab_compile_rule get_rule(gab_token k) { return gab_bc_rules[k]; }
 
-gab_obj_closure *compile(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                         s_i8 name) {
-  down_frame(bc, name);
+gab_obj_closure *compile(gab_engine *gab, gab_module *mod, s_i8 name) {
+  down_frame(&gab->bc, name);
 
-  gab_lexer_create(&bc->lex, mod->source);
+  gab_lexer_create(&gab->bc.lex, mod->source);
 
-  mod->source_lines = bc->lex.source_lines;
+  mod->source_lines = gab->bc.lex.source_lines;
 
-  if (eat_token(bc) == COMP_ERR)
+  if (eat_token(&gab->bc) == COMP_ERR)
     return NULL;
 
-  initialize_local(bc, add_local(bc, s_i8_create((i8 *)"__global__", 10), 0));
+  initialize_local(&gab->bc, add_local(&gab->bc, s_i8_cstr("__global__"), 0));
 
-  if (compile_block_body(gab, bc, mod) < 0)
+  if (compile_block_body(gab, &gab->bc, mod) < 0)
     return NULL;
 
   gab_obj_function *main_func = gab_obj_function_create(name);
@@ -1986,26 +1984,26 @@ gab_obj_closure *compile(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   main_func->module = mod;
   main_func->narguments = 1;
-  main_func->nlocals = peek_frame(bc, 0)->deepest_local - 1;
+  main_func->nlocals = peek_frame(&gab->bc, 0)->deepest_local - 1;
 
   gab_obj_closure *main = gab_obj_closure_create(main_func, NULL);
 
-  up_frame(bc);
+  up_frame(&gab->bc);
 
-  push_op(bc, mod, OP_RETURN_1);
+  push_op(&gab->bc, mod, OP_RETURN_1);
   return main;
 }
 
-gab_value gab_bc_compile(gab_engine *gab, gab_bc *bc, s_i8 name, s_i8 source) {
+gab_value gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source) {
   gab_module *mod = gab_engine_add_module(gab, name, source);
 
-  gab_obj_closure *main = compile(gab, bc, mod, name);
+  gab_obj_closure *main = compile(gab, mod, name);
 
   if (main == NULL) {
     return GAB_VAL_NULL();
   }
 
-  if (bc->flags & GAB_FLAG_DUMP_BYTECODE) {
+  if (gab->flags & GAB_FLAG_DUMP_BYTECODE) {
     gab_module_dump(mod, name);
   }
 
@@ -2022,7 +2020,7 @@ gab_value gab_bc_compile(gab_engine *gab, gab_bc *bc, s_i8 name, s_i8 source) {
 
 static void dump_compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
                                 ...) {
-  if (bc->panic || !(bc->flags & GAB_FLAG_DUMP_ERROR)) {
+  if (bc->panic) {
     return;
   }
 

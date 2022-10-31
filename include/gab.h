@@ -34,6 +34,17 @@ void gab_destroy(gab_engine *gab);
 gab_value gab_compile(gab_engine *gab, s_i8 name, s_i8 source);
 
 /**
+ * Compile a source string into a gab_obj_closure.
+ *
+ * @param gab The engine
+ *
+ * @param source The source code
+ *
+ * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
+ */
+gab_value gab_compile_main(gab_engine *gab, s_i8 source);
+
+/**
  * Run a gab_obj_closure in the gab vm.
  *
  * @param gab The engine
@@ -59,7 +70,7 @@ gab_value gab_run(gab_engine *gab, gab_value main, u8 argc,
  *
  * @return The return value of the closure
  */
-gab_value gab_run_main(gab_engine* gab, gab_value main);
+gab_value gab_run_main(gab_engine* gab, gab_value main, gab_value globals);
 
 /**
  * Decrement the RC of a gab value
@@ -82,9 +93,9 @@ void gab_iref(gab_engine *gab, gab_value value);
  *
  * @param size The length of keys and values arrays
  *
- * @param keys The keys of the gab object to bind.
+ * @param keys The keys of the gab object to bundle.
  *
- * @param values The values of the gab object to bind.
+ * @param values The values of the gab object to bundle.
  *
  * @return The gab value that the keys and values were bundled into
  */
@@ -131,18 +142,4 @@ gab_value gab_bundle_array(gab_engine *gab, u64 size, gab_value values[size]);
  * A helper macro for creating a gab_obj_container
  */
 #define GAB_CONTAINER(cb, data) GAB_VAL_OBJ(gab_obj_container_create(cb, data))
-
-/**
- * Bundle the keys and values into a gab object and bind it to the engine.
- *
- * @param gab The engine to bind to
- *
- * @param size The length of keys and values arrays
- *
- * @param keys The keys of the gab object to bind.
- *
- * @param values The values of the gab object to bind.
- */
-void gab_bind(gab_engine *gab, u64 size, s_i8 keys[size],
-              gab_value values[size]);
 #endif

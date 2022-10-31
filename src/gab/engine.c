@@ -1,5 +1,6 @@
 #include "include/engine.h"
 #include "include/compiler.h"
+#include "include/core.h"
 #include "include/gc.h"
 #include "include/module.h"
 #include "include/object.h"
@@ -17,10 +18,9 @@ gab_engine *gab_create(u8 flags) {
   d_gab_intern_create(&gab->interned, 256);
 
   gab->modules = NULL;
-  gab->std = GAB_VAL_NULL();
   gab->flags = flags;
 
-  gab_bc_create(&gab->bc, flags);
+  gab_bc_create(&gab->bc);
   gab_vm_create(&gab->vm);
   gab_gc_create(&gab->gc);
 
@@ -34,8 +34,6 @@ void gab_engine_dref_all(gab_engine *gab) {
       gab_dref(gab, v);
     }
   }
-
-  gab_dref(gab, gab->std);
 }
 
 void gab_destroy(gab_engine *gab) {
@@ -61,8 +59,12 @@ void gab_destroy(gab_engine *gab) {
   DESTROY(gab);
 }
 
+gab_value gab_compile_main(gab_engine *gab, s_i8 source) {
+  return gab_bc_compile(gab, s_i8_cstr("__main__"), source);
+}
+
 gab_value gab_compile(gab_engine *gab, s_i8 name, s_i8 source) {
-  return gab_bc_compile(gab, &gab->bc, name, source);
+  return gab_bc_compile(gab, name, source);
 }
 
 void gab_dref(gab_engine *gab, gab_value value) {
@@ -75,12 +77,12 @@ void gab_iref(gab_engine *gab, gab_value value) {
 
 gab_value gab_run(gab_engine *gab, gab_value main, u8 argc,
                   gab_value argv[argc]) {
-  gab_value result = gab_vm_run(&gab->vm, gab, &gab->gc, main, argc, argv);
+  gab_value result = gab_vm_run(gab, main, argc, argv);
   return result;
 };
 
-gab_value gab_run_main(gab_engine *gab, gab_value main) {
-  gab_value result = gab_vm_run(&gab->vm, gab, &gab->gc, main, 1, &gab->std);
+gab_value gab_run_main(gab_engine *gab, gab_value main, gab_value globals) {
+  gab_value result = gab_vm_run(gab, main, 1, &globals);
   return result;
 };
 
@@ -110,15 +112,7 @@ gab_value gab_bundle_array(gab_engine *gab, u64 size, gab_value values[size]) {
   return bundle;
 }
 
-void gab_bind(gab_engine *gab, u64 size, s_i8 keys[size],
-              gab_value values[size]) {
-  gab_dref(gab, gab->std);
-
-  gab->std = gab_bundle_record(gab, size, keys, values);
-}
-
 gab_module *gab_engine_add_module(gab_engine *self, s_i8 name, s_i8 source) {
-
   gab_module *module = NEW(gab_module);
 
   gab_module_create(module, name, source);

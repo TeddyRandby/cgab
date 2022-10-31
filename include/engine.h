@@ -41,11 +41,6 @@ struct gab_engine {
   */
   gab_module *modules;
 
-  /*
-    The std lib object.
-  */
-  gab_value std;
-
   gab_bc bc;
   gab_vm vm;
   gab_gc gc;
