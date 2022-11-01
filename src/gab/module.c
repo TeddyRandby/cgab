@@ -14,8 +14,6 @@ gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
   v_u64_create(&self->lines, 256);
 
   d_gab_constant_create(&self->constants, MODULE_CONSTANTS_MAX);
-
-  self->next = NULL;
   return self;
 }
 
@@ -27,14 +25,13 @@ void gab_module_destroy(gab_module *self) {
   v_s_i8_destroy(self->source_lines);
 
   DESTROY(self->source_lines);
-  DESTROY(self);
 }
 
-void gab_module_dref_all(gab_engine *gab, gab_module *mod) {
+void gab_module_dref_all(gab_engine *gab, gab_module *mod, i32 vm) {
   for (u64 i = 0; i < mod->constants.cap; i++) {
     if (d_gab_constant_iexists(&mod->constants, i)) {
       gab_value v = d_gab_constant_ikey(&mod->constants, i);
-      gab_dref(gab, v);
+      gab_dref(gab, vm, v);
     }
   }
 }

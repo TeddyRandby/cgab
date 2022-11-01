@@ -2,7 +2,7 @@
 #include "include/gab.h"
 #include "include/core.h"
 
-gab_value gab_lib_keys(gab_engine *gab, gab_value *argv, u8 argc) {
+gab_value gab_lib_keys(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
   if (!GAB_VAL_IS_RECORD(argv[0])) {
     return GAB_VAL_NULL();
   }
@@ -19,7 +19,7 @@ gab_value gab_lib_keys(gab_engine *gab, gab_value *argv, u8 argc) {
   return list;
 }
 
-gab_value gab_lib_len(gab_engine *gab, gab_value *argv, u8 argc) {
+gab_value gab_lib_len(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
   if (GAB_VAL_IS_RECORD(argv[0])) {
     gab_obj_record *obj = GAB_VAL_TO_RECORD(argv[0]);
 
@@ -36,7 +36,7 @@ gab_value gab_lib_len(gab_engine *gab, gab_value *argv, u8 argc) {
   return GAB_VAL_NULL();
 }
 
-gab_value gab_lib_push(gab_engine *gab, gab_value *argv, u8 argc) {
+gab_value gab_lib_push(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
   if (!GAB_VAL_IS_RECORD(argv[0])) {
     return GAB_VAL_NULL();
   }

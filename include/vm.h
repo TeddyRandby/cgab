@@ -3,6 +3,7 @@
 
 #include "gc.h"
 #include "object.h"
+#include <threads.h>
 
 /*
   A run-time representation of a callframe.
@@ -30,7 +31,6 @@ typedef struct gab_call_frame {
 } gab_call_frame;
 
 typedef struct gab_vm {
-
   /*
     Upvalues to close when the current function returns.
   */
@@ -53,7 +53,7 @@ typedef struct gab_vm {
 
 void gab_vm_create(gab_vm *vm);
 
-gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 argc,
+gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main, u8 argc,
                      gab_value argv[argc]);
 
 #endif

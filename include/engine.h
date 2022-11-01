@@ -9,7 +9,8 @@ typedef struct gab_vm gab_vm;
 #include "compiler.h"
 #include "vm.h"
 #include "gab.h"
-#include <pthread.h>
+
+#include <threads.h>
 
 void *gab_reallocate(void *loc, u64 old_size, u64 new_size);
 
@@ -26,25 +27,36 @@ static const char* gab_status_names[] = {
 #define LOAD DICT_MAX_LOAD
 #include "include/dict.h"
 
-#define GAB_ENGINE_ERROR_LEN 4096
+#define T gab_module
+#include "include/vector.h"
+
+#define T gab_vm
+#include "include/vector.h"
+
 struct gab_engine {
-  /////////////////////////////////////////
-  // SHARED FIELDS
-  /////////////////////////////////////////
   /*
    * Where all the interned values live.
    */
   d_gab_intern interned;
 
   /*
-    A linked list of loaded modules.
-  */
-  gab_module *modules;
+   * A vector of compiled modules
+   */
+  v_gab_module modules;
 
-  gab_bc bc;
-  gab_vm vm;
+  /*
+   * A vector of spawned vms
+   */
+  v_gab_vm vms;
+
+  /*
+   * The GC for all modules and vms.
+   */
   gab_gc gc;
 
+  /*
+   * Optional Flags
+   */
   u8 flags;
 };
 
@@ -53,7 +65,7 @@ gab_obj_string *gab_engine_find_string(gab_engine *gab, s_i8 string, u64 hash);
 gab_obj_shape *gab_engine_find_shape(gab_engine *gab, u64 size, u64 stride, u64 hash,
                               gab_value keys[size]);
 
-u16 gab_engine_intern(gab_engine *gab, gab_value value);
-
 gab_module *gab_engine_add_module(gab_engine *gab, s_i8 name, s_i8 source);
+
+u16 gab_engine_intern(gab_engine *gab, gab_value value);
 #endif

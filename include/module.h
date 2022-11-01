@@ -67,16 +67,6 @@ struct gab_module {
   */
   s_i8 source;
 
-  /*
-    The running engine.
-  */
-  // gab_engine *engine;
-
-  /*
-    The next module in the linked list of modules.
-  */
-  gab_module *next;
-
   u8 previous_compiled_op;
 };
 
@@ -87,7 +77,7 @@ gab_module *gab_module_create(gab_module *, s_i8, s_i8);
 
 void gab_module_destroy(gab_module *);
 
-void gab_module_dref_all(gab_engine *, gab_module *);
+void gab_module_dref_all(gab_engine *, gab_module *, i32);
 
 /*
   Helpers for pushing ops into the module.

@@ -1,30 +1,24 @@
-let num = !require('num')
-let io = !require('io')
-let re = !require('regex')
+def each(i)
+    let v = -1
 
-def odd(number)
-  match number?
-    'number' =>
-        match number % 2
-            1 => return true
-            0 => return false
-            ? => return null # Unreachable
-    'string' =>
-        number:
-            num.from():
-            odd()
-    ? => return null, 'expected a number'
+    do ||
+        return i[(v = v + 1)], v
+    end
 end
 
-def times(i)
-  let v = 0
-  do ||
-    v < i and (v = v + 1)
-  end
+def join(arr)
+    let str = ""
+
+    for s in arr:each()
+        str = '{str}{s}'
+    end
+
+    str
 end
 
-let FILE = io.open('result.txt', 'a')
+let hello = 'hello'
+(hello == 'hello'):!print()
 
-for i in 20:times()
-    FILE:io.write('{ i } is { i:odd() and 'odd' or 'even' }\n') 
-end
+[hello ' ' 'world' '!']:join():!print()
+
+(hello == 'hello'):!print()

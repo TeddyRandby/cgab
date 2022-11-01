@@ -112,7 +112,9 @@ gab_value gab_source_file_handler(gab_engine *gab, const a_i8 *path,
     return GAB_VAL_NULL();
   }
 
-  gab_value res = gab_run_main(gab, pkg, globals);
+  i32 vm = gab_spawn(gab);
+
+  gab_value res = gab_run_main(gab, vm, pkg, globals);
 
   import *i = NEW(import);
 
@@ -162,7 +164,7 @@ a_i8 *match_resource(resource *res, s_i8 name) {
   return NULL;
 }
 
-gab_value gab_lib_require(gab_engine *gab, gab_value *argv, u8 argc) {
+gab_value gab_lib_require(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
 
   if (!GAB_VAL_IS_STRING(argv[0])) {
     return GAB_VAL_NULL();
@@ -175,7 +177,7 @@ gab_value gab_lib_require(gab_engine *gab, gab_value *argv, u8 argc) {
   if (!GAB_VAL_IS_NULL(cached)) {
     // Because the result of a builtin is always decremented,
     // increment the cached values when they are returned.
-    gab_iref(gab, cached);
+    gab_iref(gab, vm, cached);
     return cached;
   }
 

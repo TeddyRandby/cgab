@@ -4,7 +4,7 @@
 #include <time.h>
 #include <unistd.h>
 
-gab_value gab_lib_clock(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_clock(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
   if (argc != 0) {
     return GAB_VAL_NULL();
   }
@@ -14,7 +14,7 @@ gab_value gab_lib_clock(gab_engine *eng, gab_value *argv, u8 argc) {
   return GAB_VAL_NUMBER((f64)t / CLOCKS_PER_SEC);
 };
 
-gab_value gab_lib_sleep(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_sleep(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
   if (argc != 1) {
     return GAB_VAL_NULL();
   }

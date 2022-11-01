@@ -3,7 +3,7 @@
 #include "include/object.h"
 #include <string.h>
 
-gab_value gab_lib_slice(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_slice(gab_engine *eng,i32 vm, u8 argc, gab_value argv[argc]) {
   if (!GAB_VAL_IS_STRING(argv[0])) {
     return GAB_VAL_NULL();
   }

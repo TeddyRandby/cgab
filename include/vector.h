@@ -62,6 +62,14 @@ LINKAGE T METHOD(val_at)(TYPENAME *self, u32 index) {
   return self->data[index];
 }
 
+LINKAGE T *METHOD(emplace)(TYPENAME *self) {
+  if (self->len >= self->cap) {
+    self->data = GROW(T, self->data, self->cap * 2);
+    self->cap = self->cap * 2;
+  }
+  return self->data + (self->len++);
+}
+
 #undef T
 #undef TYPENAME
 #undef GROW

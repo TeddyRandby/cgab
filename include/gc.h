@@ -2,6 +2,7 @@
 #define GAB_GC_H
 
 #include "gab.h"
+#include <stdatomic.h>
 
 typedef struct gab_vm gab_vm;
 
@@ -24,9 +25,9 @@ typedef struct rc_update {
 #include "include/dict.h"
 
 typedef struct gab_gc {
-  i32 increment_count;
-  i32 decrement_count;
-  i32 root_count;
+  atomic_i32 increment_count;
+  atomic_i32 decrement_count;
+  atomic_i32 root_count;
 
   d_u64 queue;
   d_u64 roots;

@@ -2,6 +2,7 @@
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
+#include "include/gc.h"
 #include "include/object.h"
 
 #include <stdarg.h>
@@ -92,10 +93,10 @@ void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
 
 void gab_vm_create(gab_vm *self) {
   self->open_upvalues = NULL;
+  memset(self->stack, 0, sizeof(self->stack));
+
   self->frame = self->call_stack;
   self->top = self->stack;
-  // A NULL value is 8 bytes of 0, so this if fine.
-  memset(self->stack, 0, sizeof(self->stack));
 }
 
 void dump_frame(gab_vm *vm, gab_value *top, const char *name) {
@@ -189,7 +190,7 @@ static inline gab_value failure(gab_vm *vm) {
   return GAB_VAL_NULL();
 }
 
-gab_value gab_vm_run(gab_engine *gab, gab_value main,
+gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
                      u8 argc, gab_value argv[argc]) {
 #if GAB_LOG_EXECUTION
 #define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
@@ -241,9 +242,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main,
 /*
   Lots of helper macros.
 */
-#define VM() (&gab->vm)
+#define VM() (vm_ptr)
 #define ENGINE() (gab)
-#define GC() (&gab->gc)
+#define GC() (&ENGINE()->gc)
 #define INSTR() (instr)
 #define FRAME() (frame)
 #define CLOSURE() (FRAME()->closure)
@@ -287,6 +288,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main,
   /*
    ----------- BEGIN RUN BODY -----------
   */
+  gab_vm *vm_ptr = v_gab_vm_ref_at(&gab->vms, vm);
   register u8 instr;
   register u8 *ip;
   register gab_call_frame *frame = VM()->frame;
@@ -369,7 +371,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main,
       } else if (GAB_VAL_IS_BUILTIN(callee)) {
         gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(callee);
 
-        gab_value result = (*builtin->function)(ENGINE(), TOP() - arity, arity);
+        gab_value result = (*builtin->function)(ENGINE(), vm, arity, TOP() - arity);
 
         TOP() -= arity + 1;
 

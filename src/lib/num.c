@@ -60,7 +60,7 @@ static f64 random_float() {
   return result;
 }
 
-gab_value gab_lib_random(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_random(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
 
   f64 min, max;
 
@@ -99,7 +99,7 @@ gab_value gab_lib_random(gab_engine *eng, gab_value *argv, u8 argc) {
   return GAB_VAL_NUMBER(num);
 }
 
-gab_value gab_lib_floor(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_floor(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
 
   if (argc != 1 || !GAB_VAL_IS_NUMBER(argv[0])) {
     return GAB_VAL_NULL();
@@ -111,7 +111,7 @@ gab_value gab_lib_floor(gab_engine *eng, gab_value *argv, u8 argc) {
   return GAB_VAL_NUMBER(int_num + (float_num < 0));
 }
 
-gab_value gab_lib_from(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_from(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
   if (!GAB_VAL_IS_STRING(argv[0])) {
     return GAB_VAL_NULL();
   }

@@ -1,7 +1,8 @@
 project('Gab Scripting Language',
   'c',
-  default_options: 'default_library=static'
+  default_options: ['c_std=c23', 'default_library=static']
 )
+
 
 subdir('src/gab')
 subdir('src/core')

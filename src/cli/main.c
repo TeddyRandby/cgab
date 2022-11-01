@@ -30,16 +30,18 @@ void gab_run_file(const char *path) {
 
   gab_value result = GAB_VAL_NULL();
 
+  i32 vm = gab_spawn(gab);
+
   if (GAB_VAL_IS_NULL(main)) {
     goto fin;
   }
 
-  result = gab_run_main(gab, main, globals);
+  result = gab_run_main(gab, vm, main, globals);
 
 fin:
-  gab_dref(gab, main);
-  gab_dref(gab, globals);
-  gab_dref(gab, result);
+  gab_dref(gab, vm, main);
+  gab_dref(gab, vm, globals);
+  gab_dref(gab, vm, result);
   gab_destroy(gab);
   a_i8_destroy(src);
   imports_destroy();

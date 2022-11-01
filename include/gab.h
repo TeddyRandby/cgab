@@ -44,6 +44,16 @@ gab_value gab_compile(gab_engine *gab, s_i8 name, s_i8 source);
  */
 gab_value gab_compile_main(gab_engine *gab, s_i8 source);
 
+/*
+ * Spawn a new VM to run gab closures.
+ *
+ * @param gab The engine
+ *
+ * @return The new vm
+ *
+ */
+i32 gab_spawn(gab_engine* gab);
+
 /**
  * Run a gab_obj_closure in the gab vm.
  *
@@ -57,7 +67,7 @@ gab_value gab_compile_main(gab_engine *gab, s_i8 source);
  *
  * @return The return value of the closure
  */
-gab_value gab_run(gab_engine *gab, gab_value main, u8 argc,
+gab_value gab_run(gab_engine *gab, i32 vm, gab_value main, u8 argc,
                   gab_value argv[argc]);
 
 /**
@@ -70,21 +80,21 @@ gab_value gab_run(gab_engine *gab, gab_value main, u8 argc,
  *
  * @return The return value of the closure
  */
-gab_value gab_run_main(gab_engine* gab, gab_value main, gab_value globals);
+gab_value gab_run_main(gab_engine* gab, i32 vm, gab_value main, gab_value globals);
 
 /**
  * Decrement the RC of a gab value
  *
  * @param val The value to clean up
  */
-void gab_dref(gab_engine *gab, gab_value value);
+void gab_dref(gab_engine *gab, i32 vm, gab_value value);
 
 /**
  * Increment the RC of a gab value
  *
  * @param val The value to clean up
  */
-void gab_iref(gab_engine *gab, gab_value value);
+void gab_iref(gab_engine *gab, i32 vm, gab_value value);
 
 /**
  * Bundle a list of keys and values into a Gab object.

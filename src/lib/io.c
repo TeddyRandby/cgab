@@ -12,7 +12,7 @@ void gab_container_file_cb(gab_obj_container *self) {
   }
 }
 
-gab_value gab_lib_open(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_open(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_STRING(argv[0]) || !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
   }
@@ -38,7 +38,7 @@ gab_value gab_lib_open(gab_engine *eng, gab_value *argv, u8 argc) {
   return container;
 }
 
-gab_value gab_lib_read(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_read(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
   if (argc != 1 || !GAB_VAL_TO_CONTAINER(argv[0])) {
     return GAB_VAL_NULL();
   }
@@ -67,7 +67,7 @@ gab_value gab_lib_read(gab_engine *eng, gab_value *argv, u8 argc) {
   return GAB_VAL_OBJ(result);
 }
 
-gab_value gab_lib_write(gab_engine *eng, gab_value *argv, u8 argc) {
+gab_value gab_lib_write(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
       !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
