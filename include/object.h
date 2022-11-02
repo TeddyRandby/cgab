@@ -156,40 +156,37 @@ struct gab_obj_function {
   gab_obj header;
 
   /*
-    The number of arguments the function takes.
-  */
+   * The number of arguments the function takes.
+   */
   u8 narguments;
 
   /*
-    The number of upvalues the function captures.
-  */
+   * The number of upvalues the function captures.
+   */
   u8 nupvalues;
 
-  s_i8 name;
+  /*
+   * The number of local variables in the function.
+   */
+  u8 nlocals;
 
   /*
-    The offset into the module where the function's instructions begin.
-
-    This can't be a pointer because modules can be reallocated as their
-    vector grows - and this would leave functions with dangling pointers.
-  */
+   * The offset into the module where the function's instructions begin.
+   * This can't be a pointer because modules can be reallocated as their
+   * vector grows - and this would leave functions with dangling pointers.
+   */
   u64 offset;
 
   /*
-    The module where the function is defined.
-  */
-  gab_module *module;
-
-  /*
-    The number of local variables in the function.
-  */
-  u8 nlocals;
+   * The name of the function
+   */
+  s_i8 name;
 };
 
 #define GAB_VAL_IS_FUNCTION(value) (gab_val_is_obj_kind(value, OBJECT_FUNCTION))
 #define GAB_VAL_TO_FUNCTION(value) ((gab_obj_function *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_FUNCTION(value) ((gab_obj_function *)value)
-gab_obj_function *gab_obj_function_create(s_i8 name);
+gab_obj_function *gab_obj_function_create(u8 narguments, u8 nupvalues, u8 nlocals, u64 offset, s_i8 name);
 
 /*
   ------------- OBJ_UPVALUE -------------

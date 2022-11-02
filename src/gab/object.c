@@ -291,16 +291,14 @@ s_i8 gab_obj_string_ref(gab_obj_string *self) {
   return ref;
 }
 
-gab_obj_function *gab_obj_function_create(s_i8 name) {
-
+gab_obj_function *gab_obj_function_create(u8 narguments, u8 nupvalues, u8 nlocals, u64 offset, s_i8 name) {
   gab_obj_function *self = GAB_CREATE_OBJ(gab_obj_function, OBJECT_FUNCTION);
 
-  self->narguments = 0;
-  self->nupvalues = 0;
-  self->nlocals = 0;
+  self->narguments = narguments;
+  self->nupvalues = nupvalues;
+  self->nlocals = nlocals;
   self->name = name;
-  self->offset = 0;
-  self->module = NULL;
+  self->offset = offset;
 
   // Functions cannot reference other objects - mark them green.
   GAB_OBJ_GREEN((gab_obj *)self);

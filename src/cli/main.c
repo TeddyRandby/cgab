@@ -26,20 +26,20 @@ void gab_run_file(const char *path) {
 
   make_globals(gab);
 
-  gab_value main = gab_compile_main(gab, s_i8_create(src->data, src->len));
+  gab_module* main = gab_compile_main(gab, s_i8_create(src->data, src->len));
 
   gab_value result = GAB_VAL_NULL();
 
   i32 vm = gab_spawn(gab);
 
-  if (GAB_VAL_IS_NULL(main)) {
+  if (main == NULL) {
     goto fin;
   }
 
   result = gab_run_main(gab, vm, main, globals);
 
+  gab_module_destroy(gab, main);
 fin:
-  gab_dref(gab, vm, main);
   gab_dref(gab, vm, globals);
   gab_dref(gab, vm, result);
   gab_destroy(gab);

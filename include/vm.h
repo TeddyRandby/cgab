@@ -53,7 +53,7 @@ typedef struct gab_vm {
 
 void gab_vm_create(gab_vm *vm);
 
-gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main, u8 argc,
+gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module* main, u8 argc,
                      gab_value argv[argc]);
 
 #endif

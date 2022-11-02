@@ -105,10 +105,9 @@ gab_value gab_source_file_handler(gab_engine *gab, const a_i8 *path,
                                   const s_i8 module) {
   a_i8 *src = os_read_file((char *)path->data);
 
-  gab_value pkg = gab_compile(gab, s_i8_create(path->data, path->len),
-                              s_i8_create(src->data, src->len));
+  gab_module *pkg = gab_compile_main(gab, s_i8_create(src->data, src->len));
 
-  if (GAB_VAL_IS_NULL(pkg)) {
+  if (pkg == NULL) {
     return GAB_VAL_NULL();
   }
 
@@ -164,7 +163,8 @@ a_i8 *match_resource(resource *res, s_i8 name) {
   return NULL;
 }
 
-gab_value gab_lib_require(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_require(gab_engine *gab, i32 vm, u8 argc,
+                          gab_value argv[argc]) {
 
   if (!GAB_VAL_IS_STRING(argv[0])) {
     return GAB_VAL_NULL();

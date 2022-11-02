@@ -17,7 +17,6 @@ gab_engine *gab_create(u8 flags) {
   gab_engine *gab = NEW(gab_engine);
 
   d_gab_intern_create(&gab->interned, 2);
-  v_gab_module_create(&gab->modules, 8);
   v_gab_vm_create(&gab->vms, 8);
   gab_gc_create(&gab->gc);
 
@@ -36,12 +35,6 @@ void gab_engine_dref_all(gab_engine *gab) {
 }
 
 void gab_destroy(gab_engine *gab) {
-  for (u32 i = 0; i < gab->modules.len; i++) {
-    gab_module *m = v_gab_module_ref_at(&gab->modules, i);
-    gab_module_dref_all(gab, m, 0);
-    gab_module_destroy(m);
-  }
-
   gab_engine_dref_all(gab);
 
   for (u32 i = 0; i < gab->vms.len; i++) {
@@ -50,7 +43,6 @@ void gab_destroy(gab_engine *gab) {
   }
 
   d_gab_intern_destroy(&gab->interned);
-  v_gab_module_destroy(&gab->modules);
   v_gab_vm_destroy(&gab->vms);
 
   gab_gc_destroy(&gab->gc);
@@ -58,12 +50,12 @@ void gab_destroy(gab_engine *gab) {
   DESTROY(gab);
 }
 
-gab_value gab_compile_main(gab_engine *gab, s_i8 source) {
-  return gab_bc_compile(gab, s_i8_cstr("__main__"), source);
+gab_module* gab_compile_main(gab_engine *gab, s_i8 source) {
+  return gab_bc_compile(gab, 1, s_i8_cstr("__main__"), source);
 }
 
-gab_value gab_compile(gab_engine *gab, s_i8 name, s_i8 source) {
-  return gab_bc_compile(gab, name, source);
+gab_module* gab_compile(gab_engine *gab, u8 narguments, s_i8 name, s_i8 source) {
+  return gab_bc_compile(gab, narguments, name, source);
 }
 
 i32 gab_spawn(gab_engine *gab) {
@@ -72,13 +64,13 @@ i32 gab_spawn(gab_engine *gab) {
   return gab->vms.len - 1;
 }
 
-gab_value gab_run(gab_engine *gab, i32 vm, gab_value main, u8 argc,
+gab_value gab_run(gab_engine *gab, i32 vm, gab_module* main, u8 argc,
              gab_value argv[argc]) {
-
-  return gab_vm_run(gab, vm, main, argc, argv);
+  gab_value result = gab_vm_run(gab, vm, main, argc, argv);
+  return result;
 };
 
-gab_value gab_run_main(gab_engine *gab, i32 vm, gab_value main, gab_value globals) {
+gab_value gab_run_main(gab_engine *gab, i32 vm, gab_module* main, gab_value globals) {
   return gab_run(gab, vm, main, 1, &globals);
 };
 
@@ -116,14 +108,6 @@ gab_value gab_bundle_array(gab_engine *gab, u64 size, gab_value values[size]) {
       GAB_VAL_OBJ(gab_obj_record_create(bundle_shape, values, size, 1));
 
   return bundle;
-}
-
-gab_module *gab_engine_add_module(gab_engine *self, s_i8 name, s_i8 source) {
-  gab_module *module = v_gab_module_emplace(&self->modules);
-
-  gab_module_create(module, name, source);
-
-  return module;
 }
 
 /**

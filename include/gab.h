@@ -4,6 +4,7 @@
 #include "object.h"
 
 typedef struct gab_engine gab_engine;
+typedef struct gab_module gab_module;
 
 /**
  * Create a Gab Engine. If you want libraries included, build and bind them
@@ -20,6 +21,16 @@ gab_engine *gab_create(u8 flags);
  */
 void gab_destroy(gab_engine *gab);
 
+
+/**
+ * Cleanup a Gab Module.
+ *
+ * @param gab The engine
+ *
+ * @param mod The module to clean up
+ */
+void gab_module_destroy(gab_engine* gab, gab_module* mod);
+
 /**
  * Compile a source string into a gab_obj_closure.
  *
@@ -31,7 +42,7 @@ void gab_destroy(gab_engine *gab);
  *
  * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
  */
-gab_value gab_compile(gab_engine *gab, s_i8 name, s_i8 source);
+gab_module* gab_compile(gab_engine *gab, u8 narguments, s_i8 name, s_i8 source);
 
 /**
  * Compile a source string into a gab_obj_closure.
@@ -42,7 +53,7 @@ gab_value gab_compile(gab_engine *gab, s_i8 name, s_i8 source);
  *
  * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
  */
-gab_value gab_compile_main(gab_engine *gab, s_i8 source);
+gab_module* gab_compile_main(gab_engine *gab, s_i8 source);
 
 /*
  * Spawn a new VM to run gab closures.
@@ -67,7 +78,7 @@ i32 gab_spawn(gab_engine* gab);
  *
  * @return The return value of the closure
  */
-gab_value gab_run(gab_engine *gab, i32 vm, gab_value main, u8 argc,
+gab_value gab_run(gab_engine *gab, i32 vm, gab_module* main, u8 argc,
                   gab_value argv[argc]);
 
 /**
@@ -80,7 +91,7 @@ gab_value gab_run(gab_engine *gab, i32 vm, gab_value main, u8 argc,
  *
  * @return The return value of the closure
  */
-gab_value gab_run_main(gab_engine* gab, i32 vm, gab_value main, gab_value globals);
+gab_value gab_run_main(gab_engine* gab, i32 vm, gab_module* main, gab_value globals);
 
 /**
  * Decrement the RC of a gab value

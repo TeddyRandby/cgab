@@ -17,23 +17,25 @@ gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
   return self;
 }
 
-void gab_module_destroy(gab_module *self) {
-  v_u8_destroy(&self->bytecode);
-  v_u8_destroy(&self->tokens);
-  v_u64_destroy(&self->lines);
-  d_gab_constant_destroy(&self->constants);
-  v_s_i8_destroy(self->source_lines);
-
-  DESTROY(self->source_lines);
-}
-
-void gab_module_dref_all(gab_engine *gab, gab_module *mod, i32 vm) {
+void dref_all(gab_engine *gab, gab_module *mod, i32 vm) {
   for (u64 i = 0; i < mod->constants.cap; i++) {
     if (d_gab_constant_iexists(&mod->constants, i)) {
       gab_value v = d_gab_constant_ikey(&mod->constants, i);
       gab_dref(gab, vm, v);
     }
   }
+}
+
+void gab_module_destroy(gab_engine* gab, gab_module *mod) {
+  dref_all(gab, mod, 0);
+
+  v_u8_destroy(&mod->bytecode);
+  v_u8_destroy(&mod->tokens);
+  v_u64_destroy(&mod->lines);
+  d_gab_constant_destroy(&mod->constants);
+  v_s_i8_destroy(mod->source_lines);
+  DESTROY(mod->source_lines);
+  DESTROY(mod);
 }
 
 // Helper macros for creating the specialized instructions

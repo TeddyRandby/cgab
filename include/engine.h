@@ -40,11 +40,6 @@ struct gab_engine {
   d_gab_intern interned;
 
   /*
-   * A vector of compiled modules
-   */
-  v_gab_module modules;
-
-  /*
    * A vector of spawned vms
    */
   v_gab_vm vms;
@@ -64,8 +59,6 @@ gab_obj_string *gab_engine_find_string(gab_engine *gab, s_i8 string, u64 hash);
 
 gab_obj_shape *gab_engine_find_shape(gab_engine *gab, u64 size, u64 stride, u64 hash,
                               gab_value keys[size]);
-
-gab_module *gab_engine_add_module(gab_engine *gab, s_i8 name, s_i8 source);
 
 u16 gab_engine_intern(gab_engine *gab, gab_value value);
 #endif

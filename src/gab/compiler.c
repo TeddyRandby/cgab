@@ -52,11 +52,13 @@ struct gab_compile_rule {
   boolean multi_line;
 };
 
-void gab_bc_create(gab_bc *self) {
+void gab_bc_create(gab_bc *self, s_i8 source) {
   self->scope_depth = 0;
   self->frame_count = 0;
   self->panic = false;
+
   memset(self->frames, 0, sizeof(self->frames));
+  gab_lexer_create(&self->lex, source);
 }
 
 // A positive result is known to be OK, and can carry a value.
@@ -464,33 +466,30 @@ i32 compile_block(gab_engine *gab, gab_bc *bc, gab_module *mod) {
   return COMP_OK;
 }
 
-i32 compile_function_body(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                          gab_obj_function *function, u64 skip_jump) {
+gab_obj_function *compile_function_body(gab_engine *gab, gab_bc *bc,
+                                        gab_module *mod, u8 arity, s_i8 name,
+                                        u64 skip_jump) {
   // Start compiling the function's bytecode.
   // You can't just store a pointer to the beginning of the code
   // Because if the vector is EVER resized,
   // Then all your functions are suddenly invalid.
-  function->offset = mod->bytecode.len;
+  u64 offset = mod->bytecode.len;
 
   i32 result = compile_block(gab, bc, mod);
 
   if (result < 0)
-    return COMP_ERR;
+    return NULL;
 
   gab_module_push_return(mod, result, false, bc->previous_token, bc->line);
 
   // Update the functions upvalue state and pop the function's compile_frame
   gab_bc_frame *frame = peek_frame(bc, 0);
 
-  function->module = mod;
-  function->nupvalues = frame->upv_count;
-  // Deepest local - args - caller = number of locals declared
-  function->nlocals = frame->deepest_local - function->narguments - 1;
-
   // Patch the jump to skip over the function body
   gab_module_patch_jump(mod, skip_jump);
 
-  return COMP_OK;
+  return gab_obj_function_create(
+      arity, frame->upv_count, frame->deepest_local - arity - 1, offset, name);
 }
 
 i32 compile_function(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
@@ -501,18 +500,15 @@ i32 compile_function(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
   // Doesnt need a pop scope because the scope is popped with the callframe.
   down_scope(bc);
 
-  gab_obj_function *function = gab_obj_function_create(name);
-  u16 function_constant = add_constant(mod, GAB_VAL_OBJ(function));
-
   down_frame(bc, name);
 
+  i32 narguments = 0;
+
   if (!match_token(bc, closing)) {
-    i32 narguments = compile_function_args(bc);
+    narguments = compile_function_args(bc);
 
     if (narguments < 0)
       return COMP_ERR;
-
-    function->narguments = narguments;
   }
 
   if (expect_token(bc, closing) < 0)
@@ -521,8 +517,13 @@ i32 compile_function(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
   if (expect_token(bc, TOKEN_NEWLINE) < 0)
     return COMP_ERR;
 
-  if (compile_function_body(gab, bc, mod, function, skip_jump) < 0)
+  gab_obj_function *function =
+      compile_function_body(gab, bc, mod, narguments, name, skip_jump);
+
+  if (function == NULL)
     return COMP_ERR;
+
+  u16 function_constant = add_constant(mod, GAB_VAL_OBJ(function));
 
   // Push a closure wrapping the function
   push_op(bc, mod, OP_CLOSURE);
@@ -533,8 +534,6 @@ i32 compile_function(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
     push_byte(bc, mod, frame->upvs_flag[i]);
     push_byte(bc, mod, frame->upvs_index[i]);
   }
-
-  function->nlocals = peek_frame(bc, 0)->deepest_local - function->narguments;
 
   up_frame(bc);
 
@@ -1963,54 +1962,55 @@ const gab_compile_rule gab_bc_rules[] = {
 
 gab_compile_rule get_rule(gab_token k) { return gab_bc_rules[k]; }
 
-gab_obj_closure *compile(gab_engine *gab, gab_bc* bc, gab_module *mod, s_i8 name) {
+i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 narguments,
+            s_i8 name) {
   down_frame(bc, name);
 
-  gab_lexer_create(&bc->lex, mod->source);
-
-  mod->source_lines = bc->lex.source_lines;
-
   if (eat_token(bc) == COMP_ERR)
-    return NULL;
+    return -1;
 
   initialize_local(bc, add_local(bc, s_i8_cstr("__global__"), 0));
 
   if (compile_block_body(gab, bc, mod) < 0)
-    return NULL;
-
-  gab_obj_function *main_func = gab_obj_function_create(name);
-
-  add_constant(mod, GAB_VAL_OBJ(main_func));
-
-  main_func->module = mod;
-  main_func->narguments = 1;
-  main_func->nlocals = peek_frame(bc, 0)->deepest_local - 1;
-
-  gab_obj_closure *main = gab_obj_closure_create(main_func, NULL);
-
-  up_frame(bc);
+    return -1;
 
   push_op(bc, mod, OP_RETURN_1);
-  return main;
+
+  u8 top_level_locals = peek_frame(bc, 0)->deepest_local - narguments - 1;
+
+  gab_obj_function *f =
+      gab_obj_function_create(narguments, 0, top_level_locals, 0, name);
+
+  gab_obj_closure *c = gab_obj_closure_create(f, NULL);
+
+  add_constant(mod, GAB_VAL_OBJ(f));
+
+  return add_constant(mod, GAB_VAL_OBJ(c));
 }
 
-gab_value gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source) {
-  gab_module *mod = gab_engine_add_module(gab, name, source);
+gab_module *gab_bc_compile(gab_engine *gab, u8 narguments, s_i8 name,
+                           s_i8 source) {
+  gab_module *mod = NEW(gab_module);
+  gab_module_create(mod, name, source);
 
   gab_bc bc;
-  gab_bc_create(&bc);
+  gab_bc_create(&bc, source);
 
-  gab_obj_closure *main = compile(gab, &bc, mod, name);
+  i32 main = compile(gab, &bc, mod, narguments, name);
 
-  if (main == NULL) {
-    return GAB_VAL_NULL();
+  if (main < 0) {
+    DESTROY(mod);
+    return NULL;
   }
+
+  mod->main = main;
+  mod->source_lines = bc.lex.source_lines;
 
   if (gab->flags & GAB_FLAG_DUMP_BYTECODE) {
     gab_module_dump(mod, name);
   }
 
-  return GAB_VAL_OBJ(main);
+  return mod;
 }
 
 #define ANSI_COLOR_RED "\x1b[31m"

@@ -23,7 +23,7 @@ static const char *gab_token_names[] = {
 #define ANSI_COLOR_CYAN "\x1b[36m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
-void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
+void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_module *mod, gab_status e,
                    const char *help_fmt, ...) {
   if (!(gab->flags & GAB_FLAG_DUMP_ERROR)) {
     return;
@@ -32,8 +32,6 @@ void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
   gab_call_frame *frame = vm->call_stack + 1;
 
   while (frame <= vm->frame) {
-    gab_module *mod = frame->closure->func->module;
-
     s_i8 func_name = frame->closure->func->name;
 
     u64 offset = frame->ip - mod->bytecode.data - 1;
@@ -190,8 +188,8 @@ static inline gab_value failure(gab_vm *vm) {
   return GAB_VAL_NULL();
 }
 
-gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
-                     u8 argc, gab_value argv[argc]) {
+gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
+                     gab_value argv[argc]) {
 #if GAB_LOG_EXECUTION
 #define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
 #else
@@ -230,7 +228,7 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
     gab_obj_string *b =                                                        \
         GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK2()));               \
                                                                                \
-    dump_vm_error(ENGINE(), VM(), GAB_NOT_NUMERIC,                             \
+    dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_NUMERIC,                   \
                   "Tried to" #operation " %.*s and %.*s", (i32)b->len,         \
                   b->data, (i32)a->len, a->data);                              \
     return failure(VM());                                                      \
@@ -248,13 +246,14 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
 #define INSTR() (instr)
 #define FRAME() (frame)
 #define CLOSURE() (FRAME()->closure)
-#define MODULE() (CLOSURE()->func->module)
+#define MODULE() (mod)
 #define IP() (ip)
 #define TOP() (VM()->top)
 #define SLOTS() (slots)
 #define LOCAL(i) (SLOTS()[i])
 #define UPVALUE(i) (*(GAB_VAL_TO_UPVALUE(CLOSURE()->upvalues[i])->data))
 #define CONST_UPVALUE(i) (CLOSURE()->upvalues[i])
+#define MOD_CONSTANT(k) (d_gab_constant_ikey(&MODULE()->constants, k))
 
 #define PUSH(value) (*TOP()++ = value)
 #define POP() (*(--TOP()))
@@ -265,13 +264,14 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
 #define PEEK2() (*(TOP() - 2))
 #define PEEK_N(n) (*(TOP() - n))
 
+#define WRITE_SHORT(n) ((IP()[-2] = ((n) >> 8) & 0xff), IP()[-1] = (n)&0xff)
+
+#define READ_INLINECACHE(type) (IP() += 8, (type **)(IP() - 8))
 #define READ_BYTE (*IP()++)
 #define READ_SHORT (IP() += 2, (((u16)IP()[-2] << 8) | IP()[-1]))
-#define WRITE_SHORT(n) ((IP()[-2] = ((n) >> 8) & 0xff), IP()[-1] = (n)&0xff)
-#define READ_INLINECACHE(type) (IP() += 8, (type **)(IP() - 8))
-
-#define READ_CONSTANT (d_gab_constant_ikey(&MODULE()->constants, (READ_SHORT)))
+#define READ_CONSTANT (MOD_CONSTANT(READ_SHORT))
 #define READ_STRING (GAB_VAL_TO_STRING(READ_CONSTANT))
+#define READ_FUNCTION (GAB_VAL_TO_FUNCTION(READ_CONSTANT))
 
 #define STORE_FRAME()                                                          \
   ({                                                                           \
@@ -288,6 +288,7 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
   /*
    ----------- BEGIN RUN BODY -----------
   */
+
   gab_vm *vm_ptr = v_gab_vm_ref_at(&gab->vms, vm);
   register u8 instr;
   register u8 *ip;
@@ -295,7 +296,9 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
   register gab_value *slots = TOP();
 
   // Setup for call to main function
-  PUSH(main);
+  gab_value main_closure = MOD_CONSTANT(MODULE()->main);
+
+  PUSH(main_closure);
   for (u8 i = 0; i < argc; i++) {
     PUSH(argv[i]);
   }
@@ -350,6 +353,7 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
 
       if (GAB_VAL_IS_CLOSURE(callee)) {
         STORE_FRAME();
+
         gab_obj_closure *closure = GAB_VAL_TO_CLOSURE(callee);
 
         while (arity < closure->func->narguments)
@@ -360,18 +364,18 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
 
         FRAME()++;
         FRAME()->closure = closure;
-        FRAME()->ip =
-            CLOSURE()->func->module->bytecode.data + CLOSURE()->func->offset;
+        FRAME()->ip = MODULE()->bytecode.data + closure->func->offset;
         FRAME()->slots = TOP() - arity - 1;
         FRAME()->expected_results = want;
 
-        TOP() += CLOSURE()->func->nlocals - 1;
+        TOP() += CLOSURE()->func->nlocals;
 
         LOAD_FRAME();
       } else if (GAB_VAL_IS_BUILTIN(callee)) {
         gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(callee);
 
-        gab_value result = (*builtin->function)(ENGINE(), vm, arity, TOP() - arity);
+        gab_value result =
+            (*builtin->function)(ENGINE(), vm, arity, TOP() - arity);
 
         TOP() -= arity + 1;
 
@@ -382,8 +386,8 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
         STORE_FRAME();
         gab_obj_string *a =
             GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "Tried to call %.*s",
-                      (i32)a->len, a->data);
+        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_FUNCTION,
+                      "Tried to call %.*s", (i32)a->len, a->data);
         return failure(VM());
       }
 
@@ -459,8 +463,8 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
           STORE_FRAME();
           gab_obj_string *a =
               GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
-                        (i32)a->len, a->data);
+          dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_RECORD,
+                        "Tried to index %.*s", (i32)a->len, a->data);
           return failure(VM());
         }
 
@@ -483,8 +487,8 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
           STORE_FRAME();
           gab_obj_string *a =
               GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
-                        (i32)a->len, a->data);
+          dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_RECORD,
+                        "Tried to index %.*s", (i32)a->len, a->data);
           return failure(VM());
         }
 
@@ -525,8 +529,8 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
           STORE_FRAME();
           gab_obj_string *a =
               GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
-                        (i32)a->len, a->data);
+          dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_RECORD,
+                        "Tried to index %.*s", (i32)a->len, a->data);
           return failure(VM());
         }
 
@@ -564,8 +568,8 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
           STORE_FRAME();
           gab_obj_string *a =
               GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
-                        (i32)a->len, a->data);
+          dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_RECORD,
+                        "Tried to index %.*s", (i32)a->len, a->data);
           return failure(VM());
         }
 
@@ -624,8 +628,8 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
         STORE_FRAME();
         gab_obj_string *a =
             GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK()));
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_NUMERIC, "Tried to negate %.*s",
-                      (i32)a->len, a->data);
+        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_NUMERIC,
+                      "Tried to negate %.*s", (i32)a->len, a->data);
         return failure(VM());
       }
       gab_value num = GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP()));
@@ -717,7 +721,7 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
         gab_obj_string *b =
             GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK2()));
 
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_STRING,
+        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_STRING,
                       "Tried to concatenate %.*s and %.*s", (i32)b->len,
                       b->data, (i32)a->len, a->data);
         return failure(VM());
@@ -792,7 +796,7 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
     CASE_CODE(ASSERT) : {
       if (GAB_VAL_IS_NULL(PEEK())) {
         STORE_FRAME();
-        dump_vm_error(ENGINE(), VM(), GAB_ASSERTION_FAILED, "");
+        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_ASSERTION_FAILED, "");
         return failure(VM());
       }
       NEXT();
@@ -839,8 +843,8 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
         STORE_FRAME();
         gab_obj_string *a =
             GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to spread %.*s",
-                      (i32)a->len, a->data);
+        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_RECORD,
+                      "Tried to spread %.*s", (i32)a->len, a->data);
         return failure(VM());
       }
 
@@ -1015,7 +1019,7 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_value main,
     }
 
     CASE_CODE(CLOSURE) : {
-      gab_obj_function *func = GAB_VAL_TO_FUNCTION(READ_CONSTANT);
+      gab_obj_function *func = READ_FUNCTION;
 
       gab_value *upvalues = TOP();
 
