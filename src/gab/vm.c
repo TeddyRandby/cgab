@@ -95,7 +95,14 @@ void gab_vm_create(gab_vm *self) {
 
   self->frame = self->call_stack;
   self->top = self->stack;
+
+  gab_gc_create(&self->gc);
 }
+
+void gab_vm_destroy(gab_vm* vm) {
+    gab_gc_collect(&vm->gc, vm);
+    gab_gc_destroy(&vm->gc);
+};
 
 void dump_frame(gab_vm *vm, gab_value *top, const char *name) {
   printf("Frame at %s:\n-----------------\n", name);
@@ -242,7 +249,7 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
 */
 #define VM() (vm_ptr)
 #define ENGINE() (gab)
-#define GC() (&ENGINE()->gc)
+#define GC() (&VM()->gc)
 #define INSTR() (instr)
 #define FRAME() (frame)
 #define CLOSURE() (FRAME()->closure)

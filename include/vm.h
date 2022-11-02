@@ -32,6 +32,11 @@ typedef struct gab_call_frame {
 
 typedef struct gab_vm {
   /*
+   * The GC for the vm
+   */
+  gab_gc gc;
+
+  /*
     Upvalues to close when the current function returns.
   */
   gab_obj_upvalue *open_upvalues;
@@ -52,6 +57,7 @@ typedef struct gab_vm {
 } gab_vm;
 
 void gab_vm_create(gab_vm *vm);
+void gab_vm_destroy(gab_vm* vm);
 
 gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module* main, u8 argc,
                      gab_value argv[argc]);

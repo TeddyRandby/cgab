@@ -21,7 +21,6 @@ gab_engine *gab_create(u8 flags);
  */
 void gab_destroy(gab_engine *gab);
 
-
 /**
  * Cleanup a Gab Module.
  *
@@ -29,10 +28,10 @@ void gab_destroy(gab_engine *gab);
  *
  * @param mod The module to clean up
  */
-void gab_module_destroy(gab_engine* gab, gab_module* mod);
+void gab_module_destroy(gab_engine *gab, gab_module *mod);
 
 /**
- * Compile a source string into a gab_obj_closure.
+ * Compile a source string into a Gab Module.
  *
  * @param gab The engine
  *
@@ -42,10 +41,12 @@ void gab_module_destroy(gab_engine* gab, gab_module* mod);
  *
  * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
  */
-gab_module* gab_compile(gab_engine *gab, u8 narguments, s_i8 name, s_i8 source);
+gab_module *gab_compile(gab_engine *gab, u8 narguments, s_i8 name, s_i8 source);
 
 /**
- * Compile a source string into a gab_obj_closure.
+ * Compile a source string into a Gab Module.
+ * This will compile the module with one implicit argument: the __globals__
+ * object.
  *
  * @param gab The engine
  *
@@ -53,24 +54,26 @@ gab_module* gab_compile(gab_engine *gab, u8 narguments, s_i8 name, s_i8 source);
  *
  * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
  */
-gab_module* gab_compile_main(gab_engine *gab, s_i8 source);
+gab_module *gab_compile_main(gab_engine *gab, s_i8 source);
 
-/*
- * Spawn a new VM to run gab closures.
+/**
+ * Spawn a new VM.
  *
  * @param gab The engine
  *
  * @return The new vm
  *
  */
-i32 gab_spawn(gab_engine* gab);
+i32 gab_spawn(gab_engine *gab);
 
 /**
- * Run a gab_obj_closure in the gab vm.
+ * Run a module in the gab vm.
  *
- * @param gab The engine
+ * @param  gab The engine
  *
- * @param main The gab_obj_closure to call
+ * @param   vm The vm to run the module on
+ *
+ * @param main The module to run
  *
  * @param argc The number of arguments to the closure
  *
@@ -78,7 +81,7 @@ i32 gab_spawn(gab_engine* gab);
  *
  * @return The return value of the closure
  */
-gab_value gab_run(gab_engine *gab, i32 vm, gab_module* main, u8 argc,
+gab_value gab_run(gab_engine *gab, i32 vm, gab_module *main, u8 argc,
                   gab_value argv[argc]);
 
 /**
@@ -91,7 +94,8 @@ gab_value gab_run(gab_engine *gab, i32 vm, gab_module* main, u8 argc,
  *
  * @return The return value of the closure
  */
-gab_value gab_run_main(gab_engine* gab, i32 vm, gab_module* main, gab_value globals);
+gab_value gab_run_main(gab_engine *gab, i32 vm, gab_module *main,
+                       gab_value globals);
 
 /**
  * Decrement the RC of a gab value

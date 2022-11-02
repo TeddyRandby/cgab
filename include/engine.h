@@ -27,9 +27,6 @@ static const char* gab_status_names[] = {
 #define LOAD DICT_MAX_LOAD
 #include "include/dict.h"
 
-#define T gab_module
-#include "include/vector.h"
-
 #define T gab_vm
 #include "include/vector.h"
 
@@ -43,11 +40,6 @@ struct gab_engine {
    * A vector of spawned vms
    */
   v_gab_vm vms;
-
-  /*
-   * The GC for all modules and vms.
-   */
-  gab_gc gc;
 
   /*
    * Optional Flags

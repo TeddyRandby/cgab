@@ -18,14 +18,13 @@ gab_engine *gab_create(u8 flags) {
 
   d_gab_intern_create(&gab->interned, 2);
   v_gab_vm_create(&gab->vms, 8);
-  gab_gc_create(&gab->gc);
 
   gab->flags = flags;
 
   return gab;
 }
 
-void gab_engine_dref_all(gab_engine *gab) {
+static inline void dref_all(gab_engine *gab) {
   for (u64 i = 0; i < gab->interned.cap; i++) {
     if (d_gab_intern_iexists(&gab->interned, i)) {
       gab_value v = d_gab_intern_ikey(&gab->interned, i);
@@ -35,17 +34,15 @@ void gab_engine_dref_all(gab_engine *gab) {
 }
 
 void gab_destroy(gab_engine *gab) {
-  gab_engine_dref_all(gab);
+  dref_all(gab);
 
   for (u32 i = 0; i < gab->vms.len; i++) {
     gab_vm *v = v_gab_vm_ref_at(&gab->vms, i);
-    gab_gc_collect(&gab->gc, v);
+    gab_vm_destroy(v);
   }
 
   d_gab_intern_destroy(&gab->interned);
   v_gab_vm_destroy(&gab->vms);
-
-  gab_gc_destroy(&gab->gc);
 
   DESTROY(gab);
 }
@@ -76,12 +73,12 @@ gab_value gab_run_main(gab_engine *gab, i32 vm, gab_module* main, gab_value glob
 
 void gab_dref(gab_engine *gab, i32 vm, gab_value value) {
   gab_vm *v = v_gab_vm_ref_at(&gab->vms, vm);
-  gab_gc_dref(&gab->gc, v, value);
+  gab_gc_dref(&v->gc, v, value);
 };
 
 void gab_iref(gab_engine *gab, i32 vm, gab_value value) {
   gab_vm *v = v_gab_vm_ref_at(&gab->vms, vm);
-  gab_gc_dref(&gab->gc, v, value);
+  gab_gc_dref(&v->gc, v, value);
 };
 
 gab_value gab_bundle_record(gab_engine *gab, u64 size, s_i8 keys[size],
