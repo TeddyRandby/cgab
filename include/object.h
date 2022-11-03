@@ -6,6 +6,7 @@
 
 typedef struct gab_module gab_module;
 typedef struct gab_gc gab_gc;
+typedef struct gab_vm gab_vm;
 typedef struct gab_engine gab_engine;
 
 static inline f64 value_to_f64(gab_value value) { return *(f64 *)(&value); }
@@ -92,6 +93,11 @@ struct gab_obj {
 */
 void gab_obj_destroy(gab_obj *self);
 
+static inline gab_val_destroy(gab_value self) {
+  if (GAB_VAL_IS_OBJ(self))
+    gab_obj_destroy(GAB_VAL_TO_OBJ(self));
+}
+
 /*
   Defined in common/log.c
 */
@@ -132,7 +138,8 @@ s_i8 gab_obj_string_ref(gab_obj_string *self);
   ------------- OBJ_BUILTIN-------------
   A function pointer. to a native c function.
 */
-typedef gab_value (*gab_builtin)(gab_engine * gab, i32 vm, u8 argc, gab_value argv[argc]);
+typedef gab_value (*gab_builtin)(gab_engine *gab, gab_vm *vm, u8 argc,
+                                 gab_value argv[argc]);
 typedef struct gab_obj_builtin gab_obj_builtin;
 struct gab_obj_builtin {
   gab_obj header;
@@ -186,7 +193,8 @@ struct gab_obj_function {
 #define GAB_VAL_IS_FUNCTION(value) (gab_val_is_obj_kind(value, OBJECT_FUNCTION))
 #define GAB_VAL_TO_FUNCTION(value) ((gab_obj_function *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_FUNCTION(value) ((gab_obj_function *)value)
-gab_obj_function *gab_obj_function_create(u8 narguments, u8 nupvalues, u8 nlocals, u64 offset, s_i8 name);
+gab_obj_function *gab_obj_function_create(u8 narguments, u8 nupvalues,
+                                          u8 nlocals, u64 offset, s_i8 name);
 
 /*
   ------------- OBJ_UPVALUE -------------
@@ -266,13 +274,14 @@ struct gab_obj_shape {
 #define GAB_VAL_TO_SHAPE(value) ((gab_obj_shape *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SHAPE(value) ((gab_obj_shape *)value)
 
-gab_obj_shape *gab_obj_shape_create(gab_engine *gab, boolean *was_interned,
-                                    u64 size, u64 stride, gab_value key[size]);
+gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 size,
+                                    u64 stride, gab_value key[size]);
 
-gab_obj_shape *gab_obj_shape_create_array(gab_engine *gab, u64 size);
+gab_obj_shape *gab_obj_shape_create_array(gab_engine *gab, gab_vm *vm,
+                                          u64 size);
 
-gab_obj_shape *gab_obj_shape_extend(gab_engine *gab, gab_obj_shape *self,
-                                    boolean *was_interned, gab_value property);
+gab_obj_shape *gab_obj_shape_grow(gab_engine *gab, gab_vm *vm,
+                                  gab_obj_shape *self, gab_value property);
 
 static inline i64 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
   u64 i = d_u64_index_of(&self->properties, key);
@@ -296,7 +305,7 @@ struct gab_obj_record {
   /*
     The number of properties.
   */
-  u8 static_size;
+  u8 static_len;
 
   /*
     The shape of this object.
@@ -315,18 +324,19 @@ struct gab_obj_record {
 #define GAB_VAL_TO_RECORD(value) ((gab_obj_record *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_RECORD(value) ((gab_obj_record *)value)
 
-gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, gab_value values[],
-                                      u64 size, u64 stride);
+gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, u64 size,
+                                      u64 stride, gab_value values[size]);
 
-i16 gab_obj_record_extend(gab_obj_record *self, gab_obj_shape *new_shape,
-                          gab_value value);
+i16 gab_obj_record_grow(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
+                        gab_value key, gab_value value);
+
+void gab_obj_record_shrink(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
+                           gab_value key);
 
 static inline void gab_obj_record_set(gab_obj_record *self, i16 offset,
                                       gab_value value) {
-
   if (!self->is_dynamic)
     self->static_values[offset] = value;
-
   else
     v_u64_set(&self->dynamic_values, offset, value);
 }
@@ -334,24 +344,19 @@ static inline void gab_obj_record_set(gab_obj_record *self, i16 offset,
 static inline gab_value gab_obj_record_get(gab_obj_record *self, i16 offset) {
   if (offset < 0)
     return GAB_VAL_NULL();
-
   else if (!self->is_dynamic)
     return self->static_values[offset];
-
   else
     return v_u64_val_at(&self->dynamic_values, offset);
 }
 
-static inline gab_value gab_obj_record_insert(gab_engine *gab,
+static inline gab_value gab_obj_record_insert(gab_engine *gab, gab_vm *vm,
                                               gab_obj_record *self,
-                                              gab_value prop, gab_value value) {
-
-  i16 prop_offset = gab_obj_shape_find(self->shape, prop);
+                                              gab_value key, gab_value value) {
+  i16 prop_offset = gab_obj_shape_find(self->shape, key);
 
   if (prop_offset < 0) {
-    gab_obj_shape *shape = gab_obj_shape_extend(gab, self->shape, NULL, prop);
-
-    prop_offset = gab_obj_record_extend(self, shape, value);
+    prop_offset = gab_obj_record_grow(gab, vm, self, key, value);
   }
 
   gab_obj_record_set(self, prop_offset, value);
@@ -361,7 +366,6 @@ static inline gab_value gab_obj_record_insert(gab_engine *gab,
 
 static inline gab_value gab_obj_record_read(gab_obj_record *self,
                                             gab_value prop) {
-
   i16 prop_offset = gab_obj_shape_find(self->shape, prop);
 
   return gab_obj_record_get(self, prop_offset);

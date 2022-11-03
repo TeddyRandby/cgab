@@ -127,7 +127,7 @@ gab_value gab_lib_from(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
   return GAB_VAL_NUMBER(strtod(cstr, NULL));
 };
 
-gab_value gab_mod(gab_engine *gab) {
+gab_value gab_mod(gab_engine *gab, i32 vm) {
   s_i8 keys[] = {
       s_i8_cstr("random"),
       s_i8_cstr("floor"),

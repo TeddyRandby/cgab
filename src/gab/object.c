@@ -291,7 +291,8 @@ s_i8 gab_obj_string_ref(gab_obj_string *self) {
   return ref;
 }
 
-gab_obj_function *gab_obj_function_create(u8 narguments, u8 nupvalues, u8 nlocals, u64 offset, s_i8 name) {
+gab_obj_function *gab_obj_function_create(u8 narguments, u8 nupvalues,
+                                          u8 nlocals, u64 offset, s_i8 name) {
   gab_obj_function *self = GAB_CREATE_OBJ(gab_obj_function, OBJECT_FUNCTION);
 
   self->narguments = narguments;
@@ -337,29 +338,32 @@ gab_obj_upvalue *gab_obj_upvalue_create(gab_value *slot) {
   return self;
 }
 
-gab_obj_shape *gab_obj_shape_create_array(gab_engine *gab, u64 size) {
+gab_obj_shape *gab_obj_shape_create_array(gab_engine *gab, gab_vm *vm,
+                                          u64 size) {
   gab_value keys[size];
 
   for (u64 i = 0; i < size; i++) {
     keys[i] = GAB_VAL_NUMBER(i);
   }
 
-  return gab_obj_shape_create(gab, NULL, size, 1, keys);
+  return gab_obj_shape_create(gab, vm, size, 1, keys);
 }
 
-gab_obj_shape *gab_obj_shape_create(gab_engine *gab, boolean *was_interned,
-                                    u64 size, u64 stride,
-                                    gab_value keys[size]) {
+gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 size,
+                                    u64 stride, gab_value keys[size]) {
   u64 hash = keys_hash(size, stride, keys);
 
   gab_obj_shape *interned =
       gab_engine_find_shape(gab, size, stride, hash, keys);
 
-  if (was_interned)
-    *was_interned = interned != NULL;
-
   if (interned)
     return interned;
+
+  if (vm != NULL) {
+    for (u64 i = 0; i < size; i++) {
+      gab_gc_iref(&gab->gc, vm, keys[i * stride]);
+    }
+  }
 
   gab_obj_shape *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_shape, gab_value, size, OBJECT_SHAPE);
@@ -382,26 +386,25 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, boolean *was_interned,
   return self;
 }
 
-gab_obj_shape *gab_obj_shape_extend(gab_engine *gab, gab_obj_shape *self,
-                                    boolean *was_interned, gab_value property) {
+gab_obj_shape *gab_obj_shape_grow(gab_engine *gab, gab_vm* vm, gab_obj_shape *self,
+                                  gab_value property) {
   gab_value keys[self->properties.len + 1];
 
   memcpy(keys, self->keys, self->properties.len * sizeof(gab_value));
 
   keys[self->properties.len] = property;
 
-  return gab_obj_shape_create(gab, was_interned, self->properties.len + 1, 1,
-                              keys);
+  return gab_obj_shape_create(gab, vm, self->properties.len + 1, 1, keys);
 }
 
-gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, gab_value values[],
-                                      u64 size, u64 stride) {
+gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, u64 size,
+                                      u64 stride, gab_value values[size]) {
 
   gab_obj_record *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_record, gab_value, size, OBJECT_RECORD);
 
   self->shape = shape;
-  self->static_size = size;
+  self->static_len = size;
 
   self->is_dynamic = false;
   self->dynamic_values.len = 0;
@@ -415,25 +418,30 @@ gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, gab_value values[],
   return self;
 }
 
-i16 gab_obj_record_extend(gab_obj_record *self, gab_obj_shape *new_shape,
-                          gab_value value) {
-
-  self->shape = new_shape;
+i16 gab_obj_record_grow(gab_engine *gab, gab_vm* vm, gab_obj_record *self,
+                        gab_value key, gab_value value) {
+  self->shape = gab_obj_shape_grow(gab, vm, self->shape, key);
 
   if (!self->is_dynamic) {
     self->is_dynamic = true;
 
-    u64 len = self->static_size < 8 ? 8 : self->static_size * 2;
+    u64 len = self->static_len < 8 ? 8 : self->static_len * 2;
 
     v_u64_create(&self->dynamic_values, len);
 
-    for (u8 i = 0; i < self->static_size; i++) {
-      v_u64_push(&self->dynamic_values, self->static_values[i]);
+    for (u8 i = 0; i < self->static_len; i++) {
+        v_u64_push(&self->dynamic_values, self->static_values[i]);
     }
   }
 
   return v_u64_push(&self->dynamic_values, value);
 }
+
+void gab_obj_record_shrink(gab_engine *gab, gab_vm* vm, gab_obj_record *self,
+                           gab_value key) {
+  if (self->is_dynamic) {
+  }
+};
 
 gab_obj_container *gab_obj_container_create(gab_obj_container_cb destructor,
                                             void *data) {

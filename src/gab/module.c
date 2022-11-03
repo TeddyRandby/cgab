@@ -17,17 +17,17 @@ gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
   return self;
 }
 
-void dref_all(gab_engine *gab, gab_module *mod, i32 vm) {
+void dref_all(gab_engine *gab, gab_module *mod) {
   for (u64 i = 0; i < mod->constants.cap; i++) {
     if (d_gab_constant_iexists(&mod->constants, i)) {
       gab_value v = d_gab_constant_ikey(&mod->constants, i);
-      gab_dref(gab, vm, v);
+      gab_dref(gab, NULL, v);
     }
   }
 }
 
 void gab_module_destroy(gab_engine* gab, gab_module *mod) {
-  dref_all(gab, mod, 0);
+  dref_all(gab, mod);
 
   v_u8_destroy(&mod->bytecode);
   v_u8_destroy(&mod->tokens);

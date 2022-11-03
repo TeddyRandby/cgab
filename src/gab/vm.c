@@ -95,14 +95,7 @@ void gab_vm_create(gab_vm *self) {
 
   self->frame = self->call_stack;
   self->top = self->stack;
-
-  gab_gc_create(&self->gc);
 }
-
-void gab_vm_destroy(gab_vm* vm) {
-    gab_gc_collect(&vm->gc, vm);
-    gab_gc_destroy(&vm->gc);
-};
 
 void dump_frame(gab_vm *vm, gab_value *top, const char *name) {
   printf("Frame at %s:\n-----------------\n", name);
@@ -195,7 +188,7 @@ static inline gab_value failure(gab_vm *vm) {
   return GAB_VAL_NULL();
 }
 
-gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
+gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
                      gab_value argv[argc]) {
 #if GAB_LOG_EXECUTION
 #define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
@@ -247,9 +240,9 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
 /*
   Lots of helper macros.
 */
-#define VM() (vm_ptr)
+#define VM() (&vm)
 #define ENGINE() (gab)
-#define GC() (&VM()->gc)
+#define GC() (&ENGINE()->gc)
 #define INSTR() (instr)
 #define FRAME() (frame)
 #define CLOSURE() (FRAME()->closure)
@@ -296,7 +289,9 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
    ----------- BEGIN RUN BODY -----------
   */
 
-  gab_vm *vm_ptr = v_gab_vm_ref_at(&gab->vms, vm);
+  gab_vm vm;
+  gab_vm_create(VM());
+
   register u8 instr;
   register u8 *ip;
   register gab_call_frame *frame = VM()->frame;
@@ -382,7 +377,7 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
         gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(callee);
 
         gab_value result =
-            (*builtin->function)(ENGINE(), vm, arity, TOP() - arity);
+            (*builtin->function)(ENGINE(), VM(), arity, TOP() - arity);
 
         TOP() -= arity + 1;
 
@@ -521,15 +516,14 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
 
     {
 
-      gab_value value, prop, index;
+      gab_value value, key, index;
       gab_obj_record *obj;
       i16 prop_offset;
-      boolean was_interned;
 
       CASE_CODE(SET_INDEX) : {
         // Leave these on the stack for now in case we collect.
         value = PEEK();
-        prop = PEEK2();
+        key = PEEK2();
         index = PEEK_N(3);
 
         if (!GAB_VAL_IS_RECORD(index)) {
@@ -543,19 +537,11 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
 
         obj = GAB_VAL_TO_RECORD(index);
 
-        prop_offset = gab_obj_shape_find(obj->shape, prop);
+        prop_offset = gab_obj_shape_find(obj->shape, key);
 
         if (prop_offset < 0) {
-          // The key didn't exist on the old shape.
-          // Create a new shape and update the cache.
-          gab_obj_shape *shape =
-              gab_obj_shape_extend(ENGINE(), obj->shape, &was_interned, prop);
-
-          if (!was_interned)
-            gab_gc_iref(GC(), VM(), prop);
-
           // Update the obj and get the new offset.
-          prop_offset = gab_obj_record_extend(obj, shape, value);
+          prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
         }
 
         DROP_N(3);
@@ -563,7 +549,7 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
       }
 
       CASE_CODE(SET_PROPERTY) : {
-        prop = READ_CONSTANT;
+        key = READ_CONSTANT;
         value = PEEK();
         index = PEEK2();
 
@@ -586,23 +572,18 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
           // The cache hasn't been created yet.
           *cached_shape = obj->shape;
 
-          prop_offset = gab_obj_shape_find(obj->shape, prop);
+          prop_offset = gab_obj_shape_find(obj->shape, key);
           // Writes into the short just before the ip.
           WRITE_SHORT(prop_offset);
         }
 
         if (prop_offset < 0) {
-          // The key didn't exist on the old shape.
-          // Create a new shape and update the cache.
-          *cached_shape = gab_obj_shape_extend(ENGINE(), *cached_shape,
-                                               &was_interned, prop);
-          if (!was_interned)
-            gab_gc_iref(GC(), VM(), prop);
 
           // Update the obj and get the new offset.
-          prop_offset = gab_obj_record_extend(obj, *cached_shape, value);
+          prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
 
-          // Write the offset.
+          // Update the cache
+          *cached_shape = obj->shape;
           WRITE_SHORT(prop_offset);
         }
 
@@ -611,7 +592,6 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
       }
 
     complete_obj_set : {
-
       gab_gc_iref(GC(), VM(), value);
       gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
 
@@ -834,7 +814,7 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
       if (GAB_VAL_IS_RECORD(index)) {
         gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
 
-        u8 have = obj->is_dynamic ? obj->dynamic_values.len : obj->static_size;
+        u8 have = obj->is_dynamic ? obj->dynamic_values.len : obj->static_len;
 
         TOP() = trim_return(VM(),
                             obj->is_dynamic ? obj->dynamic_values.data
@@ -1065,29 +1045,15 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
     {
       gab_obj_shape *shape;
       u8 size;
-      boolean was_interned;
 
       CASE_CODE(OBJECT_RECORD_DEF) : {
         gab_obj_string *name = READ_STRING;
 
         size = READ_BYTE;
 
-        shape = gab_obj_shape_create(ENGINE(), &was_interned, size, 2,
-                                     TOP() - size * 2);
+        shape = gab_obj_shape_create(ENGINE(), VM(), size, 2, TOP() - size * 2);
 
         shape->name = gab_obj_string_ref(name);
-
-        if (was_interned) {
-          // Increment the rc of the values only
-          for (u64 i = 1; i < size * 2; i += 2) {
-            gab_gc_iref(GC(), VM(), PEEK_N(i));
-          }
-        } else {
-          // Increment the rc for values and keys.
-          for (u64 i = 1; i < size * 2; i++) {
-            gab_gc_iref(GC(), VM(), PEEK_N(i));
-          }
-        }
 
         goto complete_record;
       }
@@ -1095,27 +1061,19 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
       CASE_CODE(OBJECT_RECORD) : {
         size = READ_BYTE;
 
-        shape = gab_obj_shape_create(ENGINE(), &was_interned, size, 2,
-                                     TOP() - size * 2);
-
-        if (was_interned) {
-          // Increment the rc of the values only
-          for (u64 i = 1; i < size * 2; i += 2) {
-            gab_gc_iref(GC(), VM(), PEEK_N(i));
-          }
-        } else {
-          // Increment the rc for values and keys.
-          for (u64 i = 1; i < size * 2; i++) {
-            gab_gc_iref(GC(), VM(), PEEK_N(i));
-          }
-        }
+        shape = gab_obj_shape_create(ENGINE(), VM(), size, 2, TOP() - size * 2);
 
         goto complete_record;
       }
 
     complete_record : {
+      // Increment the rc of the values only
+      for (u64 i = 1; i < size * 2; i += 2) {
+        gab_gc_iref(GC(), VM(), PEEK_N(i));
+      }
+
       gab_value obj = GAB_VAL_OBJ(
-          gab_obj_record_create(shape, TOP() + 1 - (size * 2), size, 2));
+          gab_obj_record_create(shape, size, 2, TOP() + 1 - (size * 2)));
 
       DROP_N(size * 2);
 
@@ -1134,10 +1092,10 @@ gab_value gab_vm_run(gab_engine *gab, i32 vm, gab_module *mod, u8 argc,
         gab_gc_iref(GC(), VM(), PEEK_N(i));
       }
 
-      gab_obj_shape *shape = gab_obj_shape_create_array(ENGINE(), size);
+      gab_obj_shape *shape = gab_obj_shape_create_array(ENGINE(), VM(), size);
 
       gab_value obj =
-          GAB_VAL_OBJ(gab_obj_record_create(shape, TOP() - (size), size, 1));
+          GAB_VAL_OBJ(gab_obj_record_create(shape, size, 1, TOP() - (size)));
 
       DROP_N(size);
 

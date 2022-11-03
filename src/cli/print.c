@@ -10,12 +10,12 @@ static inline void print_values(gab_value *argv, u8 argc) {
       // last iteration
       printf("\n");
     } else {
-      printf(", ");
+      printf(" ");
     }
   }
 }
 
-gab_value gab_lib_print(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_print(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   print_values(argv, argc);
   return GAB_VAL_NULL();
 }

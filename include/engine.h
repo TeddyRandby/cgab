@@ -27,9 +27,6 @@ static const char* gab_status_names[] = {
 #define LOAD DICT_MAX_LOAD
 #include "include/dict.h"
 
-#define T gab_vm
-#include "include/vector.h"
-
 struct gab_engine {
   /*
    * Where all the interned values live.
@@ -37,9 +34,9 @@ struct gab_engine {
   d_gab_intern interned;
 
   /*
-   * A vector of spawned vms
+   * The GC for the vm
    */
-  v_gab_vm vms;
+  gab_gc gc;
 
   /*
    * Optional Flags

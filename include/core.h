@@ -8,8 +8,6 @@
 #define GAB_LOG_GC 0
 // Log what is happening during execution.
 #define GAB_LOG_EXECUTION 0
-// TODO: Concurrent garbage collection.
-#define GAB_CONCURRENT_GC 0
 
 // Configurable macros
 // Dictionary maximum load

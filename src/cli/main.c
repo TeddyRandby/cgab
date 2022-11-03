@@ -14,7 +14,7 @@ void make_globals(gab_engine *gab) {
       GAB_BUILTIN(require),
   };
 
-  globals = GAB_RECORD(sizeof(values) / sizeof(gab_value), keys, values);
+  globals = GAB_RECORD(NULL, sizeof(values) / sizeof(gab_value), keys, values);
 }
 
 void gab_run_file(const char *path) {
@@ -30,31 +30,27 @@ void gab_run_file(const char *path) {
 
   gab_value result = GAB_VAL_NULL();
 
-  i32 vm = gab_spawn(gab);
-
   if (main == NULL) {
     goto fin;
   }
 
-  result = gab_run_main(gab, vm, main, globals);
+  result = gab_run_main(gab, main, globals);
 
   gab_module_destroy(gab, main);
 fin:
-  gab_dref(gab, vm, globals);
-  gab_dref(gab, vm, result);
+  gab_dref(gab, NULL, globals);
+  gab_dref(gab, NULL, result);
   gab_destroy(gab);
   a_i8_destroy(src);
   imports_destroy();
 }
 
 i32 main(i32 argc, const char **argv) {
-
   if (argc == 2) {
     gab_run_file(argv[1]);
   } else {
     fprintf(stderr, "Usage: gab [path]\n");
     exit(64);
   }
-
   return 0;
 }

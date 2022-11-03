@@ -5,6 +5,7 @@
 
 typedef struct gab_engine gab_engine;
 typedef struct gab_module gab_module;
+typedef struct gab_vm gab_vm;
 
 /**
  * Create a Gab Engine. If you want libraries included, build and bind them
@@ -57,16 +58,6 @@ gab_module *gab_compile(gab_engine *gab, u8 narguments, s_i8 name, s_i8 source);
 gab_module *gab_compile_main(gab_engine *gab, s_i8 source);
 
 /**
- * Spawn a new VM.
- *
- * @param gab The engine
- *
- * @return The new vm
- *
- */
-i32 gab_spawn(gab_engine *gab);
-
-/**
  * Run a module in the gab vm.
  *
  * @param  gab The engine
@@ -81,7 +72,7 @@ i32 gab_spawn(gab_engine *gab);
  *
  * @return The return value of the closure
  */
-gab_value gab_run(gab_engine *gab, i32 vm, gab_module *main, u8 argc,
+gab_value gab_run(gab_engine *gab, gab_module *main, u8 argc,
                   gab_value argv[argc]);
 
 /**
@@ -94,22 +85,21 @@ gab_value gab_run(gab_engine *gab, i32 vm, gab_module *main, u8 argc,
  *
  * @return The return value of the closure
  */
-gab_value gab_run_main(gab_engine *gab, i32 vm, gab_module *main,
-                       gab_value globals);
+gab_value gab_run_main(gab_engine *gab, gab_module *main, gab_value globals);
 
 /**
  * Decrement the RC of a gab value
  *
  * @param val The value to clean up
  */
-void gab_dref(gab_engine *gab, i32 vm, gab_value value);
+void gab_dref(gab_engine *gab, gab_vm *vm, gab_value value);
 
 /**
  * Increment the RC of a gab value
  *
  * @param val The value to clean up
  */
-void gab_iref(gab_engine *gab, i32 vm, gab_value value);
+void gab_iref(gab_engine *gab, gab_vm *vm, gab_value value);
 
 /**
  * Bundle a list of keys and values into a Gab object.
@@ -124,8 +114,8 @@ void gab_iref(gab_engine *gab, i32 vm, gab_value value);
  *
  * @return The gab value that the keys and values were bundled into
  */
-gab_value gab_bundle_record(gab_engine *gab, u64 size, s_i8 keys[size],
-                            gab_value values[size]);
+gab_value gab_bundle_record(gab_engine *gab, gab_vm *vm, u64 size,
+                            s_i8 keys[size], gab_value values[size]);
 
 /**
  * Bundle a list of values into a Gab object.
@@ -138,18 +128,19 @@ gab_value gab_bundle_record(gab_engine *gab, u64 size, s_i8 keys[size],
  *
  * @return The gab value that the keys and values were bundled into
  */
-gab_value gab_bundle_array(gab_engine *gab, u64 size, gab_value values[size]);
+gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
+                           gab_value values[size]);
 
 /**
  * A helper macro for creating a gab_obj_record
  */
-#define GAB_RECORD(size, keys, values)                                         \
-  GAB_VAL_OBJ(gab_bundle_record(gab, size, keys, values))
+#define GAB_RECORD(vm, size, keys, values)                                         \
+  GAB_VAL_OBJ(gab_bundle_record(gab, vm, size, keys, values))
 
 /**
  * A helper macro for creating a gab_obj_record
  */
-#define GAB_ARRAY(size, values) GAB_VAL_OBJ(gab_bundle_array(gab, size, values))
+#define GAB_ARRAY(vm, size, values) GAB_VAL_OBJ(gab_bundle_array(gab, vm, size, values))
 
 /**
  * A helper macro for creating a gab_obj_builtin

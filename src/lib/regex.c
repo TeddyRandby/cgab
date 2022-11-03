@@ -42,7 +42,7 @@ gab_value gab_lib_exec(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
   }
 
   gab_obj_record *list = gab_obj_record_create(
-      gab_obj_shape_create(gab, NULL, 0, 0, NULL), NULL, 0, 0);
+      gab_obj_shape_create(gab, NULL, 0, 0, NULL), 0, 0, NULL);
 
   u8 i = 0;
   while (matches[i].rm_so >= 0) {
@@ -83,7 +83,7 @@ gab_value gab_lib_find(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
   }
 
   gab_obj_record *list = gab_obj_record_create(
-      gab_obj_shape_create(gab, NULL, 0, 0, NULL), NULL, 0, 0);
+      gab_obj_shape_create(gab, NULL, 0, 0, NULL), 0, 0, NULL);
 
   u8 i = 0;
   while (matches[i].rm_so >= 0) {

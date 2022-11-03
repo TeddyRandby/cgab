@@ -1,24 +1,11 @@
-def each(i)
-    let v = -1
+ let obj  = {} 
 
-    do ||
-        return i[(v = v + 1)], v
+def inner()
+    obj.test = 'hi' 
+
+    def innest()
+        obj.test
     end
 end
 
-def join(arr)
-    let str = ""
-
-    for s in arr:each()
-        str = '{str}{s}'
-    end
-
-    str
-end
-
-let hello = 'hello'
-(hello == 'hello'):!print()
-
-[hello ' ' 'world' '!']:join():!print()
-
-(hello == 'hello'):!print()
+inner()():!print()

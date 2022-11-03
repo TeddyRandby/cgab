@@ -16,10 +16,10 @@ void gab_obj_iref(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
 }
 
 void gab_obj_dref(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
-  gc->decrements[gc->decrement_count++] = obj;
   if (gc->decrement_count == INC_DEC_MAX) {
     gab_gc_collect(gc, vm);
   }
+  gc->decrements[gc->decrement_count++] = obj;
 }
 
 #if GAB_DEBUG_GC
@@ -42,6 +42,9 @@ void __gab_gc_iref(gab_gc *gc, gab_vm *vm, gab_value obj, const char *file,
 void __gab_gc_dref(gab_gc *gc, gab_vm *vm, gab_value obj, const char *file,
                    i32 line) {
 
+  if (debug_collect)
+    gab_gc_collect(gc, vm);
+
   if (GAB_VAL_IS_OBJ(obj)) {
     gab_obj_dref(gc, vm, GAB_VAL_TO_OBJ(obj));
     v_rc_update_push(&gc->tracked_decrements, (rc_update){
@@ -50,9 +53,6 @@ void __gab_gc_dref(gab_gc *gc, gab_vm *vm, gab_value obj, const char *file,
                                                   .line = line,
                                               });
   }
-
-  if (debug_collect)
-    gab_gc_collect(gc, vm);
 }
 
 static inline void dump_rcs_for(gab_gc *gc, gab_value val) {
@@ -71,7 +71,6 @@ static inline void dump_rcs_for(gab_gc *gc, gab_value val) {
     }
   }
 }
-
 
 #else
 
@@ -221,7 +220,7 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
         }
       }
     } else {
-      for (u64 i = 0; i < object->static_size; i++) {
+      for (u64 i = 0; i < object->static_len; i++) {
         if (GAB_VAL_IS_OBJ(object->static_values[i])) {
           fnc(gc, GAB_VAL_TO_OBJ(object->static_values[i]));
         }
@@ -272,7 +271,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
         }
       }
     } else {
-      for (u64 i = 0; i < object->static_size; i++) {
+      for (u64 i = 0; i < object->static_len; i++) {
         if (GAB_VAL_IS_OBJ(object->static_values[i])) {
           fnc(GAB_VAL_TO_OBJ(object->static_values[i]));
         }
@@ -319,7 +318,7 @@ static inline void dec_child_refs(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
         }
       }
     } else {
-      for (u64 i = 0; i < object->static_size; i++) {
+      for (u64 i = 0; i < object->static_len; i++) {
         if (GAB_VAL_IS_OBJ(object->static_values[i])) {
           dec_if_obj_ref(gc, vm, object->static_values[i]);
         }
