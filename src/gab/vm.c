@@ -298,9 +298,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
   register gab_value *slots = TOP();
 
   // Setup for call to main function
-  gab_value main_closure = d_gab_constant_ikey(&mod->constants, mod->main);
-
-  PUSH(main_closure);
+  PUSH(d_gab_constant_ikey(&mod->constants, mod->main));
   for (u8 i = 0; i < argc; i++) {
     PUSH(argv[i]);
   }
