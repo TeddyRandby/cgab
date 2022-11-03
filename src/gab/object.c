@@ -292,18 +292,19 @@ s_i8 gab_obj_string_ref(gab_obj_string *self) {
 }
 
 gab_obj_function *gab_obj_function_create(u8 narguments, u8 nupvalues,
-                                          u8 nlocals, u64 offset, s_i8 name) {
+                                          u8 nlocals, u64 offset,
+                                          gab_module *mod, s_i8 name) {
   gab_obj_function *self = GAB_CREATE_OBJ(gab_obj_function, OBJECT_FUNCTION);
 
   self->narguments = narguments;
   self->nupvalues = nupvalues;
   self->nlocals = nlocals;
-  self->name = name;
   self->offset = offset;
+  self->mod = mod;
+  self->name = name;
 
   // Functions cannot reference other objects - mark them green.
   GAB_OBJ_GREEN((gab_obj *)self);
-
   return self;
 }
 
@@ -386,8 +387,8 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 size,
   return self;
 }
 
-gab_obj_shape *gab_obj_shape_grow(gab_engine *gab, gab_vm* vm, gab_obj_shape *self,
-                                  gab_value property) {
+gab_obj_shape *gab_obj_shape_grow(gab_engine *gab, gab_vm *vm,
+                                  gab_obj_shape *self, gab_value property) {
   gab_value keys[self->properties.len + 1];
 
   memcpy(keys, self->keys, self->properties.len * sizeof(gab_value));
@@ -418,7 +419,7 @@ gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, u64 size,
   return self;
 }
 
-i16 gab_obj_record_grow(gab_engine *gab, gab_vm* vm, gab_obj_record *self,
+i16 gab_obj_record_grow(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
                         gab_value key, gab_value value) {
   self->shape = gab_obj_shape_grow(gab, vm, self->shape, key);
 
@@ -430,14 +431,14 @@ i16 gab_obj_record_grow(gab_engine *gab, gab_vm* vm, gab_obj_record *self,
     v_u64_create(&self->dynamic_values, len);
 
     for (u8 i = 0; i < self->static_len; i++) {
-        v_u64_push(&self->dynamic_values, self->static_values[i]);
+      v_u64_push(&self->dynamic_values, self->static_values[i]);
     }
   }
 
   return v_u64_push(&self->dynamic_values, value);
 }
 
-void gab_obj_record_shrink(gab_engine *gab, gab_vm* vm, gab_obj_record *self,
+void gab_obj_record_shrink(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
                            gab_value key) {
   if (self->is_dynamic) {
   }

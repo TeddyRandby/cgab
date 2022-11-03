@@ -185,6 +185,11 @@ struct gab_obj_function {
   u64 offset;
 
   /*
+   * The module owning the function.
+   */
+  gab_module *mod;
+
+  /*
    * The name of the function
    */
   s_i8 name;
@@ -194,7 +199,8 @@ struct gab_obj_function {
 #define GAB_VAL_TO_FUNCTION(value) ((gab_obj_function *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_FUNCTION(value) ((gab_obj_function *)value)
 gab_obj_function *gab_obj_function_create(u8 narguments, u8 nupvalues,
-                                          u8 nlocals, u64 offset, s_i8 name);
+                                          u8 nlocals, u64 offset,
+                                          gab_module *mod, s_i8 name);
 
 /*
   ------------- OBJ_UPVALUE -------------

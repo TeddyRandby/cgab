@@ -1,10 +1,11 @@
  let obj  = {} 
 
 def inner()
-    obj.test = 'hi' 
+    obj.test = obj
 
     def innest()
-        obj.test
+        obj.test = 'hi'
+        obj.test = 'world'
     end
 end
 

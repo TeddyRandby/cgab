@@ -488,8 +488,9 @@ gab_obj_function *compile_function_body(gab_engine *gab, gab_bc *bc,
   // Patch the jump to skip over the function body
   gab_module_patch_jump(mod, skip_jump);
 
-  return gab_obj_function_create(
-      arity, frame->upv_count, frame->deepest_local - arity - 1, offset, name);
+  return gab_obj_function_create(arity, frame->upv_count,
+                                 frame->deepest_local - arity - 1, offset, mod,
+                                 name);
 }
 
 i32 compile_function(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
@@ -1979,7 +1980,7 @@ i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 narguments,
   u8 top_level_locals = peek_frame(bc, 0)->deepest_local - narguments - 1;
 
   gab_obj_function *f =
-      gab_obj_function_create(narguments, 0, top_level_locals, 0, name);
+      gab_obj_function_create(narguments, 0, top_level_locals, 0, mod, name);
 
   gab_obj_closure *c = gab_obj_closure_create(f, NULL);
 

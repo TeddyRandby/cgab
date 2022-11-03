@@ -246,7 +246,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 #define INSTR() (instr)
 #define FRAME() (frame)
 #define CLOSURE() (FRAME()->closure)
-#define MODULE() (mod)
+#define MODULE() (CLOSURE()->func->mod)
 #define IP() (ip)
 #define TOP() (VM()->top)
 #define SLOTS() (slots)
@@ -298,7 +298,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
   register gab_value *slots = TOP();
 
   // Setup for call to main function
-  gab_value main_closure = MOD_CONSTANT(MODULE()->main);
+  gab_value main_closure = d_gab_constant_ikey(&mod->constants, mod->main);
 
   PUSH(main_closure);
   for (u8 i = 0; i < argc; i++) {
@@ -542,7 +542,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         if (prop_offset < 0) {
           // Update the obj and get the new offset.
           prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
+        } else {
+          gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
+
+          gab_obj_record_set(obj, prop_offset, value);
         }
+
 
         DROP_N(3);
         goto complete_obj_set;
@@ -585,6 +590,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
           // Update the cache
           *cached_shape = obj->shape;
           WRITE_SHORT(prop_offset);
+        } else {
+          gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
+
+          gab_obj_record_set(obj, prop_offset, value);
         }
 
         DROP_N(2);
@@ -593,9 +602,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
     complete_obj_set : {
       gab_gc_iref(GC(), VM(), value);
-      gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
-
-      gab_obj_record_set(obj, prop_offset, value);
 
       PUSH(value);
 
