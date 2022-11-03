@@ -12,7 +12,7 @@ void gab_container_socket_cb(gab_obj_container *self) {
   shutdown((i64)self->data, SHUT_RDWR);
 }
 
-gab_value gab_lib_sock(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_sock(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
 
   i64 result = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -23,7 +23,7 @@ gab_value gab_lib_sock(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
   return GAB_CONTAINER(gab_container_socket_cb, (void*) result);
 }
 
-gab_value gab_lib_bind(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_bind(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
 
   if (argc != 2 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
       !GAB_VAL_IS_NUMBER(argv[1])) {
@@ -47,7 +47,7 @@ gab_value gab_lib_bind(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
   return GAB_VAL_BOOLEAN(true);
 }
 
-gab_value gab_lib_listen(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_listen(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
       !GAB_VAL_IS_NUMBER(argv[1])) {
     return GAB_VAL_NULL();
@@ -64,7 +64,7 @@ gab_value gab_lib_listen(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc])
   return GAB_VAL_IS_BOOLEAN(true);
 }
 
-gab_value gab_lib_accept(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_accept(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (argc != 1 || !GAB_VAL_IS_CONTAINER(argv[0])) {
     return GAB_VAL_NULL();
   }
@@ -83,7 +83,7 @@ gab_value gab_lib_accept(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc])
   return GAB_CONTAINER(gab_container_socket_cb, (void*) result);
 }
 
-gab_value gab_lib_connect(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_connect(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (argc != 3 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
       !GAB_VAL_TO_NUMBER(argv[2]) || !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
@@ -110,7 +110,7 @@ gab_value gab_lib_connect(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]
   return GAB_VAL_BOOLEAN(true);
 }
 
-gab_value gab_lib_receive(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_receive(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (argc != 1 || !GAB_VAL_IS_CONTAINER(argv[0])) {
     return GAB_VAL_NULL();
   }
@@ -130,7 +130,7 @@ gab_value gab_lib_receive(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]
   return GAB_VAL_OBJ(gab_obj_string_create(eng, msg));
 }
 
-gab_value gab_lib_send(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_send(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
       !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
@@ -149,7 +149,7 @@ gab_value gab_lib_send(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
   return GAB_VAL_BOOLEAN(true);
 }
 
-gab_value gab_mod(gab_engine *gab) {
+gab_value gab_mod(gab_engine *gab, gab_vm* vm) {
   s_i8 keys[] = {
       s_i8_cstr("sock"),    s_i8_cstr("bind"),    s_i8_cstr("listen"),
       s_i8_cstr("accept"),  s_i8_cstr("receive"), s_i8_cstr("send"),
@@ -162,5 +162,5 @@ gab_value gab_mod(gab_engine *gab) {
       GAB_BUILTIN(connect),
   };
 
-  return gab_bundle_record(gab, LEN_CARRAY(values), keys, values);
+  return gab_bundle_record(gab, vm, LEN_CARRAY(values), keys, values);
 }

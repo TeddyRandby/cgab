@@ -3,7 +3,8 @@
 #include "include/object.h"
 #include <string.h>
 
-gab_value gab_lib_slice(gab_engine *eng,i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_slice(gab_engine *eng, gab_vm *vm, u8 argc,
+                        gab_value argv[argc]) {
   if (!GAB_VAL_IS_STRING(argv[0])) {
     return GAB_VAL_NULL();
   }
@@ -31,7 +32,7 @@ gab_value gab_lib_slice(gab_engine *eng,i32 vm, u8 argc, gab_value argv[argc]) {
   return GAB_VAL_OBJ(gab_obj_string_create(eng, result));
 };
 
-gab_value gab_mod(gab_engine *gab) {
+gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   s_i8 keys[] = {
       s_i8_cstr("slice"),
   };
@@ -40,5 +41,5 @@ gab_value gab_mod(gab_engine *gab) {
       GAB_BUILTIN(slice),
   };
 
-  return gab_bundle_record(gab, LEN_CARRAY(values), keys, values);
+  return gab_bundle_record(gab, vm, LEN_CARRAY(values), keys, values);
 }

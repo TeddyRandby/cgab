@@ -3,7 +3,7 @@
 #include "include/gab.h"
 #include "include/value.h"
 
-gab_value gab_lib_keys(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_keys(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (!GAB_VAL_IS_RECORD(argv[0])) {
     return GAB_VAL_NULL();
   }
@@ -12,7 +12,7 @@ gab_value gab_lib_keys(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
 
   u64 size = obj->is_dynamic ? obj->dynamic_values.len : obj->static_len;
 
-  gab_obj_shape *shape = gab_obj_shape_create_array(gab, size);
+  gab_obj_shape *shape = gab_obj_shape_create_array(gab, vm, size);
 
   gab_value list =
       GAB_VAL_OBJ(gab_obj_record_create(shape, size, 1, obj->shape->keys));
@@ -20,7 +20,7 @@ gab_value gab_lib_keys(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
   return list;
 }
 
-gab_value gab_lib_len(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_len(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (GAB_VAL_IS_RECORD(argv[0])) {
     gab_obj_record *obj = GAB_VAL_TO_RECORD(argv[0]);
 
@@ -37,7 +37,7 @@ gab_value gab_lib_len(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
   return GAB_VAL_NULL();
 }
 
-gab_value gab_lib_pop(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_pop(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (argc != 1 || !GAB_VAL_IS_RECORD(argv[0])) {
     return GAB_VAL_NULL();
   }
@@ -54,7 +54,7 @@ gab_value gab_lib_pop(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
   return GAB_VAL_OBJ(r);
 }
 
-gab_value gab_lib_push(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_push(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_RECORD(argv[0])) {
     return GAB_VAL_NULL();
   }
@@ -63,7 +63,7 @@ gab_value gab_lib_push(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
 
   for (u8 i = 1; i < argc; i++) {
     u64 index = obj->is_dynamic ? obj->dynamic_values.len : obj->static_len;
-    gab_obj_record_insert(gab, obj, GAB_VAL_NUMBER(index), argv[i]);
+    gab_obj_record_insert(gab, vm, obj, GAB_VAL_NUMBER(index), argv[i]);
   }
 
   return GAB_VAL_OBJ(obj);
@@ -74,7 +74,7 @@ gab_value gab_lib_push(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (a < 0 ? 0 : MIN(a, b))
 
-gab_value gab_lib_slice(gab_engine *gab, i32 vm, u8 argc,
+gab_value gab_lib_slice(gab_engine *gab, gab_vm* vm, u8 argc,
                         gab_value argv[argc]) {
   if (argc < 1 && !GAB_VAL_IS_RECORD(argv[0])) {
     return GAB_VAL_NULL();
@@ -121,7 +121,7 @@ gab_value gab_lib_slice(gab_engine *gab, i32 vm, u8 argc,
   return GAB_VAL_OBJ(record);
 }
 
-gab_value gab_mod(gab_engine *gab) {
+gab_value gab_mod(gab_engine *gab, gab_vm* vm) {
   s_i8 keys[] = {s_i8_cstr("keys"), s_i8_cstr("len"), s_i8_cstr("pop"),
                  s_i8_cstr("push"), s_i8_cstr("slice")};
 
@@ -133,5 +133,5 @@ gab_value gab_mod(gab_engine *gab) {
       GAB_BUILTIN(slice),
   };
 
-  return gab_bundle_record(gab, LEN_CARRAY(values), keys, values);
+  return gab_bundle_record(gab, vm, LEN_CARRAY(values), keys, values);
 }

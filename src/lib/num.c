@@ -60,7 +60,7 @@ static f64 random_float() {
   return result;
 }
 
-gab_value gab_lib_random(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_random(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
 
   f64 min, max;
 
@@ -99,7 +99,7 @@ gab_value gab_lib_random(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc])
   return GAB_VAL_NUMBER(num);
 }
 
-gab_value gab_lib_floor(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_floor(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
 
   if (argc != 1 || !GAB_VAL_IS_NUMBER(argv[0])) {
     return GAB_VAL_NULL();
@@ -111,7 +111,7 @@ gab_value gab_lib_floor(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) 
   return GAB_VAL_NUMBER(int_num + (float_num < 0));
 }
 
-gab_value gab_lib_from(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_from(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (!GAB_VAL_IS_STRING(argv[0])) {
     return GAB_VAL_NULL();
   }
@@ -127,7 +127,7 @@ gab_value gab_lib_from(gab_engine *eng, i32 vm, u8 argc, gab_value argv[argc]) {
   return GAB_VAL_NUMBER(strtod(cstr, NULL));
 };
 
-gab_value gab_mod(gab_engine *gab, i32 vm) {
+gab_value gab_mod(gab_engine *gab, gab_vm* vm) {
   s_i8 keys[] = {
       s_i8_cstr("random"),
       s_i8_cstr("floor"),
@@ -140,5 +140,5 @@ gab_value gab_mod(gab_engine *gab, i32 vm) {
       GAB_BUILTIN(from),
   };
 
-  return gab_bundle_record(gab, LEN_CARRAY(values), keys, values);
+  return gab_bundle_record(gab, vm, LEN_CARRAY(values), keys, values);
 }

@@ -10,7 +10,7 @@ void gab_container_reg_cb(gab_obj_container *self) {
   DESTROY(self->data);
 }
 
-gab_value gab_lib_comp(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_comp(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (argc != 1 || !GAB_VAL_IS_STRING(argv[0])) {
     return GAB_VAL_NULL();
   }
@@ -24,7 +24,7 @@ gab_value gab_lib_comp(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
   return GAB_CONTAINER(gab_container_reg_cb, re);
 }
 
-gab_value gab_lib_exec(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_exec(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_STRING(argv[0]) ||
       !GAB_VAL_IS_CONTAINER(argv[1])) {
     return GAB_VAL_NULL();
@@ -52,14 +52,14 @@ gab_value gab_lib_exec(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
     gab_value key = GAB_VAL_NUMBER(i);
     gab_value value = GAB_VAL_OBJ(gab_obj_string_create(gab, match));
 
-    gab_obj_record_insert(gab, list, key, value);
+    gab_obj_record_insert(gab, vm, list, key, value);
     i++;
   }
 
   return GAB_VAL_OBJ(list);
 }
 
-gab_value gab_lib_find(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_find(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_STRING(argv[0]) || !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
   }
@@ -93,14 +93,14 @@ gab_value gab_lib_find(gab_engine *gab, i32 vm, u8 argc, gab_value argv[argc]) {
     gab_value key = GAB_VAL_NUMBER(i);
     gab_value value = GAB_VAL_OBJ(gab_obj_string_create(gab, match));
 
-    gab_obj_record_insert(gab, list, key, value);
+    gab_obj_record_insert(gab, vm, list, key, value);
     i++;
   }
 
   return GAB_VAL_OBJ(list);
 }
 
-gab_value gab_mod(gab_engine *gab) {
+gab_value gab_mod(gab_engine *gab, gab_vm* vm) {
   s_i8 keys[] = {
       s_i8_cstr("find"),
       s_i8_cstr("comp"),
@@ -113,5 +113,5 @@ gab_value gab_mod(gab_engine *gab) {
       GAB_BUILTIN(exec),
   };
 
-  return gab_bundle_record(gab, LEN_CARRAY(values), keys, values);
+  return gab_bundle_record(gab, vm, LEN_CARRAY(values), keys, values);
 }
