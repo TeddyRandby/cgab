@@ -130,7 +130,6 @@ LINKAGE u64 METHOD(index_of)(TYPENAME *self, K key) {
   for (;;) {
     BUCKET_T *bucket = self->buckets + index;
     K test_key = bucket->key;
-    // V test_val = bucket->val;
 
     switch (bucket->status) {
     case D_TOMBSTONE:
@@ -223,10 +222,6 @@ LINKAGE boolean METHOD(exists)(TYPENAME *self, K key) {
 }
 
 LINKAGE V METHOD(read)(TYPENAME *self, K key) {
-  if (self->len == 0) {
-    return false;
-  }
-
   u64 index = METHOD(index_of)(self, key);
 
   BUCKET_T *bucket = self->buckets + index;

@@ -12,8 +12,10 @@ void gab_container_file_cb(gab_obj_container *self) {
   }
 }
 
-gab_value gab_lib_open(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
-  if (argc != 2 || !GAB_VAL_IS_STRING(argv[0]) || !GAB_VAL_IS_STRING(argv[1])) {
+gab_value gab_lib_open(gab_engine *eng, gab_vm *vm, gab_value receiver, u8 argc,
+                       gab_value argv[argc]) {
+  if (argc != 2 || !GAB_VAL_IS_STRING(argv[0]) ||
+      !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
   }
 
@@ -38,12 +40,13 @@ gab_value gab_lib_open(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc
   return container;
 }
 
-gab_value gab_lib_read(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
-  if (argc != 1 || !GAB_VAL_TO_CONTAINER(argv[0])) {
+gab_value gab_lib_read(gab_engine *eng, gab_vm *vm, gab_value receiver, u8 argc,
+                       gab_value argv[argc]) {
+  if (argc != 0 || !GAB_VAL_TO_CONTAINER(receiver)) {
     return GAB_VAL_NULL();
   }
 
-  gab_obj_container *file_obj = GAB_VAL_TO_CONTAINER(argv[0]);
+  gab_obj_container *file_obj = GAB_VAL_TO_CONTAINER(receiver);
   if (file_obj->destructor != gab_container_file_cb) {
     return GAB_VAL_NULL();
   }
@@ -67,18 +70,19 @@ gab_value gab_lib_read(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc
   return GAB_VAL_OBJ(result);
 }
 
-gab_value gab_lib_write(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
-  if (argc != 2 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
-      !GAB_VAL_IS_STRING(argv[1])) {
+gab_value gab_lib_write(gab_engine *eng, gab_vm *vm, gab_value receiver,
+                        u8 argc, gab_value argv[argc]) {
+  if (argc != 1 || !GAB_VAL_IS_CONTAINER(receiver) ||
+      !GAB_VAL_IS_STRING(argv[0])) {
     return GAB_VAL_NULL();
   }
 
-  gab_obj_container *handle = GAB_VAL_TO_CONTAINER(argv[0]);
+  gab_obj_container *handle = GAB_VAL_TO_CONTAINER(receiver);
   if (handle->destructor != gab_container_file_cb || handle->data == NULL) {
     return GAB_VAL_NULL();
   }
 
-  gab_obj_string *data_obj = GAB_VAL_TO_STRING(argv[1]);
+  gab_obj_string *data_obj = GAB_VAL_TO_STRING(argv[0]);
   char data[data_obj->len + 1];
   memcpy(data, data_obj->data, sizeof(i8) * data_obj->len);
   data[data_obj->len] = '\0';
@@ -92,11 +96,19 @@ gab_value gab_lib_write(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[arg
   }
 }
 
-gab_value gab_mod(gab_engine *gab, gab_vm* vm) {
+gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   s_i8 keys[] = {
       s_i8_cstr("open"),
       s_i8_cstr("read"),
       s_i8_cstr("write"),
+  };
+
+  gab_value container_type = gab_get_type(gab, TYPE_CONTAINER);
+
+  gab_value receiver_types[] = {
+      GAB_VAL_NULL(),
+      container_type,
+      container_type,
   };
 
   gab_value values[] = {
@@ -105,5 +117,12 @@ gab_value gab_mod(gab_engine *gab, gab_vm* vm) {
       GAB_BUILTIN(write),
   };
 
-  return gab_bundle_record(gab, vm, LEN_CARRAY(values), keys, values);
+  gab_value bundle[3];
+
+  for (u8 i = 0; i < 3; i++) {
+    bundle[i] = gab_bundle_function(gab, vm, keys[i], 1, receiver_types + i,
+                                    values + i);
+  }
+
+  return gab_bundle_record(gab, vm, LEN_CARRAY(keys), keys, bundle);
 }

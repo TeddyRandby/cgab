@@ -17,8 +17,7 @@ typedef gab_value (*module_f)(gab_engine *);
 typedef struct {
   handler_f handler;
   const char *prefix;
-  const char *suffix;
-} resource;
+  const char *suffix; } resource;
 
 typedef enum {
   IMPORT_SHARED,
@@ -35,7 +34,6 @@ struct import {
 };
 
 d_import imports = {0};
-extern gab_value globals;
 
 void import_destroy(import *i) {
   switch (i->k) {
@@ -105,13 +103,15 @@ gab_value gab_source_file_handler(gab_engine *gab, const a_i8 *path,
                                   const s_i8 module) {
   a_i8 *src = os_read_file((char *)path->data);
 
-  gab_module *pkg = gab_compile_main(gab, s_i8_create(src->data, src->len));
+  gab_module *pkg =
+      gab_compile(gab, s_i8_cstr("module"), s_i8_create(src->data, src->len),
+                  10, global_arg_names);
 
   if (pkg == NULL) {
     return GAB_VAL_NULL();
   }
 
-  gab_value res = gab_run_main(gab, pkg, globals);
+  gab_value res = gab_run(gab, pkg, 10, global_arg_values);
 
   import *i = NEW(import);
 
@@ -161,10 +161,10 @@ a_i8 *match_resource(resource *res, s_i8 name) {
   return NULL;
 }
 
-gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
-                          gab_value argv[argc]) {
+gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, gab_value receiver,
+                          u8 argc, gab_value argv[argc]) {
 
-  if (!GAB_VAL_IS_STRING(argv[0])) {
+  if (!GAB_VAL_IS_STRING(argv[0]) || argc != 1) {
     return GAB_VAL_NULL();
   }
 

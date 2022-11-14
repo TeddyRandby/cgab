@@ -42,20 +42,8 @@ void gab_module_destroy(gab_engine *gab, gab_module *mod);
  *
  * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
  */
-gab_module *gab_compile(gab_engine *gab, u8 narguments, s_i8 name, s_i8 source);
-
-/**
- * Compile a source string into a Gab Module.
- * This will compile the module with one implicit argument: the __globals__
- * object.
- *
- * @param gab The engine
- *
- * @param source The source code
- *
- * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
- */
-gab_module *gab_compile_main(gab_engine *gab, s_i8 source);
+gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 narguments,
+                        s_i8 args[narguments]);
 
 /**
  * Run a module in the gab vm.
@@ -74,18 +62,6 @@ gab_module *gab_compile_main(gab_engine *gab, s_i8 source);
  */
 gab_value gab_run(gab_engine *gab, gab_module *main, u8 argc,
                   gab_value argv[argc]);
-
-/**
- * Run a gab_obj_closure in the gab vm. This will implicitly pass
- * the globals record as the single argument to the function.
- *
- * @param gab The engine
- *
- * @param main The gab_obj_closure to call
- *
- * @return The return value of the closure
- */
-gab_value gab_run_main(gab_engine *gab, gab_module *main, gab_value globals);
 
 /**
  * Decrement the RC of a gab value
@@ -132,21 +108,38 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
                            gab_value values[size]);
 
 /**
+ *
+ */
+gab_value gab_bundle_function(gab_engine *gab, gab_vm *vm, s_i8 name, u64 size,
+                              gab_value receivers[size],
+                              gab_value specializations[size]);
+
+static boolean gab_val_falsey(gab_value self);
+
+static gab_value gab_val_type(gab_engine *gab, gab_value self);
+
+gab_value gab_get_type(gab_engine *gab, gab_type t);
+
+/**
  * A helper macro for creating a gab_obj_record
  */
-#define GAB_RECORD(vm, size, keys, values)                                         \
+#define GAB_RECORD(vm, size, keys, values)                                     \
   GAB_VAL_OBJ(gab_bundle_record(gab, vm, size, keys, values))
 
 /**
  * A helper macro for creating a gab_obj_record
  */
-#define GAB_ARRAY(vm, size, values) GAB_VAL_OBJ(gab_bundle_array(gab, vm, size, values))
+#define GAB_ARRAY(vm, size, values)                                            \
+  GAB_VAL_OBJ(gab_bundle_array(gab, vm, size, values))
 
 /**
  * A helper macro for creating a gab_obj_builtin
  */
 #define GAB_BUILTIN(name)                                                      \
   GAB_VAL_OBJ(gab_obj_builtin_create(gab_lib_##name, s_i8_cstr(#name)))
+
+#define GAB_FUNCTION(vm, name, size, r, s)                                     \
+  GAB_VAL_OBJ(gab_bundle_function(gab, vm, s_i8_cstr(#name), size, r, s))
 
 /**
  * A helper macro for creating a gab_obj_string
@@ -158,4 +151,9 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
  * A helper macro for creating a gab_obj_container
  */
 #define GAB_CONTAINER(cb, data) GAB_VAL_OBJ(gab_obj_container_create(cb, data))
+
+/**
+ *
+ */
+#define GAB_SYMBOL(name) GAB_VAL_OBJ(gab_obj_symbol_create(s_i8_cstr(name)))
 #endif

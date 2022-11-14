@@ -8,6 +8,8 @@
 #define GAB_LOG_GC 0
 // Log what is happening during execution.
 #define GAB_LOG_EXECUTION 0
+// Cache property offsets inline in the bytecode.
+#define GAB_CACHE_PROPERTIES 1
 
 // Configurable macros
 // Dictionary maximum load
@@ -20,6 +22,8 @@
 #define FUNCTION_DEF_NESTING_MAX 64
 // Maximum number of roots inthe root buffer before triggering a collection.
 #define ROOT_MAX 1024
+// Initial capacity of interned table
+#define INTERN_INITIAL_CAP 1024
 
 // Derived macros
 // Garbage collection increment/decrement buffer size

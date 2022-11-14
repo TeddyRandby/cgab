@@ -187,22 +187,33 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
                                        child_and_gc_iter fnc) {
   gab_obj *child;
   switch (obj->kind) {
-  case (OBJECT_CLOSURE): {
+  case (TYPE_CLOSURE): {
     gab_obj_closure *closure = (gab_obj_closure *)obj;
-    for (u8 i = 0; i < closure->func->nupvalues; i++) {
+    for (u8 i = 0; i < closure->p->nupvalues; i++) {
       child = (gab_obj *)closure->upvalues[i];
       fnc(gc, child);
     }
     return;
   }
-  case (OBJECT_UPVALUE): {
+  case (TYPE_FUNCTION): {
+    gab_obj_function *func = (gab_obj_function *)obj;
+    for (u64 i = 0; i < func->s.cap; i++) {
+      if (d_specs_iexists(&func->s, i)) {
+        gab_value s = d_specs_ival(&func->s, i);
+        if (GAB_VAL_IS_OBJ(s)) {
+          fnc(gc, GAB_VAL_TO_OBJ(s));
+        }
+      }
+    }
+  }
+  case (TYPE_UPVALUE): {
     gab_obj_upvalue *upvalue = (gab_obj_upvalue *)obj;
     if (GAB_VAL_IS_OBJ(*upvalue->data)) {
       fnc(gc, GAB_VAL_TO_OBJ(*upvalue->data));
     };
     return;
   }
-  case OBJECT_SHAPE: {
+  case TYPE_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
     for (u64 i = 0; i < shape->properties.len; i++) {
       if (GAB_VAL_IS_OBJ(shape->keys[i])) {
@@ -211,7 +222,7 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
     }
     return;
   }
-  case (OBJECT_RECORD): {
+  case (TYPE_RECORD): {
     gab_obj_record *object = (gab_obj_record *)obj;
     if (object->is_dynamic) {
       for (u64 i = 0; i < object->dynamic_values.len; i++) {
@@ -237,22 +248,33 @@ typedef void (*child_iter)(gab_obj *obj);
 static inline void for_child_do(gab_obj *obj, child_iter fnc) {
   gab_obj *child;
   switch (obj->kind) {
-  case (OBJECT_CLOSURE): {
+  case (TYPE_CLOSURE): {
     gab_obj_closure *closure = (gab_obj_closure *)obj;
-    for (u8 i = 0; i < closure->func->nupvalues; i++) {
+    for (u8 i = 0; i < closure->p->nupvalues; i++) {
       child = (gab_obj *)closure->upvalues[i];
       fnc(child);
     }
     return;
   }
-  case (OBJECT_UPVALUE): {
+  case (TYPE_FUNCTION): {
+    gab_obj_function *func = (gab_obj_function *)obj;
+    for (u64 i = 0; i < func->s.cap; i++) {
+      if (d_specs_iexists(&func->s, i)) {
+        gab_value s = d_specs_ival(&func->s, i);
+        if (GAB_VAL_IS_OBJ(s)) {
+          fnc(GAB_VAL_TO_OBJ(s));
+        }
+      }
+    }
+  }
+  case (TYPE_UPVALUE): {
     gab_obj_upvalue *upvalue = (gab_obj_upvalue *)obj;
     if (GAB_VAL_IS_OBJ(*upvalue->data)) {
       fnc(GAB_VAL_TO_OBJ(*upvalue->data));
     };
     return;
   }
-  case OBJECT_SHAPE: {
+  case TYPE_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
     for (u64 i = 0; i < shape->properties.len; i++) {
       if (GAB_VAL_IS_OBJ(shape->keys[i])) {
@@ -261,7 +283,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
     }
     return;
   }
-  case (OBJECT_RECORD): {
+  case (TYPE_RECORD): {
     gab_obj_record *object = (gab_obj_record *)obj;
 
     if (object->is_dynamic) {
@@ -290,26 +312,35 @@ static inline void dec_obj_ref(gab_gc *gc, gab_vm *vm, gab_obj *obj);
 static inline void dec_if_obj_ref(gab_gc *gc, gab_vm *vm, gab_value val);
 static inline void dec_child_refs(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
   switch (obj->kind) {
-  case OBJECT_CLOSURE: {
+  case TYPE_CLOSURE: {
     gab_obj_closure *closure = (gab_obj_closure *)obj;
-    for (u8 i = 0; i < closure->func->nupvalues; i++) {
+    for (u8 i = 0; i < closure->p->nupvalues; i++) {
       dec_if_obj_ref(gc, vm, closure->upvalues[i]);
     }
     return;
   }
-  case OBJECT_UPVALUE: {
+  case (TYPE_FUNCTION): {
+    gab_obj_function *func = (gab_obj_function *)obj;
+    for (u64 i = 0; i < func->s.cap; i++) {
+      if (d_specs_iexists(&func->s, i)) {
+        gab_value s = d_specs_ival(&func->s, i);
+        dec_if_obj_ref(gc, vm, s);
+      }
+    }
+  }
+  case TYPE_UPVALUE: {
     gab_obj_upvalue *upvalue = (gab_obj_upvalue *)obj;
     dec_if_obj_ref(gc, vm, upvalue->closed);
     return;
   }
-  case OBJECT_SHAPE: {
+  case TYPE_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
     for (u64 i = 0; i < shape->properties.len; i++) {
       dec_if_obj_ref(gc, vm, shape->keys[i]);
     }
     return;
   }
-  case OBJECT_RECORD: {
+  case TYPE_RECORD: {
     gab_obj_record *object = (gab_obj_record *)obj;
     if (object->is_dynamic) {
       for (u64 i = 0; i < object->dynamic_values.len; i++) {

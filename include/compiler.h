@@ -78,6 +78,7 @@ typedef struct gab_bc {
 } gab_bc;
 
 void gab_bc_create(gab_bc *bc, s_i8 source);
-gab_module* gab_bc_compile(gab_engine* gab, u8 narguments, s_i8 name, s_i8 source);
+gab_module *gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source,
+                           u8 narguments, s_i8 arguments[narguments]);
 
 #endif

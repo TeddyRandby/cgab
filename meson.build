@@ -1,6 +1,6 @@
 project('Gab Scripting Language',
   'c',
-  default_options: ['c_std=c23', 'default_library=static']
+  default_options: ['c_std=c2x', 'default_library=static']
 )
 
 
@@ -15,47 +15,47 @@ libcgab = library('cgab',
   install: true,
 )
 
-shared_library('cgabsockets',
-  'src/lib/socket.c',
-  link_with: libcgab,
-  install: true,
-  install_dir: '/usr/local/lib/gab/'
-)
-
-shared_library('cgabregex',
-  'src/lib/regex.c',
-  link_with: libcgab,
-  install: true,
-  install_dir: '/usr/local/lib/gab/'
-)
-
-shared_library('cgabstr',
-  'src/lib/str.c',
-  link_with: libcgab,
-  install: true,
-  install_dir: '/usr/local/lib/gab/'
-)
-
-shared_library('cgabnum',
-  'src/lib/num.c',
-  link_with: libcgab,
-  install: true,
-  install_dir: '/usr/local/lib/gab/'
-)
-
-shared_library('cgabtime',
-  'src/lib/time.c',
-  link_with: libcgab,
-  install: true,
-  install_dir: '/usr/local/lib/gab/'
-)
-
-shared_library('cgabobject',
-  'src/lib/object.c',
-  link_with: libcgab,
-  install: true,
-  install_dir: '/usr/local/lib/gab/'
-)
+# shared_library('cgabsockets',
+#   'src/lib/socket.c',
+#   link_with: libcgab,
+#   install: true,
+#   install_dir: '/usr/local/lib/gab/'
+# )
+#
+# shared_library('cgabregex',
+#   'src/lib/regex.c',
+#   link_with: libcgab,
+#   install: true,
+#   install_dir: '/usr/local/lib/gab/'
+# )
+#
+# shared_library('cgabstr',
+#   'src/lib/str.c',
+#   link_with: libcgab,
+#   install: true,
+#   install_dir: '/usr/local/lib/gab/'
+# )
+#
+# shared_library('cgabnum',
+#   'src/lib/num.c',
+#   link_with: libcgab,
+#   install: true,
+#   install_dir: '/usr/local/lib/gab/'
+# )
+#
+# shared_library('cgabtime',
+#   'src/lib/time.c',
+#   link_with: libcgab,
+#   install: true,
+#   install_dir: '/usr/local/lib/gab/'
+# )
+#
+# shared_library('cgabobject',
+#   'src/lib/object.c',
+#   link_with: libcgab,
+#   install: true,
+#   install_dir: '/usr/local/lib/gab/'
+# )
 
 shared_library('cgabio',
   'src/lib/io.c',

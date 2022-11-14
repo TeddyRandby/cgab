@@ -1,6 +1,7 @@
 #include "include/engine.h"
 #include "include/compiler.h"
 #include "include/core.h"
+#include "include/gab.h"
 #include "include/gc.h"
 #include "include/module.h"
 #include "include/object.h"
@@ -16,11 +17,24 @@
 gab_engine *gab_create(u8 flags) {
   gab_engine *gab = NEW(gab_engine);
 
-  d_gab_intern_create(&gab->interned, 2);
+  d_gab_intern_create(&gab->interned, INTERN_INITIAL_CAP);
 
   gab_gc_create(&gab->gc);
 
   gab->flags = flags;
+
+  gab->types[TYPE_NULL] = GAB_SYMBOL("null");
+  gab->types[TYPE_NUMBER] = GAB_SYMBOL("number");
+  gab->types[TYPE_BOOLEAN] = GAB_SYMBOL("boolean");
+  gab->types[TYPE_STRING] = GAB_SYMBOL("string");
+  gab->types[TYPE_FUNCTION] = GAB_SYMBOL("function");
+  gab->types[TYPE_PROTOTYPE] = GAB_SYMBOL("prototype");
+  gab->types[TYPE_BUILTIN] = GAB_SYMBOL("builtin");
+  gab->types[TYPE_CLOSURE] = GAB_SYMBOL("closure");
+  gab->types[TYPE_UPVALUE] = GAB_SYMBOL("upvalue");
+  gab->types[TYPE_SHAPE] = GAB_SYMBOL("shape");
+  gab->types[TYPE_SYMBOL] = GAB_SYMBOL("symbol");
+  gab->types[TYPE_CONTAINER] = GAB_SYMBOL("container");
 
   return gab;
 }
@@ -31,6 +45,9 @@ static inline void dref_all(gab_engine *gab) {
       gab_value v = d_gab_intern_ikey(&gab->interned, i);
       gab_dref(gab, NULL, v);
     }
+  }
+  for (u8 i = 0; i < GAB_NTYPES; i++) {
+    gab_dref(gab, NULL, gab->types[i]);
   }
 }
 
@@ -45,23 +62,15 @@ void gab_destroy(gab_engine *gab) {
   DESTROY(gab);
 }
 
-gab_module *gab_compile_main(gab_engine *gab, s_i8 source) {
-  return gab_bc_compile(gab, 1, s_i8_cstr("__main__"), source);
-}
-
-gab_module *gab_compile(gab_engine *gab, u8 narguments, s_i8 name,
-                        s_i8 source) {
-  return gab_bc_compile(gab, narguments, name, source);
+gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 narguments,
+                        s_i8 arguments[narguments]) {
+  return gab_bc_compile(gab, name, source, narguments, arguments);
 }
 
 gab_value gab_run(gab_engine *gab, gab_module *main, u8 argc,
                   gab_value argv[argc]) {
   gab_value result = gab_vm_run(gab, main, argc, argv);
   return result;
-};
-
-gab_value gab_run_main(gab_engine *gab, gab_module *main, gab_value globals) {
-  return gab_run(gab, main, 1, &globals);
 };
 
 void gab_dref(gab_engine *gab, gab_vm *vm, gab_value value) {
@@ -99,6 +108,18 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
   return bundle;
 }
 
+gab_value gab_bundle_function(gab_engine *gab, gab_vm *vm, s_i8 name, u64 size,
+                              gab_value *receivers,
+                              gab_value *specializations) {
+  gab_obj_function *f = gab_obj_function_create(gab, name);
+
+  for (u64 i = 0; i < size; i++) {
+    gab_obj_function_set(f, receivers[i], specializations[i]);
+  }
+
+  return GAB_VAL_OBJ(f);
+}
+
 /**
  * Gab internal stuff
  */
@@ -109,6 +130,30 @@ u16 gab_engine_intern(gab_engine *self, gab_value value) {
   u64 val = d_gab_intern_index_of(&self->interned, value);
 
   return val;
+}
+
+gab_obj_function *gab_engine_find_function(gab_engine *self, s_i8 name,
+                                           u64 hash) {
+  if (self->interned.len == 0)
+    return NULL;
+
+  u64 index = hash & (self->interned.cap - 1);
+
+  for (;;) {
+    gab_value key = d_gab_intern_ikey(&self->interned, index);
+    d_status status = d_gab_intern_istatus(&self->interned, index);
+
+    if (status != D_FULL) {
+      return NULL;
+    } else if (GAB_VAL_IS_FUNCTION(key)) {
+      gab_obj_function *f_key = GAB_VAL_TO_FUNCTION(key);
+      if (f_key->hash == hash && s_i8_match(name, f_key->name)) {
+        return f_key;
+      }
+    }
+
+    index = (index + 1) & (self->interned.cap - 1);
+  }
 }
 
 gab_obj_string *gab_engine_find_string(gab_engine *self, s_i8 str, u64 hash) {
@@ -177,3 +222,5 @@ gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size, u64 stride,
     index = (index + 1) & (self->interned.cap - 1);
   }
 }
+
+gab_value gab_get_type(gab_engine *gab, gab_type t) { return gab->types[t]; }

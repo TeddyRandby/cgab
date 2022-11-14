@@ -26,7 +26,7 @@ void dref_all(gab_engine *gab, gab_module *mod) {
   }
 }
 
-void gab_module_destroy(gab_engine* gab, gab_module *mod) {
+void gab_module_destroy(gab_engine *gab, gab_module *mod) {
   dref_all(gab, mod);
 
   v_u8_destroy(&mod->bytecode);
@@ -223,9 +223,7 @@ void gab_module_patch_jump(gab_module *self, u64 jump) {
   v_u8_set(&self->bytecode, jump + 1, dist & 0xff);
 }
 
-u64 gab_module_push_loop(gab_module *self) {
-  return self->bytecode.len;
-}
+u64 gab_module_push_loop(gab_module *self) { return self->bytecode.len; }
 
 void gab_module_patch_loop(gab_module *self, u64 start, gab_token t, u64 l) {
   u64 diff = self->bytecode.len - start + 3;
@@ -293,9 +291,9 @@ u64 dumpTwoByteInstruction(gab_module *self, u64 offset) {
   return offset + 3;
 }
 
-u64 dumpDictInstruction(gab_module *self, u64 offset) {
+u64 dumpDictInstruction(gab_module *self, u8 i, u64 offset) {
   u8 operand = v_u8_val_at(&self->bytecode, offset + 1);
-  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
+  const char *name = gab_opcode_names[i];
   printf("%-16s %hhx\n", name, operand);
   return offset + 2;
 };
@@ -477,31 +475,30 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     return dumpByteInstruction(self, offset);
   }
   case OP_CLOSURE: {
-    u16 constant = ((((u16)self->bytecode.data[offset + 1]) << 8) |
-                    self->bytecode.data[offset + 2]);
-    printf("%-16s ", "OP_CLOSURE");
-    gab_val_dump(d_gab_constant_ikey(&self->constants, constant));
-    printf("\n");
-    offset += 3;
+    offset++;
+    u16 proto_constant = ((((u16)self->bytecode.data[offset]) << 8) |
+                          self->bytecode.data[offset + 1]);
+    offset += 2;
 
-    gab_obj_function *function =
-        GAB_VAL_TO_FUNCTION(d_gab_constant_ikey(&self->constants, constant));
+    printf("%-16s\n", "OP_CLOSURE");
 
-    for (int j = 0; j < function->nupvalues; j++) {
-      int flags = self->bytecode.data[offset++];
-      int index = self->bytecode.data[offset++];
+    gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(
+        d_gab_constant_ikey(&self->constants, proto_constant));
+
+    for (int j = 0; j < p->nupvalues; j++) {
+      u8 flags = self->bytecode.data[offset++];
+      u8 index = self->bytecode.data[offset++];
       int isLocal = flags & FLAG_LOCAL;
       int isMutable = flags & FLAG_MUTABLE;
-      printf("%04lu      |                     %d %s %s\n", offset - 2, index,
+      printf("%04lu      |                     %d %s %s\n", offset, index,
              isLocal ? "local" : "upvalue", isMutable ? "mut" : "const");
     }
     return offset;
   }
-  case OP_OBJECT_RECORD_DEF: {
+  case OP_OBJECT_RECORD_DEF:
     offset += 2;
-  }
   case OP_OBJECT_RECORD: {
-    return dumpDictInstruction(self, offset);
+    return dumpDictInstruction(self, op, offset);
   }
   default: {
     u8 code = v_u8_val_at(&self->bytecode, offset);

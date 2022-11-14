@@ -1,0 +1,20 @@
+let obj = {
+    zebra
+    camel
+    cow
+    rooster
+} 
+
+def times(n)
+    let v = -1
+    do ||
+        (v < n) and (v = v + 1)
+    end
+end
+
+for i in 500000:times()
+    obj.zebra = i
+    obj.camel = obj.zebra - 1
+    obj.cow = obj.camel + 1
+    obj.rooster = obj.cow - obj.zebra
+end

@@ -249,8 +249,8 @@ static i32 resolve_upvalue(gab_bc *bc, s_i8 name, u32 depth) {
 
 /* Returns COMP_ERR if an error is encountered,
  * COMP_ID_NOT_FOUND if no matching local or upvalue is found,
- * COMP_REGABVED_TO_LOCAL if the id was a local, and
- * COMP_REGABVED_TO_UPVALUE if the id was an upvalue.
+ * COMP_RESOLVED_TO_LOCAL if the id was a local, and
+ * COMP_RESOLVED_TO_UPVALUE if the id was an upvalue.
  */
 static i32 resolve_id(gab_bc *bc, s_i8 name, u8 *value_in) {
 
@@ -307,6 +307,9 @@ static void down_frame(gab_bc *bc, s_i8 name) {
   peek_frame(bc, 0)->deepest_local = 0;
   peek_frame(bc, 0)->function_name = name;
 
+  u8 receiver = add_local(bc, s_i8_cstr("self"), 0);
+  initialize_local(bc, receiver);
+
   i32 loc = add_local(bc, name, 0);
   initialize_local(bc, loc);
 }
@@ -353,7 +356,14 @@ static i32 compile_local(gab_bc *bc, s_i8 name, u8 flags) {
 
 /* Returns COMP_ERR if an error was encountered, and otherwise COMP_OK
  */
-i32 compile_function_args(gab_bc *bc) {
+i32 compile_parameters(gab_bc *bc) {
+  if (expect_token(bc, TOKEN_LPAREN) < 0) {
+    return COMP_ERR;
+  }
+
+  if (match_and_eat_token(bc, TOKEN_RPAREN)) {
+    return 0;
+  }
 
   i32 result = 0;
   u8 narguments = 0;
@@ -382,6 +392,9 @@ i32 compile_function_args(gab_bc *bc) {
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)));
 
   if (result < 0)
+    return COMP_ERR;
+
+  if (expect_token(bc, TOKEN_RPAREN) < 0)
     return COMP_ERR;
 
   return narguments;
@@ -449,6 +462,9 @@ i32 compile_block_body(gab_engine *gab, gab_bc *bc, gab_module *mod) {
 i32 compile_block(gab_engine *gab, gab_bc *bc, gab_module *mod) {
   down_scope(bc);
 
+  if (expect_token(bc, TOKEN_NEWLINE) < 0)
+    return COMP_ERR;
+
   if (compile_block_body(gab, bc, mod) < 0)
     return COMP_ERR;
 
@@ -466,9 +482,8 @@ i32 compile_block(gab_engine *gab, gab_bc *bc, gab_module *mod) {
   return COMP_OK;
 }
 
-gab_obj_function *compile_function_body(gab_engine *gab, gab_bc *bc,
-                                        gab_module *mod, u8 arity, s_i8 name,
-                                        u64 skip_jump) {
+i32 compile_function_body(gab_engine *gab, gab_bc *bc, gab_module *mod,
+                          gab_obj_prototype *p, u64 skip_jump, u8 narguments) {
   // Start compiling the function's bytecode.
   // You can't just store a pointer to the beginning of the code
   // Because if the vector is EVER resized,
@@ -478,23 +493,33 @@ gab_obj_function *compile_function_body(gab_engine *gab, gab_bc *bc,
   i32 result = compile_block(gab, bc, mod);
 
   if (result < 0)
-    return NULL;
+    return COMP_ERR;
 
   gab_module_push_return(mod, result, false, bc->previous_token, bc->line);
 
-  // Update the functions upvalue state and pop the function's compile_frame
-  gab_bc_frame *frame = peek_frame(bc, 0);
-
-  // Patch the jump to skip over the function body
   gab_module_patch_jump(mod, skip_jump);
 
-  return gab_obj_function_create(arity, frame->upv_count,
-                                 frame->deepest_local - arity - 1, offset, mod,
-                                 name);
+  gab_bc_frame *frame = peek_frame(bc, 0);
+
+  u8 nupvalues = frame->upv_count;
+
+  u8 nlocals = frame->deepest_local - narguments - 1;
+
+  u64 len = mod->bytecode.len - offset;
+
+  p->offset = offset;
+  p->len = len;
+  p->nupvalues = nupvalues;
+  p->nlocals = nlocals;
+  p->narguments = narguments;
+
+  return COMP_OK;
 }
 
-i32 compile_function(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
-                     gab_token closing) {
+i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
+                                    gab_module *mod, s_i8 name) {
+  gab_obj_prototype *p = gab_obj_prototype_create(mod);
+
   u64 skip_jump =
       gab_module_push_jump(mod, OP_JUMP, bc->previous_token, bc->line);
 
@@ -503,41 +528,27 @@ i32 compile_function(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
 
   down_frame(bc, name);
 
-  i32 narguments = 0;
+  i32 narguments = compile_parameters(bc);
 
-  if (!match_token(bc, closing)) {
-    narguments = compile_function_args(bc);
-
-    if (narguments < 0)
-      return COMP_ERR;
-  }
-
-  if (expect_token(bc, closing) < 0)
+  if (narguments < 0)
     return COMP_ERR;
 
-  if (expect_token(bc, TOKEN_NEWLINE) < 0)
+  if (compile_function_body(gab, bc, mod, p, skip_jump, narguments) < 0)
     return COMP_ERR;
 
-  gab_obj_function *function =
-      compile_function_body(gab, bc, mod, narguments, name, skip_jump);
+  u16 proto_constant = add_constant(mod, GAB_VAL_OBJ(p));
 
-  if (function == NULL)
-    return COMP_ERR;
-
-  u16 function_constant = add_constant(mod, GAB_VAL_OBJ(function));
-
-  // Push a closure wrapping the function
+  // Create the closure, adding a specialization to the pushed function.
   push_op(bc, mod, OP_CLOSURE);
-  push_short(bc, mod, function_constant);
+  push_short(bc, mod, proto_constant);
 
   gab_bc_frame *frame = peek_frame(bc, 0);
-  for (int i = 0; i < function->nupvalues; i++) {
+  for (int i = 0; i < p->nupvalues; i++) {
     push_byte(bc, mod, frame->upvs_flag[i]);
     push_byte(bc, mod, frame->upvs_index[i]);
   }
 
   up_frame(bc);
-
   return COMP_OK;
 }
 
@@ -640,10 +651,12 @@ i32 compile_property(gab_engine *gab, gab_bc *bc, gab_module *mod,
     push_op(bc, mod, OP_SET_PROPERTY);
     push_short(bc, mod, prop);
 
+#if GAB_CACHE_PROPERTIES
     // The shape at this get
     gab_module_push_inline_cache(mod, bc->previous_token, bc->line);
     // The cache'd offset
     push_short(bc, mod, 0);
+#endif
 
     break;
   }
@@ -651,10 +664,13 @@ i32 compile_property(gab_engine *gab, gab_bc *bc, gab_module *mod,
   case COMP_TOKEN_NO_MATCH: {
     push_op(bc, mod, OP_GET_PROPERTY);
     push_short(bc, mod, prop);
+
+#if GAB_CACHE_PROPERTIES
     // The shape at this get
     gab_module_push_inline_cache(mod, bc->previous_token, bc->line);
     // The cache'd offset
     push_short(bc, mod, 0);
+#endif
     break;
   }
 
@@ -781,24 +797,6 @@ i32 compile_obj_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod) {
     return COMP_OK;
   }
 
-  if (match_and_eat_token(bc, TOKEN_DEF)) {
-    i32 prop = compile_id_constant(gab, bc, mod);
-
-    if (prop < 0)
-      return COMP_ERR;
-
-    s_i8 name = bc->lex.previous_token_src;
-
-    push_op(bc, mod, OP_CONSTANT);
-
-    push_short(bc, mod, prop);
-
-    if (compile_definition(gab, bc, mod, name) < 0)
-      return COMP_ERR;
-
-    return COMP_OK;
-  }
-
 fin:
   eat_token(bc);
   dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
@@ -866,18 +864,103 @@ i32 compile_array(gab_engine *gab, gab_bc *bc, gab_module *mod) {
 
 i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod,
                        s_i8 name) {
-  if (match_and_eat_token(bc, TOKEN_LPAREN)) {
-    return compile_function(gab, bc, mod, name, TOKEN_RPAREN);
-  }
 
+  // A record definition
   if (match_and_eat_token(bc, TOKEN_LBRACK)) {
-    return compile_record(gab, bc, mod, name);
+    u8 local = add_local(bc, name, 0);
+    initialize_local(bc, local);
+
+    if (compile_record(gab, bc, mod, name) < 0)
+      return COMP_ERR;
+
+    push_op(bc, mod, OP_TYPE);
+
+    gab_module_push_store_local(mod, local, bc->previous_token, bc->line);
+
+    return COMP_OK;
   }
 
+  // Const variable
+  if (match_and_eat_token(bc, TOKEN_EQUAL)) {
+    u8 local = add_local(bc, name, 0);
+
+    if (compile_expression(gab, bc, mod) < 0)
+      return COMP_ERR;
+
+    initialize_local(bc, local);
+
+    gab_module_push_store_local(mod, local, bc->previous_token, bc->line);
+
+    return COMP_OK;
+  }
+
+  // From now on, we know its a function definition.
+
+  // A specialization
   if (match_and_eat_token(bc, TOKEN_LBRACE)) {
-    return compile_array(gab, bc, mod);
+
+    if (compile_expression(gab, bc, mod) < 0)
+      return COMP_ERR;
+    if (expect_token(bc, TOKEN_RBRACE) < 0)
+      return COMP_ERR;
+  } else if (match_token(bc, TOKEN_LPAREN)) {
+    // An implicit specialization
+    // Push the implicit receiver null
+    push_op(bc, mod, OP_PUSH_NULL);
+  } else {
+    goto fail;
   }
 
+  // Finish compiling the function definition
+  u8 val = 0;
+  switch (resolve_id(bc, name, &val)) {
+  case COMP_RESOLVED_TO_LOCAL: {
+
+    // Load the function
+    gab_module_push_load_local(mod, val, bc->previous_token, bc->line);
+
+    // Compile the specialization
+    if (compile_function_specialization(gab, bc, mod, name) < 0)
+      return COMP_OK;
+
+    return COMP_OK;
+  }
+  case COMP_RESOLVED_TO_UPVALUE: {
+
+    // Load the function
+    gab_module_push_load_upvalue(mod, val, bc->previous_token, bc->line,
+                                 peek_frame(bc, 0)->upvs_flag[val] &
+                                     FLAG_MUTABLE);
+
+    // Compile the specialization
+    if (compile_function_specialization(gab, bc, mod, name) < 0)
+      return COMP_OK;
+
+    return COMP_OK;
+  }
+  case COMP_ID_NOT_FOUND: {
+    // Create a new function
+    gab_obj_function *f = gab_obj_function_create(gab, name);
+    u16 func_constant = add_constant(mod, GAB_VAL_OBJ(f));
+    push_op(bc, mod, OP_CONSTANT);
+    push_short(bc, mod, func_constant);
+
+    // Create a local to store the new function in
+    u8 local = add_local(bc, name, 0);
+    initialize_local(bc, local);
+
+    // Now compile the specialization
+    if (compile_function_specialization(gab, bc, mod, name) < 0)
+      return COMP_ERR;
+
+    gab_module_push_store_local(mod, local, bc->previous_token, bc->line);
+    return COMP_OK;
+  }
+  default:
+    return COMP_ERR;
+  }
+
+fail:
   dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN, "While compiling definition");
   return COMP_ERR;
 }
@@ -886,11 +969,10 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
 i32 compile_exp_blk(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
-  if (match_and_eat_token(bc, TOKEN_PIPE)) {
+  if (match_and_eat_token(bc, TOKEN_LPAREN)) {
     // We are an anonyumous function
-    s_i8 name = s_i8_cstr("anonymous");
-
-    if (compile_function(gab, bc, mod, name, TOKEN_PIPE) < 0)
+    if (compile_function_specialization(gab, bc, mod, s_i8_cstr("anonymous")) <
+        0)
       return COMP_ERR;
 
     return COMP_OK;
@@ -1309,14 +1391,9 @@ i32 compile_exp_def(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   s_i8 name = bc->lex.previous_token_src;
 
-  u8 local = add_local(bc, name, 0);
-
   if (compile_definition(gab, bc, mod, name) < 0)
     return COMP_ERR;
 
-  initialize_local(bc, local);
-
-  gab_module_push_store_local(mod, local, bc->previous_token, bc->line);
   return COMP_OK;
 }
 
@@ -1465,13 +1542,19 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
     gab_bc_frame *frame = peek_frame(bc, 0);
     if (is_local_var) {
       if (!(frame->locals_flag[var] & FLAG_MUTABLE)) {
+        s_i8 name = frame->locals_name[var];
         dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                            "Variable is not mutable");
+                            "Variable '%.*s' is not mutable", (i32)name.len,
+                            name.data);
+        return COMP_ERR;
       }
     } else {
       if (!(frame->upvs_flag[var] & FLAG_MUTABLE)) {
+        s_i8 name = frame->locals_name[var];
         dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                            "Variable is not mutable");
+                            "Variable '%.*s' is not mutable", (i32)name.len,
+                            name.data);
+        return COMP_ERR;
       }
     }
 
@@ -1543,44 +1626,6 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
   return COMP_OK;
 }
 
-i32 compile_exp_rec_call(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                         boolean assignable) {
-  if (compile_exp_rec(gab, bc, mod, assignable) < 0)
-    return COMP_ERR;
-
-  gab_module_push_call(mod, 1, false, bc->previous_token, bc->line);
-
-  return VAR_RET;
-}
-
-i32 compile_exp_call(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                     boolean assignable) {
-  boolean vse = false;
-  i32 result = 0;
-
-  if (!match_token(bc, TOKEN_RPAREN)) {
-    result = compile_tuple(gab, bc, mod, VAR_RET, &vse);
-
-    if (result < 0)
-      return COMP_ERR;
-  }
-
-  if (!vse && result > 16) {
-    dump_compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
-    return COMP_ERR;
-  }
-
-  if (optional_newline(bc) < 0)
-    return COMP_ERR;
-
-  if (expect_token(bc, TOKEN_RPAREN) < 0)
-    return COMP_ERR;
-
-  gab_module_push_call(mod, result, vse, bc->previous_token, bc->line);
-
-  return VAR_RET;
-}
-
 i32 compile_exp_dot(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   if (compile_property(gab, bc, mod, assignable) < 0)
@@ -1589,31 +1634,36 @@ i32 compile_exp_dot(gab_engine *gab, gab_bc *bc, gab_module *mod,
   return COMP_OK;
 }
 
-i32 compile_exp_glb(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                    boolean assignable) {
-  u8 global;
+i32 compile_arguments(gab_engine *gab, gab_bc *bc, gab_module *mod,
+                      boolean *vse_out) {
 
-  switch (resolve_id(bc, s_i8_create((i8 *)"__global__", 10), &global)) {
-  case COMP_RESOLVED_TO_LOCAL: {
-    push_load_local(bc, mod, global);
-    break;
+  i32 nargs;
+
+  if (match_and_eat_token(bc, TOKEN_LPAREN)) {
+    // Normal function args
+    if (!match_token(bc, TOKEN_RPAREN)) {
+
+      nargs = compile_tuple(gab, bc, mod, VAR_RET, vse_out);
+
+      if (nargs < 0)
+        return COMP_ERR;
+    }
+
+    if (expect_token(bc, TOKEN_RPAREN) < 0)
+      return COMP_ERR;
+
+  } else if (match_and_eat_token(bc, TOKEN_LBRACE)) {
+    // record argument
+    if (compile_record(gab, bc, mod, (s_i8){0}) < 0)
+      return COMP_ERR;
+
+    nargs = 1;
+  } else {
+    // call without arguments
+    nargs = 0;
   }
 
-  case COMP_RESOLVED_TO_UPVALUE: {
-    gab_module_push_load_upvalue(mod, global, bc->previous_token, bc->line,
-                                 false);
-    break;
-  }
-
-  default:
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN, "While compiling global");
-    return COMP_ERR;
-  }
-
-  if (compile_property(gab, bc, mod, assignable) < 0)
-    return COMP_ERR;
-
-  return COMP_OK;
+  return nargs;
 }
 
 i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -1624,41 +1674,8 @@ i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (compile_exp_prec(gab, bc, mod, PREC_PROPERTY) < 0)
     return COMP_ERR;
 
-  /* Stack has now
-    | method    |
-    | receiver  |
-  */
-
-  // Swap the method and receiver
-  push_op(bc, mod, OP_SWAP);
-
   boolean vse = false;
-  i32 result = 0;
-
-  if (expect_token(bc, TOKEN_LPAREN) < 0)
-    return COMP_ERR;
-
-  if (!match_token(bc, TOKEN_RPAREN)) {
-
-    result = compile_tuple(gab, bc, mod, VAR_RET, &vse);
-
-    if (result < 0)
-      return COMP_ERR;
-  }
-
-  if (expect_token(bc, TOKEN_RPAREN) < 0)
-    return COMP_ERR;
-
-  /*
-    | args..    |
-    | receiver  |
-    | method    |
-
-   Stack has now
-  */
-
-  // Count the self argument
-  result++;
+  i32 result = compile_arguments(gab, bc, mod, &vse);
 
   if (result > 16) {
     dump_compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
@@ -1668,6 +1685,12 @@ i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
   gab_module_push_call(mod, result, vse, bc->previous_token, bc->line);
 
   return VAR_RET;
+}
+
+i32 compile_exp_empty_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
+                          boolean assignable) {
+  push_op(bc, mod, OP_PUSH_NULL);
+  return compile_exp_mth(gab, bc, mod, assignable);
 }
 
 i32 compile_exp_and(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -1861,6 +1884,24 @@ i32 compile_exp_lop(gab_engine *gab, gab_bc *bc, gab_module *mod,
   return COMP_OK;
 }
 
+i32 compile_exp_sym(gab_engine *gab, gab_bc *bc, gab_module *mod,
+                    boolean assignable) {
+  if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
+    return COMP_ERR;
+
+  gab_obj_symbol *sym = gab_obj_symbol_create(bc->lex.previous_token_src);
+
+  i32 k = add_constant(mod, GAB_VAL_OBJ(sym));
+
+  if (k < 0)
+    return COMP_ERR;
+
+  push_op(bc, mod, OP_CONSTANT);
+  push_short(bc, mod, k);
+
+  return COMP_OK;
+}
+
 i32 compile_exp_rtn(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   if (match_token(bc, TOKEN_NEWLINE)) {
@@ -1920,15 +1961,15 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(bin, FACTOR, false),                // SLASH
     INFIX(bin, FACTOR, false),                // PERCENT
     NONE(),                            // COMMA
-    INFIX(mth, CALL, true),       // COLON
+    PREFIX_INFIX(empty_mth, mth, CALL, true),       // COLON
     NONE(),           // AMPERSAND
-    NONE(),           // DOLLAR
+    PREFIX(sym),           // DOLLAR
     INFIX(dot, PROPERTY, true),              // DOT
     PREFIX_INFIX(spd, bin, TERM, false),                  // DOT_DOT
     NONE(),                            // EQUAL
     INFIX(bin, EQUALITY, false),              // EQUALEQUAL
     POSTFIX(type),                            // QUESTION
-    PREFIX_POSTFIX(glb, asrt),                      // BANG
+    POSTFIX(asrt),                      // BANG
     NONE(),                            // AT
     NONE(),                            // COLON_EQUAL
     INFIX(bin, COMPARISON, false),            // LESSER
@@ -1942,9 +1983,9 @@ const gab_compile_rule gab_bc_rules[] = {
     PREFIX(una),                       // NOT
     PREFIX_INFIX(arr, idx, PROPERTY, false),  // LBRACE
     NONE(),                            // RBRACE
-    PREFIX_INFIX(rec, rec_call, CALL, false), // LBRACK
+    PREFIX(rec), // LBRACK
     NONE(),                            // RBRACK
-    PREFIX_INFIX(grp, call, CALL, false),     // LPAREN
+    PREFIX(grp),     // LPAREN
     NONE(),                            // RPAREN
     NONE(),            // PIPE
     NONE(),                            // SEMI
@@ -1963,14 +2004,16 @@ const gab_compile_rule gab_bc_rules[] = {
 
 gab_compile_rule get_rule(gab_token k) { return gab_bc_rules[k]; }
 
-i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 narguments,
-            s_i8 name) {
+i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
+            u8 narguments, s_i8 arguments[narguments]) {
   down_frame(bc, name);
 
   if (eat_token(bc) == COMP_ERR)
     return -1;
 
-  initialize_local(bc, add_local(bc, s_i8_cstr("__global__"), 0));
+  for (u8 i = 0; i < narguments; i++) {
+    initialize_local(bc, add_local(bc, arguments[i], 0));
+  }
 
   if (compile_block_body(gab, bc, mod) < 0)
     return -1;
@@ -1979,25 +2022,37 @@ i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 narguments,
 
   u8 top_level_locals = peek_frame(bc, 0)->deepest_local - narguments - 1;
 
-  gab_obj_function *f =
-      gab_obj_function_create(narguments, 0, top_level_locals, 0, mod, name);
+  gab_obj_function *f = gab_obj_function_create(gab, name);
 
-  gab_obj_closure *c = gab_obj_closure_create(f, NULL);
+  gab_obj_prototype *p = gab_obj_prototype_create(mod);
+  p->nupvalues = 0;
+  p->narguments = narguments;
+  p->nlocals = top_level_locals;
+  p->offset = 0;
+  p->len = mod->bytecode.len;
 
-  add_constant(mod, GAB_VAL_OBJ(f));
+  gab_obj_closure *c = gab_obj_closure_create(p, NULL);
 
-  return add_constant(mod, GAB_VAL_OBJ(c));
+  gab_obj_function_set(f, GAB_VAL_NULL(), GAB_VAL_OBJ(c));
+
+  add_constant(mod, GAB_VAL_OBJ(p));
+  add_constant(mod, GAB_VAL_OBJ(c));
+  return add_constant(mod, GAB_VAL_OBJ(f));
 }
 
-gab_module *gab_bc_compile(gab_engine *gab, u8 narguments, s_i8 name,
-                           s_i8 source) {
+gab_module *gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source,
+                           u8 narguments, s_i8 arguments[narguments]) {
   gab_module *mod = NEW(gab_module);
   gab_module_create(mod, name, source);
 
   gab_bc bc;
   gab_bc_create(&bc, source);
 
-  i32 main = compile(gab, &bc, mod, narguments, name);
+  i32 main = compile(gab, &bc, mod, name, narguments, arguments);
+
+  if (gab->flags & GAB_FLAG_DUMP_BYTECODE) {
+    gab_module_dump(mod, name);
+  }
 
   if (main < 0) {
     DESTROY(mod);
@@ -2006,10 +2061,6 @@ gab_module *gab_bc_compile(gab_engine *gab, u8 narguments, s_i8 name,
 
   mod->main = main;
   mod->source_lines = bc.lex.source_lines;
-
-  if (gab->flags & GAB_FLAG_DUMP_BYTECODE) {
-    gab_module_dump(mod, name);
-  }
 
   return mod;
 }

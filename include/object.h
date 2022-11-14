@@ -19,17 +19,22 @@ void gab_val_dump(gab_value self);
 /*
   An enumeration of the heap-allocated value types in gab.
 */
-typedef enum gab_obj_kind {
-  OBJECT_STRING,
-  OBJECT_FUNCTION,
-  OBJECT_BUILTIN,
-  OBJECT_CLOSURE,
-  OBJECT_UPVALUE,
-  OBJECT_RECORD,
-  OBJECT_SHAPE,
-  OBJECT_SYMBOL,
-  OBJECT_CONTAINER,
-} gab_obj_kind;
+typedef enum gab_type {
+  TYPE_STRING,
+  TYPE_FUNCTION,
+  TYPE_PROTOTYPE,
+  TYPE_BUILTIN,
+  TYPE_CLOSURE,
+  TYPE_UPVALUE,
+  TYPE_RECORD,
+  TYPE_SHAPE,
+  TYPE_SYMBOL,
+  TYPE_CONTAINER,
+  TYPE_NULL,
+  TYPE_NUMBER,
+  TYPE_BOOLEAN,
+  GAB_NTYPES,
+} gab_type;
 
 /*
   This header appears at the front of all gab_obj_kind structs.
@@ -43,7 +48,7 @@ typedef enum gab_obj_kind {
 typedef struct gab_obj gab_obj;
 struct gab_obj {
   i32 references;
-  gab_obj_kind kind;
+  gab_type kind;
   u8 flags;
 };
 
@@ -103,7 +108,7 @@ static inline gab_val_destroy(gab_value self) {
 */
 void gab_obj_dump(gab_value value);
 
-static inline boolean gab_val_is_obj_kind(gab_value self, gab_obj_kind k) {
+static inline boolean gab_val_is_obj_kind(gab_value self, gab_type k) {
   return GAB_VAL_IS_OBJ(self) && GAB_VAL_TO_OBJ(self)->kind == k;
 }
 
@@ -124,7 +129,7 @@ struct gab_obj_string {
 
   i8 data[FLEXIBLE_ARRAY];
 };
-#define GAB_VAL_IS_STRING(value) (gab_val_is_obj_kind(value, OBJECT_STRING))
+#define GAB_VAL_IS_STRING(value) (gab_val_is_obj_kind(value, TYPE_STRING))
 #define GAB_VAL_TO_STRING(value) ((gab_obj_string *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_STRING(value) ((gab_obj_string *)value)
 
@@ -138,7 +143,8 @@ s_i8 gab_obj_string_ref(gab_obj_string *self);
   ------------- OBJ_BUILTIN-------------
   A function pointer. to a native c function.
 */
-typedef gab_value (*gab_builtin)(gab_engine *gab, gab_vm *vm, u8 argc,
+typedef gab_value (*gab_builtin)(gab_engine *gab, gab_vm *vm,
+                                 gab_value receiver, u8 argc,
                                  gab_value argv[argc]);
 typedef struct gab_obj_builtin gab_obj_builtin;
 struct gab_obj_builtin {
@@ -149,58 +155,10 @@ struct gab_obj_builtin {
   s_i8 name;
 };
 
-#define GAB_VAL_IS_BUILTIN(value) (gab_val_is_obj_kind(value, OBJECT_BUILTIN))
+#define GAB_VAL_IS_BUILTIN(value) (gab_val_is_obj_kind(value, TYPE_BUILTIN))
 #define GAB_VAL_TO_BUILTIN(value) ((gab_obj_builtin *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_BUILTIN(value) ((gab_obj_builtin *)value)
 gab_obj_builtin *gab_obj_builtin_create(gab_builtin function, s_i8 name);
-
-/*
-  ------------- OBJ_FUNCTION -------------
-  A function. Not visible at runtime - always wrapped by an OBJ_CLOSURE
-*/
-typedef struct gab_obj_function gab_obj_function;
-struct gab_obj_function {
-  gab_obj header;
-
-  /*
-   * The number of arguments the function takes.
-   */
-  u8 narguments;
-
-  /*
-   * The number of upvalues the function captures.
-   */
-  u8 nupvalues;
-
-  /*
-   * The number of local variables in the function.
-   */
-  u8 nlocals;
-
-  /*
-   * The offset into the module where the function's instructions begin.
-   * This can't be a pointer because modules can be reallocated as their
-   * vector grows - and this would leave functions with dangling pointers.
-   */
-  u64 offset;
-
-  /*
-   * The module owning the function.
-   */
-  gab_module *mod;
-
-  /*
-   * The name of the function
-   */
-  s_i8 name;
-};
-
-#define GAB_VAL_IS_FUNCTION(value) (gab_val_is_obj_kind(value, OBJECT_FUNCTION))
-#define GAB_VAL_TO_FUNCTION(value) ((gab_obj_function *)GAB_VAL_TO_OBJ(value))
-#define GAB_OBJ_TO_FUNCTION(value) ((gab_obj_function *)value)
-gab_obj_function *gab_obj_function_create(u8 narguments, u8 nupvalues,
-                                          u8 nlocals, u64 offset,
-                                          gab_module *mod, s_i8 name);
 
 /*
   ------------- OBJ_UPVALUE -------------
@@ -230,11 +188,51 @@ struct gab_obj_upvalue {
   gab_obj_upvalue *next;
 };
 
-#define GAB_VAL_IS_UPVALUE(value) (gab_val_is_obj_kind(value, OBJECT_UPVALUE))
+#define GAB_VAL_IS_UPVALUE(value) (gab_val_is_obj_kind(value, TYPE_UPVALUE))
 #define GAB_VAL_TO_UPVALUE(value) ((gab_obj_upvalue *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_UPVALUE(value) ((gab_obj_upvalue *)value)
 gab_obj_upvalue *gab_obj_upvalue_create(gab_value *slot);
 
+/*
+  ------------- OBJ_PROTOTYPE -------------
+*/
+typedef struct gab_obj_prototype gab_obj_prototype;
+struct gab_obj_prototype {
+  gab_obj header;
+
+  /*
+   * The number of arguments the function takes.
+   */
+  u8 narguments;
+
+  /*
+   * The number of upvalues the function captures.
+   */
+  u8 nupvalues;
+
+  /*
+   * The number of local variables in the function.
+   */
+  u8 nlocals;
+
+  /*
+   * The offset into the module where the function's instructions begin.
+   * This can't be a pointer because modules can be reallocated as their
+   * vector grows - and this would leave functions with dangling pointers.
+   */
+  u64 offset;
+  u64 len;
+
+  /*
+   * The module owning the function.
+   */
+  gab_module *mod;
+};
+
+#define GAB_VAL_IS_PROTOTYPE(value) (gab_val_is_obj_kind(value, TYPE_PROTOTYPE))
+#define GAB_VAL_TO_PROTOTYPE(value) ((gab_obj_prototype *)GAB_VAL_TO_OBJ(value))
+#define GAB_OBJ_TO_PROTOTYPE(value) ((gab_obj_prototype *)value)
+gab_obj_prototype *gab_obj_prototype_create(gab_module *mod);
 /*
   ------------- OBJ_CLOSURE-------------
   The wrapper to OBJ_FUNCTION, which is actually called at runtime.
@@ -242,10 +240,9 @@ gab_obj_upvalue *gab_obj_upvalue_create(gab_value *slot);
 typedef struct gab_obj_closure gab_obj_closure;
 struct gab_obj_closure {
   gab_obj header;
-  /*
-    The function being wrapped.
-  */
-  gab_obj_function *func;
+
+  gab_obj_prototype *p;
+
   /*
     An array of upvalue pointers - since multiple closures can capture
     the same upvalue.
@@ -253,10 +250,47 @@ struct gab_obj_closure {
   gab_value upvalues[FLEXIBLE_ARRAY];
 };
 
-#define GAB_VAL_IS_CLOSURE(value) (gab_val_is_obj_kind(value, OBJECT_CLOSURE))
+#define GAB_VAL_IS_CLOSURE(value) (gab_val_is_obj_kind(value, TYPE_CLOSURE))
 #define GAB_VAL_TO_CLOSURE(value) ((gab_obj_closure *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_CLOSURE(value) ((gab_obj_closure *)value)
-gab_obj_closure *gab_obj_closure_create(gab_obj_function *fn, gab_value upvs[]);
+gab_obj_closure *gab_obj_closure_create(gab_obj_prototype *p, gab_value upvs[]);
+/*
+  ------------- OBJ_FUNCTION -------------
+  A function. Not visible at runtime - always wrapped by an OBJ_CLOSURE
+*/
+typedef struct gab_obj_function gab_obj_function;
+
+#define NAME specs
+#define K gab_value
+#define V gab_value
+#define HASH(a) (a)
+#define EQUAL(a, b) (a == b)
+#include "include/dict.h"
+
+struct gab_obj_function {
+  gab_obj header;
+
+  /*
+   * The name of the function
+   */
+  s_i8 name;
+  u64 hash;
+
+  /*
+   * The map of specializations defined for this function.
+   */
+  d_specs s;
+};
+
+#define GAB_VAL_IS_FUNCTION(value) (gab_val_is_obj_kind(value, TYPE_FUNCTION))
+#define GAB_VAL_TO_FUNCTION(value) ((gab_obj_function *)GAB_VAL_TO_OBJ(value))
+#define GAB_OBJ_TO_FUNCTION(value) ((gab_obj_function *)value)
+gab_obj_function *gab_obj_function_create(gab_engine *gab, s_i8 name);
+
+boolean gab_obj_function_set(gab_obj_function *self, gab_value receiver,
+                             gab_value spec);
+
+gab_value gab_obj_function_get(gab_obj_function *self, gab_value receiver);
 
 /*
   ------------- OBJ_SHAPE-------------
@@ -276,7 +310,7 @@ struct gab_obj_shape {
   gab_value keys[FLEXIBLE_ARRAY];
 };
 
-#define GAB_VAL_IS_SHAPE(value) (gab_val_is_obj_kind(value, OBJECT_SHAPE))
+#define GAB_VAL_IS_SHAPE(value) (gab_val_is_obj_kind(value, TYPE_SHAPE))
 #define GAB_VAL_TO_SHAPE(value) ((gab_obj_shape *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SHAPE(value) ((gab_obj_shape *)value)
 
@@ -326,7 +360,7 @@ struct gab_obj_record {
   gab_value static_values[FLEXIBLE_ARRAY];
 };
 
-#define GAB_VAL_IS_RECORD(value) (gab_val_is_obj_kind(value, OBJECT_RECORD))
+#define GAB_VAL_IS_RECORD(value) (gab_val_is_obj_kind(value, TYPE_RECORD))
 #define GAB_VAL_TO_RECORD(value) ((gab_obj_record *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_RECORD(value) ((gab_obj_record *)value)
 
@@ -392,8 +426,7 @@ struct gab_obj_container {
   gab_obj_container_cb destructor;
 };
 
-#define GAB_VAL_IS_CONTAINER(value)                                            \
-  (gab_val_is_obj_kind(value, OBJECT_CONTAINER))
+#define GAB_VAL_IS_CONTAINER(value) (gab_val_is_obj_kind(value, TYPE_CONTAINER))
 #define GAB_VAL_TO_CONTAINER(value) ((gab_obj_container *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_CONTAINER(value) ((gab_obj_container *)value)
 
@@ -410,7 +443,7 @@ struct gab_obj_symbol {
   s_i8 name;
 };
 
-#define GAB_VAL_IS_SYMBOL(value) (gab_val_is_obj_kind(value, OBJECT_SYMBOL))
+#define GAB_VAL_IS_SYMBOL(value) (gab_val_is_obj_kind(value, TYPE_SYMBOL))
 #define GAB_VAL_TO_SYMBOL(value) ((gab_obj_symbol *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SYMBOL(value) ((gab_obj_symbol *)value)
 
@@ -435,6 +468,9 @@ static inline u64 gab_val_intern_hash(gab_value value) {
   if (GAB_VAL_IS_SHAPE(value))
     return GAB_VAL_TO_SHAPE(value)->hash;
 
+  if (GAB_VAL_IS_FUNCTION(value))
+    return GAB_VAL_TO_FUNCTION(value)->hash;
+
   return value;
 }
 
@@ -445,68 +481,4 @@ static inline boolean gab_val_falsey(gab_value self) {
   return GAB_VAL_IS_NULL(self) || GAB_VAL_IS_FALSE(self);
 }
 
-// This can be heavily optimized.
-static inline gab_value gab_val_type(gab_engine *gab, gab_value value) {
-  if (GAB_VAL_IS_RECORD(value)) {
-    gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
-    return GAB_VAL_OBJ(obj->shape);
-  }
-
-  if (GAB_VAL_IS_NUMBER(value)) {
-    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("number"));
-    return GAB_VAL_OBJ(num);
-  }
-
-  if (GAB_VAL_IS_BOOLEAN(value)) {
-    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("boolean"));
-    return GAB_VAL_OBJ(num);
-  }
-
-  if (GAB_VAL_IS_NULL(value)) {
-    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("null"));
-    return GAB_VAL_OBJ(num);
-  }
-
-  if (GAB_VAL_IS_STRING(value)) {
-    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("string"));
-    return GAB_VAL_OBJ(num);
-  }
-
-  if (GAB_VAL_IS_FUNCTION(value)) {
-    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("function"));
-    return GAB_VAL_OBJ(num);
-  }
-
-  if (GAB_VAL_IS_CLOSURE(value)) {
-    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("closure"));
-    return GAB_VAL_OBJ(num);
-  }
-
-  if (GAB_VAL_IS_SHAPE(value)) {
-    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("shape"));
-    return GAB_VAL_OBJ(num);
-  }
-
-  if (GAB_VAL_IS_UPVALUE(value)) {
-    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("upvalue"));
-    return GAB_VAL_OBJ(num);
-  }
-
-  if (GAB_VAL_IS_BUILTIN(value)) {
-    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("builtin"));
-    return GAB_VAL_OBJ(num);
-  }
-
-  if (GAB_VAL_IS_CONTAINER(value)) {
-    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("container"));
-    return GAB_VAL_OBJ(num);
-  }
-
-  if (GAB_VAL_IS_SYMBOL(value)) {
-    gab_obj_string *num = gab_obj_string_create(gab, s_i8_cstr("symbol"));
-    return GAB_VAL_OBJ(num);
-  }
-
-  return GAB_VAL_NULL();
-}
 #endif

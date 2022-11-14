@@ -12,7 +12,13 @@ typedef struct gab_call_frame {
   /*
     The closure being called.
   */
-  gab_obj_closure *closure;
+  gab_obj_function *f;
+
+  /*
+   *
+   */
+  gab_obj_closure *c;
+
   /*
     The instruction pointer.
     This is stored and loaded by the macros STORE_FRAME and LOAD_FRAME.
@@ -28,6 +34,7 @@ typedef struct gab_call_frame {
     This is set during when the values are called.
   */
   u8 expected_results;
+
 } gab_call_frame;
 
 typedef struct gab_vm {

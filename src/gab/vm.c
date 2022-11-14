@@ -32,7 +32,7 @@ void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_module *mod, gab_status e,
   gab_call_frame *frame = vm->call_stack + 1;
 
   while (frame <= vm->frame) {
-    s_i8 func_name = frame->closure->func->name;
+    s_i8 func_name = frame->f->name;
 
     u64 offset = frame->ip - mod->bytecode.data - 1;
 
@@ -245,8 +245,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 #define GC() (&ENGINE()->gc)
 #define INSTR() (instr)
 #define FRAME() (frame)
-#define CLOSURE() (FRAME()->closure)
-#define MODULE() (CLOSURE()->func->mod)
+#define CLOSURE() (FRAME()->c)
+#define MODULE() (CLOSURE()->p->mod)
 #define IP() (ip)
 #define TOP() (VM()->top)
 #define SLOTS() (slots)
@@ -262,7 +262,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 #define DROP_N(n) (TOP() -= n)
 #define PEEK() (*(TOP() - 1))
 #define PEEK2() (*(TOP() - 2))
-#define PEEK_N(n) (*(TOP() - n))
+#define PEEK_N(n) (*(TOP() - (n)))
 
 #define WRITE_SHORT(n) ((IP()[-2] = ((n) >> 8) & 0xff), IP()[-1] = (n)&0xff)
 
@@ -272,6 +272,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 #define READ_CONSTANT (MOD_CONSTANT(READ_SHORT))
 #define READ_STRING (GAB_VAL_TO_STRING(READ_CONSTANT))
 #define READ_FUNCTION (GAB_VAL_TO_FUNCTION(READ_CONSTANT))
+#define READ_PROTOTYPE (GAB_VAL_TO_PROTOTYPE(READ_CONSTANT))
 
 #define STORE_FRAME()                                                          \
   ({                                                                           \
@@ -298,7 +299,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
   register gab_value *slots = TOP();
 
   // Setup for call to main function
-  PUSH(d_gab_constant_ikey(&mod->constants, mod->main));
+  gab_value main_f = d_gab_constant_ikey(&mod->constants, mod->main);
+
+  PUSH(GAB_VAL_NULL());
+
+  PUSH(main_f);
+
   for (u8 i = 0; i < argc; i++) {
     PUSH(argv[i]);
   }
@@ -306,20 +312,17 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
   LOOP() {
     {
       u8 arity, want;
-      gab_value callee;
+      gab_value f, r;
 
       // Setup the call to main function
       arity = argc;
       want = 1;
-      callee = PEEK_N(argc - 1);
       goto complete_call;
 
       CASE_CODE(VARCALL) : {
         u8 addtl = READ_BYTE;
-
         want = READ_BYTE;
         arity = *TOP() + addtl;
-        callee = PEEK_N(arity - 1);
         goto complete_call;
       }
 
@@ -342,53 +345,68 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       CASE_CODE(CALL_15):
       CASE_CODE(CALL_16): {
         want = READ_BYTE;
-
         arity = INSTR()- OP_CALL_0;
-        callee = PEEK_N(arity - 1);
         goto complete_call;
       }
       // clang-format on
 
     complete_call : {
+      f = PEEK_N(arity + 1);
+      r = PEEK_N(arity + 2);
+
+      if (!GAB_VAL_IS_FUNCTION(f)) {
+        STORE_FRAME();
+        gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), f));
+        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_FUNCTION,
+                      "Tried to call %.*s", (i32)a->len, a->data);
+        return failure(VM());
+      }
+
+      gab_value type = gab_val_type(ENGINE(), r);
+
+      gab_value callee = gab_obj_function_get(GAB_VAL_TO_FUNCTION(f), type);
+
+      if (GAB_VAL_IS_NULL(callee)) {
+        STORE_FRAME();
+        gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), r));
+        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_FUNCTION,
+                      "No specialization for receiver %.*s", (i32)a->len,
+                      a->data);
+        return failure(VM());
+      }
 
       if (GAB_VAL_IS_CLOSURE(callee)) {
         STORE_FRAME();
 
         gab_obj_closure *closure = GAB_VAL_TO_CLOSURE(callee);
 
-        while (arity < closure->func->narguments)
+        while (arity < closure->p->narguments)
           PUSH(GAB_VAL_NULL()), arity++;
 
-        while (arity > closure->func->narguments)
+        while (arity > closure->p->narguments)
           DROP(), arity--;
 
         FRAME()++;
-        FRAME()->closure = closure;
-        FRAME()->ip = MODULE()->bytecode.data + closure->func->offset;
-        FRAME()->slots = TOP() - arity - 1;
+        FRAME()->c = closure;
+        FRAME()->f = GAB_VAL_TO_FUNCTION(f);
+        FRAME()->ip = closure->p->mod->bytecode.data + closure->p->offset;
+        FRAME()->slots = TOP() - arity - 2;
         FRAME()->expected_results = want;
 
-        TOP() += CLOSURE()->func->nlocals;
+        TOP() += closure->p->nlocals;
 
         LOAD_FRAME();
       } else if (GAB_VAL_IS_BUILTIN(callee)) {
         gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(callee);
 
         gab_value result =
-            (*builtin->function)(ENGINE(), VM(), arity, TOP() - arity);
+            (*builtin->function)(ENGINE(), VM(), r, arity, TOP() - arity);
 
         TOP() -= arity + 1;
 
         TOP() = trim_return(VM(), &result, TOP(), 1, want);
 
         gab_gc_dref(GC(), VM(), result);
-      } else {
-        STORE_FRAME();
-        gab_obj_string *a =
-            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
-        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_FUNCTION,
-                      "Tried to call %.*s", (i32)a->len, a->data);
-        return failure(VM());
       }
 
       NEXT();
@@ -451,12 +469,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
     }
 
     {
-      gab_value prop, index;
+      gab_value key, index;
       i16 prop_offset;
       gab_obj_record *obj;
 
       CASE_CODE(GET_INDEX) : {
-        prop = PEEK();
+        key = PEEK();
         index = PEEK2();
 
         if (!GAB_VAL_IS_RECORD(index)) {
@@ -470,14 +488,15 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
         obj = GAB_VAL_TO_RECORD(index);
 
-        prop_offset = gab_obj_shape_find(obj->shape, prop);
+        prop_offset = gab_obj_shape_find(obj->shape, key);
 
         DROP_N(2);
         goto complete_obj_get;
       }
 
+#if GAB_CACHE_PROPERTIES
       CASE_CODE(GET_PROPERTY) : {
-        prop = READ_CONSTANT;
+        key = READ_CONSTANT;
         index = PEEK();
 
         gab_obj_shape **cached_shape = READ_INLINECACHE(gab_obj_shape);
@@ -497,7 +516,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         if (*cached_shape != obj->shape) {
           // The cache hasn't been created yet.
           *cached_shape = obj->shape;
-          prop_offset = gab_obj_shape_find(obj->shape, prop);
+          prop_offset = gab_obj_shape_find(obj->shape, key);
           // Writes into the short just before the ip.
           WRITE_SHORT(prop_offset);
         }
@@ -505,7 +524,28 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         DROP();
         goto complete_obj_get;
       }
+#else
+      CASE_CODE(GET_PROPERTY) : {
+        key = READ_CONSTANT;
+        index = PEEK();
 
+        if (!GAB_VAL_IS_RECORD(index)) {
+          STORE_FRAME();
+          gab_obj_string *a =
+              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+          dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_RECORD,
+                        "Tried to index %.*s", (i32)a->len, a->data);
+          return failure(VM());
+        }
+
+        obj = GAB_VAL_TO_RECORD(index);
+
+        prop_offset = gab_obj_shape_find(obj->shape, key);
+
+        DROP();
+        goto complete_obj_get;
+      }
+#endif
     complete_obj_get : {
       PUSH(gab_obj_record_get(obj, prop_offset));
       NEXT();
@@ -546,11 +586,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
           gab_obj_record_set(obj, prop_offset, value);
         }
 
-
         DROP_N(3);
         goto complete_obj_set;
       }
 
+#if GAB_CACHE_PROPERTIES
       CASE_CODE(SET_PROPERTY) : {
         key = READ_CONSTANT;
         value = PEEK();
@@ -597,6 +637,29 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         DROP_N(2);
         goto complete_obj_set;
       }
+#else
+      CASE_CODE(SET_PROPERTY) : {
+        key = READ_CONSTANT;
+        value = PEEK();
+        index = PEEK2();
+
+        if (!GAB_VAL_IS_RECORD(index)) {
+          STORE_FRAME();
+          gab_obj_string *a =
+              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+          dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_RECORD,
+                        "Tried to index %.*s", (i32)a->len, a->data);
+          return failure(VM());
+        }
+
+        obj = GAB_VAL_TO_RECORD(index);
+
+        gab_obj_record_insert(ENGINE(), VM(), obj, key, value);
+
+        DROP_N(2);
+        goto complete_obj_set;
+      }
+#endif
 
     complete_obj_set : {
       gab_gc_iref(GC(), VM(), value);
@@ -1010,15 +1073,35 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
     }
 
     CASE_CODE(CLOSURE) : {
-      gab_obj_function *func = READ_FUNCTION;
+      gab_obj_prototype *p = READ_PROTOTYPE;
+      gab_value f = POP();
+      gab_value r = POP();
 
-      gab_value *upvalues = TOP();
+      if (!GAB_VAL_IS_FUNCTION(f)) {
+        STORE_FRAME();
+        gab_obj_string *s = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), f));
+        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_FUNCTION,
+                      "Tried to specialize %.*s", (i32)s->len, s->data);
+        return failure(VM());
+      }
+
+      gab_obj_function *func = GAB_VAL_TO_FUNCTION(f);
+
+      if (!GAB_VAL_IS_NULL(gab_obj_function_get(func, r))) {
+        STORE_FRAME();
+        gab_obj_string *s = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), r));
+        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_FUNCTION,
+                      "Specialization already exists for %.*s", (i32)s->len,
+                      s->data);
+        return failure(VM());
+      }
 
       // Artificially use the stack to store the upvalues
       // as we're finding them to capture.
       // This is done so that the GC knows they're there.
+      gab_value *upvalues = TOP();
 
-      for (int i = 0; i < func->nupvalues; i++) {
+      for (int i = 0; i < p->nupvalues; i++) {
         u8 flags = READ_BYTE;
         u8 index = READ_BYTE;
 
@@ -1035,13 +1118,13 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         }
       }
 
-      DROP_N(func->nupvalues);
+      DROP_N(p->nupvalues);
 
-      gab_value obj = GAB_VAL_OBJ(gab_obj_closure_create(func, upvalues));
+      gab_value obj = GAB_VAL_OBJ(gab_obj_closure_create(p, upvalues));
 
-      PUSH(obj);
+      gab_obj_function_set(func, r, obj);
 
-      gab_gc_dref(GC(), VM(), obj);
+      PUSH(f);
 
       NEXT();
     }
