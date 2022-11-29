@@ -116,7 +116,7 @@ gab_value gab_bundle_function(gab_engine *gab, gab_vm *vm, s_i8 name, u64 size,
 
 static boolean gab_val_falsey(gab_value self);
 
-static gab_value gab_val_type(gab_engine *gab, gab_value self);
+static gab_value gab_typeof(gab_engine *gab, gab_value self);
 
 gab_value gab_get_type(gab_engine *gab, gab_type t);
 

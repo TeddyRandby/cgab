@@ -453,26 +453,6 @@ gab_obj_symbol *gab_obj_symbol_create(s_i8 name);
  * ------------- HELPERS ------------
  */
 gab_value gab_val_to_string(gab_engine *gab, gab_value self);
-/*
-  This means that the hash depends on the actual value of the object.
-
-  For example, strings hash based on their content.
-
-  This allows the rest of hashing and comparison to be based on the
-  bit-representation.
-*/
-static inline u64 gab_val_intern_hash(gab_value value) {
-  if (GAB_VAL_IS_STRING(value))
-    return GAB_VAL_TO_STRING(value)->hash;
-
-  if (GAB_VAL_IS_SHAPE(value))
-    return GAB_VAL_TO_SHAPE(value)->hash;
-
-  if (GAB_VAL_IS_FUNCTION(value))
-    return GAB_VAL_TO_FUNCTION(value)->hash;
-
-  return value;
-}
 
 /*
   A value is false if it is null or the boolean false.

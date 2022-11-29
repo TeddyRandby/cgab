@@ -9,14 +9,8 @@
   A run-time representation of a callframe.
 */
 typedef struct gab_call_frame {
-  /*
-    The closure being called.
-  */
   gab_obj_function *f;
 
-  /*
-   *
-   */
   gab_obj_closure *c;
 
   /*
@@ -24,6 +18,7 @@ typedef struct gab_call_frame {
     This is stored and loaded by the macros STORE_FRAME and LOAD_FRAME.
   */
   u8 *ip;
+
   /*
     The value on the stack where this callframe begins.
     Locals are offset from this.
@@ -33,20 +28,15 @@ typedef struct gab_call_frame {
     Every call expects a certain number of results.
     This is set during when the values are called.
   */
-  u8 expected_results;
-
+  u8 want;
 } gab_call_frame;
 
 typedef struct gab_vm {
-
   /*
     Upvalues to close when the current function returns.
   */
   gab_obj_upvalue *open_upvalues;
 
-  /*
-   The current frame
-  */
   gab_call_frame *frame;
 
   gab_value *top;

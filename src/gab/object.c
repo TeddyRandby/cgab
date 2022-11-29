@@ -85,6 +85,10 @@ gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self) {
   case TYPE_CONTAINER: {
     return gab_obj_string_create(gab, s_i8_cstr("[container]"));
   }
+  default: {
+    fprintf(stderr, "Not an object.\n");
+    exit(0);
+  }
   }
 }
 
@@ -159,6 +163,10 @@ void gab_obj_dump(gab_value value) {
     printf("[closure]");
     break;
   }
+  default: {
+    fprintf(stderr, "Not an object.\n");
+    exit(0);
+  }
   }
 }
 
@@ -211,6 +219,11 @@ void gab_obj_destroy(gab_obj *self) {
     GAB_DESTROY_STRUCT(self);
     return;
   }
+  case TYPE_BOOLEAN:
+  case TYPE_NULL:
+  case TYPE_NUMBER:
+  case GAB_NTYPES:
+    return;
   }
 }
 
@@ -326,8 +339,8 @@ gab_obj_function *gab_obj_function_create(gab_engine *gab, s_i8 name) {
   self->name = name;
   self->hash = hash;
 
-  // Functions cannot reference other objects - mark them green.
-  GAB_OBJ_GREEN((gab_obj *)self);
+  gab_engine_intern(gab, GAB_VAL_OBJ(self));
+
   return self;
 }
 

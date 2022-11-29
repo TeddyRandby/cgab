@@ -106,7 +106,6 @@ OP_CODE(RETURN_16)
 /*
   -------------- Single Byte Arguments -------------
 */
-OP_CODE(CONSTANT)
 OP_CODE(LOAD_LOCAL)
 OP_CODE(STORE_LOCAL)
 OP_CODE(POP_STORE_LOCAL)
@@ -150,6 +149,7 @@ OP_CODE(CLOSE_UPVALUE)
 /*
   -------------- Single Short Arguments -------------
 */
+OP_CODE(CONSTANT)
 OP_CODE(POP_JUMP_IF_FALSE)
 OP_CODE(POP_JUMP_IF_TRUE)
 

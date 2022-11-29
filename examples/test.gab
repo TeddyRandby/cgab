@@ -1,0 +1,6 @@
+def stack = :require('../examples/stack')
+
+def s = stack:make
+
+s:push('world')
+s:push('hello')

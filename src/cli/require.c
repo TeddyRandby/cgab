@@ -17,7 +17,8 @@ typedef gab_value (*module_f)(gab_engine *);
 typedef struct {
   handler_f handler;
   const char *prefix;
-  const char *suffix; } resource;
+  const char *suffix;
+} resource;
 
 typedef enum {
   IMPORT_SHARED,
@@ -103,15 +104,15 @@ gab_value gab_source_file_handler(gab_engine *gab, const a_i8 *path,
                                   const s_i8 module) {
   a_i8 *src = os_read_file((char *)path->data);
 
-  gab_module *pkg =
-      gab_compile(gab, s_i8_cstr("module"), s_i8_create(src->data, src->len),
-                  10, global_arg_names);
+  gab_module *pkg = gab_compile(gab, s_i8_cstr("module"),
+                                s_i8_create(src->data, src->len), 0, NULL);
 
   if (pkg == NULL) {
+    fprintf(stderr, "Module failed to compile\n");
     return GAB_VAL_NULL();
   }
 
-  gab_value res = gab_run(gab, pkg, 10, global_arg_values);
+  gab_value res = gab_run(gab, pkg, 0, NULL);
 
   import *i = NEW(import);
 
@@ -165,6 +166,7 @@ gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, gab_value receiver,
                           u8 argc, gab_value argv[argc]) {
 
   if (!GAB_VAL_IS_STRING(argv[0]) || argc != 1) {
+    fprintf(stderr, "Require received bad arguments\n");
     return GAB_VAL_NULL();
   }
 
@@ -192,5 +194,6 @@ gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, gab_value receiver,
     a_i8_destroy(path);
   }
 
+  fprintf(stderr, "Matched no resources\n");
   return GAB_VAL_NULL();
 }

@@ -1,35 +1,31 @@
-def IStack {
+def Stack {
   top
   data
 }
 
-def stack = $stack
+def key = $stack
 
-def make[stack]()
+def make[key]()
   {
     top: 0
     data: []
   }
 end
 
-def push[IStack](element)
+def push[Stack](element)
   self.data[self.top] = element
   self.top = self.top + 1
 end
 
-def pop[IStack]()
+def pop[Stack]()
   self.top = self.top - 1
   self.data[self.top]
 end
 
-# Testing
+def s = key:make
 
-let test_stack = stack:make
+s:push('world')
+s:push('hello')
 
-test_stack:push(1)
-test_stack:push(2)
-test_stack:push(3)
-
-test_stack:pop:print # prints 3
-test_stack:pop:print # prints 2
-test_stack:pop:print # prints 1
+s:pop:print
+s:pop:print

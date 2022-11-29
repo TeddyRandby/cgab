@@ -10,10 +10,6 @@ typedef struct import import;
 #define EQUAL(a, b) (s_i8_match(a, b))
 #include "include/dict.h"
 
-#define GLOBAL_ARG_LEN 7
-extern s_i8 global_arg_names[GLOBAL_ARG_LEN];
-extern gab_value global_arg_values[GLOBAL_ARG_LEN];
-
 void imports_create();
 void imports_destroy();
 

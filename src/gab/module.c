@@ -157,14 +157,17 @@ u8 gab_module_push_return(gab_module *self, u8 have, u8 var, gab_token t,
   return OP_VARRETURN;
 }
 
-u8 gab_module_push_call(gab_module *self, u8 have, u8 var, gab_token t, u64 l) {
+u8 gab_module_push_call(gab_module *self, u8 have, u8 var, u16 message,
+                        gab_token t, u64 l) {
   if (!var) {
     u8 op = MAKE_CALL(have);
     gab_module_push_op(self, op, t, l);
+    gab_module_push_short(self, message, t, l);
     gab_module_push_byte(self, 1, t, l);
     return op;
   }
   gab_module_push_op(self, OP_VARCALL, t, l);
+  gab_module_push_short(self, message, t, l);
   gab_module_push_byte(self, have, t, l);
   gab_module_push_byte(self, 1, t, l);
   return OP_VARCALL;
@@ -274,6 +277,12 @@ u64 dumpSimpleInstruction(gab_module *self, u64 offset) {
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   printf("%-16s\n", name);
   return offset + 1;
+}
+
+u64 dumpCallInstruction(gab_module *self, u64 offset) {
+  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
+  printf("%-16s\n", name);
+  return offset + 4;
 }
 
 u64 dumpByteInstruction(gab_module *self, u64 offset) {
@@ -461,7 +470,9 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_CALL_13:
   case OP_CALL_14:
   case OP_CALL_15:
-  case OP_CALL_16:
+  case OP_CALL_16: {
+    return dumpCallInstruction(self, offset);
+  }
   case OP_SPREAD:
   case OP_POP_N:
   case OP_CLOSE_UPVALUE:
@@ -478,7 +489,9 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     offset++;
     u16 proto_constant = ((((u16)self->bytecode.data[offset]) << 8) |
                           self->bytecode.data[offset + 1]);
-    offset += 2;
+    u16 func_constant = ((((u16)self->bytecode.data[offset + 2]) << 8) |
+                         self->bytecode.data[offset + 3]);
+    offset += 4;
 
     printf("%-16s\n", "OP_CLOSURE");
 
