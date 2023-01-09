@@ -1,6 +1,4 @@
-#include "include/core.h"
 #include "include/gab.h"
-#include "include/object.h"
 #include "include/os.h"
 #include "print.h"
 #include "require.h"
@@ -18,30 +16,18 @@ void make_print(gab_engine *gab) {
       gab_get_type(gab, TYPE_FUNCTION),
   };
 
+
   gab_value print_builtin = GAB_BUILTIN(print);
 
-  gab_value specializations[] = {
-      print_builtin, print_builtin, print_builtin, print_builtin,
-      print_builtin, print_builtin, print_builtin, print_builtin,
-  };
-
-  gab_bundle_function(gab, NULL, s_i8_cstr("print"), LEN_CARRAY(receivers),
-                      receivers, specializations);
+  for (i32 i = 0; i < LEN_CARRAY(receivers); i++) {
+      gab_specialize(gab, s_i8_cstr("print"), receivers[i], print_builtin);
+  }
 }
 
 void make_require(gab_engine *gab) {
-  gab_value receivers[] = {
-      GAB_VAL_NULL(),
-  };
-
   gab_value require_builtin = GAB_BUILTIN(require);
 
-  gab_value specializations[] = {
-      require_builtin,
-  };
-
-  gab_bundle_function(gab, NULL, s_i8_cstr("require"), LEN_CARRAY(receivers),
-                      receivers, specializations);
+  gab_specialize(gab, s_i8_cstr("require"), GAB_VAL_NULL(), require_builtin);
 }
 
 void gab_run_file(const char *path) {
@@ -65,12 +51,20 @@ void gab_run_file(const char *path) {
 
   result = gab_run(gab, main, 0, NULL);
 
-  gab_module_destroy(gab, main);
 fin:
+  // Cleanup the result
   gab_dref(gab, NULL, result);
+
+  // Cleanup the engine, module, and imports
+  gab_module_cleanup(gab, main);
+  gab_cleanup(gab);
+  imports_cleanup(gab);
+
+  // Destroy everything
   gab_destroy(gab);
-  a_i8_destroy(src);
+  gab_module_destroy(main);
   imports_destroy();
+  a_i8_destroy(src);
 }
 
 i32 main(i32 argc, const char **argv) {

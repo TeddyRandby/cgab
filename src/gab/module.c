@@ -17,7 +17,10 @@ gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
   return self;
 }
 
-void dref_all(gab_engine *gab, gab_module *mod) {
+void gab_module_cleanup(gab_engine *gab, gab_module *mod) {
+  if (mod == NULL)
+    return;
+
   for (u64 i = 0; i < mod->constants.cap; i++) {
     if (d_gab_constant_iexists(&mod->constants, i)) {
       gab_value v = d_gab_constant_ikey(&mod->constants, i);
@@ -26,8 +29,9 @@ void dref_all(gab_engine *gab, gab_module *mod) {
   }
 }
 
-void gab_module_destroy(gab_engine *gab, gab_module *mod) {
-  dref_all(gab, mod);
+void gab_module_destroy(gab_module *mod) {
+  if (mod == NULL)
+    return;
 
   v_u8_destroy(&mod->bytecode);
   v_u8_destroy(&mod->tokens);
@@ -164,12 +168,14 @@ u8 gab_module_push_call(gab_module *self, u8 have, u8 var, u16 message,
     gab_module_push_op(self, op, t, l);
     gab_module_push_short(self, message, t, l);
     gab_module_push_byte(self, 1, t, l);
+
     return op;
   }
   gab_module_push_op(self, OP_VARCALL, t, l);
   gab_module_push_short(self, message, t, l);
   gab_module_push_byte(self, have, t, l);
   gab_module_push_byte(self, 1, t, l);
+
   return OP_VARCALL;
 }
 

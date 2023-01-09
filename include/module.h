@@ -1,6 +1,7 @@
 #ifndef GAB_MODULE_H
 #define GAB_MODULE_H
 #include "gc.h"
+#include "include/gab.h"
 #include "lexer.h"
 
 typedef struct gab_module gab_module;
@@ -77,7 +78,8 @@ struct gab_module {
 */
 gab_module *gab_module_create(gab_module *, s_i8, s_i8);
 
-void gab_module_destroy(gab_engine *gab, gab_module * mod);
+void gab_module_destroy(gab_module * mod);
+void gab_module_cleanup(gab_engine *gab, gab_module *mod);
 
 /*
   Helpers for pushing ops into the module.

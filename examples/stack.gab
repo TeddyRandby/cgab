@@ -22,10 +22,4 @@ def pop[Stack]()
   self.data[self.top]
 end
 
-def s = key:make
-
-s:push('world')
-s:push('hello')
-
-s:pop:print
-s:pop:print
+return key

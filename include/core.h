@@ -10,6 +10,7 @@
 #define GAB_LOG_EXECUTION 0
 // Cache property offsets inline in the bytecode.
 #define GAB_CACHE_PROPERTIES 1
+#define GAB_CACHE_CALLS 1
 
 // Configurable macros
 // Dictionary maximum load
@@ -17,11 +18,11 @@
 // Size of the initial capacity for objects.
 #define OBJECT_INITIAL_CAP 8
 // Maximum number of call frames that can be on the call stack
-#define FRAMES_MAX 64
+#define FRAMES_MAX 512
 // Maximum size of the stack
 #define FUNCTION_DEF_NESTING_MAX 64
 // Maximum number of roots inthe root buffer before triggering a collection.
-#define ROOT_MAX 1024
+#define ROOT_MAX 2048
 // Initial capacity of interned table
 #define INTERN_INITIAL_CAP 1024
 

@@ -14,8 +14,7 @@ void gab_container_file_cb(gab_obj_container *self) {
 
 gab_value gab_lib_open(gab_engine *eng, gab_vm *vm, gab_value receiver, u8 argc,
                        gab_value argv[argc]) {
-  if (argc != 2 || !GAB_VAL_IS_STRING(argv[0]) ||
-      !GAB_VAL_IS_STRING(argv[1])) {
+  if (argc != 2 || !GAB_VAL_IS_STRING(argv[0]) || !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
   }
 
@@ -117,12 +116,9 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
       GAB_BUILTIN(write),
   };
 
-  gab_value bundle[3];
-
   for (u8 i = 0; i < 3; i++) {
-    bundle[i] = gab_bundle_function(gab, vm, keys[i], 1, receiver_types + i,
-                                    values + i);
+    gab_specialize(gab, keys[i], receiver_types[i], values[i]);
   }
 
-  return gab_bundle_record(gab, vm, LEN_CARRAY(keys), keys, bundle);
+  return GAB_VAL_NULL();
 }

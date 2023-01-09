@@ -244,12 +244,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 #define ENGINE() (gab)
 #define GC() (&ENGINE()->gc)
 #define INSTR() (instr)
-#define FRAME() (frame)
-#define CLOSURE() (closure)
+#define FRAME() (vm.frame)
+#define CLOSURE() (FRAME()->c)
 #define MODULE() (CLOSURE()->p->mod)
 #define IP() (ip)
 #define TOP() (VM()->top)
-#define SLOTS() (slots)
+#define SLOTS() (FRAME()->slots)
 #define LOCAL(i) (SLOTS()[i])
 #define UPVALUE(i) (*(GAB_VAL_TO_UPVALUE(CLOSURE()->upvalues[i])->data))
 #define CONST_UPVALUE(i) (CLOSURE()->upvalues[i])
@@ -274,19 +274,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 #define READ_FUNCTION (GAB_VAL_TO_FUNCTION(READ_CONSTANT))
 #define READ_PROTOTYPE (GAB_VAL_TO_PROTOTYPE(READ_CONSTANT))
 
-#define STORE_FRAME()                                                          \
-  ({                                                                           \
-    FRAME()->ip = IP();                                                        \
-    FRAME()->c = CLOSURE();                                                    \
-    VM()->frame = FRAME();                                                     \
-  })
+#define STORE_FRAME() ({ FRAME()->ip = IP(); })
 
-#define LOAD_FRAME()                                                           \
-  ({                                                                           \
-    IP() = FRAME()->ip;                                                        \
-    SLOTS() = FRAME()->slots;                                                  \
-    CLOSURE() = FRAME()->c;                                                    \
-  })
+#define LOAD_FRAME() ({ IP() = FRAME()->ip; })
 
   /*
    ----------- BEGIN RUN BODY -----------
@@ -301,12 +291,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
   gab_obj_closure *c =
       GAB_VAL_TO_CLOSURE(gab_obj_function_get(f, GAB_VAL_NULL()));
 
-  register u8 instr;
+  FRAME()->c = c;
 
-  register u8 *ip;
-  register gab_value *slots;
-  register gab_obj_closure *closure = c;
-  register gab_call_frame *frame = VM()->call_stack;
+  register u8 instr;
+  register u8 *ip = c->p->mod->bytecode.data;
 
   PUSH(GAB_VAL_NULL());
 
@@ -318,7 +306,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
     {
       u16 message;
       u8 arity, want;
-      gab_value f, r;
+      gab_obj_function *f;
+      gab_value r, m;
 
       // Setup the call to main function
       message = mod->main;
@@ -328,9 +317,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
       CASE_CODE(VARCALL) : {
         message = READ_SHORT;
-        u8 addtl = READ_BYTE;
+        arity = *TOP() + READ_BYTE;
         want = READ_BYTE;
-        arity = *TOP() + addtl;
         goto complete_call;
       }
 
@@ -360,22 +348,14 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       // clang-format on
 
     complete_call : {
-      f = MOD_CONSTANT(message);
+      f = GAB_VAL_TO_FUNCTION(MOD_CONSTANT(message));
       r = PEEK_N(arity + 1);
-
-      if (!GAB_VAL_IS_FUNCTION(f)) {
-        STORE_FRAME();
-        gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), f));
-        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_FUNCTION,
-                      "Tried to call %.*s", (i32)a->len, a->data);
-        return failure(VM());
-      }
 
       gab_value type = gab_typeof(ENGINE(), r);
 
-      gab_value callee = gab_obj_function_get(GAB_VAL_TO_FUNCTION(f), type);
+      m = gab_obj_function_get(f, type);
 
-      if (GAB_VAL_IS_NULL(callee)) {
+      if (GAB_VAL_IS_NULL(m)) {
         STORE_FRAME();
         gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), r));
         dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_FUNCTION,
@@ -384,10 +364,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         return failure(VM());
       }
 
-      if (GAB_VAL_IS_CLOSURE(callee)) {
+      if (GAB_VAL_IS_CLOSURE(m)) {
         STORE_FRAME();
 
-        gab_obj_closure *new_closure = GAB_VAL_TO_CLOSURE(callee);
+        gab_obj_closure *new_closure = GAB_VAL_TO_CLOSURE(m);
 
         while (arity < new_closure->p->narguments)
           PUSH(GAB_VAL_NULL()), arity++;
@@ -397,7 +377,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
         FRAME()++;
         FRAME()->c = new_closure;
-        FRAME()->f = GAB_VAL_TO_FUNCTION(f);
+        FRAME()->f = f;
         FRAME()->ip =
             new_closure->p->mod->bytecode.data + new_closure->p->offset;
         FRAME()->slots = TOP() - arity - 1;
@@ -406,10 +386,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         TOP() += new_closure->p->nlocals;
 
         LOAD_FRAME();
+
+        NEXT();
       }
 
-      if (GAB_VAL_IS_BUILTIN(callee)) {
-        gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(callee);
+      if (GAB_VAL_IS_BUILTIN(m)) {
+        gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(m);
 
         gab_value result =
             (*builtin->function)(ENGINE(), VM(), r, arity, TOP() - arity);
@@ -419,9 +401,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         TOP() = trim_return(VM(), &result, TOP(), 1, want);
 
         gab_gc_dref(GC(), VM(), result);
-      }
 
-      NEXT();
+        NEXT();
+      }
     }
     }
 

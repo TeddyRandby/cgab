@@ -41,7 +41,10 @@ gab_engine *gab_create(u8 flags) {
   return gab;
 }
 
-static inline void dref_all(gab_engine *gab) {
+void gab_cleanup(gab_engine *gab) {
+  if (gab == NULL)
+    return;
+
   for (u64 i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
       gab_obj_string *v = d_strings_ikey(&gab->interned_strings, i);
@@ -69,7 +72,8 @@ static inline void dref_all(gab_engine *gab) {
 }
 
 void gab_destroy(gab_engine *gab) {
-  dref_all(gab);
+  if (gab == NULL)
+    return;
 
   d_strings_destroy(&gab->interned_strings);
   d_shapes_destroy(&gab->interned_shapes);
@@ -127,16 +131,11 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
   return bundle;
 }
 
-gab_value gab_bundle_function(gab_engine *gab, gab_vm *vm, s_i8 name, u64 size,
-                              gab_value *receivers,
-                              gab_value *specializations) {
+void gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
+                    gab_value specialization) {
   gab_obj_function *f = gab_obj_function_create(gab, name);
 
-  for (u64 i = 0; i < size; i++) {
-    gab_obj_function_set(f, receivers[i], specializations[i]);
-  }
-
-  return GAB_VAL_OBJ(f);
+  gab_obj_function_set(f, receiver, specialization);
 }
 
 /**

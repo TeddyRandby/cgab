@@ -98,7 +98,7 @@ struct gab_obj {
 */
 void gab_obj_destroy(gab_obj *self);
 
-static inline gab_val_destroy(gab_value self) {
+static inline void gab_val_destroy(gab_value self) {
   if (GAB_VAL_IS_OBJ(self))
     gab_obj_destroy(GAB_VAL_TO_OBJ(self));
 }
@@ -291,6 +291,15 @@ boolean gab_obj_function_set(gab_obj_function *self, gab_value receiver,
                              gab_value spec);
 
 gab_value gab_obj_function_get(gab_obj_function *self, gab_value receiver);
+
+static inline gab_value gab_obj_function_cache_get(gab_obj_function* self, u16 offset) {
+    return d_specs_ival(&self->s, offset);
+}
+
+static inline u16 gab_obj_function_cache_set(gab_obj_function* self, gab_value r) {
+    return d_specs_index_of(&self->s, r);
+}
+
 
 /*
   ------------- OBJ_SHAPE-------------

@@ -1,6 +1,13 @@
+:require('io')
+
 def stack = :require('../examples/stack')
 
 def s = stack:make
 
+def f = :open('test.txt', 'w+')
+
 s:push('world')
 s:push('hello')
+
+f:write(s:pop)
+f:write(s:pop)

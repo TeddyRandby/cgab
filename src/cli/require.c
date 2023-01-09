@@ -28,7 +28,7 @@ typedef enum {
 struct import {
   import_k k;
   union {
-    a_i8 *source;
+    gab_module *mod;
     void *shared;
   } as;
   gab_value cache;
@@ -42,13 +42,27 @@ void import_destroy(import *i) {
     dlclose(i->as.shared);
     break;
   case IMPORT_SOURCE:
-    a_i8_destroy(i->as.source);
+    gab_module_destroy(i->as.mod);
     break;
   }
   DESTROY(i);
 }
 
+void import_cleanup(gab_engine *gab, import *i) {
+  if (i->k == IMPORT_SOURCE) {
+    gab_module_cleanup(gab, i->as.mod);
+  }
+}
+
 void imports_create() { d_import_create(&imports, 8); };
+
+void imports_cleanup(gab_engine *gab) {
+  for (u64 i = 0; i < imports.cap; i++) {
+    if (d_import_iexists(&imports, i)) {
+      import_cleanup(gab, d_import_ival(&imports, i));
+    }
+  }
+}
 
 void imports_destroy() {
   for (u64 i = 0; i < imports.cap; i++) {
@@ -118,7 +132,8 @@ gab_value gab_source_file_handler(gab_engine *gab, const a_i8 *path,
 
   i->k = IMPORT_SOURCE;
   i->cache = res;
-  i->as.source = src;
+  i->as.mod = pkg;
+  a_i8_destroy(src);
   add_import(gab, module, i);
 
   return res;

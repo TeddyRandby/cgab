@@ -6,4 +6,4 @@ def fib[2?]()
   end
 end
   
-28:fib:print
+35:fib
