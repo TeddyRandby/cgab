@@ -179,6 +179,21 @@ u8 gab_module_push_call(gab_module *self, u8 have, u8 var, u16 message,
   return OP_VARCALL;
 }
 
+u8 gab_module_push_dyncall(gab_module* self, u8 have, u8 var, gab_token t, u64 l) {
+  if (!var) {
+    gab_module_push_op(self, OP_DYNCALL, t, l);
+    gab_module_push_byte(self, have, t, l);
+    gab_module_push_byte(self, 1, t, l);
+    return OP_DYNCALL;
+  }
+
+  gab_module_push_op(self, OP_VARDYNCALL, t, l);
+  gab_module_push_byte(self, have, t, l);
+  gab_module_push_byte(self, 1, t, l);
+
+  return OP_VARCALL;
+}
+
 u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l) {
   if (n == 1) {
     u8 op = OP_POP;

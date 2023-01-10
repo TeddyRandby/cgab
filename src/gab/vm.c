@@ -23,7 +23,7 @@ static const char *gab_token_names[] = {
 #define ANSI_COLOR_CYAN "\x1b[36m"
 #define ANSI_COLOR_RESET "\x1b[0m"
 
-void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_module *mod, gab_status e,
+void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
                    const char *help_fmt, ...) {
   if (!(gab->flags & GAB_FLAG_DUMP_ERROR)) {
     return;
@@ -33,6 +33,7 @@ void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_module *mod, gab_status e,
 
   while (frame <= vm->frame) {
     s_i8 func_name = frame->f->name;
+    gab_module *mod = frame->c->p->mod;
 
     u64 offset = frame->ip - mod->bytecode.data - 1;
 
@@ -228,7 +229,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
     gab_obj_string *b =                                                        \
         GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK2()));               \
                                                                                \
-    dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_NUMERIC,                   \
+    dump_vm_error(ENGINE(), VM(), GAB_NOT_NUMERIC,                   \
                   "Tried to" #operation " %.*s and %.*s", (i32)b->len,         \
                   b->data, (i32)a->len, a->data);                              \
     return failure(VM());                                                      \
@@ -313,12 +314,50 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       message = mod->main;
       arity = argc;
       want = 1;
+      f = GAB_VAL_TO_FUNCTION(MOD_CONSTANT(message));
       goto complete_call;
+
+      CASE_CODE(DYNCALL) : {
+        arity = READ_BYTE;
+        want = READ_BYTE;
+        gab_value callee = POP();
+
+        if (!GAB_VAL_IS_FUNCTION(callee)) {
+          STORE_FRAME();
+          gab_obj_string *a =
+              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
+                        "Tried to call '%.*s'", (i32)a->len, a->data);
+          return failure(VM());
+        }
+
+        f = GAB_VAL_TO_FUNCTION(callee);
+        goto complete_call;
+      }
+
+      CASE_CODE(VARDYNCALL) : {
+        arity = *TOP() + READ_BYTE;
+        want = READ_BYTE;
+        gab_value callee = POP();
+
+        if (!GAB_VAL_IS_FUNCTION(callee)) {
+          STORE_FRAME();
+          gab_obj_string *a =
+              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
+                        "Tried to call '%.*s'", (i32)a->len, a->data);
+          return failure(VM());
+        }
+
+        f = GAB_VAL_TO_FUNCTION(callee);
+        goto complete_call;
+      }
 
       CASE_CODE(VARCALL) : {
         message = READ_SHORT;
         arity = *TOP() + READ_BYTE;
         want = READ_BYTE;
+        f = GAB_VAL_TO_FUNCTION(MOD_CONSTANT(message));
         goto complete_call;
       }
 
@@ -343,12 +382,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         message = READ_SHORT;
         want = READ_BYTE;
         arity = INSTR()- OP_CALL_0;
+        f = GAB_VAL_TO_FUNCTION(MOD_CONSTANT(message));
         goto complete_call;
       }
       // clang-format on
 
     complete_call : {
-      f = GAB_VAL_TO_FUNCTION(MOD_CONSTANT(message));
       r = PEEK_N(arity + 1);
 
       gab_value type = gab_typeof(ENGINE(), r);
@@ -358,8 +397,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       if (GAB_VAL_IS_NULL(m)) {
         STORE_FRAME();
         gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), r));
-        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_FUNCTION,
-                      "No specialization for receiver %.*s", (i32)a->len,
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
+                      "No specialization for receiver '%.*s'", (i32)a->len,
                       a->data);
         return failure(VM());
       }
@@ -472,7 +511,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
           STORE_FRAME();
           gab_obj_string *a =
               GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_RECORD,
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD,
                         "Tried to index %.*s", (i32)a->len, a->data);
           return failure(VM());
         }
@@ -497,7 +536,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
           STORE_FRAME();
           gab_obj_string *a =
               GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_RECORD,
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD,
                         "Tried to index %.*s", (i32)a->len, a->data);
           return failure(VM());
         }
@@ -559,7 +598,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
           STORE_FRAME();
           gab_obj_string *a =
               GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_RECORD,
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD,
                         "Tried to index %.*s", (i32)a->len, a->data);
           return failure(VM());
         }
@@ -595,7 +634,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
           STORE_FRAME();
           gab_obj_string *a =
               GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_RECORD,
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD,
                         "Tried to index %.*s", (i32)a->len, a->data);
           return failure(VM());
         }
@@ -673,7 +712,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         STORE_FRAME();
         gab_obj_string *a =
             GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK()));
-        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_NUMERIC,
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_NUMERIC,
                       "Tried to negate %.*s", (i32)a->len, a->data);
         return failure(VM());
       }
@@ -766,7 +805,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         gab_obj_string *b =
             GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK2()));
 
-        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_STRING,
+        dump_vm_error(ENGINE(), VM(),  GAB_NOT_STRING,
                       "Tried to concatenate %.*s and %.*s", (i32)b->len,
                       b->data, (i32)a->len, a->data);
         return failure(VM());
@@ -841,7 +880,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
     CASE_CODE(ASSERT) : {
       if (GAB_VAL_IS_NULL(PEEK())) {
         STORE_FRAME();
-        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_ASSERTION_FAILED, "");
+        dump_vm_error(ENGINE(), VM(), GAB_ASSERTION_FAILED, "");
         return failure(VM());
       }
       NEXT();
@@ -888,7 +927,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         STORE_FRAME();
         gab_obj_string *a =
             GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_RECORD,
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD,
                       "Tried to spread %.*s", (i32)a->len, a->data);
         return failure(VM());
       }
@@ -1071,7 +1110,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       if (!GAB_VAL_IS_NULL(gab_obj_function_get(f, r))) {
         STORE_FRAME();
         gab_obj_string *s = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), r));
-        dump_vm_error(ENGINE(), VM(), MODULE(), GAB_NOT_FUNCTION,
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
                       "Specialization already exists for %.*s", (i32)s->len,
                       s->data);
         return failure(VM());

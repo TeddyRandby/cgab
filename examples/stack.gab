@@ -1,15 +1,12 @@
+def KEY = $stack
+
 def Stack {
   top
   data
 }
 
-def key = $stack
-
-def make[key]()
-  {
-    top: 0
-    data: []
-  }
+def make[KEY]
+  { top: 0 data: [] }
 end
 
 def push[Stack](element)
@@ -17,9 +14,13 @@ def push[Stack](element)
   self.top = self.top + 1
 end
 
-def pop[Stack]()
+def pop[Stack]
   self.top = self.top - 1
   self.data[self.top]
 end
 
-return key
+def empty[Stack]
+  self.top < 1
+end
+
+return KEY 

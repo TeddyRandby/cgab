@@ -8,8 +8,6 @@ subdir('src/gab')
 subdir('src/core')
 subdir('src/cli')
 
-dl = dependency('dl')
-
 libcgab = library('cgab',
   sources,
   install: true,
@@ -80,7 +78,7 @@ install_headers(
 
 executable('gab',
   'src/cli/main.c',
-  dependencies: [ dl ],
+  dependencies: [],
   link_with: libcgab,
   install: true,
 )

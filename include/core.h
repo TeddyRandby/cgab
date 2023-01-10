@@ -24,7 +24,7 @@
 // Maximum number of roots inthe root buffer before triggering a collection.
 #define ROOT_MAX 2048
 // Initial capacity of interned table
-#define INTERN_INITIAL_CAP 1024
+#define INTERN_INITIAL_CAP 2
 
 // Derived macros
 // Garbage collection increment/decrement buffer size

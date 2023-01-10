@@ -131,11 +131,11 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
   return bundle;
 }
 
-void gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
+boolean gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
                     gab_value specialization) {
   gab_obj_function *f = gab_obj_function_create(gab, name);
 
-  gab_obj_function_set(f, receiver, specialization);
+  return gab_obj_function_set(f, receiver, specialization);
 }
 
 /**

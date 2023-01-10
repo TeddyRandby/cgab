@@ -33,8 +33,7 @@ static const char *gab_opcode_names[] = {
 */
 struct gab_module {
   /*
-    The name of the module
-  */
+    The name of the module */
   s_i8 name;
 
   /*
@@ -97,6 +96,7 @@ u8 gab_module_push_store_local(gab_module *, u8, gab_token, u64);
 u8 gab_module_push_store_upvalue(gab_module *, u8, gab_token, u64);
 u8 gab_module_push_return(gab_module *, u8, u8, gab_token, u64);
 u8 gab_module_push_call(gab_module *, u8, u8, u16, gab_token, u64);
+u8 gab_module_push_dyncall(gab_module*, u8, u8, gab_token, u64 );
 u8 gab_module_push_pop(gab_module *, u8, gab_token, u64);
 
 void gab_module_push_inline_cache(gab_module *, gab_token, u64);

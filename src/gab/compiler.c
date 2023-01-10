@@ -87,6 +87,11 @@ static inline boolean match_token(gab_bc *bc, gab_token tok) {
   return bc->current_token == tok;
 }
 
+static inline boolean match_terminator(gab_bc *bc) {
+  return match_token(bc, TOKEN_END) || match_token(bc, TOKEN_ELSE) ||
+         match_token(bc, TOKEN_UNTIL);
+}
+
 // Returns less than 0 if there was an error, greater than 0 otherwise.
 static i32 eat_token(gab_bc *bc) {
   bc->previous_token = bc->current_token;
@@ -354,8 +359,9 @@ static i32 compile_local(gab_bc *bc, s_i8 name, u8 flags) {
 /* Returns COMP_ERR if an error was encountered, and otherwise COMP_OK
  */
 i32 compile_parameters(gab_bc *bc) {
-  if (expect_token(bc, TOKEN_LPAREN) < 0) {
-    return COMP_ERR;
+  if (!match_and_eat_token(bc, TOKEN_LPAREN)) {
+    // Assumed to have zero arguments
+    return 0;
   }
 
   if (match_and_eat_token(bc, TOKEN_RPAREN)) {
@@ -445,7 +451,7 @@ i32 compile_block_body(gab_engine *gab, gab_bc *bc, gab_module *mod) {
   if (result < 0)
     return COMP_ERR;
 
-  while (!match_token(bc, TOKEN_END) && !match_token(bc, TOKEN_EOF)) {
+  while (!match_terminator(bc) && !match_token(bc, TOKEN_EOF)) {
     push_pop(bc, mod, 1);
 
     result = compile_block_expression(gab, bc, mod);
@@ -473,9 +479,6 @@ i32 compile_block(gab_engine *gab, gab_bc *bc, gab_module *mod) {
     return COMP_ERR;
   }
 
-  if (expect_token(bc, TOKEN_END) < 0)
-    return COMP_ERR;
-
   return COMP_OK;
 }
 
@@ -488,6 +491,9 @@ i32 compile_function_body(gab_engine *gab, gab_bc *bc, gab_module *mod,
   u64 offset = mod->bytecode.len;
 
   i32 result = compile_block(gab, bc, mod);
+
+  if (expect_token(bc, TOKEN_END) < 0)
+    return COMP_ERR;
 
   if (result < 0)
     return COMP_ERR;
@@ -516,6 +522,17 @@ i32 compile_function_body(gab_engine *gab, gab_bc *bc, gab_module *mod,
 i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
                                     gab_module *mod, u16 func_constant,
                                     s_i8 name) {
+  if (match_and_eat_token(bc, TOKEN_LBRACE)) {
+    if (compile_expression(gab, bc, mod) < 0)
+      return COMP_ERR;
+    if (expect_token(bc, TOKEN_RBRACE) < 0)
+      return COMP_ERR;
+  } else {
+    // An implicit specialization
+    // Push the implicit receiver null
+    push_op(bc, mod, OP_PUSH_NULL);
+  }
+
   gab_obj_prototype *p = gab_obj_prototype_create(mod);
 
   u64 skip_jump =
@@ -902,19 +919,6 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod,
   // From now on, we know its a function definition.
 
   // A specialization
-  if (match_and_eat_token(bc, TOKEN_LBRACE)) {
-    if (compile_expression(gab, bc, mod) < 0)
-      return COMP_ERR;
-    if (expect_token(bc, TOKEN_RBRACE) < 0)
-      return COMP_ERR;
-  } else if (match_token(bc, TOKEN_LPAREN)) {
-    // An implicit specialization
-    // Push the implicit receiver null
-    push_op(bc, mod, OP_PUSH_NULL);
-  } else {
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN, "While compiling definition");
-    return COMP_ERR;
-  }
 
   gab_obj_function *f = gab_obj_function_create(gab, name);
   u16 func_constant = add_constant(mod, GAB_VAL_OBJ(f));
@@ -938,22 +942,27 @@ i32 compile_exp_blk(gab_engine *gab, gab_bc *bc, gab_module *mod,
   static u64 anonymous_count = 0;
   static i8 name_buff[25];
 
-  i32 len =
-      snprintf((char *)name_buff + 0, 25, "anonymous_%lu", anonymous_count);
+  if (match_token(bc, TOKEN_LPAREN) || match_token(bc, TOKEN_LBRACE)) {
+    i32 len =
+        snprintf((char *)name_buff + 0, 25, "anonymous_%lu", anonymous_count);
 
-  s_i8 name = s_i8_create(name_buff + 0, len);
+    s_i8 name = s_i8_create(name_buff + 0, len);
 
-  if (match_token(bc, TOKEN_LPAREN)) {
     gab_obj_function *f = gab_obj_function_create(gab, name);
     u16 f_constant = add_constant(mod, GAB_VAL_OBJ(f));
+
     // We are an anonyumous function
     if (compile_function_specialization(gab, bc, mod, f_constant, name) < 0)
       return COMP_ERR;
-
-    return COMP_OK;
   } else {
-    return compile_block(gab, bc, mod);
+    if (compile_block(gab, bc, mod) < 0)
+      return COMP_ERR;
+
+    if (expect_token(bc, TOKEN_END) < 0)
+      return COMP_ERR;
   }
+
+  return COMP_OK;
 }
 
 i32 compile_exp_if(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -978,11 +987,17 @@ i32 compile_exp_if(gab_engine *gab, gab_bc *bc, gab_module *mod,
     if (compile_block(gab, bc, mod) < 0)
       return COMP_ERR;
 
+    if (expect_token(bc, TOKEN_END) < 0)
+      return COMP_ERR;
+
     break;
 
   case COMP_TOKEN_NO_MATCH:
     for (u8 i = 0; i < result; i++)
       push_op(bc, mod, OP_PUSH_NULL);
+
+    if (expect_token(bc, TOKEN_END) < 0)
+      return COMP_ERR;
     break;
 
   default:
@@ -1606,7 +1621,7 @@ i32 compile_exp_dot(gab_engine *gab, gab_bc *bc, gab_module *mod,
 i32 compile_arguments(gab_engine *gab, gab_bc *bc, gab_module *mod,
                       boolean *vse_out) {
 
-  i32 nargs;
+  i32 nargs = 0;
 
   if (match_and_eat_token(bc, TOKEN_LPAREN)) {
     // Normal function args
@@ -1637,13 +1652,13 @@ i32 compile_arguments(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
 i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
-  if (optional_newline(bc) < 0)
-    return COMP_ERR;
-  // Compile the function that is being called on the top of the stack.
-  if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
-    return COMP_ERR;
 
-  u16 f = add_function_constant(gab, mod, bc->lex.previous_token_src);
+  s_i8 message = bc->lex.previous_token_src;
+  // SKip the ':' at the beginning
+  message.data++;
+  message.len--;
+
+  u16 f = add_function_constant(gab, mod, message);
 
   boolean vse = false;
   i32 result = compile_arguments(gab, bc, mod, &vse);
@@ -1654,6 +1669,24 @@ i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   gab_module_push_call(mod, result, vse, f, bc->previous_token, bc->line);
+
+  return VAR_RET;
+}
+
+i32 compile_exp_vam(gab_engine *gab, gab_bc *bc, gab_module *mod,
+                    boolean assignable) {
+  if (compile_expression(gab, bc, mod) < 0)
+    return COMP_ERR;
+
+  boolean vse = false;
+  i32 result = compile_arguments(gab, bc, mod, &vse);
+
+  if (result > 16) {
+    dump_compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
+    return COMP_ERR;
+  }
+
+  gab_module_push_dyncall(mod, result, vse, bc->previous_token, bc->line);
 
   return VAR_RET;
 }
@@ -1806,6 +1839,9 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (compile_block(gab, bc, mod) < 0)
     return COMP_ERR;
 
+  if (expect_token(bc, TOKEN_END) < 0)
+    return COMP_ERR;
+
   push_pop(bc, mod, 1);
 
   gab_module_patch_loop(mod, loop, bc->previous_token, bc->line);
@@ -1825,9 +1861,6 @@ i32 compile_exp_lop(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   u64 loop = gab_module_push_loop(mod);
 
-  if (expect_token(bc, TOKEN_NEWLINE) < 0)
-    return COMP_ERR;
-
   if (compile_block(gab, bc, mod) < 0)
     return COMP_ERR;
 
@@ -1844,6 +1877,9 @@ i32 compile_exp_lop(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
     gab_module_patch_jump(mod, jump);
   } else {
+    if (expect_token(bc, TOKEN_END) < 0)
+      return COMP_ERR;
+
     push_pop(bc, mod, 1);
 
     gab_module_patch_loop(mod, loop, bc->previous_token, bc->line);
@@ -1927,9 +1963,10 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(bin, FACTOR, false),                // SLASH
     INFIX(bin, FACTOR, false),                // PERCENT
     NONE(),                            // COMMA
-    PREFIX_INFIX(empty_mth, mth, CALL, true),       // COLON
+    INFIX(vam, CALL, true),       // COLON
     NONE(),           // AMPERSAND
     PREFIX(sym),           // DOLLAR
+    PREFIX_INFIX(empty_mth, mth, CALL, true), // MESSAGE
     INFIX(dot, PROPERTY, true),              // DOT
     PREFIX_INFIX(spd, bin, TERM, false),                  // DOT_DOT
     NONE(),                            // EQUAL

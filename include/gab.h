@@ -21,7 +21,8 @@ gab_engine *gab_create(u8 flags);
  * @param gab The engine to clean up.
  */
 void gab_destroy(gab_engine *gab);
-void gab_cleanup(gab_engine* gab);
+// Deref all referenced objects
+void gab_cleanup(gab_engine *gab);
 
 /**
  * Cleanup a Gab Module.
@@ -29,7 +30,8 @@ void gab_cleanup(gab_engine* gab);
  * @param mod The module to clean up
  */
 void gab_module_destroy(gab_module *mod);
-void gab_module_cleanup(gab_engine* gab, gab_module * mod);
+// Deref all referenced objects
+void gab_module_cleanup(gab_engine *gab, gab_module *mod);
 
 /**
  * Compile a source string into a Gab Module.
@@ -110,7 +112,7 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
 /**
  *
  */
-void gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
+boolean gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
                     gab_value specialization);
 
 static boolean gab_val_falsey(gab_value self);

@@ -146,7 +146,6 @@ const keyword keywords[] = {
 };
 
 gab_token identifier(gab_lexer *self) {
-  start_token(self);
 
   while (is_alpha(peek(self)) || is_digit(peek(self))) {
     advance(self);
@@ -164,8 +163,6 @@ gab_token identifier(gab_lexer *self) {
 }
 
 gab_token string(gab_lexer *self) {
-  start_token(self);
-
   u8 start = peek(self);
   u8 stop = start == '"' ? '"' : '\'';
 
@@ -196,8 +193,6 @@ gab_token string(gab_lexer *self) {
 }
 
 gab_token number(gab_lexer *self) {
-  start_token(self);
-
   while (is_digit(peek(self))) {
     advance(self);
   }
@@ -215,14 +210,11 @@ gab_token number(gab_lexer *self) {
 
 #define CHAR_CASE(char, name)                                                  \
   case char: {                                                                 \
-    advance(self);                                                      \
+    advance(self);                                                             \
     return TOKEN_##name;                                                       \
   }
 
 gab_token other(gab_lexer *self) {
-
-  start_token(self);
-
   switch (peek(self)) {
 
     CHAR_CASE('+', PLUS)
@@ -274,6 +266,17 @@ gab_token other(gab_lexer *self) {
   }
   case ':': {
     advance(self);
+
+    if (is_alpha(peek(self))) {
+      // If we didn't get a keyword, return a token message
+      if (identifier(self) == TOKEN_IDENTIFIER)
+        return TOKEN_MESSAGE;
+
+      // Otherwise, we got a keyword and this was an error
+
+      return return_error(self, GAB_MALFORMED_TOKEN);
+    }
+
     switch (peek(self)) {
       CHAR_CASE('=', COLON_EQUAL)
     default: {
@@ -340,8 +343,10 @@ gab_token gab_lexer_next(gab_lexer *self) {
 
   handle_ignored(self);
 
+  start_token(self);
+
   if (peek(self) == '\0') {
-    self->current_token_src = s_i8_create(self->cursor, 0); 
+    self->current_token_src = s_i8_create(self->cursor, 0);
     return TOKEN_EOF;
   }
 

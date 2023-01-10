@@ -1,13 +1,17 @@
-:require('io')
+:require('result')
 
-def stack = :require('../examples/stack')
+def wontFail()
+  :ok('Value')
+end
 
-def s = stack:make
+def willFail()
+  :err('Failed')
+end
 
-def f = :open('test.txt', 'w+')
+let success = :wontFail():unwrap()
 
-s:push('world')
-s:push('hello')
+success:print
 
-f:write(s:pop)
-f:write(s:pop)
+let failure = :willFail():unwrap_or('Default')
+
+failure:print
