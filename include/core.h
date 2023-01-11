@@ -8,8 +8,6 @@
 #define GAB_LOG_GC 0
 // Log what is happening during execution.
 #define GAB_LOG_EXECUTION 0
-// Cache property offsets inline in the bytecode.
-#define GAB_CACHE_CALLS 1
 
 // Configurable macros
 // Dictionary maximum load

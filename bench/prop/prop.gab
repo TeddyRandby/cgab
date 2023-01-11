@@ -1,20 +1,18 @@
-let obj = {
+def obj = {
     zebra
     camel
     cow
     rooster
 } 
 
-def times(n)
-    let v = -1
-    do ||
-        (v < n) and (v = v + 1)
-    end
-end
+let i = 0
 
-for i in 500000:times()
+loop
     obj.zebra = i
     obj.camel = obj.zebra - 1
     obj.cow = obj.camel + 1
     obj.rooster = obj.cow - obj.zebra
-end
+
+    i = i + 1
+
+until i == 50000

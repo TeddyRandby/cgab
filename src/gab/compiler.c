@@ -1851,6 +1851,9 @@ i32 compile_exp_prec(gab_engine *gab, gab_bc *bc, gab_module *mod,
   return have;
 }
 
+/*
+ * For loops are broken
+ */
 i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   down_scope(bc);
@@ -1902,9 +1905,6 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
     push_store(bc, mod, local_start + loop_locals - ll);
     push_pop(bc, mod, 1);
   }
-
-  if (expect_token(bc, TOKEN_NEWLINE) < 0)
-    return COMP_ERR;
 
   if (compile_block(gab, bc, mod) < 0)
     return COMP_ERR;

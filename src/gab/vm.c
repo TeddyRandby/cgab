@@ -283,8 +283,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 #define PEEK_N(n) (*(TOP() - (n)))
 
 #define WRITE_BYTE(dist, n) (*(IP() - dist) = n)
-#define WRITE_SHORT(dist, n) (*((u16 *)(IP() - dist)) = n)
-#define WRITE_QWORD(dist, n) (*((u64 *)(IP() - dist)) = n)
+
+#define WRITE_SHORT(n) (IP() += 2, IP()[-2] = (n >> 8) & 0xFF, IP()[-1] = n & 0xFF)
+#define WRITE_QWORD(n) (IP() += 8, *((u64 *)(IP() - 8)) = n)
 
 #define SKIP_BYTE (IP()++)
 #define SKIP_SHORT (IP() += 2)
@@ -310,16 +311,16 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
   gab_vm vm;
   gab_vm_create(VM());
 
-  gab_obj_function *f =
+  gab_obj_function *main_f =
       GAB_VAL_TO_FUNCTION(d_gab_constant_ikey(&mod->constants, mod->main));
 
-  gab_obj_closure *c =
-      GAB_VAL_TO_CLOSURE(gab_obj_function_get(f, GAB_VAL_NULL()));
+  gab_obj_closure *main_c =
+      GAB_VAL_TO_CLOSURE(gab_obj_function_get(main_f, GAB_VAL_NULL()));
 
-  FRAME()->c = c;
+  FRAME()->c = main_c;
 
   register u8 instr;
-  register u8 *ip = c->p->mod->bytecode.data;
+  register u8 *ip = main_c->p->mod->bytecode.data;
 
   PUSH(GAB_VAL_NULL());
 
@@ -338,7 +339,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       message = mod->main;
       arity = argc;
       want = 1;
-      f = GAB_VAL_TO_FUNCTION(MOD_CONSTANT(message));
+      f = main_f;
       goto complete_call;
 
       CASE_CODE(DYNCALL) : {
@@ -405,7 +406,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       CASE_CODE(CALL_16): {
         message = READ_SHORT;
         want = READ_BYTE;
-        arity = INSTR()- OP_CALL_0;
+        arity = INSTR() - OP_CALL_0;
         f = GAB_VAL_TO_FUNCTION(MOD_CONSTANT(message));
         goto complete_call;
       }
@@ -530,7 +531,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
     {
       gab_value key, index;
-      i16 prop_offset;
+      u16 prop_offset;
       gab_obj_record *obj;
 
       CASE_CODE(LOAD_INDEX) : {
@@ -561,9 +562,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
        */
       CASE_CODE(LOAD_PROPERTY_ANA) : {
         key = READ_CONSTANT;
-        // Skip the cache
-        SKIP_SHORT;
-        SKIP_QWORD;
 
         index = PEEK();
 
@@ -581,8 +579,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
         // Transition state and store in the ache
         WRITE_BYTE(13, OP_LOAD_PROPERTY_MONO);
-        WRITE_SHORT(10, prop_offset);
-        WRITE_QWORD(8, (u64)obj->shape);
+        WRITE_SHORT(prop_offset);
+        WRITE_QWORD((u64)obj->shape);
 
         DROP();
         goto complete_obj_get;
@@ -631,6 +629,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         prop_offset = READ_SHORT;
         gab_obj_shape **cached_shape = READ_QWORD(gab_obj_shape);
 
+        printf("Loading mono at %i\n", prop_offset);
+
         index = PEEK();
 
         if (!GAB_VAL_IS_RECORD(index)) {
@@ -664,7 +664,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
       gab_value value, key, index;
       gab_obj_record *obj;
-      i16 prop_offset;
+      u16 prop_offset;
 
       CASE_CODE(STORE_INDEX) : {
         // Leave these on the stack for now in case we collect.
@@ -685,7 +685,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
         prop_offset = gab_obj_shape_find(obj->shape, key);
 
-        if (prop_offset < 0) {
+        if (prop_offset == UINT16_MAX) {
           // Update the obj and get the new offset.
           prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
         } else {
@@ -703,8 +703,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
        */
       CASE_CODE(STORE_PROPERTY_ANA) : {
         key = READ_CONSTANT;
-        SKIP_SHORT;
-        SKIP_QWORD;
 
         value = PEEK();
         index = PEEK2();
@@ -721,7 +719,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         obj = GAB_VAL_TO_RECORD(index);
         prop_offset = gab_obj_shape_find(obj->shape, key);
 
-        if (prop_offset < 0) {
+        if (prop_offset == UINT16_MAX) {
           // The shape here is not stable yet. The property didn't exist.
           prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
         } else {
@@ -731,8 +729,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
           // Write to the cache and transition to monomorphic
           WRITE_BYTE(13, OP_STORE_PROPERTY_MONO);
-          WRITE_SHORT(10, prop_offset);
-          WRITE_QWORD(8, (u64)obj->shape);
+          WRITE_SHORT(prop_offset);
+          WRITE_QWORD((u64)obj->shape);
         }
 
         DROP_N(2);
@@ -763,7 +761,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         obj = GAB_VAL_TO_RECORD(index);
         prop_offset = gab_obj_shape_find(obj->shape, key);
 
-        if (prop_offset < 0) {
+        if (prop_offset == UINT16_MAX) {
           // The shape here is not stable yet. The property didn't exist.
           prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
         } else {
@@ -785,6 +783,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         // Use the cache
         prop_offset = READ_SHORT;
         gab_obj_shape **cached_shape = READ_QWORD(gab_obj_shape);
+        printf("Storing mono at %i\n", prop_offset);
 
         value = PEEK();
         index = PEEK2();
@@ -806,7 +805,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         } else {
           prop_offset = gab_obj_shape_find(obj->shape, key);
 
-          if (prop_offset < 0) {
+          if (prop_offset == UINT16_MAX) {
             prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
           } else {
             gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));

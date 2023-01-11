@@ -333,11 +333,11 @@ gab_obj_shape *gab_obj_shape_create_array(gab_engine *gab, gab_vm *vm,
 gab_obj_shape *gab_obj_shape_grow(gab_engine *gab, gab_vm *vm,
                                   gab_obj_shape *self, gab_value property);
 
-static inline i64 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
-  u64 i = d_u64_index_of(&self->properties, key);
+static inline u16 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
+  u16 i = d_u64_index_of(&self->properties, key);
 
   if (!d_u64_iexists(&self->properties, i))
-    return -1;
+    return UINT16_MAX;
 
   return d_u64_ival(&self->properties, i);
 };
@@ -403,9 +403,9 @@ static inline gab_value gab_obj_record_get(gab_obj_record *self, i16 offset) {
 static inline gab_value gab_obj_record_insert(gab_engine *gab, gab_vm *vm,
                                               gab_obj_record *self,
                                               gab_value key, gab_value value) {
-  i16 prop_offset = gab_obj_shape_find(self->shape, key);
+  u16 prop_offset = gab_obj_shape_find(self->shape, key);
 
-  if (prop_offset < 0) {
+  if (prop_offset == UINT16_MAX) {
     prop_offset = gab_obj_record_grow(gab, vm, self, key, value);
   }
 
@@ -416,7 +416,7 @@ static inline gab_value gab_obj_record_insert(gab_engine *gab, gab_vm *vm,
 
 static inline gab_value gab_obj_record_read(gab_obj_record *self,
                                             gab_value prop) {
-  i16 prop_offset = gab_obj_shape_find(self->shape, prop);
+  u16 prop_offset = gab_obj_shape_find(self->shape, prop);
 
   return gab_obj_record_get(self, prop_offset);
 }
