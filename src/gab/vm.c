@@ -578,9 +578,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         prop_offset = gab_obj_shape_find(obj->shape, key);
 
         // Transition state and store in the ache
-        WRITE_BYTE(13, OP_LOAD_PROPERTY_MONO);
         WRITE_SHORT(prop_offset);
         WRITE_QWORD((u64)obj->shape);
+        WRITE_BYTE(13, OP_LOAD_PROPERTY_MONO);
 
         DROP();
         goto complete_obj_get;
@@ -628,8 +628,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         key = READ_CONSTANT;
         prop_offset = READ_SHORT;
         gab_obj_shape **cached_shape = READ_QWORD(gab_obj_shape);
-
-        printf("Loading mono at %i\n", prop_offset);
 
         index = PEEK();
 
@@ -722,15 +720,18 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         if (prop_offset == UINT16_MAX) {
           // The shape here is not stable yet. The property didn't exist.
           prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
+          SKIP_SHORT;
+          SKIP_QWORD;
         } else {
           // The shape is stable and the property existed.
           gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
           gab_obj_record_set(obj, prop_offset, value);
 
           // Write to the cache and transition to monomorphic
-          WRITE_BYTE(13, OP_STORE_PROPERTY_MONO);
           WRITE_SHORT(prop_offset);
           WRITE_QWORD((u64)obj->shape);
+
+          WRITE_BYTE(13, OP_STORE_PROPERTY_MONO);
         }
 
         DROP_N(2);
@@ -783,7 +784,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         // Use the cache
         prop_offset = READ_SHORT;
         gab_obj_shape **cached_shape = READ_QWORD(gab_obj_shape);
-        printf("Storing mono at %i\n", prop_offset);
 
         value = PEEK();
         index = PEEK2();
