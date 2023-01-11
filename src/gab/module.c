@@ -12,6 +12,7 @@ gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
   v_u8_create(&self->bytecode, 256);
   v_u8_create(&self->tokens, 256);
   v_u64_create(&self->lines, 256);
+  v_s_i8_create(&self->sources, 256);
 
   d_gab_constant_create(&self->constants, MODULE_CONSTANTS_MAX);
   return self;
@@ -36,6 +37,7 @@ void gab_module_destroy(gab_module *mod) {
   v_u8_destroy(&mod->bytecode);
   v_u8_destroy(&mod->tokens);
   v_u64_destroy(&mod->lines);
+  v_s_i8_destroy(&mod->sources);
   d_gab_constant_destroy(&mod->constants);
   v_s_i8_destroy(mod->source_lines);
   DESTROY(mod->source_lines);
@@ -54,11 +56,13 @@ void gab_module_destroy(gab_module *mod) {
 /*
   Helpers for pushing ops into the module.
 */
-void gab_module_push_op(gab_module *self, gab_opcode op, gab_token t, u64 l) {
+void gab_module_push_op(gab_module *self, gab_opcode op, gab_token t, u64 l,
+                        s_i8 s) {
   self->previous_compiled_op = op;
   v_u8_push(&self->bytecode, op);
   v_u8_push(&self->tokens, t);
   v_u64_push(&self->lines, l);
+  v_s_i8_push(&self->sources, s);
 };
 
 u8 replace_previous_op(gab_module *self, gab_opcode op) {
@@ -67,19 +71,24 @@ u8 replace_previous_op(gab_module *self, gab_opcode op) {
   return op;
 };
 
-void gab_module_push_byte(gab_module *self, u8 data, gab_token t, u64 l) {
+void gab_module_push_byte(gab_module *self, u8 data, gab_token t, u64 l,
+                          s_i8 s) {
   v_u8_push(&self->bytecode, data);
   v_u8_push(&self->tokens, t);
   v_u64_push(&self->lines, l);
+  v_s_i8_push(&self->sources, s);
 }
 
-void gab_module_push_short(gab_module *self, u16 data, gab_token t, u64 l) {
-  gab_module_push_byte(self, (data >> 8) & 0xff, t, l);
-  gab_module_push_byte(self, data & 0xff, t, l);
+void gab_module_push_short(gab_module *self, u16 data, gab_token t, u64 l,
+                           s_i8 s) {
+  gab_module_push_byte(self, (data >> 8) & 0xff, t, l, s);
+  gab_module_push_byte(self, data & 0xff, t, l, s);
+  v_s_i8_push(&self->sources, s);
 };
 
 /* These helpers return the instruction they push. */
-u8 gab_module_push_load_local(gab_module *self, u8 local, gab_token t, u64 l) {
+u8 gab_module_push_load_local(gab_module *self, u8 local, gab_token t, u64 l,
+                              s_i8 s) {
   if (local < 9) {
     u8 op = MAKE_LOAD_LOCAL(local);
     switch (self->previous_compiled_op) {
@@ -96,105 +105,107 @@ u8 gab_module_push_load_local(gab_module *self, u8 local, gab_token t, u64 l) {
         return replace_previous_op(self, self->previous_compiled_op - 9);
     }
     }
-    gab_module_push_op(self, op, t, l);
+    gab_module_push_op(self, op, t, l, s);
     return op;
   }
 
-  gab_module_push_op(self, OP_LOAD_LOCAL, t, l);
-  gab_module_push_byte(self, local, t, l);
+  gab_module_push_op(self, OP_LOAD_LOCAL, t, l, s);
+  gab_module_push_byte(self, local, t, l, s);
 
   return OP_LOAD_LOCAL;
 }
 
 u8 gab_module_push_load_upvalue(gab_module *self, u8 upvalue, gab_token t,
-                                u64 l, boolean mutable) {
+                                u64 l, s_i8 s, boolean mutable) {
   if (upvalue < 9) {
     u8 op =
         mutable ? MAKE_LOAD_UPVALUE(upvalue) : MAKE_LOAD_CONST_UPVALUE(upvalue);
-    gab_module_push_op(self, op, t, l);
+    gab_module_push_op(self, op, t, l, s);
     return op;
   }
 
   gab_module_push_op(self, mutable ? OP_LOAD_UPVALUE : OP_LOAD_CONST_UPVALUE, t,
-                     l);
-  gab_module_push_byte(self, upvalue, t, l);
+                     l, s);
+  gab_module_push_byte(self, upvalue, t, l, s);
 
   return OP_LOAD_UPVALUE;
 };
 
-u8 gab_module_push_store_local(gab_module *self, u8 local, gab_token t, u64 l) {
+u8 gab_module_push_store_local(gab_module *self, u8 local, gab_token t, u64 l,
+                               s_i8 s) {
   if (local < 9) {
     u8 op = MAKE_STORE_LOCAL(local);
-    gab_module_push_op(self, op, t, l);
+    gab_module_push_op(self, op, t, l, s);
     return op;
   }
 
-  gab_module_push_op(self, OP_STORE_LOCAL, t, l);
-  gab_module_push_byte(self, local, t, l);
+  gab_module_push_op(self, OP_STORE_LOCAL, t, l, s);
+  gab_module_push_byte(self, local, t, l, s);
 
   return OP_STORE_LOCAL;
 };
 
 u8 gab_module_push_store_upvalue(gab_module *self, u8 upvalue, gab_token t,
-                                 u64 l) {
+                                 u64 l, s_i8 s) {
   if (upvalue < 9) {
     u8 op = MAKE_STORE_UPVALUE(upvalue);
-    gab_module_push_op(self, op, t, l);
+    gab_module_push_op(self, op, t, l, s);
     return op;
   }
 
-  gab_module_push_op(self, OP_STORE_UPVALUE, t, l);
-  gab_module_push_byte(self, upvalue, t, l);
+  gab_module_push_op(self, OP_STORE_UPVALUE, t, l, s);
+  gab_module_push_byte(self, upvalue, t, l, s);
 
   return OP_STORE_UPVALUE;
 };
 
-u8 gab_module_push_return(gab_module *self, u8 have, u8 var, gab_token t,
-                          u64 l) {
+u8 gab_module_push_return(gab_module *self, u8 have, u8 var, gab_token t, u64 l,
+                          s_i8 s) {
   if (!var) {
     u8 op = MAKE_RETURN(have);
-    gab_module_push_op(self, op, t, l);
+    gab_module_push_op(self, op, t, l, s);
     return op;
   }
-  gab_module_push_op(self, OP_VARRETURN, t, l);
-  gab_module_push_byte(self, have, t, l);
+  gab_module_push_op(self, OP_VARRETURN, t, l, s);
+  gab_module_push_byte(self, have, t, l, s);
   return OP_VARRETURN;
 }
 
 u8 gab_module_push_call(gab_module *self, u8 have, u8 var, u16 message,
-                        gab_token t, u64 l) {
+                        gab_token t, u64 l, s_i8 s) {
   if (!var) {
     u8 op = MAKE_CALL(have);
-    gab_module_push_op(self, op, t, l);
-    gab_module_push_short(self, message, t, l);
-    gab_module_push_byte(self, 1, t, l);
+    gab_module_push_op(self, op, t, l, s);
+    gab_module_push_short(self, message, t, l, s);
+    gab_module_push_byte(self, 1, t, l, s);
 
     return op;
   }
-  gab_module_push_op(self, OP_VARCALL, t, l);
-  gab_module_push_short(self, message, t, l);
-  gab_module_push_byte(self, have, t, l);
-  gab_module_push_byte(self, 1, t, l);
+  gab_module_push_op(self, OP_VARCALL, t, l, s);
+  gab_module_push_short(self, message, t, l, s);
+  gab_module_push_byte(self, have, t, l, s);
+  gab_module_push_byte(self, 1, t, l, s);
 
   return OP_VARCALL;
 }
 
-u8 gab_module_push_dyncall(gab_module* self, u8 have, u8 var, gab_token t, u64 l) {
+u8 gab_module_push_dyncall(gab_module *self, u8 have, u8 var, gab_token t,
+                           u64 l, s_i8 s) {
   if (!var) {
-    gab_module_push_op(self, OP_DYNCALL, t, l);
-    gab_module_push_byte(self, have, t, l);
-    gab_module_push_byte(self, 1, t, l);
+    gab_module_push_op(self, OP_DYNCALL, t, l, s);
+    gab_module_push_byte(self, have, t, l, s);
+    gab_module_push_byte(self, 1, t, l, s);
     return OP_DYNCALL;
   }
 
-  gab_module_push_op(self, OP_VARDYNCALL, t, l);
-  gab_module_push_byte(self, have, t, l);
-  gab_module_push_byte(self, 1, t, l);
+  gab_module_push_op(self, OP_VARDYNCALL, t, l, s);
+  gab_module_push_byte(self, have, t, l, s);
+  gab_module_push_byte(self, 1, t, l, s);
 
   return OP_VARCALL;
 }
 
-u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l) {
+u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l, s_i8 s) {
   if (n == 1) {
     u8 op = OP_POP;
     // Perform a simple optimazation
@@ -211,30 +222,31 @@ u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l) {
       return replace_previous_op(self, self->previous_compiled_op + 9);
     }
 
-    gab_module_push_op(self, op, t, l);
+    gab_module_push_op(self, op, t, l, s);
     return OP_POP;
   }
 
-  gab_module_push_op(self, OP_POP_N, t, l);
-  gab_module_push_byte(self, n, t, l);
+  gab_module_push_op(self, OP_POP_N, t, l, s);
+  gab_module_push_byte(self, n, t, l, s);
   return OP_POP_N;
 }
 
-void gab_module_push_inline_cache(gab_module *self, gab_token t, u64 l) {
-  gab_module_push_byte(self, OP_NOP, t, l);
-  gab_module_push_byte(self, OP_NOP, t, l);
-  gab_module_push_byte(self, OP_NOP, t, l);
-  gab_module_push_byte(self, OP_NOP, t, l);
-  gab_module_push_byte(self, OP_NOP, t, l);
-  gab_module_push_byte(self, OP_NOP, t, l);
-  gab_module_push_byte(self, OP_NOP, t, l);
-  gab_module_push_byte(self, OP_NOP, t, l);
+void gab_module_push_inline_cache(gab_module *self, gab_token t, u64 l,
+                                  s_i8 s) {
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
 }
 
-u64 gab_module_push_jump(gab_module *self, u8 op, gab_token t, u64 l) {
-  gab_module_push_byte(self, op, t, l);
-  gab_module_push_byte(self, OP_NOP, t, l);
-  gab_module_push_byte(self, OP_NOP, t, l);
+u64 gab_module_push_jump(gab_module *self, u8 op, gab_token t, u64 l, s_i8 s) {
+  gab_module_push_byte(self, op, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
   return self->bytecode.len - 2;
 }
 
@@ -249,12 +261,13 @@ void gab_module_patch_jump(gab_module *self, u64 jump) {
 
 u64 gab_module_push_loop(gab_module *self) { return self->bytecode.len; }
 
-void gab_module_patch_loop(gab_module *self, u64 start, gab_token t, u64 l) {
+void gab_module_patch_loop(gab_module *self, u64 start, gab_token t, u64 l,
+                           s_i8 s) {
   u64 diff = self->bytecode.len - start + 3;
   assert(diff < UINT16_MAX);
 
-  gab_module_push_op(self, OP_LOOP, t, l);
-  gab_module_push_short(self, diff, t, l);
+  gab_module_push_op(self, OP_LOOP, t, l, s);
+  gab_module_push_short(self, diff, t, l, s);
 }
 
 boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
@@ -440,8 +453,8 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_DUP:
   case OP_MATCH:
   case OP_POP:
-  case OP_GET_INDEX:
-  case OP_SET_INDEX:
+  case OP_LOAD_INDEX:
+  case OP_STORE_INDEX:
   case OP_CONCAT:
   case OP_STRINGIFY:
   case OP_NOP:
@@ -469,10 +482,12 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_CONSTANT: {
     return dumpConstantInstruction(self, offset);
   }
-  case OP_GET_PROPERTY: {
-    return dumpConstantInstruction(self, offset) + 10;
-  }
-  case OP_SET_PROPERTY: {
+  case OP_STORE_PROPERTY_ANA:
+  case OP_STORE_PROPERTY_MONO:
+  case OP_STORE_PROPERTY_POLY:
+  case OP_LOAD_PROPERTY_ANA: 
+  case OP_LOAD_PROPERTY_MONO: 
+  case OP_LOAD_PROPERTY_POLY: {
     return dumpConstantInstruction(self, offset) + 10;
   }
   case OP_CALL_0:
@@ -510,8 +525,8 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     offset++;
     u16 proto_constant = ((((u16)self->bytecode.data[offset]) << 8) |
                           self->bytecode.data[offset + 1]);
-    u16 func_constant = ((((u16)self->bytecode.data[offset + 2]) << 8) |
-                         self->bytecode.data[offset + 3]);
+    // u16 func_constant = ((((u16)self->bytecode.data[offset + 2]) << 8) |
+    //                      self->bytecode.data[offset + 3]);
     offset += 4;
 
     printf("%-16s\n", "OP_CLOSURE");

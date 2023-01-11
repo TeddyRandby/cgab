@@ -1,20 +1,45 @@
 # Here is an example implementation of Rust's Result type
-def Result { ok err }
+def Ok { ok }
 
-def ok(value)
-  { ok: value err: null }
+def Err { err }
+
+def ok()
+  { ok: self }
 end
 
-def err(message)
-  { ok: null err: message }
+def err()
+  { err: self }
 end
 
-def unwrap[Result]
-  # Assert that we have a result and return it
-  self.ok!
+def print[Ok]
+    'Ok({self.ok})':print
 end
 
-def unwrap_or[Result](alternative)
-  # Return the alternative if an err exists, otherwise return ok
-  self.err and alternative or self.ok
+def print[Err]
+    'Err({self.err})':print
+end
+
+def unwrap[Ok]
+  self.ok
+end
+
+def unwrap[Err]
+  self.err:print
+  null!
+end
+
+def unwrap_or[Ok]
+  self.ok
+end
+
+def unwrap_or[Err](alternative)
+  alternative
+end
+
+def unwrap_orelse[Ok]
+    self.ok
+end
+
+def unwrap_orelse[Err](cb)
+   :(cb) 
 end

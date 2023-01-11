@@ -9,8 +9,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-typedef gab_value (*handler_f)(gab_engine *, const a_i8 *path,
-                               const s_i8 module);
+typedef gab_value (*handler_f)(gab_engine *, a_i8 *path, const s_i8 module);
 
 typedef gab_value (*module_f)(gab_engine *);
 
@@ -114,11 +113,11 @@ gab_value gab_shared_object_handler(gab_engine *eng, const a_i8 *path,
   return result;
 }
 
-gab_value gab_source_file_handler(gab_engine *gab, const a_i8 *path,
+gab_value gab_source_file_handler(gab_engine *gab, a_i8 *path,
                                   const s_i8 module) {
   a_i8 *src = os_read_file((char *)path->data);
 
-  gab_module *pkg = gab_compile(gab, s_i8_cstr("module"),
+  gab_module *pkg = gab_compile(gab, s_i8_create(path->data, path->len),
                                 s_i8_create(src->data, src->len), 0, NULL);
 
   if (pkg == NULL) {

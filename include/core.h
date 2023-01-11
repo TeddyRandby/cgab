@@ -9,7 +9,6 @@
 // Log what is happening during execution.
 #define GAB_LOG_EXECUTION 0
 // Cache property offsets inline in the bytecode.
-#define GAB_CACHE_PROPERTIES 1
 #define GAB_CACHE_CALLS 1
 
 // Configurable macros

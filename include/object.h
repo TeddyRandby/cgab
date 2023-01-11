@@ -33,6 +33,7 @@ typedef enum gab_type {
   TYPE_NULL,
   TYPE_NUMBER,
   TYPE_BOOLEAN,
+  TYPE_ANY,
   GAB_NTYPES,
 } gab_type;
 

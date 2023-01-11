@@ -1,0 +1,47 @@
+# A simple implementation of an option type like Rust's Option
+
+def Some { some }
+
+def some()
+  self!
+end
+
+def none()
+  null
+end
+
+def print[Some]
+    'Some({self.some})':print
+end
+
+def unwrap[Some]
+    self.some
+end
+
+def unwrap[null]
+    :panic('Tried to unwrap None')
+end
+
+def unwrap_or[Some]
+    self.some
+end
+
+def unwrap_or[](alternative)
+   alternative 
+end
+
+def unwrap_orelse[Some]
+    self.some
+end
+
+def unwrap_orelse[](cb)
+   cb()
+end
+
+def ok_or[Some]
+    self.some
+end
+
+def ok_or[](err)
+   { err } 
+end

@@ -25,6 +25,7 @@ gab_engine *gab_create(u8 flags) {
 
   gab->flags = flags;
 
+  gab->types[TYPE_ANY] = GAB_SYMBOL("any");
   gab->types[TYPE_NULL] = GAB_SYMBOL("null");
   gab->types[TYPE_NUMBER] = GAB_SYMBOL("number");
   gab->types[TYPE_BOOLEAN] = GAB_SYMBOL("boolean");

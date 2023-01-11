@@ -58,6 +58,11 @@ struct gab_module {
   v_u8 tokens;
 
   /*
+   * A vector which relates each instruction to a slice in the source.
+   */
+  v_s_i8 sources;
+
+  /*
      A vector of each line of source code.
   */
   v_s_i8 *source_lines;
@@ -83,28 +88,28 @@ void gab_module_cleanup(gab_engine *gab, gab_module *mod);
 /*
   Helpers for pushing ops into the module.
 */
-void gab_module_push_op(gab_module *, gab_opcode, gab_token, u64);
-void gab_module_push_byte(gab_module *, u8, gab_token, u64);
+void gab_module_push_op(gab_module *, gab_opcode, gab_token, u64, s_i8);
+void gab_module_push_byte(gab_module *, u8, gab_token, u64, s_i8);
 
-void gab_module_push_short(gab_module *, u16, gab_token, u64);
+void gab_module_push_short(gab_module *, u16, gab_token, u64, s_i8);
 
 /* These helpers return the instruction they push. */
-u8 gab_module_push_load_local(gab_module *, u8, gab_token, u64);
-u8 gab_module_push_load_upvalue(gab_module *, u8, gab_token, u64, boolean);
-u8 gab_module_push_load_const_upvalue(gab_module *, u8, gab_token, u64);
-u8 gab_module_push_store_local(gab_module *, u8, gab_token, u64);
-u8 gab_module_push_store_upvalue(gab_module *, u8, gab_token, u64);
-u8 gab_module_push_return(gab_module *, u8, u8, gab_token, u64);
-u8 gab_module_push_call(gab_module *, u8, u8, u16, gab_token, u64);
-u8 gab_module_push_dyncall(gab_module*, u8, u8, gab_token, u64 );
-u8 gab_module_push_pop(gab_module *, u8, gab_token, u64);
+u8 gab_module_push_load_local(gab_module *, u8, gab_token, u64, s_i8);
+u8 gab_module_push_load_upvalue(gab_module *, u8, gab_token, u64, s_i8, boolean);
+u8 gab_module_push_load_const_upvalue(gab_module *, u8, gab_token, u64, s_i8);
+u8 gab_module_push_store_local(gab_module *, u8, gab_token, u64, s_i8);
+u8 gab_module_push_store_upvalue(gab_module *, u8, gab_token, u64, s_i8);
+u8 gab_module_push_return(gab_module *, u8, u8, gab_token, u64, s_i8);
+u8 gab_module_push_call(gab_module *, u8, u8, u16, gab_token, u64, s_i8);
+u8 gab_module_push_dyncall(gab_module*, u8, u8, gab_token, u64, s_i8 );
+u8 gab_module_push_pop(gab_module *, u8, gab_token, u64, s_i8);
 
-void gab_module_push_inline_cache(gab_module *, gab_token, u64);
+void gab_module_push_inline_cache(gab_module *, gab_token, u64, s_i8);
 u64 gab_module_push_loop(gab_module *);
-u64 gab_module_push_jump(gab_module *, u8, gab_token, u64);
+u64 gab_module_push_jump(gab_module *, u8, gab_token, u64, s_i8);
 
 void gab_module_patch_jump(gab_module *, u64);
-void gab_module_patch_loop(gab_module*, u64, gab_token, u64);
+void gab_module_patch_loop(gab_module*, u64, gab_token, u64, s_i8);
 boolean gab_module_try_patch_vse(gab_module *, u8);
 
 u16 gab_module_add_constant(gab_module *, gab_value);

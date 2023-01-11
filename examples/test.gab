@@ -1,17 +1,27 @@
-:require('result')
+def test = { hello: 'world' }
 
-def wontFail()
-  :ok('Value')
+let calls = 0
+
+def cb = do ()
+    test.hello:print
+
+    test.hello = 'world {calls}'
+
+    calls = calls + 1
 end
 
-def willFail()
-  :err('Failed')
-end
+cb()
+cb()
+cb()
+cb()
+cb()
+cb()
+cb()
+cb()
 
-let success = :wontFail():unwrap()
+test.name = 'me'
 
-success:print
-
-let failure = :willFail():unwrap_or('Default')
-
-failure:print
+cb()
+cb()
+cb()
+cb()
