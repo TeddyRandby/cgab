@@ -46,7 +46,7 @@ void gab_module_destroy(gab_module *mod) {
 
 // Helper macros for creating the specialized instructions
 #define MAKE_RETURN(n) (OP_RETURN_1 + (n - 1))
-#define MAKE_CALL(n) (OP_CALL_0 + (n))
+#define MAKE_SEND(n) (OP_SEND_0 + (n))
 #define MAKE_STORE_LOCAL(n) (OP_STORE_LOCAL_0 + (n))
 #define MAKE_LOAD_LOCAL(n) (OP_LOAD_LOCAL_0 + (n))
 #define MAKE_STORE_UPVALUE(n) (OP_STORE_UPVALUE_0 + (n))
@@ -171,38 +171,34 @@ u8 gab_module_push_return(gab_module *self, u8 have, u8 var, gab_token t, u64 l,
   return OP_VARRETURN;
 }
 
-u8 gab_module_push_call(gab_module *self, u8 have, u8 var, u16 message,
+u8 gab_module_push_send(gab_module *self, u8 have, u8 var, u16 message,
                         gab_token t, u64 l, s_i8 s) {
-  if (!var) {
-    u8 op = MAKE_CALL(have);
-    gab_module_push_op(self, op, t, l, s);
-    gab_module_push_short(self, message, t, l, s);
-    gab_module_push_byte(self, 1, t, l, s);
+  u8 op = var ? OP_VARSEND_ANA : OP_SEND_ANA;
 
-    return op;
-  }
-  gab_module_push_op(self, OP_VARCALL, t, l, s);
+  gab_module_push_op(self, op, t, l, s);
   gab_module_push_short(self, message, t, l, s);
   gab_module_push_byte(self, have, t, l, s);
   gab_module_push_byte(self, 1, t, l, s);
 
-  return OP_VARCALL;
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_inline_cache(self, t, l, s);
+
+  return op;
 }
 
-u8 gab_module_push_dyncall(gab_module *self, u8 have, u8 var, gab_token t,
+u8 gab_module_push_dynsend(gab_module *self, u8 have, u8 var, gab_token t,
                            u64 l, s_i8 s) {
-  if (!var) {
-    gab_module_push_op(self, OP_DYNCALL, t, l, s);
-    gab_module_push_byte(self, have, t, l, s);
-    gab_module_push_byte(self, 1, t, l, s);
-    return OP_DYNCALL;
-  }
 
-  gab_module_push_op(self, OP_VARDYNCALL, t, l, s);
+  u8 op = var ? OP_VARDYNSEND : OP_DYNSEND;
+
+  gab_module_push_op(self, op, t, l, s);
   gab_module_push_byte(self, have, t, l, s);
   gab_module_push_byte(self, 1, t, l, s);
 
-  return OP_VARCALL;
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_inline_cache(self, t, l, s);
+
+  return op;
 }
 
 u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l, s_i8 s) {
@@ -233,6 +229,8 @@ u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l, s_i8 s) {
 
 void gab_module_push_inline_cache(gab_module *self, gab_token t, u64 l,
                                   s_i8 s) {
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
@@ -272,24 +270,14 @@ void gab_module_patch_loop(gab_module *self, u64 start, gab_token t, u64 l,
 
 boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
   switch (self->previous_compiled_op) {
+  case OP_SEND_ANA:
+  case OP_VARSEND_ANA:
+  case OP_VARDYNSEND:
+  case OP_DYNSEND:
+    v_u8_set(&self->bytecode, self->bytecode.len - 12, want);
+    return true;
+
   case OP_SPREAD:
-  case OP_CALL_0:
-  case OP_CALL_1:
-  case OP_CALL_2:
-  case OP_CALL_3:
-  case OP_CALL_4:
-  case OP_CALL_5:
-  case OP_CALL_6:
-  case OP_CALL_7:
-  case OP_CALL_8:
-  case OP_CALL_9:
-  case OP_CALL_10:
-  case OP_CALL_11:
-  case OP_CALL_12:
-  case OP_CALL_13:
-  case OP_CALL_14:
-  case OP_CALL_15:
-  case OP_CALL_16:
     v_u8_set(&self->bytecode, self->bytecode.len - 1, want);
     return true;
   }
@@ -313,7 +301,7 @@ u64 dumpSimpleInstruction(gab_module *self, u64 offset) {
   return offset + 1;
 }
 
-u64 dumpCallInstruction(gab_module *self, u64 offset) {
+u64 dumpSendInstruction(gab_module *self, u64 offset) {
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   printf("%-16s\n", name);
   return offset + 4;
@@ -475,7 +463,9 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_LOOP: {
     return dumpJumpInstruction(self, -1, offset);
   }
-  case OP_VARCALL:
+  case OP_VARSEND_ANA:
+  case OP_VARSEND_MONO_BUILTIN:
+  case OP_VARSEND_MONO_CLOSURE:
   case OP_VARRETURN: {
     return dumpTwoByteInstruction(self, offset);
   }
@@ -485,29 +475,15 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_STORE_PROPERTY_ANA:
   case OP_STORE_PROPERTY_MONO:
   case OP_STORE_PROPERTY_POLY:
-  case OP_LOAD_PROPERTY_ANA: 
-  case OP_LOAD_PROPERTY_MONO: 
+  case OP_LOAD_PROPERTY_ANA:
+  case OP_LOAD_PROPERTY_MONO:
   case OP_LOAD_PROPERTY_POLY: {
     return dumpConstantInstruction(self, offset) + 10;
   }
-  case OP_CALL_0:
-  case OP_CALL_1:
-  case OP_CALL_2:
-  case OP_CALL_3:
-  case OP_CALL_4:
-  case OP_CALL_5:
-  case OP_CALL_6:
-  case OP_CALL_7:
-  case OP_CALL_8:
-  case OP_CALL_9:
-  case OP_CALL_10:
-  case OP_CALL_11:
-  case OP_CALL_12:
-  case OP_CALL_13:
-  case OP_CALL_14:
-  case OP_CALL_15:
-  case OP_CALL_16: {
-    return dumpCallInstruction(self, offset);
+  case OP_SEND_ANA:
+  case OP_SEND_MONO_CLOSURE:
+  case OP_SEND_MONO_BUILTIN: {
+    return dumpSendInstruction(self, offset);
   }
   case OP_SPREAD:
   case OP_POP_N:

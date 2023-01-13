@@ -344,25 +344,6 @@ gab_obj_function *gab_obj_function_create(gab_engine *gab, s_i8 name) {
   return self;
 }
 
-boolean gab_obj_function_set(gab_obj_function *self, gab_value receiver,
-                             gab_value spec) {
-  if (d_specs_exists(&self->s, receiver)) {
-    return false;
-  }
-
-  return d_specs_insert(&self->s, receiver, spec);
-}
-
-gab_value gab_obj_function_get(gab_obj_function *self, gab_value receiver) {
-  u64 i = d_specs_index_of(&self->s, receiver);
-
-  if (!d_specs_iexists(&self->s, i)) {
-    return GAB_VAL_NULL();
-  }
-
-  return d_specs_ival(&self->s, i);
-}
-
 gab_obj_builtin *gab_obj_builtin_create(gab_builtin function, s_i8 name) {
 
   gab_obj_builtin *self = GAB_CREATE_OBJ(gab_obj_builtin, TYPE_BUILTIN);

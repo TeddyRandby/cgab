@@ -1,27 +1,20 @@
-def test = { hello: 'world' }
 
-let calls = 0
-
-def cb = do ()
-    test.hello:print
-
-    test.hello = 'world {calls}'
-
-    calls = calls + 1
+def dolog()
+    self:log
 end
 
-cb()
-cb()
-cb()
-cb()
-cb()
-cb()
-cb()
-cb()
+def log()
+    self:print  
+end
 
-test.name = 'me'
+1:dolog
+1:dolog
+1:dolog
 
-cb()
-cb()
-cb()
-cb()
+def log[1?]()
+    'Num: {self}':print
+end
+
+1:dolog
+1:dolog
+1:dolog

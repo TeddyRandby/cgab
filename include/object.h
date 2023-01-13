@@ -3,6 +3,7 @@
 
 #include "core.h"
 #include "value.h"
+#include <stdint.h>
 
 typedef struct gab_module gab_module;
 typedef struct gab_gc gab_gc;
@@ -245,9 +246,8 @@ struct gab_obj_closure {
   gab_obj_prototype *p;
 
   /*
-    An array of upvalue pointers - since multiple closures can capture
-    the same upvalue.
-  */
+   * The array of captured upvalues
+   */
   gab_value upvalues[FLEXIBLE_ARRAY];
 };
 
@@ -271,6 +271,8 @@ typedef struct gab_obj_function gab_obj_function;
 struct gab_obj_function {
   gab_obj header;
 
+  u8 version;
+
   /*
    * The name of the function
    */
@@ -288,19 +290,40 @@ struct gab_obj_function {
 #define GAB_OBJ_TO_FUNCTION(value) ((gab_obj_function *)value)
 gab_obj_function *gab_obj_function_create(gab_engine *gab, s_i8 name);
 
-boolean gab_obj_function_set(gab_obj_function *self, gab_value receiver,
-                             gab_value spec);
+static inline u16 gab_obj_function_find(gab_obj_function *self,
+                                        gab_value receiver) {
+  if (!d_specs_exists(&self->s, receiver)) {
+    return UINT16_MAX;
+  }
 
-gab_value gab_obj_function_get(gab_obj_function *self, gab_value receiver);
-
-static inline gab_value gab_obj_function_cache_get(gab_obj_function* self, u16 offset) {
-    return d_specs_ival(&self->s, offset);
+  return d_specs_index_of(&self->s, receiver);
 }
 
-static inline u16 gab_obj_function_cache_set(gab_obj_function* self, gab_value r) {
-    return d_specs_index_of(&self->s, r);
+static inline void gab_obj_function_set(gab_obj_function *self, u16 offset,
+                                        gab_value spec) {
+  d_specs_iset_val(&self->s, offset, spec);
+  self->version++;
 }
 
+static inline gab_value gab_obj_function_get(gab_obj_function *self,
+                                             u16 offset) {
+  if (offset == UINT16_MAX)
+    return GAB_VAL_NULL();
+
+  return d_specs_ival(&self->s, offset);
+}
+
+static inline void gab_obj_function_insert(gab_obj_function *self,
+                                           gab_value receiver,
+                                           gab_value specialization) {
+  d_specs_insert(&self->s, receiver, specialization);
+  self->version++;
+}
+
+static inline gab_value gab_obj_function_read(gab_obj_function *self,
+                                              gab_value receiver) {
+  return d_specs_read(&self->s, receiver);
+}
 
 /*
   ------------- OBJ_SHAPE-------------
@@ -383,7 +406,7 @@ i16 gab_obj_record_grow(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
 void gab_obj_record_shrink(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
                            gab_value key);
 
-static inline void gab_obj_record_set(gab_obj_record *self, i16 offset,
+static inline void gab_obj_record_set(gab_obj_record *self, u16 offset,
                                       gab_value value) {
   if (!self->is_dynamic)
     self->static_values[offset] = value;
@@ -391,8 +414,8 @@ static inline void gab_obj_record_set(gab_obj_record *self, i16 offset,
     v_u64_set(&self->dynamic_values, offset, value);
 }
 
-static inline gab_value gab_obj_record_get(gab_obj_record *self, i16 offset) {
-  if (offset < 0)
+static inline gab_value gab_obj_record_get(gab_obj_record *self, u16 offset) {
+  if (offset == UINT16_MAX)
     return GAB_VAL_NULL();
   else if (!self->is_dynamic)
     return self->static_values[offset];

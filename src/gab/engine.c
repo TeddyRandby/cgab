@@ -9,6 +9,7 @@
 #include "include/vm.h"
 
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 
 /**
@@ -136,7 +137,12 @@ boolean gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
                     gab_value specialization) {
   gab_obj_function *f = gab_obj_function_create(gab, name);
 
-  return gab_obj_function_set(f, receiver, specialization);
+  if (gab_obj_function_find(f, receiver) != UINT16_MAX)
+      return false;
+
+  gab_obj_function_insert(f, receiver, specialization);
+
+  return true;
 }
 
 /**

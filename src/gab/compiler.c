@@ -32,7 +32,7 @@ typedef enum gab_precedence {
   PREC_TERM,        // + -
   PREC_FACTOR,      // * /
   PREC_UNARY,       // ! - not
-  PREC_CALL,        // ( {
+  PREC_SEND,        // ( {
   PREC_PROPERTY,    // . :
   PREC_PRIMARY
 } gab_precedence;
@@ -542,7 +542,7 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
   } else {
     // An implicit specialization
     // Push the implicit receiver anytype
-    push_op(bc, mod, OP_PUSH_TYPEANY);
+    push_op(bc, mod, OP_PUSH_NULL);
   }
 
   gab_obj_prototype *p = gab_obj_prototype_create(mod);
@@ -684,9 +684,6 @@ i32 compile_property(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
     push_op(bc, mod, OP_STORE_PROPERTY_ANA);
     push_short(bc, mod, prop);
-
-    // The cache'd offset
-    push_short(bc, mod, 0);
     // The shape at this get
     gab_module_push_inline_cache(mod, bc->previous_token, bc->line,
                                  bc->lex.previous_token_src);
@@ -698,8 +695,6 @@ i32 compile_property(gab_engine *gab, gab_bc *bc, gab_module *mod,
     push_op(bc, mod, OP_LOAD_PROPERTY_ANA);
     push_short(bc, mod, prop);
 
-    // The cache'd offset
-    push_short(bc, mod, 0);
     // The shape at this get
     gab_module_push_inline_cache(mod, bc->previous_token, bc->line,
                                  bc->lex.previous_token_src);
@@ -1693,7 +1688,7 @@ i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
   }
 
-  gab_module_push_call(mod, result, vse, f, bc->previous_token, bc->line,
+  gab_module_push_send(mod, result, vse, f, bc->previous_token, bc->line,
                        bc->lex.previous_token_src);
 
   return VAR_RET;
@@ -1715,7 +1710,7 @@ i32 compile_exp_cal(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
   }
 
-  gab_module_push_dyncall(mod, result, vse, bc->previous_token, bc->line,
+  gab_module_push_dynsend(mod, result, vse, bc->previous_token, bc->line,
                           bc->lex.previous_token_src);
 
   return VAR_RET;
@@ -1734,7 +1729,7 @@ i32 compile_exp_vam(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
   }
 
-  gab_module_push_dyncall(mod, result, vse, bc->previous_token, bc->line,
+  gab_module_push_dynsend(mod, result, vse, bc->previous_token, bc->line,
                           bc->lex.previous_token_src);
 
   return VAR_RET;
@@ -1754,7 +1749,7 @@ i32 compile_exp_empty_vam(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
   }
 
-  gab_module_push_dyncall(mod, result, vse, bc->previous_token, bc->line,
+  gab_module_push_dynsend(mod, result, vse, bc->previous_token, bc->line,
                           bc->lex.previous_token_src);
 
   return VAR_RET;
@@ -1893,8 +1888,8 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
   push_op(bc, mod, OP_DUP);
 
   // Call the function, wanting loop_locals results.
-  push_op(bc, mod, OP_CALL_0);
-  push_byte(bc, mod, loop_locals);
+  // push_op(bc, mod, OP_SEND_0);
+  // push_byte(bc, mod, loop_locals);
 
   // Exit the for loop if the last loop local is false.
   u64 jump_start =
@@ -2038,10 +2033,10 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(bin, FACTOR, false),                // SLASH
     INFIX(bin, FACTOR, false),                // PERCENT
     NONE(),                            // COMMA
-    PREFIX_INFIX(empty_vam, vam, CALL, true),       // COLON
+    PREFIX_INFIX(empty_vam, vam, SEND, true),       // COLON
     NONE(),           // AMPERSAND
     PREFIX(sym),           // DOLLAR
-    PREFIX_INFIX(empty_mth, mth, CALL, true), // MESSAGE
+    PREFIX_INFIX(empty_mth, mth, SEND, true), // MESSAGE
     INFIX(dot, PROPERTY, true),              // DOT
     PREFIX_INFIX(spd, bin, TERM, false),                  // DOT_DOT
     NONE(),                            // EQUAL
@@ -2063,7 +2058,7 @@ const gab_compile_rule gab_bc_rules[] = {
     NONE(),                            // RBRACE
     PREFIX(rec), // LBRACK
     NONE(),                            // RBRACK
-    PREFIX_INFIX(grp, cal, CALL, false),     // LPAREN
+    PREFIX_INFIX(grp, cal, SEND, false),     // LPAREN
     NONE(),                            // RPAREN
     NONE(),            // PIPE
     NONE(),                            // SEMI
@@ -2111,7 +2106,7 @@ i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
 
   gab_obj_closure *c = gab_obj_closure_create(p, NULL);
 
-  gab_obj_function_set(f, GAB_VAL_NULL(), GAB_VAL_OBJ(c));
+  gab_obj_function_insert(f, GAB_VAL_NULL(), GAB_VAL_OBJ(c));
 
   add_constant(mod, GAB_VAL_OBJ(p));
   add_constant(mod, GAB_VAL_OBJ(c));

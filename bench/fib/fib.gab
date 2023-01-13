@@ -1,9 +1,9 @@
-def fib[2?]()
+def fib[2?]
   if self < 2 
-    self
-  end else
-    (self - 1):fib + (self - 2):fib
+    return self
   end
+
+  (self - 1):fib + (self - 2):fib
 end
   
-35:fib
+30:fib

@@ -160,6 +160,36 @@ static inline gab_value *trim_return(gab_vm *vm, gab_value *from, gab_value *to,
   return to;
 }
 
+static inline void call_closure(gab_vm *vm, gab_obj_function *f,
+                                gab_obj_closure *c, u8 arity, u8 want) {
+  while (arity < c->p->narguments)
+    *vm->top = GAB_VAL_NULL(), arity++;
+
+  while (arity > c->p->narguments)
+    vm->top--, arity--;
+
+  vm->frame++;
+  vm->frame->c = c;
+  vm->frame->f = f;
+  vm->frame->ip = c->p->mod->bytecode.data + c->p->offset;
+  vm->frame->slots = vm->top - arity - 1;
+  vm->frame->want = want;
+
+  vm->top += c->p->nlocals;
+}
+
+static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_gc *gc,
+                                gab_obj_builtin *b, gab_value r, u8 arity,
+                                u8 want) {
+  gab_value result = (*b->function)(gab, vm, r, arity, vm->top - arity);
+
+  vm->top -= arity + 1;
+
+  vm->top = trim_return(vm, &result, vm->top, 1, want);
+
+  gab_gc_dref(gc, vm, result);
+}
+
 static inline gab_value capture_upvalue(gab_vm *vm, gab_gc *gc,
                                         gab_value *local) {
   gab_obj_upvalue *prev_upvalue = NULL;
@@ -284,8 +314,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
 #define WRITE_BYTE(dist, n) (*(IP() - dist) = n)
 
-#define WRITE_SHORT(n) (IP() += 2, IP()[-2] = (n >> 8) & 0xFF, IP()[-1] = n & 0xFF)
-#define WRITE_QWORD(n) (IP() += 8, *((u64 *)(IP() - 8)) = n)
+#define WRITE_INLINEBYTE(n) (*IP()++ = n)
+#define WRITE_INLINESHORT(n)                                                   \
+  (IP() += 2, IP()[-2] = (n >> 8) & 0xFF, IP()[-1] = n & 0xFF)
+#define WRITE_INLINEQWORD(n) (IP() += 8, *((u64 *)(IP() - 8)) = n)
 
 #define SKIP_BYTE (IP()++)
 #define SKIP_SHORT (IP() += 2)
@@ -293,7 +325,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
 #define READ_BYTE (*IP()++)
 #define READ_SHORT (IP() += 2, (((u16)IP()[-2] << 8) | IP()[-1]))
-#define READ_QWORD(type) (IP() += 8, (type **)(IP() - 8))
+#define READ_QWORD(type) (IP() += 8, (type *)(IP() - 8))
 
 #define READ_CONSTANT (MOD_CONSTANT(READ_SHORT))
 #define READ_STRING (GAB_VAL_TO_STRING(READ_CONSTANT))
@@ -301,7 +333,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 #define READ_PROTOTYPE (GAB_VAL_TO_PROTOTYPE(READ_CONSTANT))
 
 #define STORE_FRAME() ({ FRAME()->ip = IP(); })
-
 #define LOAD_FRAME() ({ IP() = FRAME()->ip; })
 
   /*
@@ -315,7 +346,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       GAB_VAL_TO_FUNCTION(d_gab_constant_ikey(&mod->constants, mod->main));
 
   gab_obj_closure *main_c =
-      GAB_VAL_TO_CLOSURE(gab_obj_function_get(main_f, GAB_VAL_NULL()));
+      GAB_VAL_TO_CLOSURE(gab_obj_function_read(main_f, GAB_VAL_NULL()));
 
   FRAME()->c = main_c;
 
@@ -328,166 +359,338 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
     PUSH(argv[i]);
   }
 
+  STORE_FRAME();
+  call_closure(VM(), main_f, main_c, argc, 1);
+  LOAD_FRAME();
+
+  NEXT();
+
   LOOP() {
     {
-      u16 message;
-      u8 arity, want;
-      gab_obj_function *f;
-      gab_value r, m;
 
-      // Setup the call to main function
-      message = mod->main;
-      arity = argc;
-      want = 1;
-      f = main_f;
-      goto complete_call;
+      CASE_CODE(DYNSEND) : {u8 arity = READ_BYTE;
+    u8 want = READ_BYTE;
+    gab_value callee = POP();
 
-      CASE_CODE(DYNCALL) : {
-        arity = READ_BYTE;
-        want = READ_BYTE;
-        gab_value callee = POP();
+    if (!GAB_VAL_IS_FUNCTION(callee)) {
+      STORE_FRAME();
+      gab_obj_string *a =
+          GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "Tried to call '%.*s'",
+                    (i32)a->len, a->data);
+      return failure(VM());
+    }
 
-        if (!GAB_VAL_IS_FUNCTION(callee)) {
-          STORE_FRAME();
-          gab_obj_string *a =
-              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
-                        "Tried to call '%.*s'", (i32)a->len, a->data);
-          return failure(VM());
-        }
+    gab_obj_function *func = GAB_VAL_TO_FUNCTION(callee);
 
-        f = GAB_VAL_TO_FUNCTION(callee);
-        goto complete_call;
-      }
+    gab_value receiver = PEEK_N(arity + 1);
 
-      CASE_CODE(VARDYNCALL) : {
-        arity = *TOP() + READ_BYTE;
-        want = READ_BYTE;
-        gab_value callee = POP();
+    gab_value type = gab_typeof(ENGINE(), receiver);
 
-        if (!GAB_VAL_IS_FUNCTION(callee)) {
-          STORE_FRAME();
-          gab_obj_string *a =
-              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
-                        "Tried to call '%.*s'", (i32)a->len, a->data);
-          return failure(VM());
-        }
+    u16 offset = gab_obj_function_find(func, type);
 
-        f = GAB_VAL_TO_FUNCTION(callee);
-        goto complete_call;
-      }
+    gab_value spec = gab_obj_function_get(func, offset);
 
-      CASE_CODE(VARCALL) : {
-        message = READ_SHORT;
-        arity = *TOP() + READ_BYTE;
-        want = READ_BYTE;
-        f = GAB_VAL_TO_FUNCTION(MOD_CONSTANT(message));
-        goto complete_call;
-      }
+    if (GAB_VAL_IS_CLOSURE(spec)) {
+      STORE_FRAME();
+      call_closure(VM(), func, GAB_VAL_TO_CLOSURE(spec), arity, want);
+      LOAD_FRAME();
 
-      // clang-format off
-      CASE_CODE(CALL_0):
-      CASE_CODE(CALL_1):
-      CASE_CODE(CALL_2):
-      CASE_CODE(CALL_3):
-      CASE_CODE(CALL_4):
-      CASE_CODE(CALL_5):
-      CASE_CODE(CALL_6):
-      CASE_CODE(CALL_7):
-      CASE_CODE(CALL_8):
-      CASE_CODE(CALL_9):
-      CASE_CODE(CALL_10):
-      CASE_CODE(CALL_11):
-      CASE_CODE(CALL_12):
-      CASE_CODE(CALL_13):
-      CASE_CODE(CALL_14):
-      CASE_CODE(CALL_15):
-      CASE_CODE(CALL_16): {
-        message = READ_SHORT;
-        want = READ_BYTE;
-        arity = INSTR() - OP_CALL_0;
-        f = GAB_VAL_TO_FUNCTION(MOD_CONSTANT(message));
-        goto complete_call;
-      }
-      // clang-format on
+      NEXT();
+    } else if (GAB_VAL_IS_BUILTIN(spec)) {
+      call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
+                   arity, want);
 
-    complete_call : {
-      r = PEEK_N(arity + 1);
+      NEXT();
+    } else {
+      STORE_FRAME();
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "");
+      return failure(VM());
+    }
+  }
 
-      gab_value type = gab_typeof(ENGINE(), r);
+  CASE_CODE(VARDYNSEND) : {
+    u8 arity = *TOP() + READ_BYTE;
+    u8 want = READ_BYTE;
+    gab_value callee = POP();
 
-      m = gab_obj_function_get(f, type);
+    if (!GAB_VAL_IS_FUNCTION(callee)) {
+      STORE_FRAME();
+      gab_obj_string *a =
+          GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "Tried to call '%.*s'",
+                    (i32)a->len, a->data);
+      return failure(VM());
+    }
 
-      if (GAB_VAL_IS_NULL(m)) {
+    gab_obj_function *func = GAB_VAL_TO_FUNCTION(callee);
 
-        // Try getting a specialization for any
-        m = gab_obj_function_get(f, gab->types[TYPE_ANY]);
+    gab_value receiver = PEEK_N(arity + 1);
 
-        if (GAB_VAL_IS_NULL(m)) {
-          STORE_FRAME();
-          gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), r));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
-                        "No specialization for receiver '%.*s'", (i32)a->len,
-                        a->data);
-          return failure(VM());
-        }
-      }
+    gab_value type = gab_typeof(ENGINE(), receiver);
 
-      if (GAB_VAL_IS_CLOSURE(m)) {
+    u16 offset = gab_obj_function_find(func, type);
+
+    gab_value spec = gab_obj_function_get(func, offset);
+
+    if (GAB_VAL_IS_CLOSURE(spec)) {
+      STORE_FRAME();
+      call_closure(VM(), func, GAB_VAL_TO_CLOSURE(spec), arity, want);
+      LOAD_FRAME();
+
+      NEXT();
+    } else if (GAB_VAL_IS_BUILTIN(spec)) {
+      call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
+                   arity, want);
+
+      NEXT();
+    } else {
+      STORE_FRAME();
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "");
+      return failure(VM());
+    }
+  }
+
+  CASE_CODE(VARSEND_ANA) : {
+    u16 message = READ_SHORT;
+    u8 arity = *TOP() + READ_BYTE;
+    u8 want = READ_BYTE;
+
+    gab_obj_function *func = GAB_VAL_TO_FUNCTION(MOD_CONSTANT(message));
+
+    gab_value receiver = PEEK_N(arity + 1);
+
+    gab_value type = gab_typeof(ENGINE(), receiver);
+
+    u16 offset = gab_obj_function_find(func, type);
+
+    gab_value spec = gab_obj_function_get(func, offset);
+
+    if (GAB_VAL_IS_NULL(spec)) {
+      // Try getting a specialization for any
+      STORE_FRAME();
+      gab_obj_string *a =
+          GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), receiver));
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
+                    "No specialization for receiver '%.*s'", (i32)a->len,
+                    a->data);
+      return failure(VM());
+    }
+
+    WRITE_INLINEBYTE(func->version);
+    WRITE_INLINESHORT(offset);
+    WRITE_INLINEQWORD(receiver);
+
+    if (GAB_VAL_IS_CLOSURE(spec)) {
+      WRITE_BYTE(16, OP_VARSEND_MONO_CLOSURE);
+
+      STORE_FRAME();
+      call_closure(VM(), func, GAB_VAL_TO_CLOSURE(spec), arity, want);
+      LOAD_FRAME();
+
+      NEXT();
+    } else if (GAB_VAL_IS_BUILTIN(spec)) {
+      WRITE_BYTE(16, OP_VARSEND_MONO_BUILTIN);
+
+      call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
+                   arity, want);
+
+      NEXT();
+    } else {
+      STORE_FRAME();
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "");
+      return failure(VM());
+    }
+  }
+
+  CASE_CODE(VARSEND_MONO_CLOSURE) : {
+    u16 message = READ_SHORT;
+    u8 arity = *TOP() + READ_BYTE;
+    u8 want = READ_BYTE;
+    u8 version = READ_BYTE;
+    u16 offset = READ_SHORT;
+    gab_value cached_receiver = *READ_QWORD(gab_value);
+
+    gab_obj_function *func = GAB_VAL_TO_FUNCTION(MOD_CONSTANT(message));
+
+    gab_value receiver = PEEK_N(arity + 1);
+
+    if (cached_receiver != receiver + version == func->version) {
+      gab_value type = gab_typeof(ENGINE(), receiver);
+
+      offset = gab_obj_function_find(func, type);
+
+      WRITE_BYTE(16, OP_SEND_ANA);
+    }
+
+    gab_value spec = gab_obj_function_get(func, offset);
+
+    STORE_FRAME();
+    call_closure(VM(), func, GAB_VAL_TO_CLOSURE(spec), arity, want);
+    LOAD_FRAME();
+
+    NEXT();
+  }
+
+  CASE_CODE(VARSEND_MONO_BUILTIN) : {
+    u16 message = READ_SHORT;
+    u8 arity = *TOP() + READ_BYTE;
+    u8 want = READ_BYTE;
+    u8 version = READ_BYTE;
+    u16 offset = READ_SHORT;
+    gab_value cached_receiver = *READ_QWORD(gab_value);
+    // printf("Sending Mono builtin\n");
+
+    gab_obj_function *func = GAB_VAL_TO_FUNCTION(MOD_CONSTANT(message));
+
+    gab_value receiver = PEEK_N(arity + 1);
+
+    if (cached_receiver != receiver + version != func->version) {
+      // printf("Invalid cached mono\n");
+
+      gab_value type = gab_typeof(ENGINE(), receiver);
+
+      offset = gab_obj_function_find(func, type);
+
+      WRITE_BYTE(16, OP_SEND_ANA);
+    }
+
+    gab_value spec = gab_obj_function_get(func, offset);
+
+    call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
+                 arity, want);
+
+    NEXT();
+  }
+
+  CASE_CODE(SEND_ANA) : {
+    gab_obj_function *func = READ_FUNCTION;
+    u8 arity = READ_BYTE;
+    u8 want = READ_BYTE;
+
+    // printf("Sending Ana\n");
+
+    gab_value receiver = PEEK_N(arity + 1);
+
+    gab_value type = gab_typeof(ENGINE(), receiver);
+
+    u16 offset = gab_obj_function_find(func, type);
+
+    gab_value spec = gab_obj_function_get(func, offset);
+
+    if (GAB_VAL_IS_NULL(spec)) {
+      offset = gab_obj_function_find(func, GAB_VAL_NULL());
+
+      spec = gab_obj_function_get(func, offset);
+
+      if (GAB_VAL_IS_NULL(spec)) {
         STORE_FRAME();
-
-        gab_obj_closure *new_closure = GAB_VAL_TO_CLOSURE(m);
-
-        while (arity < new_closure->p->narguments)
-          PUSH(GAB_VAL_NULL()), arity++;
-
-        while (arity > new_closure->p->narguments)
-          DROP(), arity--;
-
-        FRAME()++;
-        FRAME()->c = new_closure;
-        FRAME()->f = f;
-        FRAME()->ip =
-            new_closure->p->mod->bytecode.data + new_closure->p->offset;
-        FRAME()->slots = TOP() - arity - 1;
-        FRAME()->want = want;
-
-        TOP() += new_closure->p->nlocals;
-
-        LOAD_FRAME();
-
-        NEXT();
-      }
-
-      if (GAB_VAL_IS_BUILTIN(m)) {
-        gab_obj_builtin *builtin = GAB_VAL_TO_BUILTIN(m);
-
-        gab_value result =
-            (*builtin->function)(ENGINE(), VM(), r, arity, TOP() - arity);
-
-        TOP() -= arity + 1;
-
-        TOP() = trim_return(VM(), &result, TOP(), 1, want);
-
-        gab_gc_dref(GC(), VM(), result);
-
-        NEXT();
+        gab_obj_string *a =
+            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), receiver));
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
+                      "No specialization for receiver '%.*s'", (i32)a->len,
+                      a->data);
+        return failure(VM());
       }
     }
+
+    WRITE_INLINEBYTE(func->version);
+    WRITE_INLINESHORT(offset);
+    WRITE_INLINEQWORD(receiver);
+    // printf("Transitioning to mono\n");
+
+    if (GAB_VAL_IS_CLOSURE(spec)) {
+      WRITE_BYTE(16, OP_SEND_MONO_CLOSURE);
+
+      STORE_FRAME();
+      call_closure(VM(), func, GAB_VAL_TO_CLOSURE(spec), arity, want);
+      LOAD_FRAME();
+
+      NEXT();
+    } else if (GAB_VAL_IS_BUILTIN(spec)) {
+      WRITE_BYTE(16, OP_SEND_MONO_BUILTIN);
+
+      call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
+                   arity, want);
+
+      NEXT();
+    } else {
+      STORE_FRAME();
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "");
+      return failure(VM());
+    }
+  }
+
+  CASE_CODE(SEND_MONO_CLOSURE) : {
+    gab_obj_function *func = READ_FUNCTION;
+    u8 arity = READ_BYTE;
+    u8 want = READ_BYTE;
+    u8 version = READ_BYTE;
+    u16 offset = READ_SHORT;
+    gab_value cached_receiver = *READ_QWORD(gab_value);
+    // printf("Sending Mono closure\n");
+
+    gab_value receiver = PEEK_N(arity + 1);
+
+    if (cached_receiver != receiver + version != func->version) {
+      // printf("Invalid cached mono\n");
+      gab_value type = gab_typeof(ENGINE(), receiver);
+
+      offset = gab_obj_function_find(func, type);
+
+      WRITE_BYTE(16, OP_SEND_ANA);
     }
 
-    {
+    gab_value spec = gab_obj_function_get(func, offset);
 
-      u8 have, addtl;
+    STORE_FRAME();
+    call_closure(VM(), func, GAB_VAL_TO_CLOSURE(spec), arity, want);
+    LOAD_FRAME();
 
-      CASE_CODE(VARRETURN) : {
-        addtl = READ_BYTE;
-        have = *TOP() + addtl;
-        goto complete_return;
-      }
+    NEXT();
+  }
 
-      // clang-format off
+  CASE_CODE(SEND_MONO_BUILTIN) : {
+    gab_obj_function *func = READ_FUNCTION;
+    u8 arity = READ_BYTE;
+    u8 want = READ_BYTE;
+    u8 version = READ_BYTE;
+    u16 offset = READ_SHORT;
+    gab_value *cached_receiver = READ_QWORD(gab_value);
+    // printf("Sending Mono builtin\n");
+
+    gab_value receiver = PEEK_N(arity + 1);
+
+    if (*cached_receiver != receiver + version != func->version) {
+      // printf("Invalid cached mono\n");
+
+      gab_value type = gab_typeof(ENGINE(), receiver);
+
+      offset = gab_obj_function_find(func, type);
+
+      WRITE_BYTE(16, OP_SEND_ANA);
+    }
+
+    gab_value spec = gab_obj_function_get(func, offset);
+
+    call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
+                 arity, want);
+
+    NEXT();
+  }
+}
+
+{
+
+  u8 have, addtl;
+
+  CASE_CODE(VARRETURN) : {
+    addtl = READ_BYTE;
+    have = *TOP() + addtl;
+    goto complete_return;
+  }
+
+  // clang-format off
       CASE_CODE(RETURN_1):
       CASE_CODE(RETURN_2):
       CASE_CODE(RETURN_3):
@@ -507,609 +710,591 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         have = INSTR() - OP_RETURN_1 + 1;
         goto complete_return;
       }
-      // clang-format on
+  // clang-format on
 
-    complete_return : {
+complete_return : {
 
-      gab_value *from = TOP() - have;
+  gab_value *from = TOP() - have;
 
-      close_upvalue(GC(), VM(), FRAME()->slots);
+  close_upvalue(GC(), VM(), FRAME()->slots);
 
-      TOP() = trim_return(VM(), from, FRAME()->slots, have, FRAME()->want);
+  TOP() = trim_return(VM(), from, FRAME()->slots, have, FRAME()->want);
 
-      if (--FRAME() == VM()->call_stack) {
-        // Increment and pop the module.
-        gab_gc_iref(GC(), VM(), PEEK());
+  if (--FRAME() == VM()->call_stack) {
+    // Increment and pop the module.
+    gab_gc_iref(GC(), VM(), PEEK());
 
-        return POP();
-      }
+    return POP();
+  }
 
-      LOAD_FRAME();
-      NEXT();
-    }
-    }
+  LOAD_FRAME();
+  NEXT();
+}
+}
 
-    {
-      gab_value key, index;
-      u16 prop_offset;
-      gab_obj_record *obj;
+{
+  gab_value key, index;
+  u16 prop_offset;
+  gab_obj_record *obj;
 
-      CASE_CODE(LOAD_INDEX) : {
-        key = PEEK();
-        index = PEEK2();
+  CASE_CODE(LOAD_INDEX) : {
+    key = PEEK();
+    index = PEEK2();
 
-        if (!GAB_VAL_IS_RECORD(index)) {
-          STORE_FRAME();
-          gab_obj_string *a =
-              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
-                        (i32)a->len, a->data);
-          return failure(VM());
-        }
-
-        obj = GAB_VAL_TO_RECORD(index);
-
-        prop_offset = gab_obj_shape_find(obj->shape, key);
-
-        DROP_N(2);
-        goto complete_obj_get;
-      }
-
-      /*
-       * We haven't seen any shapes yet.
-       *
-       * Ignore the cache and write to it.
-       */
-      CASE_CODE(LOAD_PROPERTY_ANA) : {
-        key = READ_CONSTANT;
-
-        index = PEEK();
-
-        if (!GAB_VAL_IS_RECORD(index)) {
-          STORE_FRAME();
-          gab_obj_string *a =
-              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
-                        (i32)a->len, a->data);
-          return failure(VM());
-        }
-
-        obj = GAB_VAL_TO_RECORD(index);
-        prop_offset = gab_obj_shape_find(obj->shape, key);
-
-        // Transition state and store in the ache
-        WRITE_SHORT(prop_offset);
-        WRITE_QWORD((u64)obj->shape);
-        WRITE_BYTE(13, OP_LOAD_PROPERTY_MONO);
-
-        DROP();
-        goto complete_obj_get;
-      }
-
-      /*
-       * We have seen more than one shape here.
-       *
-       * Ignore the cache and always do a raw load.
-       *
-       */
-      CASE_CODE(LOAD_PROPERTY_POLY) : {
-        key = READ_CONSTANT;
-        SKIP_SHORT;
-        READ_QWORD(gab_obj_shape);
-
-        index = PEEK();
-
-        if (!GAB_VAL_IS_RECORD(index)) {
-          STORE_FRAME();
-          gab_obj_string *a =
-              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
-                        (i32)a->len, a->data);
-          return failure(VM());
-        }
-
-        obj = GAB_VAL_TO_RECORD(index);
-
-        prop_offset = gab_obj_shape_find(obj->shape, key);
-
-        DROP();
-        goto complete_obj_get;
-      }
-
-      /*
-       * We have seen exactly one shape here.
-       *
-       * Use the cached type and offset.
-       *
-       * If we see a change, transition to a polymorphic load
-       *
-       */
-      CASE_CODE(LOAD_PROPERTY_MONO) : {
-        key = READ_CONSTANT;
-        prop_offset = READ_SHORT;
-        gab_obj_shape **cached_shape = READ_QWORD(gab_obj_shape);
-
-        index = PEEK();
-
-        if (!GAB_VAL_IS_RECORD(index)) {
-          STORE_FRAME();
-          gab_obj_string *a =
-              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
-                        (i32)a->len, a->data);
-          return failure(VM());
-        }
-
-        obj = GAB_VAL_TO_RECORD(index);
-
-        if (*cached_shape != obj->shape) {
-          // Transition to a polymorphic load
-          prop_offset = gab_obj_shape_find(obj->shape, key);
-          WRITE_BYTE(13, OP_LOAD_PROPERTY_POLY);
-        }
-
-        DROP();
-        goto complete_obj_get;
-      }
-
-    complete_obj_get : {
-      PUSH(gab_obj_record_get(obj, prop_offset));
-      NEXT();
-    }
+    if (!GAB_VAL_IS_RECORD(index)) {
+      STORE_FRAME();
+      gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
+                    (i32)a->len, a->data);
+      return failure(VM());
     }
 
-    {
+    obj = GAB_VAL_TO_RECORD(index);
 
-      gab_value value, key, index;
-      gab_obj_record *obj;
-      u16 prop_offset;
+    prop_offset = gab_obj_shape_find(obj->shape, key);
 
-      CASE_CODE(STORE_INDEX) : {
-        // Leave these on the stack for now in case we collect.
-        value = PEEK();
-        key = PEEK2();
-        index = PEEK_N(3);
+    DROP_N(2);
+    goto complete_obj_get;
+  }
 
-        if (!GAB_VAL_IS_RECORD(index)) {
-          STORE_FRAME();
-          gab_obj_string *a =
-              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
-                        (i32)a->len, a->data);
-          return failure(VM());
-        }
+  /*
+   * We haven't seen any shapes yet.
+   *
+   * Ignore the cache and write to it.
+   */
+  CASE_CODE(LOAD_PROPERTY_ANA) : {
+    key = READ_CONSTANT;
 
-        obj = GAB_VAL_TO_RECORD(index);
+    index = PEEK();
 
-        prop_offset = gab_obj_shape_find(obj->shape, key);
-
-        if (prop_offset == UINT16_MAX) {
-          // Update the obj and get the new offset.
-          prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
-        } else {
-          gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
-
-          gab_obj_record_set(obj, prop_offset, value);
-        }
-
-        DROP_N(3);
-        goto complete_obj_set;
-      }
-
-      /*
-       * The shape has not stabilized. If it has here, write to the cache.
-       */
-      CASE_CODE(STORE_PROPERTY_ANA) : {
-        key = READ_CONSTANT;
-
-        value = PEEK();
-        index = PEEK2();
-
-        if (!GAB_VAL_IS_RECORD(index)) {
-          STORE_FRAME();
-          gab_obj_string *a =
-              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
-                        (i32)a->len, a->data);
-          return failure(VM());
-        }
-
-        obj = GAB_VAL_TO_RECORD(index);
-        prop_offset = gab_obj_shape_find(obj->shape, key);
-
-        if (prop_offset == UINT16_MAX) {
-          // The shape here is not stable yet. The property didn't exist.
-          prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
-          SKIP_SHORT;
-          SKIP_QWORD;
-        } else {
-          // The shape is stable and the property existed.
-          gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
-          gab_obj_record_set(obj, prop_offset, value);
-
-          // Write to the cache and transition to monomorphic
-          WRITE_SHORT(prop_offset);
-          WRITE_QWORD((u64)obj->shape);
-
-          WRITE_BYTE(13, OP_STORE_PROPERTY_MONO);
-        }
-
-        DROP_N(2);
-        goto complete_obj_set;
-      }
-
-      /*
-       * We tried to cache but the shape isn't stable. Revert to never caching.
-       */
-      CASE_CODE(STORE_PROPERTY_POLY) : {
-        key = READ_CONSTANT;
-        // Skip the cache
-        SKIP_SHORT;
-        SKIP_QWORD;
-
-        value = PEEK();
-        index = PEEK2();
-
-        if (!GAB_VAL_IS_RECORD(index)) {
-          STORE_FRAME();
-          gab_obj_string *a =
-              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
-                        (i32)a->len, a->data);
-          return failure(VM());
-        }
-
-        obj = GAB_VAL_TO_RECORD(index);
-        prop_offset = gab_obj_shape_find(obj->shape, key);
-
-        if (prop_offset == UINT16_MAX) {
-          // The shape here is not stable yet. The property didn't exist.
-          prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
-        } else {
-          // The shape is stable and the property existed.
-          gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
-          gab_obj_record_set(obj, prop_offset, value);
-        }
-
-        DROP_N(2);
-        goto complete_obj_set;
-      }
-
-      /*
-       * We have a stable shape in the cache.
-       * If we miss here, transition to polymorphic
-       */
-      CASE_CODE(STORE_PROPERTY_MONO) : {
-        key = READ_CONSTANT;
-        // Use the cache
-        prop_offset = READ_SHORT;
-        gab_obj_shape **cached_shape = READ_QWORD(gab_obj_shape);
-
-        value = PEEK();
-        index = PEEK2();
-
-        if (!GAB_VAL_IS_RECORD(index)) {
-          STORE_FRAME();
-          gab_obj_string *a =
-              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
-                        (i32)a->len, a->data);
-          return failure(VM());
-        }
-
-        obj = GAB_VAL_TO_RECORD(index);
-
-        if (obj->shape == *cached_shape) {
-          gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
-          gab_obj_record_set(obj, prop_offset, value);
-        } else {
-          prop_offset = gab_obj_shape_find(obj->shape, key);
-
-          if (prop_offset == UINT16_MAX) {
-            prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
-          } else {
-            gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
-            gab_obj_record_set(obj, prop_offset, value);
-          }
-
-          // Transition to polymorphic
-          WRITE_BYTE(13, OP_STORE_PROPERTY_POLY);
-        }
-
-        DROP_N(2);
-        goto complete_obj_set;
-      }
-
-    complete_obj_set : {
-      gab_gc_iref(GC(), VM(), value);
-
-      PUSH(value);
-
-      NEXT();
-    }
+    if (!GAB_VAL_IS_RECORD(index)) {
+      STORE_FRAME();
+      gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
+                    (i32)a->len, a->data);
+      return failure(VM());
     }
 
-    CASE_CODE(NOP) : { NEXT(); }
+    obj = GAB_VAL_TO_RECORD(index);
+    prop_offset = gab_obj_shape_find(obj->shape, key);
 
-    CASE_CODE(CONSTANT) : {
-      PUSH(READ_CONSTANT);
-      NEXT();
+    // Transition state and store in the ache
+    WRITE_INLINESHORT(prop_offset);
+    WRITE_INLINEQWORD((u64)obj->shape);
+    WRITE_BYTE(13, OP_LOAD_PROPERTY_MONO);
+
+    DROP();
+    goto complete_obj_get;
+  }
+
+  /*
+   * We have seen more than one shape here.
+   *
+   * Ignore the cache and always do a raw load.
+   *
+   */
+  CASE_CODE(LOAD_PROPERTY_POLY) : {
+    key = READ_CONSTANT;
+    SKIP_SHORT;
+    READ_QWORD(gab_obj_shape);
+
+    index = PEEK();
+
+    if (!GAB_VAL_IS_RECORD(index)) {
+      STORE_FRAME();
+      gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
+                    (i32)a->len, a->data);
+      return failure(VM());
     }
 
-    CASE_CODE(NEGATE) : {
-      if (!GAB_VAL_IS_NUMBER(PEEK())) {
-        STORE_FRAME();
-        gab_obj_string *a =
-            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK()));
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_NUMERIC, "Tried to negate %.*s",
-                      (i32)a->len, a->data);
-        return failure(VM());
-      }
-      gab_value num = GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP()));
-      PUSH(num);
-      NEXT();
+    obj = GAB_VAL_TO_RECORD(index);
+
+    prop_offset = gab_obj_shape_find(obj->shape, key);
+
+    DROP();
+    goto complete_obj_get;
+  }
+
+  /*
+   * We have seen exactly one shape here.
+   *
+   * Use the cached type and offset.
+   *
+   * If we see a change, transition to a polymorphic load
+   *
+   */
+  CASE_CODE(LOAD_PROPERTY_MONO) : {
+    key = READ_CONSTANT;
+    prop_offset = READ_SHORT;
+    gab_obj_shape **cached_shape = READ_QWORD(gab_obj_shape *);
+
+    index = PEEK();
+
+    if (!GAB_VAL_IS_RECORD(index)) {
+      STORE_FRAME();
+      gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
+                    (i32)a->len, a->data);
+      return failure(VM());
     }
 
-    CASE_CODE(SUBTRACT) : {
-      BINARY_OPERATION(GAB_VAL_NUMBER, f64, -);
-      NEXT();
+    obj = GAB_VAL_TO_RECORD(index);
+
+    if (*cached_shape != obj->shape) {
+      // Transition to a polymorphic load
+      prop_offset = gab_obj_shape_find(obj->shape, key);
+      WRITE_BYTE(13, OP_LOAD_PROPERTY_POLY);
     }
 
-    CASE_CODE(ADD) : {
-      BINARY_OPERATION(GAB_VAL_NUMBER, f64, +);
-      NEXT();
+    DROP();
+    goto complete_obj_get;
+  }
+
+complete_obj_get : {
+  PUSH(gab_obj_record_get(obj, prop_offset));
+  NEXT();
+}
+}
+
+{
+
+  gab_value value, key, index;
+  gab_obj_record *obj;
+  u16 prop_offset;
+
+  CASE_CODE(STORE_INDEX) : {
+    // Leave these on the stack for now in case we collect.
+    value = PEEK();
+    key = PEEK2();
+    index = PEEK_N(3);
+
+    if (!GAB_VAL_IS_RECORD(index)) {
+      STORE_FRAME();
+      gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
+                    (i32)a->len, a->data);
+      return failure(VM());
     }
 
-    CASE_CODE(DIVIDE) : {
-      BINARY_OPERATION(GAB_VAL_NUMBER, f64, /);
-      NEXT();
+    obj = GAB_VAL_TO_RECORD(index);
+
+    prop_offset = gab_obj_shape_find(obj->shape, key);
+
+    if (prop_offset == UINT16_MAX) {
+      // Update the obj and get the new offset.
+      prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
+    } else {
+      gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
+
+      gab_obj_record_set(obj, prop_offset, value);
     }
 
-    CASE_CODE(MODULO) : {
-      BINARY_OPERATION(GAB_VAL_NUMBER, u64, %);
-      NEXT();
+    DROP_N(3);
+    goto complete_obj_set;
+  }
+
+  /*
+   * The shape has not stabilized. If it has here, write to the cache.
+   */
+  CASE_CODE(STORE_PROPERTY_ANA) : {
+    key = READ_CONSTANT;
+
+    value = PEEK();
+    index = PEEK2();
+
+    if (!GAB_VAL_IS_RECORD(index)) {
+      STORE_FRAME();
+      gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
+                    (i32)a->len, a->data);
+      return failure(VM());
     }
 
-    CASE_CODE(MULTIPLY) : {
-      BINARY_OPERATION(GAB_VAL_NUMBER, f64, *);
-      NEXT();
+    obj = GAB_VAL_TO_RECORD(index);
+    prop_offset = gab_obj_shape_find(obj->shape, key);
+
+    if (prop_offset == UINT16_MAX) {
+      // The shape here is not stable yet. The property didn't exist.
+      prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
+      SKIP_SHORT;
+      SKIP_QWORD;
+    } else {
+      // The shape is stable and the property existed.
+      gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
+      gab_obj_record_set(obj, prop_offset, value);
+
+      // Write to the cache and transition to monomorphic
+      WRITE_INLINESHORT(prop_offset);
+      WRITE_INLINEQWORD((u64)obj->shape);
+
+      WRITE_BYTE(13, OP_STORE_PROPERTY_MONO);
     }
 
-    CASE_CODE(GREATER) : {
-      BINARY_OPERATION(GAB_VAL_BOOLEAN, f64, >);
-      NEXT();
+    DROP_N(2);
+    goto complete_obj_set;
+  }
+
+  /*
+   * We tried to cache but the shape isn't stable. Revert to never caching.
+   */
+  CASE_CODE(STORE_PROPERTY_POLY) : {
+    key = READ_CONSTANT;
+    // Skip the cache
+    SKIP_SHORT;
+    SKIP_QWORD;
+
+    value = PEEK();
+    index = PEEK2();
+
+    if (!GAB_VAL_IS_RECORD(index)) {
+      STORE_FRAME();
+      gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
+                    (i32)a->len, a->data);
+      return failure(VM());
     }
 
-    CASE_CODE(GREATER_EQUAL) : {
-      BINARY_OPERATION(GAB_VAL_BOOLEAN, f64, >=);
-      NEXT();
+    obj = GAB_VAL_TO_RECORD(index);
+    prop_offset = gab_obj_shape_find(obj->shape, key);
+
+    if (prop_offset == UINT16_MAX) {
+      // The shape here is not stable yet. The property didn't exist.
+      prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
+    } else {
+      // The shape is stable and the property existed.
+      gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
+      gab_obj_record_set(obj, prop_offset, value);
     }
 
-    CASE_CODE(LESSER) : {
-      BINARY_OPERATION(GAB_VAL_BOOLEAN, f64, <);
-      NEXT();
+    DROP_N(2);
+    goto complete_obj_set;
+  }
+
+  /*
+   * We have a stable shape in the cache.
+   * If we miss here, transition to polymorphic
+   */
+  CASE_CODE(STORE_PROPERTY_MONO) : {
+    key = READ_CONSTANT;
+    // Use the cache
+    prop_offset = READ_SHORT;
+    gab_obj_shape **cached_shape = READ_QWORD(gab_obj_shape *);
+
+    value = PEEK();
+    index = PEEK2();
+
+    if (!GAB_VAL_IS_RECORD(index)) {
+      STORE_FRAME();
+      gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+      dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to index %.*s",
+                    (i32)a->len, a->data);
+      return failure(VM());
     }
 
-    CASE_CODE(LESSER_EQUAL) : {
-      BINARY_OPERATION(GAB_VAL_BOOLEAN, f64, <=);
-      NEXT();
-    }
+    obj = GAB_VAL_TO_RECORD(index);
 
-    CASE_CODE(BITWISE_AND) : {
-      BINARY_OPERATION(GAB_VAL_NUMBER, u64, &);
-      NEXT();
-    }
+    if (obj->shape == *cached_shape) {
+      gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
+      gab_obj_record_set(obj, prop_offset, value);
+    } else {
+      prop_offset = gab_obj_shape_find(obj->shape, key);
 
-    CASE_CODE(BITWISE_OR) : {
-      BINARY_OPERATION(GAB_VAL_NUMBER, u64, |);
-      NEXT();
-    }
-
-    CASE_CODE(EQUAL) : {
-      gab_value a = POP();
-      gab_value b = POP();
-      PUSH(GAB_VAL_BOOLEAN(a == b));
-      NEXT();
-    }
-
-    CASE_CODE(DUP) : {
-      gab_value a = PEEK();
-      PUSH(a);
-      NEXT();
-    }
-
-    CASE_CODE(SWAP) : {
-      gab_value tmp = PEEK();
-      PEEK() = PEEK2();
-      PEEK2() = tmp;
-      NEXT();
-    }
-
-    CASE_CODE(CONCAT) : {
-      if (!GAB_VAL_IS_STRING(PEEK()) + !GAB_VAL_IS_STRING(PEEK2())) {
-        STORE_FRAME();
-        gab_obj_string *a =
-            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK()));
-
-        gab_obj_string *b =
-            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK2()));
-
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_STRING,
-                      "Tried to concatenate %.*s and %.*s", (i32)b->len,
-                      b->data, (i32)a->len, a->data);
-        return failure(VM());
-      }
-
-      gab_obj_string *b = GAB_VAL_TO_STRING(POP());
-      gab_obj_string *a = GAB_VAL_TO_STRING(POP());
-
-      gab_obj_string *obj = gab_obj_string_concat(ENGINE(), a, b);
-
-      PUSH(GAB_VAL_OBJ(obj));
-
-      NEXT();
-    }
-
-    CASE_CODE(STRINGIFY) : {
-      if (!GAB_VAL_IS_STRING(PEEK())) {
-        gab_value str = gab_val_to_string(ENGINE(), POP());
-
-        PUSH(str);
-      }
-      NEXT();
-    }
-
-    CASE_CODE(LOGICAL_AND) : {
-      u16 offset = READ_SHORT;
-      gab_value cond = PEEK();
-
-      if (gab_val_falsey(cond)) {
-        ip += offset;
+      if (prop_offset == UINT16_MAX) {
+        prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
       } else {
-        DROP();
+        gab_gc_dref(GC(), VM(), gab_obj_record_get(obj, prop_offset));
+        gab_obj_record_set(obj, prop_offset, value);
       }
 
-      NEXT();
+      // Transition to polymorphic
+      WRITE_BYTE(13, OP_STORE_PROPERTY_POLY);
     }
 
-    CASE_CODE(LOGICAL_OR) : {
-      u16 offset = READ_SHORT;
-      gab_value cond = PEEK();
+    DROP_N(2);
+    goto complete_obj_set;
+  }
 
-      if (gab_val_falsey(cond)) {
-        DROP();
-      } else {
-        ip += offset;
-      }
+complete_obj_set : {
+  gab_gc_iref(GC(), VM(), value);
 
-      NEXT();
-    }
+  PUSH(value);
 
-    CASE_CODE(PUSH_NULL) : {
-      PUSH(GAB_VAL_NULL());
-      NEXT();
-    }
+  NEXT();
+}
+}
 
-    CASE_CODE(PUSH_TRUE) : {
-      PUSH(GAB_VAL_BOOLEAN(true));
-      NEXT();
-    }
+CASE_CODE(NOP) : { NEXT(); }
 
-    CASE_CODE(PUSH_FALSE) : {
-      PUSH(GAB_VAL_BOOLEAN(false));
-      NEXT();
-    }
+CASE_CODE(CONSTANT) : {
+  PUSH(READ_CONSTANT);
+  NEXT();
+}
 
-    CASE_CODE(PUSH_TYPEANY) : {
-      PUSH(gab->types[TYPE_ANY]);
-      NEXT();
-    }
+CASE_CODE(NEGATE) : {
+  if (!GAB_VAL_IS_NUMBER(PEEK())) {
+    STORE_FRAME();
+    gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK()));
+    dump_vm_error(ENGINE(), VM(), GAB_NOT_NUMERIC, "Tried to negate %.*s",
+                  (i32)a->len, a->data);
+    return failure(VM());
+  }
+  gab_value num = GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP()));
+  PUSH(num);
+  NEXT();
+}
 
-    CASE_CODE(PUSH_TYPEBOOLEAN) : {
-      PUSH(gab->types[TYPE_BOOLEAN]);
-      NEXT();
-    }
+CASE_CODE(SUBTRACT) : {
+  BINARY_OPERATION(GAB_VAL_NUMBER, f64, -);
+  NEXT();
+}
 
-    CASE_CODE(PUSH_TYPERECORD) : {
-      PUSH(gab->types[TYPE_RECORD]);
-      NEXT();
-    }
+CASE_CODE(ADD) : {
+  BINARY_OPERATION(GAB_VAL_NUMBER, f64, +);
+  NEXT();
+}
 
-    CASE_CODE(PUSH_TYPESTRING) : {
-      PUSH(gab->types[TYPE_STRING]);
-      NEXT();
-    }
+CASE_CODE(DIVIDE) : {
+  BINARY_OPERATION(GAB_VAL_NUMBER, f64, /);
+  NEXT();
+}
 
-    CASE_CODE(PUSH_TYPENULL) : {
-      PUSH(gab->types[TYPE_NULL]);
-      NEXT();
-    }
+CASE_CODE(MODULO) : {
+  BINARY_OPERATION(GAB_VAL_NUMBER, u64, %);
+  NEXT();
+}
 
-    CASE_CODE(PUSH_TYPENUMBER) : {
-      PUSH(gab->types[TYPE_NUMBER]);
-      NEXT();
-    }
+CASE_CODE(MULTIPLY) : {
+  BINARY_OPERATION(GAB_VAL_NUMBER, f64, *);
+  NEXT();
+}
 
-    CASE_CODE(PUSH_TYPEFUNCTION) : {
-      PUSH(gab->types[TYPE_FUNCTION]);
-      NEXT();
-    }
+CASE_CODE(GREATER) : {
+  BINARY_OPERATION(GAB_VAL_BOOLEAN, f64, >);
+  NEXT();
+}
 
-    CASE_CODE(NOT) : {
-      gab_value val = GAB_VAL_BOOLEAN(gab_val_falsey(POP()));
-      PUSH(val);
-      NEXT();
-    }
+CASE_CODE(GREATER_EQUAL) : {
+  BINARY_OPERATION(GAB_VAL_BOOLEAN, f64, >=);
+  NEXT();
+}
 
-    CASE_CODE(ASSERT) : {
-      if (GAB_VAL_IS_NULL(PEEK())) {
-        STORE_FRAME();
-        dump_vm_error(ENGINE(), VM(), GAB_ASSERTION_FAILED, "");
-        return failure(VM());
-      }
-      NEXT();
-    }
+CASE_CODE(LESSER) : {
+  BINARY_OPERATION(GAB_VAL_BOOLEAN, f64, <);
+  NEXT();
+}
 
-    CASE_CODE(TYPE) : {
-      PEEK() = gab_typeof(ENGINE(), PEEK());
-      NEXT();
-    }
+CASE_CODE(LESSER_EQUAL) : {
+  BINARY_OPERATION(GAB_VAL_BOOLEAN, f64, <=);
+  NEXT();
+}
 
-    CASE_CODE(MATCH) : {
-      gab_value test = POP();
-      gab_value pattern = PEEK();
-      if (test == pattern) {
-        DROP();
-        PUSH(GAB_VAL_BOOLEAN(true));
-      } else {
-        PUSH(GAB_VAL_BOOLEAN(false));
-      }
-      NEXT();
-    }
+CASE_CODE(BITWISE_AND) : {
+  BINARY_OPERATION(GAB_VAL_NUMBER, u64, &);
+  NEXT();
+}
 
-    CASE_CODE(SPREAD) : {
-      u8 want = READ_BYTE;
+CASE_CODE(BITWISE_OR) : {
+  BINARY_OPERATION(GAB_VAL_NUMBER, u64, |);
+  NEXT();
+}
 
-      gab_value index = POP();
+CASE_CODE(EQUAL) : {
+  gab_value a = POP();
+  gab_value b = POP();
+  PUSH(GAB_VAL_BOOLEAN(a == b));
+  NEXT();
+}
 
-      if (GAB_VAL_IS_RECORD(index)) {
-        gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
+CASE_CODE(DUP) : {
+  gab_value a = PEEK();
+  PUSH(a);
+  NEXT();
+}
 
-        u8 have = obj->is_dynamic ? obj->dynamic_values.len : obj->static_len;
+CASE_CODE(SWAP) : {
+  gab_value tmp = PEEK();
+  PEEK() = PEEK2();
+  PEEK2() = tmp;
+  NEXT();
+}
 
-        TOP() = trim_return(VM(),
-                            obj->is_dynamic ? obj->dynamic_values.data
-                                            : obj->static_values,
-                            TOP(), have, want);
-      } else if (GAB_VAL_IS_SHAPE(index)) {
-        gab_obj_shape *shape = GAB_VAL_TO_SHAPE(index);
+CASE_CODE(CONCAT) : {
+  if (!GAB_VAL_IS_STRING(PEEK()) + !GAB_VAL_IS_STRING(PEEK2())) {
+    STORE_FRAME();
+    gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK()));
 
-        u8 have = shape->properties.len;
+    gab_obj_string *b = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK2()));
 
-        TOP() = trim_return(VM(), shape->keys, TOP(), have, want);
-      } else {
-        STORE_FRAME();
-        gab_obj_string *a =
-            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to spread %.*s",
-                      (i32)a->len, a->data);
-        return failure(VM());
-      }
+    dump_vm_error(ENGINE(), VM(), GAB_NOT_STRING,
+                  "Tried to concatenate %.*s and %.*s", (i32)b->len, b->data,
+                  (i32)a->len, a->data);
+    return failure(VM());
+  }
 
-      NEXT();
-    }
+  gab_obj_string *b = GAB_VAL_TO_STRING(POP());
+  gab_obj_string *a = GAB_VAL_TO_STRING(POP());
 
-    CASE_CODE(POP) : {
-      DROP();
-      NEXT();
-    }
+  gab_obj_string *obj = gab_obj_string_concat(ENGINE(), a, b);
 
-    CASE_CODE(POP_N) : {
-      DROP_N(READ_BYTE);
-      NEXT();
-    }
+  PUSH(GAB_VAL_OBJ(obj));
 
-    // clang-format off
+  NEXT();
+}
+
+CASE_CODE(STRINGIFY) : {
+  if (!GAB_VAL_IS_STRING(PEEK())) {
+    gab_value str = gab_val_to_string(ENGINE(), POP());
+
+    PUSH(str);
+  }
+  NEXT();
+}
+
+CASE_CODE(LOGICAL_AND) : {
+  u16 offset = READ_SHORT;
+  gab_value cond = PEEK();
+
+  if (gab_val_falsey(cond)) {
+    ip += offset;
+  } else {
+    DROP();
+  }
+
+  NEXT();
+}
+
+CASE_CODE(LOGICAL_OR) : {
+  u16 offset = READ_SHORT;
+  gab_value cond = PEEK();
+
+  if (gab_val_falsey(cond)) {
+    DROP();
+  } else {
+    ip += offset;
+  }
+
+  NEXT();
+}
+
+CASE_CODE(PUSH_NULL) : {
+  PUSH(GAB_VAL_NULL());
+  NEXT();
+}
+
+CASE_CODE(PUSH_TRUE) : {
+  PUSH(GAB_VAL_BOOLEAN(true));
+  NEXT();
+}
+
+CASE_CODE(PUSH_FALSE) : {
+  PUSH(GAB_VAL_BOOLEAN(false));
+  NEXT();
+}
+
+CASE_CODE(PUSH_TYPEBOOLEAN) : {
+  PUSH(gab->types[TYPE_BOOLEAN]);
+  NEXT();
+}
+
+CASE_CODE(PUSH_TYPERECORD) : {
+  PUSH(gab->types[TYPE_RECORD]);
+  NEXT();
+}
+
+CASE_CODE(PUSH_TYPESTRING) : {
+  PUSH(gab->types[TYPE_STRING]);
+  NEXT();
+}
+
+CASE_CODE(PUSH_TYPENULL) : {
+  PUSH(gab->types[TYPE_NULL]);
+  NEXT();
+}
+
+CASE_CODE(PUSH_TYPENUMBER) : {
+  PUSH(gab->types[TYPE_NUMBER]);
+  NEXT();
+}
+
+CASE_CODE(PUSH_TYPEFUNCTION) : {
+  PUSH(gab->types[TYPE_FUNCTION]);
+  NEXT();
+}
+
+CASE_CODE(NOT) : {
+  gab_value val = GAB_VAL_BOOLEAN(gab_val_falsey(POP()));
+  PUSH(val);
+  NEXT();
+}
+
+CASE_CODE(ASSERT) : {
+  if (GAB_VAL_IS_NULL(PEEK())) {
+    STORE_FRAME();
+    dump_vm_error(ENGINE(), VM(), GAB_ASSERTION_FAILED, "");
+    return failure(VM());
+  }
+  NEXT();
+}
+
+CASE_CODE(TYPE) : {
+  PEEK() = gab_typeof(ENGINE(), PEEK());
+  NEXT();
+}
+
+CASE_CODE(MATCH) : {
+  gab_value test = POP();
+  gab_value pattern = PEEK();
+  if (test == pattern) {
+    DROP();
+    PUSH(GAB_VAL_BOOLEAN(true));
+  } else {
+    PUSH(GAB_VAL_BOOLEAN(false));
+  }
+  NEXT();
+}
+
+CASE_CODE(SPREAD) : {
+  u8 want = READ_BYTE;
+
+  gab_value index = POP();
+
+  if (GAB_VAL_IS_RECORD(index)) {
+    gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
+
+    u8 have = obj->is_dynamic ? obj->dynamic_values.len : obj->static_len;
+
+    TOP() = trim_return(
+        VM(), obj->is_dynamic ? obj->dynamic_values.data : obj->static_values,
+        TOP(), have, want);
+  } else if (GAB_VAL_IS_SHAPE(index)) {
+    gab_obj_shape *shape = GAB_VAL_TO_SHAPE(index);
+
+    u8 have = shape->properties.len;
+
+    TOP() = trim_return(VM(), shape->keys, TOP(), have, want);
+  } else {
+    STORE_FRAME();
+    gab_obj_string *a = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
+    dump_vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Tried to spread %.*s",
+                  (i32)a->len, a->data);
+    return failure(VM());
+  }
+
+  NEXT();
+}
+
+CASE_CODE(POP) : {
+  DROP();
+  NEXT();
+}
+
+CASE_CODE(POP_N) : {
+  DROP_N(READ_BYTE);
+  NEXT();
+}
+
+// clang-format off
 
     CASE_CODE(LOAD_LOCAL_0):
     CASE_CODE(LOAD_LOCAL_1):
@@ -1188,197 +1373,197 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       PUSH(CONST_UPVALUE(INSTR()- OP_LOAD_CONST_UPVALUE_0));
       NEXT();
     }
-    // clang-format on
+// clang-format on
 
-    CASE_CODE(LOAD_LOCAL) : {
-      PUSH(LOCAL(READ_BYTE));
-      NEXT();
-    }
+CASE_CODE(LOAD_LOCAL) : {
+  PUSH(LOCAL(READ_BYTE));
+  NEXT();
+}
 
-    CASE_CODE(STORE_LOCAL) : {
-      LOCAL(READ_BYTE) = PEEK();
-      NEXT();
-    }
+CASE_CODE(STORE_LOCAL) : {
+  LOCAL(READ_BYTE) = PEEK();
+  NEXT();
+}
 
-    CASE_CODE(POP_STORE_LOCAL) : {
-      LOCAL(READ_BYTE) = POP();
-      NEXT();
-    }
+CASE_CODE(POP_STORE_LOCAL) : {
+  LOCAL(READ_BYTE) = POP();
+  NEXT();
+}
 
-    CASE_CODE(LOAD_UPVALUE) : {
-      PUSH(UPVALUE(READ_BYTE));
-      NEXT();
-    }
+CASE_CODE(LOAD_UPVALUE) : {
+  PUSH(UPVALUE(READ_BYTE));
+  NEXT();
+}
 
-    CASE_CODE(LOAD_CONST_UPVALUE) : {
-      PUSH(CONST_UPVALUE(READ_BYTE));
-      NEXT();
-    }
+CASE_CODE(LOAD_CONST_UPVALUE) : {
+  PUSH(CONST_UPVALUE(READ_BYTE));
+  NEXT();
+}
 
-    CASE_CODE(STORE_UPVALUE) : {
-      UPVALUE(READ_BYTE) = PEEK();
-      NEXT();
-    }
+CASE_CODE(STORE_UPVALUE) : {
+  UPVALUE(READ_BYTE) = PEEK();
+  NEXT();
+}
 
-    CASE_CODE(POP_STORE_UPVALUE) : {
-      UPVALUE(READ_BYTE) = POP();
-      NEXT();
-    }
+CASE_CODE(POP_STORE_UPVALUE) : {
+  UPVALUE(READ_BYTE) = POP();
+  NEXT();
+}
 
-    CASE_CODE(CLOSE_UPVALUE) : {
-      close_upvalue(GC(), VM(), SLOTS() + READ_BYTE);
-      NEXT();
-    }
+CASE_CODE(CLOSE_UPVALUE) : {
+  close_upvalue(GC(), VM(), SLOTS() + READ_BYTE);
+  NEXT();
+}
 
-    CASE_CODE(POP_JUMP_IF_TRUE) : {
-      u16 dist = READ_SHORT;
-      ip += dist * !gab_val_falsey(POP());
-      NEXT();
-    }
+CASE_CODE(POP_JUMP_IF_TRUE) : {
+  u16 dist = READ_SHORT;
+  ip += dist * !gab_val_falsey(POP());
+  NEXT();
+}
 
-    CASE_CODE(POP_JUMP_IF_FALSE) : {
-      u16 dist = READ_SHORT;
-      ip += dist * gab_val_falsey(POP());
-      NEXT();
-    }
+CASE_CODE(POP_JUMP_IF_FALSE) : {
+  u16 dist = READ_SHORT;
+  ip += dist * gab_val_falsey(POP());
+  NEXT();
+}
 
-    CASE_CODE(JUMP_IF_TRUE) : {
-      u16 dist = READ_SHORT;
-      ip += dist * !gab_val_falsey(PEEK());
-      NEXT();
-    }
+CASE_CODE(JUMP_IF_TRUE) : {
+  u16 dist = READ_SHORT;
+  ip += dist * !gab_val_falsey(PEEK());
+  NEXT();
+}
 
-    CASE_CODE(JUMP_IF_FALSE) : {
-      u16 dist = READ_SHORT;
-      ip += dist * gab_val_falsey(PEEK());
-      NEXT();
-    }
+CASE_CODE(JUMP_IF_FALSE) : {
+  u16 dist = READ_SHORT;
+  ip += dist * gab_val_falsey(PEEK());
+  NEXT();
+}
 
-    CASE_CODE(JUMP) : {
-      u16 dist = READ_SHORT;
-      ip += dist;
-      NEXT();
-    }
+CASE_CODE(JUMP) : {
+  u16 dist = READ_SHORT;
+  ip += dist;
+  NEXT();
+}
 
-    CASE_CODE(LOOP) : {
-      u16 dist = READ_SHORT;
-      ip -= dist;
-      NEXT();
-    }
+CASE_CODE(LOOP) : {
+  u16 dist = READ_SHORT;
+  ip -= dist;
+  NEXT();
+}
 
-    CASE_CODE(CLOSURE) : {
-      gab_obj_prototype *p = READ_PROTOTYPE;
-      gab_obj_function *f = READ_FUNCTION;
-      gab_value r = POP();
+CASE_CODE(CLOSURE) : {
+  gab_obj_prototype *p = READ_PROTOTYPE;
+  gab_obj_function *f = READ_FUNCTION;
+  gab_value r = POP();
 
-      if (!GAB_VAL_IS_NULL(gab_obj_function_get(f, r))) {
-        STORE_FRAME();
-        gab_obj_string *s = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), r));
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
-                      "Specialization already exists for %.*s on %.*s",
-                      (i32)s->len, s->data, (i32)f->name.len, f->name.data);
-        return failure(VM());
+  if (gab_obj_function_find(f, r) != UINT16_MAX) {
+    STORE_FRAME();
+    gab_obj_string *s = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), r));
+    dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
+                  "Specialization already exists for %.*s on %.*s", (i32)s->len,
+                  s->data, (i32)f->name.len, f->name.data);
+    return failure(VM());
+  }
+
+  // Artificially use the stack to store the upvalues
+  // as we're finding them to capture.
+  // This is done so that the GC knows they're there.
+  gab_value *upvalues = TOP();
+
+  for (int i = 0; i < p->nupvalues; i++) {
+    u8 flags = READ_BYTE;
+    u8 index = READ_BYTE;
+
+    if (flags & FLAG_LOCAL) {
+      if (flags & FLAG_MUTABLE) {
+        PUSH(capture_upvalue(VM(), GC(), FRAME()->slots + index));
+      } else {
+        PUSH(LOCAL(index));
+        gab_gc_iref(GC(), VM(), upvalues[i]);
       }
-
-      // Artificially use the stack to store the upvalues
-      // as we're finding them to capture.
-      // This is done so that the GC knows they're there.
-      gab_value *upvalues = TOP();
-
-      for (int i = 0; i < p->nupvalues; i++) {
-        u8 flags = READ_BYTE;
-        u8 index = READ_BYTE;
-
-        if (flags & FLAG_LOCAL) {
-          if (flags & FLAG_MUTABLE) {
-            PUSH(capture_upvalue(VM(), GC(), FRAME()->slots + index));
-          } else {
-            PUSH(LOCAL(index));
-            gab_gc_iref(GC(), VM(), upvalues[i]);
-          }
-        } else {
-          PUSH(CLOSURE()->upvalues[index]);
-          gab_gc_iref(GC(), VM(), upvalues[i]);
-        }
-      }
-
-      DROP_N(p->nupvalues);
-
-      gab_value obj = GAB_VAL_OBJ(gab_obj_closure_create(p, upvalues));
-
-      gab_obj_function_set(f, r, obj);
-
-      PUSH(GAB_VAL_OBJ(f));
-
-      NEXT();
-    }
-
-    {
-      gab_obj_shape *shape;
-      u8 size;
-
-      CASE_CODE(OBJECT_RECORD_DEF) : {
-        gab_obj_string *name = READ_STRING;
-
-        size = READ_BYTE;
-
-        shape = gab_obj_shape_create(ENGINE(), VM(), size, 2, TOP() - size * 2);
-
-        shape->name = gab_obj_string_ref(name);
-
-        goto complete_record;
-      }
-
-      CASE_CODE(OBJECT_RECORD) : {
-        size = READ_BYTE;
-
-        shape = gab_obj_shape_create(ENGINE(), VM(), size, 2, TOP() - size * 2);
-
-        goto complete_record;
-      }
-
-    complete_record : {
-      // Increment the rc of the values only
-      for (u64 i = 1; i < size * 2; i += 2) {
-        gab_gc_iref(GC(), VM(), PEEK_N(i));
-      }
-
-      gab_value obj = GAB_VAL_OBJ(
-          gab_obj_record_create(shape, size, 2, TOP() + 1 - (size * 2)));
-
-      DROP_N(size * 2);
-
-      PUSH(obj);
-
-      gab_gc_dref(GC(), VM(), obj);
-
-      NEXT();
-    }
-    }
-
-    CASE_CODE(OBJECT_ARRAY) : {
-      u8 size = READ_BYTE;
-
-      for (u64 i = 1; i < size; i++) {
-        gab_gc_iref(GC(), VM(), PEEK_N(i));
-      }
-
-      gab_obj_shape *shape = gab_obj_shape_create_array(ENGINE(), VM(), size);
-
-      gab_value obj =
-          GAB_VAL_OBJ(gab_obj_record_create(shape, size, 1, TOP() - (size)));
-
-      DROP_N(size);
-
-      PUSH(obj);
-
-      gab_gc_dref(GC(), VM(), obj);
-
-      NEXT();
+    } else {
+      PUSH(CLOSURE()->upvalues[index]);
+      gab_gc_iref(GC(), VM(), upvalues[i]);
     }
   }
-  // This should be unreachable
-  return GAB_VAL_NULL();
+
+  DROP_N(p->nupvalues);
+
+  gab_value obj = GAB_VAL_OBJ(gab_obj_closure_create(p, upvalues));
+
+  gab_obj_function_insert(f, r, obj);
+
+  PUSH(GAB_VAL_OBJ(f));
+
+  NEXT();
+}
+
+{
+  gab_obj_shape *shape;
+  u8 size;
+
+  CASE_CODE(OBJECT_RECORD_DEF) : {
+    gab_obj_string *name = READ_STRING;
+
+    size = READ_BYTE;
+
+    shape = gab_obj_shape_create(ENGINE(), VM(), size, 2, TOP() - size * 2);
+
+    shape->name = gab_obj_string_ref(name);
+
+    goto complete_record;
+  }
+
+  CASE_CODE(OBJECT_RECORD) : {
+    size = READ_BYTE;
+
+    shape = gab_obj_shape_create(ENGINE(), VM(), size, 2, TOP() - size * 2);
+
+    goto complete_record;
+  }
+
+complete_record : {
+  // Increment the rc of the values only
+  for (u64 i = 1; i < size * 2; i += 2) {
+    gab_gc_iref(GC(), VM(), PEEK_N(i));
+  }
+
+  gab_value obj = GAB_VAL_OBJ(
+      gab_obj_record_create(shape, size, 2, TOP() + 1 - (size * 2)));
+
+  DROP_N(size * 2);
+
+  PUSH(obj);
+
+  gab_gc_dref(GC(), VM(), obj);
+
+  NEXT();
+}
+}
+
+CASE_CODE(OBJECT_ARRAY) : {
+  u8 size = READ_BYTE;
+
+  for (u64 i = 1; i < size; i++) {
+    gab_gc_iref(GC(), VM(), PEEK_N(i));
+  }
+
+  gab_obj_shape *shape = gab_obj_shape_create_array(ENGINE(), VM(), size);
+
+  gab_value obj =
+      GAB_VAL_OBJ(gab_obj_record_create(shape, size, 1, TOP() - (size)));
+
+  DROP_N(size);
+
+  PUSH(obj);
+
+  gab_gc_dref(GC(), VM(), obj);
+
+  NEXT();
+}
+}
+// This should be unreachable
+return GAB_VAL_NULL();
 }
 
 #undef READ_BYTE

@@ -3,4 +3,4 @@ function fib(n) {
   return fib(n - 1) + fib(n - 2)
 }
 
-fib(28)
+fib(30)

@@ -1,9 +1,8 @@
 def Fib(i)
-  if (i < 2)
+  if i < 2
     return i
-  else
-    return Fib(i - 1) + Fib(i - 2)
   end
+  return Fib(i - 1) + Fib(i - 2)
 end
 
-Fib(28)
+Fib(30)

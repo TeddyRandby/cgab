@@ -10,7 +10,6 @@
 */
 typedef struct gab_call_frame {
   gab_obj_function *f;
-
   gab_obj_closure *c;
 
   /*
