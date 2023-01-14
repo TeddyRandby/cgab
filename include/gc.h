@@ -20,6 +20,7 @@ typedef struct rc_update {
 #define NAME rc_tracker
 #define K gab_value
 #define V i32
+#define DEF_V 0
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
 #include "include/dict.h"

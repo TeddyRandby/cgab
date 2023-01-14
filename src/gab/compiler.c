@@ -1716,45 +1716,6 @@ i32 compile_exp_cal(gab_engine *gab, gab_bc *bc, gab_module *mod,
   return VAR_RET;
 }
 
-i32 compile_exp_vam(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                    boolean assignable) {
-  if (compile_expression(gab, bc, mod) < 0)
-    return COMP_ERR;
-
-  boolean vse = false;
-  i32 result = compile_arguments(gab, bc, mod, &vse);
-
-  if (result > 16) {
-    dump_compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
-    return COMP_ERR;
-  }
-
-  gab_module_push_dynsend(mod, result, vse, bc->previous_token, bc->line,
-                          bc->lex.previous_token_src);
-
-  return VAR_RET;
-}
-
-i32 compile_exp_empty_vam(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                          boolean assignable) {
-  push_op(bc, mod, OP_PUSH_NULL);
-  if (compile_expression(gab, bc, mod) < 0)
-    return COMP_ERR;
-
-  boolean vse = false;
-  i32 result = compile_arguments(gab, bc, mod, &vse);
-
-  if (result > 16) {
-    dump_compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
-    return COMP_ERR;
-  }
-
-  gab_module_push_dynsend(mod, result, vse, bc->previous_token, bc->line,
-                          bc->lex.previous_token_src);
-
-  return VAR_RET;
-}
-
 i32 compile_exp_empty_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
                           boolean assignable) {
   push_op(bc, mod, OP_PUSH_NULL);
@@ -2033,7 +1994,7 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(bin, FACTOR, false),                // SLASH
     INFIX(bin, FACTOR, false),                // PERCENT
     NONE(),                            // COMMA
-    PREFIX_INFIX(empty_vam, vam, SEND, true),       // COLON
+    NONE(),       // COLON
     NONE(),           // AMPERSAND
     PREFIX(sym),           // DOLLAR
     PREFIX_INFIX(empty_mth, mth, SEND, true), // MESSAGE

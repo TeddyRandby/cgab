@@ -16,6 +16,11 @@
 
 #ifndef V
 #define V u8
+#define DEF_V 0
+#else
+#ifndef DEF_V
+#error "Define a default DEF_V for V before including this header"
+#endif
 #endif
 
 #ifndef NAME
@@ -226,12 +231,13 @@ LINKAGE V METHOD(read)(TYPENAME *self, K key) {
 
   BUCKET_T *bucket = self->buckets + index;
 
-  return bucket->val;
+  return bucket->status == D_FULL ? bucket->val: DEF_V;
 }
 
 #undef NAME
 #undef K
 #undef V
+#undef DEF_V
 #undef HASH
 #undef LOAD
 #undef EQUAL

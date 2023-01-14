@@ -264,6 +264,7 @@ typedef struct gab_obj_function gab_obj_function;
 #define NAME specs
 #define K gab_value
 #define V gab_value
+#define DEF_V GAB_VAL_NULL()
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
 #include "include/dict.h"
@@ -292,9 +293,8 @@ gab_obj_function *gab_obj_function_create(gab_engine *gab, s_i8 name);
 
 static inline u16 gab_obj_function_find(gab_obj_function *self,
                                         gab_value receiver) {
-  if (!d_specs_exists(&self->s, receiver)) {
+  if (!d_specs_exists(&self->s, receiver))
     return UINT16_MAX;
-  }
 
   return d_specs_index_of(&self->s, receiver);
 }
@@ -307,9 +307,6 @@ static inline void gab_obj_function_set(gab_obj_function *self, u16 offset,
 
 static inline gab_value gab_obj_function_get(gab_obj_function *self,
                                              u16 offset) {
-  if (offset == UINT16_MAX)
-    return GAB_VAL_NULL();
-
   return d_specs_ival(&self->s, offset);
 }
 

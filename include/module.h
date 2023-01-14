@@ -2,6 +2,7 @@
 #define GAB_MODULE_H
 #include "gc.h"
 #include "include/gab.h"
+#include "include/value.h"
 #include "lexer.h"
 
 typedef struct gab_module gab_module;

@@ -457,34 +457,28 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_JUMP:
   case OP_POP_JUMP_IF_FALSE:
   case OP_POP_JUMP_IF_TRUE:
-  case OP_LOGICAL_OR: {
+  case OP_LOGICAL_OR:
     return dumpJumpInstruction(self, 1, offset);
-  }
-  case OP_LOOP: {
+  case OP_LOOP:
     return dumpJumpInstruction(self, -1, offset);
-  }
   case OP_VARSEND_ANA:
   case OP_VARSEND_MONO_BUILTIN:
   case OP_VARSEND_MONO_CLOSURE:
-  case OP_VARRETURN: {
+  case OP_VARRETURN:
     return dumpTwoByteInstruction(self, offset);
-  }
-  case OP_CONSTANT: {
+  case OP_CONSTANT:
     return dumpConstantInstruction(self, offset);
-  }
   case OP_STORE_PROPERTY_ANA:
   case OP_STORE_PROPERTY_MONO:
   case OP_STORE_PROPERTY_POLY:
   case OP_LOAD_PROPERTY_ANA:
   case OP_LOAD_PROPERTY_MONO:
-  case OP_LOAD_PROPERTY_POLY: {
+  case OP_LOAD_PROPERTY_POLY:
     return dumpConstantInstruction(self, offset) + 10;
-  }
   case OP_SEND_ANA:
   case OP_SEND_MONO_CLOSURE:
-  case OP_SEND_MONO_BUILTIN: {
+  case OP_SEND_MONO_BUILTIN:
     return dumpSendInstruction(self, offset);
-  }
   case OP_SPREAD:
   case OP_POP_N:
   case OP_CLOSE_UPVALUE:

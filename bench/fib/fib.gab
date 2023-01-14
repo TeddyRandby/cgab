@@ -1,4 +1,4 @@
-def fib[2?]
+def fib()
   if self < 2 
     return self
   end

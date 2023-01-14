@@ -21,7 +21,7 @@
 // Maximum number of roots inthe root buffer before triggering a collection.
 #define ROOT_MAX 2048
 // Initial capacity of interned table
-#define INTERN_INITIAL_CAP 2
+#define INTERN_INITIAL_CAP 256
 
 // Derived macros
 // Garbage collection increment/decrement buffer size
@@ -80,6 +80,7 @@ static inline s_i8 s_i8_cstr(const char *str) {
 
 #define K u64
 #define V u64
+#define DEF_V 0
 #define HASH(a) a
 #define EQUAL(a, b) (a == b)
 #define LOAD DICT_MAX_LOAD
