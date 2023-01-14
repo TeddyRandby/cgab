@@ -26,7 +26,6 @@ gab_engine *gab_create(u8 flags) {
 
   gab->flags = flags;
 
-  gab->types[TYPE_ANY] = GAB_SYMBOL("any");
   gab->types[TYPE_NULL] = GAB_SYMBOL("null");
   gab->types[TYPE_NUMBER] = GAB_SYMBOL("number");
   gab->types[TYPE_BOOLEAN] = GAB_SYMBOL("boolean");
@@ -36,6 +35,7 @@ gab_engine *gab_create(u8 flags) {
   gab->types[TYPE_BUILTIN] = GAB_SYMBOL("builtin");
   gab->types[TYPE_CLOSURE] = GAB_SYMBOL("closure");
   gab->types[TYPE_UPVALUE] = GAB_SYMBOL("upvalue");
+  gab->types[TYPE_RECORD] = GAB_SYMBOL("record");
   gab->types[TYPE_SHAPE] = GAB_SYMBOL("shape");
   gab->types[TYPE_SYMBOL] = GAB_SYMBOL("symbol");
   gab->types[TYPE_CONTAINER] = GAB_SYMBOL("container");
@@ -50,26 +50,42 @@ void gab_cleanup(gab_engine *gab) {
   for (u64 i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
       gab_obj_string *v = d_strings_ikey(&gab->interned_strings, i);
+#if GAB_DEBUG_GC
       gab_dref(gab, NULL, GAB_VAL_OBJ(v));
+#else
+      gab_gc_queue(gab, GAB_VAL_OBJ(v));
+#endif
     }
   }
 
   for (u64 i = 0; i < gab->interned_shapes.cap; i++) {
     if (d_shapes_iexists(&gab->interned_shapes, i)) {
       gab_obj_shape *v = d_shapes_ikey(&gab->interned_shapes, i);
+#if GAB_DEBUG_GC
       gab_dref(gab, NULL, GAB_VAL_OBJ(v));
+#else
+      gab_gc_queue(gab, GAB_VAL_OBJ(v));
+#endif
     }
   }
 
   for (u64 i = 0; i < gab->interned_functions.cap; i++) {
     if (d_functions_iexists(&gab->interned_functions, i)) {
       gab_obj_function *v = d_functions_ikey(&gab->interned_functions, i);
+#if GAB_DEBUG_GC
       gab_dref(gab, NULL, GAB_VAL_OBJ(v));
+#else
+      gab_gc_queue(gab, GAB_VAL_OBJ(v));
+#endif
     }
   }
 
   for (u8 i = 0; i < GAB_NTYPES; i++) {
+#if GAB_DEBUG_GC
     gab_dref(gab, NULL, gab->types[i]);
+#else
+    gab_gc_queue(gab, gab->types[i]);
+#endif
   }
 }
 

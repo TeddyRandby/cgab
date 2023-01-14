@@ -27,13 +27,6 @@ libcgab = library('cgab',
 #   install_dir: '/usr/local/lib/gab/'
 # )
 #
-# shared_library('cgabstr',
-#   'src/lib/str.c',
-#   link_with: libcgab,
-#   install: true,
-#   install_dir: '/usr/local/lib/gab/'
-# )
-#
 # shared_library('cgabnum',
 #   'src/lib/num.c',
 #   link_with: libcgab,
@@ -54,6 +47,13 @@ libcgab = library('cgab',
 #   install: true,
 #   install_dir: '/usr/local/lib/gab/'
 # )
+
+shared_library('cgabstr',
+  'src/lib/str.c',
+  link_with: libcgab,
+  install: true,
+  install_dir: '/usr/local/lib/gab/'
+)
 
 shared_library('cgabio',
   'src/lib/io.c',

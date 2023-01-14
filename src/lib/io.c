@@ -96,6 +96,8 @@ gab_value gab_lib_write(gab_engine *eng, gab_vm *vm, gab_value receiver,
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
+  gab_value io = GAB_SYMBOL("io");
+
   s_i8 keys[] = {
       s_i8_cstr("open"),
       s_i8_cstr("read"),
@@ -105,7 +107,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value container_type = gab_get_type(gab, TYPE_CONTAINER);
 
   gab_value receiver_types[] = {
-      GAB_VAL_NULL(),
+      io,
       container_type,
       container_type,
   };
@@ -120,5 +122,5 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
     gab_specialize(gab, keys[i], receiver_types[i], values[i]);
   }
 
-  return GAB_VAL_NULL();
+  return io;
 }

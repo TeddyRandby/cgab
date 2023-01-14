@@ -55,6 +55,7 @@ fin:
   // Cleanup the result
   gab_dref(gab, NULL, result);
 
+
   // Cleanup the engine, module, and imports
   gab_module_cleanup(gab, main);
   gab_cleanup(gab);
