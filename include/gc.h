@@ -66,8 +66,6 @@ void __gab_gc_dref(gab_gc *gc, gab_vm *vm, gab_value val, const char *file,
 void gab_gc_iref(gab_gc *gc, gab_vm *vm, gab_value val);
 void gab_gc_dref(gab_gc *gc, gab_vm *vm, gab_value val);
 
-void gab_gc_queue(gab_gc* gc, gab_value val);
-
 #endif
 
 #endif

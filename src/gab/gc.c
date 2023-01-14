@@ -146,12 +146,6 @@ static inline void queue_destroy(gab_gc *gc, gab_obj *obj) {
   d_u64_insert(&gc->queue, GAB_VAL_OBJ(obj), GAB_VAL_NULL());
 }
 
-void gab_gc_queue(gab_gc* gc, gab_value val) {
-    if (GAB_VAL_IS_OBJ(val)) {
-        queue_destroy(gc, GAB_VAL_TO_OBJ(val));
-    }
-}
-
 static inline void cleanup(gab_gc *gc) {
   for (i32 i = 0; i < gc->queue.cap; i++) {
     if (d_u64_iexists(&gc->queue, i)) {
@@ -165,7 +159,6 @@ static inline void cleanup(gab_gc *gc) {
 #endif
 #endif
       gab_obj_destroy(GAB_VAL_TO_OBJ(key));
-      d_u64_remove(&gc->roots, key);
       d_u64_iremove(&gc->queue, i);
     }
   }

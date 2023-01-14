@@ -84,7 +84,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
       GAB_BUILTIN(split),
   };
 
-  for (u8 i = 0; i < 2; i++) {
+  for (u8 i = 0; i < LEN_CARRAY(keys); i++) {
     gab_specialize(gab, keys[i], string_type, values[i]);
   }
 

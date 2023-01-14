@@ -25,11 +25,7 @@ void gab_module_cleanup(gab_engine *gab, gab_module *mod) {
   for (u64 i = 0; i < mod->constants.cap; i++) {
     if (d_gab_constant_iexists(&mod->constants, i)) {
       gab_value v = d_gab_constant_ikey(&mod->constants, i);
-#if GAB_DEBUG_GC
       gab_dref(gab, NULL, v);
-#else
-      gab_gc_queue(gab, GAB_VAL_OBJ(v));
-#endif
     }
   }
 }

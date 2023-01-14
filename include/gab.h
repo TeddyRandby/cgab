@@ -112,7 +112,7 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
 /**
  *
  */
-boolean gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
+gab_value gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
                     gab_value specialization);
 
 static boolean gab_val_falsey(gab_value self);

@@ -2050,7 +2050,7 @@ i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
   }
 
   if (compile_block_body(gab, bc, mod) < 0)
-    return -1;
+    return COMP_ERR;
 
   push_op(bc, mod, OP_RETURN_1);
 

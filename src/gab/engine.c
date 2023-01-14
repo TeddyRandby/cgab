@@ -50,42 +50,26 @@ void gab_cleanup(gab_engine *gab) {
   for (u64 i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
       gab_obj_string *v = d_strings_ikey(&gab->interned_strings, i);
-#if GAB_DEBUG_GC
       gab_dref(gab, NULL, GAB_VAL_OBJ(v));
-#else
-      gab_gc_queue(gab, GAB_VAL_OBJ(v));
-#endif
     }
   }
 
   for (u64 i = 0; i < gab->interned_shapes.cap; i++) {
     if (d_shapes_iexists(&gab->interned_shapes, i)) {
       gab_obj_shape *v = d_shapes_ikey(&gab->interned_shapes, i);
-#if GAB_DEBUG_GC
       gab_dref(gab, NULL, GAB_VAL_OBJ(v));
-#else
-      gab_gc_queue(gab, GAB_VAL_OBJ(v));
-#endif
     }
   }
 
   for (u64 i = 0; i < gab->interned_functions.cap; i++) {
     if (d_functions_iexists(&gab->interned_functions, i)) {
       gab_obj_function *v = d_functions_ikey(&gab->interned_functions, i);
-#if GAB_DEBUG_GC
       gab_dref(gab, NULL, GAB_VAL_OBJ(v));
-#else
-      gab_gc_queue(gab, GAB_VAL_OBJ(v));
-#endif
     }
   }
 
   for (u8 i = 0; i < GAB_NTYPES; i++) {
-#if GAB_DEBUG_GC
     gab_dref(gab, NULL, gab->types[i]);
-#else
-    gab_gc_queue(gab, gab->types[i]);
-#endif
   }
 }
 
@@ -149,16 +133,16 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
   return bundle;
 }
 
-boolean gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
+gab_value gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
                     gab_value specialization) {
   gab_obj_function *f = gab_obj_function_create(gab, name);
 
   if (gab_obj_function_find(f, receiver) != UINT16_MAX)
-      return false;
+      return GAB_VAL_NULL();
 
   gab_obj_function_insert(f, receiver, specialization);
 
-  return true;
+  return GAB_VAL_OBJ(f);
 }
 
 /**
