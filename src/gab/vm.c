@@ -474,7 +474,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       WRITE_INLINEQWORD(type);
 
       if (GAB_VAL_IS_CLOSURE(spec)) {
-        WRITE_BYTE(16, OP_SEND_MONO_CLOSURE);
+        WRITE_BYTE(16, instr + 1);
 
         STORE_FRAME();
         call_closure(VM(), func, GAB_VAL_TO_CLOSURE(spec), arity, want);
@@ -482,7 +482,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
         NEXT();
       } else if (GAB_VAL_IS_BUILTIN(spec)) {
-        WRITE_BYTE(16, OP_SEND_MONO_BUILTIN);
+        WRITE_BYTE(16, instr + 2);
 
         call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
                      arity, want);
@@ -523,14 +523,17 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       }
 
     complete_send_mono_closure : {
+
       gab_value receiver = PEEK_N(arity + 1);
 
-      if (cached_type != receiver + version == func->version) {
+      gab_value type = gab_typeof(ENGINE(), receiver);
+
+      if ((cached_type != type) || (version != func->version)) {
         gab_value type = gab_typeof(ENGINE(), receiver);
 
         offset = gab_obj_function_find(func, type);
 
-        WRITE_BYTE(16, OP_VARSEND_ANA);
+        WRITE_BYTE(16, instr - 1);
       }
 
       gab_value spec = gab_obj_function_get(func, offset);
@@ -548,6 +551,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         want = READ_BYTE;
         version = READ_BYTE;
         offset = READ_SHORT;
+        cached_type = *READ_QWORD(gab_value);
 
         goto complete_send_mono_builtin;
       }
@@ -558,12 +562,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         want = READ_BYTE;
         version = READ_BYTE;
         offset = READ_SHORT;
+        cached_type = *READ_QWORD(gab_value);
 
         goto complete_send_mono_builtin;
       }
 
     complete_send_mono_builtin : {
-      cached_type = *READ_QWORD(gab_value);
 
       gab_value receiver = PEEK_N(arity + 1);
 
@@ -573,7 +577,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
         offset = gab_obj_function_find(func, type);
 
-        WRITE_BYTE(16, OP_SEND_ANA);
+        WRITE_BYTE(16, instr - 2);
       }
 
       gab_value spec = gab_obj_function_get(func, offset);

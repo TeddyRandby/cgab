@@ -1,10 +1,14 @@
+def onetwo()
+    return 1,2
+end
 
 def dolog()
     self:log
+    :print(onetwo())
 end
 
 def log()
-    self:print  
+    self:print
 end
 
 1:dolog
@@ -16,5 +20,9 @@ def log[1?]()
 end
 
 1:dolog
-1:dolog
-1:dolog
+'hi':dolog
+
+def log[''?]()
+    'String: {self}':print
+end
+'hi':dolog
