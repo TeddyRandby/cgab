@@ -1,127 +1,121 @@
 def describe(name, cb)
-  !print('\n--{name}--')
+  print('\n--{name}--')
   cb()
 end
 
 def it(name, cb)
-  !print('{cb() and '✓' or '×'} it {name}')
+  print('{cb() and '✓' or '×'} it {name}')
 end
 
 def check(result, msg)
-  if not result
-    !print(msg)
-  end else
-    true
-  end
+  result or print(msg)
 end
 
-def expect {
-  def toBe(a, b)
-    check(a == b, 'Expected {a} to be equal to {b}')!
-  end
-}
+def expect[](other)
+  check(self == other, 'Expected {self} to be equal to {other}')
+end
 
-describe('Numbers', do ||
-  it('should be equal to itself', do ||
-    5:expect.toBe(5)
+describe('Numbers', do ()
+  it('should be equal to itself', do ()
+    5:expect(5)
   end)
-  it('should do math', do ||
-    (5 * 2):expect.toBe(10) and
-    (10 % 3):expect.toBe(1)
+  it('should do math', do ()
+    (5 * 2):expect(10) and
+    (10 % 3):expect(1)
   end)
 end)
 
-describe('Strings', do ||
-  it('should be equal to itself', do ||
-    'hello':expect.toBe('hello')
+describe('Strings', do ()
+  it('should be equal to itself', do ()
+    'hello':expect('hello')
   end)
 
-  it('should concatenate', do ||
-    ('hello'..' world'):expect.toBe('hello world')
+  it('should concatenate', do ()
+    ('hello'..' world'):expect('hello world')
   end)
 
-  it('should interpolate', do ||
-    ('{1} + {2} is {1 + 2}'):expect.toBe('1 + 2 is 3')
+  it('should interpolate', do ()
+    ('{1} + {2} is {1 + 2}'):expect('1 + 2 is 3')
   end)
 end)
 
-describe('Closures', do ||
+describe('Closures', do ()
     let a = 1
-    it('should capture', do ||
-        a:expect.toBe(1)
+    it('should capture', do ()
+        a:expect(1)
 
         def test()
-           a:expect.toBe(1)
+           a:expect(1)
            a  
         end
 
-        test():expect.toBe(1)
-        test():expect.toBe(1)
-        test():expect.toBe(1)
+        test():expect(1)
+        test():expect(1)
+        test():expect(1)
     end)
-    it('should capture by reference', do ||
+    it('should capture by reference', do ()
         let b = 2
 
         def addOne()
             b = b + 1
         end
 
-        b:expect.toBe(2)
+        b:expect(2)
 
         addOne()
 
-        b:expect.toBe(3)
+        b:expect(3)
 
         addOne()
         addOne()
 
-        b:expect.toBe(5)
+        b:expect(5)
     end)
 end)
 
-describe('Records', do ||
-  it('should have properties', do ||
+describe('Records', do ()
+  it('should have properties', do ()
     let Point = {
       x: 1
       y: 2
     }
 
-    expect.toBe(Point.x, 1) and
-    expect.toBe(Point.y, 2)
+    expect(Point.x, 1) and
+    expect(Point.y, 2)
   end)
 
-  it('should be structurally shaped', do ||
+  it('should be structurally shaped', do ()
     let pone = { x: 1 y: 2}
     let ptwo = { x: 3 y: 4}
 
-    (pone?):expect.toBe(ptwo?)
+    (pone?):expect(ptwo?)
   end)
 
-  it('should set properties dynamically', do ||
+  it('should set properties dynamically', do ()
     let obj = { [[]?]: 'test' }
     obj['y'] = 2
 
-    (obj.y):expect.toBe(2) and
-    (obj[[]?]):expect.toBe('test')
+    (obj.y):expect(2) and
+    (obj[[]?]):expect('test')
   end)
 
-  it('should work for all kinds of keys', do ||
+  it('should work for all kinds of keys', do ()
     let obj = {}
     obj[obj] = 2
     obj[{}?] = 3
 
-    let i = do ||
+    let i = do ()
       1
     end
 
     obj[i] = i 
 
-    expect.toBe(obj[obj], 2) and
-    expect.toBe(obj[{}?], 3) and
-    expect.toBe(obj[i], i)
+    expect(obj[obj], 2) and
+    expect(obj[{}?], 3) and
+    expect(obj[i], i)
   end)
 
-  it('should spread out the keys', do ||
+  it('should spread out the keys', do ()
     let obj = {
       test: 'hello'
       [{}?]: 'world'
@@ -130,13 +124,13 @@ describe('Records', do ||
     let a, b = ..obj
     let c, d = ..obj?
 
-    a:expect.toBe('hello') and
-    b:expect.toBe('world') and
-    c:expect.toBe('test') and
-    d:expect.toBe({}?)
+    a:expect('hello') and
+    b:expect('world') and
+    c:expect('test') and
+    d:expect({}?)
   end)
 
-  it('should withstand this tricky mess', do ||
+  it('should withstand this tricky mess', do ()
     let obj = {}
 
     def try_segfault()
@@ -145,7 +139,7 @@ describe('Records', do ||
 
     obj[try_segfault()] = 2
 
-    expect.toBe(..obj, 2)
-    expect.toBe(..((..obj?)?), 'try')
+    expect(..obj, 2)
+    expect(..((..obj?)?), 'try')
   end)
 end)

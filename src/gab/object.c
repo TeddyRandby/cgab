@@ -317,10 +317,11 @@ s_i8 gab_obj_string_ref(gab_obj_string *self) {
   return ref;
 }
 
-gab_obj_prototype *gab_obj_prototype_create(gab_module *mod) {
+gab_obj_prototype *gab_obj_prototype_create(gab_module *mod, s_i8 name) {
   gab_obj_prototype *self = GAB_CREATE_OBJ(gab_obj_prototype, TYPE_PROTOTYPE);
 
   self->mod = mod;
+  self->name = name;
 
   return self;
 }

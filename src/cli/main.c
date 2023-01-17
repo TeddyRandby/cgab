@@ -19,26 +19,26 @@ gab_value make_print(gab_engine *gab) {
 
   gab_value print_builtin = GAB_BUILTIN(print);
 
-  gab_value result = GAB_VAL_NULL();
   for (i32 i = 0; i < LEN_CARRAY(receivers); i++) {
-    result =
-        gab_specialize(gab, s_i8_cstr("print"), receivers[i], print_builtin);
+    gab_specialize(gab, s_i8_cstr("print"), receivers[i], print_builtin);
   }
 
-  return result;
+  return print_builtin;
 }
 
 gab_value make_require(gab_engine *gab) {
   gab_value require_builtin = GAB_BUILTIN(require);
 
-  return gab_specialize(gab, s_i8_cstr("require"), GAB_VAL_NULL(),
+  gab_specialize(gab, s_i8_cstr("require"), GAB_VAL_NULL(),
                         require_builtin);
+
+  return require_builtin;
 }
 
 void gab_run_file(const char *path) {
   imports_create();
 
-  gab_engine *gab = gab_create(GAB_FLAG_DUMP_ERROR);
+  gab_engine *gab = gab_create(GAB_FLAG_DUMP_ERROR | GAB_FLAG_DUMP_BYTECODE);
 
   s_i8 arg_names[] = {
       s_i8_cstr("print"),

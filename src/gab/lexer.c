@@ -232,7 +232,6 @@ gab_token other(gab_lexer *self) {
     CHAR_CASE('&', AMPERSAND)
     CHAR_CASE('!', BANG)
     CHAR_CASE('@', AT)
-    CHAR_CASE('$', DOLLAR)
 
   case '{': {
     advance(self);
@@ -246,8 +245,34 @@ gab_token other(gab_lexer *self) {
       self->nested_curly--;
     return TOKEN_RBRACK;
   }
+  case '$': {
+    advance(self);
+
+    if (is_alpha(peek(self))) {
+      // If we didn't get a keyword, return a token message
+      if (identifier(self) == TOKEN_IDENTIFIER)
+        return TOKEN_SYMBOL;
+
+      // Otherwise, we got a keyword and this was an error
+
+      return return_error(self, GAB_MALFORMED_TOKEN);
+    }
+
+    return TOKEN_DOLLAR;
+  }
   case '.': {
     advance(self);
+
+    if (is_alpha(peek(self))) {
+      // If we didn't get a keyword, return a token message
+      if (identifier(self) == TOKEN_IDENTIFIER)
+        return TOKEN_PROPERTY;
+
+      // Otherwise, we got a keyword and this was an error
+
+      return return_error(self, GAB_MALFORMED_TOKEN);
+    }
+
     switch (peek(self)) {
       CHAR_CASE('.', DOT_DOT);
     default: {

@@ -7,6 +7,7 @@
 #include "include/object.h"
 
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -33,7 +34,7 @@ void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
   gab_call_frame *frame = vm->call_stack + 1;
 
   while (frame <= vm->frame) {
-    s_i8 func_name = frame->f->name;
+    s_i8 func_name = frame->c->p->name;
     gab_module *mod = frame->c->p->mod;
 
     u64 offset = frame->ip - mod->bytecode.data - 1;
@@ -55,20 +56,21 @@ void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
 
     const char *tok = gab_token_names[v_u8_val_at(&mod->tokens, offset)];
 
+    s_i8 curr_token = v_s_i8_val_at(&mod->sources, offset);
+    a_i8 *curr_under = a_i8_empty(curr_src_len);
+
+    i8 *tok_start, *tok_end;
+    tok_start = curr_token.data;
+    tok_end = curr_token.data + curr_token.len;
+
+    for (u8 i = 0; i < curr_under->len; i++) {
+      if (curr_src_start + i >= tok_start && curr_src_start + i < tok_end)
+        curr_under->data[i] = '^';
+      else
+        curr_under->data[i] = ' ';
+    }
+
     if (frame == vm->frame) {
-      s_i8 curr_token = v_s_i8_val_at(&mod->sources, offset);
-      a_i8 *curr_under = a_i8_empty(curr_src_len);
-
-      i8 *tok_start, *tok_end;
-      tok_start = curr_token.data;
-      tok_end = curr_token.data + curr_token.len;
-
-      for (u8 i = 0; i < curr_under->len; i++) {
-        if (curr_src_start + i >= tok_start && curr_src_start + i < tok_end)
-          curr_under->data[i] = '^';
-        else
-          curr_under->data[i] = ' ';
-      }
 
       fprintf(stderr,
               "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET
@@ -97,10 +99,9 @@ void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
       fprintf(stderr,
               "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET "] Called at:"
               "\n\t  " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
-              "\n\t"
-              "\n",
+              "\n\t       " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET "\n",
               (i32)func_name.len, func_name.data, curr_row, curr_src_len,
-              curr_src_start);
+              curr_src_start, (i32)curr_under->len, curr_under->data);
     }
 
     frame++;
@@ -160,22 +161,24 @@ static inline gab_value *trim_return(gab_vm *vm, gab_value *from, gab_value *to,
   return to;
 }
 
-static inline void call_closure(gab_vm *vm, gab_obj_function *f,
-                                gab_obj_closure *c, u8 arity, u8 want) {
+static inline void call_closure(gab_vm *vm, gab_obj_closure *c, u8 arity,
+                                u8 want) {
   while (arity < c->p->narguments)
-    *vm->top = GAB_VAL_NULL(), arity++;
+    *vm->top++ = GAB_VAL_NULL(), arity++;
 
   while (arity > c->p->narguments)
     vm->top--, arity--;
 
+  printf("Arity: %d, Locals: %d\n", arity, c->p->nlocals);
+
   vm->frame++;
   vm->frame->c = c;
-  vm->frame->f = f;
   vm->frame->ip = c->p->mod->bytecode.data + c->p->offset;
   vm->frame->slots = vm->top - arity - 1;
   vm->frame->want = want;
-
   vm->top += c->p->nlocals;
+
+  dump_frame(vm->frame->slots, vm->top, "Called Closure");
 }
 
 static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_gc *gc,
@@ -342,25 +345,22 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
   gab_vm vm;
   gab_vm_create(VM());
 
-  gab_obj_function *main_f =
-      GAB_VAL_TO_FUNCTION(d_gab_constant_ikey(&mod->constants, mod->main));
-
   gab_obj_closure *main_c =
-      GAB_VAL_TO_CLOSURE(gab_obj_function_read(main_f, GAB_VAL_NULL()));
+      GAB_VAL_TO_CLOSURE(d_gab_constant_ikey(&mod->constants, mod->main));
 
   FRAME()->c = main_c;
 
   register u8 instr;
   register u8 *ip = main_c->p->mod->bytecode.data;
 
-  PUSH(GAB_VAL_NULL());
+  PUSH(GAB_VAL_OBJ(main_c));
 
   for (u8 i = 0; i < argc; i++) {
     PUSH(argv[i]);
   }
 
   STORE_FRAME();
-  call_closure(VM(), main_f, main_c, argc, 1);
+  call_closure(VM(), main_c, main_c->p->narguments, 1);
   LOAD_FRAME();
 
   NEXT();
@@ -385,39 +385,27 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       }
 
     complete_dynsend : {
-      gab_value callee = POP();
+      gab_value callee = PEEK_N(arity + 1);
 
-      if (!GAB_VAL_IS_FUNCTION(callee)) {
+      dump_frame(SLOTS(), TOP(), "Pre Called Closure");
+
+      if (GAB_VAL_IS_CLOSURE(callee)) {
         STORE_FRAME();
-        gab_obj_string *a =
-            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "Tried to call '%.*s'",
-                      (i32)a->len, a->data);
-        return failure(VM());
-      }
-
-      gab_obj_function *func = GAB_VAL_TO_FUNCTION(callee);
-
-      gab_value receiver = PEEK_N(arity + 1);
-
-      gab_value type = gab_typeof(ENGINE(), receiver);
-
-      gab_value spec = gab_obj_function_read(func, type);
-
-      if (GAB_VAL_IS_CLOSURE(spec)) {
-        STORE_FRAME();
-        call_closure(VM(), func, GAB_VAL_TO_CLOSURE(spec), arity, want);
+        call_closure(VM(), GAB_VAL_TO_CLOSURE(callee), arity, want);
         LOAD_FRAME();
 
         NEXT();
-      } else if (GAB_VAL_IS_BUILTIN(spec)) {
-        call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
-                     arity, want);
+      } else if (GAB_VAL_IS_BUILTIN(callee)) {
+        call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(callee),
+                     GAB_VAL_NULL(), arity, want);
 
         NEXT();
       } else {
         STORE_FRAME();
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "");
+        gab_obj_string *a =
+            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "Tried to call %.*s",
+                      (i32)a->len, a->data);
         return failure(VM());
       }
     }
@@ -444,7 +432,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       }
 
     complete_send_ana : {
-      gab_value receiver = PEEK_N(arity + 1);
+      gab_value receiver = PEEK_N(arity);
 
       gab_value type = gab_typeof(ENGINE(), receiver);
 
@@ -477,7 +465,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         WRITE_BYTE(16, instr + 1);
 
         STORE_FRAME();
-        call_closure(VM(), func, GAB_VAL_TO_CLOSURE(spec), arity, want);
+        call_closure(VM(), GAB_VAL_TO_CLOSURE(spec), arity, want);
         LOAD_FRAME();
 
         NEXT();
@@ -485,7 +473,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         WRITE_BYTE(16, instr + 2);
 
         call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
-                     arity, want);
+                     arity - 1, want);
 
         NEXT();
       } else {
@@ -533,13 +521,23 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
         offset = gab_obj_function_find(func, type);
 
+        if (offset == UINT16_MAX) {
+          STORE_FRAME();
+          gab_obj_string *a =
+              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), receiver));
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
+                        "No specialization for receiver '%.*s'", (i32)a->len,
+                        a->data);
+          return failure(VM());
+        }
+
         WRITE_BYTE(16, instr - 1);
       }
 
       gab_value spec = gab_obj_function_get(func, offset);
 
       STORE_FRAME();
-      call_closure(VM(), func, GAB_VAL_TO_CLOSURE(spec), arity, want);
+      call_closure(VM(), GAB_VAL_TO_CLOSURE(spec), arity, want);
       LOAD_FRAME();
 
       NEXT();
@@ -569,7 +567,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
     complete_send_mono_builtin : {
 
-      gab_value receiver = PEEK_N(arity + 1);
+      gab_value receiver = PEEK_N(arity);
 
       gab_value type = gab_typeof(ENGINE(), receiver);
 
@@ -577,13 +575,23 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
         offset = gab_obj_function_find(func, type);
 
+        if (offset == UINT16_MAX) {
+          STORE_FRAME();
+          gab_obj_string *a =
+              GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), receiver));
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
+                        "No specialization for receiver '%.*s'", (i32)a->len,
+                        a->data);
+          return failure(VM());
+        }
+
         WRITE_BYTE(16, instr - 2);
       }
 
       gab_value spec = gab_obj_function_get(func, offset);
 
       call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
-                   arity, want);
+                   arity - 1, want);
 
       NEXT();
     }
@@ -622,7 +630,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       // clang-format on
 
     complete_return : {
-
       gab_value *from = TOP() - have;
 
       close_upvalue(GC(), VM(), FRAME()->slots);
@@ -1375,8 +1382,39 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
     CASE_CODE(CLOSURE) : {
       gab_obj_prototype *p = READ_PROTOTYPE;
+
+      gab_value *upvalues = TOP();
+
+      for (int i = 0; i < p->nupvalues; i++) {
+        u8 flags = READ_BYTE;
+        u8 index = READ_BYTE;
+
+        if (flags & FLAG_LOCAL) {
+          if (flags & FLAG_MUTABLE) {
+            PUSH(capture_upvalue(VM(), GC(), FRAME()->slots + index));
+          } else {
+            PUSH(LOCAL(index));
+            gab_gc_iref(GC(), VM(), upvalues[i]);
+          }
+        } else {
+          PUSH(CLOSURE()->upvalues[index]);
+          gab_gc_iref(GC(), VM(), upvalues[i]);
+        }
+      }
+
+      DROP_N(p->nupvalues);
+
+      gab_value obj = GAB_VAL_OBJ(gab_obj_closure_create(p, upvalues));
+
+      PUSH(obj);
+
+      NEXT();
+    }
+
+    CASE_CODE(MESSAGE) : {
+      gab_obj_prototype *p = READ_PROTOTYPE;
       gab_obj_function *f = READ_FUNCTION;
-      gab_value r = POP();
+      gab_value r = PEEK();
 
       if (gab_obj_function_find(f, r) != UINT16_MAX) {
         STORE_FRAME();
@@ -1409,13 +1447,13 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         }
       }
 
-      DROP_N(p->nupvalues);
+      DROP_N(p->nupvalues + 1);
 
       gab_value obj = GAB_VAL_OBJ(gab_obj_closure_create(p, upvalues));
 
       gab_obj_function_insert(f, r, obj);
 
-      PUSH(GAB_VAL_OBJ(f));
+      PUSH(obj);
 
       NEXT();
     }

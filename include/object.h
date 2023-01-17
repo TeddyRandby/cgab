@@ -201,6 +201,8 @@ typedef struct gab_obj_prototype gab_obj_prototype;
 struct gab_obj_prototype {
   gab_obj header;
 
+  s_i8 name;
+
   /*
    * The number of arguments the function takes.
    */
@@ -233,7 +235,7 @@ struct gab_obj_prototype {
 #define GAB_VAL_IS_PROTOTYPE(value) (gab_val_is_obj_kind(value, TYPE_PROTOTYPE))
 #define GAB_VAL_TO_PROTOTYPE(value) ((gab_obj_prototype *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_PROTOTYPE(value) ((gab_obj_prototype *)value)
-gab_obj_prototype *gab_obj_prototype_create(gab_module *mod);
+gab_obj_prototype *gab_obj_prototype_create(gab_module *mod, s_i8 name);
 /*
   ------------- OBJ_CLOSURE-------------
   The wrapper to OBJ_FUNCTION, which is actually called at runtime.

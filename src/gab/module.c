@@ -195,9 +195,6 @@ u8 gab_module_push_dynsend(gab_module *self, u8 have, u8 var, gab_token t,
   gab_module_push_byte(self, have, t, l, s);
   gab_module_push_byte(self, 1, t, l, s);
 
-  gab_module_push_byte(self, OP_NOP, t, l, s);
-  gab_module_push_inline_cache(self, t, l, s);
-
   return op;
 }
 
@@ -272,11 +269,10 @@ boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
   switch (self->previous_compiled_op) {
   case OP_SEND_ANA:
   case OP_VARSEND_ANA:
-  case OP_VARDYNSEND:
-  case OP_DYNSEND:
     v_u8_set(&self->bytecode, self->bytecode.len - 12, want);
     return true;
-
+  case OP_VARDYNSEND:
+  case OP_DYNSEND:
   case OP_SPREAD:
     v_u8_set(&self->bytecode, self->bytecode.len - 1, want);
     return true;
@@ -301,10 +297,16 @@ u64 dumpSimpleInstruction(gab_module *self, u64 offset) {
   return offset + 1;
 }
 
+u64 dumpDynSendInstruction(gab_module *self, u64 offset) {
+  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
+  printf("%-16s\n", name);
+  return offset + 3;
+}
+
 u64 dumpSendInstruction(gab_module *self, u64 offset) {
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   printf("%-16s\n", name);
-  return offset + 4;
+  return offset + 16;
 }
 
 u64 dumpByteInstruction(gab_module *self, u64 offset) {
@@ -461,9 +463,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     return dumpJumpInstruction(self, 1, offset);
   case OP_LOOP:
     return dumpJumpInstruction(self, -1, offset);
-  case OP_VARSEND_ANA:
-  case OP_VARSEND_MONO_BUILTIN:
-  case OP_VARSEND_MONO_CLOSURE:
   case OP_VARRETURN:
     return dumpTwoByteInstruction(self, offset);
   case OP_CONSTANT:
@@ -475,10 +474,16 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_LOAD_PROPERTY_MONO:
   case OP_LOAD_PROPERTY_POLY:
     return dumpConstantInstruction(self, offset) + 10;
+  case OP_VARSEND_ANA:
+  case OP_VARSEND_MONO_BUILTIN:
+  case OP_VARSEND_MONO_CLOSURE:
   case OP_SEND_ANA:
   case OP_SEND_MONO_CLOSURE:
   case OP_SEND_MONO_BUILTIN:
     return dumpSendInstruction(self, offset);
+  case OP_DYNSEND:
+  case OP_VARDYNSEND:
+    return dumpDynSendInstruction(self, offset);
   case OP_SPREAD:
   case OP_POP_N:
   case OP_CLOSE_UPVALUE:
@@ -491,18 +496,38 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_LOAD_LOCAL: {
     return dumpByteInstruction(self, offset);
   }
+  case OP_MESSAGE: {
+    offset++;
+    u16 proto_constant = ((((u16)self->bytecode.data[offset]) << 8) |
+                          self->bytecode.data[offset + 1]);
+    offset += 4;
+
+    gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(
+        d_gab_constant_ikey(&self->constants, proto_constant));
+
+    printf("%-16s %.*s\n", "OP_MESSAGE", (i32) p->name.len, p->name.data);
+
+    for (int j = 0; j < p->nupvalues; j++) {
+      u8 flags = self->bytecode.data[offset++];
+      u8 index = self->bytecode.data[offset++];
+      int isLocal = flags & FLAG_LOCAL;
+      int isMutable = flags & FLAG_MUTABLE;
+      printf("%04lu      |                     %d %s %s\n", offset, index,
+             isLocal ? "local" : "upvalue", isMutable ? "mut" : "const");
+    }
+    return offset;
+
+                  }
   case OP_CLOSURE: {
     offset++;
     u16 proto_constant = ((((u16)self->bytecode.data[offset]) << 8) |
                           self->bytecode.data[offset + 1]);
-    // u16 func_constant = ((((u16)self->bytecode.data[offset + 2]) << 8) |
-    //                      self->bytecode.data[offset + 3]);
-    offset += 4;
-
-    printf("%-16s\n", "OP_CLOSURE");
+    offset += 2;
 
     gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(
         d_gab_constant_ikey(&self->constants, proto_constant));
+
+    printf("%-16s %.*s\n", "OP_CLOSURE", (i32) p->name.len, p->name.data);
 
     for (int j = 0; j < p->nupvalues; j++) {
       u8 flags = self->bytecode.data[offset++];
