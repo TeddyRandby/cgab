@@ -195,11 +195,11 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
     }
     return;
   }
-  case (TYPE_FUNCTION): {
-    gab_obj_function *func = (gab_obj_function *)obj;
-    for (u64 i = 0; i < func->s.cap; i++) {
-      if (d_specs_iexists(&func->s, i)) {
-        gab_value s = d_specs_ival(&func->s, i);
+  case (TYPE_MESSAGE): {
+    gab_obj_message *func = (gab_obj_message *)obj;
+    for (u64 i = 0; i < func->specs.cap; i++) {
+      if (d_specs_iexists(&func->specs, i)) {
+        gab_value s = d_specs_ival(&func->specs, i);
         if (GAB_VAL_IS_OBJ(s)) {
           fnc(gc, GAB_VAL_TO_OBJ(s));
         }
@@ -256,11 +256,11 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
     }
     return;
   }
-  case (TYPE_FUNCTION): {
-    gab_obj_function *func = (gab_obj_function *)obj;
-    for (u64 i = 0; i < func->s.cap; i++) {
-      if (d_specs_iexists(&func->s, i)) {
-        gab_value s = d_specs_ival(&func->s, i);
+  case (TYPE_MESSAGE): {
+    gab_obj_message *func = (gab_obj_message *)obj;
+    for (u64 i = 0; i < func->specs.cap; i++) {
+      if (d_specs_iexists(&func->specs, i)) {
+        gab_value s = d_specs_ival(&func->specs, i);
         if (GAB_VAL_IS_OBJ(s)) {
           fnc(GAB_VAL_TO_OBJ(s));
         }
@@ -319,11 +319,11 @@ static inline void dec_child_refs(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
     }
     return;
   }
-  case (TYPE_FUNCTION): {
-    gab_obj_function *func = (gab_obj_function *)obj;
-    for (u64 i = 0; i < func->s.cap; i++) {
-      if (d_specs_iexists(&func->s, i)) {
-        gab_value s = d_specs_ival(&func->s, i);
+  case (TYPE_MESSAGE): {
+    gab_obj_message *func = (gab_obj_message *)obj;
+    for (u64 i = 0; i < func->specs.cap; i++) {
+      if (d_specs_iexists(&func->specs, i)) {
+        gab_value s = d_specs_ival(&func->specs, i);
         dec_if_obj_ref(gc, vm, s);
       }
     }

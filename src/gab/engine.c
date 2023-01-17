@@ -20,7 +20,7 @@ gab_engine *gab_create(u8 flags) {
 
   d_strings_create(&gab->interned_strings, INTERN_INITIAL_CAP);
   d_shapes_create(&gab->interned_shapes, INTERN_INITIAL_CAP);
-  d_functions_create(&gab->interned_functions, INTERN_INITIAL_CAP);
+  d_messages_create(&gab->interned_messages, INTERN_INITIAL_CAP);
 
   gab_gc_create(&gab->gc);
 
@@ -30,7 +30,7 @@ gab_engine *gab_create(u8 flags) {
   gab->types[TYPE_NUMBER] = GAB_SYMBOL("number");
   gab->types[TYPE_BOOLEAN] = GAB_SYMBOL("boolean");
   gab->types[TYPE_STRING] = GAB_SYMBOL("string");
-  gab->types[TYPE_FUNCTION] = GAB_SYMBOL("function");
+  gab->types[TYPE_MESSAGE] = GAB_SYMBOL("message");
   gab->types[TYPE_PROTOTYPE] = GAB_SYMBOL("prototype");
   gab->types[TYPE_BUILTIN] = GAB_SYMBOL("builtin");
   gab->types[TYPE_CLOSURE] = GAB_SYMBOL("closure");
@@ -61,9 +61,9 @@ void gab_cleanup(gab_engine *gab) {
     }
   }
 
-  for (u64 i = 0; i < gab->interned_functions.cap; i++) {
-    if (d_functions_iexists(&gab->interned_functions, i)) {
-      gab_obj_function *v = d_functions_ikey(&gab->interned_functions, i);
+  for (u64 i = 0; i < gab->interned_messages.cap; i++) {
+    if (d_messages_iexists(&gab->interned_messages, i)) {
+      gab_obj_message *v = d_messages_ikey(&gab->interned_messages, i);
       gab_dref(gab, NULL, GAB_VAL_OBJ(v));
     }
   }
@@ -79,7 +79,7 @@ void gab_destroy(gab_engine *gab) {
 
   d_strings_destroy(&gab->interned_strings);
   d_shapes_destroy(&gab->interned_shapes);
-  d_functions_destroy(&gab->interned_functions);
+  d_messages_destroy(&gab->interned_messages);
 
   gab_gc_collect(&gab->gc, NULL);
   gab_gc_destroy(&gab->gc);
@@ -135,12 +135,12 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
 
 gab_value gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
                     gab_value specialization) {
-  gab_obj_function *f = gab_obj_function_create(gab, name);
+  gab_obj_message *f = gab_obj_message_create(gab, name);
 
-  if (gab_obj_function_find(f, receiver) != UINT16_MAX)
+  if (gab_obj_message_find(f, receiver) != UINT16_MAX)
       return GAB_VAL_NULL();
 
-  gab_obj_function_insert(f, receiver, specialization);
+  gab_obj_message_insert(f, receiver, specialization);
 
   return GAB_VAL_OBJ(f);
 }
@@ -166,27 +166,27 @@ i32 gab_engine_intern(gab_engine *self, gab_value value) {
     return d_shapes_index_of(&self->interned_shapes, k);
   }
 
-  if (GAB_VAL_IS_FUNCTION(value)) {
-    gab_obj_function *k = GAB_VAL_TO_FUNCTION(value);
+  if (GAB_VAL_IS_MESSAGE(value)) {
+    gab_obj_message *k = GAB_VAL_TO_MESSAGE(value);
 
-    d_functions_insert(&self->interned_functions, k, 0);
+    d_messages_insert(&self->interned_messages, k, 0);
 
-    return d_functions_index_of(&self->interned_functions, k);
+    return d_messages_index_of(&self->interned_messages, k);
   }
 
   return -1;
 }
 
-gab_obj_function *gab_engine_find_function(gab_engine *self, s_i8 name,
+gab_obj_message *gab_engine_find_message(gab_engine *self, s_i8 name,
                                            u64 hash) {
-  if (self->interned_functions.len == 0)
+  if (self->interned_messages.len == 0)
     return NULL;
 
-  u64 index = hash & (self->interned_functions.cap - 1);
+  u64 index = hash & (self->interned_messages.cap - 1);
 
   for (;;) {
-    gab_obj_function *key = d_functions_ikey(&self->interned_functions, index);
-    d_status status = d_functions_istatus(&self->interned_functions, index);
+    gab_obj_message *key = d_messages_ikey(&self->interned_messages, index);
+    d_status status = d_messages_istatus(&self->interned_messages, index);
 
     if (status != D_FULL) {
       return NULL;
@@ -196,7 +196,7 @@ gab_obj_function *gab_engine_find_function(gab_engine *self, s_i8 name,
       }
     }
 
-    index = (index + 1) & (self->interned_functions.cap - 1);
+    index = (index + 1) & (self->interned_messages.cap - 1);
   }
 }
 

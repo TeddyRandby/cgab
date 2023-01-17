@@ -70,8 +70,8 @@ gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self) {
   case TYPE_UPVALUE: {
     return gab_obj_string_create(gab, s_i8_cstr("[upvalue]"));
   }
-  case TYPE_FUNCTION: {
-    return gab_obj_string_create(gab, s_i8_cstr("[function]"));
+  case TYPE_MESSAGE: {
+    return gab_obj_string_create(gab, s_i8_cstr("[message]"));
   }
   case TYPE_PROTOTYPE: {
     return gab_obj_string_create(gab, s_i8_cstr("[prototype]"));
@@ -118,9 +118,9 @@ void gab_obj_dump(gab_value value) {
     printf("%.*s", (i32)obj->len, (const char *)obj->data);
     break;
   }
-  case TYPE_FUNCTION: {
-    gab_obj_function *obj = GAB_VAL_TO_FUNCTION(value);
-    printf("[function:%.*s]", (i32)obj->name.len, obj->name.data);
+  case TYPE_MESSAGE: {
+    gab_obj_message *obj = GAB_VAL_TO_MESSAGE(value);
+    printf("[message:%.*s]", (i32)obj->name.len, obj->name.data);
     break;
   }
   case TYPE_UPVALUE: {
@@ -160,7 +160,8 @@ void gab_obj_dump(gab_value value) {
     break;
   }
   case TYPE_CLOSURE: {
-    printf("[closure]");
+    gab_obj_closure *obj = GAB_VAL_TO_CLOSURE(value);
+    printf("[closure:%.*s]", (i32)obj->p->name.len, obj->p->name.data);
     break;
   }
   default: {
@@ -198,9 +199,9 @@ void gab_obj_destroy(gab_obj *self) {
     return;
   }
 
-  case TYPE_FUNCTION: {
-    gab_obj_function *function = (gab_obj_function *)(self);
-    d_specs_destroy(&function->s);
+  case TYPE_MESSAGE: {
+    gab_obj_message *function = (gab_obj_message *)(self);
+    d_specs_destroy(&function->specs);
     GAB_DESTROY_STRUCT(function);
     return;
   }
@@ -326,17 +327,17 @@ gab_obj_prototype *gab_obj_prototype_create(gab_module *mod, s_i8 name) {
   return self;
 }
 
-gab_obj_function *gab_obj_function_create(gab_engine *gab, s_i8 name) {
+gab_obj_message *gab_obj_message_create(gab_engine *gab, s_i8 name) {
   u64 hash = s_i8_hash(name);
 
-  gab_obj_function *interned = gab_engine_find_function(gab, name, hash);
+  gab_obj_message *interned = gab_engine_find_message(gab, name, hash);
 
   if (interned != NULL)
     return interned;
 
-  gab_obj_function *self = GAB_CREATE_OBJ(gab_obj_function, TYPE_FUNCTION);
+  gab_obj_message *self = GAB_CREATE_OBJ(gab_obj_message, TYPE_MESSAGE);
 
-  d_specs_create(&self->s, 8);
+  d_specs_create(&self->specs, 8);
   self->name = name;
   self->hash = hash;
 

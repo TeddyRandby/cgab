@@ -169,16 +169,12 @@ static inline void call_closure(gab_vm *vm, gab_obj_closure *c, u8 arity,
   while (arity > c->p->narguments)
     vm->top--, arity--;
 
-  printf("Arity: %d, Locals: %d\n", arity, c->p->nlocals);
-
   vm->frame++;
   vm->frame->c = c;
   vm->frame->ip = c->p->mod->bytecode.data + c->p->offset;
   vm->frame->slots = vm->top - arity - 1;
   vm->frame->want = want;
   vm->top += c->p->nlocals;
-
-  dump_frame(vm->frame->slots, vm->top, "Called Closure");
 }
 
 static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_gc *gc,
@@ -332,7 +328,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
 #define READ_CONSTANT (MOD_CONSTANT(READ_SHORT))
 #define READ_STRING (GAB_VAL_TO_STRING(READ_CONSTANT))
-#define READ_FUNCTION (GAB_VAL_TO_FUNCTION(READ_CONSTANT))
+#define READ_MESSAGE (GAB_VAL_TO_MESSAGE(READ_CONSTANT))
 #define READ_PROTOTYPE (GAB_VAL_TO_PROTOTYPE(READ_CONSTANT))
 
 #define STORE_FRAME() ({ FRAME()->ip = IP(); })
@@ -387,8 +383,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
     complete_dynsend : {
       gab_value callee = PEEK_N(arity + 1);
 
-      dump_frame(SLOTS(), TOP(), "Pre Called Closure");
-
       if (GAB_VAL_IS_CLOSURE(callee)) {
         STORE_FRAME();
         call_closure(VM(), GAB_VAL_TO_CLOSURE(callee), arity, want);
@@ -404,7 +398,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         STORE_FRAME();
         gab_obj_string *a =
             GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "Tried to call %.*s",
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE, "Tried to call %.*s",
                       (i32)a->len, a->data);
         return failure(VM());
       }
@@ -412,11 +406,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
     }
 
     {
-      gab_obj_function *func;
+      gab_obj_message *func;
       u8 arity, want;
 
       CASE_CODE(VARSEND_ANA) : {
-        func = READ_FUNCTION;
+        func = READ_MESSAGE;
         arity = *TOP() + READ_BYTE;
         want = READ_BYTE;
 
@@ -424,7 +418,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       }
 
       CASE_CODE(SEND_ANA) : {
-        func = READ_FUNCTION;
+        func = READ_MESSAGE;
         arity = READ_BYTE;
         want = READ_BYTE;
 
@@ -432,29 +426,29 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       }
 
     complete_send_ana : {
-      gab_value receiver = PEEK_N(arity);
+      gab_value receiver = PEEK_N(arity + 1);
 
       gab_value type = gab_typeof(ENGINE(), receiver);
 
-      gab_value spec = gab_obj_function_read(func, type);
+      gab_value spec = gab_obj_message_read(func, type);
 
       u16 offset;
       if (GAB_VAL_IS_NULL(spec)) {
-        spec = gab_obj_function_read(func, GAB_VAL_NULL());
+        spec = gab_obj_message_read(func, GAB_VAL_NULL());
 
         if (GAB_VAL_IS_NULL(spec)) {
           STORE_FRAME();
           gab_obj_string *a =
               GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), receiver));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE,
                         "No specialization for receiver '%.*s'", (i32)a->len,
                         a->data);
           return failure(VM());
         }
 
-        offset = gab_obj_function_find(func, GAB_VAL_NULL());
+        offset = gab_obj_message_find(func, GAB_VAL_NULL());
       } else {
-        offset = gab_obj_function_find(func, type);
+        offset = gab_obj_message_find(func, type);
       }
 
       WRITE_INLINEBYTE(func->version);
@@ -473,25 +467,25 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         WRITE_BYTE(16, instr + 2);
 
         call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
-                     arity - 1, want);
+                     arity - (arity != 0), want);
 
         NEXT();
       } else {
         STORE_FRAME();
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION, "");
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE, "");
         return failure(VM());
       }
     }
     }
 
     {
-      gab_obj_function *func;
+      gab_obj_message *func;
       u8 arity, want, version;
       u16 offset;
       gab_value cached_type;
 
       CASE_CODE(VARSEND_MONO_CLOSURE) : {
-        func = READ_FUNCTION;
+        func = READ_MESSAGE;
         arity = *TOP() + READ_BYTE;
         want = READ_BYTE;
         version = READ_BYTE;
@@ -502,7 +496,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       }
 
       CASE_CODE(SEND_MONO_CLOSURE) : {
-        func = READ_FUNCTION;
+        func = READ_MESSAGE;
         arity = READ_BYTE;
         want = READ_BYTE;
         version = READ_BYTE;
@@ -519,13 +513,13 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       if ((cached_type != type) || (version != func->version)) {
         gab_value type = gab_typeof(ENGINE(), receiver);
 
-        offset = gab_obj_function_find(func, type);
+        offset = gab_obj_message_find(func, type);
 
         if (offset == UINT16_MAX) {
           STORE_FRAME();
           gab_obj_string *a =
               GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), receiver));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE,
                         "No specialization for receiver '%.*s'", (i32)a->len,
                         a->data);
           return failure(VM());
@@ -534,7 +528,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         WRITE_BYTE(16, instr - 1);
       }
 
-      gab_value spec = gab_obj_function_get(func, offset);
+      gab_value spec = gab_obj_message_get(func, offset);
 
       STORE_FRAME();
       call_closure(VM(), GAB_VAL_TO_CLOSURE(spec), arity, want);
@@ -544,7 +538,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
     }
 
       CASE_CODE(SEND_MONO_BUILTIN) : {
-        func = READ_FUNCTION;
+        func = READ_MESSAGE;
         arity = READ_BYTE;
         want = READ_BYTE;
         version = READ_BYTE;
@@ -555,7 +549,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       }
 
       CASE_CODE(VARSEND_MONO_BUILTIN) : {
-        func = READ_FUNCTION;
+        func = READ_MESSAGE;
         arity = *TOP() + READ_BYTE;
         want = READ_BYTE;
         version = READ_BYTE;
@@ -573,13 +567,13 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
       if ((cached_type != type) || (version != func->version)) {
 
-        offset = gab_obj_function_find(func, type);
+        offset = gab_obj_message_find(func, type);
 
         if (offset == UINT16_MAX) {
           STORE_FRAME();
           gab_obj_string *a =
               GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), receiver));
-          dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
+          dump_vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE,
                         "No specialization for receiver '%.*s'", (i32)a->len,
                         a->data);
           return failure(VM());
@@ -588,10 +582,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         WRITE_BYTE(16, instr - 2);
       }
 
-      gab_value spec = gab_obj_function_get(func, offset);
+      gab_value spec = gab_obj_message_get(func, offset);
 
       call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
-                   arity - 1, want);
+                   arity - (arity != 0), want);
 
       NEXT();
     }
@@ -1119,36 +1113,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       NEXT();
     }
 
-    CASE_CODE(PUSH_TYPEBOOLEAN) : {
-      PUSH(gab->types[TYPE_BOOLEAN]);
-      NEXT();
-    }
-
-    CASE_CODE(PUSH_TYPERECORD) : {
-      PUSH(gab->types[TYPE_RECORD]);
-      NEXT();
-    }
-
-    CASE_CODE(PUSH_TYPESTRING) : {
-      PUSH(gab->types[TYPE_STRING]);
-      NEXT();
-    }
-
-    CASE_CODE(PUSH_TYPENULL) : {
-      PUSH(gab->types[TYPE_NULL]);
-      NEXT();
-    }
-
-    CASE_CODE(PUSH_TYPENUMBER) : {
-      PUSH(gab->types[TYPE_NUMBER]);
-      NEXT();
-    }
-
-    CASE_CODE(PUSH_TYPEFUNCTION) : {
-      PUSH(gab->types[TYPE_FUNCTION]);
-      NEXT();
-    }
-
     CASE_CODE(NOT) : {
       gab_value val = GAB_VAL_BOOLEAN(gab_val_falsey(POP()));
       PUSH(val);
@@ -1413,13 +1377,13 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
     CASE_CODE(MESSAGE) : {
       gab_obj_prototype *p = READ_PROTOTYPE;
-      gab_obj_function *f = READ_FUNCTION;
+      gab_obj_message *f = READ_MESSAGE;
       gab_value r = PEEK();
 
-      if (gab_obj_function_find(f, r) != UINT16_MAX) {
+      if (gab_obj_message_find(f, r) != UINT16_MAX) {
         STORE_FRAME();
         gab_obj_string *s = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), r));
-        dump_vm_error(ENGINE(), VM(), GAB_NOT_FUNCTION,
+        dump_vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE,
                       "Specialization already exists for %.*s on %.*s",
                       (i32)s->len, s->data, (i32)f->name.len, f->name.data);
         return failure(VM());
@@ -1451,9 +1415,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
       gab_value obj = GAB_VAL_OBJ(gab_obj_closure_create(p, upvalues));
 
-      gab_obj_function_insert(f, r, obj);
+      gab_obj_message_insert(f, r, obj);
 
-      PUSH(obj);
+      PUSH(GAB_VAL_OBJ(f));
 
       NEXT();
     }

@@ -14,7 +14,8 @@ gab_value make_print(gab_engine *gab) {
       gab_get_type(gab, TYPE_SYMBOL),
       gab_get_type(gab, TYPE_CONTAINER),
       gab_get_type(gab, TYPE_SHAPE),
-      gab_get_type(gab, TYPE_FUNCTION),
+      gab_get_type(gab, TYPE_CLOSURE),
+      gab_get_type(gab, TYPE_MESSAGE),
   };
 
   gab_value print_builtin = GAB_BUILTIN(print);
@@ -38,7 +39,7 @@ gab_value make_require(gab_engine *gab) {
 void gab_run_file(const char *path) {
   imports_create();
 
-  gab_engine *gab = gab_create(GAB_FLAG_DUMP_ERROR | GAB_FLAG_DUMP_BYTECODE);
+  gab_engine *gab = gab_create(GAB_FLAG_DUMP_ERROR);
 
   s_i8 arg_names[] = {
       s_i8_cstr("print"),

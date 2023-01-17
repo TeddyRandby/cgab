@@ -34,8 +34,8 @@ static const char *gab_status_names[] = {
 #define LOAD DICT_MAX_LOAD
 #include "include/dict.h"
 
-#define NAME functions
-#define K gab_obj_function*
+#define NAME messages
+#define K gab_obj_message*
 #define HASH(a) (a->hash)
 #define EQUAL(a, b) (a == b)
 #define LOAD DICT_MAX_LOAD
@@ -47,7 +47,7 @@ struct gab_engine {
    */
   d_strings interned_strings;
   d_shapes interned_shapes;
-  d_functions interned_functions;
+  d_messages interned_messages;
 
   /*
    * The GC for the vm
@@ -90,7 +90,7 @@ static inline gab_value gab_typeof(gab_engine *gab, gab_value value) {
 }
 
 gab_obj_string *gab_engine_find_string(gab_engine *gab, s_i8 str, u64 hash);
-gab_obj_function*gab_engine_find_function(gab_engine *gab, s_i8 name, u64 hash);
+gab_obj_message* gab_engine_find_message(gab_engine *gab, s_i8 name, u64 hash);
 gab_obj_shape *gab_engine_find_shape(gab_engine *gab, u64 size, u64 stride,
                                      u64 hash, gab_value keys[size]);
 

@@ -22,7 +22,7 @@ void gab_val_dump(gab_value self);
 */
 typedef enum gab_type {
   TYPE_STRING,
-  TYPE_FUNCTION,
+  TYPE_MESSAGE,
   TYPE_PROTOTYPE,
   TYPE_BUILTIN,
   TYPE_CLOSURE,
@@ -260,7 +260,7 @@ gab_obj_closure *gab_obj_closure_create(gab_obj_prototype *p, gab_value upvs[]);
   ------------- OBJ_FUNCTION -------------
   A function. Not visible at runtime - always wrapped by an OBJ_CLOSURE
 */
-typedef struct gab_obj_function gab_obj_function;
+typedef struct gab_obj_message gab_obj_message;
 
 #define NAME specs
 #define K gab_value
@@ -270,7 +270,7 @@ typedef struct gab_obj_function gab_obj_function;
 #define EQUAL(a, b) (a == b)
 #include "include/dict.h"
 
-struct gab_obj_function {
+struct gab_obj_message {
   gab_obj header;
 
   u8 version;
@@ -284,43 +284,43 @@ struct gab_obj_function {
   /*
    * The map of specializations defined for this function.
    */
-  d_specs s;
+  d_specs specs;
 };
 
-#define GAB_VAL_IS_FUNCTION(value) (gab_val_is_obj_kind(value, TYPE_FUNCTION))
-#define GAB_VAL_TO_FUNCTION(value) ((gab_obj_function *)GAB_VAL_TO_OBJ(value))
-#define GAB_OBJ_TO_FUNCTION(value) ((gab_obj_function *)value)
-gab_obj_function *gab_obj_function_create(gab_engine *gab, s_i8 name);
+#define GAB_VAL_IS_MESSAGE(value) (gab_val_is_obj_kind(value, TYPE_MESSAGE))
+#define GAB_VAL_TO_MESSAGE(value) ((gab_obj_message *)GAB_VAL_TO_OBJ(value))
+#define GAB_OBJ_TO_MESSAGE(value) ((gab_obj_message *)value)
+gab_obj_message *gab_obj_message_create(gab_engine *gab, s_i8 name);
 
-static inline u16 gab_obj_function_find(gab_obj_function *self,
+static inline u16 gab_obj_message_find(gab_obj_message *self,
                                         gab_value receiver) {
-  if (!d_specs_exists(&self->s, receiver))
+  if (!d_specs_exists(&self->specs, receiver))
     return UINT16_MAX;
 
-  return d_specs_index_of(&self->s, receiver);
+  return d_specs_index_of(&self->specs, receiver);
 }
 
-static inline void gab_obj_function_set(gab_obj_function *self, u16 offset,
+static inline void gab_obj_message_set(gab_obj_message *self, u16 offset,
                                         gab_value spec) {
-  d_specs_iset_val(&self->s, offset, spec);
+  d_specs_iset_val(&self->specs, offset, spec);
   self->version++;
 }
 
-static inline gab_value gab_obj_function_get(gab_obj_function *self,
+static inline gab_value gab_obj_message_get(gab_obj_message *self,
                                              u16 offset) {
-  return d_specs_ival(&self->s, offset);
+  return d_specs_ival(&self->specs, offset);
 }
 
-static inline void gab_obj_function_insert(gab_obj_function *self,
+static inline void gab_obj_message_insert(gab_obj_message *self,
                                            gab_value receiver,
                                            gab_value specialization) {
-  d_specs_insert(&self->s, receiver, specialization);
+  d_specs_insert(&self->specs, receiver, specialization);
   self->version++;
 }
 
-static inline gab_value gab_obj_function_read(gab_obj_function *self,
+static inline gab_value gab_obj_message_read(gab_obj_message *self,
                                               gab_value receiver) {
-  return d_specs_read(&self->s, receiver);
+  return d_specs_read(&self->specs, receiver);
 }
 
 /*

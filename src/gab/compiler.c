@@ -322,8 +322,7 @@ static void up_scope(gab_bc *bc, gab_module *mod) {
 
 static void down_frame(gab_bc *bc, s_i8 name, boolean is_method) {
   bc->frame_count++;
-  // The first local in any given frame is reserved for the function being
-  // called. It is immutable.
+
   peek_frame(bc, 0)->local_count = 0;
   peek_frame(bc, 0)->upv_count = 0;
   peek_frame(bc, 0)->deepest_local = 0;
@@ -580,7 +579,7 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
   push_short(bc, mod, proto_constant);
 
   if (is_message) {
-    gab_obj_function *f = gab_obj_function_create(gab, name);
+    gab_obj_message *f = gab_obj_message_create(gab, name);
     u16 func_constant = add_constant(mod, GAB_VAL_OBJ(f));
 
     push_short(bc, mod, func_constant);
@@ -663,7 +662,7 @@ i32 compile_tuple(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 want,
 }
 
 i32 add_function_constant(gab_engine *gab, gab_module *mod, s_i8 name) {
-  gab_obj_function *f = gab_obj_function_create(gab, name);
+  gab_obj_message *f = gab_obj_message_create(gab, name);
 
   return add_constant(mod, GAB_VAL_OBJ(f));
 }
@@ -943,13 +942,13 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   // From now on, we know its a function definition.
 
-  // Create a local to store the new function in
-  u8 local = add_local(bc, name, 0);
-  initialize_local(bc, local);
-
   // Now compile the specialization
   if (compile_function_specialization(gab, bc, mod, name) < 0)
     return COMP_ERR;
+
+  // Create a local to store the new function in
+  u8 local = add_local(bc, name, 0);
+  initialize_local(bc, local);
 
   gab_module_push_store_local(mod, local, bc->previous_token, bc->line,
                               bc->lex.previous_token_src);
@@ -1694,12 +1693,12 @@ i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (result < 0)
     return COMP_ERR;
 
-  if (result > 254) {
+  if (result > 255) {
     dump_compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
     return COMP_ERR;
   }
 
-  gab_module_push_send(mod, result + 1, vse, f, prev_tok, prev_line, prev_src);
+  gab_module_push_send(mod, result, vse, f, prev_tok, prev_line, prev_src);
 
   return VAR_RET;
 }
