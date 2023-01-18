@@ -1,67 +1,72 @@
-let bottom_up_tree = fn(item, depth) then
-    if not (depth == 0) then
-        let i = item + item
-        let left = bottom_up_tree(i-1, depth - 1)
-        let right = bottom_up_tree(i, depth - 1)
-        return [item, left, right]
-    end else 
-        return [item]
-    end
+def bottom_up_tree(item, depth)
+  if not depth == 0
+    let i = item + item
+    let left = bottom_up_tree(i-1, depth - 1)
+    let right = bottom_up_tree(i, depth - 1)
+    [item left right]
+  else 
+    [item]
+  end
 end
 
-let item_check = fn(tree) then
-    if tree[1] =>
-        tree[0] + item_check(tree[1]) - item_check(tree[2])
-    else
-        tree[0]
+def item_check(tree)
+  if tree[1]
+    tree[0] + item_check(tree[1]) - item_check(tree[2])
+  else
+    tree[0]
+  end
 end
 
-let pow_two = fn(n) =>
-    if n == 0 =>
-        1
-    else
-        pow_two(n-1) * 2
+def pow_two(n)
+  if n == 0
+    1
+  else
+    pow_two(n-1) * 2
+  end
+end
 
-!run = fn(N) then
+def run(N)
   let mindepth = 4
   let maxdepth = mindepth + 2
 
-  if maxdepth < N then maxdepth = N
+  if maxdepth < N
+    maxdepth = N
+  end
 
   let stretchdepth = maxdepth + 1
   let tree = bottom_up_tree(0, stretchdepth)
 
-  item_check(tree):!print()
+  item_check(tree):print
 
   let longlivedtree = bottom_up_tree(0, maxdepth)
 
   let depth = mindepth
-  while depth < maxdepth + 1 then
 
-      let iters = pow_two(maxdepth - depth + mindepth)
-      let check = 0
-      let checks = 0
+  loop
+    let iters = pow_two(maxdepth - depth + mindepth)
+    let check = 0
+    let checks = 0
 
-      while check < iters then
-          let tree1 = bottom_up_tree(1, depth)
+    loop
+      let tree1 = bottom_up_tree(1, depth)
 
-          #item_check(tree1):!print()
+      #item_check(tree1):!print()
 
-          checks = checks + item_check(tree1) 
+      checks = checks + item_check(tree1) 
 
-          let tree2 = bottom_up_tree(-1, depth)
+      let tree2 = bottom_up_tree(-1, depth)
 
-          checks = checks + item_check(tree2)
+      checks = checks + item_check(tree2)
 
-          check = check + 1
-      end
+      check = check + 1
+    until check >= iters
 
-      (checks):!print()
+    checks:print
 
-      depth = depth + 2
-  end
+    depth = depth + 2
+  until depth >= maxdepth + 1
 
-  !print(item_check(longlivedtree))
+  item_check(longlivedtree):print
 end
 
-!run(13)
+run(13)

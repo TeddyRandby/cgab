@@ -207,7 +207,7 @@ LINKAGE boolean METHOD(remove)(TYPENAME *self, K key) {
 
   BUCKET_T *bucket = self->buckets + index;
 
-  if (!(bucket->status == D_FULL))
+  if (bucket->status != D_FULL)
     return false;
 
   bucket->status = D_TOMBSTONE;

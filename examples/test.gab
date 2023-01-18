@@ -1,5 +1,18 @@
-def test = do []
-  1
+def log[]
+    self:print
 end
 
-1:(test)
+def main()
+    3:log
+    main:log
+end
+
+main()
+main()
+
+def log[3?]
+    'Num({self})':print
+end
+
+main()
+main()

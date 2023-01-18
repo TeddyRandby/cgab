@@ -340,6 +340,7 @@ gab_obj_message *gab_obj_message_create(gab_engine *gab, s_i8 name) {
   d_specs_create(&self->specs, 8);
   self->name = name;
   self->hash = hash;
+  self->version = 0;
 
   gab_engine_intern(gab, GAB_VAL_OBJ(self));
 

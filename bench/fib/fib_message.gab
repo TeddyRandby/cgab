@@ -1,0 +1,9 @@
+def fib[]
+  if self < 2 
+    return self
+  end
+
+  (self - 1):fib + (self - 2):fib
+end
+
+30:fib

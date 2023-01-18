@@ -1,10 +1,10 @@
 def describe(name, cb)
-  print('\n--{name}--')
+  ('\n--{name}--'):print
   cb()
 end
 
 def it(name, cb)
-  print('{cb() and '✓' or '×'} it {name}')
+  ('{cb() and '✓' or '×'} it {name}'):print
 end
 
 def check(result, msg)
@@ -39,8 +39,9 @@ describe('Strings', do ()
   end)
 end)
 
-describe('Closures', do ()
+describe('Block', do ()
     let a = 1
+
     it('should capture', do ()
         a:expect(1)
 
@@ -53,6 +54,7 @@ describe('Closures', do ()
         test():expect(1)
         test():expect(1)
     end)
+
     it('should capture by reference', do ()
         let b = 2
 
@@ -80,8 +82,8 @@ describe('Records', do ()
       y: 2
     }
 
-    expect(Point.x, 1) and
-    expect(Point.y, 2)
+    Point.x:expect(1) and
+    Point.y:expect(2)
   end)
 
   it('should be structurally shaped', do ()
@@ -110,9 +112,9 @@ describe('Records', do ()
 
     obj[i] = i 
 
-    expect(obj[obj], 2) and
-    expect(obj[{}?], 3) and
-    expect(obj[i], i)
+    obj[obj]:expect(2) and
+    obj[{}?]:expect(3) and
+    obj[i]:expect(i)
   end)
 
   it('should spread out the keys', do ()
@@ -139,7 +141,35 @@ describe('Records', do ()
 
     obj[try_segfault()] = 2
 
-    expect(..obj, 2)
-    expect(..((..obj?)?), 'try')
+    (..obj):expect(2)
+    (..((..obj?)?)):expect('try')
   end)
+end)
+
+describe('Messages', do ()
+    def test[]
+        self    
+    end
+
+    it('Should send', do ()
+        1:test:expect(1)
+    end)
+
+    def test[1?]
+        self + 1
+    end
+
+    it('Should use more specific', do ()
+        1:test:expect(2)
+    end)
+
+    def repeat()
+        1:test
+    end
+
+    it('Should cache', do ()
+        repeat():expect(2)
+        repeat():expect(2)
+        repeat():expect(2)
+    end)
 end)

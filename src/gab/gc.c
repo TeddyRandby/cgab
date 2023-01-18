@@ -472,7 +472,7 @@ static inline void mark_roots(gab_gc *gc) {
       } else {
         GAB_OBJ_NOT_BUFFERED(obj);
 
-        d_u64_remove(&gc->roots, key);
+        d_u64_iremove(&gc->roots, i);
         // SHould this be a not?
         if (GAB_OBJ_IS_BLACK(obj) && obj->references == 0) {
           queue_destroy(gc, obj);

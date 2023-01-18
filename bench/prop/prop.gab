@@ -14,5 +14,4 @@ loop
     obj.rooster = obj.cow - obj.zebra
 
     i = i + 1
-
 until i == 500000

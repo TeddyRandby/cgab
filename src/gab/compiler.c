@@ -962,7 +962,7 @@ i32 compile_exp_blk(gab_engine *gab, gab_bc *bc, gab_module *mod,
   static u64 anonymous_count = 0;
   static i8 name_buff[25];
 
-  if (match_token(bc, TOKEN_LPAREN) || match_token(bc, TOKEN_LBRACE)) {
+  if (match_token(bc, TOKEN_LPAREN)) {
     i32 len =
         snprintf((char *)name_buff + 0, 25, "anonymous_%lu", anonymous_count++);
 
