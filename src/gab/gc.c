@@ -185,13 +185,19 @@ static inline void obj_possible_root(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
 typedef void (*child_and_gc_iter)(gab_gc *gc, gab_obj *obj);
 static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
                                        child_and_gc_iter fnc) {
-  gab_obj *child;
   switch (obj->kind) {
+  case TYPE_EFFECT: {
+    gab_obj_effect *eff = (gab_obj_effect *)obj;
+    for (u8 i = 0; i < eff->len; i++) {
+      if (GAB_VAL_IS_OBJ(eff->frame[i]))
+        fnc(gc, GAB_VAL_TO_OBJ(eff->frame[i]));
+    }
+  }
   case (TYPE_CLOSURE): {
     gab_obj_closure *closure = (gab_obj_closure *)obj;
     for (u8 i = 0; i < closure->p->nupvalues; i++) {
-      child = (gab_obj *)closure->upvalues[i];
-      fnc(gc, child);
+      if (GAB_VAL_IS_OBJ(closure->upvalues[i]))
+        fnc(gc, GAB_VAL_TO_OBJ(closure->upvalues[i]));
     }
     return;
   }
@@ -248,6 +254,13 @@ typedef void (*child_iter)(gab_obj *obj);
 static inline void for_child_do(gab_obj *obj, child_iter fnc) {
   gab_obj *child;
   switch (obj->kind) {
+  case TYPE_EFFECT: {
+    gab_obj_effect *eff = (gab_obj_effect *)obj;
+    for (u8 i = 0; i < eff->len; i++) {
+      if (GAB_VAL_IS_OBJ(eff->frame[i]))
+        fnc(GAB_VAL_TO_OBJ(eff->frame[i]));
+    }
+  }
   case (TYPE_CLOSURE): {
     gab_obj_closure *closure = (gab_obj_closure *)obj;
     for (u8 i = 0; i < closure->p->nupvalues; i++) {
@@ -318,6 +331,12 @@ static inline void dec_child_refs(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
       dec_if_obj_ref(gc, vm, closure->upvalues[i]);
     }
     return;
+  }
+  case TYPE_EFFECT: {
+    gab_obj_effect *eff = (gab_obj_effect *)obj;
+    for (u8 i = 0; i < eff->len; i++) {
+      dec_if_obj_ref(gc, vm, eff->frame[i]);
+    }
   }
   case (TYPE_MESSAGE): {
     gab_obj_message *func = (gab_obj_message *)obj;

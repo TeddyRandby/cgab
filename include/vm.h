@@ -3,7 +3,6 @@
 
 #include "gc.h"
 #include "object.h"
-#include <threads.h>
 
 /*
   A run-time representation of a callframe.

@@ -1,0 +1,18 @@
+def Ok  { ok  }
+def Err { err }
+
+def ok[]
+  { ok: self }
+end
+
+def err[]
+  { err: self }
+end
+
+def print[Ok]
+  'Ok({self.ok})':print
+end
+
+def print[Err]
+  'Err({self.err})':print
+end

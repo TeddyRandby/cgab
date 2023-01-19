@@ -132,6 +132,10 @@ const keyword keywords[] = {
         TOKEN_RETURN,
     },
     {
+        "yield",
+        TOKEN_YIELD,
+    },
+    {
         "true",
         TOKEN_TRUE,
     },

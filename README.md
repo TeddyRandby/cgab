@@ -3,17 +3,21 @@ Gab is a simple and embeddable scripting language.
 
 ```
 def Person {
-    def New(name, age) { name age }
-
-    def Celebrate_birthday(person) do
-        !print('Happy Birthday {person.name}')
-        person.age = person.age + 1
-    end
+  name
+  age
 }
 
-let bob = Person.New('Bob', 20)
-bob:Person.Celebrate_birthday()
+def celebrate[Person]()
+  'Happy Birthday {self.name}!'
+  self.age = self.age + 1
+end
 
+def Bob = {
+  name: 'Bob'
+  age: 22
+}
+
+Bob:celebrate
 ```
 # Goals
  - Be *fast*
@@ -23,18 +27,12 @@ bob:Person.Celebrate_birthday()
 Gab's more defining features include:
 ### Expression focused
 In Gab, everything is an expression. 
-`let a = if (cond) 1 else 2`
-`def square(num) num * num`
-When you need to a block of code, use the `do` expression!
-It evaluates to the last expression in the block.
 ```
-if (cond) !print('Hello World')
-
-if (cond) do
-  !print('Here are')
-
-  !print('multiple expressions')
-end
+let a = if cond
+   1
+ else
+   2
+ end
 ```
 ### Universal Function Call Syntax
 Method chaining and OOP programming galore! Lets refer to our example above:

@@ -39,6 +39,7 @@ gab_engine *gab_create(u8 flags) {
   gab->types[TYPE_SHAPE] = GAB_SYMBOL("shape");
   gab->types[TYPE_SYMBOL] = GAB_SYMBOL("symbol");
   gab->types[TYPE_CONTAINER] = GAB_SYMBOL("container");
+  gab->types[TYPE_MESSAGE] = GAB_SYMBOL("effect");
 
   return gab;
 }

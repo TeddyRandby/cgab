@@ -1,18 +1,15 @@
-def log[]
-    self:print
+def test()
+    yield 1
+
+    'hi':print
+
+    return 2
 end
 
-def main()
-    3:log
-    main:log
-end
+let val, eff = test()
 
-main()
-main()
+val:print
 
-def log[3?]
-    'Num({self})':print
-end
+let secondval = eff()
 
-main()
-main()
+print(val, secondval)

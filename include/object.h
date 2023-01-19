@@ -2,6 +2,7 @@
 #define GAB_OBJECT_H
 
 #include "core.h"
+#include "include/types.h"
 #include "value.h"
 #include <stdint.h>
 
@@ -21,6 +22,7 @@ void gab_val_dump(gab_value self);
   An enumeration of the heap-allocated value types in gab.
 */
 typedef enum gab_type {
+  TYPE_EFFECT,
   TYPE_STRING,
   TYPE_MESSAGE,
   TYPE_PROTOTYPE,
@@ -293,7 +295,7 @@ struct gab_obj_message {
 gab_obj_message *gab_obj_message_create(gab_engine *gab, s_i8 name);
 
 static inline u16 gab_obj_message_find(gab_obj_message *self,
-                                        gab_value receiver) {
+                                       gab_value receiver) {
   if (!d_specs_exists(&self->specs, receiver))
     return UINT16_MAX;
 
@@ -301,25 +303,24 @@ static inline u16 gab_obj_message_find(gab_obj_message *self,
 }
 
 static inline void gab_obj_message_set(gab_obj_message *self, u16 offset,
-                                        gab_value spec) {
+                                       gab_value spec) {
   d_specs_iset_val(&self->specs, offset, spec);
   self->version++;
 }
 
-static inline gab_value gab_obj_message_get(gab_obj_message *self,
-                                             u16 offset) {
+static inline gab_value gab_obj_message_get(gab_obj_message *self, u16 offset) {
   return d_specs_ival(&self->specs, offset);
 }
 
 static inline void gab_obj_message_insert(gab_obj_message *self,
-                                           gab_value receiver,
-                                           gab_value specialization) {
+                                          gab_value receiver,
+                                          gab_value specialization) {
   d_specs_insert(&self->specs, receiver, specialization);
   self->version++;
 }
 
 static inline gab_value gab_obj_message_read(gab_obj_message *self,
-                                              gab_value receiver) {
+                                             gab_value receiver) {
   return d_specs_read(&self->specs, receiver);
 }
 
@@ -479,6 +480,37 @@ struct gab_obj_symbol {
 #define GAB_OBJ_TO_SYMBOL(value) ((gab_obj_symbol *)value)
 
 gab_obj_symbol *gab_obj_symbol_create(s_i8 name);
+
+/*
+  ------------- OBJ_EFFECT -------------
+  A suspended call that can be handled.
+*/
+typedef struct gab_obj_effect gab_obj_effect;
+struct gab_obj_effect {
+  gab_obj header;
+
+  // Closure
+  gab_obj_closure *c;
+
+  // Instruction Pointer
+  u8 *ip;
+
+  // The number of arguments yielded
+  u8 arity;
+
+  // Size of the stack frame
+  u8 len;
+
+  // Stack frame
+  gab_value frame[FLEXIBLE_ARRAY];
+};
+
+#define GAB_VAL_IS_EFFECT(value) (gab_val_is_obj_kind(value, TYPE_EFFECT))
+#define GAB_VAL_TO_EFFECT(value) ((gab_obj_effect *)GAB_VAL_TO_OBJ(value))
+#define GAB_OBJ_TO_EFFECT(value) ((gab_obj_effect *)value)
+
+gab_obj_effect *gab_obj_effect_create(gab_obj_closure *c, u8 *ip, u8 arity,
+                                      u8 len, gab_value frame[len]);
 
 /*
  * ------------- HELPERS ------------

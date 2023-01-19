@@ -16,6 +16,7 @@ gab_value make_print(gab_engine *gab) {
       gab_get_type(gab, TYPE_SHAPE),
       gab_get_type(gab, TYPE_CLOSURE),
       gab_get_type(gab, TYPE_MESSAGE),
+      gab_get_type(gab, TYPE_EFFECT),
   };
 
   gab_value print_builtin = GAB_BUILTIN(print);

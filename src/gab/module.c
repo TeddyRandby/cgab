@@ -162,6 +162,18 @@ u8 gab_module_push_store_upvalue(gab_module *self, u8 upvalue, gab_token t,
 
   return OP_STORE_UPVALUE;
 };
+u8 gab_module_push_yield(gab_module *self, u8 have, u8 var, gab_token t, u64 l,
+                          s_i8 s) {
+    if (!var) {
+        gab_module_push_op(self, OP_YIELD, t, l, s);
+        gab_module_push_byte(self, have, t, l, s);
+        return OP_YIELD;
+    }
+
+    gab_module_push_op(self, OP_VARYIELD, t, l, s);
+    gab_module_push_byte(self, have, t, l, s);
+    return OP_YIELD;
+}
 
 u8 gab_module_push_return(gab_module *self, u8 have, u8 var, gab_token t, u64 l,
                           s_i8 s) {

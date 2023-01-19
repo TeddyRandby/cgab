@@ -161,6 +161,19 @@ static inline gab_value *trim_return(gab_vm *vm, gab_value *from, gab_value *to,
   return to;
 }
 
+static inline void call_effect(gab_vm *vm, gab_obj_effect *e, u8 want) {
+  vm->frame++;
+  vm->frame->c = e->c;
+  vm->frame->ip = e->ip;
+  vm->frame->want = want;
+
+  vm->frame->slots = vm->top;
+
+  gab_value *tracker = e->frame;
+  while (e->len--)
+    *vm->top++ = *tracker++;
+}
+
 static inline void call_closure(gab_vm *vm, gab_obj_closure *c, u8 arity,
                                 u8 want) {
   while (arity < c->p->narguments)
@@ -390,6 +403,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       } else if (GAB_VAL_IS_BUILTIN(callee)) {
         call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(callee),
                      GAB_VAL_NULL(), arity, want);
+      } else if (GAB_VAL_IS_EFFECT(callee)) {
+        STORE_FRAME();
+        call_effect(VM(), GAB_VAL_TO_EFFECT(callee), want);
+        LOAD_FRAME();
       } else {
         STORE_FRAME();
         gab_obj_string *a =
@@ -635,10 +652,41 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
     {
 
-      u8 have, addtl;
+      u8 have;
+
+      {
+
+        CASE_CODE(VARYIELD) : {
+          u8 addtl = READ_BYTE;
+          have = *TOP() + addtl;
+
+          goto complete_return;
+        }
+
+        CASE_CODE(YIELD) : {
+          have = READ_BYTE;
+
+          goto complete_yield;
+        }
+
+      complete_yield : {
+        gab_obj_effect *eff = gab_obj_effect_create(CLOSURE(), IP(), have,
+                                                    TOP() - SLOTS(), SLOTS());
+
+        PUSH(GAB_VAL_OBJ(eff));
+        have++;
+
+        // Peek past the effect and increment value it captures
+        for (u8 i = 1; i < have; i++) {
+          gab_gc_iref(GC(), VM(), PEEK_N(i));
+        }
+
+        goto complete_return;
+      }
+      }
 
       CASE_CODE(VARRETURN) : {
-        addtl = READ_BYTE;
+        u8 addtl = READ_BYTE;
         have = *TOP() + addtl;
         goto complete_return;
       }

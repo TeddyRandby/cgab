@@ -575,7 +575,7 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
   u16 proto_constant = add_constant(mod, GAB_VAL_OBJ(p));
 
   // Create the closure, adding a specialization to the pushed function.
-  push_op(bc, mod, is_message ? OP_MESSAGE: OP_CLOSURE);
+  push_op(bc, mod, is_message ? OP_MESSAGE : OP_CLOSURE);
   push_short(bc, mod, proto_constant);
 
   if (is_message) {
@@ -1937,6 +1937,30 @@ i32 compile_exp_sym(gab_engine *gab, gab_bc *bc, gab_module *mod,
   return COMP_OK;
 }
 
+i32 compile_exp_yld(gab_engine *gab, gab_bc *bc, gab_module *mod,
+                    boolean assignable) {
+  if (match_token(bc, TOKEN_NEWLINE)) {
+    push_op(bc, mod, OP_YIELD);
+    push_byte(bc, mod, 0);
+    return COMP_OK;
+  }
+
+  boolean vse;
+  i32 result = compile_tuple(gab, bc, mod, VAR_RET, &vse);
+
+  if (result < 0)
+    return COMP_ERR;
+
+  if (result > 16) {
+    dump_compiler_error(bc, GAB_TOO_MANY_RETURN_VALUES, "");
+    return COMP_ERR;
+  }
+
+  gab_module_push_yield(mod, result, vse, bc->previous_token, bc->line,
+                         bc->lex.previous_token_src);
+  return VAR_RET;
+}
+
 i32 compile_exp_rtn(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   if (match_token(bc, TOKEN_NEWLINE)) {
@@ -1989,6 +2013,7 @@ const gab_compile_rule gab_bc_rules[] = {
     NONE(),                            // END
     PREFIX(def),                       // DEF
     PREFIX(rtn),                       // RETURN
+    PREFIX(yld),
     PREFIX(lop),                       // LOOP
     NONE(),                       // UNTIL
     INFIX(bin, TERM, false),                  // PLUS

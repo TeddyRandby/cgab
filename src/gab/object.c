@@ -164,6 +164,11 @@ void gab_obj_dump(gab_value value) {
     printf("[closure:%.*s]", (i32)obj->p->name.len, obj->p->name.data);
     break;
   }
+  case TYPE_EFFECT: {
+    gab_obj_effect *obj = GAB_VAL_TO_EFFECT(value);
+    printf("[effect:%.*s]", (i32)obj->c->p->name.len, obj->c->p->name.data);
+    break;
+  }
   default: {
     fprintf(stderr, "Not an object.\n");
     exit(0);
@@ -211,6 +216,7 @@ void gab_obj_destroy(gab_obj *self) {
       anything fancy.
     */
 
+  case TYPE_EFFECT:
   case TYPE_PROTOTYPE:
   case TYPE_CLOSURE:
   case TYPE_UPVALUE:
@@ -398,7 +404,6 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 size,
 
   if (interned)
     return interned;
-
   if (vm != NULL) {
     for (u64 i = 0; i < size; i++) {
       gab_gc_iref(&gab->gc, vm, keys[i * stride]);
@@ -497,6 +502,21 @@ gab_obj_container *gab_obj_container_create(gab_obj_container_cb destructor,
 gab_obj_symbol *gab_obj_symbol_create(s_i8 name) {
   gab_obj_symbol *self = GAB_CREATE_OBJ(gab_obj_symbol, TYPE_SYMBOL);
   self->name = name;
+  return self;
+}
+
+gab_obj_effect *gab_obj_effect_create(gab_obj_closure *c, u8 *ip, u8 arity,
+                                      u8 len, gab_value frame[len]) {
+  gab_obj_effect *self =
+      GAB_CREATE_FLEX_OBJ(gab_obj_effect, gab_value, len, TYPE_EFFECT);
+
+  self->c = c;
+  self->ip = ip;
+  self->arity = arity;
+  self->len = len;
+
+  memcpy(self->frame, frame, len * sizeof(gab_value));
+
   return self;
 }
 
