@@ -15,4 +15,4 @@ void imports_create();
 void imports_cleanup(gab_engine* gab);
 void imports_destroy();
 
-gab_value gab_lib_require(gab_engine *eng, gab_vm* vm, gab_value receiver, u8 argc, gab_value argv[argc]);
+gab_value gab_lib_require(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]);

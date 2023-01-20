@@ -121,26 +121,31 @@ static gab_value gab_typeof(gab_engine *gab, gab_value self);
 
 gab_value gab_get_type(gab_engine *gab, gab_type t);
 
+gab_value gab_result_ok(gab_engine* gab, gab_vm* vm, gab_value val);
+
+gab_value gab_result_err(gab_engine* gab, gab_vm* vm, gab_value err);
+
+gab_value gab_option_some(gab_engine* gab, gab_vm* vm, gab_value some);
+
+gab_value gab_option_none(gab_engine* gab, gab_vm* vm);
+
 /**
  * A helper macro for creating a gab_obj_record
  */
 #define GAB_RECORD(vm, size, keys, values)                                     \
-  GAB_VAL_OBJ(gab_bundle_record(gab, vm, size, keys, values))
+  gab_bundle_record(gab, vm, size, keys, values)
 
 /**
  * A helper macro for creating a gab_obj_record
  */
 #define GAB_ARRAY(vm, size, values)                                            \
-  GAB_VAL_OBJ(gab_bundle_array(gab, vm, size, values))
+  gab_bundle_array(gab, vm, size, values)
 
 /**
  * A helper macro for creating a gab_obj_builtin
  */
 #define GAB_BUILTIN(name)                                                      \
   GAB_VAL_OBJ(gab_obj_builtin_create(gab_lib_##name, s_i8_cstr(#name)))
-
-#define GAB_FUNCTION(vm, name, size, r, s)                                     \
-  GAB_VAL_OBJ(gab_bundle_function(gab, vm, s_i8_cstr(#name), size, r, s))
 
 /**
  * A helper macro for creating a gab_obj_string

@@ -9,7 +9,8 @@
 #include <stdio.h>
 #include <unistd.h>
 
-typedef gab_value (*handler_f)(gab_engine *, a_i8 *path, const s_i8 module);
+typedef gab_value (*handler_f)(gab_engine *, gab_vm *, a_i8 *path,
+                               const s_i8 module);
 
 typedef gab_value (*module_f)(gab_engine *);
 
@@ -85,7 +86,7 @@ gab_value check_import(gab_engine *gab, s_i8 name) {
   return GAB_VAL_NULL();
 }
 
-gab_value gab_shared_object_handler(gab_engine *eng, const a_i8 *path,
+gab_value gab_shared_object_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
                                     const s_i8 module) {
 
   void *handle = dlopen((char *)path->data, RTLD_LAZY);
@@ -100,7 +101,7 @@ gab_value gab_shared_object_handler(gab_engine *eng, const a_i8 *path,
     return GAB_VAL_NULL();
   }
 
-  gab_value result = symbol(eng);
+  gab_value result = symbol(gab);
 
   import *i = NEW(import);
 
@@ -108,24 +109,28 @@ gab_value gab_shared_object_handler(gab_engine *eng, const a_i8 *path,
   i->cache = result;
   i->as.shared = handle;
 
-  add_import(eng, module, i);
+  add_import(gab, module, i);
 
   return result;
 }
 
-gab_value gab_source_file_handler(gab_engine *gab, a_i8 *path,
+gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
                                   const s_i8 module) {
   a_i8 *src = os_read_file((char *)path->data);
 
+  s_i8 arg_names[] = {
+      s_i8_cstr("print"),
+      s_i8_cstr("require"),
+  };
+
   gab_module *pkg = gab_compile(gab, s_i8_create(path->data, path->len),
-                                s_i8_create(src->data, src->len), 0, NULL);
+                                s_i8_create(src->data, src->len), 2, arg_names);
 
   if (pkg == NULL) {
-    fprintf(stderr, "Module failed to compile\n");
-    return GAB_VAL_NULL();
+    return gab_result_err(gab, vm, GAB_STRING("Module failed to compile"));
   }
 
-  gab_value res = gab_run(gab, pkg, 0, NULL);
+  gab_value res = gab_run(gab, pkg, vm->argc, vm->argv);
 
   import *i = NEW(import);
 
@@ -146,10 +151,13 @@ resource resources[] = {
      .suffix = ".so",
      .handler = gab_shared_object_handler},
     // Installed resources
-    {.prefix = "/usr/local/lib/gab/",
+    {.prefix = "/usr/local/share/gab/",
      .suffix = ".gab",
      .handler = gab_source_file_handler},
-    {.prefix = "/usr/local/lib/gab/",
+    {.prefix = "/usr/local/share/gab/std/",
+     .suffix = ".gab",
+     .handler = gab_source_file_handler},
+    {.prefix = "/usr/local/share/gab/",
      .suffix = "/mod.gab",
      .handler = gab_source_file_handler},
     {.prefix = "/usr/local/lib/gab/libcgab",
@@ -176,12 +184,12 @@ a_i8 *match_resource(resource *res, s_i8 name) {
   return NULL;
 }
 
-gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, gab_value receiver,
-                          u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
+                          gab_value argv[argc]) {
 
   if (!GAB_VAL_IS_STRING(argv[0]) || argc != 1) {
-    fprintf(stderr, "Require received bad arguments\n");
-    return GAB_VAL_NULL();
+    return gab_result_err(gab, vm,
+                          GAB_STRING("Invalid call to gab_lib_require"));
   }
 
   gab_obj_string *arg = GAB_VAL_TO_STRING(argv[0]);
@@ -192,7 +200,7 @@ gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, gab_value receiver,
     // Because the result of a builtin is always decremented,
     // increment the cached values when they are returned.
     gab_iref(gab, vm, cached);
-    return cached;
+    return gab_result_ok(gab, vm, cached);
   }
 
   for (i32 i = 0; i < sizeof(resources) / sizeof(resource); i++) {
@@ -200,14 +208,13 @@ gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, gab_value receiver,
     a_i8 *path = match_resource(res, module);
 
     if (path) {
-      gab_value result = res->handler(gab, path, module);
+      gab_value result = res->handler(gab, vm, path, module);
       a_i8_destroy(path);
-      return result;
+      return gab_result_ok(gab, vm, result);
     }
 
     a_i8_destroy(path);
   }
 
-  fprintf(stderr, "Matched no resources\n");
-  return GAB_VAL_NULL();
+  return gab_result_err(gab, vm, GAB_STRING("Matched no resources"));
 }

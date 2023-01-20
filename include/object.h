@@ -146,8 +146,7 @@ s_i8 gab_obj_string_ref(gab_obj_string *self);
   ------------- OBJ_BUILTIN-------------
   A function pointer. to a native c function.
 */
-typedef gab_value (*gab_builtin)(gab_engine *gab, gab_vm *vm,
-                                 gab_value receiver, u8 argc,
+typedef gab_value (*gab_builtin)(gab_engine *gab, gab_vm *vm, u8 argc,
                                  gab_value argv[argc]);
 typedef struct gab_obj_builtin gab_obj_builtin;
 struct gab_obj_builtin {

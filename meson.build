@@ -76,6 +76,13 @@ install_headers(
   install_dir: '/usr/local/include/gab/'
   )
 
+install_data(
+  'std/mod.gab',
+  'std/result.gab',
+  'std/option.gab',
+  install_dir: '/usr/local/share/gab/std/'
+  )
+
 executable('gab',
   'src/cli/main.c',
   dependencies: [],

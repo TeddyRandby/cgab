@@ -116,10 +116,6 @@ const keyword keywords[] = {
         TOKEN_MATCH,
     },
     {
-        "null",
-        TOKEN_NULL,
-    },
-    {
         "not",
         TOKEN_NOT,
     },

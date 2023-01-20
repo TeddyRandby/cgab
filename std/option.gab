@@ -1,0 +1,42 @@
+def None { none }
+def Some { some }
+
+def none[]
+    { none }
+end
+
+def some[]
+    { some: self }
+end
+
+def print[None]
+    'None()':print
+end
+
+def print[Some]
+    'Some({self.some})':print
+end
+
+def unwrap[Some]
+    self.some
+end
+
+def unwrap[None]
+    self.none!
+end
+
+def unwrap_or[Some](alternative)
+    self
+end
+
+def unwrap_or[None](alternative)
+    alternative
+end
+
+def ok_or[Some](err)
+    self.some
+end
+
+def ok_or[None](err)
+    err
+end

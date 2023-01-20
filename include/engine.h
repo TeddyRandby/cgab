@@ -63,6 +63,9 @@ struct gab_engine {
    * Optional Flags
    */
   u8 flags;
+
+  u8 argc;
+  gab_value* argv;
 };
 
 // This can be heavily optimized.

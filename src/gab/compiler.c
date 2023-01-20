@@ -661,7 +661,7 @@ i32 compile_tuple(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 want,
   return have;
 }
 
-i32 add_function_constant(gab_engine *gab, gab_module *mod, s_i8 name) {
+i32 add_message_constant(gab_engine *gab, gab_module *mod, s_i8 name) {
   gab_obj_message *f = gab_obj_message_create(gab, name);
 
   return add_constant(mod, GAB_VAL_OBJ(f));
@@ -765,7 +765,7 @@ i32 compile_lst_internals(gab_engine *gab, gab_bc *bc, gab_module *mod) {
 // Forward decl
 i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name);
 
-i32 compile_obj_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod) {
+i32 compile_rec_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod) {
   if (match_and_eat_token(bc, TOKEN_IDENTIFIER)) {
     // Get the string for the key and push the key.
     s_i8 name = bc->lex.previous_token_src;
@@ -832,11 +832,12 @@ i32 compile_obj_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod) {
     if (expect_token(bc, TOKEN_RBRACE) < 0)
       return COMP_ERR;
 
-    if (expect_token(bc, TOKEN_COLON) < 0)
-      return COMP_ERR;
-
-    if (compile_expression(gab, bc, mod) < 0)
-      return COMP_ERR;
+    if (match_and_eat_token(bc, TOKEN_COLON)) {
+      if (compile_expression(gab, bc, mod) < 0)
+        return COMP_ERR;
+    } else {
+      push_op(bc, mod, OP_PUSH_TRUE);
+    }
 
     return COMP_OK;
   }
@@ -848,7 +849,7 @@ fin:
   return COMP_ERR;
 }
 
-i32 compile_obj_internals(gab_engine *gab, gab_bc *bc, gab_module *mod) {
+i32 compile_rec_internals(gab_engine *gab, gab_bc *bc, gab_module *mod) {
   u8 size = 0;
 
   if (skip_newlines(bc) < 0)
@@ -856,7 +857,7 @@ i32 compile_obj_internals(gab_engine *gab, gab_bc *bc, gab_module *mod) {
 
   while (match_and_eat_token(bc, TOKEN_RBRACK) == COMP_TOKEN_NO_MATCH) {
 
-    if (compile_obj_internal_item(gab, bc, mod) < 0)
+    if (compile_rec_internal_item(gab, bc, mod) < 0)
       return COMP_ERR;
 
     if (size == UINT8_MAX) {
@@ -881,7 +882,7 @@ i32 compile_record(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name) {
     name_const = add_string_constant(gab, mod, name);
   }
 
-  i32 size = compile_obj_internals(gab, bc, mod);
+  i32 size = compile_rec_internals(gab, bc, mod);
 
   if (size < 0)
     return COMP_ERR;
@@ -928,11 +929,11 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod,
   // Const variable
   if (match_and_eat_token(bc, TOKEN_EQUAL)) {
     u8 local = add_local(bc, name, 0);
+    initialize_local(bc, local);
 
     if (compile_expression(gab, bc, mod) < 0)
       return COMP_ERR;
 
-    initialize_local(bc, local);
 
     gab_module_push_store_local(mod, local, bc->previous_token, bc->line,
                                 bc->lex.previous_token_src);
@@ -1380,12 +1381,6 @@ i32 compile_exp_bool(gab_engine *gab, gab_bc *bc, gab_module *mod,
   return COMP_OK;
 }
 
-i32 compile_exp_null(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                     boolean assignable) {
-  push_op(bc, mod, OP_PUSH_NULL);
-  return COMP_OK;
-}
-
 i32 compile_exp_def(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
@@ -1677,15 +1672,16 @@ i32 compile_arguments(gab_engine *gab, gab_bc *bc, gab_module *mod,
   return 0;
 }
 
-i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
+i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
-
   s_i8 prev_src = bc->lex.previous_token_src;
   gab_token prev_tok = bc->previous_token;
   u64 prev_line = bc->line;
   s_i8 message = trim_prev_tok(bc);
 
-  u16 f = add_function_constant(gab, mod, message);
+  u16 f = add_message_constant(gab, mod, message);
+
+  push_op(bc, mod, OP_PUSH_NULL);
 
   boolean vse = false;
   i32 result = compile_arguments(gab, bc, mod, &vse);
@@ -1699,6 +1695,33 @@ i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   gab_module_push_send(mod, result, vse, f, prev_tok, prev_line, prev_src);
+
+  return VAR_RET;
+
+}
+
+i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
+                    boolean assignable) {
+
+  s_i8 prev_src = bc->lex.previous_token_src;
+  gab_token prev_tok = bc->previous_token;
+  u64 prev_line = bc->line;
+  s_i8 message = trim_prev_tok(bc);
+
+  u16 m = add_message_constant(gab, mod, message);
+
+  boolean vse = false;
+  i32 result = compile_arguments(gab, bc, mod, &vse);
+
+  if (result < 0)
+    return COMP_ERR;
+
+  if (result > 255) {
+    dump_compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
+    return COMP_ERR;
+  }
+
+  gab_module_push_send(mod, result, vse, m, prev_tok, prev_line, prev_src);
 
   return VAR_RET;
 }
@@ -1940,8 +1963,8 @@ i32 compile_exp_sym(gab_engine *gab, gab_bc *bc, gab_module *mod,
 i32 compile_exp_yld(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   if (match_token(bc, TOKEN_NEWLINE)) {
-  gab_module_push_yield(mod, 0, false, bc->previous_token, bc->line,
-                         bc->lex.previous_token_src);
+    gab_module_push_yield(mod, 0, false, bc->previous_token, bc->line,
+                          bc->lex.previous_token_src);
     return VAR_RET;
   }
 
@@ -1957,7 +1980,7 @@ i32 compile_exp_yld(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   gab_module_push_yield(mod, result, vse, bc->previous_token, bc->line,
-                         bc->lex.previous_token_src);
+                        bc->lex.previous_token_src);
   return VAR_RET;
 }
 
@@ -2022,7 +2045,7 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(bin, FACTOR, false),                // SLASH
     INFIX(bin, FACTOR, false),                // PERCENT
     NONE(),                            // COMMA
-    NONE(),       // COLON
+    PREFIX(emp),       // COLON
     NONE(),           // AMPERSAND
     NONE(),           // DOLLAR
     PREFIX(sym), // SYMBOL
@@ -2060,7 +2083,6 @@ const gab_compile_rule gab_bc_rules[] = {
     PREFIX(num),                       // NUMBER
     PREFIX(bool),                      // FALSE
     PREFIX(bool),                      // TRUE
-    PREFIX(null),                      // NULL
     NONE(),                      // NEWLINE
     NONE(),                            // EOF
     NONE(),                            // ERROR

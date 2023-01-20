@@ -16,3 +16,19 @@ end
 def print[Err]
   'Err({self.err})':print
 end
+
+def unwrap[Ok]
+  self.ok
+end
+
+def unwrap[Err]
+  self:print!
+end
+
+def unwrap_or[Ok](alternative)
+  self.ok
+end
+
+def unwrap_or[Err](alternative)
+  alternative
+end

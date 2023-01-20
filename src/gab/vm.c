@@ -109,12 +109,14 @@ void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
   }
 }
 
-void gab_vm_create(gab_vm *self) {
+void gab_vm_create(gab_vm *self, u8 argc, gab_value argv [argc]) {
   self->open_upvalues = NULL;
   memset(self->stack, 0, sizeof(self->stack));
 
   self->frame = self->call_stack;
   self->top = self->stack;
+  self->argc = argc;
+  self->argv = argv;
 }
 
 void dump_frame(gab_value *slots, gab_value *top, const char *name) {
@@ -162,7 +164,8 @@ static inline gab_value *trim_return(gab_vm *vm, gab_value *from, gab_value *to,
   return to;
 }
 
-static inline void call_effect(gab_vm *vm, gab_obj_effect *e, u8 arity, u8 want) {
+static inline void call_effect(gab_vm *vm, gab_obj_effect *e, u8 arity,
+                               u8 want) {
   vm->frame++;
   vm->frame->c = e->c;
   vm->frame->ip = e->ip;
@@ -193,11 +196,10 @@ static inline void call_closure(gab_vm *vm, gab_obj_closure *c, u8 arity,
 }
 
 static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_gc *gc,
-                                gab_obj_builtin *b, gab_value r, u8 arity,
-                                u8 want) {
-  gab_value result = (*b->function)(gab, vm, r, arity, vm->top - arity);
+                                gab_obj_builtin *b, u8 arity, u8 want) {
+  gab_value result = (*b->function)(gab, vm, arity, vm->top - arity);
 
-  vm->top -= arity + 1;
+  vm->top -= arity;
 
   vm->top = trim_return(vm, &result, vm->top, 1, want);
 
@@ -354,7 +356,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
   */
 
   gab_vm vm;
-  gab_vm_create(VM());
+  gab_vm_create(VM(), argc, argv);
 
   gab_obj_closure *main_c =
       GAB_VAL_TO_CLOSURE(d_gab_constant_ikey(&mod->constants, mod->main));
@@ -403,8 +405,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         call_closure(VM(), GAB_VAL_TO_CLOSURE(callee), arity, want);
         LOAD_FRAME();
       } else if (GAB_VAL_IS_BUILTIN(callee)) {
-        call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(callee),
-                     GAB_VAL_NULL(), arity, want);
+        call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(callee), arity,
+                     want);
       } else if (GAB_VAL_IS_EFFECT(callee)) {
         STORE_FRAME();
         call_effect(VM(), GAB_VAL_TO_EFFECT(callee), arity, want);
@@ -483,8 +485,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       } else if (GAB_VAL_IS_BUILTIN(spec)) {
         WRITE_BYTE(16, instr + 2);
 
-        call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
-                     arity - (arity != 0), want);
+        call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), arity + 1,
+                     want);
 
         NEXT();
       } else {
@@ -556,8 +558,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
           NEXT();
         } else if (GAB_VAL_IS_BUILTIN(spec)) {
-          call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
-                       arity - (arity != 0), want);
+          call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), arity + 1,
+                       want);
 
           NEXT();
         } else {
@@ -632,8 +634,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
           NEXT();
         } else if (GAB_VAL_IS_BUILTIN(spec)) {
-          call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
-                       arity - (arity != 0), want);
+          call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), arity + 1,
+                       want);
 
           NEXT();
         } else {
@@ -645,8 +647,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
       gab_value spec = gab_obj_message_get(func, offset);
 
-      call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), receiver,
-                   arity - (arity != 0), want);
+      call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), arity + 1, want);
 
       NEXT();
     }
@@ -1473,15 +1474,15 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
     CASE_CODE(MESSAGE) : {
       gab_obj_prototype *p = READ_PROTOTYPE;
-      gab_obj_message *f = READ_MESSAGE;
+      gab_obj_message *m = READ_MESSAGE;
       gab_value r = PEEK();
 
-      if (gab_obj_message_find(f, r) != UINT16_MAX) {
+      if (gab_obj_message_find(m, r) != UINT16_MAX) {
         STORE_FRAME();
         gab_obj_string *s = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), r));
         dump_vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE,
                       "Specialization already exists for %.*s on %.*s",
-                      (i32)s->len, s->data, (i32)f->name.len, f->name.data);
+                      (i32)s->len, s->data, (i32)m->name.len, m->name.data);
         return failure(VM());
       }
 
@@ -1511,9 +1512,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
       gab_value obj = GAB_VAL_OBJ(gab_obj_closure_create(p, upvalues));
 
-      gab_obj_message_insert(f, r, obj);
+      gab_obj_message_insert(m, r, obj);
 
-      PUSH(GAB_VAL_OBJ(f));
+      PUSH(GAB_VAL_OBJ(m));
 
       NEXT();
     }
