@@ -54,4 +54,6 @@ void gab_vm_destroy(gab_vm *vm);
 gab_value gab_vm_run(gab_engine *gab, gab_module *main, u8 argc,
                      gab_value argv[argc]);
 
+void gab_vm_panic(gab_engine* gab, gab_vm* vm, const char* msg);
+
 #endif

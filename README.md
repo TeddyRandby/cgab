@@ -108,26 +108,22 @@ eff('Bob')
 Gab supplies a `require` global for importing code. 
 It is used like this:
 ```
-let socket = !require("socket")
+def io = require("socket")
 ```
 The implementation searches for the following, in order:
  - `./(name).gab`
  - `./(name)/mod.gab`
  - `./lib(name).so`
- - `/usr/local/lib/gab/(name)/.gab`
- - `/usr/local/lib/gab/(name)/mod.gab`
+ - `/usr/local/share/gab/(name)/.gab`
+ - `/usr/local/share/gab/(name)/.gab`
+ - `/usr/local/share/gab/(name)/mod.gab`
+ - `/usr/local/share/gab/std/(name)/.gab`
  - `/usr/local/lib/gab/lib(name).so`
 
  Files ending in the `.gab` extension are evaluated, and the result of the last top-level expression is returned to the caller of `require`. Files ending in the `.so` extension are opened dynamically, and searched for the symbol `gab_mod`. The result of this function is passed up to the callee.
 ### Modules
 There are some modules bundled with the main cli.
-  - regex
-  - socket
-  - time
-  - object
-  - math
   - io
-  - string
 ### Dependencies
 libc is the only dependency for the interpreter.
 ### Installation
@@ -136,8 +132,6 @@ This project is built with Meson. To install it:
   - run `meson setup build`
   - run `meson install`
 ### Whats coming up (in no particular order):
- - [ ] Concurrency
- - [ ] Symbols
  - [ ] Pretty Printing for objects
  - [ ] Windows support
  - [ ] Finalize c api and documentation

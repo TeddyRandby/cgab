@@ -25,7 +25,6 @@ static const char *gab_token_names[] = {
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
 #define ANSI_COLOR_CYAN "\x1b[36m"
 #define ANSI_COLOR_RESET "\x1b[0m"
-
 void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
                    const char *help_fmt, ...) {
   if (!(gab->flags & GAB_FLAG_DUMP_ERROR)) {
@@ -107,6 +106,10 @@ void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
 
     frame++;
   }
+}
+
+void gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
+  dump_vm_error(gab, vm, GAB_PANIC, msg);
 }
 
 void gab_vm_create(gab_vm *self, u8 argc, gab_value argv[argc]) {
@@ -400,19 +403,15 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
     complete_dynsend : {
       gab_value callee = PEEK_N(arity + 1);
 
+      STORE_FRAME();
       if (GAB_VAL_IS_CLOSURE(callee)) {
-        STORE_FRAME();
         call_closure(VM(), GAB_VAL_TO_CLOSURE(callee), arity, want);
-        LOAD_FRAME();
       } else if (GAB_VAL_IS_BUILTIN(callee)) {
         call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(callee), arity,
                      want);
       } else if (GAB_VAL_IS_EFFECT(callee)) {
-        STORE_FRAME();
         call_effect(VM(), GAB_VAL_TO_EFFECT(callee), arity, want);
-        LOAD_FRAME();
       } else {
-        STORE_FRAME();
         gab_obj_string *a =
             GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
         dump_vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE, "Tried to call %.*s",
@@ -420,6 +419,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         return failure(VM());
       }
 
+      LOAD_FRAME();
       NEXT();
     }
     }
@@ -474,10 +474,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       WRITE_INLINESHORT(offset);
       WRITE_INLINEQWORD(type);
 
+      STORE_FRAME();
       if (GAB_VAL_IS_CLOSURE(spec)) {
         WRITE_BYTE(16, instr + 1);
 
-        STORE_FRAME();
         call_closure(VM(), GAB_VAL_TO_CLOSURE(spec), arity, want);
         LOAD_FRAME();
 
@@ -490,7 +490,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
         NEXT();
       } else {
-        STORE_FRAME();
         dump_vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE, "");
         return failure(VM());
       }
@@ -551,8 +550,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
         gab_value spec = gab_obj_message_get(func, offset);
 
+        STORE_FRAME();
         if (GAB_VAL_IS_CLOSURE(spec)) {
-          STORE_FRAME();
           call_closure(VM(), GAB_VAL_TO_CLOSURE(spec), arity, want);
           LOAD_FRAME();
 
@@ -563,7 +562,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
           NEXT();
         } else {
-          STORE_FRAME();
           dump_vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE, "");
           return failure(VM());
         }
@@ -627,8 +625,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
         gab_value spec = gab_obj_message_get(func, offset);
 
+        STORE_FRAME();
         if (GAB_VAL_IS_CLOSURE(spec)) {
-          STORE_FRAME();
           call_closure(VM(), GAB_VAL_TO_CLOSURE(spec), arity, want);
           LOAD_FRAME();
 
@@ -639,7 +637,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
           NEXT();
         } else {
-          STORE_FRAME();
           dump_vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE, "");
           return failure(VM());
         }
@@ -647,6 +644,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
       gab_value spec = gab_obj_message_get(func, offset);
 
+      STORE_FRAME();
       call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), arity + 1,
                    want);
 
@@ -677,7 +675,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
       complete_yield : {
         // Peek past the effect and increment value it captures
-        for (u8 i = 0; i < have ; i++) {
+        for (u8 i = 0; i < have; i++) {
           gab_gc_iref(GC(), VM(), PEEK_N(i + 1));
         }
 

@@ -99,6 +99,10 @@ gab_value gab_run(gab_engine *gab, gab_module *main, u8 argc,
   return result;
 };
 
+void gab_panic(gab_engine* gab, gab_vm* vm, const char* msg) {
+    gab_vm_panic(gab, vm, msg);
+}
+
 void gab_dref(gab_engine *gab, gab_vm *vm, gab_value value) {
   gab_gc_dref(&gab->gc, vm, value);
 };

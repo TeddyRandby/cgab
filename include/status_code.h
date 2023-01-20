@@ -1,6 +1,6 @@
 // Compile-time errors
 STATUS(OK, "OK")
-STATUS(FATAL, "A fatal error occurred")
+STATUS(PANIC, "A fatal error occurred")
 STATUS(EOF_IN_STRING, "Unexpected EOF in string literal")
 STATUS(NL_IN_STRING, "Unexpected return in string literal")
 STATUS(MALFORMED_TOKEN, "Unrecognized token")

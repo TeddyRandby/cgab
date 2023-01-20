@@ -1,6 +1,6 @@
-'std':require:unwrap
+'std':require
 
-def io = 'io':require:unwrap
+def io = 'io':require
 
 let val = 'hello world' .. ' its me'
 
@@ -18,3 +18,4 @@ end
 
 say_hello()("Bob")
 
+panic("uh oh")

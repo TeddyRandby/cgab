@@ -1,4 +1,4 @@
-#include "require.h"
+#include "builtins.h"
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
@@ -121,13 +121,15 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
   s_i8 arg_names[] = {
       s_i8_cstr("print"),
       s_i8_cstr("require"),
+      s_i8_cstr("panic"),
   };
 
   gab_module *pkg = gab_compile(gab, s_i8_create(path->data, path->len),
-                                s_i8_create(src->data, src->len), 2, arg_names);
+                                s_i8_create(src->data, src->len),
+                                LEN_CARRAY(arg_names), arg_names);
 
   if (pkg == NULL) {
-    return gab_result_err(gab, vm, GAB_STRING("Module failed to compile"));
+    gab_panic(gab, vm, "Failed to compile module");
   }
 
   gab_value res = gab_run(gab, pkg, vm->argc, vm->argv);
@@ -188,8 +190,7 @@ gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
                           gab_value argv[argc]) {
 
   if (!GAB_VAL_IS_STRING(argv[0]) || argc != 1) {
-    return gab_result_err(gab, vm,
-                          GAB_STRING("Invalid call to gab_lib_require"));
+    gab_panic(gab, vm, "Invalid call to gab_lib_require");
   }
 
   gab_obj_string *arg = GAB_VAL_TO_STRING(argv[0]);
@@ -200,7 +201,7 @@ gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
     // Because the result of a builtin is always decremented,
     // increment the cached values when they are returned.
     gab_iref(gab, vm, cached);
-    return gab_result_ok(gab, vm, cached);
+    return cached;
   }
 
   for (i32 i = 0; i < sizeof(resources) / sizeof(resource); i++) {
@@ -210,11 +211,11 @@ gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
     if (path) {
       gab_value result = res->handler(gab, vm, path, module);
       a_i8_destroy(path);
-      return gab_result_ok(gab, vm, result);
+      return result;
     }
 
     a_i8_destroy(path);
   }
 
-  return gab_result_err(gab, vm, GAB_STRING("Matched no resources"));
+  gab_panic(gab, vm, "Could not locate module");
 }

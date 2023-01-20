@@ -1,2 +1,2 @@
-require('result'):unwrap
-require('option'):unwrap
+require('result')
+require('option')

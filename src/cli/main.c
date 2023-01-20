@@ -1,8 +1,7 @@
 #include "include/core.h"
 #include "include/gab.h"
 #include "include/os.h"
-#include "print.h"
-#include "require.h"
+#include "builtins.h"
 #include <stdio.h>
 
 gab_value make_print(gab_engine *gab) {
@@ -45,11 +44,13 @@ void gab_run_file(const char *path) {
   s_i8 arg_names[] = {
       s_i8_cstr("print"),
       s_i8_cstr("require"),
+      s_i8_cstr("panic")
   };
 
   gab_value args[] = {
       make_print(gab),
       make_require(gab),
+      GAB_BUILTIN(panic),
   };
 
   a_i8 *src = os_read_file(path);

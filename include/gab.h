@@ -65,6 +65,8 @@ gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 narguments,
 gab_value gab_run(gab_engine *gab, gab_module *main, u8 argc,
                   gab_value argv[argc]);
 
+void gab_panic(gab_engine* gab, gab_vm* vm, const char* msg);
+
 /**
  * Decrement the RC of a gab value
  *
