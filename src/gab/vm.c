@@ -109,7 +109,7 @@ void dump_vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
   }
 }
 
-void gab_vm_create(gab_vm *self, u8 argc, gab_value argv [argc]) {
+void gab_vm_create(gab_vm *self, u8 argc, gab_value argv[argc]) {
   self->open_upvalues = NULL;
   memset(self->stack, 0, sizeof(self->stack));
 
@@ -558,8 +558,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
           NEXT();
         } else if (GAB_VAL_IS_BUILTIN(spec)) {
-          call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), arity + 1,
-                       want);
+          call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec),
+                       arity + 1, want);
 
           NEXT();
         } else {
@@ -634,8 +634,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
           NEXT();
         } else if (GAB_VAL_IS_BUILTIN(spec)) {
-          call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), arity + 1,
-                       want);
+          call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec),
+                       arity + 1, want);
 
           NEXT();
         } else {
@@ -647,7 +647,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
 
       gab_value spec = gab_obj_message_get(func, offset);
 
-      call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), arity + 1, want);
+      call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), arity + 1,
+                   want);
 
       NEXT();
     }
@@ -675,16 +676,19 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
         }
 
       complete_yield : {
-        gab_obj_effect *eff = gab_obj_effect_create(CLOSURE(), IP(), have, want,
-                                                    TOP() - SLOTS(), SLOTS());
+        // Peek past the effect and increment value it captures
+        for (u8 i = 0; i < have ; i++) {
+          gab_gc_iref(GC(), VM(), PEEK_N(i + 1));
+        }
 
-        PUSH(GAB_VAL_OBJ(eff));
+        gab_value eff = GAB_VAL_OBJ(gab_obj_effect_create(
+            CLOSURE(), IP(), have, want, TOP() - SLOTS(), SLOTS()));
+
+        PUSH(eff);
         have++;
 
-        // Peek past the effect and increment value it captures
-        for (u8 i = 2; i < have; i++) {
-          gab_gc_iref(GC(), VM(), PEEK_N(i));
-        }
+        // push a deref to the new effect
+        gab_gc_dref(GC(), VM(), eff);
 
         goto complete_return;
       }

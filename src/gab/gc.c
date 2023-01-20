@@ -330,13 +330,14 @@ static inline void dec_child_refs(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
     for (u8 i = 0; i < closure->p->nupvalues; i++) {
       dec_if_obj_ref(gc, vm, closure->upvalues[i]);
     }
-    return;
+    break;
   }
   case TYPE_EFFECT: {
     gab_obj_effect *eff = (gab_obj_effect *)obj;
     for (u8 i = 0; i < eff->len; i++) {
       dec_if_obj_ref(gc, vm, eff->frame[i]);
     }
+    break;
   }
   case (TYPE_MESSAGE): {
     gab_obj_message *func = (gab_obj_message *)obj;
@@ -346,18 +347,19 @@ static inline void dec_child_refs(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
         dec_if_obj_ref(gc, vm, s);
       }
     }
+    break;
   }
   case TYPE_UPVALUE: {
     gab_obj_upvalue *upvalue = (gab_obj_upvalue *)obj;
     dec_if_obj_ref(gc, vm, upvalue->closed);
-    return;
+    break;
   }
   case TYPE_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
     for (u64 i = 0; i < shape->properties.len; i++) {
       dec_if_obj_ref(gc, vm, shape->keys[i]);
     }
-    return;
+    break;
   }
   case TYPE_RECORD: {
     gab_obj_record *object = (gab_obj_record *)obj;
@@ -374,7 +376,7 @@ static inline void dec_child_refs(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
         }
       }
     }
-    return;
+    break;
   }
   default:
     return;

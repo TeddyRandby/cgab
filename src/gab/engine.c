@@ -78,12 +78,12 @@ void gab_destroy(gab_engine *gab) {
   if (gab == NULL)
     return;
 
+  gab_gc_collect(&gab->gc, NULL);
+  gab_gc_destroy(&gab->gc);
+
   d_strings_destroy(&gab->interned_strings);
   d_shapes_destroy(&gab->interned_shapes);
   d_messages_destroy(&gab->interned_messages);
-
-  gab_gc_collect(&gab->gc, NULL);
-  gab_gc_destroy(&gab->gc);
 
   DESTROY(gab);
 }

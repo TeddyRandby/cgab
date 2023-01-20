@@ -82,6 +82,7 @@ fin:
   gab_module_destroy(main);
   gab_destroy(gab);
   imports_destroy();
+
   a_i8_destroy(src);
 }
 

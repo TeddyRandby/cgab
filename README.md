@@ -18,6 +18,7 @@ def Bob = {
 }
 
 Bob:celebrate
+#prints 'Happy Birthday Bob'
 ```
 # Goals
  - Be *fast*
@@ -34,70 +35,74 @@ let a = if cond
    2
  end
 ```
-### Universal Function Call Syntax
-Method chaining and OOP programming galore! Lets refer to our example above:
-```
-def Person {
-    def New(name, age) { name, age }
-
-    def Celebrate_birthday(person) do
-        !print('Happy Birthday {person.name}')
-        person.age = person.age + 1
-    end
-}
-
-let bob = Person.New('Bob', 20)
-bob:Person.Celebrate_birthday()
-
-```
-`Person` is just a normal object, but is serving as a namespace here. There are two functions belonging to person, `New` and `Celebrate_birthday`. 
-The `:` operator is where the magic happens. Calling a function with the arrow operator automatically inserts the target as the first argument. And this can work with *any* target and *any* function. That is the beauty of *Universal Function Call Syntax*.
-```
-'Hello World':!print()
-```
 ### Shapes
-Objects in Gab are governed by their *shape*. This sort of looks like *duck typing*.
+Although Gab is dynamically typed, types matter more than in other dynamic languages.
 ```
 def Point {
     x
     y
-}?
+}
 ```
-This says *set point to the shape of an object with a field x and a field y*
-Now, code like this works as expected:
+Objects in Gab are structurally typed. This means that two objects are the same type iff they share the same set of keys. This principle is used to define 'method' for our types.
 ```
 let pos = { x:10 y:20 }
-!print(pos is point)
+print(pos is point)
+# prints true
 ```
-This prints `true`!
-### Globals
-Global state in Gab is all kept in a top-level object accessed by - you guessed it - the `!` operator!
-All this time, the `!print(...)` statements are calling out to a function kept in the global top level object.
-The Gab CLI stores all the builtin functions in this object. If you embed Gab in your c projects, you can easily
-extend this object with your own built-ins.
-The object is also useful wherever global state is - like in the REPL!
+### Message Passing
+Gab provides a nice abstraction for polymorphism through *message passing*.
+A message is defined as follows:
 ```
->>>  !msg = 'hello world'
->>>  !print(!msg)
-```
-### Iterators
-Right now, iterators in Gab are just normal old Gab closures.
-Here is an example of one to iterate over all the elements in an ordered object:
-```
-def iter(i) do
-  let v = -1
-  || return (v = v + 1), i[v]
+def Dog { ... }
+def Person { ... }
+
+def speak[Dog]()
+    print('woof!')
+end
+
+def speak[Person]
+    print('hello!')
 end
 ```
-The iterator accepts the object as the argument, and returns a lambda.
-(`| args | body`) is the syntax for a lambda expression.
-The lambda uses the `return` expression to return multiple values -  the index, and the item at the index. When the list is out of elements, i[v] will return `null`
-Since null is falsey, this will trigger the end of the iterator. Using it looks like this:
+The expression in brackets is used to create a specialization for the message on that type.
+In this example, the values of the Dog and Person shapes are used to instantiate a specific handler. Now later on we can write code like this:
 ```
-let nums = [ 1 2 3 4 ]
+let animal = getAnimal()
+# This could be a person or a dog
 
-for index, num in iter(nums)
-  !print('nums has {num} at index {index}')
+animal:speak
+# prints 'woof!'  if the animal is a dog
+# prints 'hello!' if the animal is a person
+```
+### Globals
+Gab has no global variables. If you wan't to export code from your modules, return from the top-level, or define messages.
+### Effects
+The last major feature of Gab is effects. From any function, instead of returning you may `yield`
+```
+def do_twice(cb)
+    yield cb()
+
+    cb()
+end
+
+let first_result, eff = do_twice()
+
+let second_result = eff()
+```
+Yield pauses the functions execution, and returns an `Effect` object in addition to whatever else is yielded. This object can then be called to resume execution of the function. A yield can also receive values, which are passed to the effect as arguments.
+```
+def say_hello(name)
+    if not name
+        name = yield
+    end
+
+    print('Hello {name}')
+end
+
+let eff = say_hello()
+
+eff('Bob')
+# prints 'Hello Bob'
 ```
 ### What about imports?
 Gab supplies a `require` global for importing code. 
