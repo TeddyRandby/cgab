@@ -173,3 +173,74 @@ describe('Messages', do ()
         repeat():expect(2)
     end)
 end)
+
+describe('Effects', do ()
+    def once()
+        yield 1
+        2
+    end
+
+    def twice()
+        yield 1
+        yield 2
+
+        3
+    end
+
+    def receive_one()
+        let val = yield
+
+        val:expect(1)
+    end
+
+    def receive_onetwo()
+        let one, two = yield
+        
+        one:expect(1) and
+        two:expect(2)
+    end
+
+    def onetwo()
+        return 1,2 
+    end
+
+    def yields_many()
+        yield onetwo()
+    end
+
+    it('should yield once', do ()
+        let val, eff = once()
+
+        val:expect(1) and
+        eff():expect(2)
+    end)
+
+    it('should yield twice', do()
+        let _, eff = twice()
+
+        let valtwo, efftwo = eff()
+
+        valtwo:expect(2) and
+        efftwo():expect(3)
+    end)
+
+    it('should receive a value', do ()
+        let eff = receive_one()
+
+        eff(1)
+    end)
+
+    it('should yield var', do ()
+        let one, two, eff = yields_many()
+        one:expect(1) and
+        two:expect(2)
+    end)
+
+    it('should receive var', do ()
+        let eff = receive_onetwo()
+
+        eff(onetwo())
+    end)
+
+
+end)

@@ -1940,9 +1940,9 @@ i32 compile_exp_sym(gab_engine *gab, gab_bc *bc, gab_module *mod,
 i32 compile_exp_yld(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   if (match_token(bc, TOKEN_NEWLINE)) {
-    push_op(bc, mod, OP_YIELD);
-    push_byte(bc, mod, 0);
-    return COMP_OK;
+  gab_module_push_yield(mod, 0, false, bc->previous_token, bc->line,
+                         bc->lex.previous_token_src);
+    return VAR_RET;
   }
 
   boolean vse;

@@ -5,6 +5,7 @@
 #include "include/gc.h"
 #include "include/module.h"
 #include "include/object.h"
+#include "include/value.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -161,17 +162,18 @@ static inline gab_value *trim_return(gab_vm *vm, gab_value *from, gab_value *to,
   return to;
 }
 
-static inline void call_effect(gab_vm *vm, gab_obj_effect *e, u8 want) {
+static inline void call_effect(gab_vm *vm, gab_obj_effect *e, u8 arity, u8 want) {
   vm->frame++;
   vm->frame->c = e->c;
   vm->frame->ip = e->ip;
   vm->frame->want = want;
+  vm->frame->slots = vm->top - arity - 1;
 
-  vm->frame->slots = vm->top;
+  gab_value *from = vm->top - arity;
+  gab_value *to = vm->frame->slots + e->len - e->have;
 
-  gab_value *tracker = e->frame;
-  while (e->len--)
-    *vm->top++ = *tracker++;
+  vm->top = trim_return(vm, from, to, arity, e->want);
+  memcpy(vm->frame->slots, e->frame, (e->len - e->have) * sizeof(gab_value));
 }
 
 static inline void call_closure(gab_vm *vm, gab_obj_closure *c, u8 arity,
@@ -405,7 +407,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
                      GAB_VAL_NULL(), arity, want);
       } else if (GAB_VAL_IS_EFFECT(callee)) {
         STORE_FRAME();
-        call_effect(VM(), GAB_VAL_TO_EFFECT(callee), want);
+        call_effect(VM(), GAB_VAL_TO_EFFECT(callee), arity, want);
         LOAD_FRAME();
       } else {
         STORE_FRAME();
@@ -655,29 +657,31 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 argc,
       u8 have;
 
       {
+        u8 want;
 
         CASE_CODE(VARYIELD) : {
-          u8 addtl = READ_BYTE;
-          have = *TOP() + addtl;
+          have = *TOP() + READ_BYTE;
+          want = READ_BYTE;
 
           goto complete_return;
         }
 
         CASE_CODE(YIELD) : {
           have = READ_BYTE;
+          want = READ_BYTE;
 
           goto complete_yield;
         }
 
       complete_yield : {
-        gab_obj_effect *eff = gab_obj_effect_create(CLOSURE(), IP(), have,
+        gab_obj_effect *eff = gab_obj_effect_create(CLOSURE(), IP(), have, want,
                                                     TOP() - SLOTS(), SLOTS());
 
         PUSH(GAB_VAL_OBJ(eff));
         have++;
 
         // Peek past the effect and increment value it captures
-        for (u8 i = 1; i < have; i++) {
+        for (u8 i = 2; i < have; i++) {
           gab_gc_iref(GC(), VM(), PEEK_N(i));
         }
 

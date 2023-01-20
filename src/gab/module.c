@@ -22,7 +22,6 @@ void gab_module_cleanup(gab_engine *gab, gab_module *mod) {
   if (mod == NULL)
     return;
 
-
   for (u64 i = 0; i < mod->constants.cap; i++) {
     if (d_gab_constant_iexists(&mod->constants, i)) {
       gab_value v = d_gab_constant_ikey(&mod->constants, i);
@@ -162,18 +161,6 @@ u8 gab_module_push_store_upvalue(gab_module *self, u8 upvalue, gab_token t,
 
   return OP_STORE_UPVALUE;
 };
-u8 gab_module_push_yield(gab_module *self, u8 have, u8 var, gab_token t, u64 l,
-                          s_i8 s) {
-    if (!var) {
-        gab_module_push_op(self, OP_YIELD, t, l, s);
-        gab_module_push_byte(self, have, t, l, s);
-        return OP_YIELD;
-    }
-
-    gab_module_push_op(self, OP_VARYIELD, t, l, s);
-    gab_module_push_byte(self, have, t, l, s);
-    return OP_YIELD;
-}
 
 u8 gab_module_push_return(gab_module *self, u8 have, u8 var, gab_token t, u64 l,
                           s_i8 s) {
@@ -185,6 +172,15 @@ u8 gab_module_push_return(gab_module *self, u8 have, u8 var, gab_token t, u64 l,
   gab_module_push_op(self, OP_VARRETURN, t, l, s);
   gab_module_push_byte(self, have, t, l, s);
   return OP_VARRETURN;
+}
+u8 gab_module_push_yield(gab_module *self, u8 have, u8 var,
+                         gab_token t, u64 l, s_i8 s) {
+  u8 op = var ? OP_VARYIELD : OP_YIELD;
+
+  gab_module_push_op(self, op, t, l, s);
+  gab_module_push_byte(self, have, t, l, s);
+  gab_module_push_byte(self, 1, t, l, s);
+  return OP_YIELD;
 }
 
 u8 gab_module_push_send(gab_module *self, u8 have, u8 var, u16 message,
@@ -289,6 +285,8 @@ boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
     return true;
   case OP_VARDYNSEND:
   case OP_DYNSEND:
+  case OP_VARYIELD:
+  case OP_YIELD:
   case OP_SPREAD:
     v_u8_set(&self->bytecode, self->bytecode.len - 1, want);
     return true;
@@ -521,7 +519,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(
         d_gab_constant_ikey(&self->constants, proto_constant));
 
-    printf("%-16s %.*s\n", "OP_MESSAGE", (i32) p->name.len, p->name.data);
+    printf("%-16s %.*s\n", "OP_MESSAGE", (i32)p->name.len, p->name.data);
 
     for (int j = 0; j < p->nupvalues; j++) {
       u8 flags = self->bytecode.data[offset++];
@@ -532,8 +530,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
              isLocal ? "local" : "upvalue", isMutable ? "mut" : "const");
     }
     return offset;
-
-                  }
+  }
   case OP_CLOSURE: {
     offset++;
     u16 proto_constant = ((((u16)self->bytecode.data[offset]) << 8) |
@@ -543,7 +540,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(
         d_gab_constant_ikey(&self->constants, proto_constant));
 
-    printf("%-16s %.*s\n", "OP_CLOSURE", (i32) p->name.len, p->name.data);
+    printf("%-16s %.*s\n", "OP_CLOSURE", (i32)p->name.len, p->name.data);
 
     for (int j = 0; j < p->nupvalues; j++) {
       u8 flags = self->bytecode.data[offset++];

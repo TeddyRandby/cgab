@@ -505,14 +505,15 @@ gab_obj_symbol *gab_obj_symbol_create(s_i8 name) {
   return self;
 }
 
-gab_obj_effect *gab_obj_effect_create(gab_obj_closure *c, u8 *ip, u8 arity,
-                                      u8 len, gab_value frame[len]) {
+gab_obj_effect *gab_obj_effect_create(gab_obj_closure *c, u8 *ip, u8 have,
+                                      u8 want, u8 len, gab_value frame[len]) {
   gab_obj_effect *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_effect, gab_value, len, TYPE_EFFECT);
 
   self->c = c;
   self->ip = ip;
-  self->arity = arity;
+  self->have = have;
+  self->want = want;
   self->len = len;
 
   memcpy(self->frame, frame, len * sizeof(gab_value));

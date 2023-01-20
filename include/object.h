@@ -496,7 +496,10 @@ struct gab_obj_effect {
   u8 *ip;
 
   // The number of arguments yielded
-  u8 arity;
+  u8 have;
+
+  // The number of values wanted
+  u8 want;
 
   // Size of the stack frame
   u8 len;
@@ -510,7 +513,7 @@ struct gab_obj_effect {
 #define GAB_OBJ_TO_EFFECT(value) ((gab_obj_effect *)value)
 
 gab_obj_effect *gab_obj_effect_create(gab_obj_closure *c, u8 *ip, u8 arity,
-                                      u8 len, gab_value frame[len]);
+                                      u8 want, u8 len, gab_value frame[len]);
 
 /*
  * ------------- HELPERS ------------
