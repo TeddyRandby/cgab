@@ -91,14 +91,15 @@ gab_value gab_shared_object_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
 
   void *handle = dlopen((char *)path->data, RTLD_LAZY);
 
-  if (!handle)
-    return GAB_VAL_NULL();
+  if (!handle) {
+      gab_panic(gab, vm, "Couldn't open module");
+  }
 
   module_f symbol = dlsym(handle, "gab_mod");
 
   if (!symbol) {
     dlclose(handle);
-    return GAB_VAL_NULL();
+    gab_panic(gab, vm, "Missing symbol 'gab_mod'");
   }
 
   gab_value result = symbol(gab);

@@ -22,7 +22,7 @@ def unwrap[Ok]
 end
 
 def unwrap[Err]
-  self:print!
+    panic(self.err)
 end
 
 def unwrap_or[Ok](alternative)

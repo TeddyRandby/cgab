@@ -22,7 +22,7 @@ def unwrap[Some]
 end
 
 def unwrap[None]
-    self.none!
+    panic('Tried to unwrap none')
 end
 
 def unwrap_or[Some](alternative)
