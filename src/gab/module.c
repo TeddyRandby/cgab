@@ -7,7 +7,9 @@
 
 gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
   self->name = name;
-  self->source = source;
+  self->source = a_i8_create(source.data, source.len);
+  self->previous_compiled_op = OP_NOP;
+  self->main = 0;
 
   v_u8_create(&self->bytecode, 256);
   v_u8_create(&self->tokens, 256);
@@ -46,6 +48,8 @@ void gab_module_destroy(gab_module *mod) {
     v_s_i8_destroy(mod->source_lines);
     DESTROY(mod->source_lines);
   }
+
+  a_i8_destroy(mod->source);
 
   DESTROY(mod);
 }

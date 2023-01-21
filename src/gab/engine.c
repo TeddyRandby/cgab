@@ -24,7 +24,7 @@ gab_engine *gab_create() {
 
   gab_gc_create(&gab->gc);
 
-  gab->types[TYPE_NULL] = GAB_SYMBOL("null");
+  gab->types[TYPE_NIL] = GAB_VAL_NIL();
   gab->types[TYPE_NUMBER] = GAB_SYMBOL("number");
   gab->types[TYPE_BOOLEAN] = GAB_SYMBOL("boolean");
   gab->types[TYPE_STRING] = GAB_SYMBOL("string");
@@ -70,6 +70,10 @@ void gab_cleanup(gab_engine *gab) {
   for (u8 i = 0; i < GAB_NTYPES; i++) {
     gab_dref(gab, NULL, gab->types[i]);
   }
+
+  for (u8 i = 0; i < gab->argc; i++) {
+    gab_dref(gab, NULL, gab->argv_values[i]);
+  }
 }
 
 void gab_destroy(gab_engine *gab) {
@@ -86,15 +90,19 @@ void gab_destroy(gab_engine *gab) {
   DESTROY(gab);
 }
 
-gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags,
-                        u8 narguments, s_i8 arguments[narguments]) {
-  return gab_bc_compile(gab, name, source, flags, narguments, arguments);
+void gab_args(gab_engine *gab, u8 argc, s_i8 argv_names[argc],
+              gab_value argv_values[argc]) {
+  gab->argc = argc;
+  gab->argv_names = argv_names;
+  gab->argv_values = argv_values;
 }
 
-gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags, u8 argc,
-                  gab_value argv[argc]) {
-  gab_value result = gab_vm_run(gab, main, flags, argc, argv);
-  return result;
+gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags) {
+  return gab_bc_compile(gab, name, source, flags, gab->argc, gab->argv_names);
+}
+
+gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags) {
+  return gab_vm_run(gab, main, flags, gab->argc, gab->argv_values);
 };
 
 void gab_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
@@ -151,7 +159,7 @@ gab_value gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
 gab_value gab_send(gab_engine *gab, s_i8 name, gab_value receiver, u8 argc,
                    gab_value argv[argc]) {
 
-    // Cleanup the module
+  // Cleanup the module
   gab_module *mod = gab_bc_compile_send(gab, name, receiver, argc, argv);
 
   gab_value result = gab_vm_run(gab, mod, GAB_FLAG_PANIC_ON_FAIL, 0, NULL);

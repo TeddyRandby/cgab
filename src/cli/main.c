@@ -1,7 +1,9 @@
 #include "builtins.h"
 #include "include/core.h"
 #include "include/gab.h"
+#include "include/object.h"
 #include "include/os.h"
+#include <assert.h>
 #include <stdio.h>
 
 gab_value make_print(gab_engine *gab) {
@@ -41,20 +43,33 @@ void gab_run_file(const char *path) {
 
   gab_engine *gab = gab_create();
 
-  s_i8 arg_names[] = {s_i8_cstr("print"), s_i8_cstr("require"),
-                      s_i8_cstr("panic")};
+  s_i8 arg_names[] = {
+      s_i8_cstr("print"),
+      s_i8_cstr("require"),
+      s_i8_cstr("panic"),
+      s_i8_cstr("String"),
+      s_i8_cstr("Number"),
+      s_i8_cstr("Boolean"),
+  };
 
   gab_value args[] = {
       make_print(gab),
       make_require(gab),
       GAB_BUILTIN(panic),
+      gab_get_type(gab, TYPE_STRING),
+      gab_get_type(gab, TYPE_NUMBER),
+      gab_get_type(gab, TYPE_BOOLEAN),
   };
+
+  static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
+
+  gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
 
   a_i8 *src = os_read_file(path);
 
   gab_module *main =
       gab_compile(gab, s_i8_cstr("__main__"), s_i8_create(src->data, src->len),
-                  GAB_FLAG_DUMP_ERROR, LEN_CARRAY(args), arg_names);
+                  GAB_FLAG_DUMP_ERROR);
 
   gab_value result = GAB_VAL_NIL();
 
@@ -62,14 +77,11 @@ void gab_run_file(const char *path) {
     goto fin;
   }
 
-  result = gab_run(gab, main, GAB_FLAG_DUMP_ERROR, LEN_CARRAY(args), args);
+  result = gab_run(gab, main, GAB_FLAG_DUMP_ERROR);
 
 fin:
   // Cleanup the result
   gab_dref(gab, NULL, result);
-  for (u8 i = 0; i < LEN_CARRAY(args); i++) {
-    gab_dref(gab, NULL, args[i]);
-  }
 
   // Cleanup the engine, module, and imports
   gab_module_cleanup(gab, main);

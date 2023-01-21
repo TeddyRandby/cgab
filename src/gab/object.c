@@ -228,7 +228,7 @@ void gab_obj_destroy(gab_engine* gab, gab_vm* vm, gab_obj *self) {
     return;
   }
   case TYPE_BOOLEAN:
-  case TYPE_NULL:
+  case TYPE_NIL:
   case TYPE_NUMBER:
   case GAB_NTYPES:
     return;
@@ -483,12 +483,6 @@ i16 gab_obj_record_grow(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
 
   return v_u64_push(&self->dynamic_values, value);
 }
-
-void gab_obj_record_shrink(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
-                           gab_value key) {
-  if (self->is_dynamic) {
-  }
-};
 
 gab_obj_container *gab_obj_container_create(gab_obj_container_cb destructor,
                                             void *data) {

@@ -40,16 +40,16 @@ libcgab = library('cgab',
 #   install: true,
 #   install_dir: '/usr/local/lib/gab/'
 # )
-#
-# shared_library('cgabobject',
-#   'src/lib/object.c',
-#   link_with: libcgab,
-#   install: true,
-#   install_dir: '/usr/local/lib/gab/'
-# )
 
-shared_library('cgabstr',
-  'src/lib/str.c',
+shared_library('cgabobject',
+  'src/lib/object.c',
+  link_with: libcgab,
+  install: true,
+  install_dir: '/usr/local/lib/gab/'
+)
+
+shared_library('cgabstring',
+  'src/lib/string.c',
   link_with: libcgab,
   install: true,
   install_dir: '/usr/local/lib/gab/'

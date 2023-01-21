@@ -3,8 +3,8 @@
 #include "include/gab.h"
 #include "include/object.h"
 #include "include/value.h"
-#include <time.h>
 #include <stdio.h>
+#include <time.h>
 
 typedef struct {
   u32 state[16];
@@ -60,14 +60,15 @@ static f64 random_float() {
   return result;
 }
 
-gab_value gab_lib_random(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_random(gab_engine *gab, gab_vm *vm, u8 argc,
+                         gab_value argv[argc]) {
 
   f64 min, max;
 
   switch (argc) {
   case 1: {
     if (!GAB_VAL_IS_NUMBER(argv[0])) {
-      return GAB_VAL_NULL();
+      gab_panic(gab, vm, "Invalid call to gab_lib_random");
     }
 
     min = 0;
@@ -77,12 +78,8 @@ gab_value gab_lib_random(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[ar
   }
 
   case 2: {
-    if (!GAB_VAL_IS_NUMBER(argv[0])) {
-      return GAB_VAL_NULL();
-    }
-
-    if (!GAB_VAL_IS_NUMBER(argv[1])) {
-      return GAB_VAL_NULL();
+    if (!GAB_VAL_IS_NUMBER(argv[0]) || !GAB_VAL_IS_NUMBER(argv[1])) {
+      gab_panic(gab, vm, "Invalid call to gab_lib_random");
     }
 
     min = GAB_VAL_TO_NUMBER(argv[0]);
@@ -91,7 +88,7 @@ gab_value gab_lib_random(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[ar
   }
 
   default:
-    return GAB_VAL_NULL();
+    gab_panic(gab, vm, "Invalid call to gab_lib_random");
   }
 
   f64 num = min + (random_float() * max);
@@ -99,10 +96,11 @@ gab_value gab_lib_random(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[ar
   return GAB_VAL_NUMBER(num);
 }
 
-gab_value gab_lib_floor(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_floor(gab_engine *gab, gab_vm *vm, u8 argc,
+                        gab_value argv[argc]) {
 
   if (argc != 1 || !GAB_VAL_IS_NUMBER(argv[0])) {
-    return GAB_VAL_NULL();
+      gab_panic(gab, vm, "Invalid call to gab_lib_floor");
   }
 
   f64 float_num = GAB_VAL_TO_NUMBER(argv[0]);
@@ -111,9 +109,10 @@ gab_value gab_lib_floor(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[arg
   return GAB_VAL_NUMBER(int_num + (float_num < 0));
 }
 
-gab_value gab_lib_from(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_from(gab_engine *gab, gab_vm *vm, u8 argc,
+                       gab_value argv[argc]) {
   if (!GAB_VAL_IS_STRING(argv[0])) {
-    return GAB_VAL_NULL();
+      gab_panic(gab, vm, "Invalid call to gab_lib_from");
   }
 
   gab_obj_string *str = GAB_VAL_TO_STRING(argv[0]);
@@ -127,7 +126,7 @@ gab_value gab_lib_from(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc
   return GAB_VAL_NUMBER(strtod(cstr, NULL));
 };
 
-gab_value gab_mod(gab_engine *gab, gab_vm* vm) {
+gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   s_i8 keys[] = {
       s_i8_cstr("random"),
       s_i8_cstr("floor"),
@@ -140,5 +139,5 @@ gab_value gab_mod(gab_engine *gab, gab_vm* vm) {
       GAB_BUILTIN(from),
   };
 
-  return gab_bundle_record(gab, vm, LEN_CARRAY(values), keys, values);
+  return GAB_VAL_NIL();
 }

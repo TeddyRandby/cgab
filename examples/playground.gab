@@ -1,17 +1,7 @@
 'std':require
 
-def io = 'io':require
+def str = 'Hello World'
 
-let val = 'hello world' .. ' its me' .. ' Teddy'
+str:len:print
 
-def handle = io:open('./test.txt', 'w+'):unwrap
-
-handle:write(val):unwrap
-
-def say_hello(name)
-    let n = name or yield
-
-    print('Hello {n}')
-end
-
-say_hello()("Bob")
+print(..str:split(' '))

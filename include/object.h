@@ -33,7 +33,7 @@ typedef enum gab_type {
   TYPE_SHAPE,
   TYPE_SYMBOL,
   TYPE_CONTAINER,
-  TYPE_NULL,
+  TYPE_NIL,
   TYPE_NUMBER,
   TYPE_BOOLEAN,
   GAB_NTYPES,
@@ -395,9 +395,6 @@ gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, u64 size,
 
 i16 gab_obj_record_grow(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
                         gab_value key, gab_value value);
-
-void gab_obj_record_shrink(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
-                           gab_value key);
 
 static inline void gab_obj_record_set(gab_obj_record *self, u16 offset,
                                       gab_value value) {

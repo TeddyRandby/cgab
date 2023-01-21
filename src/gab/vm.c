@@ -111,7 +111,7 @@ gab_value vm_error(gab_vm *vm, gab_status e, const char *help_fmt, ...) {
   return GAB_VAL_NIL();
 }
 
-void gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
+[[noreturn]] void gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
   vm_error(vm, GAB_PANIC, msg);
 
   exit(0);
@@ -124,8 +124,6 @@ void gab_vm_create(gab_vm *self, u8 flags, u8 argc, gab_value argv[argc]) {
   self->frame = self->call_stack;
   self->top = self->stack;
   self->flags = flags;
-  self->argc = argc;
-  self->argv = argv;
 }
 
 void dump_frame(gab_value *slots, gab_value *top, const char *name) {
@@ -404,6 +402,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_value callee = PEEK_N(arity + 1);
 
       STORE_FRAME();
+
       if (GAB_VAL_IS_CLOSURE(callee)) {
         call_closure(VM(), GAB_VAL_TO_CLOSURE(callee), arity, want);
       } else if (GAB_VAL_IS_BUILTIN(callee)) {
@@ -473,23 +472,22 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       WRITE_INLINEQWORD(type);
 
       STORE_FRAME();
+
       if (GAB_VAL_IS_CLOSURE(spec)) {
         WRITE_BYTE(16, instr + 1);
 
         call_closure(VM(), GAB_VAL_TO_CLOSURE(spec), arity, want);
-        LOAD_FRAME();
-
-        NEXT();
       } else if (GAB_VAL_IS_BUILTIN(spec)) {
         WRITE_BYTE(16, instr + 2);
 
         call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), arity + 1,
                      want);
-
-        NEXT();
       } else {
         return vm_error(VM(), GAB_NOT_CALLABLE, "");
       }
+
+      LOAD_FRAME();
+      NEXT();
     }
     }
 
@@ -547,19 +545,18 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         gab_value spec = gab_obj_message_get(func, offset);
 
         STORE_FRAME();
+
         if (GAB_VAL_IS_CLOSURE(spec)) {
           call_closure(VM(), GAB_VAL_TO_CLOSURE(spec), arity, want);
-          LOAD_FRAME();
-
-          NEXT();
         } else if (GAB_VAL_IS_BUILTIN(spec)) {
           call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec),
                        arity + 1, want);
-
-          NEXT();
         } else {
           return vm_error(VM(), GAB_NOT_CALLABLE, "");
         }
+
+        LOAD_FRAME();
+        NEXT();
       }
 
       gab_value spec = gab_obj_message_get(func, offset);
@@ -620,19 +617,18 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         gab_value spec = gab_obj_message_get(func, offset);
 
         STORE_FRAME();
+
         if (GAB_VAL_IS_CLOSURE(spec)) {
           call_closure(VM(), GAB_VAL_TO_CLOSURE(spec), arity, want);
-          LOAD_FRAME();
-
-          NEXT();
         } else if (GAB_VAL_IS_BUILTIN(spec)) {
           call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec),
                        arity + 1, want);
-
-          NEXT();
         } else {
           return vm_error(VM(), GAB_NOT_CALLABLE, "");
         }
+
+        LOAD_FRAME();
+        NEXT();
       }
 
       gab_value spec = gab_obj_message_get(func, offset);

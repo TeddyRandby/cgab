@@ -2172,7 +2172,7 @@ gab_module *gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags,
   gab_module_create(mod, name, source);
 
   gab_bc bc;
-  gab_bc_create(&bc, source, flags);
+  gab_bc_create(&bc, s_i8_create(mod->source->data, mod->source->len), flags);
 
   i32 main = compile(gab, &bc, mod, name, narguments, arguments);
 

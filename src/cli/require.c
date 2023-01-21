@@ -119,30 +119,25 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
                                   const s_i8 module) {
   a_i8 *src = os_read_file((char *)path->data);
 
-  s_i8 arg_names[] = {
-      s_i8_cstr("print"),
-      s_i8_cstr("require"),
-      s_i8_cstr("panic"),
-  };
+  gab_module *pkg =
+      gab_compile(gab, s_i8_create(path->data, path->len),
+                  s_i8_create(src->data, src->len), GAB_FLAG_NONE);
 
-  gab_module *pkg = gab_compile(gab, s_i8_create(path->data, path->len),
-                                s_i8_create(src->data, src->len), GAB_FLAG_NONE,
-                                LEN_CARRAY(arg_names), arg_names);
+  a_i8_destroy(src);
 
   if (pkg == NULL) {
     gab_panic(gab, vm, "Failed to compile module");
   }
 
   gab_value res =
-      gab_run(gab, pkg, GAB_FLAG_DUMP_ERROR | GAB_FLAG_PANIC_ON_FAIL, vm->argc,
-              vm->argv);
+      gab_run(gab, pkg, GAB_FLAG_DUMP_ERROR | GAB_FLAG_PANIC_ON_FAIL);
 
   import *i = NEW(import);
 
   i->k = IMPORT_SOURCE;
   i->cache = res;
   i->as.mod = pkg;
-  a_i8_destroy(src);
+
   add_import(gab, module, i);
 
   return res;

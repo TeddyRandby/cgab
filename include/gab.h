@@ -33,6 +33,8 @@ void gab_module_destroy(gab_module *mod);
 // Deref all referenced objects
 void gab_module_cleanup(gab_engine *gab, gab_module *mod);
 
+void gab_args(gab_engine* gab, u8 argc, s_i8 argv_names[argc], gab_value argv_values[argc]);
+
 /**
  * Compile a source string into a Gab Module.
  *
@@ -44,8 +46,7 @@ void gab_module_cleanup(gab_engine *gab, gab_module *mod);
  *
  * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
  */
-gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags,
-                        u8 narguments, s_i8 args[narguments]);
+gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags);
 
 /**
  * Run a module in the gab vm.
@@ -62,8 +63,7 @@ gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags,
  *
  * @return The return value of the closure
  */
-gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags, u8 argc,
-                  gab_value argv[argc]);
+gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags);
 
 /**
  * Crash the given VM with the given message

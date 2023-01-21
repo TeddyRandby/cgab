@@ -1,2 +1,4 @@
 require('result')
 require('option')
+require('string')
+require('object')

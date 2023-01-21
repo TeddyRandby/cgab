@@ -67,9 +67,9 @@ struct gab_module {
   v_s_i8 *source_lines;
 
   /*
-     A slice over the source code.
+     A copy of the source code
   */
-  s_i8 source;
+  a_i8* source;
 
   u16 main;
 
