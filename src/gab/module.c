@@ -42,8 +42,11 @@ void gab_module_destroy(gab_module *mod) {
   v_u64_destroy(&mod->lines);
   d_gab_constant_destroy(&mod->constants);
   v_s_i8_destroy(&mod->sources);
-  v_s_i8_destroy(mod->source_lines);
-  DESTROY(mod->source_lines);
+  if (mod->source_lines) {
+    v_s_i8_destroy(mod->source_lines);
+    DESTROY(mod->source_lines);
+  }
+
   DESTROY(mod);
 }
 
@@ -173,8 +176,8 @@ u8 gab_module_push_return(gab_module *self, u8 have, u8 var, gab_token t, u64 l,
   gab_module_push_byte(self, have, t, l, s);
   return OP_VARRETURN;
 }
-u8 gab_module_push_yield(gab_module *self, u8 have, u8 var,
-                         gab_token t, u64 l, s_i8 s) {
+u8 gab_module_push_yield(gab_module *self, u8 have, u8 var, gab_token t, u64 l,
+                         s_i8 s) {
   u8 op = var ? OP_VARYIELD : OP_YIELD;
 
   gab_module_push_op(self, op, t, l, s);
@@ -438,7 +441,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_STORE_UPVALUE_7:
   case OP_STORE_UPVALUE_8:
   case OP_PUSH_FALSE:
-  case OP_PUSH_NULL:
+  case OP_PUSH_NIL:
   case OP_PUSH_TRUE:
   case OP_ADD:
   case OP_ASSERT:

@@ -1,14 +1,14 @@
+#include "builtins.h"
 #include "include/core.h"
 #include "include/gab.h"
 #include "include/os.h"
-#include "builtins.h"
 #include <stdio.h>
 
 gab_value make_print(gab_engine *gab) {
   gab_value receivers[] = {
       gab_get_type(gab, TYPE_BOOLEAN),
       gab_get_type(gab, TYPE_NUMBER),
-      GAB_VAL_NULL(),
+      GAB_VAL_NIL(),
       gab_get_type(gab, TYPE_STRING),
       gab_get_type(gab, TYPE_SYMBOL),
       gab_get_type(gab, TYPE_CONTAINER),
@@ -30,8 +30,8 @@ gab_value make_print(gab_engine *gab) {
 gab_value make_require(gab_engine *gab) {
   gab_value require_builtin = GAB_BUILTIN(require);
 
-  gab_specialize(gab, s_i8_cstr("require"), GAB_VAL_NULL(),
-                        require_builtin);
+  gab_specialize(gab, s_i8_cstr("require"), gab_get_type(gab, TYPE_STRING),
+                 require_builtin);
 
   return require_builtin;
 }
@@ -39,13 +39,10 @@ gab_value make_require(gab_engine *gab) {
 void gab_run_file(const char *path) {
   imports_create();
 
-  gab_engine *gab = gab_create(GAB_FLAG_DUMP_ERROR);
+  gab_engine *gab = gab_create();
 
-  s_i8 arg_names[] = {
-      s_i8_cstr("print"),
-      s_i8_cstr("require"),
-      s_i8_cstr("panic")
-  };
+  s_i8 arg_names[] = {s_i8_cstr("print"), s_i8_cstr("require"),
+                      s_i8_cstr("panic")};
 
   gab_value args[] = {
       make_print(gab),
@@ -57,15 +54,15 @@ void gab_run_file(const char *path) {
 
   gab_module *main =
       gab_compile(gab, s_i8_cstr("__main__"), s_i8_create(src->data, src->len),
-                  LEN_CARRAY(args), arg_names);
+                  GAB_FLAG_DUMP_ERROR, LEN_CARRAY(args), arg_names);
 
-  gab_value result = GAB_VAL_NULL();
+  gab_value result = GAB_VAL_NIL();
 
   if (main == NULL) {
     goto fin;
   }
 
-  result = gab_run(gab, main, LEN_CARRAY(args), args);
+  result = gab_run(gab, main, GAB_FLAG_DUMP_ERROR, LEN_CARRAY(args), args);
 
 fin:
   // Cleanup the result

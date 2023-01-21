@@ -5,7 +5,7 @@
 
 gab_value gab_lib_keys(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (!GAB_VAL_IS_RECORD(argv[0])) {
-    return GAB_VAL_NULL();
+    return GAB_VAL_NIL();
   }
 
   gab_obj_record *obj = GAB_VAL_TO_RECORD(argv[0]);
@@ -34,12 +34,12 @@ gab_value gab_lib_len(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]
     return GAB_VAL_NUMBER(obj->len);
   }
 
-  return GAB_VAL_NULL();
+  return GAB_VAL_NIL();
 }
 
 gab_value gab_lib_pop(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (argc != 1 || !GAB_VAL_IS_RECORD(argv[0])) {
-    return GAB_VAL_NULL();
+    return GAB_VAL_NIL();
   }
 
   gab_obj_record *obj = GAB_VAL_TO_RECORD(argv[0]);
@@ -56,7 +56,7 @@ gab_value gab_lib_pop(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]
 
 gab_value gab_lib_push(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_RECORD(argv[0])) {
-    return GAB_VAL_NULL();
+    return GAB_VAL_NIL();
   }
 
   gab_obj_record *obj = GAB_VAL_TO_RECORD(argv[0]);
@@ -77,7 +77,7 @@ gab_value gab_lib_push(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc
 gab_value gab_lib_slice(gab_engine *gab, gab_vm* vm, u8 argc,
                         gab_value argv[argc]) {
   if (argc < 1 && !GAB_VAL_IS_RECORD(argv[0])) {
-    return GAB_VAL_NULL();
+    return GAB_VAL_NIL();
   }
 
   gab_obj_record *r = GAB_VAL_TO_RECORD(argv[0]);
@@ -88,7 +88,7 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm* vm, u8 argc,
   switch (argc) {
   case 2: {
     if (!GAB_VAL_IS_NUMBER(argv[1])) {
-      return GAB_VAL_NULL();
+      return GAB_VAL_NIL();
     }
     u64 a = GAB_VAL_TO_NUMBER(argv[1]);
     start = CLAMP(a, len);
@@ -96,7 +96,7 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm* vm, u8 argc,
   }
   case 3:
     if (!GAB_VAL_IS_NUMBER(argv[1]) || !GAB_VAL_TO_NUMBER(argv[2])) {
-      return GAB_VAL_NULL();
+      return GAB_VAL_NIL();
     }
     u64 a = GAB_VAL_TO_NUMBER(argv[1]);
     u64 b = GAB_VAL_TO_NUMBER(argv[2]);
@@ -104,7 +104,7 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm* vm, u8 argc,
     end = CLAMP(b, len);
     break;
   default:
-    return GAB_VAL_NULL();
+    return GAB_VAL_NIL();
   }
 
   u64 result_len = end - start;

@@ -46,24 +46,25 @@ typedef struct gab_gc {
 void gab_gc_create(gab_gc *gc);
 void gab_gc_destroy(gab_gc *gc);
 
-void gab_gc_collect(gab_gc *gc, gab_vm *vm);
+void gab_gc_collect(gab_engine *gab, gab_vm *vm, gab_gc *gc);
 
 #if GAB_DEBUG_GC
 
-void __gab_gc_iref(gab_gc *gc, gab_vm *vm, gab_value val, const char *file,
-                   i32 line);
-void __gab_gc_dref(gab_gc *gc, gab_vm *vm, gab_value val, const char *file,
-                   i32 line);
+void __gab_gc_iref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_value val,
+                   const char *file, i32 line);
+void __gab_gc_dref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_value val,
+                   const char *file, i32 line);
 
-#define gab_gc_iref(gc, vm, val)                                               \
-  (__gab_gc_iref(gc, vm, val, __FILE__, __LINE__))
-#define gab_gc_dref(gc, vm, val)                                               \
-  (__gab_gc_dref(gc, vm, val, __FILE__, __LINE__))
+#define gab_gc_iref(gab, vm, gc, val)                                          \
+  (__gab_gc_iref(gab, vm, gc, val, __FILE__, __LINE__))
+#define gab_gc_dref(gab, vm, gc, val)                                          \
+  (__gab_gc_dref(gab, vm, gc, val, __FILE__, __LINE__))
 
 #else
 
-void gab_gc_iref(gab_gc *gc, gab_vm *vm, gab_value val);
-void gab_gc_dref(gab_gc *gc, gab_vm *vm, gab_value val);
+void gab_gc_iref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_value val);
+
+void gab_gc_dref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_value val);
 
 #endif
 

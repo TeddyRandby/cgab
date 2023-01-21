@@ -83,7 +83,7 @@ gab_value check_import(gab_engine *gab, s_i8 name) {
     import *i = d_import_read(&imports, name);
     return i->cache;
   }
-  return GAB_VAL_NULL();
+  return GAB_VAL_NIL();
 }
 
 gab_value gab_shared_object_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
@@ -92,7 +92,7 @@ gab_value gab_shared_object_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
   void *handle = dlopen((char *)path->data, RTLD_LAZY);
 
   if (!handle) {
-      gab_panic(gab, vm, "Couldn't open module");
+    gab_panic(gab, vm, "Couldn't open module");
   }
 
   module_f symbol = dlsym(handle, "gab_mod");
@@ -126,14 +126,16 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
   };
 
   gab_module *pkg = gab_compile(gab, s_i8_create(path->data, path->len),
-                                s_i8_create(src->data, src->len),
+                                s_i8_create(src->data, src->len), GAB_FLAG_NONE,
                                 LEN_CARRAY(arg_names), arg_names);
 
   if (pkg == NULL) {
     gab_panic(gab, vm, "Failed to compile module");
   }
 
-  gab_value res = gab_run(gab, pkg, vm->argc, vm->argv);
+  gab_value res =
+      gab_run(gab, pkg, GAB_FLAG_DUMP_ERROR | GAB_FLAG_PANIC_ON_FAIL, vm->argc,
+              vm->argv);
 
   import *i = NEW(import);
 
@@ -198,7 +200,7 @@ gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
   const s_i8 module = gab_obj_string_ref(arg);
 
   gab_value cached = check_import(gab, module);
-  if (!GAB_VAL_IS_NULL(cached)) {
+  if (!GAB_VAL_IS_NIL(cached)) {
     // Because the result of a builtin is always decremented,
     // increment the cached values when they are returned.
     gab_iref(gab, vm, cached);

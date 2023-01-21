@@ -15,7 +15,7 @@
 /**
  * Gab API stuff
  */
-gab_engine *gab_create(u8 flags) {
+gab_engine *gab_create() {
   gab_engine *gab = NEW(gab_engine);
 
   d_strings_create(&gab->interned_strings, INTERN_INITIAL_CAP);
@@ -23,8 +23,6 @@ gab_engine *gab_create(u8 flags) {
   d_messages_create(&gab->interned_messages, INTERN_INITIAL_CAP);
 
   gab_gc_create(&gab->gc);
-
-  gab->flags = flags;
 
   gab->types[TYPE_NULL] = GAB_SYMBOL("null");
   gab->types[TYPE_NUMBER] = GAB_SYMBOL("number");
@@ -78,7 +76,7 @@ void gab_destroy(gab_engine *gab) {
   if (gab == NULL)
     return;
 
-  gab_gc_collect(&gab->gc, NULL);
+  gab_gc_collect(gab, NULL, &gab->gc);
   gab_gc_destroy(&gab->gc);
 
   d_strings_destroy(&gab->interned_strings);
@@ -88,27 +86,27 @@ void gab_destroy(gab_engine *gab) {
   DESTROY(gab);
 }
 
-gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 narguments,
-                        s_i8 arguments[narguments]) {
-  return gab_bc_compile(gab, name, source, narguments, arguments);
+gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags,
+                        u8 narguments, s_i8 arguments[narguments]) {
+  return gab_bc_compile(gab, name, source, flags, narguments, arguments);
 }
 
-gab_value gab_run(gab_engine *gab, gab_module *main, u8 argc,
+gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags, u8 argc,
                   gab_value argv[argc]) {
-  gab_value result = gab_vm_run(gab, main, argc, argv);
+  gab_value result = gab_vm_run(gab, main, flags, argc, argv);
   return result;
 };
 
-void gab_panic(gab_engine* gab, gab_vm* vm, const char* msg) {
-    gab_vm_panic(gab, vm, msg);
+void gab_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
+  gab_vm_panic(gab, vm, msg);
 }
 
 void gab_dref(gab_engine *gab, gab_vm *vm, gab_value value) {
-  gab_gc_dref(&gab->gc, vm, value);
+  gab_gc_dref(gab, vm, &gab->gc, value);
 };
 
 void gab_iref(gab_engine *gab, gab_vm *vm, gab_value value) {
-  gab_gc_dref(&gab->gc, vm, value);
+  gab_gc_dref(gab, vm, &gab->gc, value);
 };
 
 gab_value gab_bundle_record(gab_engine *gab, gab_vm *vm, u64 size,
@@ -139,15 +137,30 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
 }
 
 gab_value gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
-                    gab_value specialization) {
+                         gab_value specialization) {
   gab_obj_message *f = gab_obj_message_create(gab, name);
 
   if (gab_obj_message_find(f, receiver) != UINT16_MAX)
-      return GAB_VAL_NULL();
+    return GAB_VAL_NIL();
 
   gab_obj_message_insert(f, receiver, specialization);
 
   return GAB_VAL_OBJ(f);
+}
+
+gab_value gab_send(gab_engine *gab, s_i8 name, gab_value receiver, u8 argc,
+                   gab_value argv[argc]) {
+
+    // Cleanup the module
+  gab_module *mod = gab_bc_compile_send(gab, name, receiver, argc, argv);
+
+  gab_value result = gab_vm_run(gab, mod, GAB_FLAG_PANIC_ON_FAIL, 0, NULL);
+
+  gab_module_cleanup(gab, mod);
+
+  gab_module_destroy(mod);
+
+  return result;
 }
 
 /**
@@ -183,7 +196,7 @@ i32 gab_engine_intern(gab_engine *self, gab_value value) {
 }
 
 gab_obj_message *gab_engine_find_message(gab_engine *self, s_i8 name,
-                                           u64 hash) {
+                                         u64 hash) {
   if (self->interned_messages.len == 0)
     return NULL;
 
@@ -270,23 +283,24 @@ gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size, u64 stride,
 
 gab_value gab_get_type(gab_engine *gab, gab_type t) { return gab->types[t]; }
 
-static inline gab_value pack_simple(gab_engine* gab, gab_vm* vm, const char* str, gab_value val) {
-    s_i8 key[] = { s_i8_cstr(str) };
-    return gab_bundle_record(gab, vm, 1, key, &val);
+static inline gab_value pack_simple(gab_engine *gab, gab_vm *vm,
+                                    const char *str, gab_value val) {
+  s_i8 key[] = {s_i8_cstr(str)};
+  return gab_bundle_record(gab, vm, 1, key, &val);
 }
 
-gab_value gab_result_ok(gab_engine* gab, gab_vm* vm, gab_value val) {
-    return pack_simple(gab, vm, "ok", val);
+gab_value gab_result_ok(gab_engine *gab, gab_vm *vm, gab_value val) {
+  return pack_simple(gab, vm, "ok", val);
 }
 
-gab_value gab_result_err(gab_engine* gab, gab_vm* vm, gab_value err) {
-    return pack_simple(gab, vm, "err", err);
+gab_value gab_result_err(gab_engine *gab, gab_vm *vm, gab_value err) {
+  return pack_simple(gab, vm, "err", err);
 }
 
-gab_value gab_option_some(gab_engine* gab, gab_vm* vm, gab_value some) {
-    return pack_simple(gab, vm, "some", some);
+gab_value gab_option_some(gab_engine *gab, gab_vm *vm, gab_value some) {
+  return pack_simple(gab, vm, "some", some);
 }
 
-gab_value gab_option_none(gab_engine* gab, gab_vm* vm) {
-    return pack_simple(gab, vm, "none", GAB_VAL_BOOLEAN(true));
+gab_value gab_option_none(gab_engine *gab, gab_vm *vm) {
+  return pack_simple(gab, vm, "none", GAB_VAL_BOOLEAN(true));
 }

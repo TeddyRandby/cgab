@@ -2,11 +2,9 @@
 
 def io = 'io':require
 
-let val = 'hello world' .. ' its me'
+let val = 'hello world' .. ' its me' .. ' Teddy'
 
 def handle = io:open('./test.txt', 'w+'):unwrap
-
-val:print
 
 handle:write(val):unwrap
 

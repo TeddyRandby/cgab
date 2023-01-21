@@ -2,8 +2,9 @@
 #define GAB_COMMON_H
 // Compilation options
 
-// Collect as frequently as possible (on every RC push). ALso collect debug info.
-#define GAB_DEBUG_GC 0
+// Collect as frequently as possible (on every RC push). ALso collect debug
+// info.
+#define GAB_DEBUG_GC 1
 // Log what is happening during collection.
 #define GAB_LOG_GC 0
 // Log what is happening during execution.
@@ -47,6 +48,7 @@
 #define GAB_FLAG_NONE 0
 #define GAB_FLAG_DUMP_BYTECODE 1
 #define GAB_FLAG_DUMP_ERROR 2
+#define GAB_FLAG_PANIC_ON_FAIL 4
 
 // VERSION
 #define GAB_VERSION_MAJOR 0

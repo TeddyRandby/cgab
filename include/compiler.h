@@ -52,6 +52,7 @@ typedef struct gab_bc {
   gab_token current_token;
   gab_token previous_token;
   u8 previous_op;
+  u8 flags;
   gab_lexer lex;
   u64 line;
 
@@ -77,8 +78,12 @@ typedef struct gab_bc {
   gab_bc_frame frames[FUNCTION_DEF_NESTING_MAX];
 } gab_bc;
 
-void gab_bc_create(gab_bc *bc, s_i8 source);
-gab_module *gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source,
+void gab_bc_create(gab_bc *bc, s_i8 source, u8 flags);
+
+gab_module *gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags,
                            u8 narguments, s_i8 arguments[narguments]);
+
+gab_module *gab_bc_compile_send(gab_engine *gab, s_i8 name, gab_value receiver,
+                                u8 argc, gab_value argv[argc]);
 
 #endif

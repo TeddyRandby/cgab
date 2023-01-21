@@ -52,10 +52,11 @@ struct gab_compile_rule {
   boolean multi_line;
 };
 
-void gab_bc_create(gab_bc *self, s_i8 source) {
+void gab_bc_create(gab_bc *self, s_i8 source, u8 flags) {
   self->scope_depth = 0;
   self->frame_count = 0;
   self->panic = false;
+  self->flags = flags;
 
   memset(self->frames, 0, sizeof(self->frames));
   gab_lexer_create(&self->lex, source);
@@ -539,7 +540,7 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
     is_message = true;
 
     if (match_token(bc, TOKEN_RBRACE)) {
-      push_op(bc, mod, OP_PUSH_NULL);
+      push_op(bc, mod, OP_PUSH_UNDEFINED);
     } else {
       if (compile_expression(gab, bc, mod) < 0)
         return COMP_ERR;
@@ -648,7 +649,7 @@ i32 compile_tuple(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 want,
       // If we want a constant number of expressions
       while (have < want) {
         // While we have fewer expressions than we want, push nulls.
-        push_op(bc, mod, OP_PUSH_NULL);
+        push_op(bc, mod, OP_PUSH_NIL);
         have++;
       }
     }
@@ -934,7 +935,6 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod,
     if (compile_expression(gab, bc, mod) < 0)
       return COMP_ERR;
 
-
     gab_module_push_store_local(mod, local, bc->previous_token, bc->line,
                                 bc->lex.previous_token_src);
 
@@ -1013,7 +1013,7 @@ i32 compile_exp_if(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   case COMP_TOKEN_NO_MATCH:
     for (u8 i = 0; i < result; i++)
-      push_op(bc, mod, OP_PUSH_NULL);
+      push_op(bc, mod, OP_PUSH_NIL);
 
     if (expect_token(bc, TOKEN_END) < 0)
       return COMP_ERR;
@@ -1376,8 +1376,14 @@ i32 compile_exp_num(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
 i32 compile_exp_bool(gab_engine *gab, gab_bc *bc, gab_module *mod,
                      boolean assignable) {
-  push_byte(bc, mod,
-            bc->previous_token == TOKEN_TRUE ? OP_PUSH_TRUE : OP_PUSH_FALSE);
+  push_op(bc, mod,
+          bc->previous_token == TOKEN_TRUE ? OP_PUSH_TRUE : OP_PUSH_FALSE);
+  return COMP_OK;
+}
+
+i32 compile_exp_nil(gab_engine *gab, gab_bc *bc, gab_module *mod,
+                    boolean assignable) {
+  push_op(bc, mod, OP_PUSH_NIL);
   return COMP_OK;
 }
 
@@ -1681,7 +1687,7 @@ i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   u16 f = add_message_constant(gab, mod, message);
 
-  push_op(bc, mod, OP_PUSH_NULL);
+  push_op(bc, mod, OP_PUSH_NIL);
 
   boolean vse = false;
   i32 result = compile_arguments(gab, bc, mod, &vse);
@@ -1697,7 +1703,6 @@ i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, gab_module *mod,
   gab_module_push_send(mod, result, vse, f, prev_tok, prev_line, prev_src);
 
   return VAR_RET;
-
 }
 
 i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -1942,7 +1947,7 @@ i32 compile_exp_lop(gab_engine *gab, gab_bc *bc, gab_module *mod,
                           bc->lex.previous_token_src);
   }
 
-  push_op(bc, mod, OP_PUSH_NULL);
+  push_op(bc, mod, OP_PUSH_NIL);
 
   up_scope(bc, mod);
   return COMP_OK;
@@ -1987,7 +1992,7 @@ i32 compile_exp_yld(gab_engine *gab, gab_bc *bc, gab_module *mod,
 i32 compile_exp_rtn(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   if (match_token(bc, TOKEN_NEWLINE)) {
-    push_op(bc, mod, OP_PUSH_NULL);
+    push_op(bc, mod, OP_PUSH_NIL);
     push_op(bc, mod, OP_RETURN_1);
     return COMP_OK;
   }
@@ -2083,6 +2088,7 @@ const gab_compile_rule gab_bc_rules[] = {
     PREFIX(num),                       // NUMBER
     PREFIX(bool),                      // FALSE
     PREFIX(bool),                      // TRUE
+    PREFIX(nil),                      // TRUE
     NONE(),                      // NEWLINE
     NONE(),                            // EOF
     NONE(),                            // ERROR
@@ -2121,13 +2127,52 @@ i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
   return add_constant(mod, GAB_VAL_OBJ(c));
 }
 
-gab_module *gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source,
+gab_module *gab_bc_compile_send(gab_engine *gab, s_i8 name, gab_value receiver,
+                                u8 argc, gab_value argv[argc]) {
+  gab_module *mod = NEW(gab_module);
+  gab_module_create(mod, name, (s_i8){0});
+
+  u16 message = add_message_constant(gab, mod, name);
+
+  u16 constant = add_constant(mod, receiver);
+
+  gab_module_push_op(mod, OP_CONSTANT, 0, 0, (s_i8){0});
+  gab_module_push_short(mod, constant, 0, 0, (s_i8){0});
+
+  for (u8 i = 0; i < argc; i++) {
+    u16 constant = add_constant(mod, receiver);
+
+    gab_module_push_op(mod, OP_CONSTANT, 0, 0, (s_i8){0});
+    gab_module_push_short(mod, constant, 0, 0, (s_i8){0});
+  }
+
+  gab_module_push_send(mod, argc, false, message, 0, 0, (s_i8){0});
+
+  gab_module_push_return(mod, 1, false, 0, 0, (s_i8){0});
+
+  gab_obj_prototype *p = gab_obj_prototype_create(mod, name);
+  p->nupvalues = 0;
+  p->narguments = 0;
+  p->nlocals = 0;
+  p->offset = 0;
+  p->len = mod->bytecode.len;
+
+  gab_obj_closure *c = gab_obj_closure_create(p, NULL);
+
+  add_constant(mod, GAB_VAL_OBJ(p));
+
+  mod->main = add_constant(mod, GAB_VAL_OBJ(c));
+
+  return mod;
+}
+
+gab_module *gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags,
                            u8 narguments, s_i8 arguments[narguments]) {
   gab_module *mod = NEW(gab_module);
   gab_module_create(mod, name, source);
 
   gab_bc bc;
-  gab_bc_create(&bc, source);
+  gab_bc_create(&bc, source, flags);
 
   i32 main = compile(gab, &bc, mod, name, narguments, arguments);
 
@@ -2136,7 +2181,7 @@ gab_module *gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source,
     return NULL;
   }
 
-  if (gab->flags & GAB_FLAG_DUMP_BYTECODE) {
+  if (flags & GAB_FLAG_DUMP_BYTECODE) {
     gab_module_dump(mod, name);
   }
 
@@ -2162,72 +2207,75 @@ static void dump_compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
 
   bc->panic = true;
 
-  va_list args;
-  va_start(args, help_fmt);
+  if (bc->flags & GAB_FLAG_DUMP_ERROR) {
 
-  gab_lexer_finish_line(&bc->lex);
+    va_list args;
+    va_start(args, help_fmt);
 
-  gab_bc_frame *frame = &bc->frames[bc->frame_count - 1];
-  s_i8 curr_token = bc->lex.previous_token_src;
-  u64 curr_src_index = bc->line - 1;
-  s_i8 curr_src;
+    gab_lexer_finish_line(&bc->lex);
 
-  if (curr_src_index < bc->lex.source_lines->len) {
-    curr_src = v_s_i8_val_at(bc->lex.source_lines, curr_src_index);
-  } else {
-    curr_src = s_i8_cstr("");
+    gab_bc_frame *frame = &bc->frames[bc->frame_count - 1];
+    s_i8 curr_token = bc->lex.previous_token_src;
+    u64 curr_src_index = bc->line - 1;
+    s_i8 curr_src;
+
+    if (curr_src_index < bc->lex.source_lines->len) {
+      curr_src = v_s_i8_val_at(bc->lex.source_lines, curr_src_index);
+    } else {
+      curr_src = s_i8_cstr("");
+    }
+
+    i8 *curr_src_start = curr_src.data;
+    i32 curr_src_len = curr_src.len;
+
+    while (is_whitespace(*curr_src_start)) {
+      curr_src_start++;
+      curr_src_len--;
+      if (curr_src_len == 0)
+        break;
+    }
+
+    s_i8 func_name = frame->locals_name[0];
+
+    a_i8 *curr_under = a_i8_empty(curr_src_len);
+
+    i8 *tok_start, *tok_end;
+
+    tok_start = curr_token.data;
+    tok_end = curr_token.data + curr_token.len;
+
+    const char *tok = gab_token_names[bc->previous_token];
+
+    for (u8 i = 0; i < curr_under->len; i++) {
+      if (curr_src_start + i >= tok_start && curr_src_start + i < tok_end)
+        curr_under->data[i] = '^';
+      else
+        curr_under->data[i] = ' ';
+    }
+
+    const char *curr_color = ANSI_COLOR_RED;
+
+    const char *curr_box = "\u256d";
+
+    fprintf(stderr,
+            "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET
+            "] Error near " ANSI_COLOR_MAGENTA "%s" ANSI_COLOR_RESET
+            ":\n\t%s%s %.4lu " ANSI_COLOR_RESET "%.*s"
+            "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
+            "\n\t\u2570\u2500> ",
+            (i32)func_name.len, func_name.data, tok, curr_box, curr_color,
+            curr_src_index + 1, curr_src_len, curr_src_start,
+            (i32)curr_under->len, curr_under->data);
+
+    a_i8_destroy(curr_under);
+
+    fprintf(stderr, ANSI_COLOR_YELLOW "%s. " ANSI_COLOR_RESET ANSI_COLOR_GREEN,
+            gab_status_names[e]);
+
+    vfprintf(stderr, help_fmt, args);
+
+    fprintf(stderr, "\n" ANSI_COLOR_RESET);
+
+    va_end(args);
   }
-
-  i8 *curr_src_start = curr_src.data;
-  i32 curr_src_len = curr_src.len;
-
-  while (is_whitespace(*curr_src_start)) {
-    curr_src_start++;
-    curr_src_len--;
-    if (curr_src_len == 0)
-      break;
-  }
-
-  s_i8 func_name = frame->locals_name[0];
-
-  a_i8 *curr_under = a_i8_empty(curr_src_len);
-
-  i8 *tok_start, *tok_end;
-
-  tok_start = curr_token.data;
-  tok_end = curr_token.data + curr_token.len;
-
-  const char *tok = gab_token_names[bc->previous_token];
-
-  for (u8 i = 0; i < curr_under->len; i++) {
-    if (curr_src_start + i >= tok_start && curr_src_start + i < tok_end)
-      curr_under->data[i] = '^';
-    else
-      curr_under->data[i] = ' ';
-  }
-
-  const char *curr_color = ANSI_COLOR_RED;
-
-  const char *curr_box = "\u256d";
-
-  fprintf(stderr,
-          "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET
-          "] Error near " ANSI_COLOR_MAGENTA "%s" ANSI_COLOR_RESET
-          ":\n\t%s%s %.4lu " ANSI_COLOR_RESET "%.*s"
-          "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
-          "\n\t\u2570\u2500> ",
-          (i32)func_name.len, func_name.data, tok, curr_box, curr_color,
-          curr_src_index + 1, curr_src_len, curr_src_start,
-          (i32)curr_under->len, curr_under->data);
-
-  a_i8_destroy(curr_under);
-
-  fprintf(stderr, ANSI_COLOR_YELLOW "%s. " ANSI_COLOR_RESET ANSI_COLOR_GREEN,
-          gab_status_names[e]);
-
-  vfprintf(stderr, help_fmt, args);
-
-  fprintf(stderr, "\n" ANSI_COLOR_RESET);
-
-  va_end(args);
 }

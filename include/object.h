@@ -99,12 +99,7 @@ struct gab_obj {
 /*
   'Generic' functions which handle all the different kinds of gab objects.
 */
-void gab_obj_destroy(gab_obj *self);
-
-static inline void gab_val_destroy(gab_value self) {
-  if (GAB_VAL_IS_OBJ(self))
-    gab_obj_destroy(GAB_VAL_TO_OBJ(self));
-}
+void gab_obj_destroy(gab_engine* gab, gab_vm* vm, gab_obj *self);
 
 /*
   Defined in common/log.c
@@ -266,7 +261,7 @@ typedef struct gab_obj_message gab_obj_message;
 #define NAME specs
 #define K gab_value
 #define V gab_value
-#define DEF_V GAB_VAL_NULL()
+#define DEF_V GAB_VAL_NIL()
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
 #include "include/dict.h"
@@ -414,7 +409,7 @@ static inline void gab_obj_record_set(gab_obj_record *self, u16 offset,
 
 static inline gab_value gab_obj_record_get(gab_obj_record *self, u16 offset) {
   if (offset == UINT16_MAX)
-    return GAB_VAL_NULL();
+    return GAB_VAL_NIL();
   else if (!self->is_dynamic)
     return self->static_values[offset];
   else
@@ -446,7 +441,7 @@ static inline gab_value gab_obj_record_read(gab_obj_record *self,
   A container to some unknown data.
 */
 typedef struct gab_obj_container gab_obj_container;
-typedef void (*gab_obj_container_cb)(gab_obj_container *self);
+typedef void (*gab_obj_container_cb)(gab_engine* gab, gab_vm* vm, void *data);
 struct gab_obj_container {
   gab_obj header;
 
@@ -523,7 +518,7 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self);
   A value is false if it is null or the boolean false.
 */
 static inline boolean gab_val_falsey(gab_value self) {
-  return GAB_VAL_IS_NULL(self) || GAB_VAL_IS_FALSE(self);
+  return GAB_VAL_IS_NIL(self) || GAB_VAL_IS_FALSE(self);
 }
 
 #endif

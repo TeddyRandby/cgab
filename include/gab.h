@@ -13,7 +13,7 @@ typedef struct gab_vm gab_vm;
  *
  * @return The allocated Gab Engine.
  */
-gab_engine *gab_create(u8 flags);
+gab_engine *gab_create();
 
 /**
  * Cleanup a Gab Engine.
@@ -44,8 +44,8 @@ void gab_module_cleanup(gab_engine *gab, gab_module *mod);
  *
  * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
  */
-gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 narguments,
-                        s_i8 args[narguments]);
+gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags,
+                        u8 narguments, s_i8 args[narguments]);
 
 /**
  * Run a module in the gab vm.
@@ -62,20 +62,30 @@ gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 narguments,
  *
  * @return The return value of the closure
  */
-gab_value gab_run(gab_engine *gab, gab_module *main, u8 argc,
+gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags, u8 argc,
                   gab_value argv[argc]);
 
-void gab_panic(gab_engine* gab, gab_vm* vm, const char* msg);
+/**
+ * Crash the given VM with the given message
+ *
+ * @param  gab The engine
+ *
+ * @param   vm The vm to panic
+ *
+ * @param  msg The message to present
+ *
+ */
+void gab_panic(gab_engine *gab, gab_vm *vm, const char *msg);
 
 /**
- * Decrement the RC of a gab value
+ * Decrement the reference count of a gab value
  *
  * @param val The value to clean up
  */
 void gab_dref(gab_engine *gab, gab_vm *vm, gab_value value);
 
 /**
- * Increment the RC of a gab value
+ * Increment the reference count of a gab value
  *
  * @param val The value to clean up
  */
@@ -112,24 +122,48 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
                            gab_value values[size]);
 
 /**
+ * Create a specialization on the given message for the given receiver
  *
+ * @param gab The engine
+ *
+ * @param name The message
+ *
+ * @param receiver The receiver of the message
+ *
+ * @param specialization The unique handler for this receiver
+ *
+ * @return The message that was updated
  */
 gab_value gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
-                    gab_value specialization);
+                         gab_value specialization);
 
+/**
+ * Send the message to the receiver
+ *
+ * @param gab The engine
+ *
+ * @param name The message
+ *
+ * @param receiver The receiver of the message
+ *
+ * @return The return value of the message
+ */
+gab_value gab_send(gab_engine *gab, s_i8 name, gab_value receiver, u8 argc,
+                   gab_value argv[argc]);
+
+/**
+ * Returns true if the value is truthy
+ *
+ * @param self The value to check
+ */
 static boolean gab_val_falsey(gab_value self);
 
 static gab_value gab_typeof(gab_engine *gab, gab_value self);
 
 gab_value gab_get_type(gab_engine *gab, gab_type t);
 
-gab_value gab_result_ok(gab_engine* gab, gab_vm* vm, gab_value val);
-
-gab_value gab_result_err(gab_engine* gab, gab_vm* vm, gab_value err);
-
-gab_value gab_option_some(gab_engine* gab, gab_vm* vm, gab_value some);
-
-gab_value gab_option_none(gab_engine* gab, gab_vm* vm);
+#define GAB_SEND(name, receiver, size, args)                                   \
+  gab_send(gab, s_i8_cstr(name), receiver, size, args)
 
 /**
  * A helper macro for creating a gab_obj_record
@@ -140,8 +174,7 @@ gab_value gab_option_none(gab_engine* gab, gab_vm* vm);
 /**
  * A helper macro for creating a gab_obj_record
  */
-#define GAB_ARRAY(vm, size, values)                                            \
-  gab_bundle_array(gab, vm, size, values)
+#define GAB_ARRAY(vm, size, values) gab_bundle_array(gab, vm, size, values)
 
 /**
  * A helper macro for creating a gab_obj_builtin

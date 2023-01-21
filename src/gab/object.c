@@ -1,6 +1,7 @@
 #include "include/object.h"
 #include "include/core.h"
 #include "include/engine.h"
+#include "include/types.h"
 #include <stdio.h>
 
 #define GAB_CREATE_ARRAY(type, count)                                          \
@@ -43,7 +44,7 @@ void gab_val_dump(gab_value self) {
     printf("%s", GAB_VAL_TO_BOOLEAN(self) ? "true" : "false");
   } else if (GAB_VAL_IS_NUMBER(self)) {
     printf("%g", GAB_VAL_TO_NUMBER(self));
-  } else if (GAB_VAL_IS_NULL(self)) {
+  } else if (GAB_VAL_IS_NIL(self)) {
     printf("null");
   } else if (GAB_VAL_IS_OBJ(self)) {
     gab_obj_dump(self);
@@ -98,7 +99,7 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self) {
         gab, s_i8_cstr(GAB_VAL_TO_BOOLEAN(self) ? "true" : "false")));
   }
 
-  if (GAB_VAL_IS_NULL(self)) {
+  if (GAB_VAL_IS_NIL(self)) {
     return GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("null")));
   }
 
@@ -179,7 +180,7 @@ void gab_obj_dump(gab_value value) {
 /*
   A generic function used to free a gab object of any kind.
 */
-void gab_obj_destroy(gab_obj *self) {
+void gab_obj_destroy(gab_engine* gab, gab_vm* vm, gab_obj *self) {
   switch (self->kind) {
   case TYPE_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)(self);
@@ -199,7 +200,7 @@ void gab_obj_destroy(gab_obj *self) {
 
   case TYPE_CONTAINER: {
     gab_obj_container *container = (gab_obj_container *)(self);
-    container->destructor(container);
+    container->destructor(gab, vm, container->data);
     GAB_DESTROY_STRUCT(container);
     return;
   }
@@ -301,7 +302,7 @@ gab_obj_string *gab_obj_string_concat(gab_engine *gab, gab_obj_string *a,
   */
   gab_obj_string *interned = gab_engine_find_string(gab, ref, self->hash);
   if (interned) {
-    gab_obj_destroy((gab_obj *)self);
+    DESTROY(self);
     return interned;
   }
 
@@ -379,7 +380,7 @@ gab_obj_closure *gab_obj_closure_create(gab_obj_prototype *p,
 gab_obj_upvalue *gab_obj_upvalue_create(gab_value *slot) {
   gab_obj_upvalue *self = GAB_CREATE_OBJ(gab_obj_upvalue, TYPE_UPVALUE);
   self->data = slot;
-  self->closed = GAB_VAL_NULL();
+  self->closed = GAB_VAL_NIL();
   self->next = NULL;
   return self;
 }
@@ -404,9 +405,10 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 size,
 
   if (interned)
     return interned;
+
   if (vm != NULL) {
     for (u64 i = 0; i < size; i++) {
-      gab_gc_iref(&gab->gc, vm, keys[i * stride]);
+      gab_gc_iref(gab, vm, &gab->gc, keys[i * stride]);
     }
   }
 

@@ -59,11 +59,6 @@ struct gab_engine {
    */
   gab_value types[GAB_NTYPES];
 
-  /*
-   * Optional Flags
-   */
-  u8 flags;
-
   u8 argc;
   gab_value* argv;
 };
@@ -77,7 +72,7 @@ static inline gab_value gab_typeof(gab_engine *gab, gab_value value) {
   }
 
   // The type of null or symbols is themselves
-  if (GAB_VAL_IS_NULL(value) || GAB_VAL_IS_SYMBOL(value)) {
+  if (GAB_VAL_IS_NIL(value) || GAB_VAL_IS_UNDEFINED(value) || GAB_VAL_IS_SYMBOL(value)) {
       return value;
   }
 

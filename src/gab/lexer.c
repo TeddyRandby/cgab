@@ -136,6 +136,10 @@ const keyword keywords[] = {
         TOKEN_TRUE,
     },
     {
+        "nil",
+        TOKEN_NIL,
+    },
+    {
         "loop",
         TOKEN_LOOP,
     },

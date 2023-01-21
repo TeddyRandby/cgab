@@ -1,16 +1,11 @@
-def None { none }
 def Some { some }
 
 def none[]
-    { none }
+    nil
 end
 
 def some[]
     { some: self }
-end
-
-def print[None]
-    'None()':print
 end
 
 def print[Some]
@@ -21,15 +16,15 @@ def unwrap[Some]
     self.some
 end
 
-def unwrap[None]
-    panic('Tried to unwrap none')
+def unwrap[nil]
+    panic('Tried to unwrap nil')
 end
 
 def unwrap_or[Some](alternative)
     self
 end
 
-def unwrap_or[None](alternative)
+def unwrap_or[nil](alternative)
     alternative
 end
 
@@ -37,6 +32,6 @@ def ok_or[Some](err)
     self.some
 end
 
-def ok_or[None](err)
+def ok_or[nil](err)
     err
 end

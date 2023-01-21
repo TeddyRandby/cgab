@@ -12,6 +12,4 @@ gab_value gab_lib_panic(gab_engine *gab, gab_vm *vm, u8 argc,
   } else {
     gab_panic(gab, vm, "");
   }
-
-  exit(0);
 }
