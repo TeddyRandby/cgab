@@ -4,7 +4,7 @@ def describe(name, cb)
 end
 
 def it(name, cb)
-  ('{cb() and '✓' or '×'} it {name}'):print
+  print('{cb() and '✓' or '×'} it {name}')
 end
 
 def check(result, msg)
@@ -39,7 +39,7 @@ describe('Strings', do ()
   end)
 end)
 
-describe('Block', do ()
+describe('Closures', do ()
     let a = 1
 
     it('should capture', do ()
@@ -76,14 +76,16 @@ describe('Block', do ()
 end)
 
 describe('Records', do ()
+  def Point { x y }
+
   it('should have properties', do ()
-    let Point = {
+    let point = {
       x: 1
       y: 2
     }
 
-    Point.x:expect(1) and
-    Point.y:expect(2)
+    point.x:expect(1) and
+    point.y:expect(2)
   end)
 
   it('should be structurally shaped', do ()
@@ -143,6 +145,20 @@ describe('Records', do ()
 
     (..obj):expect(2)
     (..((..obj?)?)):expect('try')
+  end)
+
+  it('should make a var array', do ()
+    def abcd()
+        return 'a', 'b', 'c', 'd'
+    end
+
+    let list = [abcd()]
+
+    list[0]:expect('a')
+    list[1]:expect('b')
+    list[2]:expect('c')
+    list[3]:expect('d')
+    list[4]:expect(nil)
   end)
 end)
 
@@ -241,6 +257,4 @@ describe('Effects', do ()
 
         eff(onetwo())
     end)
-
-
 end)

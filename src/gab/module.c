@@ -20,10 +20,9 @@ gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
   return self;
 }
 
-void gab_module_cleanup(gab_engine *gab, gab_module *mod) {
-  if (mod == NULL)
+void gab_module_destroy(gab_engine *gab, gab_module *mod) {
+  if (!mod)
     return;
-
   for (u64 i = 0; i < mod->constants.cap; i++) {
     if (d_gab_constant_iexists(&mod->constants, i)) {
       gab_value v = d_gab_constant_ikey(&mod->constants, i);
@@ -33,11 +32,6 @@ void gab_module_cleanup(gab_engine *gab, gab_module *mod) {
         gab_dref(gab, NULL, v);
     }
   }
-}
-
-void gab_module_destroy(gab_module *mod) {
-  if (mod == NULL)
-    return;
 
   v_u8_destroy(&mod->bytecode);
   v_u8_destroy(&mod->tokens);
@@ -559,9 +553,13 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     }
     return offset;
   }
-  case OP_OBJECT_RECORD_DEF:
+  case OP_RECORD_DEF:
     offset += 2;
-  case OP_OBJECT_RECORD: {
+  case OP_RECORD: {
+    return dumpDictInstruction(self, op, offset);
+  }
+  case OP_VARARRAY:
+  case OP_ARRAY: {
     return dumpDictInstruction(self, op, offset);
   }
   default: {

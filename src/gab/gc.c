@@ -2,6 +2,7 @@
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/object.h"
+#include "include/value.h"
 #include <stdio.h>
 
 #if GAB_DEBUG_GC
@@ -29,7 +30,7 @@ void __gab_gc_iref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_value obj,
   if (GAB_VAL_IS_OBJ(obj)) {
     gab_obj_iref(gab, vm, gc, GAB_VAL_TO_OBJ(obj));
     v_rc_update_push(&gc->tracked_increments, (rc_update){
-                                                  .val = GAB_VAL_OBJ(obj),
+                                                  .val = GAB_VAL_TO_OBJ(obj),
                                                   .file = file,
                                                   .line = line,
                                               });
@@ -48,14 +49,14 @@ void __gab_gc_dref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_value obj,
   if (GAB_VAL_IS_OBJ(obj)) {
     gab_obj_dref(gab, vm, gc, GAB_VAL_TO_OBJ(obj));
     v_rc_update_push(&gc->tracked_decrements, (rc_update){
-                                                  .val = GAB_VAL_OBJ(obj),
+                                                  .val = GAB_VAL_TO_OBJ(obj),
                                                   .file = file,
                                                   .line = line,
                                               });
   }
 }
 
-static inline void dump_rcs_for(gab_gc *gc, gab_value val) {
+static inline void dump_rcs_for(gab_gc *gc, gab_obj *val) {
 
   for (u64 j = 0; j < gc->tracked_increments.len; j++) {
     rc_update *u = v_rc_update_ref_at(&gc->tracked_increments, j);
@@ -91,8 +92,7 @@ void gab_gc_create(gab_gc *self) {
   self->increment_count = 0;
   self->root_count = 0;
 
-  d_u64_create(&self->roots, MODULE_CONSTANTS_MAX);
-  d_u64_create(&self->queue, MODULE_CONSTANTS_MAX);
+  d_gc_set_create(&self->queue, MODULE_CONSTANTS_MAX);
 
 #if GAB_DEBUG_GC
   v_rc_update_create(&self->tracked_decrements, MODULE_CONSTANTS_MAX);
@@ -102,18 +102,17 @@ void gab_gc_create(gab_gc *self) {
 };
 
 void gab_gc_destroy(gab_gc *self) {
-  d_u64_destroy(&self->roots);
-  d_u64_destroy(&self->queue);
+  d_gc_set_destroy(&self->queue);
 
 #if GAB_DEBUG_GC
 
   fprintf(stdout, "Checking remaining objects...\n");
   for (u64 i = 0; i < self->tracked_values.cap; i++) {
     if (d_rc_tracker_iexists(&self->tracked_values, i)) {
-      gab_value k = d_rc_tracker_ikey(&self->tracked_values, i);
+      gab_obj *k = d_rc_tracker_ikey(&self->tracked_values, i);
       i32 v = d_rc_tracker_ival(&self->tracked_values, i);
-      if (GAB_VAL_IS_OBJ(k) && v > 0 && v < 200) {
-        gab_val_dump(k);
+      if (v > 0 && v < 200) {
+        gab_val_dump(GAB_VAL_OBJ(k));
         fprintf(stdout, " had %i remaining references.\n", v);
         dump_rcs_for(self, k);
       }
@@ -143,23 +142,26 @@ void *gab_reallocate(void *loc, u64 old_count, u64 new_count) {
 }
 
 static inline void queue_destroy(gab_gc *gc, gab_obj *obj) {
-  d_u64_insert(&gc->queue, GAB_VAL_OBJ(obj), GAB_VAL_NIL());
+  d_gc_set_insert(&gc->queue, obj, 0);
 }
 
 static inline void cleanup(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
   for (i32 i = 0; i < gc->queue.cap; i++) {
-    if (d_u64_iexists(&gc->queue, i)) {
-      gab_value key = d_u64_ikey(&gc->queue, i);
+    if (d_gc_set_iexists(&gc->queue, i)) {
+      d_gc_set_iremove(&gc->queue, i);
+
+      gab_obj *key = d_gc_set_ikey(&gc->queue, i);
+
 #if GAB_LOG_GC
       printf("Destroying: ");
-      gab_val_dump(key);
+      gab_val_dump(GAB_VAL_OBJ(key));
       printf("\n");
 #if GAB_DEBUG_GC
       dump_rcs_for(gc, key);
 #endif
 #endif
-      gab_obj_destroy(gab, vm, GAB_VAL_TO_OBJ(key));
-      d_u64_iremove(&gc->queue, i);
+
+      gab_obj_destroy(gab, vm, key);
     }
   }
 }
@@ -170,7 +172,7 @@ static inline void push_root(gab_engine *gab, gab_vm *vm, gab_gc *gc,
     gab_gc_collect(gab, vm, gc);
   }
 
-  d_u64_insert(&gc->roots, GAB_VAL_OBJ(obj), GAB_VAL_NIL());
+  d_gc_set_insert(&gc->roots, obj, 0);
 }
 
 static inline void obj_possible_root(gab_engine *gab, gab_vm *vm, gab_gc *gc,
@@ -188,20 +190,31 @@ typedef void (*child_and_gc_iter)(gab_gc *gc, gab_obj *obj);
 static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
                                        child_and_gc_iter fnc) {
   switch (obj->kind) {
+  case TYPE_STRING:
+  case TYPE_PROTOTYPE:
+  case TYPE_BUILTIN:
+  case TYPE_SYMBOL:
+  case TYPE_CONTAINER:
+  case TYPE_NIL:
+  case TYPE_NUMBER:
+  case TYPE_BOOLEAN:
+  case GAB_NTYPES:
+    break;
   case TYPE_EFFECT: {
     gab_obj_effect *eff = (gab_obj_effect *)obj;
     for (u8 i = 0; i < eff->len; i++) {
       if (GAB_VAL_IS_OBJ(eff->frame[i]))
         fnc(gc, GAB_VAL_TO_OBJ(eff->frame[i]));
     }
+    break;
   }
   case (TYPE_CLOSURE): {
     gab_obj_closure *closure = (gab_obj_closure *)obj;
-    for (u8 i = 0; i < closure->p->nupvalues; i++) {
+    for (u8 i = 0; i < closure->nupvalues; i++) {
       if (GAB_VAL_IS_OBJ(closure->upvalues[i]))
         fnc(gc, GAB_VAL_TO_OBJ(closure->upvalues[i]));
     }
-    return;
+    break;
   }
   case (TYPE_MESSAGE): {
     gab_obj_message *func = (gab_obj_message *)obj;
@@ -213,13 +226,14 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
         }
       }
     }
+    break;
   }
   case (TYPE_UPVALUE): {
     gab_obj_upvalue *upvalue = (gab_obj_upvalue *)obj;
     if (GAB_VAL_IS_OBJ(*upvalue->data)) {
       fnc(gc, GAB_VAL_TO_OBJ(*upvalue->data));
     };
-    return;
+    break;
   }
   case TYPE_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
@@ -228,7 +242,7 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
         fnc(gc, GAB_VAL_TO_OBJ(shape->keys[i]));
       }
     }
-    return;
+    break;
   }
   case (TYPE_RECORD): {
     gab_obj_record *object = (gab_obj_record *)obj;
@@ -245,31 +259,41 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
         }
       }
     }
-    return;
+    break;
   }
-  default:
-    return;
   }
 }
 
 typedef void (*child_iter)(gab_obj *obj);
 static inline void for_child_do(gab_obj *obj, child_iter fnc) {
-  gab_obj *child;
   switch (obj->kind) {
+  case TYPE_STRING:
+  case TYPE_PROTOTYPE:
+  case TYPE_BUILTIN:
+  case TYPE_SYMBOL:
+  case TYPE_CONTAINER:
+  case TYPE_NIL:
+  case TYPE_NUMBER:
+  case TYPE_BOOLEAN:
+  case GAB_NTYPES:
+    break;
+
   case TYPE_EFFECT: {
     gab_obj_effect *eff = (gab_obj_effect *)obj;
     for (u8 i = 0; i < eff->len; i++) {
       if (GAB_VAL_IS_OBJ(eff->frame[i]))
         fnc(GAB_VAL_TO_OBJ(eff->frame[i]));
     }
+    break;
   }
   case (TYPE_CLOSURE): {
     gab_obj_closure *closure = (gab_obj_closure *)obj;
-    for (u8 i = 0; i < closure->p->nupvalues; i++) {
-      child = (gab_obj *)closure->upvalues[i];
-      fnc(child);
+    for (u8 i = 0; i < closure->nupvalues; i++) {
+      if (GAB_VAL_IS_OBJ(closure->upvalues[i])) {
+        fnc(GAB_VAL_TO_OBJ(closure->upvalues[i]));
+      }
     }
-    return;
+    break;
   }
   case (TYPE_MESSAGE): {
     gab_obj_message *func = (gab_obj_message *)obj;
@@ -281,13 +305,14 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
         }
       }
     }
+    break;
   }
   case (TYPE_UPVALUE): {
     gab_obj_upvalue *upvalue = (gab_obj_upvalue *)obj;
     if (GAB_VAL_IS_OBJ(*upvalue->data)) {
       fnc(GAB_VAL_TO_OBJ(*upvalue->data));
     };
-    return;
+    break;
   }
   case TYPE_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
@@ -296,7 +321,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
         fnc(GAB_VAL_TO_OBJ(shape->keys[i]));
       }
     }
-    return;
+    break;
   }
   case (TYPE_RECORD): {
     gab_obj_record *object = (gab_obj_record *)obj;
@@ -315,10 +340,8 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
       }
     }
 
-    return;
+    break;
   }
-  default:
-    return;
   }
 }
 
@@ -330,9 +353,19 @@ static inline void dec_if_obj_ref(gab_engine *gab, gab_vm *vm, gab_gc *gc,
 static inline void dec_child_refs(gab_engine *gab, gab_vm *vm, gab_gc *gc,
                                   gab_obj *obj) {
   switch (obj->kind) {
+  case TYPE_STRING:
+  case TYPE_PROTOTYPE:
+  case TYPE_BUILTIN:
+  case TYPE_SYMBOL:
+  case TYPE_CONTAINER:
+  case TYPE_NIL:
+  case TYPE_NUMBER:
+  case TYPE_BOOLEAN:
+  case GAB_NTYPES:
+    break;
   case TYPE_CLOSURE: {
     gab_obj_closure *closure = (gab_obj_closure *)obj;
-    for (u8 i = 0; i < closure->p->nupvalues; i++) {
+    for (u8 i = 0; i < closure->nupvalues; i++) {
       dec_if_obj_ref(gab, vm, gc, closure->upvalues[i]);
     }
     break;
@@ -348,11 +381,11 @@ static inline void dec_child_refs(gab_engine *gab, gab_vm *vm, gab_gc *gc,
     gab_obj_message *func = (gab_obj_message *)obj;
     for (u64 i = 0; i < func->specs.cap; i++) {
       if (d_specs_iexists(&func->specs, i)) {
-        gab_value s = d_specs_ival(&func->specs, i);
-        dec_if_obj_ref(gab, vm, gc, s);
-
         gab_value r = d_specs_ikey(&func->specs, i);
         dec_if_obj_ref(gab, vm, gc, r);
+
+        gab_value s = d_specs_ival(&func->specs, i);
+        dec_if_obj_ref(gab, vm, gc, s);
       }
     }
     break;
@@ -382,16 +415,13 @@ static inline void dec_child_refs(gab_engine *gab, gab_vm *vm, gab_gc *gc,
     }
     break;
   }
-  default:
-    return;
   }
 }
 
 static inline void dec_obj_ref(gab_engine *gab, gab_vm *vm, gab_gc *gc,
                                gab_obj *obj) {
 #if GAB_DEBUG_GC
-  d_rc_tracker_insert(&gc->tracked_values, GAB_VAL_OBJ(obj),
-                      obj->references - 1);
+  d_rc_tracker_insert(&gc->tracked_values, obj, obj->references - 1);
 #endif
   if (--obj->references == 0) {
     dec_child_refs(gab, vm, gc, obj);
@@ -415,8 +445,7 @@ static inline void dec_if_obj_ref(gab_engine *gab, gab_vm *vm, gab_gc *gc,
 
 static inline void inc_obj_ref(gab_gc *gc, gab_obj *obj) {
 #if GAB_DEBUG_GC
-  d_rc_tracker_insert(&gc->tracked_values, GAB_VAL_OBJ(obj),
-                      obj->references + 1);
+  d_rc_tracker_insert(&gc->tracked_values, obj, obj->references + 1);
 #endif
   obj->references++;
   // This object cannot be garbage.
@@ -433,11 +462,14 @@ static inline void increment_stack(gab_gc *gc, gab_vm *vm) {
   gab_value *tracker = vm->top;
   while (--tracker >= vm->stack) {
 #if GAB_DEBUG_GC
-    v_rc_update_push(&gc->tracked_increments, (rc_update){
-                                                  .val = *tracker,
-                                                  .file = __FILE__,
-                                                  .line = __LINE__,
-                                              });
+    if (GAB_VAL_IS_OBJ(*tracker)) {
+      v_rc_update_push(&gc->tracked_increments,
+                       (rc_update){
+                           .val = GAB_VAL_TO_OBJ(*tracker),
+                           .file = __FILE__,
+                           .line = __LINE__,
+                       });
+    }
 #endif
     inc_if_obj_ref(gc, *tracker);
   }
@@ -490,16 +522,15 @@ static inline void mark_gray(gab_obj *obj) {
 
 static inline void mark_roots(gab_gc *gc) {
   for (i32 i = 0; i < gc->roots.cap; i++) {
-    if (d_u64_iexists(&gc->roots, i)) {
-      gab_value key = d_u64_ikey(&gc->roots, i);
-      gab_obj *obj = GAB_VAL_TO_OBJ(key);
+    if (d_gc_set_iexists(&gc->roots, i)) {
+      gab_obj *obj = d_gc_set_ikey(&gc->roots, i);
 
       if (GAB_OBJ_IS_PURPLE(obj) && obj->references > 0) {
         mark_gray(obj);
       } else {
         GAB_OBJ_NOT_BUFFERED(obj);
 
-        d_u64_iremove(&gc->roots, i);
+        d_gc_set_iremove(&gc->roots, i);
         // SHould this be a not?
         if (GAB_OBJ_IS_BLACK(obj) && obj->references == 0) {
           queue_destroy(gc, obj);
@@ -534,15 +565,14 @@ static inline void scan_root(gab_obj *obj) {
 
 static inline void scan_roots(gab_gc *gc) {
   for (i32 i = 0; i < gc->roots.cap; i++) {
-    if (d_u64_iexists(&gc->roots, i)) {
-      gab_obj *obj = GAB_VAL_TO_OBJ(d_u64_ikey(&gc->roots, i));
+    if (d_gc_set_iexists(&gc->roots, i)) {
+      gab_obj *obj = d_gc_set_ikey(&gc->roots, i);
       scan_root(obj);
     }
   }
 }
 
 static inline void collect_white(gab_gc *gc, gab_obj *obj) {
-
   if (GAB_OBJ_IS_WHITE(obj) && !GAB_OBJ_IS_BUFFERED(obj)) {
     GAB_OBJ_BLACK(obj);
 
@@ -554,13 +584,8 @@ static inline void collect_white(gab_gc *gc, gab_obj *obj) {
 // Collecting roots is putting me in an infinte loop somehow
 static inline void collect_roots(gab_gc *gc) {
   for (u64 i = 0; i < gc->roots.cap; i++) {
-    if (d_u64_iexists(&gc->roots, i)) {
-      gab_value key = d_u64_ikey(&gc->roots, i);
-      gab_obj *obj = GAB_VAL_TO_OBJ(key);
-
-      d_u64_remove(&gc->roots, key);
-      GAB_OBJ_NOT_BUFFERED(obj);
-
+    if (d_gc_set_iexists(&gc->roots, i)) {
+      gab_obj *obj = d_gc_set_ikey(&gc->roots, i);
       collect_white(gc, obj);
     }
   }
@@ -574,6 +599,8 @@ void collect_cycles(gab_gc *gc) {
 }
 
 void gab_gc_collect(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
+  d_gc_set_create(&gc->roots, MODULE_CONSTANTS_MAX);
+
   if (vm != NULL)
     increment_stack(gc, vm);
 
@@ -587,4 +614,6 @@ void gab_gc_collect(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
   collect_cycles(gc);
 
   cleanup(gab, vm, gc);
+
+  d_gc_set_destroy(&gc->roots);
 }

@@ -232,11 +232,13 @@ static inline gab_value capture_upvalue(gab_engine *gab, gab_vm *vm, gab_gc *gc,
   gab_obj_upvalue *new_upvalue = gab_obj_upvalue_create(local);
 
   new_upvalue->next = upvalue;
+
   if (prev_upvalue == NULL) {
     vm->open_upvalues = new_upvalue;
   } else {
     prev_upvalue->next = new_upvalue;
   }
+
   return GAB_VAL_OBJ(new_upvalue);
 }
 
@@ -246,11 +248,12 @@ static inline void close_upvalue(gab_engine *gab, gab_gc *gc, gab_vm *vm,
     gab_obj_upvalue *upvalue = vm->open_upvalues;
 
     upvalue->closed = *upvalue->data;
-    gab_gc_iref(gab, vm, gc, upvalue->closed);
 
     upvalue->data = &upvalue->closed;
 
     vm->open_upvalues = upvalue->next;
+    gab_gc_iref(gab, vm, gc, upvalue->closed);
+    gab_gc_dref(gab, vm, gc, GAB_VAL_OBJ(upvalue));
   }
 }
 
@@ -1442,12 +1445,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
             PUSH(capture_upvalue(ENGINE(), VM(), GC(), FRAME()->slots + index));
           } else {
             PUSH(LOCAL(index));
-            gab_gc_iref(ENGINE(), VM(), GC(), upvalues[i]);
           }
         } else {
           PUSH(CLOSURE()->upvalues[index]);
-          gab_gc_iref(ENGINE(), VM(), GC(), upvalues[i]);
         }
+
+        gab_gc_iref(ENGINE(), VM(), GC(), upvalues[i]);
       }
 
       DROP_N(p->nupvalues);
@@ -1513,7 +1516,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_obj_shape *shape;
       u8 size;
 
-      CASE_CODE(OBJECT_RECORD_DEF) : {
+      CASE_CODE(RECORD_DEF) : {
         gab_obj_string *name = READ_STRING;
 
         size = READ_BYTE;
@@ -1525,7 +1528,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         goto complete_record;
       }
 
-      CASE_CODE(OBJECT_RECORD) : {
+      CASE_CODE(RECORD) : {
         size = READ_BYTE;
 
         shape = gab_obj_shape_create(ENGINE(), VM(), size, 2, TOP() - size * 2);
@@ -1552,9 +1555,23 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     }
     }
 
-    CASE_CODE(OBJECT_ARRAY) : {
-      u8 size = READ_BYTE;
+    {
+      u8 size;
 
+      CASE_CODE(VARARRAY) : {
+        u8 addtl = READ_BYTE;
+        size = *TOP() + addtl;
+
+        goto complete_array;
+      }
+
+      CASE_CODE(ARRAY) : {
+        size = READ_BYTE;
+
+        goto complete_array;
+      }
+
+    complete_array : {
       for (u64 i = 1; i < size; i++) {
         gab_gc_iref(ENGINE(), VM(), GC(), PEEK_N(i));
       }
@@ -1571,6 +1588,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_gc_dref(ENGINE(), VM(), GC(), obj);
 
       NEXT();
+    }
     }
   }
   // This should be unreachable

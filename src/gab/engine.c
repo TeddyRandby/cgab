@@ -42,45 +42,41 @@ gab_engine *gab_create() {
   return gab;
 }
 
-void gab_cleanup(gab_engine *gab) {
+void gab_destroy(gab_engine *gab) {
   if (gab == NULL)
     return;
 
   for (u64 i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
       gab_obj_string *v = d_strings_ikey(&gab->interned_strings, i);
-      gab_dref(gab, NULL, GAB_VAL_OBJ(v));
+      gab_gc_dref(gab, NULL, &gab->gc, GAB_VAL_OBJ(v));
     }
   }
 
   for (u64 i = 0; i < gab->interned_shapes.cap; i++) {
     if (d_shapes_iexists(&gab->interned_shapes, i)) {
       gab_obj_shape *v = d_shapes_ikey(&gab->interned_shapes, i);
-      gab_dref(gab, NULL, GAB_VAL_OBJ(v));
+      gab_gc_dref(gab, NULL, &gab->gc, GAB_VAL_OBJ(v));
     }
   }
 
   for (u64 i = 0; i < gab->interned_messages.cap; i++) {
     if (d_messages_iexists(&gab->interned_messages, i)) {
       gab_obj_message *v = d_messages_ikey(&gab->interned_messages, i);
-      gab_dref(gab, NULL, GAB_VAL_OBJ(v));
+      gab_gc_dref(gab, NULL, &gab->gc, GAB_VAL_OBJ(v));
     }
   }
 
   for (u8 i = 0; i < GAB_NTYPES; i++) {
-    gab_dref(gab, NULL, gab->types[i]);
+    gab_gc_dref(gab, NULL, &gab->gc, gab->types[i]);
   }
 
   for (u8 i = 0; i < gab->argc; i++) {
-    gab_dref(gab, NULL, gab->argv_values[i]);
+    gab_gc_dref(gab, NULL, &gab->gc, gab->argv_values[i]);
   }
-}
-
-void gab_destroy(gab_engine *gab) {
-  if (gab == NULL)
-    return;
 
   gab_gc_collect(gab, NULL, &gab->gc);
+
   gab_gc_destroy(&gab->gc);
 
   d_strings_destroy(&gab->interned_strings);
@@ -88,6 +84,10 @@ void gab_destroy(gab_engine *gab) {
   d_messages_destroy(&gab->interned_messages);
 
   DESTROY(gab);
+}
+
+void gab_collect(gab_engine *gab, gab_vm *vm) {
+  gab_gc_collect(gab, vm, &gab->gc);
 }
 
 void gab_args(gab_engine *gab, u8 argc, s_i8 argv_names[argc],
@@ -114,7 +114,7 @@ void gab_dref(gab_engine *gab, gab_vm *vm, gab_value value) {
 };
 
 void gab_iref(gab_engine *gab, gab_vm *vm, gab_value value) {
-  gab_gc_dref(gab, vm, &gab->gc, value);
+  gab_gc_iref(gab, vm, &gab->gc, value);
 };
 
 gab_value gab_bundle_record(gab_engine *gab, gab_vm *vm, u64 size,
@@ -146,11 +146,14 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
 
 gab_value gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
                          gab_value specialization) {
+
   gab_obj_message *f = gab_obj_message_create(gab, name);
 
   if (gab_obj_message_find(f, receiver) != UINT16_MAX)
     return GAB_VAL_NIL();
 
+  gab_iref(gab, NULL, receiver);
+  gab_iref(gab, NULL, specialization);
   gab_obj_message_insert(f, receiver, specialization);
 
   return GAB_VAL_OBJ(f);
@@ -164,9 +167,7 @@ gab_value gab_send(gab_engine *gab, s_i8 name, gab_value receiver, u8 argc,
 
   gab_value result = gab_vm_run(gab, mod, GAB_FLAG_PANIC_ON_FAIL, 0, NULL);
 
-  gab_module_cleanup(gab, mod);
-
-  gab_module_destroy(mod);
+  gab_module_destroy(gab, mod);
 
   return result;
 }

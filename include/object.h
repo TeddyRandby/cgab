@@ -240,7 +240,10 @@ typedef struct gab_obj_closure gab_obj_closure;
 struct gab_obj_closure {
   gab_obj header;
 
+  u8 nupvalues;
+
   gab_obj_prototype *p;
+
 
   /*
    * The array of captured upvalues

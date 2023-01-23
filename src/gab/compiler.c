@@ -291,7 +291,8 @@ static i32 resolve_id(gab_bc *bc, s_i8 name, u8 *value_in) {
     if (arg == COMP_UPVALUE_NOT_FOUND)
       return COMP_ID_NOT_FOUND;
 
-    *value_in = (u8)arg;
+    if (value_in)
+      *value_in = (u8)arg;
     return COMP_RESOLVED_TO_UPVALUE;
   }
 
@@ -618,7 +619,7 @@ i32 compile_tuple(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 want,
 
     vse = result == VAR_RET;
     have++;
-  } while ((result = match_and_eat_token(bc, TOKEN_COMMA)) > 0);
+  } while ((result = match_and_eat_token(bc, TOKEN_COMMA)) == COMP_OK);
 
   if (result < 0)
     return COMP_ERR;
@@ -628,30 +629,33 @@ i32 compile_tuple(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 want,
     return COMP_ERR;
   }
 
-  if (vse) {
-    // If our expression list is variable length
-
-    if (want == VAR_RET) {
-      // Here, take all expressions from the VSE.
-      // Have no represents the additional expressions, so decrement it once.
-      have--;
-      gab_module_try_patch_vse(mod, VAR_RET);
-    } else {
-      // Here, only take enough to fill out the remaining.
-      gab_module_try_patch_vse(mod, want - have + 1);
-      // We now have all the expressions we want
+  if (want == VAR_RET) {
+    /*
+     * If we want all possible values, try to patch a VSE.
+     * If we are successful, remove one from have.
+     * This is because have's meaning changes to mean the number of
+     * values in ADDITION to the VSE ending the tuple.
+     */
+    have -= gab_module_try_patch_vse(mod, VAR_RET);
+  } else {
+    /*
+     * Here we want a specific number of values. Try to patch the VSE to want
+     * however many values we need in order to match up have and want. Again, we
+     * subtract an extra one because in the case where we do patch, have's
+     * meaning is now the number of ADDITIONAL values we have.
+     */
+    if (gab_module_try_patch_vse(mod, want - have + 1)) {
+      // If we were successful, we have all the values we want.
       have = want;
     }
 
-  } else {
-    // If our expression list is constant length
-    if (want != VAR_RET) {
-      // If we want a constant number of expressions
-      while (have < want) {
-        // While we have fewer expressions than we want, push nulls.
-        push_op(bc, mod, OP_PUSH_NIL);
-        have++;
-      }
+    /*
+     * If we failed to patch and still don't have enough, push some Nils.
+     */
+    while (have < want) {
+      // While we have fewer expressions than we want, push nulls.
+      push_op(bc, mod, OP_PUSH_NIL);
+      have++;
     }
   }
 
@@ -729,22 +733,24 @@ i32 compile_property(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
 i32 compile_lst_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod,
                               u8 index) {
-
-  if (compile_expression(gab, bc, mod) < 0)
-    return COMP_ERR;
-
-  return COMP_OK;
+  return compile_expression(gab, bc, mod);
 }
 
-i32 compile_lst_internals(gab_engine *gab, gab_bc *bc, gab_module *mod) {
+i32 compile_lst_internals(gab_engine *gab, gab_bc *bc, gab_module *mod,
+                          boolean *vse_out) {
   u8 size = 0;
+  boolean vse = false;
 
   if (skip_newlines(bc) < 0)
     return COMP_ERR;
 
   while (!match_token(bc, TOKEN_RBRACE)) {
 
-    if (compile_lst_internal_item(gab, bc, mod, size) < 0)
+    i32 result = compile_lst_internal_item(gab, bc, mod, size);
+
+    vse = result == VAR_RET;
+
+    if (result < 0)
       return COMP_ERR;
 
     if (size == UINT8_MAX) {
@@ -759,6 +765,13 @@ i32 compile_lst_internals(gab_engine *gab, gab_bc *bc, gab_module *mod) {
 
   if (expect_token(bc, TOKEN_RBRACE) < 0)
     return COMP_ERR;
+
+  if (vse_out)
+    *vse_out = vse;
+
+  if (vse) {
+    return size - gab_module_try_patch_vse(mod, VAR_RET);
+  }
 
   return size;
 }
@@ -888,7 +901,7 @@ i32 compile_record(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name) {
   if (size < 0)
     return COMP_ERR;
 
-  push_op(bc, mod, is_def ? OP_OBJECT_RECORD_DEF : OP_OBJECT_RECORD);
+  push_op(bc, mod, is_def ? OP_RECORD_DEF : OP_RECORD);
 
   if (is_def)
     push_short(bc, mod, name_const);
@@ -898,12 +911,15 @@ i32 compile_record(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name) {
 }
 
 i32 compile_array(gab_engine *gab, gab_bc *bc, gab_module *mod) {
-  i32 size = compile_lst_internals(gab, bc, mod);
+  boolean vse;
+  i32 size = compile_lst_internals(gab, bc, mod, &vse);
 
   if (size < 0)
     return COMP_ERR;
 
-  push_op(bc, mod, OP_OBJECT_ARRAY);
+  u8 op = vse ? OP_VARARRAY : OP_ARRAY;
+
+  push_op(bc, mod, op);
   push_byte(bc, mod, size);
   return COMP_OK;
 }
@@ -960,14 +976,9 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
 i32 compile_exp_blk(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
-  static u64 anonymous_count = 0;
-  static i8 name_buff[25];
-
   if (match_token(bc, TOKEN_LPAREN)) {
-    i32 len =
-        snprintf((char *)name_buff + 0, 25, "anonymous_%lu", anonymous_count++);
 
-    s_i8 name = s_i8_create(name_buff + 0, len);
+    s_i8 name = s_i8_cstr("anonymous");
 
     // We are an anonyumous function
     if (compile_function_specialization(gab, bc, mod, name) < 0)
@@ -2101,7 +2112,7 @@ i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
   down_frame(bc, name, false);
 
   if (eat_token(bc) == COMP_ERR)
-    return -1;
+    return COMP_ERR;
 
   for (u8 i = 0; i < narguments; i++) {
     initialize_local(bc, add_local(bc, arguments[i], 0));

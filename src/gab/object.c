@@ -45,7 +45,7 @@ void gab_val_dump(gab_value self) {
   } else if (GAB_VAL_IS_NUMBER(self)) {
     printf("%g", GAB_VAL_TO_NUMBER(self));
   } else if (GAB_VAL_IS_NIL(self)) {
-    printf("null");
+    printf("nil");
   } else if (GAB_VAL_IS_OBJ(self)) {
     gab_obj_dump(self);
   }
@@ -86,8 +86,11 @@ gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self) {
   case TYPE_CONTAINER: {
     return gab_obj_string_create(gab, s_i8_cstr("[container]"));
   }
+  case TYPE_EFFECT: {
+    return gab_obj_string_create(gab, s_i8_cstr("[effect]"));
+  }
   default: {
-    fprintf(stderr, "Not an object.\n");
+    fprintf(stderr, "%d is not an object.\n", self->kind);
     exit(0);
   }
   }
@@ -171,7 +174,7 @@ void gab_obj_dump(gab_value value) {
     break;
   }
   default: {
-    fprintf(stderr, "Not an object.\n");
+    fprintf(stderr, "%d is not an object.\n", GAB_VAL_TO_OBJ(value)->kind);
     exit(0);
   }
   }
@@ -180,7 +183,7 @@ void gab_obj_dump(gab_value value) {
 /*
   A generic function used to free a gab object of any kind.
 */
-void gab_obj_destroy(gab_engine* gab, gab_vm* vm, gab_obj *self) {
+void gab_obj_destroy(gab_engine *gab, gab_vm *vm, gab_obj *self) {
   switch (self->kind) {
   case TYPE_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)(self);
@@ -216,11 +219,10 @@ void gab_obj_destroy(gab_engine* gab, gab_vm* vm, gab_obj *self) {
       These cases are allocated with a single malloc() call, so don't require
       anything fancy.
     */
-
+  case TYPE_UPVALUE:
   case TYPE_EFFECT:
   case TYPE_PROTOTYPE:
   case TYPE_CLOSURE:
-  case TYPE_UPVALUE:
   case TYPE_BUILTIN:
   case TYPE_SYMBOL:
   case TYPE_STRING: {
@@ -371,15 +373,16 @@ gab_obj_closure *gab_obj_closure_create(gab_obj_prototype *p,
   gab_obj_closure *self = GAB_CREATE_FLEX_OBJ(gab_obj_closure, gab_obj_upvalue,
                                               p->nupvalues, TYPE_CLOSURE);
 
+  self->nupvalues = p->nupvalues;
   self->p = p;
 
   memcpy(self->upvalues, upvs, sizeof(gab_value) * p->nupvalues);
   return self;
 }
 
-gab_obj_upvalue *gab_obj_upvalue_create(gab_value *slot) {
+gab_obj_upvalue *gab_obj_upvalue_create(gab_value *data) {
   gab_obj_upvalue *self = GAB_CREATE_OBJ(gab_obj_upvalue, TYPE_UPVALUE);
-  self->data = slot;
+  self->data = data;
   self->closed = GAB_VAL_NIL();
   self->next = NULL;
   return self;
@@ -406,10 +409,8 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 size,
   if (interned)
     return interned;
 
-  if (vm != NULL) {
-    for (u64 i = 0; i < size; i++) {
-      gab_gc_iref(gab, vm, &gab->gc, keys[i * stride]);
-    }
+  for (u64 i = 0; i < size; i++) {
+    gab_gc_iref(gab, vm, &gab->gc, keys[i * stride]);
   }
 
   gab_obj_shape *self =

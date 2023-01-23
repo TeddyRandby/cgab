@@ -9,18 +9,26 @@ typedef struct gab_vm gab_vm;
 typedef struct rc_update {
   const char *file;
   i32 line;
-  gab_value val;
+  gab_obj* val;
 } rc_update;
 
 #define T rc_update
 #include "include/vector.h"
-#endif
 
 #define NAME rc_tracker
-#define K gab_value
+#define K gab_obj*
 #define V i32
 #define DEF_V 0
-#define HASH(a) (a)
+#define HASH(a) ((u64) a)
+#define EQUAL(a, b) (a == b)
+#include "include/dict.h"
+
+#endif
+
+#define NAME gc_set
+#define K gab_obj*
+#define DEF_K NULL
+#define HASH(a) ((u64) a)
 #define EQUAL(a, b) (a == b)
 #include "include/dict.h"
 
@@ -29,8 +37,8 @@ typedef struct gab_gc {
   i32 decrement_count;
   i32 root_count;
 
-  d_u64 queue;
-  d_u64 roots;
+  d_gc_set queue;
+  d_gc_set roots;
 
 #if GAB_DEBUG_GC
   v_rc_update tracked_increments;

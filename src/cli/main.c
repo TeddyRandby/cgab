@@ -47,18 +47,18 @@ void gab_run_file(const char *path) {
       s_i8_cstr("print"),
       s_i8_cstr("require"),
       s_i8_cstr("panic"),
-      s_i8_cstr("String"),
-      s_i8_cstr("Number"),
-      s_i8_cstr("Boolean"),
+      // s_i8_cstr("String"),
+      // s_i8_cstr("Number"),
+      // s_i8_cstr("Boolean"),
   };
 
   gab_value args[] = {
       make_print(gab),
       make_require(gab),
       GAB_BUILTIN(panic),
-      gab_get_type(gab, TYPE_STRING),
-      gab_get_type(gab, TYPE_NUMBER),
-      gab_get_type(gab, TYPE_BOOLEAN),
+      // gab_get_type(gab, TYPE_STRING),
+      // gab_get_type(gab, TYPE_NUMBER),
+      // gab_get_type(gab, TYPE_BOOLEAN),
   };
 
   static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
@@ -83,15 +83,10 @@ fin:
   // Cleanup the result
   gab_dref(gab, NULL, result);
 
-  // Cleanup the engine, module, and imports
-  gab_module_cleanup(gab, main);
-  gab_cleanup(gab);
-  imports_cleanup(gab);
-
   // Destroy everything
-  gab_module_destroy(main);
+  imports_destroy(gab);
+  gab_module_destroy(gab, main);
   gab_destroy(gab);
-  imports_destroy();
 
   a_i8_destroy(src);
 }
