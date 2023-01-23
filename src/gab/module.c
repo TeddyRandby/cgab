@@ -27,8 +27,8 @@ void gab_module_destroy(gab_engine *gab, gab_module *mod) {
     if (d_gab_constant_iexists(&mod->constants, i)) {
       gab_value v = d_gab_constant_ikey(&mod->constants, i);
       // The only kind of value owned by the modules
-      // that and it's main closure
-      if (GAB_VAL_IS_PROTOTYPE(v) || GAB_VAL_IS_CLOSURE(v))
+      // are their prototypes and the main closure
+      if (GAB_VAL_IS_PROTOTYPE(v) || i == mod->main)
         gab_dref(gab, NULL, v);
     }
   }
@@ -38,6 +38,7 @@ void gab_module_destroy(gab_engine *gab, gab_module *mod) {
   v_u64_destroy(&mod->lines);
   d_gab_constant_destroy(&mod->constants);
   v_s_i8_destroy(&mod->sources);
+
   if (mod->source_lines) {
     v_s_i8_destroy(mod->source_lines);
     DESTROY(mod->source_lines);

@@ -199,14 +199,14 @@ static inline void call_closure(gab_vm *vm, gab_obj_closure *c, u8 arity,
   vm->frame->ip = c->p->mod->bytecode.data + c->p->offset;
   vm->frame->slots = vm->top - arity - 1;
   vm->frame->want = want;
-  vm->top += c->p->nlocals;
+
+  for (int i = 0; i < c->p->nlocals; i++)
+      *vm->top++ = GAB_VAL_NIL();
 }
 
-static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_gc *gc,
-                                gab_obj_builtin *b, u8 arity, u8 want) {
+static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_obj_builtin *b,
+                                u8 arity, u8 want) {
   gab_value result = (*b->function)(gab, vm, arity, vm->top - arity);
-
-  gab_gc_dref(gab, vm, gc, result);
 
   vm->top -= arity;
 
@@ -225,7 +225,6 @@ static inline gab_value capture_upvalue(gab_engine *gab, gab_vm *vm, gab_gc *gc,
 
   if (upvalue != NULL && upvalue->data == local) {
     // Capture this upvalue with a new referemce
-    gab_gc_iref(gab, vm, gc, GAB_VAL_OBJ(upvalue));
     return GAB_VAL_OBJ(upvalue);
   }
 
@@ -252,6 +251,7 @@ static inline void close_upvalue(gab_engine *gab, gab_gc *gc, gab_vm *vm,
     upvalue->data = &upvalue->closed;
 
     vm->open_upvalues = upvalue->next;
+
     gab_gc_iref(gab, vm, gc, upvalue->closed);
     gab_gc_dref(gab, vm, gc, GAB_VAL_OBJ(upvalue));
   }
@@ -409,8 +409,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       if (GAB_VAL_IS_CLOSURE(callee)) {
         call_closure(VM(), GAB_VAL_TO_CLOSURE(callee), arity, want);
       } else if (GAB_VAL_IS_BUILTIN(callee)) {
-        call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(callee), arity,
-                     want);
+        call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(callee), arity, want);
+
+        gab_gc_dref(ENGINE(), VM(), GC(), PEEK());
       } else if (GAB_VAL_IS_EFFECT(callee)) {
         call_effect(VM(), GAB_VAL_TO_EFFECT(callee), arity, want);
       } else {
@@ -483,8 +484,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       } else if (GAB_VAL_IS_BUILTIN(spec)) {
         WRITE_BYTE(16, instr + 2);
 
-        call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), arity + 1,
-                     want);
+        call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(spec), arity + 1, want);
+
+        gab_gc_dref(ENGINE(), VM(), GC(), PEEK());
       } else {
         return vm_error(VM(), GAB_NOT_CALLABLE, "");
       }
@@ -552,8 +554,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         if (GAB_VAL_IS_CLOSURE(spec)) {
           call_closure(VM(), GAB_VAL_TO_CLOSURE(spec), arity, want);
         } else if (GAB_VAL_IS_BUILTIN(spec)) {
-          call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec),
-                       arity + 1, want);
+          call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(spec), arity + 1,
+                       want);
+
+          gab_gc_dref(ENGINE(), VM(), GC(), PEEK());
         } else {
           return vm_error(VM(), GAB_NOT_CALLABLE, "");
         }
@@ -624,8 +628,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         if (GAB_VAL_IS_CLOSURE(spec)) {
           call_closure(VM(), GAB_VAL_TO_CLOSURE(spec), arity, want);
         } else if (GAB_VAL_IS_BUILTIN(spec)) {
-          call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec),
-                       arity + 1, want);
+          call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(spec), arity + 1,
+                       want);
+
+          gab_gc_dref(ENGINE(), VM(), GC(), PEEK());
         } else {
           return vm_error(VM(), GAB_NOT_CALLABLE, "");
         }
@@ -637,8 +643,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_value spec = gab_obj_message_get(func, offset);
 
       STORE_FRAME();
-      call_builtin(ENGINE(), VM(), GC(), GAB_VAL_TO_BUILTIN(spec), arity + 1,
-                   want);
+
+      call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(spec), arity + 1, want);
+
+      gab_gc_dref(ENGINE(), VM(), GC(), PEEK());
 
       NEXT();
     }
@@ -666,19 +674,18 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         }
 
       complete_yield : {
-        for (u8 i = 1; i < have + 1; i++) {
-          gab_gc_iref(ENGINE(), VM(), GC(), PEEK_N(i));
-        }
+        u64 frame_len = TOP() - SLOTS();
 
         gab_value eff = GAB_VAL_OBJ(gab_obj_effect_create(
-            CLOSURE(), IP(), have, want, TOP() - SLOTS(), SLOTS()));
+            CLOSURE(), IP(), have, want, frame_len, SLOTS()));
+
+        gab_gc_iref_many(ENGINE(), VM(), GC(), frame_len, SLOTS());
 
         PUSH(eff);
-        have++;
 
-        // push a deref to the new effect
         gab_gc_dref(ENGINE(), VM(), GC(), eff);
 
+        have++;
         goto complete_return;
       }
       }
@@ -1454,9 +1461,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         } else {
           cls->upvalues[i] = CLOSURE()->upvalues[index];
         }
-
-        gab_gc_iref(ENGINE(), VM(), GC(), cls->upvalues[i]);
       }
+
+      gab_gc_iref_many(ENGINE(), VM(), GC(), p->nupvalues, cls->upvalues);
 
       PUSH(GAB_VAL_OBJ(cls));
 
@@ -1468,7 +1475,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     CASE_CODE(MESSAGE) : {
       gab_obj_prototype *p = READ_PROTOTYPE;
       gab_obj_message *m = READ_MESSAGE;
-      gab_value r = PEEK();
+      gab_value r = POP();
 
       if (gab_obj_message_find(m, r) != UINT16_MAX) {
         STORE_FRAME();
@@ -1478,12 +1485,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
                         (i32)s->len, s->data, (i32)m->name.len, m->name.data);
       }
 
-      // Artificially use the stack to store the upvalues
-      // as we're finding them to capture.
-      // This is done so that the GC knows they're there.
+      gab_gc_iref(ENGINE(), VM(), GC(), r);
+
       gab_obj_closure *cls = gab_obj_closure_create(p);
 
-      for (int i = 0; i < p->nupvalues; i++) {
+      for (int i = 0; i < cls->nupvalues; i++) {
         u8 flags = READ_BYTE;
         u8 index = READ_BYTE;
 
@@ -1499,15 +1505,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         }
       }
 
-      for (int i = 0; i < p->nupvalues; i++) {
-        gab_gc_iref(ENGINE(), VM(), GC(), cls->upvalues[i]);
-      }
-
-      gab_gc_iref(ENGINE(), VM(), GC(), r);
-
-      PUSH(GAB_VAL_OBJ(m));
+      gab_gc_iref_many(ENGINE(), VM(), GC(), cls->nupvalues, cls->upvalues);
 
       gab_obj_message_insert(m, r, GAB_VAL_OBJ(cls));
+
+      PUSH(GAB_VAL_OBJ(m));
 
       NEXT();
     }
@@ -1537,19 +1539,16 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       }
 
     complete_record : {
-      // Increment the rc of the values only
-      for (u64 i = 1; i < size * 2; i += 2) {
-        gab_gc_iref(ENGINE(), VM(), GC(), PEEK_N(i));
-      }
+      gab_obj_record *rec =
+          gab_obj_record_create(shape, size, 2, TOP() + 1 - (size * 2));
 
-      gab_value obj = GAB_VAL_OBJ(
-          gab_obj_record_create(shape, size, 2, TOP() + 1 - (size * 2)));
+      gab_gc_iref_many(ENGINE(), VM(), GC(), size, rec->static_values);
 
       DROP_N(size * 2);
 
-      PUSH(obj);
+      PUSH(GAB_VAL_OBJ(rec));
 
-      gab_gc_dref(ENGINE(), VM(), GC(), obj);
+      gab_gc_dref(ENGINE(), VM(), GC(), GAB_VAL_OBJ(rec));
 
       NEXT();
     }
@@ -1572,20 +1571,18 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       }
 
     complete_array : {
-      for (u64 i = 1; i < size; i++) {
-        gab_gc_iref(ENGINE(), VM(), GC(), PEEK_N(i));
-      }
-
       gab_obj_shape *shape = gab_obj_shape_create_array(ENGINE(), VM(), size);
 
-      gab_value obj =
-          GAB_VAL_OBJ(gab_obj_record_create(shape, size, 1, TOP() - (size)));
+      gab_obj_record *rec =
+          gab_obj_record_create(shape, size, 1, TOP() - (size));
+
+      gab_gc_iref_many(ENGINE(), VM(), GC(), size, rec->static_values);
 
       DROP_N(size);
 
-      PUSH(obj);
+      PUSH(GAB_VAL_OBJ(rec));
 
-      gab_gc_dref(ENGINE(), VM(), GC(), obj);
+      gab_gc_dref(ENGINE(), VM(), GC(), GAB_VAL_OBJ(rec));
 
       NEXT();
     }

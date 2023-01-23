@@ -2,7 +2,7 @@
 #define GAB_COMMON_H
 // Compilation options
 
-// Collect as frequently as possible (on every RC push). ALso collect debug
+// Collect as frequently as possible (on every RC push). Also collect debug
 // info.
 #define GAB_DEBUG_GC 1
 // Log what is happening during collection.

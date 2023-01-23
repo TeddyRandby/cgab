@@ -39,6 +39,7 @@ describe('Strings', do ()
   end)
 end)
 
+
 describe('Closures', do ()
     let a = 1
 
@@ -184,9 +185,22 @@ describe('Messages', do ()
     end
 
     it('Should cache', do ()
+        repeat():expect(2) and
+        repeat():expect(2) and
         repeat():expect(2)
-        repeat():expect(2)
-        repeat():expect(2)
+    end)
+
+    def oneTwo()
+      return 1, 2
+    end
+
+    it('Should send/receive var', do ()
+      def takeOneTwo(a, b)
+        a:expect(1) and
+        b:expect(2)
+      end
+
+      takeOneTwo(oneTwo())
     end)
 end)
 
@@ -224,12 +238,12 @@ describe('Effects', do ()
         yield onetwo()
     end
 
-    it('should yield once', do ()
-        let val, eff = once()
+   it('should yield once', do ()
+       let val, eff = once()
 
-        val:expect(1) and
-        eff():expect(2)
-    end)
+       val:expect(1) and
+       eff():expect(2)
+   end)
 
     it('should yield twice', do()
         let _, eff = twice()
@@ -240,21 +254,21 @@ describe('Effects', do ()
         efftwo():expect(3)
     end)
 
-    it('should receive a value', do ()
-        let eff = receive_one()
+   it('should receive a value', do ()
+       let eff = receive_one()
 
-        eff(1)
-    end)
+       eff(1)
+   end)
 
-    it('should yield var', do ()
-        let one, two, eff = yields_many()
-        one:expect(1) and
-        two:expect(2)
-    end)
+   it('should yield var', do ()
+       let one, two, eff = yields_many()
+       one:expect(1) and
+       two:expect(2)
+   end)
 
-    it('should receive var', do ()
-        let eff = receive_onetwo()
+   it('should receive var', do ()
+       let eff = receive_onetwo()
 
-        eff(onetwo())
-    end)
+       eff(onetwo())
+   end)
 end)

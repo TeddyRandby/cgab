@@ -36,6 +36,11 @@ gab_obj *gab_obj_create(gab_obj *self, gab_type k) {
   self->references = 1;
 
   self->flags = 0;
+#if GAB_LOG_GC
+
+  printf("Created (%p) \n", self);
+
+#endif
   return self;
 }
 
@@ -219,8 +224,8 @@ void gab_obj_destroy(gab_engine *gab, gab_vm *vm, gab_obj *self) {
       These cases are allocated with a single malloc() call, so don't require
       anything fancy.
     */
-  case TYPE_UPVALUE:
   case TYPE_EFFECT:
+  case TYPE_UPVALUE:
   case TYPE_PROTOTYPE:
   case TYPE_CLOSURE:
   case TYPE_BUILTIN:
@@ -407,10 +412,6 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 size,
   if (interned)
     return interned;
 
-  for (u64 i = 0; i < size; i++) {
-    gab_gc_iref(gab, vm, &gab->gc, keys[i * stride]);
-  }
-
   gab_obj_shape *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_shape, gab_value, size, TYPE_SHAPE);
 
@@ -426,6 +427,8 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 size,
 
     d_u64_insert(&self->properties, key, i);
   }
+
+  gab_gc_iref_many(gab, vm, &gab->gc, size, self->keys);
 
   gab_engine_intern(gab, GAB_VAL_OBJ(self));
 
@@ -511,7 +514,9 @@ gab_obj_effect *gab_obj_effect_create(gab_obj_closure *c, u8 *ip, u8 have,
   self->want = want;
   self->len = len;
 
-  memcpy(self->frame, frame, len * sizeof(gab_value));
+  for (u8 i = 0; i < len; i++) {
+      self->frame[i] = frame[i];
+  }
 
   return self;
 }
