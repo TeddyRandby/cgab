@@ -368,15 +368,13 @@ gab_obj_builtin *gab_obj_builtin_create(gab_builtin function, s_i8 name) {
   return self;
 }
 
-gab_obj_closure *gab_obj_closure_create(gab_obj_prototype *p,
-                                        gab_value upvs[]) {
+gab_obj_closure *gab_obj_closure_create(gab_obj_prototype *p) {
   gab_obj_closure *self = GAB_CREATE_FLEX_OBJ(gab_obj_closure, gab_obj_upvalue,
                                               p->nupvalues, TYPE_CLOSURE);
 
   self->nupvalues = p->nupvalues;
   self->p = p;
 
-  memcpy(self->upvalues, upvs, sizeof(gab_value) * p->nupvalues);
   return self;
 }
 

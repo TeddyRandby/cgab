@@ -10,85 +10,29 @@ def it(name, cb)
   print('{cb() and '✓' or '×'} it {name}')
 end
 
-it('should have properties', do ()
-let Point = {
-    x: 1
-    y: 2
-}
-
-Point.x:expect(1) and
-Point.y:expect(2)
-end)
-
-it('should be structurally shaped', do ()
-let pone = { x: 1 y: 2}
-let ptwo = { x: 3 y: 4}
-
-(pone?):expect(ptwo?)
-end)
-
-it('should set properties dynamically', do ()
-let obj = { [[]?]: 'test' }
-obj['y'] = 2
-
-(obj.y):expect(2) and
-(obj[[]?]):expect('test')
-end)
-
-it('should work for all kinds of keys', do ()
-let obj = {}
-obj[obj] = 2
-obj[{}?] = 3
-
-let i = do ()
-    1
-end
-
-obj[i] = i 
-
-obj[obj]:expect(2) and
-obj[{}?]:expect(3) and
-obj[i]:expect(i)
-end)
-
-it('should spread out the keys', do ()
-let obj = {
-    test: 'hello'
-    [{}?]: 'world'
-}
-
-let a, b = ..obj
-let c, d = ..obj?
-
-a:expect('hello') and
-b:expect('world') and
-c:expect('test') and
-d:expect({}?)
-end)
-
 it('should withstand this tricky mess', do ()
-let obj = {}
+    let obj = {}
 
-def try_segfault()
-    { try: 'segv' }
-end
+    def try_segfault()
+        { try: 'segv' }
+    end
 
-obj[try_segfault()] = 2
+    obj[try_segfault()] = 2
 
-(..obj):expect(2)
-(..((..obj?)?)):expect('try')
+    (..obj):expect(2)
+    (..((..obj?)?)):expect('try')
 end)
 
 it('should make a var array', do ()
-def abcd()
-    return 'a', 'b', 'c', 'd'
-end
+    def abcd()
+        return 'a', 'b', 'c', 'd'
+    end
 
-let list = [abcd()]
+    let list = [abcd()]
 
-list[0]:expect('a')
-list[1]:expect('b')
-list[2]:expect('c')
-list[3]:expect('d')
-list[4]:expect(nil)
+    list[0]:expect('a')
+    list[1]:expect('b')
+    list[2]:expect('c')
+    list[3]:expect('d')
+    list[4]:expect(nil)
 end)

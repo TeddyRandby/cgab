@@ -2132,7 +2132,7 @@ i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
   p->offset = 0;
   p->len = mod->bytecode.len;
 
-  gab_obj_closure *c = gab_obj_closure_create(p, NULL);
+  gab_obj_closure *c = gab_obj_closure_create(p);
 
   add_constant(mod, GAB_VAL_OBJ(p));
   return add_constant(mod, GAB_VAL_OBJ(c));
@@ -2168,7 +2168,7 @@ gab_module *gab_bc_compile_send(gab_engine *gab, s_i8 name, gab_value receiver,
   p->offset = 0;
   p->len = mod->bytecode.len;
 
-  gab_obj_closure *c = gab_obj_closure_create(p, NULL);
+  gab_obj_closure *c = gab_obj_closure_create(p);
 
   add_constant(mod, GAB_VAL_OBJ(p));
 

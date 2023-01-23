@@ -92,8 +92,6 @@ void gab_gc_create(gab_gc *self) {
   self->increment_count = 0;
   self->root_count = 0;
 
-  d_gc_set_create(&self->queue, MODULE_CONSTANTS_MAX);
-
 #if GAB_DEBUG_GC
   v_rc_update_create(&self->tracked_decrements, MODULE_CONSTANTS_MAX);
   v_rc_update_create(&self->tracked_increments, MODULE_CONSTANTS_MAX);
@@ -102,7 +100,6 @@ void gab_gc_create(gab_gc *self) {
 };
 
 void gab_gc_destroy(gab_gc *self) {
-  d_gc_set_destroy(&self->queue);
 
 #if GAB_DEBUG_GC
 
@@ -146,14 +143,13 @@ static inline void queue_destroy(gab_gc *gc, gab_obj *obj) {
 }
 
 static inline void cleanup(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
-  for (i32 i = 0; i < gc->queue.cap; i++) {
+  for (u64 i = 0; i < gc->queue.cap; i++) {
     if (d_gc_set_iexists(&gc->queue, i)) {
-      d_gc_set_iremove(&gc->queue, i);
 
       gab_obj *key = d_gc_set_ikey(&gc->queue, i);
 
 #if GAB_LOG_GC
-      printf("Destroying: ");
+      printf("Destroying (%p): ", key);
       gab_val_dump(GAB_VAL_OBJ(key));
       printf("\n");
 #if GAB_DEBUG_GC
@@ -600,6 +596,7 @@ void collect_cycles(gab_gc *gc) {
 
 void gab_gc_collect(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
   d_gc_set_create(&gc->roots, MODULE_CONSTANTS_MAX);
+  d_gc_set_create(&gc->queue, MODULE_CONSTANTS_MAX);
 
   if (vm != NULL)
     increment_stack(gc, vm);
@@ -616,4 +613,5 @@ void gab_gc_collect(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
   cleanup(gab, vm, gc);
 
   d_gc_set_destroy(&gc->roots);
+  d_gc_set_destroy(&gc->queue);
 }

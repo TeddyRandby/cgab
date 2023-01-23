@@ -206,11 +206,11 @@ static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_gc *gc,
                                 gab_obj_builtin *b, u8 arity, u8 want) {
   gab_value result = (*b->function)(gab, vm, arity, vm->top - arity);
 
+  gab_gc_dref(gab, vm, gc, result);
+
   vm->top -= arity;
 
   vm->top = trim_return(vm, &result, vm->top, 1, want);
-
-  gab_gc_dref(gab, vm, gc, result);
 }
 
 static inline gab_value capture_upvalue(gab_engine *gab, gab_vm *vm, gab_gc *gc,
@@ -666,9 +666,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         }
 
       complete_yield : {
-        // Peek past the effect and increment value it captures
-        for (u8 i = 0; i < have; i++) {
-          gab_gc_iref(ENGINE(), VM(), GC(), PEEK_N(i + 1));
+        for (u8 i = 1; i < have + 1; i++) {
+          gab_gc_iref(ENGINE(), VM(), GC(), PEEK_N(i));
         }
 
         gab_value eff = GAB_VAL_OBJ(gab_obj_effect_create(
@@ -964,8 +963,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
           prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
         } else {
           // The shape is stable and the property existed.
-          gab_gc_dref(ENGINE(), VM(), GC(),
-                      gab_obj_record_get(obj, prop_offset));
+          gab_value prior = gab_obj_record_get(obj, prop_offset);
+
+          gab_gc_dref(ENGINE(), VM(), GC(), prior);
+
           gab_obj_record_set(obj, prop_offset, value);
         }
 
@@ -999,6 +1000,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         if (obj->shape == *cached_shape) {
           gab_gc_dref(ENGINE(), VM(), GC(),
                       gab_obj_record_get(obj, prop_offset));
+
           gab_obj_record_set(obj, prop_offset, value);
         } else {
           prop_offset = gab_obj_shape_find(obj->shape, key);
@@ -1006,8 +1008,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
           if (prop_offset == UINT16_MAX) {
             prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
           } else {
-            gab_gc_dref(ENGINE(), VM(), GC(),
-                        gab_obj_record_get(obj, prop_offset));
+            gab_value prior = gab_obj_record_get(obj, prop_offset);
+
+            gab_gc_dref(ENGINE(), VM(), GC(), prior);
+
             gab_obj_record_set(obj, prop_offset, value);
           }
 
@@ -1020,9 +1024,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       }
 
     complete_obj_set : {
-      gab_gc_iref(ENGINE(), VM(), GC(), value);
-
       PUSH(value);
+
+      gab_gc_iref(ENGINE(), VM(), GC(), value);
 
       NEXT();
     }
@@ -1434,7 +1438,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     CASE_CODE(CLOSURE) : {
       gab_obj_prototype *p = READ_PROTOTYPE;
 
-      gab_value *upvalues = TOP();
+      gab_obj_closure *cls = gab_obj_closure_create(p);
 
       for (int i = 0; i < p->nupvalues; i++) {
         u8 flags = READ_BYTE;
@@ -1442,24 +1446,21 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
         if (flags & FLAG_LOCAL) {
           if (flags & FLAG_MUTABLE) {
-            PUSH(capture_upvalue(ENGINE(), VM(), GC(), FRAME()->slots + index));
+            cls->upvalues[i] =
+                capture_upvalue(ENGINE(), VM(), GC(), FRAME()->slots + index);
           } else {
-            PUSH(LOCAL(index));
+            cls->upvalues[i] = LOCAL(index);
           }
         } else {
-          PUSH(CLOSURE()->upvalues[index]);
+          cls->upvalues[i] = CLOSURE()->upvalues[index];
         }
 
-        gab_gc_iref(ENGINE(), VM(), GC(), upvalues[i]);
+        gab_gc_iref(ENGINE(), VM(), GC(), cls->upvalues[i]);
       }
 
-      DROP_N(p->nupvalues);
+      PUSH(GAB_VAL_OBJ(cls));
 
-      gab_value obj = GAB_VAL_OBJ(gab_obj_closure_create(p, upvalues));
-
-      gab_gc_dref(ENGINE(), VM(), GC(), obj);
-
-      PUSH(obj);
+      gab_gc_dref(ENGINE(), VM(), GC(), GAB_VAL_OBJ(cls));
 
       NEXT();
     }
@@ -1480,7 +1481,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       // Artificially use the stack to store the upvalues
       // as we're finding them to capture.
       // This is done so that the GC knows they're there.
-      gab_value *upvalues = TOP();
+      gab_obj_closure *cls = gab_obj_closure_create(p);
 
       for (int i = 0; i < p->nupvalues; i++) {
         u8 flags = READ_BYTE;
@@ -1488,26 +1489,25 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
         if (flags & FLAG_LOCAL) {
           if (flags & FLAG_MUTABLE) {
-            PUSH(capture_upvalue(ENGINE(), VM(), GC(), FRAME()->slots + index));
+            cls->upvalues[i] =
+                capture_upvalue(ENGINE(), VM(), GC(), FRAME()->slots + index);
           } else {
-            PUSH(LOCAL(index));
-            gab_gc_iref(ENGINE(), VM(), GC(), upvalues[i]);
+            cls->upvalues[i] = LOCAL(index);
           }
         } else {
-          PUSH(CLOSURE()->upvalues[index]);
-          gab_gc_iref(ENGINE(), VM(), GC(), upvalues[i]);
+          cls->upvalues[i] = CLOSURE()->upvalues[index];
         }
       }
 
-      DROP_N(p->nupvalues + 1);
-
-      gab_value obj = GAB_VAL_OBJ(gab_obj_closure_create(p, upvalues));
+      for (int i = 0; i < p->nupvalues; i++) {
+        gab_gc_iref(ENGINE(), VM(), GC(), cls->upvalues[i]);
+      }
 
       gab_gc_iref(ENGINE(), VM(), GC(), r);
 
-      gab_obj_message_insert(m, r, obj);
-
       PUSH(GAB_VAL_OBJ(m));
+
+      gab_obj_message_insert(m, r, GAB_VAL_OBJ(cls));
 
       NEXT();
     }

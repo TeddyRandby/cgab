@@ -254,7 +254,7 @@ struct gab_obj_closure {
 #define GAB_VAL_IS_CLOSURE(value) (gab_val_is_obj_kind(value, TYPE_CLOSURE))
 #define GAB_VAL_TO_CLOSURE(value) ((gab_obj_closure *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_CLOSURE(value) ((gab_obj_closure *)value)
-gab_obj_closure *gab_obj_closure_create(gab_obj_prototype *p, gab_value upvs[]);
+gab_obj_closure *gab_obj_closure_create(gab_obj_prototype *p);
 /*
   ------------- OBJ_FUNCTION -------------
   A function. Not visible at runtime - always wrapped by an OBJ_CLOSURE
