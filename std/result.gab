@@ -1,32 +1,47 @@
-def Ok  { ok  }
-def Err { err }
+#
+# A result.
+#
+
+let OK, ERR = $ok, $err
+
+#
+# Ok
+#
+
+def Ok  { [OK] }
 
 def ok[]
-  { ok: self }
-end
-
-def err[]
-  { err: self }
+  { [OK]: self }
 end
 
 def print[Ok]
-  'Ok({self.ok})':print
-end
-
-def print[Err]
-  'Err({self.err})':print
+  'Ok({self[OK]})':print
 end
 
 def unwrap[Ok]
-  self.ok
-end
-
-def unwrap[Err]
-    panic(self.err)
+  self[OK]
 end
 
 def unwrap_or[Ok](alternative)
-  self.ok
+  self[OK]
+end
+
+#
+# Err
+#
+
+def Err { [ERR] }
+
+def err[]
+  { [ERR]: self }
+end
+
+def print[Err]
+  'Err({self[ERR]})':print
+end
+
+def unwrap[Err]
+    panic(self[ERR])
 end
 
 def unwrap_or[Err](alternative)
