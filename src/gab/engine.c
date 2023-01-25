@@ -167,6 +167,8 @@ gab_value gab_send(gab_engine *gab, s_i8 name, gab_value receiver, u8 argc,
 
   gab_value result = gab_vm_run(gab, mod, GAB_FLAG_PANIC_ON_FAIL, 0, NULL);
 
+  gab_module_collect(gab, mod);
+
   gab_module_destroy(gab, mod);
 
   return result;

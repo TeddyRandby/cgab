@@ -373,20 +373,18 @@ static i32 compile_local(gab_bc *bc, s_i8 name, u8 flags) {
   return add_local(bc, name, flags);
 }
 
-/* Returns COMP_ERR if an error was encountered, and otherwise COMP_OK
- */
-i32 compile_parameters(gab_bc *bc) {
-  if (!match_and_eat_token(bc, TOKEN_LPAREN)) {
-    // Assumed to have zero arguments
-    return 0;
-  }
-
-  if (match_and_eat_token(bc, TOKEN_RPAREN)) {
-    return 0;
-  }
-
+i32 compile_parameters(gab_bc *bc, boolean *vse_out) {
+  boolean vse = false;
   i32 result = 0;
   u8 narguments = 0;
+
+  if (!match_and_eat_token(bc, TOKEN_LPAREN)) {
+    goto fin;
+  }
+
+  if (match_and_eat_token(bc, TOKEN_RPAREN) > 0) {
+    goto fin;
+  }
 
   do {
 
@@ -397,25 +395,67 @@ i32 compile_parameters(gab_bc *bc) {
 
     narguments++;
 
-    if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
+    switch (match_and_eat_token(bc, TOKEN_LBRACE)) {
+    case COMP_OK: {
+      // This is a vararg parameter
+      if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
+        return COMP_ERR;
+
+      s_i8 name = bc->lex.previous_token_src;
+
+      i32 local = compile_local(bc, name, 0);
+
+      if (local < 0)
+        return COMP_ERR;
+
+      initialize_local(bc, local);
+
+      if (expect_token(bc, TOKEN_RBRACE) < 0)
+        return COMP_ERR;
+
+      if (expect_token(bc, TOKEN_RPAREN) < 0)
+        return COMP_ERR;
+
+      // This should be the last parameter
+      vse = true;
+      narguments--;
+      goto fin;
+    }
+
+    case COMP_TOKEN_NO_MATCH: {
+      // This is a normal paramter
+      if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
+        return COMP_ERR;
+
+      s_i8 name = bc->lex.previous_token_src;
+
+      i32 local = compile_local(bc, name, 0);
+
+      if (local < 0)
+        return COMP_ERR;
+
+      initialize_local(bc, local);
+
+      break;
+    }
+
+    default:
+      dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                          "While compiling parameter");
       return COMP_ERR;
+    }
 
-    s_i8 name = bc->lex.previous_token_src;
-    i32 local = compile_local(bc, name, 0);
-    if (local < 0)
-      return COMP_ERR;
-
-    // Function arguments are "initialized"
-    // here as well.
-    initialize_local(bc, local);
-
-  } while ((result = match_and_eat_token(bc, TOKEN_COMMA)));
+  } while ((result = match_and_eat_token(bc, TOKEN_COMMA)) > 0);
 
   if (result < 0)
     return COMP_ERR;
 
   if (expect_token(bc, TOKEN_RPAREN) < 0)
     return COMP_ERR;
+
+fin:
+  if (vse_out)
+    *vse_out = vse;
 
   return narguments;
 }
@@ -561,7 +601,9 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
 
   down_frame(bc, name, is_message);
 
-  i32 narguments = compile_parameters(bc);
+  boolean vse_params;
+
+  i32 narguments = compile_parameters(bc, &vse_params);
 
   if (narguments < 0)
     return COMP_ERR;
@@ -569,10 +611,11 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
   if (compile_function_body(gab, bc, mod, p, skip_jump) < 0)
     return COMP_ERR;
 
-  u8 nlocals = peek_frame(bc, 0)->deepest_local - narguments - 1;
+  u8 nlocals = peek_frame(bc, 0)->deepest_local - narguments - 1 - vse_params;
 
   p->nlocals = nlocals;
   p->narguments = narguments;
+  p->var = vse_params;
 
   u16 proto_constant = add_constant(mod, GAB_VAL_OBJ(p));
 
@@ -617,7 +660,7 @@ i32 compile_tuple(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 want,
     if (result < 0)
       return COMP_ERR;
 
-    vse = result == VAR_RET;
+    vse = result == VAR_EXP;
     have++;
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)) == COMP_OK);
 
@@ -629,14 +672,14 @@ i32 compile_tuple(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 want,
     return COMP_ERR;
   }
 
-  if (want == VAR_RET) {
+  if (want == VAR_EXP) {
     /*
      * If we want all possible values, try to patch a VSE.
      * If we are successful, remove one from have.
      * This is because have's meaning changes to mean the number of
      * values in ADDITION to the VSE ending the tuple.
      */
-    have -= gab_module_try_patch_vse(mod, VAR_RET);
+    have -= gab_module_try_patch_vse(mod, VAR_EXP);
   } else {
     /*
      * Here we want a specific number of values. Try to patch the VSE to want
@@ -748,7 +791,7 @@ i32 compile_lst_internals(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
     i32 result = compile_lst_internal_item(gab, bc, mod, size);
 
-    vse = result == VAR_RET;
+    vse = result == VAR_EXP;
 
     if (result < 0)
       return COMP_ERR;
@@ -770,7 +813,7 @@ i32 compile_lst_internals(gab_engine *gab, gab_bc *bc, gab_module *mod,
     *vse_out = vse;
 
   if (vse) {
-    return size - gab_module_try_patch_vse(mod, VAR_RET);
+    return size - gab_module_try_patch_vse(mod, VAR_EXP);
   }
 
   return size;
@@ -1425,7 +1468,7 @@ i32 compile_exp_spd(gab_engine *gab, gab_bc *bc, gab_module *mod,
   // Want byte
   push_byte(bc, mod, 1);
 
-  return VAR_RET;
+  return VAR_EXP;
 }
 
 i32 compile_exp_rec(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -1611,6 +1654,10 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (compile_expression(gab, bc, mod) < 0)
     return COMP_ERR;
 
+  gab_token prop_tok = bc->previous_token;
+  u64 prop_line = bc->line;
+  s_i8 prop_src = bc->lex.previous_token_src;
+
   if (expect_token(bc, TOKEN_RBRACE) < 0)
     return COMP_ERR;
 
@@ -1621,7 +1668,10 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
       if (compile_expression(gab, bc, mod) < 0)
         return COMP_ERR;
 
-      push_op(bc, mod, OP_STORE_INDEX);
+      gab_module_push_op(mod, OP_STORE_INDEX_ANA, prop_tok, prop_line,
+                         prop_src);
+
+      gab_module_push_inline_cache(mod, prop_tok, prop_line, prop_src);
     } else {
       dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
                           "While compiling 'index' expression");
@@ -1631,7 +1681,9 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   case COMP_TOKEN_NO_MATCH: {
-    push_op(bc, mod, OP_LOAD_INDEX);
+    gab_module_push_op(mod, OP_LOAD_INDEX_ANA, prop_tok, prop_line, prop_src);
+
+    gab_module_push_inline_cache(mod, prop_tok, prop_line, prop_src);
     break;
   }
 
@@ -1658,7 +1710,7 @@ i32 compile_arg_list(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   if (!match_token(bc, TOKEN_RPAREN)) {
 
-    nargs = compile_tuple(gab, bc, mod, VAR_RET, vse_out);
+    nargs = compile_tuple(gab, bc, mod, VAR_EXP, vse_out);
 
     if (nargs < 0)
       return COMP_ERR;
@@ -1713,7 +1765,7 @@ i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   gab_module_push_send(mod, result, vse, f, prev_tok, prev_line, prev_src);
 
-  return VAR_RET;
+  return VAR_EXP;
 }
 
 i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -1739,7 +1791,7 @@ i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   gab_module_push_send(mod, result, vse, m, prev_tok, prev_line, prev_src);
 
-  return VAR_RET;
+  return VAR_EXP;
 }
 
 i32 compile_exp_cal(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -1762,7 +1814,7 @@ i32 compile_exp_cal(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   gab_module_push_dynsend(mod, result, vse, call_tok, call_line, call_src);
 
-  return VAR_RET;
+  return VAR_EXP;
 }
 
 i32 compile_exp_and(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -1981,11 +2033,11 @@ i32 compile_exp_yld(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (match_token(bc, TOKEN_NEWLINE)) {
     gab_module_push_yield(mod, 0, false, bc->previous_token, bc->line,
                           bc->lex.previous_token_src);
-    return VAR_RET;
+    return VAR_EXP;
   }
 
   boolean vse;
-  i32 result = compile_tuple(gab, bc, mod, VAR_RET, &vse);
+  i32 result = compile_tuple(gab, bc, mod, VAR_EXP, &vse);
 
   if (result < 0)
     return COMP_ERR;
@@ -1997,7 +2049,7 @@ i32 compile_exp_yld(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   gab_module_push_yield(mod, result, vse, bc->previous_token, bc->line,
                         bc->lex.previous_token_src);
-  return VAR_RET;
+  return VAR_EXP;
 }
 
 i32 compile_exp_rtn(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -2009,7 +2061,7 @@ i32 compile_exp_rtn(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   boolean vse;
-  i32 result = compile_tuple(gab, bc, mod, VAR_RET, &vse);
+  i32 result = compile_tuple(gab, bc, mod, VAR_EXP, &vse);
 
   if (result < 0)
     return COMP_ERR;

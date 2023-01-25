@@ -42,7 +42,7 @@
 // Maximum number of function return values.
 #define FRET_MAX 16
 // Value used to encode variable return.
-#define VAR_RET 255
+#define VAR_EXP 255
 
 // GAB optional flags
 #define GAB_FLAG_NONE 0

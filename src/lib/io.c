@@ -6,7 +6,6 @@
 #include <stdio.h>
 
 void gab_container_file_cb(gab_engine *gab, gab_vm *vm, void *data) {
-  printf("Freeing file\n");
   if (fclose(data)) {
     gab_vm_panic(gab, vm, "Failed to cleanup file container");
   }
@@ -100,6 +99,7 @@ gab_value gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc,
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value io = GAB_SYMBOL("io");
+  gab_dref(gab, vm, io);
 
   s_i8 keys[] = {
       s_i8_cstr("open"),
@@ -123,6 +123,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
 
   for (u8 i = 0; i < 3; i++) {
     gab_specialize(gab, keys[i], receiver_types[i], values[i]);
+    gab_dref(gab, vm, values[i]);
   }
 
   return io;

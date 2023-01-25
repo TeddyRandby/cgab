@@ -83,6 +83,8 @@ gab_module *gab_module_create(gab_module *, s_i8, s_i8);
 
 void gab_module_destroy(gab_engine *gab, gab_module *mod);
 
+void gab_module_collect(gab_engine* gab, gab_module* mod);
+
 /*
   Helpers for pushing ops into the module.
 */

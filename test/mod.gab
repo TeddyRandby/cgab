@@ -12,7 +12,11 @@ def check(result, msg)
 end
 
 def expect[](other)
-  check(self == other, 'Expected {self} to be equal to {other}')
+  if not check(self == other, 'Expected {self} to be equal to {other}')
+    panic()
+  end
+
+  true
 end
 
 describe('Numbers', do ()
@@ -20,7 +24,7 @@ describe('Numbers', do ()
     5:expect(5)
   end)
   it('should do math', do ()
-    (5 * 2):expect(10) and
+    (5 * 2):expect(10)
     (10 % 3):expect(1)
   end)
 end)
@@ -74,6 +78,22 @@ describe('Closures', do ()
 
         b:expect(5)
     end)
+
+   it('should work with varargs', do()
+
+      def varfunc(first, [args])
+        first:expect(1)
+        args[0]:expect(2)
+      end
+
+      varfunc(1,2)
+
+      def onetwo()
+        return 1, 2
+      end
+
+      varfunc(onetwo())
+   end)
 end)
 
 describe('Records', do ()
@@ -85,7 +105,7 @@ describe('Records', do ()
       y: 2
     }
 
-    point.x:expect(1) and
+    point.x:expect(1)
     point.y:expect(2)
   end)
 
@@ -100,7 +120,7 @@ describe('Records', do ()
     let obj = { [[]?]: 'test' }
     obj['y'] = 2
 
-    (obj.y):expect(2) and
+    (obj.y):expect(2)
     (obj[[]?]):expect('test')
   end)
 
@@ -115,8 +135,8 @@ describe('Records', do ()
 
     obj[i] = i 
 
-    obj[obj]:expect(2) and
-    obj[{}?]:expect(3) and
+    obj[obj]:expect(2)
+    obj[{}?]:expect(3)
     obj[i]:expect(i)
   end)
 
@@ -129,9 +149,9 @@ describe('Records', do ()
     let a, b = ..obj
     let c, d = ..obj?
 
-    a:expect('hello') and
-    b:expect('world') and
-    c:expect('test') and
+    a:expect('hello')
+    b:expect('world')
+    c:expect('test') 
     d:expect({}?)
   end)
 
@@ -161,6 +181,50 @@ describe('Records', do ()
     list[3]:expect('d')
     list[4]:expect(nil)
   end)
+
+  it('should work through cache', do ()
+    let num = 2 
+    let a = { [it]: num }
+
+    def test()
+        num = a[it] + 1
+        a[it] = num
+    end
+
+    a[it]:expect(2)
+
+    test()
+    test()
+    test()
+
+    a[it]:expect(5)
+  end)
+
+  it('should work when shapes change', do ()
+    let obj = { }
+
+    def get_a()
+        obj.a
+    end
+    
+    get_a():expect(nil)
+
+    obj.a = 1
+
+    get_a():expect(1)
+
+    obj.a = obj.a + 1
+
+    get_a():expect(2)
+
+    obj.b = obj.a = obj.a + 1
+
+    get_a():expect(3)
+
+    obj.b = obj.a = obj.a + 1
+
+    get_a():expect(4)
+  end)
 end)
 
 describe('Messages', do ()
@@ -168,15 +232,15 @@ describe('Messages', do ()
         self    
     end
 
-    it('Should send', do ()
+    it('should send', do ()
         1:test:expect(1)
     end)
 
-    def test[1?]
+    def test[1?](a)
         self + 1
     end
 
-    it('Should use more specific', do ()
+    it('should use more specific', do ()
         1:test:expect(2)
     end)
 
@@ -184,9 +248,9 @@ describe('Messages', do ()
         1:test
     end
 
-    it('Should cache', do ()
-        repeat():expect(2) and
-        repeat():expect(2) and
+    it('should cache', do ()
+        repeat():expect(2)
+        repeat():expect(2)
         repeat():expect(2)
     end)
 
@@ -194,9 +258,9 @@ describe('Messages', do ()
       return 1, 2
     end
 
-    it('Should send/receive var', do ()
+    it('should send/receive var', do ()
       def takeOneTwo(a, b)
-        a:expect(1) and
+        a:expect(1)
         b:expect(2)
       end
 
@@ -226,7 +290,7 @@ describe('Effects', do ()
     def receive_onetwo()
         let one, two = yield
         
-        one:expect(1) and
+        one:expect(1)
         two:expect(2)
     end
 
@@ -241,7 +305,7 @@ describe('Effects', do ()
    it('should yield once', do ()
        let val, eff = once()
 
-       val:expect(1) and
+       val:expect(1)
        eff():expect(2)
    end)
 
@@ -250,7 +314,7 @@ describe('Effects', do ()
 
         let valtwo, efftwo = eff()
 
-        valtwo:expect(2) and
+        valtwo:expect(2)
         efftwo():expect(3)
     end)
 
@@ -262,7 +326,7 @@ describe('Effects', do ()
 
    it('should yield var', do ()
        let one, two, eff = yields_many()
-       one:expect(1) and
+       one:expect(1)
        two:expect(2)
    end)
 

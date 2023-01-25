@@ -19,19 +19,24 @@ gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
   d_gab_constant_create(&self->constants, MODULE_CONSTANTS_MAX);
   return self;
 }
-
-void gab_module_destroy(gab_engine *gab, gab_module *mod) {
+void gab_module_collect(gab_engine* gab, gab_module* mod) {
   if (!mod)
     return;
+
   for (u64 i = 0; i < mod->constants.cap; i++) {
     if (d_gab_constant_iexists(&mod->constants, i)) {
       gab_value v = d_gab_constant_ikey(&mod->constants, i);
       // The only kind of value owned by the modules
       // are their prototypes and the main closure
-      if (GAB_VAL_IS_PROTOTYPE(v) || i == mod->main)
+      if (GAB_VAL_IS_PROTOTYPE(v) || GAB_VAL_IS_SYMBOL(v) || i == mod->main)
         gab_dref(gab, NULL, v);
     }
   }
+}
+
+void gab_module_destroy(gab_engine *gab, gab_module *mod) {
+  if (!mod)
+    return;
 
   v_u8_destroy(&mod->bytecode);
   v_u8_destroy(&mod->tokens);
@@ -459,8 +464,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_DUP:
   case OP_MATCH:
   case OP_POP:
-  case OP_LOAD_INDEX:
-  case OP_STORE_INDEX:
   case OP_CONCAT:
   case OP_STRINGIFY:
   case OP_NOP:
@@ -483,6 +486,13 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     return dumpTwoByteInstruction(self, offset);
   case OP_CONSTANT:
     return dumpConstantInstruction(self, offset);
+  case OP_LOAD_INDEX_ANA:
+  case OP_LOAD_INDEX_MONO:
+  case OP_LOAD_INDEX_POLY:
+  case OP_STORE_INDEX_ANA:
+  case OP_STORE_INDEX_MONO:
+  case OP_STORE_INDEX_POLY:
+    return dumpSimpleInstruction(self, offset) + 10;
   case OP_STORE_PROPERTY_ANA:
   case OP_STORE_PROPERTY_MONO:
   case OP_STORE_PROPERTY_POLY:

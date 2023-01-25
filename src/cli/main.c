@@ -1,6 +1,7 @@
 #include "builtins.h"
 #include "include/core.h"
 #include "include/gab.h"
+#include "include/module.h"
 #include "include/object.h"
 #include "include/os.h"
 #include <assert.h>
@@ -71,6 +72,8 @@ void gab_run_file(const char *path) {
       gab_compile(gab, s_i8_cstr("__main__"), s_i8_create(src->data, src->len),
                   GAB_FLAG_DUMP_ERROR);
 
+  a_i8_destroy(src);
+
   gab_value result = GAB_VAL_NIL();
 
   if (main == NULL) {
@@ -82,13 +85,13 @@ void gab_run_file(const char *path) {
 fin:
   // Cleanup the result
   gab_dref(gab, NULL, result);
-
-  // Destroy everything
-  imports_destroy(gab);
-  gab_module_destroy(gab, main);
+  gab_module_collect(gab, main);
+  imports_collect(gab);
   gab_destroy(gab);
 
-  a_i8_destroy(src);
+  // Destroy everything
+  gab_module_destroy(gab, main);
+  imports_destroy(gab);
 }
 
 i32 main(i32 argc, const char **argv) {

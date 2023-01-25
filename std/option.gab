@@ -26,10 +26,6 @@ def unwrap_or[Some](alternative)
     self[SOME]
 end
 
-def ok_or[Some](err)
-    self[SOME]
-end
-
 #
 # None
 #
@@ -43,13 +39,9 @@ def print[NONE]
 end
 
 def unwrap[NONE]
-    panic('Tried to unwrap nil')
+    panic('Tried to unwrap none')
 end
 
 def unwrap_or[NONE](alternative)
     alternative
-end
-
-def ok_or[NONE](err)
-    err
 end

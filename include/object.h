@@ -213,6 +213,11 @@ struct gab_obj_prototype {
    * The number of local variables in the function.
    */
   u8 nlocals;
+ 
+  /*
+   * If the proto accepts all arguments passed to it
+   */
+  u8 var;
 
   /*
    * The offset into the module where the function's instructions begin.

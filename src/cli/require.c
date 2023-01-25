@@ -36,7 +36,17 @@ struct import {
 
 d_import imports = {0};
 
-void import_destroy(gab_engine* gab, import *i) {
+void import_collect(gab_engine *gab, import *i) {
+  switch (i->k) {
+  case IMPORT_SHARED:
+    break;
+  case IMPORT_SOURCE:
+    gab_module_collect(gab, i->as.mod);
+    break;
+  }
+}
+
+void import_destroy(gab_engine *gab, import *i) {
   switch (i->k) {
   case IMPORT_SHARED:
     dlclose(i->as.shared);
@@ -50,7 +60,15 @@ void import_destroy(gab_engine* gab, import *i) {
 
 void imports_create() { d_import_create(&imports, 8); };
 
-void imports_destroy(gab_engine* gab) {
+void imports_collect(gab_engine *gab) {
+  for (u64 i = 0; i < imports.cap; i++) {
+    if (d_import_iexists(&imports, i)) {
+      import_collect(gab, d_import_ival(&imports, i));
+    }
+  }
+}
+
+void imports_destroy(gab_engine *gab) {
   for (u64 i = 0; i < imports.cap; i++) {
     if (d_import_iexists(&imports, i)) {
       import_destroy(gab, d_import_ival(&imports, i));

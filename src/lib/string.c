@@ -126,6 +126,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
 
   for (u8 i = 0; i < LEN_CARRAY(keys); i++) {
     gab_specialize(gab, keys[i], string_type, values[i]);
+    gab_dref(gab, vm, values[i]);
   }
 
   return GAB_VAL_NIL();
