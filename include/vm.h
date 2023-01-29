@@ -7,7 +7,7 @@
 /*
   A run-time representation of a callframe.
 */
-typedef struct gab_call_frame {
+typedef struct gab_vm_frame {
   gab_obj_closure *c;
 
   /*
@@ -26,7 +26,7 @@ typedef struct gab_call_frame {
     This is set during when the values are called.
   */
   u8 want;
-} gab_call_frame;
+} gab_vm_frame;
 
 typedef struct gab_vm {
   u8 flags;
@@ -35,7 +35,7 @@ typedef struct gab_vm {
   */
   gab_obj_upvalue *open_upvalues;
 
-  gab_call_frame *frame;
+  gab_vm_frame *frame;
 
   gab_value *top;
 
@@ -44,7 +44,7 @@ typedef struct gab_vm {
   /*
     The call stack.
   */
-  gab_call_frame call_stack[FRAMES_MAX];
+  gab_vm_frame call_stack[FRAMES_MAX];
 } gab_vm;
 
 void gab_vm_create(gab_vm *vm, u8 flags, u8 argc, gab_value argv[argc]);

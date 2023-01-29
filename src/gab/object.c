@@ -109,7 +109,7 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self) {
   }
 
   if (GAB_VAL_IS_NIL(self)) {
-    return GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("null")));
+    return GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("nil")));
   }
 
   if (GAB_VAL_IS_NUMBER(self)) {
@@ -339,7 +339,7 @@ gab_obj_prototype *gab_obj_prototype_create(gab_module *mod, s_i8 name) {
   self->mod = mod;
   self->name = name;
   self->narguments = 0;
-  self->nlocals = 0;
+  self->nslots = 0;
   self->nupvalues = 0;
   self->var = 0;
   self->offset = 0;

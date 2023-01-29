@@ -137,6 +137,7 @@ s_i8 trim_prev_tok(gab_bc *bc) {
   return message;
 }
 
+
 static inline u16 add_constant(gab_module *mod, gab_value value) {
   return gab_module_add_constant(mod, value);
 }
@@ -613,7 +614,7 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
 
   u8 nlocals = peek_frame(bc, 0)->deepest_local - narguments - 1 - vse_params;
 
-  p->nlocals = nlocals;
+  p->nslots = nlocals;
   p->narguments = narguments;
   p->var = vse_params;
 
@@ -2180,7 +2181,7 @@ i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
   gab_obj_prototype *p = gab_obj_prototype_create(mod, name);
   p->nupvalues = 0;
   p->narguments = narguments;
-  p->nlocals = top_level_locals;
+  p->nslots = top_level_locals;
   p->offset = 0;
   p->len = mod->bytecode.len;
 
@@ -2214,10 +2215,6 @@ gab_module *gab_bc_compile_send(gab_engine *gab, s_i8 name, gab_value receiver,
   gab_module_push_return(mod, 1, false, 0, 0, (s_i8){0});
 
   gab_obj_prototype *p = gab_obj_prototype_create(mod, name);
-  p->nupvalues = 0;
-  p->narguments = 0;
-  p->nlocals = 0;
-  p->offset = 0;
   p->len = mod->bytecode.len;
 
   gab_obj_closure *c = gab_obj_closure_create(p);

@@ -210,14 +210,14 @@ struct gab_obj_prototype {
   u8 nupvalues;
 
   /*
-   * The number of local variables in the function.
+   * The number of slots the proto needs.
    */
-  u8 nlocals;
+  u8 nslots;
  
   /*
    * If the proto accepts all arguments passed to it
    */
-  u8 var;
+  boolean var;
 
   /*
    * The offset into the module where the function's instructions begin.

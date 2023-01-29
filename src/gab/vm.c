@@ -27,7 +27,7 @@ static const char *gab_token_names[] = {
 #define ANSI_COLOR_RESET "\x1b[0m"
 gab_value vm_error(gab_vm *vm, gab_status e, const char *help_fmt, ...) {
   if (vm->flags & GAB_FLAG_DUMP_ERROR) {
-    gab_call_frame *frame = vm->call_stack + 1;
+    gab_vm_frame *frame = vm->call_stack + 1;
 
     while (frame <= vm->frame) {
       s_i8 func_name = frame->c->p->name;
@@ -219,7 +219,7 @@ static inline void call_closure(gab_engine *gab, gab_vm *vm, gab_obj_closure *c,
 
   vm->frame->slots = vm->top - have - 1;
 
-  for (int i = 0; i < c->p->nlocals; i++)
+  for (int i = 0; i < c->p->nslots; i++)
     *vm->top++ = GAB_VAL_NIL();
 }
 
@@ -685,8 +685,24 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
           goto complete_return;
         }
 
-        CASE_CODE(YIELD) : {
-          have = READ_BYTE;
+        CASE_CODE(YIELD_0) :
+        CASE_CODE(YIELD_1) :
+        CASE_CODE(YIELD_2) :
+        CASE_CODE(YIELD_3) :
+        CASE_CODE(YIELD_4) :
+        CASE_CODE(YIELD_5) :
+        CASE_CODE(YIELD_6) :
+        CASE_CODE(YIELD_7) :
+        CASE_CODE(YIELD_8) :
+        CASE_CODE(YIELD_9) :
+        CASE_CODE(YIELD_10) :
+        CASE_CODE(YIELD_11) :
+        CASE_CODE(YIELD_12) :
+        CASE_CODE(YIELD_13) :
+        CASE_CODE(YIELD_14) :
+        CASE_CODE(YIELD_15) :
+        CASE_CODE(YIELD_16) : {
+          have = INSTR() - OP_YIELD_0;
           want = READ_BYTE;
 
           goto complete_yield;

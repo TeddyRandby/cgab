@@ -1,5 +1,5 @@
-#include "include/module.h"
 #include "include/compiler.h"
+#include "include/module.h"
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/object.h"
@@ -56,6 +56,7 @@ void gab_module_destroy(gab_engine *gab, gab_module *mod) {
 
 // Helper macros for creating the specialized instructions
 #define MAKE_RETURN(n) (OP_RETURN_1 + (n - 1))
+#define MAKE_YIELD(n) (OP_YIELD_0 + (n))
 #define MAKE_SEND(n) (OP_SEND_0 + (n))
 #define MAKE_STORE_LOCAL(n) (OP_STORE_LOCAL_0 + (n))
 #define MAKE_LOAD_LOCAL(n) (OP_LOAD_LOCAL_0 + (n))
@@ -180,14 +181,20 @@ u8 gab_module_push_return(gab_module *self, u8 have, u8 var, gab_token t, u64 l,
   gab_module_push_byte(self, have, t, l, s);
   return OP_VARRETURN;
 }
+
 u8 gab_module_push_yield(gab_module *self, u8 have, u8 var, gab_token t, u64 l,
                          s_i8 s) {
-  u8 op = var ? OP_VARYIELD : OP_YIELD;
+  if (!var) {
+    u8 op = MAKE_YIELD(have);
+    gab_module_push_op(self, op, t, l, s);
+    gab_module_push_byte(self, 1, t, l, s);
+    return op;
+  }
 
-  gab_module_push_op(self, op, t, l, s);
+  gab_module_push_op(self, OP_VARYIELD, t, l, s);
   gab_module_push_byte(self, have, t, l, s);
   gab_module_push_byte(self, 1, t, l, s);
-  return OP_YIELD;
+  return OP_VARYIELD;
 }
 
 u8 gab_module_push_send(gab_module *self, u8 have, u8 var, u16 message,
@@ -293,7 +300,23 @@ boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
   case OP_VARDYNSEND:
   case OP_DYNSEND:
   case OP_VARYIELD:
-  case OP_YIELD:
+  case OP_YIELD_0:
+  case OP_YIELD_1:
+  case OP_YIELD_2:
+  case OP_YIELD_3:
+  case OP_YIELD_4:
+  case OP_YIELD_5:
+  case OP_YIELD_6:
+  case OP_YIELD_7:
+  case OP_YIELD_8:
+  case OP_YIELD_9:
+  case OP_YIELD_10:
+  case OP_YIELD_11:
+  case OP_YIELD_12:
+  case OP_YIELD_13:
+  case OP_YIELD_14:
+  case OP_YIELD_15:
+  case OP_YIELD_16:
   case OP_SPREAD:
     v_u8_set(&self->bytecode, self->bytecode.len - 1, want);
     return true;
@@ -510,6 +533,23 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_DYNSEND:
   case OP_VARDYNSEND:
     return dumpDynSendInstruction(self, offset);
+  case OP_YIELD_0:
+  case OP_YIELD_1:
+  case OP_YIELD_2:
+  case OP_YIELD_4:
+  case OP_YIELD_3:
+  case OP_YIELD_5:
+  case OP_YIELD_6:
+  case OP_YIELD_7:
+  case OP_YIELD_8:
+  case OP_YIELD_9:
+  case OP_YIELD_10:
+  case OP_YIELD_11:
+  case OP_YIELD_12:
+  case OP_YIELD_13:
+  case OP_YIELD_14:
+  case OP_YIELD_15:
+  case OP_YIELD_16:
   case OP_SPREAD:
   case OP_POP_N:
   case OP_CLOSE_UPVALUE:
