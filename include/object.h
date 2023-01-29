@@ -492,7 +492,7 @@ struct gab_obj_effect {
   gab_obj_closure *c;
 
   // Instruction Pointer
-  u8 *ip;
+  u64 offset;
 
   // The number of arguments yielded
   u8 have;
@@ -511,7 +511,7 @@ struct gab_obj_effect {
 #define GAB_VAL_TO_EFFECT(value) ((gab_obj_effect *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_EFFECT(value) ((gab_obj_effect *)value)
 
-gab_obj_effect *gab_obj_effect_create(gab_obj_closure *c, u8 *ip, u8 arity,
+gab_obj_effect *gab_obj_effect_create(gab_obj_closure *c, u64 offset, u8 arity,
                                       u8 want, u8 len, gab_value frame[len]);
 
 /*

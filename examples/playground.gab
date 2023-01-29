@@ -1,3 +1,5 @@
-def test[1?](a)
-    self + 1
+def infinity()
+    infinity()
 end
+
+infinity()

@@ -2,6 +2,7 @@
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/types.h"
+#include <stddef.h>
 #include <stdio.h>
 
 #define GAB_CREATE_ARRAY(type, count)                                          \
@@ -509,19 +510,19 @@ gab_obj_symbol *gab_obj_symbol_create(s_i8 name) {
   return self;
 }
 
-gab_obj_effect *gab_obj_effect_create(gab_obj_closure *c, u8 *ip, u8 have,
+gab_obj_effect *gab_obj_effect_create(gab_obj_closure *c, u64 offset, u8 have,
                                       u8 want, u8 len, gab_value frame[len]) {
   gab_obj_effect *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_effect, gab_value, len, TYPE_EFFECT);
 
   self->c = c;
-  self->ip = ip;
+  self->offset = offset;
   self->have = have;
   self->want = want;
   self->len = len;
 
   for (u8 i = 0; i < len; i++) {
-      self->frame[i] = frame[i];
+    self->frame[i] = frame[i];
   }
 
   return self;

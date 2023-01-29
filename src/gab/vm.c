@@ -175,7 +175,7 @@ static inline void call_effect(gab_vm *vm, gab_obj_effect *e, u8 arity,
                                u8 want) {
   vm->frame++;
   vm->frame->c = e->c;
-  vm->frame->ip = e->ip;
+  vm->frame->ip = e->c->p->mod->bytecode.data + e->offset;
   vm->frame->want = want;
   vm->frame->slots = vm->top - arity - 1;
 
@@ -186,8 +186,8 @@ static inline void call_effect(gab_vm *vm, gab_obj_effect *e, u8 arity,
   memcpy(vm->frame->slots, e->frame, (e->len - e->have) * sizeof(gab_value));
 }
 
-static inline void call_closure(gab_engine* gab, gab_vm *vm, gab_obj_closure *c, u8 have,
-                                u8 want) {
+static inline void call_closure(gab_engine *gab, gab_vm *vm, gab_obj_closure *c,
+                                u8 have, u8 want) {
   vm->frame++;
   vm->frame->c = c;
   vm->frame->ip = c->p->mod->bytecode.data + c->p->offset;
@@ -198,9 +198,10 @@ static inline void call_closure(gab_engine* gab, gab_vm *vm, gab_obj_closure *c,
     // a varargs record.
     u8 size = have - c->p->narguments;
     have = c->p->narguments + 1;
-    gab_obj_shape* shape = gab_obj_shape_create_array(gab, vm, size);
+    gab_obj_shape *shape = gab_obj_shape_create_array(gab, vm, size);
 
-    gab_value args = GAB_VAL_OBJ(gab_obj_record_create(shape, size, 1, vm->top - size));
+    gab_value args =
+        GAB_VAL_OBJ(gab_obj_record_create(shape, size, 1, vm->top - size));
 
     vm->top -= size;
 
@@ -694,8 +695,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       complete_yield : {
         u64 frame_len = TOP() - SLOTS();
 
-        gab_value eff = GAB_VAL_OBJ(gab_obj_effect_create(
-            CLOSURE(), IP(), have, want, frame_len, SLOTS()));
+        gab_value eff = GAB_VAL_OBJ(
+            gab_obj_effect_create(CLOSURE(), IP() - MODULE()->bytecode.data,
+                                  have, want, frame_len, SLOTS()));
 
         gab_gc_iref_many(ENGINE(), VM(), GC(), frame_len, SLOTS());
 
