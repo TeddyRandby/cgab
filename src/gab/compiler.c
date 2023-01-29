@@ -137,7 +137,6 @@ s_i8 trim_prev_tok(gab_bc *bc) {
   return message;
 }
 
-
 static inline u16 add_constant(gab_module *mod, gab_value value) {
   return gab_module_add_constant(mod, value);
 }
@@ -173,8 +172,21 @@ static inline void push_short(gab_bc *bc, gab_module *mod, u16 data) {
 }
 
 //--------------------- Local Variable Helpers --------------
-static gab_bc_frame *peek_frame(gab_bc *bc, u32 depth) {
+static inline gab_bc_frame *peek_frame(gab_bc *bc, u32 depth) {
   return &bc->frames[bc->frame_count - depth - 1];
+}
+
+static inline void push_slot(gab_bc *bc, u8 n) {
+  gab_bc_frame *f = peek_frame(bc, 0);
+
+  f->next_slot += n;
+
+  if (f->next_slot > f->nslots)
+    f->nslots = f->next_slot;
+}
+
+static inline void pop_slot(gab_bc *bc, u8 n) {
+  peek_frame(bc, 0)->next_slot -= n;
 }
 
 static void initialize_local(gab_bc *bc, u8 local) {
@@ -186,18 +198,17 @@ static void initialize_local(gab_bc *bc, u8 local) {
  */
 static i32 add_local(gab_bc *bc, s_i8 name, u8 flags) {
   gab_bc_frame *frame = peek_frame(bc, 0);
-  if (frame->local_count == LOCAL_MAX) {
+  if (frame->nlocals == LOCAL_MAX) {
     dump_compiler_error(bc, GAB_TOO_MANY_LOCALS, "");
     return COMP_ERR;
   }
 
-  u8 local = frame->local_count;
+  u8 local = frame->nlocals++;
   frame->locals_name[local] = name;
   frame->locals_depth[local] = -1;
   frame->locals_flag[local] = flags;
 
-  if (++frame->local_count > frame->deepest_local)
-    frame->deepest_local = frame->local_count;
+  push_slot(bc, 1);
 
   return local;
 }
@@ -207,7 +218,7 @@ static i32 add_local(gab_bc *bc, s_i8 name, u8 flags) {
  */
 static i32 add_upvalue(gab_bc *bc, u32 depth, u8 index, u8 flags) {
   gab_bc_frame *frame = peek_frame(bc, depth);
-  u16 count = frame->upv_count;
+  u16 count = frame->nupvalues;
 
   // Don't pull redundant upvalues
   for (int i = 0; i < count; i++) {
@@ -223,7 +234,7 @@ static i32 add_upvalue(gab_bc *bc, u32 depth, u8 index, u8 flags) {
 
   frame->upvs_index[count] = index;
   frame->upvs_flag[count] = flags;
-  frame->upv_count++;
+  frame->nupvalues++;
 
   return count;
 }
@@ -233,8 +244,7 @@ static i32 add_upvalue(gab_bc *bc, u32 depth, u8 index, u8 flags) {
  * and otherwise the offset of the local.
  */
 static i32 resolve_local(gab_bc *bc, s_i8 name, u32 depth) {
-  for (i32 local = peek_frame(bc, depth)->local_count - 1; local >= 0;
-       local--) {
+  for (i32 local = peek_frame(bc, depth)->nlocals - 1; local >= 0; local--) {
     if (s_i8_match(name, peek_frame(bc, depth)->locals_name[local])) {
       if (peek_frame(bc, depth)->locals_depth[local] == -1) {
         dump_compiler_error(bc, GAB_REFERENCE_BEFORE_INITIALIZE, "");
@@ -310,33 +320,34 @@ static void up_scope(gab_bc *bc, gab_module *mod) {
   gab_bc_frame *frame = peek_frame(bc, 0);
 
   boolean capture = false;
-  while (frame->local_count > 1 &&
-         frame->locals_depth[frame->local_count - 1] > bc->scope_depth) {
-    capture |= frame->locals_flag[frame->local_count - 1] & FLAG_CAPTURED;
-    frame->local_count--;
+  while (frame->nlocals > 1 &&
+         frame->locals_depth[frame->nlocals - 1] > bc->scope_depth) {
+    capture |= frame->locals_flag[frame->nlocals - 1] & FLAG_CAPTURED;
+    frame->nlocals--;
   }
 
   // If this block contained a captured local, escape it.
   if (capture) {
     push_op(bc, mod, OP_CLOSE_UPVALUE);
-    push_byte(bc, mod, frame->local_count);
+    push_byte(bc, mod, frame->nlocals);
   }
 }
 
 static void down_frame(gab_bc *bc, s_i8 name, boolean is_method) {
   bc->frame_count++;
 
-  peek_frame(bc, 0)->local_count = 0;
-  peek_frame(bc, 0)->upv_count = 0;
-  peek_frame(bc, 0)->deepest_local = 0;
+  peek_frame(bc, 0)->nlocals = 0;
+  peek_frame(bc, 0)->nupvalues = 0;
+  peek_frame(bc, 0)->next_slot = 0;
+  peek_frame(bc, 0)->nslots = 0;
   peek_frame(bc, 0)->function_name = name;
 
   initialize_local(bc, add_local(bc, is_method ? s_i8_cstr("self") : name, 0));
 }
 
 static void up_frame(gab_bc *bc) {
-  peek_frame(bc, 0)->local_count = 0;
-  peek_frame(bc, 0)->upv_count = 0;
+  peek_frame(bc, 0)->nlocals = 0;
+  peek_frame(bc, 0)->nupvalues = 0;
   bc->frame_count--;
   bc->scope_depth--;
 }
@@ -359,7 +370,7 @@ i32 compile_tuple(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 want,
  */
 static i32 compile_local(gab_bc *bc, s_i8 name, u8 flags) {
 
-  for (i32 local = peek_frame(bc, 0)->local_count - 1; local >= 0; local--) {
+  for (i32 local = peek_frame(bc, 0)->nlocals - 1; local >= 0; local--) {
     if (peek_frame(bc, 0)->locals_depth[local] != -1 &&
         peek_frame(bc, 0)->locals_depth[local] < bc->scope_depth) {
       break;
@@ -389,7 +400,7 @@ i32 compile_parameters(gab_bc *bc, boolean *vse_out) {
 
   do {
 
-    if (narguments == FARG_MAX) {
+    if (narguments >= FARG_MAX) {
       dump_compiler_error(bc, GAB_TOO_MANY_PARAMETERS, "");
       return COMP_ERR;
     }
@@ -563,7 +574,7 @@ i32 compile_function_body(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   gab_bc_frame *frame = peek_frame(bc, 0);
 
-  u8 nupvalues = frame->upv_count;
+  u8 nupvalues = frame->nupvalues;
 
   u64 len = mod->bytecode.len - offset;
 
@@ -612,9 +623,9 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
   if (compile_function_body(gab, bc, mod, p, skip_jump) < 0)
     return COMP_ERR;
 
-  u8 nlocals = peek_frame(bc, 0)->deepest_local - narguments - 1 - vse_params;
+  u8 nslots = peek_frame(bc, 0)->nslots - narguments - 1 - vse_params;
 
-  p->nslots = nlocals;
+  p->nslots = nslots;
   p->narguments = narguments;
   p->var = vse_params;
 
@@ -945,12 +956,17 @@ i32 compile_record(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name) {
   if (size < 0)
     return COMP_ERR;
 
+  pop_slot(bc, size);
+
   push_op(bc, mod, is_def ? OP_RECORD_DEF : OP_RECORD);
 
   if (is_def)
     push_short(bc, mod, name_const);
 
+
   push_byte(bc, mod, size);
+
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -965,6 +981,10 @@ i32 compile_array(gab_engine *gab, gab_bc *bc, gab_module *mod) {
 
   push_op(bc, mod, op);
   push_byte(bc, mod, size);
+
+  pop_slot(bc, size);
+
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1035,6 +1055,7 @@ i32 compile_exp_blk(gab_engine *gab, gab_bc *bc, gab_module *mod,
       return COMP_ERR;
   }
 
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1042,6 +1063,8 @@ i32 compile_exp_if(gab_engine *gab, gab_bc *bc, gab_module *mod,
                    boolean assignable) {
   if (compile_expression(gab, bc, mod) < 0)
     return COMP_ERR;
+
+  pop_slot(bc, 1);
 
   u64 then_jump =
       gab_module_push_jump(mod, OP_POP_JUMP_IF_FALSE, bc->previous_token,
@@ -1082,6 +1105,7 @@ i32 compile_exp_if(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   gab_module_patch_jump(mod, else_jump);
 
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1089,6 +1113,8 @@ i32 compile_exp_mch(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   if (compile_expression(gab, bc, mod) < 0)
     return COMP_ERR;
+
+  pop_slot(bc, 1);
 
   if (expect_token(bc, TOKEN_NEWLINE) < 0)
     return COMP_ERR;
@@ -1148,15 +1174,7 @@ i32 compile_exp_mch(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   v_u64_destroy(&done_jumps);
 
-  return COMP_OK;
-}
-
-/*
- * Postfix assert expression.
- */
-i32 compile_exp_asrt(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                     boolean assignable) {
-  push_op(bc, mod, OP_ASSERT);
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1192,6 +1210,8 @@ i32 compile_exp_bin(gab_engine *gab, gab_bc *bc, gab_module *mod,
   gab_token op = bc->previous_token;
 
   i32 result = compile_exp_prec(gab, bc, mod, get_rule(op).prec + 1);
+
+  pop_slot(bc, 1);
 
   if (result < 0)
     return COMP_ERR;
@@ -1348,6 +1368,7 @@ i32 compile_exp_str(gab_engine *gab, gab_bc *bc, gab_module *mod,
   push_op(bc, mod, OP_CONSTANT);
   push_short(bc, mod, add_constant(mod, GAB_VAL_OBJ(obj)));
 
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1407,6 +1428,8 @@ fin:
 
   // Concat the final string.
   push_op(bc, mod, OP_CONCAT);
+
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1418,6 +1441,7 @@ i32 compile_exp_grp(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (expect_token(bc, TOKEN_RPAREN) < 0)
     return COMP_ERR;
 
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1426,6 +1450,8 @@ i32 compile_exp_num(gab_engine *gab, gab_bc *bc, gab_module *mod,
   f64 num = strtod((char *)bc->lex.previous_token_src.data, NULL);
   push_op(bc, mod, OP_CONSTANT);
   push_short(bc, mod, add_constant(mod, GAB_VAL_NUMBER(num)));
+
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1433,12 +1459,16 @@ i32 compile_exp_bool(gab_engine *gab, gab_bc *bc, gab_module *mod,
                      boolean assignable) {
   push_op(bc, mod,
           bc->previous_token == TOKEN_TRUE ? OP_PUSH_TRUE : OP_PUSH_FALSE);
+
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
 i32 compile_exp_nil(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   push_op(bc, mod, OP_PUSH_NIL);
+
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1452,24 +1482,13 @@ i32 compile_exp_def(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (compile_definition(gab, bc, mod, name) < 0)
     return COMP_ERR;
 
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
 i32 compile_exp_arr(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   return compile_array(gab, bc, mod);
-}
-
-i32 compile_exp_spd(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                    boolean assignable) {
-  if (compile_expression(gab, bc, mod) < 0)
-    return COMP_ERR;
-
-  push_op(bc, mod, OP_SPREAD);
-  // Want byte
-  push_byte(bc, mod, 1);
-
-  return VAR_EXP;
 }
 
 i32 compile_exp_rec(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -1546,6 +1565,7 @@ i32 compile_exp_let(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
   }
 
+  pop_slot(bc, local_count);
   while (local_count--) {
     u8 local = locals[local_count];
     initialize_local(bc, local);
@@ -1560,6 +1580,7 @@ i32 compile_exp_let(gab_engine *gab, gab_bc *bc, gab_module *mod,
     }
   }
 
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1647,6 +1668,7 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
   }
 
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1654,6 +1676,8 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   if (compile_expression(gab, bc, mod) < 0)
     return COMP_ERR;
+
+  pop_slot(bc, 1);
 
   gab_token prop_tok = bc->previous_token;
   u64 prop_line = bc->line;
@@ -1668,6 +1692,8 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
     if (assignable) {
       if (compile_expression(gab, bc, mod) < 0)
         return COMP_ERR;
+
+      pop_slot(bc, 1);
 
       gab_module_push_op(mod, OP_STORE_INDEX_ANA, prop_tok, prop_line,
                          prop_src);
@@ -1694,6 +1720,7 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
   }
 
+  push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1759,13 +1786,16 @@ i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (result < 0)
     return COMP_ERR;
 
-  if (result > 255) {
+  if (result > FARG_MAX) {
     dump_compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
     return COMP_ERR;
   }
 
+  pop_slot(bc, result + 1);
+
   gab_module_push_send(mod, result, vse, f, prev_tok, prev_line, prev_src);
 
+  push_slot(bc, 1);
   return VAR_EXP;
 }
 
@@ -1785,13 +1815,16 @@ i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (result < 0)
     return COMP_ERR;
 
-  if (result > 255) {
+  if (result > FARG_MAX) {
     dump_compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
     return COMP_ERR;
   }
 
+  pop_slot(bc, result + 1);
+
   gab_module_push_send(mod, result, vse, m, prev_tok, prev_line, prev_src);
 
+  push_slot(bc, 1);
   return VAR_EXP;
 }
 
@@ -1813,7 +1846,11 @@ i32 compile_exp_cal(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
   }
 
+  pop_slot(bc, result + 1);
+
   gab_module_push_dynsend(mod, result, vse, call_tok, call_line, call_src);
+
+  push_slot(bc, 1);
 
   return VAR_EXP;
 }
@@ -1910,7 +1947,7 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   down_scope(bc);
 
-  u8 local_start = peek_frame(bc, 0)->local_count - 1;
+  u8 local_start = peek_frame(bc, 0)->nlocals - 1;
   u16 loop_locals = 0;
   i32 result;
 
@@ -2121,11 +2158,11 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(dot, PROPERTY, true), // PROPERTY
     INFIX(mth, SEND, true), // MESSAGE
     INFIX(dot, PROPERTY, true),              // DOT
-    PREFIX_INFIX(spd, bin, TERM, false),                  // DOT_DOT
+    INFIX(bin, TERM, false),                  // DOT_DOT
     NONE(),                            // EQUAL
     INFIX(bin, EQUALITY, false),              // EQUALEQUAL
     POSTFIX(type),                            // QUESTION
-    POSTFIX(asrt),                      // BANG
+    NONE(),                      // BANG
     NONE(),                            // AT
     NONE(),                            // COLON_EQUAL
     INFIX(bin, COMPARISON, false),            // LESSER
@@ -2176,7 +2213,7 @@ i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
 
   push_op(bc, mod, OP_RETURN_1);
 
-  u8 top_level_locals = peek_frame(bc, 0)->deepest_local - narguments - 1;
+  u8 top_level_locals = peek_frame(bc, 0)->nslots - narguments - 1;
 
   gab_obj_prototype *p = gab_obj_prototype_create(mod, name);
   p->nupvalues = 0;

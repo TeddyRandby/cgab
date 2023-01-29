@@ -38,7 +38,7 @@
 // Maximum value of an upvalues.
 #define UPVALUE_MAX 255
 // Maximum number of function arguments.
-#define FARG_MAX 16
+#define FARG_MAX 255
 // Maximum number of function return values.
 #define FRET_MAX 16
 // Value used to encode variable return.

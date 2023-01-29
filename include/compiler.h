@@ -36,9 +36,10 @@ struct gab_bc_frame {
   u8 upvs_index[UPVALUE_MAX];
   u8 upvs_flag[UPVALUE_MAX];
 
-  u8 deepest_local;
-  u8 local_count;
-  u8 upv_count;
+  u8 next_slot;
+  u8 nslots;
+  u8 nlocals;
+  u8 nupvalues;
 };
 
 /*

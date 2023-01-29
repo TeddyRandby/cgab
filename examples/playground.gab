@@ -1,12 +1,5 @@
-def twice()
-    yield 1
-    yield 2
-
-    3
+def infinity()
+    infinity()
 end
 
-let val, eff = twice()
-
-let valone, effone = eff()
-
-print(val, valone, effone())
+infinity()

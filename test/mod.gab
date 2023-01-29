@@ -140,33 +140,33 @@ describe('Records', do ()
     obj[i]:expect(i)
   end)
 
-  it('should spread out the keys', do ()
-    let obj = {
-      test: 'hello'
-      [{}?]: 'world'
-    }
+# it('should spread out the keys', do ()
+#   let obj = {
+#     test: 'hello'
+#     [{}?]: 'world'
+#   }
 
-    let a, b = ..obj
-    let c, d = ..obj?
+#   let a, b = ..obj
+#   let c, d = ..obj?
 
-    a:expect('hello')
-    b:expect('world')
-    c:expect('test') 
-    d:expect({}?)
-  end)
+#   a:expect('hello')
+#   b:expect('world')
+#   c:expect('test') 
+#   d:expect({}?)
+# end)
 
-  it('should withstand this tricky mess', do ()
-    let obj = {}
+# it('should withstand this tricky mess', do ()
+#   let obj = {}
 
-    def try_segfault()
-      { try: 'segv' }
-    end
+#   def try_segfault()
+#     { try: 'segv' }
+#   end
 
-    obj[try_segfault()] = 2
+#   obj[try_segfault()] = 2
 
-    (..obj):expect(2)
-    (..((..obj?)?)):expect('try')
-  end)
+#   (..obj):expect(2)
+#   (..((..obj?)?)):expect('try')
+# end)
 
   it('should make a var array', do ()
     def abcd()

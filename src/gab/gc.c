@@ -505,7 +505,7 @@ static inline void inc_if_obj_ref(gab_gc *gc, gab_value val) {
 static inline void increment_stack(gab_gc *gc, gab_vm *vm) {
   gab_value *tracker = vm->top - 1;
 
-  while (tracker >= vm->stack) {
+  while (tracker >= vm->vstack) {
 
 #if GAB_DEBUG_GC
     if (GAB_VAL_IS_OBJ(*tracker)) {
@@ -528,7 +528,7 @@ static inline void decrement_stack(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
 #endif
 
   gab_value *tracker = vm->top - 1;
-  while (tracker >= vm->stack) {
+  while (tracker >= vm->vstack) {
     gab_gc_dref(gab, vm, gc, *tracker--);
   }
 
