@@ -10,7 +10,7 @@
 // Log what is happening during execution.
 #define GAB_LOG_EXECUTION 0
 
-#define GAB_DEBUG_VM 1
+#define GAB_DEBUG_VM 0
 
 // Configurable macros
 // Dictionary maximum load

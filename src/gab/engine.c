@@ -6,11 +6,56 @@
 #include "include/module.h"
 #include "include/object.h"
 #include "include/types.h"
+#include "include/value.h"
 #include "include/vm.h"
 
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
+
+struct numeric_primitive {
+  const char *name;
+  gab_value primitive;
+};
+
+struct numeric_primitive num_primitives[] = {
+    {
+        .name = "__add__",
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_ADD),
+    },
+    {
+        .name = "__sub__",
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_SUB),
+    },
+    {
+        .name = "__mul__",
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_MUL),
+    },
+    {
+        .name = "__div__",
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_DIV),
+    },
+    {
+        .name = "__mod__",
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_MOD),
+    },
+    {
+        .name = "__lt__",
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LT),
+    },
+    {
+        .name = "__lte__",
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LTE),
+    },
+    {
+        .name = "__gt__",
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_GT),
+    },
+    {
+        .name = "__gte__",
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_GTE),
+    },
+};
 
 /**
  * Gab API stuff
@@ -38,6 +83,17 @@ gab_engine *gab_create() {
   gab->types[TYPE_SYMBOL] = GAB_SYMBOL("symbol");
   gab->types[TYPE_CONTAINER] = GAB_SYMBOL("container");
   gab->types[TYPE_EFFECT] = GAB_SYMBOL("effect");
+
+  for (int i = 0; i < LEN_CARRAY(num_primitives); i++) {
+    gab_specialize(gab, s_i8_cstr(num_primitives[i].name),
+                   gab->types[TYPE_NUMBER], num_primitives[i].primitive);
+  }
+
+  gab_specialize(gab, s_i8_cstr("__eq__"), GAB_VAL_UNDEFINED(),
+                 GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ));
+
+  gab_specialize(gab, s_i8_cstr("__add__"), gab->types[TYPE_STRING],
+                 GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_CONCAT));
 
   return gab;
 }

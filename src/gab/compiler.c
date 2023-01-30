@@ -1234,7 +1234,8 @@ i32 compile_exp_is(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (compile_exp_prec(gab, bc, mod, PREC_EQUALITY) < 0)
     return COMP_ERR;
 
-  push_op(bc, mod, OP_EQUAL);
+  // TODO: FIXME
+  // push_op(bc, mod, OP_EQUAL);
 
   pop_slot(bc, 1);
 
@@ -1247,57 +1248,50 @@ i32 compile_exp_is(gab_engine *gab, gab_bc *bc, gab_module *mod,
 i32 compile_exp_bin(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   gab_token op = bc->previous_token;
+  u64 line = bc->line;
+  s_i8 src = bc->lex.previous_row_src;
 
-  i32 result = compile_exp_prec(gab, bc, mod, get_rule(op).prec + 1);
-
-  pop_slot(bc, 1);
-
-  if (result < 0)
-    return COMP_ERR;
+  u16 m;
 
   switch (op) {
   case TOKEN_MINUS: {
-    push_op(bc, mod, OP_SUBTRACT);
+    m = add_message_constant(gab, mod, s_i8_cstr("__sub__"));
     break;
   }
   case TOKEN_PLUS: {
-    push_op(bc, mod, OP_ADD);
+    m = add_message_constant(gab, mod, s_i8_cstr("__add__"));
     break;
   }
   case TOKEN_STAR: {
-    push_op(bc, mod, OP_MULTIPLY);
+    m = add_message_constant(gab, mod, s_i8_cstr("__mul__"));
     break;
   }
   case TOKEN_SLASH: {
-    push_op(bc, mod, OP_DIVIDE);
+    m = add_message_constant(gab, mod, s_i8_cstr("__div__"));
     break;
   }
   case TOKEN_PERCENT: {
-    push_op(bc, mod, OP_MODULO);
-    break;
-  }
-  case TOKEN_DOT_DOT: {
-    push_op(bc, mod, OP_CONCAT);
+    m = add_message_constant(gab, mod, s_i8_cstr("__mod__"));
     break;
   }
   case TOKEN_EQUAL_EQUAL: {
-    push_op(bc, mod, OP_EQUAL);
+    m = add_message_constant(gab, mod, s_i8_cstr("__eq__"));
     break;
   }
   case TOKEN_LESSER: {
-    push_op(bc, mod, OP_LESSER);
+    m = add_message_constant(gab, mod, s_i8_cstr("__lt__"));
     break;
   }
   case TOKEN_LESSER_EQUAL: {
-    push_op(bc, mod, OP_LESSER_EQUAL);
+    m = add_message_constant(gab, mod, s_i8_cstr("__lte__"));
     break;
   }
   case TOKEN_GREATER: {
-    push_op(bc, mod, OP_GREATER);
+    m = add_message_constant(gab, mod, s_i8_cstr("__gt__"));
     break;
   }
   case TOKEN_GREATER_EQUAL: {
-    push_op(bc, mod, OP_GREATER_EQUAL);
+    m = add_message_constant(gab, mod, s_i8_cstr("__gte__"));
     break;
   }
   default: {
@@ -1307,25 +1301,37 @@ i32 compile_exp_bin(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
   }
 
-  return COMP_OK;
+  i32 result = compile_exp_prec(gab, bc, mod, get_rule(op).prec + 1);
+
+  pop_slot(bc, 1);
+
+  if (result < 0)
+    return COMP_ERR;
+
+  gab_module_push_send(mod, 1, false, m, op, line, src);
+  return VAR_EXP;
 }
 
 i32 compile_exp_una(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   gab_token op = bc->previous_token;
+  u64 line = bc->line;
+  s_i8 src = bc->lex.previous_row_src;
 
   i32 result = compile_exp_prec(gab, bc, mod, PREC_UNARY);
 
   if (result < 0)
     return COMP_ERR;
 
+  u16 m;
+
   switch (op) {
   case TOKEN_MINUS: {
-    push_op(bc, mod, OP_NEGATE);
+    m = add_message_constant(gab, mod, s_i8_cstr("__neg__"));
     break;
   }
   case TOKEN_NOT: {
-    push_op(bc, mod, OP_NOT);
+    m = add_message_constant(gab, mod, s_i8_cstr("__not__"));
     break;
   }
   default: {
@@ -1335,7 +1341,9 @@ i32 compile_exp_una(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
   }
 
-  return COMP_OK;
+  gab_module_push_send(mod, 0, false, m, op, line, src);
+
+  return VAR_EXP;
 }
 
 /*
@@ -1430,8 +1438,8 @@ i32 compile_exp_itp(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
     pop_slot(bc, 1);
 
-    push_op(bc, mod, OP_STRINGIFY);
-    push_op(bc, mod, OP_CONCAT);
+    // INTERPOLATE
+    push_op(bc, mod, OP_INTERPOLATE);
   }
 
   i32 result;
@@ -1451,14 +1459,13 @@ i32 compile_exp_itp(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
       pop_slot(bc, 1);
 
-      push_op(bc, mod, OP_STRINGIFY);
-      push_op(bc, mod, OP_CONCAT);
+      push_op(bc, mod, OP_INTERPOLATE);
     }
 
     pop_slot(bc, 1);
 
     // concat this to the long-running string.
-    push_op(bc, mod, OP_CONCAT);
+    push_op(bc, mod, OP_INTERPOLATE);
   }
 
   if (result < 0)
@@ -1472,7 +1479,7 @@ fin:
     return COMP_ERR;
 
   // Concat the final string.
-  push_op(bc, mod, OP_CONCAT);
+  push_op(bc, mod, OP_INTERPOLATE);
 
   pop_slot(bc, 1);
 
@@ -1845,7 +1852,7 @@ i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, gab_module *mod,
   return VAR_EXP;
 }
 
-i32 compile_exp_mth(gab_engine *gab, gab_bc *bc, gab_module *mod,
+i32 compile_exp_snd(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
 
   s_i8 prev_src = bc->lex.previous_token_src;
@@ -2212,7 +2219,7 @@ const gab_compile_rule gab_bc_rules[] = {
     NONE(),           // DOLLAR
     PREFIX(sym), // SYMBOL
     INFIX(dot, PROPERTY, true), // PROPERTY
-    INFIX(mth, SEND, true), // MESSAGE
+    INFIX(snd, SEND, true), // MESSAGE
     INFIX(dot, PROPERTY, true),              // DOT
     INFIX(bin, TERM, false),                  // DOT_DOT
     NONE(),                            // EQUAL

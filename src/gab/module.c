@@ -1,5 +1,5 @@
-#include "include/compiler.h"
 #include "include/module.h"
+#include "include/compiler.h"
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/object.h"
@@ -19,7 +19,7 @@ gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
   d_gab_constant_create(&self->constants, MODULE_CONSTANTS_MAX);
   return self;
 }
-void gab_module_collect(gab_engine* gab, gab_module* mod) {
+void gab_module_collect(gab_engine *gab, gab_module *mod) {
   if (!mod)
     return;
 
@@ -470,31 +470,30 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_PUSH_FALSE:
   case OP_PUSH_NIL:
   case OP_PUSH_TRUE:
-  case OP_ADD:
-  case OP_ASSERT:
-  case OP_TYPE:
-  case OP_SUBTRACT:
-  case OP_DIVIDE:
-  case OP_MULTIPLY:
-  case OP_MODULO:
-  case OP_NOT:
-  case OP_NEGATE:
-  case OP_LESSER:
-  case OP_LESSER_EQUAL:
-  case OP_GREATER_EQUAL:
-  case OP_GREATER:
+  // case OP_ADD:
+  // case OP_ASSERT:
+  // case OP_TYPE:
+  // case OP_SUBTRACT:
+  // case OP_DIVIDE:
+  // case OP_MULTIPLY:
+  // case OP_MODULO:
+  // case OP_NOT:
+  // case OP_NEGATE:
+  // case OP_LESSER:
+  // case OP_LESSER_EQUAL:
+  // case OP_GREATER_EQUAL:
+  // case OP_GREATER:
+  // case OP_EQUAL:
   case OP_SWAP:
   case OP_DUP:
   case OP_MATCH:
   case OP_POP:
-  case OP_CONCAT:
-  case OP_STRINGIFY:
-  case OP_NOP:
-  case OP_EQUAL: {
+  case OP_INTERPOLATE:
+  case OP_NOP: {
     return dumpSimpleInstruction(self, offset);
   }
-  case OP_BITWISE_AND:
-  case OP_BITWISE_OR:
+  // case OP_BITWISE_AND:
+  // case OP_BITWISE_OR:
   case OP_LOGICAL_AND:
   case OP_JUMP_IF_FALSE:
   case OP_JUMP_IF_TRUE:

@@ -1,7 +1,9 @@
 #include "include/object.h"
 #include "include/core.h"
 #include "include/engine.h"
+#include "include/module.h"
 #include "include/types.h"
+#include "include/value.h"
 #include <stddef.h>
 #include <stdio.h>
 
@@ -54,6 +56,8 @@ void gab_val_dump(gab_value self) {
     printf("nil");
   } else if (GAB_VAL_IS_OBJ(self)) {
     gab_obj_dump(self);
+  } else if (GAB_VAL_IS_PRIMITIVE(self)) {
+    printf("[primitive:%s]", gab_opcode_names[GAB_VAL_TO_PRIMITIVE(self)]);
   }
 }
 
@@ -116,6 +120,10 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self) {
     char str[24];
     snprintf(str, 24, "%g", GAB_VAL_TO_NUMBER(self));
     return GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr(str)));
+  }
+
+  if (GAB_VAL_IS_PRIMITIVE(self)) {
+    return GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("[primitive]")));
   }
 
   return GAB_VAL_OBJ(gab_obj_to_obj_string(gab, GAB_VAL_TO_OBJ(self)));

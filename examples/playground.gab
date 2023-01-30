@@ -1,7 +1,24 @@
-def test()
-    let a, b = 1, 2
-
-    return a,b
+def sum(a, b)
+  (a + b):print
 end
 
-print(test())
+def Vector { x y }
+
+def __add__[Vector](other)
+  if (other is Vector)
+    {
+      x: self.x + other.x
+      y: self.y + other.y
+    }
+  end
+end
+
+def print[Vector]
+  '({self.x},{self.y})':print
+end
+
+sum(1, 2)
+sum(3, 4)
+sum('hello ', 'world')
+sum(3, 4)
+sum({ x:1 y:2 }, { x:2 y:1 })

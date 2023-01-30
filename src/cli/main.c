@@ -4,6 +4,7 @@
 #include "include/module.h"
 #include "include/object.h"
 #include "include/os.h"
+#include "include/value.h"
 #include <assert.h>
 #include <stdio.h>
 
@@ -13,7 +14,8 @@ gab_value make_print(gab_engine *gab) {
       gab_get_type(gab, TYPE_NUMBER),
       GAB_VAL_NIL(),
       gab_get_type(gab, TYPE_STRING),
-      gab_get_type(gab, TYPE_SYMBOL), gab_get_type(gab, TYPE_CONTAINER),
+      gab_get_type(gab, TYPE_SYMBOL),
+      gab_get_type(gab, TYPE_CONTAINER),
       gab_get_type(gab, TYPE_SHAPE),
       gab_get_type(gab, TYPE_CLOSURE),
       gab_get_type(gab, TYPE_MESSAGE),
@@ -44,18 +46,14 @@ void gab_run_file(const char *path) {
   gab_engine *gab = gab_create();
 
   s_i8 arg_names[] = {
-      s_i8_cstr("print"),
-      s_i8_cstr("require"),
-      s_i8_cstr("panic"),
+      s_i8_cstr("print"), s_i8_cstr("require"), s_i8_cstr("panic"),
       // s_i8_cstr("String"),
       // s_i8_cstr("Number"),
       // s_i8_cstr("Boolean"),
   };
 
   gab_value args[] = {
-      make_print(gab),
-      make_require(gab),
-      GAB_BUILTIN(panic),
+      make_print(gab), make_require(gab), GAB_BUILTIN(panic),
       // gab_get_type(gab, TYPE_STRING),
       // gab_get_type(gab, TYPE_NUMBER),
       // gab_get_type(gab, TYPE_BOOLEAN),

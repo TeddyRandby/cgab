@@ -69,12 +69,13 @@ typedef u64 gab_value;
 #define GAB_TAG_FALSE (2)
 #define GAB_TAG_TRUE (3)
 #define GAB_TAG_UNDEFINED (4)
-#define GAB_TAG_UNUSED2 (5)
+#define GAB_TAG_PRIMITIVE (5)
 #define GAB_TAG_UNUSED3 (6)
 #define GAB_TAG_UNUSED4 (7)
 
 #define GAB_VAL_IS_NIL(val) (val == GAB_NIL)
 #define GAB_VAL_IS_UNDEFINED(val) (val == GAB_UNDEFINED)
+#define GAB_VAL_IS_PRIMITIVE(val) ((val & (QNAN | GAB_TAG_PRIMITIVE)) == (QNAN | GAB_TAG_PRIMITIVE))
 #define GAB_VAL_IS_FALSE(val) (val == GAB_FALSE)
 #define GAB_VAL_IS_NUMBER(val) (((val)&QNAN) != QNAN)
 #define GAB_VAL_IS_BOOLEAN(val) (((val) | 1) == GAB_TRUE)
@@ -84,15 +85,18 @@ typedef u64 gab_value;
 #define GAB_FALSE ((gab_value)(u64)(QNAN | GAB_TAG_FALSE))
 #define GAB_TRUE ((gab_value)(u64)(QNAN | GAB_TAG_TRUE))
 #define GAB_UNDEFINED ((gab_value)(u64)(QNAN | GAB_TAG_UNDEFINED))
+#define GAB_PRIMITIVE ((u64)(QNAN | GAB_TAG_PRIMITIVE))
 
 #define GAB_VAL_UNDEFINED() (GAB_UNDEFINED)
 #define GAB_VAL_NIL() (GAB_NIL)
 #define GAB_VAL_NUMBER(val) (f64_to_value(val))
 #define GAB_VAL_BOOLEAN(val) (val ? GAB_TRUE : GAB_FALSE)
 #define GAB_VAL_OBJ(val) (gab_value)(SIGN_BIT | QNAN | (u64)(uintptr_t)(val))
+#define GAB_VAL_PRIMITIVE(op) ((gab_value)(GAB_PRIMITIVE | ((u64)op << 8)))
 
 #define GAB_VAL_TO_BOOLEAN(val) ((val) == GAB_TRUE)
 #define GAB_VAL_TO_NUMBER(val) (value_to_f64(val))
+#define GAB_VAL_TO_PRIMITIVE(val) ((u8)((val >> 8) & 0xff))
 #define GAB_VAL_TO_OBJ(val) ((gab_obj *)(uintptr_t)((val) & ~(SIGN_BIT | QNAN)))
 
 #endif
