@@ -755,7 +755,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         NEXT();
       }
 
-      PUSH(GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP())));
+      gab_value new_value = GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP()));
+
+      PUSH(new_value);
 
       VAR() = 1;
 
@@ -1412,7 +1414,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     }
 
     CASE_CODE(NOT) : {
-      PUSH(GAB_VAL_BOOLEAN(gab_val_falsey(POP())));
+      gab_value new_value = GAB_VAL_BOOLEAN(gab_val_falsey(POP()));
+      PUSH(new_value);
       NEXT();
     }
 

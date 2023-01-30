@@ -46,17 +46,21 @@ void gab_run_file(const char *path) {
   gab_engine *gab = gab_create();
 
   s_i8 arg_names[] = {
-      s_i8_cstr("print"), s_i8_cstr("require"), s_i8_cstr("panic"),
-      // s_i8_cstr("String"),
-      // s_i8_cstr("Number"),
-      // s_i8_cstr("Boolean"),
+      s_i8_cstr("print"),  s_i8_cstr("require"), s_i8_cstr("panic"),
+      s_i8_cstr("String"), s_i8_cstr("Number"),  s_i8_cstr("Boolean"),
+      s_i8_cstr("Block"),  s_i8_cstr("Message"), s_i8_cstr("Effect"),
   };
 
   gab_value args[] = {
-      make_print(gab), make_require(gab), GAB_BUILTIN(panic),
-      // gab_get_type(gab, TYPE_STRING),
-      // gab_get_type(gab, TYPE_NUMBER),
-      // gab_get_type(gab, TYPE_BOOLEAN),
+      make_print(gab),
+      make_require(gab),
+      GAB_BUILTIN(panic),
+      gab_get_type(gab, TYPE_STRING),
+      gab_get_type(gab, TYPE_NUMBER),
+      gab_get_type(gab, TYPE_BOOLEAN),
+      gab_get_type(gab, TYPE_CLOSURE),
+      gab_get_type(gab, TYPE_MESSAGE),
+      gab_get_type(gab, TYPE_EFFECT),
   };
 
   static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
