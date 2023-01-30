@@ -208,7 +208,7 @@ static inline boolean call_effect(gab_vm *vm, gab_obj_effect *e, u8 arity,
 
 static inline boolean call_closure(gab_engine *gab, gab_vm *vm,
                                    gab_obj_closure *c, u8 have, u8 want) {
-  if (!has_callspace(vm, c->p->nslots)) {
+  if (!has_callspace(vm, c->p->nslots - c->p->narguments - 1)) {
     return false;
   }
 
@@ -243,7 +243,7 @@ static inline boolean call_closure(gab_engine *gab, gab_vm *vm,
 
   vm->frame->slots = vm->top - have - 1;
 
-  for (int i = 0; i < c->p->nslots; i++)
+  for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
     *vm->top++ = GAB_VAL_NIL();
 
   return true;
@@ -368,7 +368,19 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 #define CONST_UPVALUE(i) (CLOSURE()->upvalues[i])
 #define MOD_CONSTANT(k) (d_gab_constant_ikey(&MODULE()->constants, k))
 
+#if GAB_DEBUG_VM
+#define PUSH(value)                                                            \
+  ({                                                                           \
+    if (TOP() > (SLOTS() + CLOSURE()->p->nslots)) {                            \
+      fprintf(stderr, "Stack exceeded frame. %lu passed\n",                    \
+              TOP() - SLOTS() - CLOSURE()->p->nslots);                         \
+      dump_frame(SLOTS(), TOP(), "stack");                                     \
+    }                                                                          \
+    *TOP()++ = value;                                                          \
+  })
+#else
 #define PUSH(value) (*TOP()++ = value)
+#endif
 #define POP() (*(--TOP()))
 #define DROP() (TOP()--)
 #define POP_N(n) (TOP() -= n)
@@ -409,6 +421,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
   gab_obj_closure *main_c =
       GAB_VAL_TO_CLOSURE(d_gab_constant_ikey(&mod->constants, mod->main));
+
+  FRAME()->c = main_c;
+  FRAME()->slots = TOP();
 
   register u8 instr;
   register u8 *ip = main_c->p->mod->bytecode.data;

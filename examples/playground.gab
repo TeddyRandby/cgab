@@ -1,5 +1,7 @@
-def infinity()
-    infinity()
+def test()
+    let a, b = 1, 2
+
+    return a,b
 end
 
-infinity()
+print(test())

@@ -213,6 +213,11 @@ struct gab_obj_prototype {
    * The number of slots the proto needs.
    */
   u8 nslots;
+
+  /*
+   * The number of locals
+   */
+  u8 nlocals;
  
   /*
    * If the proto accepts all arguments passed to it

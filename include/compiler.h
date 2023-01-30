@@ -38,7 +38,10 @@ struct gab_bc_frame {
 
   u8 next_slot;
   u8 nslots;
+
+  u8 next_local;
   u8 nlocals;
+
   u8 nupvalues;
 };
 
