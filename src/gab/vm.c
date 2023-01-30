@@ -763,7 +763,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     }
 
     CASE_CODE(SEND_PRIMITIVE_EQ) : {
-      gab_obj_message* msg = READ_MESSAGE;
+      gab_obj_message *msg = READ_MESSAGE;
       SKIP_BYTE;
       SKIP_BYTE;
       u8 version = READ_BYTE;
