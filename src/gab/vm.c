@@ -509,11 +509,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     }
 
     {
-      gab_obj_message *func;
+      gab_obj_message *msg;
       u8 have;
 
       CASE_CODE(VARSEND_ANA) : {
-        func = READ_MESSAGE;
+        msg = READ_MESSAGE;
         have = VAR() + READ_BYTE;
         SKIP_BYTE;
 
@@ -521,7 +521,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       }
 
       CASE_CODE(SEND_ANA) : {
-        func = READ_MESSAGE;
+        msg = READ_MESSAGE;
         have = READ_BYTE;
         SKIP_BYTE;
 
@@ -533,11 +533,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       gab_value type = gab_typeof(ENGINE(), receiver);
 
-      gab_value spec = gab_obj_message_read(func, type);
+      gab_value spec = gab_obj_message_read(msg, type);
 
       u16 offset;
       if (GAB_VAL_IS_NIL(spec)) {
-        spec = gab_obj_message_read(func, GAB_VAL_UNDEFINED());
+        spec = gab_obj_message_read(msg, GAB_VAL_UNDEFINED());
 
         if (GAB_VAL_IS_NIL(spec)) {
           STORE_FRAME();
@@ -548,12 +548,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
                           a->data);
         }
 
-        offset = gab_obj_message_find(func, GAB_VAL_UNDEFINED());
+        offset = gab_obj_message_find(msg, GAB_VAL_UNDEFINED());
       } else {
-        offset = gab_obj_message_find(func, type);
+        offset = gab_obj_message_find(msg, type);
       }
 
-      WRITE_INLINEBYTE(func->version);
+      WRITE_INLINEBYTE(msg->version);
       WRITE_INLINESHORT(offset);
       WRITE_INLINEQWORD(type);
 
@@ -569,6 +569,104 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       }
 
       IP() -= 16;
+
+      NEXT();
+    }
+    }
+
+    {
+      gab_obj_message *msg;
+      u8 arity, want, version;
+      u16 offset;
+      gab_value cached_type;
+
+      CASE_CODE(VARSEND_MONO_CLOSURE) : {
+        msg = READ_MESSAGE;
+        arity = VAR() + READ_BYTE;
+        want = READ_BYTE;
+        version = READ_BYTE;
+        offset = READ_SHORT;
+        cached_type = *READ_QWORD(gab_value);
+
+        goto complete_send_mono_closure;
+      }
+
+      CASE_CODE(SEND_MONO_CLOSURE) : {
+        msg = READ_MESSAGE;
+        arity = READ_BYTE;
+        want = READ_BYTE;
+        version = READ_BYTE;
+        offset = READ_SHORT;
+        cached_type = *READ_QWORD(gab_value);
+      }
+
+    complete_send_mono_closure : {
+      gab_value receiver = PEEK_N(arity + 1);
+
+      gab_value type = gab_typeof(ENGINE(), receiver);
+
+      if ((cached_type != type) | (version != msg->version)) {
+        // Revert to anamorphic
+        WRITE_BYTE(16, instr - 1);
+
+        IP() -= 16;
+
+        NEXT();
+      }
+
+      gab_value spec = gab_obj_message_get(msg, offset);
+
+      STORE_FRAME();
+
+      if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_CLOSURE(spec), arity, want))
+        return vm_error(VM(), GAB_OVERFLOW, "");
+
+      LOAD_FRAME();
+
+      NEXT();
+    }
+
+      CASE_CODE(SEND_MONO_BUILTIN) : {
+        msg = READ_MESSAGE;
+        arity = READ_BYTE;
+        want = READ_BYTE;
+        version = READ_BYTE;
+        offset = READ_SHORT;
+        cached_type = *READ_QWORD(gab_value);
+
+        goto complete_send_mono_builtin;
+      }
+
+      CASE_CODE(VARSEND_MONO_BUILTIN) : {
+        msg = READ_MESSAGE;
+        arity = VAR() + READ_BYTE;
+        want = READ_BYTE;
+        version = READ_BYTE;
+        offset = READ_SHORT;
+        cached_type = *READ_QWORD(gab_value);
+
+        goto complete_send_mono_builtin;
+      }
+
+    complete_send_mono_builtin : {
+      gab_value receiver = PEEK_N(arity + 1);
+
+      gab_value type = gab_typeof(ENGINE(), receiver);
+
+      if ((cached_type != type) | (version != msg->version)) {
+        // Revert to anamorphic
+        WRITE_BYTE(16, instr - 2);
+        IP() -= 16;
+        NEXT();
+      }
+
+      gab_value spec = gab_obj_message_get(msg, offset);
+
+      STORE_FRAME();
+
+      call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(spec), arity + 1, want);
+
+      gab_gc_dref(ENGINE(), VM(), GC(), PEEK());
 
       NEXT();
     }
@@ -619,24 +717,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       NEXT();
     }
 
-    CASE_CODE(SEND_PRIMITIVE_EQ) : {
-      SKIP_SHORT;
-      SKIP_BYTE;
-      SKIP_BYTE;
-      SKIP_BYTE;
-      SKIP_SHORT;
-      SKIP_QWORD;
-
-      gab_value b = POP();
-      gab_value a = POP();
-
-      PUSH(GAB_VAL_BOOLEAN(a == b));
-
-      VAR() = 1;
-
-      NEXT();
-    }
-
     CASE_CODE(SEND_PRIMITIVE_CONCAT) : {
       SKIP_SHORT;
       SKIP_BYTE;
@@ -682,104 +762,32 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       NEXT();
     }
 
-    {
-      gab_obj_message *func;
-      u8 arity, want, version;
-      u16 offset;
-      gab_value cached_type;
+    CASE_CODE(SEND_PRIMITIVE_EQ) : {
+      gab_obj_message* msg = READ_MESSAGE;
+      SKIP_BYTE;
+      SKIP_BYTE;
+      u8 version = READ_BYTE;
+      SKIP_SHORT;
+      gab_value cached_type = *READ_QWORD(gab_value);
 
-      CASE_CODE(VARSEND_MONO_CLOSURE) : {
-        func = READ_MESSAGE;
-        arity = VAR() + READ_BYTE;
-        want = READ_BYTE;
-        version = READ_BYTE;
-        offset = READ_SHORT;
-        cached_type = *READ_QWORD(gab_value);
-
-        goto complete_send_mono_closure;
-      }
-
-      CASE_CODE(SEND_MONO_CLOSURE) : {
-        func = READ_MESSAGE;
-        arity = READ_BYTE;
-        want = READ_BYTE;
-        version = READ_BYTE;
-        offset = READ_SHORT;
-        cached_type = *READ_QWORD(gab_value);
-      }
-
-    complete_send_mono_closure : {
-      gab_value receiver = PEEK_N(arity + 1);
+      gab_value receiver = PEEK2();
 
       gab_value type = gab_typeof(ENGINE(), receiver);
 
-      if ((cached_type != type) | (version != func->version)) {
-        // Revert to anamorphic
-        WRITE_BYTE(16, instr - 1);
-
+      if ((cached_type != type) | (version != msg->version)) {
+        WRITE_BYTE(16, OP_SEND_ANA);
         IP() -= 16;
-
         NEXT();
       }
 
-      gab_value spec = gab_obj_message_get(func, offset);
+      gab_value b = POP();
+      gab_value a = POP();
 
-      STORE_FRAME();
+      PUSH(GAB_VAL_BOOLEAN(a == b));
 
-      if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_CLOSURE(spec), arity, want))
-        return vm_error(VM(), GAB_OVERFLOW, "");
-
-      LOAD_FRAME();
+      VAR() = 1;
 
       NEXT();
-    }
-
-      CASE_CODE(SEND_MONO_BUILTIN) : {
-        func = READ_MESSAGE;
-        arity = READ_BYTE;
-        want = READ_BYTE;
-        version = READ_BYTE;
-        offset = READ_SHORT;
-        cached_type = *READ_QWORD(gab_value);
-
-        goto complete_send_mono_builtin;
-      }
-
-      CASE_CODE(VARSEND_MONO_BUILTIN) : {
-        func = READ_MESSAGE;
-        arity = VAR() + READ_BYTE;
-        want = READ_BYTE;
-        version = READ_BYTE;
-        offset = READ_SHORT;
-        cached_type = *READ_QWORD(gab_value);
-
-        goto complete_send_mono_builtin;
-      }
-
-    complete_send_mono_builtin : {
-      gab_value receiver = PEEK_N(arity + 1);
-
-      gab_value type = gab_typeof(ENGINE(), receiver);
-
-      if ((cached_type != type) | (version != func->version)) {
-        // Revert to anamorphic
-        WRITE_BYTE(16, instr - 2);
-
-        IP() -= 16;
-
-        NEXT();
-      }
-
-      gab_value spec = gab_obj_message_get(func, offset);
-
-      STORE_FRAME();
-
-      call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(spec), arity + 1, want);
-
-      gab_gc_dref(ENGINE(), VM(), GC(), PEEK());
-
-      NEXT();
-    }
     }
 
     {
@@ -1422,37 +1430,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       } else {
         PUSH(GAB_VAL_BOOLEAN(false));
       }
-      NEXT();
-    }
-
-    CASE_CODE(SPREAD) : {
-      u8 want = READ_BYTE;
-
-      gab_value index = POP();
-
-      if (GAB_VAL_IS_RECORD(index)) {
-        gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
-
-        u8 have = obj->is_dynamic ? obj->dynamic_values.len : obj->static_len;
-
-        TOP() = trim_return(VM(),
-                            obj->is_dynamic ? obj->dynamic_values.data
-                                            : obj->static_values,
-                            TOP(), have, want);
-      } else if (GAB_VAL_IS_SHAPE(index)) {
-        gab_obj_shape *shape = GAB_VAL_TO_SHAPE(index);
-
-        u8 have = shape->properties.len;
-
-        TOP() = trim_return(VM(), shape->keys, TOP(), have, want);
-      } else {
-        STORE_FRAME();
-        gab_obj_string *a =
-            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), index));
-        return vm_error(VM(), GAB_NOT_RECORD, "Tried to spread %.*s",
-                        (i32)a->len, a->data);
-      }
-
       NEXT();
     }
 

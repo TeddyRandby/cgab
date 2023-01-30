@@ -317,7 +317,6 @@ boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
   case OP_YIELD_14:
   case OP_YIELD_15:
   case OP_YIELD_16:
-  case OP_SPREAD:
     v_u8_set(&self->bytecode, self->bytecode.len - 1, want);
     return true;
   }
@@ -549,7 +548,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_YIELD_14:
   case OP_YIELD_15:
   case OP_YIELD_16:
-  case OP_SPREAD:
   case OP_POP_N:
   case OP_CLOSE_UPVALUE:
   case OP_STORE_LOCAL:
