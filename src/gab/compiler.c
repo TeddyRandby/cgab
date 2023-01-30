@@ -1331,8 +1331,8 @@ i32 compile_exp_una(gab_engine *gab, gab_bc *bc, gab_module *mod,
     break;
   }
   case TOKEN_NOT: {
-    m = add_message_constant(gab, mod, s_i8_cstr("__not__"));
-    break;
+    push_op(bc, mod, OP_NOT);
+    return COMP_OK;
   }
   default: {
     dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,

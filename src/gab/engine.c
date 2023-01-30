@@ -55,6 +55,10 @@ struct numeric_primitive num_primitives[] = {
         .name = "__gte__",
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_GTE),
     },
+    {
+        .name = "__neg__",
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_NEG),
+    },
 };
 
 /**

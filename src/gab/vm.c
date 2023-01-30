@@ -661,6 +661,27 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       NEXT();
     }
 
+    CASE_CODE(SEND_PRIMITIVE_NEG) : {
+      SKIP_SHORT;
+      SKIP_BYTE;
+      SKIP_BYTE;
+      SKIP_BYTE;
+      SKIP_SHORT;
+      SKIP_QWORD;
+
+      if (!GAB_VAL_IS_NUMBER(PEEK())) {
+        WRITE_BYTE(16, OP_SEND_ANA);
+        IP() -= 16;
+        NEXT();
+      }
+
+      PUSH(GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP())));
+
+      VAR() = 1;
+
+      NEXT();
+    }
+
     {
       gab_obj_message *func;
       u8 arity, want, version;
@@ -1379,6 +1400,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
     CASE_CODE(PUSH_FALSE) : {
       PUSH(GAB_VAL_BOOLEAN(false));
+      NEXT();
+    }
+
+    CASE_CODE(NOT) : {
+      PUSH(GAB_VAL_BOOLEAN(gab_val_falsey(POP())));
       NEXT();
     }
 
