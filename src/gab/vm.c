@@ -808,7 +808,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       u16 offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
 
-      if ((cached_type != type) | (version != msg->version) | offset != prop_offset) {
+      if ((cached_type != type) | (version != msg->version) |
+          (offset != prop_offset)) {
         WRITE_BYTE(16, OP_SEND_ANA);
         IP() -= 16;
         NEXT();
@@ -876,7 +877,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       u16 offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
 
-      if ((cached_type != type) | (version != msg->version) | offset != prop_offset) {
+      if ((cached_type != type) | (version != msg->version) |
+          (offset != prop_offset)) {
         WRITE_BYTE(16, OP_SEND_ANA);
         IP() -= 16;
         NEXT();
@@ -1682,8 +1684,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     complete_array : {
       gab_obj_shape *shape = gab_obj_shape_create_array(ENGINE(), VM(), len);
 
-      gab_obj_record *rec =
-          gab_obj_record_create(shape, len, 1, TOP() - (len));
+      gab_obj_record *rec = gab_obj_record_create(shape, len, 1, TOP() - (len));
 
       gab_gc_iref_many(ENGINE(), VM(), GC(), len, rec->data);
 
