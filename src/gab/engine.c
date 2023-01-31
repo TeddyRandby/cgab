@@ -13,51 +13,82 @@
 #include <stdint.h>
 #include <stdio.h>
 
-struct numeric_primitive {
+struct primitive {
   const char *name;
+  gab_type type;
   gab_value primitive;
 };
 
-struct numeric_primitive num_primitives[] = {
+struct primitive primitives[] = {
     {
         .name = "__add__",
+        .type = TYPE_NUMBER,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_ADD),
     },
     {
         .name = "__sub__",
+        .type = TYPE_NUMBER,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_SUB),
     },
     {
         .name = "__mul__",
+        .type = TYPE_NUMBER,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_MUL),
     },
     {
         .name = "__div__",
+        .type = TYPE_NUMBER,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_DIV),
     },
     {
         .name = "__mod__",
+        .type = TYPE_NUMBER,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_MOD),
     },
     {
         .name = "__lt__",
+        .type = TYPE_NUMBER,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LT),
     },
     {
         .name = "__lte__",
+        .type = TYPE_NUMBER,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LTE),
     },
     {
         .name = "__gt__",
+        .type = TYPE_NUMBER,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_GT),
     },
     {
         .name = "__gte__",
+        .type = TYPE_NUMBER,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_GTE),
     },
     {
         .name = "__neg__",
+        .type = TYPE_NUMBER,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_NEG),
+    },
+    {
+        .name = "__eq__",
+        .type = TYPE_UNDEFINED,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),
+    },
+    {
+        .name = "__add__",
+        .type = TYPE_STRING,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_CONCAT),
+    },
+    {
+        .name = "__set__",
+        .type = TYPE_UNDEFINED,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_STORE_ANA),
+    },
+    {
+        .name = "__get__",
+        .type = TYPE_UNDEFINED,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LOAD_ANA),
     },
 };
 
@@ -73,6 +104,7 @@ gab_engine *gab_create() {
 
   gab_gc_create(&gab->gc);
 
+  gab->types[TYPE_UNDEFINED] = GAB_VAL_UNDEFINED();
   gab->types[TYPE_NIL] = GAB_VAL_NIL();
   gab->types[TYPE_NUMBER] = GAB_SYMBOL("number");
   gab->types[TYPE_BOOLEAN] = GAB_SYMBOL("boolean");
@@ -88,16 +120,10 @@ gab_engine *gab_create() {
   gab->types[TYPE_CONTAINER] = GAB_SYMBOL("container");
   gab->types[TYPE_EFFECT] = GAB_SYMBOL("effect");
 
-  for (int i = 0; i < LEN_CARRAY(num_primitives); i++) {
-    gab_specialize(gab, s_i8_cstr(num_primitives[i].name),
-                   gab->types[TYPE_NUMBER], num_primitives[i].primitive);
+  for (int i = 0; i < LEN_CARRAY(primitives); i++) {
+    gab_specialize(gab, s_i8_cstr(primitives[i].name),
+                   gab->types[primitives[i].type], primitives[i].primitive);
   }
-
-  gab_specialize(gab, s_i8_cstr("__eq__"), GAB_VAL_UNDEFINED(),
-                 GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ));
-
-  gab_specialize(gab, s_i8_cstr("__add__"), gab->types[TYPE_STRING],
-                 GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_CONCAT));
 
   return gab;
 }

@@ -1727,14 +1727,15 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
 i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
-  if (compile_expression(gab, bc, mod) < 0)
-    return COMP_ERR;
-
-  pop_slot(bc, 1);
 
   gab_token prop_tok = bc->previous_token;
   u64 prop_line = bc->line;
   s_i8 prop_src = bc->lex.previous_token_src;
+
+  if (compile_expression(gab, bc, mod) < 0)
+    return COMP_ERR;
+
+  pop_slot(bc, 1);
 
   if (expect_token(bc, TOKEN_RBRACE) < 0)
     return COMP_ERR;
@@ -1748,10 +1749,9 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
       pop_slot(bc, 1);
 
-      gab_module_push_op(mod, OP_STORE_INDEX_ANA, prop_tok, prop_line,
-                         prop_src);
+      u16 m = add_message_constant(gab, mod, s_i8_cstr("__set__"));
 
-      gab_module_push_inline_cache(mod, prop_tok, prop_line, prop_src);
+      gab_module_push_send(mod, 2, false, m, prop_tok, prop_line, prop_src);
     } else {
       dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
                           "While compiling 'index' expression");
@@ -1761,9 +1761,9 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   case COMP_TOKEN_NO_MATCH: {
-    gab_module_push_op(mod, OP_LOAD_INDEX_ANA, prop_tok, prop_line, prop_src);
+    u16 m = add_message_constant(gab, mod, s_i8_cstr("__get__"));
 
-    gab_module_push_inline_cache(mod, prop_tok, prop_line, prop_src);
+    gab_module_push_send(mod, 1, false, m, prop_tok, prop_line, prop_src);
     break;
   }
 

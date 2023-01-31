@@ -34,9 +34,9 @@ describe('Strings', do ()
     'hello':expect('hello')
   end)
 
-# it('should concatenate', do ()
-#   ('hello' + ' world'):expect('hello world')
-# end)
+  it('should concatenate', do ()
+    ('hello' + ' world'):expect('hello world')
+  end)
 
   it('should interpolate', do ()
     ('{1} + {2} is {1 + 2}'):expect('1 + 2 is 3')
@@ -140,34 +140,6 @@ describe('Records', do ()
     obj[i]:expect(i)
   end)
 
-# it('should spread out the keys', do ()
-#   let obj = {
-#     test: 'hello'
-#     [{}?]: 'world'
-#   }
-
-#   let a, b = ..obj
-#   let c, d = ..obj?
-
-#   a:expect('hello')
-#   b:expect('world')
-#   c:expect('test') 
-#   d:expect({}?)
-# end)
-
-# it('should withstand this tricky mess', do ()
-#   let obj = {}
-
-#   def try_segfault()
-#     { try: 'segv' }
-#   end
-
-#   obj[try_segfault()] = 2
-
-#   (..obj):expect(2)
-#   (..((..obj?)?)):expect('try')
-# end)
-
   it('should make a var array', do ()
     def abcd()
         return 'a', 'b', 'c', 'd'
@@ -187,17 +159,25 @@ describe('Records', do ()
     let a = { [it]: num }
 
     def test()
-        num = a[it] + 1
-        a[it] = num
+        num = (a[it] or 0) + 1 # Test the reading cache
+        a[it] = num            # Test the writing cache
     end
 
     a[it]:expect(2)
 
     test()
-    test()
+    test() # Prime the cache
+
+    a.s = 2 # Change the shape
+
     test()
 
     a[it]:expect(5)
+
+    a = { b:5 } # Change the object
+    test()
+
+    a[it]:expect(1)
   end)
 
   it('should work when shapes change', do ()

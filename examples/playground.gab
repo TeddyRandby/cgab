@@ -1,19 +1,41 @@
-def Vector { x y }
+def test = { a:1 }
 
-def eq(a, b)
-  (a == b):print
+def inc(arg)
+    arg['a'] = (arg['a'] or 0) + 1
 end
 
-eq(1, 2)
-eq('hi', 'hi')
-eq({ x:1 y:1 }, { x:1 y:1 })
+print(test.a)
 
-def __eq__[Vector](other)
-    if (other is Vector)
-        (self.x == other.x) and (self.y == other.y)
-    end
+inc(test)
+
+print(test.a)
+
+def __set__[{ a }?](key, val)
+    print('Setting a to {val}')
+    self.a = val
 end
 
-eq({ x:1 y:1 }, { x:1 y:1 })
-eq('hi', 'hi')
-eq({ x:1 y:1 }, { x:1 y:1 })
+def __get__[{ a }?](key)
+    print('Getting a')
+    self.a
+end
+
+inc(test)
+
+print(test.a)
+
+print(inc({ }))
+
+inc(test)
+
+print(test.a)
+
+inc(test)
+
+print(test.a)
+
+print(inc({ }))
+
+inc(test)
+
+print(test.a)

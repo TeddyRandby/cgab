@@ -507,13 +507,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     return dumpTwoByteInstruction(self, offset);
   case OP_CONSTANT:
     return dumpConstantInstruction(self, offset);
-  case OP_LOAD_INDEX_ANA:
-  case OP_LOAD_INDEX_MONO:
-  case OP_LOAD_INDEX_POLY:
-  case OP_STORE_INDEX_ANA:
-  case OP_STORE_INDEX_MONO:
-  case OP_STORE_INDEX_POLY:
-    return dumpSimpleInstruction(self, offset) + 10;
   case OP_STORE_PROPERTY_ANA:
   case OP_STORE_PROPERTY_MONO:
   case OP_STORE_PROPERTY_POLY:
