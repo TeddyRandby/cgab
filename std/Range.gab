@@ -1,0 +1,29 @@
+def RANGE = $range
+
+def Range { from to }
+
+def __itr__[Range]
+  let v, i = self.from - 1, self.to - 1
+
+  do ()
+    (v < i) and (v = v + 1)
+  end
+end
+
+def make[RANGE](opts, to)
+  match opts?
+    { to }?   => { from = 0 to = opts.to }
+    { from }? => { from = opts.from to = 0 }
+    Number    => {
+      from = to and opts or 0
+      to = to or opts
+    }
+    Range     => opts
+    else      => panic('Invalid call to Range:make')
+end
+
+def print[Range]
+  'Range({self.from},{self.to})':print
+end
+
+RANGE

@@ -43,13 +43,16 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
   }
 
   case 3: {
-    if (!GAB_VAL_IS_NUMBER(argv[1]) || !GAB_VAL_TO_NUMBER(argv[2])) {
+    if (GAB_VAL_IS_NUMBER(argv[1])) {
+      start = CLAMP(GAB_VAL_TO_NUMBER(argv[1]), len);
+    } else if (!GAB_VAL_IS_NIL(argv[1])) {
       gab_panic(gab, vm, "Invalid call to gab_lib_slice");
     }
-    u64 a = GAB_VAL_TO_NUMBER(argv[1]);
-    u64 b = GAB_VAL_TO_NUMBER(argv[2]);
-    start = CLAMP(a, len);
-    end = CLAMP(b, len);
+    if (GAB_VAL_TO_NUMBER(argv[2])) {
+      end = CLAMP(GAB_VAL_TO_NUMBER(argv[2]), len);
+    } else if (!GAB_VAL_IS_NIL(argv[2])) {
+      gab_panic(gab, vm, "Invalid call to gab_lib_slice");
+    }
     break;
   }
 

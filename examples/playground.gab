@@ -1,3 +1,6 @@
+require('string')
+require('String')
+
 def Range = require('range')
 
 for a in Range:make{ to = 10 }
@@ -11,3 +14,5 @@ end
 for a in Range:make(2, 5)
     print(a)
 end
+
+'Hello World'[Range:make(5)]:print

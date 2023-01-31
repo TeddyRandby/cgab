@@ -1,0 +1,8 @@
+def __get__[String](opts)
+    match opts?
+        { from to }? => self:slice(opts.from, opts.to)
+        { from }?    => self:slice(opts.from)
+        { to }?      => self:slice(nil, opts.to)
+        Number       => self:slice(opts)
+        else         => panic('Invalid call to String:__get__')
+end

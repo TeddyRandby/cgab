@@ -1,4 +1,7 @@
-require('result')
-require('option')
+require('Result')
+require('Option')
+require('Range')
+require('String')
+
 require('string')
 require('object')
