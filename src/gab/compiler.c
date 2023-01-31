@@ -248,7 +248,7 @@ static i32 add_upvalue(gab_bc *bc, u32 depth, u8 index, u8 flags) {
  * and otherwise the offset of the local.
  */
 static i32 resolve_local(gab_bc *bc, s_i8 name, u32 depth) {
-  for (i32 local = peek_frame(bc, depth)->nlocals - 1; local >= 0; local--) {
+  for (i32 local = peek_frame(bc, depth)->next_local - 1; local >= 0; local--) {
     if (s_i8_match(name, peek_frame(bc, depth)->locals_name[local])) {
       if (peek_frame(bc, depth)->locals_depth[local] == -1) {
         dump_compiler_error(bc, GAB_REFERENCE_BEFORE_INITIALIZE, "");
@@ -325,7 +325,7 @@ static void up_scope(gab_bc *bc, gab_module *mod) {
 
   boolean capture = false;
   while (frame->next_local > 1 &&
-         frame->locals_depth[frame->nlocals - 1] > bc->scope_depth) {
+         frame->locals_depth[frame->next_local - 1] > bc->scope_depth) {
 
     capture |= frame->locals_flag[frame->nlocals - 1] & FLAG_CAPTURED;
     frame->next_local--;
@@ -385,7 +385,7 @@ i32 compile_tuple(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 want,
  */
 static i32 compile_local(gab_bc *bc, s_i8 name, u8 flags) {
 
-  for (i32 local = peek_frame(bc, 0)->nlocals - 1; local >= 0; local--) {
+  for (i32 local = peek_frame(bc, 0)->next_local - 1; local >= 0; local--) {
     if (peek_frame(bc, 0)->locals_depth[local] != -1 &&
         peek_frame(bc, 0)->locals_depth[local] < bc->scope_depth) {
       break;
@@ -1048,8 +1048,7 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod,
     if (compile_expression(gab, bc, mod) < 0)
       return COMP_ERR;
 
-    gab_module_push_store_local(mod, local, bc->previous_token, bc->line,
-                                bc->lex.previous_token_src);
+    push_store(bc, mod, local);
 
     return COMP_OK;
   }
@@ -1156,7 +1155,7 @@ i32 compile_exp_mch(gab_engine *gab, gab_bc *bc, gab_module *mod,
   v_u64_create(&done_jumps, 8);
 
   // While we don't match the closing question
-  while (match_and_eat_token(bc, TOKEN_QUESTION) == COMP_TOKEN_NO_MATCH) {
+  while (match_and_eat_token(bc, TOKEN_ELSE) == COMP_TOKEN_NO_MATCH) {
     if (next != 0)
       gab_module_patch_jump(mod, next);
 
@@ -1811,7 +1810,7 @@ i32 compile_arguments(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return compile_arg_list(gab, bc, mod, vse_out);
   }
 
-  if (match_and_eat_token(bc, TOKEN_LBRACE)) {
+  if (match_and_eat_token(bc, TOKEN_LBRACK)) {
     // record argument
     if (compile_record(gab, bc, mod, (s_i8){0}) < 0)
       return COMP_ERR;
@@ -2000,7 +1999,7 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   down_scope(bc);
 
-  u8 local_start = peek_frame(bc, 0)->nlocals - 1;
+  u8 local_start = peek_frame(bc, 0)->next_local - 1;
   u16 loop_locals = 0;
   i32 result;
 
@@ -2025,18 +2024,30 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (expect_token(bc, TOKEN_IN) < 0)
     return COMP_ERR;
 
-  // This is the iterator function
+  gab_token in_tok = bc->previous_token;
+  u64 in_line = bc->line;
+  s_i8 in_src = bc->lex.previous_token_src;
+
+  // This is argument to send __itr__ to
   if (compile_expression(gab, bc, mod) < 0)
     return COMP_ERR;
 
+  u16 m = add_message_constant(gab, mod, s_i8_cstr("__itr__"));
+  gab_module_push_send(mod, 0, false, m, in_tok, in_line, in_src);
+
+  // Now the iterator is sitting on top
+
   u64 loop = gab_module_push_loop(mod);
 
-  // Load the funciton.
+  // Dup the iterator
   push_op(bc, mod, OP_DUP);
 
-  // Call the function, wanting loop_locals results.
-  // push_op(bc, mod, OP_SEND_0);
-  // push_byte(bc, mod, loop_locals);
+  // Call it
+  // have: 0
+  // want: loop locals
+  push_op(bc, mod, OP_DYNSEND);
+  push_byte(bc, mod, 0);
+  push_byte(bc, mod, loop_locals);
 
   // Exit the for loop if the last loop local is false.
   u64 jump_start =
@@ -2051,19 +2062,19 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (compile_block(gab, bc, mod) < 0)
     return COMP_ERR;
 
+  push_pop(bc, mod, 1);
+
   if (expect_token(bc, TOKEN_END) < 0)
     return COMP_ERR;
-
-  push_pop(bc, mod, 1);
 
   gab_module_patch_loop(mod, loop, bc->previous_token, bc->line,
                         bc->lex.previous_token_src);
 
   gab_module_patch_jump(mod, jump_start);
 
-  up_scope(bc, mod);
-
   push_pop(bc, mod, 1);
+
+  up_scope(bc, mod);
 
   return COMP_OK;
 }

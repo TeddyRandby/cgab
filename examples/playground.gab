@@ -1,41 +1,13 @@
-def test = { a:1 }
+def Range = require('range')
 
-def inc(arg)
-    arg['a'] = (arg['a'] or 0) + 1
+for a in Range:make{ to = 10 }
+    print(a)
 end
 
-print(test.a)
-
-inc(test)
-
-print(test.a)
-
-def __set__[{ a }?](key, val)
-    print('Setting a to {val}')
-    self.a = val
+for a in Range:make(2)
+    print(a)
 end
 
-def __get__[{ a }?](key)
-    print('Getting a')
-    self.a
+for a in Range:make(2, 5)
+    print(a)
 end
-
-inc(test)
-
-print(test.a)
-
-print(inc({ }))
-
-inc(test)
-
-print(test.a)
-
-inc(test)
-
-print(test.a)
-
-print(inc({ }))
-
-inc(test)
-
-print(test.a)

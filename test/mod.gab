@@ -247,6 +247,15 @@ describe('Overloads', do ()
         test:expect(true)
     end)
 
+    def get(obj, key)
+        obj[key]
+    end
+
+    it('should get before overload', do()
+        get({ x = 1 y = 2}, 'x'):expect(1)
+    end)
+
+
     def __get__[Vector](key)
        if key == 'mag' 
         self.x * self.x + self.y * self.y
@@ -254,7 +263,7 @@ describe('Overloads', do ()
     end
 
     it('should overload get', do ()
-        { x = 2 y = 2 }['mag']:expect(8)
+        get({ x = 2 y = 2 },'mag'):expect(8)
     end)
 end)
 

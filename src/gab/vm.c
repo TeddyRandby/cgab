@@ -253,7 +253,7 @@ static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_obj_builtin *b,
                                 u8 arity, u8 want) {
   gab_value result = (*b->function)(gab, vm, arity, vm->top - arity);
 
-  vm->top -= arity;
+  vm->top -= arity + 1;
 
   vm->top = trim_return(vm, &result, vm->top, 1, want);
 }
@@ -340,10 +340,17 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
   SKIP_BYTE;                                                                   \
   SKIP_SHORT;                                                                  \
   SKIP_QWORD;                                                                  \
-  if (!GAB_VAL_IS_NUMBER(PEEK()) || !GAB_VAL_IS_NUMBER(PEEK2())) {             \
+  if (!GAB_VAL_IS_NUMBER(PEEK2())) {                                           \
     WRITE_BYTE(16, OP_SEND_ANA);                                               \
     IP() -= 16;                                                                \
     NEXT();                                                                    \
+  }                                                                            \
+  if (!GAB_VAL_IS_NUMBER(PEEK())) {                                            \
+    STORE_FRAME();                                                             \
+    gab_obj_string *a =                                                        \
+        GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK()));                \
+    return vm_error(VM(), GAB_NOT_NUMERIC, "Tried to operate on %.*s",         \
+                    (i32)a->len, a->data);                                     \
   }                                                                            \
   operation_type b = GAB_VAL_TO_NUMBER(POP());                                 \
   operation_type a = GAB_VAL_TO_NUMBER(POP());                                 \
@@ -460,40 +467,40 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
   LOOP() {
 
     {
-      u8 arity, want;
+      u8 have, want;
 
       CASE_CODE(DYNSEND) : {
-        arity = READ_BYTE;
+        have = READ_BYTE;
         want = READ_BYTE;
 
         goto complete_dynsend;
       }
 
       CASE_CODE(VARDYNSEND) : {
-        arity = VAR() + READ_BYTE;
+        have = VAR() + READ_BYTE;
         want = READ_BYTE;
 
         goto complete_dynsend;
       }
 
     complete_dynsend : {
-      gab_value callee = PEEK_N(arity + 1);
+      gab_value callee = PEEK_N(have + 1);
 
       STORE_FRAME();
 
       if (GAB_VAL_IS_CLOSURE(callee)) {
 
-        if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_CLOSURE(callee), arity,
+        if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_CLOSURE(callee), have,
                           want))
           return vm_error(VM(), GAB_OVERFLOW, "");
 
       } else if (GAB_VAL_IS_BUILTIN(callee)) {
-        call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(callee), arity, want);
+        call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(callee), have, want);
 
         gab_gc_dref(ENGINE(), VM(), GC(), PEEK());
       } else if (GAB_VAL_IS_EFFECT(callee)) {
 
-        if (!call_effect(VM(), GAB_VAL_TO_EFFECT(callee), arity, want))
+        if (!call_effect(VM(), GAB_VAL_TO_EFFECT(callee), have, want))
           return vm_error(VM(), GAB_OVERFLOW, "");
 
       } else {
@@ -797,7 +804,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       SKIP_BYTE;
       SKIP_BYTE;
       u8 version = READ_BYTE;
-      u16 prop_offset = READ_SHORT;
+      SKIP_SHORT;
       gab_value cached_type = *READ_QWORD;
 
       gab_value value = PEEK();
@@ -806,10 +813,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       gab_value type = gab_typeof(ENGINE(), index);
 
-      u16 offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
+      u16 prop_offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
 
       if ((cached_type != type) | (version != msg->version) |
-          (offset != prop_offset)) {
+          (prop_offset == UINT16_MAX)) {
         WRITE_BYTE(16, OP_SEND_ANA);
         IP() -= 16;
         NEXT();
@@ -837,8 +844,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       SKIP_BYTE;
       SKIP_BYTE;
       SKIP_BYTE;
+      SKIP_SHORT;
+      SKIP_QWORD;
 
-      gab_value key = PEEK();
       gab_value index = PEEK2();
 
       if (!GAB_VAL_IS_RECORD(index)) {
@@ -849,12 +857,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
                         (i32)a->len, a->data);
       }
 
-      gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
-
-      u16 prop_offset = gab_obj_shape_find(obj->shape, key);
-
-      WRITE_INLINESHORT(prop_offset);
-      WRITE_INLINEQWORD(GAB_VAL_OBJ(obj->shape));
       WRITE_BYTE(16, OP_SEND_PRIMITIVE_LOAD_MONO_RECORD);
 
       IP() -= 16;
@@ -867,7 +869,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       SKIP_BYTE;
       SKIP_BYTE;
       u8 version = READ_BYTE;
-      u16 prop_offset = READ_SHORT;
+      SKIP_SHORT;
       gab_value cached_type = *READ_QWORD;
 
       gab_value key = PEEK();
@@ -875,14 +877,29 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       gab_value type = gab_typeof(ENGINE(), index);
 
-      u16 offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
+      /*
+       * This opcode is optimized for loading properties from records.
+       *
+       * We enter this opcode because we have seen a record as the receiver
+       * before.
+       *
+       * In this case, the type of the receiver and the shape of the index are
+       * the SAME, and it is the cached_type.
+       *
+       * Therefor, if we have the cached type that we expect, then our record
+       * also has the shape that we expect.
+       *
+       * However, we don't cache the offset because the key can change at every
+       * invocation and we don't have space to cache that.
+       */
 
-      if ((cached_type != type) | (version != msg->version) |
-          (offset != prop_offset)) {
+      if ((cached_type != type) | (version != msg->version)) {
         WRITE_BYTE(16, OP_SEND_ANA);
         IP() -= 16;
         NEXT();
       }
+
+      u16 prop_offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
 
       gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
 
@@ -900,12 +917,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       SKIP_BYTE;
       SKIP_BYTE;
       SKIP_BYTE;
+      SKIP_SHORT;
+      SKIP_QWORD;
 
       gab_value value = PEEK();
       gab_value key = PEEK2();
       gab_value index = PEEK_N(3);
-
-      gab_value type = gab_typeof(ENGINE(), index);
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
@@ -926,16 +943,15 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
          * The object being modified at this instruction is not stable.
          *
          * We need to revert to an anamorphic send, because we don't know
-         * what the object will look like next.
+         * what the object will look like next. (or if it will have a
+         * specialization)
          *
          * We also have to do the set here, becuase otherwise we will infinitely
          * go back and forth from here and the anamorphic send.
          */
-        prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
-
-        SKIP_SHORT;
-        SKIP_QWORD;
         WRITE_BYTE(16, OP_SEND_ANA);
+
+        prop_offset = gab_obj_record_grow(ENGINE(), VM(), obj, key, value);
 
         DROP_N(3);
 
@@ -948,8 +964,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         NEXT();
       }
 
-      WRITE_INLINESHORT(prop_offset);
-      WRITE_INLINEQWORD(type);
       WRITE_BYTE(16, OP_SEND_PRIMITIVE_STORE_MONO_RECORD);
 
       IP() -= 16;

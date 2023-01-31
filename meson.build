@@ -80,6 +80,7 @@ install_data(
   'std/mod.gab',
   'std/result.gab',
   'std/option.gab',
+  'std/range.gab',
   install_dir: '/usr/local/share/gab/std/'
   )
 
