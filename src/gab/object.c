@@ -5,6 +5,7 @@
 #include "include/types.h"
 #include "include/value.h"
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 
 #define GAB_CREATE_ARRAY(type, count)                                          \
@@ -199,22 +200,16 @@ void gab_obj_dump(gab_value value) {
 */
 void gab_obj_destroy(gab_engine *gab, gab_vm *vm, gab_obj *self) {
   switch (self->kind) {
-  case TYPE_SHAPE: {
-    gab_obj_shape *shape = (gab_obj_shape *)(self);
-    d_u64_destroy(&shape->properties);
-    GAB_DESTROY_STRUCT(shape);
-    return;
-  }
-
   case TYPE_RECORD: {
-    gab_obj_record *object = (gab_obj_record *)(self);
-    if (object->is_dynamic) {
-      v_u64_destroy(&object->dynamic_values);
+    gab_obj_record *rec = (gab_obj_record *)self;
+
+    if (rec->dyn_data.cap) {
+      v_u64_destroy(&rec->dyn_data);
     }
-    GAB_DESTROY_STRUCT(object);
+
+    GAB_DESTROY_STRUCT(rec);
     return;
   }
-
   case TYPE_CONTAINER: {
     gab_obj_container *container = (gab_obj_container *)(self);
     container->destructor(gab, vm, container->data);
@@ -233,6 +228,7 @@ void gab_obj_destroy(gab_engine *gab, gab_vm *vm, gab_obj *self) {
       These cases are allocated with a single malloc() call, so don't require
       anything fancy.
     */
+  case TYPE_SHAPE:
   case TYPE_EFFECT:
   case TYPE_UPVALUE:
   case TYPE_PROTOTYPE:
@@ -246,6 +242,7 @@ void gab_obj_destroy(gab_engine *gab, gab_vm *vm, gab_obj *self) {
   case TYPE_BOOLEAN:
   case TYPE_NIL:
   case TYPE_NUMBER:
+  case TYPE_UNDEFINED:
   case GAB_NTYPES:
     return;
   }
@@ -407,43 +404,37 @@ gab_obj_upvalue *gab_obj_upvalue_create(gab_value *data) {
 }
 
 gab_obj_shape *gab_obj_shape_create_array(gab_engine *gab, gab_vm *vm,
-                                          u64 size) {
-  gab_value keys[size];
+                                          u64 len) {
+  gab_value keys[len];
 
-  for (u64 i = 0; i < size; i++) {
+  for (u64 i = 0; i < len; i++) {
     keys[i] = GAB_VAL_NUMBER(i);
   }
 
-  return gab_obj_shape_create(gab, vm, size, 1, keys);
+  return gab_obj_shape_create(gab, vm, len, 1, keys);
 }
 
-gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 size,
-                                    u64 stride, gab_value keys[size]) {
-  u64 hash = keys_hash(size, stride, keys);
+gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 len,
+                                    u64 stride, gab_value keys[len]) {
+  u64 hash = keys_hash(len, stride, keys);
 
-  gab_obj_shape *interned =
-      gab_engine_find_shape(gab, size, stride, hash, keys);
+  gab_obj_shape *interned = gab_engine_find_shape(gab, len, stride, hash, keys);
 
   if (interned)
     return interned;
 
   gab_obj_shape *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_shape, gab_value, size, TYPE_SHAPE);
+      GAB_CREATE_FLEX_OBJ(gab_obj_shape, gab_value, len, TYPE_SHAPE);
 
   self->hash = hash;
+  self->len = len;
   self->name = s_i8_cstr("anonymous");
 
-  d_u64_create(&self->properties, OBJECT_INITIAL_CAP);
-
-  for (u64 i = 0; i < size; i++) {
-    gab_value key = keys[i * stride];
-
-    self->keys[i] = key;
-
-    d_u64_insert(&self->properties, key, i);
+  for (u64 i = 0; i < len; i++) {
+    self->keys[i] = keys[i * stride];
   }
 
-  gab_gc_iref_many(gab, vm, &gab->gc, size, self->keys);
+  gab_gc_iref_many(gab, vm, &gab->gc, len, self->keys);
 
   gab_engine_intern(gab, GAB_VAL_OBJ(self));
 
@@ -451,54 +442,53 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 size,
 }
 
 gab_obj_shape *gab_obj_shape_grow(gab_engine *gab, gab_vm *vm,
-                                  gab_obj_shape *self, gab_value property) {
-  gab_value keys[self->properties.len + 1];
+                                  gab_obj_shape *self, gab_value key) {
+  gab_value keys[self->len + 1];
 
-  memcpy(keys, self->keys, self->properties.len * sizeof(gab_value));
+  memcpy(keys, self->keys, sizeof(gab_value) * self->len);
 
-  keys[self->properties.len] = property;
+  keys[self->len] = key;
 
-  return gab_obj_shape_create(gab, vm, self->properties.len + 1, 1, keys);
+  return gab_obj_shape_create(gab, vm, self->len + 1, 1, keys);
 }
 
-gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, u64 size,
-                                      u64 stride, gab_value values[size]) {
+gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, u64 len, u64 stride,
+                                      gab_value values[len]) {
 
   gab_obj_record *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_record, gab_value, size, TYPE_RECORD);
+      GAB_CREATE_FLEX_OBJ(gab_obj_record, gab_value, len, TYPE_RECORD);
 
   self->shape = shape;
-  self->static_len = size;
+  self->dyn_data.len = len;
+  self->dyn_data.cap = 0;
+  self->dyn_data.data = NULL;
 
-  self->is_dynamic = false;
-  self->dynamic_values.len = 0;
-  self->dynamic_values.cap = 0;
-  self->dynamic_values.data = NULL;
-
-  for (u64 i = 0; i < size; i++) {
-    self->static_values[i] = values[i * stride];
+  for (u64 i = 0; i < len; i++) {
+    self->data[i] = values[i * stride];
   }
 
   return self;
 }
 
-i16 gab_obj_record_grow(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
+u16 gab_obj_record_grow(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
                         gab_value key, gab_value value) {
-  self->shape = gab_obj_shape_grow(gab, vm, self->shape, key);
+  gab_obj_shape *new_shape = gab_obj_shape_grow(gab, vm, self->shape, key);
 
-  if (!self->is_dynamic) {
-    self->is_dynamic = true;
+  u64 len = self->dyn_data.len;
 
-    u64 len = self->static_len < 8 ? 8 : self->static_len * 2;
+  assert(len < UINT16_MAX);
 
-    v_u64_create(&self->dynamic_values, len);
-
-    for (u8 i = 0; i < self->static_len; i++) {
-      v_u64_push(&self->dynamic_values, self->static_values[i]);
-    }
+  if (self->dyn_data.cap == 0) {
+    // Make Dynamic
+    v_u64_create(&self->dyn_data, len < 8 ? 8 : len * 2);
+    memcpy(self->dyn_data.data, self->data, len * sizeof(gab_value));
+    self->dyn_data.len = len;
   }
 
-  return v_u64_push(&self->dynamic_values, value);
+  self->shape = new_shape;
+  v_u64_push(&self->dyn_data, value);
+
+  return len;
 }
 
 gab_obj_container *gab_obj_container_create(gab_obj_container_cb destructor,

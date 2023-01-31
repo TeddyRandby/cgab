@@ -10,8 +10,7 @@ gab_value gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc,
 
   gab_obj_record *obj = GAB_VAL_TO_RECORD(argv[0]);
 
-  return GAB_VAL_NUMBER(obj->is_dynamic ? obj->dynamic_values.len
-                                        : obj->static_len);
+  return GAB_VAL_NUMBER(obj->dyn_data.len);
 }
 
 // Boy do NOT put side effects in here
@@ -27,7 +26,7 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
 
   gab_obj_record *r = GAB_VAL_TO_RECORD(argv[0]);
 
-  u64 len = r->is_dynamic ? r->dynamic_values.len : r->static_len;
+  u64 len = r->dyn_data.len;
   u64 start = 0, end = len;
 
   switch (argc) {
@@ -54,8 +53,7 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
 
   u64 result_len = end - start;
 
-  gab_value *result_values =
-      r->is_dynamic ? r->dynamic_values.data : r->static_values;
+  gab_value *result_values = r->dyn_data.cap ? r->dyn_data.data : r->data;
 
   gab_obj_shape *shape =
       gab_obj_shape_create(gab, NULL, result_len, 1, r->shape->keys + start);

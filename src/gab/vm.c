@@ -1625,14 +1625,14 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
     {
       gab_obj_shape *shape;
-      u8 size;
+      u8 len;
 
       CASE_CODE(RECORD_DEF) : {
         gab_obj_string *name = READ_STRING;
 
-        size = READ_BYTE;
+        len = READ_BYTE;
 
-        shape = gab_obj_shape_create(ENGINE(), VM(), size, 2, TOP() - size * 2);
+        shape = gab_obj_shape_create(ENGINE(), VM(), len, 2, TOP() - len * 2);
 
         shape->name = gab_obj_string_ref(name);
 
@@ -1640,20 +1640,20 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       }
 
       CASE_CODE(RECORD) : {
-        size = READ_BYTE;
+        len = READ_BYTE;
 
-        shape = gab_obj_shape_create(ENGINE(), VM(), size, 2, TOP() - size * 2);
+        shape = gab_obj_shape_create(ENGINE(), VM(), len, 2, TOP() - len * 2);
 
         goto complete_record;
       }
 
     complete_record : {
       gab_obj_record *rec =
-          gab_obj_record_create(shape, size, 2, TOP() + 1 - (size * 2));
+          gab_obj_record_create(shape, len, 2, TOP() + 1 - (len * 2));
 
-      gab_gc_iref_many(ENGINE(), VM(), GC(), size, rec->static_values);
+      gab_gc_iref_many(ENGINE(), VM(), GC(), len, rec->data);
 
-      DROP_N(size * 2);
+      DROP_N(len * 2);
 
       PUSH(GAB_VAL_OBJ(rec));
 
@@ -1664,30 +1664,30 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     }
 
     {
-      u8 size;
+      u8 len;
 
       CASE_CODE(VARARRAY) : {
         u8 addtl = READ_BYTE;
-        size = VAR() + addtl;
+        len = VAR() + addtl;
 
         goto complete_array;
       }
 
       CASE_CODE(ARRAY) : {
-        size = READ_BYTE;
+        len = READ_BYTE;
 
         goto complete_array;
       }
 
     complete_array : {
-      gab_obj_shape *shape = gab_obj_shape_create_array(ENGINE(), VM(), size);
+      gab_obj_shape *shape = gab_obj_shape_create_array(ENGINE(), VM(), len);
 
       gab_obj_record *rec =
-          gab_obj_record_create(shape, size, 1, TOP() - (size));
+          gab_obj_record_create(shape, len, 1, TOP() - (len));
 
-      gab_gc_iref_many(ENGINE(), VM(), GC(), size, rec->static_values);
+      gab_gc_iref_many(ENGINE(), VM(), GC(), len, rec->data);
 
-      DROP_N(size);
+      DROP_N(len);
 
       PUSH(GAB_VAL_OBJ(rec));
 

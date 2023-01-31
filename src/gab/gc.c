@@ -242,6 +242,7 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
   case TYPE_NIL:
   case TYPE_NUMBER:
   case TYPE_BOOLEAN:
+  case TYPE_UNDEFINED:
   case GAB_NTYPES:
     break;
   case TYPE_EFFECT: {
@@ -281,7 +282,7 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
   }
   case TYPE_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
-    for (u64 i = 0; i < shape->properties.len; i++) {
+    for (u64 i = 0; i < shape->len; i++) {
       if (GAB_VAL_IS_OBJ(shape->keys[i])) {
         fnc(gc, GAB_VAL_TO_OBJ(shape->keys[i]));
       }
@@ -290,17 +291,13 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
   }
   case (TYPE_RECORD): {
     gab_obj_record *object = (gab_obj_record *)obj;
-    if (object->is_dynamic) {
-      for (u64 i = 0; i < object->dynamic_values.len; i++) {
-        if (GAB_VAL_IS_OBJ(object->dynamic_values.data[i])) {
-          fnc(gc, GAB_VAL_TO_OBJ(object->dynamic_values.data[i]));
-        }
-      }
-    } else {
-      for (u64 i = 0; i < object->static_len; i++) {
-        if (GAB_VAL_IS_OBJ(object->static_values[i])) {
-          fnc(gc, GAB_VAL_TO_OBJ(object->static_values[i]));
-        }
+
+    gab_value *data =
+        object->dyn_data.cap ? object->dyn_data.data : object->data;
+
+    for (u64 i = 0; i < object->dyn_data.len; i++) {
+      if (GAB_VAL_IS_OBJ(data[i])) {
+        fnc(gc, GAB_VAL_TO_OBJ(data[i]));
       }
     }
     break;
@@ -319,6 +316,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
   case TYPE_NIL:
   case TYPE_NUMBER:
   case TYPE_BOOLEAN:
+  case TYPE_UNDEFINED:
   case GAB_NTYPES:
     break;
 
@@ -360,7 +358,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
   }
   case TYPE_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
-    for (u64 i = 0; i < shape->properties.len; i++) {
+    for (u64 i = 0; i < shape->len; i++) {
       if (GAB_VAL_IS_OBJ(shape->keys[i])) {
         fnc(GAB_VAL_TO_OBJ(shape->keys[i]));
       }
@@ -370,17 +368,12 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
   case (TYPE_RECORD): {
     gab_obj_record *object = (gab_obj_record *)obj;
 
-    if (object->is_dynamic) {
-      for (u64 i = 0; i < object->dynamic_values.len; i++) {
-        if (GAB_VAL_IS_OBJ(object->dynamic_values.data[i])) {
-          fnc(GAB_VAL_TO_OBJ(object->dynamic_values.data[i]));
-        }
-      }
-    } else {
-      for (u64 i = 0; i < object->static_len; i++) {
-        if (GAB_VAL_IS_OBJ(object->static_values[i])) {
-          fnc(GAB_VAL_TO_OBJ(object->static_values[i]));
-        }
+    gab_value *data =
+        object->dyn_data.cap ? object->dyn_data.data : object->data;
+
+    for (u64 i = 0; i < object->dyn_data.len; i++) {
+      if (GAB_VAL_IS_OBJ(data[i])) {
+        fnc(GAB_VAL_TO_OBJ(data[i]));
       }
     }
 
@@ -405,6 +398,7 @@ static inline void dec_child_refs(gab_engine *gab, gab_vm *vm, gab_gc *gc,
   case TYPE_NIL:
   case TYPE_NUMBER:
   case TYPE_BOOLEAN:
+  case TYPE_UNDEFINED:
   case GAB_NTYPES:
     break;
   case TYPE_CLOSURE: {
@@ -441,21 +435,19 @@ static inline void dec_child_refs(gab_engine *gab, gab_vm *vm, gab_gc *gc,
   }
   case TYPE_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
-    for (u64 i = 0; i < shape->properties.len; i++) {
+    for (u64 i = 0; i < shape->len; i++) {
       dec_if_obj_ref(gab, vm, gc, shape->keys[i]);
     }
     break;
   }
   case TYPE_RECORD: {
     gab_obj_record *object = (gab_obj_record *)obj;
-    if (object->is_dynamic) {
-      for (u64 i = 0; i < object->dynamic_values.len; i++) {
-        dec_if_obj_ref(gab, vm, gc, object->dynamic_values.data[i]);
-      }
-    } else {
-      for (u64 i = 0; i < object->static_len; i++) {
-        dec_if_obj_ref(gab, vm, gc, object->static_values[i]);
-      }
+
+    gab_value *data =
+        object->dyn_data.cap ? object->dyn_data.data : object->data;
+
+    for (u64 i = 0; i < object->dyn_data.len; i++) {
+      dec_if_obj_ref(gab, vm, gc, data[i]);
     }
     break;
   }

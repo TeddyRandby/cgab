@@ -100,7 +100,7 @@ struct gab_obj {
 /*
   'Generic' functions which handle all the different kinds of gab objects.
 */
-void gab_obj_destroy(gab_engine* gab, gab_vm* vm, gab_obj *self);
+void gab_obj_destroy(gab_engine *gab, gab_vm *vm, gab_obj *self);
 
 /*
   Defined in common/log.c
@@ -219,7 +219,7 @@ struct gab_obj_prototype {
    * The number of locals
    */
   u8 nlocals;
- 
+
   /*
    * If the proto accepts all arguments passed to it
    */
@@ -254,7 +254,6 @@ struct gab_obj_closure {
   u8 nupvalues;
 
   gab_obj_prototype *p;
-
 
   /*
    * The array of captured upvalues
@@ -341,11 +340,11 @@ typedef struct gab_obj_shape gab_obj_shape;
 struct gab_obj_shape {
   gab_obj header;
 
-  u64 hash;
-
   s_i8 name;
 
-  d_u64 properties;
+  u64 hash;
+
+  u64 len;
 
   gab_value keys[FLEXIBLE_ARRAY];
 };
@@ -354,50 +353,42 @@ struct gab_obj_shape {
 #define GAB_VAL_TO_SHAPE(value) ((gab_obj_shape *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SHAPE(value) ((gab_obj_shape *)value)
 
-gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 size,
-                                    u64 stride, gab_value key[size]);
+gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 len,
+                                    u64 stride, gab_value key[len]);
 
-gab_obj_shape *gab_obj_shape_create_array(gab_engine *gab, gab_vm *vm,
-                                          u64 size);
+gab_obj_shape *gab_obj_shape_create_array(gab_engine *gab, gab_vm *vm, u64 len);
 
 gab_obj_shape *gab_obj_shape_grow(gab_engine *gab, gab_vm *vm,
                                   gab_obj_shape *self, gab_value property);
 
 static inline u16 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
-  u16 i = d_u64_index_of(&self->properties, key);
 
-  if (!d_u64_iexists(&self->properties, i))
-    return UINT16_MAX;
+  for (u64 i = 0; i < self->len; i++) {
+    assert(i < UINT16_MAX);
 
-  return d_u64_ival(&self->properties, i);
+    if (self->keys[i] == key)
+      return i;
+  }
+
+  return UINT16_MAX;
 };
 
 /*
-  ------------- OBJ_OBJECT-------------
+  ------------- OBJ_RECORD -------------
   A javascript object, or a python dictionary, or a lua table.
   Known by many names.
 */
 typedef struct gab_obj_record gab_obj_record;
 struct gab_obj_record {
   gab_obj header;
-
-  boolean is_dynamic;
-  /*
-    The number of properties.
-  */
-  u8 static_len;
-
   /*
     The shape of this object.
   */
   gab_obj_shape *shape;
 
-  /*
-    The object's properties.
-  */
-  v_u64 dynamic_values;
+  v_u64 dyn_data;
 
-  gab_value static_values[FLEXIBLE_ARRAY];
+  gab_value data[FLEXIBLE_ARRAY];
 };
 
 #define GAB_VAL_IS_RECORD(value) (gab_val_is_obj_kind(value, TYPE_RECORD))
@@ -407,24 +398,27 @@ struct gab_obj_record {
 gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, u64 size,
                                       u64 stride, gab_value values[size]);
 
-i16 gab_obj_record_grow(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
-                        gab_value key, gab_value value);
+u16 gab_obj_record_grow(gab_engine *gab, gab_vm *vm,
+                                    gab_obj_record *self, gab_value key,
+                                    gab_value value);
 
 static inline void gab_obj_record_set(gab_obj_record *self, u16 offset,
                                       gab_value value) {
-  if (!self->is_dynamic)
-    self->static_values[offset] = value;
+  assert(offset < self->dyn_data.len);
+  if (self->dyn_data.cap)
+    self->dyn_data.data[offset] = value;
   else
-    v_u64_set(&self->dynamic_values, offset, value);
+    self->data[offset] = value;
 }
 
 static inline gab_value gab_obj_record_get(gab_obj_record *self, u16 offset) {
-  if (offset == UINT16_MAX)
+  if (offset >= self->dyn_data.len)
     return GAB_VAL_NIL();
-  else if (!self->is_dynamic)
-    return self->static_values[offset];
+
+  if (self->dyn_data.cap)
+    return self->dyn_data.data[offset];
   else
-    return v_u64_val_at(&self->dynamic_values, offset);
+    return self->data[offset];
 }
 
 static inline gab_value gab_obj_record_insert(gab_engine *gab, gab_vm *vm,
@@ -433,12 +427,12 @@ static inline gab_value gab_obj_record_insert(gab_engine *gab, gab_vm *vm,
   u16 prop_offset = gab_obj_shape_find(self->shape, key);
 
   if (prop_offset == UINT16_MAX) {
-    prop_offset = gab_obj_record_grow(gab, vm, self, key, value);
+    return GAB_VAL_OBJ(gab_obj_record_grow(gab, vm, self, key, value));
   }
 
   gab_obj_record_set(self, prop_offset, value);
 
-  return value;
+  return GAB_VAL_OBJ(self);
 }
 
 static inline gab_value gab_obj_record_read(gab_obj_record *self,
@@ -452,7 +446,7 @@ static inline gab_value gab_obj_record_read(gab_obj_record *self,
   A container to some unknown data.
 */
 typedef struct gab_obj_container gab_obj_container;
-typedef void (*gab_obj_container_cb)(gab_engine* gab, gab_vm* vm, void *data);
+typedef void (*gab_obj_container_cb)(gab_engine *gab, gab_vm *vm, void *data);
 struct gab_obj_container {
   gab_obj header;
 

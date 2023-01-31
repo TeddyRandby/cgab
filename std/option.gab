@@ -11,7 +11,7 @@ let SOME, NONE = $some, $none
 def Some { [SOME] }
 
 def some[]
-    { [SOME]: self }
+    { [SOME] = self }
 end
 
 def print[Some]

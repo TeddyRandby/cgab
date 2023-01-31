@@ -11,7 +11,7 @@ let OK, ERR = $ok, $err
 def Ok  { [OK] }
 
 def ok[]
-  { [OK]: self }
+  { [OK] = self }
 end
 
 def print[Ok]
@@ -33,7 +33,7 @@ end
 def Err { [ERR] }
 
 def err[]
-  { [ERR]: self }
+  { [ERR] = self }
 end
 
 def print[Err]

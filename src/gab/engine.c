@@ -338,18 +338,17 @@ gab_obj_string *gab_engine_find_string(gab_engine *self, s_i8 str, u64 hash) {
 }
 
 static inline boolean shape_matches_keys(gab_obj_shape *self,
-                                         gab_value values[], u64 size,
+                                         gab_value values[], u64 len,
                                          u64 stride) {
 
-  if (self->properties.len != size) {
+  if (self->len != len) {
     return false;
   }
 
-  for (u64 i = 0; i < size; i++) {
+  for (u64 i = 0; i < len; i++) {
     gab_value key = values[i * stride];
-    if (!d_u64_exists(&self->properties, key)) {
-      return false;
-    }
+    if (self->keys[i] != key)
+        return false;
   }
 
   return true;
