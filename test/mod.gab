@@ -101,8 +101,8 @@ describe('Records', do ()
 
   it('should have properties', do ()
     let point = {
-      x: 1
-      y: 2
+      x = 1
+      y = 2
     }
 
     point.x:expect(1)
@@ -110,14 +110,14 @@ describe('Records', do ()
   end)
 
   it('should be structurally shaped', do ()
-    let pone = { x: 1 y: 2}
-    let ptwo = { x: 3 y: 4}
+    let pone = { x = 1 y = 2}
+    let ptwo = { x = 3 y = 4}
 
     (pone?):expect(ptwo?)
   end)
 
   it('should set properties dynamically', do ()
-    let obj = { [[]?]: 'test' }
+    let obj = { [[]?] = 'test' }
     obj['y'] = 2
 
     (obj.y):expect(2)
@@ -156,7 +156,7 @@ describe('Records', do ()
 
   it('should work through cache', do ()
     let num = 2 
-    let a = { [it]: num }
+    let a = { [it] = num }
 
     def test()
         num = (a[it] or 0) + 1 # Test the reading cache
@@ -174,7 +174,7 @@ describe('Records', do ()
 
     a[it]:expect(5)
 
-    a = { b:5 } # Change the object
+    a = { b = 5 } # Change the object
     test()
 
     a[it]:expect(1)
@@ -182,7 +182,6 @@ describe('Records', do ()
 
   it('should work when shapes change', do ()
     let obj = { }
-
     def get_a()
         obj.a
     end
@@ -205,6 +204,58 @@ describe('Records', do ()
 
     get_a():expect(4)
   end)
+end)
+
+describe('Overloads', do ()
+    def Vector { x y }
+
+    def __add__[Vector](other)
+        if other is Vector
+            {
+                x = self.x + other.x
+                y = self.y + other.y
+            }
+        end
+    end
+
+    it('should overload binary', do ()
+        let test = { x=1 y=2 } + { x=2 y=1 }
+
+        test.x:expect(3)
+        test.y:expect(3)
+    end)
+
+    def __lt__[Vector](other)
+        if other is Vector
+            let mag = self.x * self.x + self.y * self.y
+            let other_mag = other.x * other.x + other.y * other.y
+
+            mag < other_mag
+        end
+    end
+
+    def __eq__[Vector](other)
+        (self.x == other.x) and (self.y == other.y)
+    end
+
+    it('should overload comparison', do ()
+        let test = { x=1 y=1 } < { x=4 y=4 }
+        test:expect(true)
+
+        test = { x=1 y=1 } == { x=1 y=1 }
+
+        test:expect(true)
+    end)
+
+    def __get__[Vector](key)
+       if key == 'mag' 
+        self.x * self.x + self.y * self.y
+       end
+    end
+
+    it('should overload get', do ()
+        { x=2 y=2 }['mag']:expect(8)
+    end)
 end)
 
 describe('Messages', do ()

@@ -870,9 +870,9 @@ i32 compile_rec_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod) {
     push_op(bc, mod, OP_CONSTANT);
     push_short(bc, mod, add_constant(mod, GAB_VAL_OBJ(obj)));
 
-    // Compile the expression if theres a colon, or look for a local with
+    // Compile the expression if theres an '=' , or look for a local with
     // the name and use that as the value.
-    switch (match_and_eat_token(bc, TOKEN_COLON)) {
+    switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
 
     case COMP_OK: {
       if (compile_expression(gab, bc, mod) < 0)
@@ -928,7 +928,7 @@ i32 compile_rec_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod) {
     if (expect_token(bc, TOKEN_RBRACE) < 0)
       return COMP_ERR;
 
-    if (match_and_eat_token(bc, TOKEN_COLON)) {
+    if (match_and_eat_token(bc, TOKEN_EQUAL)) {
       if (compile_expression(gab, bc, mod) < 0)
         return COMP_ERR;
     } else {
