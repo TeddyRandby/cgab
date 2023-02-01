@@ -1,11 +1,11 @@
 #include "include/compiler.h"
 #include "include/char.h"
+#include "include/colors.h"
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
 #include "include/module.h"
 #include "include/object.h"
-#include "include/colors.h"
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -516,20 +516,8 @@ i32 compile_block_expression(gab_engine *gab, gab_bc *bc, gab_module *mod) {
 }
 
 i32 compile_block_body(gab_engine *gab, gab_bc *bc, gab_module *mod) {
-  if (match_token(bc, TOKEN_EOF)) {
-    eat_token(bc);
-    dump_compiler_error(bc, GAB_MISSING_END, "");
-    return COMP_ERR;
-  }
-
   if (skip_newlines(bc) < 0)
     return COMP_ERR;
-
-  if (match_token(bc, TOKEN_EOF)) {
-    eat_token(bc);
-    dump_compiler_error(bc, GAB_MISSING_END, "");
-    return COMP_ERR;
-  }
 
   i32 result = compile_block_expression(gab, bc, mod);
 
@@ -1774,7 +1762,7 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   push_slot(bc, 1);
-  return COMP_OK;
+  return VAR_EXP;
 }
 
 i32 compile_exp_dot(gab_engine *gab, gab_bc *bc, gab_module *mod,

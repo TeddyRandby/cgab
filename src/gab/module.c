@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
+  self->next = NULL;
   self->name = name;
   self->source = a_i8_create(source.data, source.len);
   self->previous_compiled_op = OP_NOP;
@@ -345,7 +346,7 @@ u64 dumpDynSendInstruction(gab_module *self, u64 offset) {
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   u8 have = v_u8_val_at(&self->bytecode, offset + 1);
   u8 want = v_u8_val_at(&self->bytecode, offset + 2);
-  printf("%-25s          %02d args -> %02d\n", name, have, want);
+  printf("%-25s          %02d args -> %02d results\n", name, have, want);
   return offset + 3;
 }
 
@@ -524,6 +525,21 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_SEND_ANA:
   case OP_SEND_MONO_CLOSURE:
   case OP_SEND_MONO_BUILTIN:
+  case OP_SEND_PRIMITIVE_STORE_ANA:
+  case OP_SEND_PRIMITIVE_STORE_MONO_RECORD:
+  case OP_SEND_PRIMITIVE_LOAD_ANA:
+  case OP_SEND_PRIMITIVE_LOAD_MONO_RECORD:
+  case OP_SEND_PRIMITIVE_CONCAT:
+  case OP_SEND_PRIMITIVE_ADD:
+  case OP_SEND_PRIMITIVE_SUB:
+  case OP_SEND_PRIMITIVE_MUL:
+  case OP_SEND_PRIMITIVE_DIV:
+  case OP_SEND_PRIMITIVE_MOD:
+  case OP_SEND_PRIMITIVE_EQ:
+  case OP_SEND_PRIMITIVE_LT:
+  case OP_SEND_PRIMITIVE_LTE:
+  case OP_SEND_PRIMITIVE_GT:
+  case OP_SEND_PRIMITIVE_GTE:
     return dumpSendInstruction(self, offset);
   case OP_DYNSEND:
   case OP_VARDYNSEND:

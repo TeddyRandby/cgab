@@ -40,9 +40,7 @@ gab_value make_require(gab_engine *gab) {
   return require_builtin;
 }
 
-void gab_run_file(const char *path) {
-  imports_create();
-
+gab_engine *engine() {
   gab_engine *gab = gab_create();
 
   s_i8 arg_names[] = {
@@ -67,6 +65,53 @@ void gab_run_file(const char *path) {
 
   gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
 
+  return gab;
+}
+
+void gab_repl() {
+  imports_create();
+
+  gab_engine *gab = engine();
+
+  for (;;) {
+
+    printf("grepl> ");
+    a_i8 *src = os_read_line();
+
+    if (src == NULL || src->len < 1 || src->data[0] == '\0') {
+      a_i8_destroy(src);
+      break;
+    }
+
+    gab_module *main =
+        gab_compile(gab, s_i8_cstr("__main__"),
+                    s_i8_create(src->data, src->len), GAB_FLAG_DUMP_ERROR);
+
+    a_i8_destroy(src);
+
+    if (main == NULL)
+      continue;
+
+    gab_value result = gab_run(gab, main, GAB_FLAG_DUMP_ERROR);
+
+    if (!GAB_VAL_IS_NIL(result)) {
+        gab_val_dump(result);
+        printf("\n");
+    }
+
+    gab_dref(gab, NULL, result);
+  }
+
+  gab_destroy(gab);
+
+  imports_destroy(gab);
+}
+
+void gab_run_file(const char *path) {
+  imports_create();
+
+  gab_engine *gab = engine();
+
   a_i8 *src = os_read_file(path);
 
   gab_module *main =
@@ -75,32 +120,28 @@ void gab_run_file(const char *path) {
 
   a_i8_destroy(src);
 
-  gab_value result = GAB_VAL_NIL();
-
-  if (main == NULL) {
+  if (main == NULL)
     goto fin;
-  }
 
-  result = gab_run(gab, main, GAB_FLAG_DUMP_ERROR);
+  gab_value result = gab_run(gab, main, GAB_FLAG_DUMP_ERROR);
+
+  gab_dref(gab, NULL, result);
 
 fin:
-  // Cleanup the result
-  gab_dref(gab, NULL, result);
-  gab_module_collect(gab, main);
-  imports_collect(gab);
   gab_destroy(gab);
 
-  // Destroy everything
-  gab_module_destroy(gab, main);
   imports_destroy(gab);
 }
 
 i32 main(i32 argc, const char **argv) {
-  if (argc == 2) {
+  if (argc == 1) {
+    gab_repl();
+  } else if (argc == 2) {
     gab_run_file(argv[1]);
   } else {
     fprintf(stderr, "Usage: gab [path]\n");
     exit(64);
   }
+
   return 0;
 }

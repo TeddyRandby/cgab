@@ -31,6 +31,7 @@ static const char *gab_opcode_names[] = {
   State required to run a gab program.
 */
 struct gab_module {
+  gab_module* next;
   /*
     The name of the module */
   s_i8 name;

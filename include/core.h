@@ -82,6 +82,12 @@ static inline s_i8 s_i8_cstr(const char *str) {
 #define T s_i8
 #include "vector.h"
 
+#define T s_i8
+#include "array.h"
+
+#define T u64
+#include "array.h"
+
 #define K u64
 #define V u64
 #define DEF_V 0

@@ -99,6 +99,7 @@ struct primitive primitives[] = {
 gab_engine *gab_create() {
   gab_engine *gab = NEW(gab_engine);
 
+  gab->modules = 0;
   gab->hash_seed = time(NULL);
 
   d_strings_create(&gab->interned_strings, INTERN_INITIAL_CAP);
@@ -132,6 +133,7 @@ gab_engine *gab_create() {
 }
 
 void gab_destroy(gab_engine *gab) {
+
   if (gab == NULL)
     return;
 
@@ -160,8 +162,15 @@ void gab_destroy(gab_engine *gab) {
     gab_gc_dref(gab, NULL, &gab->gc, gab->types[i]);
   }
 
-  for (u8 i = 0; i < gab->argc; i++) {
-    gab_gc_dref(gab, NULL, &gab->gc, gab->argv_values[i]);
+  for (u8 i = 0; i < gab->argv_values->len; i++) {
+    gab_gc_dref(gab, NULL, &gab->gc, gab->argv_values->data[i]);
+  }
+
+  gab_module *mod = gab->modules;
+  while (mod != NULL) {
+    gab_module *m = mod;
+    mod = m->next;
+    gab_module_collect(gab, m);
   }
 
   gab_gc_collect(gab, NULL, &gab->gc);
@@ -172,6 +181,16 @@ void gab_destroy(gab_engine *gab) {
   d_shapes_destroy(&gab->interned_shapes);
   d_messages_destroy(&gab->interned_messages);
 
+  mod = gab->modules;
+  while (mod != NULL) {
+    gab_module *m = mod;
+    mod = m->next;
+    gab_module_destroy(gab, m);
+  }
+
+  a_u64_destroy(gab->argv_values);
+  a_s_i8_destroy(gab->argv_names);
+
   DESTROY(gab);
 }
 
@@ -181,17 +200,29 @@ void gab_collect(gab_engine *gab, gab_vm *vm) {
 
 void gab_args(gab_engine *gab, u8 argc, s_i8 argv_names[argc],
               gab_value argv_values[argc]) {
-  gab->argc = argc;
-  gab->argv_names = argv_names;
-  gab->argv_values = argv_values;
+  gab->argv_names = a_s_i8_create(argv_names, argc);
+  gab->argv_values = a_u64_create(argv_values, argc);
 }
 
 gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags) {
-  return gab_bc_compile(gab, name, source, flags, gab->argc, gab->argv_names);
+  gab_module *m = gab_bc_compile(gab, name, source, flags,
+                                 gab->argv_values->len, gab->argv_names->data);
+
+  if (m != NULL) {
+    if (gab->modules == NULL) {
+      gab->modules = m;
+    } else {
+      m->next = gab->modules;
+      gab->modules = m;
+    }
+  }
+
+  return m;
 }
 
 gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags) {
-  return gab_vm_run(gab, main, flags, gab->argc, gab->argv_values);
+  return gab_vm_run(gab, main, flags, gab->argv_values->len,
+                    gab->argv_values->data);
 };
 
 void gab_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
@@ -351,7 +382,7 @@ static inline boolean shape_matches_keys(gab_obj_shape *self,
   for (u64 i = 0; i < len; i++) {
     gab_value key = values[i * stride];
     if (self->keys[i] != key)
-        return false;
+      return false;
   }
 
   return true;

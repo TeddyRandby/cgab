@@ -15,8 +15,6 @@ typedef struct import import;
 
 void imports_create();
 
-void imports_collect(gab_engine* gab);
-
 void imports_destroy(gab_engine* gab);
 
 gab_value gab_lib_require(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[argc]);

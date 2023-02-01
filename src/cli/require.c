@@ -36,37 +36,17 @@ struct import {
 
 d_import imports = {0};
 
-void import_collect(gab_engine *gab, import *i) {
-  switch (i->k) {
-  case IMPORT_SHARED:
-    break;
-  case IMPORT_SOURCE:
-    gab_module_collect(gab, i->as.mod);
-    break;
-  }
-}
-
 void import_destroy(gab_engine *gab, import *i) {
   switch (i->k) {
   case IMPORT_SHARED:
     dlclose(i->as.shared);
-    break;
-  case IMPORT_SOURCE:
-    gab_module_destroy(gab, i->as.mod);
+  default:
     break;
   }
   DESTROY(i);
 }
 
 void imports_create() { d_import_create(&imports, 8); };
-
-void imports_collect(gab_engine *gab) {
-  for (u64 i = 0; i < imports.cap; i++) {
-    if (d_import_iexists(&imports, i)) {
-      import_collect(gab, d_import_ival(&imports, i));
-    }
-  }
-}
 
 void imports_destroy(gab_engine *gab) {
   for (u64 i = 0; i < imports.cap; i++) {

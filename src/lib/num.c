@@ -155,6 +155,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
 
   for (int i = 0; i < LEN_CARRAY(names); i++) {
     gab_specialize(gab, names[i], receivers[i], values[i]);
+    gab_dref(gab, vm, values[i]);
   }
 
   return GAB_VAL_NIL();

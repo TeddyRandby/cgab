@@ -21,27 +21,28 @@ static const char *gab_status_names[] = {
 };
 
 #define NAME strings
-#define K gab_obj_string*
+#define K gab_obj_string *
 #define HASH(a) (a->hash)
 #define EQUAL(a, b) (a == b)
 #define LOAD DICT_MAX_LOAD
 #include "include/dict.h"
 
 #define NAME shapes
-#define K gab_obj_shape*
+#define K gab_obj_shape *
 #define HASH(a) (a->hash)
 #define EQUAL(a, b) (a == b)
 #define LOAD DICT_MAX_LOAD
 #include "include/dict.h"
 
 #define NAME messages
-#define K gab_obj_message*
+#define K gab_obj_message *
 #define HASH(a) (a->hash)
 #define EQUAL(a, b) (a == b)
 #define LOAD DICT_MAX_LOAD
 #include "include/dict.h"
 
 struct gab_engine {
+  gab_module *modules;
   /*
    * Where all the interned values live.
    */
@@ -61,9 +62,8 @@ struct gab_engine {
 
   u64 hash_seed;
 
-  u8 argc;
-  gab_value *argv_values;
-  s_i8 *argv_names;
+  a_u64 *argv_values;
+  a_s_i8 *argv_names;
 };
 
 // This can be heavily optimized.
@@ -75,8 +75,9 @@ static inline gab_value gab_typeof(gab_engine *gab, gab_value value) {
   }
 
   // The type of null or symbols is themselves
-  if (GAB_VAL_IS_NIL(value) || GAB_VAL_IS_UNDEFINED(value) || GAB_VAL_IS_SYMBOL(value)) {
-      return value;
+  if (GAB_VAL_IS_NIL(value) || GAB_VAL_IS_UNDEFINED(value) ||
+      GAB_VAL_IS_SYMBOL(value)) {
+    return value;
   }
 
   if (GAB_VAL_IS_NUMBER(value)) {
@@ -91,7 +92,7 @@ static inline gab_value gab_typeof(gab_engine *gab, gab_value value) {
 }
 
 gab_obj_string *gab_engine_find_string(gab_engine *gab, s_i8 str, u64 hash);
-gab_obj_message* gab_engine_find_message(gab_engine *gab, s_i8 name, u64 hash);
+gab_obj_message *gab_engine_find_message(gab_engine *gab, s_i8 name, u64 hash);
 gab_obj_shape *gab_engine_find_shape(gab_engine *gab, u64 size, u64 stride,
                                      u64 hash, gab_value keys[size]);
 

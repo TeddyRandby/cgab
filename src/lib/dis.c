@@ -63,30 +63,37 @@ gab_value gab_lib_disclosure(gab_engine *gab, gab_vm *vm, u8 argc,
   return GAB_VAL_NIL();
 }
 
-gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  s_i8 names[] = {
-      s_i8_cstr("dis"),
-      s_i8_cstr("dis"),
-      s_i8_cstr("dis"),
-  };
+gab_value gab_lib_disbuiltin(gab_engine *gab, gab_vm *vm, u8 argc,
+                             gab_value argv[argc]) {
+  if (argc != 1) {
+    gab_panic(gab, vm, "Invalid call to gab_lib_dis");
+  }
 
+  gab_val_dump(argv[0]);
+  printf("\n");
+
+  return GAB_VAL_NIL();
+}
+
+gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value receivers[] = {
       gab_get_type(gab, TYPE_CLOSURE),
       gab_get_type(gab, TYPE_MESSAGE),
       gab_get_type(gab, TYPE_STRING),
+      gab_get_type(gab, TYPE_BUILTIN),
   };
 
   gab_value values[] = {
       GAB_BUILTIN(disclosure),
       GAB_BUILTIN(dismessage),
       GAB_BUILTIN(disstring),
+      GAB_BUILTIN(disbuiltin),
   };
 
-  static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
-  static_assert(LEN_CARRAY(names) == LEN_CARRAY(values));
+  static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));
 
-  for (u8 i = 0; i < LEN_CARRAY(names); i++) {
-    gab_specialize(gab, names[i], receivers[i], values[i]);
+  for (u8 i = 0; i < LEN_CARRAY(values); i++) {
+    gab_specialize(gab, s_i8_cstr("dis"), receivers[i], values[i]);
     gab_dref(gab, vm, values[i]);
   }
 

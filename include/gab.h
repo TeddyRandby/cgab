@@ -24,13 +24,6 @@ void gab_destroy(gab_engine *gab);
 
 void gab_collect(gab_engine* gab, gab_vm* vm);
 
-/**
- * Cleanup a Gab Module.
- *
- * @param mod The module to clean up
- */
-void gab_module_destroy(gab_engine* gab, gab_module *mod);
-
 void gab_args(gab_engine* gab, u8 argc, s_i8 argv_names[argc], gab_value argv_values[argc]);
 
 /**
