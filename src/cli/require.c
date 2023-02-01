@@ -79,14 +79,17 @@ void imports_destroy(gab_engine *gab) {
 };
 
 void add_import(gab_engine *gab, s_i8 name, import *i) {
-  d_import_insert(&imports, name, i);
+  d_import_insert(&imports, s_i8_hash(name, gab->hash_seed), i);
 }
 
 gab_value check_import(gab_engine *gab, s_i8 name) {
-  if (d_import_exists(&imports, name)) {
-    import *i = d_import_read(&imports, name);
+  u64 hash = s_i8_hash(name, gab->hash_seed);
+
+  if (d_import_exists(&imports, hash)) {
+    import *i = d_import_read(&imports, hash);
     return i->cache;
   }
+
   return GAB_VAL_NIL();
 }
 

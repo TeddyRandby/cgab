@@ -175,7 +175,8 @@ void gab_obj_dump(gab_value value) {
     break;
   }
   case TYPE_PROTOTYPE: {
-    printf("[prototype]");
+    gab_obj_prototype* obj = GAB_VAL_TO_PROTOTYPE(value);
+    printf("[prototype:%.*s]", (i32) obj->name.len, obj->name.data);
     break;
   }
   case TYPE_CLOSURE: {
@@ -248,16 +249,17 @@ void gab_obj_destroy(gab_engine *gab, gab_vm *vm, gab_obj *self) {
   }
 }
 
-static inline u64 keys_hash(u64 size, u64 stride, gab_value values[size]) {
-  gab_value words[size];
-  for (u64 i = 0; i < size; i++) {
+static inline u64 hash_keys(u64 seed, u64 len, u64 stride,
+                            gab_value values[len]) {
+  gab_value words[len];
+  for (u64 i = 0; i < len; i++) {
     words[i] = values[i * stride];
   }
-  return hash_words(size, words);
+  return hash_words(seed, len, words);
 };
 
 gab_obj_string *gab_obj_string_create(gab_engine *gab, s_i8 str) {
-  u64 hash = s_i8_hash(str);
+  u64 hash = s_i8_hash(str, gab->hash_seed);
 
   gab_obj_string *interned = gab_engine_find_string(gab, str, hash);
 
@@ -305,7 +307,7 @@ gab_obj_string *gab_obj_string_concat(gab_engine *gab, gab_obj_string *a,
 
   // Pre compute the hash
   s_i8 ref = s_i8_create(self->data, self->len);
-  self->hash = s_i8_hash(ref);
+  self->hash = s_i8_hash(ref, gab->hash_seed);
 
   /*
     If this string was interned already, destroy and return.
@@ -354,7 +356,7 @@ gab_obj_prototype *gab_obj_prototype_create(gab_module *mod, s_i8 name) {
 }
 
 gab_obj_message *gab_obj_message_create(gab_engine *gab, s_i8 name) {
-  u64 hash = s_i8_hash(name);
+  u64 hash = s_i8_hash(name, gab->hash_seed);
 
   gab_obj_message *interned = gab_engine_find_message(gab, name, hash);
 
@@ -416,7 +418,7 @@ gab_obj_shape *gab_obj_shape_create_array(gab_engine *gab, gab_vm *vm,
 
 gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 len,
                                     u64 stride, gab_value keys[len]) {
-  u64 hash = keys_hash(len, stride, keys);
+  u64 hash = hash_keys(gab->hash_seed, len, stride, keys);
 
   gab_obj_shape *interned = gab_engine_find_shape(gab, len, stride, hash, keys);
 

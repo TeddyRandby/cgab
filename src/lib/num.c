@@ -3,6 +3,7 @@
 #include "include/gab.h"
 #include "include/object.h"
 #include "include/value.h"
+#include <assert.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -60,30 +61,32 @@ static f64 random_float() {
   return result;
 }
 
-gab_value gab_lib_random(gab_engine *gab, gab_vm *vm, u8 argc,
-                         gab_value argv[argc]) {
+gab_value gab_lib_between(gab_engine *gab, gab_vm *vm, u8 argc,
+                          gab_value argv[argc]) {
 
-  f64 min, max;
+  f64 min = 0, max = 1;
 
   switch (argc) {
-  case 1: {
-    if (!GAB_VAL_IS_NUMBER(argv[0])) {
+  case 1:
+    break;
+
+  case 2: {
+    if (!GAB_VAL_IS_NUMBER(argv[1])) {
       gab_panic(gab, vm, "Invalid call to gab_lib_random");
     }
 
-    min = 0;
-    max = GAB_VAL_TO_NUMBER(argv[0]);
+    max = GAB_VAL_TO_NUMBER(argv[1]);
 
     break;
   }
 
-  case 2: {
-    if (!GAB_VAL_IS_NUMBER(argv[0]) || !GAB_VAL_IS_NUMBER(argv[1])) {
+  case 3: {
+    if (!GAB_VAL_IS_NUMBER(argv[1]) || !GAB_VAL_IS_NUMBER(argv[2])) {
       gab_panic(gab, vm, "Invalid call to gab_lib_random");
     }
 
-    min = GAB_VAL_TO_NUMBER(argv[0]);
-    max = GAB_VAL_TO_NUMBER(argv[1]);
+    min = GAB_VAL_TO_NUMBER(argv[1]);
+    max = GAB_VAL_TO_NUMBER(argv[2]);
     break;
   }
 
@@ -100,7 +103,7 @@ gab_value gab_lib_floor(gab_engine *gab, gab_vm *vm, u8 argc,
                         gab_value argv[argc]) {
 
   if (argc != 1 || !GAB_VAL_IS_NUMBER(argv[0])) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_floor");
+    gab_panic(gab, vm, "Invalid call to gab_lib_floor");
   }
 
   f64 float_num = GAB_VAL_TO_NUMBER(argv[0]);
@@ -111,11 +114,11 @@ gab_value gab_lib_floor(gab_engine *gab, gab_vm *vm, u8 argc,
 
 gab_value gab_lib_from(gab_engine *gab, gab_vm *vm, u8 argc,
                        gab_value argv[argc]) {
-  if (!GAB_VAL_IS_STRING(argv[0])) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_from");
+  if (argc != 2 || !GAB_VAL_IS_STRING(argv[1])) {
+    gab_panic(gab, vm, "Invalid call to gab_lib_from");
   }
 
-  gab_obj_string *str = GAB_VAL_TO_STRING(argv[0]);
+  gab_obj_string *str = GAB_VAL_TO_STRING(argv[1]);
 
   char cstr[str->len + 1];
 
@@ -127,17 +130,32 @@ gab_value gab_lib_from(gab_engine *gab, gab_vm *vm, u8 argc,
 };
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  s_i8 keys[] = {
-      s_i8_cstr("random"),
+  s_i8 names[] = {
+      s_i8_cstr("between"),
       s_i8_cstr("floor"),
       s_i8_cstr("from"),
   };
 
+  gab_value type_num = gab_get_type(gab, TYPE_NUMBER);
+
+  gab_value receivers[] = {
+      type_num,
+      type_num,
+      type_num,
+  };
+
   gab_value values[] = {
-      GAB_BUILTIN(random),
+      GAB_BUILTIN(between),
       GAB_BUILTIN(floor),
       GAB_BUILTIN(from),
   };
+
+  static_assert(LEN_CARRAY(names) == LEN_CARRAY(values));
+  static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
+
+  for (int i = 0; i < LEN_CARRAY(names); i++) {
+    gab_specialize(gab, names[i], receivers[i], values[i]);
+  }
 
   return GAB_VAL_NIL();
 }

@@ -5,6 +5,7 @@
 #include "include/gab.h"
 #include "include/module.h"
 #include "include/object.h"
+#include "include/colors.h"
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -2358,14 +2359,6 @@ gab_module *gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags,
 
   return mod;
 }
-
-#define ANSI_COLOR_RED "\x1b[31m"
-#define ANSI_COLOR_GREEN "\x1b[32m"
-#define ANSI_COLOR_YELLOW "\x1b[33m"
-#define ANSI_COLOR_BLUE "\x1b[34m"
-#define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN "\x1b[36m"
-#define ANSI_COLOR_RESET "\x1b[0m"
 
 static void dump_compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
                                 ...) {

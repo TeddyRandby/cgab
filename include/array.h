@@ -40,10 +40,6 @@ LINKAGE boolean METHOD(match)(TYPENAME *self, TYPENAME *other) {
   return memcmp(self->data, other->data, self->len) == 0;
 }
 
-LINKAGE u64 METHOD(hash)(TYPENAME *self) {
-  return hash_bytes(self->len * sizeof(T), (u8 *)self->data);
-}
-
 LINKAGE void METHOD(destroy)(TYPENAME *self) { DESTROY(self); }
 
 #undef T

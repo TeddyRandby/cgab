@@ -6,6 +6,7 @@
 #include "include/module.h"
 #include "include/object.h"
 #include "include/value.h"
+#include "include/colors.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -18,13 +19,6 @@ static const char *gab_token_names[] = {
 #undef TOKEN
 };
 
-#define ANSI_COLOR_RED "\x1b[31m"
-#define ANSI_COLOR_GREEN "\x1b[32m"
-#define ANSI_COLOR_YELLOW "\x1b[33m"
-#define ANSI_COLOR_BLUE "\x1b[34m"
-#define ANSI_COLOR_MAGENTA "\x1b[35m"
-#define ANSI_COLOR_CYAN "\x1b[36m"
-#define ANSI_COLOR_RESET "\x1b[0m"
 gab_value vm_error(gab_vm *vm, gab_status e, const char *help_fmt, ...) {
   if (vm->flags & GAB_FLAG_DUMP_ERROR) {
     gab_vm_frame *frame = vm->fstack + 1;
@@ -253,7 +247,7 @@ static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_obj_builtin *b,
                                 u8 arity, u8 want) {
   gab_value result = (*b->function)(gab, vm, arity, vm->top - arity);
 
-  vm->top -= arity + 1;
+  vm->top -= arity;
 
   vm->top = trim_return(vm, &result, vm->top, 1, want);
 }
@@ -1323,6 +1317,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     CASE_CODE(INTERPOLATE) : {
       gab_value b = gab_val_to_string(ENGINE(), POP());
       gab_value a = gab_val_to_string(ENGINE(), POP());
+
       gab_obj_string *ab = gab_obj_string_concat(ENGINE(), GAB_VAL_TO_STRING(a),
                                                  GAB_VAL_TO_STRING(b));
 

@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <time.h>
 
 struct primitive {
   const char *name;
@@ -97,6 +98,8 @@ struct primitive primitives[] = {
  */
 gab_engine *gab_create() {
   gab_engine *gab = NEW(gab_engine);
+
+  gab->hash_seed = time(NULL);
 
   d_strings_create(&gab->interned_strings, INTERN_INITIAL_CAP);
   d_shapes_create(&gab->interned_shapes, INTERN_INITIAL_CAP);

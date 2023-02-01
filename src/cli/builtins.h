@@ -6,11 +6,11 @@ gab_value gab_lib_print(gab_engine *eng, gab_vm* vm, u8 argc, gab_value argv[arg
 typedef struct import import;
 
 #define NAME import
-#define K s_i8
+#define K u64 
 #define V import*
 #define DEF_V NULL
-#define HASH(a) (s_i8_hash(a))
-#define EQUAL(a, b) (s_i8_match(a, b))
+#define HASH(a) (a)
+#define EQUAL(a, b) (a == b)
 #include "include/dict.h"
 
 void imports_create();

@@ -1,4 +1,5 @@
 #include "include/module.h"
+#include "include/colors.h"
 #include "include/compiler.h"
 #include "include/core.h"
 #include "include/engine.h"
@@ -336,26 +337,39 @@ u64 dumpInstruction(gab_module *self, u64 offset);
 
 u64 dumpSimpleInstruction(gab_module *self, u64 offset) {
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
-  printf("%-16s\n", name);
+  printf("%-25s\n", name);
   return offset + 1;
 }
 
 u64 dumpDynSendInstruction(gab_module *self, u64 offset) {
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
-  printf("%-16s\n", name);
+  u8 have = v_u8_val_at(&self->bytecode, offset + 1);
+  u8 want = v_u8_val_at(&self->bytecode, offset + 2);
+  printf("%-25s          %02d args -> %02d\n", name, have, want);
   return offset + 3;
 }
 
 u64 dumpSendInstruction(gab_module *self, u64 offset) {
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
-  printf("%-16s\n", name);
+  u16 constant = v_u8_val_at(&self->bytecode, offset + 1) << 8 |
+                 v_u8_val_at(&self->bytecode, offset + 2);
+
+  gab_value msg = d_gab_constant_ikey(&self->constants, constant);
+  gab_obj_message *m = GAB_VAL_TO_MESSAGE(msg);
+
+  u8 have = v_u8_val_at(&self->bytecode, offset + 3);
+  u8 want = v_u8_val_at(&self->bytecode, offset + 4);
+
+  printf("%-25s" ANSI_COLOR_BLUE "%-10.*s" ANSI_COLOR_RESET
+         "%02d args -> %02d results\n",
+         name, (int)m->name.len, m->name.data, have, want);
   return offset + 16;
 }
 
 u64 dumpByteInstruction(gab_module *self, u64 offset) {
   u8 operand = v_u8_val_at(&self->bytecode, offset + 1);
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
-  printf("%-16s %hhx\n", name, operand);
+  printf("%-25s%hhx\n", name, operand);
   return offset + 2;
 }
 
@@ -363,14 +377,14 @@ u64 dumpTwoByteInstruction(gab_module *self, u64 offset) {
   u8 operandA = v_u8_val_at(&self->bytecode, offset + 1);
   u8 operandB = v_u8_val_at(&self->bytecode, offset + 2);
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
-  printf("%-16s %hhx %hhx\n", name, operandA, operandB);
+  printf("%-25s%hhx %hhx\n", name, operandA, operandB);
   return offset + 3;
 }
 
 u64 dumpDictInstruction(gab_module *self, u8 i, u64 offset) {
   u8 operand = v_u8_val_at(&self->bytecode, offset + 1);
   const char *name = gab_opcode_names[i];
-  printf("%-16s %hhx\n", name, operand);
+  printf("%-25s%hhx\n", name, operand);
   return offset + 2;
 };
 
@@ -378,7 +392,7 @@ u64 dumpConstantInstruction(gab_module *self, u64 offset) {
   u16 constant = v_u8_val_at(&self->bytecode, offset + 1) << 8 |
                  v_u8_val_at(&self->bytecode, offset + 2);
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
-  printf("%-16s ", name);
+  printf("%-25s", name);
   gab_val_dump(d_gab_constant_ikey(&self->constants, constant));
   printf("\n");
   return offset + 3;
@@ -389,7 +403,9 @@ u64 dumpJumpInstruction(gab_module *self, u64 sign, u64 offset) {
   u16 dist = (u16)v_u8_val_at(&self->bytecode, offset + 1) << 8;
   dist |= v_u8_val_at(&self->bytecode, offset + 2);
 
-  printf("%-16s %04lu -> %04lu\n", name, offset, offset + 3 + (sign * (dist)));
+  printf("%-25s" ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
+         " -> " ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET "\n",
+         name, offset, offset + 3 + (sign * (dist)));
   return offset + 3;
 }
 
@@ -469,22 +485,10 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_PUSH_FALSE:
   case OP_PUSH_NIL:
   case OP_PUSH_TRUE:
-  // case OP_ADD:
-  // case OP_ASSERT:
-  // case OP_TYPE:
-  // case OP_SUBTRACT:
-  // case OP_DIVIDE:
-  // case OP_MULTIPLY:
-  // case OP_MODULO:
-  // case OP_NOT:
-  // case OP_NEGATE:
-  // case OP_LESSER:
-  // case OP_LESSER_EQUAL:
-  // case OP_GREATER_EQUAL:
-  // case OP_GREATER:
-  // case OP_EQUAL:
+  case OP_PUSH_UNDEFINED:
   case OP_SWAP:
   case OP_DUP:
+  case OP_NOT:
   case OP_MATCH:
   case OP_POP:
   case OP_INTERPOLATE:
@@ -558,18 +562,21 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
                           self->bytecode.data[offset + 1]);
     offset += 4;
 
-    gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(
-        d_gab_constant_ikey(&self->constants, proto_constant));
+    gab_value pval = d_gab_constant_ikey(&self->constants, proto_constant);
+    gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(pval);
 
-    printf("%-16s %.*s\n", "OP_MESSAGE", (i32)p->name.len, p->name.data);
+    printf("%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET, "OP_CLOSURE",
+           (int)p->name.len, p->name.data);
 
     for (int j = 0; j < p->nupvalues; j++) {
       u8 flags = self->bytecode.data[offset++];
       u8 index = self->bytecode.data[offset++];
       int isLocal = flags & FLAG_LOCAL;
       int isMutable = flags & FLAG_MUTABLE;
-      printf("%04lu      |                     %d %s %s\n", offset, index,
-             isLocal ? "local" : "upvalue", isMutable ? "mut" : "const");
+      printf(ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
+                               "      |                   %d %s %s\n",
+             offset, index, isLocal ? "local" : "upvalue",
+             isMutable ? "mut" : "const");
     }
     return offset;
   }
@@ -579,18 +586,21 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
                           self->bytecode.data[offset + 1]);
     offset += 2;
 
-    gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(
-        d_gab_constant_ikey(&self->constants, proto_constant));
+    gab_value pval = d_gab_constant_ikey(&self->constants, proto_constant);
+    gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(pval);
 
-    printf("%-16s %.*s\n", "OP_CLOSURE", (i32)p->name.len, p->name.data);
+    printf("%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET, "OP_CLOSURE",
+           (int)p->name.len, p->name.data);
 
     for (int j = 0; j < p->nupvalues; j++) {
       u8 flags = self->bytecode.data[offset++];
       u8 index = self->bytecode.data[offset++];
       int isLocal = flags & FLAG_LOCAL;
       int isMutable = flags & FLAG_MUTABLE;
-      printf("%04lu      |                     %d %s %s\n", offset, index,
-             isLocal ? "local" : "upvalue", isMutable ? "mut" : "const");
+      printf(ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
+                               "      |                   %d %s %s\n",
+             offset, index, isLocal ? "local" : "upvalue",
+             isMutable ? "mut" : "const");
     }
     return offset;
   }
@@ -611,13 +621,18 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   }
 }
 
-void gab_module_dump(gab_module *self, s_i8 name) {
-  if (self) {
-    printf("     %.*s\n", (int)name.len, name.data);
-    u64 offset = 0;
-    while (offset < self->bytecode.len) {
-      printf("%04lu ", offset);
-      offset = dumpInstruction(self, offset);
-    }
+void gab_dis(gab_module *mod, u64 start, u64 len) {
+  u64 end = start + len;
+  u64 offset = start < mod->bytecode.len ? start : mod->bytecode.len;
+  u64 finish = end < mod->bytecode.len ? end : mod->bytecode.len;
+
+  while (offset < finish) {
+    printf(ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);
+    offset = dumpInstruction(mod, offset);
   }
+}
+
+void gab_module_dump(gab_module *self, s_i8 name) {
+  printf("     %.*s\n", (int)name.len, name.data);
+  gab_dis(self, 0, self->bytecode.len);
 }

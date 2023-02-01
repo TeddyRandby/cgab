@@ -59,6 +59,8 @@ struct gab_engine {
    */
   gab_value types[GAB_NTYPES];
 
+  u64 hash_seed;
+
   u8 argc;
   gab_value *argv_values;
   s_i8 *argv_names;

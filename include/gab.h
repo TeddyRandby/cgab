@@ -46,6 +46,8 @@ void gab_args(gab_engine* gab, u8 argc, s_i8 argv_names[argc], gab_value argv_va
  */
 gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags);
 
+void gab_dis(gab_module* mod, u64 start, u64 end);
+
 /**
  * Run a module in the gab vm.
  *

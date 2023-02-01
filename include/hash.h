@@ -54,13 +54,11 @@ static u64 hash(const void *buf, u64 len, u64 seed) {
 
 #undef mix
 
-static inline u64 hash_bytes(u64 size, u8 bytes[size]) {
-  u64 seed = 2166136261u;
-  return hash(bytes, size * sizeof(u8), seed);
+static inline u64 hash_bytes(u64 seed, u64 len, u8 bytes[len]) {
+  return hash(bytes, len * sizeof(u8), seed);
 }
 
-static inline u64 hash_words(u64 size, u64 words[size]) {
-  u64 seed = 2166136261u;
-  return hash(words, size * sizeof(u64), seed);
+static inline u64 hash_words(u64 seed, u64 len, u64 words[len]) {
+  return hash(words, len * sizeof(u64), seed);
 }
 #endif

@@ -1,13 +1,9 @@
-#include "include/core.h"
-#include "include/engine.h"
 #include "include/gab.h"
-#include "include/object.h"
-#include "include/value.h"
 #include <stdio.h>
 
 void gab_container_file_cb(gab_engine *gab, gab_vm *vm, void *data) {
   if (fclose(data)) {
-    gab_vm_panic(gab, vm, "Failed to cleanup file container");
+    gab_panic(gab, vm, "Failed to cleanup file container");
   }
 }
 
