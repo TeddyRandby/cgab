@@ -23,6 +23,7 @@ describe('Numbers', do ()
   it('should be equal to itself', do ()
     5:expect(5)
   end)
+
   it('should do math', do ()
     (5 * 2):expect(10)
     (10 % 3):expect(1)
@@ -264,6 +265,19 @@ describe('Overloads', do ()
 
     it('should overload get', do ()
         get({ x = 2 y = 2 },'mag'):expect(8)
+    end)
+
+    it('should behave when switching types', do ()
+
+      def sum(a,b)
+        a + b
+      end
+
+      sum(1,2):expect(3)
+      sum('h','i'):expect('hi')
+      sum({x = 1 y = 2}, {x = 2 y = 1}):expect{x = 3 y = 3} # Should work because of eq overload
+      sum(1,2):expect(3)
+      sum('h','i'):expect('hi')
     end)
 end)
 
