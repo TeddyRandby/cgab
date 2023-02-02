@@ -26,14 +26,13 @@ libcgab = library('cgab',
 #   install: true,
 #   install_dir: '/usr/local/lib/gab/'
 # )
-#
-#
-# shared_library('cgabtime',
-#   'src/lib/time.c',
-#   link_with: libcgab,
-#   install: true,
-#   install_dir: '/usr/local/lib/gab/'
-# )
+
+shared_library('cgabtime',
+  'src/lib/time.c',
+  link_with: libcgab,
+  install: true,
+  install_dir: '/usr/local/lib/gab/'
+)
 
 shared_library('cgabobject',
   'src/lib/object.c',
@@ -90,6 +89,8 @@ install_data(
   'std/Option.gab',
   'std/Range.gab',
   'std/String.gab',
+  'std/Time.gab',
+  'std/Array.gab',
   install_dir: '/usr/local/share/gab/std/'
   )
 

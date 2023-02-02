@@ -1,5 +1,5 @@
 def __get__[String](opts)
-    match opts?
+    opts? for
         { from to }? => self:slice(opts.from, opts.to)
         { from }?    => self:slice(opts.from)
         { to }?      => self:slice(nil, opts.to)

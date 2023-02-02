@@ -1,0 +1,92 @@
+require('object')
+
+let ARRAY, STD = $array, $std
+
+def Array { len data }
+
+def make[ARRAY]
+    { len = 0 data = [] }
+end
+
+def len[Array]
+    self.len
+end
+
+def first[Array]
+    self.data[0]
+end
+
+def last[Array]
+    self.data[self.len - 1]
+end
+
+def push[Array]([values])
+    for value in values:len:to
+        self.data[self.len] = value
+        self.len = self.len + 1
+    end
+end
+
+def reduce[Array](init, reducer)
+    let v = init
+
+    for i in self
+        v = reducer(v, i)
+    end
+
+    v
+end
+
+def filter[Array](filterer)
+    let v = ARRAY:make
+
+    for i in self
+        filterer(i) and v:push(i)
+    end
+
+    v
+end
+
+def map[Array](mapper)
+    let v = ARRAY:make
+
+    for i in self
+        v:push(mapper(i))
+    end
+
+    v
+end
+
+def slice[Array](opts, to)
+    opts? for
+        { from to }? => self.data:slice(opts.from, opts.to)
+        { from }?    => self.data:slice(opts.from)
+        { to }?      => self.data:slice(nil, opts.to)
+        Number       => self.data:slice(opts)
+        else         => panic('Invalid call to Array:slice')
+end
+
+def __set__[Array](index, arg)
+    index? for
+        Number => self.data[index] = arg
+        else => panic("Invalid call to Array:__set__")
+end
+
+def __get__[Array](opts)
+    opts? for
+        { from to }? => self.data:slice(opts.from, opts.to)
+        { from }?    => self.data:slice(opts.from)
+        { to }?      => self.data:slice(nil, opts.to)
+        Number       => self.data[opts]
+        else         => panic('Invalid call to Array:__get__')
+end
+
+def __itr__[Array]
+    let v = -1 
+
+    do ()
+       return (v = v + 1) < self.len and self.data[v], v
+    end
+end
+
+ARRAY

@@ -12,11 +12,7 @@ def check(result, msg)
 end
 
 def expect[](other)
-  if not check(self == other, 'Expected {self} to be equal to {other}')
-    panic()
-  end
-
-  true
+  check(self == other, 'Expected {self} to be equal to {other}') or panic()
 end
 
 describe('Numbers', do ()
@@ -211,7 +207,7 @@ describe('Overloads', do ()
     def Vector { x y }
 
     def __add__[Vector](other)
-        if other is Vector
+        other is Vector then
             {
                 x = self.x + other.x
                 y = self.y + other.y
@@ -227,7 +223,7 @@ describe('Overloads', do ()
     end)
 
     def __lt__[Vector](other)
-        if other is Vector
+        other is Vector then
             let mag = self.x * self.x + self.y * self.y
             let other_mag = other.x * other.x + other.y * other.y
 
@@ -258,7 +254,7 @@ describe('Overloads', do ()
 
 
     def __get__[Vector](key)
-       if key == 'mag' 
+       key == 'mag' then
         self.x * self.x + self.y * self.y
        end
     end

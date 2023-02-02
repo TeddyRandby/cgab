@@ -116,7 +116,7 @@ gab_engine *gab_create() {
   gab->types[TYPE_MESSAGE] = GAB_SYMBOL("message");
   gab->types[TYPE_PROTOTYPE] = GAB_SYMBOL("prototype");
   gab->types[TYPE_BUILTIN] = GAB_SYMBOL("builtin");
-  gab->types[TYPE_CLOSURE] = GAB_SYMBOL("closure");
+  gab->types[TYPE_BLOCK] = GAB_SYMBOL("closure");
   gab->types[TYPE_UPVALUE] = GAB_SYMBOL("upvalue");
   gab->types[TYPE_RECORD] = GAB_SYMBOL("record");
   gab->types[TYPE_SHAPE] = GAB_SYMBOL("shape");

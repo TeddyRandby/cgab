@@ -17,7 +17,7 @@ gab_value make_print(gab_engine *gab) {
       gab_get_type(gab, TYPE_SYMBOL),
       gab_get_type(gab, TYPE_CONTAINER),
       gab_get_type(gab, TYPE_SHAPE),
-      gab_get_type(gab, TYPE_CLOSURE),
+      gab_get_type(gab, TYPE_BLOCK),
       gab_get_type(gab, TYPE_MESSAGE),
       gab_get_type(gab, TYPE_EFFECT),
   };
@@ -56,7 +56,7 @@ gab_engine *engine() {
       gab_get_type(gab, TYPE_STRING),
       gab_get_type(gab, TYPE_NUMBER),
       gab_get_type(gab, TYPE_BOOLEAN),
-      gab_get_type(gab, TYPE_CLOSURE),
+      gab_get_type(gab, TYPE_BLOCK),
       gab_get_type(gab, TYPE_MESSAGE),
       gab_get_type(gab, TYPE_EFFECT),
   };
@@ -78,9 +78,14 @@ void gab_repl() {
     printf("grepl> ");
     a_i8 *src = os_read_line();
 
-    if (src == NULL || src->len < 1 || src->data[0] == '\0') {
+    if (src == NULL || src->data[0] == '\0') {
       a_i8_destroy(src);
       break;
+    }
+
+    if (src->data[1] == '\0') {
+      a_i8_destroy(src);
+      continue;
     }
 
     gab_module *main =
@@ -95,8 +100,8 @@ void gab_repl() {
     gab_value result = gab_run(gab, main, GAB_FLAG_DUMP_ERROR);
 
     if (!GAB_VAL_IS_NIL(result)) {
-        gab_val_dump(result);
-        printf("\n");
+      gab_val_dump(result);
+      printf("\n");
     }
 
     gab_dref(gab, NULL, result);

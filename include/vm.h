@@ -8,7 +8,7 @@
   A run-time representation of a callframe.
 */
 typedef struct gab_vm_frame {
-  gab_obj_closure *c;
+  gab_obj_block *c;
 
   /*
     The instruction pointer.

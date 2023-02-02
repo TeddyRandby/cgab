@@ -253,8 +253,8 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
     }
     break;
   }
-  case (TYPE_CLOSURE): {
-    gab_obj_closure *closure = (gab_obj_closure *)obj;
+  case (TYPE_BLOCK): {
+    gab_obj_block *closure = (gab_obj_block *)obj;
     for (u8 i = 0; i < closure->nupvalues; i++) {
       if (GAB_VAL_IS_OBJ(closure->upvalues[i]))
         fnc(gc, GAB_VAL_TO_OBJ(closure->upvalues[i]));
@@ -328,8 +328,8 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
     }
     break;
   }
-  case (TYPE_CLOSURE): {
-    gab_obj_closure *closure = (gab_obj_closure *)obj;
+  case (TYPE_BLOCK): {
+    gab_obj_block *closure = (gab_obj_block *)obj;
     for (u8 i = 0; i < closure->nupvalues; i++) {
       if (GAB_VAL_IS_OBJ(closure->upvalues[i])) {
         fnc(GAB_VAL_TO_OBJ(closure->upvalues[i]));
@@ -401,8 +401,8 @@ static inline void dec_child_refs(gab_engine *gab, gab_vm *vm, gab_gc *gc,
   case TYPE_UNDEFINED:
   case GAB_NTYPES:
     break;
-  case TYPE_CLOSURE: {
-    gab_obj_closure *closure = (gab_obj_closure *)obj;
+  case TYPE_BLOCK: {
+    gab_obj_block *closure = (gab_obj_block *)obj;
     for (u8 i = 0; i < closure->nupvalues; i++) {
       dec_if_obj_ref(gab, vm, gc, closure->upvalues[i]);
     }

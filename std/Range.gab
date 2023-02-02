@@ -11,7 +11,7 @@ def __itr__[Range]
 end
 
 def make[RANGE](opts, to)
-  match opts?
+  opts? for
     { to }?   => { from = 0 to = opts.to }
     { from }? => { from = opts.from to = 0 }
     Number    => {

@@ -27,7 +27,7 @@ typedef enum gab_type {
   TYPE_MESSAGE,
   TYPE_PROTOTYPE,
   TYPE_BUILTIN,
-  TYPE_CLOSURE,
+  TYPE_BLOCK,
   TYPE_UPVALUE,
   TYPE_RECORD,
   TYPE_SHAPE,
@@ -247,8 +247,8 @@ gab_obj_prototype *gab_obj_prototype_create(gab_module *mod, s_i8 name);
   ------------- OBJ_CLOSURE-------------
   The wrapper to OBJ_FUNCTION, which is actually called at runtime.
 */
-typedef struct gab_obj_closure gab_obj_closure;
-struct gab_obj_closure {
+typedef struct gab_obj_block gab_obj_block;
+struct gab_obj_block {
   gab_obj header;
 
   u8 nupvalues;
@@ -261,10 +261,10 @@ struct gab_obj_closure {
   gab_value upvalues[FLEXIBLE_ARRAY];
 };
 
-#define GAB_VAL_IS_CLOSURE(value) (gab_val_is_obj_kind(value, TYPE_CLOSURE))
-#define GAB_VAL_TO_CLOSURE(value) ((gab_obj_closure *)GAB_VAL_TO_OBJ(value))
-#define GAB_OBJ_TO_CLOSURE(value) ((gab_obj_closure *)value)
-gab_obj_closure *gab_obj_closure_create(gab_obj_prototype *p);
+#define GAB_VAL_IS_BLOCK(value) (gab_val_is_obj_kind(value, TYPE_BLOCK))
+#define GAB_VAL_TO_BLOCK(value) ((gab_obj_block *)GAB_VAL_TO_OBJ(value))
+#define GAB_OBJ_TO_BLOCK(value) ((gab_obj_block *)value)
+gab_obj_block *gab_obj_block_create(gab_obj_prototype *p);
 /*
   ------------- OBJ_FUNCTION -------------
   A function. Not visible at runtime - always wrapped by an OBJ_CLOSURE
@@ -489,7 +489,7 @@ struct gab_obj_effect {
   gab_obj header;
 
   // Closure
-  gab_obj_closure *c;
+  gab_obj_block *c;
 
   // Instruction Pointer
   u64 offset;
@@ -511,7 +511,7 @@ struct gab_obj_effect {
 #define GAB_VAL_TO_EFFECT(value) ((gab_obj_effect *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_EFFECT(value) ((gab_obj_effect *)value)
 
-gab_obj_effect *gab_obj_effect_create(gab_obj_closure *c, u64 offset, u8 arity,
+gab_obj_effect *gab_obj_effect_create(gab_obj_block *c, u64 offset, u8 arity,
                                       u8 want, u8 len, gab_value frame[len]);
 
 /*

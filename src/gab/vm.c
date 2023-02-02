@@ -201,7 +201,7 @@ static inline boolean call_effect(gab_vm *vm, gab_obj_effect *e, u8 arity,
 }
 
 static inline boolean call_closure(gab_engine *gab, gab_vm *vm,
-                                   gab_obj_closure *c, u8 have, u8 want) {
+                                   gab_obj_block *c, u8 have, u8 want) {
   if (!has_callspace(vm, c->p->nslots - c->p->narguments - 1)) {
     return false;
   }
@@ -434,8 +434,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
   gab_vm vm;
   gab_vm_create(VM(), flags, argc, argv);
 
-  gab_obj_closure *main_c =
-      GAB_VAL_TO_CLOSURE(d_gab_constant_ikey(&mod->constants, mod->main));
+  gab_obj_block *main_c =
+      GAB_VAL_TO_BLOCK(d_gab_constant_ikey(&mod->constants, mod->main));
 
   FRAME()->c = main_c;
   FRAME()->slots = TOP();
@@ -482,9 +482,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       STORE_FRAME();
 
-      if (GAB_VAL_IS_CLOSURE(callee)) {
+      if (GAB_VAL_IS_BLOCK(callee)) {
 
-        if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_CLOSURE(callee), have,
+        if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_BLOCK(callee), have,
                           want))
           return vm_error(VM(), GAB_OVERFLOW, "");
 
@@ -561,7 +561,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       if (GAB_VAL_IS_PRIMITIVE(spec)) {
         u8 op = GAB_VAL_TO_PRIMITIVE(spec);
         WRITE_BYTE(16, op);
-      } else if (GAB_VAL_IS_CLOSURE(spec)) {
+      } else if (GAB_VAL_IS_BLOCK(spec)) {
         WRITE_BYTE(16, instr + 1);
       } else if (GAB_VAL_IS_BUILTIN(spec)) {
         WRITE_BYTE(16, instr + 2);
@@ -619,7 +619,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       STORE_FRAME();
 
-      if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_CLOSURE(spec), arity, want))
+      if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_BLOCK(spec), arity, want))
         return vm_error(VM(), GAB_OVERFLOW, "");
 
       LOAD_FRAME();
@@ -1565,7 +1565,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     CASE_CODE(CLOSURE) : {
       gab_obj_prototype *p = READ_PROTOTYPE;
 
-      gab_obj_closure *cls = gab_obj_closure_create(p);
+      gab_obj_block *cls = gab_obj_block_create(p);
 
       for (int i = 0; i < p->nupvalues; i++) {
         u8 flags = READ_BYTE;
@@ -1607,7 +1607,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       gab_gc_iref(ENGINE(), VM(), GC(), r);
 
-      gab_obj_closure *cls = gab_obj_closure_create(p);
+      gab_obj_block *cls = gab_obj_block_create(p);
 
       for (int i = 0; i < cls->nupvalues; i++) {
         u8 flags = READ_BYTE;

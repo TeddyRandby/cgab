@@ -96,8 +96,8 @@ const keyword keywords[] = {
         TOKEN_FOR,
     },
     {
-        "if",
-        TOKEN_IF,
+        "then",
+        TOKEN_THEN,
     },
     {
         "in",
@@ -110,10 +110,6 @@ const keyword keywords[] = {
     {
         "let",
         TOKEN_LET,
-    },
-    {
-        "match",
-        TOKEN_MATCH,
     },
     {
         "not",

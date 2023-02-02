@@ -5,7 +5,7 @@
 #include <assert.h>
 #include <stdio.h>
 
-void dis_closure(gab_obj_closure *cls) {
+void dis_closure(gab_obj_block *cls) {
   printf("     closure:\x1b[36m%.*s\x1b[0m\n", (int)cls->p->name.len,
          cls->p->name.data);
 
@@ -15,8 +15,8 @@ void dis_closure(gab_obj_closure *cls) {
 void dis_message(gab_obj_message *msg, gab_value rec) {
   gab_value spec = gab_obj_message_read(msg, rec);
 
-  if (GAB_VAL_IS_CLOSURE(spec)) {
-    gab_obj_closure *cls = GAB_VAL_TO_CLOSURE(spec);
+  if (GAB_VAL_IS_BLOCK(spec)) {
+    gab_obj_block *cls = GAB_VAL_TO_BLOCK(spec);
     dis_closure(cls);
   } else if (GAB_VAL_IS_BUILTIN(spec)) {
     gab_val_dump(spec);
@@ -56,7 +56,7 @@ gab_value gab_lib_disclosure(gab_engine *gab, gab_vm *vm, u8 argc,
     gab_panic(gab, vm, "Invalid call to gab_lib_dis");
   }
 
-  gab_obj_closure *cls = GAB_VAL_TO_CLOSURE(argv[0]);
+  gab_obj_block *cls = GAB_VAL_TO_BLOCK(argv[0]);
 
   dis_closure(cls);
 
@@ -77,7 +77,7 @@ gab_value gab_lib_disbuiltin(gab_engine *gab, gab_vm *vm, u8 argc,
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value receivers[] = {
-      gab_get_type(gab, TYPE_CLOSURE),
+      gab_get_type(gab, TYPE_BLOCK),
       gab_get_type(gab, TYPE_MESSAGE),
       gab_get_type(gab, TYPE_STRING),
       gab_get_type(gab, TYPE_BUILTIN),

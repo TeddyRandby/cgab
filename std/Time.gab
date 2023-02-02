@@ -1,0 +1,41 @@
+def Array = require('Array')
+
+def bench(cb, runs)
+    let times = Array:make
+
+    for _ in runs:to
+        def before = :clock
+
+        cb()
+
+        times:push(:clock - before)
+    end
+
+    let sum = times:reduce(0, do (a, c) a + c; end)
+
+    sum / runs
+end
+
+def headToHead(a, b, runs)
+    let a_avg = bench(a, runs)
+    let b_avg = bench(b, runs)
+
+    a_avg < b_avg then
+        print(a, 'ran {b_avg / a_avg} times faster than', b)
+    end else
+        print(b, 'ran {a_avg / b_avg} times faster than', a)
+    end
+
+    return a_avg, b_avg
+end
+
+
+def timeit[Block](opts)
+    def avg = opts? for
+        { runs against }? => headToHead(self, opts.against, opts.runs)
+        { runs }?         => bench(self, opts.runs)
+        Number            => bench(self, opts)
+        else              => panic('Invalid call to Block:timeit')
+
+    print(self, 'ran in avg of {avg}s')
+end

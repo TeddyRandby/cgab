@@ -70,8 +70,8 @@ gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self) {
   case TYPE_STRING: {
     return (gab_obj_string *)self;
   }
-  case TYPE_CLOSURE: {
-    return gab_obj_string_create(gab, s_i8_cstr("[closure]"));
+  case TYPE_BLOCK: {
+    return gab_obj_string_create(gab, s_i8_cstr("[block]"));
   }
   case TYPE_RECORD: {
     return gab_obj_string_create(gab, s_i8_cstr("[record]"));
@@ -179,9 +179,9 @@ void gab_obj_dump(gab_value value) {
     printf("[prototype:%.*s]", (i32) obj->name.len, obj->name.data);
     break;
   }
-  case TYPE_CLOSURE: {
-    gab_obj_closure *obj = GAB_VAL_TO_CLOSURE(value);
-    printf("[closure:%.*s]", (i32)obj->p->name.len, obj->p->name.data);
+  case TYPE_BLOCK: {
+    gab_obj_block *obj = GAB_VAL_TO_BLOCK(value);
+    printf("[block:%.*s]", (i32)obj->p->name.len, obj->p->name.data);
     break;
   }
   case TYPE_EFFECT: {
@@ -233,7 +233,7 @@ void gab_obj_destroy(gab_engine *gab, gab_vm *vm, gab_obj *self) {
   case TYPE_EFFECT:
   case TYPE_UPVALUE:
   case TYPE_PROTOTYPE:
-  case TYPE_CLOSURE:
+  case TYPE_BLOCK:
   case TYPE_BUILTIN:
   case TYPE_SYMBOL:
   case TYPE_STRING: {
@@ -387,9 +387,9 @@ gab_obj_builtin *gab_obj_builtin_create(gab_builtin function, s_i8 name) {
   return self;
 }
 
-gab_obj_closure *gab_obj_closure_create(gab_obj_prototype *p) {
-  gab_obj_closure *self = GAB_CREATE_FLEX_OBJ(gab_obj_closure, gab_obj_upvalue,
-                                              p->nupvalues, TYPE_CLOSURE);
+gab_obj_block *gab_obj_block_create(gab_obj_prototype *p) {
+  gab_obj_block *self = GAB_CREATE_FLEX_OBJ(gab_obj_block, gab_obj_upvalue,
+                                              p->nupvalues, TYPE_BLOCK);
 
   self->nupvalues = p->nupvalues;
   self->p = p;
@@ -510,7 +510,7 @@ gab_obj_symbol *gab_obj_symbol_create(s_i8 name) {
   return self;
 }
 
-gab_obj_effect *gab_obj_effect_create(gab_obj_closure *c, u64 offset, u8 have,
+gab_obj_effect *gab_obj_effect_create(gab_obj_block *c, u64 offset, u8 have,
                                       u8 want, u8 len, gab_value frame[len]) {
   gab_obj_effect *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_effect, gab_value, len, TYPE_EFFECT);

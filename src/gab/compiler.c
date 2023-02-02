@@ -24,8 +24,9 @@ const char *gab_token_names[] = {
 typedef enum gab_precedence {
   PREC_NONE,
   PREC_ASSIGNMENT,  // =
-  PREC_OR,          // or
-  PREC_AND,         // and
+  PREC_OR,          // or, infix else
+  PREC_AND,         // and, infix then
+  PREC_MATCH,       // infix for
   PREC_EQUALITY,    // == !=
   PREC_COMPARISON,  // < > <= >=
   PREC_BITWISE_OR,  // |
@@ -127,6 +128,14 @@ static inline i32 expect_token(gab_bc *bc, gab_token tok) {
   }
 
   return eat_token(bc);
+}
+
+static inline i32 expect_oneof(gab_bc *bc, gab_token a, gab_token b) {
+  if (!match_and_eat_token(bc, a)) {
+    return expect_token(bc, b);
+  }
+
+  return COMP_OK;
 }
 
 s_i8 trim_prev_tok(gab_bc *bc) {
@@ -506,7 +515,7 @@ i32 compile_block_expression(gab_engine *gab, gab_bc *bc, gab_module *mod) {
   if (compile_expression(gab, bc, mod) < 0)
     return COMP_ERR;
 
-  if (expect_token(bc, TOKEN_NEWLINE) < 0)
+  if (!expect_oneof(bc, TOKEN_SEMICOLON, TOKEN_NEWLINE))
     return COMP_ERR;
 
   if (skip_newlines(bc) < 0)
@@ -539,9 +548,6 @@ i32 compile_block_body(gab_engine *gab, gab_bc *bc, gab_module *mod) {
 
 i32 compile_block(gab_engine *gab, gab_bc *bc, gab_module *mod) {
   down_scope(bc);
-
-  if (expect_token(bc, TOKEN_NEWLINE) < 0)
-    return COMP_ERR;
 
   if (compile_block_body(gab, bc, mod) < 0)
     return COMP_ERR;
@@ -1079,64 +1085,48 @@ i32 compile_exp_blk(gab_engine *gab, gab_bc *bc, gab_module *mod,
   return COMP_OK;
 }
 
-i32 compile_exp_if(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                   boolean assignable) {
-  if (compile_expression(gab, bc, mod) < 0)
-    return COMP_ERR;
-
-  u64 then_jump =
-      gab_module_push_jump(mod, OP_POP_JUMP_IF_FALSE, bc->previous_token,
-                           bc->line, bc->lex.previous_token_src);
+i32 compile_exp_then(gab_engine *gab, gab_bc *bc, gab_module *mod,
+                     boolean assignable) {
+  u64 then_jump = gab_module_push_jump(mod, OP_LOGICAL_AND, bc->previous_token,
+                                       bc->line, bc->lex.previous_token_src);
 
   pop_slot(bc, 1);
 
-  i32 result = compile_block(gab, bc, mod);
-  if (result < 0)
+  if (compile_block(gab, bc, mod) < 0)
     return COMP_ERR;
 
-  u64 else_jump = gab_module_push_jump(mod, OP_JUMP, bc->previous_token,
-                                       bc->line, bc->lex.previous_token_src);
+  if (expect_token(bc, TOKEN_END) < 0)
+    return COMP_ERR;
 
   gab_module_patch_jump(mod, then_jump);
 
-  switch (match_and_eat_token(bc, TOKEN_ELSE)) {
-  case COMP_OK:
-    if (compile_block(gab, bc, mod) < 0)
-      return COMP_ERR;
+  return COMP_OK;
+}
 
-    if (expect_token(bc, TOKEN_END) < 0)
-      return COMP_ERR;
+i32 compile_exp_else(gab_engine *gab, gab_bc *bc, gab_module *mod,
+                     boolean assignable) {
+  u64 then_jump = gab_module_push_jump(mod, OP_LOGICAL_OR, bc->previous_token,
+                                       bc->line, bc->lex.previous_token_src);
 
-    break;
+  pop_slot(bc, 1);
 
-  case COMP_TOKEN_NO_MATCH:
-    for (u8 i = 0; i < result; i++)
-      push_op(bc, mod, OP_PUSH_NIL);
-
-    if (expect_token(bc, TOKEN_END) < 0)
-      return COMP_ERR;
-    break;
-
-  default:
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                        "While compiling if expression");
+  if (compile_block(gab, bc, mod) < 0)
     return COMP_ERR;
-  }
 
-  gab_module_patch_jump(mod, else_jump);
+  if (expect_token(bc, TOKEN_END) < 0)
+    return COMP_ERR;
+
+  gab_module_patch_jump(mod, then_jump);
 
   return COMP_OK;
 }
 
 i32 compile_exp_mch(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
-  if (compile_expression(gab, bc, mod) < 0)
+  if (skip_newlines(bc) < 0)
     return COMP_ERR;
 
   pop_slot(bc, 1);
-
-  if (expect_token(bc, TOKEN_NEWLINE) < 0)
-    return COMP_ERR;
 
   u64 next = 0;
 
@@ -1167,15 +1157,15 @@ i32 compile_exp_mch(gab_engine *gab, gab_bc *bc, gab_module *mod,
     if (compile_expression(gab, bc, mod) < 0)
       return COMP_ERR;
 
+    if (skip_newlines(bc) < 0)
+      return COMP_ERR;
+
     pop_slot(bc, 1);
 
     // Push a jump out of the match statement at the end of every case.
     v_u64_push(&done_jumps,
                gab_module_push_jump(mod, OP_JUMP, bc->previous_token, bc->line,
                                     bc->lex.previous_token_src));
-
-    if (expect_token(bc, TOKEN_NEWLINE) < 0)
-      return COMP_ERR;
   }
 
   // If none of the cases match, the last jump should end up here.
@@ -2195,17 +2185,16 @@ i32 compile_exp_rtn(gab_engine *gab, gab_bc *bc, gab_module *mod,
 // ----------------Pratt Parsing Table ----------------------
 const gab_compile_rule gab_bc_rules[] = {
     PREFIX(let),                       // LET
-    PREFIX(mch),                       // MATCH
-    PREFIX(if),                        // IF
-    NONE(),                            // ELSE
+    INFIX(then, AND, false),                        // THEN
+    INFIX(else, OR, false),                            // ELSE
     PREFIX(blk),                       // DO
-    PREFIX(for),                       // FOR
+    PREFIX_INFIX(for, mch, MATCH, false),                       // FOR
     NONE(),                            // IN
     INFIX(is, COMPARISON, false),                            // IS
     NONE(),                            // END
     PREFIX(def),                       // DEF
     PREFIX(rtn),                       // RETURN
-    PREFIX(yld),
+    PREFIX(yld),// YIELD
     PREFIX(lop),                       // LOOP
     NONE(),                       // UNTIL
     INFIX(bin, TERM, false),                  // PLUS
@@ -2219,9 +2208,9 @@ const gab_compile_rule gab_bc_rules[] = {
     NONE(),           // DOLLAR
     PREFIX(sym), // SYMBOL
     INFIX(dot, PROPERTY, true), // PROPERTY
-    INFIX(snd, SEND, true), // MESSAGE
+    PREFIX_INFIX(emp, snd, SEND, true), // MESSAGE
     INFIX(dot, PROPERTY, true),              // DOT
-    INFIX(bin, TERM, false),                  // DOT_DOT
+    NONE(),                  // DOT_DOT
     NONE(),                            // EQUAL
     INFIX(bin, EQUALITY, false),              // EQUALEQUAL
     POSTFIX(type),                            // QUESTION
@@ -2282,7 +2271,7 @@ i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
   p->nlocals = peek_frame(bc, 0)->nlocals;
   p->len = mod->bytecode.len;
 
-  gab_obj_closure *c = gab_obj_closure_create(p);
+  gab_obj_block *c = gab_obj_block_create(p);
 
   add_constant(mod, GAB_VAL_OBJ(p));
   return add_constant(mod, GAB_VAL_OBJ(c));
@@ -2314,7 +2303,7 @@ gab_module *gab_bc_compile_send(gab_engine *gab, s_i8 name, gab_value receiver,
   gab_obj_prototype *p = gab_obj_prototype_create(mod, name);
   p->len = mod->bytecode.len;
 
-  gab_obj_closure *c = gab_obj_closure_create(p);
+  gab_obj_block *c = gab_obj_block_create(p);
 
   add_constant(mod, GAB_VAL_OBJ(p));
 

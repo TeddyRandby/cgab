@@ -1,0 +1,17 @@
+require('std')
+
+def Array = require('Array')
+
+def impl_one()
+    for a in 5000:to
+        a * a * a / a
+    end
+end
+
+def impl_two()
+    for a in 50000:to
+        a * a * a / a
+    end
+end
+
+impl_one:timeit{ runs = 20 against = impl_two }
