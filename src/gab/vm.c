@@ -1597,14 +1597,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_obj_message *m = READ_MESSAGE;
       gab_value r = POP();
 
-      if (gab_obj_message_find(m, r) != UINT16_MAX) {
-        STORE_FRAME();
-        gab_obj_string *s = GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), r));
-        return vm_error(VM(), GAB_NOT_CALLABLE,
-                        "Specialization already exists for %.*s on %.*s",
-                        (i32)s->len, s->data, (i32)m->name.len, m->name.data);
-      }
-
       gab_gc_iref(ENGINE(), VM(), GC(), r);
 
       gab_obj_block *cls = gab_obj_block_create(p);
@@ -1626,6 +1618,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       }
 
       gab_gc_iref_many(ENGINE(), VM(), GC(), cls->nupvalues, cls->upvalues);
+
+      gab_gc_dref(ENGINE(), VM(), GC(), gab_obj_message_read(m, r));
 
       gab_obj_message_insert(m, r, GAB_VAL_OBJ(cls));
 

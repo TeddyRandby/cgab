@@ -11,7 +11,7 @@ def bench(cb, runs)
         times:push(:clock - before)
     end
 
-    let sum = times:reduce(0, do (a, c) a + c; end)
+    let sum = times:fold(0, do (a, c) a + c end)
 
     sum / runs
 end
@@ -22,16 +22,18 @@ def headToHead(a, b, runs)
 
     a_avg < b_avg then
         print(a, 'ran {b_avg / a_avg} times faster than', b)
+
+        a_avg
     end else
         print(b, 'ran {a_avg / b_avg} times faster than', a)
-    end
 
-    return a_avg, b_avg
+        b_avg
+    end
 end
 
 
 def timeit[Block](opts)
-    def avg = opts? for
+    def avg = opts? match
         { runs against }? => headToHead(self, opts.against, opts.runs)
         { runs }?         => bench(self, opts.runs)
         Number            => bench(self, opts)

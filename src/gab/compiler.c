@@ -161,7 +161,7 @@ static inline void push_pop(gab_bc *bc, gab_module *mod, u8 n) {
                       bc->lex.previous_token_src);
 }
 
-static inline void push_store(gab_bc *bc, gab_module *mod, u8 local) {
+static inline void push_store_local(gab_bc *bc, gab_module *mod, u8 local) {
   gab_module_push_store_local(mod, local, bc->previous_token, bc->line,
                               bc->lex.previous_token_src);
 }
@@ -432,7 +432,7 @@ i32 compile_parameters(gab_bc *bc, boolean *vse_out) {
 
     narguments++;
 
-    switch (match_and_eat_token(bc, TOKEN_LBRACE)) {
+    switch (match_and_eat_token(bc, TOKEN_DOT_DOT)) {
     case COMP_OK: {
       // This is a vararg parameter
       if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
@@ -446,9 +446,6 @@ i32 compile_parameters(gab_bc *bc, boolean *vse_out) {
         return COMP_ERR;
 
       initialize_local(bc, local);
-
-      if (expect_token(bc, TOKEN_RBRACE) < 0)
-        return COMP_ERR;
 
       if (expect_token(bc, TOKEN_RPAREN) < 0)
         return COMP_ERR;
@@ -515,7 +512,10 @@ i32 compile_block_expression(gab_engine *gab, gab_bc *bc, gab_module *mod) {
   if (compile_expression(gab, bc, mod) < 0)
     return COMP_ERR;
 
-  if (!expect_oneof(bc, TOKEN_SEMICOLON, TOKEN_NEWLINE))
+  if (match_terminator(bc))
+    return COMP_OK;
+
+  if (!expect_token(bc, TOKEN_NEWLINE))
     return COMP_ERR;
 
   if (skip_newlines(bc) < 0)
@@ -1043,7 +1043,7 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod,
     if (compile_expression(gab, bc, mod) < 0)
       return COMP_ERR;
 
-    push_store(bc, mod, local);
+    push_store_local(bc, mod, local);
 
     return COMP_OK;
   }
@@ -1997,6 +1997,9 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
     loop_locals++;
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)));
 
+  i32 iter_eff = compile_local(bc, s_i8_cstr("__eff__"), 0);
+  initialize_local(bc, iter_eff);
+
   if (result == COMP_ERR)
     return COMP_ERR;
 
@@ -2013,28 +2016,23 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   u16 m = add_message_constant(gab, mod, s_i8_cstr("__itr__"));
   gab_module_push_send(mod, 0, false, m, in_tok, in_line, in_src);
+  gab_module_try_patch_vse(mod, loop_locals + 1);
 
-  // Now the iterator is sitting on top
+  // Now there stack is ...yielded values, effect
 
   u64 loop = gab_module_push_loop(mod);
 
-  // Dup the iterator
-  push_op(bc, mod, OP_DUP);
-
-  // Call it
-  // have: 0
-  // want: loop locals
-  push_op(bc, mod, OP_DYNSEND);
-  push_byte(bc, mod, 0);
-  push_byte(bc, mod, loop_locals);
-
-  // Exit the for loop if the last loop local is false.
+  // Exit the for loop if we don't have an effect on top
   u64 jump_start =
       gab_module_push_jump(mod, OP_JUMP_IF_FALSE, bc->previous_token, bc->line,
                            bc->lex.previous_token_src);
+
+    push_store_local(bc, mod, iter_eff);
+    push_pop(bc, mod, 1);
+
   // Pop the results in reverse order, assigning them to each loop local.
   for (u8 ll = 0; ll < loop_locals; ll++) {
-    push_store(bc, mod, local_start + loop_locals - ll);
+    push_store_local(bc, mod, local_start + loop_locals - ll);
     push_pop(bc, mod, 1);
   }
 
@@ -2045,6 +2043,12 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   if (expect_token(bc, TOKEN_END) < 0)
     return COMP_ERR;
+
+  // Load and call the effect member
+  push_load_local(bc, mod, iter_eff);
+  push_op(bc, mod, OP_DYNSEND);
+  push_byte(bc, mod, 0);
+  push_byte(bc, mod, loop_locals + 1);
 
   gab_module_patch_loop(mod, loop, bc->previous_token, bc->line,
                         bc->lex.previous_token_src);
@@ -2188,7 +2192,8 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(then, AND, false),                        // THEN
     INFIX(else, OR, false),                            // ELSE
     PREFIX(blk),                       // DO
-    PREFIX_INFIX(for, mch, MATCH, false),                       // FOR
+    PREFIX(for),                       // FOR
+    INFIX(mch, MATCH, false),                       //MATCH 
     NONE(),                            // IN
     INFIX(is, COMPARISON, false),                            // IS
     NONE(),                            // END

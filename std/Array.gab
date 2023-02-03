@@ -1,11 +1,44 @@
 require('object')
 
-let ARRAY, STD = $array, $std
+def ARRAY = $array
+
+def make[ARRAY](..values)
+    {
+        len = values and values:len or 0
+        data = values or []
+    }
+end
 
 def Array { len data }
 
-def make[ARRAY]
-    { len = 0 data = [] }
+def __set__[Array](index, arg)
+    index? match
+        Number => self.data[index] = arg
+        else => panic("Invalid call to Array:__set__")
+end
+
+def __get__[Array](opts)
+    opts? match
+        { from to }? => self.data:slice(opts.from, opts.to)
+        { from }?    => self.data:slice(opts.from)
+        { to }?      => self.data:slice(nil, opts.to)
+        Number       => self.data[opts]
+        else         => panic('Invalid call to Array:__get__')
+end
+
+def __itr__[Array]
+    let v = -1 
+
+    loop
+        v = v + 1
+        yield self.data[v], v
+    until v >= self.len
+end
+
+def print[Array]
+    for v, i in self
+        print(i)
+    end
 end
 
 def len[Array]
@@ -13,25 +46,43 @@ def len[Array]
 end
 
 def first[Array]
-    self.data[0]
+    self[0]
 end
 
 def last[Array]
-    self.data[self.len - 1]
+    self[self.len - 1]
 end
 
-def push[Array]([values])
-    for value in values:len:to
-        self.data[self.len] = value
-        self.len = self.len + 1
+def push[Array](..values)
+    for index in values:len:to
+        self[self.len + index] = values[index]
     end
+
+    self.len = self.len + values:len
 end
 
-def reduce[Array](init, reducer)
+def pop[Array]
+    self[self.len = self.len - 1]
+end
+
+def slice[Array](opts, to)
+    opts? match
+        { from to }? => self.data:slice(opts.from, opts.to)
+        { from }?    => self.data:slice(opts.from)
+        { to }?      => self.data:slice(nil, opts.to)
+        Number       => self.data:slice(opts)
+        else         => panic('Invalid call to Array:slice')
+end
+
+def join[Array](sep)
+    self:fold('', do (str, curr) str + String:from(curr) end)
+end
+
+def fold[Array](init, folder)
     let v = init
 
     for i in self
-        v = reducer(v, i)
+        v = folder(v, i)
     end
 
     v
@@ -55,38 +106,6 @@ def map[Array](mapper)
     end
 
     v
-end
-
-def slice[Array](opts, to)
-    opts? for
-        { from to }? => self.data:slice(opts.from, opts.to)
-        { from }?    => self.data:slice(opts.from)
-        { to }?      => self.data:slice(nil, opts.to)
-        Number       => self.data:slice(opts)
-        else         => panic('Invalid call to Array:slice')
-end
-
-def __set__[Array](index, arg)
-    index? for
-        Number => self.data[index] = arg
-        else => panic("Invalid call to Array:__set__")
-end
-
-def __get__[Array](opts)
-    opts? for
-        { from to }? => self.data:slice(opts.from, opts.to)
-        { from }?    => self.data:slice(opts.from)
-        { to }?      => self.data:slice(nil, opts.to)
-        Number       => self.data[opts]
-        else         => panic('Invalid call to Array:__get__')
-end
-
-def __itr__[Array]
-    let v = -1 
-
-    do ()
-       return (v = v + 1) < self.len and self.data[v], v
-    end
 end
 
 ARRAY

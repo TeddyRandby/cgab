@@ -5,6 +5,7 @@
 #include "include/object.h"
 #include "include/os.h"
 #include "include/types.h"
+#include "include/value.h"
 #include <dlfcn.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -59,7 +60,8 @@ void imports_destroy(gab_engine *gab) {
 };
 
 void add_import(gab_engine *gab, s_i8 name, import *i) {
-  d_import_insert(&imports, s_i8_hash(name, gab->hash_seed), i);
+  u64 hash = s_i8_hash(name, gab->hash_seed);
+  d_import_insert(&imports, hash, i);
 }
 
 gab_value check_import(gab_engine *gab, s_i8 name) {
@@ -70,7 +72,7 @@ gab_value check_import(gab_engine *gab, s_i8 name) {
     return i->cache;
   }
 
-  return GAB_VAL_NIL();
+  return GAB_VAL_UNDEFINED();
 }
 
 gab_value gab_shared_object_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
@@ -182,7 +184,7 @@ gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
   const s_i8 module = gab_obj_string_ref(arg);
 
   gab_value cached = check_import(gab, module);
-  if (!GAB_VAL_IS_NIL(cached)) {
+  if (!GAB_VAL_IS_UNDEFINED(cached)) {
     // Because the result of a builtin is always decremented,
     // increment the cached values when they are returned.
     gab_iref(gab, vm, cached);

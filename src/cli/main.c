@@ -7,6 +7,8 @@
 #include "include/value.h"
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 gab_value make_print(gab_engine *gab) {
   gab_value receivers[] = {

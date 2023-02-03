@@ -92,6 +92,10 @@ const keyword keywords[] = {
         TOKEN_FALSE,
     },
     {
+        "match",
+        TOKEN_MATCH,
+    },
+    {
         "for",
         TOKEN_FOR,
     },

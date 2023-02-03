@@ -1,4 +1,7 @@
 require('std')
 
-opts? for
-  Number => 
+def Array = require('Array')
+
+let list = Array:make(1,2,3,4)
+
+list:print
