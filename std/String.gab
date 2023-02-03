@@ -6,3 +6,4 @@ def __get__[String](opts)
         Number       => self:slice(opts)
         else         => panic('Invalid call to String:__get__')
 end
+

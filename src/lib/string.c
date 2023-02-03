@@ -5,6 +5,15 @@
 #include <stdio.h>
 #include <string.h>
 
+gab_value gab_lib_from(gab_engine *gab, gab_vm *vm, u8 argc,
+                       gab_value argv[argc]) {
+  if (argc != 2) {
+    gab_panic(gab, vm, "Invalid call to gab_lib_from");
+  }
+
+  return gab_val_to_string(gab, argv[1]);
+}
+
 gab_value gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc,
                       gab_value argv[argc]) {
   if (argc != 1) {
@@ -119,12 +128,14 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
       s_i8_cstr("slice"),
       s_i8_cstr("split"),
       s_i8_cstr("len"),
+      s_i8_cstr("from"),
   };
 
   gab_value values[] = {
       GAB_BUILTIN(slice),
       GAB_BUILTIN(split),
       GAB_BUILTIN(len),
+      GAB_BUILTIN(from),
   };
 
   for (u8 i = 0; i < LEN_CARRAY(keys); i++) {

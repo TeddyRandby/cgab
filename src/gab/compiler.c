@@ -130,14 +130,6 @@ static inline i32 expect_token(gab_bc *bc, gab_token tok) {
   return eat_token(bc);
 }
 
-static inline i32 expect_oneof(gab_bc *bc, gab_token a, gab_token b) {
-  if (!match_and_eat_token(bc, a)) {
-    return expect_token(bc, b);
-  }
-
-  return COMP_OK;
-}
-
 s_i8 trim_prev_tok(gab_bc *bc) {
   s_i8 message = bc->lex.previous_token_src;
   // SKip the ':' at the beginning
@@ -2006,16 +1998,10 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (expect_token(bc, TOKEN_IN) < 0)
     return COMP_ERR;
 
-  gab_token in_tok = bc->previous_token;
-  u64 in_line = bc->line;
-  s_i8 in_src = bc->lex.previous_token_src;
-
   // This is argument to send __itr__ to
   if (compile_expression(gab, bc, mod) < 0)
     return COMP_ERR;
 
-  u16 m = add_message_constant(gab, mod, s_i8_cstr("__itr__"));
-  gab_module_push_send(mod, 0, false, m, in_tok, in_line, in_src);
   gab_module_try_patch_vse(mod, loop_locals + 1);
 
   // Now there stack is ...yielded values, effect
@@ -2027,8 +2013,8 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
       gab_module_push_jump(mod, OP_JUMP_IF_FALSE, bc->previous_token, bc->line,
                            bc->lex.previous_token_src);
 
-    push_store_local(bc, mod, iter_eff);
-    push_pop(bc, mod, 1);
+  push_store_local(bc, mod, iter_eff);
+  push_pop(bc, mod, 1);
 
   // Pop the results in reverse order, assigning them to each loop local.
   for (u8 ll = 0; ll < loop_locals; ll++) {
@@ -2055,7 +2041,7 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   gab_module_patch_jump(mod, jump_start);
 
-  push_pop(bc, mod, 1);
+  push_pop(bc, mod, loop_locals);
 
   up_scope(bc, mod);
 

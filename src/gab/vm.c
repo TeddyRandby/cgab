@@ -1,4 +1,5 @@
 #include "include/char.h"
+#include "include/colors.h"
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
@@ -6,7 +7,6 @@
 #include "include/module.h"
 #include "include/object.h"
 #include "include/value.h"
-#include "include/colors.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -484,8 +484,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if (GAB_VAL_IS_BLOCK(callee)) {
 
-        if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_BLOCK(callee), have,
-                          want))
+        if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_BLOCK(callee), have, want))
           return vm_error(VM(), GAB_OVERFLOW, "");
 
       } else if (GAB_VAL_IS_BUILTIN(callee)) {
@@ -976,7 +975,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
           have = VAR() + READ_BYTE;
           want = READ_BYTE;
 
-          goto complete_return;
+          goto complete_yield;
         }
 
         CASE_CODE(YIELD_0)
@@ -1599,29 +1598,29 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       gab_gc_iref(ENGINE(), VM(), GC(), r);
 
-      gab_obj_block *cls = gab_obj_block_create(p);
+      gab_obj_block *blk = gab_obj_block_create(p);
 
-      for (int i = 0; i < cls->nupvalues; i++) {
+      for (int i = 0; i < blk->nupvalues; i++) {
         u8 flags = READ_BYTE;
         u8 index = READ_BYTE;
 
         if (flags & FLAG_LOCAL) {
           if (flags & FLAG_MUTABLE) {
-            cls->upvalues[i] =
+            blk->upvalues[i] =
                 capture_upvalue(ENGINE(), VM(), GC(), FRAME()->slots + index);
           } else {
-            cls->upvalues[i] = LOCAL(index);
+            blk->upvalues[i] = LOCAL(index);
           }
         } else {
-          cls->upvalues[i] = CLOSURE()->upvalues[index];
+          blk->upvalues[i] = CLOSURE()->upvalues[index];
         }
       }
 
-      gab_gc_iref_many(ENGINE(), VM(), GC(), cls->nupvalues, cls->upvalues);
+      gab_gc_iref_many(ENGINE(), VM(), GC(), blk->nupvalues, blk->upvalues);
 
       gab_gc_dref(ENGINE(), VM(), GC(), gab_obj_message_read(m, r));
 
-      gab_obj_message_insert(m, r, GAB_VAL_OBJ(cls));
+      gab_obj_message_insert(m, r, GAB_VAL_OBJ(blk));
 
       PUSH(GAB_VAL_OBJ(m));
 

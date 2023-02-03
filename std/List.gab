@@ -1,0 +1,124 @@
+require('object')
+
+def LIST = $list
+
+def make[LIST](..values)
+    {
+        len = values and values:len or 0
+        data = values or []
+    }
+end
+
+def List { len data }
+
+def __set__[List](index, arg)
+    index? match
+        Number => self.data[index] = arg
+        else => panic("Invalid call to List:__set__")
+end
+
+def __get__[List](opts)
+    opts? match
+        { from to }? => self.data:slice(opts.from, opts.to)
+        { from }?    => self.data:slice(opts.from)
+        { to }?      => self.data:slice(nil, opts.to)
+        Number       => self.data[opts]
+        else         => panic('Invalid call to List:__get__')
+end
+
+def len[List]
+    self.len
+end
+
+def first[List]
+    self[0]
+end
+
+def last[List]
+    self[self.len - 1]
+end
+
+def push[List](..values)
+    for index in values:len:to
+        self[self.len + index] = values[index]
+    end
+
+    self.len = self.len + values:len
+end
+
+def pop[List]
+    self[self.len = self.len - 1]
+end
+
+def each[List]
+    let v = 0 
+
+    loop
+       yield self.data[v]
+       v = v + 1
+    until v >= self.len
+end
+
+def eachi[List]
+    let v = 0 
+
+    loop
+       yield self.data[v], v
+       v = v + 1
+    until v >= self.len
+end
+
+def slice[List](opts, to)
+    opts? match
+        { from to }? => self.data:slice(opts.from, opts.to)
+        { from }?    => self.data:slice(opts.from)
+        { to }?      => self.data:slice(nil, opts.to)
+        Number       => self.data:slice(opts)
+        else         => panic('Invalid call to List:slice')
+end
+
+def fold[List](init, folder)
+    let v = init
+
+    for i, index in self:eachi
+        v = folder(v, i, index)
+    end
+
+    v
+end
+
+def filter[List](filterer)
+    let v = LIST:make
+
+    for i, index in self:eachi
+        filterer(i, index) and v:push(i)
+    end
+
+    v
+end
+
+def map[List](mapper)
+    let v = LIST:make
+
+    for i, index in self:eachi
+        v:push(mapper(i, index))
+    end
+
+    v
+end
+
+def join[List](sep)
+  self:fold('', do (str, cur, i)
+    i == 0 then
+      String:from(cur)
+    end else
+      str + sep + String:from(cur)
+    end
+  end)
+end
+
+def every[List](pred) self:filter(pred):len == self:len end
+
+def some[List](pred) self:filter(pred):len > 0 end
+
+LIST

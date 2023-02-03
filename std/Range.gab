@@ -2,12 +2,13 @@ def RANGE = $range
 
 def Range { from to }
 
-def __itr__[Range]
-  let v, i = self.from - 1, self.to - 1
+def each[Range]
+  let v = 0
 
-  do ()
-    (v < i) and (v = v + 1)
-  end
+  loop
+    yield v
+    v = v + 1
+  until v >= self.to
 end
 
 def make[RANGE](opts, to)

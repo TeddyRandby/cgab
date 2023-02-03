@@ -496,8 +496,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_NOP: {
     return dumpSimpleInstruction(self, offset);
   }
-  // case OP_BITWISE_AND:
-  // case OP_BITWISE_OR:
   case OP_LOGICAL_AND:
   case OP_JUMP_IF_FALSE:
   case OP_JUMP_IF_TRUE:
@@ -509,6 +507,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_LOOP:
     return dumpJumpInstruction(self, -1, offset);
   case OP_VARRETURN:
+  case OP_VARYIELD:
     return dumpTwoByteInstruction(self, offset);
   case OP_CONSTANT:
     return dumpConstantInstruction(self, offset);

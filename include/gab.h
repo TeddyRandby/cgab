@@ -149,9 +149,9 @@ gab_value gab_send(gab_engine *gab, s_i8 name, gab_value receiver, u8 argc,
  *
  * @param self The value to check
  */
-static boolean gab_val_falsey(gab_value self);
+boolean gab_val_falsey(gab_value self);
 
-static gab_value gab_typeof(gab_engine *gab, gab_value self);
+gab_value gab_typeof(gab_engine *gab, gab_value self);
 
 gab_value gab_get_type(gab_engine *gab, gab_type t);
 

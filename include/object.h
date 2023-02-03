@@ -519,11 +519,5 @@ gab_obj_effect *gab_obj_effect_create(gab_obj_block *c, u64 offset, u8 arity,
  */
 gab_value gab_val_to_string(gab_engine *gab, gab_value self);
 
-/*
-  A value is false if it is null or the boolean false.
-*/
-static inline boolean gab_val_falsey(gab_value self) {
-  return GAB_VAL_IS_NIL(self) || GAB_VAL_IS_FALSE(self);
-}
 
 #endif

@@ -31,9 +31,35 @@
       (gab_obj *)GAB_CREATE_FLEX_STRUCT(obj_type, flex_type, flex_count),      \
       kind))
 
-/*
-  Initialize the header of any gab objects, with kind (k)
-*/
+// This can be heavily optimized.
+gab_value gab_typeof(gab_engine *gab, gab_value value) {
+  // The type of a record is it's shape
+  if (GAB_VAL_IS_RECORD(value)) {
+    gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
+    return GAB_VAL_OBJ(obj->shape);
+  }
+
+  // The type of null or symbols is themselves
+  if (GAB_VAL_IS_NIL(value) || GAB_VAL_IS_UNDEFINED(value) ||
+      GAB_VAL_IS_SYMBOL(value)) {
+    return value;
+  }
+
+  if (GAB_VAL_IS_NUMBER(value)) {
+    return gab->types[TYPE_NUMBER];
+  }
+
+  if (GAB_VAL_IS_BOOLEAN(value)) {
+    return gab->types[TYPE_BOOLEAN];
+  }
+
+  return gab->types[GAB_VAL_TO_OBJ(value)->kind];
+}
+
+boolean gab_val_falsey(gab_value self) {
+  return GAB_VAL_IS_NIL(self) || GAB_VAL_IS_FALSE(self);
+}
+
 gab_obj *gab_obj_create(gab_obj *self, gab_type k) {
   self->kind = k;
   // Objects start out with one reference.
@@ -175,8 +201,8 @@ void gab_obj_dump(gab_value value) {
     break;
   }
   case TYPE_PROTOTYPE: {
-    gab_obj_prototype* obj = GAB_VAL_TO_PROTOTYPE(value);
-    printf("[prototype:%.*s]", (i32) obj->name.len, obj->name.data);
+    gab_obj_prototype *obj = GAB_VAL_TO_PROTOTYPE(value);
+    printf("[prototype:%.*s]", (i32)obj->name.len, obj->name.data);
     break;
   }
   case TYPE_BLOCK: {
@@ -389,7 +415,7 @@ gab_obj_builtin *gab_obj_builtin_create(gab_builtin function, s_i8 name) {
 
 gab_obj_block *gab_obj_block_create(gab_obj_prototype *p) {
   gab_obj_block *self = GAB_CREATE_FLEX_OBJ(gab_obj_block, gab_obj_upvalue,
-                                              p->nupvalues, TYPE_BLOCK);
+                                            p->nupvalues, TYPE_BLOCK);
 
   self->nupvalues = p->nupvalues;
   self->p = p;

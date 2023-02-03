@@ -90,7 +90,7 @@ install_data(
   'std/Range.gab',
   'std/String.gab',
   'std/Time.gab',
-  'std/Array.gab',
+  'std/List.gab',
   install_dir: '/usr/local/share/gab/std/'
   )
 

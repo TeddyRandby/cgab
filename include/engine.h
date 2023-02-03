@@ -66,30 +66,6 @@ struct gab_engine {
   a_s_i8 *argv_names;
 };
 
-// This can be heavily optimized.
-static inline gab_value gab_typeof(gab_engine *gab, gab_value value) {
-  // The type of a record is it's shape
-  if (GAB_VAL_IS_RECORD(value)) {
-    gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
-    return GAB_VAL_OBJ(obj->shape);
-  }
-
-  // The type of null or symbols is themselves
-  if (GAB_VAL_IS_NIL(value) || GAB_VAL_IS_UNDEFINED(value) ||
-      GAB_VAL_IS_SYMBOL(value)) {
-    return value;
-  }
-
-  if (GAB_VAL_IS_NUMBER(value)) {
-    return gab->types[TYPE_NUMBER];
-  }
-
-  if (GAB_VAL_IS_BOOLEAN(value)) {
-    return gab->types[TYPE_BOOLEAN];
-  }
-
-  return gab->types[GAB_VAL_TO_OBJ(value)->kind];
-}
 
 gab_obj_string *gab_engine_find_string(gab_engine *gab, s_i8 str, u64 hash);
 gab_obj_message *gab_engine_find_message(gab_engine *gab, s_i8 name, u64 hash);

@@ -12,14 +12,15 @@ void dis_closure(gab_obj_block *cls) {
   gab_dis(cls->p->mod, cls->p->offset, cls->p->len);
 }
 
-void dis_message(gab_obj_message *msg, gab_value rec) {
-  gab_value spec = gab_obj_message_read(msg, rec);
+void dis_message(gab_engine* gab, gab_obj_message *msg, gab_value rec) {
+  gab_value spec = gab_obj_message_read(msg, gab_typeof(gab, rec));
 
   if (GAB_VAL_IS_BLOCK(spec)) {
     gab_obj_block *cls = GAB_VAL_TO_BLOCK(spec);
     dis_closure(cls);
   } else if (GAB_VAL_IS_BUILTIN(spec)) {
     gab_val_dump(spec);
+    printf("\n");
   }
 }
 
@@ -32,7 +33,7 @@ gab_value gab_lib_disstring(gab_engine *gab, gab_vm *vm, u8 argc,
   gab_obj_message *msg = gab_obj_message_create(
       gab, gab_obj_string_ref(GAB_VAL_TO_STRING(argv[0])));
 
-  dis_message(msg, argc == 1 ? GAB_VAL_UNDEFINED() : argv[1]);
+  dis_message(gab, msg, argc == 1 ? GAB_VAL_UNDEFINED() : argv[1]);
 
   return GAB_VAL_NIL();
 };
@@ -45,7 +46,7 @@ gab_value gab_lib_dismessage(gab_engine *gab, gab_vm *vm, u8 argc,
 
   gab_obj_message *msg = GAB_VAL_TO_MESSAGE(argv[0]);
 
-  dis_message(msg, argv[1]);
+  dis_message(gab, msg, argv[1]);
 
   return GAB_VAL_NIL();
 }

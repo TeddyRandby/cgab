@@ -78,7 +78,7 @@ describe('Closures', do ()
 
    it('should work with varargs', do()
 
-      def varfunc(first, [args])
+      def varfunc(first, ..args)
         first:expect(1)
         args[0]:expect(2)
       end

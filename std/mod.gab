@@ -4,6 +4,7 @@ require('Range')
 require('String')
 require('Time')
 
+require('dis')
 require('string')
 require('object')
 require('num')
