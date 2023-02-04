@@ -42,14 +42,16 @@ gab_value make_require(gab_engine *gab) {
   return require_builtin;
 }
 
-gab_engine *engine() {
+void gab_repl() {
+  imports_create();
+
   gab_engine *gab = gab_create();
 
-  s_i8 arg_names[] = {
-      s_i8_cstr("print"),  s_i8_cstr("require"), s_i8_cstr("panic"),
-      s_i8_cstr("String"), s_i8_cstr("Number"),  s_i8_cstr("Boolean"),
-      s_i8_cstr("Block"),  s_i8_cstr("Message"), s_i8_cstr("Effect"),
-  };
+  s_i8 arg_names[] = {s_i8_cstr("print"),  s_i8_cstr("require"),
+                      s_i8_cstr("panic"),  s_i8_cstr("String"),
+                      s_i8_cstr("Number"), s_i8_cstr("Boolean"),
+                      s_i8_cstr("Block"),  s_i8_cstr("Message"),
+                      s_i8_cstr("Effect"), s_i8_cstr("_")};
 
   gab_value args[] = {
       make_print(gab),
@@ -61,21 +63,13 @@ gab_engine *engine() {
       gab_get_type(gab, TYPE_BLOCK),
       gab_get_type(gab, TYPE_MESSAGE),
       gab_get_type(gab, TYPE_EFFECT),
+      GAB_VAL_NIL(),
   };
 
   static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
 
-  gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
-
-  return gab;
-}
-
-void gab_repl() {
-  imports_create();
-
-  gab_engine *gab = engine();
-
   for (;;) {
+    gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
 
     printf("grepl> ");
     a_i8 *src = os_read_line();
@@ -106,7 +100,8 @@ void gab_repl() {
       printf("\n");
     }
 
-    gab_dref(gab, NULL, result);
+    gab_dref(gab, NULL, args[9]);
+    args[9] = result;
   }
 
   gab_destroy(gab);
@@ -117,7 +112,29 @@ void gab_repl() {
 void gab_run_file(const char *path) {
   imports_create();
 
-  gab_engine *gab = engine();
+  gab_engine *gab = gab_create();
+
+  s_i8 arg_names[] = {
+      s_i8_cstr("print"),  s_i8_cstr("require"), s_i8_cstr("panic"),
+      s_i8_cstr("String"), s_i8_cstr("Number"),  s_i8_cstr("Boolean"),
+      s_i8_cstr("Block"),  s_i8_cstr("Message"), s_i8_cstr("Effect"),
+  };
+
+  gab_value args[] = {
+      make_print(gab),
+      make_require(gab),
+      GAB_BUILTIN(panic),
+      gab_get_type(gab, TYPE_STRING),
+      gab_get_type(gab, TYPE_NUMBER),
+      gab_get_type(gab, TYPE_BOOLEAN),
+      gab_get_type(gab, TYPE_BLOCK),
+      gab_get_type(gab, TYPE_MESSAGE),
+      gab_get_type(gab, TYPE_EFFECT),
+  };
+
+  static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
+
+  gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
 
   a_i8 *src = os_read_file(path);
 

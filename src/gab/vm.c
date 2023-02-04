@@ -1,3 +1,4 @@
+#include "include/vm.h"
 #include "include/char.h"
 #include "include/colors.h"
 #include "include/core.h"
@@ -6,6 +7,7 @@
 #include "include/gc.h"
 #include "include/module.h"
 #include "include/object.h"
+#include "include/types.h"
 #include "include/value.h"
 
 #include <stdarg.h>
@@ -18,6 +20,8 @@ static const char *gab_token_names[] = {
 #include "include/token.h"
 #undef TOKEN
 };
+
+void gab_vm_container_cb(gab_engine *, gab_vm *, void *data) { DESTROY(data); }
 
 gab_value vm_error(gab_vm *vm, gab_status e, const char *help_fmt, ...) {
   if (vm->flags & GAB_FLAG_DUMP_ERROR) {
@@ -102,13 +106,14 @@ gab_value vm_error(gab_vm *vm, gab_status e, const char *help_fmt, ...) {
     exit(0);
   }
 
-  return GAB_VAL_NIL();
+  gab_vm *stored = NEW(gab_vm);
+  memcpy(stored, vm, sizeof(gab_vm));
+
+  return GAB_CONTAINER(gab_vm_container_cb, stored);
 }
 
-[[noreturn]] void gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
-  vm_error(vm, GAB_PANIC, msg);
-
-  exit(0);
+gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
+  return vm_error(vm, GAB_PANIC, msg);
 }
 
 void gab_vm_create(gab_vm *self, u8 flags, u8 argc, gab_value argv[argc]) {
@@ -118,6 +123,28 @@ void gab_vm_create(gab_vm *self, u8 flags, u8 argc, gab_value argv[argc]) {
   self->frame = self->fstack;
   self->top = self->vstack;
   self->flags = flags;
+}
+
+void gab_vm_stack_dump(gab_engine *gab, gab_vm *vm) {}
+
+void gab_vm_frame_dump(gab_engine *gab, gab_vm *vm, u64 value) {
+  u64 frame_count = vm->frame - vm->fstack;
+
+  if (value > frame_count)
+    return;
+
+  gab_vm_frame *f = vm->frame - value;
+
+  printf("    closure:" ANSI_COLOR_CYAN "%-20.*s" ANSI_COLOR_RESET
+         "%d locals, %d upvalues\n",
+         (i32)f->c->p->name.len, f->c->p->name.data, f->c->p->nlocals,
+         f->c->p->nupvalues);
+
+  for (i32 i = f->c->p->nslots - 1; i > 0; i--) {
+    printf(ANSI_COLOR_YELLOW "%3i " ANSI_COLOR_RESET, i);
+    gab_val_dump(f->slots[i]);
+    printf("\n");
+  }
 }
 
 void dump_frame(gab_value *slots, gab_value *top, const char *name) {

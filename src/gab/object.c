@@ -239,7 +239,8 @@ void gab_obj_destroy(gab_engine *gab, gab_vm *vm, gab_obj *self) {
   }
   case TYPE_CONTAINER: {
     gab_obj_container *container = (gab_obj_container *)(self);
-    container->destructor(gab, vm, container->data);
+    if (container->destructor != NULL)
+      container->destructor(gab, vm, container->data);
     GAB_DESTROY_STRUCT(container);
     return;
   }

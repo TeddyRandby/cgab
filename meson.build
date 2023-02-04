@@ -69,6 +69,13 @@ shared_library('cgabdis',
   install_dir: '/usr/local/lib/gab/'
 )
 
+shared_library('cgabpry',
+  'src/lib/pry.c',
+  link_with: libcgab,
+  install: true,
+  install_dir: '/usr/local/lib/gab/'
+)
+
 install_headers(
   'include/gab.h',
   'include/object.h',
@@ -91,6 +98,7 @@ install_data(
   'std/String.gab',
   'std/Time.gab',
   'std/List.gab',
+  'std/Pry.gab',
   install_dir: '/usr/local/share/gab/std/'
   )
 

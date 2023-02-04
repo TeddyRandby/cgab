@@ -80,7 +80,7 @@ struct gab_module {
 /*
   Creating and destroying modules, from nothing and from a base module.
 */
-gab_module *gab_module_create(gab_module *, s_i8, s_i8);
+gab_module *gab_module_create(gab_module *mod, s_i8 name, s_i8 src);
 
 void gab_module_destroy(gab_engine *gab, gab_module *mod);
 

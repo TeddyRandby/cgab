@@ -1,0 +1,14 @@
+let vm = nil
+
+def PRY = $pry
+
+def pry[](vm)
+  vm = vm
+  PRY
+end
+
+def frame[PRY](depth)
+  
+end
+
+PRY

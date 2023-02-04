@@ -116,7 +116,7 @@ gab_engine *gab_create() {
   gab->types[TYPE_MESSAGE] = GAB_SYMBOL("message");
   gab->types[TYPE_PROTOTYPE] = GAB_SYMBOL("prototype");
   gab->types[TYPE_BUILTIN] = GAB_SYMBOL("builtin");
-  gab->types[TYPE_BLOCK] = GAB_SYMBOL("closure");
+  gab->types[TYPE_BLOCK] = GAB_SYMBOL("block");
   gab->types[TYPE_UPVALUE] = GAB_SYMBOL("upvalue");
   gab->types[TYPE_RECORD] = GAB_SYMBOL("record");
   gab->types[TYPE_SHAPE] = GAB_SYMBOL("shape");
@@ -200,6 +200,12 @@ void gab_collect(gab_engine *gab, gab_vm *vm) {
 
 void gab_args(gab_engine *gab, u8 argc, s_i8 argv_names[argc],
               gab_value argv_values[argc]) {
+  if (gab->argv_values != NULL)
+    a_u64_destroy(gab->argv_values);
+
+  if (gab->argv_names != NULL)
+    a_s_i8_destroy(gab->argv_names);
+
   gab->argv_names = a_s_i8_create(argv_names, argc);
   gab->argv_values = a_u64_create(argv_values, argc);
 }

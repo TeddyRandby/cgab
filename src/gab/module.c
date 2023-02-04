@@ -636,14 +636,14 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   }
 }
 
-void gab_dis(gab_module *mod, u64 start, u64 len) {
-  u64 end = start + len;
-  u64 offset = start < mod->bytecode.len ? start : mod->bytecode.len;
+void gab_dis(gab_module *mod, u64 offset, u64 len) {
+  u64 end = offset + len;
+  u64 clamped_offset = offset < mod->bytecode.len ? offset : mod->bytecode.len;
   u64 finish = end < mod->bytecode.len ? end : mod->bytecode.len;
 
-  while (offset < finish) {
-    printf(ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);
-    offset = dumpInstruction(mod, offset);
+  while (clamped_offset < finish) {
+    printf(ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, clamped_offset);
+    clamped_offset = dumpInstruction(mod, clamped_offset);
   }
 }
 

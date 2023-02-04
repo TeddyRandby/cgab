@@ -7,7 +7,3 @@ let list = List:make(1,2,3,4)
 for v in list:each
   v:print
 end
-
-list:join(','):print
-
-list:slice(2:to(5))

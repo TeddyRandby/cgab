@@ -9,7 +9,7 @@ typedef struct gab_vm gab_vm;
 
 /**
  * Create a Gab Engine. If you want libraries included, build and bind them
- * before running any code.
+ *  before running any code.
  *
  * @return The allocated Gab Engine.
  */
@@ -18,13 +18,29 @@ gab_engine *gab_create();
 /**
  * Cleanup a Gab Engine.
  *
+ * This function calls gab_collect internally,
+ *  so no need to call it manually.
+ *
  * @param gab The engine to clean up.
  */
 void gab_destroy(gab_engine *gab);
 
-void gab_collect(gab_engine* gab, gab_vm* vm);
+/**
+ * Set the arguments that the engine will pass to
+ *  the modules it compiles or runs. The arrays are shallow copied.
+ *
+ *  @param gab The engine
+ *
+ *  @param argc The number of arguments
+ *
+ *  @param argv_names The names of each argument (Passed to the compiler)
+ *
+ *  @param argv_values The values of each argument (Passed to the vm)
+ *
+ */
 
-void gab_args(gab_engine* gab, u8 argc, s_i8 argv_names[argc], gab_value argv_values[argc]);
+void gab_args(gab_engine *gab, u8 argc, s_i8 argv_names[argc],
+              gab_value argv_values[argc]);
 
 /**
  * Compile a source string into a Gab Module.
@@ -38,8 +54,6 @@ void gab_args(gab_engine* gab, u8 argc, s_i8 argv_names[argc], gab_value argv_va
  * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
  */
 gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags);
-
-void gab_dis(gab_module* mod, u64 start, u64 end);
 
 /**
  * Run a module in the gab vm.
@@ -71,18 +85,39 @@ gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags);
 void gab_panic(gab_engine *gab, gab_vm *vm, const char *msg);
 
 /**
- * Decrement the reference count of a gab value
+ * Disassemble a module from start to end.
  *
- * @param val The value to clean up
+ * @param mod The module the bytecode is in
+ *
+ * @param offset The beginning of the bytecode to dump
+ *
+ * @param len The amount of bytecode to dump
+ *
+ */
+void gab_dis(gab_module *mod, u64 offset, u64 len);
+
+/**
+ * Decrement the reference count of a value
+ *
+ * @param val The value to clean up. If there is no VM, you may pass NULL.
  */
 void gab_dref(gab_engine *gab, gab_vm *vm, gab_value value);
 
 /**
- * Increment the reference count of a gab value
+ * Increment the reference count of a value
  *
- * @param val The value to clean up
+ * @param val The value to clean up. If there is no VM, you may pass NULL.
  */
 void gab_iref(gab_engine *gab, gab_vm *vm, gab_value value);
+
+/**
+ * Trigger a garbace collection.
+ *
+ * @param gab The engine to collect in
+ *
+ * @param val The value to clean up. If there is no VM, you may pass NULL.
+ */
+void gab_collect(gab_engine *gab, gab_vm *vm);
 
 /**
  * Bundle a list of keys and values into a Gab object.
@@ -145,18 +180,42 @@ gab_value gab_send(gab_engine *gab, s_i8 name, gab_value receiver, u8 argc,
                    gab_value argv[argc]);
 
 /**
- * Returns true if the value is truthy
+ * Convert a gab value to a boolean.
  *
  * @param self The value to check
+ *
+ * @return False if the value is false or nil. Otherwise true.
  */
 boolean gab_val_falsey(gab_value self);
 
+/*
+ * Get the type of a gab value. This function is used internally to send messages.
+ *
+ * @param gab The engine
+ *
+ * @param self The value
+ *
+ * @return The type of the value
+ *
+ */
 gab_value gab_typeof(gab_engine *gab, gab_value self);
 
+/*
+ * Get the value that corresponds to a given type.
+ *
+ * @param gab The engine
+ *
+ * @param t The type to retrieve the value for.
+ *
+ * @return The gab value corresponding to that type.
+ */
 gab_value gab_get_type(gab_engine *gab, gab_type t);
 
-#define GAB_SEND(name, receiver, size, args)                                   \
-  gab_send(gab, s_i8_cstr(name), receiver, size, args)
+/**
+ * A helper macro for sending simply
+ */
+#define GAB_SEND(name, receiver, len, args)                                   \
+  gab_send(gab, s_i8_cstr(name), receiver, len, args)
 
 /**
  * A helper macro for creating a gab_obj_record
@@ -187,7 +246,7 @@ gab_value gab_get_type(gab_engine *gab, gab_type t);
 #define GAB_CONTAINER(cb, data) GAB_VAL_OBJ(gab_obj_container_create(cb, data))
 
 /**
- *
+ * A helper macro for creating a gab_obj_symbol
  */
 #define GAB_SYMBOL(name) GAB_VAL_OBJ(gab_obj_symbol_create(s_i8_cstr(name)))
 #endif
