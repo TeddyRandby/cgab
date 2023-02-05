@@ -34,8 +34,15 @@ shared_library('cgabtime',
   install_dir: '/usr/local/lib/gab/'
 )
 
-shared_library('cgabobject',
-  'src/lib/object.c',
+shared_library('cgabmap',
+  'src/lib/map.c',
+  link_with: libcgab,
+  install: true,
+  install_dir: '/usr/local/lib/gab/'
+)
+
+shared_library('cgablist',
+  'src/lib/list.c',
   link_with: libcgab,
   install: true,
   install_dir: '/usr/local/lib/gab/'

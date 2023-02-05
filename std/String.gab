@@ -1,9 +1,9 @@
 def __get__[String](opts)
-    opts? match
-        { from to }? => self:slice(opts.from, opts.to)
-        { from }?    => self:slice(opts.from)
-        { to }?      => self:slice(nil, opts.to)
-        Number       => self:slice(opts)
-        else         => panic('Invalid call to String:__get__')
+    opts:type match
+        { from to }:type => self:slice(opts.from, opts.to)
+        { from }:type    => self:slice(opts.from)
+        { to }:type      => self:slice(nil, opts.to)
+        Number           => self:slice(opts)
+        else             => panic('Invalid call to String:__get__')
 end
 

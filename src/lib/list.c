@@ -1,0 +1,155 @@
+#include "include/core.h"
+#include "include/gab.h"
+#include "include/object.h"
+#include "include/value.h"
+#include <assert.h>
+
+gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
+                      gab_value argv[argc]) {
+  if (argc < 1)
+    return gab_panic(gab, vm, "Invalid call to gab_lib_len");
+
+  for (u64 i = 1; i < argc; i++)
+    gab_iref(gab, vm, argv[i]);
+
+  gab_obj_list *list = gab_obj_list_create(argc - 1, 1, argv + 1);
+
+  gab_value result = GAB_VAL_OBJ(list);
+
+  gab_dref(gab, vm, result);
+
+  return result;
+}
+
+gab_value gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc,
+                      gab_value argv[argc]) {
+  if (argc != 1)
+    return gab_panic(gab, vm, "Invalid call to gab_lib_len");
+
+  gab_obj_list *obj = GAB_VAL_TO_LIST(argv[0]);
+
+  return GAB_VAL_NUMBER(obj->data.len);
+}
+
+gab_value gab_lib_pop(gab_engine *gab, gab_vm *vm, u8 argc,
+                      gab_value argv[argc]) {
+  if (argc > 1)
+    return gab_panic(gab, vm, "Invalid call to gab_lib_len");
+
+  gab_obj_list *obj = GAB_VAL_TO_LIST(argv[0]);
+
+  gab_value result = v_u64_pop(&obj->data);
+
+  gab_dref(gab, vm, result);
+
+  return result;
+}
+
+gab_value gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc,
+                     gab_value argv[argc]) {
+  gab_obj_list *list = GAB_VAL_TO_LIST(argv[0]);
+
+  if (argc != 2 || !GAB_VAL_IS_NUMBER(argv[1]))
+    return gab_panic(gab, vm, "Invalid call to gab_lib_put");
+
+  u64 offset = GAB_VAL_TO_NUMBER(argv[1]);
+
+  return gab_obj_list_at(list, offset);
+}
+
+gab_value gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc,
+                      gab_value argv[argc]) {
+  gab_obj_list *list = GAB_VAL_TO_LIST(argv[0]);
+
+  for (u64 i = 1; i < argc; i++) {
+      gab_iref(gab, vm, argv[i]);
+  }
+
+  switch (argc) {
+  case 2:
+    // A push
+    v_u64_push(&list->data, argv[1]);
+    break;
+  case 3:
+    // A put
+    if (!GAB_VAL_IS_NUMBER(argv[2]))
+      return gab_panic(gab, vm, "Invalid call to gab_lib_put");
+
+    gab_obj_list_put(list, GAB_VAL_TO_NUMBER(argv[2]), argv[1]);
+    break;
+  default:
+    return gab_panic(gab, vm, "Invalid call to gab_lib_put");
+  }
+
+  return GAB_VAL_NIL();
+}
+
+// Boy do NOT put side effects in here
+#define MIN(a, b) (a < b ? a : b)
+#define MAX(a, b) (a > b ? a : b)
+#define CLAMP(a, b) (a < 0 ? 0 : MIN(a, b))
+
+gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
+                        gab_value argv[argc]) {
+  gab_obj_list *list = GAB_VAL_TO_LIST(argv[0]);
+
+  u64 len = list->data.len;
+  u64 start = 0, end = len;
+
+  switch (argc) {
+  case 2: {
+    if (!GAB_VAL_IS_NUMBER(argv[1])) {
+      return GAB_VAL_NIL();
+    }
+    u64 a = GAB_VAL_TO_NUMBER(argv[1]);
+    start = CLAMP(a, len);
+    break;
+  }
+  case 3:
+    if (!GAB_VAL_IS_NUMBER(argv[1]) || !GAB_VAL_TO_NUMBER(argv[2])) {
+      return GAB_VAL_NIL();
+    }
+    u64 a = GAB_VAL_TO_NUMBER(argv[1]);
+    u64 b = GAB_VAL_TO_NUMBER(argv[2]);
+    start = CLAMP(a, len);
+    end = CLAMP(b, len);
+    break;
+  default:
+    return gab_panic(gab, vm, "Invalid call to gab_lib_slice");
+  }
+
+  u64 result_len = end - start;
+
+  gab_obj_list *result =
+      gab_obj_list_create(result_len, 1, list->data.data + start);
+
+  return GAB_VAL_OBJ(result);
+}
+
+gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
+  s_i8 names[] = {
+      s_i8_cstr("new"), s_i8_cstr("len"), s_i8_cstr("slice"),
+      s_i8_cstr("pop"), s_i8_cstr("put"), s_i8_cstr("at"),
+  };
+
+  gab_value receivers[] = {
+      gab_type(gab, GAB_KIND_LIST), gab_type(gab, GAB_KIND_LIST),
+      gab_type(gab, GAB_KIND_LIST), gab_type(gab, GAB_KIND_LIST),
+      gab_type(gab, GAB_KIND_LIST), gab_type(gab, GAB_KIND_LIST),
+  };
+
+  gab_value specs[] = {
+      GAB_BUILTIN(new), GAB_BUILTIN(len), GAB_BUILTIN(slice),
+      GAB_BUILTIN(pop), GAB_BUILTIN(put), GAB_BUILTIN(at),
+  };
+
+  static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
+  static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
+
+  for (int i = 0; i < LEN_CARRAY(specs); i++) {
+    gab_specialize(gab, names[i], receivers[i], specs[i]);
+    gab_dref(gab, vm, specs[i]);
+  }
+
+  return GAB_VAL_NIL();
+}

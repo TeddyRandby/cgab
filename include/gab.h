@@ -81,8 +81,10 @@ gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags);
  *
  * @param  msg The message to present
  *
+ * @return A gab value wrapping the state of the panic'd vm
+ *
  */
-void gab_panic(gab_engine *gab, gab_vm *vm, const char *msg);
+gab_value gab_panic(gab_engine *gab, gab_vm *vm, const char *msg);
 
 /**
  * Disassemble a module from start to end.
@@ -102,6 +104,7 @@ void gab_dis(gab_module *mod, u64 offset, u64 len);
  * @param val The value to clean up. If there is no VM, you may pass NULL.
  */
 void gab_dref(gab_engine *gab, gab_vm *vm, gab_value value);
+void gab_dref_many(gab_engine *gab, gab_vm *vm, u64 len, gab_value values[len]);
 
 /**
  * Increment the reference count of a value
@@ -109,6 +112,7 @@ void gab_dref(gab_engine *gab, gab_vm *vm, gab_value value);
  * @param val The value to clean up. If there is no VM, you may pass NULL.
  */
 void gab_iref(gab_engine *gab, gab_vm *vm, gab_value value);
+void gab_iref_many(gab_engine *gab, gab_vm *vm, u64 len, gab_value values[len]);
 
 /**
  * Trigger a garbace collection.
@@ -188,7 +192,14 @@ gab_value gab_send(gab_engine *gab, s_i8 name, gab_value receiver, u8 argc,
  */
 boolean gab_val_falsey(gab_value self);
 
-/*
+/**
+ * Dump a gab value to stdout
+ *
+ * @param self The value to dump
+ */
+void gab_val_dump(gab_value self);
+
+/**
  * Get the type of a gab value. This function is used internally to send messages.
  *
  * @param gab The engine
@@ -196,37 +207,34 @@ boolean gab_val_falsey(gab_value self);
  * @param self The value
  *
  * @return The type of the value
- *
  */
-gab_value gab_typeof(gab_engine *gab, gab_value self);
+gab_value gab_val_type(gab_engine *gab, gab_value self);
+
+/**
+ * Convert a gab value to a gab string
+ *
+ * @param gab The engine
+ *
+ * @param self The value to convert
+ */
+gab_value gab_val_to_string(gab_engine *gab, gab_value self);
 
 /*
  * Get the value that corresponds to a given type.
  *
  * @param gab The engine
  *
- * @param t The type to retrieve the value for.
+ * @param kind The type to retrieve the value for.
  *
  * @return The gab value corresponding to that type.
  */
-gab_value gab_get_type(gab_engine *gab, gab_type t);
+gab_value gab_type(gab_engine *gab, gab_kind kind);
 
 /**
  * A helper macro for sending simply
  */
 #define GAB_SEND(name, receiver, len, args)                                   \
   gab_send(gab, s_i8_cstr(name), receiver, len, args)
-
-/**
- * A helper macro for creating a gab_obj_record
- */
-#define GAB_RECORD(vm, size, keys, values)                                     \
-  gab_bundle_record(gab, vm, size, keys, values)
-
-/**
- * A helper macro for creating a gab_obj_record
- */
-#define GAB_ARRAY(vm, size, values) gab_bundle_array(gab, vm, size, values)
 
 /**
  * A helper macro for creating a gab_obj_builtin

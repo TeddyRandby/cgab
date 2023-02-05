@@ -110,16 +110,16 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
 
   gab_module *pkg =
       gab_compile(gab, s_i8_create(path->data, path->len),
-                  s_i8_create(src->data, src->len), GAB_FLAG_NONE);
+                  s_i8_create(src->data, src->len), GAB_FLAG_DUMP_ERROR);
 
   a_i8_destroy(src);
 
   if (pkg == NULL) {
-    gab_panic(gab, vm, "Failed to compile module");
+    return gab_panic(gab, vm, "Failed to compile module");
   }
 
   gab_value res =
-      gab_run(gab, pkg, GAB_FLAG_DUMP_ERROR | GAB_FLAG_PANIC_ON_FAIL);
+      gab_run(gab, pkg, GAB_FLAG_DUMP_ERROR);
 
   import *i = NEW(import);
 

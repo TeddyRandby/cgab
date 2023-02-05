@@ -1,7 +1,7 @@
-def Array = require('Array')
+def List = require('List')
 
 def bench(cb, runs)
-    let times = Array:make
+    let times = List:new
 
     for _ in runs:to
         def before = :clock
@@ -33,11 +33,11 @@ end
 
 
 def timeit[Block](opts)
-    def avg = opts? match
-        { runs against }? => headToHead(self, opts.against, opts.runs)
-        { runs }?         => bench(self, opts.runs)
-        Number            => bench(self, opts)
-        else              => panic('Invalid call to Block:timeit')
+    def avg = opts:type match
+        { runs against }:type => headToHead(self, opts.against, opts.runs)
+        { runs }:type         => bench(self, opts.runs)
+        Number                => bench(self, opts)
+        else                  => panic('Invalid call to Block:timeit')
 
     print(self, 'ran in avg of {avg}s')
 end

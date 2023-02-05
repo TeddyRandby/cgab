@@ -136,7 +136,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
       s_i8_cstr("from"),
   };
 
-  gab_value type_num = gab_get_type(gab, TYPE_NUMBER);
+  gab_value type_num = gab_type(gab, GAB_KIND_NUMBER);
 
   gab_value receivers[] = {
       type_num,

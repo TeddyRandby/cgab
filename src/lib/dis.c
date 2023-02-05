@@ -13,7 +13,7 @@ void dis_closure(gab_obj_block *cls) {
 }
 
 void dis_message(gab_engine* gab, gab_obj_message *msg, gab_value rec) {
-  gab_value spec = gab_obj_message_read(msg, gab_typeof(gab, rec));
+  gab_value spec = gab_obj_message_read(msg, gab_val_type(gab, rec));
 
   if (GAB_VAL_IS_BLOCK(spec)) {
     gab_obj_block *cls = GAB_VAL_TO_BLOCK(spec);
@@ -78,10 +78,10 @@ gab_value gab_lib_disbuiltin(gab_engine *gab, gab_vm *vm, u8 argc,
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value receivers[] = {
-      gab_get_type(gab, TYPE_BLOCK),
-      gab_get_type(gab, TYPE_MESSAGE),
-      gab_get_type(gab, TYPE_STRING),
-      gab_get_type(gab, TYPE_BUILTIN),
+      gab_type(gab, GAB_KIND_BLOCK),
+      gab_type(gab, GAB_KIND_MESSAGE),
+      gab_type(gab, GAB_KIND_STRING),
+      gab_type(gab, GAB_KIND_BUILTIN),
   };
 
   gab_value values[] = {

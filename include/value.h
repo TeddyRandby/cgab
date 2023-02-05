@@ -99,4 +99,9 @@ typedef u64 gab_value;
 #define GAB_VAL_TO_PRIMITIVE(val) ((u8)((val >> 8) & 0xff))
 #define GAB_VAL_TO_OBJ(val) ((gab_obj *)(uintptr_t)((val) & ~(SIGN_BIT | QNAN)))
 
+static inline f64 value_to_f64(gab_value value) { return *(f64 *)(&value); }
+static inline gab_value f64_to_value(f64 value) {
+  return *(gab_value *)(&value);
+}
+
 #endif

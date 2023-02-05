@@ -1,80 +1,20 @@
-require('object')
+require('list')
 
-def LIST = $list
+def __get__[List](key) self:at(key) end
 
-def make[LIST](..values)
-    {
-        len = values and values:len or 0
-        data = values or []
-    }
-end
+def __set__[List](key, value) self:put(key, value) end
 
-def List { len data }
+def first[List] self[0] end
 
-def __set__[List](index, arg)
-    index? match
-        Number => self.data[index] = arg
-        else => panic("Invalid call to List:__set__")
-end
-
-def __get__[List](opts)
-    opts? match
-        { from to }? => self.data:slice(opts.from, opts.to)
-        { from }?    => self.data:slice(opts.from)
-        { to }?      => self.data:slice(nil, opts.to)
-        Number       => self.data[opts]
-        else         => panic('Invalid call to List:__get__')
-end
-
-def len[List]
-    self.len
-end
-
-def first[List]
-    self[0]
-end
-
-def last[List]
-    self[self.len - 1]
-end
-
-def push[List](..values)
-    for index in values:len:to
-        self[self.len + index] = values[index]
-    end
-
-    self.len = self.len + values:len
-end
-
-def pop[List]
-    self[self.len = self.len - 1]
-end
+def last[List] self[self:len - 1] end
 
 def each[List]
     let v = 0 
 
     loop
-       yield self.data[v]
+       yield self[v], v
        v = v + 1
-    until v >= self.len
-end
-
-def eachi[List]
-    let v = 0 
-
-    loop
-       yield self.data[v], v
-       v = v + 1
-    until v >= self.len
-end
-
-def slice[List](opts, to)
-    opts? match
-        { from to }? => self.data:slice(opts.from, opts.to)
-        { from }?    => self.data:slice(opts.from)
-        { to }?      => self.data:slice(nil, opts.to)
-        Number       => self.data:slice(opts)
-        else         => panic('Invalid call to List:slice')
+    until v >= self:len
 end
 
 def fold[List](init, folder)
@@ -88,7 +28,7 @@ def fold[List](init, folder)
 end
 
 def filter[List](filterer)
-    let v = LIST:make
+    let v = []
 
     for i, index in self:eachi
         filterer(i, index) and v:push(i)
@@ -98,7 +38,7 @@ def filter[List](filterer)
 end
 
 def map[List](mapper)
-    let v = LIST:make
+    let v = []
 
     for i, index in self:eachi
         v:push(mapper(i, index))
@@ -120,5 +60,3 @@ end
 def every[List](pred) self:filter(pred):len == self:len end
 
 def some[List](pred) self:filter(pred):len > 0 end
-
-LIST

@@ -10,18 +10,25 @@
 #include <stdlib.h>
 #include <string.h>
 
+gab_value make_type(gab_engine* gab) {
+    gab_value type_builtin = GAB_BUILTIN(type);
+
+    gab_specialize(gab, s_i8_cstr("type"), GAB_VAL_UNDEFINED(), type_builtin);
+
+    return type_builtin;
+}
+
 gab_value make_print(gab_engine *gab) {
   gab_value receivers[] = {
-      gab_get_type(gab, TYPE_BOOLEAN),
-      gab_get_type(gab, TYPE_NUMBER),
+      gab_type(gab, GAB_KIND_BOOLEAN),
+      gab_type(gab, GAB_KIND_NUMBER),
       GAB_VAL_NIL(),
-      gab_get_type(gab, TYPE_STRING),
-      gab_get_type(gab, TYPE_SYMBOL),
-      gab_get_type(gab, TYPE_CONTAINER),
-      gab_get_type(gab, TYPE_SHAPE),
-      gab_get_type(gab, TYPE_BLOCK),
-      gab_get_type(gab, TYPE_MESSAGE),
-      gab_get_type(gab, TYPE_EFFECT),
+      gab_type(gab, GAB_KIND_STRING),
+      gab_type(gab, GAB_KIND_CONTAINER),
+      gab_type(gab, GAB_KIND_SHAPE),
+      gab_type(gab, GAB_KIND_BLOCK),
+      gab_type(gab, GAB_KIND_MESSAGE),
+      gab_type(gab, GAB_KIND_EFFECT),
   };
 
   gab_value print_builtin = GAB_BUILTIN(print);
@@ -36,7 +43,7 @@ gab_value make_print(gab_engine *gab) {
 gab_value make_require(gab_engine *gab) {
   gab_value require_builtin = GAB_BUILTIN(require);
 
-  gab_specialize(gab, s_i8_cstr("require"), gab_get_type(gab, TYPE_STRING),
+  gab_specialize(gab, s_i8_cstr("require"), gab_type(gab, GAB_KIND_STRING),
                  require_builtin);
 
   return require_builtin;
@@ -47,22 +54,26 @@ void gab_repl() {
 
   gab_engine *gab = gab_create();
 
-  s_i8 arg_names[] = {s_i8_cstr("print"),  s_i8_cstr("require"),
-                      s_i8_cstr("panic"),  s_i8_cstr("String"),
-                      s_i8_cstr("Number"), s_i8_cstr("Boolean"),
-                      s_i8_cstr("Block"),  s_i8_cstr("Message"),
-                      s_i8_cstr("Effect"), s_i8_cstr("_")};
+  s_i8 arg_names[] = {
+      s_i8_cstr("print"),   s_i8_cstr("require"), s_i8_cstr("panic"),
+      s_i8_cstr("type"),    s_i8_cstr("String"),  s_i8_cstr("Number"),
+      s_i8_cstr("Boolean"), s_i8_cstr("Block"),   s_i8_cstr("Message"),
+      s_i8_cstr("Effect"),  s_i8_cstr("List"),    s_i8_cstr("Map"),
+      s_i8_cstr("_")};
 
   gab_value args[] = {
       make_print(gab),
       make_require(gab),
       GAB_BUILTIN(panic),
-      gab_get_type(gab, TYPE_STRING),
-      gab_get_type(gab, TYPE_NUMBER),
-      gab_get_type(gab, TYPE_BOOLEAN),
-      gab_get_type(gab, TYPE_BLOCK),
-      gab_get_type(gab, TYPE_MESSAGE),
-      gab_get_type(gab, TYPE_EFFECT),
+      make_type(gab),
+      gab_type(gab, GAB_KIND_STRING),
+      gab_type(gab, GAB_KIND_NUMBER),
+      gab_type(gab, GAB_KIND_BOOLEAN),
+      gab_type(gab, GAB_KIND_BLOCK),
+      gab_type(gab, GAB_KIND_MESSAGE),
+      gab_type(gab, GAB_KIND_EFFECT),
+      gab_type(gab, GAB_KIND_LIST),
+      gab_type(gab, GAB_KIND_MAP),
       GAB_VAL_NIL(),
   };
 
@@ -101,7 +112,7 @@ void gab_repl() {
     }
 
     gab_dref(gab, NULL, args[9]);
-    args[9] = result;
+    args[LEN_CARRAY(args) - 1] = result;
   }
 
   gab_destroy(gab);
@@ -115,21 +126,25 @@ void gab_run_file(const char *path) {
   gab_engine *gab = gab_create();
 
   s_i8 arg_names[] = {
-      s_i8_cstr("print"),  s_i8_cstr("require"), s_i8_cstr("panic"),
+      s_i8_cstr("print"),  s_i8_cstr("require"), s_i8_cstr("panic"), s_i8_cstr("type"),
       s_i8_cstr("String"), s_i8_cstr("Number"),  s_i8_cstr("Boolean"),
       s_i8_cstr("Block"),  s_i8_cstr("Message"), s_i8_cstr("Effect"),
+      s_i8_cstr("List"),   s_i8_cstr("Map"),
   };
 
   gab_value args[] = {
       make_print(gab),
       make_require(gab),
       GAB_BUILTIN(panic),
-      gab_get_type(gab, TYPE_STRING),
-      gab_get_type(gab, TYPE_NUMBER),
-      gab_get_type(gab, TYPE_BOOLEAN),
-      gab_get_type(gab, TYPE_BLOCK),
-      gab_get_type(gab, TYPE_MESSAGE),
-      gab_get_type(gab, TYPE_EFFECT),
+      make_type(gab),
+      gab_type(gab, GAB_KIND_STRING),
+      gab_type(gab, GAB_KIND_NUMBER),
+      gab_type(gab, GAB_KIND_BOOLEAN),
+      gab_type(gab, GAB_KIND_BLOCK),
+      gab_type(gab, GAB_KIND_MESSAGE),
+      gab_type(gab, GAB_KIND_EFFECT),
+      gab_type(gab, GAB_KIND_LIST),
+      gab_type(gab, GAB_KIND_MAP),
   };
 
   static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
@@ -147,7 +162,8 @@ void gab_run_file(const char *path) {
   if (main == NULL)
     goto fin;
 
-  gab_value result = gab_run(gab, main, GAB_FLAG_DUMP_ERROR);
+  gab_value result =
+      gab_run(gab, main, GAB_FLAG_DUMP_ERROR | GAB_FLAG_EXIT_ON_PANIC);
 
   gab_dref(gab, NULL, result);
 

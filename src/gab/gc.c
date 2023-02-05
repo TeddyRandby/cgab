@@ -234,18 +234,18 @@ typedef void (*child_and_gc_iter)(gab_gc *gc, gab_obj *obj);
 static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
                                        child_and_gc_iter fnc) {
   switch (obj->kind) {
-  case TYPE_STRING:
-  case TYPE_PROTOTYPE:
-  case TYPE_BUILTIN:
-  case TYPE_SYMBOL:
-  case TYPE_CONTAINER:
-  case TYPE_NIL:
-  case TYPE_NUMBER:
-  case TYPE_BOOLEAN:
-  case TYPE_UNDEFINED:
-  case GAB_NTYPES:
+  case GAB_KIND_STRING:
+  case GAB_KIND_PROTOTYPE:
+  case GAB_KIND_BUILTIN:
+  case GAB_KIND_SYMBOL:
+  case GAB_KIND_CONTAINER:
+  case GAB_KIND_NIL:
+  case GAB_KIND_NUMBER:
+  case GAB_KIND_BOOLEAN:
+  case GAB_KIND_UNDEFINED:
+  case GAB_KIND_NKINDS:
     break;
-  case TYPE_EFFECT: {
+  case GAB_KIND_EFFECT: {
     gab_obj_effect *eff = (gab_obj_effect *)obj;
     for (u8 i = 0; i < eff->len; i++) {
       if (GAB_VAL_IS_OBJ(eff->frame[i]))
@@ -253,7 +253,7 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
     }
     break;
   }
-  case (TYPE_BLOCK): {
+  case GAB_KIND_BLOCK: {
     gab_obj_block *closure = (gab_obj_block *)obj;
     for (u8 i = 0; i < closure->nupvalues; i++) {
       if (GAB_VAL_IS_OBJ(closure->upvalues[i]))
@@ -261,7 +261,7 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
     }
     break;
   }
-  case (TYPE_MESSAGE): {
+  case GAB_KIND_MESSAGE: {
     gab_obj_message *func = (gab_obj_message *)obj;
     for (u64 i = 0; i < func->specs.cap; i++) {
       if (d_specs_iexists(&func->specs, i)) {
@@ -273,31 +273,51 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
     }
     break;
   }
-  case (TYPE_UPVALUE): {
+  case (GAB_KIND_UPVALUE): {
     gab_obj_upvalue *upvalue = (gab_obj_upvalue *)obj;
     if (GAB_VAL_IS_OBJ(*upvalue->data)) {
       fnc(gc, GAB_VAL_TO_OBJ(*upvalue->data));
     };
     break;
   }
-  case TYPE_SHAPE: {
-    gab_obj_shape *shape = (gab_obj_shape *)obj;
-    for (u64 i = 0; i < shape->len; i++) {
-      if (GAB_VAL_IS_OBJ(shape->keys[i])) {
-        fnc(gc, GAB_VAL_TO_OBJ(shape->keys[i]));
+  case GAB_KIND_LIST: {
+    gab_obj_list *lst = (gab_obj_list *)obj;
+    for (u64 i = 0; i < lst->data.len; i++) {
+      if (GAB_VAL_IS_OBJ(lst->data.data[i])) {
+        fnc(gc, GAB_VAL_TO_OBJ(lst->data.data[i]));
       }
     }
     break;
   }
-  case (TYPE_RECORD): {
-    gab_obj_record *object = (gab_obj_record *)obj;
+  case GAB_KIND_MAP: {
+    gab_obj_map *map = (gab_obj_map *)obj;
+    for (u64 i = 0; i < map->data.cap; i++) {
+      if (d_u64_iexists(&map->data, i)) {
+        gab_value k = d_u64_ikey(&map->data, i);
+        gab_value v = d_u64_ival(&map->data, i);
+        if (GAB_VAL_IS_OBJ(k))
+          fnc(gc, GAB_VAL_TO_OBJ(k));
+        if (GAB_VAL_IS_OBJ(v))
+          fnc(gc, GAB_VAL_TO_OBJ(v));
+      }
+    }
+    break;
+  }
+  case GAB_KIND_SHAPE: {
+    gab_obj_shape *shp = (gab_obj_shape *)obj;
+    for (u64 i = 0; i < shp->len; i++) {
+      if (GAB_VAL_IS_OBJ(shp->data[i])) {
+        fnc(gc, GAB_VAL_TO_OBJ(shp->data[i]));
+      }
+    }
+    break;
+  }
+  case GAB_KIND_RECORD: {
+    gab_obj_record *rec = (gab_obj_record *)obj;
 
-    gab_value *data =
-        object->dyn_data.cap ? object->dyn_data.data : object->data;
-
-    for (u64 i = 0; i < object->dyn_data.len; i++) {
-      if (GAB_VAL_IS_OBJ(data[i])) {
-        fnc(gc, GAB_VAL_TO_OBJ(data[i]));
+    for (u64 i = 0; i < rec->len; i++) {
+      if (GAB_VAL_IS_OBJ(rec->data[i])) {
+        fnc(gc, GAB_VAL_TO_OBJ(rec->data[i]));
       }
     }
     break;
@@ -308,19 +328,19 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
 typedef void (*child_iter)(gab_obj *obj);
 static inline void for_child_do(gab_obj *obj, child_iter fnc) {
   switch (obj->kind) {
-  case TYPE_STRING:
-  case TYPE_PROTOTYPE:
-  case TYPE_BUILTIN:
-  case TYPE_SYMBOL:
-  case TYPE_CONTAINER:
-  case TYPE_NIL:
-  case TYPE_NUMBER:
-  case TYPE_BOOLEAN:
-  case TYPE_UNDEFINED:
-  case GAB_NTYPES:
+  case GAB_KIND_STRING:
+  case GAB_KIND_PROTOTYPE:
+  case GAB_KIND_BUILTIN:
+  case GAB_KIND_SYMBOL:
+  case GAB_KIND_CONTAINER:
+  case GAB_KIND_NIL:
+  case GAB_KIND_NUMBER:
+  case GAB_KIND_BOOLEAN:
+  case GAB_KIND_UNDEFINED:
+  case GAB_KIND_NKINDS:
     break;
 
-  case TYPE_EFFECT: {
+  case GAB_KIND_EFFECT: {
     gab_obj_effect *eff = (gab_obj_effect *)obj;
     for (u8 i = 0; i < eff->len; i++) {
       if (GAB_VAL_IS_OBJ(eff->frame[i]))
@@ -328,7 +348,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
     }
     break;
   }
-  case (TYPE_BLOCK): {
+  case (GAB_KIND_BLOCK): {
     gab_obj_block *closure = (gab_obj_block *)obj;
     for (u8 i = 0; i < closure->nupvalues; i++) {
       if (GAB_VAL_IS_OBJ(closure->upvalues[i])) {
@@ -337,7 +357,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
     }
     break;
   }
-  case (TYPE_MESSAGE): {
+  case (GAB_KIND_MESSAGE): {
     gab_obj_message *func = (gab_obj_message *)obj;
     for (u64 i = 0; i < func->specs.cap; i++) {
       if (d_specs_iexists(&func->specs, i)) {
@@ -349,31 +369,51 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
     }
     break;
   }
-  case (TYPE_UPVALUE): {
+  case (GAB_KIND_UPVALUE): {
     gab_obj_upvalue *upvalue = (gab_obj_upvalue *)obj;
     if (GAB_VAL_IS_OBJ(*upvalue->data)) {
       fnc(GAB_VAL_TO_OBJ(*upvalue->data));
     };
     break;
   }
-  case TYPE_SHAPE: {
+  case GAB_KIND_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
     for (u64 i = 0; i < shape->len; i++) {
-      if (GAB_VAL_IS_OBJ(shape->keys[i])) {
-        fnc(GAB_VAL_TO_OBJ(shape->keys[i]));
+      if (GAB_VAL_IS_OBJ(shape->data[i])) {
+        fnc(GAB_VAL_TO_OBJ(shape->data[i]));
       }
     }
     break;
   }
-  case (TYPE_RECORD): {
-    gab_obj_record *object = (gab_obj_record *)obj;
+  case GAB_KIND_LIST: {
+    gab_obj_list *lst = (gab_obj_list *)obj;
+    for (u64 i = 0; i < lst->data.len; i++) {
+      if (GAB_VAL_IS_OBJ(lst->data.data[i])) {
+        fnc(GAB_VAL_TO_OBJ(lst->data.data[i]));
+      }
+    }
+    break;
+  }
+  case GAB_KIND_MAP: {
+    gab_obj_map *map = (gab_obj_map *)obj;
+    for (u64 i = 0; i < map->data.cap; i++) {
+      if (d_u64_iexists(&map->data, i)) {
+        gab_value k = d_u64_ikey(&map->data, i);
+        gab_value v = d_u64_ival(&map->data, i);
+        if (GAB_VAL_IS_OBJ(k))
+          fnc(GAB_VAL_TO_OBJ(k));
+        if (GAB_VAL_IS_OBJ(v))
+          fnc(GAB_VAL_TO_OBJ(v));
+      }
+    }
+    break;
+  }
+  case GAB_KIND_RECORD: {
+    gab_obj_record *rec = (gab_obj_record *)obj;
 
-    gab_value *data =
-        object->dyn_data.cap ? object->dyn_data.data : object->data;
-
-    for (u64 i = 0; i < object->dyn_data.len; i++) {
-      if (GAB_VAL_IS_OBJ(data[i])) {
-        fnc(GAB_VAL_TO_OBJ(data[i]));
+    for (u64 i = 0; i < rec->len; i++) {
+      if (GAB_VAL_IS_OBJ(rec->data[i])) {
+        fnc(GAB_VAL_TO_OBJ(rec->data[i]));
       }
     }
 
@@ -390,32 +430,32 @@ static inline void dec_if_obj_ref(gab_engine *gab, gab_vm *vm, gab_gc *gc,
 static inline void dec_child_refs(gab_engine *gab, gab_vm *vm, gab_gc *gc,
                                   gab_obj *obj) {
   switch (obj->kind) {
-  case TYPE_STRING:
-  case TYPE_PROTOTYPE:
-  case TYPE_BUILTIN:
-  case TYPE_SYMBOL:
-  case TYPE_CONTAINER:
-  case TYPE_NIL:
-  case TYPE_NUMBER:
-  case TYPE_BOOLEAN:
-  case TYPE_UNDEFINED:
-  case GAB_NTYPES:
+  case GAB_KIND_STRING:
+  case GAB_KIND_PROTOTYPE:
+  case GAB_KIND_BUILTIN:
+  case GAB_KIND_SYMBOL:
+  case GAB_KIND_CONTAINER:
+  case GAB_KIND_NIL:
+  case GAB_KIND_NUMBER:
+  case GAB_KIND_BOOLEAN:
+  case GAB_KIND_UNDEFINED:
+  case GAB_KIND_NKINDS:
     break;
-  case TYPE_BLOCK: {
+  case GAB_KIND_BLOCK: {
     gab_obj_block *closure = (gab_obj_block *)obj;
     for (u8 i = 0; i < closure->nupvalues; i++) {
       dec_if_obj_ref(gab, vm, gc, closure->upvalues[i]);
     }
     break;
   }
-  case TYPE_EFFECT: {
+  case GAB_KIND_EFFECT: {
     gab_obj_effect *eff = (gab_obj_effect *)obj;
     for (u8 i = 0; i < eff->len; i++) {
       dec_if_obj_ref(gab, vm, gc, eff->frame[i]);
     }
     break;
   }
-  case (TYPE_MESSAGE): {
+  case (GAB_KIND_MESSAGE): {
     gab_obj_message *func = (gab_obj_message *)obj;
     for (u64 i = 0; i < func->specs.cap; i++) {
       if (d_specs_iexists(&func->specs, i)) {
@@ -428,26 +468,42 @@ static inline void dec_child_refs(gab_engine *gab, gab_vm *vm, gab_gc *gc,
     }
     break;
   }
-  case TYPE_UPVALUE: {
+  case GAB_KIND_UPVALUE: {
     gab_obj_upvalue *upvalue = (gab_obj_upvalue *)obj;
     dec_if_obj_ref(gab, vm, gc, *upvalue->data);
     break;
   }
-  case TYPE_SHAPE: {
+  case GAB_KIND_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
     for (u64 i = 0; i < shape->len; i++) {
-      dec_if_obj_ref(gab, vm, gc, shape->keys[i]);
+      dec_if_obj_ref(gab, vm, gc, shape->data[i]);
     }
     break;
   }
-  case TYPE_RECORD: {
-    gab_obj_record *object = (gab_obj_record *)obj;
+  case GAB_KIND_LIST: {
+    gab_obj_list *lst = (gab_obj_list *)obj;
+    for (u64 i = 0; i < lst->data.len; i++) {
+      dec_if_obj_ref(gab, vm, gc, lst->data.data[i]);
+    }
+    break;
+  }
+  case GAB_KIND_MAP: {
+    gab_obj_map *map = (gab_obj_map *)obj;
+    for (u64 i = 0; i < map->data.cap; i++) {
+      if (d_u64_iexists(&map->data, i)) {
+        gab_value k = d_u64_ikey(&map->data, i);
+        gab_value v = d_u64_ival(&map->data, i);
+        dec_if_obj_ref(gab, vm, gc, k);
+        dec_if_obj_ref(gab, vm, gc, v);
+      }
+    }
+    break;
+  }
+  case GAB_KIND_RECORD: {
+    gab_obj_record *rec = (gab_obj_record *)obj;
 
-    gab_value *data =
-        object->dyn_data.cap ? object->dyn_data.data : object->data;
-
-    for (u64 i = 0; i < object->dyn_data.len; i++) {
-      dec_if_obj_ref(gab, vm, gc, data[i]);
+    for (u64 i = 0; i < rec->len; i++) {
+      dec_if_obj_ref(gab, vm, gc, rec->data[i]);
     }
     break;
   }

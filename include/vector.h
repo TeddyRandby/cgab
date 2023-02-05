@@ -12,9 +12,8 @@
 #ifndef NAME
 #define TYPENAME CONCAT(v_, T)
 #else
-#define TYPENAME CONCAT(v_,NAME)
+#define TYPENAME CONCAT(v_, NAME)
 #endif
-
 
 #define PREFIX TYPENAME
 #define LINKAGE static inline
@@ -26,11 +25,11 @@
 typedef struct TYPENAME TYPENAME;
 struct TYPENAME {
   T *data;
-  u32 len;
-  u32 cap;
+  u64 len;
+  u64 cap;
 };
 
-LINKAGE void METHOD(create)(TYPENAME *self, u32 cap) {
+LINKAGE void METHOD(create)(TYPENAME *self, u64 cap) {
   self->cap = cap;
   self->len = 0;
   self->data = NEW_ARRAY(T, cap);
@@ -38,7 +37,7 @@ LINKAGE void METHOD(create)(TYPENAME *self, u32 cap) {
 
 LINKAGE void METHOD(destroy)(TYPENAME *self) { DESTROY(self->data); }
 
-LINKAGE u32 METHOD(set)(TYPENAME *self, u32 index, T value) {
+LINKAGE u64 METHOD(set)(TYPENAME *self, u64 index, T value) {
   assert(index < self->len);
   self->data[index] = value;
   return index;
@@ -55,15 +54,15 @@ LINKAGE u32 METHOD(push)(TYPENAME *self, T value) {
 
 LINKAGE T METHOD(pop)(TYPENAME *self) {
   assert(self->len > 0);
-  return self->data[self->len--];
+  return self->data[--self->len];
 }
 
-LINKAGE T *METHOD(ref_at)(TYPENAME *self, u32 index) {
+LINKAGE T *METHOD(ref_at)(TYPENAME *self, u64 index) {
   assert(index < self->len);
   return self->data + index;
 }
 
-LINKAGE T METHOD(val_at)(TYPENAME *self, u32 index) {
+LINKAGE T METHOD(val_at)(TYPENAME *self, u64 index) {
   assert(index < self->len);
   return self->data[index];
 }

@@ -58,7 +58,7 @@ struct gab_engine {
   /*
    * The Engine's builtin types
    */
-  gab_value types[GAB_NTYPES];
+  gab_value types[GAB_KIND_NKINDS];
 
   u64 hash_seed;
 

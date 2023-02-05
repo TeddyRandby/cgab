@@ -1,9 +1,5 @@
 require('std')
 
-def List = require('List')
+let a = for i in 5:to:each i end
 
-let list = List:make(1,2,3,4)
-
-for v in list:each
-  v:print
-end
+1 + 'h'

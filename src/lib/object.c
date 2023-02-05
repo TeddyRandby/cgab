@@ -72,8 +72,8 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   };
 
   gab_value receivers[] = {
-      gab_get_type(gab, TYPE_UNDEFINED),
-      gab_get_type(gab, TYPE_UNDEFINED),
+      gab_type(gab, GAB_KIND_UNDEFINED),
+      gab_type(gab, GAB_KIND_UNDEFINED),
   };
 
   gab_value specs[] = {

@@ -49,7 +49,6 @@ typedef struct gab_compile_rule gab_compile_rule;
 struct gab_compile_rule {
   gab_compile_func prefix;
   gab_compile_func infix;
-  gab_compile_func postfix;
   gab_precedence prec;
   boolean multi_line;
 };
@@ -993,12 +992,12 @@ i32 compile_array(gab_engine *gab, gab_bc *bc, gab_module *mod) {
     return COMP_ERR;
 
   if (vse) {
-    push_op(bc, mod, OP_VARARRAY);
+    push_op(bc, mod, OP_VARTUPLE);
     push_byte(bc, mod, size);
 
     pop_slot(bc, size);
   } else {
-    push_op(bc, mod, OP_ARRAY);
+    push_op(bc, mod, OP_TUPLE);
     push_byte(bc, mod, size);
 
     pop_slot(bc, size);
@@ -1182,15 +1181,6 @@ i32 compile_exp_mch(gab_engine *gab, gab_bc *bc, gab_module *mod,
   v_u64_destroy(&done_jumps);
 
   push_slot(bc, 1);
-  return COMP_OK;
-}
-
-/*
- * Postfix type expression.
- */
-i32 compile_exp_type(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                     boolean assignable) {
-  push_op(bc, mod, OP_TYPE);
   return COMP_OK;
 }
 
@@ -1938,17 +1928,7 @@ i32 compile_exp_prec(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
     rule = get_rule(bc->previous_token);
 
-    // Maybe try and see if the current token has a rule for prefix here?
-    if (rule.infix == NULL) {
-      // No infix rule for this token it might be a postfix though.
-
-      if (rule.postfix == NULL) {
-        dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN, "");
-        return COMP_ERR;
-      }
-
-      have = rule.postfix(gab, bc, mod, assignable);
-    } else {
+    if (rule.infix != NULL) {
       // Treat this as an infix expression.
       have = rule.infix(gab, bc, mod, assignable);
     }
@@ -1998,7 +1978,6 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (expect_token(bc, TOKEN_IN) < 0)
     return COMP_ERR;
 
-  // This is argument to send __itr__ to
   if (compile_expression(gab, bc, mod) < 0)
     return COMP_ERR;
 
@@ -2160,17 +2139,13 @@ i32 compile_exp_rtn(gab_engine *gab, gab_bc *bc, gab_module *mod,
 // All of the expression compiling functions follow the naming convention
 // compile_exp_XXX.
 #define NONE()                                                                 \
-  { NULL, NULL, NULL, PREC_NONE, false }
+  { NULL, NULL, PREC_NONE, false }
 #define PREFIX(fnc)                                                            \
-  { compile_exp_##fnc, NULL, NULL, PREC_NONE, false }
+  { compile_exp_##fnc, NULL, PREC_NONE, false }
 #define INFIX(fnc, prec, is_multi)                                             \
-  { NULL, compile_exp_##fnc, NULL, PREC_##prec, is_multi }
+  { NULL, compile_exp_##fnc, PREC_##prec, is_multi }
 #define PREFIX_INFIX(pre, in, prec, is_multi)                                  \
-  { compile_exp_##pre, compile_exp_##in, NULL, PREC_##prec, is_multi }
-#define POSTFIX(fnc)                                                           \
-  { NULL, NULL, compile_exp_##fnc, PREC_PROPERTY, false }
-#define PREFIX_POSTFIX(pre, post)                                              \
-  { compile_exp_##pre, NULL, compile_exp_##post, PREC_PROPERTY, false }
+  { compile_exp_##pre, compile_exp_##in, PREC_##prec, is_multi }
 
 // ----------------Pratt Parsing Table ----------------------
 const gab_compile_rule gab_bc_rules[] = {
@@ -2204,7 +2179,7 @@ const gab_compile_rule gab_bc_rules[] = {
     NONE(),                  // DOT_DOT
     NONE(),                            // EQUAL
     INFIX(bin, EQUALITY, false),              // EQUALEQUAL
-    POSTFIX(type),                            // QUESTION
+    NONE(),                            // QUESTION
     NONE(),                      // BANG
     NONE(),                            // AT
     NONE(),                            // COLON_EQUAL

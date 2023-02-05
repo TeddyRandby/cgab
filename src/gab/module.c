@@ -525,9 +525,9 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_SEND_MONO_CLOSURE:
   case OP_SEND_MONO_BUILTIN:
   case OP_SEND_PRIMITIVE_STORE_ANA:
-  case OP_SEND_PRIMITIVE_STORE_MONO_RECORD:
+  case OP_SEND_PRIMITIVE_STORE_MONO:
   case OP_SEND_PRIMITIVE_LOAD_ANA:
-  case OP_SEND_PRIMITIVE_LOAD_MONO_RECORD:
+  case OP_SEND_PRIMITIVE_LOAD_MONO:
   case OP_SEND_PRIMITIVE_CONCAT:
   case OP_SEND_PRIMITIVE_ADD:
   case OP_SEND_PRIMITIVE_SUB:
@@ -624,8 +624,8 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_RECORD: {
     return dumpDictInstruction(self, op, offset);
   }
-  case OP_VARARRAY:
-  case OP_ARRAY: {
+  case OP_VARTUPLE:
+  case OP_TUPLE: {
     return dumpDictInstruction(self, op, offset);
   }
   default: {

@@ -1,3 +1,5 @@
+'std':require
+
 def describe(name, cb)
   ('\n--{name}--'):print
   cb()
@@ -93,6 +95,20 @@ describe('Closures', do ()
    end)
 end)
 
+# describe('Lists', do ()
+    # def list = [1 2 3]
+
+    # list[0]:expect(1)
+
+    # list[1]:expect(2)
+
+    # list[2]:expect(3)
+
+    # list[1] = 4
+
+    # list[1]:expect(4)
+# end)
+
 describe('Records', do ()
   def Point { x y }
 
@@ -110,96 +126,51 @@ describe('Records', do ()
     let pone = { x = 1 y = 2}
     let ptwo = { x = 3 y = 4}
 
-    (pone?):expect(ptwo?)
-  end)
-
-  it('should set properties dynamically', do ()
-    let obj = { [[]?] = 'test' }
-    obj['y'] = 2
-
-    (obj.y):expect(2)
-    (obj[[]?]):expect('test')
+    (pone:type):expect(ptwo:type)
   end)
 
   it('should work for all kinds of keys', do ()
-    let obj = {}
-    obj[obj] = 2
-    obj[{}?] = 3
+    let obj = {
+        [{}:type] = 3
+        [it]  = it
+    }
 
-    let i = do ()
-      1
-    end
-
-    obj[i] = i 
-
-    obj[obj]:expect(2)
-    obj[{}?]:expect(3)
-    obj[i]:expect(i)
-  end)
-
-  it('should make a var array', do ()
-    def abcd()
-        return 'a', 'b', 'c', 'd'
-    end
-
-    let list = [abcd()]
-
-    list[0]:expect('a')
-    list[1]:expect('b')
-    list[2]:expect('c')
-    list[3]:expect('d')
-    list[4]:expect(nil)
-  end)
-
-  it('should work through cache', do ()
-    let num = 2 
-    let a = { [it] = num }
-
-    def test()
-        num = (a[it] or 0) + 1 # Test the reading cache
-        a[it] = num            # Test the writing cache
-    end
-
-    a[it]:expect(2)
-
-    test()
-    test() # Prime the cache
-
-    a.s = 2 # Change the shape
-
-    test()
-
-    a[it]:expect(5)
-
-    a = { b = 5 } # Change the object
-    test()
-
-    a[it]:expect(1)
+    obj[{}:type]:expect(3)
+    obj[it]:expect(it)
   end)
 
   it('should work when shapes change', do ()
-    let obj = { }
-    def get_a()
-        obj.a
+    let justa = { a }
+    let ab = { a = 3 b }
+    let abc = { a = 'hi' b c}
+
+    def get_a[]
+        self.a
     end
     
-    get_a():expect(nil)
+    justa:get_a:expect(true)
 
-    obj.a = 1
+    ab:get_a:expect(3)
 
-    get_a():expect(1)
+    abc:get_a:expect('hi')
 
-    obj.a = obj.a + 1
+    ab:get_a:expect(3)
+    ab:get_a:expect(3)
 
-    get_a():expect(2)
+    ab.a = 5
 
-    obj.b = obj.a = obj.a + 1
+    abc:get_a:expect('hi')
 
-    get_a():expect(3)
+    ab:get_a:expect(5)
+    justa:get_a:expect(true)
+  end)
 
-    obj.b = obj.a = obj.a + 1
+  it('should make tuples', do ()
+    let tup = [ 1 2 3 ]
 
-    get_a():expect(4)
+    tup[0]:expect(1)
+    tup[1]:expect(2)
+    tup[2]:expect(3)
   end)
 end)
 
@@ -286,7 +257,7 @@ describe('Messages', do ()
         1:test:expect(1)
     end)
 
-    def test[1?](a)
+    def test[1:type](a)
         self + 1
     end
 
@@ -385,4 +356,29 @@ describe('Effects', do ()
 
        eff(onetwo())
    end)
+end)
+
+describe('Lists', do ()
+    it('should work generally', do ()
+        let list = List:new(100)
+
+        list:at(0):expect(100)
+
+        list:put('hello')
+        list:at(1):expect('hello')
+
+        list:at(2):expect(nil)
+
+        list:pop:expect('hello')
+    end)
+end)
+
+describe('Maps', do ()
+  it('should work generally', do ()
+    let map = Map:new
+
+    map:put('hello', 'world')
+
+    map:at('hello'):expect('world')
+  end)
 end)

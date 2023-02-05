@@ -5,20 +5,10 @@
 #include <stdio.h>
 #include <string.h>
 
-gab_value gab_lib_from(gab_engine *gab, gab_vm *vm, u8 argc,
-                       gab_value argv[argc]) {
-  if (argc != 2) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_from");
-  }
-
-  return gab_val_to_string(gab, argv[1]);
-}
-
 gab_value gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc,
                       gab_value argv[argc]) {
-  if (argc != 1) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_len");
-  }
+  if (argc != 1)
+    return gab_panic(gab, vm, "Invalid call to gab_lib_len");
 
   gab_obj_string *str = GAB_VAL_TO_STRING(argv[0]);
 
@@ -31,9 +21,6 @@ gab_value gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc,
 
 gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
                         gab_value argv[argc]) {
-  if (argc < 1) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_slice");
-  }
 
   gab_obj_string *str = GAB_VAL_TO_STRING(argv[0]);
 
@@ -41,32 +28,27 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
   u64 start = 0, end = len;
 
   switch (argc) {
-
-  case 2: {
-    if (!GAB_VAL_IS_NUMBER(argv[1])) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_slice");
-    }
+  case 2:
+    if (!GAB_VAL_IS_NUMBER(argv[1]))
+      return gab_panic(gab, vm, "Invalid call to gab_lib_slice");
     u64 a = GAB_VAL_TO_NUMBER(argv[1]);
     start = CLAMP(a, len);
     break;
-  }
 
-  case 3: {
+  case 3:
     if (GAB_VAL_IS_NUMBER(argv[1])) {
       start = CLAMP(GAB_VAL_TO_NUMBER(argv[1]), len);
-    } else if (!GAB_VAL_IS_NIL(argv[1])) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_slice");
-    }
+    } else if (!GAB_VAL_IS_NIL(argv[1]))
+      return gab_panic(gab, vm, "Invalid call to gab_lib_slice");
+
     if (GAB_VAL_TO_NUMBER(argv[2])) {
       end = CLAMP(GAB_VAL_TO_NUMBER(argv[2]), len);
-    } else if (!GAB_VAL_IS_NIL(argv[2])) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_slice");
-    }
+    } else if (!GAB_VAL_IS_NIL(argv[2]))
+      return gab_panic(gab, vm, "Invalid call to gab_lib_slice");
     break;
-  }
 
   default:
-    gab_panic(gab, vm, "Invalid call to gab_lib_slice");
+    return gab_panic(gab, vm, "Invalid call to gab_lib_slice");
   }
 
   gab_obj_string *src = GAB_VAL_TO_STRING(argv[0]);
@@ -80,9 +62,8 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
 
 gab_value gab_lib_split(gab_engine *gab, gab_vm *vm, u8 argc,
                         gab_value argv[argc]) {
-  if (argc != 2 || !GAB_VAL_IS_STRING(argv[1])) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_split");
-  }
+  if (argc != 2 || !GAB_VAL_IS_STRING(argv[1]))
+    return gab_panic(gab, vm, "Invalid call to gab_lib_split");
 
   gab_obj_string *src = GAB_VAL_TO_STRING(argv[0]);
   gab_obj_string *delim_src = GAB_VAL_TO_STRING(argv[1]);
@@ -114,28 +95,28 @@ gab_value gab_lib_split(gab_engine *gab, gab_vm *vm, u8 argc,
   s_i8 split = s_i8_create(start, len);
   v_u64_push(&splits, GAB_VAL_OBJ(gab_obj_string_create(gab, split)));
 
-  gab_value result = GAB_ARRAY(vm, splits.len, splits.data);
+  gab_obj_list *list = gab_obj_list_create(splits.len, 1, splits.data);
 
-  v_u64_destroy(&splits);
+  gab_value result = GAB_VAL_OBJ(list);
+
+  gab_dref(gab, vm, result);
 
   return result;
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  gab_value string_type = gab_get_type(gab, TYPE_STRING);
+  gab_value string_type = gab_type(gab, GAB_KIND_STRING);
 
   s_i8 keys[] = {
       s_i8_cstr("slice"),
       s_i8_cstr("split"),
       s_i8_cstr("len"),
-      s_i8_cstr("from"),
   };
 
   gab_value values[] = {
       GAB_BUILTIN(slice),
       GAB_BUILTIN(split),
       GAB_BUILTIN(len),
-      GAB_BUILTIN(from),
   };
 
   for (u8 i = 0; i < LEN_CARRAY(keys); i++) {

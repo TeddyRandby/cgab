@@ -12,9 +12,9 @@ def each[Range]
 end
 
 def make[RANGE](opts, to)
-  opts? match
-    { to }?   => { from = 0 to = opts.to }
-    { from }? => { from = opts.from to = 0 }
+  opts:type match
+    { to }:type   => { from = 0 to = opts.to }
+    { from }:type => { from = opts.from to = 0 }
     Number    => {
       from = to and opts or 0
       to = to or opts

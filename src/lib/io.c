@@ -103,7 +103,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
       s_i8_cstr("write"),
   };
 
-  gab_value container_type = gab_get_type(gab, TYPE_CONTAINER);
+  gab_value container_type = gab_type(gab, GAB_KIND_CONTAINER);
 
   gab_value receiver_types[] = {
       io,
