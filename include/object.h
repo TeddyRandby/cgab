@@ -2,6 +2,7 @@
 #define GAB_OBJECT_H
 
 #include "value.h"
+#include <stdio.h>
 
 typedef struct gab_module gab_module;
 typedef struct gab_gc gab_gc;
@@ -300,7 +301,8 @@ static inline u16 gab_obj_message_find(gab_obj_message *self,
 }
 
 static inline void gab_obj_message_set(gab_obj_message *self, u16 offset,
-                                       gab_value spec) {
+                                       gab_value rec, gab_value spec) {
+  d_specs_iset_key(&self->specs, offset, rec);
   d_specs_iset_val(&self->specs, offset, spec);
   self->version++;
 }
@@ -423,11 +425,14 @@ static inline gab_value gab_obj_record_at(gab_obj_record *self,
 /*
  *------------- OBJ_LIST -------------
  */
+#define T gab_value
+#include "vector.h"
+
 typedef struct gab_obj_list gab_obj_list;
 struct gab_obj_list {
   gab_obj header;
 
-  v_u64 data;
+  v_gab_value data;
 };
 
 #define GAB_VAL_IS_LIST(value) (gab_val_is_obj_kind(value, GAB_KIND_LIST))
@@ -441,16 +446,16 @@ static inline gab_value gab_obj_list_put(gab_obj_list *self, u64 offset,
   if (offset >= self->data.len) {
     u64 nils = offset - self->data.len;
 
-    while (nils) {
-        v_u64_push(&self->data, GAB_VAL_NIL());
+    while (nils--) {
+      v_gab_value_push(&self->data, GAB_VAL_NIL());
     }
 
-    v_u64_push(&self->data, value);
+    v_gab_value_push(&self->data, value);
 
     return value;
   }
 
-  v_u64_set(&self->data, offset, value);
+  v_gab_value_set(&self->data, offset, value);
 
   return value;
 }
@@ -459,17 +464,26 @@ static inline gab_value gab_obj_list_at(gab_obj_list *self, u64 offset) {
   if (offset >= self->data.len)
     return GAB_VAL_NIL();
 
-  return self->data.data[offset];
+  return v_gab_value_val_at(&self->data, offset);
 }
 
 /*
  *------------- OBJ_MAP -------------
  */
+
+#define K gab_value
+#define V gab_value
+#define DEF_V GAB_VAL_NIL()
+#define HASH(a) a
+#define EQUAL(a, b) (a == b)
+#define LOAD DICT_MAX_LOAD
+#include "dict.h"
+
 typedef struct gab_obj_map gab_obj_map;
 struct gab_obj_map {
   gab_obj header;
 
-  d_u64 data;
+  d_gab_value data;
 };
 
 #define GAB_VAL_IS_MAP(value) (gab_val_is_obj_kind(value, GAB_KIND_MAP))
@@ -477,18 +491,18 @@ struct gab_obj_map {
 #define GAB_OBJ_TO_MAP(value) ((gab_obj_map *)value)
 
 gab_obj_map *gab_obj_map_create(u64 len, u64 stride, gab_value keys[len],
-                                 gab_value values[len]);
+                                gab_value values[len]);
 
 static inline gab_value gab_obj_map_put(gab_obj_map *self, gab_value key,
                                         gab_value value) {
 
-  d_u64_insert(&self->data, key, value);
+  d_gab_value_insert(&self->data, key, value);
 
   return value;
 }
 
 static inline gab_value gab_obj_map_at(gab_obj_map *self, gab_value key) {
-  return d_u64_read(&self->data, key);
+  return d_gab_value_read(&self->data, key);
 }
 
 /*

@@ -1,8 +1,6 @@
-require('list')
-
 def __get__[List](key) self:at(key) end
 
-def __set__[List](key, value) self:put(key, value) end
+def __set__[List](key, value) self:put(value, key) end
 
 def first[List] self[0] end
 

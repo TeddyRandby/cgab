@@ -31,3 +31,4 @@ STATUS(WRONG_ARITY, "Could not call a function with the wrong number of argument
 STATUS(ASSERTION_FAILED, "A runtime assertion failed")
 STATUS(OVERFLOW, "Reached maximum call depth")
 STATUS(MISSING_PROPERTY, "Record was missing property")
+STATUS(IMPLEMENTATION_EXISTS, "Implementation already exists")

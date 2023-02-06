@@ -31,6 +31,7 @@ void gab_obj_dref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_obj *obj) {
       gab_gc_collect(gab, vm, gc);
 #endif
   }
+
   gc->decrements[gc->decrement_count++] = obj;
 }
 
@@ -150,7 +151,7 @@ void gab_gc_destroy(gab_gc *self) {
     if (d_rc_tracker_iexists(&self->tracked_values, i)) {
       gab_obj *k = d_rc_tracker_ikey(&self->tracked_values, i);
       i32 v = d_rc_tracker_ival(&self->tracked_values, i);
-      if (v > 0 && v < 200) {
+      if (v > 0) {
         gab_val_dump(GAB_VAL_OBJ(k));
         fprintf(stdout, " had %i remaining references.\n", v);
         dump_rcs_for(self, k);
@@ -205,8 +206,8 @@ static inline void cleanup(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
   }
 
 #if GAB_DEBUG_GC
-  gc->tracked_decrements.len = 0;
-  gc->tracked_increments.len = 0;
+  // gc->tracked_decrements.len = 0;
+  // gc->tracked_increments.len = 0;
 #endif
 }
 
@@ -292,9 +293,9 @@ static inline void for_child_and_gc_do(gab_gc *gc, gab_obj *obj,
   case GAB_KIND_MAP: {
     gab_obj_map *map = (gab_obj_map *)obj;
     for (u64 i = 0; i < map->data.cap; i++) {
-      if (d_u64_iexists(&map->data, i)) {
-        gab_value k = d_u64_ikey(&map->data, i);
-        gab_value v = d_u64_ival(&map->data, i);
+      if (d_gab_value_iexists(&map->data, i)) {
+        gab_value k = d_gab_value_ikey(&map->data, i);
+        gab_value v = d_gab_value_ival(&map->data, i);
         if (GAB_VAL_IS_OBJ(k))
           fnc(gc, GAB_VAL_TO_OBJ(k));
         if (GAB_VAL_IS_OBJ(v))
@@ -397,9 +398,9 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc) {
   case GAB_KIND_MAP: {
     gab_obj_map *map = (gab_obj_map *)obj;
     for (u64 i = 0; i < map->data.cap; i++) {
-      if (d_u64_iexists(&map->data, i)) {
-        gab_value k = d_u64_ikey(&map->data, i);
-        gab_value v = d_u64_ival(&map->data, i);
+      if (d_gab_value_iexists(&map->data, i)) {
+        gab_value k = d_gab_value_ikey(&map->data, i);
+        gab_value v = d_gab_value_ival(&map->data, i);
         if (GAB_VAL_IS_OBJ(k))
           fnc(GAB_VAL_TO_OBJ(k));
         if (GAB_VAL_IS_OBJ(v))
@@ -490,9 +491,9 @@ static inline void dec_child_refs(gab_engine *gab, gab_vm *vm, gab_gc *gc,
   case GAB_KIND_MAP: {
     gab_obj_map *map = (gab_obj_map *)obj;
     for (u64 i = 0; i < map->data.cap; i++) {
-      if (d_u64_iexists(&map->data, i)) {
-        gab_value k = d_u64_ikey(&map->data, i);
-        gab_value v = d_u64_ival(&map->data, i);
+      if (d_gab_value_iexists(&map->data, i)) {
+        gab_value k = d_gab_value_ikey(&map->data, i);
+        gab_value v = d_gab_value_ival(&map->data, i);
         dec_if_obj_ref(gab, vm, gc, k);
         dec_if_obj_ref(gab, vm, gc, v);
       }

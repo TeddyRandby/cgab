@@ -105,6 +105,7 @@ install_data(
   'std/String.gab',
   'std/Time.gab',
   'std/List.gab',
+  'std/Map.gab',
   'std/Pry.gab',
   install_dir: '/usr/local/share/gab/std/'
   )

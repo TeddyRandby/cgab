@@ -17,6 +17,10 @@ def expect[](other)
   check(self == other, 'Expected {self} to be equal to {other}') or panic()
 end
 
+def expect_not[](other)
+  check(not (self == other), 'Expected {self} to not be equal to {other}') or panic()
+end
+
 describe('Numbers', do ()
   it('should be equal to itself', do ()
     5:expect(5)
@@ -359,26 +363,73 @@ describe('Effects', do ()
 end)
 
 describe('Lists', do ()
-    it('should work generally', do ()
+    it('should create', do ()
         let list = List:new(100)
 
-        list:at(0):expect(100)
+        list:expect_not(nil)
+    end)
+
+    it('should put', do ()
+        let list = List:new
+
+        list:at(0):expect(nil)
 
         list:put('hello')
-        list:at(1):expect('hello')
 
-        list:at(2):expect(nil)
+        list:at(0):expect('hello')
 
-        list:pop:expect('hello')
+        list:put('hello', 2)
+
+        list:at(2):expect('hello')
+    end)
+
+    it('should get/set', do ()
+        let list = List:new
+
+        list[0]:expect(nil)
+
+        list[0] = 5
+
+        list[0]:expect(5)
+
+        list[10] = 10
+
+        list[10]:expect(10)
+
+        list[9]:expect(nil)
     end)
 end)
 
 describe('Maps', do ()
-  it('should work generally', do ()
+  it('should create', do ()
     let map = Map:new
 
-    map:put('hello', 'world')
+    map:expect_not(nil)
+  end)
 
-    map:at('hello'):expect('world')
+  it('should create with initial', do ()
+    let map = Map:new { hi = 'bob' }
+
+    map:expect_not(nil)
+
+    map:at('hi'):expect('bob')
+  end)
+
+  it('should put', do ()
+    let map = Map:new
+
+    map:put('hi', 'bob')
+
+    map:at('hi'):expect('bob')
+    map:at('bye'):expect(nil)
+  end)
+
+  it('should get/set', do ()
+    let map = Map:new
+
+    map['hi'] = 'bob'
+
+    map['hi']:expect('bob')
+    map['bye']:expect(nil)
   end)
 end)

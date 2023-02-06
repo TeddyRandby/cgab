@@ -285,12 +285,13 @@ static inline boolean call_closure(gab_engine *gab, gab_vm *vm,
 }
 
 static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_obj_builtin *b,
-                                u8 arity, u8 want) {
-  gab_value result = (*b->function)(gab, vm, arity, vm->top - arity);
+                                u8 arity, u8 want, boolean is_message) {
+    // Only pass in the extra "self" argument if this is a message.
+  gab_value result =
+      (*b->function)(gab, vm, arity + is_message, vm->top - arity - is_message);
 
-  vm->top -= arity;
-
-  vm->top = trim_return(vm, &result, vm->top, 1, want);
+  // There is always an extra to trim bc of the receiver or callee.
+  vm->top = trim_return(vm, &result, vm->top - arity - 1, 1, want);
 }
 
 static inline gab_value capture_upvalue(gab_engine *gab, gab_vm *vm, gab_gc *gc,
@@ -529,7 +530,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
           return vm_error(VM(), GAB_OVERFLOW, "");
 
       } else if (GAB_VAL_IS_BUILTIN(callee)) {
-        call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(callee), have, want);
+        call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(callee), have, want,
+                     false);
       } else if (GAB_VAL_IS_EFFECT(callee)) {
 
         if (!call_effect(VM(), GAB_VAL_TO_EFFECT(callee), have, want))
@@ -615,13 +617,13 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
     {
       gab_obj_message *msg;
-      u8 arity, want, version;
+      u8 have, want, version;
       u16 offset;
       gab_value cached_type;
 
       CASE_CODE(VARSEND_MONO_CLOSURE) : {
         msg = READ_MESSAGE;
-        arity = VAR() + READ_BYTE;
+        have = VAR() + READ_BYTE;
         want = READ_BYTE;
         version = READ_BYTE;
         offset = READ_SHORT;
@@ -632,7 +634,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       CASE_CODE(SEND_MONO_CLOSURE) : {
         msg = READ_MESSAGE;
-        arity = READ_BYTE;
+        have = READ_BYTE;
         want = READ_BYTE;
         version = READ_BYTE;
         offset = READ_SHORT;
@@ -640,7 +642,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       }
 
     complete_send_mono_closure : {
-      gab_value receiver = PEEK_N(arity + 1);
+      gab_value receiver = PEEK_N(have + 1);
 
       gab_value type = gab_val_type(ENGINE(), receiver);
 
@@ -657,7 +659,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       STORE_FRAME();
 
-      if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_BLOCK(spec), arity, want))
+      if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_BLOCK(spec), have, want))
         return vm_error(VM(), GAB_OVERFLOW, "");
 
       LOAD_FRAME();
@@ -667,7 +669,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       CASE_CODE(SEND_MONO_BUILTIN) : {
         msg = READ_MESSAGE;
-        arity = READ_BYTE;
+        have = READ_BYTE;
         want = READ_BYTE;
         version = READ_BYTE;
         offset = READ_SHORT;
@@ -678,7 +680,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       CASE_CODE(VARSEND_MONO_BUILTIN) : {
         msg = READ_MESSAGE;
-        arity = VAR() + READ_BYTE;
+        have = VAR() + READ_BYTE;
         want = READ_BYTE;
         version = READ_BYTE;
         offset = READ_SHORT;
@@ -688,7 +690,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       }
 
     complete_send_mono_builtin : {
-      gab_value receiver = PEEK_N(arity + 1);
+      gab_value receiver = PEEK_N(have + 1);
 
       gab_value type = gab_val_type(ENGINE(), receiver);
 
@@ -703,7 +705,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       STORE_FRAME();
 
-      call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(spec), arity + 1, want);
+      call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(spec), have, want, true);
 
       NEXT();
     }
@@ -1600,7 +1602,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_obj_message *m = READ_MESSAGE;
       gab_value r = POP();
 
-      gab_gc_iref(ENGINE(), VM(), GC(), r);
+      u16 offset = gab_obj_message_find(m, r);
+
+      if (offset != UINT16_MAX) {
+        STORE_FRAME();
+        return vm_error(VM(), GAB_IMPLEMENTATION_EXISTS, "");
+      }
 
       gab_obj_block *blk = gab_obj_block_create(p);
 
@@ -1622,7 +1629,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       gab_gc_iref_many(ENGINE(), VM(), GC(), blk->nupvalues, blk->upvalues);
 
-      gab_gc_dref(ENGINE(), VM(), GC(), gab_obj_message_read(m, r));
+      gab_gc_iref(ENGINE(), VM(), GC(), r);
 
       gab_obj_message_insert(m, r, GAB_VAL_OBJ(blk));
 

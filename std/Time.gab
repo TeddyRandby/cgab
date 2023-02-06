@@ -1,5 +1,3 @@
-def List = require('List')
-
 def bench(cb, runs)
     let times = List:new
 

@@ -83,16 +83,6 @@ struct primitive primitives[] = {
     },
     {
         .name = "__set__",
-        .type = GAB_KIND_LIST,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_STORE_ANA),
-    },
-    {
-        .name = "__get__",
-        .type = GAB_KIND_LIST,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LOAD_ANA),
-    },
-    {
-        .name = "__set__",
         .type = GAB_KIND_UNDEFINED,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_STORE_ANA),
     },
@@ -147,9 +137,15 @@ gab_engine *gab_create() {
 }
 
 void gab_destroy(gab_engine *gab) {
-
   if (gab == NULL)
     return;
+
+  gab_module *mod = gab->modules;
+  while (mod != NULL) {
+    gab_module *m = mod;
+    mod = m->next;
+    gab_module_collect(gab, m);
+  }
 
   for (u64 i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
@@ -180,13 +176,6 @@ void gab_destroy(gab_engine *gab) {
     gab_gc_dref(gab, NULL, &gab->gc, gab->argv_values->data[i]);
   }
 
-  gab_module *mod = gab->modules;
-  while (mod != NULL) {
-    gab_module *m = mod;
-    mod = m->next;
-    gab_module_collect(gab, m);
-  }
-
   gab_gc_collect(gab, NULL, &gab->gc);
 
   gab_gc_destroy(&gab->gc);
@@ -214,11 +203,15 @@ void gab_collect(gab_engine *gab, gab_vm *vm) {
 
 void gab_args(gab_engine *gab, u8 argc, s_i8 argv_names[argc],
               gab_value argv_values[argc]) {
-  if (gab->argv_values != NULL)
+  if (gab->argv_values != NULL) {
+    gab_dref_many(gab, NULL, argc, argv_values);
     a_u64_destroy(gab->argv_values);
+  }
 
   if (gab->argv_names != NULL)
     a_s_i8_destroy(gab->argv_names);
+
+  gab_iref_many(gab, NULL, argc, argv_values);
 
   gab->argv_names = a_s_i8_create(argv_names, argc);
   gab->argv_values = a_u64_create(argv_values, argc);

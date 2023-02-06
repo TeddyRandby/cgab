@@ -1,5 +1,10 @@
 require('std')
 
-let a = for i in 5:to:each i end
+let list = List:new
 
-1 + 'h'
+list[0]:print
+
+list:put(5, 0)
+
+list[0]:print
+

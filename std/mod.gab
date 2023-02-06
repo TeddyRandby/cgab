@@ -1,7 +1,6 @@
 require('pry')
 require('dis')
 require('string')
-require('object')
 require('num')
 require('time')
 require('list')
@@ -13,4 +12,5 @@ require('Range')
 require('String')
 require('Time')
 require('List')
+require('Map')
 nil

@@ -9,8 +9,7 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
   if (argc < 1)
     return gab_panic(gab, vm, "Invalid call to gab_lib_len");
 
-  for (u64 i = 1; i < argc; i++)
-    gab_iref(gab, vm, argv[i]);
+  gab_iref_many(gab, vm, argc - 1, argv + 1);
 
   gab_obj_list *list = gab_obj_list_create(argc - 1, 1, argv + 1);
 
@@ -33,12 +32,12 @@ gab_value gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc,
 
 gab_value gab_lib_pop(gab_engine *gab, gab_vm *vm, u8 argc,
                       gab_value argv[argc]) {
-  if (argc > 1)
+  if (argc != 1)
     return gab_panic(gab, vm, "Invalid call to gab_lib_len");
 
   gab_obj_list *obj = GAB_VAL_TO_LIST(argv[0]);
 
-  gab_value result = v_u64_pop(&obj->data);
+  gab_value result = v_gab_value_pop(&obj->data);
 
   gab_dref(gab, vm, result);
 
@@ -61,14 +60,10 @@ gab_value gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc,
                       gab_value argv[argc]) {
   gab_obj_list *list = GAB_VAL_TO_LIST(argv[0]);
 
-  for (u64 i = 1; i < argc; i++) {
-      gab_iref(gab, vm, argv[i]);
-  }
-
   switch (argc) {
   case 2:
     // A push
-    v_u64_push(&list->data, argv[1]);
+    v_gab_value_push(&list->data, argv[1]);
     break;
   case 3:
     // A put
@@ -81,7 +76,9 @@ gab_value gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc,
     return gab_panic(gab, vm, "Invalid call to gab_lib_put");
   }
 
-  return GAB_VAL_NIL();
+  gab_iref_many(gab, vm, argc - 1, argv + 1);
+
+  return argv[0];
 }
 
 // Boy do NOT put side effects in here

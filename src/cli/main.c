@@ -10,12 +10,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-gab_value make_type(gab_engine* gab) {
-    gab_value type_builtin = GAB_BUILTIN(type);
+gab_value make_type(gab_engine *gab) {
+  gab_value type_builtin = GAB_BUILTIN(type);
 
-    gab_specialize(gab, s_i8_cstr("type"), GAB_VAL_UNDEFINED(), type_builtin);
+  gab_specialize(gab, s_i8_cstr("type"), GAB_VAL_UNDEFINED(), type_builtin);
 
-    return type_builtin;
+  return type_builtin;
+}
+
+gab_value make_panic(gab_engine *gab) {
+    gab_value panic_builtin = GAB_BUILTIN(panic);
+
+    return panic_builtin;
 }
 
 gab_value make_print(gab_engine *gab) {
@@ -64,7 +70,7 @@ void gab_repl() {
   gab_value args[] = {
       make_print(gab),
       make_require(gab),
-      GAB_BUILTIN(panic),
+      make_panic(gab),
       make_type(gab),
       gab_type(gab, GAB_KIND_STRING),
       gab_type(gab, GAB_KIND_NUMBER),
@@ -126,16 +132,16 @@ void gab_run_file(const char *path) {
   gab_engine *gab = gab_create();
 
   s_i8 arg_names[] = {
-      s_i8_cstr("print"),  s_i8_cstr("require"), s_i8_cstr("panic"), s_i8_cstr("type"),
-      s_i8_cstr("String"), s_i8_cstr("Number"),  s_i8_cstr("Boolean"),
-      s_i8_cstr("Block"),  s_i8_cstr("Message"), s_i8_cstr("Effect"),
-      s_i8_cstr("List"),   s_i8_cstr("Map"),
+      s_i8_cstr("print"),   s_i8_cstr("require"), s_i8_cstr("panic"),
+      s_i8_cstr("type"),    s_i8_cstr("String"),  s_i8_cstr("Number"),
+      s_i8_cstr("Boolean"), s_i8_cstr("Block"),   s_i8_cstr("Message"),
+      s_i8_cstr("Effect"),  s_i8_cstr("List"),    s_i8_cstr("Map"),
   };
 
   gab_value args[] = {
       make_print(gab),
       make_require(gab),
-      GAB_BUILTIN(panic),
+      make_panic(gab),
       make_type(gab),
       gab_type(gab, GAB_KIND_STRING),
       gab_type(gab, GAB_KIND_NUMBER),
@@ -168,6 +174,10 @@ void gab_run_file(const char *path) {
   gab_dref(gab, NULL, result);
 
 fin:
+  gab_dref(gab, NULL, args[0]);
+  gab_dref(gab, NULL, args[1]);
+  gab_dref(gab, NULL, args[2]);
+  gab_dref(gab, NULL, args[3]);
   gab_destroy(gab);
 
   imports_destroy(gab);

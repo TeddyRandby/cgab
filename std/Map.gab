@@ -1,1 +1,3 @@
-require('map')
+def __get__[Map](key) self:at(key) end
+
+def __set__[Map](key, value) self:put(key, value) end

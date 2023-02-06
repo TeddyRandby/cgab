@@ -91,17 +91,19 @@ gab_value gab_shared_object_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
     gab_panic(gab, vm, "Missing symbol 'gab_mod'");
   }
 
-  gab_value result = symbol(gab);
+  gab_value res = symbol(gab);
 
   import *i = NEW(import);
 
   i->k = IMPORT_SHARED;
-  i->cache = result;
+  i->cache = res;
   i->as.shared = handle;
 
   add_import(gab, module, i);
 
-  return result;
+  gab_dref(gab, vm, res);
+
+  return res;
 }
 
 gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
@@ -128,6 +130,8 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
   i->as.mod = pkg;
 
   add_import(gab, module, i);
+
+  gab_dref(gab, vm, res);
 
   return res;
 }
@@ -185,9 +189,6 @@ gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
 
   gab_value cached = check_import(gab, module);
   if (!GAB_VAL_IS_UNDEFINED(cached)) {
-    // Because the result of a builtin is always decremented,
-    // increment the cached values when they are returned.
-    gab_iref(gab, vm, cached);
     return cached;
   }
 

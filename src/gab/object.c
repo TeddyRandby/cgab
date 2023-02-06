@@ -108,6 +108,11 @@ void gab_obj_dump(gab_value value) {
     printf("[list:%p]", obj);
     break;
   }
+  case GAB_KIND_MAP: {
+    gab_obj_map *obj = GAB_VAL_TO_MAP(value);
+    printf("[map:%p]", obj);
+    break;
+  }
   case GAB_KIND_BUILTIN: {
     gab_obj_builtin *obj = GAB_VAL_TO_BUILTIN(value);
     printf("[builtin:%.*s]", (i32)obj->name.len, obj->name.data);
@@ -168,6 +173,8 @@ gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self) {
     return (gab_obj_string *)self;
   case GAB_KIND_BLOCK:
     return gab_obj_string_create(gab, s_i8_cstr("[block]"));
+  case GAB_KIND_MAP:
+    return gab_obj_string_create(gab, s_i8_cstr("[map]"));
   case GAB_KIND_LIST:
     return gab_obj_string_create(gab, s_i8_cstr("[list]"));
   case GAB_KIND_RECORD:
@@ -230,13 +237,14 @@ void gab_obj_destroy(gab_engine *gab, gab_vm *vm, gab_obj *self) {
   case GAB_KIND_LIST: {
     gab_obj_list *lst = (gab_obj_list *)self;
 
-    v_u64_destroy(&lst->data);
+    v_gab_value_destroy(&lst->data);
     GAB_DESTROY_STRUCT(lst);
     return;
   }
   case GAB_KIND_MAP: {
     gab_obj_map *map = (gab_obj_map *)self;
-    d_u64_destroy(&map->data);
+    d_gab_value_destroy(&map->data);
+    GAB_DESTROY_STRUCT(map);
     return;
   }
   case GAB_KIND_CONTAINER: {
@@ -485,13 +493,13 @@ gab_obj_shape *gab_obj_shape_grow(gab_engine *gab, gab_vm *vm,
 }
 
 gab_obj_map *gab_obj_map_create(u64 len, u64 stride, gab_value keys[len],
-                                 gab_value values[len]) {
+                                gab_value values[len]) {
   gab_obj_map *self = GAB_CREATE_OBJ(gab_obj_map, GAB_KIND_MAP);
 
-  d_u64_create(&self->data, len < 8 ? 8 : len * 2);
+  d_gab_value_create(&self->data, len < 8 ? 8 : len * 2);
 
   for (u64 i = 0; i < len; i++) {
-    d_u64_insert(&self->data, keys[i * stride], values[i * stride]);
+    d_gab_value_insert(&self->data, keys[i * stride], values[i * stride]);
   }
 
   return self;
@@ -500,7 +508,7 @@ gab_obj_map *gab_obj_map_create(u64 len, u64 stride, gab_value keys[len],
 gab_obj_list *gab_obj_list_create(u64 len, u64 stride, gab_value values[len]) {
   gab_obj_list *self = GAB_CREATE_OBJ(gab_obj_list, GAB_KIND_LIST);
 
-  v_u64_create(&self->data, len < 8 ? 8 : len * 2);
+  v_gab_value_create(&self->data, len < 8 ? 8 : len * 2);
 
   self->data.len = len;
 

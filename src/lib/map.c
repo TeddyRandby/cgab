@@ -1,10 +1,10 @@
 #include "include/gab.h"
 #include "include/object.h"
 #include <assert.h>
+#include <stdio.h>
 
 gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
                       gab_value argv[argc]) {
-
   switch (argc) {
   case 1: {
     gab_obj_map *map = gab_obj_map_create(0, 0, NULL, NULL);
@@ -27,7 +27,7 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
 
     gab_iref_many(gab, vm, shp->len, shp->data);
 
-    gab_obj_map* map = gab_obj_map_create(rec->len, 1, rec->data, shp->data);
+    gab_obj_map* map = gab_obj_map_create(rec->len, 1, shp->data, rec->data);
 
     gab_value result = GAB_VAL_OBJ(map);
 
@@ -36,16 +36,8 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
     return result;
   }
   default:
-    return gab_panic(gab, vm, "Invalid call to gab_lib_len");
+    return gab_panic(gab, vm, "Invalid call to gab_lib_new");
   }
-
-  gab_obj_list *list = gab_obj_list_create(argc - 1, 1, argv + 1);
-
-  gab_value result = GAB_VAL_OBJ(list);
-
-  gab_dref(gab, vm, result);
-
-  return result;
 }
 
 gab_value gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc,
