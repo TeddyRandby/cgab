@@ -298,8 +298,13 @@ gab_token other(gab_lexer *self) {
 
     if (is_alpha(peek(self))) {
       // If we didn't get a keyword, return a token message
-      if (identifier(self) == TOKEN_IDENTIFIER)
-        return TOKEN_MESSAGE;
+      if (identifier(self) == TOKEN_IDENTIFIER) {
+          if (peek(self) == '?' || peek(self) == '!') {
+              advance(self);
+          }
+
+          return TOKEN_MESSAGE;
+      }
 
       // Otherwise, we got a keyword and this was an error
 

@@ -1040,6 +1040,12 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   // From now on, we know its a function definition.
+  // Function names can end in a ? or a !
+  // or, if the name is op
+  if (match_and_eat_token(bc, TOKEN_QUESTION))
+      name.len++;
+  else if (match_and_eat_token(bc, TOKEN_BANG))
+      name.len++;
 
   // Now compile the specialization
   if (compile_function_specialization(gab, bc, mod, name) < 0)
