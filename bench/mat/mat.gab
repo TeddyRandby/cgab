@@ -1,0 +1,80 @@
+require('List')
+require('list')
+
+def each[Number]
+  let v = 0
+
+  loop
+    yield v
+    v = v + 1
+  until v >= self
+end
+
+def Matrix { data n }
+
+def matrix(n, data) { data n } end
+
+def __add__[Matrix](other)
+  self.n == other.n or panic()
+
+  def N = self.n
+
+  let data = List:new(N * N)
+
+  for i in data:len:each
+    data[i] = self.data[i] + other.data[i]
+  end
+
+  matrix(N, data)
+end
+
+def __mul__[Matrix](other)
+  self.n == other.n or panic()
+
+  def N = self.n
+
+  let data = List:new(N * N)
+
+  for i in N:each
+    for j in N:each
+      let sum = 0
+
+      for k in N:each
+        sum = sum + self.data[i*N+k] * other.data[k*N+j]
+      end
+
+      data[i*N+j] = sum
+    end
+  end
+
+  matrix(N, data)
+end
+
+def diag_sum [Matrix]
+  let sum = 0
+
+  def N = self.n
+
+  for i in N:each
+    sum = sum + self.data[i*(N + 1)]
+  end
+
+  sum
+end
+
+let sum = 0
+
+let N = 2
+
+
+for _ in 5000:each
+  let a = matrix(N, List:new(N * N):map! do (_, i) i end)
+  let b = matrix(N, List:new(N * N):map! do (_, i) i end)
+
+  let c = a + b
+  let d = c * a * b
+
+  sum = d:diag_sum
+end
+
+print(sum)

@@ -6,18 +6,31 @@
 
 gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
                       gab_value argv[argc]) {
-  if (argc < 1)
-    return gab_panic(gab, vm, "Invalid call to gab_lib_len");
+  switch (argc) {
+  case 1: {
+    gab_obj_list *list = gab_obj_list_create_empty(8);
 
-  gab_iref_many(gab, vm, argc - 1, argv + 1);
+    gab_value result = GAB_VAL_OBJ(list);
 
-  gab_obj_list *list = gab_obj_list_create(argc - 1, 1, argv + 1);
+    gab_dref(gab, vm, result);
 
-  gab_value result = GAB_VAL_OBJ(list);
+    return result;
+  }
+  case 2: {
+    if (!GAB_VAL_IS_NUMBER(argv[1]))
+      return gab_panic(gab, vm, "Invalid call to gab_lib_new");
 
-  gab_dref(gab, vm, result);
+    gab_obj_list *list = gab_obj_list_create_empty(GAB_VAL_TO_NUMBER(argv[1]));
 
-  return result;
+    gab_value result = GAB_VAL_OBJ(list);
+
+    gab_dref(gab, vm, result);
+
+    return result;
+  }
+  default:
+    return gab_panic(gab, vm, "Invalid call to gab_lib_new");
+  }
 }
 
 gab_value gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc,

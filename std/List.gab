@@ -1,3 +1,4 @@
+require('list')
 def __get__[List](key)
     key:type match
         { from to }:type => self:slice(key.from, key.to)
@@ -52,6 +53,33 @@ def map[List](mapper)
     end
 
     v
+end
+
+def fill[List](value)
+    let v = List:new
+
+    for _, index in self:each
+        self[index] = value
+    end
+
+    v
+end
+
+def map![List](mapper)
+    for i, index in self:each
+        self[index] = mapper(i, index)
+    end
+
+    self
+end
+
+
+def fill![List](value)
+    for _, index in self:each
+        self[index] = value
+    end
+
+    self
 end
 
 def join[List](sep)

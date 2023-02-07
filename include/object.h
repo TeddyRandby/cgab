@@ -440,6 +440,7 @@ struct gab_obj_list {
 #define GAB_OBJ_TO_LIST(value) ((gab_obj_list *)value)
 
 gab_obj_list *gab_obj_list_create(u64 size, u64 stride, gab_value values[size]);
+gab_obj_list *gab_obj_list_create_empty(u64 size);
 
 static inline gab_value gab_obj_list_put(gab_obj_list *self, u64 offset,
                                          gab_value value) {
