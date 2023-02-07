@@ -32,10 +32,22 @@ typedef struct rc_update {
 #define EQUAL(a, b) (a == b)
 #include "include/dict.h"
 
+#define NAME gc_cache
+#define K u64
+#define DEF_K 0
+#define V gab_obj*
+#define DEF_V NULL
+#define HASH(a) ((u64)a)
+#define EQUAL(a, b) (a == b)
+#include "include/dict.h"
+
+
 typedef struct gab_gc {
   i32 increment_count;
   i32 decrement_count;
   i32 root_count;
+
+  d_gc_cache cache;
 
   d_gc_set queue;
   d_gc_set roots;
@@ -45,6 +57,8 @@ typedef struct gab_gc {
   v_rc_update tracked_decrements;
 
   d_rc_tracker tracked_values;
+  u64 cache_hits;
+  u64 cache_misses;
 #endif
 
   gab_obj *increments[INC_DEC_MAX];

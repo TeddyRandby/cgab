@@ -9,16 +9,12 @@
 #include <stdio.h>
 
 #define GAB_CREATE_ARRAY(type, count)                                          \
-  ((type *)gab_reallocate(NULL, 0, sizeof(type) * count))
+  ((type *)gab_reallocate(gab, NULL, 0, sizeof(type) * count))
 #define GAB_CREATE_STRUCT(obj_type)                                            \
-  ((obj_type *)gab_reallocate(NULL, 0, sizeof(obj_type)))
+  ((obj_type *)gab_reallocate(gab, NULL, 0, sizeof(obj_type)))
 #define GAB_CREATE_FLEX_STRUCT(obj_type, flex_type, flex_count)                \
   ((obj_type *)gab_reallocate(                                                 \
-      NULL, 0, sizeof(obj_type) + sizeof(flex_type) * flex_count))
-
-#define GAB_DESTROY_STRUCT(ptr) gab_reallocate(ptr, 0, 0)
-#define GAB_DESTROY_ARRAY(type, loc, count)                                    \
-  (gab_reallocate(loc, sizeof(type) * count, 0))
+      gab, NULL, 0, sizeof(obj_type) + sizeof(flex_type) * flex_count))
 
 /*
   Helper macros for allocating gab objects.
@@ -238,51 +234,58 @@ void gab_obj_destroy(gab_engine *gab, gab_vm *vm, gab_obj *self) {
     gab_obj_list *lst = (gab_obj_list *)self;
 
     v_gab_value_destroy(&lst->data);
-    GAB_DESTROY_STRUCT(lst);
     return;
   }
   case GAB_KIND_MAP: {
     gab_obj_map *map = (gab_obj_map *)self;
     d_gab_value_destroy(&map->data);
-    GAB_DESTROY_STRUCT(map);
     return;
   }
   case GAB_KIND_CONTAINER: {
     gab_obj_container *container = (gab_obj_container *)(self);
     if (container->destructor != NULL)
       container->destructor(gab, vm, container->data);
-    GAB_DESTROY_STRUCT(container);
     return;
   }
-
   case GAB_KIND_MESSAGE: {
     gab_obj_message *function = (gab_obj_message *)(self);
     d_specs_destroy(&function->specs);
-    GAB_DESTROY_STRUCT(function);
     return;
   }
+  default:
+    return;
+  }
+}
 
-    /*
-      These cases are allocated with a single malloc() call, so don't require
-      anything fancy.
-    */
-  case GAB_KIND_SHAPE:
-  case GAB_KIND_RECORD:
-  case GAB_KIND_EFFECT:
-  case GAB_KIND_UPVALUE:
+u64 gab_obj_size(gab_obj *self) {
+  switch (self->kind) {
+  case GAB_KIND_MESSAGE:
+    return sizeof(gab_obj_message);
   case GAB_KIND_PROTOTYPE:
-  case GAB_KIND_BLOCK:
+    return sizeof(gab_obj_prototype);
   case GAB_KIND_BUILTIN:
+    return sizeof(gab_obj_builtin);
+  case GAB_KIND_UPVALUE:
+    return sizeof(gab_obj_upvalue);
   case GAB_KIND_SYMBOL:
-  case GAB_KIND_STRING:
-    GAB_DESTROY_STRUCT(self);
-    return;
-  case GAB_KIND_BOOLEAN:
-  case GAB_KIND_NIL:
-  case GAB_KIND_NUMBER:
-  case GAB_KIND_UNDEFINED:
-  case GAB_KIND_NKINDS:
-    return;
+    return sizeof(gab_obj_symbol);
+  case GAB_KIND_CONTAINER:
+    return sizeof(gab_obj_container);
+  case GAB_KIND_LIST:
+    return sizeof(gab_obj_list);
+  case GAB_KIND_MAP:
+    return sizeof(gab_obj_map);
+  case GAB_KIND_EFFECT: {
+    gab_obj_effect *obj = (gab_obj_effect *)self;
+    return sizeof(gab_obj_effect) + obj->len * sizeof(gab_value);
+  }
+  case GAB_KIND_STRING: {
+    gab_obj_string*obj = (gab_obj_string *)self;
+    return sizeof(gab_obj_string) + obj->len * sizeof(i8);
+  }
+
+  default:
+    return sizeof(gab_value);
   }
 }
 
@@ -377,7 +380,8 @@ s_i8 gab_obj_string_ref(gab_obj_string *self) {
   return ref;
 }
 
-gab_obj_prototype *gab_obj_prototype_create(gab_module *mod, s_i8 name) {
+gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
+                                            s_i8 name) {
   gab_obj_prototype *self =
       GAB_CREATE_OBJ(gab_obj_prototype, GAB_KIND_PROTOTYPE);
 
@@ -413,7 +417,8 @@ gab_obj_message *gab_obj_message_create(gab_engine *gab, s_i8 name) {
   return self;
 }
 
-gab_obj_builtin *gab_obj_builtin_create(gab_builtin function, s_i8 name) {
+gab_obj_builtin *gab_obj_builtin_create(gab_engine *gab, gab_builtin function,
+                                        s_i8 name) {
 
   gab_obj_builtin *self = GAB_CREATE_OBJ(gab_obj_builtin, GAB_KIND_BUILTIN);
 
@@ -425,7 +430,7 @@ gab_obj_builtin *gab_obj_builtin_create(gab_builtin function, s_i8 name) {
   return self;
 }
 
-gab_obj_block *gab_obj_block_create(gab_obj_prototype *p) {
+gab_obj_block *gab_obj_block_create(gab_engine *gab, gab_obj_prototype *p) {
   gab_obj_block *self = GAB_CREATE_FLEX_OBJ(gab_obj_block, gab_obj_upvalue,
                                             p->nupvalues, GAB_KIND_BLOCK);
 
@@ -435,7 +440,7 @@ gab_obj_block *gab_obj_block_create(gab_obj_prototype *p) {
   return self;
 }
 
-gab_obj_upvalue *gab_obj_upvalue_create(gab_value *data) {
+gab_obj_upvalue *gab_obj_upvalue_create(gab_engine *gab, gab_value *data) {
   gab_obj_upvalue *self = GAB_CREATE_OBJ(gab_obj_upvalue, GAB_KIND_UPVALUE);
   self->data = data;
   self->closed = GAB_VAL_NIL();
@@ -492,8 +497,8 @@ gab_obj_shape *gab_obj_shape_grow(gab_engine *gab, gab_vm *vm,
   return gab_obj_shape_create(gab, vm, self->len + 1, 1, keys);
 }
 
-gab_obj_map *gab_obj_map_create(u64 len, u64 stride, gab_value keys[len],
-                                gab_value values[len]) {
+gab_obj_map *gab_obj_map_create(gab_engine *gab, u64 len, u64 stride,
+                                gab_value keys[len], gab_value values[len]) {
   gab_obj_map *self = GAB_CREATE_OBJ(gab_obj_map, GAB_KIND_MAP);
 
   d_gab_value_create(&self->data, len < 8 ? 8 : len * 2);
@@ -505,7 +510,7 @@ gab_obj_map *gab_obj_map_create(u64 len, u64 stride, gab_value keys[len],
   return self;
 }
 
-gab_obj_list *gab_obj_list_create_empty(u64 len) {
+gab_obj_list *gab_obj_list_create_empty(gab_engine *gab, u64 len) {
   gab_obj_list *self = GAB_CREATE_OBJ(gab_obj_list, GAB_KIND_LIST);
 
   v_gab_value_create(&self->data, len * 2);
@@ -516,7 +521,8 @@ gab_obj_list *gab_obj_list_create_empty(u64 len) {
   return self;
 }
 
-gab_obj_list *gab_obj_list_create(u64 len, u64 stride, gab_value values[len]) {
+gab_obj_list *gab_obj_list_create(gab_engine *gab, u64 len, u64 stride,
+                                  gab_value values[len]) {
   gab_obj_list *self = GAB_CREATE_OBJ(gab_obj_list, GAB_KIND_LIST);
 
   v_gab_value_create(&self->data, len < 8 ? 8 : len * 2);
@@ -530,7 +536,8 @@ gab_obj_list *gab_obj_list_create(u64 len, u64 stride, gab_value values[len]) {
   return self;
 }
 
-gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, u64 len, u64 stride,
+gab_obj_record *gab_obj_record_create(gab_engine *gab, gab_obj_shape *shape,
+                                      u64 len, u64 stride,
                                       gab_value values[len]) {
 
   gab_obj_record *self =
@@ -546,7 +553,8 @@ gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, u64 len, u64 stride,
   return self;
 }
 
-gab_obj_container *gab_obj_container_create(gab_obj_container_cb destructor,
+gab_obj_container *gab_obj_container_create(gab_engine *gab,
+                                            gab_obj_container_cb destructor,
                                             void *data) {
 
   gab_obj_container *self =
@@ -558,14 +566,15 @@ gab_obj_container *gab_obj_container_create(gab_obj_container_cb destructor,
   return self;
 }
 
-gab_obj_symbol *gab_obj_symbol_create(s_i8 name) {
+gab_obj_symbol *gab_obj_symbol_create(gab_engine *gab, s_i8 name) {
   gab_obj_symbol *self = GAB_CREATE_OBJ(gab_obj_symbol, GAB_KIND_SYMBOL);
   self->name = name;
   return self;
 }
 
-gab_obj_effect *gab_obj_effect_create(gab_obj_block *c, u64 offset, u8 have,
-                                      u8 want, u8 len, gab_value frame[len]) {
+gab_obj_effect *gab_obj_effect_create(gab_engine *gab, gab_obj_block *c,
+                                      u64 offset, u8 have, u8 want, u8 len,
+                                      gab_value frame[len]) {
   gab_obj_effect *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_effect, gab_value, len, GAB_KIND_EFFECT);
 

@@ -607,7 +607,7 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
     pop_slot(bc, 1);
   }
 
-  gab_obj_prototype *p = gab_obj_prototype_create(mod, name);
+  gab_obj_prototype *p = gab_obj_prototype_create(gab, mod, name);
 
   u64 skip_jump = gab_module_push_jump(mod, OP_JUMP, bc->previous_token,
                                        bc->line, bc->lex.previous_token_src);
@@ -2135,7 +2135,7 @@ i32 compile_exp_sym(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   s_i8 name = trim_prev_tok(bc);
 
-  gab_obj_symbol *sym = gab_obj_symbol_create(name);
+  gab_obj_symbol *sym = gab_obj_symbol_create(gab, name);
 
   push_op(bc, mod, OP_CONSTANT);
   push_short(bc, mod, add_constant(mod, GAB_VAL_OBJ(sym)));
@@ -2298,13 +2298,13 @@ i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
 
   push_op(bc, mod, OP_RETURN_1);
 
-  gab_obj_prototype *p = gab_obj_prototype_create(mod, name);
+  gab_obj_prototype *p = gab_obj_prototype_create(gab, mod, name);
   p->narguments = narguments;
   p->nslots = peek_frame(bc, 0)->nslots;
   p->nlocals = peek_frame(bc, 0)->nlocals;
   p->len = mod->bytecode.len;
 
-  gab_obj_block *c = gab_obj_block_create(p);
+  gab_obj_block *c = gab_obj_block_create(gab, p);
 
   add_constant(mod, GAB_VAL_OBJ(p));
   return add_constant(mod, GAB_VAL_OBJ(c));
@@ -2333,10 +2333,10 @@ gab_module *gab_bc_compile_send(gab_engine *gab, s_i8 name, gab_value receiver,
 
   gab_module_push_return(mod, 1, false, 0, 0, (s_i8){0});
 
-  gab_obj_prototype *p = gab_obj_prototype_create(mod, name);
+  gab_obj_prototype *p = gab_obj_prototype_create(gab, mod, name);
   p->len = mod->bytecode.len;
 
-  gab_obj_block *c = gab_obj_block_create(p);
+  gab_obj_block *c = gab_obj_block_create(gab, p);
 
   add_constant(mod, GAB_VAL_OBJ(p));
 

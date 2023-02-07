@@ -4,7 +4,7 @@
 
 // Collect as frequently as possible (on every RC push). Also collect debug
 // info.
-#define GAB_DEBUG_GC 0
+#define GAB_DEBUG_GC 1
 // Log what is happening during collection.
 #define GAB_LOG_GC 0
 // Log what is happening during execution.

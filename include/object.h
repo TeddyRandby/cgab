@@ -91,6 +91,7 @@ struct gab_obj {
   'Generic' functions which handle all the different kinds of gab objects.
 */
 void gab_obj_destroy(gab_engine *gab, gab_vm *vm, gab_obj *self);
+u64 gab_obj_size(gab_obj* self);
 
 static inline boolean gab_val_is_obj_kind(gab_value self, gab_kind k) {
   return GAB_VAL_IS_OBJ(self) && GAB_VAL_TO_OBJ(self)->kind == k;
@@ -140,7 +141,8 @@ struct gab_obj_builtin {
 #define GAB_VAL_TO_BUILTIN(value) ((gab_obj_builtin *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_BUILTIN(value) ((gab_obj_builtin *)value)
 
-gab_obj_builtin *gab_obj_builtin_create(gab_builtin function, s_i8 name);
+gab_obj_builtin *gab_obj_builtin_create(gab_engine *gab, gab_builtin function,
+                                        s_i8 name);
 
 /*
   ------------- OBJ_UPVALUE -------------
@@ -174,7 +176,7 @@ struct gab_obj_upvalue {
 #define GAB_VAL_TO_UPVALUE(value) ((gab_obj_upvalue *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_UPVALUE(value) ((gab_obj_upvalue *)value)
 
-gab_obj_upvalue *gab_obj_upvalue_create(gab_value *slot);
+gab_obj_upvalue *gab_obj_upvalue_create(gab_engine *gab, gab_value *slot);
 
 /*
   ------------- OBJ_PROTOTYPE -------------
@@ -229,7 +231,8 @@ struct gab_obj_prototype {
 #define GAB_VAL_TO_PROTOTYPE(value) ((gab_obj_prototype *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_PROTOTYPE(value) ((gab_obj_prototype *)value)
 
-gab_obj_prototype *gab_obj_prototype_create(gab_module *mod, s_i8 name);
+gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
+                                            s_i8 name);
 
 /*
   ------------- OBJ_CLOSURE-------------
@@ -253,7 +256,7 @@ struct gab_obj_block {
 #define GAB_VAL_TO_BLOCK(value) ((gab_obj_block *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_BLOCK(value) ((gab_obj_block *)value)
 
-gab_obj_block *gab_obj_block_create(gab_obj_prototype *p);
+gab_obj_block *gab_obj_block_create(gab_engine *gab, gab_obj_prototype *p);
 
 /*
   ------------- OBJ_FUNCTION -------------
@@ -385,8 +388,9 @@ struct gab_obj_record {
 #define GAB_VAL_TO_RECORD(value) ((gab_obj_record *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_RECORD(value) ((gab_obj_record *)value)
 
-gab_obj_record *gab_obj_record_create(gab_obj_shape *shape, u64 size,
-                                      u64 stride, gab_value values[size]);
+gab_obj_record *gab_obj_record_create(gab_engine *gab, gab_obj_shape *shape,
+                                      u64 size, u64 stride,
+                                      gab_value values[size]);
 
 static inline void gab_obj_record_set(gab_obj_record *self, u16 offset,
                                       gab_value value) {
@@ -439,8 +443,9 @@ struct gab_obj_list {
 #define GAB_VAL_TO_LIST(value) ((gab_obj_list *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_LIST(value) ((gab_obj_list *)value)
 
-gab_obj_list *gab_obj_list_create(u64 size, u64 stride, gab_value values[size]);
-gab_obj_list *gab_obj_list_create_empty(u64 size);
+gab_obj_list *gab_obj_list_create(gab_engine *gab, u64 size, u64 stride,
+                                  gab_value values[size]);
+gab_obj_list *gab_obj_list_create_empty(gab_engine *gab, u64 size);
 
 static inline gab_value gab_obj_list_put(gab_obj_list *self, u64 offset,
                                          gab_value value) {
@@ -491,8 +496,8 @@ struct gab_obj_map {
 #define GAB_VAL_TO_MAP(value) ((gab_obj_map *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_MAP(value) ((gab_obj_map *)value)
 
-gab_obj_map *gab_obj_map_create(u64 len, u64 stride, gab_value keys[len],
-                                gab_value values[len]);
+gab_obj_map *gab_obj_map_create(gab_engine *gab, u64 len, u64 stride,
+                                gab_value keys[len], gab_value values[len]);
 
 static inline gab_value gab_obj_map_put(gab_obj_map *self, gab_value key,
                                         gab_value value) {
@@ -527,7 +532,8 @@ struct gab_obj_container {
 #define GAB_VAL_TO_CONTAINER(value) ((gab_obj_container *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_CONTAINER(value) ((gab_obj_container *)value)
 
-gab_obj_container *gab_obj_container_create(gab_obj_container_cb destructor,
+gab_obj_container *gab_obj_container_create(gab_engine *gab,
+                                            gab_obj_container_cb destructor,
                                             void *data);
 
 /*
@@ -544,7 +550,7 @@ struct gab_obj_symbol {
 #define GAB_VAL_TO_SYMBOL(value) ((gab_obj_symbol *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SYMBOL(value) ((gab_obj_symbol *)value)
 
-gab_obj_symbol *gab_obj_symbol_create(s_i8 name);
+gab_obj_symbol *gab_obj_symbol_create(gab_engine *gab, s_i8 name);
 
 /*
   ------------- OBJ_EFFECT -------------
@@ -577,7 +583,8 @@ struct gab_obj_effect {
 #define GAB_VAL_TO_EFFECT(value) ((gab_obj_effect *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_EFFECT(value) ((gab_obj_effect *)value)
 
-gab_obj_effect *gab_obj_effect_create(gab_obj_block *c, u64 offset, u8 arity,
-                                      u8 want, u8 len, gab_value frame[len]);
+gab_obj_effect *gab_obj_effect_create(gab_engine *gab, gab_obj_block *c,
+                                      u64 offset, u8 arity, u8 want, u8 len,
+                                      gab_value frame[len]);
 
 #endif

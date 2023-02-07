@@ -7,7 +7,7 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
                       gab_value argv[argc]) {
   switch (argc) {
   case 1: {
-    gab_obj_map *map = gab_obj_map_create(0, 0, NULL, NULL);
+    gab_obj_map *map = gab_obj_map_create(gab, 0, 0, NULL, NULL);
 
     gab_value result = GAB_VAL_OBJ(map);
 
@@ -27,7 +27,7 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
 
     gab_iref_many(gab, vm, shp->len, shp->data);
 
-    gab_obj_map* map = gab_obj_map_create(rec->len, 1, shp->data, rec->data);
+    gab_obj_map* map = gab_obj_map_create(gab, rec->len, 1, shp->data, rec->data);
 
     gab_value result = GAB_VAL_OBJ(map);
 

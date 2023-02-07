@@ -238,6 +238,7 @@ LINKAGE V METHOD(read)(TYPENAME *self, K key) {
 #undef K
 #undef V
 #undef DEF_V
+#undef DEF_K
 #undef HASH
 #undef LOAD
 #undef EQUAL

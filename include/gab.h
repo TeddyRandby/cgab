@@ -240,7 +240,7 @@ gab_value gab_type(gab_engine *gab, gab_kind kind);
  * A helper macro for creating a gab_obj_builtin
  */
 #define GAB_BUILTIN(name)                                                      \
-  GAB_VAL_OBJ(gab_obj_builtin_create(gab_lib_##name, s_i8_cstr(#name)))
+  GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_##name, s_i8_cstr(#name)))
 
 /**
  * A helper macro for creating a gab_obj_string
@@ -251,10 +251,10 @@ gab_value gab_type(gab_engine *gab, gab_kind kind);
 /**
  * A helper macro for creating a gab_obj_container
  */
-#define GAB_CONTAINER(cb, data) GAB_VAL_OBJ(gab_obj_container_create(cb, data))
+#define GAB_CONTAINER(cb, data) GAB_VAL_OBJ(gab_obj_container_create(gab, cb, data))
 
 /**
  * A helper macro for creating a gab_obj_symbol
  */
-#define GAB_SYMBOL(name) GAB_VAL_OBJ(gab_obj_symbol_create(s_i8_cstr(name)))
+#define GAB_SYMBOL(name) GAB_VAL_OBJ(gab_obj_symbol_create(gab, s_i8_cstr(name)))
 #endif

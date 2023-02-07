@@ -8,7 +8,7 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
                       gab_value argv[argc]) {
   switch (argc) {
   case 1: {
-    gab_obj_list *list = gab_obj_list_create_empty(8);
+    gab_obj_list *list = gab_obj_list_create_empty(gab, 8);
 
     gab_value result = GAB_VAL_OBJ(list);
 
@@ -20,7 +20,7 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
     if (!GAB_VAL_IS_NUMBER(argv[1]))
       return gab_panic(gab, vm, "Invalid call to gab_lib_new");
 
-    gab_obj_list *list = gab_obj_list_create_empty(GAB_VAL_TO_NUMBER(argv[1]));
+    gab_obj_list *list = gab_obj_list_create_empty(gab, GAB_VAL_TO_NUMBER(argv[1]));
 
     gab_value result = GAB_VAL_OBJ(list);
 
@@ -144,7 +144,7 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
   u64 result_len = end - start;
 
   gab_obj_list *result =
-      gab_obj_list_create(result_len, 1, list->data.data + start);
+      gab_obj_list_create(gab, result_len, 1, list->data.data + start);
 
   return GAB_VAL_OBJ(result);
 }

@@ -12,7 +12,7 @@ typedef struct gab_vm gab_vm;
 
 #include <threads.h>
 
-void *gab_reallocate(void *loc, u64 old_size, u64 new_size);
+void *gab_reallocate(gab_engine* gab, void *loc, u64 old_size, u64 new_size);
 
 static const char *gab_status_names[] = {
 #define STATUS(name, message) message,
