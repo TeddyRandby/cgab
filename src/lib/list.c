@@ -44,6 +44,21 @@ gab_value gab_lib_pop(gab_engine *gab, gab_vm *vm, u8 argc,
   return result;
 }
 
+gab_value gab_lib_push(gab_engine *gab, gab_vm *vm, u8 argc,
+                       gab_value argv[argc]) {
+  if (argc < 2)
+    return gab_panic(gab, vm, "Invalid call to gab_lib_len");
+
+  gab_obj_list *obj = GAB_VAL_TO_LIST(argv[0]);
+
+  for (u8 i = 1; i < argc; i++)
+    v_gab_value_push(&obj->data, argv[i]);
+
+  gab_iref_many(gab, vm, argc - 1, argv + 1);
+
+  return argv[1];
+}
+
 gab_value gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc,
                      gab_value argv[argc]) {
   gab_obj_list *list = GAB_VAL_TO_LIST(argv[0]);
@@ -61,17 +76,15 @@ gab_value gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc,
   gab_obj_list *list = GAB_VAL_TO_LIST(argv[0]);
 
   switch (argc) {
-  case 2:
-    // A push
-    v_gab_value_push(&list->data, argv[1]);
-    break;
   case 3:
     // A put
-    if (!GAB_VAL_IS_NUMBER(argv[2]))
+    if (!GAB_VAL_IS_NUMBER(argv[1]))
       return gab_panic(gab, vm, "Invalid call to gab_lib_put");
 
-    gab_obj_list_put(list, GAB_VAL_TO_NUMBER(argv[2]), argv[1]);
+    gab_obj_list_put(list, GAB_VAL_TO_NUMBER(argv[1]), argv[2]);
+
     break;
+
   default:
     return gab_panic(gab, vm, "Invalid call to gab_lib_put");
   }
@@ -125,7 +138,7 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   s_i8 names[] = {
-      s_i8_cstr("new"), s_i8_cstr("len"), s_i8_cstr("slice"),
+      s_i8_cstr("new"), s_i8_cstr("len"), s_i8_cstr("slice"), s_i8_cstr("push"),
       s_i8_cstr("pop"), s_i8_cstr("put"), s_i8_cstr("at"),
   };
 
@@ -133,10 +146,11 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
       gab_type(gab, GAB_KIND_LIST), gab_type(gab, GAB_KIND_LIST),
       gab_type(gab, GAB_KIND_LIST), gab_type(gab, GAB_KIND_LIST),
       gab_type(gab, GAB_KIND_LIST), gab_type(gab, GAB_KIND_LIST),
+      gab_type(gab, GAB_KIND_LIST),
   };
 
   gab_value specs[] = {
-      GAB_BUILTIN(new), GAB_BUILTIN(len), GAB_BUILTIN(slice),
+      GAB_BUILTIN(new), GAB_BUILTIN(len), GAB_BUILTIN(slice), GAB_BUILTIN(push),
       GAB_BUILTIN(pop), GAB_BUILTIN(put), GAB_BUILTIN(at),
   };
 

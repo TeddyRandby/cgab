@@ -299,6 +299,7 @@ gab_token other(gab_lexer *self) {
     if (is_alpha(peek(self))) {
       // If we didn't get a keyword, return a token message
       if (identifier(self) == TOKEN_IDENTIFIER) {
+          // Messages can end in ? or !
           if (peek(self) == '?' || peek(self) == '!') {
               advance(self);
           }

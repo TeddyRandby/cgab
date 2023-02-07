@@ -1,10 +1,19 @@
-def __get__[List](key) self:at(key) end
+def __get__[List](key)
+    key:type match
+        { from to }:type => self:slice(key.from, key.to)
+        { from }:type    => self:slice(key.from)
+        { to }:type       => self:slice(nil, key.to)
+        Number           => self:at(key)
+        else             => panic('Invalid call to List::key')
+end
 
-def __set__[List](key, value) self:put(value, key) end
+def __set__[List](key, value) self:put(key, value) end
 
 def first[List] self[0] end
 
 def last[List] self[self:len - 1] end
+
+def take[List](amount) self[amount:to] end
 
 def each[List]
     let v = 0 
@@ -18,7 +27,7 @@ end
 def fold[List](init, folder)
     let v = init
 
-    for i, index in self:eachi
+    for i, index in self:each
         v = folder(v, i, index)
     end
 
@@ -28,7 +37,7 @@ end
 def filter[List](filterer)
     let v = []
 
-    for i, index in self:eachi
+    for i, index in self:each
         filterer(i, index) and v:push(i)
     end
 
@@ -38,7 +47,7 @@ end
 def map[List](mapper)
     let v = []
 
-    for i, index in self:eachi
+    for i, index in self:each
         v:push(mapper(i, index))
     end
 
@@ -55,6 +64,16 @@ def join[List](sep)
   end)
 end
 
-def every[List](pred) self:filter(pred):len == self:len end
+def every?[List](pred) self:filter(pred):len == self:len end
 
-def some[List](pred) self:filter(pred):len > 0 end
+def some?[List](pred) self:filter(pred):len > 0 end
+
+def empty?[List] self:len > 0 end
+
+def include?[List](value)
+    for i, index in self:each
+        i == value and return true
+    end
+
+    false
+end

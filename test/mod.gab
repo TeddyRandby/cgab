@@ -374,11 +374,11 @@ describe('Lists', do ()
 
         list:at(0):expect(nil)
 
-        list:put('hello')
+        list:push('hello')
 
         list:at(0):expect('hello')
 
-        list:put('hello', 2)
+        list:put(2, 'hello')
 
         list:at(2):expect('hello')
     end)
@@ -397,6 +397,20 @@ describe('Lists', do ()
         list[10]:expect(10)
 
         list[9]:expect(nil)
+    end)
+
+    it('should index with range', do ()
+        let list = List:new(1,2,3,4)
+
+        let slice = list[3:to]
+
+        slice:at(0):expect(1)
+        slice:at(2):expect(3)
+
+        slice = list[3:to(4)]
+
+        slice:at(0):expect(4)
+        slice:at(1):expect(nil)
     end)
 end)
 
