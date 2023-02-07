@@ -19,9 +19,9 @@ gab_value make_type(gab_engine *gab) {
 }
 
 gab_value make_panic(gab_engine *gab) {
-    gab_value panic_builtin = GAB_BUILTIN(panic);
+  gab_value panic_builtin = GAB_BUILTIN(panic);
 
-    return panic_builtin;
+  return panic_builtin;
 }
 
 gab_value make_print(gab_engine *gab) {
@@ -65,7 +65,7 @@ void gab_repl() {
       s_i8_cstr("type"),    s_i8_cstr("String"),  s_i8_cstr("Number"),
       s_i8_cstr("Boolean"), s_i8_cstr("Block"),   s_i8_cstr("Message"),
       s_i8_cstr("Effect"),  s_i8_cstr("List"),    s_i8_cstr("Map"),
-      s_i8_cstr("_")};
+      s_i8_cstr("it")};
 
   gab_value args[] = {
       make_print(gab),
@@ -85,8 +85,12 @@ void gab_repl() {
 
   static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
 
+  gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
+
+  // Import the standard library
+  GAB_SEND("require", GAB_STRING("std"), 0, NULL);
+
   for (;;) {
-    gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
 
     printf("grepl> ");
     a_i8 *src = os_read_line();
@@ -117,8 +121,11 @@ void gab_repl() {
       printf("\n");
     }
 
-    gab_dref(gab, NULL, args[9]);
+    gab_dref(gab, NULL, args[LEN_CARRAY(args) - 1]);
+
     args[LEN_CARRAY(args) - 1] = result;
+
+    gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
   }
 
   gab_destroy(gab);

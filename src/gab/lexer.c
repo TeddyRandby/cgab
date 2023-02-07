@@ -333,6 +333,7 @@ gab_token other(gab_lexer *self) {
     advance(self);
     switch (peek(self)) {
       CHAR_CASE('=', LESSER_EQUAL)
+      CHAR_CASE('<', LESSER_LESSER)
     default: {
       return TOKEN_LESSER;
     }
@@ -342,6 +343,7 @@ gab_token other(gab_lexer *self) {
     advance(self);
     switch (peek(self)) {
       CHAR_CASE('=', GREATER_EQUAL)
+      CHAR_CASE('>', GREATER_GREATER)
     default: {
       return TOKEN_GREATER;
     }

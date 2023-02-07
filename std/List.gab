@@ -35,7 +35,7 @@ def fold[List](init, folder)
 end
 
 def filter[List](filterer)
-    let v = []
+    let v = List:new
 
     for i, index in self:each
         filterer(i, index) and v:push(i)
@@ -45,7 +45,7 @@ def filter[List](filterer)
 end
 
 def map[List](mapper)
-    let v = []
+    let v = List:new
 
     for i, index in self:each
         v:push(mapper(i, index))
@@ -56,11 +56,7 @@ end
 
 def join[List](sep)
   self:fold('', do (str, cur, i)
-    i == 0 then
-      String:from(cur)
-    end else
-      str + sep + String:from(cur)
-    end
+    i == 0 and '{cur}' or str + sep + '{cur}'
   end)
 end
 

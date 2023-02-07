@@ -22,6 +22,26 @@ struct primitive {
 
 struct primitive primitives[] = {
     {
+        .name = "__or__",
+        .type = GAB_KIND_NUMBER,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_BOR),
+    },
+    {
+        .name = "__and__",
+        .type = GAB_KIND_NUMBER,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_BAND),
+    },
+    {
+        .name = "__lsh__",
+        .type = GAB_KIND_NUMBER,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LSH),
+    },
+    {
+        .name = "__rsh__",
+        .type = GAB_KIND_NUMBER,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_RSH),
+    },
+    {
         .name = "__add__",
         .type = GAB_KIND_NUMBER,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_ADD),

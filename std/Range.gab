@@ -31,4 +31,19 @@ def to[Number](last)
   RANGE:make(self, last)
 end
 
+def each[Number]
+  let v = 0
+
+  loop
+    yield v
+    v = v + 1
+  until v >= self
+end
+
+def times[Number](cb)
+  for i in self:each
+    cb(i)
+  end
+end
+
 RANGE

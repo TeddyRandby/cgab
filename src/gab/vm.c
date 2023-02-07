@@ -286,7 +286,7 @@ static inline boolean call_closure(gab_engine *gab, gab_vm *vm,
 
 static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_obj_builtin *b,
                                 u8 arity, u8 want, boolean is_message) {
-    // Only pass in the extra "self" argument if this is a message.
+  // Only pass in the extra "self" argument if this is a message.
   gab_value result =
       (*b->function)(gab, vm, arity + is_message, vm->top - arity - is_message);
 
@@ -525,18 +525,14 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       STORE_FRAME();
 
       if (GAB_VAL_IS_BLOCK(callee)) {
-
         if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_BLOCK(callee), have, want))
           return vm_error(VM(), GAB_OVERFLOW, "");
-
       } else if (GAB_VAL_IS_BUILTIN(callee)) {
         call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(callee), have, want,
                      false);
       } else if (GAB_VAL_IS_EFFECT(callee)) {
-
         if (!call_effect(VM(), GAB_VAL_TO_EFFECT(callee), have, want))
           return vm_error(VM(), GAB_OVERFLOW, "");
-
       } else {
         gab_obj_string *a =
             GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), callee));
@@ -736,6 +732,26 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       NEXT();
     }
 
+    CASE_CODE(SEND_PRIMITIVE_BOR) : {
+      BINARY_PRIMITIVE(GAB_VAL_NUMBER, u64, |);
+      NEXT();
+    }
+
+    CASE_CODE(SEND_PRIMITIVE_BAND) : {
+      BINARY_PRIMITIVE(GAB_VAL_NUMBER, u64, &);
+      NEXT();
+    }
+
+    CASE_CODE(SEND_PRIMITIVE_LSH) : {
+      BINARY_PRIMITIVE(GAB_VAL_NUMBER, u64, <<);
+      NEXT();
+    }
+
+    CASE_CODE(SEND_PRIMITIVE_RSH) : {
+      BINARY_PRIMITIVE(GAB_VAL_NUMBER, u64, >>);
+      NEXT();
+    }
+
     CASE_CODE(SEND_PRIMITIVE_LT) : {
       BINARY_PRIMITIVE(GAB_VAL_BOOLEAN, f64, <);
       NEXT();
@@ -764,10 +780,18 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       SKIP_SHORT;
       SKIP_QWORD;
 
-      if (!GAB_VAL_IS_STRING(PEEK()) || !GAB_VAL_IS_STRING(PEEK2())) {
+      if (!GAB_VAL_IS_STRING(PEEK2())) {
         WRITE_BYTE(16, OP_SEND_ANA);
         IP() -= 16;
         NEXT();
+      }
+
+      if (!GAB_VAL_IS_STRING(PEEK())) {
+        STORE_FRAME();
+        gab_obj_string *a =
+            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK()));
+        return vm_error(VM(), GAB_NOT_NUMERIC, "Tried to concat %.*s",
+                        (i32)a->len, a->data);
       }
 
       gab_obj_string *b = GAB_VAL_TO_STRING(POP());

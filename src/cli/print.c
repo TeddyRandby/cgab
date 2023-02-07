@@ -11,5 +11,5 @@ gab_value gab_lib_print(gab_engine *gab, gab_vm *vm, u8 argc,
 
   printf("\n");
 
-  return GAB_VAL_BOOLEAN(true);
+  return GAB_VAL_NIL();
 }

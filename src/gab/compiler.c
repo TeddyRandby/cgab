@@ -1043,9 +1043,9 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod,
   // Function names can end in a ? or a !
   // or, if the name is op
   if (match_and_eat_token(bc, TOKEN_QUESTION))
-      name.len++;
+    name.len++;
   else if (match_and_eat_token(bc, TOKEN_BANG))
-      name.len++;
+    name.len++;
 
   // Now compile the specialization
   if (compile_function_specialization(gab, bc, mod, name) < 0)
@@ -1208,14 +1208,11 @@ i32 compile_exp_is(gab_engine *gab, gab_bc *bc, gab_module *mod,
   return COMP_OK;
 }
 
-/*
- * Return COMP_ERR if an error occurs, and the size of the expression otherwise.
- */
 i32 compile_exp_bin(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   gab_token op = bc->previous_token;
   u64 line = bc->line;
-  s_i8 src = bc->lex.previous_row_src;
+  s_i8 src = bc->lex.previous_token_src;
 
   u16 m;
 
@@ -1240,6 +1237,14 @@ i32 compile_exp_bin(gab_engine *gab, gab_bc *bc, gab_module *mod,
     m = add_message_constant(gab, mod, s_i8_cstr("__mod__"));
     break;
   }
+  case TOKEN_PIPE: {
+    m = add_message_constant(gab, mod, s_i8_cstr("__or__"));
+    break;
+  }
+  case TOKEN_AMPERSAND: {
+    m = add_message_constant(gab, mod, s_i8_cstr("__and__"));
+    break;
+  }
   case TOKEN_EQUAL_EQUAL: {
     m = add_message_constant(gab, mod, s_i8_cstr("__eq__"));
     break;
@@ -1252,12 +1257,20 @@ i32 compile_exp_bin(gab_engine *gab, gab_bc *bc, gab_module *mod,
     m = add_message_constant(gab, mod, s_i8_cstr("__lte__"));
     break;
   }
+  case TOKEN_LESSER_LESSER: {
+    m = add_message_constant(gab, mod, s_i8_cstr("__lsh__"));
+    break;
+  }
   case TOKEN_GREATER: {
     m = add_message_constant(gab, mod, s_i8_cstr("__gt__"));
     break;
   }
   case TOKEN_GREATER_EQUAL: {
     m = add_message_constant(gab, mod, s_i8_cstr("__gte__"));
+    break;
+  }
+  case TOKEN_GREATER_GREATER: {
+    m = add_message_constant(gab, mod, s_i8_cstr("__rsh__"));
     break;
   }
   default: {
@@ -1282,7 +1295,7 @@ i32 compile_exp_una(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   gab_token op = bc->previous_token;
   u64 line = bc->line;
-  s_i8 src = bc->lex.previous_row_src;
+  s_i8 src = bc->lex.previous_token_src;
 
   i32 result = compile_exp_prec(gab, bc, mod, PREC_UNARY);
 
@@ -1785,37 +1798,29 @@ i32 compile_arguments(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return 1;
   }
 
+  if (match_and_eat_token(bc, TOKEN_DO)) {
+    s_i8 name = s_i8_cstr("anonymous");
+
+    // We are an anonyumous function
+    if (compile_function_specialization(gab, bc, mod, name) < 0)
+      return COMP_ERR;
+
+    return 1;
+  }
+
   return 0;
 }
 
 i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
-  s_i8 prev_src = bc->lex.previous_token_src;
-  gab_token prev_tok = bc->previous_token;
-  u64 prev_line = bc->line;
   s_i8 message = trim_prev_tok(bc);
 
   u16 f = add_message_constant(gab, mod, message);
 
-  push_op(bc, mod, OP_PUSH_NIL);
+  push_op(bc, mod, OP_CONSTANT);
+  push_short(bc, mod, f);
 
-  boolean vse = false;
-  i32 result = compile_arguments(gab, bc, mod, &vse);
-
-  if (result < 0)
-    return COMP_ERR;
-
-  if (result > FARG_MAX) {
-    dump_compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
-    return COMP_ERR;
-  }
-
-  pop_slot(bc, result + 1);
-
-  gab_module_push_send(mod, result, vse, f, prev_tok, prev_line, prev_src);
-
-  push_slot(bc, 1);
-  return VAR_EXP;
+  return COMP_OK;
 }
 
 i32 compile_exp_snd(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -2176,7 +2181,7 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(bin, FACTOR, false),                // PERCENT
     NONE(),                            // COMMA
     PREFIX(emp),       // COLON
-    NONE(),           // AMPERSAND
+    INFIX(bin, TERM, false),           // AMPERSAND
     NONE(),           // DOLLAR
     PREFIX(sym), // SYMBOL
     INFIX(dot, PROPERTY, true), // PROPERTY
@@ -2191,8 +2196,10 @@ const gab_compile_rule gab_bc_rules[] = {
     NONE(),                            // COLON_EQUAL
     INFIX(bin, COMPARISON, false),            // LESSER
     INFIX(bin, EQUALITY, false),              // LESSEREQUAL
+    INFIX(bin, TERM, false),              // LESSEREQUAL
     INFIX(bin, COMPARISON, false),            // GREATER
     INFIX(bin, EQUALITY, false),              // GREATEREQUAL
+    INFIX(bin, TERM, false),                            // GREATER_GREATER
     NONE(),                            // ARROW
     NONE(),                            // FATARROW
     INFIX(and, AND, false),                   // AND
@@ -2204,7 +2211,7 @@ const gab_compile_rule gab_bc_rules[] = {
     NONE(),                            // RBRACK
     PREFIX_INFIX(grp, cal, SEND, false),     // LPAREN
     NONE(),                            // RPAREN
-    NONE(),            // PIPE
+    INFIX(bin, TERM, false),            // PIPE
     NONE(),                            // SEMI
     PREFIX(idn),                       // ID
     PREFIX(str),                       // STRING

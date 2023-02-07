@@ -56,7 +56,7 @@ gab_value gab_lib_push(gab_engine *gab, gab_vm *vm, u8 argc,
 
   gab_iref_many(gab, vm, argc - 1, argv + 1);
 
-  return argv[1];
+  return argv[0];
 }
 
 gab_value gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc,
