@@ -1,8 +1,7 @@
 // Compile-time errors
 STATUS(OK, "OK")
 STATUS(PANIC, "A fatal error occurred")
-STATUS(EOF_IN_STRING, "Unexpected EOF in string literal")
-STATUS(NL_IN_STRING, "Unexpected return in string literal")
+STATUS(MALFORMED_STRING, "Unexpected character in string literal")
 STATUS(MALFORMED_TOKEN, "Unrecognized token")
 STATUS(UNEXPECTED_TOKEN, "Unexpected token")
 STATUS(TOO_MANY_LOCALS, "Functions cannot have more than 255 locals")

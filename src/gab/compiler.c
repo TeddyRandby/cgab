@@ -78,8 +78,7 @@ enum comp_status {
   COMP_MAX = INT32_MAX,
 };
 
-static void dump_compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
-                                ...);
+static void compiler_error(gab_bc *bc, gab_status e, const char *help_fmt, ...);
 
 static boolean match_token(gab_bc *bc, gab_token tok);
 
@@ -104,7 +103,7 @@ static i32 eat_token(gab_bc *bc) {
 
   if (match_token(bc, TOKEN_ERROR)) {
     eat_token(bc);
-    dump_compiler_error(bc, bc->lex.status, "");
+    compiler_error(bc, bc->lex.status, "");
     return COMP_ERR;
   }
 
@@ -121,8 +120,8 @@ static inline i32 match_and_eat_token(gab_bc *bc, gab_token tok) {
 static inline i32 expect_token(gab_bc *bc, gab_token tok) {
   if (!match_token(bc, tok)) {
     eat_token(bc);
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected %s",
-                        gab_token_names[tok]);
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected %s",
+                   gab_token_names[tok]);
     return COMP_ERR;
   }
 
@@ -201,7 +200,7 @@ static i32 add_local(gab_bc *bc, s_i8 name, u8 flags) {
   gab_bc_frame *frame = peek_frame(bc, 0);
 
   if (frame->nlocals == LOCAL_MAX) {
-    dump_compiler_error(bc, GAB_TOO_MANY_LOCALS, "");
+    compiler_error(bc, GAB_TOO_MANY_LOCALS, "");
     return COMP_ERR;
   }
 
@@ -233,7 +232,7 @@ static i32 add_upvalue(gab_bc *bc, u32 depth, u8 index, u8 flags) {
   }
 
   if (count == UPVALUE_MAX) {
-    dump_compiler_error(bc, GAB_TOO_MANY_UPVALUES, "");
+    compiler_error(bc, GAB_TOO_MANY_UPVALUES, "");
     return COMP_ERR;
   }
 
@@ -252,7 +251,7 @@ static i32 resolve_local(gab_bc *bc, s_i8 name, u32 depth) {
   for (i32 local = peek_frame(bc, depth)->next_local - 1; local >= 0; local--) {
     if (s_i8_match(name, peek_frame(bc, depth)->locals_name[local])) {
       if (peek_frame(bc, depth)->locals_depth[local] == -1) {
-        dump_compiler_error(bc, GAB_REFERENCE_BEFORE_INITIALIZE, "");
+        compiler_error(bc, GAB_REFERENCE_BEFORE_INITIALIZE, "");
         return COMP_ERR;
       }
       return local;
@@ -393,7 +392,7 @@ static i32 compile_local(gab_bc *bc, s_i8 name, u8 flags) {
     }
 
     if (s_i8_match(name, peek_frame(bc, 0)->locals_name[local])) {
-      dump_compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
+      compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
       return COMP_ERR;
     }
   }
@@ -417,7 +416,7 @@ i32 compile_parameters(gab_bc *bc, boolean *vse_out) {
   do {
 
     if (narguments >= FARG_MAX) {
-      dump_compiler_error(bc, GAB_TOO_MANY_PARAMETERS, "");
+      compiler_error(bc, GAB_TOO_MANY_PARAMETERS, "");
       return COMP_ERR;
     }
 
@@ -465,8 +464,7 @@ i32 compile_parameters(gab_bc *bc, boolean *vse_out) {
     }
 
     default:
-      dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                          "While compiling parameter");
+      compiler_error(bc, GAB_UNEXPECTED_TOKEN, "While compiling parameter");
       return COMP_ERR;
     }
 
@@ -547,7 +545,7 @@ i32 compile_block(gab_engine *gab, gab_bc *bc, gab_module *mod) {
 
   if (match_token(bc, TOKEN_EOF)) {
     eat_token(bc);
-    dump_compiler_error(bc, GAB_MISSING_END, "");
+    compiler_error(bc, GAB_MISSING_END, "");
     return COMP_ERR;
   }
 
@@ -687,7 +685,7 @@ i32 compile_tuple(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 want,
     return COMP_ERR;
 
   if (have > want) {
-    dump_compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS, "");
+    compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS, "");
     return COMP_ERR;
   }
 
@@ -758,7 +756,7 @@ i32 compile_property(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   case COMP_OK: {
     if (!assignable) {
-      dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
+      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
       return COMP_ERR;
     }
 
@@ -786,8 +784,7 @@ i32 compile_property(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   default:
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                        "While compiling property access");
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "While compiling property access");
     return COMP_ERR;
   }
 
@@ -817,7 +814,7 @@ i32 compile_lst_internals(gab_engine *gab, gab_bc *bc, gab_module *mod,
       return COMP_ERR;
 
     if (size == UINT8_MAX) {
-      dump_compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_INITIALIZER, "");
+      compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_INITIALIZER, "");
       return COMP_ERR;
     }
 
@@ -893,8 +890,8 @@ i32 compile_rec_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod) {
         break;
 
       default:
-        dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                            "While compiling object literal");
+        compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                       "While compiling object literal");
         return COMP_ERR;
       }
 
@@ -928,8 +925,7 @@ i32 compile_rec_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod) {
 
 err:
   eat_token(bc);
-  dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                      "While compiling object literal");
+  compiler_error(bc, GAB_UNEXPECTED_TOKEN, "While compiling object literal");
   return COMP_ERR;
 }
 
@@ -945,7 +941,7 @@ i32 compile_rec_internals(gab_engine *gab, gab_bc *bc, gab_module *mod) {
       return COMP_ERR;
 
     if (size == UINT8_MAX) {
-      dump_compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_INITIALIZER, "");
+      compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_INITIALIZER, "");
       return COMP_ERR;
     }
 
@@ -1274,8 +1270,8 @@ i32 compile_exp_bin(gab_engine *gab, gab_bc *bc, gab_module *mod,
     break;
   }
   default: {
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                        "While compiling binary expression");
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                   "While compiling binary expression");
     return COMP_ERR;
   }
   }
@@ -1314,8 +1310,8 @@ i32 compile_exp_una(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_OK;
   }
   default: {
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                        "While compiling unary expression");
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                   "While compiling unary expression");
     return COMP_ERR;
   }
   }
@@ -1325,10 +1321,42 @@ i32 compile_exp_una(gab_engine *gab, gab_bc *bc, gab_module *mod,
   return VAR_EXP;
 }
 
+i32 encode_codepoint(i8 *out, u32 utf) {
+  if (utf <= 0x7F) {
+    // Plain ASCII
+    out[0] = (char)utf;
+    return 1;
+  } else if (utf <= 0x07FF) {
+    // 2-byte unicode
+    out[0] = (char)(((utf >> 6) & 0x1F) | 0xC0);
+    out[1] = (char)(((utf >> 0) & 0x3F) | 0x80);
+    return 2;
+  } else if (utf <= 0xFFFF) {
+    // 3-byte unicode
+    out[0] = (char)(((utf >> 12) & 0x0F) | 0xE0);
+    out[1] = (char)(((utf >> 6) & 0x3F) | 0x80);
+    out[2] = (char)(((utf >> 0) & 0x3F) | 0x80);
+    return 3;
+  } else if (utf <= 0x10FFFF) {
+    // 4-byte unicode
+    out[0] = (char)(((utf >> 18) & 0x07) | 0xF0);
+    out[1] = (char)(((utf >> 12) & 0x3F) | 0x80);
+    out[2] = (char)(((utf >> 6) & 0x3F) | 0x80);
+    out[3] = (char)(((utf >> 0) & 0x3F) | 0x80);
+    return 4;
+  } else {
+    // error - use replacement character
+    out[0] = (char)0xEF;
+    out[1] = (char)0xBF;
+    out[2] = (char)0xBD;
+    return 3;
+  }
+}
+
 /*
  * Returns null if an error occured.
  */
-a_i8 *parse_raw_str(s_i8 raw_str) {
+a_i8 *parse_raw_str(gab_bc *bc, s_i8 raw_str) {
   // The parsed string will be at most as long as the raw string.
   // (\n -> one char)
   i8 buffer[raw_str.len];
@@ -1340,27 +1368,54 @@ a_i8 *parse_raw_str(s_i8 raw_str) {
 
     if (c == '\\') {
 
-      i8 code;
       switch (raw_str.data[i + 1]) {
 
       case 'n':
-        code = '\n';
+        buffer[buf_end++] = '\n';
         break;
       case 't':
-        code = '\t';
+        buffer[buf_end++] = '\t';
         break;
       case '{':
-        code = '{';
+        buffer[buf_end++] = '{';
+        break;
+      case 'u':
+        i += 2;
+
+        if (raw_str.data[i] != '[') {
+          return NULL;
+        }
+
+        i++;
+
+        u8 cpl = 0;
+        char codepoint[8] = {0};
+
+        while (raw_str.data[i] != ']') {
+
+          if (cpl == 7)
+            return NULL;
+
+          codepoint[cpl++] = raw_str.data[i++];
+        }
+
+        i++;
+
+        u32 cp = strtol(codepoint, NULL, 16);
+
+        i32 result = encode_codepoint(buffer + buf_end, cp);
+
+        buf_end += result;
+
         break;
       case '\\':
-        code = '\\';
+        buffer[buf_end++] = '\\';
         break;
       default:
         buffer[buf_end++] = c;
         continue;
       }
 
-      buffer[buf_end++] = code;
       i++;
 
     } else {
@@ -1378,11 +1433,10 @@ i32 compile_exp_str(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   s_i8 raw_token = bc->lex.previous_token_src;
 
-  a_i8 *parsed = parse_raw_str(raw_token);
+  a_i8 *parsed = parse_raw_str(bc, raw_token);
 
   if (parsed == NULL) {
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                        "While compiling string literal");
+    compiler_error(bc, GAB_MALFORMED_STRING, "");
     return COMP_ERR;
   }
 
@@ -1535,7 +1589,7 @@ i32 compile_exp_let(gab_engine *gab, gab_bc *bc, gab_module *mod,
   i32 result;
   do {
     if (local_count == 16) {
-      dump_compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_LET, "");
+      compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_LET, "");
       return COMP_ERR;
     }
 
@@ -1560,13 +1614,13 @@ i32 compile_exp_let(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
     case COMP_RESOLVED_TO_LOCAL:
     case COMP_RESOLVED_TO_UPVALUE: {
-      dump_compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
+      compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
       return COMP_ERR;
     }
 
     default:
-      dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                          "While compiling let expression");
+      compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                     "While compiling let expression");
       return COMP_ERR;
     }
 
@@ -1587,12 +1641,12 @@ i32 compile_exp_let(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   case COMP_TOKEN_NO_MATCH:
-    dump_compiler_error(bc, GAB_MISSING_INITIALIZER, "");
+    compiler_error(bc, GAB_MISSING_INITIALIZER, "");
     return COMP_ERR;
 
   default:
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                        "While compiling 'let' expression");
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                   "While compiling 'let' expression");
     return COMP_ERR;
   }
 
@@ -1634,12 +1688,12 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   case COMP_ID_NOT_FOUND: {
-    dump_compiler_error(bc, GAB_MISSING_IDENTIFIER, "");
+    compiler_error(bc, GAB_MISSING_IDENTIFIER, "");
     return COMP_ERR;
   }
 
   default:
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN, "While compiling identifier");
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "While compiling identifier");
     return COMP_ERR;
   }
 
@@ -1647,8 +1701,8 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   case COMP_OK: {
     if (!assignable) {
-      dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                          "While compiling identifier");
+      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                     "While compiling identifier");
       return COMP_ERR;
     }
 
@@ -1656,17 +1710,17 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
     if (is_local_var) {
       if (!(frame->locals_flag[var] & FLAG_MUTABLE)) {
         s_i8 name = frame->locals_name[var];
-        dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                            "Variable '%.*s' is not mutable", (i32)name.len,
-                            name.data);
+        compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                       "Variable '%.*s' is not mutable", (i32)name.len,
+                       name.data);
         return COMP_ERR;
       }
     } else {
       if (!(frame->upvs_flag[var] & FLAG_MUTABLE)) {
         s_i8 name = frame->locals_name[var];
-        dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                            "Variable '%.*s' is not mutable", (i32)name.len,
-                            name.data);
+        compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                       "Variable '%.*s' is not mutable", (i32)name.len,
+                       name.data);
         return COMP_ERR;
       }
     }
@@ -1695,8 +1749,8 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
     break;
 
   default:
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                        "While compiling 'identifier' expression");
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                   "While compiling 'identifier' expression");
     return COMP_ERR;
   }
 
@@ -1732,8 +1786,8 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
       gab_module_push_send(mod, 2, false, m, prop_tok, prop_line, prop_src);
     } else {
-      dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                          "While compiling 'index' expression");
+      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                     "While compiling 'index' expression");
       return COMP_ERR;
     }
     break;
@@ -1747,8 +1801,8 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   default:
-    dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                        "While compiling 'index' expression");
+    compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                   "While compiling 'index' expression");
     return COMP_ERR;
   }
 
@@ -1840,7 +1894,7 @@ i32 compile_exp_snd(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
 
   if (result > FARG_MAX) {
-    dump_compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
+    compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
     return COMP_ERR;
   }
 
@@ -1866,7 +1920,7 @@ i32 compile_exp_cal(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
 
   if (result > 254) {
-    dump_compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
+    compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
     return COMP_ERR;
   }
 
@@ -1920,7 +1974,7 @@ i32 compile_exp_prec(gab_engine *gab, gab_bc *bc, gab_module *mod,
   gab_compile_rule rule = get_rule(bc->previous_token);
 
   if (rule.prefix == NULL) {
-    dump_compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected an expression");
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected an expression");
     return COMP_ERR;
   }
 
@@ -1947,7 +2001,7 @@ i32 compile_exp_prec(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   // TODO: See if this actually does anything.
   if (assignable && match_token(bc, TOKEN_EQUAL)) {
-    dump_compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
+    compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
     return COMP_ERR;
   }
 
@@ -2106,7 +2160,7 @@ i32 compile_exp_yld(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
 
   if (result > 16) {
-    dump_compiler_error(bc, GAB_TOO_MANY_RETURN_VALUES, "");
+    compiler_error(bc, GAB_TOO_MANY_RETURN_VALUES, "");
     return COMP_ERR;
   }
 
@@ -2136,7 +2190,7 @@ i32 compile_exp_rtn(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
 
   if (result > 16) {
-    dump_compiler_error(bc, GAB_TOO_MANY_RETURN_VALUES, "");
+    compiler_error(bc, GAB_TOO_MANY_RETURN_VALUES, "");
     return COMP_ERR;
   }
 
@@ -2316,8 +2370,8 @@ gab_module *gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags,
   return mod;
 }
 
-static void dump_compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
-                                ...) {
+static void compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
+                           ...) {
   if (bc->panic) {
     return;
   }

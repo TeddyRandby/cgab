@@ -174,12 +174,12 @@ gab_token string(gab_lexer *self) {
     advance(self);
 
     if (peek(self) == '\0') {
-      return return_error(self, GAB_EOF_IN_STRING);
+      return return_error(self, GAB_MALFORMED_STRING);
     }
 
     if (start != '"') {
       if (peek(self) == '\n') {
-        return return_error(self, GAB_NL_IN_STRING);
+        return return_error(self, GAB_MALFORMED_STRING);
       }
 
       if (peek(self) == '{') {
