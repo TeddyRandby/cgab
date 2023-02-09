@@ -1,14 +1,10 @@
-#include "include/vm.h"
-#include "include/char.h"
 #include "include/colors.h"
-#include "include/core.h"
+#include "include/char.h"
 #include "include/engine.h"
 #include "include/gab.h"
+#include "include/vm.h"
+#include "include/compiler.h"
 #include "include/gc.h"
-#include "include/module.h"
-#include "include/object.h"
-#include "include/types.h"
-#include "include/value.h"
 
 #include <stdarg.h>
 #include <stdint.h>

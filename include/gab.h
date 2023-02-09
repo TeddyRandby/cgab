@@ -13,7 +13,7 @@ typedef struct gab_vm gab_vm;
  *
  * @return The allocated Gab Engine.
  */
-gab_engine *gab_create();
+gab_engine *gab_create(void* ud);
 
 /**
  * Cleanup a Gab Engine.
@@ -41,6 +41,8 @@ void gab_destroy(gab_engine *gab);
 
 void gab_args(gab_engine *gab, u8 argc, s_i8 argv_names[argc],
               gab_value argv_values[argc]);
+
+void* gab_user(gab_engine* gab);
 
 /**
  * Compile a source string into a Gab Module.

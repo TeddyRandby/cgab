@@ -1,8 +1,5 @@
-#include "include/gc.h"
-#include "include/core.h"
 #include "include/engine.h"
-#include "include/object.h"
-#include "include/value.h"
+#include "include/vm.h"
 #include <stdio.h>
 
 #if GAB_DEBUG_GC
@@ -25,8 +22,8 @@ void gab_obj_iref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_obj *obj) {
 void gab_obj_dref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_obj *obj) {
   if (gc->decrement_count + 1 >= INC_DEC_MAX) {
     gab_gc_collect(gab, vm, gc);
-  } else {
 #if GAB_DEBUG_GC
+  } else {
     if (debug_collect)
       gab_gc_collect(gab, vm, gc);
 #endif
@@ -39,8 +36,8 @@ void gab_gc_iref_many(gab_engine *gab, gab_vm *vm, gab_gc *gc, u64 len,
                       gab_value values[len]) {
   if (gc->increment_count + len >= INC_DEC_MAX) {
     gab_gc_collect(gab, vm, gc);
-  } else {
 #if GAB_DEBUG_GC
+  } else {
     if (debug_collect)
       gab_gc_collect(gab, vm, gc);
 #endif
@@ -56,8 +53,8 @@ void gab_gc_dref_many(gab_engine *gab, gab_vm *vm, gab_gc *gc, u64 len,
                       gab_value values[len]) {
   if (gc->decrement_count + len >= INC_DEC_MAX) {
     gab_gc_collect(gab, vm, gc);
-  } else {
 #if GAB_DEBUG_GC
+  } else {
     if (debug_collect)
       gab_gc_collect(gab, vm, gc);
 #endif
@@ -69,7 +66,7 @@ void gab_gc_dref_many(gab_engine *gab, gab_vm *vm, gab_gc *gc, u64 len,
   }
 }
 
-#if GAB_DEBUG_GC
+#if GAB_LOG_GC
 
 void __gab_gc_iref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_value obj,
                    const char *file, i32 line) {
@@ -82,8 +79,10 @@ void __gab_gc_iref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_value obj,
                                               });
   }
 
+#if GAB_DEBUG_GC
   if (debug_collect)
     gab_gc_collect(gab, vm, gc);
+#endif
 }
 
 void __gab_gc_dref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_value obj,
@@ -115,6 +114,17 @@ static inline void dump_rcs_for(gab_gc *gc, gab_obj *val) {
   }
 }
 
+static inline void dump_obj_alloc_stats(gab_gc *gc) {
+  fprintf(stdout, "Kind\tObjects\n");
+  for (u64 i = 0; i < gc->object_counts.cap; i++) {
+    if (d_u64_iexists(&gc->object_counts, i)) {
+      fprintf(stdout, "%-8s\t%-6lu\n",
+              gab_kind_names[d_u64_ikey(&gc->object_counts, i)],
+              d_u64_ival(&gc->object_counts, i));
+    }
+  }
+}
+
 #else
 
 void gab_gc_iref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_value obj) {
@@ -130,25 +140,24 @@ void gab_gc_dref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_value obj) {
 #endif
 
 void gab_gc_create(gab_gc *self) {
+  // Bring the capacity up to be even
+  d_gc_set_create(&self->roots, MODULE_CONSTANTS_MAX);
+  d_gc_set_create(&self->queue, MODULE_CONSTANTS_MAX);
+
   self->decrement_count = 0;
   self->increment_count = 0;
-  self->root_count = 0;
 
-#if GAB_DEBUG_GC
+#if GAB_LOG_GC
   v_rc_update_create(&self->tracked_decrements, MODULE_CONSTANTS_MAX);
   v_rc_update_create(&self->tracked_increments, MODULE_CONSTANTS_MAX);
   d_rc_tracker_create(&self->tracked_values, MODULE_CONSTANTS_MAX);
-  self->cache_hits = 0;
-  self->cache_misses = 0;
+  d_u64_create(&self->object_counts, 8);
 #endif
-
-  d_gc_cache_create(&self->cache, MODULE_CONSTANTS_MAX);
 };
 
 void gab_gc_destroy(gab_gc *self) {
-  d_gc_cache_destroy(&self->cache);
-
-#if GAB_DEBUG_GC
+  d_gc_set_destroy(&self->roots);
+  d_gc_set_destroy(&self->queue);
 
 #if GAB_LOG_GC
   fprintf(stdout, "Checking remaining objects...\n");
@@ -163,61 +172,21 @@ void gab_gc_destroy(gab_gc *self) {
       }
     }
   }
-#endif
+
   fprintf(stdout, "Done.\n");
-  fprintf(stdout, "Cache: %lu hits, %lu misses.", self->cache_hits, self->cache_misses);
-  f64 total = self->cache_hits + self->cache_misses;
-  fprintf(stdout, "Cache hit rate: %lf\n", self->cache_hits / total);
+
+  dump_obj_alloc_stats(self);
 
   v_rc_update_destroy(&self->tracked_decrements);
   v_rc_update_destroy(&self->tracked_increments);
   d_rc_tracker_destroy(&self->tracked_values);
+  d_u64_destroy(&self->object_counts);
 #endif
-}
-
-void *gab_reallocate(gab_engine *gab, void *loc, u64 old_count, u64 new_count) {
-  if (new_count == 0) {
-    free(loc);
-    return NULL;
-  }
-
-  u64 offset = d_gc_cache_index_of(&gab->gc.cache, new_count);
-
-  if (d_gc_cache_iexists(&gab->gc.cache, offset)) {
-    void *new_ptr = d_gc_cache_ival(&gab->gc.cache, offset);
-    d_gc_cache_iremove(&gab->gc.cache, offset);
-#if GAB_DEBUG_GC
-    gab->gc.cache_hits++;
-#endif
-    return new_ptr;
-  }
-
-#if GAB_DEBUG_GC
-    gab->gc.cache_misses++;
-#endif
-  void *new_ptr = realloc(loc, new_count);
-
-  if (!new_ptr) {
-    exit(1);
-  }
-
-  return new_ptr;
 }
 
 static inline void queue_destroy(gab_engine *gab, gab_vm *vm, gab_gc *self,
                                  gab_obj *obj) {
-  u64 size = gab_obj_size(obj);
-
-  if (d_gc_cache_exists(&self->cache, size)) {
-    if (d_gc_cache_read(&self->cache, size) != obj) {
-      d_gc_set_insert(&self->queue, obj, 0);
-    }
-
-    return;
-  }
-
-  gab_obj_destroy(gab, vm, obj);
-  d_gc_cache_insert(&self->cache, size, obj);
+  d_gc_set_insert(&gab->gc.queue, obj, 0);
 }
 
 static inline void cleanup(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
@@ -226,27 +195,24 @@ static inline void cleanup(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
 
       gab_obj *obj = d_gc_set_ikey(&gc->queue, i);
 
+      d_gc_set_iremove(&gc->queue, i);
+      d_gc_set_remove(&gc->roots, obj);
+
 #if GAB_LOG_GC
       printf("Destroying (#%lu) (%p): ", i, obj);
       gab_val_dump(GAB_VAL_OBJ(obj));
       printf("\n");
-#if GAB_DEBUG_GC
       dump_rcs_for(gc, obj);
-#endif
 #endif
 
       gab_obj_destroy(gab, vm, obj);
-      gab_reallocate(gab, obj, 0, 0);
+      gab_reallocate(gab, obj, gab_obj_size(obj), 0);
     }
   }
 }
 
 static inline void push_root(gab_engine *gab, gab_vm *vm, gab_gc *gc,
                              gab_obj *obj) {
-  if (gc->root_count >= INC_DEC_MAX) {
-    gab_gc_collect(gab, vm, gc);
-  }
-
   d_gc_set_insert(&gc->roots, obj, 0);
 }
 
@@ -451,7 +417,7 @@ static inline void dec_child_refs(gab_engine *gab, gab_vm *vm, gab_gc *gc,
 
 static inline void dec_obj_ref(gab_engine *gab, gab_vm *vm, gab_gc *gc,
                                gab_obj *obj) {
-#if GAB_DEBUG_GC
+#if GAB_LOG_GC
   d_rc_tracker_insert(&gc->tracked_values, obj, obj->references - 1);
 #endif
   if (--obj->references <= 0) {
@@ -475,7 +441,7 @@ static inline void dec_if_obj_ref(gab_engine *gab, gab_vm *vm, gab_gc *gc,
 }
 
 static inline void inc_obj_ref(gab_gc *gc, gab_obj *obj) {
-#if GAB_DEBUG_GC
+#if GAB_LOG_GC
   d_rc_tracker_insert(&gc->tracked_values, obj, obj->references + 1);
 #endif
   obj->references++;
@@ -494,7 +460,7 @@ static inline void increment_stack(gab_gc *gc, gab_vm *vm) {
 
   while (tracker >= vm->vstack) {
 
-#if GAB_DEBUG_GC
+#if GAB_LOG_GC
     if (GAB_VAL_IS_OBJ(*tracker)) {
       v_rc_update_push(&gc->tracked_increments,
                        (rc_update){
@@ -525,14 +491,14 @@ static inline void decrement_stack(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
 }
 
 static inline void process_increments(gab_gc *gc) {
-  while (gc->increment_count > 0) {
+  while (gc->increment_count) {
     gc->increment_count--;
     inc_obj_ref(gc, gc->increments[gc->increment_count]);
   }
 }
 
 static inline void process_decrements(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
-  while (gc->decrement_count > 0) {
+  while (gc->decrement_count) {
     dec_obj_ref(gab, vm, gc, gc->decrements[--gc->decrement_count]);
   }
 }
@@ -627,7 +593,6 @@ static inline void collect_roots(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
       collect_white(gab, vm, gc, obj);
     }
   }
-  gc->root_count = 0;
 }
 
 void collect_cycles(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
@@ -637,9 +602,6 @@ void collect_cycles(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
 }
 
 void gab_gc_collect(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
-  d_gc_set_create(&gc->roots, MODULE_CONSTANTS_MAX);
-  d_gc_set_create(&gc->queue, MODULE_CONSTANTS_MAX);
-
   if (vm != NULL)
     increment_stack(gc, vm);
 
@@ -653,7 +615,4 @@ void gab_gc_collect(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
     decrement_stack(gab, vm, gc);
 
   cleanup(gab, vm, gc);
-
-  d_gc_set_destroy(&gc->roots);
-  d_gc_set_destroy(&gc->queue);
 }

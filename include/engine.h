@@ -6,11 +6,8 @@ typedef struct gab_bc gab_bc;
 typedef struct gab_gc gab_gc;
 typedef struct gab_vm gab_vm;
 
-#include "compiler.h"
 #include "gab.h"
-#include "vm.h"
-
-#include <threads.h>
+#include "gc.h"
 
 void *gab_reallocate(gab_engine* gab, void *loc, u64 old_size, u64 new_size);
 
@@ -61,6 +58,8 @@ struct gab_engine {
   gab_value types[GAB_KIND_NKINDS];
 
   u64 hash_seed;
+
+  void* userdata;
 
   a_u64 *argv_values;
   a_s_i8 *argv_names;

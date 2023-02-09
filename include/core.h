@@ -4,7 +4,7 @@
 
 // Collect as frequently as possible (on every RC push). Also collect debug
 // info.
-#define GAB_DEBUG_GC 1
+#define GAB_DEBUG_GC 0
 // Log what is happening during collection.
 #define GAB_LOG_GC 0
 // Log what is happening during execution.
@@ -15,23 +15,23 @@
 // Configurable macros
 // Dictionary maximum load
 #define DICT_MAX_LOAD 0.6
-// Size of the initial capacity for objects.
-#define OBJECT_INITIAL_CAP 8
 // Maximum number of call frames that can be on the call stack
 #define FRAMES_MAX 512
-// Maximum size of the stack
+// Maximum number of function defintions that can be nested.
 #define FUNCTION_DEF_NESTING_MAX 64
 // Maximum number of roots inthe root buffer before triggering a collection.
 #define ROOT_MAX 2048
 // Initial capacity of interned table
 #define INTERN_INITIAL_CAP 256
 
+#define GC_CACHE_UP 17
+
 // Derived macros
 // Garbage collection increment/decrement buffer size
 #define INC_DEC_MAX (STACK_MAX + 1)
 // Size of the engines constant table.
 #define MODULE_CONSTANTS_MAX (UINT16_MAX + 1)
-// Maximum number of function defintions that can be nested.
+// Maximum size of the stack
 #define STACK_MAX (FRAMES_MAX * 256)
 
 // Not configurable, just constants

@@ -5,7 +5,7 @@
 
 typedef struct gab_vm gab_vm;
 
-#if GAB_DEBUG_GC
+#if GAB_LOG_GC
 typedef struct rc_update {
   const char *file;
   i32 line;
@@ -28,37 +28,26 @@ typedef struct rc_update {
 #define NAME gc_set
 #define K gab_obj *
 #define DEF_K NULL
+#define V u64
+#define DEF_V 0
 #define HASH(a) ((u64)a)
 #define EQUAL(a, b) (a == b)
 #include "include/dict.h"
-
-#define NAME gc_cache
-#define K u64
-#define DEF_K 0
-#define V gab_obj*
-#define DEF_V NULL
-#define HASH(a) ((u64)a)
-#define EQUAL(a, b) (a == b)
-#include "include/dict.h"
-
 
 typedef struct gab_gc {
-  i32 increment_count;
-  i32 decrement_count;
-  i32 root_count;
-
-  d_gc_cache cache;
+  u64 increment_count;
+  u64 decrement_count;
 
   d_gc_set queue;
   d_gc_set roots;
 
-#if GAB_DEBUG_GC
+#if GAB_LOG_GC
   v_rc_update tracked_increments;
   v_rc_update tracked_decrements;
 
   d_rc_tracker tracked_values;
-  u64 cache_hits;
-  u64 cache_misses;
+
+  d_u64 object_counts;
 #endif
 
   gab_obj *increments[INC_DEC_MAX];
@@ -77,7 +66,7 @@ void gab_gc_dref_many(gab_engine *gab, gab_vm *vm, gab_gc *gc, u64 len,
                       gab_value values[len]);
 
 
-#if GAB_DEBUG_GC
+#if GAB_LOG_GC
 
 void __gab_gc_iref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_value val,
                    const char *file, i32 line);

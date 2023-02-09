@@ -16,15 +16,13 @@
   ((obj_type *)gab_reallocate(                                                 \
       gab, NULL, 0, sizeof(obj_type) + sizeof(flex_type) * flex_count))
 
-/*
-  Helper macros for allocating gab objects.
-*/
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \
-  ((obj_type *)gab_obj_create((gab_obj *)GAB_CREATE_STRUCT(obj_type), kind))
+  ((obj_type *)gab_obj_create(gab, (gab_obj *)GAB_CREATE_STRUCT(obj_type),     \
+                              kind))
 
 #define GAB_CREATE_FLEX_OBJ(obj_type, flex_type, flex_count, kind)             \
   ((obj_type *)gab_obj_create(                                                 \
-      (gab_obj *)GAB_CREATE_FLEX_STRUCT(obj_type, flex_type, flex_count),      \
+      gab, (gab_obj *)GAB_CREATE_FLEX_STRUCT(obj_type, flex_type, flex_count), \
       kind))
 
 // This can be heavily optimized.
@@ -56,16 +54,16 @@ boolean gab_val_falsey(gab_value self) {
   return GAB_VAL_IS_NIL(self) || GAB_VAL_IS_FALSE(self);
 }
 
-gab_obj *gab_obj_create(gab_obj *self, gab_kind k) {
+gab_obj *gab_obj_create(gab_engine *gab, gab_obj *self, gab_kind k) {
   self->kind = k;
   // Objects start out with one reference.
   self->references = 1;
 
   self->flags = 0;
 #if GAB_LOG_GC
-
   printf("Created (%p) \n", self);
-
+  u64 curr_amt = d_u64_read(&gab->gc.object_counts, k);
+  d_u64_insert(&gab->gc.object_counts, k, curr_amt + 1);
 #endif
   return self;
 }
@@ -214,15 +212,17 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self) {
     return GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr(str)));
   }
 
-  if (GAB_VAL_IS_PRIMITIVE(self)) {
-    return GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("[primitive]")));
-  }
-
   if (GAB_VAL_IS_UNDEFINED(self)) {
     return GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("[undefined]")));
   }
 
-  return GAB_VAL_OBJ(gab_obj_to_obj_string(gab, GAB_VAL_TO_OBJ(self)));
+  if (GAB_VAL_IS_OBJ(self)) {
+    return GAB_VAL_OBJ(gab_obj_to_obj_string(gab, GAB_VAL_TO_OBJ(self)));
+  }
+
+  printf("Tried to convert unhandled type to string\n");
+
+  return GAB_VAL_NIL();
 }
 
 /*
@@ -275,15 +275,26 @@ u64 gab_obj_size(gab_obj *self) {
     return sizeof(gab_obj_list);
   case GAB_KIND_MAP:
     return sizeof(gab_obj_map);
+  case GAB_KIND_BLOCK: {
+    gab_obj_block *obj = (gab_obj_block *)self;
+    return sizeof(gab_obj_block) + obj->nupvalues * sizeof(gab_value);
+  }
+  case GAB_KIND_RECORD: {
+    gab_obj_record *obj = (gab_obj_record *)self;
+    return sizeof(gab_obj_record) + obj->len * sizeof(gab_value);
+  }
+  case GAB_KIND_SHAPE: {
+    gab_obj_shape *obj = (gab_obj_shape *)self;
+    return sizeof(gab_obj_shape) + obj->len * sizeof(gab_value);
+  }
   case GAB_KIND_EFFECT: {
     gab_obj_effect *obj = (gab_obj_effect *)self;
     return sizeof(gab_obj_effect) + obj->len * sizeof(gab_value);
   }
   case GAB_KIND_STRING: {
-    gab_obj_string*obj = (gab_obj_string *)self;
+    gab_obj_string *obj = (gab_obj_string *)self;
     return sizeof(gab_obj_string) + obj->len * sizeof(i8);
   }
-
   default:
     return sizeof(gab_value);
   }
@@ -326,7 +337,6 @@ gab_obj_string *gab_obj_string_create(gab_engine *gab, s_i8 str) {
 */
 gab_obj_string *gab_obj_string_concat(gab_engine *gab, gab_obj_string *a,
                                       gab_obj_string *b) {
-
   if (a->len == 0)
     return b;
 
@@ -357,7 +367,7 @@ gab_obj_string *gab_obj_string_concat(gab_engine *gab, gab_obj_string *a,
   */
   gab_obj_string *interned = gab_engine_find_string(gab, ref, self->hash);
   if (interned) {
-    DESTROY(self);
+    gab_reallocate(gab, self, gab_obj_size((gab_obj *)self), 0);
     return interned;
   }
 
@@ -431,7 +441,7 @@ gab_obj_builtin *gab_obj_builtin_create(gab_engine *gab, gab_builtin function,
 }
 
 gab_obj_block *gab_obj_block_create(gab_engine *gab, gab_obj_prototype *p) {
-  gab_obj_block *self = GAB_CREATE_FLEX_OBJ(gab_obj_block, gab_obj_upvalue,
+  gab_obj_block *self = GAB_CREATE_FLEX_OBJ(gab_obj_block, gab_value,
                                             p->nupvalues, GAB_KIND_BLOCK);
 
   self->nupvalues = p->nupvalues;
@@ -513,10 +523,7 @@ gab_obj_map *gab_obj_map_create(gab_engine *gab, u64 len, u64 stride,
 gab_obj_list *gab_obj_list_create_empty(gab_engine *gab, u64 len) {
   gab_obj_list *self = GAB_CREATE_OBJ(gab_obj_list, GAB_KIND_LIST);
 
-  v_gab_value_create(&self->data, len * 2);
-
-  while (len--)
-    v_gab_value_push(&self->data, GAB_VAL_NIL());
+  v_gab_value_create(&self->data, len);
 
   return self;
 }

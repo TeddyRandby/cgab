@@ -77,6 +77,7 @@ LINKAGE T *METHOD(emplace)(TYPENAME *self) {
 
 #undef T
 #undef TYPENAME
+#undef NAME
 #undef GROW
 #undef PREFIX
 #undef LINKAGE

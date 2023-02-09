@@ -30,6 +30,27 @@ typedef enum gab_kind {
   GAB_KIND_NKINDS,
 } gab_kind;
 
+static const char* gab_kind_names[] = {
+    "effect",
+    "string",
+    "message",
+    "prototype",
+    "builtin",
+    "block",
+    "upvalue",
+    "value",
+    "container",
+    "record",
+    "shape",
+    "list",
+    "map",
+    "nil",
+    "undefined",
+    "number",
+    "boolean",
+    "nkinds",
+};
+
 /*
   This header appears at the front of all gab_obj_kind structs.
 
@@ -61,10 +82,9 @@ struct gab_obj {
 #define GAB_OBJ_FLAG_PURPLE 16
 #define GAB_OBJ_FLAG_GREEN 32
 
-#if GAB_CONCURRENT_GC
 #define GAB_OBJ_FLAG_RED 64
+
 #define GAB_OBJ_FLAG_ORANGE 128
-#endif
 
 #define GAB_OBJ_IS_BUFFERED(obj) ((obj)->flags & GAB_OBJ_FLAG_BUFFERED)
 #define GAB_OBJ_IS_BLACK(obj) ((obj)->flags & GAB_OBJ_FLAG_BLACK)
@@ -72,6 +92,7 @@ struct gab_obj {
 #define GAB_OBJ_IS_WHITE(obj) ((obj)->flags & GAB_OBJ_FLAG_WHITE)
 #define GAB_OBJ_IS_PURPLE(obj) ((obj)->flags & GAB_OBJ_FLAG_PURPLE)
 #define GAB_OBJ_IS_GREEN(obj) ((obj)->flags & GAB_OBJ_FLAG_GREEN)
+#define GAB_OBJ_IS_RED(obj) ((obj)->flags & GAB_OBJ_FLAG_RED)
 
 #define GAB_OBJ_BUFFERED(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_BUFFERED)
 #define GAB_OBJ_BLACK(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_BLACK)
@@ -79,6 +100,7 @@ struct gab_obj {
 #define GAB_OBJ_WHITE(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_WHITE)
 #define GAB_OBJ_PURPLE(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_PURPLE)
 #define GAB_OBJ_GREEN(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_GREEN)
+#define GAB_OBJ_RED(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_RED)
 
 #define GAB_OBJ_NOT_BUFFERED(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_BUFFERED)
 #define GAB_OBJ_NOT_BLACK(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_BLACK)
@@ -86,6 +108,7 @@ struct gab_obj {
 #define GAB_OBJ_NOT_WHITE(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_WHITE)
 #define GAB_OBJ_NOT_PURPLE(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_PURPLE)
 #define GAB_OBJ_NOT_GREEN(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_GREEN)
+#define GAB_OBJ_NOT_RED(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_RED)
 
 /*
   'Generic' functions which handle all the different kinds of gab objects.

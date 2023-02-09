@@ -2,6 +2,7 @@ sources = files(
   'compiler.c',
   'engine.c',
   'gc.c',
+  'alloc.c',
   'lexer.c',
   'module.c',
   'object.c',

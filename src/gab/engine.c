@@ -116,11 +116,12 @@ struct primitive primitives[] = {
 /**
  * Gab API stuff
  */
-gab_engine *gab_create() {
+gab_engine *gab_create(void *ud) {
   gab_engine *gab = NEW(gab_engine);
 
   gab->modules = 0;
   gab->hash_seed = time(NULL);
+  gab->userdata = ud;
   gab->argv_names = NULL;
   gab->argv_values = NULL;
 
@@ -458,24 +459,4 @@ gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size, u64 stride,
 
 gab_value gab_type(gab_engine *gab, gab_kind t) { return gab->types[t]; }
 
-static inline gab_value pack_simple(gab_engine *gab, gab_vm *vm,
-                                    const char *str, gab_value val) {
-  s_i8 key[] = {s_i8_cstr(str)};
-  return gab_bundle_record(gab, vm, 1, key, &val);
-}
-
-gab_value gab_result_ok(gab_engine *gab, gab_vm *vm, gab_value val) {
-  return pack_simple(gab, vm, "ok", val);
-}
-
-gab_value gab_result_err(gab_engine *gab, gab_vm *vm, gab_value err) {
-  return pack_simple(gab, vm, "err", err);
-}
-
-gab_value gab_option_some(gab_engine *gab, gab_vm *vm, gab_value some) {
-  return pack_simple(gab, vm, "some", some);
-}
-
-gab_value gab_option_none(gab_engine *gab, gab_vm *vm) {
-  return pack_simple(gab, vm, "none", GAB_VAL_BOOLEAN(true));
-}
+void *gab_user(gab_engine *gab) { return gab->userdata; }

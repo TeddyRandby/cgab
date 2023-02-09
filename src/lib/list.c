@@ -20,9 +20,13 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
     if (!GAB_VAL_IS_NUMBER(argv[1]))
       return gab_panic(gab, vm, "Invalid call to gab_lib_new");
 
-    gab_obj_list *list = gab_obj_list_create_empty(gab, GAB_VAL_TO_NUMBER(argv[1]));
+    u64 len = GAB_VAL_TO_NUMBER(argv[1]);
+
+    gab_obj_list *list = gab_obj_list_create_empty(gab, len * 2);
 
     gab_value result = GAB_VAL_OBJ(list);
+
+    gab_obj_list_put(list, len, GAB_VAL_NIL());
 
     gab_dref(gab, vm, result);
 

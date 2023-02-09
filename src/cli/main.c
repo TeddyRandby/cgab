@@ -1,10 +1,7 @@
 #include "builtins.h"
-#include "include/core.h"
+#include "include/alloc.h"
 #include "include/gab.h"
-#include "include/module.h"
-#include "include/object.h"
 #include "include/os.h"
-#include "include/value.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,7 +55,7 @@ gab_value make_require(gab_engine *gab) {
 void gab_repl() {
   imports_create();
 
-  gab_engine *gab = gab_create();
+  gab_engine *gab = gab_create(alloc_setup());
 
   s_i8 arg_names[] = {
       s_i8_cstr("print"),   s_i8_cstr("require"), s_i8_cstr("panic"),
@@ -128,7 +125,11 @@ void gab_repl() {
     gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
   }
 
+  void* ud = gab_user(gab);
+
   gab_destroy(gab);
+
+  alloc_teardown(ud);
 
   imports_destroy(gab);
 }
@@ -136,7 +137,7 @@ void gab_repl() {
 void gab_run_file(const char *path) {
   imports_create();
 
-  gab_engine *gab = gab_create();
+  gab_engine *gab = gab_create(alloc_setup());
 
   s_i8 arg_names[] = {
       s_i8_cstr("print"),   s_i8_cstr("require"), s_i8_cstr("panic"),
@@ -185,12 +186,16 @@ fin:
   gab_dref(gab, NULL, args[1]);
   gab_dref(gab, NULL, args[2]);
   gab_dref(gab, NULL, args[3]);
+  void* ud = gab_user(gab);
+
   gab_destroy(gab);
 
+  alloc_teardown(ud);
   imports_destroy(gab);
 }
 
 i32 main(i32 argc, const char **argv) {
+
   if (argc == 1) {
     gab_repl();
   } else if (argc == 2) {
