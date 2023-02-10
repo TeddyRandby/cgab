@@ -525,6 +525,7 @@ gab_obj_list *gab_obj_list_create_empty(gab_engine *gab, u64 len) {
 
   v_gab_value_create(&self->data, len);
 
+
   return self;
 }
 

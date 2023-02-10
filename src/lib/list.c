@@ -22,7 +22,10 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
 
     u64 len = GAB_VAL_TO_NUMBER(argv[1]);
 
-    gab_obj_list *list = gab_obj_list_create_empty(gab, len * 2);
+    gab_obj_list *list = gab_obj_list_create_empty(len);
+
+    while (len--)
+      v_gab_value_push(&list->data, GAB_VAL_NIL());
 
     gab_value result = GAB_VAL_OBJ(list);
 
