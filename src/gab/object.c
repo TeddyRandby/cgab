@@ -508,10 +508,8 @@ gab_obj_map *gab_obj_map_create(u64 len, u64 stride, gab_value keys[len],
 gab_obj_list *gab_obj_list_create_empty(u64 len) {
   gab_obj_list *self = GAB_CREATE_OBJ(gab_obj_list, GAB_KIND_LIST);
 
-  v_gab_value_create(&self->data, len * 2);
+  v_gab_value_create(&self->data, len);
 
-  while (len--)
-    v_gab_value_push(&self->data, GAB_VAL_NIL());
 
   return self;
 }

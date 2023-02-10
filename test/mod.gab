@@ -400,7 +400,12 @@ describe('Lists', do ()
     end)
 
     it('should index with range', do ()
-        let list = List:new(1,2,3,4)
+        let list = List:new(5)
+        list[0] = 1
+        list[1] = 2
+        list[2] = 3
+        list[3] = 4
+        list[4] = 5
 
         let slice = list[3:to]
 
