@@ -1195,9 +1195,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       NEXT();
     }
 
-    /*
-     * The shape has not stabilized. If it has here, write to the cache.
-     */
     CASE_CODE(STORE_PROPERTY_ANA) : {
       gab_value key = READ_CONSTANT;
 

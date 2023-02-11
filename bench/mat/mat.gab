@@ -1,14 +1,4 @@
-require('List')
-require('list')
-
-def each[Number]
-  let v = 0
-
-  loop
-    yield v
-    v = v + 1
-  until v >= self
-end
+require('std')
 
 def Matrix { data n }
 
@@ -19,9 +9,9 @@ def __add__[Matrix](other)
 
   def N = self.n
 
-  let data = List:new(N * N)
+  let data = List:new(N * N):slice
 
-  for i in data:len:each
+  for i in (N * N):each
     data[i] = self.data[i] + other.data[i]
   end
 
@@ -33,7 +23,7 @@ def __mul__[Matrix](other)
 
   def N = self.n
 
-  let data = List:new(N * N)
+  let data = List:new(N * N):slice
 
   for i in N:each
     for j in N:each
@@ -66,10 +56,9 @@ let sum = 0
 
 let N = 2
 
-
 for _ in 5000:each
-  let a = matrix(N, List:new(N * N):map! do (_, i) i end)
-  let b = matrix(N, List:new(N * N):map! do (_, i) i end)
+  let a = matrix(N, List:new(N * N):map! do (_, i) i end :slice)
+  let b = matrix(N, List:new(N * N):map! do (_, i) i end :slice)
 
   let c = a + b
   let d = c * a * b

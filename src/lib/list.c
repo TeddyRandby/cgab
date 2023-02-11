@@ -127,6 +127,9 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
   u64 start = 0, end = len;
 
   switch (argc) {
+  case 1:
+    break;
+
   case 2: {
     if (!GAB_VAL_IS_NUMBER(argv[1])) {
       return GAB_VAL_NIL();
@@ -150,10 +153,12 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
 
   u64 result_len = end - start;
 
-  gab_obj_list *result_list =
-      gab_obj_list_create(gab, result_len, 1, list->data.data + start);
+  gab_obj_shape *shape = gab_obj_shape_create_tuple(gab, vm, result_len);
 
-  gab_value result = GAB_VAL_OBJ(result_list);
+  gab_obj_record *rec =
+      gab_obj_record_create(gab, shape, result_len, 1, list->data.data + start);
+
+  gab_value result = GAB_VAL_OBJ(rec);
 
   gab_dref(gab, vm, result);
 

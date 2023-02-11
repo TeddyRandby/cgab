@@ -1080,13 +1080,16 @@ i32 compile_exp_blk(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
 i32 compile_exp_then(gab_engine *gab, gab_bc *bc, gab_module *mod,
                      boolean assignable) {
-  u64 then_jump = gab_module_push_jump(mod, OP_LOGICAL_AND, bc->previous_token,
-                                       bc->line, bc->lex.previous_token_src);
+  u64 then_jump =
+      gab_module_push_jump(mod, OP_JUMP_IF_FALSE, bc->previous_token, bc->line,
+                           bc->lex.previous_token_src);
 
   pop_slot(bc, 1);
 
   if (compile_block(gab, bc, mod) < 0)
     return COMP_ERR;
+
+  push_pop(bc, mod, 1);
 
   if (expect_token(bc, TOKEN_END) < 0)
     return COMP_ERR;
@@ -1098,13 +1101,15 @@ i32 compile_exp_then(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
 i32 compile_exp_else(gab_engine *gab, gab_bc *bc, gab_module *mod,
                      boolean assignable) {
-  u64 then_jump = gab_module_push_jump(mod, OP_LOGICAL_OR, bc->previous_token,
+  u64 then_jump = gab_module_push_jump(mod, OP_JUMP_IF_TRUE, bc->previous_token,
                                        bc->line, bc->lex.previous_token_src);
 
   pop_slot(bc, 1);
 
   if (compile_block(gab, bc, mod) < 0)
     return COMP_ERR;
+
+  push_pop(bc, mod, 1);
 
   if (expect_token(bc, TOKEN_END) < 0)
     return COMP_ERR;
