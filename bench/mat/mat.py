@@ -53,7 +53,7 @@ sum = 0
 N = 2
 
 
-for i in range(2000):
+for i in range(5000):
     a = SimpleMatrix(N, [i for i in range(N * N)])
     b = SimpleMatrix(N, [i for i in range(N * N)])
 

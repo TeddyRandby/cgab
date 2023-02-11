@@ -22,14 +22,14 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
 
     u64 len = GAB_VAL_TO_NUMBER(argv[1]);
 
-    gab_obj_list *list = gab_obj_list_create_empty(len);
+    gab_obj_list *list = gab_obj_list_create_empty(gab, len);
 
     while (len--)
       v_gab_value_push(&list->data, GAB_VAL_NIL());
 
     gab_value result = GAB_VAL_OBJ(list);
 
-    gab_obj_list_put(list, len, GAB_VAL_NIL());
+    v_gab_value_push(&list->data, GAB_VAL_NIL());
 
     gab_dref(gab, vm, result);
 
@@ -150,10 +150,14 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
 
   u64 result_len = end - start;
 
-  gab_obj_list *result =
+  gab_obj_list *result_list =
       gab_obj_list_create(gab, result_len, 1, list->data.data + start);
 
-  return GAB_VAL_OBJ(result);
+  gab_value result = GAB_VAL_OBJ(result_list);
+
+  gab_dref(gab, vm, result);
+
+  return result;
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {

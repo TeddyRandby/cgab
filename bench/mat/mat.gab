@@ -67,7 +67,7 @@ let sum = 0
 let N = 2
 
 
-for _ in 2000:each
+for _ in 5000:each
   let a = matrix(N, List:new(N * N):map! do (_, i) i end)
   let b = matrix(N, List:new(N * N):map! do (_, i) i end)
 

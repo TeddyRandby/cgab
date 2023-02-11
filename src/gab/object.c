@@ -35,7 +35,7 @@ gab_value gab_val_type(gab_engine *gab, gab_value value) {
 
   // The type of null or symbols is themselves
   if (GAB_VAL_IS_NIL(value) || GAB_VAL_IS_UNDEFINED(value) ||
-      GAB_VAL_IS_SYMBOL(value)) {
+      GAB_VAL_IS_SYMBOL(value) || GAB_VAL_IS_SHAPE(value)) {
     return value;
   }
 
@@ -55,16 +55,22 @@ boolean gab_val_falsey(gab_value self) {
 }
 
 gab_obj *gab_obj_create(gab_engine *gab, gab_obj *self, gab_kind k) {
+  // Maintain the global list of objects
+  self->next = gab->objects;
+  gab->objects = self;
+
   self->kind = k;
   // Objects start out with one reference.
   self->references = 1;
 
   self->flags = 0;
+
 #if GAB_LOG_GC
   printf("Created (%p) \n", self);
   u64 curr_amt = d_u64_read(&gab->gc.object_counts, k);
   d_u64_insert(&gab->gc.object_counts, k, curr_amt + 1);
 #endif
+
   return self;
 }
 
@@ -343,21 +349,18 @@ gab_obj_string *gab_obj_string_concat(gab_engine *gab, gab_obj_string *a,
   if (b->len == 0)
     return a;
 
-  u64 size = a->len + b->len;
+  u64 len = a->len + b->len;
 
-  gab_obj_string *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_string, u8, size, GAB_KIND_STRING);
+  i8 data[len];
 
   // Copy the data into the string obj.
-  memcpy(self->data, a->data, a->len);
+  memcpy(data, a->data, a->len);
 
-  memcpy(self->data + a->len, b->data, b->len);
-
-  self->len = size;
+  memcpy(data + a->len, b->data, b->len);
 
   // Pre compute the hash
-  s_i8 ref = s_i8_create(self->data, self->len);
-  self->hash = s_i8_hash(ref, gab->hash_seed);
+  s_i8 ref = s_i8_create(data, len);
+  u64 hash = s_i8_hash(ref, gab->hash_seed);
 
   /*
     If this string was interned already, destroy and return.
@@ -365,11 +368,12 @@ gab_obj_string *gab_obj_string_concat(gab_engine *gab, gab_obj_string *a,
     Unfortunately, we can't check for this before copying and computing the
     hash.
   */
-  gab_obj_string *interned = gab_engine_find_string(gab, ref, self->hash);
-  if (interned) {
-    gab_reallocate(gab, self, gab_obj_size((gab_obj *)self), 0);
+  gab_obj_string *interned = gab_engine_find_string(gab, ref, hash);
+
+  if (interned)
     return interned;
-  }
+
+  gab_obj_string *self = gab_obj_string_create(gab, ref);
 
   // Intern the string in the module
   gab_engine_intern(gab, GAB_VAL_OBJ(self));
@@ -404,6 +408,7 @@ gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
   self->offset = 0;
   self->len = 0;
 
+  GAB_OBJ_GREEN((gab_obj *)self);
   return self;
 }
 
@@ -525,7 +530,6 @@ gab_obj_list *gab_obj_list_create_empty(gab_engine *gab, u64 len) {
 
   v_gab_value_create(&self->data, len);
 
-
   return self;
 }
 
@@ -570,6 +574,7 @@ gab_obj_container *gab_obj_container_create(gab_engine *gab,
 
   self->data = data;
   self->destructor = destructor;
+  GAB_OBJ_GREEN((gab_obj *)self);
 
   return self;
 }
@@ -577,6 +582,7 @@ gab_obj_container *gab_obj_container_create(gab_engine *gab,
 gab_obj_symbol *gab_obj_symbol_create(gab_engine *gab, s_i8 name) {
   gab_obj_symbol *self = GAB_CREATE_OBJ(gab_obj_symbol, GAB_KIND_SYMBOL);
   self->name = name;
+  GAB_OBJ_GREEN((gab_obj *)self);
   return self;
 }
 

@@ -28,7 +28,7 @@
 
 // Derived macros
 // Garbage collection increment/decrement buffer size
-#define INC_DEC_MAX (STACK_MAX + 1)
+#define GC_BUFF_MAX (STACK_MAX * 2)
 // Size of the engines constant table.
 #define MODULE_CONSTANTS_MAX (UINT16_MAX + 1)
 // Maximum size of the stack

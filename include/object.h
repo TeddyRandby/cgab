@@ -30,25 +30,10 @@ typedef enum gab_kind {
   GAB_KIND_NKINDS,
 } gab_kind;
 
-static const char* gab_kind_names[] = {
-    "effect",
-    "string",
-    "message",
-    "prototype",
-    "builtin",
-    "block",
-    "upvalue",
-    "value",
-    "container",
-    "record",
-    "shape",
-    "list",
-    "map",
-    "nil",
-    "undefined",
-    "number",
-    "boolean",
-    "nkinds",
+static const char *gab_kind_names[] = {
+    "effect",  "string", "message",   "prototype", "builtin", "block",
+    "upvalue", "value",  "container", "record",    "shape",   "list",
+    "map",     "nil",    "undefined", "number",    "boolean", "nkinds",
 };
 
 /*
@@ -62,6 +47,7 @@ static const char* gab_kind_names[] = {
 */
 typedef struct gab_obj gab_obj;
 struct gab_obj {
+  gab_obj *next;
   i32 references;
   gab_kind kind;
   u8 flags;
@@ -82,9 +68,7 @@ struct gab_obj {
 #define GAB_OBJ_FLAG_PURPLE 16
 #define GAB_OBJ_FLAG_GREEN 32
 
-#define GAB_OBJ_FLAG_RED 64
-
-#define GAB_OBJ_FLAG_ORANGE 128
+#define GAB_OBJ_FLAG_GARBAGE 64
 
 #define GAB_OBJ_IS_BUFFERED(obj) ((obj)->flags & GAB_OBJ_FLAG_BUFFERED)
 #define GAB_OBJ_IS_BLACK(obj) ((obj)->flags & GAB_OBJ_FLAG_BLACK)
@@ -92,7 +76,7 @@ struct gab_obj {
 #define GAB_OBJ_IS_WHITE(obj) ((obj)->flags & GAB_OBJ_FLAG_WHITE)
 #define GAB_OBJ_IS_PURPLE(obj) ((obj)->flags & GAB_OBJ_FLAG_PURPLE)
 #define GAB_OBJ_IS_GREEN(obj) ((obj)->flags & GAB_OBJ_FLAG_GREEN)
-#define GAB_OBJ_IS_RED(obj) ((obj)->flags & GAB_OBJ_FLAG_RED)
+#define GAB_OBJ_IS_GARBAGE(obj) ((obj)->flags & GAB_OBJ_FLAG_GARBAGE)
 
 #define GAB_OBJ_BUFFERED(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_BUFFERED)
 #define GAB_OBJ_BLACK(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_BLACK)
@@ -100,7 +84,7 @@ struct gab_obj {
 #define GAB_OBJ_WHITE(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_WHITE)
 #define GAB_OBJ_PURPLE(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_PURPLE)
 #define GAB_OBJ_GREEN(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_GREEN)
-#define GAB_OBJ_RED(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_RED)
+#define GAB_OBJ_GARBAGE(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_GARBAGE)
 
 #define GAB_OBJ_NOT_BUFFERED(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_BUFFERED)
 #define GAB_OBJ_NOT_BLACK(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_BLACK)
@@ -108,13 +92,12 @@ struct gab_obj {
 #define GAB_OBJ_NOT_WHITE(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_WHITE)
 #define GAB_OBJ_NOT_PURPLE(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_PURPLE)
 #define GAB_OBJ_NOT_GREEN(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_GREEN)
-#define GAB_OBJ_NOT_RED(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_RED)
 
 /*
   'Generic' functions which handle all the different kinds of gab objects.
 */
 void gab_obj_destroy(gab_engine *gab, gab_vm *vm, gab_obj *self);
-u64 gab_obj_size(gab_obj* self);
+u64 gab_obj_size(gab_obj *self);
 
 static inline boolean gab_val_is_obj_kind(gab_value self, gab_kind k) {
   return GAB_VAL_IS_OBJ(self) && GAB_VAL_TO_OBJ(self)->kind == k;
@@ -475,7 +458,7 @@ static inline gab_value gab_obj_list_put(gab_obj_list *self, u64 offset,
   if (offset >= self->data.len) {
     u64 nils = offset - self->data.len;
 
-    while (nils--) {
+    while (nils-- > 0) {
       v_gab_value_push(&self->data, GAB_VAL_NIL());
     }
 

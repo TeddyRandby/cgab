@@ -121,6 +121,7 @@ gab_engine *gab_create(void *ud) {
 
   gab->modules = 0;
   gab->hash_seed = time(NULL);
+  gab->objects = NULL;
   gab->userdata = ud;
   gab->argv_names = NULL;
   gab->argv_values = NULL;
@@ -421,9 +422,8 @@ static inline boolean shape_matches_keys(gab_obj_shape *self,
                                          gab_value values[], u64 len,
                                          u64 stride) {
 
-  if (self->len != len) {
+  if (self->len != len)
     return false;
-  }
 
   for (u64 i = 0; i < len; i++) {
     gab_value key = values[i * stride];
@@ -442,19 +442,18 @@ gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size, u64 stride,
   u64 index = hash & (self->interned_shapes.cap - 1);
 
   for (;;) {
-    gab_obj_shape *key = d_shapes_ikey(&self->interned_shapes, index);
     d_status status = d_shapes_istatus(&self->interned_shapes, index);
 
-    if (status != D_FULL) {
+    if (status != D_FULL)
       return NULL;
-    } else {
-      if (key->hash == hash && shape_matches_keys(key, keys, size, stride)) {
-        return key;
-      }
-    }
 
-    index = (index + 1) & (self->interned_shapes.cap - 1);
+    gab_obj_shape *key = d_shapes_ikey(&self->interned_shapes, index);
+
+    if (key->hash == hash && shape_matches_keys(key, keys, size, stride))
+      return key;
   }
+
+  index = (index + 1) & (self->interned_shapes.cap - 1);
 }
 
 gab_value gab_type(gab_engine *gab, gab_kind t) { return gab->types[t]; }

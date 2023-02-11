@@ -2,6 +2,7 @@
 #define GAB_GC_H
 
 #include "gab.h"
+#include "include/core.h"
 
 typedef struct gab_vm gab_vm;
 
@@ -35,11 +36,9 @@ typedef struct rc_update {
 #include "include/dict.h"
 
 typedef struct gab_gc {
-  u64 increment_count;
-  u64 decrement_count;
-
-  d_gc_set queue;
-  d_gc_set roots;
+  u64 nincrements;
+  u64 ndecrements;
+  u64 nroots;
 
 #if GAB_LOG_GC
   v_rc_update tracked_increments;
@@ -50,8 +49,9 @@ typedef struct gab_gc {
   d_u64 object_counts;
 #endif
 
-  gab_obj *increments[INC_DEC_MAX];
-  gab_obj *decrements[INC_DEC_MAX];
+  gab_obj *increments[GC_BUFF_MAX];
+  gab_obj *decrements[GC_BUFF_MAX];
+  gab_obj *roots[GC_BUFF_MAX];
 } gab_gc;
 
 void gab_gc_create(gab_gc *gc);
@@ -64,7 +64,6 @@ void gab_gc_iref_many(gab_engine *gab, gab_vm *vm, gab_gc *gc, u64 len,
 
 void gab_gc_dref_many(gab_engine *gab, gab_vm *vm, gab_gc *gc, u64 len,
                       gab_value values[len]);
-
 
 #if GAB_LOG_GC
 

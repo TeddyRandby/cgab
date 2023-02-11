@@ -59,6 +59,8 @@ struct gab_engine {
 
   u64 hash_seed;
 
+  gab_obj* objects;
+
   void* userdata;
 
   a_u64 *argv_values;
