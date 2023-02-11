@@ -451,9 +451,9 @@ gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size, u64 stride,
 
     if (key->hash == hash && shape_matches_keys(key, keys, size, stride))
       return key;
-  }
 
-  index = (index + 1) & (self->interned_shapes.cap - 1);
+    index = (index + 1) & (self->interned_shapes.cap - 1);
+  }
 }
 
 gab_value gab_type(gab_engine *gab, gab_kind t) { return gab->types[t]; }

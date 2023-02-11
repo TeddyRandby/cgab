@@ -50,13 +50,6 @@ static inline void chunk_destroy(Chunks *s, Chunk *c) {
   free(c);
 }
 
-void printBits(unsigned long num) {
-  for (int bit = 0; bit < (sizeof(unsigned long) * 8); bit++) {
-    printf("%lu", num & 0x01);
-    num = num >> 1;
-  }
-}
-
 static inline u8 *chunk_begin(Chunk *chunk) { return chunk->bytes; }
 
 static inline u8 *chunk_end(Chunk *chunk) {
@@ -121,8 +114,8 @@ void chunk_dealloc(Chunks *s, u64 size, void *ptr) {
 
   chunk_unset(chunk, index);
 
-  // if (chunk_empty(chunk))
-  //   chunk_destroy(s, chunk);
+  if (chunk_empty(chunk))
+    chunk_destroy(s, chunk);
 }
 
 void *alloc_setup() {
