@@ -1,5 +1,3 @@
-def RANGE = $range
-
 def Range { from to }
 
 def each[Range]
@@ -11,10 +9,10 @@ def each[Range]
   until v >= self.to
 end
 
-def make[RANGE](opts, to)
-  opts:type match
-    { to }:type   => { from = 0 to = opts.to }
-    { from }:type => { from = opts.from to = 0 }
+def new[Range](opts, to)
+  ?opts match
+    ?{ to }   => { from = 0 to = opts.to }
+    ?{ from } => { from = opts.from to = 0 }
     Number    => {
       from = to and opts or 0
       to = to or opts
@@ -27,9 +25,7 @@ def print[Range]
   'Range({self.from},{self.to})':print
 end
 
-def to[Number](last)
-  RANGE:make(self, last)
-end
+def to[Number](last) Range:New(self, last) end
 
 def each[Number]
   let v = 0
@@ -45,5 +41,3 @@ def times[Number](cb)
     cb(i)
   end
 end
-
-RANGE

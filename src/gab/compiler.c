@@ -1309,67 +1309,66 @@ i32 compile_exp_bin(gab_engine *gab, gab_bc *bc, gab_module *mod,
   u16 m;
 
   switch (op) {
-  case TOKEN_MINUS: {
+  case TOKEN_MINUS:
     m = add_message_constant(gab, mod, s_i8_cstr("__sub__"));
     break;
-  }
-  case TOKEN_PLUS: {
+
+  case TOKEN_PLUS:
     m = add_message_constant(gab, mod, s_i8_cstr("__add__"));
     break;
-  }
-  case TOKEN_STAR: {
+
+  case TOKEN_STAR:
     m = add_message_constant(gab, mod, s_i8_cstr("__mul__"));
     break;
-  }
-  case TOKEN_SLASH: {
+
+  case TOKEN_SLASH:
     m = add_message_constant(gab, mod, s_i8_cstr("__div__"));
     break;
-  }
-  case TOKEN_PERCENT: {
+
+  case TOKEN_PERCENT:
     m = add_message_constant(gab, mod, s_i8_cstr("__mod__"));
     break;
-  }
-  case TOKEN_PIPE: {
+
+  case TOKEN_PIPE:
     m = add_message_constant(gab, mod, s_i8_cstr("__or__"));
     break;
-  }
-  case TOKEN_AMPERSAND: {
+
+  case TOKEN_AMPERSAND:
     m = add_message_constant(gab, mod, s_i8_cstr("__and__"));
     break;
-  }
-  case TOKEN_EQUAL_EQUAL: {
+
+  case TOKEN_EQUAL_EQUAL:
     m = add_message_constant(gab, mod, s_i8_cstr("__eq__"));
     break;
-  }
-  case TOKEN_LESSER: {
+
+  case TOKEN_LESSER:
     m = add_message_constant(gab, mod, s_i8_cstr("__lt__"));
     break;
-  }
-  case TOKEN_LESSER_EQUAL: {
+
+  case TOKEN_LESSER_EQUAL:
     m = add_message_constant(gab, mod, s_i8_cstr("__lte__"));
     break;
-  }
-  case TOKEN_LESSER_LESSER: {
+
+  case TOKEN_LESSER_LESSER:
     m = add_message_constant(gab, mod, s_i8_cstr("__lsh__"));
     break;
-  }
-  case TOKEN_GREATER: {
+
+  case TOKEN_GREATER:
     m = add_message_constant(gab, mod, s_i8_cstr("__gt__"));
     break;
-  }
-  case TOKEN_GREATER_EQUAL: {
+
+  case TOKEN_GREATER_EQUAL:
     m = add_message_constant(gab, mod, s_i8_cstr("__gte__"));
     break;
-  }
-  case TOKEN_GREATER_GREATER: {
+
+  case TOKEN_GREATER_GREATER:
     m = add_message_constant(gab, mod, s_i8_cstr("__rsh__"));
     break;
-  }
-  default: {
+
+  default:
     compiler_error(bc, GAB_UNEXPECTED_TOKEN,
                    "While compiling binary expression");
     return COMP_ERR;
-  }
   }
 
   i32 result = compile_exp_prec(gab, bc, mod, get_rule(op).prec + 1);
@@ -1386,35 +1385,30 @@ i32 compile_exp_bin(gab_engine *gab, gab_bc *bc, gab_module *mod,
 i32 compile_exp_una(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   gab_token op = bc->previous_token;
-  u64 line = bc->line;
-  s_i8 src = bc->lex.previous_token_src;
 
   i32 result = compile_exp_prec(gab, bc, mod, PREC_UNARY);
 
   if (result < 0)
     return COMP_ERR;
 
-  u16 m;
-
   switch (op) {
-  case TOKEN_MINUS: {
-    m = add_message_constant(gab, mod, s_i8_cstr("__neg__"));
-    break;
-  }
-  case TOKEN_NOT: {
+  case TOKEN_MINUS:
+    push_op(bc, mod, OP_NEGATE);
+    return COMP_OK;
+
+  case TOKEN_NOT:
     push_op(bc, mod, OP_NOT);
     return COMP_OK;
-  }
-  default: {
+
+  case TOKEN_QUESTION:
+    push_op(bc, mod, OP_TYPE);
+    return COMP_OK;
+
+  default:
     compiler_error(bc, GAB_UNEXPECTED_TOKEN,
                    "While compiling unary expression");
     return COMP_ERR;
   }
-  }
-
-  gab_module_push_send(mod, 0, false, m, op, line, src);
-
-  return VAR_EXP;
 }
 
 i32 encode_codepoint(i8 *out, u32 utf) {
@@ -1907,10 +1901,13 @@ i32 compile_arg_list(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
 i32 compile_arguments(gab_engine *gab, gab_bc *bc, gab_module *mod,
                       boolean *vse_out) {
+  i32 result = 0;
 
   if (match_and_eat_token(bc, TOKEN_LPAREN)) {
     // Normal function args
-    return compile_arg_list(gab, bc, mod, vse_out);
+    result = compile_arg_list(gab, bc, mod, vse_out);
+    if (result < 0)
+      return COMP_ERR;
   }
 
   if (match_and_eat_token(bc, TOKEN_LBRACK)) {
@@ -1918,7 +1915,7 @@ i32 compile_arguments(gab_engine *gab, gab_bc *bc, gab_module *mod,
     if (compile_record(gab, bc, mod, (s_i8){0}) < 0)
       return COMP_ERR;
 
-    return 1;
+    result += 1;
   }
 
   if (match_and_eat_token(bc, TOKEN_DO)) {
@@ -1928,14 +1925,35 @@ i32 compile_arguments(gab_engine *gab, gab_bc *bc, gab_module *mod,
     if (compile_function_specialization(gab, bc, mod, name) < 0)
       return COMP_ERR;
 
-    return 1;
+    result += 1;
   }
 
-  return 0;
+  return result;
 }
 
 i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
+  s_i8 message = trim_prev_tok(bc);
+  gab_token tok = bc->previous_token;
+  u64 line = bc->line;
+
+  u16 f = add_message_constant(gab, mod, message);
+
+  push_op(bc, mod, OP_PUSH_NIL);
+
+  boolean vse;
+  i32 args = compile_arguments(gab, bc, mod, &vse);
+
+  gab_module_push_send(mod, args, vse, f, tok, line, message);
+
+  return VAR_EXP;
+}
+
+i32 compile_exp_amp(gab_engine *gab, gab_bc *bc, gab_module *mod,
+                    boolean assignable) {
+  if (!expect_token(bc, TOKEN_MESSAGE))
+    return COMP_ERR;
+
   s_i8 message = trim_prev_tok(bc);
 
   u16 f = add_message_constant(gab, mod, message);
@@ -2304,7 +2322,7 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(bin, FACTOR, false),                // PERCENT
     NONE(),                            // COMMA
     PREFIX(emp),       // COLON
-    INFIX(bin, TERM, false),           // AMPERSAND
+    PREFIX_INFIX(amp, bin, BITWISE_AND, false),           // AMPERSAND
     NONE(),           // DOLLAR
     PREFIX(sym), // SYMBOL
     INFIX(dot, PROPERTY, true), // PROPERTY
@@ -2313,7 +2331,7 @@ const gab_compile_rule gab_bc_rules[] = {
     NONE(),                  // DOT_DOT
     NONE(),                            // EQUAL
     INFIX(bin, EQUALITY, false),              // EQUALEQUAL
-    NONE(),                            // QUESTION
+    PREFIX(una),                            // QUESTION
     NONE(),                      // BANG
     NONE(),                            // AT
     NONE(),                            // COLON_EQUAL
@@ -2334,7 +2352,7 @@ const gab_compile_rule gab_bc_rules[] = {
     NONE(),                            // RBRACK
     PREFIX_INFIX(grp, cal, SEND, false),     // LPAREN
     NONE(),                            // RPAREN
-    INFIX(bin, TERM, false),            // PIPE
+    INFIX(bin, BITWISE_OR, false),            // PIPE
     NONE(),                            // SEMI
     PREFIX(idn),                       // ID
     PREFIX(str),                       // STRING

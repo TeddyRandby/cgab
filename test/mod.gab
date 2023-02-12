@@ -182,12 +182,12 @@ describe('Overloads', do ()
     def Vector { x y }
 
     def __add__[Vector](other)
-        other is Vector then
-            {
-                x = self.x + other.x
-                y = self.y + other.y
-            }
-        end
+        other is Vector or panic()
+
+        {
+            x = self.x + other.x
+            y = self.y + other.y
+        }
     end
 
     it('should overload binary', do ()
@@ -198,12 +198,12 @@ describe('Overloads', do ()
     end)
 
     def __lt__[Vector](other)
-        other is Vector then
-            let mag = self.x * self.x + self.y * self.y
-            let other_mag = other.x * other.x + other.y * other.y
+        other is Vector or panic()
 
-            mag < other_mag
-        end
+        let mag = self.x * self.x + self.y * self.y
+        let other_mag = other.x * other.x + other.y * other.y
+
+        mag < other_mag
     end
 
     def __eq__[Vector](other)
@@ -219,9 +219,7 @@ describe('Overloads', do ()
         test:expect(true)
     end)
 
-    def get(obj, key)
-        obj[key]
-    end
+    def get(obj, key) obj[key] end
 
     it('should get before overload', do()
         get({ x = 1 y = 2}, 'x'):expect(1)
@@ -230,7 +228,7 @@ describe('Overloads', do ()
 
     def __get__[Vector](key)
        key == 'mag' then
-        self.x * self.x + self.y * self.y
+        return self.x * self.x + self.y * self.y
        end
     end
 
@@ -409,13 +407,13 @@ describe('Lists', do ()
 
         let slice = list[3:to]
 
-        slice:at(0):expect(1)
-        slice:at(2):expect(3)
+        slice[0]:expect(1)
+        slice[2]:expect(3)
 
         slice = list[3:to(4)]
 
-        slice:at(0):expect(4)
-        slice:at(1):expect(nil)
+        slice[0]:expect(4)
+        slice[1]:expect(nil)
     end)
 end)
 

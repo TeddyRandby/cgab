@@ -103,7 +103,7 @@ u8 gab_module_push_store_local(gab_module *, u8, gab_token, u64, s_i8);
 u8 gab_module_push_store_upvalue(gab_module *, u8, gab_token, u64, s_i8);
 u8 gab_module_push_return(gab_module *, u8, u8, gab_token, u64, s_i8);
 u8 gab_module_push_yield(gab_module *, u8, u8, gab_token, u64, s_i8);
-u8 gab_module_push_send(gab_module *, u8, u8, u16, gab_token, u64, s_i8);
+u8 gab_module_push_send(gab_module *mod, u8 have, u8 var, u16 message, gab_token, u64, s_i8);
 u8 gab_module_push_dynsend(gab_module *, u8, u8, gab_token, u64, s_i8);
 u8 gab_module_push_pop(gab_module *, u8, gab_token, u64, s_i8);
 

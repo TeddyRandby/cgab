@@ -1,9 +1,9 @@
 require('std')
 
-let list = List:new
+def Test[Number](msg, opts, cb)
+    cb(self, msg, opts)
+end
 
-list[0]:print
-
-list:put(5, 0)
-
-list[0]:print
+5:Test('hi') { option = 'yes' } do (n, msg, opt)
+    print(n, msg, opt.option)
+end

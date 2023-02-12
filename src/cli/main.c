@@ -7,14 +7,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-gab_value make_type(gab_engine *gab) {
-  gab_value type_builtin = GAB_BUILTIN(type);
-
-  gab_specialize(gab, s_i8_cstr("type"), GAB_VAL_UNDEFINED(), type_builtin);
-
-  return type_builtin;
-}
-
 gab_value make_panic(gab_engine *gab) {
   gab_value panic_builtin = GAB_BUILTIN(panic);
 
@@ -58,17 +50,15 @@ void gab_repl() {
   gab_engine *gab = gab_create(alloc_setup());
 
   s_i8 arg_names[] = {
-      s_i8_cstr("print"),   s_i8_cstr("require"), s_i8_cstr("panic"),
-      s_i8_cstr("type"),    s_i8_cstr("String"),  s_i8_cstr("Number"),
-      s_i8_cstr("Boolean"), s_i8_cstr("Block"),   s_i8_cstr("Message"),
-      s_i8_cstr("Effect"),  s_i8_cstr("List"),    s_i8_cstr("Map"),
-      s_i8_cstr("it")};
+      s_i8_cstr("print"),  s_i8_cstr("require"), s_i8_cstr("panic"),
+      s_i8_cstr("String"), s_i8_cstr("Number"),  s_i8_cstr("Boolean"),
+      s_i8_cstr("Block"),  s_i8_cstr("Message"), s_i8_cstr("Effect"),
+      s_i8_cstr("List"),   s_i8_cstr("Map"),     s_i8_cstr("it")};
 
   gab_value args[] = {
       make_print(gab),
       make_require(gab),
       make_panic(gab),
-      make_type(gab),
       gab_type(gab, GAB_KIND_STRING),
       gab_type(gab, GAB_KIND_NUMBER),
       gab_type(gab, GAB_KIND_BOOLEAN),
@@ -125,7 +115,7 @@ void gab_repl() {
     gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
   }
 
-  void* ud = gab_user(gab);
+  void *ud = gab_user(gab);
 
   gab_destroy(gab);
 
@@ -140,17 +130,16 @@ void gab_run_file(const char *path) {
   gab_engine *gab = gab_create(alloc_setup());
 
   s_i8 arg_names[] = {
-      s_i8_cstr("print"),   s_i8_cstr("require"), s_i8_cstr("panic"),
-      s_i8_cstr("type"),    s_i8_cstr("String"),  s_i8_cstr("Number"),
-      s_i8_cstr("Boolean"), s_i8_cstr("Block"),   s_i8_cstr("Message"),
-      s_i8_cstr("Effect"),  s_i8_cstr("List"),    s_i8_cstr("Map"),
+      s_i8_cstr("print"),  s_i8_cstr("require"), s_i8_cstr("panic"),
+      s_i8_cstr("String"), s_i8_cstr("Number"),  s_i8_cstr("Boolean"),
+      s_i8_cstr("Block"),  s_i8_cstr("Message"), s_i8_cstr("Effect"),
+      s_i8_cstr("List"),   s_i8_cstr("Map"),
   };
 
   gab_value args[] = {
       make_print(gab),
       make_require(gab),
       make_panic(gab),
-      make_type(gab),
       gab_type(gab, GAB_KIND_STRING),
       gab_type(gab, GAB_KIND_NUMBER),
       gab_type(gab, GAB_KIND_BOOLEAN),
@@ -186,7 +175,7 @@ fin:
   gab_dref(gab, NULL, args[1]);
   gab_dref(gab, NULL, args[2]);
   gab_dref(gab, NULL, args[3]);
-  void* ud = gab_user(gab);
+  void *ud = gab_user(gab);
 
   gab_destroy(gab);
 
