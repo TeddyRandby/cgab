@@ -545,12 +545,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
     {
       gab_obj_message *msg;
-      u8 have;
+      u8 have, want;
 
       CASE_CODE(VARSEND_ANA) : {
         msg = READ_MESSAGE;
         have = VAR() + READ_BYTE;
-        SKIP_BYTE;
+        want = READ_BYTE;
 
         goto complete_send_ana;
       }
@@ -558,7 +558,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       CASE_CODE(SEND_ANA) : {
         msg = READ_MESSAGE;
         have = READ_BYTE;
-        SKIP_BYTE;
+        want = READ_BYTE;
 
         goto complete_send_ana;
       }
@@ -633,6 +633,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         version = READ_BYTE;
         cached_type = *READ_QWORD;
         offset = *READ_QWORD;
+
+        goto complete_send_mono_closure;
       }
 
     complete_send_mono_closure : {
@@ -1029,6 +1031,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         gab_gc_dref(ENGINE(), VM(), GC(), eff);
 
         have++;
+
         goto complete_return;
       }
       }

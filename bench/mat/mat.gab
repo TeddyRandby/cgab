@@ -2,55 +2,60 @@ require('std')
 
 def Matrix { data n }
 
-def new[Matrix](n, data) { data n } end
+impl Matrix
+  def new(n, data) { data n } end
 
-def +[Matrix](other)
-  self.n == other.n or panic()
+  def + (other)
+    self.n == other.n or panic()
 
-  def N = self.n
+    def N = self.n
 
-  let data = List:new(N * N):slice
+    let data = List:new(N * N):slice
 
-  for i in (N * N):each
-    data[i] = self.data[i] + other.data[i]
-  end
-
-  Matrix:new(N, data)
-end
-
-def *[Matrix](other)
-  self.n == other.n or panic()
-
-  def N = self.n
-
-  let data = List:new(N * N):slice
-
-  for i in N:each
-    for j in N:each
-      let sum = 0
-
-      for k in N:each
-        sum = sum + self.data[i*N+k] * other.data[k*N+j]
-      end
-
-      data[i*N+j] = sum
+    for i in (N * N):each
+      data[i] = self.data[i] + other.data[i]
     end
+
+    Matrix:new(N, data)
   end
 
-  Matrix:new(N, data)
-end
+  def * (other)
+    self.n == other.n or panic()
 
-def diag_sum [Matrix]
-  let sum = 0
+    def N = self.n
 
-  def N = self.n
+    let data = List:new(N * N):slice
 
-  for i in N:each
-    sum = sum + self.data[i*(N + 1)]
+    for i in N:each
+      for j in N:each
+        let sum = 0
+
+        for k in N:each
+          sum = sum + self.data[i*N+k] * other.data[k*N+j]
+        end
+
+        data[i*N+j] = sum
+      end
+    end
+
+    Matrix:new(N, data)
   end
 
-  sum
+  def diag_sum
+    let sum = 0
+
+    def N = self.n
+
+    for i in N:each
+      sum = sum + self.data[i*(N + 1)]
+    end
+
+    sum
+  end
+
+
 end
+
 
 let sum = 0
 

@@ -1,43 +1,28 @@
 def Range { from to }
 
-def each[Range]
-  let v = 0
+impl Range
+  def each
+    let v = 0
 
-  loop
-    yield v
-    v = v + 1
-  until v >= self.to
-end
+    loop
+      yield v
+      v = v + 1
+    until v >= self.to
+  end
 
-def new[Range](opts, to)
-  ?opts match
-    ?{ to }   => { from = 0 to = opts.to }
-    ?{ from } => { from = opts.from to = 0 }
-    Number    => {
-      from = to and opts or 0
-      to = to or opts
-    }
-    Range     => opts
-    else      => panic('Invalid call to Range:make')
-end
+  def new(opts, to)
+    ?opts match
+      ?{  to  }   => { from = 0 to = opts.to }
+      ?{ from }   => { from = opts.from to = 0 }
+      Number      => {
+        from = to and opts or 0
+        to   = to or opts
+      }
+      Range       => opts
+      else        => panic('Invalid call to Range:make')
+  end
 
-def print[Range]
-  'Range({self.from},{self.to})':print
-end
-
-def to[Number](last) Range:new(self, last) end
-
-def each[Number]
-  let v = 0
-
-  loop
-    yield v
-    v = v + 1
-  until v >= self
-end
-
-def times[Number](cb)
-  for i in self:each
-    cb(i)
+  def print
+    'Range({self.from},{self.to})':print
   end
 end

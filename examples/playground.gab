@@ -1,1 +1,5 @@
-1:print
+require('std')
+
+for v, i in List:new(100):each
+    print(v,i)
+end

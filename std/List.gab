@@ -1,31 +1,42 @@
 require('list')
-def __get__[List](key)
+
+impl List
+  def [](key)
     ?key match
-        ?{ from to }     => self:slice(key.from, key.to)
-        ?{ from }        => self:slice(key.from)
-        ?{ to }          => self:slice(nil, key.to)
-        Number           => self:at(key)
-        else             => panic('Invalid call to List::key')
-end
+      ?{ from to }     => self:slice(key.from, key.to)
+      ?{ from }        => self:slice(key.from)
+      ?{ to }          => self:slice(nil, key.to)
+      Number           => self:at(key)
+      else             => panic('Invalid call to List::key')
+  end
 
-def __set__[List](key, value) self:put(key, value) end
+  def [=](key, value)
+    self:put(key, value)
+  end
 
-def first[List] self[0] end
+  def first
+    self:at(0)
+  end
 
-def last[List] self[self:len - 1] end
+  def last
+    self:at(self:len - 1)
+  end
 
-def take[List](amount) self[amount:to] end
+  def take(amount)
+    self[amount:to]
+  end
 
-def each[List]
+  def each
     let v = 0 
 
-    loop
-       yield self[v], v
-       v = v + 1
-    until v >= self:len
-end
 
-def fold[List](init, folder)
+    loop
+      yield self[v], v
+      v = v + 1
+    until v >= self:len
+  end
+
+  def fold(init, folder)
     let v = init
 
     for i, index in self:each
@@ -33,9 +44,9 @@ def fold[List](init, folder)
     end
 
     v
-end
+  end
 
-def filter[List](filterer)
+  def filter(filterer)
     let v = List:new
 
     for i, index in self:each
@@ -43,9 +54,9 @@ def filter[List](filterer)
     end
 
     v
-end
+  end
 
-def map[List](mapper)
+  def map(mapper)
     let v = List:new
 
     for i, index in self:each
@@ -53,51 +64,72 @@ def map[List](mapper)
     end
 
     v
-end
+  end
 
-def fill[List](value)
+  def fill(value)
     let v = List:new
 
     for _, index in self:each
-        self[index] = value
+        self:put(index, value)
     end
 
     v
-end
+  end
 
-def map![List](mapper)
-    for i, index in self:each
-        self[index] = mapper(i, index)
+  def map!(mapper)
+      for i, index in self:each
+          self:put(index, mapper(i, index))
+      end
+
+      self
+  end
+
+
+  def fill!(value)
+      for _, index in self:each
+        self:put(index, value)
+      end
+
+      self
+  end
+
+  def compact
+    self:filter do (i) not i == nil end
+  end
+
+  def join(sep)
+    self:fold('') do (str, cur, i)
+      i == 0 and '{cur}' or str + sep + '{cur}'
+    end
+  end
+
+  def every?(pred)
+    for i, _ in self:each
+      pred(i) or return false
     end
 
-    self
-end
+    true
+  end
 
-
-def fill![List](value)
-    for _, index in self:each
-        self[index] = value
-    end
-
-    self
-end
-
-def join[List](sep)
-  self:fold('', do (str, cur, i)
-    i == 0 and '{cur}' or str + sep + '{cur}'
-  end)
-end
-
-def every?[List](pred) self:filter(pred):len == self:len end
-
-def some?[List](pred) self:filter(pred):len > 0 end
-
-def empty?[List] self:len > 0 end
-
-def include?[List](value)
-    for i, index in self:each
-        i == value and return true
+  def some?(pred)
+    for i, _ in self:each
+      pred(i) and return true
     end
 
     false
+  end
+
+  def empty? self:len > 0 end
+
+  def include?(value)
+      for i, _ in self:each
+          i == value and return true
+      end
+
+      false
+  end
+
 end
+
+
+

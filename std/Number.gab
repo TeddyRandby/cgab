@@ -1,0 +1,12 @@
+impl Number
+
+  def each
+    let v = 0
+
+    loop
+      yield v
+      v = v + 1
+    until v == self
+  end
+
+end

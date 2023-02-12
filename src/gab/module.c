@@ -303,7 +303,7 @@ boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
   switch (self->previous_compiled_op) {
   case OP_SEND_ANA:
   case OP_VARSEND_ANA:
-    v_u8_set(&self->bytecode, self->bytecode.len - 12, want);
+    v_u8_set(&self->bytecode, self->bytecode.len - 18, want);
     return true;
   case OP_VARDYNSEND:
   case OP_DYNSEND:
@@ -370,7 +370,7 @@ u64 dumpSendInstruction(gab_module *self, u64 offset) {
   printf("%-25s" ANSI_COLOR_BLUE "%-10.*s" ANSI_COLOR_RESET
          "%02d args -> %02d results\n",
          name, (int)m->name.len, m->name.data, have, want);
-  return offset + 16;
+  return offset + 22;
 }
 
 u64 dumpByteInstruction(gab_module *self, u64 offset) {
