@@ -237,8 +237,8 @@ static inline boolean call_effect(gab_vm *vm, gab_obj_effect *e, u8 arity,
   return true;
 }
 
-static inline boolean call_closure(gab_engine *gab, gab_vm *vm,
-                                   gab_obj_block *c, u8 have, u8 want) {
+static inline boolean call_block(gab_engine *gab, gab_vm *vm, gab_obj_block *c,
+                                 u8 have, u8 want) {
   if (!has_callspace(vm, c->p->nslots - c->p->narguments - 1)) {
     return false;
   }
@@ -370,11 +370,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
   SKIP_BYTE;                                                                   \
   SKIP_BYTE;                                                                   \
   SKIP_BYTE;                                                                   \
-  SKIP_SHORT;                                                                  \
+  SKIP_QWORD;                                                                  \
   SKIP_QWORD;                                                                  \
   if (!GAB_VAL_IS_NUMBER(PEEK2())) {                                           \
-    WRITE_BYTE(16, OP_SEND_ANA);                                               \
-    IP() -= 16;                                                                \
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);                                  \
+    IP() -= SEND_CACHE_DIST;                                                   \
     NEXT();                                                                    \
   }                                                                            \
   if (!GAB_VAL_IS_NUMBER(PEEK())) {                                            \
@@ -452,18 +452,20 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 #define STORE_FRAME() ({ FRAME()->ip = IP(); })
 #define LOAD_FRAME() ({ IP() = FRAME()->ip; })
 
+#define SEND_CACHE_DIST 22
+
 #define SETUP_CALL(spec)                                                       \
   if (GAB_VAL_IS_PRIMITIVE(spec)) {                                            \
     u8 op = GAB_VAL_TO_PRIMITIVE(spec);                                        \
-    WRITE_BYTE(16, op);                                                        \
+    WRITE_BYTE(SEND_CACHE_DIST, op);                                           \
   } else if (GAB_VAL_IS_CLOSURE(spec)) {                                       \
-    WRITE_BYTE(16, instr + 1);                                                 \
+    WRITE_BYTE(SEND_CACHE_DIST, instr + 1);                                    \
   } else if (GAB_VAL_IS_BUILTIN(spec)) {                                       \
-    WRITE_BYTE(16, instr + 2);                                                 \
+    WRITE_BYTE(SEND_CACHE_DIST, instr + 2);                                    \
   } else {                                                                     \
     return vm_error(VM(), GAB_NOT_CALLABLE, "");                               \
   }                                                                            \
-  IP() -= 16;
+  IP() -= SEND_CACHE_DIST;
 
   /*
    ----------- BEGIN RUN BODY -----------
@@ -489,7 +491,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
   STORE_FRAME();
 
-  if (!call_closure(ENGINE(), VM(), main_c, main_c->p->narguments, 1))
+  if (!call_block(ENGINE(), VM(), main_c, main_c->p->narguments, 1))
     return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
 
   LOAD_FRAME();
@@ -521,7 +523,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       STORE_FRAME();
 
       if (GAB_VAL_IS_BLOCK(callee)) {
-        if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_BLOCK(callee), have, want))
+        if (!call_block(ENGINE(), VM(), GAB_VAL_TO_BLOCK(callee), have, want))
           return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
       } else if (GAB_VAL_IS_BUILTIN(callee)) {
         call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(callee), have, want,
@@ -568,7 +570,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       gab_value spec = gab_obj_message_read(msg, type);
 
-      u16 offset;
+      u64 offset;
       if (GAB_VAL_IS_NIL(spec)) {
         spec = gab_obj_message_read(msg, GAB_VAL_UNDEFINED());
 
@@ -587,21 +589,21 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       }
 
       WRITE_INLINEBYTE(msg->version);
-      WRITE_INLINESHORT(offset);
       WRITE_INLINEQWORD(type);
+      WRITE_INLINEQWORD(offset);
 
       if (GAB_VAL_IS_PRIMITIVE(spec)) {
         u8 op = GAB_VAL_TO_PRIMITIVE(spec);
-        WRITE_BYTE(16, op);
+        WRITE_BYTE(SEND_CACHE_DIST, op);
       } else if (GAB_VAL_IS_BLOCK(spec)) {
-        WRITE_BYTE(16, instr + 1);
+        WRITE_BYTE(SEND_CACHE_DIST, instr + 1);
       } else if (GAB_VAL_IS_BUILTIN(spec)) {
-        WRITE_BYTE(16, instr + 2);
+        WRITE_BYTE(SEND_CACHE_DIST, instr + 2);
       } else {
         return vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE, "");
       }
 
-      IP() -= 16;
+      IP() -= SEND_CACHE_DIST;
 
       NEXT();
     }
@@ -610,7 +612,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     {
       gab_obj_message *msg;
       u8 have, want, version;
-      u16 offset;
+      u64 offset;
       gab_value cached_type;
 
       CASE_CODE(VARSEND_MONO_CLOSURE) : {
@@ -618,8 +620,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         have = VAR() + READ_BYTE;
         want = READ_BYTE;
         version = READ_BYTE;
-        offset = READ_SHORT;
         cached_type = *READ_QWORD;
+        offset = *READ_QWORD;
 
         goto complete_send_mono_closure;
       }
@@ -629,8 +631,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         have = READ_BYTE;
         want = READ_BYTE;
         version = READ_BYTE;
-        offset = READ_SHORT;
         cached_type = *READ_QWORD;
+        offset = *READ_QWORD;
       }
 
     complete_send_mono_closure : {
@@ -640,9 +642,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if ((cached_type != type) | (version != msg->version)) {
         // Revert to anamorphic
-        WRITE_BYTE(16, instr - 1);
+        WRITE_BYTE(SEND_CACHE_DIST, instr - 1);
 
-        IP() -= 16;
+        IP() -= SEND_CACHE_DIST;
 
         NEXT();
       }
@@ -651,7 +653,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       STORE_FRAME();
 
-      if (!call_closure(ENGINE(), VM(), GAB_VAL_TO_BLOCK(spec), have, want))
+      if (!call_block(ENGINE(), VM(), GAB_VAL_TO_BLOCK(spec), have, want))
         return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
 
       LOAD_FRAME();
@@ -664,8 +666,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         have = READ_BYTE;
         want = READ_BYTE;
         version = READ_BYTE;
-        offset = READ_SHORT;
         cached_type = *READ_QWORD;
+        offset = *READ_QWORD;
 
         goto complete_send_mono_builtin;
       }
@@ -675,8 +677,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         have = VAR() + READ_BYTE;
         want = READ_BYTE;
         version = READ_BYTE;
-        offset = READ_SHORT;
         cached_type = *READ_QWORD;
+        offset = *READ_QWORD;
 
         goto complete_send_mono_builtin;
       }
@@ -688,8 +690,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if ((cached_type != type) | (version != msg->version)) {
         // Revert to anamorphic
-        WRITE_BYTE(16, instr - 2);
-        IP() -= 16;
+        WRITE_BYTE(SEND_CACHE_DIST, instr - 2);
+        IP() -= SEND_CACHE_DIST;
         NEXT();
       }
 
@@ -773,12 +775,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       SKIP_BYTE;
       SKIP_BYTE;
       SKIP_BYTE;
-      SKIP_SHORT;
+      SKIP_QWORD;
       SKIP_QWORD;
 
       if (!GAB_VAL_IS_STRING(PEEK2())) {
-        WRITE_BYTE(16, OP_SEND_ANA);
-        IP() -= 16;
+        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+        IP() -= SEND_CACHE_DIST;
         NEXT();
       }
 
@@ -805,16 +807,16 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       SKIP_BYTE;
       SKIP_BYTE;
       u8 version = READ_BYTE;
-      SKIP_SHORT;
       gab_value cached_type = *READ_QWORD;
+      SKIP_QWORD;
 
       gab_value receiver = PEEK2();
 
       gab_value type = gab_val_type(ENGINE(), receiver);
 
       if ((cached_type != type) | (version != msg->version)) {
-        WRITE_BYTE(16, OP_SEND_ANA);
-        IP() -= 16;
+        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+        IP() -= SEND_CACHE_DIST;
         NEXT();
       }
 
@@ -833,7 +835,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       SKIP_BYTE;
       SKIP_BYTE;
       SKIP_BYTE;
-      SKIP_SHORT;
+      SKIP_QWORD;
       SKIP_QWORD;
 
       gab_value key = PEEK2();
@@ -851,9 +853,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
                           "Tried to set %.*s", (i32)a->len, a->data);
         }
 
-        WRITE_BYTE(16, OP_SEND_PRIMITIVE_STORE_MONO);
+        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_STORE_MONO);
 
-        IP() -= 16;
+        IP() -= SEND_CACHE_DIST;
 
         NEXT();
       }
@@ -869,8 +871,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       SKIP_BYTE;
       SKIP_BYTE;
       u8 version = READ_BYTE;
-      SKIP_SHORT;
       gab_value cached_type = *READ_QWORD;
+      SKIP_QWORD;
 
       gab_value value = PEEK();
       gab_value key = PEEK2();
@@ -882,8 +884,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if ((cached_type != type) | (version != msg->version) |
           (prop_offset == UINT16_MAX)) {
-        WRITE_BYTE(16, OP_SEND_ANA);
-        IP() -= 16;
+        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+        IP() -= SEND_CACHE_DIST;
         NEXT();
       }
 
@@ -909,14 +911,14 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       SKIP_BYTE;
       SKIP_BYTE;
       SKIP_BYTE;
-      SKIP_SHORT;
+      SKIP_QWORD;
       SKIP_QWORD;
 
       gab_value index = PEEK2();
 
       if (GAB_VAL_IS_RECORD(index)) {
-        WRITE_BYTE(16, OP_SEND_PRIMITIVE_LOAD_MONO);
-        IP() -= 16;
+        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_LOAD_MONO);
+        IP() -= SEND_CACHE_DIST;
         NEXT();
       }
 
@@ -931,8 +933,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       SKIP_BYTE;
       SKIP_BYTE;
       u8 version = READ_BYTE;
-      SKIP_SHORT;
       gab_value cached_type = *READ_QWORD;
+      SKIP_QWORD;
 
       gab_value key = PEEK();
       gab_value index = PEEK2();
@@ -956,8 +958,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
        */
 
       if ((cached_type != type) | (version != msg->version)) {
-        WRITE_BYTE(16, OP_SEND_ANA);
-        IP() -= 16;
+        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+        IP() -= SEND_CACHE_DIST;
         NEXT();
       }
 

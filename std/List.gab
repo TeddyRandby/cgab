@@ -1,9 +1,9 @@
 require('list')
 def __get__[List](key)
-    key:type match
-        { from to }:type => self:slice(key.from, key.to)
-        { from }:type    => self:slice(key.from)
-        { to }:type       => self:slice(nil, key.to)
+    ?key match
+        ?{ from to }     => self:slice(key.from, key.to)
+        ?{ from }        => self:slice(key.from)
+        ?{ to }          => self:slice(nil, key.to)
         Number           => self:at(key)
         else             => panic('Invalid call to List::key')
 end

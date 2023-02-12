@@ -25,7 +25,7 @@ def print[Range]
   'Range({self.from},{self.to})':print
 end
 
-def to[Number](last) Range:New(self, last) end
+def to[Number](last) Range:new(self, last) end
 
 def each[Number]
   let v = 0

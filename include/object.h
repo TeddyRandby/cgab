@@ -206,7 +206,7 @@ struct gab_obj_prototype {
   /*
    * The number of slots the proto needs.
    */
-  u8 nslots;
+  u16 nslots;
 
   /*
    * The number of locals
@@ -214,9 +214,8 @@ struct gab_obj_prototype {
   u8 nlocals;
 
   /*
-   * If the proto accepts all arguments passed to it
    */
-  boolean var;
+  u8 var;
 
   /*
    * The offset into the module where the function's instructions begin.
@@ -238,7 +237,10 @@ struct gab_obj_prototype {
 #define GAB_OBJ_TO_PROTOTYPE(value) ((gab_obj_prototype *)value)
 
 gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
-                                            s_i8 name);
+                                            s_i8 name, u8 narguments,
+                                            u16 nslots, u8 nupvalues,
+                                            u8 nlocals, u64 offset, u64 len,
+                                            boolean var);
 
 /*
   ------------- OBJ_CLOSURE-------------
@@ -301,7 +303,7 @@ struct gab_obj_message {
 
 gab_obj_message *gab_obj_message_create(gab_engine *gab, s_i8 name);
 
-static inline u16 gab_obj_message_find(gab_obj_message *self,
+static inline u64 gab_obj_message_find(gab_obj_message *self,
                                        gab_value receiver) {
   if (!d_specs_exists(&self->specs, receiver))
     return UINT16_MAX;
@@ -316,7 +318,7 @@ static inline void gab_obj_message_set(gab_obj_message *self, u16 offset,
   self->version++;
 }
 
-static inline gab_value gab_obj_message_get(gab_obj_message *self, u16 offset) {
+static inline gab_value gab_obj_message_get(gab_obj_message *self, u64 offset) {
   return d_specs_ival(&self->specs, offset);
 }
 

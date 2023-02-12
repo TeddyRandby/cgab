@@ -176,16 +176,26 @@ static inline gab_bc_frame *peek_frame(gab_bc *bc, u32 depth) {
   return &bc->frames[bc->frame_count - depth - 1];
 }
 
-static inline void push_slot(gab_bc *bc, u8 n) {
+static inline i32 push_slot(gab_bc *bc, u8 n) {
   gab_bc_frame *f = peek_frame(bc, 0);
+
+  if (f->next_slot + n >= UINT16_MAX) {
+    compiler_error(bc, GAB_PANIC, "Too many slots\n");
+    return COMP_ERR;
+  }
 
   f->next_slot += n;
 
   if (f->next_slot > f->nslots)
     f->nslots = f->next_slot;
+
+  return COMP_OK;
 }
 
 static inline void pop_slot(gab_bc *bc, u8 n) {
+  if (peek_frame(bc, 0)->next_slot - n < 0) {
+    compiler_error(bc, GAB_PANIC, "Too few slots\n");
+  }
   peek_frame(bc, 0)->next_slot -= n;
 }
 
@@ -212,7 +222,8 @@ static i32 add_local(gab_bc *bc, s_i8 name, u8 flags) {
   if (++frame->next_local > frame->nlocals)
     frame->nlocals = frame->next_local;
 
-  push_slot(bc, 1);
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
 
   return local;
 }
@@ -340,34 +351,27 @@ static void up_scope(gab_bc *bc, gab_module *mod) {
 }
 
 static void down_frame(gab_bc *bc, s_i8 name, boolean is_method) {
-  bc->frame_count++;
+  gab_bc_frame *frame = bc->frames + bc->frame_count++;
+  frame->function_name = name;
 
-  peek_frame(bc, 0)->next_local = 0;
-  peek_frame(bc, 0)->nlocals = 0;
+  frame->next_local = 0;
+  frame->nlocals = 0;
 
-  peek_frame(bc, 0)->next_slot = 0;
-  peek_frame(bc, 0)->nslots = 0;
+  frame->next_slot = 0;
+  frame->nslots = 0;
 
-  peek_frame(bc, 0)->nupvalues = 0;
-  peek_frame(bc, 0)->function_name = name;
+  frame->nupvalues = 0;
+
+  frame->inlineable = 0;
 
   initialize_local(bc, add_local(bc, is_method ? s_i8_cstr("self") : name, 0));
 }
 
 static void up_frame(gab_bc *bc) {
-  peek_frame(bc, 0)->next_local = 0;
-  peek_frame(bc, 0)->nlocals = 0;
-
-  peek_frame(bc, 0)->next_slot = 0;
-  peek_frame(bc, 0)->nslots = 0;
-
-  peek_frame(bc, 0)->nupvalues = 0;
-
   bc->frame_count--;
   bc->scope_depth--;
 }
 
-// Forward declare some functions
 gab_compile_rule get_rule(gab_token k);
 i32 compile_exp_prec(gab_engine *gab, gab_bc *bc, gab_module *mod,
                      gab_precedence prec);
@@ -552,8 +556,9 @@ i32 compile_block(gab_engine *gab, gab_bc *bc, gab_module *mod) {
   return COMP_OK;
 }
 
-i32 compile_function_body(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                          gab_obj_prototype *p, u64 skip_jump) {
+gab_obj_prototype *compile_function_body(gab_engine *gab, gab_bc *bc,
+                                         gab_module *mod, s_i8 name,
+                                         u8 narguments, u8 vse, u64 skip_jump) {
   // Start compiling the function's bytecode.
   // You can't just store a pointer to the beginning of the code
   // Because if the vector is EVER resized,
@@ -563,10 +568,10 @@ i32 compile_function_body(gab_engine *gab, gab_bc *bc, gab_module *mod,
   i32 result = compile_block(gab, bc, mod);
 
   if (result < 0)
-    return COMP_ERR;
+    return NULL;
 
   if (expect_token(bc, TOKEN_END) < 0)
-    return COMP_ERR;
+    return NULL;
 
   gab_module_push_return(mod, result, false, bc->previous_token, bc->line,
                          bc->lex.previous_token_src);
@@ -576,14 +581,15 @@ i32 compile_function_body(gab_engine *gab, gab_bc *bc, gab_module *mod,
   gab_bc_frame *frame = peek_frame(bc, 0);
 
   u8 nupvalues = frame->nupvalues;
+  u8 nslots = frame->nslots;
+  u8 nlocals = frame->nlocals;
 
   u64 len = mod->bytecode.len - offset;
 
-  p->offset = offset;
-  p->len = len;
-  p->nupvalues = nupvalues;
+  gab_obj_prototype *p = gab_obj_prototype_create(
+      gab, mod, name, narguments, nslots, nupvalues, nlocals, offset, len, vse);
 
-  return COMP_OK;
+  return p;
 }
 
 i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
@@ -603,11 +609,11 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
     if (expect_token(bc, TOKEN_RBRACE) < 0)
       return COMP_ERR;
 
-    push_slot(bc, 1);
+    if (push_slot(bc, 1) < 0)
+      return COMP_ERR;
+
     pop_slot(bc, 1);
   }
-
-  gab_obj_prototype *p = gab_obj_prototype_create(gab, mod, name);
 
   u64 skip_jump = gab_module_push_jump(mod, OP_JUMP, bc->previous_token,
                                        bc->line, bc->lex.previous_token_src);
@@ -617,22 +623,20 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
 
   down_frame(bc, name, is_message);
 
-  boolean vse_params;
+  boolean vse;
 
-  i32 narguments = compile_parameters(bc, &vse_params);
+  i32 narguments = compile_parameters(bc, &vse);
 
   if (narguments < 0)
     return COMP_ERR;
 
-  if (compile_function_body(gab, bc, mod, p, skip_jump) < 0)
+  gab_obj_prototype *proto =
+      compile_function_body(gab, bc, mod, name, narguments, vse, skip_jump);
+
+  if (!proto)
     return COMP_ERR;
 
-  p->nlocals = peek_frame(bc, 0)->nlocals;
-  p->nslots = peek_frame(bc, 0)->nslots;
-  p->narguments = narguments;
-  p->var = vse_params;
-
-  u16 proto_constant = add_constant(mod, GAB_VAL_OBJ(p));
+  u16 proto_constant = add_constant(mod, GAB_VAL_OBJ(proto));
 
   // Create the closure, adding a specialization to the pushed function.
   push_op(bc, mod, is_message ? OP_MESSAGE : OP_CLOSURE);
@@ -646,7 +650,7 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
   }
 
   gab_bc_frame *frame = peek_frame(bc, 0);
-  for (int i = 0; i < p->nupvalues; i++) {
+  for (int i = 0; i < proto->nupvalues; i++) {
     push_byte(bc, mod, frame->upvs_flag[i]);
     push_byte(bc, mod, frame->upvs_index[i]);
   }
@@ -942,7 +946,8 @@ i32 compile_rec_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod) {
     gab_obj_string *obj =
         gab_obj_string_create(gab, bc->lex.previous_token_src);
 
-    push_slot(bc, 1);
+    if (push_slot(bc, 1) < 0)
+      return COMP_ERR;
 
     // Push the constant onto the stack.
     push_op(bc, mod, OP_CONSTANT);
@@ -967,7 +972,8 @@ i32 compile_rec_internal_item(gab_engine *gab, gab_bc *bc, gab_module *mod) {
       switch (result) {
 
       case COMP_RESOLVED_TO_LOCAL:
-        push_slot(bc, 1);
+        if (push_slot(bc, 1) < 0)
+          return COMP_ERR;
         push_load_local(bc, mod, value_in);
         break;
 
@@ -1071,7 +1077,8 @@ i32 compile_record(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name) {
 
   push_byte(bc, mod, size);
 
-  push_slot(bc, 1);
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
   return COMP_OK;
 }
 
@@ -1094,7 +1101,8 @@ i32 compile_array(gab_engine *gab, gab_bc *bc, gab_module *mod) {
     pop_slot(bc, size);
   }
 
-  push_slot(bc, 1);
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
   return COMP_OK;
 }
 
@@ -1278,8 +1286,7 @@ i32 compile_exp_mch(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   v_u64_destroy(&done_jumps);
 
-  push_slot(bc, 1);
-  return COMP_OK;
+  return push_slot(bc, 1);
 }
 
 /*
@@ -1538,8 +1545,7 @@ i32 compile_exp_str(gab_engine *gab, gab_bc *bc, gab_module *mod,
   push_op(bc, mod, OP_CONSTANT);
   push_short(bc, mod, add_constant(mod, GAB_VAL_OBJ(obj)));
 
-  push_slot(bc, 1);
-  return COMP_OK;
+  return push_slot(bc, 1);
 }
 
 /*
@@ -1559,10 +1565,9 @@ i32 compile_exp_itp(gab_engine *gab, gab_bc *bc, gab_module *mod,
     if (compile_expression(gab, bc, mod) < 0)
       return COMP_ERR;
 
-    pop_slot(bc, 1);
-
     // INTERPOLATE
     push_op(bc, mod, OP_INTERPOLATE);
+    pop_slot(bc, 1);
   }
 
   i32 result;
@@ -1580,15 +1585,13 @@ i32 compile_exp_itp(gab_engine *gab, gab_bc *bc, gab_module *mod,
       if (compile_expression(gab, bc, mod) < 0)
         return COMP_ERR;
 
-      pop_slot(bc, 1);
-
       push_op(bc, mod, OP_INTERPOLATE);
+      pop_slot(bc, 1);
     }
-
-    pop_slot(bc, 1);
 
     // concat this to the long-running string.
     push_op(bc, mod, OP_INTERPOLATE);
+    pop_slot(bc, 1);
   }
 
   if (result < 0)
@@ -1603,7 +1606,6 @@ fin:
 
   // Concat the final string.
   push_op(bc, mod, OP_INTERPOLATE);
-
   pop_slot(bc, 1);
 
   return COMP_OK;
@@ -1626,8 +1628,7 @@ i32 compile_exp_num(gab_engine *gab, gab_bc *bc, gab_module *mod,
   push_op(bc, mod, OP_CONSTANT);
   push_short(bc, mod, add_constant(mod, GAB_VAL_NUMBER(num)));
 
-  push_slot(bc, 1);
-  return COMP_OK;
+  return push_slot(bc, 1);
 }
 
 i32 compile_exp_bool(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -1635,16 +1636,14 @@ i32 compile_exp_bool(gab_engine *gab, gab_bc *bc, gab_module *mod,
   push_op(bc, mod,
           bc->previous_token == TOKEN_TRUE ? OP_PUSH_TRUE : OP_PUSH_FALSE);
 
-  push_slot(bc, 1);
-  return COMP_OK;
+  return push_slot(bc, 1);
 }
 
 i32 compile_exp_nil(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   push_op(bc, mod, OP_PUSH_NIL);
 
-  push_slot(bc, 1);
-  return COMP_OK;
+  return push_slot(bc, 1);
 }
 
 i32 compile_exp_def(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -1817,7 +1816,8 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
   }
 
-  push_slot(bc, 1);
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
   return COMP_OK;
 }
 
@@ -1869,7 +1869,8 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
   }
 
-  push_slot(bc, 1);
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
   return VAR_EXP;
 }
 
@@ -1941,10 +1942,15 @@ i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   push_op(bc, mod, OP_PUSH_NIL);
 
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
+
   boolean vse;
   i32 args = compile_arguments(gab, bc, mod, &vse);
 
   gab_module_push_send(mod, args, vse, f, tok, line, message);
+
+  pop_slot(bc, args + 1);
 
   return VAR_EXP;
 }
@@ -1961,7 +1967,7 @@ i32 compile_exp_amp(gab_engine *gab, gab_bc *bc, gab_module *mod,
   push_op(bc, mod, OP_CONSTANT);
   push_short(bc, mod, f);
 
-  return COMP_OK;
+  return push_slot(bc, 1);
 }
 
 i32 compile_exp_snd(gab_engine *gab, gab_bc *bc, gab_module *mod,
@@ -1989,7 +1995,8 @@ i32 compile_exp_snd(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   gab_module_push_send(mod, result, vse, m, prev_tok, prev_line, prev_src);
 
-  push_slot(bc, 1);
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
   return VAR_EXP;
 }
 
@@ -2011,11 +2018,9 @@ i32 compile_exp_cal(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
   }
 
-  pop_slot(bc, result + 1);
+  pop_slot(bc, result);
 
   gab_module_push_dynsend(mod, result, vse, call_tok, call_line, call_src);
-
-  push_slot(bc, 1);
 
   return VAR_EXP;
 }
@@ -2232,7 +2237,8 @@ i32 compile_exp_sym(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
 i32 compile_exp_yld(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
-  push_slot(bc, 1);
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
 
   if (match_token(bc, TOKEN_NEWLINE)) {
     gab_module_push_yield(mod, 0, false, bc->previous_token, bc->line,
@@ -2254,7 +2260,7 @@ i32 compile_exp_yld(gab_engine *gab, gab_bc *bc, gab_module *mod,
   gab_module_push_yield(mod, result, vse, bc->previous_token, bc->line,
                         bc->lex.previous_token_src);
 
-  pop_slot(bc, result + 1);
+  pop_slot(bc, result);
 
   return VAR_EXP;
 }
@@ -2265,7 +2271,8 @@ i32 compile_exp_rtn(gab_engine *gab, gab_bc *bc, gab_module *mod,
     push_op(bc, mod, OP_PUSH_NIL);
     push_op(bc, mod, OP_RETURN_1);
 
-    push_slot(bc, 1);
+    if (push_slot(bc, 1) < 0)
+      return COMP_ERR;
     pop_slot(bc, 1);
     return COMP_OK;
   }
@@ -2385,11 +2392,12 @@ i32 compile(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
 
   push_op(bc, mod, OP_RETURN_1);
 
-  gab_obj_prototype *p = gab_obj_prototype_create(gab, mod, name);
-  p->narguments = narguments;
-  p->nslots = peek_frame(bc, 0)->nslots;
-  p->nlocals = peek_frame(bc, 0)->nlocals;
-  p->len = mod->bytecode.len;
+  u8 nslots = peek_frame(bc, 0)->nslots;
+  u8 nlocals = peek_frame(bc, 0)->nlocals;
+  u64 len = mod->bytecode.len;
+
+  gab_obj_prototype *p = gab_obj_prototype_create(
+      gab, mod, name, narguments, nslots, 0, nlocals, 0, len, false);
 
   gab_obj_block *c = gab_obj_block_create(gab, p);
 
@@ -2420,8 +2428,8 @@ gab_module *gab_bc_compile_send(gab_engine *gab, s_i8 name, gab_value receiver,
 
   gab_module_push_return(mod, 1, false, 0, 0, (s_i8){0});
 
-  gab_obj_prototype *p = gab_obj_prototype_create(gab, mod, name);
-  p->len = mod->bytecode.len;
+  gab_obj_prototype *p = gab_obj_prototype_create(
+      gab, mod, name, argc, argc, 0, 0, 0, mod->bytecode.len, false);
 
   gab_obj_block *c = gab_obj_block_create(gab, p);
 

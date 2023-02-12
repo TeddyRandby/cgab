@@ -395,18 +395,21 @@ s_i8 gab_obj_string_ref(gab_obj_string *self) {
 }
 
 gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
-                                            s_i8 name) {
+                                            s_i8 name, u8 narguments, u16 nslots,
+                                            u8 nupvalues, u8 nlocals, u64 offset,
+                                            u64 len, boolean var) {
   gab_obj_prototype *self =
       GAB_CREATE_OBJ(gab_obj_prototype, GAB_KIND_PROTOTYPE);
 
   self->mod = mod;
   self->name = name;
-  self->narguments = 0;
-  self->nslots = 0;
-  self->nupvalues = 0;
-  self->var = 0;
-  self->offset = 0;
-  self->len = 0;
+  self->narguments = narguments;
+  self->nslots = nslots;
+  self->nupvalues = nupvalues;
+  self->nlocals = nlocals;
+  self->offset = offset;
+  self->len = len;
+  self->var = var;
 
   GAB_OBJ_GREEN((gab_obj *)self);
   return self;

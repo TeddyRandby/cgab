@@ -130,16 +130,16 @@ describe('Records', do ()
     let pone = { x = 1 y = 2}
     let ptwo = { x = 3 y = 4}
 
-    (pone:type):expect(ptwo:type)
+    (?pone):expect(?ptwo)
   end)
 
   it('should work for all kinds of keys', do ()
     let obj = {
-        [{}:type] = 3
+        [?{}] = 3
         [it]  = it
     }
 
-    obj[{}:type]:expect(3)
+    obj[?{}]:expect(3)
     obj[it]:expect(it)
   end)
 
@@ -259,7 +259,7 @@ describe('Messages', do ()
         1:test:expect(1)
     end)
 
-    def test[1:type](a)
+    def test[?1](a)
         self + 1
     end
 

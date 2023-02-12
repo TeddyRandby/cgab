@@ -208,6 +208,12 @@ u8 gab_module_push_send(gab_module *self, u8 have, u8 var, u16 message,
   gab_module_push_byte(self, have, t, l, s);
   gab_module_push_byte(self, 1, t, l, s);
 
+  gab_module_push_byte(self, OP_NOP, t, l, s); // Version
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
   gab_module_push_inline_cache(self, t, l, s);
 

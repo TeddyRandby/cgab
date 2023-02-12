@@ -1,9 +1,1 @@
-require('std')
-
-def Test[Number](msg, opts, cb)
-    cb(self, msg, opts)
-end
-
-5:Test('hi') { option = 'yes' } do (n, msg, opt)
-    print(n, msg, opt.option)
-end
+1:print
