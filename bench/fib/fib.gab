@@ -1,8 +1,8 @@
 def fib(n)
   n < 2 then
-    n
+    return n
   end else
-    fib(n - 1) + fib(n - 2)
+    return fib(n - 1) + fib(n - 2)
   end
 end
   

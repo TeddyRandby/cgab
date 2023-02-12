@@ -1,8 +1,8 @@
 def fib[]
    self < 2 then
-    self
+    return self
   end else
-    (self - 1):fib + (self - 2):fib
+    return (self - 1):fib + (self - 2):fib
   end
 end
 
