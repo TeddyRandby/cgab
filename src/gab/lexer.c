@@ -147,6 +147,10 @@ const keyword keywords[] = {
         "until",
         TOKEN_UNTIL,
     },
+    {
+        "impl",
+        TOKEN_IMPL,
+    },
 };
 
 gab_token identifier(gab_lexer *self) {

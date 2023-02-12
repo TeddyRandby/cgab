@@ -103,6 +103,7 @@ install_data(
   'std/Option.gab',
   'std/Range.gab',
   'std/String.gab',
+  'std/Number.gab',
   'std/Time.gab',
   'std/List.gab',
   'std/Map.gab',

@@ -24,8 +24,6 @@
 // Initial capacity of interned table
 #define INTERN_INITIAL_CAP 256
 
-#define GC_CACHE_UP 17
-
 // Derived macros
 // Garbage collection increment/decrement buffer size
 #define GC_BUFF_MAX (STACK_MAX * 2)

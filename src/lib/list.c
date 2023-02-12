@@ -29,8 +29,6 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
 
     gab_value result = GAB_VAL_OBJ(list);
 
-    v_gab_value_push(&list->data, GAB_VAL_NIL());
-
     gab_dref(gab, vm, result);
 
     return result;

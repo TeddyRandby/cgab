@@ -1,6 +1,7 @@
 #ifndef GAB_COMPILER_H
 #define GAB_COMPILER_H
 
+#include "include/core.h"
 #include "lexer.h"
 #include "module.h"
 
@@ -36,13 +37,15 @@ struct gab_bc_frame {
   u8 upvs_index[UPVALUE_MAX];
   u8 upvs_flag[UPVALUE_MAX];
 
-  u8 next_slot;
-  u8 nslots;
+  u16 next_slot;
+  u16 nslots;
 
   u8 next_local;
   u8 nlocals;
 
   u8 nupvalues;
+
+  boolean inlineable;
 };
 
 /*
@@ -69,10 +72,15 @@ typedef struct gab_bc {
   */
   i32 scope_depth;
 
+
+  u8 nimpls;
+
+  s_i8 impls[FUNCTION_DEF_NESTING_MAX];
+
   /**
    * The number of compile frames
    */
-  u8 frame_count;
+  u8 nframe;
 
   /*
     Static array of compile frames.
