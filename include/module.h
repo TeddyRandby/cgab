@@ -31,7 +31,7 @@ static const char *gab_opcode_names[] = {
   State required to run a gab program.
 */
 struct gab_module {
-  gab_module* next;
+  gab_module *next;
   /*
     The name of the module */
   s_i8 name;
@@ -84,7 +84,7 @@ gab_module *gab_module_create(gab_module *mod, s_i8 name, s_i8 src);
 
 void gab_module_destroy(gab_engine *gab, gab_module *mod);
 
-void gab_module_collect(gab_engine* gab, gab_module* mod);
+void gab_module_collect(gab_engine *gab, gab_module *mod);
 
 /*
   Helpers for pushing ops into the module.
@@ -103,11 +103,16 @@ u8 gab_module_push_store_local(gab_module *, u8, gab_token, u64, s_i8);
 u8 gab_module_push_store_upvalue(gab_module *, u8, gab_token, u64, s_i8);
 u8 gab_module_push_return(gab_module *, u8, u8, gab_token, u64, s_i8);
 u8 gab_module_push_yield(gab_module *, u8, u8, gab_token, u64, s_i8);
-u8 gab_module_push_send(gab_module *mod, u8 have, u8 var, u16 message, gab_token, u64, s_i8);
+u8 gab_module_push_send(gab_module *mod, u8 have, u8 var, u16 message,
+                        gab_token, u64, s_i8);
 u8 gab_module_push_dynsend(gab_module *, u8, u8, gab_token, u64, s_i8);
 u8 gab_module_push_pop(gab_module *, u8, gab_token, u64, s_i8);
 
 void gab_module_push_inline_cache(gab_module *, gab_token, u64, s_i8);
+u64 gab_module_push_iter(gab_module *self, u8 nlocals, u8 start, gab_token t,
+                         u64 l, s_i8 s);
+void gab_module_push_next(gab_module *self, u8 iter, u8 want, gab_token t, u64 l,
+                         s_i8 s);
 u64 gab_module_push_loop(gab_module *);
 u64 gab_module_push_jump(gab_module *, u8, gab_token, u64, s_i8);
 

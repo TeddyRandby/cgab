@@ -3,6 +3,7 @@
 #include "include/compiler.h"
 #include "include/core.h"
 #include "include/engine.h"
+#include "include/lexer.h"
 #include "include/object.h"
 #include <stdio.h>
 
@@ -272,6 +273,24 @@ void gab_module_push_inline_cache(gab_module *self, gab_token t, u64 l,
   gab_module_push_byte(self, OP_NOP, t, l, s);
 }
 
+void gab_module_push_next(gab_module *self, u8 iter, u8 want, gab_token t,
+                          u64 l, s_i8 s) {
+  gab_module_push_byte(self, OP_NEXT, t, l, s);
+  gab_module_push_byte(self, iter, t, l, s);
+  gab_module_push_byte(self, want, t, l, s);
+}
+
+u64 gab_module_push_iter(gab_module *self, u8 nlocals, u8 start, gab_token t,
+                         u64 l, s_i8 s) {
+  gab_module_push_byte(self, OP_ITER, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, nlocals, t, l, s);
+  gab_module_push_byte(self, start, t, l, s);
+
+  return self->bytecode.len - 4;
+}
+
 u64 gab_module_push_jump(gab_module *self, u8 op, gab_token t, u64 l, s_i8 s) {
   gab_module_push_byte(self, op, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
@@ -352,7 +371,7 @@ u64 dumpDynSendInstruction(gab_module *self, u64 offset) {
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   u8 have = v_u8_val_at(&self->bytecode, offset + 1);
   u8 want = v_u8_val_at(&self->bytecode, offset + 2);
-  printf("%-25s          %02d args -> %02d results\n", name, have, want);
+  printf("%-25s             %03d args -> %03d results\n", name, have, want);
   return offset + 3;
 }
 
@@ -367,8 +386,8 @@ u64 dumpSendInstruction(gab_module *self, u64 offset) {
   u8 have = v_u8_val_at(&self->bytecode, offset + 3);
   u8 want = v_u8_val_at(&self->bytecode, offset + 4);
 
-  printf("%-25s" ANSI_COLOR_BLUE "%-10.*s" ANSI_COLOR_RESET
-         "%02d args -> %02d results\n",
+  printf("%-25s" ANSI_COLOR_BLUE "%-13.*s" ANSI_COLOR_RESET
+         "%03d args -> %03d results\n",
          name, (int)m->name.len, m->name.data, have, want);
   return offset + 22;
 }
@@ -413,6 +432,29 @@ u64 dumpJumpInstruction(gab_module *self, u64 sign, u64 offset) {
   printf("%-25s" ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
          " -> " ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET "\n",
          name, offset, offset + 3 + (sign * (dist)));
+  return offset + 3;
+}
+
+u64 dumpIter(gab_module *self, u64 offset) {
+  u16 dist = (u16)v_u8_val_at(&self->bytecode, offset + 1) << 8;
+  dist |= v_u8_val_at(&self->bytecode, offset + 2);
+
+  u8 nlocals = v_u8_val_at(&self->bytecode, offset + 3);
+  u8 start = v_u8_val_at(&self->bytecode, offset + 4);
+
+  printf("%-25s" ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
+         " -> " ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
+         " %03d locals from %03d\n",
+         "ITER", offset, offset + 3 + dist, nlocals, start);
+
+  return offset + 5;
+}
+
+u64 dumpNext(gab_module *self, u64 offset) {
+  u8 iter = v_u8_val_at(&self->bytecode, offset + 1);
+  u8 want = v_u8_val_at(&self->bytecode, offset + 2);
+
+  printf("%-25siter: %03d wants %03d\n", "NEXT", iter, want);
   return offset + 3;
 }
 
@@ -517,6 +559,10 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     return dumpTwoByteInstruction(self, offset);
   case OP_CONSTANT:
     return dumpConstantInstruction(self, offset);
+  case OP_NEXT:
+    return dumpNext(self, offset);
+  case OP_ITER:
+    return dumpIter(self, offset);
   case OP_STORE_PROPERTY_ANA:
   case OP_STORE_PROPERTY_MONO:
   case OP_STORE_PROPERTY_POLY:
@@ -601,7 +647,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     }
     return offset;
   }
-  case OP_CLOSURE: {
+  case OP_BLOCK: {
     offset++;
     u16 proto_constant = ((((u16)self->bytecode.data[offset]) << 8) |
                           self->bytecode.data[offset + 1]);

@@ -681,7 +681,7 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
   u16 proto_constant = add_constant(mod, GAB_VAL_OBJ(proto));
 
   // Create the closure, adding a specialization to the pushed function.
-  push_op(bc, mod, is_message ? OP_MESSAGE : OP_CLOSURE);
+  push_op(bc, mod, is_message ? OP_MESSAGE : OP_BLOCK);
   push_short(bc, mod, proto_constant);
 
   if (is_message) {
@@ -2173,7 +2173,7 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
   down_scope(bc);
 
-  u8 local_start = peek_frame(bc, 0)->next_local - 1;
+  u8 local_start = peek_frame(bc, 0)->next_local;
   u16 loop_locals = 0;
   i32 result;
 
@@ -2205,25 +2205,14 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
 
   gab_module_try_patch_vse(mod, loop_locals + 1);
-  
 
   // Now there stack is ...yielded values, effect
 
   u64 loop = gab_module_push_loop(mod);
 
-  // Exit the for loop if we don't have an effect on top
-  u64 jump_start =
-      gab_module_push_jump(mod, OP_JUMP_IF_FALSE, bc->previous_token, bc->line,
-                           bc->lex.previous_token_src);
-
-  push_store_local(bc, mod, iter_eff);
-  push_pop(bc, mod, 1);
-
-  // Pop the results in reverse order, assigning them to each loop local.
-  for (u8 ll = 0; ll < loop_locals; ll++) {
-    push_store_local(bc, mod, local_start + loop_locals - ll);
-    push_pop(bc, mod, 1);
-  }
+  u64 jump_start = gab_module_push_iter(mod, loop_locals + 1, local_start,
+                                        bc->previous_token, bc->line,
+                                        bc->lex.previous_token_src);
 
   if (compile_block(gab, bc, mod) < 0)
     return COMP_ERR;
@@ -2234,17 +2223,13 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
 
   // Load and call the effect member
-  push_load_local(bc, mod, iter_eff);
-  push_op(bc, mod, OP_DYNSEND);
-  push_byte(bc, mod, 0);
-  push_byte(bc, mod, loop_locals + 1);
+  gab_module_push_next(mod, iter_eff, loop_locals + 1, bc->previous_token,
+                       bc->line, bc->lex.previous_token_src);
 
   gab_module_patch_loop(mod, loop, bc->previous_token, bc->line,
                         bc->lex.previous_token_src);
 
   gab_module_patch_jump(mod, jump_start);
-
-  push_pop(bc, mod, loop_locals);
 
   up_scope(bc, mod);
 

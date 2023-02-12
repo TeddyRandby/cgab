@@ -545,12 +545,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
     {
       gab_obj_message *msg;
-      u8 have, want;
+      u8 have;
 
       CASE_CODE(VARSEND_ANA) : {
         msg = READ_MESSAGE;
         have = VAR() + READ_BYTE;
-        want = READ_BYTE;
+        SKIP_BYTE;
 
         goto complete_send_ana;
       }
@@ -558,7 +558,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       CASE_CODE(SEND_ANA) : {
         msg = READ_MESSAGE;
         have = READ_BYTE;
-        want = READ_BYTE;
+        SKIP_BYTE;
 
         goto complete_send_ana;
       }
@@ -1582,7 +1582,43 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       NEXT();
     }
 
-    CASE_CODE(CLOSURE) : {
+    CASE_CODE(ITER) : {
+      u16 dist = READ_SHORT;
+      u8 nlocals = READ_BYTE;
+      u8 start = READ_BYTE;
+
+      if (!GAB_VAL_IS_EFFECT(PEEK())) {
+        DROP_N(nlocals - 1);
+
+        // Account for the two bytes we read already
+        ip += dist - 2;
+
+        NEXT();
+      }
+
+      while (nlocals--)
+        LOCAL(start + nlocals) = POP();
+
+      NEXT();
+    }
+
+    CASE_CODE(NEXT) : {
+      u8 iter = READ_BYTE;
+      u8 want = READ_BYTE;
+
+      PUSH(LOCAL(iter));
+
+      STORE_FRAME();
+
+      if (!call_effect(VM(), GAB_VAL_TO_EFFECT(PEEK()), 0, want))
+        return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+
+      LOAD_FRAME();
+
+      NEXT();
+    }
+
+    CASE_CODE(BLOCK) : {
       gab_obj_prototype *p = READ_PROTOTYPE;
 
       gab_obj_block *cls = gab_obj_block_create(ENGINE(), p);
