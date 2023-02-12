@@ -1,9 +1,9 @@
-#include "include/colors.h"
+#include "include/vm.h"
 #include "include/char.h"
+#include "include/colors.h"
+#include "include/compiler.h"
 #include "include/engine.h"
 #include "include/gab.h"
-#include "include/vm.h"
-#include "include/compiler.h"
 #include "include/gc.h"
 
 #include <stdarg.h>
@@ -75,7 +75,6 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
       }
 
       if (frame == vm->frame) {
-
         fprintf(stderr,
                 "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET
                 "] Error near " ANSI_COLOR_BLUE "%s" ANSI_COLOR_RESET
@@ -577,9 +576,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
           STORE_FRAME();
           gab_obj_string *a =
               GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), receiver));
-          return vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE,
-                          "No specialization for receiver '%.*s'", (i32)a->len,
-                          a->data);
+          return vm_error(ENGINE(), VM(), GAB_IMPLEMENTATION_MISSING,
+                          "%.*s does not implement :%.*s", a->len, a->data,
+                          msg->name.len, msg->name.data);
         }
 
         offset = gab_obj_message_find(msg, GAB_VAL_UNDEFINED());
@@ -795,29 +794,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_obj_string *a = GAB_VAL_TO_STRING(POP());
       gab_obj_string *ab = gab_obj_string_concat(ENGINE(), a, b);
       PUSH(GAB_VAL_OBJ(ab));
-
-      VAR() = 1;
-
-      NEXT();
-    }
-
-    CASE_CODE(SEND_PRIMITIVE_NEG) : {
-      SKIP_SHORT;
-      SKIP_BYTE;
-      SKIP_BYTE;
-      SKIP_BYTE;
-      SKIP_SHORT;
-      SKIP_QWORD;
-
-      if (!GAB_VAL_IS_NUMBER(PEEK())) {
-        WRITE_BYTE(16, OP_SEND_ANA);
-        IP() -= 16;
-        NEXT();
-      }
-
-      gab_value new_value = GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP()));
-
-      PUSH(new_value);
 
       VAR() = 1;
 
@@ -1395,6 +1371,22 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       NEXT();
     }
 
+    CASE_CODE(NEGATE) : {
+      if (!GAB_VAL_IS_NUMBER(PEEK())) {
+        STORE_FRAME();
+        gab_obj_string *a =
+            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK()));
+        return vm_error(ENGINE(), VM(), GAB_NOT_NUMERIC,
+                        "Tried to operate on %.*s", (i32)a->len, a->data);
+      }
+
+      gab_value new_value = GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP()));
+
+      PUSH(new_value);
+
+      NEXT();
+    }
+
     CASE_CODE(NOT) : {
       gab_value new_value = GAB_VAL_BOOLEAN(gab_val_falsey(POP()));
       PUSH(new_value);
@@ -1736,4 +1728,4 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 #undef READ_CONSTANT
 #undef READ_SHORT
 #undef READ_STRING
-#undef BINARY_OPERATION
+#undef BINARY_PRIMITIVE

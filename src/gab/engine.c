@@ -87,11 +87,6 @@ struct primitive primitives[] = {
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_GTE),
     },
     {
-        .name = "__neg__",
-        .type = GAB_KIND_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_NEG),
-    },
-    {
         .name = "__eq__",
         .type = GAB_KIND_UNDEFINED,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),

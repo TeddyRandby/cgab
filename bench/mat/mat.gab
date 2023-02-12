@@ -2,9 +2,9 @@ require('std')
 
 def Matrix { data n }
 
-def matrix(n, data) { data n } end
+def new[Matrix](n, data) { data n } end
 
-def __add__[Matrix](other)
+def +[Matrix](other)
   self.n == other.n or panic()
 
   def N = self.n
@@ -15,10 +15,10 @@ def __add__[Matrix](other)
     data[i] = self.data[i] + other.data[i]
   end
 
-  matrix(N, data)
+  Matrix:new(N, data)
 end
 
-def __mul__[Matrix](other)
+def *[Matrix](other)
   self.n == other.n or panic()
 
   def N = self.n
@@ -37,7 +37,7 @@ def __mul__[Matrix](other)
     end
   end
 
-  matrix(N, data)
+  Matrix:new(N, data)
 end
 
 def diag_sum [Matrix]
@@ -57,8 +57,8 @@ let sum = 0
 let N = 2
 
 for _ in 5000:each
-  let a = matrix(N, List:new(N * N):map! do (_, i) i end :slice)
-  let b = matrix(N, List:new(N * N):map! do (_, i) i end :slice)
+  let a = Matrix:new(N, List:new(N * N):map! do (_, i) i end :slice)
+  let b = Matrix:new(N, List:new(N * N):map! do (_, i) i end :slice)
 
   let c = a + b
   let d = c * a * b

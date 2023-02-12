@@ -836,6 +836,101 @@ i32 compile_lst_internals(gab_engine *gab, gab_bc *bc, gab_module *mod,
   return size;
 }
 
+i32 compile_var_decl(gab_engine *gab, gab_bc *bc, gab_module *mod, u8 flags,
+                     u8 additional_local) {
+  u8 locals[16] = {additional_local};
+
+  u8 local_count = additional_local > 0;
+
+  i32 result = COMP_OK;
+
+  if (match_token(bc, TOKEN_EQUAL))
+    goto initializer;
+
+  do {
+    if (local_count == 16) {
+      compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_LET, "");
+      return COMP_ERR;
+    }
+
+    if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
+      return COMP_ERR;
+
+    s_i8 name = bc->lex.previous_token_src;
+
+    i32 result = resolve_id(bc, bc->lex.previous_token_src, NULL);
+
+    switch (result) {
+
+    case COMP_ID_NOT_FOUND: {
+      i32 loc = compile_local(bc, name, flags);
+
+      if (loc < 0)
+        return COMP_ERR;
+
+      locals[local_count] = loc;
+      break;
+    }
+
+    case COMP_RESOLVED_TO_LOCAL:
+    case COMP_RESOLVED_TO_UPVALUE: {
+      compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
+      return COMP_ERR;
+    }
+
+    default:
+      compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                     "While compiling let expression");
+      return COMP_ERR;
+    }
+
+    local_count++;
+
+  } while ((result = match_and_eat_token(bc, TOKEN_COMMA)));
+
+  if (result == COMP_ERR)
+    return COMP_ERR;
+
+initializer:
+  switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
+
+  case COMP_OK: {
+    if (compile_tuple(gab, bc, mod, local_count, NULL) < 0)
+      return COMP_ERR;
+
+    break;
+  }
+
+  case COMP_TOKEN_NO_MATCH:
+    compiler_error(bc, GAB_MISSING_INITIALIZER, "");
+    return COMP_ERR;
+
+  default:
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                   "While compiling 'let' expression");
+    return COMP_ERR;
+  }
+
+  pop_slot(bc, local_count);
+
+  while (local_count--) {
+    u8 local = locals[local_count];
+    initialize_local(bc, local);
+
+    if (local_count > 0) {
+      gab_module_push_store_local(mod, local, bc->previous_token, bc->line,
+                                  bc->lex.previous_token_src);
+      push_pop(bc, mod, 1);
+    } else {
+      gab_module_push_store_local(mod, local, bc->previous_token, bc->line,
+                                  bc->lex.previous_token_src);
+    }
+  }
+
+  push_slot(bc, 1);
+  return COMP_OK;
+}
+
 // Forward decl
 i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name);
 
@@ -1023,16 +1118,12 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod,
   }
 
   // Const variable
-  if (match_and_eat_token(bc, TOKEN_EQUAL)) {
+  if (match_token(bc, TOKEN_EQUAL) || match_token(bc, TOKEN_COMMA)) {
     u8 local = add_local(bc, name, 0);
-    initialize_local(bc, local);
 
-    if (compile_expression(gab, bc, mod) < 0)
-      return COMP_ERR;
+    match_and_eat_token(bc, TOKEN_COMMA);
 
-    push_store_local(bc, mod, local);
-
-    return COMP_OK;
+    return compile_var_decl(gab, bc, mod, 0, local);
   }
 
   // From now on, we know its a function definition.
@@ -1564,10 +1655,68 @@ i32 compile_exp_nil(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
 i32 compile_exp_def(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
-  if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
-    return COMP_ERR;
+  eat_token(bc);
+  s_i8 name = {0};
+  switch (bc->previous_token) {
+  case TOKEN_IDENTIFIER:
+    name = bc->lex.previous_token_src;
+    break;
+  case TOKEN_PLUS:
+    name = s_i8_cstr("__add__");
+    break;
+  case TOKEN_MINUS:
+    name = s_i8_cstr("__sub__");
+    break;
+  case TOKEN_STAR:
+    name = s_i8_cstr("__mul__");
+    break;
+  case TOKEN_SLASH:
+    name = s_i8_cstr("__div__");
+    break;
+  case TOKEN_LESSER:
+    name = s_i8_cstr("__lt__");
+    break;
+  case TOKEN_LESSER_EQUAL:
+    name = s_i8_cstr("__lte__");
+    break;
+  case TOKEN_LESSER_LESSER:
+    name = s_i8_cstr("__shl__");
+    break;
+  case TOKEN_GREATER:
+    name = s_i8_cstr("__gt__");
+    break;
+  case TOKEN_GREATER_EQUAL:
+    name = s_i8_cstr("__gte__");
+    break;
+  case TOKEN_GREATER_GREATER:
+    name = s_i8_cstr("__shr__");
+    break;
+  case TOKEN_EQUAL_EQUAL:
+    name = s_i8_cstr("__eq__");
+    break;
+  case TOKEN_PIPE:
+    name = s_i8_cstr("__or__");
+    break;
+  case TOKEN_AMPERSAND:
+    name = s_i8_cstr("__and__");
+    break;
+  case TOKEN_LBRACE: {
+    if (match_and_eat_token(bc, TOKEN_RBRACE)) {
+      name = s_i8_cstr("__get__");
+      break;
+    }
 
-  s_i8 name = bc->lex.previous_token_src;
+    if (match_and_eat_token(bc, TOKEN_EQUAL)) {
+      if (!expect_token(bc, TOKEN_RBRACE))
+        return COMP_ERR;
+      name = s_i8_cstr("__set__");
+      break;
+    }
+  }
+  default:
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "While compiling definition");
+    return COMP_ERR;
+  }
 
   if (compile_definition(gab, bc, mod, name) < 0)
     return COMP_ERR;
@@ -1587,92 +1736,7 @@ i32 compile_exp_rec(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
 i32 compile_exp_let(gab_engine *gab, gab_bc *bc, gab_module *mod,
                     boolean assignable) {
-  u8 locals[16] = {0};
-
-  u8 local_count = 0;
-
-  i32 result;
-  do {
-    if (local_count == 16) {
-      compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_LET, "");
-      return COMP_ERR;
-    }
-
-    if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
-      return COMP_ERR;
-
-    s_i8 name = bc->lex.previous_token_src;
-
-    i32 result = resolve_id(bc, bc->lex.previous_token_src, NULL);
-
-    switch (result) {
-
-    case COMP_ID_NOT_FOUND: {
-      i32 loc = compile_local(bc, name, FLAG_MUTABLE);
-
-      if (loc < 0)
-        return COMP_ERR;
-
-      locals[local_count] = loc;
-      break;
-    }
-
-    case COMP_RESOLVED_TO_LOCAL:
-    case COMP_RESOLVED_TO_UPVALUE: {
-      compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
-      return COMP_ERR;
-    }
-
-    default:
-      compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                     "While compiling let expression");
-      return COMP_ERR;
-    }
-
-    local_count++;
-
-  } while ((result = match_and_eat_token(bc, TOKEN_COMMA)));
-
-  if (result == COMP_ERR)
-    return COMP_ERR;
-
-  switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
-
-  case COMP_OK: {
-    if (compile_tuple(gab, bc, mod, local_count, NULL) < 0)
-      return COMP_ERR;
-
-    break;
-  }
-
-  case COMP_TOKEN_NO_MATCH:
-    compiler_error(bc, GAB_MISSING_INITIALIZER, "");
-    return COMP_ERR;
-
-  default:
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                   "While compiling 'let' expression");
-    return COMP_ERR;
-  }
-
-  pop_slot(bc, local_count);
-
-  while (local_count--) {
-    u8 local = locals[local_count];
-    initialize_local(bc, local);
-
-    if (local_count > 0) {
-      gab_module_push_store_local(mod, local, bc->previous_token, bc->line,
-                                  bc->lex.previous_token_src);
-      push_pop(bc, mod, 1);
-    } else {
-      gab_module_push_store_local(mod, local, bc->previous_token, bc->line,
-                                  bc->lex.previous_token_src);
-    }
-  }
-
-  push_slot(bc, 1);
-  return COMP_OK;
+  return compile_var_decl(gab, bc, mod, FLAG_MUTABLE, 0);
 }
 
 i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, gab_module *mod,
