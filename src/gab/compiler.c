@@ -56,6 +56,7 @@ struct gab_compile_rule {
 void gab_bc_create(gab_bc *self, s_i8 source, u8 flags) {
   self->scope_depth = 0;
   self->nframe = 0;
+  self->nimpls = 0;
   self->panic = false;
   self->flags = flags;
 
@@ -192,6 +193,18 @@ static inline void push_short(gab_bc *bc, gab_module *mod, u16 data) {
 static inline gab_bc_frame *peek_frame(gab_bc *bc, u32 depth) {
   return &bc->frames[bc->nframe - depth - 1];
 }
+
+static inline i32 push_impl(gab_bc *bc, s_i8 id) {
+  if (bc->nimpls == UINT8_MAX) {
+    compiler_error(bc, GAB_PANIC, "Too many nested impls");
+    return COMP_ERR;
+  }
+
+  bc->impls[bc->nimpls++] = id;
+  return COMP_OK;
+}
+
+static inline void pop_impl(gab_bc *bc) { bc->nimpls--; }
 
 static inline boolean has_impl(gab_bc *bc) { return bc->nimpls > 0; }
 
@@ -629,32 +642,34 @@ gab_obj_prototype *compile_function_body(gab_engine *gab, gab_bc *bc,
   return p;
 }
 
-i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
-                                    gab_module *mod, s_i8 name) {
-  boolean is_message = false;
+i32 compile_function(gab_engine *gab, gab_bc *bc, gab_module *mod, s_i8 name,
+                     boolean can_impl) {
+  boolean is_impl = false;
 
-  if (match_and_eat_token(bc, TOKEN_LBRACE)) {
-    is_message = true;
+  if (can_impl) {
+    if (match_and_eat_token(bc, TOKEN_LBRACE)) {
+      is_impl = true;
 
-    if (match_token(bc, TOKEN_RBRACE)) {
-      push_op(bc, mod, OP_PUSH_UNDEFINED);
-    } else {
-      if (compile_expression(gab, bc, mod) < 0)
+      if (match_token(bc, TOKEN_RBRACE)) {
+        push_op(bc, mod, OP_PUSH_UNDEFINED);
+      } else {
+        if (compile_expression(gab, bc, mod) < 0)
+          return COMP_ERR;
+      }
+
+      if (expect_token(bc, TOKEN_RBRACE) < 0)
         return COMP_ERR;
+
+      if (push_slot(bc, 1) < 0)
+        return COMP_ERR;
+
+      pop_slot(bc, 1);
+    } else if (has_impl(bc)) {
+      if (push_load_id(bc, mod, peek_impl(bc)) < 0)
+        return COMP_ERR;
+
+      is_impl = true;
     }
-
-    if (expect_token(bc, TOKEN_RBRACE) < 0)
-      return COMP_ERR;
-
-    if (push_slot(bc, 1) < 0)
-      return COMP_ERR;
-
-    pop_slot(bc, 1);
-  } else if (has_impl(bc)) {
-    if (push_load_id(bc, mod, peek_impl(bc)) < 0)
-      return COMP_ERR;
-
-    is_message = true;
   }
 
   u64 skip_jump = gab_module_push_jump(mod, OP_JUMP, bc->previous_token,
@@ -663,7 +678,7 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
   // Doesnt need a pop scope because the scope is popped with the callframe.
   down_scope(bc);
 
-  down_frame(bc, name, is_message);
+  down_frame(bc, name, is_impl);
 
   boolean vse;
 
@@ -681,10 +696,10 @@ i32 compile_function_specialization(gab_engine *gab, gab_bc *bc,
   u16 proto_constant = add_constant(mod, GAB_VAL_OBJ(proto));
 
   // Create the closure, adding a specialization to the pushed function.
-  push_op(bc, mod, is_message ? OP_MESSAGE : OP_BLOCK);
+  push_op(bc, mod, is_impl ? OP_MESSAGE : OP_BLOCK);
   push_short(bc, mod, proto_constant);
 
-  if (is_message) {
+  if (is_impl) {
     gab_obj_message *f = gab_obj_message_create(gab, name);
     u16 func_constant = add_constant(mod, GAB_VAL_OBJ(f));
 
@@ -1184,8 +1199,8 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, gab_module *mod,
   else if (match_and_eat_token(bc, TOKEN_BANG))
     name.len++;
 
-  // Now compile the specialization
-  if (compile_function_specialization(gab, bc, mod, name) < 0)
+  // Now compile the impl
+  if (compile_function(gab, bc, mod, name, true) < 0)
     return COMP_ERR;
 
   // Create a local to store the new function in
@@ -1206,7 +1221,7 @@ i32 compile_exp_blk(gab_engine *gab, gab_bc *bc, gab_module *mod,
     s_i8 name = s_i8_cstr("anonymous");
 
     // We are an anonyumous function
-    if (compile_function_specialization(gab, bc, mod, name) < 0)
+    if (compile_function(gab, bc, mod, name, false) < 0)
       return COMP_ERR;
   } else {
     if (compile_block(gab, bc, mod) < 0)
@@ -1776,7 +1791,8 @@ i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, gab_module *mod,
 
   s_i8 name = bc->lex.previous_token_src;
 
-  bc->impls[bc->nimpls++] = name;
+  if (push_impl(bc, name) < 0)
+    return COMP_ERR;
 
   if (compile_block(gab, bc, mod) < 0)
     return COMP_ERR;
@@ -1787,7 +1803,7 @@ i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (push_load_id(bc, mod, name) < 0)
     return COMP_ERR;
 
-  bc->nimpls--;
+  pop_impl(bc);
 
   return COMP_OK;
 }
@@ -1967,14 +1983,17 @@ i32 compile_arg_list(gab_engine *gab, gab_bc *bc, gab_module *mod,
 }
 
 i32 compile_arguments(gab_engine *gab, gab_bc *bc, gab_module *mod,
-                      boolean *vse_out) {
+                      boolean *vse_out, boolean has_paren) {
   i32 result = 0;
 
-  if (match_and_eat_token(bc, TOKEN_LPAREN)) {
+  if (has_paren || match_and_eat_token(bc, TOKEN_LPAREN)) {
     // Normal function args
     result = compile_arg_list(gab, bc, mod, vse_out);
     if (result < 0)
       return COMP_ERR;
+
+  } else {
+    *vse_out = false;
   }
 
   if (match_and_eat_token(bc, TOKEN_LBRACK)) {
@@ -1989,7 +2008,7 @@ i32 compile_arguments(gab_engine *gab, gab_bc *bc, gab_module *mod,
     s_i8 name = s_i8_cstr("anonymous");
 
     // We are an anonyumous function
-    if (compile_function_specialization(gab, bc, mod, name) < 0)
+    if (compile_function(gab, bc, mod, name, false) < 0)
       return COMP_ERR;
 
     result += 1;
@@ -2012,7 +2031,7 @@ i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
 
   boolean vse;
-  i32 args = compile_arguments(gab, bc, mod, &vse);
+  i32 args = compile_arguments(gab, bc, mod, &vse, false);
 
   gab_module_push_send(mod, args, vse, f, tok, line, message);
 
@@ -2047,7 +2066,7 @@ i32 compile_exp_snd(gab_engine *gab, gab_bc *bc, gab_module *mod,
   u16 m = add_message_constant(gab, mod, message);
 
   boolean vse = false;
-  i32 result = compile_arguments(gab, bc, mod, &vse);
+  i32 result = compile_arguments(gab, bc, mod, &vse, false);
 
   if (result < 0)
     return COMP_ERR;
@@ -2074,7 +2093,7 @@ i32 compile_exp_cal(gab_engine *gab, gab_bc *bc, gab_module *mod,
   s_i8 call_src = bc->lex.previous_token_src;
 
   boolean vse = false;
-  i32 result = compile_arg_list(gab, bc, mod, &vse);
+  i32 result = compile_arguments(gab, bc, mod, &vse, true);
 
   if (result < 0)
     return COMP_ERR;
@@ -2192,9 +2211,6 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
     loop_locals++;
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)));
 
-  i32 iter_eff = compile_local(bc, s_i8_cstr(""), 0);
-  initialize_local(bc, iter_eff);
-
   if (result == COMP_ERR)
     return COMP_ERR;
 
@@ -2204,27 +2220,35 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (compile_expression(gab, bc, mod) < 0)
     return COMP_ERR;
 
+  if (push_slot(bc, loop_locals) < 0)
+    return COMP_ERR;
+
   gab_module_try_patch_vse(mod, loop_locals + 1);
 
   // Now there stack is ...yielded values, effect
 
   u64 loop = gab_module_push_loop(mod);
 
-  u64 jump_start = gab_module_push_iter(mod, loop_locals + 1, local_start,
-                                        bc->previous_token, bc->line,
-                                        bc->lex.previous_token_src);
+  u64 jump_start =
+      gab_module_push_iter(mod, loop_locals, local_start, bc->previous_token,
+                           bc->line, bc->lex.previous_token_src);
+  pop_slot(bc, loop_locals);
 
   if (compile_block(gab, bc, mod) < 0)
     return COMP_ERR;
 
   push_pop(bc, mod, 1);
 
+  pop_slot(bc, 1);
+
   if (expect_token(bc, TOKEN_END) < 0)
     return COMP_ERR;
 
   // Load and call the effect member
-  gab_module_push_next(mod, iter_eff, loop_locals + 1, bc->previous_token,
-                       bc->line, bc->lex.previous_token_src);
+  gab_module_push_next(mod, loop_locals + 1, bc->previous_token, bc->line,
+                       bc->lex.previous_token_src);
+
+  pop_slot(bc, 1);
 
   gab_module_patch_loop(mod, loop, bc->previous_token, bc->line,
                         bc->lex.previous_token_src);

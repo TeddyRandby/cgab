@@ -1,6 +1,7 @@
 #include "include/gc.h"
 #include "include/core.h"
 #include "include/engine.h"
+#include "include/gab.h"
 #include "include/object.h"
 #include "include/value.h"
 #include "include/vm.h"
@@ -11,7 +12,7 @@ boolean debug_collect = true;
 #endif
 
 void gab_obj_iref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_obj *obj) {
-  if (gc->nincrements + 1 >= GC_BUFF_MAX) {
+  if (gc->nincrements + 1 >= GC_INC_BUFF_MAX) {
     gab_gc_collect(gab, vm, gc);
   } else {
 #if GAB_DEBUG_GC
@@ -24,7 +25,7 @@ void gab_obj_iref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_obj *obj) {
 }
 
 void gab_obj_dref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_obj *obj) {
-  if (gc->ndecrements + 1 >= GC_BUFF_MAX) {
+  if (gc->ndecrements + 1 >= GC_DEC_BUFF_MAX) {
     gab_gc_collect(gab, vm, gc);
 #if GAB_DEBUG_GC
   } else {
@@ -38,7 +39,7 @@ void gab_obj_dref(gab_engine *gab, gab_vm *vm, gab_gc *gc, gab_obj *obj) {
 
 void gab_gc_iref_many(gab_engine *gab, gab_vm *vm, gab_gc *gc, u64 len,
                       gab_value values[len]) {
-  if (gc->nincrements + len >= GC_BUFF_MAX) {
+  if (gc->nincrements + len >= GC_INC_BUFF_MAX) {
     gab_gc_collect(gab, vm, gc);
 #if GAB_DEBUG_GC
   } else {
@@ -55,7 +56,7 @@ void gab_gc_iref_many(gab_engine *gab, gab_vm *vm, gab_gc *gc, u64 len,
 
 void gab_gc_dref_many(gab_engine *gab, gab_vm *vm, gab_gc *gc, u64 len,
                       gab_value values[len]) {
-  if (gc->ndecrements + len >= GC_BUFF_MAX) {
+  if (gc->ndecrements + len >= GC_DEC_BUFF_MAX) {
     gab_gc_collect(gab, vm, gc);
 #if GAB_DEBUG_GC
   } else {
@@ -222,7 +223,7 @@ static inline void cleanup(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
 void collect_cycles(gab_engine *gab, gab_vm *vm, gab_gc *gc);
 static inline void push_root(gab_engine *gab, gab_vm *vm, gab_gc *gc,
                              gab_obj *obj) {
-  if (gc->ndecrements + 1 >= GC_BUFF_MAX)
+  if (gc->ndecrements + 1 >= GC_ROOT_BUFF_MAX)
     collect_cycles(gab, vm, gc);
 
   gc->roots[gc->nroots++] = obj;
@@ -255,7 +256,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab,
   case GAB_KIND_BOOLEAN:
   case GAB_KIND_UNDEFINED:
   case GAB_KIND_NKINDS:
-    break;
+    return;
 
   case GAB_KIND_EFFECT: {
     gab_obj_effect *eff = (gab_obj_effect *)obj;
@@ -263,7 +264,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab,
       if (GAB_VAL_IS_OBJ(eff->frame[i]))
         fnc(gab, vm, gc, GAB_VAL_TO_OBJ(eff->frame[i]));
     }
-    break;
+    return;
   }
   case (GAB_KIND_BLOCK): {
     gab_obj_block *closure = (gab_obj_block *)obj;
@@ -272,7 +273,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab,
         fnc(gab, vm, gc, GAB_VAL_TO_OBJ(closure->upvalues[i]));
       }
     }
-    break;
+    return;
   }
   case (GAB_KIND_MESSAGE): {
     gab_obj_message *func = (gab_obj_message *)obj;
@@ -287,14 +288,14 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab,
           fnc(gab, vm, gc, GAB_VAL_TO_OBJ(r));
       }
     }
-    break;
+    return;
   }
   case (GAB_KIND_UPVALUE): {
     gab_obj_upvalue *upvalue = (gab_obj_upvalue *)obj;
     if (GAB_VAL_IS_OBJ(*upvalue->data)) {
       fnc(gab, vm, gc, GAB_VAL_TO_OBJ(*upvalue->data));
     };
-    break;
+    return;
   }
   case GAB_KIND_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
@@ -303,7 +304,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab,
         fnc(gab, vm, gc, GAB_VAL_TO_OBJ(shape->data[i]));
       }
     }
-    break;
+    return;
   }
   case GAB_KIND_LIST: {
     gab_obj_list *lst = (gab_obj_list *)obj;
@@ -312,7 +313,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab,
         fnc(gab, vm, gc, GAB_VAL_TO_OBJ(lst->data.data[i]));
       }
     }
-    break;
+    return;
   }
   case GAB_KIND_MAP: {
     gab_obj_map *map = (gab_obj_map *)obj;
@@ -326,18 +327,17 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab,
           fnc(gab, vm, gc, GAB_VAL_TO_OBJ(v));
       }
     }
-    break;
+    return;
   }
   case GAB_KIND_RECORD: {
     gab_obj_record *rec = (gab_obj_record *)obj;
 
     for (u64 i = 0; i < rec->len; i++) {
-      if (GAB_VAL_IS_OBJ(rec->data[i])) {
+      if (GAB_VAL_IS_OBJ(rec->data[i]))
         fnc(gab, vm, gc, GAB_VAL_TO_OBJ(rec->data[i]));
-      }
     }
 
-    break;
+    return;
   }
   }
 }
@@ -348,14 +348,13 @@ static inline void dec_obj_ref(gab_engine *gab, gab_vm *vm, gab_gc *gc,
   d_rc_tracker_insert(&gc->tracked_values, obj, obj->references - 1);
 #endif
   if (--obj->references <= 0) {
-    if (!GAB_OBJ_IS_GREEN(obj))
-      for_child_do(obj, dec_obj_ref, gab, vm, gc);
+    for_child_do(obj, dec_obj_ref, gab, vm, gc);
 
     GAB_OBJ_BLACK(obj);
 
     if (!GAB_OBJ_IS_BUFFERED(obj))
       queue_destroy(obj);
-  } else {
+  } else if (!GAB_OBJ_IS_GREEN(obj)) {
     obj_possible_root(gab, vm, gc, obj);
   }
 }
@@ -365,14 +364,14 @@ static inline void inc_obj_ref(gab_gc *gc, gab_obj *obj) {
   d_rc_tracker_insert(&gc->tracked_values, obj, obj->references + 1);
 #endif
   obj->references++;
-  // This object cannot be garbage.
-  GAB_OBJ_BLACK(obj);
+
+  if (!GAB_OBJ_IS_GREEN(obj))
+    GAB_OBJ_BLACK(obj);
 }
 
 static inline void inc_if_obj_ref(gab_gc *gc, gab_value val) {
-  if (GAB_VAL_IS_OBJ(val)) {
+  if (GAB_VAL_IS_OBJ(val))
     inc_obj_ref(gc, GAB_VAL_TO_OBJ(val));
-  }
 }
 
 static inline void increment_stack(gab_gc *gc, gab_vm *vm) {
@@ -411,34 +410,27 @@ static inline void decrement_stack(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
 }
 
 static inline void process_increments(gab_gc *gc) {
-  while (gc->nincrements) {
+  while (gc->nincrements)
     inc_obj_ref(gc, gc->increments[--gc->nincrements]);
-  }
 }
 
 static inline void process_decrements(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
-  while (gc->ndecrements) {
+  while (gc->ndecrements)
     dec_obj_ref(gab, vm, gc, gc->decrements[--gc->ndecrements]);
-  }
 }
 
 static inline void mark_gray(gab_obj *obj);
 
 static inline void dec_and_mark_gray(gab_engine *, gab_vm *, gab_gc *,
                                      gab_obj *child) {
-  if (child) {
-    child->references -= 1;
-    if (!GAB_OBJ_IS_GRAY(child)) {
-      mark_gray(child);
-    }
-  }
+  child->references -= 1;
+  mark_gray(child);
 }
 
 static inline void mark_gray(gab_obj *obj) {
   if (!GAB_OBJ_IS_GRAY(obj)) {
     GAB_OBJ_GRAY(obj);
-    if (!GAB_OBJ_IS_GREEN(obj))
-      for_child_do(obj, &dec_and_mark_gray, NULL, NULL, NULL);
+    for_child_do(obj, &dec_and_mark_gray, NULL, NULL, NULL);
   }
 }
 
@@ -450,9 +442,8 @@ static inline void mark_roots(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
       mark_gray(obj);
     } else {
       GAB_OBJ_NOT_BUFFERED(obj);
+      gc->roots[i] = NULL;
 
-      // d_gc_set_iremove(&gc->roots, i); Figure something else out
-      // Should this be a not?
       if (GAB_OBJ_IS_BLACK(obj) && obj->references < 1) {
         queue_destroy(obj);
       }
@@ -470,8 +461,7 @@ static inline void inc_and_scan_black(gab_engine *, gab_vm *, gab_gc *,
 
 static inline void scan_root_black(gab_obj *obj) {
   GAB_OBJ_BLACK(obj);
-  if (!GAB_OBJ_IS_GREEN(obj))
-    for_child_do(obj, &inc_and_scan_black, NULL, NULL, NULL);
+  for_child_do(obj, &inc_and_scan_black, NULL, NULL, NULL);
 }
 
 static inline void scan_root(gab_engine *, gab_vm *, gab_gc *, gab_obj *obj) {
@@ -488,7 +478,8 @@ static inline void scan_root(gab_engine *, gab_vm *, gab_gc *, gab_obj *obj) {
 static inline void scan_roots(gab_gc *gc) {
   for (u64 i = 0; i < gc->nroots; i++) {
     gab_obj *obj = gc->roots[i];
-    scan_root(NULL, NULL, NULL, obj);
+    if (obj)
+      scan_root(NULL, NULL, NULL, obj);
   }
 }
 
@@ -497,8 +488,7 @@ static inline void collect_white(gab_engine *gab, gab_vm *vm, gab_gc *gc,
   if (GAB_OBJ_IS_WHITE(obj) && !GAB_OBJ_IS_BUFFERED(obj)) {
     GAB_OBJ_BLACK(obj);
 
-    if (!GAB_OBJ_IS_GREEN(obj))
-      for_child_do(obj, collect_white, gab, vm, gc);
+    for_child_do(obj, collect_white, gab, vm, gc);
 
     queue_destroy(obj);
   }
@@ -508,7 +498,11 @@ static inline void collect_white(gab_engine *gab, gab_vm *vm, gab_gc *gc,
 static inline void collect_roots(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
   for (u64 i = 0; i < gc->nroots; i++) {
     gab_obj *obj = gc->roots[i];
-    collect_white(gab, vm, gc, obj);
+    if (obj) {
+      GAB_OBJ_NOT_BUFFERED(obj);
+      collect_white(gab, vm, gc, obj);
+      gc->roots[i] = NULL;
+    }
   }
 }
 
@@ -516,7 +510,13 @@ void collect_cycles(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
   mark_roots(gab, vm, gc);
   scan_roots(gc);
   collect_roots(gab, vm, gc);
+  u64 n = gc->nroots;
   gc->nroots = 0;
+  for (u64 i = 0; i < n; i++) {
+    if (gc->roots[i]) {
+      gc->roots[gc->nroots++] = gc->roots[i];
+    }
+  }
 }
 
 void gab_gc_collect(gab_engine *gab, gab_vm *vm, gab_gc *gc) {

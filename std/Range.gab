@@ -1,5 +1,7 @@
 def Range { from to }
 
+def to[Number](to) Range:new(self, to) end
+
 impl Range
   def each
     let v = 0

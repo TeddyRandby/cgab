@@ -256,7 +256,7 @@ static inline boolean call_block(gab_engine *gab, gab_vm *vm, gab_obj_block *c,
     gab_obj_shape *shape = gab_obj_shape_create_tuple(gab, vm, size);
 
     gab_value args =
-        GAB_VAL_OBJ(gab_obj_record_create(gab, shape, size, 1, vm->top - size));
+        GAB_VAL_OBJ(gab_obj_record_create(gab, shape, 1, vm->top - size));
 
     vm->top -= size;
 
@@ -981,6 +981,43 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       NEXT();
     }
 
+    CASE_CODE(ITER) : {
+      u16 dist = READ_SHORT;
+      u8 nlocals = READ_BYTE;
+      u8 start = READ_BYTE;
+
+      gab_value eff = POP();
+
+      if (!GAB_VAL_IS_EFFECT(eff)) {
+        DROP_N(nlocals - 1);
+
+        // Account for the two bytes we read already
+        ip += dist - 2;
+
+        NEXT();
+      }
+
+      while (nlocals--)
+        LOCAL(start + nlocals) = POP();
+
+      PUSH(eff);
+
+      NEXT();
+    }
+
+    CASE_CODE(NEXT) : {
+      u8 want = READ_BYTE;
+
+      STORE_FRAME();
+
+      if (!call_effect(VM(), GAB_VAL_TO_EFFECT(PEEK()), 0, want))
+        return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+
+      LOAD_FRAME();
+
+      NEXT();
+    }
+
     {
 
       u8 have;
@@ -1582,42 +1619,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       NEXT();
     }
 
-    CASE_CODE(ITER) : {
-      u16 dist = READ_SHORT;
-      u8 nlocals = READ_BYTE;
-      u8 start = READ_BYTE;
-
-      if (!GAB_VAL_IS_EFFECT(PEEK())) {
-        DROP_N(nlocals - 1);
-
-        // Account for the two bytes we read already
-        ip += dist - 2;
-
-        NEXT();
-      }
-
-      while (nlocals--)
-        LOCAL(start + nlocals) = POP();
-
-      NEXT();
-    }
-
-    CASE_CODE(NEXT) : {
-      u8 iter = READ_BYTE;
-      u8 want = READ_BYTE;
-
-      PUSH(LOCAL(iter));
-
-      STORE_FRAME();
-
-      if (!call_effect(VM(), GAB_VAL_TO_EFFECT(PEEK()), 0, want))
-        return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
-
-      LOAD_FRAME();
-
-      NEXT();
-    }
-
     CASE_CODE(BLOCK) : {
       gab_obj_prototype *p = READ_PROTOTYPE;
 
@@ -1715,7 +1716,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
     complete_record : {
       gab_obj_record *rec =
-          gab_obj_record_create(ENGINE(), shape, len, 2, TOP() + 1 - (len * 2));
+          gab_obj_record_create(ENGINE(), shape, 2, TOP() + 1 - (len * 2));
 
       gab_gc_iref_many(ENGINE(), VM(), GC(), len, rec->data);
 
@@ -1747,7 +1748,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_obj_shape *shape = gab_obj_shape_create_tuple(ENGINE(), VM(), len);
 
       gab_obj_record *rec =
-          gab_obj_record_create(ENGINE(), shape, len, 1, TOP() - len);
+          gab_obj_record_create(ENGINE(), shape, 1, TOP() - len);
 
       gab_gc_iref_many(ENGINE(), VM(), GC(), len, rec->data);
 

@@ -273,10 +273,9 @@ void gab_module_push_inline_cache(gab_module *self, gab_token t, u64 l,
   gab_module_push_byte(self, OP_NOP, t, l, s);
 }
 
-void gab_module_push_next(gab_module *self, u8 iter, u8 want, gab_token t,
+void gab_module_push_next(gab_module *self, u8 want, gab_token t,
                           u64 l, s_i8 s) {
   gab_module_push_byte(self, OP_NEXT, t, l, s);
-  gab_module_push_byte(self, iter, t, l, s);
   gab_module_push_byte(self, want, t, l, s);
 }
 

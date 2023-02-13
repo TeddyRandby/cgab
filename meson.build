@@ -55,6 +55,13 @@ shared_library('cgabstring',
   install_dir: '/usr/local/lib/gab/'
 )
 
+shared_library('cgabrecord',
+  'src/lib/rec.c',
+  link_with: libcgab,
+  install: true,
+  install_dir: '/usr/local/lib/gab/'
+)
+
 shared_library('cgabnum',
   'src/lib/num.c',
   link_with: libcgab,

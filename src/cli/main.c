@@ -1,6 +1,8 @@
 #include "builtins.h"
 #include "include/alloc.h"
+#include "include/core.h"
 #include "include/gab.h"
+#include "include/object.h"
 #include "include/os.h"
 #include <assert.h>
 #include <stdio.h>
@@ -53,7 +55,8 @@ void gab_repl() {
       s_i8_cstr("print"),  s_i8_cstr("require"), s_i8_cstr("panic"),
       s_i8_cstr("String"), s_i8_cstr("Number"),  s_i8_cstr("Boolean"),
       s_i8_cstr("Block"),  s_i8_cstr("Message"), s_i8_cstr("Effect"),
-      s_i8_cstr("List"),   s_i8_cstr("Map"),     s_i8_cstr("it")};
+      s_i8_cstr("Record"), s_i8_cstr("List"),    s_i8_cstr("Map"),
+      s_i8_cstr("it")};
 
   gab_value args[] = {
       make_print(gab),
@@ -65,6 +68,7 @@ void gab_repl() {
       gab_type(gab, GAB_KIND_BLOCK),
       gab_type(gab, GAB_KIND_MESSAGE),
       gab_type(gab, GAB_KIND_EFFECT),
+      gab_type(gab, GAB_KIND_RECORD),
       gab_type(gab, GAB_KIND_LIST),
       gab_type(gab, GAB_KIND_MAP),
       GAB_VAL_NIL(),
@@ -133,7 +137,7 @@ void gab_run_file(const char *path) {
       s_i8_cstr("print"),  s_i8_cstr("require"), s_i8_cstr("panic"),
       s_i8_cstr("String"), s_i8_cstr("Number"),  s_i8_cstr("Boolean"),
       s_i8_cstr("Block"),  s_i8_cstr("Message"), s_i8_cstr("Effect"),
-      s_i8_cstr("List"),   s_i8_cstr("Map"),
+      s_i8_cstr("Record"), s_i8_cstr("List"),    s_i8_cstr("Map"),
   };
 
   gab_value args[] = {
@@ -146,6 +150,7 @@ void gab_run_file(const char *path) {
       gab_type(gab, GAB_KIND_BLOCK),
       gab_type(gab, GAB_KIND_MESSAGE),
       gab_type(gab, GAB_KIND_EFFECT),
+      gab_type(gab, GAB_KIND_RECORD),
       gab_type(gab, GAB_KIND_LIST),
       gab_type(gab, GAB_KIND_MAP),
   };

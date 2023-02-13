@@ -37,15 +37,13 @@ static inline Chunk *chunk_create(Chunks *s, u8 size) {
 }
 
 static inline void chunk_destroy(Chunks *s, Chunk *c) {
-  if (c->prev != NULL) {
-    c->prev->next = c->next;
-  } else {
+  if (c->prev == NULL)
     s->chunks[c->size] = c->next;
-  }
+  else
+    c->prev->next = c->next;
 
-  if (c->next != NULL) {
+  if (c->next != NULL)
     c->next->prev = c->prev;
-  }
 
   free(c);
 }
@@ -109,6 +107,8 @@ void chunk_dealloc(Chunks *s, u64 size, void *ptr) {
   while (chunk && !chunk_contains(chunk, ptr)) {
     chunk = chunk->next;
   }
+
+  assert(chunk);
 
   i32 index = chunk_indexof(chunk, ptr);
 

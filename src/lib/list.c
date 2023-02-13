@@ -1,7 +1,4 @@
-#include "include/core.h"
 #include "include/gab.h"
-#include "include/object.h"
-#include "include/value.h"
 #include <assert.h>
 
 gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
@@ -154,7 +151,7 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
   gab_obj_shape *shape = gab_obj_shape_create_tuple(gab, vm, result_len);
 
   gab_obj_record *rec =
-      gab_obj_record_create(gab, shape, result_len, 1, list->data.data + start);
+      gab_obj_record_create(gab, shape, 1, list->data.data + start);
 
   gab_value result = GAB_VAL_OBJ(rec);
 

@@ -1,6 +1,7 @@
 require('pry')
 require('dis')
 require('string')
+require('record')
 require('num')
 
 require('Result')

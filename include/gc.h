@@ -49,9 +49,9 @@ typedef struct gab_gc {
   d_u64 object_counts;
 #endif
 
-  gab_obj *increments[GC_BUFF_MAX];
-  gab_obj *decrements[GC_BUFF_MAX];
-  gab_obj *roots[GC_BUFF_MAX];
+  gab_obj *roots[GC_ROOT_BUFF_MAX];
+  gab_obj *increments[GC_INC_BUFF_MAX];
+  gab_obj *decrements[GC_DEC_BUFF_MAX];
 } gab_gc;
 
 void gab_gc_create(gab_gc *gc);

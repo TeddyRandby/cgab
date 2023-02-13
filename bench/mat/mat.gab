@@ -10,7 +10,7 @@ impl Matrix
 
     def N = self.n
 
-    let data = List:new(N * N):slice
+    let data = Record:new(?self.data)
 
     for i in (N * N):each
       data[i] = self.data[i] + other.data[i]
@@ -24,7 +24,7 @@ impl Matrix
 
     def N = self.n
 
-    let data = List:new(N * N):slice
+    def data = Record:new(?self.data)
 
     for i in N:each
       for j in N:each

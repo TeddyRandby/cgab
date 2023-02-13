@@ -291,7 +291,7 @@ gab_value gab_bundle_record(gab_engine *gab, gab_vm *vm, u64 size,
       gab_obj_shape_create(gab, vm, size, 1, value_keys);
 
   gab_value bundle =
-      GAB_VAL_OBJ(gab_obj_record_create(gab, bundle_shape, size, 1, values));
+      GAB_VAL_OBJ(gab_obj_record_create(gab, bundle_shape, 1, values));
 
   return bundle;
 }
@@ -301,7 +301,7 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
   gab_obj_shape *bundle_shape = gab_obj_shape_create_tuple(gab, vm, size);
 
   gab_value bundle =
-      GAB_VAL_OBJ(gab_obj_record_create(gab, bundle_shape, size, 1, values));
+      GAB_VAL_OBJ(gab_obj_record_create(gab, bundle_shape, 1, values));
 
   return bundle;
 }

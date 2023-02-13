@@ -332,7 +332,6 @@ gab_obj_string *gab_obj_string_create(gab_engine *gab, s_i8 str) {
 
   gab_engine_intern(gab, GAB_VAL_OBJ(self));
 
-  // Strings cannot reference other objects - mark them green.
   GAB_OBJ_GREEN((gab_obj *)self);
 
   return self;
@@ -395,9 +394,10 @@ s_i8 gab_obj_string_ref(gab_obj_string *self) {
 }
 
 gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
-                                            s_i8 name, u8 narguments, u16 nslots,
-                                            u8 nupvalues, u8 nlocals, u64 offset,
-                                            u64 len, boolean var) {
+                                            s_i8 name, u8 narguments,
+                                            u16 nslots, u8 nupvalues,
+                                            u8 nlocals, u64 offset, u64 len,
+                                            boolean var) {
   gab_obj_prototype *self =
       GAB_CREATE_OBJ(gab_obj_prototype, GAB_KIND_PROTOTYPE);
 
@@ -432,6 +432,8 @@ gab_obj_message *gab_obj_message_create(gab_engine *gab, s_i8 name) {
 
   gab_engine_intern(gab, GAB_VAL_OBJ(self));
 
+  GAB_OBJ_GREEN((gab_obj *)self);
+
   return self;
 }
 
@@ -455,6 +457,7 @@ gab_obj_block *gab_obj_block_create(gab_engine *gab, gab_obj_prototype *p) {
   self->nupvalues = p->nupvalues;
   self->p = p;
 
+  GAB_OBJ_GREEN((gab_obj *)self);
   return self;
 }
 
@@ -463,6 +466,9 @@ gab_obj_upvalue *gab_obj_upvalue_create(gab_engine *gab, gab_value *data) {
   self->data = data;
   self->closed = GAB_VAL_NIL();
   self->next = NULL;
+
+  GAB_OBJ_GREEN((gab_obj *)self);
+
   return self;
 }
 
@@ -500,6 +506,8 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 len,
   gab_gc_iref_many(gab, vm, &gab->gc, len, self->data);
 
   gab_engine_intern(gab, GAB_VAL_OBJ(self));
+
+  GAB_OBJ_GREEN((gab_obj *)self);
 
   return self;
 }
@@ -552,17 +560,31 @@ gab_obj_list *gab_obj_list_create(gab_engine *gab, u64 len, u64 stride,
 }
 
 gab_obj_record *gab_obj_record_create(gab_engine *gab, gab_obj_shape *shape,
-                                      u64 len, u64 stride,
-                                      gab_value values[len]) {
+                                      u64 stride, gab_value values[]) {
 
-  gab_obj_record *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_record, gab_value, len, GAB_KIND_RECORD);
+  gab_obj_record *self = GAB_CREATE_FLEX_OBJ(gab_obj_record, gab_value,
+                                             shape->len, GAB_KIND_RECORD);
 
   self->shape = shape;
-  self->len = len;
+  self->len = shape->len;
 
-  for (u64 i = 0; i < len; i++) {
+  for (u64 i = 0; i < shape->len; i++) {
     self->data[i] = values[i * stride];
+  }
+
+  return self;
+}
+
+gab_obj_record *gab_obj_record_create_empty(gab_engine *gab,
+                                            gab_obj_shape *shape) {
+  gab_obj_record *self = GAB_CREATE_FLEX_OBJ(gab_obj_record, gab_value,
+                                             shape->len, GAB_KIND_RECORD);
+
+  self->shape = shape;
+  self->len = shape->len;
+
+  for (u64 i = 0; i < shape->len; i++) {
+    self->data[i] = GAB_VAL_NIL();
   }
 
   return self;
@@ -577,6 +599,7 @@ gab_obj_container *gab_obj_container_create(gab_engine *gab,
 
   self->data = data;
   self->destructor = destructor;
+
   GAB_OBJ_GREEN((gab_obj *)self);
 
   return self;
@@ -585,7 +608,9 @@ gab_obj_container *gab_obj_container_create(gab_engine *gab,
 gab_obj_symbol *gab_obj_symbol_create(gab_engine *gab, s_i8 name) {
   gab_obj_symbol *self = GAB_CREATE_OBJ(gab_obj_symbol, GAB_KIND_SYMBOL);
   self->name = name;
+
   GAB_OBJ_GREEN((gab_obj *)self);
+
   return self;
 }
 

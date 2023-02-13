@@ -67,7 +67,6 @@ struct gab_obj {
 #define GAB_OBJ_FLAG_WHITE 8
 #define GAB_OBJ_FLAG_PURPLE 16
 #define GAB_OBJ_FLAG_GREEN 32
-
 #define GAB_OBJ_FLAG_GARBAGE 64
 
 #define GAB_OBJ_IS_BUFFERED(obj) ((obj)->flags & GAB_OBJ_FLAG_BUFFERED)
@@ -78,20 +77,21 @@ struct gab_obj {
 #define GAB_OBJ_IS_GREEN(obj) ((obj)->flags & GAB_OBJ_FLAG_GREEN)
 #define GAB_OBJ_IS_GARBAGE(obj) ((obj)->flags & GAB_OBJ_FLAG_GARBAGE)
 
-#define GAB_OBJ_BUFFERED(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_BUFFERED)
-#define GAB_OBJ_BLACK(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_BLACK)
-#define GAB_OBJ_GRAY(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_GRAY)
-#define GAB_OBJ_WHITE(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_WHITE)
-#define GAB_OBJ_PURPLE(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_PURPLE)
-#define GAB_OBJ_GREEN(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_GREEN)
-#define GAB_OBJ_GARBAGE(obj) ((obj)->flags = 0 | GAB_OBJ_FLAG_GARBAGE)
-
+#define GAB_OBJ_BUFFERED(obj) ((obj)->flags |= GAB_OBJ_FLAG_BUFFERED)
 #define GAB_OBJ_NOT_BUFFERED(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_BUFFERED)
-#define GAB_OBJ_NOT_BLACK(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_BLACK)
-#define GAB_OBJ_NOT_GRAY(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_GRAY)
-#define GAB_OBJ_NOT_WHITE(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_WHITE)
-#define GAB_OBJ_NOT_PURPLE(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_PURPLE)
-#define GAB_OBJ_NOT_GREEN(obj) ((obj)->flags &= ~GAB_OBJ_FLAG_GREEN)
+
+#define GAB_OBJ_GARBAGE(obj) ((obj)->flags |= GAB_OBJ_FLAG_GARBAGE)
+
+#define GAB_OBJ_GREEN(obj)                                                     \
+  ((obj)->flags = ((obj)->flags & GAB_OBJ_FLAG_BUFFERED) | GAB_OBJ_FLAG_GREEN)
+#define GAB_OBJ_BLACK(obj)                                                     \
+  ((obj)->flags = ((obj)->flags & GAB_OBJ_FLAG_BUFFERED) | GAB_OBJ_FLAG_BLACK)
+#define GAB_OBJ_GRAY(obj)                                                      \
+  ((obj)->flags = ((obj)->flags & GAB_OBJ_FLAG_BUFFERED) | GAB_OBJ_FLAG_GRAY)
+#define GAB_OBJ_WHITE(obj)                                                     \
+  ((obj)->flags = ((obj)->flags & GAB_OBJ_FLAG_BUFFERED) | GAB_OBJ_FLAG_WHITE)
+#define GAB_OBJ_PURPLE(obj)                                                    \
+  ((obj)->flags = ((obj)->flags & GAB_OBJ_FLAG_BUFFERED) | GAB_OBJ_FLAG_PURPLE)
 
 /*
   'Generic' functions which handle all the different kinds of gab objects.
@@ -397,8 +397,10 @@ struct gab_obj_record {
 #define GAB_OBJ_TO_RECORD(value) ((gab_obj_record *)value)
 
 gab_obj_record *gab_obj_record_create(gab_engine *gab, gab_obj_shape *shape,
-                                      u64 size, u64 stride,
-                                      gab_value values[size]);
+                                      u64 stride, gab_value values[]);
+
+gab_obj_record *gab_obj_record_create_empty(gab_engine *gab,
+                                            gab_obj_shape *shape);
 
 static inline void gab_obj_record_set(gab_obj_record *self, u16 offset,
                                       gab_value value) {
@@ -568,12 +570,6 @@ typedef struct gab_obj_effect gab_obj_effect;
 struct gab_obj_effect {
   gab_obj header;
 
-  // Closure
-  gab_obj_block *c;
-
-  // Instruction Pointer
-  u64 offset;
-
   // The number of arguments yielded
   u8 have;
 
@@ -582,6 +578,12 @@ struct gab_obj_effect {
 
   // Size of the stack frame
   u8 len;
+
+  // Closure
+  gab_obj_block *c;
+
+  // Instruction Pointer
+  u64 offset;
 
   // Stack frame
   gab_value frame[FLEXIBLE_ARRAY];

@@ -1,5 +1,10 @@
-require('std')
+let record = { a }
 
-for v, i in List:new(100):each
-    print(v,i)
+def cycle()
+    record.a = cycle
 end
+
+cycle()
+cycle()
+cycle()
+cycle()

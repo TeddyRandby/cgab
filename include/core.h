@@ -9,7 +9,7 @@
 #define GAB_LOG_GC 0
 // Log what is happening during execution.
 #define GAB_LOG_EXECUTION 0
-
+// Make sure functions don't break out of their frame
 #define GAB_DEBUG_VM 0
 
 // Configurable macros
@@ -19,14 +19,14 @@
 #define FRAMES_MAX 512
 // Maximum number of function defintions that can be nested.
 #define FUNCTION_DEF_NESTING_MAX 64
-// Maximum number of roots inthe root buffer before triggering a collection.
-#define ROOT_MAX 2048
 // Initial capacity of interned table
-#define INTERN_INITIAL_CAP 256
+#define INTERN_INITIAL_CAP 512
 
 // Derived macros
 // Garbage collection increment/decrement buffer size
-#define GC_BUFF_MAX (STACK_MAX * 2)
+#define GC_DEC_BUFF_MAX  (STACK_MAX) // This MUST be at LEAST STACK_MAX
+#define GC_INC_BUFF_MAX  (256)
+#define GC_ROOT_BUFF_MAX (256)
 // Size of the engines constant table.
 #define MODULE_CONSTANTS_MAX (UINT16_MAX + 1)
 // Maximum size of the stack
