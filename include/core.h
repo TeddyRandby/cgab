@@ -21,14 +21,15 @@
 #define FUNCTION_DEF_NESTING_MAX 64
 // Initial capacity of interned table
 #define INTERN_INITIAL_CAP 512
+#define CONSTANTS_INITIAL_CAP 64
 
 // Derived macros
 // Garbage collection increment/decrement buffer size
-#define GC_DEC_BUFF_MAX  (STACK_MAX) // This MUST be at LEAST STACK_MAX
-#define GC_INC_BUFF_MAX  (256)
+#define GC_DEC_BUFF_MAX (STACK_MAX) // This MUST be at LEAST STACK_MAX
+#define GC_INC_BUFF_MAX (256)
 #define GC_ROOT_BUFF_MAX (256)
 // Size of the engines constant table.
-#define MODULE_CONSTANTS_MAX (UINT16_MAX + 1)
+#define CONSTANTS_MAX (UINT16_MAX + 1)
 // Maximum size of the stack
 #define STACK_MAX (FRAMES_MAX * 256)
 

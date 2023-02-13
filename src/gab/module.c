@@ -19,23 +19,21 @@ gab_module *gab_module_create(gab_module *self, s_i8 name, s_i8 source) {
   v_u64_create(&self->lines, 256);
   v_s_i8_create(&self->sources, 256);
 
-  d_gab_constant_create(&self->constants, MODULE_CONSTANTS_MAX);
+  v_gab_constant_create(&self->constants, CONSTANTS_INITIAL_CAP);
   return self;
 }
 void gab_module_collect(gab_engine *gab, gab_module *mod) {
   if (!mod)
     return;
 
-  for (u64 i = 0; i < mod->constants.cap; i++) {
-    if (d_gab_constant_iexists(&mod->constants, i)) {
-      gab_value v = d_gab_constant_ikey(&mod->constants, i);
+  for (u64 i = 0; i < mod->constants.len; i++) {
+      gab_value v = v_gab_constant_val_at(&mod->constants, i);
       // The only kind of value owned by the modules
       // are their prototypes and the main closure
       if (GAB_VAL_IS_PROTOTYPE(v) || GAB_VAL_IS_SYMBOL(v) || i == mod->main)
         gab_dref(gab, NULL, v);
     }
   }
-}
 
 void gab_module_destroy(gab_engine *gab, gab_module *mod) {
   if (!mod)
@@ -44,7 +42,7 @@ void gab_module_destroy(gab_engine *gab, gab_module *mod) {
   v_u8_destroy(&mod->bytecode);
   v_u8_destroy(&mod->tokens);
   v_u64_destroy(&mod->lines);
-  d_gab_constant_destroy(&mod->constants);
+  v_gab_constant_destroy(&mod->constants);
   v_s_i8_destroy(&mod->sources);
 
   if (mod->source_lines) {
@@ -350,12 +348,12 @@ boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
 }
 
 u16 gab_module_add_constant(gab_module *self, gab_value value) {
-  if (self->constants.len == MODULE_CONSTANTS_MAX) {
+  if (self->constants.len >= CONSTANTS_MAX) {
     fprintf(stderr, "Uh oh, too many constants in the module.\n");
     exit(1);
   }
-  d_gab_constant_insert(&self->constants, value, 0);
-  return d_gab_constant_index_of(&self->constants, value);
+  v_gab_constant_push(&self->constants, value);
+  return self->constants.len - 1;
 };
 
 u64 dumpInstruction(gab_module *self, u64 offset);
@@ -379,7 +377,7 @@ u64 dumpSendInstruction(gab_module *self, u64 offset) {
   u16 constant = v_u8_val_at(&self->bytecode, offset + 1) << 8 |
                  v_u8_val_at(&self->bytecode, offset + 2);
 
-  gab_value msg = d_gab_constant_ikey(&self->constants, constant);
+  gab_value msg = v_gab_constant_val_at(&self->constants, constant);
   gab_obj_message *m = GAB_VAL_TO_MESSAGE(msg);
 
   u8 have = v_u8_val_at(&self->bytecode, offset + 3);
@@ -418,7 +416,7 @@ u64 dumpConstantInstruction(gab_module *self, u64 offset) {
                  v_u8_val_at(&self->bytecode, offset + 2);
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   printf("%-25s", name);
-  gab_val_dump(d_gab_constant_ikey(&self->constants, constant));
+  gab_val_dump(v_gab_constant_val_at(&self->constants, constant));
   printf("\n");
   return offset + 3;
 }
@@ -628,7 +626,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
                           self->bytecode.data[offset + 1]);
     offset += 4;
 
-    gab_value pval = d_gab_constant_ikey(&self->constants, proto_constant);
+    gab_value pval = v_gab_constant_val_at(&self->constants, proto_constant);
     gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(pval);
 
     printf("%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET, "OP_CLOSURE",
@@ -652,7 +650,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
                           self->bytecode.data[offset + 1]);
     offset += 2;
 
-    gab_value pval = d_gab_constant_ikey(&self->constants, proto_constant);
+    gab_value pval = v_gab_constant_val_at(&self->constants, proto_constant);
     gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(pval);
 
     printf("%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET, "OP_CLOSURE",

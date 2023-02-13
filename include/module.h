@@ -21,11 +21,8 @@ static const char *gab_opcode_names[] = {
 };
 
 #define NAME gab_constant
-#define K gab_value
-#define HASH(a) (a)
-#define EQUAL(a, b) (a == b)
-#define LOAD DICT_MAX_LOAD
-#include "include/dict.h"
+#define T gab_value
+#include "include/vector.h"
 
 /*
   State required to run a gab program.
@@ -39,7 +36,7 @@ struct gab_module {
   /*
     The constant table.
   */
-  d_gab_constant constants;
+  v_gab_constant constants;
 
   /* A sister vector to 'bytecode'.
      This vector relates each instruction to a line in the source code.

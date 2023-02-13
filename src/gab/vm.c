@@ -406,7 +406,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 #define LOCAL(i) (SLOTS()[i])
 #define UPVALUE(i) (*(GAB_VAL_TO_UPVALUE(CLOSURE()->upvalues[i])->data))
 #define CONST_UPVALUE(i) (CLOSURE()->upvalues[i])
-#define MOD_CONSTANT(k) (d_gab_constant_ikey(&MODULE()->constants, k))
+#define MOD_CONSTANT(k) (v_gab_constant_val_at(&MODULE()->constants, k))
 
 #if GAB_DEBUG_VM
 #define PUSH(value)                                                            \
@@ -475,7 +475,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
   gab_vm_create(VM(), flags, argc, argv);
 
   gab_obj_block *main_c =
-      GAB_VAL_TO_BLOCK(d_gab_constant_ikey(&mod->constants, mod->main));
+      GAB_VAL_TO_BLOCK(v_gab_constant_val_at(&mod->constants, mod->main));
 
   FRAME()->c = main_c;
   FRAME()->slots = TOP();
