@@ -983,13 +983,16 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
     CASE_CODE(ITER) : {
       u16 dist = READ_SHORT;
-      u8 nlocals = READ_BYTE;
+      u8 want = READ_BYTE;
       u8 start = READ_BYTE;
 
-      gab_value eff = POP();
+      u8 have = VAR();
+
+      gab_value eff = PEEK();
 
       if (!GAB_VAL_IS_EFFECT(eff)) {
-        DROP_N(nlocals - 1);
+
+        DROP_N(have - 1);
 
         // Account for the two bytes we read already
         ip += dist - 2;
@@ -997,20 +1000,27 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         NEXT();
       }
 
-      while (nlocals--)
-        LOCAL(start + nlocals) = POP();
+      // Hide the effect but pretending to have one less
+      // Don't update the top of the stack, just trim into the locals
+      // where we expect.
+      trim_return(VM(), TOP() - have, SLOTS() + start, have - 1, want);
 
-      PUSH(eff);
+      // Update the iterator
+      LOCAL(start + want) = eff;
+
+      DROP_N(have);
 
       NEXT();
     }
 
     CASE_CODE(NEXT) : {
-      u8 want = READ_BYTE;
+      u8 iter = READ_BYTE;
 
       STORE_FRAME();
 
-      if (!call_effect(VM(), GAB_VAL_TO_EFFECT(PEEK()), 0, want))
+      PUSH(LOCAL(iter));
+
+      if (!call_effect(VM(), GAB_VAL_TO_EFFECT(PEEK()), 0, VAR_EXP))
         return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
 
       LOAD_FRAME();

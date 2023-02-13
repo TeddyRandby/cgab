@@ -1,5 +1,21 @@
 require('map')
 
-def __get__[Map](key) self:at(key) end
+impl Map
+    def [] (key)
+      self:at(key)
+    end
 
-def __set__[Map](key, value) self:put(key, value) end
+    def [=] (key, value)
+      self:put(key, value)
+    end
+
+    def each
+      let key = self:next
+
+      loop
+        yield key, self:at(key)
+        key = self:next(key)
+      until key == nil
+    end
+end
+

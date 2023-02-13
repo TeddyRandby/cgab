@@ -103,7 +103,7 @@ LINKAGE boolean METHOD(iremove)(TYPENAME *self, u64 index) {
   return true;
 }
 
-LINKAGE u64 METHOD(next)(TYPENAME *self, u64 index) {
+LINKAGE u64 METHOD(inext)(TYPENAME *self, u64 index) {
   if (index >= self->cap)
     return -1;
 

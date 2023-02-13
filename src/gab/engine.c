@@ -108,9 +108,6 @@ struct primitive primitives[] = {
     },
 };
 
-/**
- * Gab API stuff
- */
 gab_engine *gab_create(void *ud) {
   gab_engine *gab = NEW(gab_engine);
 

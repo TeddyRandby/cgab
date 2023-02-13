@@ -27,13 +27,13 @@ void gab_module_collect(gab_engine *gab, gab_module *mod) {
     return;
 
   for (u64 i = 0; i < mod->constants.len; i++) {
-      gab_value v = v_gab_constant_val_at(&mod->constants, i);
-      // The only kind of value owned by the modules
-      // are their prototypes and the main closure
-      if (GAB_VAL_IS_PROTOTYPE(v) || GAB_VAL_IS_SYMBOL(v) || i == mod->main)
-        gab_dref(gab, NULL, v);
-    }
+    gab_value v = v_gab_constant_val_at(&mod->constants, i);
+    // The only kind of value owned by the modules
+    // are their prototypes and the main closure
+    if (GAB_VAL_IS_PROTOTYPE(v) || GAB_VAL_IS_SYMBOL(v) || i == mod->main)
+      gab_dref(gab, NULL, v);
   }
+}
 
 void gab_module_destroy(gab_engine *gab, gab_module *mod) {
   if (!mod)
@@ -271,10 +271,9 @@ void gab_module_push_inline_cache(gab_module *self, gab_token t, u64 l,
   gab_module_push_byte(self, OP_NOP, t, l, s);
 }
 
-void gab_module_push_next(gab_module *self, u8 want, gab_token t,
-                          u64 l, s_i8 s) {
+void gab_module_push_next(gab_module *self, u8 iter, gab_token t, u64 l, s_i8 s) {
   gab_module_push_byte(self, OP_NEXT, t, l, s);
-  gab_module_push_byte(self, want, t, l, s);
+  gab_module_push_byte(self, iter, t, l, s);
 }
 
 u64 gab_module_push_iter(gab_module *self, u8 nlocals, u8 start, gab_token t,
@@ -448,11 +447,8 @@ u64 dumpIter(gab_module *self, u64 offset) {
 }
 
 u64 dumpNext(gab_module *self, u64 offset) {
-  u8 iter = v_u8_val_at(&self->bytecode, offset + 1);
-  u8 want = v_u8_val_at(&self->bytecode, offset + 2);
-
-  printf("%-25siter: %03d wants %03d\n", "NEXT", iter, want);
-  return offset + 3;
+  printf("%-25s\n", "NEXT");
+  return offset + 1;
 }
 
 u64 dumpInstruction(gab_module *self, u64 offset) {

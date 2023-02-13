@@ -1,19 +1,3 @@
-from __future__ import print_function
-
-import sys
-import time
-
-
-class TimedContext(object):
-
-    def __enter__(self):
-        self.t1 = time.time()
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.t2 = time.time()
-        print(self.t2 - self.t1)
-
-
 class SimpleMatrix(object):
 
     def __init__(self, N, data):

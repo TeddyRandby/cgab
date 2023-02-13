@@ -2211,6 +2211,9 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
     loop_locals++;
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)));
 
+  u8 iter = add_local(bc, s_i8_cstr(""), 0);
+  initialize_local(bc, iter);
+
   if (result == COMP_ERR)
     return COMP_ERR;
 
@@ -2223,9 +2226,7 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
   if (push_slot(bc, loop_locals) < 0)
     return COMP_ERR;
 
-  gab_module_try_patch_vse(mod, loop_locals + 1);
-
-  // Now there stack is ...yielded values, effect
+  gab_module_try_patch_vse(mod, VAR_EXP);
 
   u64 loop = gab_module_push_loop(mod);
 
@@ -2245,7 +2246,7 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, gab_module *mod,
     return COMP_ERR;
 
   // Load and call the effect member
-  gab_module_push_next(mod, loop_locals + 1, bc->previous_token, bc->line,
+  gab_module_push_next(mod, iter, bc->previous_token, bc->line,
                        bc->lex.previous_token_src);
 
   pop_slot(bc, 1);

@@ -20,7 +20,8 @@
 // Maximum number of function defintions that can be nested.
 #define FUNCTION_DEF_NESTING_MAX 64
 // Initial capacity of interned table
-#define INTERN_INITIAL_CAP 512
+#define INTERN_INITIAL_CAP 256
+// Initial capacity of module constant table
 #define CONSTANTS_INITIAL_CAP 64
 
 // Derived macros

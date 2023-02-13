@@ -1,10 +1,9 @@
-let record = { a }
+require('std')
 
-def cycle()
-    record.a = cycle
+def test = Map:new { a b c d }
+
+for k  in test:each
+  for a in test:each
+    print(k, a)
+  end
 end
-
-cycle()
-cycle()
-cycle()
-cycle()

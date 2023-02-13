@@ -1,3 +1,4 @@
+#include "include/core.h"
 #include "include/gab.h"
 #include "include/object.h"
 #include <assert.h>
@@ -20,14 +21,15 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
     if (!GAB_VAL_IS_RECORD(argv[1]))
       return gab_panic(gab, vm, "Invalid call to gab_lib_len");
 
-    gab_obj_record* rec = GAB_VAL_TO_RECORD(argv[1]);
-    gab_obj_shape* shp = rec->shape;
+    gab_obj_record *rec = GAB_VAL_TO_RECORD(argv[1]);
+    gab_obj_shape *shp = rec->shape;
 
     gab_iref_many(gab, vm, rec->len, rec->data);
 
     gab_iref_many(gab, vm, shp->len, shp->data);
 
-    gab_obj_map* map = gab_obj_map_create(gab, rec->len, 1, shp->data, rec->data);
+    gab_obj_map *map =
+        gab_obj_map_create(gab, rec->len, 1, shp->data, rec->data);
 
     gab_value result = GAB_VAL_OBJ(map);
 
@@ -74,26 +76,52 @@ gab_value gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc,
   return GAB_VAL_NIL();
 }
 
+gab_value gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc,
+                       gab_value argv[argc]) {
+  gab_obj_map *map = GAB_VAL_TO_MAP(argv[0]);
+
+  switch (argc) {
+  case 1: {
+    u64 next_index = d_gab_value_inext(&map->data, 0);
+
+    if (next_index == -1)
+      return GAB_VAL_NIL();
+
+    return d_gab_value_ikey(&map->data, next_index);
+  }
+  case 2: {
+
+    gab_value key = argv[1];
+
+    u64 index = d_gab_value_index_of(&map->data, key);
+
+    u64 next_index = d_gab_value_inext(&map->data, index + 1);
+
+    if (next_index == -1)
+      return GAB_VAL_NIL();
+
+    return d_gab_value_ikey(&map->data, next_index);
+  }
+  default:
+    return gab_panic(gab, vm, "Invalid call to gab_lib_next");
+  }
+}
+
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   s_i8 names[] = {
-      s_i8_cstr("new"),
-      s_i8_cstr("len"),
-      s_i8_cstr("put"),
-      s_i8_cstr("at"),
+      s_i8_cstr("new"), s_i8_cstr("len"),  s_i8_cstr("put"),
+      s_i8_cstr("at"),  s_i8_cstr("next"),
   };
 
   gab_value receivers[] = {
-      gab_type(gab, GAB_KIND_MAP),
-      gab_type(gab, GAB_KIND_MAP),
-      gab_type(gab, GAB_KIND_MAP),
+      gab_type(gab, GAB_KIND_MAP), gab_type(gab, GAB_KIND_MAP),
+      gab_type(gab, GAB_KIND_MAP), gab_type(gab, GAB_KIND_MAP),
       gab_type(gab, GAB_KIND_MAP),
   };
 
   gab_value specs[] = {
-      GAB_BUILTIN(new),
-      GAB_BUILTIN(len),
-      GAB_BUILTIN(put),
-      GAB_BUILTIN(at),
+      GAB_BUILTIN(new), GAB_BUILTIN(len),  GAB_BUILTIN(put),
+      GAB_BUILTIN(at),  GAB_BUILTIN(next),
   };
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
