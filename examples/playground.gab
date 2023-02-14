@@ -2,7 +2,7 @@ require('std')
 
 def test = Map:new { a b c d }
 
-for k  in test:each
+for k in test:each
   for a in test:each
     print(k, a)
   end

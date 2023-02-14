@@ -16,8 +16,8 @@ gab_value gab_lib_clock(gab_engine *gab, gab_vm *vm, u8 argc,
 };
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  s_i8 keys[] = {
-      s_i8_cstr("clock"),
+  gab_value keys[] = {
+      GAB_STRING("clock"),
   };
 
   gab_value values[] = {

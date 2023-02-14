@@ -9,7 +9,7 @@ typedef struct gab_vm gab_vm;
 #include "gab.h"
 #include "gc.h"
 
-void *gab_reallocate(gab_engine* gab, void *loc, u64 old_size, u64 new_size);
+void *gab_reallocate(gab_engine *gab, void *loc, u64 old_size, u64 new_size);
 
 static const char *gab_status_names[] = {
 #define STATUS(name, message) message,
@@ -39,7 +39,6 @@ static const char *gab_status_names[] = {
 #include "include/dict.h"
 
 struct gab_engine {
-  gab_module *modules;
   /*
    * Where all the interned values live.
    */
@@ -59,17 +58,17 @@ struct gab_engine {
 
   u64 hash_seed;
 
-  gab_obj* objects;
+  gab_obj *objects;
 
-  void* userdata;
+  void *userdata;
 
   a_u64 *argv_values;
-  a_s_i8 *argv_names;
+  a_u64 *argv_names;
 };
 
-
 gab_obj_string *gab_engine_find_string(gab_engine *gab, s_i8 str, u64 hash);
-gab_obj_message *gab_engine_find_message(gab_engine *gab, s_i8 name, u64 hash);
+gab_obj_message *gab_engine_find_message(gab_engine *gab, gab_value name,
+                                         u64 hash);
 gab_obj_shape *gab_engine_find_shape(gab_engine *gab, u64 size, u64 stride,
                                      u64 hash, gab_value keys[size]);
 

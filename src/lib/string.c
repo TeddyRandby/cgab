@@ -107,10 +107,10 @@ gab_value gab_lib_split(gab_engine *gab, gab_vm *vm, u8 argc,
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value string_type = gab_type(gab, GAB_KIND_STRING);
 
-  s_i8 keys[] = {
-      s_i8_cstr("slice"),
-      s_i8_cstr("split"),
-      s_i8_cstr("len"),
+  gab_value keys[] = {
+      GAB_STRING("slice"),
+      GAB_STRING("split"),
+      GAB_STRING("len"),
   };
 
   gab_value values[] = {

@@ -190,9 +190,6 @@ gab_obj_upvalue *gab_obj_upvalue_create(gab_engine *gab, gab_value *slot);
 typedef struct gab_obj_prototype gab_obj_prototype;
 struct gab_obj_prototype {
   gab_obj header;
-
-  s_i8 name;
-
   /*
    * The number of arguments the function takes.
    */
@@ -204,29 +201,22 @@ struct gab_obj_prototype {
   u8 nupvalues;
 
   /*
-   * The number of slots the proto needs.
-   */
-  u16 nslots;
-
-  /*
    * The number of locals
    */
   u8 nlocals;
 
   /*
+   * The number of slots the proto needs.
+   */
+  u8 nslots;
+
+  /*
+   * If the prototype accepts variable arguments
    */
   u8 var;
 
   /*
-   * The offset into the module where the function's instructions begin.
-   * This can't be a pointer because modules can be reallocated as their
-   * vector grows - and this would leave functions with dangling pointers.
-   */
-  u64 offset;
-  u64 len;
-
-  /*
-   * The module owning the function.
+   * The module this prototype owns
    */
   gab_module *mod;
 };
@@ -237,9 +227,8 @@ struct gab_obj_prototype {
 #define GAB_OBJ_TO_PROTOTYPE(value) ((gab_obj_prototype *)value)
 
 gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
-                                            s_i8 name, u8 narguments,
-                                            u16 nslots, u8 nupvalues,
-                                            u8 nlocals, u64 offset, u64 len,
+                                            u8 narguments, u8 nslots,
+                                            u8 nupvalues, u8 nlocals,
                                             boolean var);
 
 /*
@@ -288,7 +277,8 @@ struct gab_obj_message {
   /*
    * The name of the function
    */
-  s_i8 name;
+  gab_value name;
+
   u64 hash;
 
   /*
@@ -301,7 +291,7 @@ struct gab_obj_message {
 #define GAB_VAL_TO_MESSAGE(value) ((gab_obj_message *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_MESSAGE(value) ((gab_obj_message *)value)
 
-gab_obj_message *gab_obj_message_create(gab_engine *gab, s_i8 name);
+gab_obj_message *gab_obj_message_create(gab_engine *gab, gab_value name);
 
 static inline u64 gab_obj_message_find(gab_obj_message *self,
                                        gab_value receiver) {

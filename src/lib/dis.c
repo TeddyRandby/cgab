@@ -6,20 +6,20 @@
 #include <stdio.h>
 
 void dis_closure(gab_obj_block *cls) {
-  printf("     closure:\x1b[36m%.*s\x1b[0m\n", (int)cls->p->name.len,
-         cls->p->name.data);
-
-  gab_dis(cls->p->mod, cls->p->offset, cls->p->len);
+  // printf("     closure:\x1b[36m%.*s\x1b[0m\n", (int)cls->p->name.len,
+  //        cls->p->name.data);
+  //
+  // gab_dis(cls->p->mod, cls->p->offset, cls->p->len);
 }
 
-void dis_message(gab_engine* gab, gab_obj_message *msg, gab_value rec) {
+void dis_message(gab_engine *gab, gab_obj_message *msg, gab_value rec) {
   gab_value spec = gab_obj_message_read(msg, gab_val_type(gab, rec));
 
   if (GAB_VAL_IS_BLOCK(spec)) {
     gab_obj_block *cls = GAB_VAL_TO_BLOCK(spec);
     dis_closure(cls);
   } else if (GAB_VAL_IS_BUILTIN(spec)) {
-    gab_val_dump(spec);
+    gab_val_dump(stdout,spec);
     printf("\n");
   }
 }
@@ -30,8 +30,7 @@ gab_value gab_lib_disstring(gab_engine *gab, gab_vm *vm, u8 argc,
     gab_panic(gab, vm, "Invalid call to gab_lib_dis");
   }
 
-  gab_obj_message *msg = gab_obj_message_create(
-      gab, gab_obj_string_ref(GAB_VAL_TO_STRING(argv[0])));
+  gab_obj_message *msg = gab_obj_message_create(gab, argv[0]);
 
   dis_message(gab, msg, argc == 1 ? GAB_VAL_UNDEFINED() : argv[1]);
 
@@ -70,7 +69,7 @@ gab_value gab_lib_disbuiltin(gab_engine *gab, gab_vm *vm, u8 argc,
     gab_panic(gab, vm, "Invalid call to gab_lib_dis");
   }
 
-  gab_val_dump(argv[0]);
+  gab_val_dump(stdout, argv[0]);
   printf("\n");
 
   return GAB_VAL_NIL();
@@ -94,7 +93,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));
 
   for (u8 i = 0; i < LEN_CARRAY(values); i++) {
-    gab_specialize(gab, s_i8_cstr("dis"), receivers[i], values[i]);
+    gab_specialize(gab, GAB_STRING("dis"), receivers[i], values[i]);
     gab_dref(gab, vm, values[i]);
   }
 

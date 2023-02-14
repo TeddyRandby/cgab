@@ -97,10 +97,10 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value io = GAB_SYMBOL("io");
   gab_dref(gab, vm, io);
 
-  s_i8 keys[] = {
-      s_i8_cstr("open"),
-      s_i8_cstr("read"),
-      s_i8_cstr("write"),
+  gab_value keys[] = {
+      GAB_STRING("open"),
+      GAB_STRING("read"),
+      GAB_STRING("write"),
   };
 
   gab_value container_type = gab_type(gab, GAB_KIND_CONTAINER);

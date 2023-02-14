@@ -111,7 +111,9 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
   a_i8 *src = os_read_file((char *)path->data);
 
   gab_module *pkg =
-      gab_compile(gab, s_i8_create(path->data, path->len),
+      gab_compile(gab,
+                  GAB_VAL_OBJ(gab_obj_string_create(
+                      gab, s_i8_create(path->data, path->len))),
                   s_i8_create(src->data, src->len), GAB_FLAG_DUMP_ERROR);
 
   a_i8_destroy(src);
@@ -120,8 +122,7 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
     return gab_panic(gab, vm, "Failed to compile module");
   }
 
-  gab_value res =
-      gab_run(gab, pkg, GAB_FLAG_DUMP_ERROR);
+  gab_value res = gab_run(gab, pkg, GAB_FLAG_DUMP_ERROR);
 
   import *i = NEW(import);
 

@@ -2,6 +2,7 @@
 #define GAB_H
 
 #include "object.h"
+#include <printf.h>
 
 typedef struct gab_engine gab_engine;
 typedef struct gab_module gab_module;
@@ -13,7 +14,7 @@ typedef struct gab_vm gab_vm;
  *
  * @return The allocated Gab Engine.
  */
-gab_engine *gab_create(void* ud);
+gab_engine *gab_create(void *ud);
 
 /**
  * Cleanup a Gab Engine.
@@ -39,10 +40,10 @@ void gab_destroy(gab_engine *gab);
  *
  */
 
-void gab_args(gab_engine *gab, u8 argc, s_i8 argv_names[argc],
+void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]);
 
-void* gab_user(gab_engine* gab);
+void *gab_user(gab_engine *gab);
 
 /**
  * Compile a source string into a Gab Module.
@@ -55,7 +56,7 @@ void* gab_user(gab_engine* gab);
  *
  * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
  */
-gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags);
+gab_module *gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags);
 
 /**
  * Run a module in the gab vm.
@@ -168,7 +169,7 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
  *
  * @return The message that was updated
  */
-gab_value gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
+gab_value gab_specialize(gab_engine *gab, gab_value name, gab_value receiver,
                          gab_value specialization);
 
 /**
@@ -182,7 +183,7 @@ gab_value gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
  *
  * @return The return value of the message
  */
-gab_value gab_send(gab_engine *gab, s_i8 name, gab_value receiver, u8 argc,
+gab_value gab_send(gab_engine *gab, gab_value name, gab_value receiver, u8 argc,
                    gab_value argv[argc]);
 
 /**
@@ -199,10 +200,14 @@ boolean gab_val_falsey(gab_value self);
  *
  * @param self The value to dump
  */
-void gab_val_dump(gab_value self);
-
+i32 gab_val_dump(FILE* stream, gab_value self);
+int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
+                           const void *const *args);
+int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
+                           int *sizes);
 /**
- * Get the type of a gab value. This function is used internally to send messages.
+ * Get the type of a gab value. This function is used internally to send
+ * messages.
  *
  * @param gab The engine
  *
@@ -235,8 +240,8 @@ gab_value gab_type(gab_engine *gab, gab_kind kind);
 /**
  * A helper macro for sending simply
  */
-#define GAB_SEND(name, receiver, len, args)                                   \
-  gab_send(gab, s_i8_cstr(name), receiver, len, args)
+#define GAB_SEND(name, receiver, len, args)                                    \
+  gab_send(gab, GAB_STRING(name), receiver, len, args)
 
 /**
  * A helper macro for creating a gab_obj_builtin
@@ -253,10 +258,12 @@ gab_value gab_type(gab_engine *gab, gab_kind kind);
 /**
  * A helper macro for creating a gab_obj_container
  */
-#define GAB_CONTAINER(cb, data) GAB_VAL_OBJ(gab_obj_container_create(gab, cb, data))
+#define GAB_CONTAINER(cb, data)                                                \
+  GAB_VAL_OBJ(gab_obj_container_create(gab, cb, data))
 
 /**
  * A helper macro for creating a gab_obj_symbol
  */
-#define GAB_SYMBOL(name) GAB_VAL_OBJ(gab_obj_symbol_create(gab, s_i8_cstr(name)))
+#define GAB_SYMBOL(name)                                                       \
+  GAB_VAL_OBJ(gab_obj_symbol_create(gab, s_i8_cstr(name)))
 #endif

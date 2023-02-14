@@ -161,9 +161,10 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  s_i8 names[] = {
-      s_i8_cstr("new"), s_i8_cstr("len"), s_i8_cstr("slice"), s_i8_cstr("push"),
-      s_i8_cstr("pop"), s_i8_cstr("put"), s_i8_cstr("at"),
+  gab_value names[] = {
+      GAB_STRING("new"),  GAB_STRING("len"), GAB_STRING("slice"),
+      GAB_STRING("push"), GAB_STRING("pop"), GAB_STRING("put"),
+      GAB_STRING("at"),
   };
 
   gab_value receivers[] = {

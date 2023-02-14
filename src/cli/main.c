@@ -5,6 +5,7 @@
 #include "include/object.h"
 #include "include/os.h"
 #include <assert.h>
+#include <printf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,7 +32,7 @@ gab_value make_print(gab_engine *gab) {
   gab_value print_builtin = GAB_BUILTIN(print);
 
   for (i32 i = 0; i < LEN_CARRAY(receivers); i++) {
-    gab_specialize(gab, s_i8_cstr("print"), receivers[i], print_builtin);
+    gab_specialize(gab, GAB_STRING("print"), receivers[i], print_builtin);
   }
 
   return print_builtin;
@@ -40,7 +41,7 @@ gab_value make_print(gab_engine *gab) {
 gab_value make_require(gab_engine *gab) {
   gab_value require_builtin = GAB_BUILTIN(require);
 
-  gab_specialize(gab, s_i8_cstr("require"), gab_type(gab, GAB_KIND_STRING),
+  gab_specialize(gab, GAB_STRING("require"), gab_type(gab, GAB_KIND_STRING),
                  require_builtin);
 
   return require_builtin;
@@ -51,12 +52,12 @@ void gab_repl() {
 
   gab_engine *gab = gab_create(alloc_setup());
 
-  s_i8 arg_names[] = {
-      s_i8_cstr("print"),  s_i8_cstr("require"), s_i8_cstr("panic"),
-      s_i8_cstr("String"), s_i8_cstr("Number"),  s_i8_cstr("Boolean"),
-      s_i8_cstr("Block"),  s_i8_cstr("Message"), s_i8_cstr("Effect"),
-      s_i8_cstr("Record"), s_i8_cstr("List"),    s_i8_cstr("Map"),
-      s_i8_cstr("it")};
+  gab_value arg_names[] = {
+      GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
+      GAB_STRING("String"), GAB_STRING("Number"),  GAB_STRING("Boolean"),
+      GAB_STRING("Block"),  GAB_STRING("Message"), GAB_STRING("Effect"),
+      GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"),
+      GAB_STRING("it")};
 
   gab_value args[] = {
       make_print(gab),
@@ -97,7 +98,7 @@ void gab_repl() {
     }
 
     gab_module *main =
-        gab_compile(gab, s_i8_cstr("__main__"),
+        gab_compile(gab, GAB_STRING("__main__"),
                     s_i8_create(src->data, src->len), GAB_FLAG_DUMP_ERROR);
 
     a_i8_destroy(src);
@@ -108,8 +109,7 @@ void gab_repl() {
     gab_value result = gab_run(gab, main, GAB_FLAG_DUMP_ERROR);
 
     if (!GAB_VAL_IS_NIL(result)) {
-      gab_val_dump(result);
-      printf("\n");
+      printf("%V\n", result);
     }
 
     gab_dref(gab, NULL, args[LEN_CARRAY(args) - 1]);
@@ -133,11 +133,11 @@ void gab_run_file(const char *path) {
 
   gab_engine *gab = gab_create(alloc_setup());
 
-  s_i8 arg_names[] = {
-      s_i8_cstr("print"),  s_i8_cstr("require"), s_i8_cstr("panic"),
-      s_i8_cstr("String"), s_i8_cstr("Number"),  s_i8_cstr("Boolean"),
-      s_i8_cstr("Block"),  s_i8_cstr("Message"), s_i8_cstr("Effect"),
-      s_i8_cstr("Record"), s_i8_cstr("List"),    s_i8_cstr("Map"),
+  gab_value arg_names[] = {
+      GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
+      GAB_STRING("String"), GAB_STRING("Number"),  GAB_STRING("Boolean"),
+      GAB_STRING("Block"),  GAB_STRING("Message"), GAB_STRING("Effect"),
+      GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"),
   };
 
   gab_value args[] = {
@@ -162,10 +162,10 @@ void gab_run_file(const char *path) {
   a_i8 *src = os_read_file(path);
 
   gab_module *main =
-      gab_compile(gab, s_i8_cstr("__main__"), s_i8_create(src->data, src->len),
-                  GAB_FLAG_DUMP_ERROR);
+      gab_compile(gab, GAB_STRING("__main__"), s_i8_create(src->data, src->len),
+                  GAB_FLAG_DUMP_ERROR | GAB_FLAG_DUMP_BYTECODE);
 
-  a_i8_destroy(src);
+  // a_i8_destroy(src);
 
   if (main == NULL)
     goto fin;
@@ -189,6 +189,8 @@ fin:
 }
 
 i32 main(i32 argc, const char **argv) {
+  register_printf_specifier('V', gab_val_printf_handler,
+                            gab_val_printf_arginfo);
 
   if (argc == 1) {
     gab_repl();

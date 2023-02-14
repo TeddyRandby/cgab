@@ -20,48 +20,14 @@
 */
 
 typedef enum gab_variable_flag {
-  FLAG_CAPTURED = 1 << 0,
-  FLAG_MUTABLE = 1 << 1,
-  FLAG_LOCAL = 1 << 2,
+  GAB_VARIABLE_FLAG_CAPTURED = 1 << 0,
+  GAB_VARIABLE_FLAG_MUTABLE = 1 << 1,
+  GAB_VARIABLE_FLAG_LOCAL = 1 << 2,
 } gab_variable_flag;
 
 typedef struct gab_bc_frame gab_bc_frame;
 struct gab_bc_frame {
-
-  s_i8 function_name;
-
-  s_i8 locals_name[LOCAL_MAX];
-  i32 locals_depth[LOCAL_MAX];
-  u8 locals_flag[LOCAL_MAX];
-
-  u8 upvs_index[UPVALUE_MAX];
-  u8 upvs_flag[UPVALUE_MAX];
-
-  u16 next_slot;
-  u16 nslots;
-
-  u8 next_local;
-  u8 nlocals;
-
-  u8 nupvalues;
-
-  boolean inlineable;
-};
-
-/*
-  State for compiling source code to a gab module.
-*/
-typedef struct gab_bc {
-  /*
-    State for lexing source code into tokens.
-  */
-  boolean panic;
-  gab_token current_token;
-  gab_token previous_token;
-  u8 previous_op;
-  u8 flags;
-  gab_lexer lex;
-  u64 line;
+  gab_module *mod;
 
   /*
     Scope keeps track of local variables, prevents name collisions,
@@ -72,10 +38,46 @@ typedef struct gab_bc {
   */
   i32 scope_depth;
 
+  u8 next_slot;
+  u8 nslots;
 
+  u8 next_local;
+  u8 nlocals;
+
+  u8 nupvalues;
   u8 nimpls;
 
-  s_i8 impls[FUNCTION_DEF_NESTING_MAX];
+  gab_value impls[FUNCTION_DEF_NESTING_MAX];
+
+  u8 locals_flag[LOCAL_MAX];
+  i32 locals_depth[LOCAL_MAX];
+  gab_value locals_name[LOCAL_MAX];
+
+  u8 upvs_flag[UPVALUE_MAX];
+  u8 upvs_index[UPVALUE_MAX];
+};
+
+/*
+  State for compiling source code to a gab module.
+*/
+typedef struct gab_bc {
+
+  gab_lexer lex;
+
+  u64 line;
+
+  /*
+    State for lexing source code into tokens.
+  */
+  u8 flags;
+
+  boolean panic;
+
+  gab_token current_token;
+
+  gab_token previous_token;
+
+  u8 previous_op;
 
   /**
    * The number of compile frames
@@ -92,10 +94,12 @@ typedef struct gab_bc {
 
 void gab_bc_create(gab_bc *bc, s_i8 source, u8 flags);
 
-gab_module *gab_bc_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags,
-                           u8 narguments, s_i8 arguments[narguments]);
+gab_module *gab_bc_compile(gab_engine *gab, gab_value name, s_i8 source,
+                           u8 flags, u8 narguments,
+                           gab_value arguments[narguments]);
 
-gab_module *gab_bc_compile_send(gab_engine *gab, s_i8 name, gab_value receiver,
-                                u8 argc, gab_value argv[argc]);
+gab_module *gab_bc_compile_send(gab_engine *gab, gab_value name,
+                                gab_value receiver, u8 argc,
+                                gab_value argv[argc]);
 
 #endif

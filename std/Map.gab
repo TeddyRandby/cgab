@@ -18,4 +18,3 @@ impl Map
       until key == nil
     end
 end
-

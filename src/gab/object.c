@@ -74,74 +74,66 @@ gab_obj *gab_obj_create(gab_engine *gab, gab_obj *self, gab_kind k) {
   return self;
 }
 
-void gab_obj_dump(gab_value value) {
+i32 gab_obj_dump(FILE* stream, gab_value value) {
   switch (GAB_VAL_TO_OBJ(value)->kind) {
   case GAB_KIND_STRING: {
     gab_obj_string *obj = GAB_VAL_TO_STRING(value);
-    printf("%.*s", (i32)obj->len, (const char *)obj->data);
-    break;
+    return fprintf(stream,"%.*s", (i32)obj->len, (const char *)obj->data);
   }
   case GAB_KIND_MESSAGE: {
     gab_obj_message *obj = GAB_VAL_TO_MESSAGE(value);
-    printf("[message:%.*s]", (i32)obj->name.len, obj->name.data);
-    break;
+    return fprintf(stream,"[message:%V]", obj->name);
   }
   case GAB_KIND_UPVALUE: {
     gab_obj_upvalue *upv = GAB_VAL_TO_UPVALUE(value);
-    printf("[upvalue:");
-    gab_val_dump(*upv->data);
-    printf("]");
-    break;
+    return fprintf(stream,"[upvalue:%V]", upv->data);
   }
   case GAB_KIND_SHAPE: {
     gab_obj_shape *shape = GAB_VAL_TO_SHAPE(value);
-    printf("[shape:%.*s]", (i32)shape->name.len, shape->name.data);
-    break;
+    return fprintf(stream,"[shape:%.*s]", (i32)shape->name.len, shape->name.data);
   }
   case GAB_KIND_RECORD: {
     gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
-    printf("[record:%.*s]", (i32)obj->shape->name.len, obj->shape->name.data);
-    break;
+    return fprintf(stream,"[record:%.*s]", (i32)obj->shape->name.len,
+                  obj->shape->name.data);
   }
   case GAB_KIND_LIST: {
     gab_obj_list *obj = GAB_VAL_TO_LIST(value);
-    printf("[list:%p]", obj);
-    break;
+    return fprintf(stream,"[list:%p]", obj);
   }
   case GAB_KIND_MAP: {
     gab_obj_map *obj = GAB_VAL_TO_MAP(value);
-    printf("[map:%p]", obj);
-    break;
+    return fprintf(stream,"[map:%p]", obj);
   }
   case GAB_KIND_BUILTIN: {
     gab_obj_builtin *obj = GAB_VAL_TO_BUILTIN(value);
-    printf("[builtin:%.*s]", (i32)obj->name.len, obj->name.data);
-    break;
+    return fprintf(stream,"[builtin:%.*s]", (i32)obj->name.len, obj->name.data);
   }
   case GAB_KIND_CONTAINER: {
     gab_obj_container *obj = GAB_VAL_TO_CONTAINER(value);
-    printf("[container:%p]", obj->destructor);
-    break;
+    return fprintf(stream,"[container:%p]", obj->destructor);
   }
   case GAB_KIND_SYMBOL: {
     gab_obj_symbol *obj = GAB_VAL_TO_SYMBOL(value);
-    printf("[symbol:%.*s]", (i32)obj->name.len, obj->name.data);
-    break;
+    return fprintf(stream,"[symbol:%.*s]", (i32)obj->name.len, obj->name.data);
   }
   case GAB_KIND_PROTOTYPE: {
     gab_obj_prototype *obj = GAB_VAL_TO_PROTOTYPE(value);
-    printf("[prototype:%.*s]", (i32)obj->name.len, obj->name.data);
-    break;
+    gab_value name =
+        v_gab_constant_val_at(&obj->mod->constants, obj->mod->name);
+    return fprintf(stream,"[prototype:%V]", name);
   }
   case GAB_KIND_BLOCK: {
     gab_obj_block *obj = GAB_VAL_TO_BLOCK(value);
-    printf("[block:%.*s]", (i32)obj->p->name.len, obj->p->name.data);
-    break;
+    gab_value name =
+        v_gab_constant_val_at(&obj->p->mod->constants, obj->p->mod->name);
+    return fprintf(stream,"[block:%V]", name);
   }
   case GAB_KIND_EFFECT: {
     gab_obj_effect *obj = GAB_VAL_TO_EFFECT(value);
-    printf("[effect:%.*s]", (i32)obj->c->p->name.len, obj->c->p->name.data);
-    break;
+    gab_value name =
+        v_gab_constant_val_at(&obj->c->p->mod->constants, obj->c->p->mod->name);
+    return fprintf(stream,"[effect:%V]", name);
   }
   default: {
     fprintf(stderr, "%d is not an object.\n", GAB_VAL_TO_OBJ(value)->kind);
@@ -150,17 +142,18 @@ void gab_obj_dump(gab_value value) {
   }
 }
 
-void gab_val_dump(gab_value self) {
+i32 gab_val_dump(FILE *stream, gab_value self) {
   if (GAB_VAL_IS_BOOLEAN(self)) {
-    printf("%s", GAB_VAL_TO_BOOLEAN(self) ? "true" : "false");
+    return fprintf(stream, "%s", GAB_VAL_TO_BOOLEAN(self) ? "true" : "false");
   } else if (GAB_VAL_IS_NUMBER(self)) {
-    printf("%g", GAB_VAL_TO_NUMBER(self));
+    return fprintf(stream, "%g", GAB_VAL_TO_NUMBER(self));
   } else if (GAB_VAL_IS_NIL(self)) {
-    printf("nil");
+    return fprintf(stream, "nil");
   } else if (GAB_VAL_IS_OBJ(self)) {
-    gab_obj_dump(self);
+    return gab_obj_dump(stream, self);
   } else if (GAB_VAL_IS_PRIMITIVE(self)) {
-    printf("[primitive:%s]", gab_opcode_names[GAB_VAL_TO_PRIMITIVE(self)]);
+    return fprintf(stream, "[primitive:%s]",
+                   gab_opcode_names[GAB_VAL_TO_PRIMITIVE(self)]);
   }
 }
 
@@ -394,30 +387,25 @@ s_i8 gab_obj_string_ref(gab_obj_string *self) {
 }
 
 gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
-                                            s_i8 name, u8 narguments,
-                                            u16 nslots, u8 nupvalues,
-                                            u8 nlocals, u64 offset, u64 len,
+                                            u8 narguments, u8 nslots,
+                                            u8 nupvalues, u8 nlocals,
                                             boolean var) {
   gab_obj_prototype *self =
       GAB_CREATE_OBJ(gab_obj_prototype, GAB_KIND_PROTOTYPE);
 
   self->mod = mod;
-  self->name = name;
   self->narguments = narguments;
   self->nslots = nslots;
   self->nupvalues = nupvalues;
   self->nlocals = nlocals;
-  self->offset = offset;
-  self->len = len;
   self->var = var;
 
   GAB_OBJ_GREEN((gab_obj *)self);
   return self;
 }
 
-gab_obj_message *gab_obj_message_create(gab_engine *gab, s_i8 name) {
-  u64 hash = s_i8_hash(name, gab->hash_seed);
-
+gab_obj_message *gab_obj_message_create(gab_engine *gab, gab_value name) {
+  u64 hash = GAB_VAL_TO_STRING(name)->hash;
   gab_obj_message *interned = gab_engine_find_message(gab, name, hash);
 
   if (interned != NULL)
@@ -457,7 +445,6 @@ gab_obj_block *gab_obj_block_create(gab_engine *gab, gab_obj_prototype *p) {
   self->nupvalues = p->nupvalues;
   self->p = p;
 
-  GAB_OBJ_GREEN((gab_obj *)self);
   return self;
 }
 
@@ -468,7 +455,6 @@ gab_obj_upvalue *gab_obj_upvalue_create(gab_engine *gab, gab_value *data) {
   self->next = NULL;
 
   GAB_OBJ_GREEN((gab_obj *)self);
-
   return self;
 }
 

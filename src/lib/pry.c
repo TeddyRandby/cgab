@@ -38,8 +38,8 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
       GAB_BUILTIN(pryframes),
   };
 
-  s_i8 names[] = {
-      s_i8_cstr("frame"),
+  gab_value names[] = {
+      GAB_STRING("frame"),
   };
 
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));

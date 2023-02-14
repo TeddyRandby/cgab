@@ -72,10 +72,10 @@ gab_value gab_lib_to_m(gab_engine *gab, gab_vm *vm, u8 argc,
   }
 }
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  s_i8 names[] = {
-      s_i8_cstr("new"),
-      s_i8_cstr("to_l"),
-      s_i8_cstr("to_m"),
+  gab_value names[] = {
+      GAB_STRING("new"),
+      GAB_STRING("to_l"),
+      GAB_STRING("to_m"),
   };
 
   gab_value receivers[] = {

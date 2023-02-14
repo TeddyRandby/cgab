@@ -130,10 +130,10 @@ gab_value gab_lib_from(gab_engine *gab, gab_vm *vm, u8 argc,
 };
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  s_i8 names[] = {
-      s_i8_cstr("between"),
-      s_i8_cstr("floor"),
-      s_i8_cstr("from"),
+  gab_value names[] = {
+      GAB_STRING("between"),
+      GAB_STRING("floor"),
+      GAB_STRING("from"),
   };
 
   gab_value type_num = gab_type(gab, GAB_KIND_NUMBER);

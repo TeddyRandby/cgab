@@ -111,7 +111,6 @@ struct primitive primitives[] = {
 gab_engine *gab_create(void *ud) {
   gab_engine *gab = NEW(gab_engine);
 
-  gab->modules = 0;
   gab->hash_seed = time(NULL);
   gab->objects = NULL;
   gab->userdata = ud;
@@ -143,8 +142,11 @@ gab_engine *gab_create(void *ud) {
   gab->types[GAB_KIND_MAP] = GAB_SYMBOL("map");
 
   for (int i = 0; i < LEN_CARRAY(primitives); i++) {
-    gab_specialize(gab, s_i8_cstr(primitives[i].name),
-                   gab->types[primitives[i].type], primitives[i].primitive);
+    gab_value name =
+        GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr(primitives[i].name)));
+
+    gab_specialize(gab, name, gab->types[primitives[i].type],
+                   primitives[i].primitive);
   }
 
   return gab;
@@ -153,13 +155,6 @@ gab_engine *gab_create(void *ud) {
 void gab_destroy(gab_engine *gab) {
   if (gab == NULL)
     return;
-
-  gab_module *mod = gab->modules;
-  while (mod != NULL) {
-    gab_module *m = mod;
-    mod = m->next;
-    gab_module_collect(gab, m);
-  }
 
   for (u64 i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
@@ -198,15 +193,8 @@ void gab_destroy(gab_engine *gab) {
   d_shapes_destroy(&gab->interned_shapes);
   d_messages_destroy(&gab->interned_messages);
 
-  mod = gab->modules;
-  while (mod != NULL) {
-    gab_module *m = mod;
-    mod = m->next;
-    gab_module_destroy(gab, m);
-  }
-
   a_u64_destroy(gab->argv_values);
-  a_s_i8_destroy(gab->argv_names);
+  a_u64_destroy(gab->argv_names);
 
   DESTROY(gab);
 }
@@ -215,7 +203,7 @@ void gab_collect(gab_engine *gab, gab_vm *vm) {
   gab_gc_collect(gab, vm, &gab->gc);
 }
 
-void gab_args(gab_engine *gab, u8 argc, s_i8 argv_names[argc],
+void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]) {
   if (gab->argv_values != NULL) {
     gab_dref_many(gab, NULL, argc, argv_values);
@@ -223,26 +211,18 @@ void gab_args(gab_engine *gab, u8 argc, s_i8 argv_names[argc],
   }
 
   if (gab->argv_names != NULL)
-    a_s_i8_destroy(gab->argv_names);
+    a_u64_destroy(gab->argv_names);
 
   gab_iref_many(gab, NULL, argc, argv_values);
 
-  gab->argv_names = a_s_i8_create(argv_names, argc);
+  gab->argv_names = a_u64_create(argv_names, argc);
   gab->argv_values = a_u64_create(argv_values, argc);
 }
 
-gab_module *gab_compile(gab_engine *gab, s_i8 name, s_i8 source, u8 flags) {
+gab_module *gab_compile(gab_engine *gab, gab_value name, s_i8 source,
+                        u8 flags) {
   gab_module *m = gab_bc_compile(gab, name, source, flags,
                                  gab->argv_values->len, gab->argv_names->data);
-
-  if (m != NULL) {
-    if (gab->modules == NULL) {
-      gab->modules = m;
-    } else {
-      m->next = gab->modules;
-      gab->modules = m;
-    }
-  }
 
   return m;
 }
@@ -303,7 +283,7 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
   return bundle;
 }
 
-gab_value gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
+gab_value gab_specialize(gab_engine *gab, gab_value name, gab_value receiver,
                          gab_value specialization) {
 
   gab_obj_message *f = gab_obj_message_create(gab, name);
@@ -318,7 +298,7 @@ gab_value gab_specialize(gab_engine *gab, s_i8 name, gab_value receiver,
   return GAB_VAL_OBJ(f);
 }
 
-gab_value gab_send(gab_engine *gab, s_i8 name, gab_value receiver, u8 argc,
+gab_value gab_send(gab_engine *gab, gab_value name, gab_value receiver, u8 argc,
                    gab_value argv[argc]) {
 
   // Cleanup the module
@@ -365,7 +345,7 @@ i32 gab_engine_intern(gab_engine *self, gab_value value) {
   return -1;
 }
 
-gab_obj_message *gab_engine_find_message(gab_engine *self, s_i8 name,
+gab_obj_message *gab_engine_find_message(gab_engine *self, gab_value name,
                                          u64 hash) {
   if (self->interned_messages.len == 0)
     return NULL;
@@ -379,7 +359,7 @@ gab_obj_message *gab_engine_find_message(gab_engine *self, s_i8 name,
     if (status != D_FULL) {
       return NULL;
     } else {
-      if (key->hash == hash && s_i8_match(name, key->name)) {
+      if (key->hash == hash && name == key->name) {
         return key;
       }
     }
@@ -451,3 +431,18 @@ gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size, u64 stride,
 gab_value gab_type(gab_engine *gab, gab_kind t) { return gab->types[t]; }
 
 void *gab_user(gab_engine *gab) { return gab->userdata; }
+
+int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
+                           const void *const *args) {
+  const gab_value value = *(const gab_value *const)args[0];
+  return gab_val_dump(stream, value);
+}
+int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
+                           int *sizes) {
+  if (n > 0) {
+    argtypes[0] = PA_INT | PA_FLAG_LONG;
+    sizes[0] = sizeof(gab_value);
+  }
+
+  return 1;
+}
