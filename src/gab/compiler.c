@@ -4,6 +4,7 @@
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
+#include "include/lexer.h"
 #include "include/module.h"
 #include "include/object.h"
 #include <stdarg.h>
@@ -53,7 +54,7 @@ struct gab_compile_rule {
   boolean multi_line;
 };
 
-void gab_bc_create(gab_bc *self, s_i8 source, u8 flags) {
+void gab_bc_create(gab_bc *self, gab_source *source, u8 flags) {
   memset(self, 0, sizeof(*self));
 
   self->flags = flags;
@@ -418,14 +419,14 @@ static void up_scope(gab_bc *bc) {
   }
 }
 
-static void down_frame(gab_engine *gab, gab_bc *bc, gab_value name,
-                       boolean is_method) {
+static gab_module *down_frame(gab_engine *gab, gab_bc *bc, gab_value name,
+                              boolean is_method) {
   gab_bc_frame *f = bc->frames + bc->nframe++;
 
-  gab_module *new_mod = NEW(gab_module);
-  gab_module_create(new_mod, bc->lex.source);
+  gab_module* mod = gab_module_create(name, bc->lex.source, gab->modules);
+  gab->modules = mod;
 
-  f->mod = new_mod;
+  f->mod = mod;
 
   f->next_local = 0;
   f->nlocals = 0;
@@ -434,20 +435,35 @@ static void down_frame(gab_engine *gab, gab_bc *bc, gab_value name,
   f->nslots = 0;
 
   f->nupvalues = 0;
-
-  new_mod->name = add_constant(mod(bc), name);
+  f->scope_depth = 0;
 
   gab_value val_name =
       is_method ? GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("self")))
                 : name;
 
   initialize_local(bc, add_local(gab, bc, val_name, 0));
+
+  return mod;
 }
 
-static void up_frame(gab_bc *bc, u16 proto_constant) {
-  peek_frame(bc, 0)->mod->main = proto_constant;
+static gab_obj_prototype *up_frame(gab_engine *gab, gab_bc *bc, u8 nargs,
+                                   boolean vse) {
+  gab_bc_frame *frame = peek_frame(bc, 0);
+
+  u8 nupvalues = frame->nupvalues;
+  u8 nslots = frame->nslots;
+  u8 nlocals = frame->nlocals;
+
+  gab_obj_prototype *p = gab_obj_prototype_create(
+      gab, frame->mod, nargs, nslots, nupvalues, nlocals, vse);
+
+  gab_obj_block *main = gab_obj_block_create(gab, p);
+
+  frame->mod->main = add_constant(mod(bc), GAB_VAL_OBJ(main));
+
   bc->nframe--;
-  // bc->scope_depth--;
+
+  return p;
 }
 
 gab_compile_rule get_rule(gab_token k);
@@ -638,29 +654,19 @@ i32 compile_block(gab_engine *gab, gab_bc *bc) {
   return COMP_OK;
 }
 
-gab_obj_prototype *compile_function_body(gab_engine *gab, gab_bc *bc,
-                                         u8 narguments, u8 vse) {
+i32 compile_function_body(gab_engine *gab, gab_bc *bc, u8 narguments, u8 vse) {
   i32 result = compile_block(gab, bc);
 
   if (result < 0)
-    return NULL;
+    return COMP_ERR;
 
   if (expect_token(bc, TOKEN_END) < 0)
-    return NULL;
+    return COMP_ERR;
 
   gab_module_push_return(mod(bc), result, false, bc->previous_token, bc->line,
                          bc->lex.previous_token_src);
 
-  gab_bc_frame *frame = peek_frame(bc, 0);
-
-  u8 nupvalues = frame->nupvalues;
-  u8 nslots = frame->nslots;
-  u8 nlocals = frame->nlocals;
-
-  gab_obj_prototype *p = gab_obj_prototype_create(
-      gab, mod(bc), narguments, nslots, nupvalues, nlocals, vse);
-
-  return p;
+  return COMP_OK;
 }
 
 i32 compile_function(gab_engine *gab, gab_bc *bc, gab_value name,
@@ -705,28 +711,26 @@ i32 compile_function(gab_engine *gab, gab_bc *bc, gab_value name,
   if (narguments < 0)
     return COMP_ERR;
 
-  gab_obj_prototype *proto = compile_function_body(gab, bc, narguments, vse);
-
-  if (!proto)
+  if (compile_function_body(gab, bc, narguments, vse) < 0)
     return COMP_ERR;
 
-  up_frame(bc, add_constant(mod(bc), GAB_VAL_OBJ(proto)));
+  gab_obj_prototype *p = up_frame(gab, bc, narguments, vse);
 
   // Create the closure, adding a specialization to the pushed function.
   push_op(bc, is_impl ? OP_MESSAGE : OP_BLOCK);
-  push_short(bc, add_constant(mod(bc), GAB_VAL_OBJ(proto)));
+  push_short(bc, add_constant(mod(bc), GAB_VAL_OBJ(p)));
 
   if (is_impl) {
-    gab_obj_message *f = gab_obj_message_create(gab, name);
-    u16 func_constant = add_constant(mod(bc), GAB_VAL_OBJ(f));
+    gab_obj_message *m = gab_obj_message_create(gab, name);
+    u16 func_constant = add_constant(mod(bc), GAB_VAL_OBJ(m));
     push_short(bc, func_constant);
   }
 
   // Kinda cheaty - peek at the frame we just dropped.
-  gab_bc_frame *frame = peek_frame(bc, -1);
-  for (int i = 0; i < proto->nupvalues; i++) {
-    push_byte(bc, frame->upvs_flag[i]);
-    push_byte(bc, frame->upvs_index[i]);
+  gab_bc_frame *f = peek_frame(bc, -1);
+  for (int i = 0; i < p->nupvalues; i++) {
+    push_byte(bc, f->upvs_flag[i]);
+    push_byte(bc, f->upvs_index[i]);
   }
 
   push_slot(bc, 1);
@@ -1230,11 +1234,8 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, s_i8 name) {
 i32 compile_exp_blk(gab_engine *gab, gab_bc *bc, boolean assignable) {
   if (match_token(bc, TOKEN_LPAREN)) {
 
-    s_i8 name = s_i8_cstr("anonymous");
-    gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
-
     // We are an anonyumous function
-    if (compile_function(gab, bc, val_name, false) < 0)
+    if (compile_function(gab, bc, GAB_STRING("anonymous"), false) < 0)
       return COMP_ERR;
   } else {
     if (compile_block(gab, bc) < 0)
@@ -2434,9 +2435,7 @@ gab_compile_rule get_rule(gab_token k) { return gab_bc_rules[k]; }
 
 gab_module *compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
                     gab_value arguments[narguments]) {
-  down_frame(gab, bc, name, false);
-
-  gab_module *new_mod = peek_frame(bc, 0)->mod;
+  gab_module *new_mod = down_frame(gab, bc, name, false);
 
   if (eat_token(bc) == COMP_ERR)
     return NULL;
@@ -2450,13 +2449,9 @@ gab_module *compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
 
   push_op(bc, OP_RETURN_1);
 
-  u8 nslots = peek_frame(bc, 0)->nslots;
-  u8 nlocals = peek_frame(bc, 0)->nlocals;
+  gab_obj_prototype *p = up_frame(gab, bc, narguments, false);
 
-  gab_obj_prototype *p = gab_obj_prototype_create(gab, new_mod, narguments,
-                                                  nslots, 0, nlocals, false);
-
-  up_frame(bc, add_constant(mod(bc), GAB_VAL_OBJ(p)));
+  add_constant(new_mod, GAB_VAL_OBJ(p));
 
   return new_mod;
 }
@@ -2464,11 +2459,9 @@ gab_module *compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
 gab_module *gab_bc_compile_send(gab_engine *gab, gab_value name,
                                 gab_value receiver, u8 argc,
                                 gab_value argv[argc]) {
-  gab_module *mod = NEW(gab_module);
 
-  gab_module_create(mod, (s_i8){0});
-
-  mod->name = add_constant(mod, name);
+  gab_module* mod = gab_module_create(name, NULL, gab->modules);
+  gab->modules = mod;
 
   u16 message = add_message_constant(gab, mod, name);
 
@@ -2491,7 +2484,11 @@ gab_module *gab_bc_compile_send(gab_engine *gab, gab_value name,
   gab_obj_prototype *p =
       gab_obj_prototype_create(gab, mod, argc, argc, 0, 0, false);
 
-  mod->main = add_constant(mod, GAB_VAL_OBJ(p));
+  add_constant(mod, GAB_VAL_OBJ(p));
+
+  gab_obj_block *main = gab_obj_block_create(gab, p);
+
+  mod->main = add_constant(mod, GAB_VAL_OBJ(main));
 
   return mod;
 }
@@ -2500,7 +2497,7 @@ gab_module *gab_bc_compile(gab_engine *gab, gab_value name, s_i8 source,
                            u8 flags, u8 narguments,
                            gab_value arguments[narguments]) {
   gab_bc bc;
-  gab_bc_create(&bc, source, flags);
+  gab_bc_create(&bc, gab_source_create(gab, source), flags);
 
   gab_module *mod = compile(gab, &bc, name, narguments, arguments);
 
@@ -2511,8 +2508,6 @@ gab_module *gab_bc_compile(gab_engine *gab, gab_value name, s_i8 source,
   if (flags & GAB_FLAG_DUMP_BYTECODE) {
     gab_module_dump(mod, s_i8_cstr("dump"));
   }
-
-  mod->source_lines = bc.lex.source_lines;
 
   return mod;
 }
@@ -2526,6 +2521,7 @@ static void compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
   bc->panic = true;
 
   if (bc->flags & GAB_FLAG_DUMP_ERROR) {
+    gab_source *src = mod(bc)->source;
 
     va_list args;
     va_start(args, help_fmt);
@@ -2537,8 +2533,8 @@ static void compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
     u64 curr_src_index = bc->line - 1;
     s_i8 curr_src;
 
-    if (curr_src_index < bc->lex.source_lines->len) {
-      curr_src = v_s_i8_val_at(bc->lex.source_lines, curr_src_index);
+    if (curr_src_index < src->source->len) {
+      curr_src = v_s_i8_val_at(&src->source_lines, curr_src_index);
     } else {
       curr_src = s_i8_cstr("");
     }

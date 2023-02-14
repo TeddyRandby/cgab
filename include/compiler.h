@@ -61,7 +61,6 @@ struct gab_bc_frame {
   State for compiling source code to a gab module.
 */
 typedef struct gab_bc {
-
   gab_lexer lex;
 
   u64 line;
@@ -92,7 +91,7 @@ typedef struct gab_bc {
   gab_bc_frame frames[FUNCTION_DEF_NESTING_MAX];
 } gab_bc;
 
-void gab_bc_create(gab_bc *bc, s_i8 source, u8 flags);
+void gab_bc_create(gab_bc *bc, gab_source* source, u8 flags);
 
 gab_module *gab_bc_compile(gab_engine *gab, gab_value name, s_i8 source,
                            u8 flags, u8 narguments,

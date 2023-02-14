@@ -3,6 +3,7 @@
 #include "include/core.h"
 #include "include/gab.h"
 #include "include/gc.h"
+#include "include/lexer.h"
 #include "include/module.h"
 #include "include/object.h"
 #include "include/types.h"
@@ -116,6 +117,8 @@ gab_engine *gab_create(void *ud) {
   gab->userdata = ud;
   gab->argv_names = NULL;
   gab->argv_values = NULL;
+  gab->modules = NULL;
+  gab->sources = NULL;
 
   d_strings_create(&gab->interned_strings, INTERN_INITIAL_CAP);
   d_shapes_create(&gab->interned_shapes, INTERN_INITIAL_CAP);
@@ -156,6 +159,13 @@ void gab_destroy(gab_engine *gab) {
   if (gab == NULL)
     return;
 
+  gab_module *mod = gab->modules;
+  while (mod != NULL) {
+    gab_module *m = mod;
+    mod = m->next;
+    gab_module_collect(gab, m);
+  }
+
   for (u64 i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
       gab_obj_string *v = d_strings_ikey(&gab->interned_strings, i);
@@ -177,13 +187,10 @@ void gab_destroy(gab_engine *gab) {
     }
   }
 
-  for (u8 i = 0; i < GAB_KIND_NKINDS; i++) {
-    gab_gc_dref(gab, NULL, &gab->gc, gab->types[i]);
-  }
+  gab_gc_dref_many(gab, NULL, &gab->gc, GAB_KIND_NKINDS, gab->types);
 
-  for (u8 i = 0; i < gab->argv_values->len; i++) {
-    gab_gc_dref(gab, NULL, &gab->gc, gab->argv_values->data[i]);
-  }
+  gab_gc_dref_many(gab, NULL, &gab->gc, gab->argv_values->len,
+                   gab->argv_values->data);
 
   gab_gc_collect(gab, NULL, &gab->gc);
 
@@ -192,6 +199,19 @@ void gab_destroy(gab_engine *gab) {
   d_strings_destroy(&gab->interned_strings);
   d_shapes_destroy(&gab->interned_shapes);
   d_messages_destroy(&gab->interned_messages);
+
+  mod = gab->modules;
+  while (mod != NULL) {
+    gab_module *m = mod;
+    mod = m->next;
+    gab_module_destroy(gab, m);
+  }
+
+  while (gab->sources) {
+    gab_source *s = gab->sources;
+    gab->sources = s->next;
+    gab_source_destroy(s);
+  }
 
   a_u64_destroy(gab->argv_values);
   a_u64_destroy(gab->argv_names);
@@ -221,10 +241,8 @@ void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
 
 gab_module *gab_compile(gab_engine *gab, gab_value name, s_i8 source,
                         u8 flags) {
-  gab_module *m = gab_bc_compile(gab, name, source, flags,
-                                 gab->argv_values->len, gab->argv_names->data);
-
-  return m;
+  return gab_bc_compile(gab, name, source, flags, gab->argv_values->len,
+                        gab->argv_names->data);
 }
 
 gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags) {
@@ -286,16 +304,16 @@ gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
 gab_value gab_specialize(gab_engine *gab, gab_value name, gab_value receiver,
                          gab_value specialization) {
 
-  gab_obj_message *f = gab_obj_message_create(gab, name);
+  gab_obj_message *m = gab_obj_message_create(gab, name);
 
-  if (gab_obj_message_find(f, receiver) != UINT16_MAX)
+  if (gab_obj_message_find(m, receiver) != UINT16_MAX)
     return GAB_VAL_NIL();
 
   gab_iref(gab, NULL, receiver);
   gab_iref(gab, NULL, specialization);
-  gab_obj_message_insert(f, receiver, specialization);
+  gab_obj_message_insert(m, receiver, specialization);
 
-  return GAB_VAL_OBJ(f);
+  return GAB_VAL_OBJ(m);
 }
 
 gab_value gab_send(gab_engine *gab, gab_value name, gab_value receiver, u8 argc,
@@ -305,10 +323,6 @@ gab_value gab_send(gab_engine *gab, gab_value name, gab_value receiver, u8 argc,
   gab_module *mod = gab_bc_compile_send(gab, name, receiver, argc, argv);
 
   gab_value result = gab_vm_run(gab, mod, GAB_FLAG_EXIT_ON_PANIC, 0, NULL);
-
-  gab_module_collect(gab, mod);
-
-  gab_module_destroy(gab, mod);
 
   return result;
 }

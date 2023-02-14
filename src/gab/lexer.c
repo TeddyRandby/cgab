@@ -1,5 +1,7 @@
 #include "include/lexer.h"
 #include "include/char.h"
+#include "include/engine.h"
+#include "include/types.h"
 #include <stdio.h>
 
 static void advance(gab_lexer *self) {
@@ -28,23 +30,20 @@ static void finish_row(gab_lexer *self) {
   self->previous_row_src = self->current_row_src;
   // Skip the newline at the end of the row.
   self->previous_row_src.len--;
-  v_s_i8_push(self->source_lines, self->previous_row_src);
+  v_s_i8_push(&self->source->source_lines, self->previous_row_src);
   start_row(self);
 }
 
-void gab_lexer_create(gab_lexer *self, s_i8 src) {
+void gab_lexer_create(gab_lexer *self, gab_source *src) {
   self->source = src;
-  self->cursor = src.data;
-  self->row_start = src.data;
+  self->cursor = src->source->data;
+  self->row_start = src->source->data;
   self->nested_curly = 0;
   self->current_row = 1;
   self->skip_lines = 0;
 
   self->row = 0;
   self->col = 0;
-
-  self->source_lines = NEW(v_s_i8);
-  v_s_i8_create(self->source_lines, 16);
 
   start_row(self);
 }
@@ -303,12 +302,12 @@ gab_token other(gab_lexer *self) {
     if (is_alpha(peek(self))) {
       // If we didn't get a keyword, return a token message
       if (identifier(self) == TOKEN_IDENTIFIER) {
-          // Messages can end in ? or !
-          if (peek(self) == '?' || peek(self) == '!') {
-              advance(self);
-          }
+        // Messages can end in ? or !
+        if (peek(self) == '?' || peek(self) == '!') {
+          advance(self);
+        }
 
-          return TOKEN_MESSAGE;
+        return TOKEN_MESSAGE;
       }
 
       // Otherwise, we got a keyword and this was an error
@@ -435,6 +434,23 @@ void gab_lexer_finish_line(gab_lexer *self) {
   self->current_row += self->skip_lines;
   self->skip_lines = 0;
 };
+
+gab_source *gab_source_create(gab_engine *gab, s_i8 source) {
+  gab_source *self = NEW(gab_source);
+  self->source = a_i8_create(source.data, source.len);
+  v_s_i8_create(&self->source_lines, 32);
+
+  self->next = gab->sources;
+  gab->sources = self;
+
+  return self;
+}
+
+void gab_source_destroy(gab_source *self) {
+  v_s_i8_destroy(&self->source_lines);
+  a_i8_destroy(self->source);
+  DESTROY(self);
+}
 
 #undef CURSOR
 #undef NEXT_CURSOR

@@ -49,7 +49,7 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
       u64 curr_row = v_u64_val_at(&mod->lines, offset);
 
       // Row numbers start at one, so the index is one less.
-      s_i8 curr_src = v_s_i8_val_at(mod->source_lines, curr_row - 1);
+      s_i8 curr_src = v_s_i8_val_at(&mod->source->source_lines, curr_row - 1);
 
       i8 *curr_src_start = curr_src.data;
       i32 curr_src_len = curr_src.len;
@@ -477,22 +477,19 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
   gab_vm vm;
   gab_vm_create(VM(), flags, argc, argv);
 
-  gab_obj_prototype *p =
-      GAB_VAL_TO_PROTOTYPE(v_gab_constant_val_at(&mod->constants, mod->main));
-
-  gab_obj_block *main_c = gab_obj_block_create(gab, p);
+  gab_obj_block *main_c =
+      GAB_VAL_TO_BLOCK(v_gab_constant_val_at(&mod->constants, mod->main));
 
   FRAME()->c = main_c;
   FRAME()->slots = TOP();
 
-  register u8 instr;
+  register u8 instr = OP_NOP;
   register u8 *ip = main_c->p->mod->bytecode.data;
 
   PUSH(GAB_VAL_OBJ(main_c));
 
-  for (u8 i = 0; i < argc; i++) {
+  for (u8 i = 0; i < argc; i++)
     PUSH(argv[i]);
-  }
 
   STORE_FRAME();
 

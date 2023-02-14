@@ -24,14 +24,25 @@ static const char *gab_opcode_names[] = {
 #define T gab_value
 #include "include/vector.h"
 
+;
+
 /*
   State required to run a gab program.
 */
 struct gab_module {
+  gab_module *next;
+
+  gab_source* source;
+
   /*
     The constant table.
   */
   v_gab_constant constants;
+
+  /*
+    The instructions, a contiguous vector of single-byte op-codes and args.
+  */
+  v_u8 bytecode;
 
   /* A sister vector to 'bytecode'.
      This vector relates each instruction to a line in the source code.
@@ -50,16 +61,6 @@ struct gab_module {
   v_s_i8 sources;
 
   /*
-     A vector of each line of source code.
-  */
-  v_s_i8 *source_lines;
-
-  /*
-     A copy of the source code
-  */
-  a_i8 *source;
-
-  /*
    * The prototype of the module
    **/
   u16 main;
@@ -70,17 +71,12 @@ struct gab_module {
   u16 name;
 
   u8 previous_compiled_op;
-
-  /*
-    The instructions, a contiguous vector of single-byte op-codes and args.
-  */
-  v_u8 bytecode;
 };
 
 /*
   Creating and destroying modules, from nothing and from a base module.
 */
-gab_module *gab_module_create(gab_module *mod, s_i8 src);
+gab_module *gab_module_create(gab_value name, gab_source* src, gab_module *next);
 
 void gab_module_destroy(gab_engine *gab, gab_module *mod);
 

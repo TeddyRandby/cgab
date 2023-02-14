@@ -151,9 +151,9 @@ void gab_gc_create(gab_gc *self) {
   self->nroots = 0;
 
 #if GAB_LOG_GC
-  v_rc_update_create(&self->tracked_decrements, MODULE_CONSTANTS_MAX);
-  v_rc_update_create(&self->tracked_increments, MODULE_CONSTANTS_MAX);
-  d_rc_tracker_create(&self->tracked_values, MODULE_CONSTANTS_MAX);
+  v_rc_update_create(&self->tracked_decrements, CONSTANTS_MAX);
+  v_rc_update_create(&self->tracked_increments, CONSTANTS_MAX);
+  d_rc_tracker_create(&self->tracked_values, CONSTANTS_MAX);
   d_u64_create(&self->object_counts, 8);
 #endif
 };
@@ -166,7 +166,7 @@ void gab_gc_destroy(gab_gc *self) {
       gab_obj *k = d_rc_tracker_ikey(&self->tracked_values, i);
       i32 v = d_rc_tracker_ival(&self->tracked_values, i);
       if (v > 0) {
-        gab_val_dump(GAB_VAL_OBJ(k));
+        gab_val_dump(stdout, GAB_VAL_OBJ(k));
         fprintf(stdout, " had %i remaining references.\n", v);
         dump_rcs_for(self, k);
       }
@@ -196,7 +196,7 @@ static inline void cleanup(gab_engine *gab, gab_vm *vm, gab_gc *gc) {
 
 #if GAB_LOG_GC
       printf("Destroying (%p): ", obj);
-      gab_val_dump(GAB_VAL_OBJ(obj));
+      gab_val_dump(stdout, GAB_VAL_OBJ(obj));
       printf("\n");
       dump_rcs_for(gc, obj);
 #endif
@@ -279,13 +279,13 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab,
     gab_obj_message *func = (gab_obj_message *)obj;
     for (u64 i = 0; i < func->specs.cap; i++) {
       if (d_specs_iexists(&func->specs, i)) {
-        gab_value s = d_specs_ival(&func->specs, i);
-        if (GAB_VAL_IS_OBJ(s))
-          fnc(gab, vm, gc, GAB_VAL_TO_OBJ(s));
-
         gab_value r = d_specs_ikey(&func->specs, i);
         if (GAB_VAL_IS_OBJ(r))
           fnc(gab, vm, gc, GAB_VAL_TO_OBJ(r));
+
+        gab_value s = d_specs_ival(&func->specs, i);
+        if (GAB_VAL_IS_OBJ(s))
+          fnc(gab, vm, gc, GAB_VAL_TO_OBJ(s));
       }
     }
     return;

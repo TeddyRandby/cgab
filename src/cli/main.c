@@ -119,6 +119,8 @@ void gab_repl() {
     gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
   }
 
+  gab_dref_many(gab, NULL, 3, args);
+
   void *ud = gab_user(gab);
 
   gab_destroy(gab);
@@ -163,9 +165,9 @@ void gab_run_file(const char *path) {
 
   gab_module *main =
       gab_compile(gab, GAB_STRING("__main__"), s_i8_create(src->data, src->len),
-                  GAB_FLAG_DUMP_ERROR | GAB_FLAG_DUMP_BYTECODE);
+                  GAB_FLAG_DUMP_ERROR);
 
-  // a_i8_destroy(src);
+  a_i8_destroy(src);
 
   if (main == NULL)
     goto fin;
@@ -175,17 +177,14 @@ void gab_run_file(const char *path) {
 
   gab_dref(gab, NULL, result);
 
-fin:
-  gab_dref(gab, NULL, args[0]);
-  gab_dref(gab, NULL, args[1]);
-  gab_dref(gab, NULL, args[2]);
-  gab_dref(gab, NULL, args[3]);
+fin : {
+  gab_dref_many(gab, NULL, 3, args);
+
   void *ud = gab_user(gab);
-
   gab_destroy(gab);
-
   alloc_teardown(ud);
   imports_destroy(gab);
+}
 }
 
 i32 main(i32 argc, const char **argv) {

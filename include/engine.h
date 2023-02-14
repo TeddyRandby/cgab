@@ -2,8 +2,9 @@
 #define GAB_ENGINE_H
 
 typedef enum gab_status gab_status;
+
+typedef struct gab_source gab_source;
 typedef struct gab_bc gab_bc;
-typedef struct gab_gc gab_gc;
 typedef struct gab_vm gab_vm;
 
 #include "gab.h"
@@ -39,6 +40,8 @@ static const char *gab_status_names[] = {
 #include "include/dict.h"
 
 struct gab_engine {
+  gab_module* modules;
+  gab_source* sources;
   /*
    * Where all the interned values live.
    */

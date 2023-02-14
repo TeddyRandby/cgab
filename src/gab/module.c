@@ -7,10 +7,12 @@
 #include "include/object.h"
 #include <stdio.h>
 
-gab_module *gab_module_create(gab_module *self, s_i8 source) {
-  self->source = a_i8_create(source.data, source.len);
+gab_module *gab_module_create(gab_value name, gab_source* source, gab_module *next) {
+  gab_module *self = NEW(gab_module);
+  self->source = source;
   self->main = 0;
   self->previous_compiled_op = OP_NOP;
+  self->next = next;
 
   v_u8_create(&self->bytecode, 256);
   v_u8_create(&self->tokens, 256);
@@ -18,6 +20,7 @@ gab_module *gab_module_create(gab_module *self, s_i8 source) {
   v_s_i8_create(&self->sources, 256);
 
   v_gab_constant_create(&self->constants, CONSTANTS_INITIAL_CAP);
+  self->name = gab_module_add_constant(self, name);
   return self;
 }
 void gab_module_collect(gab_engine *gab, gab_module *mod) {
@@ -28,8 +31,9 @@ void gab_module_collect(gab_engine *gab, gab_module *mod) {
     gab_value v = v_gab_constant_val_at(&mod->constants, i);
     // The only kind of value owned by the modules
     // are their prototypes and the main closure
-    if (GAB_VAL_IS_PROTOTYPE(v) || GAB_VAL_IS_SYMBOL(v) || i == mod->main)
+    if (GAB_VAL_IS_SYMBOL(v) || GAB_VAL_IS_PROTOTYPE(v) || GAB_VAL_IS_BLOCK(v)) {
       gab_dref(gab, NULL, v);
+    }
   }
 }
 
@@ -42,13 +46,6 @@ void gab_module_destroy(gab_engine *gab, gab_module *mod) {
   v_u64_destroy(&mod->lines);
   v_gab_constant_destroy(&mod->constants);
   v_s_i8_destroy(&mod->sources);
-
-  if (mod->source_lines) {
-    v_s_i8_destroy(mod->source_lines);
-    DESTROY(mod->source_lines);
-  }
-
-  a_i8_destroy(mod->source);
 
   DESTROY(mod);
 }
@@ -376,14 +373,13 @@ u64 dumpSendInstruction(gab_module *self, u64 offset) {
                  v_u8_val_at(&self->bytecode, offset + 2);
 
   gab_value msg = v_gab_constant_val_at(&self->constants, constant);
-  gab_obj_message *m = GAB_VAL_TO_MESSAGE(msg);
 
   u8 have = v_u8_val_at(&self->bytecode, offset + 3);
   u8 want = v_u8_val_at(&self->bytecode, offset + 4);
 
-  printf("%-25s" ANSI_COLOR_BLUE "%-13s" ANSI_COLOR_RESET
+  printf("%-25s" ANSI_COLOR_BLUE "%-13V" ANSI_COLOR_RESET
          "%03d args -> %03d results\n",
-         name, "placeholder", have, want);
+         name, msg, have, want);
   return offset + 22;
 }
 
@@ -628,7 +624,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(
         v_gab_constant_val_at(&p->mod->constants, p->mod->name)));
 
-    printf("%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET, "OP_CLOSURE",
+    printf("%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET, "OP_MESSAGE",
            (int)func_name.len, func_name.data);
 
     for (int j = 0; j < p->nupvalues; j++) {
