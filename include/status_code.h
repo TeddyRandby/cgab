@@ -20,6 +20,7 @@ STATUS(EXPRESSION_NOT_ASSIGNABLE, "The expression is not assignable")
 STATUS(MISSING_END, "'do' blocks need a corresponding 'end'")
 STATUS(MISSING_INITIALIZER, "Variables must be initialized")
 STATUS(MISSING_IDENTIFIER, "Identifier could not be resolved")
+STATUS(MISSING_RECEIVER, "A message definition should specify a receiver")
 
 // Run-time errors
 STATUS(NOT_NUMERIC, "Expected a number")

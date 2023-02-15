@@ -23,6 +23,8 @@
 #define INTERN_INITIAL_CAP 256
 // Initial capacity of module constant table
 #define CONSTANTS_INITIAL_CAP 64
+// Use the simple custom chunk allocator
+#define CHUNK_ALLOCATOR 1
 
 // Derived macros
 // Garbage collection increment/decrement buffer size
@@ -55,6 +57,24 @@
 // VERSION
 #define GAB_VERSION_MAJOR 0
 #define GAB_VERSION_MINOR 1
+
+#define GAB_MESSAGE_ADD "+"
+#define GAB_MESSAGE_SUB "-"
+#define GAB_MESSAGE_MUL "*"
+#define GAB_MESSAGE_DIV "/"
+#define GAB_MESSAGE_MOD "%"
+#define GAB_MESSAGE_BND "&"
+#define GAB_MESSAGE_BOR "|"
+#define GAB_MESSAGE_LSH "<<"
+#define GAB_MESSAGE_RSH ">>"
+#define GAB_MESSAGE_LT "<"
+#define GAB_MESSAGE_GT ">"
+#define GAB_MESSAGE_LTE "<="
+#define GAB_MESSAGE_GTE ">="
+#define GAB_MESSAGE_EQ "=="
+#define GAB_MESSAGE_SET "[=]"
+#define GAB_MESSAGE_GET "[]"
+#define GAB_MESSAGE_CAL "()"
 
 #define LEN_CARRAY(arr) (sizeof(arr) / sizeof(arr[0]))
 

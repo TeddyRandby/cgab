@@ -130,17 +130,21 @@ void *gab_reallocate(gab_engine *gab, void *loc, u64 old_count, u64 new_count) {
 
   if (new_count == 0) {
 
-    // if (old_count <= CHUNK_MAX_SIZE)
-    //   chunk_dealloc(gab_user(gab), old_count, loc);
-    // else
+#if CHUNK_ALLOCATOR
+    if (old_count <= CHUNK_MAX_SIZE)
+      chunk_dealloc(gab_user(gab), old_count, loc);
+    else
+#endif
       free(loc);
 
     return NULL;
   }
 
-  // if (new_count <= CHUNK_MAX_SIZE) {
-  //   return chunk_alloc(gab_user(gab), new_count);
-  // }
+#if CHUNK_ALLOCATOR
+  if (new_count <= CHUNK_MAX_SIZE) {
+    return chunk_alloc(gab_user(gab), new_count);
+  }
+#endif
 
   void *new_ptr = realloc(loc, new_count);
 

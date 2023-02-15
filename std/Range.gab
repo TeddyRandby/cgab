@@ -14,14 +14,14 @@ impl Range
 
   def new(opts, to)
     ?opts match
-      ?{  to  }   => { from = 0 to = opts.to }
-      ?{ from }   => { from = opts.from to = 0 }
-      Number      => {
-        from = to and opts or 0
-        to   = to or opts
-      }
-      Range       => opts
-      else        => panic('Invalid call to Range:make')
+      ?{  to  }   => { from = 0 to = opts.to }            end
+      ?{ from }   => { from = opts.from to = 0 }          end
+      Number      => {          
+          from = to and opts or 0
+          to   = to or opts
+        }                                                 end
+      Range       => opts                                 end
+      else        => panic('Invalid call to Range:make')  end
   end
 
   def print

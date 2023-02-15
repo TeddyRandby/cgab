@@ -1,9 +1,10 @@
-def __get__[String](opts)
-    opts:type match
-        { from to }:type => self:slice(opts.from, opts.to)
-        { from }:type    => self:slice(opts.from)
-        { to }:type      => self:slice(nil, opts.to)
-        Number           => self:slice(opts)
-        else             => panic('Invalid call to String:__get__')
+impl String
+  def [](opts)
+      ?opts match
+          ?{ from to } => self:slice(opts.from, opts.to)          end
+          ?{ from }    => self:slice(opts.from)                   end
+          ?{ to }     => self:slice(nil, opts.to)                 end
+          Number       => self:slice(opts)                        end
+          else         => panic('Invalid call to String:__get__') end
+  end
 end
-

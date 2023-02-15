@@ -733,7 +733,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       NEXT();
     }
 
-    CASE_CODE(SEND_PRIMITIVE_BAND) : {
+    CASE_CODE(SEND_PRIMITIVE_BND) : {
       BINARY_PRIMITIVE(GAB_VAL_NUMBER, u64, &);
       NEXT();
     }
@@ -836,26 +836,25 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_value key = PEEK2();
       gab_value index = PEEK_N(3);
 
-      if (GAB_VAL_IS_RECORD(index)) {
-        gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
+      if (!GAB_VAL_IS_RECORD(index)) {
+        STORE_FRAME();
+        return vm_error(ENGINE(), VM(), GAB_NOT_RECORD,
+                        "Tried to store property %V on %V", key, index);
+      }
+      gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
 
-        u16 prop_offset = gab_obj_shape_find(obj->shape, key);
+      u16 prop_offset = gab_obj_shape_find(obj->shape, key);
 
-        if (prop_offset == UINT16_MAX) {
-          return vm_error(ENGINE(), VM(), GAB_MISSING_PROPERTY, "Found %V",
-                          index);
-        }
-
-        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_STORE_MONO);
-
-        IP() -= SEND_CACHE_DIST;
-
-        NEXT();
+      if (prop_offset == UINT16_MAX) {
+        return vm_error(ENGINE(), VM(), GAB_MISSING_PROPERTY, "Found %V",
+                        index);
       }
 
-      STORE_FRAME();
-      return vm_error(ENGINE(), VM(), GAB_NOT_RECORD,
-                      "Tried to store property %V on %V", key, index);
+      WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_STORE_MONO);
+
+      IP() -= SEND_CACHE_DIST;
+
+      NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_STORE_MONO) : {

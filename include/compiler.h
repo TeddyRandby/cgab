@@ -45,9 +45,6 @@ struct gab_bc_frame {
   u8 nlocals;
 
   u8 nupvalues;
-  u8 nimpls;
-
-  gab_value impls[FUNCTION_DEF_NESTING_MAX];
 
   u8 locals_flag[LOCAL_MAX];
   i32 locals_depth[LOCAL_MAX];
@@ -77,6 +74,10 @@ typedef struct gab_bc {
   gab_token previous_token;
 
   u8 previous_op;
+
+  u8 nimpls;
+
+  gab_value impls[FUNCTION_DEF_NESTING_MAX];
 
   /**
    * The number of compile frames

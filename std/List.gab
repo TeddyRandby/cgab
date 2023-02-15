@@ -3,11 +3,11 @@ require('list')
 impl List
   def [](key)
     ?key match
-      ?{ from to }     => self:slice(key.from, key.to)
-      ?{ from }        => self:slice(key.from)
-      ?{ to }          => self:slice(nil, key.to)
-      Number           => self:at(key)
-      else             => panic('Invalid call to List::key')
+      ?{ from to }     => self:slice(key.from, key.to)        end
+      ?{ from }        => self:slice(key.from)                end
+      ?{ to }          => self:slice(nil, key.to)             end
+      Number           => self:at(key)                        end
+      else             => panic('Invalid call to List::key')  end
   end
 
   def [=](key, value)

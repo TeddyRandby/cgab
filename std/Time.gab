@@ -1,4 +1,4 @@
-def bench(cb, runs)
+def bench = do (cb, runs)
     let times = List:new
 
     for _ in runs:to
@@ -14,28 +14,28 @@ def bench(cb, runs)
     sum / runs
 end
 
-def headToHead(a, b, runs)
+def headToHead = do (a, b, runs)
     let a_avg = bench(a, runs)
     let b_avg = bench(b, runs)
 
     a_avg < b_avg then
         print(a, 'ran {b_avg / a_avg} times faster than', b)
 
-        a_avg
+        return a_avg
     end else
         print(b, 'ran {a_avg / b_avg} times faster than', a)
 
-        b_avg
+        return b_avg
     end
 end
 
 
 def timeit[Block](opts)
-    def avg = opts:type match
-        { runs against }:type => headToHead(self, opts.against, opts.runs)
-        { runs }:type         => bench(self, opts.runs)
-        Number                => bench(self, opts)
-        else                  => panic('Invalid call to Block:timeit')
+    def avg = ?opts match
+        ?{ runs against } => headToHead(self, opts.against, opts.runs)  end
+        ?{ runs }         => bench(self, opts.runs)                     end
+        Number            => bench(self, opts)                          end
+        else              => panic('Invalid call to Block:timeit')      end
 
     print(self, 'ran in avg of {avg}s')
 end
