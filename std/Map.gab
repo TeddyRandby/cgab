@@ -17,4 +17,8 @@ impl Map
         key = self:next(key)
       until key == nil
     end
+
+    def has(key) not self:at(key) == nil end
+
+    def del(key) self:put(key, nil) end
 end

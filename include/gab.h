@@ -39,10 +39,14 @@ void gab_destroy(gab_engine *gab);
  *  @param argv_values The values of each argument (Passed to the vm)
  *
  */
-
 void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]);
 
+/**
+ * Get the user data for the engine
+ *
+ *  @param gab The engine
+ */
 void *gab_user(gab_engine *gab);
 
 /**
@@ -99,7 +103,7 @@ gab_value gab_panic(gab_engine *gab, gab_vm *vm, const char *msg);
  * @param len The amount of bytecode to dump
  *
  */
-void gab_dis(gab_module *mod, u64 offset, u64 len);
+void gab_dis(gab_module *mod);
 
 /**
  * Decrement the reference count of a value
@@ -139,8 +143,8 @@ void gab_collect(gab_engine *gab, gab_vm *vm);
  *
  * @return The gab value that the keys and values were bundled into
  */
-gab_value gab_bundle_record(gab_engine *gab, gab_vm *vm, u64 size,
-                            s_i8 keys[size], gab_value values[size]);
+gab_value gab_record(gab_engine *gab, gab_vm *vm, u64 size, s_i8 keys[size],
+                     gab_value values[size]);
 
 /**
  * Bundle a list of values into a Gab object.
@@ -153,8 +157,8 @@ gab_value gab_bundle_record(gab_engine *gab, gab_vm *vm, u64 size,
  *
  * @return The gab value that the keys and values were bundled into
  */
-gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
-                           gab_value values[size]);
+gab_value gab_tuple(gab_engine *gab, gab_vm *vm, u64 size,
+                    gab_value values[size]);
 
 /**
  * Create a specialization on the given message for the given receiver
@@ -184,7 +188,7 @@ gab_value gab_specialize(gab_engine *gab, gab_value name, gab_value receiver,
  * @return The return value of the message
  */
 gab_value gab_send(gab_engine *gab, gab_value name, gab_value receiver, u8 argc,
-                   gab_value argv[argc]);
+                   gab_value argn[argc], gab_value argv[argc]);
 
 /**
  * Convert a gab value to a boolean.
@@ -200,9 +204,11 @@ boolean gab_val_falsey(gab_value self);
  *
  * @param self The value to dump
  */
-i32 gab_val_dump(FILE* stream, gab_value self);
+i32 gab_val_dump(FILE *stream, gab_value self);
+
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
                            const void *const *args);
+
 int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
                            int *sizes);
 /**
@@ -240,14 +246,14 @@ gab_value gab_type(gab_engine *gab, gab_kind kind);
 /**
  * A helper macro for sending simply
  */
-#define GAB_SEND(name, receiver, len, args)                                    \
-  gab_send(gab, GAB_STRING(name), receiver, len, args)
+#define GAB_SEND(name, receiver, argc, argn, argv)                              \
+  gab_send(gab, GAB_STRING(name), receiver, argc, argn, argv)
 
 /**
  * A helper macro for creating a gab_obj_builtin
  */
 #define GAB_BUILTIN(name)                                                      \
-  GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_##name, s_i8_cstr(#name)))
+  GAB_VAL_OBJ(gab_obj_builtin_create(gab, gab_lib_##name, GAB_STRING(#name)))
 
 /**
  * A helper macro for creating a gab_obj_string
@@ -265,5 +271,5 @@ gab_value gab_type(gab_engine *gab, gab_kind kind);
  * A helper macro for creating a gab_obj_symbol
  */
 #define GAB_SYMBOL(name)                                                       \
-  GAB_VAL_OBJ(gab_obj_symbol_create(gab, s_i8_cstr(name)))
+  GAB_VAL_OBJ(gab_obj_symbol_create(gab, GAB_STRING(name)))
 #endif

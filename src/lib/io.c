@@ -25,14 +25,14 @@ gab_value gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc,
 
   FILE *file = fopen(path, perms);
   if (file == NULL) {
-    return GAB_SEND("err", GAB_STRING("Unable to open file"), 0, NULL);
+    return GAB_SEND("err", GAB_STRING("Unable to open file"), 0, NULL, NULL);
   }
 
   gab_value container = GAB_CONTAINER(gab_container_file_cb, file);
 
   gab_dref(gab, vm, container);
 
-  return GAB_SEND("ok", container, 0, NULL);
+  return GAB_SEND("ok", container, 0, NULL, NULL);
 }
 
 gab_value gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc,
@@ -44,7 +44,7 @@ gab_value gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc,
   gab_obj_container *file_obj = GAB_VAL_TO_CONTAINER(argv[0]);
   if (file_obj->destructor != gab_container_file_cb) {
     return GAB_SEND("err", GAB_STRING("Invalid argument to gab_lib_read"), 0,
-                    NULL);
+                    NULL, NULL);
   }
 
   FILE *file = file_obj->data;
@@ -57,13 +57,13 @@ gab_value gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc,
 
   size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
   if (bytesRead < fileSize) {
-    return GAB_SEND("err", GAB_STRING("Couldn't read all bytes"), 0, NULL);
+    return GAB_SEND("err", GAB_STRING("Couldn't read all bytes"), 0, NULL, NULL);
   }
 
   gab_obj_string *result =
       gab_obj_string_create(gab, s_i8_create((i8 *)buffer + 0, bytesRead));
 
-  return GAB_SEND("ok", GAB_VAL_OBJ(result), 0, NULL);
+  return GAB_SEND("ok", GAB_VAL_OBJ(result), 0, NULL, NULL);
 }
 
 gab_value gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc,
@@ -76,7 +76,7 @@ gab_value gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc,
   gab_obj_container *handle = GAB_VAL_TO_CONTAINER(argv[0]);
   if (handle->destructor != gab_container_file_cb || handle->data == NULL) {
     return GAB_SEND("err", GAB_STRING("Invalid call to gab_lib_write"), 0,
-                    NULL);
+                    NULL, NULL);
   }
 
   gab_obj_string *data_obj = GAB_VAL_TO_STRING(argv[1]);
@@ -87,9 +87,9 @@ gab_value gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc,
   i32 result = fputs(data, handle->data);
 
   if (result > 0) {
-    return GAB_SEND("ok", GAB_VAL_NIL(), 0, NULL);
+    return GAB_SEND("ok", GAB_VAL_NIL(), 0, NULL, NULL);
   } else {
-    return GAB_SEND("err", GAB_STRING("Failed to write file"), 0, NULL);
+    return GAB_SEND("err", GAB_STRING("Failed to write file"), 0, NULL, NULL);
   }
 }
 

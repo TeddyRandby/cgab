@@ -89,13 +89,11 @@ i32 gab_obj_dump(FILE *stream, gab_value value) {
   }
   case GAB_KIND_SHAPE: {
     gab_obj_shape *shape = GAB_VAL_TO_SHAPE(value);
-    return fprintf(stream, "[shape:%.*s]", (i32)shape->name.len,
-                   shape->name.data);
+    return fprintf(stream, "[shape:%V]", shape->name);
   }
   case GAB_KIND_RECORD: {
     gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
-    return fprintf(stream, "[record:%.*s]", (i32)obj->shape->name.len,
-                   obj->shape->name.data);
+    return fprintf(stream, "[record:%V]", obj->shape->name);
   }
   case GAB_KIND_LIST: {
     gab_obj_list *obj = GAB_VAL_TO_LIST(value);
@@ -107,8 +105,7 @@ i32 gab_obj_dump(FILE *stream, gab_value value) {
   }
   case GAB_KIND_BUILTIN: {
     gab_obj_builtin *obj = GAB_VAL_TO_BUILTIN(value);
-    return fprintf(stream, "[builtin:%.*s]", (i32)obj->name.len,
-                   obj->name.data);
+    return fprintf(stream, "[builtin:%V]", obj->name);
   }
   case GAB_KIND_CONTAINER: {
     gab_obj_container *obj = GAB_VAL_TO_CONTAINER(value);
@@ -116,7 +113,7 @@ i32 gab_obj_dump(FILE *stream, gab_value value) {
   }
   case GAB_KIND_SYMBOL: {
     gab_obj_symbol *obj = GAB_VAL_TO_SYMBOL(value);
-    return fprintf(stream, "[symbol:%.*s]", (i32)obj->name.len, obj->name.data);
+    return fprintf(stream, "[symbol:%V]", obj->name);
   }
   case GAB_KIND_PROTOTYPE: {
     gab_obj_prototype *obj = GAB_VAL_TO_PROTOTYPE(value);
@@ -426,7 +423,7 @@ gab_obj_message *gab_obj_message_create(gab_engine *gab, gab_value name) {
 }
 
 gab_obj_builtin *gab_obj_builtin_create(gab_engine *gab, gab_builtin function,
-                                        s_i8 name) {
+                                        gab_value name) {
 
   gab_obj_builtin *self = GAB_CREATE_OBJ(gab_obj_builtin, GAB_KIND_BUILTIN);
 
@@ -487,7 +484,7 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 len,
 
   self->hash = hash;
   self->len = len;
-  self->name = s_i8_cstr("anonymous");
+  self->name = GAB_STRING("anonymous");
 
   for (u64 i = 0; i < len; i++) {
     self->data[i] = keys[i * stride];
@@ -595,7 +592,7 @@ gab_obj_container *gab_obj_container_create(gab_engine *gab,
   return self;
 }
 
-gab_obj_symbol *gab_obj_symbol_create(gab_engine *gab, s_i8 name) {
+gab_obj_symbol *gab_obj_symbol_create(gab_engine *gab, gab_value name) {
   gab_obj_symbol *self = GAB_CREATE_OBJ(gab_obj_symbol, GAB_KIND_SYMBOL);
   self->name = name;
 

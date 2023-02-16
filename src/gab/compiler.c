@@ -7,6 +7,7 @@
 #include "include/lexer.h"
 #include "include/module.h"
 #include "include/object.h"
+#include "include/value.h"
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -27,16 +28,16 @@ typedef enum gab_precedence {
   PREC_ASSIGNMENT,  // =
   PREC_OR,          // or, infix else
   PREC_AND,         // and, infix then
-  PREC_MATCH,       // infix for
-  PREC_EQUALITY,    // == !=
+  PREC_MATCH,       // match
+  PREC_EQUALITY,    // ==
   PREC_COMPARISON,  // < > <= >=
   PREC_BITWISE_OR,  // |
   PREC_BITWISE_AND, // &
   PREC_TERM,        // + -
   PREC_FACTOR,      // * /
   PREC_UNARY,       // ! - not
-  PREC_SEND,        // ( {
-  PREC_PROPERTY,    // . :
+  PREC_SEND,        // ( { :
+  PREC_PROPERTY,    // .
   PREC_PRIMARY
 } gab_precedence;
 
@@ -194,14 +195,14 @@ static inline void push_short(gab_bc *bc, u16 data) {
                         bc->lex.previous_token_src);
 }
 
-static inline i32 push_impl(gab_engine *gab, gab_bc *bc, gab_value name) {
+static inline i32 push_impl(gab_engine *gab, gab_bc *bc, u8 local) {
 
   if (bc->nimpls == UINT8_MAX) {
     compiler_error(bc, GAB_PANIC, "Too many nested impls");
     return COMP_ERR;
   }
 
-  bc->impls[bc->nimpls++] = name;
+  bc->impls[bc->nimpls++] = local;
 
   return COMP_OK;
 }
@@ -508,7 +509,7 @@ i32 compile_parameters(gab_engine *gab, gab_bc *bc, boolean *vse_out) {
 
   do {
 
-    if (narguments >= FARG_MAX) {
+    if (narguments >= ARG_MAX) {
       compiler_error(bc, GAB_TOO_MANY_PARAMETERS, "");
       return COMP_ERR;
     }
@@ -665,24 +666,27 @@ i32 compile_block_body(gab_engine *gab, gab_bc *bc, u8 narguments, u8 vse) {
 
 i32 compile_message_spec(gab_engine *gab, gab_bc *bc) {
   if (match_and_eat_token(bc, TOKEN_LBRACE)) {
+
+    if (match_and_eat_token(bc, TOKEN_RBRACE)) {
+      if (push_slot(bc, 1) < 0)
+        return COMP_ERR;
+
+      push_op(bc, OP_PUSH_UNDEFINED);
+
+      return COMP_OK;
+    }
+
     if (compile_expression(gab, bc) < 0)
       return COMP_ERR;
 
     if (expect_token(bc, TOKEN_RBRACE) < 0)
       return COMP_ERR;
 
-    if (push_slot(bc, 1) < 0)
-      return COMP_ERR;
-
-    pop_slot(bc, 1);
-
     return COMP_OK;
   }
 
   if (has_impl(bc)) {
-    if (push_load_id(gab, bc, peek_impl(bc)) < 0)
-      return COMP_ERR;
-
+    push_load_local(bc, peek_impl(bc));
     return COMP_OK;
   }
 
@@ -693,7 +697,7 @@ i32 compile_message_spec(gab_engine *gab, gab_bc *bc) {
 i32 compile_block(gab_engine *gab, gab_bc *bc) {
   down_scope(bc);
 
-  down_frame(gab, bc, GAB_STRING("anonymous"), true);
+  down_frame(gab, bc, GAB_STRING("anonymous"), false);
 
   boolean vse;
   i32 narguments = compile_parameters(gab, bc, &vse);
@@ -821,10 +825,9 @@ i32 compile_tuple(gab_engine *gab, gab_bc *bc, u8 want, boolean *vse_out) {
     }
   }
 
-  // If we have an out argument, set its values.
-  if (vse_out != NULL) {
+  if (vse_out)
     *vse_out = vse;
-  }
+  // If we have an out argument, set its values.
   return have;
 }
 
@@ -1181,17 +1184,10 @@ i32 compile_array(gab_engine *gab, gab_bc *bc) {
   if (size < 0)
     return COMP_ERR;
 
-  if (vse) {
-    push_op(bc, OP_VARTUPLE);
-    push_byte(bc, size);
+  gab_module_push_tuple(mod(bc), size, vse, bc->previous_token, bc->line,
+                        bc->lex.previous_token_src);
 
-    pop_slot(bc, size);
-  } else {
-    push_op(bc, OP_TUPLE);
-    push_byte(bc, size);
-
-    pop_slot(bc, size);
-  }
+  pop_slot(bc, size);
 
   if (push_slot(bc, 1) < 0)
     return COMP_ERR;
@@ -1473,7 +1469,7 @@ i32 compile_exp_bin(gab_engine *gab, gab_bc *bc, boolean assignable) {
   if (result < 0)
     return COMP_ERR;
 
-  gab_module_push_send(mod(bc), 1, false, m, op, line, src);
+  gab_module_push_send(mod(bc), 1, m, false, op, line, src);
   return VAR_EXP;
 }
 
@@ -1746,6 +1742,13 @@ i32 compile_exp_def(gab_engine *gab, gab_bc *bc, boolean assignable) {
   case TOKEN_AMPERSAND:
     name = bc->lex.previous_token_src;
     break;
+  case TOKEN_LPAREN:
+    name = bc->lex.previous_token_src;
+    if (match_and_eat_token(bc, TOKEN_RPAREN)) {
+      name.len++;
+      break;
+    }
+    break;
   case TOKEN_LBRACE: {
     name = bc->lex.previous_token_src;
     if (match_and_eat_token(bc, TOKEN_RBRACE)) {
@@ -1781,14 +1784,23 @@ i32 compile_exp_rec(gab_engine *gab, gab_bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, boolean assignable) {
-  if (!expect_token(bc, TOKEN_IDENTIFIER))
+  if (!compile_expression(gab, bc))
     return COMP_ERR;
 
-  s_i8 name = bc->lex.previous_token_src;
+  i32 local = add_local(gab, bc, GAB_STRING(""), 0);
 
-  gab_value impl_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
+  if (local < 0)
+    return COMP_ERR;
 
-  if (push_impl(gab, bc, impl_name) < 0)
+  initialize_local(bc, local);
+
+  push_store_local(bc, local);
+
+  push_pop(bc, 1);
+
+  pop_slot(bc, 1);
+
+  if (push_impl(gab, bc, local) < 0)
     return COMP_ERR;
 
   if (compile_expressions(gab, bc) < 0)
@@ -1797,8 +1809,7 @@ i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, boolean assignable) {
   if (!expect_token(bc, TOKEN_END))
     return COMP_ERR;
 
-  if (push_load_id(gab, bc, impl_name) < 0)
-    return COMP_ERR;
+  push_load_local(bc, local);
 
   pop_impl(bc);
 
@@ -1915,7 +1926,7 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
       u16 m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_SET));
 
-      gab_module_push_send(mod(bc), 2, false, m, prop_tok, prop_line, prop_src);
+      gab_module_push_send(mod(bc), 2, m, false, prop_tok, prop_line, prop_src);
     } else {
       compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
                      "While compiling 'index' expression");
@@ -1927,7 +1938,7 @@ i32 compile_exp_idx(gab_engine *gab, gab_bc *bc, boolean assignable) {
   case COMP_TOKEN_NO_MATCH: {
     u16 m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_GET));
 
-    gab_module_push_send(mod(bc), 1, false, m, prop_tok, prop_line, prop_src);
+    gab_module_push_send(mod(bc), 1, m, false, prop_tok, prop_line, prop_src);
     break;
   }
 
@@ -1966,26 +1977,28 @@ i32 compile_arg_list(gab_engine *gab, gab_bc *bc, boolean *vse_out) {
   return nargs;
 }
 
-i32 compile_arguments(gab_engine *gab, gab_bc *bc, boolean *vse_out,
-                      boolean has_paren) {
+#define FLAG_HAS_PAREN 1
+#define FLAG_HAS_BRACK 2
+
+i32 compile_arguments(gab_engine *gab, gab_bc *bc, boolean *vse_out, u8 flags) {
   i32 result = 0;
 
-  if (has_paren || match_and_eat_token(bc, TOKEN_LPAREN)) {
+  if (flags & FLAG_HAS_PAREN || match_and_eat_token(bc, TOKEN_LPAREN)) {
     // Normal function args
     result = compile_arg_list(gab, bc, vse_out);
     if (result < 0)
       return COMP_ERR;
-
-  } else {
-    *vse_out = false;
   }
 
-  if (match_and_eat_token(bc, TOKEN_LBRACK)) {
+  if (flags & FLAG_HAS_BRACK || match_and_eat_token(bc, TOKEN_LBRACK)) {
     // record argument
     if (compile_record(gab, bc, GAB_VAL_NIL()) < 0)
       return COMP_ERR;
 
-    result += 1;
+    result += 1 + *vse_out;
+
+    // result += 1 + *vse_out;
+    *vse_out = false;
   }
 
   if (match_and_eat_token(bc, TOKEN_DO)) {
@@ -1994,7 +2007,8 @@ i32 compile_arguments(gab_engine *gab, gab_bc *bc, boolean *vse_out,
     if (compile_block(gab, bc) < 0)
       return COMP_ERR;
 
-    result += 1;
+    result += 1 + *vse_out;
+    *vse_out = false;
   }
 
   return result;
@@ -2007,7 +2021,7 @@ i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
   gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, message));
 
-  u16 f = add_message_constant(gab, mod(bc), val_name);
+  u16 m = add_message_constant(gab, mod(bc), val_name);
 
   push_op(bc, OP_PUSH_NIL);
 
@@ -2015,9 +2029,9 @@ i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, boolean assignable) {
     return COMP_ERR;
 
   boolean vse;
-  i32 args = compile_arguments(gab, bc, &vse, false);
+  i32 args = compile_arguments(gab, bc, &vse, 0);
 
-  gab_module_push_send(mod(bc), args, vse, f, tok, line, message);
+  gab_module_push_send(mod(bc), args, m, vse, tok, line, message);
 
   pop_slot(bc, args + 1);
 
@@ -2050,19 +2064,19 @@ i32 compile_exp_snd(gab_engine *gab, gab_bc *bc, boolean assignable) {
   u16 m = add_message_constant(gab, mod(bc), val_name);
 
   boolean vse = false;
-  i32 result = compile_arguments(gab, bc, &vse, false);
+  i32 result = compile_arguments(gab, bc, &vse, 0);
 
   if (result < 0)
     return COMP_ERR;
 
-  if (result > FARG_MAX) {
+  if (result > ARG_MAX) {
     compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
     return COMP_ERR;
   }
 
   pop_slot(bc, result + 1);
 
-  gab_module_push_send(mod(bc), result, vse, m, prev_tok, prev_line, prev_src);
+  gab_module_push_send(mod(bc), result, m, vse, prev_tok, prev_line, prev_src);
 
   if (push_slot(bc, 1) < 0)
     return COMP_ERR;
@@ -2075,7 +2089,7 @@ i32 compile_exp_cal(gab_engine *gab, gab_bc *bc, boolean assignable) {
   s_i8 call_src = bc->lex.previous_token_src;
 
   boolean vse = false;
-  i32 result = compile_arguments(gab, bc, &vse, true);
+  i32 result = compile_arguments(gab, bc, &vse, FLAG_HAS_PAREN);
 
   if (result < 0)
     return COMP_ERR;
@@ -2087,7 +2101,28 @@ i32 compile_exp_cal(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
   pop_slot(bc, result);
 
-  gab_module_push_dynsend(mod(bc), result, vse, call_tok, call_line, call_src);
+  u16 msg = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_CAL));
+
+  gab_module_push_send(mod(bc), result, msg, vse, call_tok, call_line,
+                       call_src);
+
+  return VAR_EXP;
+}
+
+i32 compile_exp_rcal(gab_engine *gab, gab_bc *bc, boolean assignable) {
+  gab_token call_tok = bc->previous_token;
+  u64 call_line = bc->line;
+  s_i8 call_src = bc->lex.previous_token_src;
+
+  boolean vse = false;
+  i32 result = compile_arguments(gab, bc, &vse, FLAG_HAS_BRACK);
+
+  pop_slot(bc, 1);
+
+  u16 msg = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_CAL));
+
+  gab_module_push_send(mod(bc), result, msg, vse, call_tok, call_line,
+                       call_src);
 
   return VAR_EXP;
 }
@@ -2281,7 +2316,9 @@ i32 compile_exp_lop(gab_engine *gab, gab_bc *bc, boolean assignable) {
 i32 compile_exp_sym(gab_engine *gab, gab_bc *bc, boolean assignable) {
   s_i8 name = trim_prev_tok(bc);
 
-  gab_obj_symbol *sym = gab_obj_symbol_create(gab, name);
+  gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
+
+  gab_obj_symbol *sym = gab_obj_symbol_create(gab, val_name);
 
   push_op(bc, OP_CONSTANT);
   push_short(bc, add_constant(mod(bc), GAB_VAL_OBJ(sym)));
@@ -2321,7 +2358,8 @@ i32 compile_exp_yld(gab_engine *gab, gab_bc *bc, boolean assignable) {
 i32 compile_exp_rtn(gab_engine *gab, gab_bc *bc, boolean assignable) {
   if (match_token(bc, TOKEN_NEWLINE)) {
     push_op(bc, OP_PUSH_NIL);
-    push_op(bc, OP_RETURN_1);
+    gab_module_push_return(mod(bc), 1, false, bc->previous_token, bc->line,
+                           bc->lex.previous_token_src);
 
     if (push_slot(bc, 1) < 0)
       return COMP_ERR;
@@ -2408,7 +2446,7 @@ const gab_compile_rule gab_bc_rules[] = {
     PREFIX(una),                       // NOT
     PREFIX_INFIX(arr, idx, PROPERTY, false),  // LBRACE
     NONE(),                            // RBRACE
-    PREFIX(rec), // LBRACK
+    PREFIX_INFIX(rec, rcal, SEND, false), // LBRACK
     NONE(),                            // RBRACK
     PREFIX_INFIX(grp, cal, SEND, false),     // LPAREN
     NONE(),                            // RPAREN
@@ -2443,7 +2481,8 @@ gab_module *compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
   if (compile_expressions_body(gab, bc) < 0)
     return NULL;
 
-  push_op(bc, OP_RETURN_1);
+  gab_module_push_return(mod(bc), 1, false, bc->previous_token, bc->line,
+                         bc->lex.previous_token_src);
 
   gab_obj_prototype *p = up_frame(gab, bc, narguments, false);
 
@@ -2473,7 +2512,7 @@ gab_module *gab_bc_compile_send(gab_engine *gab, gab_value name,
     gab_module_push_short(mod, constant, 0, 0, (s_i8){0});
   }
 
-  gab_module_push_send(mod, argc, false, message, 0, 0, (s_i8){0});
+  gab_module_push_send(mod, argc, message, false, 0, 0, (s_i8){0});
 
   gab_module_push_return(mod, 1, false, 0, 0, (s_i8){0});
 

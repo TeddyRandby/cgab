@@ -77,7 +77,7 @@ typedef struct gab_bc {
 
   u8 nimpls;
 
-  gab_value impls[FUNCTION_DEF_NESTING_MAX];
+  u8 impls[FUNCTION_DEF_NESTING_MAX];
 
   /**
    * The number of compile frames

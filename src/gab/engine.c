@@ -107,6 +107,21 @@ struct primitive primitives[] = {
         .type = GAB_KIND_UNDEFINED,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LOAD_ANA),
     },
+    {
+        .name = GAB_MESSAGE_CAL,
+        .type = GAB_KIND_BUILTIN,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_CALL_BUILTIN),
+    },
+    {
+        .name = GAB_MESSAGE_CAL,
+        .type = GAB_KIND_BLOCK,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_CALL_BLOCK),
+    },
+    {
+        .name = GAB_MESSAGE_CAL,
+        .type = GAB_KIND_EFFECT,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_CALL_EFFECT),
+    },
 };
 
 gab_engine *gab_create(void *ud) {
@@ -274,8 +289,8 @@ void gab_iref_many(gab_engine *gab, gab_vm *vm, u64 len,
   gab_gc_iref_many(gab, vm, &gab->gc, len, values);
 }
 
-gab_value gab_bundle_record(gab_engine *gab, gab_vm *vm, u64 size,
-                            s_i8 keys[size], gab_value values[size]) {
+gab_value gab_record(gab_engine *gab, gab_vm *vm, u64 size, s_i8 keys[size],
+                     gab_value values[size]) {
   gab_value value_keys[size];
 
   for (u64 i = 0; i < size; i++) {
@@ -291,8 +306,8 @@ gab_value gab_bundle_record(gab_engine *gab, gab_vm *vm, u64 size,
   return bundle;
 }
 
-gab_value gab_bundle_array(gab_engine *gab, gab_vm *vm, u64 size,
-                           gab_value values[size]) {
+gab_value gab_tuple(gab_engine *gab, gab_vm *vm, u64 size,
+                    gab_value values[size]) {
   gab_obj_shape *bundle_shape = gab_obj_shape_create_tuple(gab, vm, size);
 
   gab_value bundle =
@@ -317,12 +332,12 @@ gab_value gab_specialize(gab_engine *gab, gab_value name, gab_value receiver,
 }
 
 gab_value gab_send(gab_engine *gab, gab_value name, gab_value receiver, u8 argc,
-                   gab_value argv[argc]) {
+                   gab_value argn[argc], gab_value argv[argc]) {
 
   // Cleanup the module
-  gab_module *mod = gab_bc_compile_send(gab, name, receiver, argc, argv);
+  gab_module *mod = gab_bc_compile_send(gab, name, receiver, argc, argn);
 
-  gab_value result = gab_vm_run(gab, mod, GAB_FLAG_EXIT_ON_PANIC, 0, NULL);
+  gab_value result = gab_vm_run(gab, mod, GAB_FLAG_EXIT_ON_PANIC, argc, argv);
 
   return result;
 }

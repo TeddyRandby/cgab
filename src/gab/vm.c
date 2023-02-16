@@ -2,6 +2,7 @@
 #include "include/char.h"
 #include "include/colors.h"
 #include "include/compiler.h"
+#include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
 #include "include/gc.h"
@@ -183,6 +184,13 @@ void dump_stack(gab_vm *vm, gab_value *top, const char *name) {
     printf("\n");
   }
   printf("---------------\n");
+}
+
+static inline i32 parse_have(gab_vm *vm, u8 have) {
+  if (have & FLAG_VAR_EXP)
+    return *vm->top + (have >> 1);
+  else
+    return have >> 1;
 }
 
 static inline gab_value *trim_return(gab_vm *vm, gab_value *from, gab_value *to,
@@ -390,7 +398,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
   operation_type b = GAB_VAL_TO_NUMBER(POP());                                 \
   operation_type a = GAB_VAL_TO_NUMBER(POP());                                 \
   PUSH(value_type(a operation b));                                             \
-  *TOP() = 1;
+  VAR() = 1;
 
 /*
   Lots of helper macros.
@@ -502,67 +510,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
   LOOP() {
 
-    {
-      u8 have, want;
+    CASE_CODE(SEND_ANA) : {
+      gab_obj_message *msg = READ_MESSAGE;
+      u8 have = parse_have(VM(), READ_BYTE);
+      SKIP_BYTE;
 
-      CASE_CODE(DYNSEND) : {
-        have = READ_BYTE;
-        want = READ_BYTE;
-
-        goto complete_dynsend;
-      }
-
-      CASE_CODE(VARDYNSEND) : {
-        have = VAR() + READ_BYTE;
-        want = READ_BYTE;
-
-        goto complete_dynsend;
-      }
-
-    complete_dynsend : {
-      gab_value callee = PEEK_N(have + 1);
-
-      STORE_FRAME();
-
-      if (GAB_VAL_IS_BLOCK(callee)) {
-        if (!call_block(ENGINE(), VM(), GAB_VAL_TO_BLOCK(callee), have, want))
-          return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
-      } else if (GAB_VAL_IS_BUILTIN(callee)) {
-        call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(callee), have, want,
-                     false);
-      } else if (GAB_VAL_IS_EFFECT(callee)) {
-        if (!call_effect(VM(), GAB_VAL_TO_EFFECT(callee), have, want))
-          return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
-      } else {
-        return vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE, "Found %V", callee);
-      }
-
-      LOAD_FRAME();
-      NEXT();
-    }
-    }
-
-    {
-      gab_obj_message *msg;
-      u8 have;
-
-      CASE_CODE(VARSEND_ANA) : {
-        msg = READ_MESSAGE;
-        have = VAR() + READ_BYTE;
-        SKIP_BYTE;
-
-        goto complete_send_ana;
-      }
-
-      CASE_CODE(SEND_ANA) : {
-        msg = READ_MESSAGE;
-        have = READ_BYTE;
-        SKIP_BYTE;
-
-        goto complete_send_ana;
-      }
-
-    complete_send_ana : {
       gab_value receiver = PEEK_N(have + 1);
 
       gab_value type = gab_val_type(ENGINE(), receiver);
@@ -603,47 +555,23 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       NEXT();
     }
-    }
 
-    {
-      gab_obj_message *msg;
-      u8 have, want, version;
-      u64 offset;
-      gab_value cached_type;
+    CASE_CODE(SEND_MONO_CLOSURE) : {
+      gab_obj_message *msg = READ_MESSAGE;
+      u8 have = parse_have(VM(), READ_BYTE);
+      u8 want = READ_BYTE;
+      u8 version = READ_BYTE;
+      gab_value cached_type = *READ_QWORD;
+      u64 offset = *READ_QWORD;
 
-      CASE_CODE(VARSEND_MONO_CLOSURE) : {
-        msg = READ_MESSAGE;
-        have = VAR() + READ_BYTE;
-        want = READ_BYTE;
-        version = READ_BYTE;
-        cached_type = *READ_QWORD;
-        offset = *READ_QWORD;
-
-        goto complete_send_mono_closure;
-      }
-
-      CASE_CODE(SEND_MONO_CLOSURE) : {
-        msg = READ_MESSAGE;
-        have = READ_BYTE;
-        want = READ_BYTE;
-        version = READ_BYTE;
-        cached_type = *READ_QWORD;
-        offset = *READ_QWORD;
-
-        goto complete_send_mono_closure;
-      }
-
-    complete_send_mono_closure : {
       gab_value receiver = PEEK_N(have + 1);
 
       gab_value type = gab_val_type(ENGINE(), receiver);
 
       if ((cached_type != type) | (version != msg->version)) {
         // Revert to anamorphic
-        WRITE_BYTE(SEND_CACHE_DIST, instr - 1);
-
+        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
         IP() -= SEND_CACHE_DIST;
-
         NEXT();
       }
 
@@ -659,36 +587,21 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       NEXT();
     }
 
-      CASE_CODE(SEND_MONO_BUILTIN) : {
-        msg = READ_MESSAGE;
-        have = READ_BYTE;
-        want = READ_BYTE;
-        version = READ_BYTE;
-        cached_type = *READ_QWORD;
-        offset = *READ_QWORD;
+    CASE_CODE(SEND_MONO_BUILTIN) : {
+      gab_obj_message *msg = READ_MESSAGE;
+      u8 have = parse_have(VM(), READ_BYTE);
+      u8 want = READ_BYTE;
+      u8 version = READ_BYTE;
+      gab_value cached_type = *READ_QWORD;
+      u64 offset = *READ_QWORD;
 
-        goto complete_send_mono_builtin;
-      }
-
-      CASE_CODE(VARSEND_MONO_BUILTIN) : {
-        msg = READ_MESSAGE;
-        have = VAR() + READ_BYTE;
-        want = READ_BYTE;
-        version = READ_BYTE;
-        cached_type = *READ_QWORD;
-        offset = *READ_QWORD;
-
-        goto complete_send_mono_builtin;
-      }
-
-    complete_send_mono_builtin : {
       gab_value receiver = PEEK_N(have + 1);
 
       gab_value type = gab_val_type(ENGINE(), receiver);
 
       if ((cached_type != type) | (version != msg->version)) {
         // Revert to anamorphic
-        WRITE_BYTE(SEND_CACHE_DIST, instr - 2);
+        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
         IP() -= SEND_CACHE_DIST;
         NEXT();
       }
@@ -701,6 +614,91 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       NEXT();
     }
+
+    CASE_CODE(SEND_PRIMITIVE_CALL_BUILTIN) : {
+      gab_obj_message *msg = READ_MESSAGE;
+      u8 have = parse_have(VM(), READ_BYTE);
+      u8 want = READ_BYTE;
+      u8 version = READ_BYTE;
+      gab_value cached_type = *READ_QWORD;
+      SKIP_QWORD;
+
+      gab_value receiver = PEEK_N(have + 1);
+
+      gab_value type = gab_val_type(ENGINE(), receiver);
+
+      if ((cached_type != type) | (version != msg->version)) {
+        // Revert to anamorphic
+        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+        IP() -= SEND_CACHE_DIST;
+        NEXT();
+      }
+
+      STORE_FRAME();
+
+      call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(receiver), have, want,
+                   false);
+
+      LOAD_FRAME();
+      NEXT();
+    }
+
+    CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) : {
+      gab_obj_message *msg = READ_MESSAGE;
+      u8 have = parse_have(VM(), READ_BYTE);
+      u8 want = READ_BYTE;
+      u8 version = READ_BYTE;
+      gab_value cached_type = *READ_QWORD;
+      SKIP_QWORD;
+
+      gab_value receiver = PEEK_N(have + 1);
+
+      gab_value type = gab_val_type(ENGINE(), receiver);
+
+      if ((cached_type != type) | (version != msg->version)) {
+        // Revert to anamorphic
+        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+        IP() -= SEND_CACHE_DIST;
+        NEXT();
+      }
+
+      STORE_FRAME();
+
+      if (!call_block(ENGINE(), VM(), GAB_VAL_TO_BLOCK(receiver), have, want))
+        return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+
+      LOAD_FRAME();
+
+      NEXT();
+    }
+
+    CASE_CODE(SEND_PRIMITIVE_CALL_EFFECT) : {
+      gab_obj_message *msg = READ_MESSAGE;
+      u8 have = parse_have(VM(), READ_BYTE);
+      u8 want = READ_BYTE;
+      u8 version = READ_BYTE;
+      gab_value cached_type = *READ_QWORD;
+      SKIP_QWORD;
+
+      gab_value receiver = PEEK_N(have + 1);
+
+      gab_value type = gab_val_type(ENGINE(), receiver);
+
+      if ((cached_type != type) | (version != msg->version)) {
+        // Revert to anamorphic
+        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+        IP() -= SEND_CACHE_DIST;
+        NEXT();
+      }
+
+      STORE_FRAME();
+
+      if (!call_effect(VM(), GAB_VAL_TO_EFFECT(receiver), have, want))
+        return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+
+      LOAD_FRAME();
+
+      NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_ADD) : {
@@ -936,10 +934,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
        * We enter this opcode because we have seen a record as the receiver
        * before.
        *
-       * In this case, the type of the receiver and the shape of the index are
+       * In this case, the type of the receiver and the shape of the record are
        * the SAME, and it is the cached_type.
        *
-       * Therefor, if we have the cached type that we expect, then our record
+       * Therefore, if we have the cached type that we expect, then our record
        * also has the shape that we expect.
        *
        * However, we don't cache the offset because the key can change at every
@@ -1022,81 +1020,43 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       {
         u8 want;
 
-        CASE_CODE(VARYIELD) : {
-          have = VAR() + READ_BYTE;
+        CASE_CODE(YIELD) : {
+          have = READ_BYTE;
           want = READ_BYTE;
 
-          goto complete_yield;
+          if (have & FLAG_VAR_EXP)
+            have = (have >> 1) + VAR();
+          else
+            have = have >> 1;
+
+          u64 frame_len = TOP() - SLOTS();
+
+          gab_value eff = GAB_VAL_OBJ(gab_obj_effect_create(
+              ENGINE(), CLOSURE(), IP() - MODULE()->bytecode.data, have, want,
+              frame_len, SLOTS()));
+
+          gab_gc_iref_many(ENGINE(), VM(), GC(), frame_len, SLOTS());
+
+          PUSH(eff);
+
+          gab_gc_dref(ENGINE(), VM(), GC(), eff);
+
+          have++;
+
+          goto complete_return;
         }
+      }
 
-        CASE_CODE(YIELD_0)
-            : CASE_CODE(YIELD_1)
-            : CASE_CODE(YIELD_2)
-            : CASE_CODE(YIELD_3)
-            : CASE_CODE(YIELD_4)
-            : CASE_CODE(YIELD_5)
-            : CASE_CODE(YIELD_6)
-            : CASE_CODE(YIELD_7)
-            : CASE_CODE(YIELD_8)
-            : CASE_CODE(YIELD_9)
-            : CASE_CODE(YIELD_10)
-            : CASE_CODE(YIELD_11)
-            : CASE_CODE(YIELD_12)
-            : CASE_CODE(YIELD_13)
-            : CASE_CODE(YIELD_14)
-            : CASE_CODE(YIELD_15) : CASE_CODE(YIELD_16) : {
-          have = INSTR() - OP_YIELD_0;
-          want = READ_BYTE;
+      CASE_CODE(RETURN) : {
+        have = READ_BYTE;
 
-          goto complete_yield;
-        }
-
-      complete_yield : {
-        u64 frame_len = TOP() - SLOTS();
-
-        gab_value eff = GAB_VAL_OBJ(gab_obj_effect_create(
-            ENGINE(), CLOSURE(), IP() - MODULE()->bytecode.data, have, want,
-            frame_len, SLOTS()));
-
-        gab_gc_iref_many(ENGINE(), VM(), GC(), frame_len, SLOTS());
-
-        PUSH(eff);
-
-        gab_gc_dref(ENGINE(), VM(), GC(), eff);
-
-        have++;
+        if (have & FLAG_VAR_EXP)
+          have = (have >> 1) + VAR();
+        else
+          have = have >> 1;
 
         goto complete_return;
       }
-      }
-
-      CASE_CODE(VARRETURN) : {
-        u8 addtl = READ_BYTE;
-        have = VAR() + addtl;
-        goto complete_return;
-      }
-
-      // clang-format off
-      CASE_CODE(RETURN_1):
-      CASE_CODE(RETURN_2):
-      CASE_CODE(RETURN_3):
-      CASE_CODE(RETURN_4):
-      CASE_CODE(RETURN_5):
-      CASE_CODE(RETURN_6):
-      CASE_CODE(RETURN_7):
-      CASE_CODE(RETURN_8):
-      CASE_CODE(RETURN_9):
-      CASE_CODE(RETURN_10):
-      CASE_CODE(RETURN_11):
-      CASE_CODE(RETURN_12):
-      CASE_CODE(RETURN_13):
-      CASE_CODE(RETURN_14):
-      CASE_CODE(RETURN_15):
-      CASE_CODE(RETURN_16): {
-        have = INSTR() - OP_RETURN_1 + 1;
-        goto complete_return;
-      }
-      // clang-format on
 
     complete_return : {
       gab_value *from = TOP() - have;
@@ -1669,13 +1629,13 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       u8 len;
 
       CASE_CODE(RECORD_DEF) : {
-        gab_obj_string *name = READ_STRING;
+        gab_value name = READ_CONSTANT;
 
         len = READ_BYTE;
 
         shape = gab_obj_shape_create(ENGINE(), VM(), len, 2, TOP() - len * 2);
 
-        shape->name = gab_obj_string_ref(name);
+        shape->name = name;
 
         goto complete_record;
       }
@@ -1704,20 +1664,13 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     }
     }
 
-    {
-      u8 len;
+    CASE_CODE(TUPLE) : {
+      u8 len = READ_BYTE;
 
-      CASE_CODE(VARTUPLE) : {
-        len = VAR() + READ_BYTE;
-        goto complete_tuple;
-      }
-
-      CASE_CODE(TUPLE) : {
-        len = READ_BYTE;
-        goto complete_tuple;
-      }
-
-    complete_tuple : {
+      if (len & FLAG_VAR_EXP)
+        len = VAR() + (len >> 1);
+      else
+        len = len >> 1;
 
       gab_obj_shape *shape = gab_obj_shape_create_tuple(ENGINE(), VM(), len);
 
@@ -1733,7 +1686,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_gc_dref(ENGINE(), VM(), GC(), GAB_VAL_OBJ(rec));
 
       NEXT();
-    }
     }
   }
   // This should be unreachable

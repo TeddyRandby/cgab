@@ -4,6 +4,7 @@
 #include "include/gab.h"
 #include "include/object.h"
 #include "include/os.h"
+#include "include/value.h"
 #include <assert.h>
 #include <printf.h>
 #include <stdio.h>
@@ -56,7 +57,7 @@ void gab_repl() {
       GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
       GAB_STRING("String"), GAB_STRING("Number"),  GAB_STRING("Boolean"),
       GAB_STRING("Block"),  GAB_STRING("Message"), GAB_STRING("Effect"),
-      GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"),
+      GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"), GAB_STRING("Any"),
       GAB_STRING("it")};
 
   gab_value args[] = {
@@ -72,6 +73,7 @@ void gab_repl() {
       gab_type(gab, GAB_KIND_RECORD),
       gab_type(gab, GAB_KIND_LIST),
       gab_type(gab, GAB_KIND_MAP),
+      gab_type(gab, GAB_KIND_UNDEFINED),
       GAB_VAL_NIL(),
   };
 
@@ -80,7 +82,7 @@ void gab_repl() {
   gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
 
   // Import the standard library
-  GAB_SEND("require", GAB_STRING("std"), 0, NULL);
+  GAB_SEND("require", GAB_STRING("std"), 0, NULL, NULL);
 
   for (;;) {
 
@@ -140,7 +142,7 @@ void gab_run_file(const char *path) {
       GAB_STRING("String"), GAB_STRING("Number"),  GAB_STRING("Boolean"),
       GAB_STRING("Block"),  GAB_STRING("Message"), GAB_STRING("Effect"),
       GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"),
-  };
+      GAB_STRING("Any")};
 
   gab_value args[] = {
       make_print(gab),
@@ -155,6 +157,7 @@ void gab_run_file(const char *path) {
       gab_type(gab, GAB_KIND_RECORD),
       gab_type(gab, GAB_KIND_LIST),
       gab_type(gab, GAB_KIND_MAP),
+      gab_type(gab, GAB_KIND_UNDEFINED),
   };
 
   static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));

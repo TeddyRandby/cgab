@@ -1,0 +1,37 @@
+impl Any
+  def error
+    ({ err = self })
+  end
+
+  def some? true end
+
+  def ok? true end
+
+  def value! self end
+
+  def value_or(alt) self end
+
+  def value_else(cb) self end
+end
+
+impl nil
+  def some? false end
+
+  def value! panic() end
+
+  def value_or(alt) alt end
+
+  def value_else(cb) cb() end
+end
+
+def Error { err }
+
+impl Error
+  def ok? false end
+
+  def value! panic(self.err) end
+
+  def value_or(alt) alt end
+
+  def value_else(cb) cb() end
+end

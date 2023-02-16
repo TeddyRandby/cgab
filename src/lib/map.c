@@ -69,11 +69,21 @@ gab_value gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc,
 
   gab_obj_map *map = GAB_VAL_TO_MAP(argv[0]);
 
-  gab_obj_map_put(map, argv[1], argv[2]);
+  gab_value key = argv[1];
 
-  gab_iref_many(gab, vm, 2, argv + 1); // Increment the key and value
+  if (gab_obj_map_has(map, key)) {
+    gab_dref(gab, vm, gab_obj_map_at(map, key));
 
-  return GAB_VAL_NIL();
+    gab_obj_map_put(map, key, argv[2]);
+
+    gab_iref(gab, vm, argv[2]);
+  } else {
+    gab_obj_map_put(map, key, argv[2]);
+
+    gab_iref_many(gab, vm, 2, argv + 1); // Increment the key and value
+  }
+
+  return argv[0];
 }
 
 gab_value gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc,

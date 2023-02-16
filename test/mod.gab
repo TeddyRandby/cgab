@@ -1,48 +1,48 @@
 'std':require
 
-def describe(name, cb)
+def describe = do (name, cb)
   ('\n--{name}--'):print
   cb()
 end
 
-def it(name, cb)
+def it = do(name, cb)
   print('{cb() and '✓' or '×'} it {name}')
 end
 
-def check(result, msg)
+def check = do(result, msg)
   result or print(msg)
 end
 
-def expect[](other)
+def expect = do (self, other)
   check(self == other, 'Expected {self} to be equal to {other}') or panic()
 end
 
-def expect_not[](other)
+def expect_not = do (self, other)
   check(not (self == other), 'Expected {self} to not be equal to {other}') or panic()
 end
 
 describe('Numbers', do ()
   it('should be equal to itself', do ()
-    5:expect(5)
+    expect(5, 5)
   end)
 
   it('should do math', do ()
-    (5 * 2):expect(10)
-    (10 % 3):expect(1)
+    expect(5 * 2, 10)
+    expect(10 % 3, 1)
   end)
 end)
 
 describe('Strings', do ()
   it('should be equal to itself', do ()
-    'hello':expect('hello')
+    expect('hello', 'hello')
   end)
 
   it('should concatenate', do ()
-    ('hello' + ' world'):expect('hello world')
+    expect(('hello' + ' world'), 'hello world')
   end)
 
   it('should interpolate', do ()
-    ('{1} + {2} is {1 + 2}'):expect('1 + 2 is 3')
+    expect(('{1} + {2} is {1 + 2}'),'1 + 2 is 3')
   end)
 end)
 
@@ -51,47 +51,47 @@ describe('Closures', do ()
     let a = 1
 
     it('should capture', do ()
-        a:expect(1)
+        expect(a, 1)
 
-        def test()
-           a:expect(1)
+        def test = do()
+           expect(a, 1)
            a  
         end
 
-        test():expect(1)
-        test():expect(1)
-        test():expect(1)
+        expect(test(), 1)
+        expect(test(), 1)
+        expect(test(), 1)
     end)
 
     it('should capture by reference', do ()
         let b = 2
 
-        def addOne()
+        def addOne = do()
             b = b + 1
         end
 
-        b:expect(2)
+        expect(b, 2)
 
         addOne()
 
-        b:expect(3)
+        expect(b, 3)
 
         addOne()
         addOne()
 
-        b:expect(5)
+        expect(b, 5)
     end)
 
    it('should work with varargs', do()
 
-      def varfunc(first, ..args)
-        first:expect(1)
-        args[0]:expect(2)
+      def varfunc = do(first, ..args)
+        expect(first, 1)
+        expect(args[0], 2)
       end
 
       varfunc(1,2)
 
-      def onetwo()
+      def onetwo = do()
         return 1, 2
       end
 
@@ -122,15 +122,15 @@ describe('Records', do ()
       y = 2
     }
 
-    point.x:expect(1)
-    point.y:expect(2)
+    expect(point.x, 1)
+    expect(point.y, 2)
   end)
 
   it('should be structurally shaped', do ()
     let pone = { x = 1 y = 2}
     let ptwo = { x = 3 y = 4}
 
-    (?pone):expect(?ptwo)
+    expect(?pone, ?ptwo)
   end)
 
   it('should work for all kinds of keys', do ()
@@ -139,8 +139,8 @@ describe('Records', do ()
         [it]  = it
     }
 
-    obj[?{}]:expect(3)
-    obj[it]:expect(it)
+    expect(obj[?{}],3)
+    expect(obj[it],it)
   end)
 
   it('should work when shapes change', do ()
@@ -148,40 +148,48 @@ describe('Records', do ()
     let ab = { a = 3 b }
     let abc = { a = 'hi' b c}
 
-    def get_a[]
+    def get_a[?{ a }]
+        self.a
+    end
+
+    def get_a[?{ a b }]
         self.a
     end
     
-    justa:get_a:expect(true)
+    def get_a[?{ a b c }]
+        self.a
+    end
+    
+    expect(justa:get_a,true)
 
-    ab:get_a:expect(3)
+    expect(ab:get_a,3)
 
-    abc:get_a:expect('hi')
+    expect(abc:get_a,'hi')
 
-    ab:get_a:expect(3)
-    ab:get_a:expect(3)
+    expect(ab:get_a,3)
+    expect(ab:get_a,3)
 
     ab.a = 5
 
-    abc:get_a:expect('hi')
+    expect(abc:get_a, 'hi')
 
-    ab:get_a:expect(5)
-    justa:get_a:expect(true)
+    expect(ab:get_a, 5)
+    expect(justa:get_a, true)
   end)
 
   it('should make tuples', do ()
     let tup = [ 1 2 3 ]
 
-    tup[0]:expect(1)
-    tup[1]:expect(2)
-    tup[2]:expect(3)
+    expect(tup[0],1)
+    expect(tup[1],2)
+    expect(tup[2],3)
   end)
 end)
 
 describe('Overloads', do ()
     def Vector { x y }
 
-    def __add__[Vector](other)
+    def + [Vector](other)
         other is Vector or panic()
 
         {
@@ -193,11 +201,11 @@ describe('Overloads', do ()
     it('should overload binary', do ()
         let test = { x=1 y=2 } + { x=2 y=1 }
 
-        test.x:expect(3)
-        test.y:expect(3)
+        expect(test.x,3)
+        expect(test.y,3)
     end)
 
-    def __lt__[Vector](other)
+    def < [Vector](other)
         other is Vector or panic()
 
         let mag = self.x * self.x + self.y * self.y
@@ -206,47 +214,46 @@ describe('Overloads', do ()
         mag < other_mag
     end
 
-    def __eq__[Vector](other)
+    def == [Vector](other)
         (self.x == other.x) and (self.y == other.y)
     end
 
     it('should overload comparison', do ()
         let test = { x=1 y=1 } < { x=4 y=4 }
-        test:expect(true)
+        expect(test,true)
 
         test = { x=1 y=1 } == { x=1 y=1 }
 
-        test:expect(true)
+        expect(test,true)
     end)
 
-    def get(obj, key) obj[key] end
+    def get = do (obj, key) obj[key] end
 
     it('should get before overload', do()
-        get({ x = 1 y = 2}, 'x'):expect(1)
+        expect(get({ x = 1 y = 2}, 'x'),1)
     end)
 
 
-    def __get__[Vector](key)
+    def [] [Vector](key)
        key == 'mag' then
         return self.x * self.x + self.y * self.y
        end
     end
 
     it('should overload get', do ()
-        get({ x = 2 y = 2 },'mag'):expect(8)
+        expect(get({ x = 2 y = 2 },'mag'),8)
     end)
 
     it('should behave when switching types', do ()
-
-      def sum(a,b)
+      def sum = do (a,b)
         a + b
       end
 
-      sum(1,2):expect(3)
-      sum('h','i'):expect('hi')
-      sum({x = 1 y = 2}, {x = 2 y = 1}):expect{x = 3 y = 3} # Should work because of eq overload
-      sum(1,2):expect(3)
-      sum('h','i'):expect('hi')
+      #expect(sum(1,2),3)
+      #expect(sum('h','i'),'hi')
+      expect(sum({x = 1 y = 2}) {x = 2 y = 1}) {x = 3 y = 3} # Should work because of eq overload
+      expect(sum(1,2),3)
+      expect(sum('h','i'),'hi')
     end)
 end)
 
@@ -256,35 +263,31 @@ describe('Messages', do ()
     end
 
     it('should send', do ()
-        1:test:expect(1)
+        expect(1:test, 1)
     end)
 
-    def test[?1](a)
+    def test[Number](a)
         self + 1
     end
 
     it('should use more specific', do ()
-        1:test:expect(2)
+        expect(1:test, 2)
     end)
 
-    def repeat()
-        1:test
-    end
+    def repeat = do 1:test end
 
-    it('should cache', do ()
-        repeat():expect(2)
-        repeat():expect(2)
-        repeat():expect(2)
+    it('should cache', do
+        expect(repeat(),2)
+        expect(repeat(),2)
+        expect(repeat(),2)
     end)
 
-    def oneTwo()
-      return 1, 2
-    end
+    def oneTwo = do return 1, 2 end
 
     it('should send/receive var', do ()
-      def takeOneTwo(a, b)
-        a:expect(1)
-        b:expect(2)
+      def takeOneTwo = do (a, b)
+        expect(a,1)
+        expect(b,2)
       end
 
       takeOneTwo(oneTwo())
@@ -292,44 +295,44 @@ describe('Messages', do ()
 end)
 
 describe('Effects', do ()
-    def once()
+    def once = do
         yield 1
         2
     end
 
-    def twice()
+    def twice = do
         yield 1
         yield 2
 
         3
     end
 
-    def receive_one()
+    def receive_one = do
         let val = yield
 
-        val:expect(1)
+        expect(val,1)
     end
 
-    def receive_onetwo()
+    def receive_onetwo = do
         let one, two = yield
         
-        one:expect(1)
-        two:expect(2)
+        expect(one,1)
+        expect(two,2)
     end
 
-    def onetwo()
+    def onetwo = do
         return 1,2 
     end
 
-    def yields_many()
+    def yields_many = do
         yield onetwo()
     end
 
    it('should yield once', do ()
        let val, eff = once()
 
-       val:expect(1)
-       eff():expect(2)
+       expect(val,1)
+       expect(eff(),2)
    end)
 
     it('should yield twice', do()
@@ -337,8 +340,8 @@ describe('Effects', do ()
 
         let valtwo, efftwo = eff()
 
-        valtwo:expect(2)
-        efftwo():expect(3)
+        expect(valtwo,2)
+        expect(efftwo(),3)
     end)
 
    it('should receive a value', do ()
@@ -349,8 +352,8 @@ describe('Effects', do ()
 
    it('should yield var', do ()
        let one, two, eff = yields_many()
-       one:expect(1)
-       two:expect(2)
+       expect(one,1)
+       expect(two,2)
    end)
 
    it('should receive var', do ()
@@ -364,37 +367,37 @@ describe('Lists', do ()
     it('should create', do ()
         let list = List:new(100)
 
-        list:expect_not(nil)
+        expect_not(list,nil)
     end)
 
     it('should put', do ()
         let list = List:new
 
-        list:at(0):expect(nil)
+        expect(list:at(0), nil)
 
         list:push('hello')
 
-        list:at(0):expect('hello')
+        expect(list:at(0), 'hello')
 
         list:put(2, 'hello')
 
-        list:at(2):expect('hello')
+        expect(list:at(2), 'hello')
     end)
 
     it('should get/set', do ()
         let list = List:new
 
-        list[0]:expect(nil)
+        expect(list[0],nil)
 
         list[0] = 5
 
-        list[0]:expect(5)
+        expect(list[0],5)
 
         list[10] = 10
 
-        list[10]:expect(10)
+        expect(list[10],10)
 
-        list[9]:expect(nil)
+        expect(list[9],nil)
     end)
 
     it('should index with range', do ()
@@ -407,13 +410,13 @@ describe('Lists', do ()
 
         let slice = list[3:to]
 
-        slice[0]:expect(1)
-        slice[2]:expect(3)
+        expect(slice[0],1)
+        expect(slice[2],3)
 
         slice = list[3:to(4)]
 
-        slice[0]:expect(4)
-        slice[1]:expect(nil)
+        expect(slice[0],4)
+        expect(slice[1],nil)
     end)
 end)
 
@@ -421,15 +424,15 @@ describe('Maps', do ()
   it('should create', do ()
     let map = Map:new
 
-    map:expect_not(nil)
+    expect_not(map,nil)
   end)
 
   it('should create with initial', do ()
     let map = Map:new { hi = 'bob' }
 
-    map:expect_not(nil)
+    expect_not(map,nil)
 
-    map:at('hi'):expect('bob')
+    expect(map:at('hi'), 'bob')
   end)
 
   it('should put', do ()
@@ -437,8 +440,8 @@ describe('Maps', do ()
 
     map:put('hi', 'bob')
 
-    map:at('hi'):expect('bob')
-    map:at('bye'):expect(nil)
+    expect(map:at('hi'), 'bob')
+    expect(map:at('bye'), nil)
   end)
 
   it('should get/set', do ()
@@ -446,7 +449,7 @@ describe('Maps', do ()
 
     map['hi'] = 'bob'
 
-    map['hi']:expect('bob')
-    map['bye']:expect(nil)
+    expect(map['hi'],'bob')
+    expect(map['bye'],nil)
   end)
 end)

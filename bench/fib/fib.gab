@@ -1,9 +1,9 @@
-def fib(n)
-  n < 2 then
-    return n
+def fib[]
+   self < 2 then
+    return self
   end else
-    return fib(n - 1) + fib(n - 2)
+    return (self - 1):fib + (self - 2):fib
   end
 end
-  
-fib(30)
+
+30:fib

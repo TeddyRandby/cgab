@@ -7,7 +7,8 @@
 #include "include/object.h"
 #include <stdio.h>
 
-gab_module *gab_module_create(gab_value name, gab_source* source, gab_module *next) {
+gab_module *gab_module_create(gab_value name, gab_source *source,
+                              gab_module *next) {
   gab_module *self = NEW(gab_module);
   self->source = source;
   self->main = 0;
@@ -31,7 +32,8 @@ void gab_module_collect(gab_engine *gab, gab_module *mod) {
     gab_value v = v_gab_constant_val_at(&mod->constants, i);
     // The only kind of value owned by the modules
     // are their prototypes and the main closure
-    if (GAB_VAL_IS_SYMBOL(v) || GAB_VAL_IS_PROTOTYPE(v) || GAB_VAL_IS_BLOCK(v)) {
+    if (GAB_VAL_IS_SYMBOL(v) || GAB_VAL_IS_PROTOTYPE(v) ||
+        GAB_VAL_IS_BLOCK(v)) {
       gab_dref(gab, NULL, v);
     }
   }
@@ -51,8 +53,6 @@ void gab_module_destroy(gab_engine *gab, gab_module *mod) {
 }
 
 // Helper macros for creating the specialized instructions
-#define MAKE_RETURN(n) (OP_RETURN_1 + (n - 1))
-#define MAKE_YIELD(n) (OP_YIELD_0 + (n))
 #define MAKE_SEND(n) (OP_SEND_0 + (n))
 #define MAKE_STORE_LOCAL(n) (OP_STORE_LOCAL_0 + (n))
 #define MAKE_LOAD_LOCAL(n) (OP_LOAD_LOCAL_0 + (n))
@@ -72,8 +72,8 @@ void gab_module_push_op(gab_module *self, gab_opcode op, gab_token t, u64 l,
   v_s_i8_push(&self->sources, s);
 };
 
-u8 replace_previous_op(gab_module *self, gab_opcode op) {
-  v_u8_set(&self->bytecode, self->bytecode.len - 1, op);
+u8 replace_previous_op(gab_module *self, gab_opcode op, u8 args) {
+  v_u8_set(&self->bytecode, self->bytecode.len - 1 - args, op);
   self->previous_compiled_op = op;
   return op;
 };
@@ -109,7 +109,7 @@ u8 gab_module_push_load_local(gab_module *self, u8 local, gab_token t, u64 l,
     case OP_POP_STORE_LOCAL_7:
     case OP_POP_STORE_LOCAL_8: {
       if (op == self->previous_compiled_op - 9)
-        return replace_previous_op(self, self->previous_compiled_op - 9);
+        return replace_previous_op(self, self->previous_compiled_op - 9, 0);
     }
     }
     gab_module_push_op(self, op, t, l, s);
@@ -166,40 +166,43 @@ u8 gab_module_push_store_upvalue(gab_module *self, u8 upvalue, gab_token t,
   return OP_STORE_UPVALUE;
 };
 
-u8 gab_module_push_return(gab_module *self, u8 have, u8 var, gab_token t, u64 l,
-                          s_i8 s) {
-  if (!var) {
-    u8 op = MAKE_RETURN(have);
-    gab_module_push_op(self, op, t, l, s);
-    return op;
-  }
-  gab_module_push_op(self, OP_VARRETURN, t, l, s);
-  gab_module_push_byte(self, have, t, l, s);
-  return OP_VARRETURN;
+u8 gab_module_push_return(gab_module *self, u8 have, boolean vse, gab_token t,
+                          u64 l, s_i8 s) {
+  assert(have < 16);
+
+  gab_module_push_op(self, OP_RETURN, t, l, s);
+  gab_module_push_byte(self, (have << 1) | vse, t, l, s);
+
+  return OP_RETURN;
 }
 
-u8 gab_module_push_yield(gab_module *self, u8 have, u8 var, gab_token t, u64 l,
-                         s_i8 s) {
-  if (!var) {
-    u8 op = MAKE_YIELD(have);
-    gab_module_push_op(self, op, t, l, s);
-    gab_module_push_byte(self, 1, t, l, s);
-    return op;
-  }
+u8 gab_module_push_tuple(gab_module *self, u8 have, boolean vse, gab_token t,
+                         u64 l, s_i8 s) {
+  assert(have < 128);
 
-  gab_module_push_op(self, OP_VARYIELD, t, l, s);
-  gab_module_push_byte(self, have, t, l, s);
+  gab_module_push_op(self, OP_TUPLE, t, l, s);
+  gab_module_push_byte(self, (have << 1) | vse, t, l, s);
+
+  return OP_RETURN;
+}
+
+u8 gab_module_push_yield(gab_module *self, u8 have, boolean vse, gab_token t,
+                         u64 l, s_i8 s) {
+  assert(have < 16);
+
+  gab_module_push_op(self, OP_YIELD, t, l, s);
+  gab_module_push_byte(self, (have << 1) | vse, t, l, s);
   gab_module_push_byte(self, 1, t, l, s);
-  return OP_VARYIELD;
+  return OP_YIELD;
 }
 
-u8 gab_module_push_send(gab_module *self, u8 have, u8 var, u16 message,
+u8 gab_module_push_send(gab_module *self, u8 have, u16 message, boolean vse,
                         gab_token t, u64 l, s_i8 s) {
-  u8 op = var ? OP_VARSEND_ANA : OP_SEND_ANA;
+  assert(have < 16);
 
-  gab_module_push_op(self, op, t, l, s);
+  gab_module_push_op(self, OP_SEND_ANA, t, l, s);
   gab_module_push_short(self, message, t, l, s);
-  gab_module_push_byte(self, have, t, l, s);
+  gab_module_push_byte(self, (have << 1) | vse, t, l, s);
   gab_module_push_byte(self, 1, t, l, s);
 
   gab_module_push_byte(self, OP_NOP, t, l, s); // Version
@@ -211,19 +214,7 @@ u8 gab_module_push_send(gab_module *self, u8 have, u8 var, u16 message,
   gab_module_push_byte(self, OP_NOP, t, l, s);
   gab_module_push_inline_cache(self, t, l, s);
 
-  return op;
-}
-
-u8 gab_module_push_dynsend(gab_module *self, u8 have, u8 var, gab_token t,
-                           u64 l, s_i8 s) {
-
-  u8 op = var ? OP_VARDYNSEND : OP_DYNSEND;
-
-  gab_module_push_op(self, op, t, l, s);
-  gab_module_push_byte(self, have, t, l, s);
-  gab_module_push_byte(self, 1, t, l, s);
-
-  return op;
+  return OP_SEND_ANA;
 }
 
 u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l, s_i8 s) {
@@ -240,7 +231,9 @@ u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l, s_i8 s) {
     case OP_STORE_LOCAL_6:
     case OP_STORE_LOCAL_7:
     case OP_STORE_LOCAL_8:
-      return replace_previous_op(self, self->previous_compiled_op + 9);
+      return replace_previous_op(self, self->previous_compiled_op + 9, 0);
+    case OP_STORE_LOCAL:
+      return replace_previous_op(self, OP_POP_STORE_LOCAL, 1);
     }
 
     gab_module_push_op(self, op, t, l, s);
@@ -313,29 +306,9 @@ void gab_module_patch_loop(gab_module *self, u64 start, gab_token t, u64 l,
 boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
   switch (self->previous_compiled_op) {
   case OP_SEND_ANA:
-  case OP_VARSEND_ANA:
     v_u8_set(&self->bytecode, self->bytecode.len - 18, want);
     return true;
-  case OP_VARDYNSEND:
-  case OP_DYNSEND:
-  case OP_VARYIELD:
-  case OP_YIELD_0:
-  case OP_YIELD_1:
-  case OP_YIELD_2:
-  case OP_YIELD_3:
-  case OP_YIELD_4:
-  case OP_YIELD_5:
-  case OP_YIELD_6:
-  case OP_YIELD_7:
-  case OP_YIELD_8:
-  case OP_YIELD_9:
-  case OP_YIELD_10:
-  case OP_YIELD_11:
-  case OP_YIELD_12:
-  case OP_YIELD_13:
-  case OP_YIELD_14:
-  case OP_YIELD_15:
-  case OP_YIELD_16:
+  case OP_YIELD:
     v_u8_set(&self->bytecode, self->bytecode.len - 1, want);
     return true;
   }
@@ -449,22 +422,7 @@ u64 dumpNext(gab_module *self, u64 offset) {
 u64 dumpInstruction(gab_module *self, u64 offset) {
   u8 op = v_u8_val_at(&self->bytecode, offset);
   switch (op) {
-  case OP_RETURN_1:
-  case OP_RETURN_2:
-  case OP_RETURN_3:
-  case OP_RETURN_4:
-  case OP_RETURN_5:
-  case OP_RETURN_6:
-  case OP_RETURN_7:
-  case OP_RETURN_8:
-  case OP_RETURN_9:
-  case OP_RETURN_10:
-  case OP_RETURN_11:
-  case OP_RETURN_12:
-  case OP_RETURN_13:
-  case OP_RETURN_14:
-  case OP_RETURN_15:
-  case OP_RETURN_16:
+  case OP_RETURN:
   case OP_STORE_LOCAL_0:
   case OP_STORE_LOCAL_1:
   case OP_STORE_LOCAL_2:
@@ -543,9 +501,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     return dumpJumpInstruction(self, 1, offset);
   case OP_LOOP:
     return dumpJumpInstruction(self, -1, offset);
-  case OP_VARRETURN:
-  case OP_VARYIELD:
-    return dumpTwoByteInstruction(self, offset);
   case OP_CONSTANT:
     return dumpConstantInstruction(self, offset);
   case OP_NEXT:
@@ -559,9 +514,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_LOAD_PROPERTY_MONO:
   case OP_LOAD_PROPERTY_POLY:
     return dumpConstantInstruction(self, offset) + 10;
-  case OP_VARSEND_ANA:
-  case OP_VARSEND_MONO_BUILTIN:
-  case OP_VARSEND_MONO_CLOSURE:
   case OP_SEND_ANA:
   case OP_SEND_MONO_CLOSURE:
   case OP_SEND_MONO_BUILTIN:
@@ -581,26 +533,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_SEND_PRIMITIVE_GT:
   case OP_SEND_PRIMITIVE_GTE:
     return dumpSendInstruction(self, offset);
-  case OP_DYNSEND:
-  case OP_VARDYNSEND:
-    return dumpDynSendInstruction(self, offset);
-  case OP_YIELD_0:
-  case OP_YIELD_1:
-  case OP_YIELD_2:
-  case OP_YIELD_4:
-  case OP_YIELD_3:
-  case OP_YIELD_5:
-  case OP_YIELD_6:
-  case OP_YIELD_7:
-  case OP_YIELD_8:
-  case OP_YIELD_9:
-  case OP_YIELD_10:
-  case OP_YIELD_11:
-  case OP_YIELD_12:
-  case OP_YIELD_13:
-  case OP_YIELD_14:
-  case OP_YIELD_15:
-  case OP_YIELD_16:
+  case OP_YIELD:
   case OP_POP_N:
   case OP_CLOSE_UPVALUE:
   case OP_STORE_LOCAL:
@@ -671,7 +604,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_RECORD: {
     return dumpDictInstruction(self, op, offset);
   }
-  case OP_VARTUPLE:
   case OP_TUPLE: {
     return dumpDictInstruction(self, op, offset);
   }
@@ -683,18 +615,15 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   }
 }
 
-void gab_dis(gab_module *mod, u64 offset, u64 len) {
-  u64 end = offset + len;
-  u64 clamped_offset = offset < mod->bytecode.len ? offset : mod->bytecode.len;
-  u64 finish = end < mod->bytecode.len ? end : mod->bytecode.len;
-
-  while (clamped_offset < finish) {
-    printf(ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, clamped_offset);
-    clamped_offset = dumpInstruction(mod, clamped_offset);
+void gab_dis(gab_module *mod) {
+  u64 offset = 0;
+  while (offset < mod->bytecode.len) {
+    printf(ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);
+    offset = dumpInstruction(mod, offset);
   }
 }
 
 void gab_module_dump(gab_module *self, s_i8 name) {
   printf("     %.*s\n", (int)name.len, name.data);
-  gab_dis(self, 0, self->bytecode.len);
+  gab_dis(self);
 }

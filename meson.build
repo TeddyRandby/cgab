@@ -90,6 +90,13 @@ shared_library('cgabpry',
   install_dir: '/usr/local/lib/gab/'
 )
 
+shared_library('cgabfiber',
+  'src/lib/fiber.c',
+  link_with: libcgab,
+  install: true,
+  install_dir: '/usr/local/lib/gab/'
+)
+
 install_headers(
   'include/gab.h',
   'include/object.h',
@@ -106,8 +113,7 @@ install_headers(
 
 install_data(
   'std/mod.gab',
-  'std/Result.gab',
-  'std/Option.gab',
+  'std/Monad.gab',
   'std/Range.gab',
   'std/String.gab',
   'std/Number.gab',

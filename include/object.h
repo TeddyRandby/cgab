@@ -140,7 +140,7 @@ struct gab_obj_builtin {
 
   gab_builtin function;
 
-  s_i8 name;
+  gab_value name;
 };
 
 #define GAB_VAL_IS_BUILTIN(value) (gab_val_is_obj_kind(value, GAB_KIND_BUILTIN))
@@ -148,7 +148,7 @@ struct gab_obj_builtin {
 #define GAB_OBJ_TO_BUILTIN(value) ((gab_obj_builtin *)value)
 
 gab_obj_builtin *gab_obj_builtin_create(gab_engine *gab, gab_builtin function,
-                                        s_i8 name);
+                                        gab_value name);
 
 /*
   ------------- OBJ_UPVALUE -------------
@@ -333,7 +333,7 @@ typedef struct gab_obj_shape gab_obj_shape;
 struct gab_obj_shape {
   gab_obj header;
 
-  s_i8 name;
+  gab_value name;
 
   u64 hash;
 
@@ -511,6 +511,10 @@ static inline gab_value gab_obj_map_at(gab_obj_map *self, gab_value key) {
   return d_gab_value_read(&self->data, key);
 }
 
+static inline boolean gab_obj_map_has(gab_obj_map* self, gab_value key) {
+    return d_gab_value_exists(&self->data, key);
+}
+
 /*
   ------------- OBJ_CONTAINER-------------
   A container to some unknown data.
@@ -543,14 +547,14 @@ gab_obj_container *gab_obj_container_create(gab_engine *gab,
 typedef struct gab_obj_symbol gab_obj_symbol;
 struct gab_obj_symbol {
   gab_obj header;
-  s_i8 name;
+  gab_value name;
 };
 
 #define GAB_VAL_IS_SYMBOL(value) (gab_val_is_obj_kind(value, GAB_KIND_SYMBOL))
 #define GAB_VAL_TO_SYMBOL(value) ((gab_obj_symbol *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SYMBOL(value) ((gab_obj_symbol *)value)
 
-gab_obj_symbol *gab_obj_symbol_create(gab_engine *gab, s_i8 name);
+gab_obj_symbol *gab_obj_symbol_create(gab_engine *gab, gab_value name);
 
 /*
   ------------- OBJ_EFFECT -------------

@@ -5,7 +5,7 @@ impl List
     ?key match
       ?{ from to }     => self:slice(key.from, key.to)        end
       ?{ from }        => self:slice(key.from)                end
-      ?{ to }          => self:slice(nil, key.to)             end
+      ?{ to }          => self:slice(0, key.to)               end
       Number           => self:at(key)                        end
       else             => panic('Invalid call to List::key')  end
   end
@@ -22,13 +22,12 @@ impl List
     self:at(self:len - 1)
   end
 
-  def take(amount)
-    self[amount:to]
+  def take(to)
+    self:slice(0, to)
   end
 
   def each
     let v = 0 
-
 
     loop
       yield self[v], v

@@ -32,7 +32,7 @@ static const char *gab_opcode_names[] = {
 struct gab_module {
   gab_module *next;
 
-  gab_source* source;
+  gab_source *source;
 
   /*
     The constant table.
@@ -76,7 +76,8 @@ struct gab_module {
 /*
   Creating and destroying modules, from nothing and from a base module.
 */
-gab_module *gab_module_create(gab_value name, gab_source* src, gab_module *next);
+gab_module *gab_module_create(gab_value name, gab_source *src,
+                              gab_module *next);
 
 void gab_module_destroy(gab_engine *gab, gab_module *mod);
 
@@ -97,11 +98,11 @@ u8 gab_module_push_load_upvalue(gab_module *, u8, boolean, gab_token, u64,
 u8 gab_module_push_load_const_upvalue(gab_module *, u8, gab_token, u64, s_i8);
 u8 gab_module_push_store_local(gab_module *, u8, gab_token, u64, s_i8);
 u8 gab_module_push_store_upvalue(gab_module *, u8, gab_token, u64, s_i8);
-u8 gab_module_push_return(gab_module *, u8, u8, gab_token, u64, s_i8);
-u8 gab_module_push_yield(gab_module *, u8, u8, gab_token, u64, s_i8);
-u8 gab_module_push_send(gab_module *mod, u8 have, u8 var, u16 message,
+u8 gab_module_push_return(gab_module *, u8, boolean vse, gab_token, u64, s_i8);
+u8 gab_module_push_yield(gab_module *, u8, boolean vse, gab_token, u64, s_i8);
+u8 gab_module_push_tuple(gab_module *, u8, boolean vse, gab_token, u64, s_i8);
+u8 gab_module_push_send(gab_module *mod, u8 have, u16 message, boolean vse,
                         gab_token, u64, s_i8);
-u8 gab_module_push_dynsend(gab_module *, u8, u8, gab_token, u64, s_i8);
 u8 gab_module_push_pop(gab_module *, u8, gab_token, u64, s_i8);
 
 void gab_module_push_inline_cache(gab_module *, gab_token, u64, s_i8);

@@ -1,4 +1,5 @@
 #include "include/gab.h"
+#include "include/value.h"
 #include <assert.h>
 
 gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
@@ -86,6 +87,21 @@ gab_value gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc,
   return gab_obj_list_at(list, offset);
 }
 
+gab_value gab_lib_del(gab_engine *gab, gab_vm *vm, u8 argc,
+                      gab_value argv[argc]) {
+  gab_obj_list *list = GAB_VAL_TO_LIST(argv[0]);
+  if (argc != 2 || !GAB_VAL_IS_NUMBER(argv[1]))
+    return gab_panic(gab, vm, "Invalid call to gab_lib_del");
+
+  u64 index = GAB_VAL_TO_NUMBER(argv[1]);
+
+  gab_dref(gab, vm, v_gab_value_val_at(&list->data, index));
+
+  v_gab_value_del(&list->data, index);
+
+  return argv[0];
+}
+
 gab_value gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc,
                       gab_value argv[argc]) {
   gab_obj_list *list = GAB_VAL_TO_LIST(argv[0]);
@@ -126,22 +142,23 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
     break;
 
   case 2: {
-    if (!GAB_VAL_IS_NUMBER(argv[1])) {
-      return GAB_VAL_NIL();
-    }
+    if (!GAB_VAL_IS_NUMBER(argv[1]))
+      return gab_panic(gab, vm, "Invalid call to gab_lib_slice");
+
     u64 a = GAB_VAL_TO_NUMBER(argv[1]);
     start = CLAMP(a, len);
     break;
   }
-  case 3:
-    if (!GAB_VAL_IS_NUMBER(argv[1]) || !GAB_VAL_TO_NUMBER(argv[2])) {
-      return GAB_VAL_NIL();
-    }
+  case 3: {
+    if (!GAB_VAL_IS_NUMBER(argv[1]) || !GAB_VAL_TO_NUMBER(argv[2]))
+      return gab_panic(gab, vm, "Invalid call to gab_lib_slice");
+
     u64 a = GAB_VAL_TO_NUMBER(argv[1]);
     u64 b = GAB_VAL_TO_NUMBER(argv[2]);
     start = CLAMP(a, len);
     end = CLAMP(b, len);
     break;
+  }
   default:
     return gab_panic(gab, vm, "Invalid call to gab_lib_slice");
   }

@@ -42,11 +42,12 @@
 // Maximum value of an upvalues.
 #define UPVALUE_MAX 255
 // Maximum number of function arguments.
-#define FARG_MAX 255
+#define ARG_MAX 128
 // Maximum number of function return values.
-#define FRET_MAX 16
-// Value used to encode variable return.
+#define RET_MAX 128
+// Values used to encode variable return.
 #define VAR_EXP 255
+#define FLAG_VAR_EXP 1
 
 // GAB optional flags
 #define GAB_FLAG_NONE 0

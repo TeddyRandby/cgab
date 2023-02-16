@@ -1,7 +1,5 @@
 def Range { from to }
 
-def to[Number](to) Range:new(self, to) end
-
 impl Range
   def each
     let v = 0
@@ -21,7 +19,7 @@ impl Range
           to   = to or opts
         }                                                 end
       Range       => opts                                 end
-      else        => panic('Invalid call to Range:make')  end
+      else        => panic('Invalid call to Range:new')  end
   end
 
   def print
