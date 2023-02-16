@@ -191,15 +191,6 @@ gab_value gab_send(gab_engine *gab, gab_value name, gab_value receiver, u8 argc,
                    gab_value argn[argc], gab_value argv[argc]);
 
 /**
- * Convert a gab value to a boolean.
- *
- * @param self The value to check
- *
- * @return False if the value is false or nil. Otherwise true.
- */
-boolean gab_val_falsey(gab_value self);
-
-/**
  * Dump a gab value to stdout
  *
  * @param self The value to dump
@@ -211,26 +202,7 @@ int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
 
 int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
                            int *sizes);
-/**
- * Get the type of a gab value. This function is used internally to send
- * messages.
- *
- * @param gab The engine
- *
- * @param self The value
- *
- * @return The type of the value
- */
-gab_value gab_val_type(gab_engine *gab, gab_value self);
 
-/**
- * Convert a gab value to a gab string
- *
- * @param gab The engine
- *
- * @param self The value to convert
- */
-gab_value gab_val_to_string(gab_engine *gab, gab_value self);
 
 /*
  * Get the value that corresponds to a given type.
@@ -242,6 +214,70 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self);
  * @return The gab value corresponding to that type.
  */
 gab_value gab_type(gab_engine *gab, gab_kind kind);
+
+static inline gab_kind gab_val_kind(gab_engine *gab, gab_value value) {
+  if (GAB_VAL_IS_NUMBER(value))
+    return GAB_KIND_NUMBER;
+  if (GAB_VAL_IS_NIL(value))
+    return GAB_KIND_NIL;
+  if (GAB_VAL_IS_UNDEFINED(value))
+    return GAB_KIND_UNDEFINED;
+  if (GAB_VAL_IS_BOOLEAN(value))
+    return GAB_KIND_BOOLEAN;
+  if (GAB_VAL_IS_OBJ(value))
+    return GAB_VAL_TO_OBJ(value)->kind;
+}
+
+/**
+ * Get the type of a gab value. This function is used internally to send
+ * messages.
+ *
+ * @param gab The engine
+ *
+ * @param self The value
+ *
+ * @return The type of the value
+ */
+// This can be heavily optimized.
+static inline gab_value gab_val_type(gab_engine *gab, gab_value value) {
+  gab_kind k = gab_val_kind(gab, value);
+
+  switch (k) {
+  case GAB_KIND_NIL:
+  case GAB_KIND_UNDEFINED:
+  case GAB_KIND_SYMBOL:
+  case GAB_KIND_SHAPE:
+    return value;
+
+  case GAB_KIND_RECORD: {
+    gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
+    return GAB_VAL_OBJ(obj->shape);
+  }
+  default:
+    return gab_type(gab, k);
+  }
+}
+
+
+/**
+ * Convert a gab value to a boolean.
+ *
+ * @param self The value to check
+ *
+ * @return False if the value is false or nil. Otherwise true.
+ */
+static inline boolean gab_val_falsey(gab_value self) {
+  return GAB_VAL_IS_NIL(self) || GAB_VAL_IS_FALSE(self);
+}
+
+/**
+ * Convert a gab value to a gab string
+ *
+ * @param gab The engine
+ *
+ * @param self The value to convert
+ */
+gab_value gab_val_to_string(gab_engine *gab, gab_value self);
 
 /**
  * A helper macro for sending simply

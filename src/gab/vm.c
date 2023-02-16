@@ -232,9 +232,8 @@ static inline boolean call_effect(gab_vm *vm, gab_obj_effect *e, u8 arity,
                                   u8 want) {
   i16 space_needed = e->len - e->have - arity;
 
-  if (!has_callspace(vm, space_needed < 0 ? 0 : space_needed)) {
+  if (space_needed > 0 && !has_callspace(vm, space_needed))
     return false;
-  }
 
   vm->frame++;
   vm->frame->c = e->c;
@@ -251,6 +250,38 @@ static inline boolean call_effect(gab_vm *vm, gab_obj_effect *e, u8 arity,
   return true;
 }
 
+static inline boolean call_block_var(gab_engine *gab, gab_vm *vm,
+                                     gab_obj_block *c, u8 have, u8 want) {
+  vm->frame++;
+  vm->frame->c = c;
+  vm->frame->ip = c->p->mod->bytecode.data;
+  vm->frame->want = want;
+
+  u8 size = have - c->p->narguments;
+
+  have = c->p->narguments + 1;
+
+  gab_obj_shape *shape = gab_obj_shape_create_tuple(gab, vm, size);
+
+  gab_value args =
+      GAB_VAL_OBJ(gab_obj_record_create(gab, shape, 1, vm->top - size));
+
+  gab_gc_iref_many(gab, vm, &gab->gc, size, vm->top - size);
+
+  vm->top -= size;
+
+  *vm->top++ = args;
+
+  gab_gc_dref(gab, vm, &gab->gc, args);
+
+  vm->frame->slots = vm->top - have - 1;
+
+  for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
+    *vm->top++ = GAB_VAL_NIL();
+
+  return true;
+}
+
 static inline boolean call_block(gab_engine *gab, gab_vm *vm, gab_obj_block *c,
                                  u8 have, u8 want) {
   if (!has_callspace(vm, c->p->nslots - c->p->narguments - 1)) {
@@ -262,29 +293,12 @@ static inline boolean call_block(gab_engine *gab, gab_vm *vm, gab_obj_block *c,
   vm->frame->ip = c->p->mod->bytecode.data;
   vm->frame->want = want;
 
-  if (c->p->var) {
-    // If this closure is variable, we need to construct
-    // a varargs record.
-    u8 size = have - c->p->narguments;
-    have = c->p->narguments + 1;
-    gab_obj_shape *shape = gab_obj_shape_create_tuple(gab, vm, size);
+  // Otherwise, trim the args appropriately
+  while (have < c->p->narguments)
+    *vm->top++ = GAB_VAL_NIL(), have++;
 
-    gab_value args =
-        GAB_VAL_OBJ(gab_obj_record_create(gab, shape, 1, vm->top - size));
-
-    vm->top -= size;
-
-    *vm->top++ = args;
-
-    gab_gc_dref(gab, vm, &gab->gc, args);
-  } else {
-    // Otherwise, trim the args appropriately
-    while (have < c->p->narguments)
-      *vm->top++ = GAB_VAL_NIL(), have++;
-
-    while (have > c->p->narguments)
-      vm->top--, have--;
-  }
+  while (have > c->p->narguments)
+    vm->top--, have--;
 
   vm->frame->slots = vm->top - have - 1;
 
@@ -577,10 +591,17 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       gab_value spec = gab_obj_message_get(msg, offset);
 
+      gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
+
       STORE_FRAME();
 
-      if (!call_block(ENGINE(), VM(), GAB_VAL_TO_BLOCK(spec), have, want))
-        return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+      if (blk->p->var) {
+        if (!call_block_var(ENGINE(), VM(), blk, have, want))
+          return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+      } else {
+        if (!call_block(ENGINE(), VM(), blk, have, want))
+          return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+      }
 
       LOAD_FRAME();
 
@@ -664,8 +685,15 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       STORE_FRAME();
 
-      if (!call_block(ENGINE(), VM(), GAB_VAL_TO_BLOCK(receiver), have, want))
-        return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+      gab_obj_block *blk = GAB_VAL_TO_BLOCK(receiver);
+
+      if (blk->p->var) {
+        if (!call_block_var(ENGINE(), VM(), blk, have, want))
+          return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+      } else {
+        if (!call_block(ENGINE(), VM(), blk, have, want))
+          return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+      }
 
       LOAD_FRAME();
 

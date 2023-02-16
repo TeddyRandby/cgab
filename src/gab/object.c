@@ -25,38 +25,10 @@
       gab, (gab_obj *)GAB_CREATE_FLEX_STRUCT(obj_type, flex_type, flex_count), \
       kind))
 
-// This can be heavily optimized.
-gab_value gab_val_type(gab_engine *gab, gab_value value) {
-  // The type of a record is it's shape
-  if (GAB_VAL_IS_RECORD(value)) {
-    gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
-    return GAB_VAL_OBJ(obj->shape);
-  }
-
-  // The type of null or symbols is themselves
-  if (GAB_VAL_IS_NIL(value) || GAB_VAL_IS_UNDEFINED(value) ||
-      GAB_VAL_IS_SYMBOL(value) || GAB_VAL_IS_SHAPE(value)) {
-    return value;
-  }
-
-  if (GAB_VAL_IS_NUMBER(value)) {
-    return gab->types[GAB_KIND_NUMBER];
-  }
-
-  if (GAB_VAL_IS_BOOLEAN(value)) {
-    return gab->types[GAB_KIND_BOOLEAN];
-  }
-
-  return gab->types[GAB_VAL_TO_OBJ(value)->kind];
-}
-
-boolean gab_val_falsey(gab_value self) {
-  return GAB_VAL_IS_NIL(self) || GAB_VAL_IS_FALSE(self);
-}
-
 gab_obj *gab_obj_create(gab_engine *gab, gab_obj *self, gab_kind k) {
   // Maintain the global list of objects
   self->next = gab->objects;
+
   gab->objects = self;
 
   self->kind = k;
