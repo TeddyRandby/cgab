@@ -19,7 +19,7 @@ impl Range
           to   = to or opts
         }                                                 end
       Range       => opts                                 end
-      else        => panic('Invalid call to Range:new')  end
+      else        => panic('Invalid call to Range:new')   end
   end
 
   def print

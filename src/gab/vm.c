@@ -479,19 +479,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
 #define SEND_CACHE_DIST 22
 
-#define SETUP_CALL(spec)                                                       \
-  if (GAB_VAL_IS_PRIMITIVE(spec)) {                                            \
-    u8 op = GAB_VAL_TO_PRIMITIVE(spec);                                        \
-    WRITE_BYTE(SEND_CACHE_DIST, op);                                           \
-  } else if (GAB_VAL_IS_CLOSURE(spec)) {                                       \
-    WRITE_BYTE(SEND_CACHE_DIST, instr + 1);                                    \
-  } else if (GAB_VAL_IS_BUILTIN(spec)) {                                       \
-    WRITE_BYTE(SEND_CACHE_DIST, instr + 2);                                    \
-  } else {                                                                     \
-    return vm_error(VM(), GAB_NOT_CALLABLE, "");                               \
-  }                                                                            \
-  IP() -= SEND_CACHE_DIST;
-
   /*
    ----------- BEGIN RUN BODY -----------
   */
@@ -1500,7 +1487,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     CASE_CODE(LOAD_CONST_UPVALUE_6) :
     CASE_CODE(LOAD_CONST_UPVALUE_7) :
     CASE_CODE(LOAD_CONST_UPVALUE_8) : {
-      PUSH(CONST_UPVALUE(INSTR()- OP_LOAD_CONST_UPVALUE_0));
+      PUSH(CONST_UPVALUE(INSTR() - OP_LOAD_CONST_UPVALUE_0));
       NEXT();
     }
     // clang-format on
@@ -1587,8 +1574,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_obj_block *cls = gab_obj_block_create(ENGINE(), p);
 
       for (int i = 0; i < p->nupvalues; i++) {
-        u8 flags = READ_BYTE;
-        u8 index = READ_BYTE;
+        u8 flags = p->upv_desc[i * 2];
+        u8 index = p->upv_desc[i * 2 + 1];
 
         if (flags & GAB_VARIABLE_FLAG_LOCAL) {
           if (flags & GAB_VARIABLE_FLAG_MUTABLE) {

@@ -1,11 +1,3 @@
-'std':require
-
-def list = List:new
-
-for i in 20:to:each
-    list:push(i)
-
-    list:len:print
+def test = do
+    print('h')
 end
-
-

@@ -6,10 +6,8 @@
 #include <stdio.h>
 
 void dis_closure(gab_obj_block *cls) {
-  // printf("     closure:\x1b[36m%.*s\x1b[0m\n", (int)cls->p->name.len,
-  //        cls->p->name.data);
-  //
-  // gab_dis(cls->p->mod, cls->p->offset, cls->p->len);
+  printf("     %V\n", GAB_VAL_OBJ(cls));
+  gab_dis(cls->p->mod);
 }
 
 void dis_message(gab_engine *gab, gab_obj_message *msg, gab_value rec) {

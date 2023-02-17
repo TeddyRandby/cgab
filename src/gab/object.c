@@ -230,8 +230,6 @@ u64 gab_obj_size(gab_obj *self) {
   switch (self->kind) {
   case GAB_KIND_MESSAGE:
     return sizeof(gab_obj_message);
-  case GAB_KIND_PROTOTYPE:
-    return sizeof(gab_obj_prototype);
   case GAB_KIND_BUILTIN:
     return sizeof(gab_obj_builtin);
   case GAB_KIND_UPVALUE:
@@ -244,6 +242,10 @@ u64 gab_obj_size(gab_obj *self) {
     return sizeof(gab_obj_list);
   case GAB_KIND_MAP:
     return sizeof(gab_obj_map);
+  case GAB_KIND_PROTOTYPE: {
+    gab_obj_prototype *obj = (gab_obj_prototype *)self;
+    return sizeof(gab_obj_prototype) + obj->nupvalues * 2;
+  }
   case GAB_KIND_BLOCK: {
     gab_obj_block *obj = (gab_obj_block *)self;
     return sizeof(gab_obj_block) + obj->nupvalues * sizeof(gab_value);
@@ -358,9 +360,10 @@ s_i8 gab_obj_string_ref(gab_obj_string *self) {
 gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
                                             u8 narguments, u8 nslots,
                                             u8 nupvalues, u8 nlocals,
-                                            boolean var) {
-  gab_obj_prototype *self =
-      GAB_CREATE_OBJ(gab_obj_prototype, GAB_KIND_PROTOTYPE);
+                                            boolean var, u8 flags[nupvalues],
+                                            u8 indexes[nupvalues]) {
+  gab_obj_prototype *self = GAB_CREATE_FLEX_OBJ(
+      gab_obj_prototype, u8, nupvalues * 2, GAB_KIND_PROTOTYPE);
 
   self->mod = mod;
   self->narguments = narguments;
@@ -368,6 +371,11 @@ gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
   self->nupvalues = nupvalues;
   self->nlocals = nlocals;
   self->var = var;
+
+  for (u8 i = 0; i < nupvalues; i++) {
+    self->upv_desc[i * 2] = flags[i];
+    self->upv_desc[i * 2 + 1] = indexes[i];
+  }
 
   GAB_OBJ_GREEN((gab_obj *)self);
   return self;

@@ -451,7 +451,8 @@ static gab_obj_prototype *up_frame(gab_engine *gab, gab_bc *bc, u8 nargs,
   u8 nlocals = frame->nlocals;
 
   gab_obj_prototype *p = gab_obj_prototype_create(
-      gab, frame->mod, nargs, nslots, nupvalues, nlocals, vse);
+      gab, frame->mod, nargs, nslots, nupvalues, nlocals, vse, frame->upvs_flag,
+      frame->upvs_index);
 
   gab_obj_block *main = gab_obj_block_create(gab, p);
 
@@ -713,13 +714,6 @@ i32 compile_block(gab_engine *gab, gab_bc *bc) {
   // Create the closure, adding a specialization to the pushed function.
   push_op(bc, OP_BLOCK);
   push_short(bc, add_constant(mod(bc), GAB_VAL_OBJ(p)));
-
-  // Kinda cheaty - peek at the frame we just dropped.
-  gab_bc_frame *f = peek_frame(bc, -1);
-  for (int i = 0; i < p->nupvalues; i++) {
-    push_byte(bc, f->upvs_flag[i]);
-    push_byte(bc, f->upvs_index[i]);
-  }
 
   push_slot(bc, 1);
   return COMP_OK;
@@ -2059,6 +2053,7 @@ i32 compile_exp_snd(gab_engine *gab, gab_bc *bc, boolean assignable) {
   gab_token prev_tok = bc->previous_token;
   u64 prev_line = bc->line;
   s_i8 message = trim_prev_tok(bc);
+
   gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, message));
 
   u16 m = add_message_constant(gab, mod(bc), val_name);
@@ -2517,7 +2512,7 @@ gab_module *gab_bc_compile_send(gab_engine *gab, gab_value name,
   gab_module_push_return(mod, 1, false, 0, 0, (s_i8){0});
 
   gab_obj_prototype *p =
-      gab_obj_prototype_create(gab, mod, argc, argc, 0, 0, false);
+      gab_obj_prototype_create(gab, mod, argc, argc, 0, 0, false, NULL, NULL);
 
   add_constant(mod, GAB_VAL_OBJ(p));
 

@@ -1,6 +1,7 @@
 #ifndef GAB_OBJECT_H
 #define GAB_OBJECT_H
 
+#include "include/types.h"
 #include "value.h"
 #include <stdio.h>
 
@@ -201,6 +202,11 @@ struct gab_obj_prototype {
   u8 nupvalues;
 
   /*
+   * The module this prototype owns
+   */
+  gab_module *mod;
+
+  /*
    * The number of locals
    */
   u8 nlocals;
@@ -215,10 +221,7 @@ struct gab_obj_prototype {
    */
   u8 var;
 
-  /*
-   * The module this prototype owns
-   */
-  gab_module *mod;
+  u8 upv_desc[FLEXIBLE_ARRAY];
 };
 
 #define GAB_VAL_IS_PROTOTYPE(value)                                            \
@@ -229,7 +232,7 @@ struct gab_obj_prototype {
 gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
                                             u8 narguments, u8 nslots,
                                             u8 nupvalues, u8 nlocals,
-                                            boolean var);
+                                            boolean var, u8 flags[nupvalues], u8 indexes[nupvalues]);
 
 /*
   ------------- OBJ_CLOSURE-------------

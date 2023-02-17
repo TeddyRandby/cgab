@@ -16,4 +16,11 @@ impl Number
         v = v + 1
     until v == self
   end
+
+  def to(dest)
+    ?dest match
+        nil     => { from = 0    to = self }            end
+        Number  => { from = self to = dest }            end
+        else    => panic('Invalid call to Number:dest') end
+  end
 end

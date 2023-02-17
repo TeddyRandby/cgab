@@ -332,14 +332,6 @@ u64 dumpSimpleInstruction(gab_module *self, u64 offset) {
   return offset + 1;
 }
 
-u64 dumpDynSendInstruction(gab_module *self, u64 offset) {
-  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
-  u8 have = v_u8_val_at(&self->bytecode, offset + 1);
-  u8 want = v_u8_val_at(&self->bytecode, offset + 2);
-  printf("%-25s             %03d args -> %03d results\n", name, have, want);
-  return offset + 3;
-}
-
 u64 dumpSendInstruction(gab_module *self, u64 offset) {
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   u16 constant = v_u8_val_at(&self->bytecode, offset + 1) << 8 |
@@ -350,7 +342,7 @@ u64 dumpSendInstruction(gab_module *self, u64 offset) {
   u8 have = v_u8_val_at(&self->bytecode, offset + 3);
   u8 want = v_u8_val_at(&self->bytecode, offset + 4);
 
-  printf("%-25s" ANSI_COLOR_BLUE "%-13V" ANSI_COLOR_RESET
+  printf("%-25s" ANSI_COLOR_BLUE "%-17V" ANSI_COLOR_RESET
          "%03d args -> %03d results\n",
          name, msg, have, want);
   return offset + 22;
@@ -561,14 +553,12 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
            (int)func_name.len, func_name.data);
 
     for (int j = 0; j < p->nupvalues; j++) {
-      u8 flags = self->bytecode.data[offset++];
-      u8 index = self->bytecode.data[offset++];
+      u8 flags = p->upv_desc[j * 2];
+      u8 index = p->upv_desc[j * 2 + 1];
       int isLocal = flags & GAB_VARIABLE_FLAG_LOCAL;
       int isMutable = flags & GAB_VARIABLE_FLAG_MUTABLE;
-      printf(ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
-                               "      |                   %d %s %s\n",
-             offset, index, isLocal ? "local" : "upvalue",
-             isMutable ? "mut" : "const");
+      printf("      |                   %d %s %s\n", index,
+             isLocal ? "local" : "upvalue", isMutable ? "mut" : "const");
     }
     return offset;
   }
@@ -584,18 +574,16 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(
         v_gab_constant_val_at(&p->mod->constants, p->mod->name)));
 
-    printf("%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET, "OP_CLOSURE",
+    printf("%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET, "OP_BLOCK",
            (int)func_name.len, func_name.data);
 
     for (int j = 0; j < p->nupvalues; j++) {
-      u8 flags = self->bytecode.data[offset++];
-      u8 index = self->bytecode.data[offset++];
+      u8 flags = p->upv_desc[j * 2];
+      u8 index = p->upv_desc[j * 2 + 1];
       int isLocal = flags & GAB_VARIABLE_FLAG_LOCAL;
       int isMutable = flags & GAB_VARIABLE_FLAG_MUTABLE;
-      printf(ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
-                               "      |                   %d %s %s\n",
-             offset, index, isLocal ? "local" : "upvalue",
-             isMutable ? "mut" : "const");
+      printf("      |                   %d %s %s\n", index,
+             isLocal ? "local" : "upvalue", isMutable ? "mut" : "const");
     }
     return offset;
   }
