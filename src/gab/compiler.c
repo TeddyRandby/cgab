@@ -415,9 +415,10 @@ static void up_scope(gab_bc *bc) {
   }
 }
 
-static gab_module *down_frame(gab_engine *gab, gab_bc *bc, gab_value name,
-                              boolean is_method) {
+static gab_module *down_frame(gab_engine *gab, gab_bc *bc, boolean is_method) {
   gab_bc_frame *f = bc->frames + bc->nframe++;
+
+  gab_value name = GAB_STRING("self");
 
   gab_module *mod = gab_module_create(name, bc->lex.source, gab->modules);
   gab->modules = mod;
@@ -433,11 +434,7 @@ static gab_module *down_frame(gab_engine *gab, gab_bc *bc, gab_value name,
   f->nupvalues = 0;
   f->scope_depth = 0;
 
-  gab_value val_name =
-      is_method ? GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("self")))
-                : name;
-
-  initialize_local(bc, add_local(gab, bc, val_name, 0));
+  initialize_local(bc, add_local(gab, bc, name, 0));
 
   return mod;
 }
@@ -698,7 +695,7 @@ i32 compile_message_spec(gab_engine *gab, gab_bc *bc) {
 i32 compile_block(gab_engine *gab, gab_bc *bc) {
   down_scope(bc);
 
-  down_frame(gab, bc, GAB_STRING("anonymous"), false);
+  down_frame(gab, bc, false);
 
   boolean vse;
   i32 narguments = compile_parameters(gab, bc, &vse);
@@ -725,7 +722,7 @@ i32 compile_message(gab_engine *gab, gab_bc *bc, gab_value name) {
 
   down_scope(bc);
 
-  down_frame(gab, bc, name, true);
+  down_frame(gab, bc, true);
 
   boolean vse;
   i32 narguments = compile_parameters(gab, bc, &vse);
@@ -2464,7 +2461,7 @@ gab_compile_rule get_rule(gab_token k) { return gab_bc_rules[k]; }
 
 gab_module *compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
                     gab_value arguments[narguments]) {
-  gab_module *new_mod = down_frame(gab, bc, name, false);
+  gab_module *new_mod = down_frame(gab, bc, false);
 
   if (eat_token(bc) == COMP_ERR)
     return NULL;

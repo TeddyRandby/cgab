@@ -414,7 +414,6 @@ u64 dumpNext(gab_module *self, u64 offset) {
 u64 dumpInstruction(gab_module *self, u64 offset) {
   u8 op = v_u8_val_at(&self->bytecode, offset);
   switch (op) {
-  case OP_RETURN:
   case OP_STORE_LOCAL_0:
   case OP_STORE_LOCAL_1:
   case OP_STORE_LOCAL_2:
@@ -525,6 +524,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_SEND_PRIMITIVE_GT:
   case OP_SEND_PRIMITIVE_GTE:
     return dumpSendInstruction(self, offset);
+  case OP_RETURN:
   case OP_YIELD:
   case OP_POP_N:
   case OP_CLOSE_UPVALUE:

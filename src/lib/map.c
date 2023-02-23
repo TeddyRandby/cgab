@@ -8,7 +8,7 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
                       gab_value argv[argc]) {
   switch (argc) {
   case 1: {
-    gab_obj_map *map = gab_obj_map_create(gab, 0, 0, NULL, NULL);
+    gab_obj_map *map = gab_obj_map_create(gab, NULL, 0, 0, NULL, NULL);
 
     gab_value result = GAB_VAL_OBJ(map);
 
@@ -24,12 +24,8 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
     gab_obj_record *rec = GAB_VAL_TO_RECORD(argv[1]);
     gab_obj_shape *shp = rec->shape;
 
-    gab_iref_many(gab, vm, rec->len, rec->data);
-
-    gab_iref_many(gab, vm, shp->len, shp->data);
-
     gab_obj_map *map =
-        gab_obj_map_create(gab, rec->len, 1, shp->data, rec->data);
+        gab_obj_map_create(gab, vm, rec->len, 1, shp->data, rec->data);
 
     gab_value result = GAB_VAL_OBJ(map);
 
@@ -72,15 +68,9 @@ gab_value gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc,
   gab_value key = argv[1];
 
   if (gab_obj_map_has(map, key)) {
-    gab_dref(gab, vm, gab_obj_map_at(map, key));
-
-    gab_obj_map_put(map, key, argv[2]);
-
-    gab_iref(gab, vm, argv[2]);
+    gab_obj_map_put(gab, vm, map, key, argv[2]);
   } else {
-    gab_obj_map_put(map, key, argv[2]);
-
-    gab_iref_many(gab, vm, 2, argv + 1); // Increment the key and value
+    gab_obj_map_put(gab, vm, map, key, argv[2]);
   }
 
   return argv[0];

@@ -59,7 +59,7 @@ gab_value gab_lib_to_l(gab_engine *gab, gab_vm *vm, u8 argc,
     if (GAB_VAL_IS_RECORD(argv[0])) {
       gab_obj_record *rec = GAB_VAL_TO_RECORD(argv[0]);
 
-      gab_obj_list *list = gab_obj_list_create(gab, rec->len, 1, rec->data);
+      gab_obj_list *list = gab_obj_list_create(gab, vm, rec->len, 1, rec->data);
 
       gab_value result = GAB_VAL_OBJ(list);
 
@@ -71,7 +71,7 @@ gab_value gab_lib_to_l(gab_engine *gab, gab_vm *vm, u8 argc,
     if (GAB_VAL_IS_SHAPE(argv[0])) {
       gab_obj_shape *shape = GAB_VAL_TO_SHAPE(argv[0]);
 
-      gab_obj_list *list = gab_obj_list_create(gab, shape->len, 1, shape->data);
+      gab_obj_list *list = gab_obj_list_create(gab, vm, shape->len, 1, shape->data);
 
       gab_value result = GAB_VAL_OBJ(list);
 
@@ -98,7 +98,7 @@ gab_value gab_lib_to_m(gab_engine *gab, gab_vm *vm, u8 argc,
   switch (argc) {
   case 1: {
     gab_obj_map *map =
-        gab_obj_map_create(gab, rec->len, 1, rec->shape->data, rec->data);
+        gab_obj_map_create(gab, vm, rec->len, 1, rec->shape->data, rec->data);
 
     gab_value result = GAB_VAL_OBJ(map);
 

@@ -1,0 +1,5 @@
+def fib = do (n)
+    n < 2 and n or self(n - 1) + self(n - 2)
+end
+
+fib(30)

@@ -112,15 +112,13 @@ gab_value gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc,
     if (!GAB_VAL_IS_NUMBER(argv[1]))
       return gab_panic(gab, vm, "Invalid call to gab_lib_put");
 
-    gab_obj_list_put(list, GAB_VAL_TO_NUMBER(argv[1]), argv[2]);
+    gab_obj_list_put(gab, vm, list, GAB_VAL_TO_NUMBER(argv[1]), argv[2]);
 
     break;
 
   default:
     return gab_panic(gab, vm, "Invalid call to gab_lib_put");
   }
-
-  gab_iref_many(gab, vm, argc - 1, argv + 1);
 
   return argv[0];
 }
@@ -168,7 +166,7 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
   gab_obj_shape *shape = gab_obj_shape_create_tuple(gab, vm, result_len);
 
   gab_obj_record *rec =
-      gab_obj_record_create(gab, shape, 1, list->data.data + start);
+      gab_obj_record_create(gab, vm, shape, 1, list->data.data + start);
 
   gab_value result = GAB_VAL_OBJ(rec);
 

@@ -6,8 +6,6 @@ impl Matrix
   def new(n, data) { data n } end
 
   def + (other)
-    self.n == other.n or panic()
-
     def N = self.n
 
     let data = Record:new(?self.data)
@@ -20,8 +18,6 @@ impl Matrix
   end
 
   def * (other)
-    self.n == other.n or panic()
-
     def N = self.n
 
     def data = Record:new(?self.data)
