@@ -1,27 +1,13 @@
-#include "include/gab.h"
+#include "include/alloc.h"
+#include "include/engine.h"
 #include <stdint.h>
-
-#define CHUNK_MAX_SIZE 256
-#define CHUNK_LEN 64
+#include <unistd.h>
 
 #define ctz __builtin_ctzl
 
-typedef struct Chunk Chunk;
-struct Chunk {
-  Chunk *prev;
-  Chunk *next;
-  u64 mask;
-  u8 size;
-  u8 bytes[FLEXIBLE_ARRAY];
-};
-
-typedef struct {
-  Chunk *chunks[CHUNK_MAX_SIZE];
-} Chunks;
-
-static inline Chunk *chunk_create(Chunks *s, u8 size) {
-  Chunk *old_chunk = s->chunks[size];
-  Chunk *self = malloc(sizeof(Chunk) + (CHUNK_LEN * size));
+static inline gab_chunk *chunk_create(gab_allocator *s, u8 size) {
+  gab_chunk *old_chunk = s->chunks[size];
+  gab_chunk *self = malloc(sizeof(gab_chunk) + (CHUNK_LEN * size));
   self->mask = 0;
   self->size = size;
 
@@ -36,7 +22,7 @@ static inline Chunk *chunk_create(Chunks *s, u8 size) {
   return self;
 }
 
-static inline void chunk_destroy(Chunks *s, Chunk *c) {
+static inline void chunk_destroy(gab_allocator *s, gab_chunk *c) {
   if (c->prev == NULL)
     s->chunks[c->size] = c->next;
   else
@@ -48,47 +34,47 @@ static inline void chunk_destroy(Chunks *s, Chunk *c) {
   free(c);
 }
 
-static inline u8 *chunk_begin(Chunk *chunk) { return chunk->bytes; }
+static inline u8 *chunk_begin(gab_chunk *chunk) { return chunk->bytes; }
 
-static inline u8 *chunk_end(Chunk *chunk) {
+static inline u8 *chunk_end(gab_chunk *chunk) {
   return chunk->bytes + chunk->size * CHUNK_LEN;
 }
 
-static inline boolean chunk_contains(Chunk *chunk, u8 *addr) {
+static inline boolean chunk_contains(gab_chunk *chunk, u8 *addr) {
   return (chunk_begin(chunk) <= addr) && (chunk_end(chunk) > addr);
 }
 
-static inline i32 chunk_indexof(Chunk *chunk, u8 *addr) {
+static inline i32 chunk_indexof(gab_chunk *chunk, u8 *addr) {
   assert(chunk_contains(chunk, addr));
   return (addr - chunk->bytes) / chunk->size;
 }
 
-static inline void chunk_set(Chunk *chunk, i32 index) {
+static inline void chunk_set(gab_chunk *chunk, i32 index) {
   chunk->mask |= (u64)1 << index;
 }
 
-static inline void chunk_unset(Chunk *chunk, i32 index) {
+static inline void chunk_unset(gab_chunk *chunk, i32 index) {
   chunk->mask &= ~((u64)1 << index);
 }
 
-static inline i32 chunk_next(Chunk *chunk) { return ctz(~chunk->mask); }
+static inline i32 chunk_next(gab_chunk *chunk) { return ctz(~chunk->mask); }
 
-static inline void *chunk_at(Chunk *chunk, i32 index) {
+static inline void *chunk_at(gab_chunk *chunk, i32 index) {
   return chunk->bytes + index * chunk->size;
 }
 
-static inline boolean chunk_empty(Chunk *chunk) { return chunk->mask == 0; }
+static inline boolean chunk_empty(gab_chunk *chunk) { return chunk->mask == 0; }
 
-static inline boolean chunk_full(Chunk *chunk) {
+static inline boolean chunk_full(gab_chunk *chunk) {
   return chunk->mask == UINT64_MAX;
 }
 
-static void *chunk_alloc(Chunks *s, u64 size) {
+static void *chunk_alloc(gab_allocator *s, u64 size) {
   if (s->chunks[size] == NULL) {
     chunk_create(s, size);
   }
 
-  Chunk *chunk = s->chunks[size];
+  gab_chunk *chunk = s->chunks[size];
 
   if (chunk_full(chunk)) {
     chunk = chunk_create(s, size);
@@ -101,8 +87,8 @@ static void *chunk_alloc(Chunks *s, u64 size) {
   return chunk_at(chunk, index);
 }
 
-void chunk_dealloc(Chunks *s, u64 size, void *ptr) {
-  Chunk *chunk = s->chunks[size];
+void chunk_dealloc(gab_allocator *s, u64 size, void *ptr) {
+  gab_chunk *chunk = s->chunks[size];
 
   while (chunk && !chunk_contains(chunk, ptr)) {
     chunk = chunk->next;
@@ -118,13 +104,13 @@ void chunk_dealloc(Chunks *s, u64 size, void *ptr) {
     chunk_destroy(s, chunk);
 }
 
-void *alloc_setup() {
-  void *ud = malloc(sizeof(Chunks));
-  memset(ud, 0, sizeof(Chunks));
+gab_allocator *gab_allocator_create() {
+  void *ud = malloc(sizeof(gab_allocator));
+  memset(ud, 0, sizeof(gab_allocator));
   return ud;
 }
 
-void alloc_teardown(void *ud) { free(ud); }
+void gab_allocator_destroy(gab_allocator *chunks) { free(chunks); }
 
 void *gab_reallocate(gab_engine *gab, void *loc, u64 old_count, u64 new_count) {
 
@@ -132,7 +118,7 @@ void *gab_reallocate(gab_engine *gab, void *loc, u64 old_count, u64 new_count) {
 
 #if CHUNK_ALLOCATOR
     if (old_count <= CHUNK_MAX_SIZE)
-      chunk_dealloc(gab_user(gab), old_count, loc);
+      chunk_dealloc(gab->allocator, old_count, loc);
     else
 #endif
       free(loc);
@@ -142,7 +128,7 @@ void *gab_reallocate(gab_engine *gab, void *loc, u64 old_count, u64 new_count) {
 
 #if CHUNK_ALLOCATOR
   if (new_count <= CHUNK_MAX_SIZE) {
-    return chunk_alloc(gab_user(gab), new_count);
+    return chunk_alloc(gab->allocator, new_count);
   }
 #endif
 

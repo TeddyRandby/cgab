@@ -446,6 +446,18 @@ gab_source *gab_source_create(gab_engine *gab, s_i8 source) {
   return self;
 }
 
+gab_source* gab_source_copy(gab_engine* gab, gab_source* self) {
+  gab_source *copy = NEW(gab_source);
+  self->source = a_i8_create(self->source->data, self->source->len);
+
+  v_s_i8_copy(&copy->source_lines, &self->source_lines);
+
+  copy->next = gab->sources;
+  gab->sources = copy;
+
+  return copy;
+}
+
 void gab_source_destroy(gab_source *self) {
   v_s_i8_destroy(&self->source_lines);
   a_i8_destroy(self->source);

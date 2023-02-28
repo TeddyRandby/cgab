@@ -19,37 +19,28 @@ static const char *gab_token_names[] = {
 #undef TOKEN
 };
 
-void gab_vm_container_cb(gab_engine *, gab_vm *, void *data) { DESTROY(data); }
-
-gab_value vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
+gab_value vm_error(gab_engine *gab, u8 flags, gab_status e,
                    const char *help_fmt, ...) {
 
-  gab_vm *stored = NEW(gab_vm);
-  memcpy(stored, vm, sizeof(gab_vm));
+  u64 nframes = gab->fp - gab->fb;
 
-  /* These pointers have to be recalculated for the copy */
-  stored->frame = stored->fstack + (vm->frame - vm->fstack);
-  stored->top = stored->vstack + (vm->top - vm->vstack);
-
-  u64 nframes = vm->frame - vm->fstack;
-
-  if (vm->flags & GAB_FLAG_DUMP_ERROR) {
-    while (nframes > 0) {
-      gab_vm_frame *frame = vm->fstack + nframes;
-      gab_vm_frame *stored_frame = stored->fstack + nframes;
-
-      stored_frame->slots = stored->vstack + (frame->slots - vm->vstack);
+  if (flags & GAB_FLAG_DUMP_ERROR) {
+    for (;;) {
+      gab_vm_frame *frame = gab->fb + nframes;
 
       s_i8 func_name =
           gab_obj_string_ref(GAB_VAL_TO_STRING(v_gab_constant_val_at(
               &frame->c->p->mod->constants, frame->c->p->mod->name)));
+
       gab_module *mod = frame->c->p->mod;
 
-      u64 offset = frame->ip - mod->bytecode.data - 1;
+      if (!mod->source)
+        break;
+
+      u64 offset = frame->ip - mod->bytecode.data;
 
       u64 curr_row = v_u64_val_at(&mod->lines, offset);
 
-      // Row numbers start at one, so the index is one less.
       s_i8 curr_src = v_s_i8_val_at(&mod->source->source_lines, curr_row - 1);
 
       i8 *curr_src_start = curr_src.data;
@@ -78,7 +69,7 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
           curr_under->data[i] = ' ';
       }
 
-      if (frame == vm->frame) {
+      if (nframes <= 1) {
         fprintf(stderr,
                 "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET
                 "] Error near " ANSI_COLOR_BLUE "%s" ANSI_COLOR_RESET
@@ -102,48 +93,41 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, gab_status e,
         va_end(args);
 
         fprintf(stderr, "\n" ANSI_COLOR_RESET);
-      } else {
-        fprintf(stderr,
-                "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET "] Called at:"
-                "\n\t  " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
-                "\n\t       " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET "\n",
-                (i32)func_name.len, func_name.data, curr_row, curr_src_len,
-                curr_src_start, (i32)curr_under->len, curr_under->data);
+
+        break;
       }
+
+      fprintf(stderr,
+              "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET "] Called at:"
+              "\n\t  " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
+              "\n\t       " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET "\n",
+              (i32)func_name.len, func_name.data, curr_row, curr_src_len,
+              curr_src_start, (i32)curr_under->len, curr_under->data);
 
       nframes--;
     }
   }
 
-  if (vm->flags & GAB_FLAG_EXIT_ON_PANIC) {
+  if (flags & GAB_FLAG_EXIT_ON_PANIC) {
     exit(0);
   }
 
-  return GAB_CONTAINER(gab_vm_container_cb, stored);
+  return GAB_VAL_NIL();
 }
 
-gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
-  return vm_error(gab, vm, GAB_PANIC, msg);
+gab_value gab_vm_panic(gab_engine *gab, const char *msg) {
+  return vm_error(gab, GAB_FLAG_DUMP_ERROR, GAB_PANIC, msg);
 }
 
-void gab_vm_create(gab_vm *self, u8 flags, u8 argc, gab_value argv[argc]) {
-  self->open_upvalues = NULL;
-  memset(self->vstack, 0, sizeof(self->vstack));
+void gab_vm_stack_dump(gab_engine *gab) {}
 
-  self->frame = self->fstack;
-  self->top = self->vstack;
-  self->flags = flags;
-}
-
-void gab_vm_stack_dump(gab_engine *gab, gab_vm *vm) {}
-
-void gab_vm_frame_dump(gab_engine *gab, gab_vm *vm, u64 value) {
-  u64 frame_count = vm->frame - vm->fstack;
+void gab_vm_frame_dump(gab_engine *gab, u64 value) {
+  u64 frame_count = gab->fp - gab->fb;
 
   if (value >= frame_count)
     return;
 
-  gab_vm_frame *f = vm->frame - value;
+  gab_vm_frame *f = gab->fp - value;
 
   s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(
       v_gab_constant_val_at(&f->c->p->mod->constants, f->c->p->mod->name)));
@@ -164,37 +148,15 @@ void gab_vm_frame_dump(gab_engine *gab, gab_vm *vm, u64 value) {
   }
 }
 
-void dump_frame(gab_value *slots, gab_value *top, const char *name) {
-  printf("Frame at %s:\n-----------------\n", name);
-  gab_value *tracker = top - 1;
-  while (tracker >= slots) {
-    printf("|%lu|", tracker - slots);
-    gab_val_dump(stdout, *tracker--);
-    printf("\n");
-  }
-  printf("---------------\n");
-};
-
-void dump_stack(gab_vm *vm, gab_value *top, const char *name) {
-  printf("Stack at %s:\n-----------------\n", name);
-  gab_value *tracker = top - 1;
-  while (tracker >= vm->vstack) {
-    printf("|%lu|", tracker - vm->vstack);
-    gab_val_dump(stdout, *tracker--);
-    printf("\n");
-  }
-  printf("---------------\n");
-}
-
-static inline i32 parse_have(gab_vm *vm, u8 have) {
+static inline i32 parse_have(gab_engine *gab, u8 have) {
   if (have & FLAG_VAR_EXP)
-    return *vm->top + (have >> 1);
+    return *gab->sp + (have >> 1);
   else
     return have >> 1;
 }
 
-static inline gab_value *trim_return(gab_vm *vm, gab_value *from, gab_value *to,
-                                     u8 have, u8 want) {
+static inline gab_value *trim_return(gab_value *from, gab_value *to, u8 have,
+                                     u8 want) {
   u8 nulls = have == 0;
 
   if ((have != want) && (want != VAR_EXP)) {
@@ -216,151 +178,108 @@ static inline gab_value *trim_return(gab_vm *vm, gab_value *from, gab_value *to,
   return to;
 }
 
-static inline boolean has_callspace(gab_vm *vm, u8 space_needed) {
-  if (vm->frame - vm->fstack + 1 >= FRAMES_MAX) {
+static inline boolean has_callspace(gab_engine *gab, u8 space_needed) {
+  if (gab->fp - gab->fb + 1 >= FRAMES_MAX) {
     return false;
   }
 
-  if (vm->top - vm->vstack + space_needed >= STACK_MAX) {
+  if (gab->sp - gab->sb + space_needed >= STACK_MAX) {
     return false;
   }
 
   return true;
 }
 
-static inline boolean call_effect(gab_vm *vm, gab_obj_effect *e, u8 arity,
-                                  u8 want) {
+static inline boolean call_suspense(gab_engine *gab, gab_obj_suspense *e,
+                                    u8 arity, u8 want) {
   i16 space_needed = e->len - e->have - arity;
 
-  if (space_needed > 0 && !has_callspace(vm, space_needed))
+  if (space_needed > 0 && !has_callspace(gab, space_needed))
     return false;
 
-  vm->frame++;
-  vm->frame->c = e->c;
-  vm->frame->ip = e->c->p->mod->bytecode.data + e->offset;
-  vm->frame->want = want;
-  vm->frame->slots = vm->top - arity - 1;
+  gab->fp++;
+  gab->fp->c = e->c;
+  gab->fp->ip = e->c->p->mod->bytecode.data + e->offset;
+  gab->fp->want = want;
+  gab->fp->slots = gab->sp - arity - 1;
 
-  gab_value *from = vm->top - arity;
-  gab_value *to = vm->frame->slots + e->len - e->have;
+  gab_value *from = gab->sp - arity;
+  gab_value *to = gab->fp->slots + e->len - e->have;
 
-  vm->top = trim_return(vm, from, to, arity, e->want);
-  memcpy(vm->frame->slots, e->frame, (e->len - e->have) * sizeof(gab_value));
+  gab->sp = trim_return(from, to, arity, e->want);
+  memcpy(gab->fp->slots, e->frame, (e->len - e->have) * sizeof(gab_value));
 
   return true;
 }
 
-static inline boolean call_block_var(gab_engine *gab, gab_vm *vm,
-                                     gab_obj_block *c, u8 have, u8 want) {
-  vm->frame++;
-  vm->frame->c = c;
-  vm->frame->ip = c->p->mod->bytecode.data;
-  vm->frame->want = want;
+static inline boolean call_block_var(gab_engine *gab, gab_obj_block *c, u8 have,
+                                     u8 want) {
+  gab->fp++;
+  gab->fp->c = c;
+  gab->fp->ip = c->p->mod->bytecode.data;
+  gab->fp->want = want;
 
   u8 size = have - c->p->narguments;
 
   have = c->p->narguments + 1;
 
-  gab_obj_shape *shape = gab_obj_shape_create_tuple(gab, vm, size);
+  gab_obj_shape *shape = gab_obj_shape_create_tuple(gab, size);
 
   gab_value args =
-      GAB_VAL_OBJ(gab_obj_record_create(gab, vm, shape, 1, vm->top - size));
+      GAB_VAL_OBJ(gab_obj_record_create(gab, shape, 1, gab->sp - size));
 
-  vm->top -= size;
+  gab->sp -= size;
 
-  *vm->top++ = args;
+  *gab->sp++ = args;
 
-  gab_gc_dref(gab, vm, args);
+  gab_gc_dref(gab, args);
 
-  vm->frame->slots = vm->top - have - 1;
+  gab->fp->slots = gab->sp - have - 1;
 
   for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
-    *vm->top++ = GAB_VAL_NIL();
+    *gab->sp++ = GAB_VAL_NIL();
 
   return true;
 }
 
-static inline boolean call_block(gab_engine *gab, gab_vm *vm, gab_obj_block *c,
-                                 u8 have, u8 want) {
-  if (!has_callspace(vm, c->p->nslots - c->p->narguments - 1)) {
+static inline boolean call_block(gab_engine *gab, gab_obj_block *c, u8 have,
+                                 u8 want) {
+  if (!has_callspace(gab, c->p->nslots - c->p->narguments - 1)) {
     return false;
   }
 
-  vm->frame++;
-  vm->frame->c = c;
-  vm->frame->ip = c->p->mod->bytecode.data;
-  vm->frame->want = want;
+  gab->fp++;
+  gab->fp->c = c;
+  gab->fp->ip = c->p->mod->bytecode.data;
+  gab->fp->want = want;
 
   while (have < c->p->narguments)
-    *vm->top++ = GAB_VAL_NIL(), have++;
+    *gab->sp++ = GAB_VAL_NIL(), have++;
 
   while (have > c->p->narguments)
-    vm->top--, have--;
+    gab->sp--, have--;
 
-  vm->frame->slots = vm->top - have - 1;
+  gab->fp->slots = gab->sp - have - 1;
 
   for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
-    *vm->top++ = GAB_VAL_NIL();
+    *gab->sp++ = GAB_VAL_NIL();
 
   return true;
 }
 
-static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_obj_builtin *b,
-                                u8 arity, u8 want, boolean is_message) {
+static inline void call_builtin(gab_engine *gab, gab_obj_builtin *b, u8 arity,
+                                u8 want, boolean is_message) {
   // Only pass in the extra "self" argument if this is a message.
   gab_value result =
-      (*b->function)(gab, vm, arity + is_message, vm->top - arity - is_message);
+      (*b->function)(gab, arity + is_message, gab->sp - arity - is_message);
 
   // There is always an extra to trim bc of the receiver or callee.
-  vm->top = trim_return(vm, &result, vm->top - arity - 1, 1, want);
-}
-
-static inline gab_value capture_upvalue(gab_engine *gab, gab_vm *vm, gab_gc *gc,
-                                        gab_value *local) {
-  gab_obj_upvalue *prev_upvalue = NULL;
-  gab_obj_upvalue *upvalue = vm->open_upvalues;
-
-  while (upvalue != NULL && upvalue->data > local) {
-    prev_upvalue = upvalue;
-    upvalue = upvalue->next;
-  }
-
-  if (upvalue != NULL && upvalue->data == local) {
-    // Capture this upvalue with a new referemce
-    return GAB_VAL_OBJ(upvalue);
-  }
-
-  gab_obj_upvalue *new_upvalue = gab_obj_upvalue_create(gab, local);
-
-  new_upvalue->next = upvalue;
-
-  if (prev_upvalue == NULL) {
-    vm->open_upvalues = new_upvalue;
-  } else {
-    prev_upvalue->next = new_upvalue;
-  }
-
-  return GAB_VAL_OBJ(new_upvalue);
-}
-
-static inline void close_upvalue(gab_engine *gab, gab_gc *gc, gab_vm *vm,
-                                 gab_value *local) {
-  while (vm->open_upvalues != NULL && vm->open_upvalues->data >= local) {
-    gab_obj_upvalue *upvalue = vm->open_upvalues;
-
-    upvalue->closed = *upvalue->data;
-
-    upvalue->data = &upvalue->closed;
-
-    vm->open_upvalues = upvalue->next;
-
-    gab_gc_iref(gab, vm, upvalue->closed);
-    gab_gc_dref(gab, vm, GAB_VAL_OBJ(upvalue));
-  }
+  gab->sp = trim_return(&result, gab->sp - arity - 1, 1, want);
 }
 
 gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
                      gab_value argv[argc]) {
+
 #if GAB_LOG_EXECUTION
 #define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
 #else
@@ -399,7 +318,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
   }                                                                            \
   if (!GAB_VAL_IS_NUMBER(PEEK())) {                                            \
     STORE_FRAME();                                                             \
-    return vm_error(ENGINE(), VM(), GAB_NOT_NUMERIC, "Found %V", PEEK());      \
+    return vm_error(ENGINE(), flags, GAB_NOT_NUMERIC, "Found %V", PEEK());     \
   }                                                                            \
   operation_type b = GAB_VAL_TO_NUMBER(POP());                                 \
   operation_type a = GAB_VAL_TO_NUMBER(POP());                                 \
@@ -409,20 +328,18 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 /*
   Lots of helper macros.
 */
-#define VM() (&vm)
 #define ENGINE() (gab)
 #define GC() (&ENGINE()->gc)
 #define INSTR() (instr)
-#define FRAME() (vm.frame)
+#define FRAME() (ENGINE()->fp)
 #define CLOSURE() (FRAME()->c)
 #define MODULE() (CLOSURE()->p->mod)
 #define IP() (ip)
-#define TOP() (top)
+#define TOP() (ENGINE()->sp)
 #define VAR() (*TOP())
 #define SLOTS() (FRAME()->slots)
 #define LOCAL(i) (SLOTS()[i])
-#define UPVALUE(i) (*(GAB_VAL_TO_UPVALUE(CLOSURE()->upvalues[i])->data))
-#define CONST_UPVALUE(i) (CLOSURE()->upvalues[i])
+#define UPVALUE(i) (CLOSURE()->upvalues[i])
 #define MOD_CONSTANT(k) (v_gab_constant_val_at(&MODULE()->constants, k))
 
 #if GAB_DEBUG_VM
@@ -466,46 +383,37 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 #define READ_MESSAGE (GAB_VAL_TO_MESSAGE(READ_CONSTANT))
 #define READ_PROTOTYPE (GAB_VAL_TO_PROTOTYPE(READ_CONSTANT))
 
-#define SYNCHRONIZE() ({ VM()->top = TOP(); })
-#define STORE_FRAME()                                                          \
-  ({                                                                           \
-    FRAME()->ip = IP();                                                        \
-    SYNCHRONIZE();                                                             \
-  })
-#define LOAD_FRAME()                                                           \
-  ({                                                                           \
-    IP() = FRAME()->ip;                                                        \
-    TOP() = VM()->top;                                                         \
-  })
+#define STORE_FRAME() ({ FRAME()->ip = IP(); })
+#define LOAD_FRAME() ({ IP() = FRAME()->ip; })
 
 #define SEND_CACHE_DIST 22
 
   /*
    ----------- BEGIN RUN BODY -----------
   */
+  gab_value vstack[STACK_MAX];
 
-  gab_vm vm;
-  gab_vm_create(VM(), flags, argc, argv);
+  gab_vm_frame fstack[FRAMES_MAX];
 
   gab_obj_block *main_c =
       GAB_VAL_TO_BLOCK(v_gab_constant_val_at(&mod->constants, mod->main));
 
+  gab->sb = vstack;
+  gab->sp = vstack;
+
+  gab->fb = fstack;
+  gab->fp = fstack - 1;
+
   register u8 instr = OP_NOP;
   register u8 *ip = main_c->p->mod->bytecode.data;
-  register gab_value *top = VM()->top;
-
-  FRAME()->c = main_c;
-  FRAME()->slots = TOP();
 
   PUSH(GAB_VAL_OBJ(main_c));
 
   for (u8 i = 0; i < argc; i++)
     PUSH(argv[i]);
 
-  STORE_FRAME();
-
-  if (!call_block(ENGINE(), VM(), main_c, main_c->p->narguments, 1))
-    return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+  if (!call_block(ENGINE(), main_c, main_c->p->narguments, 1))
+    return vm_error(ENGINE(), flags, GAB_OVERFLOW, "");
 
   LOAD_FRAME();
 
@@ -515,7 +423,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
     CASE_CODE(SEND_ANA) : {
       gab_obj_message *msg = READ_MESSAGE;
-      u8 have = parse_have(VM(), READ_BYTE);
+      u8 have = parse_have(ENGINE(), READ_BYTE);
       SKIP_BYTE;
 
       gab_value receiver = PEEK_N(have + 1);
@@ -530,7 +438,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
         if (GAB_VAL_IS_NIL(spec)) {
           STORE_FRAME();
-          return vm_error(ENGINE(), VM(), GAB_IMPLEMENTATION_MISSING,
+          return vm_error(ENGINE(), flags, GAB_IMPLEMENTATION_MISSING,
                           "Could not send %V to %V", GAB_VAL_OBJ(msg), type);
         }
 
@@ -552,7 +460,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         WRITE_BYTE(SEND_CACHE_DIST, instr + 2);
       } else {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_NOT_CALLABLE, "Found %V", spec);
+        return vm_error(ENGINE(), flags, GAB_NOT_CALLABLE, "Found %V", spec);
       }
 
       IP() -= SEND_CACHE_DIST;
@@ -562,7 +470,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
     CASE_CODE(SEND_MONO_CLOSURE) : {
       gab_obj_message *msg = READ_MESSAGE;
-      u8 have = parse_have(VM(), READ_BYTE);
+      u8 have = parse_have(ENGINE(), READ_BYTE);
       u8 want = READ_BYTE;
       u8 version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -586,11 +494,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       STORE_FRAME();
 
       if (blk->p->var) {
-        if (!call_block_var(ENGINE(), VM(), blk, have, want))
-          return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+        if (!call_block_var(ENGINE(), blk, have, want))
+          return vm_error(ENGINE(), flags, GAB_OVERFLOW, "");
       } else {
-        if (!call_block(ENGINE(), VM(), blk, have, want))
-          return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+        if (!call_block(ENGINE(), blk, have, want))
+          return vm_error(ENGINE(), flags, GAB_OVERFLOW, "");
       }
 
       LOAD_FRAME();
@@ -600,7 +508,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
     CASE_CODE(SEND_MONO_BUILTIN) : {
       gab_obj_message *msg = READ_MESSAGE;
-      u8 have = parse_have(VM(), READ_BYTE);
+      u8 have = parse_have(ENGINE(), READ_BYTE);
       u8 want = READ_BYTE;
       u8 version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -621,7 +529,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       STORE_FRAME();
 
-      call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(spec), have, want, true);
+      call_builtin(ENGINE(), GAB_VAL_TO_BUILTIN(spec), have, want, true);
 
       LOAD_FRAME();
 
@@ -630,7 +538,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
     CASE_CODE(SEND_PRIMITIVE_CALL_BUILTIN) : {
       gab_obj_message *msg = READ_MESSAGE;
-      u8 have = parse_have(VM(), READ_BYTE);
+      u8 have = parse_have(ENGINE(), READ_BYTE);
       u8 want = READ_BYTE;
       u8 version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -649,8 +557,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       STORE_FRAME();
 
-      call_builtin(ENGINE(), VM(), GAB_VAL_TO_BUILTIN(receiver), have, want,
-                   false);
+      call_builtin(ENGINE(), GAB_VAL_TO_BUILTIN(receiver), have, want, false);
 
       LOAD_FRAME();
       NEXT();
@@ -658,7 +565,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
     CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) : {
       gab_obj_message *msg = READ_MESSAGE;
-      u8 have = parse_have(VM(), READ_BYTE);
+      u8 have = parse_have(ENGINE(), READ_BYTE);
       u8 want = READ_BYTE;
       u8 version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -680,11 +587,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_obj_block *blk = GAB_VAL_TO_BLOCK(receiver);
 
       if (blk->p->var) {
-        if (!call_block_var(ENGINE(), VM(), blk, have, want))
-          return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+        if (!call_block_var(ENGINE(), blk, have, want))
+          return vm_error(ENGINE(), flags, GAB_OVERFLOW, "");
       } else {
-        if (!call_block(ENGINE(), VM(), blk, have, want))
-          return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+        if (!call_block(ENGINE(), blk, have, want))
+          return vm_error(ENGINE(), flags, GAB_OVERFLOW, "");
       }
 
       LOAD_FRAME();
@@ -692,9 +599,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       NEXT();
     }
 
-    CASE_CODE(SEND_PRIMITIVE_CALL_EFFECT) : {
+    CASE_CODE(SEND_PRIMITIVE_CALL_SUSPENSE) : {
       gab_obj_message *msg = READ_MESSAGE;
-      u8 have = parse_have(VM(), READ_BYTE);
+      u8 have = parse_have(ENGINE(), READ_BYTE);
       u8 want = READ_BYTE;
       u8 version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -713,8 +620,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       STORE_FRAME();
 
-      if (!call_effect(VM(), GAB_VAL_TO_EFFECT(receiver), have, want))
-        return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+      if (!call_suspense(ENGINE(), GAB_VAL_TO_SUSPENSE(receiver), have, want))
+        return vm_error(ENGINE(), flags, GAB_OVERFLOW, "");
 
       LOAD_FRAME();
 
@@ -802,7 +709,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_STRING(PEEK())) {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_NOT_STRING, "Found %V", PEEK());
+        return vm_error(ENGINE(), flags, GAB_NOT_STRING, "Found %V", PEEK());
       }
 
       gab_obj_string *b = GAB_VAL_TO_STRING(POP());
@@ -856,7 +763,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_NOT_RECORD,
+        return vm_error(ENGINE(), flags, GAB_NOT_RECORD,
                         "Tried to store property %V on %V", key, index);
       }
       gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
@@ -865,7 +772,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if (prop_offset == UINT16_MAX) {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_MISSING_PROPERTY, "Found %V",
+        return vm_error(ENGINE(), flags, GAB_MISSING_PROPERTY, "Found %V",
                         index);
       }
 
@@ -901,7 +808,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
 
-      gab_obj_record_set(ENGINE(), VM(), obj, prop_offset, value);
+      gab_obj_record_set(ENGINE(), obj, prop_offset, value);
 
       DROP_N(3);
 
@@ -929,7 +836,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       }
 
       STORE_FRAME();
-      return vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Found %V", index);
+      return vm_error(ENGINE(), flags, GAB_NOT_RECORD, "Found %V", index);
     }
 
     CASE_CODE(SEND_PRIMITIVE_LOAD_MONO) : {
@@ -992,7 +899,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       gab_value eff = PEEK();
 
-      if (!GAB_VAL_IS_EFFECT(eff)) {
+      if (!GAB_VAL_IS_SUSPENSE(eff)) {
 
         DROP_N(have - 1);
 
@@ -1005,7 +912,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       // Hide the effect but pretending to have one less
       // Don't update the top of the stack, just trim into the locals
       // where we expect.
-      trim_return(VM(), TOP() - have, SLOTS() + start, have - 1, want);
+      trim_return(TOP() - have, SLOTS() + start, have - 1, want);
 
       // Update the iterator
       LOCAL(start + want) = eff;
@@ -1022,8 +929,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       STORE_FRAME();
 
-      if (!call_effect(VM(), GAB_VAL_TO_EFFECT(PEEK()), 0, VAR_EXP))
-        return vm_error(ENGINE(), VM(), GAB_OVERFLOW, "");
+      if (!call_suspense(ENGINE(), GAB_VAL_TO_SUSPENSE(PEEK()), 0, VAR_EXP))
+        return vm_error(ENGINE(), flags, GAB_OVERFLOW, "");
 
       LOAD_FRAME();
 
@@ -1038,18 +945,18 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         u8 want;
 
         CASE_CODE(YIELD) : {
-          have = parse_have(VM(), READ_BYTE);
+          have = parse_have(ENGINE(), READ_BYTE);
           want = READ_BYTE;
 
           u64 frame_len = TOP() - SLOTS();
 
-          gab_value eff = GAB_VAL_OBJ(gab_obj_effect_create(
-              ENGINE(), VM(), CLOSURE(), IP() - MODULE()->bytecode.data, have,
-              want, frame_len, SLOTS()));
+          gab_value eff = GAB_VAL_OBJ(gab_obj_suspense_create(
+              ENGINE(), CLOSURE(), IP() - MODULE()->bytecode.data, have, want,
+              frame_len, SLOTS()));
 
           PUSH(eff);
 
-          gab_gc_dref(ENGINE(), VM(), eff);
+          gab_gc_dref(ENGINE(), eff);
 
           have++;
 
@@ -1058,7 +965,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       }
 
       CASE_CODE(RETURN) : {
-        have = parse_have(VM(), READ_BYTE);
+        have = parse_have(ENGINE(), READ_BYTE);
 
         goto complete_return;
       }
@@ -1066,16 +973,20 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     complete_return : {
       gab_value *from = TOP() - have;
 
-      close_upvalue(ENGINE(), GC(), VM(), FRAME()->slots);
+      TOP() = trim_return(from, FRAME()->slots, have, FRAME()->want);
 
-      VM()->top = trim_return(VM(), from, FRAME()->slots, have, FRAME()->want);
-
-      if (--FRAME() == VM()->fstack) {
+      if (FRAME() == ENGINE()->fb) {
         // Increment and pop the module.
-        gab_gc_iref(ENGINE(), VM(), PEEK());
-
-        return POP();
+        gab_value result = POP();
+        gab_gc_iref(ENGINE(), result);
+        ENGINE()->sb = NULL;
+        ENGINE()->sp = NULL;
+        ENGINE()->fb = NULL;
+        ENGINE()->fp = NULL;
+        return result;
       }
+
+      FRAME()--;
 
       LOAD_FRAME();
 
@@ -1095,7 +1006,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Found %V", index);
+        return vm_error(ENGINE(), flags, GAB_NOT_RECORD, "Found %V", index);
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1120,7 +1031,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_NOT_RECORD,
+        return vm_error(ENGINE(), flags, GAB_NOT_RECORD,
                         "Tried to load property %V on %V", key, index);
       }
 
@@ -1151,7 +1062,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Found %V", index);
+        return vm_error(ENGINE(), flags, GAB_NOT_RECORD, "Found %V", index);
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1175,7 +1086,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Found %V", index);
+        return vm_error(ENGINE(), flags, GAB_NOT_RECORD, "Found %V", index);
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1184,7 +1095,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if (prop_offset == UINT16_MAX) {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_MISSING_PROPERTY,
+        return vm_error(ENGINE(), flags, GAB_MISSING_PROPERTY,
                         "%V has no property %V", index, key);
       }
 
@@ -1209,7 +1120,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Found %V", index);
+        return vm_error(ENGINE(), flags, GAB_NOT_RECORD, "Found %V", index);
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1220,7 +1131,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
         if (prop_offset == UINT16_MAX) {
           STORE_FRAME();
-          return vm_error(ENGINE(), VM(), GAB_MISSING_PROPERTY,
+          return vm_error(ENGINE(), flags, GAB_MISSING_PROPERTY,
                           "%V has no property %V", index, key);
         }
 
@@ -1228,7 +1139,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         WRITE_BYTE(13, OP_STORE_PROPERTY_POLY);
       }
 
-      gab_obj_record_set(ENGINE(), VM(), rec, prop_offset, value);
+      gab_obj_record_set(ENGINE(), rec, prop_offset, value);
 
       DROP_N(2);
 
@@ -1248,7 +1159,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_NOT_RECORD, "Found %V", index);
+        return vm_error(ENGINE(), flags, GAB_NOT_RECORD, "Found %V", index);
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1256,11 +1167,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
       if (prop_offset == UINT16_MAX) {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_MISSING_PROPERTY,
+        return vm_error(ENGINE(), flags, GAB_MISSING_PROPERTY,
                         "%V has no property %V", index, key);
       }
 
-      gab_obj_record_set(ENGINE(), VM(), rec, prop_offset, value);
+      gab_obj_record_set(ENGINE(), rec, prop_offset, value);
 
       DROP_N(2);
 
@@ -1350,7 +1261,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     CASE_CODE(NEGATE) : {
       if (!GAB_VAL_IS_NUMBER(PEEK())) {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_NOT_NUMERIC, "Found %V", PEEK());
+        return vm_error(ENGINE(), flags, GAB_NOT_NUMERIC, "Found %V", PEEK());
       }
 
       gab_value new_value = GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP()));
@@ -1460,18 +1371,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       NEXT();
     }
 
-    CASE_CODE(LOAD_CONST_UPVALUE_0) :
-    CASE_CODE(LOAD_CONST_UPVALUE_1) :
-    CASE_CODE(LOAD_CONST_UPVALUE_2) :
-    CASE_CODE(LOAD_CONST_UPVALUE_3) :
-    CASE_CODE(LOAD_CONST_UPVALUE_4) :
-    CASE_CODE(LOAD_CONST_UPVALUE_5) :
-    CASE_CODE(LOAD_CONST_UPVALUE_6) :
-    CASE_CODE(LOAD_CONST_UPVALUE_7) :
-    CASE_CODE(LOAD_CONST_UPVALUE_8) : {
-      PUSH(CONST_UPVALUE(INSTR() - OP_LOAD_CONST_UPVALUE_0));
-      NEXT();
-    }
     // clang-format on
 
     CASE_CODE(LOAD_LOCAL) : {
@@ -1491,27 +1390,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
     CASE_CODE(LOAD_UPVALUE) : {
       PUSH(UPVALUE(READ_BYTE));
-      NEXT();
-    }
-
-    CASE_CODE(LOAD_CONST_UPVALUE) : {
-      PUSH(CONST_UPVALUE(READ_BYTE));
-      NEXT();
-    }
-
-    CASE_CODE(STORE_UPVALUE) : {
-      UPVALUE(READ_BYTE) = PEEK();
-      NEXT();
-    }
-
-    CASE_CODE(POP_STORE_UPVALUE) : {
-      UPVALUE(READ_BYTE) = POP();
-      NEXT();
-    }
-
-    CASE_CODE(CLOSE_UPVALUE) : {
-      SYNCHRONIZE();
-      close_upvalue(ENGINE(), GC(), VM(), SLOTS() + READ_BYTE);
       NEXT();
     }
 
@@ -1561,22 +1439,17 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         u8 index = p->upv_desc[i * 2 + 1];
 
         if (flags & GAB_VARIABLE_FLAG_LOCAL) {
-          if (flags & GAB_VARIABLE_FLAG_MUTABLE) {
-            cls->upvalues[i] =
-                capture_upvalue(ENGINE(), VM(), GC(), FRAME()->slots + index);
-          } else {
-            cls->upvalues[i] = LOCAL(index);
-          }
+          cls->upvalues[i] = LOCAL(index);
         } else {
           cls->upvalues[i] = CLOSURE()->upvalues[index];
         }
       }
 
-      gab_gc_iref_many(ENGINE(), VM(), p->nupvalues, cls->upvalues);
+      gab_gc_iref_many(ENGINE(), p->nupvalues, cls->upvalues);
 
       PUSH(GAB_VAL_OBJ(cls));
 
-      gab_gc_dref(ENGINE(), VM(), GAB_VAL_OBJ(cls));
+      gab_gc_dref(ENGINE(), GAB_VAL_OBJ(cls));
 
       NEXT();
     }
@@ -1586,11 +1459,12 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_obj_message *m = READ_MESSAGE;
       gab_value r = POP();
 
-      u16 offset = gab_obj_message_find(m, r);
+      u64 offset = gab_obj_message_find(m, r);
 
-      if (offset != UINT16_MAX) {
+      if (offset != UINT64_MAX) {
         STORE_FRAME();
-        return vm_error(ENGINE(), VM(), GAB_IMPLEMENTATION_EXISTS, "");
+        return vm_error(ENGINE(), flags, GAB_IMPLEMENTATION_EXISTS,
+                        " Tried to implement %V for %V", GAB_VAL_OBJ(m), r);
       }
 
       gab_obj_block *blk = gab_obj_block_create(ENGINE(), p);
@@ -1600,20 +1474,15 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         u8 index = READ_BYTE;
 
         if (flags & GAB_VARIABLE_FLAG_LOCAL) {
-          if (flags & GAB_VARIABLE_FLAG_MUTABLE) {
-            blk->upvalues[i] =
-                capture_upvalue(ENGINE(), VM(), GC(), FRAME()->slots + index);
-          } else {
-            blk->upvalues[i] = LOCAL(index);
-          }
+          blk->upvalues[i] = LOCAL(index);
         } else {
           blk->upvalues[i] = CLOSURE()->upvalues[index];
         }
       }
 
-      gab_gc_iref_many(ENGINE(), VM(), blk->nupvalues, blk->upvalues);
+      gab_gc_iref_many(ENGINE(), blk->nupvalues, blk->upvalues);
 
-      gab_gc_iref(ENGINE(), VM(), r);
+      gab_gc_iref(ENGINE(), r);
 
       gab_obj_message_insert(m, r, GAB_VAL_OBJ(blk));
 
@@ -1629,9 +1498,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
 
         len = READ_BYTE;
 
-        SYNCHRONIZE();
-
-        shape = gab_obj_shape_create(ENGINE(), VM(), len, 2, TOP() - len * 2);
+        shape = gab_obj_shape_create(ENGINE(), len, 2, TOP() - len * 2);
 
         shape->name = name;
 
@@ -1641,42 +1508,38 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       CASE_CODE(RECORD) : {
         len = READ_BYTE;
 
-        SYNCHRONIZE();
-
-        shape = gab_obj_shape_create(ENGINE(), VM(), len, 2, TOP() - len * 2);
+        shape = gab_obj_shape_create(ENGINE(), len, 2, TOP() - len * 2);
 
         goto complete_record;
       }
 
     complete_record : {
-      gab_obj_record *rec = gab_obj_record_create(ENGINE(), VM(), shape, 2,
-                                                  TOP() + 1 - (len * 2));
+      gab_obj_record *rec =
+          gab_obj_record_create(ENGINE(), shape, 2, TOP() + 1 - (len * 2));
 
       DROP_N(len * 2);
 
       PUSH(GAB_VAL_OBJ(rec));
 
-      gab_gc_dref(ENGINE(), VM(), GAB_VAL_OBJ(rec));
+      gab_gc_dref(ENGINE(), GAB_VAL_OBJ(rec));
 
       NEXT();
     }
     }
 
     CASE_CODE(TUPLE) : {
-      u8 len = parse_have(VM(), READ_BYTE);
+      u8 len = parse_have(ENGINE(), READ_BYTE);
 
-      SYNCHRONIZE();
-
-      gab_obj_shape *shape = gab_obj_shape_create_tuple(ENGINE(), VM(), len);
+      gab_obj_shape *shape = gab_obj_shape_create_tuple(ENGINE(), len);
 
       gab_obj_record *rec =
-          gab_obj_record_create(ENGINE(), VM(), shape, 1, TOP() - len);
+          gab_obj_record_create(ENGINE(), shape, 1, TOP() - len);
 
       DROP_N(len);
 
       PUSH(GAB_VAL_OBJ(rec));
 
-      gab_gc_dref(ENGINE(), VM(), GAB_VAL_OBJ(rec));
+      gab_gc_dref(ENGINE(), GAB_VAL_OBJ(rec));
 
       NEXT();
     }

@@ -172,17 +172,9 @@ static inline void push_load_local(gab_bc *bc, u8 local) {
                              bc->lex.previous_token_src);
 }
 
-static inline void push_store_upvalue(gab_bc *bc, u8 upv) {
-  gab_module_push_store_upvalue(mod(bc), upv, bc->previous_token, bc->line,
-                                bc->lex.previous_token_src);
-}
-
 static inline void push_load_upvalue(gab_bc *bc, u8 upv) {
-  gab_bc_frame *f = peek_frame(bc, 0);
-
-  gab_module_push_load_upvalue(
-      mod(bc), upv, f->upvs_flag[upv] & GAB_VARIABLE_FLAG_MUTABLE,
-      bc->previous_token, bc->line, bc->lex.previous_token_src);
+  gab_module_push_load_upvalue(mod(bc), upv, bc->previous_token, bc->line,
+                               bc->lex.previous_token_src);
 }
 
 static inline void push_byte(gab_bc *bc, u8 data) {
@@ -333,6 +325,12 @@ static i32 resolve_upvalue(gab_engine *gab, gab_bc *bc, gab_value name,
   if (local >= 0) {
     u8 flags = (peek_frame(bc, depth + 1)->locals_flag[local] |=
                 GAB_VARIABLE_FLAG_CAPTURED);
+
+    if (flags & GAB_VARIABLE_FLAG_MUTABLE) {
+      compiler_error(bc, GAB_CAPTURED_MUTABLE, "Tried to capture %V", name);
+      return COMP_ERR;
+    }
+
     return add_upvalue(bc, depth, local, flags | GAB_VARIABLE_FLAG_LOCAL);
   }
 
@@ -399,26 +397,16 @@ static void up_scope(gab_bc *bc) {
 
   f->scope_depth--;
 
-  boolean capture = false;
   while (f->next_local > 1 &&
          f->locals_depth[f->next_local - 1] > f->scope_depth) {
-
-    capture |= f->locals_flag[f->nlocals - 1] & GAB_VARIABLE_FLAG_CAPTURED;
     f->next_local--;
     pop_slot(bc, 1);
   }
-
-  // If this block contained a captured local, escape it.
-  if (capture) {
-    push_op(bc, OP_CLOSE_UPVALUE);
-    push_byte(bc, f->next_local);
-  }
 }
 
-static gab_module *down_frame(gab_engine *gab, gab_bc *bc, boolean is_method) {
+static gab_module *down_frame(gab_engine *gab, gab_bc *bc, gab_value name,
+                              boolean is_method) {
   gab_bc_frame *f = bc->frames + bc->nframe++;
-
-  gab_value name = GAB_STRING("self");
 
   gab_module *mod = gab_module_create(name, bc->lex.source, gab->modules);
   gab->modules = mod;
@@ -434,7 +422,7 @@ static gab_module *down_frame(gab_engine *gab, gab_bc *bc, boolean is_method) {
   f->nupvalues = 0;
   f->scope_depth = 0;
 
-  initialize_local(bc, add_local(gab, bc, name, 0));
+  initialize_local(bc, add_local(gab, bc, GAB_STRING("self"), 0));
 
   return mod;
 }
@@ -695,7 +683,7 @@ i32 compile_message_spec(gab_engine *gab, gab_bc *bc) {
 i32 compile_block(gab_engine *gab, gab_bc *bc) {
   down_scope(bc);
 
-  down_frame(gab, bc, false);
+  down_frame(gab, bc, GAB_STRING("anonymous"), false);
 
   boolean vse;
   i32 narguments = compile_parameters(gab, bc, &vse);
@@ -722,7 +710,7 @@ i32 compile_message(gab_engine *gab, gab_bc *bc, gab_value name) {
 
   down_scope(bc);
 
-  down_frame(gab, bc, true);
+  down_frame(gab, bc, name, true);
 
   boolean vse;
   i32 narguments = compile_parameters(gab, bc, &vse);
@@ -1844,34 +1832,28 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
   case COMP_OK: {
     if (!assignable) {
+      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
+      return COMP_ERR;
+    }
+
+    if (!is_local_var) {
       compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                     "While compiling identifier");
+                     "Cannot assign to captured values");
       return COMP_ERR;
     }
 
     gab_bc_frame *frame = peek_frame(bc, 0);
-    if (is_local_var) {
-      if (!(frame->locals_flag[var] & GAB_VARIABLE_FLAG_MUTABLE)) {
-        compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                       "Variable is not mutable");
-        return COMP_ERR;
-      }
-    } else {
-      if (!(frame->upvs_flag[var] & GAB_VARIABLE_FLAG_MUTABLE)) {
-        compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                       "Variable is not mutable");
-        return COMP_ERR;
-      }
+    if (!(frame->locals_flag[var] & GAB_VARIABLE_FLAG_MUTABLE)) {
+      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                     "Variable is not mutable");
+      return COMP_ERR;
     }
 
     if (compile_expression(gab, bc) < 0)
       return COMP_ERR;
 
-    if (is_local_var) {
-      push_store_local(bc, var);
-    } else {
-      push_store_upvalue(bc, var);
-    }
+    push_store_local(bc, var);
+
     break;
   }
 
@@ -2461,7 +2443,7 @@ gab_compile_rule get_rule(gab_token k) { return gab_bc_rules[k]; }
 
 gab_module *compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
                     gab_value arguments[narguments]) {
-  gab_module *new_mod = down_frame(gab, bc, false);
+  gab_module *new_mod = down_frame(gab, bc, name, false);
 
   if (eat_token(bc) == COMP_ERR)
     return NULL;

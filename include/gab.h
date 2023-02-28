@@ -6,7 +6,6 @@
 
 typedef struct gab_engine gab_engine;
 typedef struct gab_module gab_module;
-typedef struct gab_vm gab_vm;
 
 /**
  * Create a Gab Engine. If you want libraries included, build and bind them
@@ -14,7 +13,19 @@ typedef struct gab_vm gab_vm;
  *
  * @return The allocated Gab Engine.
  */
-gab_engine *gab_create(void *ud);
+gab_engine *gab_create();
+
+/**
+ * Fork a Gab Engine.
+ *
+ * This copies the arguments and messages from the argument engine into the
+ * forked on.
+ *
+ * @param gab The engine to fork.
+ *
+ * @return The allocated Gab Engine.
+ */
+gab_engine *gab_fork(gab_engine *gab);
 
 /**
  * Cleanup a Gab Engine.
@@ -41,13 +52,6 @@ void gab_destroy(gab_engine *gab);
  */
 void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]);
-
-/**
- * Get the user data for the engine
- *
- *  @param gab The engine
- */
-void *gab_user(gab_engine *gab);
 
 /**
  * Compile a source string into a Gab Module.
@@ -91,7 +95,7 @@ gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags);
  * @return A gab value wrapping the state of the panic'd vm
  *
  */
-gab_value gab_panic(gab_engine *gab, gab_vm *vm, const char *msg);
+gab_value gab_panic(gab_engine *gab, const char *msg);
 
 /**
  * Disassemble a module from start to end.
@@ -106,20 +110,32 @@ gab_value gab_panic(gab_engine *gab, gab_vm *vm, const char *msg);
 void gab_dis(gab_module *mod);
 
 /**
+ * Deep-copy a value into the given gab engine.
+ *
+ * @param gab The engine
+ *
+ * @param value The value to copy
+ *
+ * @return The copied value
+ *
+ */
+gab_value gab_val_copy(gab_engine *gab, gab_value value);
+
+/**
  * Decrement the reference count of a value
  *
  * @param val The value to clean up. If there is no VM, you may pass NULL.
  */
-void gab_dref(gab_engine *gab, gab_vm *vm, gab_value value);
-void gab_dref_many(gab_engine *gab, gab_vm *vm, u64 len, gab_value values[len]);
+void gab_dref(gab_engine *gab, gab_value value);
+void gab_dref_many(gab_engine *gab, u64 len, gab_value values[len]);
 
 /**
  * Increment the reference count of a value
  *
  * @param val The value to clean up. If there is no VM, you may pass NULL.
  */
-void gab_iref(gab_engine *gab, gab_vm *vm, gab_value value);
-void gab_iref_many(gab_engine *gab, gab_vm *vm, u64 len, gab_value values[len]);
+void gab_iref(gab_engine *gab, gab_value value);
+void gab_iref_many(gab_engine *gab, u64 len, gab_value values[len]);
 
 /**
  * Trigger a garbace collection.
@@ -128,7 +144,7 @@ void gab_iref_many(gab_engine *gab, gab_vm *vm, u64 len, gab_value values[len]);
  *
  * @param val The value to clean up. If there is no VM, you may pass NULL.
  */
-void gab_collect(gab_engine *gab, gab_vm *vm);
+void gab_collect(gab_engine *gab);
 
 /**
  * Bundle a list of keys and values into a Gab object.
@@ -143,7 +159,7 @@ void gab_collect(gab_engine *gab, gab_vm *vm);
  *
  * @return The gab value that the keys and values were bundled into
  */
-gab_value gab_record(gab_engine *gab, gab_vm *vm, u64 size, s_i8 keys[size],
+gab_value gab_record(gab_engine *gab, u64 size, s_i8 keys[size],
                      gab_value values[size]);
 
 /**
@@ -157,8 +173,7 @@ gab_value gab_record(gab_engine *gab, gab_vm *vm, u64 size, s_i8 keys[size],
  *
  * @return The gab value that the keys and values were bundled into
  */
-gab_value gab_tuple(gab_engine *gab, gab_vm *vm, u64 size,
-                    gab_value values[size]);
+gab_value gab_tuple(gab_engine *gab, u64 size, gab_value values[size]);
 
 /**
  * Create a specialization on the given message for the given receiver
@@ -203,7 +218,6 @@ int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
 int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
                            int *sizes);
 
-
 /*
  * Get the value that corresponds to a given type.
  *
@@ -215,7 +229,7 @@ int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
  */
 gab_value gab_type(gab_engine *gab, gab_kind kind);
 
-static inline gab_kind gab_val_kind(gab_engine *gab, gab_value value) {
+static inline gab_kind gab_val_kind(gab_value value) {
   if (GAB_VAL_IS_NUMBER(value))
     return GAB_KIND_NUMBER;
   if (GAB_VAL_IS_NIL(value))
@@ -224,6 +238,8 @@ static inline gab_kind gab_val_kind(gab_engine *gab, gab_value value) {
     return GAB_KIND_UNDEFINED;
   if (GAB_VAL_IS_BOOLEAN(value))
     return GAB_KIND_BOOLEAN;
+  if (GAB_VAL_IS_PRIMITIVE(value))
+    return GAB_KIND_PRIMITIVE;
   if (GAB_VAL_IS_OBJ(value))
     return GAB_VAL_TO_OBJ(value)->kind;
 }
@@ -240,7 +256,7 @@ static inline gab_kind gab_val_kind(gab_engine *gab, gab_value value) {
  */
 // This can be heavily optimized.
 static inline gab_value gab_val_type(gab_engine *gab, gab_value value) {
-  gab_kind k = gab_val_kind(gab, value);
+  gab_kind k = gab_val_kind(value);
 
   switch (k) {
   case GAB_KIND_NIL:
@@ -257,7 +273,6 @@ static inline gab_value gab_val_type(gab_engine *gab, gab_value value) {
     return gab_type(gab, k);
   }
 }
-
 
 /**
  * Convert a gab value to a boolean.
@@ -282,7 +297,7 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self);
 /**
  * A helper macro for sending simply
  */
-#define GAB_SEND(name, receiver, argc, argn, argv)                              \
+#define GAB_SEND(name, receiver, argc, argn, argv)                             \
   gab_send(gab, GAB_STRING(name), receiver, argc, argn, argv)
 
 /**
@@ -300,8 +315,8 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self);
 /**
  * A helper macro for creating a gab_obj_container
  */
-#define GAB_CONTAINER(cb, data)                                                \
-  GAB_VAL_OBJ(gab_obj_container_create(gab, cb, data))
+#define GAB_CONTAINER(name, data)                                              \
+  GAB_VAL_OBJ(gab_obj_container_create(gab, name, data))
 
 /**
  * A helper macro for creating a gab_obj_symbol

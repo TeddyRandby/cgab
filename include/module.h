@@ -79,6 +79,9 @@ struct gab_module {
 gab_module *gab_module_create(gab_value name, gab_source *src,
                               gab_module *next);
 
+gab_module *gab_module_copy(gab_engine *gab, gab_module *self,
+                            gab_module *next);
+
 void gab_module_destroy(gab_engine *gab, gab_module *mod);
 
 void gab_module_collect(gab_engine *gab, gab_module *mod);
@@ -87,17 +90,15 @@ void gab_module_collect(gab_engine *gab, gab_module *mod);
   Helpers for pushing ops into the module.
 */
 void gab_module_push_op(gab_module *, gab_opcode, gab_token, u64, s_i8);
+
 void gab_module_push_byte(gab_module *, u8, gab_token, u64, s_i8);
 
 void gab_module_push_short(gab_module *, u16, gab_token, u64, s_i8);
 
 /* These helpers return the instruction they push. */
 u8 gab_module_push_load_local(gab_module *, u8, gab_token, u64, s_i8);
-u8 gab_module_push_load_upvalue(gab_module *, u8, boolean, gab_token, u64,
-                                s_i8);
-u8 gab_module_push_load_const_upvalue(gab_module *, u8, gab_token, u64, s_i8);
 u8 gab_module_push_store_local(gab_module *, u8, gab_token, u64, s_i8);
-u8 gab_module_push_store_upvalue(gab_module *, u8, gab_token, u64, s_i8);
+u8 gab_module_push_load_upvalue(gab_module *, u8, gab_token, u64, s_i8);
 u8 gab_module_push_return(gab_module *, u8, boolean vse, gab_token, u64, s_i8);
 u8 gab_module_push_yield(gab_module *, u8, boolean vse, gab_token, u64, s_i8);
 u8 gab_module_push_tuple(gab_module *, u8, boolean vse, gab_token, u64, s_i8);

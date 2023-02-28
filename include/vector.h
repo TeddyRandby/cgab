@@ -35,6 +35,13 @@ LINKAGE void METHOD(create)(TYPENAME *self, u64 cap) {
   self->data = NEW_ARRAY(T, cap);
 }
 
+LINKAGE void METHOD(copy)(TYPENAME*self, TYPENAME*other) {
+  self->cap = other->cap;
+  self->len = other->len;
+  self->data = NEW_ARRAY(T, other->cap);
+  memcpy(self->data, other->data, other->len * sizeof(T));
+}
+
 LINKAGE void METHOD(destroy)(TYPENAME *self) { DESTROY(self->data); }
 
 LINKAGE u64 METHOD(set)(TYPENAME *self, u64 index, T value) {

@@ -27,7 +27,7 @@ gab_value make_print(gab_engine *gab) {
       gab_type(gab, GAB_KIND_SHAPE),
       gab_type(gab, GAB_KIND_BLOCK),
       gab_type(gab, GAB_KIND_MESSAGE),
-      gab_type(gab, GAB_KIND_EFFECT),
+      gab_type(gab, GAB_KIND_SUSPENSE),
   };
 
   gab_value print_builtin = GAB_BUILTIN(print);
@@ -51,14 +51,14 @@ gab_value make_require(gab_engine *gab) {
 void gab_repl() {
   imports_create();
 
-  gab_engine *gab = gab_create(alloc_setup());
+  gab_engine *gab = gab_create();
 
   gab_value arg_names[] = {
       GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
       GAB_STRING("String"), GAB_STRING("Number"),  GAB_STRING("Boolean"),
       GAB_STRING("Block"),  GAB_STRING("Message"), GAB_STRING("Effect"),
-      GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"), GAB_STRING("Any"),
-      GAB_STRING("it")};
+      GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"),
+      GAB_STRING("Any"),    GAB_STRING("it")};
 
   gab_value args[] = {
       make_print(gab),
@@ -69,7 +69,7 @@ void gab_repl() {
       gab_type(gab, GAB_KIND_BOOLEAN),
       gab_type(gab, GAB_KIND_BLOCK),
       gab_type(gab, GAB_KIND_MESSAGE),
-      gab_type(gab, GAB_KIND_EFFECT),
+      gab_type(gab, GAB_KIND_SUSPENSE),
       gab_type(gab, GAB_KIND_RECORD),
       gab_type(gab, GAB_KIND_LIST),
       gab_type(gab, GAB_KIND_MAP),
@@ -114,20 +114,16 @@ void gab_repl() {
       printf("%V\n", result);
     }
 
-    gab_dref(gab, NULL, args[LEN_CARRAY(args) - 1]);
+    gab_dref(gab, args[LEN_CARRAY(args) - 1]);
 
     args[LEN_CARRAY(args) - 1] = result;
 
     gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
   }
 
-  gab_dref_many(gab, NULL, 3, args);
-
-  void *ud = gab_user(gab);
+  gab_dref_many(gab, 3, args);
 
   gab_destroy(gab);
-
-  alloc_teardown(ud);
 
   imports_destroy(gab);
 }
@@ -135,7 +131,7 @@ void gab_repl() {
 void gab_run_file(const char *path) {
   imports_create();
 
-  gab_engine *gab = gab_create(alloc_setup());
+  gab_engine *gab = gab_create();
 
   gab_value arg_names[] = {
       GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
@@ -153,7 +149,7 @@ void gab_run_file(const char *path) {
       gab_type(gab, GAB_KIND_BOOLEAN),
       gab_type(gab, GAB_KIND_BLOCK),
       gab_type(gab, GAB_KIND_MESSAGE),
-      gab_type(gab, GAB_KIND_EFFECT),
+      gab_type(gab, GAB_KIND_SUSPENSE),
       gab_type(gab, GAB_KIND_RECORD),
       gab_type(gab, GAB_KIND_LIST),
       gab_type(gab, GAB_KIND_MAP),
@@ -178,14 +174,12 @@ void gab_run_file(const char *path) {
   gab_value result =
       gab_run(gab, main, GAB_FLAG_DUMP_ERROR | GAB_FLAG_EXIT_ON_PANIC);
 
-  gab_dref(gab, NULL, result);
+  gab_dref(gab, result);
 
 fin : {
-  gab_dref_many(gab, NULL, 3, args);
+  gab_dref_many(gab, 3, args);
 
-  void *ud = gab_user(gab);
   gab_destroy(gab);
-  alloc_teardown(ud);
   imports_destroy(gab);
 }
 }

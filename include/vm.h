@@ -1,8 +1,11 @@
 #ifndef GAB_VM_H
 #define GAB_VM_H
+#include "value.h"
 
-#include "gc.h"
-#include "object.h"
+typedef struct gab_obj_block gab_obj_block;
+typedef struct gab_obj_upvalue gab_obj_upvalue;
+typedef struct gab_engine gab_engine;
+typedef struct gab_module gab_module;
 
 /*
   A run-time representation of a callframe.
@@ -28,33 +31,13 @@ typedef struct gab_vm_frame {
   u8 want;
 } gab_vm_frame;
 
-typedef struct gab_vm {
-  u8 flags;
-  /*
-    Upvalues to close when the current function returns.
-  */
-  gab_obj_upvalue *open_upvalues;
-
-  gab_vm_frame *frame;
-
-  gab_value *top;
-
-  gab_value vstack[STACK_MAX];
-
-  gab_vm_frame fstack[FRAMES_MAX];
-} gab_vm;
-
-void gab_vm_create(gab_vm *vm, u8 flags, u8 argc, gab_value argv[argc]);
-
-void gab_vm_destroy(gab_vm *vm);
-
 gab_value gab_vm_run(gab_engine *gab, gab_module *main, u8 flags, u8 argc,
                      gab_value argv[argc]);
 
-gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg);
+gab_value gab_vm_panic(gab_engine *gab, const char *msg);
 
-void gab_vm_stack_dump(gab_engine* gab, gab_vm* vm);
+void gab_vm_stack_dump(gab_engine *gab);
 
-void gab_vm_frame_dump(gab_engine* gab, gab_vm* vm, u64 value);
+void gab_vm_frame_dump(gab_engine *gab, u64 value);
 
 #endif

@@ -19,11 +19,32 @@ gab_module *gab_module_create(gab_value name, gab_source *source,
   v_u8_create(&self->tokens, 256);
   v_u64_create(&self->lines, 256);
   v_s_i8_create(&self->sources, 256);
-
   v_gab_constant_create(&self->constants, CONSTANTS_INITIAL_CAP);
+
   self->name = gab_module_add_constant(self, name);
+
   return self;
 }
+
+gab_module *gab_module_copy(gab_engine *gab, gab_module *self,
+                            gab_module *next) {
+  gab_module *copy = NEW(gab_module);
+  copy->source = gab_source_copy(gab, self->source);
+  copy->main = self->main;
+  copy->previous_compiled_op = OP_NOP;
+  copy->next = next;
+
+  v_u8_copy(&copy->bytecode, &self->bytecode);
+  v_u8_copy(&copy->tokens, &self->tokens);
+  v_u64_copy(&copy->lines, &self->lines);
+  v_s_i8_copy(&copy->sources, &self->sources);
+  v_gab_constant_copy(&copy->constants, &self->constants);
+
+  copy->name = gab_module_add_constant(copy, gab_val_copy(gab, self->name));
+
+  return copy;
+}
+
 void gab_module_collect(gab_engine *gab, gab_module *mod) {
   if (!mod)
     return;
@@ -34,7 +55,7 @@ void gab_module_collect(gab_engine *gab, gab_module *mod) {
     // are their prototypes and the main closure
     if (GAB_VAL_IS_SYMBOL(v) || GAB_VAL_IS_PROTOTYPE(v) ||
         GAB_VAL_IS_BLOCK(v)) {
-      gab_dref(gab, NULL, v);
+      gab_dref(gab, v);
     }
   }
 }
@@ -122,17 +143,16 @@ u8 gab_module_push_load_local(gab_module *self, u8 local, gab_token t, u64 l,
   return OP_LOAD_LOCAL;
 }
 
-u8 gab_module_push_load_upvalue(gab_module *self, u8 upvalue, boolean mutable,
-                                gab_token t, u64 l, s_i8 s) {
+u8 gab_module_push_load_upvalue(gab_module *self, u8 upvalue, gab_token t,
+                                u64 l, s_i8 s) {
   if (upvalue < 9) {
-    u8 op =
-        mutable ? MAKE_LOAD_UPVALUE(upvalue) : MAKE_LOAD_CONST_UPVALUE(upvalue);
+    u8 op = MAKE_LOAD_UPVALUE(upvalue);
     gab_module_push_op(self, op, t, l, s);
+
     return op;
   }
 
-  gab_module_push_op(self, mutable ? OP_LOAD_UPVALUE : OP_LOAD_CONST_UPVALUE, t,
-                     l, s);
+  gab_module_push_op(self, OP_LOAD_UPVALUE, t, l, s);
   gab_module_push_byte(self, upvalue, t, l, s);
 
   return OP_LOAD_UPVALUE;
@@ -150,20 +170,6 @@ u8 gab_module_push_store_local(gab_module *self, u8 local, gab_token t, u64 l,
   gab_module_push_byte(self, local, t, l, s);
 
   return OP_STORE_LOCAL;
-};
-
-u8 gab_module_push_store_upvalue(gab_module *self, u8 upvalue, gab_token t,
-                                 u64 l, s_i8 s) {
-  if (upvalue < 9) {
-    u8 op = MAKE_STORE_UPVALUE(upvalue);
-    gab_module_push_op(self, op, t, l, s);
-    return op;
-  }
-
-  gab_module_push_op(self, OP_STORE_UPVALUE, t, l, s);
-  gab_module_push_byte(self, upvalue, t, l, s);
-
-  return OP_STORE_UPVALUE;
 };
 
 u8 gab_module_push_return(gab_module *self, u8 have, boolean vse, gab_token t,
@@ -450,15 +456,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_LOAD_UPVALUE_6:
   case OP_LOAD_UPVALUE_7:
   case OP_LOAD_UPVALUE_8:
-  case OP_LOAD_CONST_UPVALUE_0:
-  case OP_LOAD_CONST_UPVALUE_1:
-  case OP_LOAD_CONST_UPVALUE_2:
-  case OP_LOAD_CONST_UPVALUE_3:
-  case OP_LOAD_CONST_UPVALUE_4:
-  case OP_LOAD_CONST_UPVALUE_5:
-  case OP_LOAD_CONST_UPVALUE_6:
-  case OP_LOAD_CONST_UPVALUE_7:
-  case OP_LOAD_CONST_UPVALUE_8:
   case OP_STORE_UPVALUE_0:
   case OP_STORE_UPVALUE_1:
   case OP_STORE_UPVALUE_2:
@@ -527,13 +524,9 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_RETURN:
   case OP_YIELD:
   case OP_POP_N:
-  case OP_CLOSE_UPVALUE:
   case OP_STORE_LOCAL:
-  case OP_STORE_UPVALUE:
   case OP_POP_STORE_LOCAL:
-  case OP_POP_STORE_UPVALUE:
   case OP_LOAD_UPVALUE:
-  case OP_LOAD_CONST_UPVALUE:
   case OP_LOAD_LOCAL: {
     return dumpByteInstruction(self, offset);
   }
@@ -556,9 +549,8 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
       u8 flags = p->upv_desc[j * 2];
       u8 index = p->upv_desc[j * 2 + 1];
       int isLocal = flags & GAB_VARIABLE_FLAG_LOCAL;
-      int isMutable = flags & GAB_VARIABLE_FLAG_MUTABLE;
       printf("      |                   %d %s %s\n", index,
-             isLocal ? "local" : "upvalue", isMutable ? "mut" : "const");
+             isLocal ? "local" : "upvalue");
     }
     return offset;
   }
@@ -581,9 +573,8 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
       u8 flags = p->upv_desc[j * 2];
       u8 index = p->upv_desc[j * 2 + 1];
       int isLocal = flags & GAB_VARIABLE_FLAG_LOCAL;
-      int isMutable = flags & GAB_VARIABLE_FLAG_MUTABLE;
       printf("      |                   %d %s %s\n", index,
-             isLocal ? "local" : "upvalue", isMutable ? "mut" : "const");
+             isLocal ? "local" : "upvalue");
     }
     return offset;
   }

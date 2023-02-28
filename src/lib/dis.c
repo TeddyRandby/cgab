@@ -17,15 +17,14 @@ void dis_message(gab_engine *gab, gab_obj_message *msg, gab_value rec) {
     gab_obj_block *cls = GAB_VAL_TO_BLOCK(spec);
     dis_closure(cls);
   } else if (GAB_VAL_IS_BUILTIN(spec)) {
-    gab_val_dump(stdout,spec);
+    gab_val_dump(stdout, spec);
     printf("\n");
   }
 }
 
-gab_value gab_lib_disstring(gab_engine *gab, gab_vm *vm, u8 argc,
-                            gab_value argv[argc]) {
+gab_value gab_lib_disstring(gab_engine *gab, u8 argc, gab_value argv[argc]) {
   if (argc < 1) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_dis");
+    gab_panic(gab, "Invalid call to gab_lib_dis");
   }
 
   gab_obj_message *msg = gab_obj_message_create(gab, argv[0]);
@@ -35,10 +34,9 @@ gab_value gab_lib_disstring(gab_engine *gab, gab_vm *vm, u8 argc,
   return GAB_VAL_NIL();
 };
 
-gab_value gab_lib_dismessage(gab_engine *gab, gab_vm *vm, u8 argc,
-                             gab_value argv[argc]) {
+gab_value gab_lib_dismessage(gab_engine *gab, u8 argc, gab_value argv[argc]) {
   if (argc != 2) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_dis");
+    gab_panic(gab, "Invalid call to gab_lib_dis");
   }
 
   gab_obj_message *msg = GAB_VAL_TO_MESSAGE(argv[0]);
@@ -48,10 +46,9 @@ gab_value gab_lib_dismessage(gab_engine *gab, gab_vm *vm, u8 argc,
   return GAB_VAL_NIL();
 }
 
-gab_value gab_lib_disclosure(gab_engine *gab, gab_vm *vm, u8 argc,
-                             gab_value argv[argc]) {
+gab_value gab_lib_disclosure(gab_engine *gab, u8 argc, gab_value argv[argc]) {
   if (argc != 1) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_dis");
+    gab_panic(gab, "Invalid call to gab_lib_dis");
   }
 
   gab_obj_block *cls = GAB_VAL_TO_BLOCK(argv[0]);
@@ -61,10 +58,9 @@ gab_value gab_lib_disclosure(gab_engine *gab, gab_vm *vm, u8 argc,
   return GAB_VAL_NIL();
 }
 
-gab_value gab_lib_disbuiltin(gab_engine *gab, gab_vm *vm, u8 argc,
-                             gab_value argv[argc]) {
+gab_value gab_lib_disbuiltin(gab_engine *gab, u8 argc, gab_value argv[argc]) {
   if (argc != 1) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_dis");
+    gab_panic(gab, "Invalid call to gab_lib_dis");
   }
 
   gab_val_dump(stdout, argv[0]);
@@ -73,7 +69,7 @@ gab_value gab_lib_disbuiltin(gab_engine *gab, gab_vm *vm, u8 argc,
   return GAB_VAL_NIL();
 }
 
-gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
+gab_value gab_mod(gab_engine *gab) {
   gab_value receivers[] = {
       gab_type(gab, GAB_KIND_BLOCK),
       gab_type(gab, GAB_KIND_MESSAGE),
@@ -92,7 +88,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
 
   for (u8 i = 0; i < LEN_CARRAY(values); i++) {
     gab_specialize(gab, GAB_STRING("dis"), receivers[i], values[i]);
-    gab_dref(gab, vm, values[i]);
+    gab_dref(gab, values[i]);
   }
 
   return GAB_VAL_NIL();

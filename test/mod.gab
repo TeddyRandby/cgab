@@ -13,12 +13,12 @@ def check = do(result, msg)
   result or print(msg)
 end
 
-def expect = do (self, other)
-  check(self == other, 'Expected {self} to be equal to {other}') or panic()
+def expect = do (a, b)
+  check(a == b, 'Expected {a} to be equal to {b}') or panic()
 end
 
-def expect_not = do (self, other)
-  check(not (self == other), 'Expected {self} to not be equal to {other}') or panic()
+def expect_not = do (a, b)
+  check(not (a == b), 'Expected {a} to not be equal to {b}') or panic()
 end
 
 describe('Numbers', do ()

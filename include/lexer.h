@@ -57,6 +57,8 @@ struct gab_lexer {
 
 gab_source* gab_source_create(gab_engine* gab, s_i8 source);
 
+gab_source* gab_source_copy(gab_engine* gab, gab_source* self);
+
 void gab_source_destroy(gab_source* self);
 
 void gab_lexer_create(gab_lexer *self, gab_source* src);

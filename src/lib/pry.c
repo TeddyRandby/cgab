@@ -4,16 +4,13 @@
 #include "include/value.h"
 #include "include/vm.h"
 
-gab_value gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
-                            gab_value argv[argc]) {
-  if (argc < 1 || !GAB_VAL_IS_CONTAINER(argv[0])) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_pryframes");
+gab_value gab_lib_pryframes(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+  if (argc < 1) {
+    gab_panic(gab, "Invalid call to gab_lib_pryframes");
   }
 
-  gab_obj_container *con = GAB_VAL_TO_CONTAINER(argv[0]);
-
   if (argc == 1) {
-    gab_vm_frame_dump(gab, con->data, 0);
+    gab_vm_frame_dump(gab, 0);
 
     return argv[0];
   }
@@ -21,7 +18,7 @@ gab_value gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
   if (argc == 2 && GAB_VAL_IS_NUMBER(argv[1])) {
     u64 depth = GAB_VAL_TO_NUMBER(argv[1]);
 
-    gab_vm_frame_dump(gab, con->data, depth);
+    gab_vm_frame_dump(gab, depth);
 
     return argv[0];
   }
@@ -29,7 +26,7 @@ gab_value gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
   return GAB_VAL_NIL();
 }
 
-gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
+gab_value gab_mod(gab_engine *gab) {
   gab_value receivers[] = {
       gab_type(gab, GAB_KIND_CONTAINER),
   };
@@ -47,7 +44,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
 
   for (u8 i = 0; i < LEN_CARRAY(values); i++) {
     gab_specialize(gab, names[i], receivers[i], values[i]);
-    gab_dref(gab, vm, values[i]);
+    gab_dref(gab, values[i]);
   }
 
   return GAB_VAL_NIL();

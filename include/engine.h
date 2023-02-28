@@ -3,12 +3,13 @@
 
 typedef enum gab_status gab_status;
 
+#include "include/object.h"
 typedef struct gab_source gab_source;
 typedef struct gab_bc gab_bc;
-typedef struct gab_vm gab_vm;
+typedef struct gab_vm_frame gab_vm_frame;
 
-#include "gab.h"
 #include "gc.h"
+#include "alloc.h"
 
 void *gab_reallocate(gab_engine *gab, void *loc, u64 old_size, u64 new_size);
 
@@ -54,6 +55,12 @@ struct gab_engine {
    */
   gab_gc gc;
 
+  gab_value* sb;
+  gab_value* sp;
+
+  gab_vm_frame* fb;
+  gab_vm_frame* fp;
+
   /*
    * The Engine's builtin types
    */
@@ -63,7 +70,7 @@ struct gab_engine {
 
   gab_obj *objects;
 
-  void *userdata;
+  gab_allocator *allocator;
 
   a_u64 *argv_values;
   a_u64 *argv_names;

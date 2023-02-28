@@ -5,10 +5,4 @@ require('record')
 require('num')
 
 require('Monad')
-require('Range')
-require('String')
-require('Number')
-require('Time')
-require('List')
-require('Map')
 nil
