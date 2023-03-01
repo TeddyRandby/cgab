@@ -185,7 +185,6 @@ gab_engine *gab_fork(gab_engine *gab) {
   for (u8 i = 0; i < argc; i++) {
     arg_names[i] = gab_val_copy(new_gab, gab->argv_names->data[i]);
     arg_values[i] = gab_val_copy(new_gab, gab->argv_values->data[i]);
-    printf("%V: %V\n", arg_names[i], arg_values[i]);
   }
 
   gab_args(new_gab, argc, arg_names, arg_values);

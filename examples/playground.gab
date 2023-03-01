@@ -1,7 +1,1 @@
-impl Number
-    def hi print('hi from {self}') end
-end
-
-1:hi
-
-1 + 'hi'
+Any

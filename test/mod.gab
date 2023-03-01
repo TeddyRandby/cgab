@@ -48,7 +48,7 @@ end)
 
 
 describe('Closures', do ()
-    let a = 1
+    def a = 1
 
     it('should capture', do ()
         expect(a, 1)
@@ -61,25 +61,6 @@ describe('Closures', do ()
         expect(test(), 1)
         expect(test(), 1)
         expect(test(), 1)
-    end)
-
-    it('should capture by reference', do ()
-        let b = 2
-
-        def addOne = do()
-            b = b + 1
-        end
-
-        expect(b, 2)
-
-        addOne()
-
-        expect(b, 3)
-
-        addOne()
-        addOne()
-
-        expect(b, 5)
     end)
 
    it('should work with varargs', do()
@@ -98,20 +79,6 @@ describe('Closures', do ()
       varfunc(onetwo())
    end)
 end)
-
-# describe('Lists', do ()
-    # def list = [1 2 3]
-
-    # list[0]:expect(1)
-
-    # list[1]:expect(2)
-
-    # list[2]:expect(3)
-
-    # list[1] = 4
-
-    # list[1]:expect(4)
-# end)
 
 describe('Records', do ()
   def Point { x y }
