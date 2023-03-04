@@ -4,6 +4,7 @@
 #include "value.h"
 
 typedef struct gab_module gab_module;
+typedef struct gab_vm gab_vm;
 typedef struct gab_gc gab_gc;
 typedef struct gab_engine gab_engine;
 
@@ -122,7 +123,7 @@ s_i8 gab_obj_string_ref(gab_obj_string *self);
   ------------- OBJ_BUILTIN-------------
   A function pointer. to a native c function.
 */
-typedef gab_value (*gab_builtin)(gab_engine *gab, u8 argc,
+typedef gab_value (*gab_builtin)(gab_engine *gab, gab_vm *vm, u8 argc,
                                  gab_value argv[argc]);
 typedef struct gab_obj_builtin gab_obj_builtin;
 struct gab_obj_builtin {
@@ -298,10 +299,10 @@ struct gab_obj_shape {
 #define GAB_VAL_TO_SHAPE(value) ((gab_obj_shape *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SHAPE(value) ((gab_obj_shape *)value)
 
-gab_obj_shape *gab_obj_shape_create(gab_engine *gab, u64 len, u64 stride,
-                                    gab_value key[len]);
+gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 len,
+                                    u64 stride, gab_value key[len]);
 
-gab_obj_shape *gab_obj_shape_create_tuple(gab_engine *gab, u64 len);
+gab_obj_shape *gab_obj_shape_create_tuple(gab_engine *gab, gab_vm *vm, u64 len);
 
 static inline u16 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
 
@@ -335,19 +336,20 @@ struct gab_obj_record {
 #define GAB_VAL_TO_RECORD(value) ((gab_obj_record *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_RECORD(value) ((gab_obj_record *)value)
 
-gab_obj_record *gab_obj_record_create(gab_engine *gab, gab_obj_shape *shape,
-                                      u64 stride, gab_value values[]);
+gab_obj_record *gab_obj_record_create(gab_engine *gab, gab_vm *vm,
+                                      gab_obj_shape *shape, u64 stride,
+                                      gab_value values[]);
 
 gab_obj_record *gab_obj_record_create_empty(gab_engine *gab,
                                             gab_obj_shape *shape);
 
-void gab_obj_record_set(gab_engine *gab, gab_obj_record *self, u16 offset,
-                        gab_value value);
+void gab_obj_record_set(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
+                        u16 offset, gab_value value);
 
 gab_value gab_obj_record_get(gab_obj_record *self, u16 offset);
 
-boolean gab_obj_record_put(gab_engine *gab, gab_obj_record *self, gab_value key,
-                           gab_value value);
+boolean gab_obj_record_put(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
+                           gab_value key, gab_value value);
 
 gab_value gab_obj_record_at(gab_obj_record *self, gab_value prop);
 /*
@@ -367,13 +369,13 @@ struct gab_obj_list {
 #define GAB_VAL_TO_LIST(value) ((gab_obj_list *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_LIST(value) ((gab_obj_list *)value)
 
-gab_obj_list *gab_obj_list_create(gab_engine *gab, u64 size, u64 stride,
-                                  gab_value values[size]);
+gab_obj_list *gab_obj_list_create(gab_engine *gab, gab_vm *vm, u64 size,
+                                  u64 stride, gab_value values[size]);
 
 gab_obj_list *gab_obj_list_create_empty(gab_engine *gab, u64 size);
 
-gab_value gab_obj_list_put(gab_engine *gab, gab_obj_list *self, u64 offset,
-                           gab_value value);
+gab_value gab_obj_list_put(gab_engine *gab, gab_vm *vm, gab_obj_list *self,
+                           u64 offset, gab_value value);
 
 gab_value gab_obj_list_at(gab_obj_list *self, u64 offset);
 /*
@@ -399,11 +401,12 @@ struct gab_obj_map {
 #define GAB_VAL_TO_MAP(value) ((gab_obj_map *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_MAP(value) ((gab_obj_map *)value)
 
-gab_obj_map *gab_obj_map_create(gab_engine *gab, u64 len, u64 stride,
-                                gab_value keys[len], gab_value values[len]);
+gab_obj_map *gab_obj_map_create(gab_engine *gab, gab_vm *vm, u64 len,
+                                u64 stride, gab_value keys[len],
+                                gab_value values[len]);
 
-gab_value gab_obj_map_put(gab_engine *gab, gab_obj_map *self, gab_value key,
-                          gab_value value);
+gab_value gab_obj_map_put(gab_engine *gab, gab_vm *vm, gab_obj_map *self,
+                          gab_value key, gab_value value);
 
 gab_value gab_obj_map_at(gab_obj_map *self, gab_value key);
 
@@ -479,8 +482,9 @@ struct gab_obj_suspense {
 #define GAB_VAL_TO_SUSPENSE(value) ((gab_obj_suspense *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SUSPENSE(value) ((gab_obj_suspense *)value)
 
-gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_obj_block *c,
-                                          u64 offset, u8 arity, u8 want, u8 len,
+gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm,
+                                          gab_obj_block *c, u64 offset,
+                                          u8 arity, u8 want, u8 len,
                                           gab_value frame[len]);
 
 #endif

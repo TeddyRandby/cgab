@@ -4,75 +4,76 @@
 #include <assert.h>
 #include <stdio.h>
 
-gab_value gab_lib_new(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
+                      gab_value argv[argc]) {
   switch (argc) {
   case 1: {
-    gab_obj_map *map = gab_obj_map_create(gab, 0, 0, NULL, NULL);
+    gab_obj_map *map = gab_obj_map_create(gab, vm, 0, 0, NULL, NULL);
 
     gab_value result = GAB_VAL_OBJ(map);
 
-    gab_dref(gab, result);
+    gab_dref(gab, vm, result);
 
     return result;
   }
 
   case 2: {
     if (!GAB_VAL_IS_RECORD(argv[1]))
-      return gab_panic(gab, "Invalid call to gab_lib_len");
+      return gab_panic(gab, vm, "Invalid call to gab_lib_len");
 
     gab_obj_record *rec = GAB_VAL_TO_RECORD(argv[1]);
     gab_obj_shape *shp = rec->shape;
 
     gab_obj_map *map =
-        gab_obj_map_create(gab, rec->len, 1, shp->data, rec->data);
+        gab_obj_map_create(gab, vm, rec->len, 1, shp->data, rec->data);
 
     gab_value result = GAB_VAL_OBJ(map);
 
-    gab_dref(gab, result);
+    gab_dref(gab, vm, result);
 
     return result;
   }
   default:
-    return gab_panic(gab, "Invalid call to gab_lib_new");
+    return gab_panic(gab, vm, "Invalid call to gab_lib_new");
   }
 }
 
-gab_value gab_lib_len(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc,
+                      gab_value argv[argc]) {
   if (argc != 1)
-    return gab_panic(gab, "Invalid call to gab_lib_len");
+    return gab_panic(gab, vm, "Invalid call to gab_lib_len");
 
   gab_obj_map *obj = GAB_VAL_TO_MAP(argv[0]);
 
   return GAB_VAL_NUMBER(obj->data.len);
 }
 
-gab_value gab_lib_at(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc,
+                     gab_value argv[argc]) {
   if (argc != 2)
-    return gab_panic(gab, "Invalid call to gab_lib_at");
+    return gab_panic(gab, vm, "Invalid call to gab_lib_at");
 
   gab_obj_map *map = GAB_VAL_TO_MAP(argv[0]);
 
   return gab_obj_map_at(map, argv[1]);
 }
 
-gab_value gab_lib_put(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc,
+                      gab_value argv[argc]) {
   if (argc != 3)
-    return gab_panic(gab, "Invalid call to gab_lib_put");
+    return gab_panic(gab, vm, "Invalid call to gab_lib_put");
 
   gab_obj_map *map = GAB_VAL_TO_MAP(argv[0]);
 
   gab_value key = argv[1];
 
-  if (gab_obj_map_has(map, key)) {
-    gab_obj_map_put(gab, map, key, argv[2]);
-  } else {
-    gab_obj_map_put(gab, map, key, argv[2]);
-  }
+  gab_obj_map_put(gab, vm, map, key, argv[2]);
 
   return argv[0];
 }
 
-gab_value gab_lib_next(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc,
+                       gab_value argv[argc]) {
   gab_obj_map *map = GAB_VAL_TO_MAP(argv[0]);
 
   switch (argc) {
@@ -98,11 +99,11 @@ gab_value gab_lib_next(gab_engine *gab, u8 argc, gab_value argv[argc]) {
     return d_gab_value_ikey(&map->data, next_index);
   }
   default:
-    return gab_panic(gab, "Invalid call to gab_lib_next");
+    return gab_panic(gab, vm, "Invalid call to gab_lib_next");
   }
 }
 
-gab_value gab_mod(gab_engine *gab) {
+gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value names[] = {
       GAB_STRING("new"), GAB_STRING("len"),  GAB_STRING("put"),
       GAB_STRING("at"),  GAB_STRING("next"),
@@ -123,8 +124,8 @@ gab_value gab_mod(gab_engine *gab) {
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
 
   for (int i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_specialize(gab, names[i], receivers[i], specs[i]);
-    gab_dref(gab, specs[i]);
+    gab_specialize(gab, vm, names[i], receivers[i], specs[i]);
+    gab_dref(gab, vm, specs[i]);
   }
 
   return GAB_VAL_NIL();

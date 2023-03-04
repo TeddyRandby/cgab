@@ -11,39 +11,40 @@
 boolean debug_collect = true;
 #endif
 
-void gab_obj_iref(gab_engine *gab, gab_obj *obj) {
+void gab_obj_iref(gab_engine *gab, gab_vm *vm, gab_obj *obj) {
   if (gab->gc.nincrements + 1 >= GC_INC_BUFF_MAX) {
-    gab_gc_collect(gab);
-  } else {
+    gab_gc_collect(gab, vm);
 #if GAB_DEBUG_GC
+  } else {
     if (debug_collect)
-      gab_gc_collect(gab);
+      gab_gc_collect(gab, vm);
 #endif
   }
 
   gab->gc.increments[gab->gc.nincrements++] = obj;
 }
 
-void gab_obj_dref(gab_engine *gab, gab_obj *obj) {
+void gab_obj_dref(gab_engine *gab, gab_vm *vm, gab_obj *obj) {
   if (gab->gc.ndecrements + 1 >= GC_DEC_BUFF_MAX) {
-    gab_gc_collect(gab);
+    gab_gc_collect(gab, vm);
 #if GAB_DEBUG_GC
   } else {
     if (debug_collect)
-      gab_gc_collect(gab);
+      gab_gc_collect(gab, vm);
 #endif
   }
 
   gab->gc.decrements[gab->gc.ndecrements++] = obj;
 }
 
-void gab_gc_iref_many(gab_engine *gab, u64 len, gab_value values[len]) {
+void gab_gc_iref_many(gab_engine *gab, gab_vm *vm, u64 len,
+                      gab_value values[len]) {
   if (gab->gc.nincrements + len >= GC_INC_BUFF_MAX) {
-    gab_gc_collect(gab);
+    gab_gc_collect(gab, vm);
 #if GAB_DEBUG_GC
   } else {
     if (debug_collect)
-      gab_gc_collect(gab);
+      gab_gc_collect(gab, vm);
 #endif
   }
 
@@ -53,13 +54,14 @@ void gab_gc_iref_many(gab_engine *gab, u64 len, gab_value values[len]) {
   }
 }
 
-void gab_gc_dref_many(gab_engine *gab, u64 len, gab_value values[len]) {
+void gab_gc_dref_many(gab_engine *gab, gab_vm *vm, u64 len,
+                      gab_value values[len]) {
   if (gab->gc.ndecrements + len >= GC_DEC_BUFF_MAX) {
-    gab_gc_collect(gab);
+    gab_gc_collect(gab, vm);
 #if GAB_DEBUG_GC
   } else {
     if (debug_collect)
-      gab_gc_collect(gab);
+      gab_gc_collect(gab, vm);
 #endif
   }
 
@@ -71,7 +73,7 @@ void gab_gc_dref_many(gab_engine *gab, u64 len, gab_value values[len]) {
 
 #if GAB_LOG_GC
 
-void __gab_gc_iref(gab_engine *gab, gab_value obj, const char *file, i32 line) {
+void __gab_gc_iref(gab_engine *gab, gab_vm* vm, gab_value obj, const char *file, i32 line) {
   if (GAB_VAL_IS_OBJ(obj)) {
     gab_obj_iref(gab, vm, GAB_VAL_TO_OBJ(obj));
     v_rc_update_push(&gab->gc.tracked_increments,
@@ -81,14 +83,9 @@ void __gab_gc_iref(gab_engine *gab, gab_value obj, const char *file, i32 line) {
                          .line = line,
                      });
   }
-
-#if GAB_DEBUG_GC
-  if (debug_collect)
-    gab_gc_collect(gab);
-#endif
 }
 
-void __gab_gc_dref(gab_engine *gab, gab_value obj, i32 line) {
+void __gab_gc_dref(gab_engine *gab, gab_vm* vm, gab_value obj, const char* file, i32 line) {
   if (GAB_VAL_IS_OBJ(obj)) {
     gab_obj_dref(gab, vm, GAB_VAL_TO_OBJ(obj));
     v_rc_update_push(&gab->gc.tracked_decrements,
@@ -98,11 +95,6 @@ void __gab_gc_dref(gab_engine *gab, gab_value obj, i32 line) {
                          .line = line,
                      });
   }
-
-#if GAB_DEBUG_GC
-  if (debug_collect)
-    gab_gc_collect(gab);
-#endif
 }
 
 static inline void dump_rcs_for(gab_gc *gc, gab_obj *val) {
@@ -124,14 +116,14 @@ static inline void dump_rcs_for(gab_gc *gc, gab_obj *val) {
 
 #else
 
-void gab_gc_iref(gab_engine *gab, gab_value obj) {
+void gab_gc_iref(gab_engine *gab, gab_vm *vm, gab_value obj) {
   if (GAB_VAL_IS_OBJ(obj))
-    gab_obj_iref(gab, GAB_VAL_TO_OBJ(obj));
+    gab_obj_iref(gab, vm, GAB_VAL_TO_OBJ(obj));
 }
 
-void gab_gc_dref(gab_engine *gab, gab_value obj) {
+void gab_gc_dref(gab_engine *gab, gab_vm *vm, gab_value obj) {
   if (GAB_VAL_IS_OBJ(obj))
-    gab_obj_dref(gab, GAB_VAL_TO_OBJ(obj));
+    gab_obj_dref(gab, vm, GAB_VAL_TO_OBJ(obj));
 }
 
 #endif
@@ -146,14 +138,13 @@ void gab_gc_create(gab_engine *gab) {
   v_rc_update_create(&gab->gc.tracked_decrements, CONSTANTS_MAX);
   v_rc_update_create(&gab->gc.tracked_increments, CONSTANTS_MAX);
   d_rc_tracker_create(&gab->gc.tracked_values, CONSTANTS_MAX);
-  d_u64_create(&gab->gc.object_counts, 8);
 #endif
 };
 
 void gab_gc_destroy(gab_engine *gab) {
 #if GAB_LOG_GC
   fprintf(stdout, "Checking remaining objects...\n");
-  for (u64 i = 0; i < gab->gc.racked_values.cap; i++) {
+  for (u64 i = 0; i < gab->gc.tracked_values.cap; i++) {
     if (d_rc_tracker_iexists(&gab->gc.tracked_values, i)) {
       gab_obj *k = d_rc_tracker_ikey(&gab->gc.tracked_values, i);
       i32 v = d_rc_tracker_ival(&gab->gc.tracked_values, i);
@@ -170,7 +161,6 @@ void gab_gc_destroy(gab_engine *gab) {
   v_rc_update_destroy(&gab->gc.tracked_decrements);
   v_rc_update_destroy(&gab->gc.tracked_increments);
   d_rc_tracker_destroy(&gab->gc.tracked_values);
-  d_u64_destroy(&gab->gc.object_counts);
 #endif
 }
 
@@ -188,7 +178,7 @@ static inline void cleanup(gab_engine *gab) {
       printf("Destroying (%p): ", obj);
       gab_val_dump(stdout, GAB_VAL_OBJ(obj));
       printf("\n");
-      dump_rcs_for(gc, obj);
+      dump_rcs_for(&gab->gc, obj);
 #endif
 
       gab_obj *old_obj = obj;
@@ -242,6 +232,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab) {
   case GAB_KIND_NUMBER:
   case GAB_KIND_BOOLEAN:
   case GAB_KIND_UNDEFINED:
+  case GAB_KIND_PRIMITIVE:
   case GAB_KIND_NKINDS:
     return;
 
@@ -253,15 +244,16 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab) {
     }
     return;
   }
+
   case (GAB_KIND_BLOCK): {
     gab_obj_block *closure = (gab_obj_block *)obj;
     for (u8 i = 0; i < closure->nupvalues; i++) {
-      if (GAB_VAL_IS_OBJ(closure->upvalues[i])) {
+      if (GAB_VAL_IS_OBJ(closure->upvalues[i]))
         fnc(gab, GAB_VAL_TO_OBJ(closure->upvalues[i]));
-      }
     }
     return;
   }
+
   case (GAB_KIND_MESSAGE): {
     gab_obj_message *func = (gab_obj_message *)obj;
     for (u64 i = 0; i < func->specs.cap; i++) {
@@ -277,6 +269,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab) {
     }
     return;
   }
+
   case GAB_KIND_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
     for (u64 i = 0; i < shape->len; i++) {
@@ -286,6 +279,18 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab) {
     }
     return;
   }
+
+  case GAB_KIND_RECORD: {
+    gab_obj_record *rec = (gab_obj_record *)obj;
+
+    for (u64 i = 0; i < rec->len; i++) {
+      if (GAB_VAL_IS_OBJ(rec->data[i]))
+        fnc(gab, GAB_VAL_TO_OBJ(rec->data[i]));
+    }
+
+    return;
+  }
+
   case GAB_KIND_LIST: {
     gab_obj_list *lst = (gab_obj_list *)obj;
     for (u64 i = 0; i < lst->data.len; i++) {
@@ -295,6 +300,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab) {
     }
     return;
   }
+
   case GAB_KIND_MAP: {
     gab_obj_map *map = (gab_obj_map *)obj;
     for (u64 i = 0; i < map->data.cap; i++) {
@@ -309,22 +315,12 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_engine *gab) {
     }
     return;
   }
-  case GAB_KIND_RECORD: {
-    gab_obj_record *rec = (gab_obj_record *)obj;
-
-    for (u64 i = 0; i < rec->len; i++) {
-      if (GAB_VAL_IS_OBJ(rec->data[i]))
-        fnc(gab, GAB_VAL_TO_OBJ(rec->data[i]));
-    }
-
-    return;
-  }
   }
 }
 
 static inline void dec_obj_ref(gab_engine *gab, gab_obj *obj) {
 #if GAB_LOG_GC
-  d_rc_tracker_insert(&gc->tracked_values, obj, obj->references - 1);
+  d_rc_tracker_insert(&gab->gc.tracked_values, obj, obj->references - 1);
 #endif
   if (--obj->references <= 0) {
     for_child_do(obj, dec_obj_ref, gab);
@@ -353,10 +349,10 @@ static inline void inc_if_obj_ref(gab_engine *gab, gab_value val) {
     inc_obj_ref(gab, GAB_VAL_TO_OBJ(val));
 }
 
-static inline void increment_stack(gab_engine *gab) {
-  gab_value *tracker = gab->sp - 1;
+static inline void increment_stack(gab_engine *gab, gab_vm *vm) {
+  gab_value *tracker = vm->sp - 1;
 
-  while (tracker >= gab->sb) {
+  while (tracker >= vm->sb) {
 
 #if GAB_LOG_GC
     if (GAB_VAL_IS_OBJ(*tracker)) {
@@ -373,14 +369,14 @@ static inline void increment_stack(gab_engine *gab) {
   }
 }
 
-static inline void decrement_stack(gab_engine *gab) {
+static inline void decrement_stack(gab_engine *gab, gab_vm* vm) {
 #if GAB_DEBUG_GC
   debug_collect = false;
 #endif
 
-  gab_value *tracker = gab->sp - 1;
-  while (tracker >= gab->sb) {
-    gab_gc_dref(gab, *tracker--);
+  gab_value *tracker = vm->sp - 1;
+  while (tracker >= vm->sb) {
+    gab_gc_dref(gab, vm, *tracker--);
   }
 
 #if GAB_DEBUG_GC
@@ -495,9 +491,9 @@ void collect_cycles(gab_engine *gab) {
   }
 }
 
-void gab_gc_collect(gab_engine *gab) {
-  if (gab->sb != NULL && gab->sp != NULL)
-    increment_stack(gab);
+void gab_gc_collect(gab_engine *gab, gab_vm *vm) {
+  if (vm != NULL)
+    increment_stack(gab, vm);
 
   process_increments(gab);
 
@@ -505,8 +501,8 @@ void gab_gc_collect(gab_engine *gab) {
 
   collect_cycles(gab);
 
-  if (gab->sb != NULL && gab->sp != NULL)
-    decrement_stack(gab);
+  if (vm != NULL)
+    decrement_stack(gab, vm);
 
   cleanup(gab);
 }

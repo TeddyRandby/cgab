@@ -38,7 +38,7 @@ describe('Strings', do ()
   end)
 
   it('should concatenate', do ()
-    expect(('hello' + ' world'), 'hello world')
+    expect('hello' + ' world', 'hello world')
   end)
 
   it('should interpolate', do ()
@@ -194,7 +194,9 @@ describe('Overloads', do ()
         expect(test,true)
     end)
 
-    def get = do (obj, key) obj[key] end
+    def get = do (obj, key)
+        obj[key]
+    end
 
     it('should get before overload', do()
         expect(get({ x = 1 y = 2}, 'x'),1)

@@ -95,7 +95,7 @@ gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags);
  * @return A gab value wrapping the state of the panic'd vm
  *
  */
-gab_value gab_panic(gab_engine *gab, const char *msg);
+gab_value gab_panic(gab_engine *gab, gab_vm *vm, const char *msg);
 
 /**
  * Disassemble a module from start to end.
@@ -126,25 +126,25 @@ gab_value gab_val_copy(gab_engine *gab, gab_value value);
  *
  * @param val The value to clean up. If there is no VM, you may pass NULL.
  */
-void gab_dref(gab_engine *gab, gab_value value);
-void gab_dref_many(gab_engine *gab, u64 len, gab_value values[len]);
+void gab_dref(gab_engine *gab, gab_vm *vm, gab_value value);
+void gab_dref_many(gab_engine *gab, gab_vm *vm, u64 len, gab_value values[len]);
 
 /**
  * Increment the reference count of a value
  *
  * @param val The value to clean up. If there is no VM, you may pass NULL.
  */
-void gab_iref(gab_engine *gab, gab_value value);
-void gab_iref_many(gab_engine *gab, u64 len, gab_value values[len]);
+void gab_iref(gab_engine *gab, gab_vm *vm, gab_value value);
+void gab_iref_many(gab_engine *gab, gab_vm *vm, u64 len, gab_value values[len]);
 
 /**
  * Trigger a garbace collection.
  *
  * @param gab The engine to collect in
  *
- * @param val The value to clean up. If there is no VM, you may pass NULL.
+ * @param vm The value to clean up. If there is no VM, you may pass NULL.
  */
-void gab_collect(gab_engine *gab);
+void gab_collect(gab_engine *gab, gab_vm *vm);
 
 /**
  * Bundle a list of keys and values into a Gab object.
@@ -159,7 +159,7 @@ void gab_collect(gab_engine *gab);
  *
  * @return The gab value that the keys and values were bundled into
  */
-gab_value gab_record(gab_engine *gab, u64 size, s_i8 keys[size],
+gab_value gab_record(gab_engine *gab, gab_vm *vm, u64 size, s_i8 keys[size],
                      gab_value values[size]);
 
 /**
@@ -173,7 +173,8 @@ gab_value gab_record(gab_engine *gab, u64 size, s_i8 keys[size],
  *
  * @return The gab value that the keys and values were bundled into
  */
-gab_value gab_tuple(gab_engine *gab, u64 size, gab_value values[size]);
+gab_value gab_tuple(gab_engine *gab, gab_vm *vm, u64 size,
+                    gab_value values[size]);
 
 /**
  * Create a specialization on the given message for the given receiver
@@ -188,7 +189,7 @@ gab_value gab_tuple(gab_engine *gab, u64 size, gab_value values[size]);
  *
  * @return The message that was updated
  */
-gab_value gab_specialize(gab_engine *gab, gab_value name, gab_value receiver,
+gab_value gab_specialize(gab_engine *gab, gab_vm* vm, gab_value name, gab_value receiver,
                          gab_value specialization);
 
 /**
@@ -238,10 +239,10 @@ static inline gab_kind gab_val_kind(gab_value value) {
     return GAB_KIND_UNDEFINED;
   if (GAB_VAL_IS_BOOLEAN(value))
     return GAB_KIND_BOOLEAN;
-  if (GAB_VAL_IS_PRIMITIVE(value))
-    return GAB_KIND_PRIMITIVE;
   if (GAB_VAL_IS_OBJ(value))
     return GAB_VAL_TO_OBJ(value)->kind;
+
+  return GAB_KIND_PRIMITIVE;
 }
 
 /**

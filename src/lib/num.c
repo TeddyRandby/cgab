@@ -58,7 +58,8 @@ static f64 random_float() {
   return result;
 }
 
-gab_value gab_lib_between(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_between(gab_engine *gab, gab_vm *vm, u8 argc,
+                          gab_value argv[argc]) {
 
   f64 min = 0, max = 1;
 
@@ -68,7 +69,7 @@ gab_value gab_lib_between(gab_engine *gab, u8 argc, gab_value argv[argc]) {
 
   case 2: {
     if (!GAB_VAL_IS_NUMBER(argv[1])) {
-      gab_panic(gab, "Invalid call to gab_lib_random");
+      gab_panic(gab, vm, "Invalid call to gab_lib_random");
     }
 
     max = GAB_VAL_TO_NUMBER(argv[1]);
@@ -78,7 +79,7 @@ gab_value gab_lib_between(gab_engine *gab, u8 argc, gab_value argv[argc]) {
 
   case 3: {
     if (!GAB_VAL_IS_NUMBER(argv[1]) || !GAB_VAL_IS_NUMBER(argv[2])) {
-      gab_panic(gab, "Invalid call to gab_lib_random");
+      gab_panic(gab, vm, "Invalid call to gab_lib_random");
     }
 
     min = GAB_VAL_TO_NUMBER(argv[1]);
@@ -87,7 +88,7 @@ gab_value gab_lib_between(gab_engine *gab, u8 argc, gab_value argv[argc]) {
   }
 
   default:
-    gab_panic(gab, "Invalid call to gab_lib_random");
+    gab_panic(gab, vm, "Invalid call to gab_lib_random");
   }
 
   f64 num = min + (random_float() * max);
@@ -95,10 +96,11 @@ gab_value gab_lib_between(gab_engine *gab, u8 argc, gab_value argv[argc]) {
   return GAB_VAL_NUMBER(num);
 }
 
-gab_value gab_lib_floor(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_floor(gab_engine *gab, gab_vm *vm, u8 argc,
+                        gab_value argv[argc]) {
 
   if (argc != 1 || !GAB_VAL_IS_NUMBER(argv[0])) {
-    gab_panic(gab, "Invalid call to gab_lib_floor");
+    gab_panic(gab, vm, "Invalid call to gab_lib_floor");
   }
 
   f64 float_num = GAB_VAL_TO_NUMBER(argv[0]);
@@ -107,9 +109,10 @@ gab_value gab_lib_floor(gab_engine *gab, u8 argc, gab_value argv[argc]) {
   return GAB_VAL_NUMBER(int_num + (float_num < 0));
 }
 
-gab_value gab_lib_from(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_from(gab_engine *gab, gab_vm *vm, u8 argc,
+                       gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_STRING(argv[1])) {
-    gab_panic(gab, "Invalid call to gab_lib_from");
+    gab_panic(gab, vm, "Invalid call to gab_lib_from");
   }
 
   gab_obj_string *str = GAB_VAL_TO_STRING(argv[1]);
@@ -123,7 +126,7 @@ gab_value gab_lib_from(gab_engine *gab, u8 argc, gab_value argv[argc]) {
   return GAB_VAL_NUMBER(strtod(cstr, NULL));
 };
 
-gab_value gab_mod(gab_engine *gab) {
+gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value names[] = {
       GAB_STRING("between"),
       GAB_STRING("floor"),
@@ -148,8 +151,8 @@ gab_value gab_mod(gab_engine *gab) {
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
 
   for (int i = 0; i < LEN_CARRAY(names); i++) {
-    gab_specialize(gab, names[i], receivers[i], values[i]);
-    gab_dref(gab, values[i]);
+    gab_specialize(gab, vm, names[i], receivers[i], values[i]);
+    gab_dref(gab, vm, values[i]);
   }
 
   return GAB_VAL_NIL();

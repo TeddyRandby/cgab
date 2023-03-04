@@ -731,13 +731,6 @@ i32 compile_message(gab_engine *gab, gab_bc *bc, gab_value name) {
   u16 func_constant = add_constant(mod(bc), GAB_VAL_OBJ(m));
   push_short(bc, func_constant);
 
-  // Kinda cheaty - peek at the frame we just dropped.
-  gab_bc_frame *f = peek_frame(bc, -1);
-  for (int i = 0; i < p->nupvalues; i++) {
-    push_byte(bc, f->upvs_flag[i]);
-    push_byte(bc, f->upvs_index[i]);
-  }
-
   push_slot(bc, 1);
   return COMP_OK;
 }
@@ -1613,60 +1606,40 @@ i32 compile_exp_str(gab_engine *gab, gab_bc *bc, boolean assignable) {
  * Returns COMP_ERR if an error occured, otherwise the size of the expressions
  */
 i32 compile_exp_itp(gab_engine *gab, gab_bc *bc, boolean assignable) {
-  if (compile_exp_str(gab, bc, assignable) < 0)
-    return COMP_ERR;
-
-  if (match_token(bc, TOKEN_INTERPOLATION_END)) {
-    // Empty interpolation
-    goto fin;
-  }
-
-  if (!match_token(bc, TOKEN_INTERPOLATION)) {
-    if (compile_expression(gab, bc) < 0)
-      return COMP_ERR;
-
-    // INTERPOLATE
-    push_op(bc, OP_INTERPOLATE);
-    pop_slot(bc, 1);
-  }
-
-  i32 result;
-  while ((result = match_and_eat_token(bc, TOKEN_INTERPOLATION))) {
-
+  i32 result = COMP_OK;
+  u8 n = 0;
+  do {
     if (compile_exp_str(gab, bc, assignable) < 0)
       return COMP_ERR;
+
+    n++;
 
     if (match_token(bc, TOKEN_INTERPOLATION_END)) {
       goto fin;
     }
 
-    if (!match_token(bc, TOKEN_INTERPOLATION)) {
+    if (compile_expression(gab, bc) < 0)
+      return COMP_ERR;
+    n++;
 
-      if (compile_expression(gab, bc) < 0)
-        return COMP_ERR;
+  } while ((result = match_and_eat_token(bc, TOKEN_INTERPOLATION)));
 
-      push_op(bc, OP_INTERPOLATE);
-      pop_slot(bc, 1);
-    }
-
-    // concat this to the long-running string.
-    push_op(bc, OP_INTERPOLATE);
-    pop_slot(bc, 1);
-  }
-
+fin:
   if (result < 0)
     return COMP_ERR;
 
-fin:
   if (expect_token(bc, TOKEN_INTERPOLATION_END) < 0)
     return COMP_ERR;
 
   if (compile_exp_str(gab, bc, assignable) < 0)
     return COMP_ERR;
+  n++;
 
   // Concat the final string.
   push_op(bc, OP_INTERPOLATE);
-  pop_slot(bc, 1);
+  push_byte(bc, n);
+
+  pop_slot(bc, n - 1);
 
   return COMP_OK;
 }

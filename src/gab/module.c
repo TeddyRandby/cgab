@@ -55,7 +55,7 @@ void gab_module_collect(gab_engine *gab, gab_module *mod) {
     // are their prototypes and the main closure
     if (GAB_VAL_IS_SYMBOL(v) || GAB_VAL_IS_PROTOTYPE(v) ||
         GAB_VAL_IS_BLOCK(v)) {
-      gab_dref(gab, v);
+      gab_dref(gab, NULL, v);
     }
   }
 }
@@ -340,7 +340,7 @@ u64 dumpSimpleInstruction(gab_module *self, u64 offset) {
 
 u64 dumpSendInstruction(gab_module *self, u64 offset) {
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
-  u16 constant = v_u8_val_at(&self->bytecode, offset + 1) << 8 |
+  u16 constant = ((u16)v_u8_val_at(&self->bytecode, offset + 1)) << 8 |
                  v_u8_val_at(&self->bytecode, offset + 2);
 
   gab_value msg = v_gab_constant_val_at(&self->constants, constant);
@@ -377,7 +377,7 @@ u64 dumpDictInstruction(gab_module *self, u8 i, u64 offset) {
 };
 
 u64 dumpConstantInstruction(gab_module *self, u64 offset) {
-  u16 constant = v_u8_val_at(&self->bytecode, offset + 1) << 8 |
+  u16 constant = ((u16)v_u8_val_at(&self->bytecode, offset + 1)) << 8 |
                  v_u8_val_at(&self->bytecode, offset + 2);
   const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
   printf("%-25s", name);
@@ -456,15 +456,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_LOAD_UPVALUE_6:
   case OP_LOAD_UPVALUE_7:
   case OP_LOAD_UPVALUE_8:
-  case OP_STORE_UPVALUE_0:
-  case OP_STORE_UPVALUE_1:
-  case OP_STORE_UPVALUE_2:
-  case OP_STORE_UPVALUE_3:
-  case OP_STORE_UPVALUE_4:
-  case OP_STORE_UPVALUE_5:
-  case OP_STORE_UPVALUE_6:
-  case OP_STORE_UPVALUE_7:
-  case OP_STORE_UPVALUE_8:
   case OP_PUSH_FALSE:
   case OP_PUSH_NIL:
   case OP_PUSH_TRUE:
@@ -474,7 +465,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_NOT:
   case OP_MATCH:
   case OP_POP:
-  case OP_INTERPOLATE:
   case OP_TYPE:
   case OP_NOP: {
     return dumpSimpleInstruction(self, offset);
@@ -520,6 +510,9 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_SEND_PRIMITIVE_LTE:
   case OP_SEND_PRIMITIVE_GT:
   case OP_SEND_PRIMITIVE_GTE:
+  case OP_SEND_PRIMITIVE_CALL_BLOCK:
+  case OP_SEND_PRIMITIVE_CALL_BUILTIN:
+  case OP_SEND_PRIMITIVE_CALL_SUSPENSE:
     return dumpSendInstruction(self, offset);
   case OP_RETURN:
   case OP_YIELD:
@@ -527,6 +520,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_STORE_LOCAL:
   case OP_POP_STORE_LOCAL:
   case OP_LOAD_UPVALUE:
+  case OP_INTERPOLATE:
   case OP_LOAD_LOCAL: {
     return dumpByteInstruction(self, offset);
   }
@@ -549,7 +543,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
       u8 flags = p->upv_desc[j * 2];
       u8 index = p->upv_desc[j * 2 + 1];
       int isLocal = flags & GAB_VARIABLE_FLAG_LOCAL;
-      printf("      |                   %d %s %s\n", index,
+      printf("      |                   %d %s\n", index,
              isLocal ? "local" : "upvalue");
     }
     return offset;
@@ -573,7 +567,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
       u8 flags = p->upv_desc[j * 2];
       u8 index = p->upv_desc[j * 2 + 1];
       int isLocal = flags & GAB_VARIABLE_FLAG_LOCAL;
-      printf("      |                   %d %s %s\n", index,
+      printf("      |                   %d %s\n", index,
              isLocal ? "local" : "upvalue");
     }
     return offset;

@@ -4,9 +4,10 @@
 #include <assert.h>
 #include <time.h>
 
-gab_value gab_lib_clock(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_clock(gab_engine *gab, gab_vm *vm, u8 argc,
+                        gab_value argv[argc]) {
   if (argc != 1) {
-    gab_panic(gab, "Invalid call to gab_lib_clock");
+    gab_panic(gab, vm, "Invalid call to gab_lib_clock");
   }
 
   clock_t t = clock();
@@ -14,7 +15,7 @@ gab_value gab_lib_clock(gab_engine *gab, u8 argc, gab_value argv[argc]) {
   return GAB_VAL_NUMBER((f64)t / CLOCKS_PER_SEC);
 };
 
-gab_value gab_mod(gab_engine *gab) {
+gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value keys[] = {
       GAB_STRING("clock"),
   };
@@ -26,8 +27,8 @@ gab_value gab_mod(gab_engine *gab) {
   static_assert(LEN_CARRAY(keys) == LEN_CARRAY(values));
 
   for (int i = 0; i < LEN_CARRAY(keys); i++) {
-    gab_specialize(gab, keys[i], GAB_VAL_NIL(), values[i]);
-    gab_dref(gab, values[i]);
+    gab_specialize(gab, vm, keys[i], GAB_VAL_NIL(), values[i]);
+    gab_dref(gab, vm, values[i]);
   }
 
   return GAB_VAL_NIL();

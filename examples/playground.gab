@@ -1,1 +1,7 @@
-Any
+require('List')
+
+let l = List:new(10):map! do (_, i) i end
+
+let slice = l[{ from = 1 to = 3}]
+
+print(slice)

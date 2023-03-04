@@ -7,4 +7,5 @@ sources = files(
   'module.c',
   'object.c',
   'vm.c',
+  'import.c',
 )

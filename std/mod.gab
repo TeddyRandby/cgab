@@ -5,4 +5,8 @@ require('record')
 require('num')
 
 require('Monad')
+require('Map')
+require('List')
+require('Range')
+require('Number')
 nil

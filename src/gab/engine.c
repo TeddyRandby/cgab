@@ -9,6 +9,7 @@
 #include "include/types.h"
 #include "include/value.h"
 #include "include/vm.h"
+#include "include/import.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -119,7 +120,7 @@ struct primitive primitives[] = {
     },
     {
         .name = GAB_MESSAGE_CAL,
-        .type = GAB_KIND_SYMBOL,
+        .type = GAB_KIND_SUSPENSE,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_CALL_SUSPENSE),
     },
 };
@@ -133,18 +134,16 @@ gab_engine *gab_create() {
   gab->argv_values = NULL;
   gab->modules = NULL;
   gab->sources = NULL;
-  gab->sb = NULL;
-  gab->sp = NULL;
-  gab->fb = NULL;
-  gab->fp = NULL;
 
   d_strings_create(&gab->interned_strings, INTERN_INITIAL_CAP);
   d_shapes_create(&gab->interned_shapes, INTERN_INITIAL_CAP);
   d_messages_create(&gab->interned_messages, INTERN_INITIAL_CAP);
 
+  d_gab_import_create(&gab->imports, 8);
+
   gab_gc_create(gab);
 
-  gab->allocator = gab_allocator_create();
+  memset(&gab->allocator, 0, sizeof(gab->allocator));
 
   gab->types[GAB_KIND_UNDEFINED] = GAB_VAL_UNDEFINED();
   gab->types[GAB_KIND_NIL] = GAB_VAL_NIL();
@@ -168,7 +167,7 @@ gab_engine *gab_create() {
     gab_value name =
         GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr(primitives[i].name)));
 
-    gab_specialize(gab, name, gab->types[primitives[i].type],
+    gab_specialize(gab, NULL, name, gab->types[primitives[i].type],
                    primitives[i].primitive);
   }
 
@@ -213,35 +212,40 @@ void gab_destroy(gab_engine *gab) {
   for (u64 i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
       gab_obj_string *v = d_strings_ikey(&gab->interned_strings, i);
-      gab_gc_dref(gab, GAB_VAL_OBJ(v));
+      gab_gc_dref(gab, NULL, GAB_VAL_OBJ(v));
     }
   }
 
   for (u64 i = 0; i < gab->interned_shapes.cap; i++) {
     if (d_shapes_iexists(&gab->interned_shapes, i)) {
       gab_obj_shape *v = d_shapes_ikey(&gab->interned_shapes, i);
-      gab_gc_dref(gab, GAB_VAL_OBJ(v));
+      gab_gc_dref(gab, NULL, GAB_VAL_OBJ(v));
     }
   }
 
   for (u64 i = 0; i < gab->interned_messages.cap; i++) {
     if (d_messages_iexists(&gab->interned_messages, i)) {
       gab_obj_message *v = d_messages_ikey(&gab->interned_messages, i);
-      gab_gc_dref(gab, GAB_VAL_OBJ(v));
+      gab_gc_dref(gab, NULL, GAB_VAL_OBJ(v));
     }
   }
 
-  gab_gc_dref_many(gab, GAB_KIND_NKINDS, gab->types);
+  gab_gc_dref_many(gab, NULL, GAB_KIND_NKINDS, gab->types);
 
-  gab_gc_dref_many(gab, gab->argv_values->len, gab->argv_values->data);
+  gab_gc_dref_many(gab, NULL, gab->argv_values->len, gab->argv_values->data);
 
-  gab_gc_collect(gab);
+  gab_imports_collect(gab);
+
+  gab_gc_collect(gab, NULL);
 
   gab_gc_destroy(gab);
+
+  gab_imports_destroy(gab);
 
   d_strings_destroy(&gab->interned_strings);
   d_shapes_destroy(&gab->interned_shapes);
   d_messages_destroy(&gab->interned_messages);
+  d_gab_import_destroy(&gab->imports);
 
   mod = gab->modules;
   while (mod != NULL) {
@@ -259,24 +263,22 @@ void gab_destroy(gab_engine *gab) {
   a_u64_destroy(gab->argv_values);
   a_u64_destroy(gab->argv_names);
 
-  gab_allocator_destroy(gab->allocator);
-
   DESTROY(gab);
 }
 
-void gab_collect(gab_engine *gab) { gab_gc_collect(gab); }
+void gab_collect(gab_engine *gab, gab_vm *vm) { gab_gc_collect(gab, vm); }
 
 void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]) {
   if (gab->argv_values != NULL) {
-    gab_dref_many(gab, argc, argv_values);
+    gab_dref_many(gab, NULL, argc, argv_values);
     a_u64_destroy(gab->argv_values);
   }
 
   if (gab->argv_names != NULL)
     a_u64_destroy(gab->argv_names);
 
-  gab_iref_many(gab, argc, argv_values);
+  gab_iref_many(gab, NULL, argc, argv_values);
 
   gab->argv_names = a_u64_create(argv_names, argc);
   gab->argv_values = a_u64_create(argv_values, argc);
@@ -291,33 +293,35 @@ gab_module *gab_compile(gab_engine *gab, gab_value name, s_i8 source,
 
 gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags) {
   assert(gab->argv_values != NULL);
-  assert(gab->sb == NULL);
-  assert(gab->sp == NULL);
-  assert(gab->fb == NULL);
-  assert(gab->fp == NULL);
   return gab_vm_run(gab, main, flags, gab->argv_values->len,
                     gab->argv_values->data);
 };
 
-gab_value gab_panic(gab_engine *gab, const char *msg) {
-  gab_value vm_container = gab_vm_panic(gab, msg);
-  gab_dref(gab, vm_container);
+gab_value gab_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
+  gab_value vm_container = gab_vm_panic(gab, vm, msg);
+  gab_dref(gab, vm, vm_container);
   return vm_container;
 }
 
-void gab_dref(gab_engine *gab, gab_value value) { gab_gc_dref(gab, value); }
-
-void gab_dref_many(gab_engine *gab, u64 len, gab_value values[len]) {
-  gab_gc_dref_many(gab, len, values);
+void gab_dref(gab_engine *gab, gab_vm *vm, gab_value value) {
+  gab_gc_dref(gab, vm, value);
 }
 
-void gab_iref(gab_engine *gab, gab_value value) { gab_gc_iref(gab, value); }
-
-void gab_iref_many(gab_engine *gab, u64 len, gab_value values[len]) {
-  gab_gc_iref_many(gab, len, values);
+void gab_dref_many(gab_engine *gab, gab_vm *vm, u64 len,
+                   gab_value values[len]) {
+  gab_gc_dref_many(gab, vm, len, values);
 }
 
-gab_value gab_record(gab_engine *gab, u64 size, s_i8 keys[size],
+void gab_iref(gab_engine *gab, gab_vm *vm, gab_value value) {
+  gab_gc_iref(gab, vm, value);
+}
+
+void gab_iref_many(gab_engine *gab, gab_vm *vm, u64 len,
+                   gab_value values[len]) {
+  gab_gc_iref_many(gab, vm, len, values);
+}
+
+gab_value gab_record(gab_engine *gab, gab_vm *vm, u64 size, s_i8 keys[size],
                      gab_value values[size]) {
   gab_value value_keys[size];
 
@@ -325,33 +329,35 @@ gab_value gab_record(gab_engine *gab, u64 size, s_i8 keys[size],
     value_keys[i] = GAB_VAL_OBJ(gab_obj_string_create(gab, keys[i]));
   }
 
-  gab_obj_shape *bundle_shape = gab_obj_shape_create(gab, size, 1, value_keys);
+  gab_obj_shape *bundle_shape =
+      gab_obj_shape_create(gab, vm, size, 1, value_keys);
 
   gab_value bundle =
-      GAB_VAL_OBJ(gab_obj_record_create(gab, bundle_shape, 1, values));
+      GAB_VAL_OBJ(gab_obj_record_create(gab, vm, bundle_shape, 1, values));
 
   return bundle;
 }
 
-gab_value gab_tuple(gab_engine *gab, u64 size, gab_value values[size]) {
-  gab_obj_shape *bundle_shape = gab_obj_shape_create_tuple(gab, size);
+gab_value gab_tuple(gab_engine *gab, gab_vm *vm, u64 size,
+                    gab_value values[size]) {
+  gab_obj_shape *bundle_shape = gab_obj_shape_create_tuple(gab, vm, size);
 
   gab_value bundle =
-      GAB_VAL_OBJ(gab_obj_record_create(gab, bundle_shape, 1, values));
+      GAB_VAL_OBJ(gab_obj_record_create(gab, vm, bundle_shape, 1, values));
 
   return bundle;
 }
 
-gab_value gab_specialize(gab_engine *gab, gab_value name, gab_value receiver,
-                         gab_value specialization) {
+gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
+                         gab_value receiver, gab_value specialization) {
 
   gab_obj_message *m = gab_obj_message_create(gab, name);
 
   if (gab_obj_message_find(m, receiver) != UINT64_MAX)
     return GAB_VAL_NIL();
 
-  gab_iref(gab, receiver);
-  gab_iref(gab, specialization);
+  gab_iref(gab, vm, receiver);
+  gab_iref(gab, vm, specialization);
   gab_obj_message_insert(m, receiver, specialization);
 
   return GAB_VAL_OBJ(m);
@@ -563,13 +569,13 @@ gab_value gab_val_copy(gab_engine *gab, gab_value value) {
   case GAB_KIND_MAP: {
     gab_obj_map *self = GAB_VAL_TO_MAP(value);
 
-    gab_obj_map *copy = gab_obj_map_create(gab, 0, 0, NULL, NULL);
+    gab_obj_map *copy = gab_obj_map_create(gab, NULL, 0, 0, NULL, NULL);
 
     for (u64 i = 0; i < self->data.cap; i++) {
       if (d_gab_value_iexists(&self->data, i)) {
         gab_value key = gab_val_copy(gab, d_gab_value_ikey(&self->data, i));
         gab_value val = gab_val_copy(gab, d_gab_value_ival(&self->data, i));
-        gab_obj_map_put(gab, copy, key, val);
+        gab_obj_map_put(gab, NULL, copy, key, val);
       }
     }
 
@@ -579,11 +585,11 @@ gab_value gab_val_copy(gab_engine *gab, gab_value value) {
   case GAB_KIND_LIST: {
     gab_obj_list *self = GAB_VAL_TO_LIST(value);
 
-    gab_obj_list *copy = gab_obj_list_create(gab, 0, 0, NULL);
+    gab_obj_list *copy = gab_obj_list_create(gab, NULL, 0, 0, NULL);
 
     for (u64 i = 0; i < copy->data.len; i++) {
       gab_value val = gab_val_copy(gab, v_gab_value_val_at(&self->data, i));
-      gab_obj_list_put(gab, copy, i, val);
+      gab_obj_list_put(gab, NULL, copy, i, val);
     }
 
     return GAB_VAL_OBJ(copy);
@@ -613,7 +619,7 @@ gab_value gab_val_copy(gab_engine *gab, gab_value value) {
       keys[i] = gab_val_copy(gab, self->data[i]);
     }
 
-    gab_obj_shape *copy = gab_obj_shape_create(gab, self->len, 1, keys);
+    gab_obj_shape *copy = gab_obj_shape_create(gab, NULL, self->len, 1, keys);
 
     return GAB_VAL_OBJ(copy);
   }
@@ -630,7 +636,7 @@ gab_value gab_val_copy(gab_engine *gab, gab_value value) {
       values[i] = gab_val_copy(gab, self->data[i]);
     }
 
-    gab_obj_record *copy = gab_obj_record_create(gab, s_copy, 1, values);
+    gab_obj_record *copy = gab_obj_record_create(gab, NULL, s_copy, 1, values);
 
     return GAB_VAL_OBJ(copy);
   }
@@ -647,8 +653,9 @@ gab_value gab_val_copy(gab_engine *gab, gab_value value) {
     gab_obj_block *b_copy =
         GAB_VAL_TO_BLOCK(gab_val_copy(gab, GAB_VAL_OBJ(self->c)));
 
-    gab_obj_suspense *copy = gab_obj_suspense_create(
-        gab, b_copy, self->offset, self->have, self->want, self->len, frame);
+    gab_obj_suspense *copy =
+        gab_obj_suspense_create(gab, NULL, b_copy, self->offset, self->have,
+                                self->want, self->len, frame);
 
     return GAB_VAL_OBJ(copy);
   }

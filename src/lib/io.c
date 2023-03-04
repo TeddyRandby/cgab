@@ -1,9 +1,10 @@
 #include "include/gab.h"
 #include <stdio.h>
 
-gab_value gab_lib_open(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc,
+                       gab_value argv[argc]) {
   if (argc != 3 || !GAB_VAL_IS_STRING(argv[1]) || !GAB_VAL_IS_STRING(argv[2])) {
-    gab_panic(gab, "Invalid call to gab_lib_open");
+    gab_panic(gab, vm, "Invalid call to gab_lib_open");
   }
 
   gab_obj_string *path_obj = GAB_VAL_TO_STRING(argv[1]);
@@ -23,14 +24,15 @@ gab_value gab_lib_open(gab_engine *gab, u8 argc, gab_value argv[argc]) {
 
   gab_value container = GAB_CONTAINER(GAB_STRING("File"), file);
 
-  gab_dref(gab, container);
+  gab_dref(gab, vm, container);
 
   return GAB_SEND("ok", container, 0, NULL, NULL);
 }
 
-gab_value gab_lib_read(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc,
+                       gab_value argv[argc]) {
   if (argc != 1 || !GAB_VAL_TO_CONTAINER(argv[0])) {
-    gab_panic(gab, "Invalid call to gab_lib_read");
+    gab_panic(gab, vm, "Invalid call to gab_lib_read");
   }
 
   gab_obj_container *file_obj = GAB_VAL_TO_CONTAINER(argv[0]);
@@ -55,10 +57,11 @@ gab_value gab_lib_read(gab_engine *gab, u8 argc, gab_value argv[argc]) {
   return GAB_SEND("ok", GAB_VAL_OBJ(result), 0, NULL, NULL);
 }
 
-gab_value gab_lib_write(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc,
+                        gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
       !GAB_VAL_IS_STRING(argv[1])) {
-    gab_panic(gab, "Invalid call to gab_lib_write");
+    gab_panic(gab, vm, "Invalid call to gab_lib_write");
   }
 
   gab_obj_container *handle = GAB_VAL_TO_CONTAINER(argv[0]);
@@ -77,9 +80,9 @@ gab_value gab_lib_write(gab_engine *gab, u8 argc, gab_value argv[argc]) {
   }
 }
 
-gab_value gab_mod(gab_engine *gab) {
+gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value io = GAB_SYMBOL("io");
-  gab_dref(gab, io);
+  gab_dref(gab, vm, io);
 
   gab_value keys[] = {
       GAB_STRING("open"),
@@ -102,8 +105,8 @@ gab_value gab_mod(gab_engine *gab) {
   };
 
   for (u8 i = 0; i < 3; i++) {
-    gab_specialize(gab, keys[i], receiver_types[i], values[i]);
-    gab_dref(gab, values[i]);
+    gab_specialize(gab, vm, keys[i], receiver_types[i], values[i]);
+    gab_dref(gab, vm, values[i]);
   }
 
   return io;

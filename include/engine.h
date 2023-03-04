@@ -10,6 +10,7 @@ typedef struct gab_vm_frame gab_vm_frame;
 
 #include "gc.h"
 #include "alloc.h"
+#include "import.h"
 
 void *gab_reallocate(gab_engine *gab, void *loc, u64 old_size, u64 new_size);
 
@@ -43,6 +44,9 @@ static const char *gab_status_names[] = {
 struct gab_engine {
   gab_module* modules;
   gab_source* sources;
+
+  d_gab_import imports;
+
   /*
    * Where all the interned values live.
    */
@@ -51,15 +55,14 @@ struct gab_engine {
   d_messages interned_messages;
 
   /*
+   * A simple allocator
+   */
+  gab_allocator allocator;
+
+  /*
    * The GC for the vm
    */
   gab_gc gc;
-
-  gab_value* sb;
-  gab_value* sp;
-
-  gab_vm_frame* fb;
-  gab_vm_frame* fp;
 
   /*
    * The Engine's builtin types
@@ -69,8 +72,6 @@ struct gab_engine {
   u64 hash_seed;
 
   gab_obj *objects;
-
-  gab_allocator *allocator;
 
   a_u64 *argv_values;
   a_u64 *argv_names;

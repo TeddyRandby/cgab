@@ -2,6 +2,7 @@
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
+#include "include/import.h"
 #include "include/object.h"
 #include "include/os.h"
 #include "include/types.h"
@@ -10,9 +11,10 @@
 #include <stdio.h>
 #include <unistd.h>
 
-typedef gab_value (*handler_f)(gab_engine *, a_i8 *path, const s_i8 module);
+typedef gab_value (*handler_f)(gab_engine *, gab_vm *, a_i8 *path,
+                               const s_i8 module);
 
-typedef gab_value (*module_f)(gab_engine *);
+typedef gab_value (*module_f)(gab_engine *, gab_vm *);
 
 typedef struct {
   handler_f handler;
@@ -20,126 +22,50 @@ typedef struct {
   const char *suffix;
 } resource;
 
-typedef enum {
-  IMPORT_SHARED,
-  IMPORT_SOURCE,
-} import_k;
-
-struct import {
-  import_k k;
-  union {
-    gab_module *mod;
-    void *shared;
-  } as;
-  gab_value cache;
-};
-
-d_import imports = {0};
-
-void import_destroy(gab_engine *gab, import *i) {
-  switch (i->k) {
-  case IMPORT_SHARED:
-    dlclose(i->as.shared);
-  default:
-    break;
-  }
-  DESTROY(i);
-}
-
-void imports_create() { d_import_create(&imports, 8); };
-
-void imports_destroy(gab_engine *gab) {
-  for (u64 i = 0; i < imports.cap; i++) {
-    if (d_import_iexists(&imports, i)) {
-      import_destroy(gab, d_import_ival(&imports, i));
-    }
-  }
-
-  d_import_destroy(&imports);
-};
-
-void add_import(gab_engine *gab, s_i8 name, import *i) {
-  u64 hash = s_i8_hash(name, gab->hash_seed);
-  d_import_insert(&imports, hash, i);
-}
-
-gab_value check_import(gab_engine *gab, s_i8 name) {
-  u64 hash = s_i8_hash(name, gab->hash_seed);
-
-  if (d_import_exists(&imports, hash)) {
-    import *i = d_import_read(&imports, hash);
-    return i->cache;
-  }
-
-  return GAB_VAL_UNDEFINED();
-}
-
-gab_value gab_shared_object_handler(gab_engine *gab, a_i8 *path,
+gab_value gab_shared_object_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
                                     const s_i8 module) {
 
   void *handle = dlopen((char *)path->data, RTLD_LAZY);
 
   if (!handle) {
-    gab_panic(gab, "Couldn't open module");
+    gab_panic(gab, vm, "Couldn't open module");
   }
 
   module_f symbol = dlsym(handle, "gab_mod");
 
   if (!symbol) {
     dlclose(handle);
-    gab_panic(gab, "Missing symbol 'gab_mod'");
+    gab_panic(gab, vm, "Missing symbol 'gab_mod'");
   }
 
-  gab_value res = symbol(gab);
+  gab_value res = symbol(gab, vm);
 
-  import *i = NEW(import);
-
-  i->k = IMPORT_SHARED;
-  i->cache = res;
-  i->as.shared = handle;
-
-  add_import(gab, module, i);
-
-  gab_dref(gab, res);
+  gab_imports_shared(gab, s_i8_create(path->data, path->len), handle, res);
 
   return res;
 }
 
-gab_value gab_source_file_handler(gab_engine *gab, a_i8 *path,
+gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
                                   const s_i8 module) {
   a_i8 *src = os_read_file((char *)path->data);
 
-  gab_engine *G = gab_fork(gab);
-
-  gab_module *pkg = gab_compile(
-      G,
-      GAB_VAL_OBJ(gab_obj_string_create(G, s_i8_create(path->data, path->len))),
-      s_i8_create(src->data, src->len), GAB_FLAG_DUMP_ERROR);
+  gab_module *pkg =
+      gab_compile(gab,
+                  GAB_VAL_OBJ(gab_obj_string_create(
+                      gab, s_i8_create(path->data, path->len))),
+                  s_i8_create(src->data, src->len), GAB_FLAG_DUMP_ERROR);
 
   a_i8_destroy(src);
 
   if (pkg == NULL) {
-    gab_destroy(G);
-    return gab_panic(gab, "Failed to compile module");
+    return gab_panic(gab, vm, "Failed to compile module");
   }
 
-  gab_value res = gab_run(G, pkg, GAB_FLAG_DUMP_ERROR);
+  gab_value res = gab_run(gab, pkg, GAB_FLAG_DUMP_ERROR);
 
-  import *i = NEW(import);
+  gab_imports_module(gab, s_i8_create(path->data, path->len), pkg, res);
 
-  i->k = IMPORT_SOURCE;
-  i->cache = res;
-  i->as.mod = pkg;
-
-  gab_value copied = gab_val_copy(gab, res);
-
-  add_import(gab, module, i);
-
-  gab_dref(gab, copied);
-
-  gab_destroy(G);
-
-  return copied;
+  return res;
 }
 
 resource resources[] = {
@@ -183,26 +109,28 @@ a_i8 *match_resource(resource *res, s_i8 name) {
   return NULL;
 }
 
-gab_value gab_lib_require(gab_engine *gab, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
+                          gab_value argv[argc]) {
 
   if (!GAB_VAL_IS_STRING(argv[0]) || argc != 1) {
-    gab_panic(gab, "Invalid call to gab_lib_require");
+    gab_panic(gab, vm, "Invalid call to gab_lib_require");
   }
 
   gab_obj_string *arg = GAB_VAL_TO_STRING(argv[0]);
-  const s_i8 module = gab_obj_string_ref(arg);
 
-  gab_value cached = check_import(gab, module);
+  const s_i8 name = gab_obj_string_ref(arg);
+
+  gab_value cached = gab_imports_exists(gab, name);
   if (!GAB_VAL_IS_UNDEFINED(cached)) {
     return cached;
   }
 
   for (i32 i = 0; i < sizeof(resources) / sizeof(resource); i++) {
     resource *res = resources + i;
-    a_i8 *path = match_resource(res, module);
+    a_i8 *path = match_resource(res, name);
 
     if (path) {
-      gab_value result = res->handler(gab, path, module);
+      gab_value result = res->handler(gab, vm, path, name);
       a_i8_destroy(path);
       return result;
     }
@@ -210,5 +138,5 @@ gab_value gab_lib_require(gab_engine *gab, u8 argc, gab_value argv[argc]) {
     a_i8_destroy(path);
   }
 
-  gab_panic(gab, "Could not locate module");
+  gab_panic(gab, vm, "Could not locate module");
 }

@@ -33,7 +33,7 @@ gab_value make_print(gab_engine *gab) {
   gab_value print_builtin = GAB_BUILTIN(print);
 
   for (i32 i = 0; i < LEN_CARRAY(receivers); i++) {
-    gab_specialize(gab, GAB_STRING("print"), receivers[i], print_builtin);
+    gab_specialize(gab, NULL, GAB_STRING("print"), receivers[i], print_builtin);
   }
 
   return print_builtin;
@@ -42,14 +42,13 @@ gab_value make_print(gab_engine *gab) {
 gab_value make_require(gab_engine *gab) {
   gab_value require_builtin = GAB_BUILTIN(require);
 
-  gab_specialize(gab, GAB_STRING("require"), gab_type(gab, GAB_KIND_STRING),
-                 require_builtin);
+  gab_specialize(gab, NULL, GAB_STRING("require"),
+                 gab_type(gab, GAB_KIND_STRING), require_builtin);
 
   return require_builtin;
 }
 
 void gab_repl() {
-  imports_create();
 
   gab_engine *gab = gab_create();
 
@@ -114,22 +113,20 @@ void gab_repl() {
       printf("%V\n", result);
     }
 
-    gab_dref(gab, args[LEN_CARRAY(args) - 1]);
+    gab_dref(gab, NULL, args[LEN_CARRAY(args) - 1]);
 
     args[LEN_CARRAY(args) - 1] = result;
 
     gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
   }
 
-  gab_dref_many(gab, 3, args);
+  gab_dref_many(gab, NULL, 3, args);
 
   gab_destroy(gab);
 
-  imports_destroy(gab);
 }
 
 void gab_run_file(const char *path) {
-  imports_create();
 
   gab_engine *gab = gab_create();
 
@@ -174,13 +171,12 @@ void gab_run_file(const char *path) {
   gab_value result =
       gab_run(gab, main, GAB_FLAG_DUMP_ERROR | GAB_FLAG_EXIT_ON_PANIC);
 
-  gab_dref(gab, result);
+  gab_dref(gab, NULL, result);
 
 fin : {
-  gab_dref_many(gab, 3, args);
+  gab_dref_many(gab, NULL, 3, args);
 
   gab_destroy(gab);
-  imports_destroy(gab);
 }
 }
 

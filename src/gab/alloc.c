@@ -104,21 +104,13 @@ void chunk_dealloc(gab_allocator *s, u64 size, void *ptr) {
     chunk_destroy(s, chunk);
 }
 
-gab_allocator *gab_allocator_create() {
-  void *ud = malloc(sizeof(gab_allocator));
-  memset(ud, 0, sizeof(gab_allocator));
-  return ud;
-}
-
-void gab_allocator_destroy(gab_allocator *chunks) { free(chunks); }
-
 void *gab_reallocate(gab_engine *gab, void *loc, u64 old_count, u64 new_count) {
 
   if (new_count == 0) {
 
 #if CHUNK_ALLOCATOR
     if (old_count <= CHUNK_MAX_SIZE)
-      chunk_dealloc(gab->allocator, old_count, loc);
+      chunk_dealloc(&gab->allocator, old_count, loc);
     else
 #endif
       free(loc);
@@ -128,7 +120,7 @@ void *gab_reallocate(gab_engine *gab, void *loc, u64 old_count, u64 new_count) {
 
 #if CHUNK_ALLOCATOR
   if (new_count <= CHUNK_MAX_SIZE) {
-    return chunk_alloc(gab->allocator, new_count);
+    return chunk_alloc(&gab->allocator, new_count);
   }
 #endif
 
