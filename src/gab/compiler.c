@@ -422,7 +422,8 @@ static gab_module *down_frame(gab_engine *gab, gab_bc *bc, gab_value name,
   f->nupvalues = 0;
   f->scope_depth = 0;
 
-  initialize_local(bc, add_local(gab, bc, GAB_STRING("self"), 0));
+  if (is_method)
+    initialize_local(bc, add_local(gab, bc, GAB_STRING("self"), 0));
 
   return mod;
 }

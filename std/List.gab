@@ -30,7 +30,7 @@ impl List
     let v = 0 
 
     loop
-      yield self[v], v
+      yield self:at(v), v
       v = v + 1
     until v >= self:len
   end
