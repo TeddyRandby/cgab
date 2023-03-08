@@ -175,7 +175,34 @@ gab_engine *gab_create() {
 }
 
 gab_engine *gab_fork(gab_engine *gab) {
-  gab_engine *new_gab = gab_create();
+  gab_engine *new_gab = NEW(gab_engine);
+
+  new_gab->objects = NULL;
+  new_gab->argv_names = NULL;
+  new_gab->argv_values = NULL;
+  new_gab->modules = NULL;
+  new_gab->sources = NULL;
+
+  d_strings_create(&new_gab->interned_strings, INTERN_INITIAL_CAP);
+  d_shapes_create(&new_gab->interned_shapes, INTERN_INITIAL_CAP);
+  d_messages_create(&new_gab->interned_messages, INTERN_INITIAL_CAP);
+
+  d_gab_import_create(&new_gab->imports, 8);
+
+  gab_gc_create(new_gab);
+
+  memset(&new_gab->allocator, 0, sizeof(gab->allocator));
+
+  new_gab->hash_seed = gab->hash_seed;
+  memcpy(new_gab->types, gab->types, sizeof(gab_value) * GAB_KIND_NKINDS);
+
+  for (int i = 0; i < LEN_CARRAY(primitives); i++) {
+    gab_value name =
+        GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr(primitives[i].name)));
+
+    gab_specialize(gab, NULL, name, gab->types[primitives[i].type],
+                   primitives[i].primitive);
+  }
 
   u8 argc = gab->argv_values->len;
 
@@ -187,13 +214,6 @@ gab_engine *gab_fork(gab_engine *gab) {
   }
 
   gab_args(new_gab, argc, arg_names, arg_values);
-
-  for (u64 i = 0; i < gab->interned_messages.cap; i++) {
-    if (d_messages_iexists(&gab->interned_messages, i)) {
-      gab_obj_message *msg = d_messages_ikey(&gab->interned_messages, i);
-      gab_val_copy(new_gab, GAB_VAL_OBJ(msg));
-    }
-  }
 
   return new_gab;
 }

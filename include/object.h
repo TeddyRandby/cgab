@@ -10,7 +10,6 @@ typedef struct gab_gc gab_gc;
 typedef struct gab_engine gab_engine;
 
 typedef enum gab_kind {
-  GAB_KIND_FIBER,
   GAB_KIND_SUSPENSE,
   GAB_KIND_SYMBOL,
   GAB_KIND_STRING,
@@ -501,51 +500,5 @@ gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm,
                                           u8 arity, u8 want, u8 len,
                                           gab_value frame[len]);
 
-/*
-  ------------- OBJ_SUSPENSE -------------
-  A suspended call that can be handled.
-*/
-#include <threads.h>
-
-typedef struct {
-  _Atomic i32 rc;
-
-  boolean running;
-
-  gab_engine *p_gab;
-
-  gab_vm *p_vm;
-
-  gab_value val;
-
-  mtx_t mtx;
-
-  thrd_t thrd;
-
-  v_gab_value queue;
-} gab_obj_fiberd;
-
-typedef struct gab_obj_fiber gab_obj_fiber;
-struct gab_obj_fiber {
-  gab_obj header;
-
-  gab_obj_fiberd *d;
-};
-
-#define GAB_VAL_IS_FIBER(value) (gab_val_is_obj_kind(value, GAB_KIND_FIBER))
-#define GAB_VAL_TO_FIBER(value) ((gab_obj_fiber *)GAB_VAL_TO_OBJ(value))
-#define GAB_OBJ_TO_FIBER(value) ((gab_obj_fiber *)value)
-
-gab_obj_fiber *gab_obj_fiber_create(gab_engine *gab, gab_obj_fiberd *d,
-                                    gab_value v);
-
-boolean gab_obj_fiber_empty(gab_engine *gab, gab_obj_fiber *self);
-
-void gab_obj_fiber_push(gab_engine *gab, gab_vm *vm, gab_obj_fiber *f,
-                        gab_value msg);
-
-gab_value gab_obj_fiber_pop(gab_engine *gab, gab_vm *vm, gab_obj_fiber *f);
-
-gab_obj_fiberd *gab_obj_fiberd_create(gab_engine *gab, gab_vm* vm);
 
 #endif

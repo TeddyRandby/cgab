@@ -1,4 +1,4 @@
-sources = files(
+sources += files(
   'compiler.c',
   'engine.c',
   'gc.c',

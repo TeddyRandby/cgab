@@ -38,7 +38,7 @@ gab_module *gab_module_copy(gab_engine *gab, gab_module *self,
   v_s_i8_copy(&copy->sources, &self->sources);
   v_gab_constant_copy(&copy->constants, &self->constants);
 
-  copy->name = gab_module_add_constant(copy, gab_val_copy(gab, self->name));
+  copy->name = self->name;
 
   return copy;
 }

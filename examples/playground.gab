@@ -1,7 +1,17 @@
-require('List')
+'std':require
 
-let l = List:new(10):map! do (_, i) i end
+def Fiber = require('fiber')
 
-let slice = l[{ from = 1 to = 3}]
+def ch = Fiber:new do
+    print('hello world')
+    print('hello world')
+    print('hello world')
+    print('hello world')
+    print('hello world')
+    print('hello world')
+    print('hello world')
+end
 
-print(slice)
+for i in 1:to(1000000):each
+    i
+end
