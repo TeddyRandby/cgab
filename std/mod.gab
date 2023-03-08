@@ -9,4 +9,5 @@ require('Map')
 require('List')
 require('Range')
 require('Number')
+require('Record')
 nil

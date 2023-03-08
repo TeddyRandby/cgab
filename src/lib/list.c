@@ -174,6 +174,9 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
 
   return result;
 }
+#undef MIN
+#undef MAX
+#undef CLAMP
 
 gab_value gab_mod(gab_engine *gab, gab_vm* vm) {
   gab_value names[] = {

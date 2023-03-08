@@ -92,14 +92,12 @@ typedef struct gab_bc {
   gab_bc_frame frames[FUNCTION_DEF_NESTING_MAX];
 } gab_bc;
 
-void gab_bc_create(gab_bc *bc, gab_source* source, u8 flags);
+void gab_bc_create(gab_bc *bc, gab_source *source, u8 flags);
 
-gab_module *gab_bc_compile(gab_engine *gab, gab_value name, s_i8 source,
-                           u8 flags, u8 narguments,
-                           gab_value arguments[narguments]);
+gab_value gab_bc_compile_send(gab_engine *gab, gab_value msg,
+                              gab_value receiver, u8 flags, u8 narguments,
+                              gab_value arguments[narguments]);
 
-gab_module *gab_bc_compile_send(gab_engine *gab, gab_value name,
-                                gab_value receiver, u8 argc,
-                                gab_value argv[argc]);
-
+gab_value gab_bc_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags,
+                         u8 narguments, gab_value arguments[narguments]);
 #endif

@@ -3,13 +3,13 @@
 #include "include/core.h"
 #include "include/gab.h"
 #include "include/gc.h"
+#include "include/import.h"
 #include "include/lexer.h"
 #include "include/module.h"
 #include "include/object.h"
 #include "include/types.h"
 #include "include/value.h"
 #include "include/vm.h"
-#include "include/import.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -284,14 +284,13 @@ void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
   gab->argv_values = a_u64_create(argv_values, argc);
 }
 
-gab_module *gab_compile(gab_engine *gab, gab_value name, s_i8 source,
-                        u8 flags) {
+gab_value gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags) {
   assert(gab->argv_names != NULL);
   return gab_bc_compile(gab, name, source, flags, gab->argv_values->len,
                         gab->argv_names->data);
 }
 
-gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags) {
+gab_value gab_run(gab_engine *gab, gab_value main, u8 flags) {
   assert(gab->argv_values != NULL);
   return gab_vm_run(gab, main, flags, gab->argv_values->len,
                     gab->argv_values->data);
@@ -363,15 +362,32 @@ gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
   return GAB_VAL_OBJ(m);
 }
 
-gab_value gab_send(gab_engine *gab, gab_value name, gab_value receiver, u8 argc,
-                   gab_value argn[argc], gab_value argv[argc]) {
+gab_value send_msg(gab_engine *gab, gab_vm *vm, gab_value spec,
+                   gab_value receiver, u8 argc, gab_value argv[argc]) {
+  if (GAB_VAL_IS_UNDEFINED(spec))
+    return spec;
 
-  gab_module *mod = gab_bc_compile_send(gab, name, receiver, argc, argn);
+  gab_value mod =
+      gab_bc_compile_send(gab, spec, receiver, GAB_FLAG_DUMP_ERROR, argc, argv);
 
-  gab_value result = gab_vm_run(
-      gab, mod, GAB_FLAG_DUMP_ERROR | GAB_FLAG_EXIT_ON_PANIC, argc, argv);
+  if (GAB_VAL_IS_UNDEFINED(mod))
+    return mod;
 
-  return result;
+  return gab_vm_run(gab, mod, GAB_FLAG_DUMP_ERROR | GAB_FLAG_EXIT_ON_PANIC, 0,
+                    NULL);
+}
+
+gab_value gab_send(gab_engine *gab, gab_vm *vm, gab_value msg,
+                   gab_value receiver, u8 argc, gab_value argv[argc]) {
+  if (GAB_VAL_IS_STRING(msg)) {
+    gab_obj_message *main = gab_obj_message_create(gab, msg);
+
+    return send_msg(gab, vm, GAB_VAL_OBJ(main), receiver, argc, argv);
+  } else if (GAB_VAL_IS_MESSAGE(msg)) {
+    return send_msg(gab, vm, msg, receiver, argc, argv);
+  }
+
+  return GAB_VAL_NIL();
 }
 
 /**

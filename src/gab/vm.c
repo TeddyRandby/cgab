@@ -251,8 +251,8 @@ static inline boolean call_block_var(gab_engine *gab, gab_vm *vm,
   return true;
 }
 
-static inline boolean call_block(gab_engine *gab, gab_vm *vm, gab_obj_block *c,
-                                 u8 have, u8 want) {
+static inline boolean call_block(gab_vm *vm, gab_obj_block *c, u8 have,
+                                 u8 want) {
   if (!has_callspace(vm, c->p->nslots - c->p->narguments - 1)) {
     return false;
   }
@@ -286,7 +286,7 @@ static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_obj_builtin *b,
   vm->sp = trim_return(&result, vm->sp - arity - 1, 1, want);
 }
 
-gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
+gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
                      gab_value argv[argc]) {
 
 #if GAB_LOG_EXECUTION
@@ -405,19 +405,26 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
   gab_vm vm;
   gab_vm_create(&vm, flags, argc, argv);
 
-  gab_obj_block *main_c =
-      GAB_VAL_TO_BLOCK(v_gab_constant_val_at(&mod->constants, mod->main));
-
   register u8 instr = OP_NOP;
-  register u8 *ip = main_c->p->mod->bytecode.data;
+  register u8 *ip = NULL;
 
-  PUSH(GAB_VAL_OBJ(main_c));
-
+  PUSH(main);
   for (u8 i = 0; i < argc; i++)
     PUSH(argv[i]);
 
-  if (!call_block(ENGINE(), VM(), main_c, main_c->p->narguments, 1))
-    return vm_error(ENGINE(), VM(), flags, GAB_OVERFLOW, "");
+  if (GAB_VAL_IS_BLOCK(main)) {
+    gab_obj_block *b = GAB_VAL_TO_BLOCK(main);
+
+    if (!call_block(VM(), b, argc, 1))
+      return vm_error(ENGINE(), VM(), flags, GAB_OVERFLOW, "");
+  } else if (GAB_VAL_IS_SUSPENSE(main)) {
+    gab_obj_suspense *s = GAB_VAL_TO_SUSPENSE(main);
+
+    if (!call_suspense(VM(), s, argc, 1))
+      return vm_error(ENGINE(), VM(), flags, GAB_OVERFLOW, "");
+  } else {
+    return GAB_VAL_NIL();
+  }
 
   LOAD_FRAME();
 
@@ -437,10 +444,10 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
       gab_value spec = gab_obj_message_read(msg, type);
 
       u64 offset;
-      if (GAB_VAL_IS_NIL(spec)) {
+      if (GAB_VAL_IS_UNDEFINED(spec)) {
         spec = gab_obj_message_read(msg, GAB_VAL_UNDEFINED());
 
-        if (GAB_VAL_IS_NIL(spec)) {
+        if (GAB_VAL_IS_UNDEFINED(spec)) {
           STORE_FRAME();
           return vm_error(ENGINE(), VM(), flags, GAB_IMPLEMENTATION_MISSING,
                           "Could not send %V to %V", GAB_VAL_OBJ(msg), type);
@@ -502,7 +509,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         if (!call_block_var(ENGINE(), VM(), blk, have, want))
           return vm_error(ENGINE(), VM(), flags, GAB_OVERFLOW, "");
       } else {
-        if (!call_block(ENGINE(), VM(), blk, have, want))
+        if (!call_block(VM(), blk, have, want))
           return vm_error(ENGINE(), VM(), flags, GAB_OVERFLOW, "");
       }
 
@@ -596,7 +603,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
         if (!call_block_var(ENGINE(), VM(), blk, have, want))
           return vm_error(ENGINE(), VM(), flags, GAB_OVERFLOW, "");
       } else {
-        if (!call_block(ENGINE(), VM(), blk, have, want))
+        if (!call_block(VM(), blk, have, want))
           return vm_error(ENGINE(), VM(), flags, GAB_OVERFLOW, "");
       }
 
@@ -1187,8 +1194,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_module *mod, u8 flags, u8 argc,
     }
 
     CASE_CODE(NOP) : {
-        exit(1);
-        NEXT();
+      exit(1);
+      NEXT();
     }
 
     CASE_CODE(CONSTANT) : {

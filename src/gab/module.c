@@ -11,7 +11,6 @@ gab_module *gab_module_create(gab_value name, gab_source *source,
                               gab_module *next) {
   gab_module *self = NEW(gab_module);
   self->source = source;
-  self->main = 0;
   self->previous_compiled_op = OP_NOP;
   self->next = next;
 
@@ -30,7 +29,6 @@ gab_module *gab_module_copy(gab_engine *gab, gab_module *self,
                             gab_module *next) {
   gab_module *copy = NEW(gab_module);
   copy->source = gab_source_copy(gab, self->source);
-  copy->main = self->main;
   copy->previous_compiled_op = OP_NOP;
   copy->next = next;
 

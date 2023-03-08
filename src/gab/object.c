@@ -1,12 +1,14 @@
 #include "include/object.h"
 #include "include/core.h"
 #include "include/engine.h"
+#include "include/gab.h"
 #include "include/module.h"
 #include "include/types.h"
 #include "include/value.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <threads.h>
 
 #define GAB_CREATE_ARRAY(type, count)                                          \
   ((type *)gab_reallocate(gab, NULL, 0, sizeof(type) * count))
@@ -91,7 +93,7 @@ i32 gab_obj_dump(FILE *stream, gab_value value) {
     gab_obj_suspense *obj = GAB_VAL_TO_SUSPENSE(value);
     gab_value name =
         v_gab_constant_val_at(&obj->c->p->mod->constants, obj->c->p->mod->name);
-    return fprintf(stream, "[effect:%V]", name);
+    return fprintf(stream, "[suspense:%V]", name);
   }
   default: {
     fprintf(stderr, "%d is not an object.\n", GAB_VAL_TO_OBJ(value)->kind);
@@ -655,7 +657,92 @@ gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm,
     self->frame[i] = frame[i];
   }
 
-  gab_iref_many(gab, vm, len, frame);
+  gab_gc_iref_many(gab, vm, len, frame);
+
+  return self;
+}
+
+boolean gab_obj_fiber_empty(gab_engine *gab, gab_obj_fiber *f) {
+  return f->d->queue.len == 0;
+}
+
+void gab_obj_fiber_push(gab_engine *gab, gab_vm *vm, gab_obj_fiber *f,
+                        gab_value msg) {
+  mtx_lock(&f->d->mtx);
+
+  v_gab_value_push(&f->d->queue, msg);
+
+  mtx_unlock(&f->d->mtx);
+
+  gab_gc_iref(gab, vm, msg);
+}
+
+gab_value gab_obj_fiber_pop(gab_engine *gab, gab_vm *vm, gab_obj_fiber *f) {
+  mtx_lock(&f->d->mtx);
+
+  gab_value msg = v_gab_value_del(&f->d->queue, 0);
+
+  mtx_unlock(&f->d->mtx);
+
+  gab_gc_dref(gab, vm, msg);
+
+  return msg;
+}
+
+gab_obj_fiberd *gab_obj_fiberd_create(gab_engine *gab, gab_vm *vm) {
+  gab_obj_fiberd *self = NEW(gab_obj_fiberd);
+
+  self->rc = 0;
+  self->running = false;
+
+  self->p_gab = gab;
+  self->p_vm = vm;
+
+  mtx_init(&self->mtx, mtx_plain);
+
+  v_gab_value_create(&self->queue, 8);
+
+  return self;
+}
+
+i32 gab_obj_fiber_run(void *arg) {
+  gab_obj_fiber *f = arg;
+
+  gab_engine *gab = f->d->p_gab;
+
+  gab_vm *vm = f->d->p_vm;
+
+  gab_value p = f->d->val;
+
+  gab_engine *fork = gab_fork(gab);
+
+  do {
+    if (!gab_obj_fiber_empty(f, f)) {
+      gab_value msg = gab_obj_fiber_pop(gab, NULL, f);
+
+      gab_value m_copy = gab_val_copy(fork, msg);
+
+      gab_value p_copy = gab_val_copy(fork, p);
+    }
+  } while (1);
+
+  return 1;
+}
+
+gab_obj_fiber *gab_obj_fiber_create(gab_engine *gab, gab_obj_fiberd *d,
+                                    gab_value v) {
+  gab_obj_fiber *self = GAB_CREATE_OBJ(gab_obj_fiber, GAB_KIND_FIBER);
+
+  d->rc++;
+
+  self->d = d;
+
+  if (!d->running) {
+    d->running = true;
+    if (thrd_create(&d->thrd, gab_obj_fiber_run, self) != thrd_success) {
+      exit(0);
+    }
+  }
 
   return self;
 }

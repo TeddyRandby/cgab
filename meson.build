@@ -114,6 +114,8 @@ install_data(
   'std/List.gab',
   'std/Map.gab',
   'std/Pry.gab',
+  'std/Test.gab',
+  'std/Record.gab',
   install_dir: '/usr/local/share/gab/std/'
   )
 

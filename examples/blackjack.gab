@@ -1,0 +1,75 @@
+#
+# The objective of the game is to find all the different
+#  combinations of operators that add up 20
+#
+# I realize its not quite blackjack
+'std':require
+
+impl Any
+    def swap!(i, j)
+        def temp = self[i]
+        self[i] = self[j]
+        self[j] = temp
+    end
+
+    def permutations!(opt_k)
+        def k = opt_k or 0
+
+        self:len == k then
+            yield self
+        end else
+            for i in k:to(self:len):each
+                self:swap!(i, k)
+
+                for val in self:permutations!(k + 1)
+                    yield val
+                end
+
+                self:swap!(i, k)
+            end
+        end
+    end
+end
+
+def ops = List:new
+
+for seq in [ &+, &-, &*, &/ ]:permutations!
+    ops:push(seq:slice)
+end
+
+def hands = List:new
+
+for hand in [ 8 5 3 10 11 ]:permutations!
+    hands:push(hand:slice)
+end
+
+for hand in [ 8 5 3 10 1]:permutations!
+    hands:push(hand:slice)
+end
+
+def successes = List:new
+
+for seq in ops:each
+    for hand in hands:each
+        let total = hand:first
+
+        for i, op in seq:each
+            total = total:send(op, hand[i + 1])
+        end
+
+        total == 20 and successes:push({ seq hand })
+    end
+end
+
+for s in successes:each
+    print(
+        s.hand[0],
+        s.seq[0],
+        s.hand[1],
+        s.seq[1],
+        s.hand[2],
+        s.seq[2],
+        s.hand[3],
+        s.seq[3],
+        s.hand[4])
+end

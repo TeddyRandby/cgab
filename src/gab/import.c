@@ -2,7 +2,7 @@
 #include "include/engine.h"
 #include <dlfcn.h>
 
-u64 gab_imports_module(gab_engine *gab, s_i8 name, gab_module *mod,
+u64 gab_imports_module(gab_engine *gab, s_i8 name, gab_value mod,
                        gab_value val) {
   u64 hash = s_i8_hash(name, gab->hash_seed);
 

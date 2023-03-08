@@ -61,11 +61,6 @@ struct gab_module {
   v_s_i8 sources;
 
   /*
-   * The prototype of the module
-   **/
-  u16 main;
-
-  /*
    * The name of the module
    **/
   u16 name;

@@ -81,7 +81,7 @@ void gab_repl() {
   gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
 
   // Import the standard library
-  GAB_SEND("require", GAB_STRING("std"), 0, NULL, NULL);
+  GAB_SEND(NULL,  "require", GAB_STRING("std"), 0, NULL);
 
   for (;;) {
 
@@ -98,13 +98,13 @@ void gab_repl() {
       continue;
     }
 
-    gab_module *main =
+    gab_value main =
         gab_compile(gab, GAB_STRING("__main__"),
                     s_i8_create(src->data, src->len), GAB_FLAG_DUMP_ERROR);
 
     a_i8_destroy(src);
 
-    if (main == NULL)
+    if (GAB_VAL_IS_NIL(main))
       continue;
 
     gab_value result = gab_run(gab, main, GAB_FLAG_DUMP_ERROR);
@@ -123,7 +123,6 @@ void gab_repl() {
   gab_dref_many(gab, NULL, 3, args);
 
   gab_destroy(gab);
-
 }
 
 void gab_run_file(const char *path) {
@@ -159,13 +158,13 @@ void gab_run_file(const char *path) {
 
   a_i8 *src = os_read_file(path);
 
-  gab_module *main =
+  gab_value main =
       gab_compile(gab, GAB_STRING("__main__"), s_i8_create(src->data, src->len),
                   GAB_FLAG_DUMP_ERROR);
 
   a_i8_destroy(src);
 
-  if (main == NULL)
+  if (GAB_VAL_IS_NIL(main))
     goto fin;
 
   gab_value result =

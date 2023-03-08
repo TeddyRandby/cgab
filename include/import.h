@@ -11,7 +11,7 @@ typedef enum {
 typedef struct {
   gab_import_k k;
   union {
-    gab_module *mod;
+    gab_value mod;
     void *shared;
   } as;
   gab_value cache;
@@ -25,7 +25,7 @@ typedef struct {
 #define EQUAL(a, b) (a == b)
 #include "include/dict.h"
 
-u64 gab_imports_module(gab_engine* gab, s_i8 name, gab_module* mod, gab_value val);
+u64 gab_imports_module(gab_engine* gab, s_i8 name, gab_value mod, gab_value val);
 
 u64 gab_imports_shared(gab_engine* gab, s_i8 name, void* obj, gab_value val);
 

@@ -2,7 +2,7 @@ def Range { from to }
 
 impl Range
   def each
-    let v = 0
+    let v = self.from
 
     loop
       yield v

@@ -64,7 +64,7 @@ void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
  *
  * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
  */
-gab_module *gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags);
+gab_value gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags);
 
 /**
  * Run a module in the gab vm.
@@ -81,7 +81,7 @@ gab_module *gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags);
  *
  * @return The return value of the closure
  */
-gab_value gab_run(gab_engine *gab, gab_module *main, u8 flags);
+gab_value gab_run(gab_engine *gab, gab_value main, u8 flags);
 
 /**
  * Crash the given VM with the given message
@@ -189,8 +189,8 @@ gab_value gab_tuple(gab_engine *gab, gab_vm *vm, u64 size,
  *
  * @return The message that was updated
  */
-gab_value gab_specialize(gab_engine *gab, gab_vm* vm, gab_value name, gab_value receiver,
-                         gab_value specialization);
+gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
+                         gab_value receiver, gab_value specialization);
 
 /**
  * Send the message to the receiver
@@ -203,8 +203,8 @@ gab_value gab_specialize(gab_engine *gab, gab_vm* vm, gab_value name, gab_value 
  *
  * @return The return value of the message
  */
-gab_value gab_send(gab_engine *gab, gab_value name, gab_value receiver, u8 argc,
-                   gab_value argn[argc], gab_value argv[argc]);
+gab_value gab_send(gab_engine *gab, gab_vm *vm, gab_value message,
+                   gab_value receiver, u8 argc, gab_value argv[argc]);
 
 /**
  * Dump a gab value to stdout
@@ -298,8 +298,8 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self);
 /**
  * A helper macro for sending simply
  */
-#define GAB_SEND(name, receiver, argc, argn, argv)                             \
-  gab_send(gab, GAB_STRING(name), receiver, argc, argn, argv)
+#define GAB_SEND(vm, name, receiver, argc, argv)                                   \
+  gab_send(gab, vm, GAB_STRING(name), receiver, argc, argv)
 
 /**
  * A helper macro for creating a gab_obj_builtin

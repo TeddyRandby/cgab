@@ -2,6 +2,7 @@
 #define GAB_OBJECT_H
 
 #include "value.h"
+#include <stdint.h>
 
 typedef struct gab_module gab_module;
 typedef struct gab_vm gab_vm;
@@ -9,6 +10,7 @@ typedef struct gab_gc gab_gc;
 typedef struct gab_engine gab_engine;
 
 typedef enum gab_kind {
+  GAB_KIND_FIBER,
   GAB_KIND_SUSPENSE,
   GAB_KIND_SYMBOL,
   GAB_KIND_STRING,
@@ -223,7 +225,7 @@ typedef struct gab_obj_message gab_obj_message;
 #define NAME specs
 #define K gab_value
 #define V gab_value
-#define DEF_V GAB_VAL_NIL()
+#define DEF_V GAB_VAL_UNDEFINED()
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
 #include "include/dict.h"
@@ -314,6 +316,18 @@ static inline u16 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
   }
 
   return UINT16_MAX;
+};
+
+static inline u16 gab_obj_shape_next(gab_obj_shape* self, gab_value key) {
+    if (GAB_VAL_IS_UNDEFINED(key))
+        return 0;
+    
+    u16 offset = gab_obj_shape_find(self, key);
+
+    if (offset == UINT16_MAX)
+        return UINT16_MAX;
+
+    return offset + 1;
 };
 
 /*
@@ -486,5 +500,52 @@ gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm,
                                           gab_obj_block *c, u64 offset,
                                           u8 arity, u8 want, u8 len,
                                           gab_value frame[len]);
+
+/*
+  ------------- OBJ_SUSPENSE -------------
+  A suspended call that can be handled.
+*/
+#include <threads.h>
+
+typedef struct {
+  _Atomic i32 rc;
+
+  boolean running;
+
+  gab_engine *p_gab;
+
+  gab_vm *p_vm;
+
+  gab_value val;
+
+  mtx_t mtx;
+
+  thrd_t thrd;
+
+  v_gab_value queue;
+} gab_obj_fiberd;
+
+typedef struct gab_obj_fiber gab_obj_fiber;
+struct gab_obj_fiber {
+  gab_obj header;
+
+  gab_obj_fiberd *d;
+};
+
+#define GAB_VAL_IS_FIBER(value) (gab_val_is_obj_kind(value, GAB_KIND_FIBER))
+#define GAB_VAL_TO_FIBER(value) ((gab_obj_fiber *)GAB_VAL_TO_OBJ(value))
+#define GAB_OBJ_TO_FIBER(value) ((gab_obj_fiber *)value)
+
+gab_obj_fiber *gab_obj_fiber_create(gab_engine *gab, gab_obj_fiberd *d,
+                                    gab_value v);
+
+boolean gab_obj_fiber_empty(gab_engine *gab, gab_obj_fiber *self);
+
+void gab_obj_fiber_push(gab_engine *gab, gab_vm *vm, gab_obj_fiber *f,
+                        gab_value msg);
+
+gab_value gab_obj_fiber_pop(gab_engine *gab, gab_vm *vm, gab_obj_fiber *f);
+
+gab_obj_fiberd *gab_obj_fiberd_create(gab_engine *gab, gab_vm* vm);
 
 #endif

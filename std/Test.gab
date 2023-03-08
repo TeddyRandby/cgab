@@ -1,0 +1,50 @@
+def TestState  { fails }
+
+impl TestState 
+    def new
+        Record:new(TestState):reset
+    end
+
+    def reset
+        self.fails = 0
+
+        self
+    end
+
+    def fail
+        self.fails = self.fails + 1
+    end
+
+    def passed?
+        self.fails == 0
+    end
+end
+
+def T = TestState:new
+
+impl Any
+    def expect(other, opt_msg)
+      def msg = opt_msg or &==
+      self:send(msg, other) or T:fail
+    end
+
+    def expect_not(other, opt_msg)
+      def msg = opt_msg or &==
+      self:send(msg, other) and T:fail
+    end
+end
+
+impl $Test
+    def describe(name, cb)
+        print('\nTesting {name}...')
+        cb()
+    end
+
+    def it(name, cb)
+        T:reset
+
+        cb()
+
+        print('{T:passed? and '✓' or '×'} it {name}')
+    end
+end

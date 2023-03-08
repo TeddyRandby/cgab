@@ -27,6 +27,8 @@ impl List
   end
 
   def each
+    self:len == 0 and return
+
     let v = 0 
 
     loop

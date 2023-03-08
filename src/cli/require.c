@@ -49,7 +49,7 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
                                   const s_i8 module) {
   a_i8 *src = os_read_file((char *)path->data);
 
-  gab_module *pkg =
+  gab_value pkg =
       gab_compile(gab,
                   GAB_VAL_OBJ(gab_obj_string_create(
                       gab, s_i8_create(path->data, path->len))),
@@ -57,7 +57,7 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
 
   a_i8_destroy(src);
 
-  if (pkg == NULL) {
+  if (GAB_VAL_IS_NIL(pkg)) {
     return gab_panic(gab, vm, "Failed to compile module");
   }
 

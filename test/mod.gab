@@ -1,116 +1,97 @@
 'std':require
+def Test = 'Test':require
 
-def describe = do (name, cb)
-  ('\n--{name}--'):print
-  cb()
+Test:describe('Numbers') do
+  Test:it('should be equal to itself') do
+    5:expect(5)
+  end
+
+  Test:it('should do math') do
+    10:expect(5 * 2)
+    1:expect(10 % 3)
+    8:expect(1 << 3)
+  end
+
+  Test:it('should compare') do
+    5:expect(10, &<)
+    10:expect(5, &>)
+  end
 end
 
-def it = do(name, cb)
-  print('{cb() and '✓' or '×'} it {name}')
+Test:describe('Strings') do
+  Test:it('should be equal to itself') do
+    'hello':expect('hello')
+  end
+
+  Test:it('should concatenate') do
+    'hello world':expect('hello' + ' world')
+  end
+
+  Test:it('should interpolate') do
+    '1 + 2 is 3':expect('{1} + {2} is {1 + 2}')
+  end
 end
 
-def check = do(result, msg)
-  result or print(msg)
-end
 
-def expect = do (a, b)
-  check(a == b, 'Expected {a} to be equal to {b}') or panic()
-end
-
-def expect_not = do (a, b)
-  check(not (a == b), 'Expected {a} to not be equal to {b}') or panic()
-end
-
-describe('Numbers', do ()
-  it('should be equal to itself', do ()
-    expect(5, 5)
-  end)
-
-  it('should do math', do ()
-    expect(5 * 2, 10)
-    expect(10 % 3, 1)
-  end)
-end)
-
-describe('Strings', do ()
-  it('should be equal to itself', do ()
-    expect('hello', 'hello')
-  end)
-
-  it('should concatenate', do ()
-    expect('hello' + ' world', 'hello world')
-  end)
-
-  it('should interpolate', do ()
-    expect(('{1} + {2} is {1 + 2}'),'1 + 2 is 3')
-  end)
-end)
-
-
-describe('Closures', do ()
+Test:describe('Closures') do
     def a = 1
 
-    it('should capture', do ()
-        expect(a, 1)
+    Test:it('should capture') do
+        a:expect(1)
 
-        def test = do()
-           expect(a, 1)
+        def test = do
+           a:expect(1)
            a  
         end
 
-        expect(test(), 1)
-        expect(test(), 1)
-        expect(test(), 1)
-    end)
+        test():expect(1)
+    end
 
-   it('should work with varargs', do()
-
-      def varfunc = do(first, ..args)
-        expect(first, 1)
-        expect(args[0], 2)
+   Test:it('should work with varargs') do
+      def varfunc = do (first, ..args)
+        first:expect(1)
+        args[0]:expect(2)
       end
 
       varfunc(1,2)
 
-      def onetwo = do()
-        return 1, 2
-      end
+      def onetwo = do return 1, 2 end
 
       varfunc(onetwo())
-   end)
-end)
+   end
+end
 
-describe('Records', do ()
+Test:describe('Records') do
   def Point { x y }
 
-  it('should have properties', do ()
+  Test:it('should have properties') do
     let point = {
       x = 1
       y = 2
     }
 
-    expect(point.x, 1)
-    expect(point.y, 2)
-  end)
+    point.x:expect(1)
+    point.y:expect(2)
+  end
 
-  it('should be structurally shaped', do ()
+  Test:it('should be structurally shaped') do
     let pone = { x = 1 y = 2}
     let ptwo = { x = 3 y = 4}
 
-    expect(?pone, ?ptwo)
-  end)
+    ?pone:expect(?ptwo)
+  end
 
-  it('should work for all kinds of keys', do ()
+  Test:it('should work for all kinds of keys') do
     let obj = {
         [?{}] = 3
-        [it]  = it
+        [Test] = Test
     }
 
-    expect(obj[?{}],3)
-    expect(obj[it],it)
-  end)
+    3:expect(obj[?{}])
+    Test:expect(obj[Test])
+  end
 
-  it('should work when shapes change', do ()
+  Test:it('should work when shapes change') do
     let justa = { a }
     let ab = { a = 3 b }
     let abc = { a = 'hi' b c}
@@ -127,33 +108,33 @@ describe('Records', do ()
         self.a
     end
     
-    expect(justa:get_a,true)
+    true:expect(justa:get_a)
 
-    expect(ab:get_a,3)
+    3:expect(ab:get_a)
 
-    expect(abc:get_a,'hi')
+    'hi':expect(abc:get_a)
 
-    expect(ab:get_a,3)
-    expect(ab:get_a,3)
+    3:expect(ab:get_a)
+    3:expect(ab:get_a)
 
     ab.a = 5
 
-    expect(abc:get_a, 'hi')
+    'hi':expect(abc:get_a)
 
-    expect(ab:get_a, 5)
-    expect(justa:get_a, true)
-  end)
+    5:expect(ab:get_a)
+    true:expect(justa:get_a)
+  end
 
-  it('should make tuples', do ()
+  Test:it('should make tuples') do
     let tup = [ 1 2 3 ]
 
-    expect(tup[0],1)
-    expect(tup[1],2)
-    expect(tup[2],3)
-  end)
-end)
+    1:expect(tup[0])
+    2:expect(tup[1])
+    3:expect(tup[2])
+  end
+end
 
-describe('Overloads', do ()
+Test:describe('Overloads') do
     def Vector { x y }
 
     def + [Vector](other)
@@ -165,12 +146,12 @@ describe('Overloads', do ()
         }
     end
 
-    it('should overload binary', do ()
+    Test:it('should overload binary') do
         let test = { x=1 y=2 } + { x=2 y=1 }
 
-        expect(test.x,3)
-        expect(test.y,3)
-    end)
+        3:expect(test.x)
+        3:expect(test.y)
+    end
 
     def < [Vector](other)
         other is Vector or panic()
@@ -185,22 +166,18 @@ describe('Overloads', do ()
         (self.x == other.x) and (self.y == other.y)
     end
 
-    it('should overload comparison', do ()
-        let test = { x=1 y=1 } < { x=4 y=4 }
-        expect(test,true)
-
-        test = { x=1 y=1 } == { x=1 y=1 }
-
-        expect(test,true)
-    end)
+    Test:it('should overload comparison') do
+        { x = 1 y = 1 }:expect({ x = 1 y = 1})
+        { x = 1 y = 2 }:expect({ x = 4 y = 4}, &<)
+    end
 
     def get = do (obj, key)
         obj[key]
     end
 
-    it('should get before overload', do()
-        expect(get({ x = 1 y = 2}, 'x'),1)
-    end)
+    Test:it('should get before overload') do
+        1:expect(get({ x = 1 y = 2}, 'x'))
+    end
 
 
     def [] [Vector](key)
@@ -209,61 +186,62 @@ describe('Overloads', do ()
        end
     end
 
-    it('should overload get', do ()
-        expect(get({ x = 2 y = 2 },'mag'),8)
-    end)
+    Test:it('should overload get') do
+        8:expect(get({ x = 2 y = 2 },'mag'))
+    end
 
-    it('should behave when switching types', do ()
+    Test:it('should behave when switching types') do
       def sum = do (a,b)
         a + b
       end
 
-      #expect(sum(1,2),3)
-      #expect(sum('h','i'),'hi')
-      expect(sum({x = 1 y = 2}) {x = 2 y = 1}) {x = 3 y = 3} # Should work because of eq overload
-      expect(sum(1,2),3)
-      expect(sum('h','i'),'hi')
-    end)
-end)
+      3:expect(sum(1,2))
+      'hi':expect(sum('h','i'))
+      {x = 3 y = 3}:expect(sum({x = 1 y = 2}) {x = 2 y = 1})
+      {x = 3 y = 3}:expect(sum({x = 1 y = 2}) {x = 2 y = 1})
+      'hi':expect(sum('h','i'))
+      3:expect(sum(1,2))
+    end
+end
 
-describe('Messages', do ()
+Test:describe('Messages') do
     def test[]
         self    
     end
 
-    it('should send', do ()
-        expect(1:test, 1)
-    end)
+    Test:it('should send') do
+        1:expect(1:test)
+    end
 
     def test[Number](a)
         self + 1
     end
 
-    it('should use more specific', do ()
-        expect(1:test, 2)
-    end)
+    Test:it('should use more specific') do
+        2:expect(1:test)
+    end
 
     def repeat = do 1:test end
 
-    it('should cache', do
-        expect(repeat(),2)
-        expect(repeat(),2)
-        expect(repeat(),2)
-    end)
+    Test:it('should cache') do
+        2:expect(repeat())
+        2:expect(repeat())
+        2:expect(repeat())
+    end
 
     def oneTwo = do return 1, 2 end
 
-    it('should send/receive var', do ()
+    Test:it('should send/receive var') do
       def takeOneTwo = do (a, b)
-        expect(a,1)
-        expect(b,2)
+        1:expect(a)
+        2:expect(b)
       end
 
       takeOneTwo(oneTwo())
-    end)
-end)
+    end
+end
 
-describe('Effects', do ()
+Test:describe('Effects') do
     def once = do
         yield 1
         2
@@ -279,14 +257,14 @@ describe('Effects', do ()
     def receive_one = do
         let val = yield
 
-        expect(val,1)
+        1:expect(val)
     end
 
     def receive_onetwo = do
         let one, two = yield
         
-        expect(one,1)
-        expect(two,2)
+        1:expect(one)
+        2:expect(two)
     end
 
     def onetwo = do
@@ -297,128 +275,123 @@ describe('Effects', do ()
         yield onetwo()
     end
 
-   it('should yield once', do ()
+   Test:it('should yield once') do
        let val, eff = once()
 
-       expect(val,1)
-       expect(eff(),2)
-   end)
+       1:expect(val)
+       2:expect(eff())
+   end
 
-    it('should yield twice', do()
-        let _, eff = twice()
+   Test:it('should yield twice') do
+       let _, eff = twice()
 
-        let valtwo, efftwo = eff()
+       let valtwo, efftwo = eff()
 
-        expect(valtwo,2)
-        expect(efftwo(),3)
-    end)
+       2:expect(valtwo)
+       3:expect(efftwo())
+   end
 
-   it('should receive a value', do ()
+   Test:it('should receive a value') do
        let eff = receive_one()
 
        eff(1)
-   end)
+   end
 
-   it('should yield var', do ()
+   Test:it('should yield var') do
        let one, two, eff = yields_many()
-       expect(one,1)
-       expect(two,2)
-   end)
+       1:expect(one)
+       2:expect(two)
+   end
 
-   it('should receive var', do ()
+   Test:it('should receive var') do
        let eff = receive_onetwo()
 
        eff(onetwo())
-   end)
-end)
+   end
+end
 
-describe('Lists', do ()
-    it('should create', do ()
+Test:describe('Lists') do
+    Test:it('should create') do
         let list = List:new(100)
 
-        expect_not(list,nil)
-    end)
+        list:expect_not(nil)
+    end
 
-    it('should put', do ()
+    Test:it('should put') do
         let list = List:new
 
-        expect(list:at(0), nil)
+        list:at(0):expect(nil)
 
         list:push('hello')
 
-        expect(list:at(0), 'hello')
+        list:at(0):expect('hello')
 
         list:put(2, 'hello')
 
-        expect(list:at(2), 'hello')
-    end)
+        list:at(2):expect('hello')
+    end
 
-    it('should get/set', do ()
+    Test:it('should get/set') do
         let list = List:new
 
-        expect(list[0],nil)
+        list[0]:expect(nil)
 
         list[0] = 5
 
-        expect(list[0],5)
+        list[0]:expect(5)
 
         list[10] = 10
 
-        expect(list[10],10)
+        list[10]:expect(10)
 
-        expect(list[9],nil)
-    end)
+        list[9]:expect(nil)
+    end
 
-    it('should index with range', do ()
-        let list = List:new(5)
-        list[0] = 1
-        list[1] = 2
-        list[2] = 3
-        list[3] = 4
-        list[4] = 5
+    Test:it('should index with range') do
+        let list = List:new(5):map! do (_, i) i + 1 end
 
         let slice = list[3:to]
 
-        expect(slice[0],1)
-        expect(slice[2],3)
+        slice[0]:expect(1)
+        slice[2]:expect(3)
 
         slice = list[3:to(4)]
 
-        expect(slice[0],4)
-        expect(slice[1],nil)
-    end)
-end)
+        slice[0]:expect(4)
+        slice[1]:expect(nil)
+    end
+end
 
-describe('Maps', do ()
-  it('should create', do ()
+Test:describe('Maps') do
+  Test:it('should create') do
     let map = Map:new
 
-    expect_not(map,nil)
-  end)
+    map:expect_not(nil)
+  end
 
-  it('should create with initial', do ()
+  Test:it('should create with initial') do
     let map = Map:new { hi = 'bob' }
 
-    expect_not(map,nil)
+    map:expect_not(nil)
 
-    expect(map:at('hi'), 'bob')
-  end)
+    map:at('hi'):expect('bob')
+  end
 
-  it('should put', do ()
+  Test:it('should put') do
     let map = Map:new
 
     map:put('hi', 'bob')
 
-    expect(map:at('hi'), 'bob')
-    expect(map:at('bye'), nil)
-  end)
+    map:at('hi'):expect('bob')
+    map:at('bye'):expect(nil)
+  end
 
-  it('should get/set', do ()
+  Test:it('should get/set') do
     let map = Map:new
 
     map['hi'] = 'bob'
 
-    expect(map['hi'],'bob')
-    expect(map['bye'],nil)
-  end)
-end)
+    map['hi']:expect('bob')
+    map['bye']:expect(nil)
+  end
+end

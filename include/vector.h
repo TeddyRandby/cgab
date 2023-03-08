@@ -64,16 +64,6 @@ LINKAGE T METHOD(pop)(TYPENAME *self) {
   return self->data[--self->len];
 }
 
-LINKAGE u64 METHOD(del)(TYPENAME *self, u64 index) {
-  assert(index < self->len);
-  if (index + 1 == self->len) {
-      METHOD(pop)(self);
-      return self->len;
-  }
-  memcpy(self->data + index, self->data + index + 1, self->len - index);
-  return self->len--;
-}
-
 LINKAGE T *METHOD(ref_at)(TYPENAME *self, u64 index) {
   assert(index < self->len);
   return self->data + index;
@@ -90,6 +80,16 @@ LINKAGE T *METHOD(emplace)(TYPENAME *self) {
     self->cap = self->cap * 2;
   }
   return self->data + (self->len++);
+}
+
+LINKAGE T METHOD(del)(TYPENAME *self, u64 index) {
+  assert(index < self->len);
+  if (index + 1 == self->len) {
+      return METHOD(pop)(self);
+  }
+  T removed = METHOD(val_at)(self, index);
+  memcpy(self->data + index, self->data + index + 1, self->len - index);
+  return removed;
 }
 
 #undef T
