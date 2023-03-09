@@ -3,13 +3,15 @@
 def Fiber = require('fiber')
 
 def ch = Fiber:new do
-    print('hello world')
-    print('hello world')
-    print('hello world')
-    print('hello world')
-    print('hello world')
-    print('hello world')
-    print('hello world')
+    loop
+        let msg = yield
+        print('msg: {msg}')
+    end
+end
+
+
+for i in 1:to(1000):each
+    ch('Hello World')
 end
 
 for i in 1:to(1000000):each

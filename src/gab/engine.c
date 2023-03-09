@@ -14,7 +14,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <time.h>
+#include <unistd.h>
 
 struct primitive {
   const char *name;
@@ -125,20 +125,19 @@ struct primitive primitives[] = {
     },
 };
 
-gab_engine *gab_create() {
+gab_engine *gab_create(u64 hash_seed) {
   gab_engine *gab = NEW(gab_engine);
 
-  gab->hash_seed = time(NULL);
+  gab->hash_seed = hash_seed;
   gab->objects = NULL;
-  gab->argv_names = NULL;
-  gab->argv_values = NULL;
   gab->modules = NULL;
   gab->sources = NULL;
+  gab->argv_names = NULL;
+  gab->argv_values = NULL;
 
   d_strings_create(&gab->interned_strings, INTERN_INITIAL_CAP);
   d_shapes_create(&gab->interned_shapes, INTERN_INITIAL_CAP);
   d_messages_create(&gab->interned_messages, INTERN_INITIAL_CAP);
-
   d_gab_import_create(&gab->imports, 8);
 
   gab_gc_create(gab);
@@ -172,50 +171,6 @@ gab_engine *gab_create() {
   }
 
   return gab;
-}
-
-gab_engine *gab_fork(gab_engine *gab) {
-  gab_engine *new_gab = NEW(gab_engine);
-
-  new_gab->objects = NULL;
-  new_gab->argv_names = NULL;
-  new_gab->argv_values = NULL;
-  new_gab->modules = NULL;
-  new_gab->sources = NULL;
-
-  d_strings_create(&new_gab->interned_strings, INTERN_INITIAL_CAP);
-  d_shapes_create(&new_gab->interned_shapes, INTERN_INITIAL_CAP);
-  d_messages_create(&new_gab->interned_messages, INTERN_INITIAL_CAP);
-
-  d_gab_import_create(&new_gab->imports, 8);
-
-  gab_gc_create(new_gab);
-
-  memset(&new_gab->allocator, 0, sizeof(gab->allocator));
-
-  new_gab->hash_seed = gab->hash_seed;
-  memcpy(new_gab->types, gab->types, sizeof(gab_value) * GAB_KIND_NKINDS);
-
-  for (int i = 0; i < LEN_CARRAY(primitives); i++) {
-    gab_value name =
-        GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr(primitives[i].name)));
-
-    gab_specialize(gab, NULL, name, gab->types[primitives[i].type],
-                   primitives[i].primitive);
-  }
-
-  u8 argc = gab->argv_values->len;
-
-  gab_value arg_names[argc], arg_values[argc];
-
-  for (u8 i = 0; i < argc; i++) {
-    arg_names[i] = gab_val_copy(new_gab, gab->argv_names->data[i]);
-    arg_values[i] = gab_val_copy(new_gab, gab->argv_values->data[i]);
-  }
-
-  gab_args(new_gab, argc, arg_names, arg_values);
-
-  return new_gab;
 }
 
 void gab_destroy(gab_engine *gab) {
@@ -260,7 +215,7 @@ void gab_destroy(gab_engine *gab) {
 
   gab_gc_destroy(gab);
 
-  gab_imports_destroy(gab);
+  // gab_imports_destroy(gab);
 
   d_strings_destroy(&gab->interned_strings);
   d_shapes_destroy(&gab->interned_shapes);
@@ -382,13 +337,13 @@ gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
   return GAB_VAL_OBJ(m);
 }
 
-gab_value send_msg(gab_engine *gab, gab_vm *vm, gab_value spec,
-                   gab_value receiver, u8 argc, gab_value argv[argc]) {
-  if (GAB_VAL_IS_UNDEFINED(spec))
-    return spec;
+gab_value send_msg(gab_engine *gab, gab_value msg, gab_value receiver, u8 argc,
+                   gab_value argv[argc]) {
+  if (GAB_VAL_IS_UNDEFINED(msg))
+    return msg;
 
   gab_value mod =
-      gab_bc_compile_send(gab, spec, receiver, GAB_FLAG_DUMP_ERROR, argc, argv);
+      gab_bc_compile_send(gab, msg, receiver, GAB_FLAG_DUMP_ERROR, argc, argv);
 
   if (GAB_VAL_IS_UNDEFINED(mod))
     return mod;
@@ -397,14 +352,14 @@ gab_value send_msg(gab_engine *gab, gab_vm *vm, gab_value spec,
                     NULL);
 }
 
-gab_value gab_send(gab_engine *gab, gab_vm *vm, gab_value msg,
-                   gab_value receiver, u8 argc, gab_value argv[argc]) {
+gab_value gab_send(gab_engine *gab, gab_value msg, gab_value receiver, u8 argc,
+                   gab_value argv[argc]) {
   if (GAB_VAL_IS_STRING(msg)) {
     gab_obj_message *main = gab_obj_message_create(gab, msg);
-
-    return send_msg(gab, vm, GAB_VAL_OBJ(main), receiver, argc, argv);
+    printf("Calling: %V\n", GAB_VAL_OBJ(main));
+    return send_msg(gab, GAB_VAL_OBJ(main), receiver, argc, argv);
   } else if (GAB_VAL_IS_MESSAGE(msg)) {
-    return send_msg(gab, vm, msg, receiver, argc, argv);
+    return send_msg(gab, msg, receiver, argc, argv);
   }
 
   return GAB_VAL_NIL();
@@ -697,3 +652,5 @@ gab_value gab_val_copy(gab_engine *gab, gab_value value) {
   }
   }
 }
+
+u64 gab_seed(gab_engine *gab) { return gab->hash_seed; }

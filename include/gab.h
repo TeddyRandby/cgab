@@ -13,19 +13,7 @@ typedef struct gab_module gab_module;
  *
  * @return The allocated Gab Engine.
  */
-gab_engine *gab_create();
-
-/**
- * Fork a Gab Engine.
- *
- * This copies the arguments and messages from the argument engine into the
- * forked on.
- *
- * @param gab The engine to fork.
- *
- * @return The allocated Gab Engine.
- */
-gab_engine *gab_fork(gab_engine *gab);
+gab_engine *gab_create(u64 hash_seed);
 
 /**
  * Cleanup a Gab Engine.
@@ -52,6 +40,8 @@ void gab_destroy(gab_engine *gab);
  */
 void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]);
+
+u64 gab_seed(gab_engine *gab);
 
 /**
  * Compile a source string into a Gab Module.
@@ -203,8 +193,8 @@ gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
  *
  * @return The return value of the message
  */
-gab_value gab_send(gab_engine *gab, gab_vm *vm, gab_value message,
-                   gab_value receiver, u8 argc, gab_value argv[argc]);
+gab_value gab_send(gab_engine *gab, gab_value message, gab_value receiver,
+                   u8 argc, gab_value argv[argc]);
 
 /**
  * Dump a gab value to stdout
@@ -298,8 +288,8 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self);
 /**
  * A helper macro for sending simply
  */
-#define GAB_SEND(vm, name, receiver, argc, argv)                                   \
-  gab_send(gab, vm, GAB_STRING(name), receiver, argc, argv)
+#define GAB_SEND(name, receiver, argc, argv)                                   \
+  gab_send(gab, GAB_STRING(name), receiver, argc, argv)
 
 /**
  * A helper macro for creating a gab_obj_builtin

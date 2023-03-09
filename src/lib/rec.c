@@ -11,7 +11,7 @@ gab_value gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc,
     gab_panic(gab, vm, "Invalid call to gab_lib_send");
   }
 
-  gab_value result = gab_send(gab, vm, argv[1], argv[0], argc - 2, argv + 2);
+  gab_value result = gab_send(gab, argv[1], argv[0], argc - 2, argv + 2);
 
   if (GAB_VAL_IS_UNDEFINED(result)) {
     gab_panic(gab, vm, "Invalid send");

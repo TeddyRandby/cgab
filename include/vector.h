@@ -88,7 +88,7 @@ LINKAGE T METHOD(del)(TYPENAME *self, u64 index) {
       return METHOD(pop)(self);
   }
   T removed = METHOD(val_at)(self, index);
-  memcpy(self->data + index, self->data + index + 1, self->len - index);
+  memcpy(self->data + index, self->data + index + 1, self->len-- - index);
   return removed;
 }
 

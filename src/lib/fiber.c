@@ -1,19 +1,16 @@
 #include "include/core.h"
 #include "include/gab.h"
 #include "include/object.h"
+#include "include/value.h"
 #include <stdio.h>
 #include <threads.h>
 
 typedef struct {
-  _Atomic i32 rc;
+  boolean started;
 
-  boolean running;
+  gab_engine *gab;
 
-  gab_engine *p_gab;
-
-  gab_vm *p_vm;
-
-  gab_value val;
+  gab_value proc;
 
   mtx_t mtx;
 
@@ -22,16 +19,14 @@ typedef struct {
   v_gab_value queue;
 } fiber;
 
-fiber *fiber_create(gab_engine *gab, gab_vm *vm, gab_value v) {
+fiber *fiber_create(gab_engine *gab, gab_value proc) {
   fiber *self = NEW(fiber);
 
-  self->rc = 0;
-  self->running = false;
+  self->started = false;
 
-  self->p_gab = gab;
-  self->p_vm = vm;
+  self->gab = gab;
 
-  self->val = v;
+  self->proc = proc;
 
   mtx_init(&self->mtx, mtx_plain);
 
@@ -42,61 +37,68 @@ fiber *fiber_create(gab_engine *gab, gab_vm *vm, gab_value v) {
 
 boolean fiber_empty(gab_engine *gab, fiber *f) { return f->queue.len == 0; }
 
-void fiber_push(gab_engine *gab, gab_vm *vm, fiber *f, gab_value msg) {
+void fiber_push(fiber *f, gab_value msg) {
   mtx_lock(&f->mtx);
 
-  v_gab_value_push(&f->queue, msg);
+  v_gab_value_push(&f->queue, gab_val_copy(f->gab, msg));
 
   mtx_unlock(&f->mtx);
-
-  gab_iref(gab, vm, msg);
 }
 
-gab_value fiber_pop(gab_engine *gab, gab_vm *vm, fiber *f) {
+gab_value fiber_pop(fiber *f) {
   mtx_lock(&f->mtx);
 
   gab_value msg = v_gab_value_del(&f->queue, 0);
 
   mtx_unlock(&f->mtx);
 
-  gab_dref(gab, vm, msg);
+  gab_dref(f->gab, NULL, msg);
 
   return msg;
+}
+
+void fiber_set(fiber *f, gab_value v) {
+  mtx_lock(&f->mtx);
+
+  f->proc = v;
+
+  mtx_unlock(&f->mtx);
+}
+
+boolean callable(gab_value v) {
+  return GAB_VAL_IS_BLOCK(v) || GAB_VAL_IS_SUSPENSE(v);
 }
 
 i32 fiber_run(void *arg) {
   fiber *f = arg;
 
-  gab_engine *gab = f->p_gab;
+  gab_engine *gab = f->gab;
 
-  gab_vm *vm = f->p_vm;
+  gab_args(gab, 0, NULL, NULL);
+  gab_value res = gab_run(gab, f->proc, GAB_FLAG_DUMP_ERROR);
 
-  gab_value p = f->val;
+  if (!callable(res))
+    return 1;
 
-  printf("Forking Engine...");
-  gab_engine *fork = gab_fork(gab);
-  printf("Done.\n");
+  fiber_set(f, res);
 
-  printf("Running: ");
-  gab_val_dump(stdout, p);
-  printf("\n");
+  gab_value empty = GAB_STRING("");
 
-  gab_value p_copy = gab_val_copy(fork, p);
+  while (callable(f->proc)) {
+    if (!fiber_empty(gab, f)) {
+      gab_value msg = fiber_pop(f);
 
-  gab_run(fork, p_copy, GAB_FLAG_DUMP_ERROR);
+      gab_args(gab, 1, &empty, &msg);
 
-  // do {
-  //   if (!fiber_empty(gab, f)) {
-  //     printf("Fiber has message\n");
-  //     gab_value msg = fiber_pop(gab, vm, f);
-  //
-  //     // gab_value m_copy = gab_val_copy(fork, msg);
-  //
-  //     gab_value p_copy = gab_val_copy(fork, p);
-  //
-  //     gab_run(fork, p_copy, GAB_FLAG_DUMP_ERROR);
-  //   }
-  // } while (1);
+      res = gab_run(gab, f->proc, GAB_FLAG_DUMP_ERROR);
+
+      if (GAB_VAL_IS_UNDEFINED(res)) {
+        return 0;
+      }
+
+      fiber_set(f, res);
+    }
+  }
 
   return 1;
 }
@@ -104,15 +106,30 @@ i32 fiber_run(void *arg) {
 gab_value gab_fiber_create(gab_engine *gab, gab_vm *vm, fiber *f) {
   gab_obj_container *k = gab_obj_container_create(gab, GAB_STRING("Fiber"), f);
 
-  f->rc++;
+  if (!f->started) {
+    f->started = true;
 
-  if (!f->running) {
-    f->running = true;
     if (thrd_create(&f->thrd, fiber_run, f) != thrd_success)
       return gab_panic(gab, vm, "Failed to create system thread");
   }
 
   return GAB_VAL_OBJ(k);
+}
+
+gab_value gab_lib_cal(gab_engine *gab, gab_vm *vm, u8 argc,
+                      gab_value argv[argc]) {
+  if (argc < 2)
+    return gab_panic(gab, vm, "Invalid call to gab_lib_cal");
+
+  gab_obj_container *k = GAB_VAL_TO_CONTAINER(argv[0]);
+
+  fiber *f = k->data;
+
+  for (u8 i = 1; i < argc; i++) {
+    fiber_push(f, argv[i]);
+  }
+
+  return GAB_VAL_NIL();
 }
 
 gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
@@ -123,7 +140,9 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
   if (!GAB_VAL_IS_BLOCK(argv[1]))
     return gab_panic(gab, vm, "Invalid call to gab_lib_new");
 
-  fiber *f = fiber_create(gab, vm, argv[1]);
+  gab_engine *fork = gab_create(gab_seed(gab));
+
+  fiber *f = fiber_create(fork, gab_val_copy(fork, argv[1]));
 
   return gab_fiber_create(gab, vm, f);
 }
@@ -135,14 +154,17 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
 
   gab_value keys[] = {
       GAB_STRING("new"),
+      GAB_STRING(GAB_MESSAGE_CAL),
   };
 
   gab_value receiver_types[] = {
       fiber,
+      gab_type(gab, GAB_KIND_CONTAINER),
   };
 
   gab_value values[] = {
       GAB_BUILTIN(new),
+      GAB_BUILTIN(cal),
   };
 
   for (u8 i = 0; i < 3; i++) {

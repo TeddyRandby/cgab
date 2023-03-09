@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 gab_value make_panic(gab_engine *gab) {
   gab_value panic_builtin = GAB_BUILTIN(panic);
@@ -50,7 +51,7 @@ gab_value make_require(gab_engine *gab) {
 
 void gab_repl() {
 
-  gab_engine *gab = gab_create();
+  gab_engine *gab = gab_create(time(NULL));
 
   gab_value arg_names[] = {
       GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
@@ -81,7 +82,7 @@ void gab_repl() {
   gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
 
   // Import the standard library
-  GAB_SEND(NULL,  "require", GAB_STRING("std"), 0, NULL);
+  GAB_SEND("require", GAB_STRING("std"), 0, NULL);
 
   for (;;) {
 
@@ -127,7 +128,7 @@ void gab_repl() {
 
 void gab_run_file(const char *path) {
 
-  gab_engine *gab = gab_create();
+  gab_engine *gab = gab_create(time(NULL));
 
   gab_value arg_names[] = {
       GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
@@ -172,11 +173,10 @@ void gab_run_file(const char *path) {
 
   gab_dref(gab, NULL, result);
 
-fin : {
+fin :
   gab_dref_many(gab, NULL, 3, args);
 
   gab_destroy(gab);
-}
 }
 
 i32 main(i32 argc, const char **argv) {

@@ -38,6 +38,13 @@ gab_module *gab_module_copy(gab_engine *gab, gab_module *self,
   v_s_i8_copy(&copy->sources, &self->sources);
   v_gab_constant_copy(&copy->constants, &self->constants);
 
+  for (u64 i = 0; i < self->constants.len; i++) {
+    gab_value v = v_gab_constant_val_at(&copy->constants, i);
+    if (GAB_VAL_IS_OBJ(v)) {
+      v_gab_constant_set(&copy->constants, i, gab_val_copy(gab, v));
+    }
+  }
+
   copy->name = self->name;
 
   return copy;

@@ -19,14 +19,14 @@ gab_value gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc,
 
   FILE *file = fopen(path, perms);
   if (file == NULL) {
-    return GAB_SEND(vm, "err", GAB_STRING("Unable to open file"), 0, NULL);
+    return GAB_SEND("err", GAB_STRING("Unable to open file"), 0, NULL);
   }
 
   gab_value container = GAB_CONTAINER(GAB_STRING("File"), file);
 
   gab_dref(gab, vm, container);
 
-  return GAB_SEND(vm, "ok", container, 0, NULL);
+  return GAB_SEND("ok", container, 0, NULL);
 }
 
 gab_value gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc,
@@ -47,13 +47,13 @@ gab_value gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc,
 
   size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
   if (bytesRead < fileSize) {
-    return GAB_SEND(vm, "err", GAB_STRING("Couldn't read all bytes"), 0, NULL);
+    return GAB_SEND("err", GAB_STRING("Couldn't read all bytes"), 0, NULL);
   }
 
   gab_obj_string *result =
       gab_obj_string_create(gab, s_i8_create((i8 *)buffer + 0, bytesRead));
 
-  return GAB_SEND(vm, "ok", GAB_VAL_OBJ(result), 0, NULL);
+  return GAB_SEND("ok", GAB_VAL_OBJ(result), 0, NULL);
 }
 
 gab_value gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc,
@@ -73,9 +73,9 @@ gab_value gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc,
   i32 result = fputs(data, handle->data);
 
   if (result > 0) {
-    return GAB_SEND(vm, "ok", GAB_VAL_NIL(), 0, NULL);
+    return GAB_SEND("ok", GAB_VAL_NIL(), 0, NULL);
   } else {
-    return GAB_SEND(vm, "err", GAB_STRING("Failed to write file"), 0, NULL);
+    return GAB_SEND("err", GAB_STRING("Failed to write file"), 0, NULL);
   }
 }
 
