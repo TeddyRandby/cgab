@@ -1,5 +1,5 @@
-'std':require
-def Test = 'Test':require
+require('std')
+def Test = require('Test')
 
 Test:describe('Numbers') do
   Test:it('should be equal to itself') do

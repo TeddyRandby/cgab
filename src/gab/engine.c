@@ -171,12 +171,16 @@ gab_engine *gab_create(u64 hash_seed) {
   return gab;
 }
 
-void gab_destroy(gab_engine *gab) {
+void gab_destroy(gab_engine *gab, u64 argc, gab_value argv[argc]) {
   if (gab == NULL)
     return;
 
   gab_gc *gc = NEW(gab_gc);
   gab_gc_create(gc);
+
+  for (u64 i = 0; i < argc; i++) {
+    gab_gc_dref(gc, NULL, argv[i]);
+  }
 
   for (u64 i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
@@ -205,10 +209,9 @@ void gab_destroy(gab_engine *gab) {
 
   gab_imports_destroy(gab, gc);
 
-  gab_module *mod = gab->modules;
-  while (mod != NULL) {
-    gab_module *m = mod;
-    mod = m->next;
+  while (gab->modules) {
+    gab_module *m = gab->modules;
+    gab->modules = m->next;
     gab_module_destroy(gab, gc, m);
   }
 
@@ -243,14 +246,11 @@ void gab_collect(gab_engine *gab, gab_vm *vm) {
 void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]) {
   if (gab->argv_values != NULL) {
-    // gab_dref_many(gab, NULL, argc, argv_values);
     a_u64_destroy(gab->argv_values);
   }
 
   if (gab->argv_names != NULL)
     a_u64_destroy(gab->argv_names);
-
-  // gab_iref_many(gab, NULL, argc, argv_values);
 
   gab->argv_names = a_u64_create(argv_names, argc);
   gab->argv_values = a_u64_create(argv_values, argc);
@@ -334,8 +334,8 @@ gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
   return GAB_VAL_OBJ(m);
 }
 
-gab_value send_msg(gab_engine *gab, gab_value msg, gab_value receiver, u8 argc,
-                   gab_value argv[argc]) {
+gab_value send_msg(gab_engine *gab, gab_vm *vm, gab_value msg,
+                   gab_value receiver, u8 argc, gab_value argv[argc]) {
   if (GAB_VAL_IS_UNDEFINED(msg))
     return msg;
 
@@ -348,18 +348,18 @@ gab_value send_msg(gab_engine *gab, gab_value msg, gab_value receiver, u8 argc,
   gab_value result = gab_vm_run(
       gab, mod, GAB_FLAG_DUMP_ERROR | GAB_FLAG_EXIT_ON_PANIC, 0, NULL);
 
-  // gab_dref(gab, NULL, mod);
+  gab_val_dref(vm, mod);
 
   return result;
 }
 
-gab_value gab_send(gab_engine *gab, gab_value msg, gab_value receiver, u8 argc,
-                   gab_value argv[argc]) {
+gab_value gab_send(gab_engine *gab, gab_vm *vm, gab_value msg,
+                   gab_value receiver, u8 argc, gab_value argv[argc]) {
   if (GAB_VAL_IS_STRING(msg)) {
     gab_obj_message *main = gab_obj_message_create(gab, msg);
-    return send_msg(gab, GAB_VAL_OBJ(main), receiver, argc, argv);
+    return send_msg(gab, vm, GAB_VAL_OBJ(main), receiver, argc, argv);
   } else if (GAB_VAL_IS_MESSAGE(msg)) {
-    return send_msg(gab, msg, receiver, argc, argv);
+    return send_msg(gab, vm, msg, receiver, argc, argv);
   }
 
   return GAB_VAL_NIL();
@@ -644,11 +644,6 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
 
 u64 gab_seed(gab_engine *gab) { return gab->hash_seed; }
 
-void gab_val_destroy(gab_value value) {
-  if (GAB_VAL_IS_OBJ(value))
-    GAB_OBJ_GARBAGE(GAB_VAL_TO_OBJ(value));
-}
-
 void gab_engine_collect(gab_engine *gab) {
   // Maintain the global list of objects
   gab_obj *obj = gab->objects;
@@ -656,13 +651,6 @@ void gab_engine_collect(gab_engine *gab) {
 
   while (obj) {
     if (GAB_OBJ_IS_GARBAGE(obj)) {
-
-#if GAB_LOG_GC
-      printf("Destroying (%p): ", obj);
-      gab_val_dump(stdout, GAB_VAL_OBJ(obj));
-      printf("\n");
-      dump_rcs_for(&gab->gc, obj);
-#endif
 
       gab_obj *old_obj = obj;
       obj = obj->next;

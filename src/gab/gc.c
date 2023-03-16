@@ -282,7 +282,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_gc *gc) {
 
 static inline void dec_obj_ref(gab_gc *gc, gab_obj *obj) {
 #if GAB_LOG_GC
-  d_rc_tracker_insert(&gab->gc.tracked_values, obj, obj->references - 1);
+  d_rc_tracker_insert(&gc->tracked_values, obj, obj->references - 1);
 #endif
   if (--obj->references <= 0) {
     for_child_do(obj, dec_obj_ref, gc);
@@ -298,7 +298,7 @@ static inline void dec_obj_ref(gab_gc *gc, gab_obj *obj) {
 
 static inline void inc_obj_ref(gab_gc *gc, gab_obj *obj) {
 #if GAB_LOG_GC
-  d_rc_tracker_insert(&vm->gc.tracked_values, obj, obj->references + 1);
+  d_rc_tracker_insert(&gc->tracked_values, obj, obj->references + 1);
 #endif
   obj->references++;
 
@@ -318,7 +318,7 @@ static inline void increment_stack(gab_gc *gc, gab_vm *vm) {
 
 #if GAB_LOG_GC
     if (GAB_VAL_IS_OBJ(*tracker)) {
-      v_rc_update_push(&gab->gc.tracked_increments,
+      v_rc_update_push(&gc->tracked_increments,
                        (rc_update){
                            .val = GAB_VAL_TO_OBJ(*tracker),
                            .file = __FILE__,

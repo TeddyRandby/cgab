@@ -29,6 +29,9 @@ gab_value make_require(gab_engine *gab) {
 
 void gab_repl() {
 
+  v_gab_value scratch;
+  v_gab_value_create(&scratch, 8);
+
   gab_engine *gab = gab_create(time(NULL));
 
   gab_value arg_names[] = {
@@ -38,21 +41,18 @@ void gab_repl() {
       GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"),
       GAB_STRING("Any"),    GAB_STRING("it")};
 
+  v_gab_value_push(&scratch, make_print(gab));
+  v_gab_value_push(&scratch, make_require(gab));
+  v_gab_value_push(&scratch, make_panic(gab));
+
   gab_value args[] = {
-      make_print(gab),
-      make_require(gab),
-      make_panic(gab),
-      gab_type(gab, GAB_KIND_STRING),
-      gab_type(gab, GAB_KIND_NUMBER),
-      gab_type(gab, GAB_KIND_BOOLEAN),
-      gab_type(gab, GAB_KIND_BLOCK),
-      gab_type(gab, GAB_KIND_MESSAGE),
-      gab_type(gab, GAB_KIND_SUSPENSE),
-      gab_type(gab, GAB_KIND_RECORD),
-      gab_type(gab, GAB_KIND_LIST),
-      gab_type(gab, GAB_KIND_MAP),
-      gab_type(gab, GAB_KIND_UNDEFINED),
-      GAB_VAL_NIL(),
+      v_gab_value_val_at(&scratch, 0),   v_gab_value_val_at(&scratch, 1),
+      v_gab_value_val_at(&scratch, 2),   gab_type(gab, GAB_KIND_STRING),
+      gab_type(gab, GAB_KIND_NUMBER),    gab_type(gab, GAB_KIND_BOOLEAN),
+      gab_type(gab, GAB_KIND_BLOCK),     gab_type(gab, GAB_KIND_MESSAGE),
+      gab_type(gab, GAB_KIND_SUSPENSE),  gab_type(gab, GAB_KIND_RECORD),
+      gab_type(gab, GAB_KIND_LIST),      gab_type(gab, GAB_KIND_MAP),
+      gab_type(gab, GAB_KIND_UNDEFINED), GAB_VAL_NIL(),
   };
 
   static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
@@ -89,16 +89,14 @@ void gab_repl() {
       printf("%V\n", result);
     }
 
-    // gab_dref(gab, NULL, args[LEN_CARRAY(args) - 1]);
+    v_gab_value_push(&scratch, result);
 
     args[LEN_CARRAY(args) - 1] = result;
 
     gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
   }
 
-  // gab_dref_many(gab, NULL, 3, args);
-
-  gab_destroy(gab);
+  gab_destroy(gab, scratch.len, scratch.data);
 }
 
 void gab_run_file(const char *path) {
@@ -146,14 +144,12 @@ void gab_run_file(const char *path) {
   gab_value result =
       gab_run(gab, main, GAB_FLAG_DUMP_ERROR | GAB_FLAG_EXIT_ON_PANIC);
 
-  gab_val_destroy(result);
-  gab_val_destroy(main);
+  gab_value garbage[] = {
+      result, main, args[0], args[1], args[2],
+  };
 
-fin :
-  gab_val_destroy(args[0]);
-  gab_val_destroy(args[1]);
-  gab_val_destroy(args[2]);
-  gab_destroy(gab);
+fin:
+  gab_destroy(gab, LEN_CARRAY(garbage), garbage);
 }
 
 i32 main(i32 argc, const char **argv) {

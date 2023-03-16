@@ -42,7 +42,10 @@ static const char *gab_status_names[] = {
 #include "include/dict.h"
 
 struct gab_engine {
+  gab_obj *objects;
+
   gab_module* modules;
+
   gab_source* sources;
 
   d_gab_import imports;
@@ -51,7 +54,9 @@ struct gab_engine {
    * Where all the interned values live.
    */
   d_strings interned_strings;
+
   d_shapes interned_shapes;
+
   d_messages interned_messages;
 
   /*
@@ -66,15 +71,16 @@ struct gab_engine {
 
   u64 hash_seed;
 
-  gab_obj *objects;
-
   a_u64 *argv_values;
+
   a_u64 *argv_names;
 };
 
 gab_obj_string *gab_engine_find_string(gab_engine *gab, s_i8 str, u64 hash);
+
 gab_obj_message *gab_engine_find_message(gab_engine *gab, gab_value name,
                                          u64 hash);
+
 gab_obj_shape *gab_engine_find_shape(gab_engine *gab, u64 size, u64 stride,
                                      u64 hash, gab_value keys[size]);
 

@@ -23,7 +23,7 @@ gab_engine *gab_create(u64 hash_seed);
  *
  * @param gab The engine to clean up.
  */
-void gab_destroy(gab_engine *gab);
+void gab_destroy(gab_engine *gab, u64 argc, gab_value argv[argc]);
 
 /**
  * Set the arguments that the engine will pass to
@@ -112,16 +112,6 @@ void gab_dis(gab_module *mod);
 gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value);
 
 /**
- * Destroy a gab value
- *
- * @param gab The engine
- *
- * @param value The value to destroy
- *
- */
-void gab_val_destroy(gab_value value);
-
-/**
  * Decrement the reference count of a value
  *
  * @param val The value to clean up. If there is no VM, you may pass NULL.
@@ -203,8 +193,8 @@ gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
  *
  * @return The return value of the message
  */
-gab_value gab_send(gab_engine *gab, gab_value message, gab_value receiver,
-                   u8 argc, gab_value argv[argc]);
+gab_value gab_send(gab_engine *gab, gab_vm *vm, gab_value message,
+                   gab_value receiver, u8 argc, gab_value argv[argc]);
 
 /**
  * Dump a gab value to stdout
@@ -304,7 +294,7 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self);
  * A helper macro for sending simply
  */
 #define GAB_SEND(name, receiver, argc, argv)                                   \
-  gab_send(gab, GAB_STRING(name), receiver, argc, argv)
+  gab_send(gab, vm, GAB_STRING(name), receiver, argc, argv)
 
 /**
  * A helper macro for creating a gab_obj_builtin
