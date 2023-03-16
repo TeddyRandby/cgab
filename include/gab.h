@@ -109,23 +109,33 @@ void gab_dis(gab_module *mod);
  * @return The copied value
  *
  */
-gab_value gab_val_copy(gab_engine *gab, gab_value value);
+gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value);
+
+/**
+ * Destroy a gab value
+ *
+ * @param gab The engine
+ *
+ * @param value The value to destroy
+ *
+ */
+void gab_val_destroy(gab_value value);
 
 /**
  * Decrement the reference count of a value
  *
  * @param val The value to clean up. If there is no VM, you may pass NULL.
  */
-void gab_dref(gab_engine *gab, gab_vm *vm, gab_value value);
-void gab_dref_many(gab_engine *gab, gab_vm *vm, u64 len, gab_value values[len]);
+void gab_val_dref(gab_vm *vm, gab_value value);
+void gab_val_dref_many(gab_vm *vm, u64 len, gab_value values[len]);
 
 /**
  * Increment the reference count of a value
  *
  * @param val The value to clean up. If there is no VM, you may pass NULL.
  */
-void gab_iref(gab_engine *gab, gab_vm *vm, gab_value value);
-void gab_iref_many(gab_engine *gab, gab_vm *vm, u64 len, gab_value values[len]);
+void gab_val_iref(gab_vm *vm, gab_value value);
+void gab_val_iref_many(gab_vm *vm, u64 len, gab_value values[len]);
 
 /**
  * Trigger a garbace collection.
@@ -259,6 +269,11 @@ static inline gab_value gab_val_type(gab_engine *gab, gab_value value) {
   case GAB_KIND_RECORD: {
     gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
     return GAB_VAL_OBJ(obj->shape);
+  }
+
+  case GAB_KIND_CONTAINER: {
+    gab_obj_container *con = GAB_VAL_TO_CONTAINER(value);
+    return con->type;
   }
   default:
     return gab_type(gab, k);

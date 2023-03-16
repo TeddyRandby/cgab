@@ -41,7 +41,7 @@ gab_module *gab_module_copy(gab_engine *gab, gab_module *self,
   for (u64 i = 0; i < self->constants.len; i++) {
     gab_value v = v_gab_constant_val_at(&copy->constants, i);
     if (GAB_VAL_IS_OBJ(v)) {
-      v_gab_constant_set(&copy->constants, i, gab_val_copy(gab, v));
+      v_gab_constant_set(&copy->constants, i, gab_val_copy(gab, NULL, v));
     }
   }
 
@@ -50,7 +50,7 @@ gab_module *gab_module_copy(gab_engine *gab, gab_module *self,
   return copy;
 }
 
-void gab_module_collect(gab_engine *gab, gab_module *mod) {
+void gab_module_destroy(gab_engine *gab, gab_module *mod) {
   if (!mod)
     return;
 
@@ -60,14 +60,9 @@ void gab_module_collect(gab_engine *gab, gab_module *mod) {
     // are their prototypes and the main closure
     if (GAB_VAL_IS_SYMBOL(v) || GAB_VAL_IS_PROTOTYPE(v) ||
         GAB_VAL_IS_BLOCK(v)) {
-      gab_dref(gab, NULL, v);
+      gab_val_destroy(v);
     }
   }
-}
-
-void gab_module_destroy(gab_engine *gab, gab_module *mod) {
-  if (!mod)
-    return;
 
   v_u8_destroy(&mod->bytecode);
   v_u8_destroy(&mod->tokens);

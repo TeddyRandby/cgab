@@ -24,7 +24,7 @@ gab_value gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc,
 
   gab_value container = GAB_CONTAINER(GAB_STRING("File"), file);
 
-  gab_dref(gab, vm, container);
+  gab_val_dref(vm, container);
 
   return GAB_SEND("ok", container, 0, NULL);
 }
@@ -81,7 +81,6 @@ gab_value gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc,
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value io = GAB_SYMBOL("io");
-  gab_dref(gab, vm, io);
 
   gab_value keys[] = {
       GAB_STRING("open"),
@@ -105,8 +104,10 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
 
   for (u8 i = 0; i < 3; i++) {
     gab_specialize(gab, vm, keys[i], receiver_types[i], values[i]);
-    gab_dref(gab, vm, values[i]);
+    gab_val_dref(vm, values[i]);
   }
+
+  gab_val_dref(vm, io);
 
   return io;
 }

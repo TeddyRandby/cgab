@@ -10,7 +10,7 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
 
     gab_value result = GAB_VAL_OBJ(list);
 
-    gab_dref(gab, vm, result);
+    gab_val_dref(vm, result);
 
     return result;
   }
@@ -27,7 +27,7 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
 
     gab_value result = GAB_VAL_OBJ(list);
 
-    gab_dref(gab, vm, result);
+    gab_val_dref(vm, result);
 
     return result;
   }
@@ -55,7 +55,7 @@ gab_value gab_lib_pop(gab_engine *gab, gab_vm *vm, u8 argc,
 
   gab_value result = v_gab_value_pop(&obj->data);
 
-  gab_dref(gab, vm, result);
+  gab_val_dref(vm, result);
 
   return result;
 }
@@ -70,7 +70,7 @@ gab_value gab_lib_push(gab_engine *gab, gab_vm *vm, u8 argc,
   for (u8 i = 1; i < argc; i++)
     v_gab_value_push(&obj->data, argv[i]);
 
-  gab_iref_many(gab, vm, argc - 1, argv + 1);
+  gab_val_iref_many(vm, argc - 1, argv + 1);
 
   return argv[0];
 }
@@ -95,7 +95,7 @@ gab_value gab_lib_del(gab_engine *gab, gab_vm *vm, u8 argc,
 
   u64 index = GAB_VAL_TO_NUMBER(argv[1]);
 
-  gab_dref(gab, vm, v_gab_value_val_at(&list->data, index));
+  gab_val_dref(vm, v_gab_value_val_at(&list->data, index));
 
   v_gab_value_del(&list->data, index);
 
@@ -170,7 +170,7 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
 
   gab_value result = GAB_VAL_OBJ(rec);
 
-  gab_dref(gab, vm, result);
+  gab_val_dref(vm, result);
 
   return result;
 }
@@ -202,7 +202,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm* vm) {
 
   for (int i = 0; i < LEN_CARRAY(specs); i++) {
     gab_specialize(gab, vm, names[i], receivers[i], specs[i]);
-    gab_dref(gab, vm, specs[i]);
+    gab_val_dref(vm, specs[i]);
   }
 
   return GAB_VAL_NIL();

@@ -7,7 +7,6 @@ typedef enum {
   IMPORT_SHARED,
   IMPORT_SOURCE,
 } gab_import_k;
-
 typedef struct {
   gab_import_k k;
   union {
@@ -30,8 +29,6 @@ u64 gab_imports_module(gab_engine* gab, s_i8 name, gab_value mod, gab_value val)
 u64 gab_imports_shared(gab_engine* gab, s_i8 name, void* obj, gab_value val);
 
 gab_value gab_imports_exists(gab_engine* gab, s_i8 name);
-
-void gab_imports_collect(gab_engine* gab);
 
 void gab_imports_destroy(gab_engine* gab);
 

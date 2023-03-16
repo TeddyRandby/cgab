@@ -57,9 +57,8 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
 
   a_i8_destroy(src);
 
-  if (GAB_VAL_IS_NIL(pkg)) {
+  if (GAB_VAL_IS_NIL(pkg))
     return gab_panic(gab, vm, "Failed to compile module");
-  }
 
   gab_value res = gab_run(gab, pkg, GAB_FLAG_DUMP_ERROR);
 

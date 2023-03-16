@@ -31,6 +31,8 @@ typedef struct gab_vm_frame {
 typedef struct gab_vm {
   u8 flags;
 
+  gab_gc gc;
+
   gab_vm_frame *fp;
 
   gab_value *sp;

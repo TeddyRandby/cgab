@@ -121,11 +121,18 @@ gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
 }
 
 void gab_vm_create(gab_vm *self, u8 flags, u8 argc, gab_value argv[argc]) {
+  gab_gc_create(self);
   memset(self->sb, 0, sizeof(self->sb));
 
   self->fp = self->fb;
   self->sp = self->sb;
+  self->fp->slots = self->sp;
   self->flags = flags;
+}
+
+void gab_vm_destroy(gab_vm *vm) {
+  gab_gc_run(vm);
+  gab_gc_destroy(vm);
 }
 
 void gab_vm_stack_dump(gab_engine *gab, gab_vm *vm) {}
@@ -199,24 +206,24 @@ static inline boolean has_callspace(gab_vm *vm, u8 space_needed) {
   return true;
 }
 
-static inline boolean call_suspense(gab_vm *vm, gab_obj_suspense *e, u8 arity,
+static inline boolean call_suspense(gab_vm *vm, gab_obj_suspense *sus, u8 arity,
                                     u8 want) {
-  i16 space_needed = e->len - e->have - arity;
+  i16 space_needed = sus->len - sus->have - arity;
 
   if (space_needed > 0 && !has_callspace(vm, space_needed))
     return false;
 
   vm->fp++;
-  vm->fp->c = e->c;
-  vm->fp->ip = e->c->p->mod->bytecode.data + e->offset;
+  vm->fp->c = sus->c;
+  vm->fp->ip = sus->c->p->mod->bytecode.data + sus->offset;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - arity - 1;
 
   gab_value *from = vm->sp - arity;
-  gab_value *to = vm->fp->slots + e->len - e->have;
+  gab_value *to = vm->fp->slots + sus->len - sus->have;
 
-  vm->sp = trim_return(from, to, arity, e->want);
-  memcpy(vm->fp->slots, e->frame, (e->len - e->have) * sizeof(gab_value));
+  vm->sp = trim_return(from, to, arity, sus->want);
+  memcpy(vm->fp->slots, sus->frame, (sus->len - sus->have) * sizeof(gab_value));
 
   return true;
 }
@@ -241,7 +248,7 @@ static inline boolean call_block_var(gab_engine *gab, gab_vm *vm,
 
   *vm->sp++ = args;
 
-  gab_gc_dref(gab, vm, args);
+  gab_gc_dref(vm, args);
 
   vm->fp->slots = vm->sp - have - 1;
 
@@ -288,7 +295,6 @@ static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_obj_builtin *b,
 
 gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
                      gab_value argv[argc]) {
-
 #if GAB_LOG_EXECUTION
 #define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
 #else
@@ -340,7 +346,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 */
 #define ENGINE() (gab)
 #define GC() (&ENGINE()->gc)
-#define VM() (&vm)
+#define VM() (vm)
 #define INSTR() (instr)
 #define FRAME() (VM()->fp)
 #define CLOSURE() (FRAME()->c)
@@ -402,8 +408,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
   /*
    ----------- BEGIN RUN BODY -----------
   */
-  gab_vm vm;
-  gab_vm_create(&vm, flags, argc, argv);
+  gab_vm *vm = NEW(gab_vm);
+  gab_vm_create(vm, flags, argc, argv);
 
   register u8 instr = OP_NOP;
   register u8 *ip = NULL;
@@ -914,7 +920,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       gab_value eff = PEEK();
 
       if (!GAB_VAL_IS_SUSPENSE(eff)) {
-
         DROP_N(have - 1);
 
         // Account for the two bytes we read already
@@ -970,7 +975,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
           PUSH(sus);
 
-          gab_gc_dref(ENGINE(), VM(), sus);
+          gab_gc_dref(VM(), sus);
 
           have++;
 
@@ -992,7 +997,13 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       if (--FRAME() == VM()->fb) {
         // Increment and pop the module.
         gab_value result = POP();
-        gab_gc_iref(ENGINE(), VM(), result);
+
+        gab_gc_iref(VM(), result);
+
+        gab_vm_destroy(VM());
+
+        DESTROY(VM());
+
         return result;
       }
 
@@ -1455,11 +1466,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         }
       }
 
-      gab_gc_iref_many(ENGINE(), VM(), p->nupvalues, blk->upvalues);
+      gab_gc_iref_many(VM(), p->nupvalues, blk->upvalues);
 
       PUSH(GAB_VAL_OBJ(blk));
 
-      gab_gc_dref(ENGINE(), VM(), GAB_VAL_OBJ(blk));
+      gab_gc_dref(VM(), GAB_VAL_OBJ(blk));
 
       NEXT();
     }
@@ -1490,9 +1501,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         }
       }
 
-      gab_gc_iref_many(ENGINE(), VM(), blk->nupvalues, blk->upvalues);
+      gab_gc_iref_many(VM(), blk->nupvalues, blk->upvalues);
 
-      gab_gc_iref(ENGINE(), VM(), r);
+      gab_gc_iref(VM(), r);
 
       gab_obj_message_insert(m, r, GAB_VAL_OBJ(blk));
 
@@ -1533,7 +1544,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       PUSH(GAB_VAL_OBJ(rec));
 
-      gab_gc_dref(ENGINE(), VM(), GAB_VAL_OBJ(rec));
+      gab_gc_dref(VM(), GAB_VAL_OBJ(rec));
 
       NEXT();
     }
@@ -1551,7 +1562,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       PUSH(GAB_VAL_OBJ(rec));
 
-      gab_gc_dref(ENGINE(), VM(), GAB_VAL_OBJ(rec));
+      gab_gc_dref(VM(), GAB_VAL_OBJ(rec));
 
       NEXT();
     }

@@ -99,7 +99,7 @@ gab_value gab_lib_split(gab_engine *gab, gab_vm *vm, u8 argc,
 
   gab_value result = GAB_VAL_OBJ(list);
 
-  gab_dref(gab, vm, result);
+  gab_val_dref(vm, result);
 
   return result;
 }
@@ -121,7 +121,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
 
   for (u8 i = 0; i < LEN_CARRAY(keys); i++) {
     gab_specialize(gab, vm, keys[i], string_type, values[i]);
-    gab_dref(gab, vm, values[i]);
+    gab_val_dref(vm, values[i]);
   }
 
   return GAB_VAL_NIL();

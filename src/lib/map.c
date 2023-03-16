@@ -12,7 +12,7 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
 
     gab_value result = GAB_VAL_OBJ(map);
 
-    gab_dref(gab, vm, result);
+    gab_val_dref(vm, result);
 
     return result;
   }
@@ -29,7 +29,7 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
 
     gab_value result = GAB_VAL_OBJ(map);
 
-    gab_dref(gab, vm, result);
+    gab_val_dref(vm, result);
 
     return result;
   }
@@ -125,7 +125,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
 
   for (int i = 0; i < LEN_CARRAY(specs); i++) {
     gab_specialize(gab, vm, names[i], receivers[i], specs[i]);
-    gab_dref(gab, vm, specs[i]);
+    gab_val_dref(vm, specs[i]);
   }
 
   return GAB_VAL_NIL();

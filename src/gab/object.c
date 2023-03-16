@@ -75,7 +75,7 @@ i32 gab_obj_dump(FILE *stream, gab_value value) {
   }
   case GAB_KIND_CONTAINER: {
     gab_obj_container *obj = GAB_VAL_TO_CONTAINER(value);
-    return fprintf(stream, "[%V:%p]", obj->name, obj->data);
+    return fprintf(stream, "[%V:%p]", obj->type, obj->data);
   }
   case GAB_KIND_PROTOTYPE: {
     gab_obj_prototype *obj = GAB_VAL_TO_PROTOTYPE(value);
@@ -187,7 +187,7 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self) {
 /*
   A generic function used to free a gab object of any kind.
 */
-void gab_obj_destroy(gab_engine *gab, gab_obj *self) {
+void gab_obj_destroy(gab_obj *self) {
   switch (self->kind) {
   case GAB_KIND_LIST: {
     gab_obj_list *lst = (gab_obj_list *)self;
@@ -442,7 +442,7 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 len,
     self->data[i] = keys[i * stride];
   }
 
-  gab_gc_iref_many(gab, vm, len, self->data);
+  gab_gc_iref_many(vm, len, self->data);
 
   gab_engine_intern(gab, GAB_VAL_OBJ(self));
 
@@ -463,12 +463,12 @@ gab_value gab_obj_map_put(gab_engine *gab, gab_vm *vm, gab_obj_map *self,
                           gab_value key, gab_value value) {
 
   if (d_gab_value_exists(&self->data, key)) {
-    gab_gc_dref(gab, vm, d_gab_value_read(&self->data, key));
+    gab_gc_dref(vm, d_gab_value_read(&self->data, key));
   } else {
-    gab_gc_iref(gab, vm, key);
+    gab_gc_iref(vm, key);
   }
 
-  gab_gc_iref(gab, vm, value);
+  gab_gc_iref(vm, value);
 
   d_gab_value_insert(&self->data, key, value);
 
@@ -492,7 +492,7 @@ inline gab_value gab_obj_list_put(gab_engine *gab, gab_vm *vm,
 
   v_gab_value_set(&self->data, offset, value);
 
-  gab_gc_iref(gab, vm, value);
+  gab_gc_iref(vm, value);
 
   return value;
 }
@@ -515,8 +515,8 @@ gab_obj_map *gab_obj_map_create(gab_engine *gab, gab_vm *vm, u64 len,
     d_gab_value_insert(&self->data, keys[i * stride], values[i * stride]);
   }
 
-  gab_gc_iref_many(gab, vm, len, keys);
-  gab_gc_iref_many(gab, vm, len, values);
+  gab_gc_iref_many(vm, len, keys);
+  gab_gc_iref_many(vm, len, values);
 
   return self;
 }
@@ -541,7 +541,7 @@ gab_obj_list *gab_obj_list_create(gab_engine *gab, gab_vm *vm, u64 len,
     self->data.data[i] = values[i * stride];
   }
 
-  gab_gc_iref_many(gab, vm, len, values);
+  gab_gc_iref_many(vm, len, values);
 
   return self;
 }
@@ -556,11 +556,10 @@ gab_obj_record *gab_obj_record_create(gab_engine *gab, gab_vm *vm,
   self->shape = shape;
   self->len = shape->len;
 
-  for (u64 i = 0; i < shape->len; i++) {
+  for (u64 i = 0; i < shape->len; i++)
     self->data[i] = values[i * stride];
-  }
 
-  gab_gc_iref_many(gab, vm, self->len, self->data);
+  gab_gc_iref_many(vm, self->len, self->data);
 
   return self;
 }
@@ -573,9 +572,8 @@ gab_obj_record *gab_obj_record_create_empty(gab_engine *gab,
   self->shape = shape;
   self->len = shape->len;
 
-  for (u64 i = 0; i < shape->len; i++) {
+  for (u64 i = 0; i < shape->len; i++)
     self->data[i] = GAB_VAL_NIL();
-  }
 
   return self;
 }
@@ -584,8 +582,8 @@ void gab_obj_record_set(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
                         u16 offset, gab_value value) {
   assert(offset < self->len);
 
-  gab_gc_dref(gab, vm, self->data[offset]);
-  gab_gc_iref(gab, vm, value);
+  gab_gc_dref(vm, self->data[offset]);
+  gab_gc_iref(vm, value);
 
   self->data[offset] = value;
 }
@@ -617,14 +615,14 @@ gab_value gab_obj_record_at(gab_obj_record *self, gab_value prop) {
   return gab_obj_record_get(self, prop_offset);
 }
 
-gab_obj_container *gab_obj_container_create(gab_engine *gab, gab_value name,
+gab_obj_container *gab_obj_container_create(gab_engine *gab, gab_value type,
                                             void *data) {
 
   gab_obj_container *self =
       GAB_CREATE_OBJ(gab_obj_container, GAB_KIND_CONTAINER);
 
   self->data = data;
-  self->name = name;
+  self->type = type;
 
   GAB_OBJ_GREEN((gab_obj *)self);
 
@@ -657,7 +655,7 @@ gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm,
     self->frame[i] = frame[i];
   }
 
-  gab_gc_iref_many(gab, vm, len, frame);
+  gab_gc_iref_many(vm, len, frame);
 
   return self;
 }

@@ -3,7 +3,7 @@
 #  combinations of operators that add up 20
 #
 # I realize its not actually blackjack
-'std':require
+require('std')
 
 def swap![Any](i, j)
     def temp = self[i]

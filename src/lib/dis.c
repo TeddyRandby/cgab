@@ -92,7 +92,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
 
   for (u8 i = 0; i < LEN_CARRAY(values); i++) {
     gab_specialize(gab, vm, GAB_STRING("dis"), receivers[i], values[i]);
-    gab_dref(gab, vm, values[i]);
+    gab_val_dref(vm, values[i]);
   }
 
   return GAB_VAL_NIL();

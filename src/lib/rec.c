@@ -8,13 +8,13 @@
 gab_value gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc,
                        gab_value argv[argc]) {
   if (argc < 2) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_send");
+    return gab_panic(gab, vm, "Invalid call to gab_lib_send");
   }
 
   gab_value result = gab_send(gab, argv[1], argv[0], argc - 2, argv + 2);
 
   if (GAB_VAL_IS_UNDEFINED(result)) {
-    gab_panic(gab, vm, "Invalid send");
+    return gab_panic(gab, vm, "Invalid send");
   }
 
   return result;
@@ -57,7 +57,7 @@ gab_value gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc,
 
   gab_value result = GAB_VAL_OBJ(val);
 
-  gab_dref(gab, vm, result);
+  gab_val_dref(vm, result);
 
   return result;
 }
@@ -126,7 +126,7 @@ gab_value gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc,
 
     gab_value result = GAB_VAL_OBJ(rec);
 
-    gab_dref(gab, vm, result);
+    gab_val_dref(vm, result);
 
     return result;
   }
@@ -173,7 +173,7 @@ gab_value gab_lib_to_l(gab_engine *gab, gab_vm *vm, u8 argc,
 
       gab_value result = GAB_VAL_OBJ(list);
 
-      gab_dref(gab, vm, result);
+      gab_val_dref(vm, result);
 
       return result;
     }
@@ -186,7 +186,7 @@ gab_value gab_lib_to_l(gab_engine *gab, gab_vm *vm, u8 argc,
 
       gab_value result = GAB_VAL_OBJ(list);
 
-      gab_dref(gab, vm, result);
+      gab_val_dref(vm, result);
 
       return result;
     }
@@ -213,7 +213,7 @@ gab_value gab_lib_to_m(gab_engine *gab, gab_vm *vm, u8 argc,
 
     gab_value result = GAB_VAL_OBJ(map);
 
-    gab_dref(gab, vm, result);
+    gab_val_dref(vm, result);
 
     return result;
   }
@@ -248,7 +248,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
 
   for (int i = 0; i < LEN_CARRAY(specs); i++) {
     gab_specialize(gab, vm, names[i], receivers[i], specs[i]);
-    gab_dref(gab, vm, specs[i]);
+    gab_val_dref(vm, specs[i]);
   }
 
   return GAB_VAL_NIL();

@@ -87,7 +87,7 @@ struct gab_obj {
 #define GAB_OBJ_PURPLE(obj)                                                    \
   ((obj)->flags = ((obj)->flags & GAB_OBJ_FLAG_BUFFERED) | GAB_OBJ_FLAG_PURPLE)
 
-void gab_obj_destroy(gab_engine *gab, gab_obj *self);
+void gab_obj_destroy(gab_obj *self);
 
 u64 gab_obj_size(gab_obj *self);
 
@@ -317,16 +317,16 @@ static inline u16 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
   return UINT16_MAX;
 };
 
-static inline u16 gab_obj_shape_next(gab_obj_shape* self, gab_value key) {
-    if (GAB_VAL_IS_UNDEFINED(key))
-        return 0;
-    
-    u16 offset = gab_obj_shape_find(self, key);
+static inline u16 gab_obj_shape_next(gab_obj_shape *self, gab_value key) {
+  if (GAB_VAL_IS_UNDEFINED(key))
+    return 0;
 
-    if (offset == UINT16_MAX)
-        return UINT16_MAX;
+  u16 offset = gab_obj_shape_find(self, key);
 
-    return offset + 1;
+  if (offset == UINT16_MAX)
+    return UINT16_MAX;
+
+  return offset + 1;
 };
 
 /*
@@ -432,7 +432,7 @@ typedef struct gab_obj_container gab_obj_container;
 struct gab_obj_container {
   gab_obj header;
 
-  gab_value name;
+  gab_value type;
 
   /* The pointer owned by this object */
   void *data;
@@ -443,7 +443,7 @@ struct gab_obj_container {
 #define GAB_VAL_TO_CONTAINER(value) ((gab_obj_container *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_CONTAINER(value) ((gab_obj_container *)value)
 
-gab_obj_container *gab_obj_container_create(gab_engine *gab, gab_value name,
+gab_obj_container *gab_obj_container_create(gab_engine *gab, gab_value type,
                                             void *data);
 
 /*
@@ -499,6 +499,5 @@ gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm,
                                           gab_obj_block *c, u64 offset,
                                           u8 arity, u8 want, u8 len,
                                           gab_value frame[len]);
-
 
 #endif

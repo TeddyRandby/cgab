@@ -28,7 +28,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
 
   for (int i = 0; i < LEN_CARRAY(keys); i++) {
     gab_specialize(gab, vm, keys[i], GAB_VAL_NIL(), values[i]);
-    gab_dref(gab, vm, values[i]);
+    gab_val_dref(vm, values[i]);
   }
 
   return GAB_VAL_NIL();

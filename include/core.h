@@ -24,12 +24,12 @@
 // Initial capacity of module constant table
 #define CONSTANTS_INITIAL_CAP 64
 // Use the simple custom chunk allocator
-#define CHUNK_ALLOCATOR 1
+#define CHUNK_ALLOCATOR 0
 
 // Derived macros
 // Garbage collection increment/decrement buffer size
 #define GC_DEC_BUFF_MAX (STACK_MAX) // This MUST be at LEAST STACK_MAX
-#define GC_INC_BUFF_MAX (256)
+#define GC_INC_BUFF_MAX (STACK_MAX)
 #define GC_ROOT_BUFF_MAX (256)
 // Size of the engines constant table.
 #define CONSTANTS_MAX (UINT16_MAX + 1)
