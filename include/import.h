@@ -30,6 +30,6 @@ u64 gab_imports_shared(gab_engine* gab, s_i8 name, void* obj, gab_value val);
 
 gab_value gab_imports_exists(gab_engine* gab, s_i8 name);
 
-void gab_imports_destroy(gab_engine* gab);
+void gab_imports_destroy(gab_engine* gab, gab_gc* gc);
 
 #endif

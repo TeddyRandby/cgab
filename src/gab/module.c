@@ -50,7 +50,7 @@ gab_module *gab_module_copy(gab_engine *gab, gab_module *self,
   return copy;
 }
 
-void gab_module_destroy(gab_engine *gab, gab_module *mod) {
+void gab_module_destroy(gab_engine *gab, gab_gc* gc, gab_module *mod) {
   if (!mod)
     return;
 
@@ -60,7 +60,7 @@ void gab_module_destroy(gab_engine *gab, gab_module *mod) {
     // are their prototypes and the main closure
     if (GAB_VAL_IS_SYMBOL(v) || GAB_VAL_IS_PROTOTYPE(v) ||
         GAB_VAL_IS_BLOCK(v)) {
-      gab_val_destroy(v);
+      gab_gc_dref(gc, NULL, v);
     }
   }
 

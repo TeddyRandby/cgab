@@ -77,7 +77,7 @@ gab_module *gab_module_create(gab_value name, gab_source *src,
 gab_module *gab_module_copy(gab_engine *gab, gab_module *self,
                             gab_module *next);
 
-void gab_module_destroy(gab_engine *gab, gab_module *mod);
+void gab_module_destroy(gab_engine *gab, gab_gc* gc, gab_module *mod);
 
 /*
   Helpers for pushing ops into the module.

@@ -45,35 +45,35 @@ typedef struct gab_gc {
   gab_obj *decrements[GC_DEC_BUFF_MAX];
 } gab_gc;
 
-void gab_gc_create(gab_vm *vm);
+void gab_gc_create(gab_gc *vm);
 
-void gab_gc_destroy(gab_vm *vm);
+void gab_gc_destroy(gab_gc *vm);
 
-void gab_gc_run(gab_vm* vm);
+void gab_gc_run(gab_gc* gc, gab_vm* vm);
 
-void gab_gc_iref_many(gab_vm *vm, u64 len,
+void gab_gc_iref_many(gab_gc* gc, gab_vm *vm, u64 len,
                       gab_value values[len]);
 
-void gab_gc_dref_many(gab_vm *vm, u64 len,
+void gab_gc_dref_many(gab_gc* gc, gab_vm *vm, u64 len,
                       gab_value values[len]);
 
 #if GAB_LOG_GC
 
-void __gab_gc_iref(gab_vm *vm, gab_value val, const char *file,
+void __gab_gc_iref(gab_gc* gc, gab_vm *vm, gab_value val, const char *file,
                    i32 line);
-void __gab_gc_dref(gab_vm *vm, gab_value val, const char *file,
+void __gab_gc_dref(gab_gc* gc, gab_vm *vm, gab_value val, const char *file,
                    i32 line);
 
-#define gab_gc_iref(vm, val)                                          \
-  (__gab_gc_iref(vm, val, __FILE__, __LINE__))
-#define gab_gc_dref(vm, val)                                          \
-  (__gab_gc_dref(vm, val, __FILE__, __LINE__))
+#define gab_gc_iref(gc, vm, val)                                          \
+  (__gab_gc_iref(gc, vm, val, __FILE__, __LINE__))
+#define gab_gc_dref(gc, vm, val)                                          \
+  (__gab_gc_dref(gc, vm, val, __FILE__, __LINE__))
 
 #else
 
-void gab_gc_iref(gab_vm *vm, gab_value val);
+void gab_gc_iref(gab_gc* gc, gab_vm *vm, gab_value val);
 
-void gab_gc_dref(gab_vm *vm, gab_value val);
+void gab_gc_dref(gab_gc* gc, gab_vm *vm, gab_value val);
 
 #endif
 

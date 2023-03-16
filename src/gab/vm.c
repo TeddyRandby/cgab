@@ -121,7 +121,7 @@ gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
 }
 
 void gab_vm_create(gab_vm *self, u8 flags, u8 argc, gab_value argv[argc]) {
-  gab_gc_create(self);
+  gab_gc_create(&self->gc);
   memset(self->sb, 0, sizeof(self->sb));
 
   self->fp = self->fb;
@@ -130,9 +130,9 @@ void gab_vm_create(gab_vm *self, u8 flags, u8 argc, gab_value argv[argc]) {
   self->flags = flags;
 }
 
-void gab_vm_destroy(gab_vm *vm) {
-  gab_gc_run(vm);
-  gab_gc_destroy(vm);
+void gab_vm_destroy(gab_vm *self) {
+  gab_gc_run(&self->gc, self);
+  gab_gc_destroy(&self->gc);
 }
 
 void gab_vm_stack_dump(gab_engine *gab, gab_vm *vm) {}
@@ -248,7 +248,7 @@ static inline boolean call_block_var(gab_engine *gab, gab_vm *vm,
 
   *vm->sp++ = args;
 
-  gab_gc_dref(vm, args);
+  gab_gc_dref(&vm->gc, vm, args);
 
   vm->fp->slots = vm->sp - have - 1;
 
@@ -345,7 +345,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
   Lots of helper macros.
 */
 #define ENGINE() (gab)
-#define GC() (&ENGINE()->gc)
+#define GC() (&VM()->gc)
 #define VM() (vm)
 #define INSTR() (instr)
 #define FRAME() (VM()->fp)
@@ -975,7 +975,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
           PUSH(sus);
 
-          gab_gc_dref(VM(), sus);
+          gab_gc_dref(GC(), VM(), sus);
 
           have++;
 
@@ -998,7 +998,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         // Increment and pop the module.
         gab_value result = POP();
 
-        gab_gc_iref(VM(), result);
+        gab_gc_iref(GC(), VM(), result);
 
         gab_vm_destroy(VM());
 
@@ -1466,11 +1466,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         }
       }
 
-      gab_gc_iref_many(VM(), p->nupvalues, blk->upvalues);
+      gab_gc_iref_many(GC(), VM(), p->nupvalues, blk->upvalues);
 
       PUSH(GAB_VAL_OBJ(blk));
 
-      gab_gc_dref(VM(), GAB_VAL_OBJ(blk));
+      gab_gc_dref(GC(), VM(), GAB_VAL_OBJ(blk));
 
       NEXT();
     }
@@ -1501,9 +1501,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         }
       }
 
-      gab_gc_iref_many(VM(), blk->nupvalues, blk->upvalues);
+      gab_gc_iref_many(GC(), VM(), blk->nupvalues, blk->upvalues);
 
-      gab_gc_iref(VM(), r);
+      gab_gc_iref(GC(), VM(), r);
 
       gab_obj_message_insert(m, r, GAB_VAL_OBJ(blk));
 
@@ -1544,7 +1544,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       PUSH(GAB_VAL_OBJ(rec));
 
-      gab_gc_dref(VM(), GAB_VAL_OBJ(rec));
+      gab_gc_dref(GC(), VM(), GAB_VAL_OBJ(rec));
 
       NEXT();
     }
@@ -1562,7 +1562,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       PUSH(GAB_VAL_OBJ(rec));
 
-      gab_gc_dref(VM(), GAB_VAL_OBJ(rec));
+      gab_gc_dref(GC(), VM(), GAB_VAL_OBJ(rec));
 
       NEXT();
     }

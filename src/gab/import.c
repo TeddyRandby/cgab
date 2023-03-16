@@ -1,6 +1,7 @@
 #include "include/import.h"
 #include "include/engine.h"
 #include "include/gab.h"
+#include "include/gc.h"
 #include <dlfcn.h>
 
 u64 gab_imports_module(gab_engine *gab, s_i8 name, gab_value mod,
@@ -43,22 +44,23 @@ gab_value gab_imports_exists(gab_engine *gab, s_i8 name) {
   return GAB_VAL_UNDEFINED();
 }
 
-void gab_import_destroy(gab_engine *gab, gab_import *i) {
+void gab_import_destroy(gab_engine *gab, gab_gc *gc, gab_import *i) {
+  gab_gc_dref(gc, NULL, i->cache);
   switch (i->k) {
   case IMPORT_SHARED:
     dlclose(i->as.shared);
     break;
   default:
-    gab_val_destroy(i->as.mod);
+    gab_gc_dref(gc, NULL, i->as.mod);
     break;
   }
   DESTROY(i);
 }
 
-void gab_imports_destroy(gab_engine *gab) {
+void gab_imports_destroy(gab_engine *gab, gab_gc *gc) {
   for (u64 i = 0; i < gab->imports.cap; i++) {
     if (d_gab_import_iexists(&gab->imports, i)) {
-      gab_import_destroy(gab, d_gab_import_ival(&gab->imports, i));
+      gab_import_destroy(gab, gc, d_gab_import_ival(&gab->imports, i));
     }
   }
 }

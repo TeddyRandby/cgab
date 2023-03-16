@@ -5,6 +5,7 @@
 #include "include/module.h"
 #include "include/types.h"
 #include "include/value.h"
+#include "include/vm.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -442,7 +443,7 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 len,
     self->data[i] = keys[i * stride];
   }
 
-  gab_gc_iref_many(vm, len, self->data);
+  gab_gc_iref_many(&vm->gc, vm, len, self->data);
 
   gab_engine_intern(gab, GAB_VAL_OBJ(self));
 
@@ -463,12 +464,12 @@ gab_value gab_obj_map_put(gab_engine *gab, gab_vm *vm, gab_obj_map *self,
                           gab_value key, gab_value value) {
 
   if (d_gab_value_exists(&self->data, key)) {
-    gab_gc_dref(vm, d_gab_value_read(&self->data, key));
+    gab_gc_dref(&vm->gc, vm, d_gab_value_read(&self->data, key));
   } else {
-    gab_gc_iref(vm, key);
+    gab_gc_iref(&vm->gc, vm, key);
   }
 
-  gab_gc_iref(vm, value);
+  gab_gc_iref(&vm->gc, vm, value);
 
   d_gab_value_insert(&self->data, key, value);
 
@@ -492,7 +493,7 @@ inline gab_value gab_obj_list_put(gab_engine *gab, gab_vm *vm,
 
   v_gab_value_set(&self->data, offset, value);
 
-  gab_gc_iref(vm, value);
+  gab_gc_iref(&vm->gc, vm, value);
 
   return value;
 }
@@ -515,8 +516,8 @@ gab_obj_map *gab_obj_map_create(gab_engine *gab, gab_vm *vm, u64 len,
     d_gab_value_insert(&self->data, keys[i * stride], values[i * stride]);
   }
 
-  gab_gc_iref_many(vm, len, keys);
-  gab_gc_iref_many(vm, len, values);
+  gab_gc_iref_many(&vm->gc, vm, len, keys);
+  gab_gc_iref_many(&vm->gc, vm, len, values);
 
   return self;
 }
@@ -541,7 +542,7 @@ gab_obj_list *gab_obj_list_create(gab_engine *gab, gab_vm *vm, u64 len,
     self->data.data[i] = values[i * stride];
   }
 
-  gab_gc_iref_many(vm, len, values);
+  gab_gc_iref_many(&vm->gc, vm, len, values);
 
   return self;
 }
@@ -559,7 +560,7 @@ gab_obj_record *gab_obj_record_create(gab_engine *gab, gab_vm *vm,
   for (u64 i = 0; i < shape->len; i++)
     self->data[i] = values[i * stride];
 
-  gab_gc_iref_many(vm, self->len, self->data);
+  gab_gc_iref_many(&vm->gc, vm, self->len, self->data);
 
   return self;
 }
@@ -582,8 +583,8 @@ void gab_obj_record_set(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
                         u16 offset, gab_value value) {
   assert(offset < self->len);
 
-  gab_gc_dref(vm, self->data[offset]);
-  gab_gc_iref(vm, value);
+  gab_gc_dref(&vm->gc, vm, self->data[offset]);
+  gab_gc_iref(&vm->gc, vm, value);
 
   self->data[offset] = value;
 }
@@ -655,7 +656,7 @@ gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm,
     self->frame[i] = frame[i];
   }
 
-  gab_gc_iref_many(vm, len, frame);
+  gab_gc_iref_many(&vm->gc, vm, len, frame);
 
   return self;
 }

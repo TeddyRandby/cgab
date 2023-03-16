@@ -175,38 +175,41 @@ void gab_destroy(gab_engine *gab) {
   if (gab == NULL)
     return;
 
+  gab_gc *gc = NEW(gab_gc);
+  gab_gc_create(gc);
+
   for (u64 i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
       gab_obj_string *v = d_strings_ikey(&gab->interned_strings, i);
-      gab_val_destroy(GAB_VAL_OBJ(v));
+      gab_gc_dref(gc, NULL, GAB_VAL_OBJ(v));
     }
   }
 
   for (u64 i = 0; i < gab->interned_shapes.cap; i++) {
     if (d_shapes_iexists(&gab->interned_shapes, i)) {
       gab_obj_shape *v = d_shapes_ikey(&gab->interned_shapes, i);
-      gab_val_destroy(GAB_VAL_OBJ(v));
+      gab_gc_dref(gc, NULL, GAB_VAL_OBJ(v));
     }
   }
 
   for (u64 i = 0; i < gab->interned_messages.cap; i++) {
     if (d_messages_iexists(&gab->interned_messages, i)) {
       gab_obj_message *v = d_messages_ikey(&gab->interned_messages, i);
-      gab_val_destroy(GAB_VAL_OBJ(v));
+      gab_gc_dref(gc, NULL, GAB_VAL_OBJ(v));
     }
   }
 
   for (u8 i = 0; i < GAB_KIND_NKINDS; i++) {
-    gab_val_destroy(gab->types[i]);
+    gab_gc_dref(gc, NULL, gab->types[i]);
   }
 
-  gab_imports_destroy(gab);
+  gab_imports_destroy(gab, gc);
 
   gab_module *mod = gab->modules;
   while (mod != NULL) {
     gab_module *m = mod;
     mod = m->next;
-    gab_module_destroy(gab, m);
+    gab_module_destroy(gab, gc, m);
   }
 
   while (gab->sources) {
@@ -214,6 +217,10 @@ void gab_destroy(gab_engine *gab) {
     gab->sources = s->next;
     gab_source_destroy(s);
   }
+
+  gab_gc_run(gc, NULL);
+  gab_gc_destroy(gc);
+  DESTROY(gc);
 
   gab_engine_collect(gab);
 
@@ -229,7 +236,7 @@ void gab_destroy(gab_engine *gab) {
 }
 
 void gab_collect(gab_engine *gab, gab_vm *vm) {
-  gab_gc_run(vm);
+  gab_gc_run(&vm->gc, vm);
   gab_engine_collect(gab);
 }
 
@@ -267,16 +274,20 @@ gab_value gab_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
   return vm_container;
 }
 
-void gab_val_dref(gab_vm *vm, gab_value value) { gab_gc_dref(vm, value); }
-
-void gab_val_dref_many(gab_vm *vm, u64 len, gab_value values[len]) {
-  gab_gc_dref_many(vm, len, values);
+void gab_val_dref(gab_vm *vm, gab_value value) {
+  gab_gc_dref(&vm->gc, vm, value);
 }
 
-void gab_val_iref(gab_vm *vm, gab_value value) { gab_gc_iref(vm, value); }
+void gab_val_dref_many(gab_vm *vm, u64 len, gab_value values[len]) {
+  gab_gc_dref_many(&vm->gc, vm, len, values);
+}
+
+void gab_val_iref(gab_vm *vm, gab_value value) {
+  gab_gc_iref(&vm->gc, vm, value);
+}
 
 void gab_val_iref_many(gab_vm *vm, u64 len, gab_value values[len]) {
-  gab_gc_iref_many(vm, len, values);
+  gab_gc_iref_many(&vm->gc, vm, len, values);
 }
 
 gab_value gab_record(gab_engine *gab, gab_vm *vm, u64 size, s_i8 keys[size],
