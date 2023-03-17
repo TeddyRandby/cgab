@@ -12,8 +12,6 @@ typedef struct gab_vm_frame gab_vm_frame;
 #include "alloc.h"
 #include "import.h"
 
-void *gab_reallocate(gab_engine *gab, void *loc, u64 old_size, u64 new_size);
-
 static const char *gab_status_names[] = {
 #define STATUS(name, message) message,
 #include "include/status_code.h"
@@ -49,6 +47,8 @@ struct gab_engine {
   gab_source* sources;
 
   d_gab_import imports;
+
+  v_gab_value scratch;
 
   /*
    * Where all the interned values live.

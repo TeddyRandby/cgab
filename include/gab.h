@@ -13,7 +13,7 @@ typedef struct gab_module gab_module;
  *
  * @return The allocated Gab Engine.
  */
-gab_engine *gab_create(u64 hash_seed);
+gab_engine *gab_create();
 
 /**
  * Cleanup a Gab Engine.
@@ -23,7 +23,7 @@ gab_engine *gab_create(u64 hash_seed);
  *
  * @param gab The engine to clean up.
  */
-void gab_destroy(gab_engine *gab, u64 argc, gab_value argv[argc]);
+void gab_destroy(gab_engine *gab);
 
 /**
  * Set the arguments that the engine will pass to
@@ -36,12 +36,20 @@ void gab_destroy(gab_engine *gab, u64 argc, gab_value argv[argc]);
  *  @param argv_names The names of each argument (Passed to the compiler)
  *
  *  @param argv_values The values of each argument (Passed to the vm)
- *
  */
 void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]);
 
-u64 gab_seed(gab_engine *gab);
+/**
+ * Pass the ownership of a value to the engine.
+ *
+ *  @param gab The engine
+ *
+ *  @param value The value
+ *
+ *  @return The value that was added to scratch
+ */
+gab_value gab_scratch(gab_engine* gab, gab_value value);
 
 /**
  * Compile a source string into a Gab Module.
@@ -95,9 +103,19 @@ gab_value gab_panic(gab_engine *gab, gab_vm *vm, const char *msg);
  * @param offset The beginning of the bytecode to dump
  *
  * @param len The amount of bytecode to dump
- *
  */
 void gab_dis(gab_module *mod);
+
+/**
+ * Pry into a vm for the frame at the given depth in the callstack.
+ *
+ * @param gab The engine
+ *
+ * @param vm The vm
+ *
+ * @param depth The depth
+ */
+void gab_pry(gab_engine* gab, gab_vm* vm, u64 depth);
 
 /**
  * Deep-copy a value into the given gab engine.

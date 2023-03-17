@@ -47,6 +47,8 @@ struct gab_obj {
   u8 flags;
 };
 
+void *gab_obj_alloc(gab_engine *gab, gab_obj *loc, u64 size);
+
 /*
   These macros are used to toggle flags in objects for RC garbage collection.
 

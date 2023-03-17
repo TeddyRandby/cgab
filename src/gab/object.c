@@ -12,12 +12,12 @@
 #include <threads.h>
 
 #define GAB_CREATE_ARRAY(type, count)                                          \
-  ((type *)gab_reallocate(gab, NULL, 0, sizeof(type) * count))
+  ((type *)gab_obj_alloc(gab, NULL, sizeof(type) * count))
 #define GAB_CREATE_STRUCT(obj_type)                                            \
-  ((obj_type *)gab_reallocate(gab, NULL, 0, sizeof(obj_type)))
+  ((obj_type *)gab_obj_alloc(gab, NULL, sizeof(obj_type)))
 #define GAB_CREATE_FLEX_STRUCT(obj_type, flex_type, flex_count)                \
-  ((obj_type *)gab_reallocate(                                                 \
-      gab, NULL, 0, sizeof(obj_type) + sizeof(flex_type) * flex_count))
+  ((obj_type *)gab_obj_alloc(                                                  \
+      gab, NULL, sizeof(obj_type) + sizeof(flex_type) * flex_count))
 
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \
   ((obj_type *)gab_obj_create(gab, (gab_obj *)GAB_CREATE_STRUCT(obj_type),     \

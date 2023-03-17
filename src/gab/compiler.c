@@ -1461,6 +1461,10 @@ i32 compile_exp_una(gab_engine *gab, gab_bc *bc, boolean assignable) {
     push_op(bc, OP_TYPE);
     return COMP_OK;
 
+  case TOKEN_DOT_DOT:
+    push_op(bc, OP_SPREAD);
+    return COMP_OK;
+
   default:
     compiler_error(bc, GAB_UNEXPECTED_TOKEN,
                    "While compiling unary expression");
@@ -2435,7 +2439,7 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(dot, PROPERTY, true), // PROPERTY
     PREFIX_INFIX(emp, snd, SEND, true), // MESSAGE
     INFIX(dot, PROPERTY, true),              // DOT
-    NONE(),                  // DOT_DOT
+    PREFIX(una),                  // DOT_DOT
     NONE(),                            // EQUAL
     INFIX(bin, EQUALITY, false),              // EQUALEQUAL
     PREFIX(una),                            // QUESTION

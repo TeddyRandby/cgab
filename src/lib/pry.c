@@ -1,8 +1,4 @@
 #include "../include/gab.h"
-#include "include/core.h"
-#include "include/object.h"
-#include "include/value.h"
-#include "include/vm.h"
 
 gab_value gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
                             gab_value argv[argc]) {
@@ -11,7 +7,7 @@ gab_value gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
   }
 
   if (argc == 1) {
-    gab_vm_frame_dump(gab, vm, 0);
+    gab_pry(gab, vm, 0);
 
     return argv[0];
   }
@@ -19,7 +15,7 @@ gab_value gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
   if (argc == 2 && GAB_VAL_IS_NUMBER(argv[1])) {
     u64 depth = GAB_VAL_TO_NUMBER(argv[1]);
 
-    gab_vm_frame_dump(gab, vm, depth);
+    gab_pry(gab, vm, depth);
 
     return argv[0];
   }
@@ -29,7 +25,7 @@ gab_value gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value receivers[] = {
-      gab_type(gab, GAB_KIND_CONTAINER),
+      GAB_STRING("gab_vm"),
   };
 
   gab_value values[] = {
@@ -37,7 +33,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   };
 
   gab_value names[] = {
-      GAB_STRING("frame"),
+      GAB_STRING("pry"),
   };
 
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));

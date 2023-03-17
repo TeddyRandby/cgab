@@ -104,31 +104,29 @@ void chunk_dealloc(gab_allocator *s, u64 size, void *ptr) {
     chunk_destroy(s, chunk);
 }
 
-void *gab_reallocate(gab_engine *gab, void *loc, u64 old_count, u64 new_count) {
+void *gab_obj_alloc(gab_engine *gab, gab_obj *obj, u64 size) {
 
-  if (new_count == 0) {
+  if (size == 0) {
+      assert(obj);
+      u64 old_size = gab_obj_size(obj);
 
 #if CHUNK_ALLOCATOR
-    if (old_count <= CHUNK_MAX_SIZE)
-      chunk_dealloc(&gab->allocator, old_count, loc);
+    if (old_size <= CHUNK_MAX_SIZE)
+      chunk_dealloc(&gab->allocator, old_size, obj);
     else
 #endif
-      free(loc);
+      free(obj);
 
     return NULL;
   }
 
+  assert(!obj);
+
 #if CHUNK_ALLOCATOR
-  if (new_count <= CHUNK_MAX_SIZE) {
-    return chunk_alloc(&gab->allocator, new_count);
+  if (size <= CHUNK_MAX_SIZE) {
+    return chunk_alloc(&gab->allocator, size);
   }
 #endif
 
-  void *new_ptr = realloc(loc, new_count);
-
-  if (!new_ptr) {
-    exit(1);
-  }
-
-  return new_ptr;
+  return malloc(size);
 }

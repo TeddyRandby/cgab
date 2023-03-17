@@ -24,7 +24,7 @@
 // Initial capacity of module constant table
 #define CONSTANTS_INITIAL_CAP 64
 // Use the simple custom chunk allocator
-#define CHUNK_ALLOCATOR 0
+#define CHUNK_ALLOCATOR 1
 
 // Derived macros
 // Garbage collection increment/decrement buffer size

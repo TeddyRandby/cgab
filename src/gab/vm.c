@@ -20,14 +20,26 @@ static const char *gab_token_names[] = {
 #undef TOKEN
 };
 
+
+void gab_vm_container_cb(gab_engine *, gab_vm *, void *data) { DESTROY(data); }
+
 gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
                    const char *help_fmt, ...) {
+  gab_vm *stored = NEW(gab_vm);
+  memcpy(stored, vm, sizeof(gab_vm));
+
+  /* These pointers have to be recalculated for the copy */
+  stored->fp = stored->fb + (vm->fp - vm->fb);
+  stored->sp = stored->sb + (vm->sp - vm->sb);
 
   u64 nframes = vm->fp - vm->fb;
 
   if (flags & GAB_FLAG_DUMP_ERROR) {
     for (;;) {
       gab_vm_frame *frame = vm->fb + nframes;
+      gab_vm_frame *stored_frame = stored->fb + nframes;
+
+      stored_frame->slots = stored->sb + (frame->slots - vm->sb);
 
       s_i8 func_name =
           gab_obj_string_ref(GAB_VAL_TO_STRING(v_gab_constant_val_at(
@@ -109,11 +121,14 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
     }
   }
 
+  gab_vm_destroy(vm);
+  DESTROY(vm);
+
   if (flags & GAB_FLAG_EXIT_ON_PANIC) {
     exit(0);
   }
 
-  return GAB_VAL_NIL();
+  return GAB_CONTAINER(GAB_STRING("gab_vm"), stored);
 }
 
 gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
@@ -122,7 +137,6 @@ gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
 
 void gab_vm_create(gab_vm *self, u8 flags, u8 argc, gab_value argv[argc]) {
   gab_gc_create(&self->gc);
-  memset(self->sb, 0, sizeof(self->sb));
 
   self->fp = self->fb;
   self->sp = self->sb;
@@ -135,9 +149,7 @@ void gab_vm_destroy(gab_vm *self) {
   gab_gc_destroy(&self->gc);
 }
 
-void gab_vm_stack_dump(gab_engine *gab, gab_vm *vm) {}
-
-void gab_vm_frame_dump(gab_engine *gab, gab_vm *vm, u64 value) {
+void gab_pry(gab_engine *gab, gab_vm *vm, u64 value) {
   u64 frame_count = vm->fp - vm->fb;
 
   if (value >= frame_count)
@@ -1548,6 +1560,24 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       NEXT();
     }
+    }
+
+    CASE_CODE(SPREAD) : {
+      gab_value index = POP();
+
+      if (GAB_VAL_IS_RECORD(index)) {
+        gab_obj_record *r = GAB_VAL_TO_RECORD(index);
+
+        for (u64 i = 0; i < r->len; i++)
+          PUSH(r->data[i]);
+
+        VAR() = r->len;
+
+        NEXT();
+      }
+
+      return vm_error(ENGINE(), VM(), flags, GAB_NOT_RECORD,
+                      "Tried to spread %V", index);
     }
 
     CASE_CODE(TUPLE) : {

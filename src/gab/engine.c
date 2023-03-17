@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <time.h>
 
 struct primitive {
   const char *name;
@@ -125,10 +126,10 @@ struct primitive primitives[] = {
     },
 };
 
-gab_engine *gab_create(u64 hash_seed) {
+gab_engine *gab_create() {
   gab_engine *gab = NEW(gab_engine);
 
-  gab->hash_seed = hash_seed;
+  gab->hash_seed = time(NULL);
   gab->objects = NULL;
   gab->modules = NULL;
   gab->sources = NULL;
@@ -139,6 +140,7 @@ gab_engine *gab_create(u64 hash_seed) {
   d_shapes_create(&gab->interned_shapes, INTERN_INITIAL_CAP);
   d_messages_create(&gab->interned_messages, INTERN_INITIAL_CAP);
   d_gab_import_create(&gab->imports, 8);
+  v_gab_value_create(&gab->scratch, 8);
 
   memset(&gab->allocator, 0, sizeof(gab->allocator));
 
@@ -171,16 +173,17 @@ gab_engine *gab_create(u64 hash_seed) {
   return gab;
 }
 
-void gab_destroy(gab_engine *gab, u64 argc, gab_value argv[argc]) {
+void gab_destroy(gab_engine *gab) {
   if (gab == NULL)
     return;
 
   gab_gc *gc = NEW(gab_gc);
   gab_gc_create(gc);
 
-  for (u64 i = 0; i < argc; i++) {
-    gab_gc_dref(gc, NULL, argv[i]);
+  for (u64 i = 0; i < gab->scratch.len; i++) {
+    gab_gc_dref(gc, NULL, v_gab_value_val_at(&gab->scratch, i));
   }
+
 
   for (u64 i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
@@ -234,6 +237,8 @@ void gab_destroy(gab_engine *gab, u64 argc, gab_value argv[argc]) {
 
   a_u64_destroy(gab->argv_values);
   a_u64_destroy(gab->argv_names);
+
+  v_gab_value_destroy(&gab->scratch);
 
   DESTROY(gab);
 }
@@ -656,7 +661,7 @@ void gab_engine_collect(gab_engine *gab) {
       obj = obj->next;
 
       gab_obj_destroy(old_obj);
-      gab_reallocate(gab, old_obj, gab_obj_size(old_obj), 0);
+      gab_obj_alloc(gab, old_obj, 0);
 
       if (prev)
         prev->next = obj;
@@ -669,4 +674,9 @@ void gab_engine_collect(gab_engine *gab) {
       obj = obj->next;
     }
   }
+}
+
+gab_value gab_scratch(gab_engine* gab, gab_value value) {
+    v_gab_value_push(&gab->scratch, value);
+    return value;
 }

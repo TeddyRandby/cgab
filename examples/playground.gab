@@ -1,3 +1,43 @@
 require('std')
 
-1:send(&+, 2)
+def handle[Block](..args)
+  def sus = args:last
+
+  for k, v in args:each
+    print(v)
+  end
+
+  sus is Suspense else
+    return ..args
+  end
+
+  def result = self(args[args:len])
+
+  print(result)
+
+  result or panic('Effect not handled')
+
+  self:handle(sus(result))
+end
+
+def pay = do (person, amount)
+    let p, a = person, amount
+
+    p else
+        p = yield 'person'
+    end
+
+    a else
+        a = yield 'amount'
+    end
+
+    print('Paying {p} ${a}')
+end
+
+do (effect)
+    effect match
+        'person' => 'billy' end
+        'amount' => 10      end
+        else     => panic() end
+
+end:handle(pay())

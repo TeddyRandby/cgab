@@ -16,8 +16,7 @@ typedef struct gab_vm_frame {
   */
   u8 *ip;
 
-  /*
-    The value on the stack where this callframe begins.
+  /* The value on the stack where this callframe begins.
     Locals are offset from this.
   */
   gab_value *slots;
@@ -50,9 +49,5 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
                      gab_value argv[argc]);
 
 gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg);
-
-void gab_vm_stack_dump(gab_engine* gab, gab_vm* vm);
-
-void gab_vm_frame_dump(gab_engine* gab, gab_vm* vm, u64 value);
 
 #endif
