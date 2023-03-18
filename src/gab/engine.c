@@ -210,8 +210,6 @@ void gab_destroy(gab_engine *gab) {
     gab_gc_dref(gc, NULL, gab->types[i]);
   }
 
-  gab_imports_destroy(gab, gc);
-
   while (gab->modules) {
     gab_module *m = gab->modules;
     gab->modules = m->next;
@@ -229,6 +227,8 @@ void gab_destroy(gab_engine *gab) {
   DESTROY(gc);
 
   gab_engine_collect(gab);
+
+  gab_imports_destroy(gab, gc);
 
   d_strings_destroy(&gab->interned_strings);
   d_shapes_destroy(&gab->interned_shapes);
@@ -351,7 +351,7 @@ gab_value send_msg(gab_engine *gab, gab_vm *vm, gab_value msg,
     return mod;
 
   gab_value result = gab_vm_run(
-      gab, mod, GAB_FLAG_DUMP_ERROR | GAB_FLAG_EXIT_ON_PANIC, 0, NULL);
+      gab, mod, GAB_FLAG_DUMP_ERROR, 0, NULL);
 
   gab_val_dref(vm, mod);
 

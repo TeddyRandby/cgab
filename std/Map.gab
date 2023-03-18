@@ -1,13 +1,13 @@
 require('map')
 
 impl Map
-    def [] (key)
-      self:at(key)
-    end
+    def [] (key) self:at(key) end
 
-    def [=] (key, value)
-      self:put(key, value)
-    end
+    def [=] (key, value) self:put(key, value) end
+
+    def has(key) not self:at(key) == nil end
+
+    def del(key) self:put(key, nil) end
 
     def each
       let key = self:next
@@ -17,8 +17,4 @@ impl Map
         key = self:next(key)
       until key == nil
     end
-
-    def has(key) not self:at(key) == nil end
-
-    def del(key) self:put(key, nil) end
 end

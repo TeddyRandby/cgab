@@ -1,4 +1,8 @@
 impl Any
+    def first self:at(0) end
+
+    def last self:at(self:len - 1) end
+
     def each
       let key = self:next
 
@@ -6,13 +10,5 @@ impl Any
         yield key, self:at(key)
         key = self:next(key)
       until key == nil
-    end
-
-    def first
-        self:at(0)
-    end
-
-    def last
-        self:at(self:len - 1)
     end
 end

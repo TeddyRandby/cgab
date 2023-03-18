@@ -430,11 +430,14 @@ boolean gab_obj_map_has(gab_obj_map *self, gab_value key);
   ------------- OBJ_CONTAINER-------------
   A container to some unknown data.
 */
+typedef void (*gab_obj_container_cb)(void *);
 typedef struct gab_obj_container gab_obj_container;
 struct gab_obj_container {
   gab_obj header;
 
   gab_value type;
+
+  gab_obj_container_cb cb;
 
   /* The pointer owned by this object */
   void *data;
@@ -446,6 +449,7 @@ struct gab_obj_container {
 #define GAB_OBJ_TO_CONTAINER(value) ((gab_obj_container *)value)
 
 gab_obj_container *gab_obj_container_create(gab_engine *gab, gab_value type,
+                                            gab_obj_container_cb cb,
                                             void *data);
 
 /*

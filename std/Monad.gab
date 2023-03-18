@@ -1,5 +1,5 @@
 impl Any
-  def error
+  def err
     ({ err = self })
   end
 

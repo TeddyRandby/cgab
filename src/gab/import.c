@@ -14,6 +14,9 @@ u64 gab_imports_module(gab_engine *gab, s_i8 name, gab_value mod,
   i->cache = val;
   i->as.mod = mod;
 
+  gab_scratch(gab, mod);
+  gab_scratch(gab, val);
+
   d_gab_import_insert(&gab->imports, hash, i);
 
   return hash;
@@ -27,6 +30,8 @@ u64 gab_imports_shared(gab_engine *gab, s_i8 name, void *obj, gab_value val) {
   i->k = IMPORT_SHARED;
   i->cache = val;
   i->as.shared = obj;
+
+  gab_scratch(gab, val);
 
   d_gab_import_insert(&gab->imports, hash, i);
 
@@ -45,13 +50,11 @@ gab_value gab_imports_exists(gab_engine *gab, s_i8 name) {
 }
 
 void gab_import_destroy(gab_engine *gab, gab_gc *gc, gab_import *i) {
-  gab_gc_dref(gc, NULL, i->cache);
   switch (i->k) {
   case IMPORT_SHARED:
     dlclose(i->as.shared);
     break;
   default:
-    gab_gc_dref(gc, NULL, i->as.mod);
     break;
   }
   DESTROY(i);

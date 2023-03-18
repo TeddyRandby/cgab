@@ -20,8 +20,7 @@ static const char *gab_token_names[] = {
 #undef TOKEN
 };
 
-
-void gab_vm_container_cb(gab_engine *, gab_vm *, void *data) { DESTROY(data); }
+void gab_vm_container_cb(void *data) { DESTROY(data); }
 
 gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
                    const char *help_fmt, ...) {
@@ -95,7 +94,7 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
         a_i8_destroy(curr_under);
 
         fprintf(stderr,
-                ANSI_COLOR_YELLOW "%s. " ANSI_COLOR_RESET ANSI_COLOR_GREEN,
+                ANSI_COLOR_YELLOW "%s.\n  " ANSI_COLOR_RESET ANSI_COLOR_GREEN,
                 gab_status_names[e]);
 
         va_list args;
@@ -121,18 +120,16 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
     }
   }
 
-  gab_vm_destroy(vm);
-  DESTROY(vm);
-
   if (flags & GAB_FLAG_EXIT_ON_PANIC) {
     exit(0);
   }
 
-  return GAB_CONTAINER(GAB_STRING("gab_vm"), stored);
+  return GAB_CONTAINER(GAB_STRING("gab_vm"), gab_vm_container_cb, stored);
 }
 
 gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
-  return vm_error(gab, vm, GAB_FLAG_DUMP_ERROR, GAB_PANIC, msg);
+  return vm_error(gab, vm, GAB_FLAG_DUMP_ERROR | GAB_FLAG_EXIT_ON_PANIC,
+                  GAB_PANIC, msg);
 }
 
 void gab_vm_create(gab_vm *self, u8 flags, u8 argc, gab_value argv[argc]) {
@@ -468,7 +465,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         if (GAB_VAL_IS_UNDEFINED(spec)) {
           STORE_FRAME();
           return vm_error(ENGINE(), VM(), flags, GAB_IMPLEMENTATION_MISSING,
-                          "Could not send %V to %V", GAB_VAL_OBJ(msg), type);
+                          "Could not send %V to %V", GAB_VAL_OBJ(msg),
+                          receiver);
         }
 
         offset = gab_obj_message_find(msg, GAB_VAL_UNDEFINED());

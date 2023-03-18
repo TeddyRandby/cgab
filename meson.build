@@ -14,6 +14,13 @@ libcgab = static_library('cgab',
   install: true,
 )
 
+shared_library('cgabsocket',
+  'src/lib/socket.c',
+  link_with: [libcgab],
+  install: true,
+  install_dir: '/usr/local/lib/gab/'
+)
+
 shared_library('cgabtime',
   'src/lib/time.c',
   link_with: [libcgab],

@@ -1,10 +1,12 @@
 #include "include/gab.h"
 #include <stdio.h>
 
+void file_cb(void *data) { fclose(data); }
+
 gab_value gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc,
                        gab_value argv[argc]) {
   if (argc != 3 || !GAB_VAL_IS_STRING(argv[1]) || !GAB_VAL_IS_STRING(argv[2])) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_open");
+    return gab_panic(gab, vm, "Invalid call to gab_lib_open");
   }
 
   gab_obj_string *path_obj = GAB_VAL_TO_STRING(argv[1]);
@@ -22,17 +24,17 @@ gab_value gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc,
     return GAB_SEND("err", GAB_STRING("Unable to open file"), 0, NULL);
   }
 
-  gab_value container = GAB_CONTAINER(GAB_STRING("File"), file);
+  gab_value container = GAB_CONTAINER(GAB_STRING("File"), file_cb, file);
 
   gab_val_dref(vm, container);
 
-  return GAB_SEND("ok", container, 0, NULL);
+  return container;
 }
 
 gab_value gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc,
                        gab_value argv[argc]) {
   if (argc != 1 || !GAB_VAL_TO_CONTAINER(argv[0])) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_read");
+    return gab_panic(gab, vm, "Invalid call to gab_lib_read");
   }
 
   gab_obj_container *file_obj = GAB_VAL_TO_CONTAINER(argv[0]);
@@ -46,14 +48,15 @@ gab_value gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc,
   char buffer[fileSize];
 
   size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
+
   if (bytesRead < fileSize) {
-    return GAB_SEND("err", GAB_STRING("Couldn't read all bytes"), 0, NULL);
+    return GAB_SEND("err", GAB_STRING("Could not read file"), 0, NULL);
   }
 
   gab_obj_string *result =
       gab_obj_string_create(gab, s_i8_create((i8 *)buffer + 0, bytesRead));
 
-  return GAB_SEND("ok", GAB_VAL_OBJ(result), 0, NULL);
+  return GAB_VAL_OBJ(result);
 }
 
 gab_value gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc,
@@ -73,7 +76,7 @@ gab_value gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc,
   i32 result = fputs(data, handle->data);
 
   if (result > 0) {
-    return GAB_SEND("ok", GAB_VAL_NIL(), 0, NULL);
+    return GAB_VAL_BOOLEAN(true);
   } else {
     return GAB_SEND("err", GAB_STRING("Failed to write file"), 0, NULL);
   }
@@ -88,7 +91,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
       GAB_STRING("write"),
   };
 
-  gab_value container_type = gab_type(gab, GAB_KIND_CONTAINER);
+  gab_value container_type = GAB_STRING("File");
 
   gab_value receiver_types[] = {
       io,

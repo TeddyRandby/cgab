@@ -8,8 +8,8 @@ gab_value gab_lib_panic(gab_engine *gab, gab_vm *vm, u8 argc,
     char buffer[str->len + 1];
     memcpy(buffer, str->data, str->len);
     buffer[str->len] = '\0';
-    gab_panic(gab, vm, buffer);
-  } else {
-    gab_panic(gab, vm, "");
+    return gab_panic(gab, vm, buffer);
   }
+
+  return gab_panic(gab, vm, "");
 }

@@ -202,8 +202,13 @@ void gab_obj_destroy(gab_obj *self) {
     return;
   }
   case GAB_KIND_MESSAGE: {
-    gab_obj_message *function = (gab_obj_message *)(self);
+    gab_obj_message *function = (gab_obj_message *)self;
     d_specs_destroy(&function->specs);
+    return;
+  }
+  case GAB_KIND_CONTAINER: {
+    gab_obj_container *container = (gab_obj_container *)self;
+    container->cb(container->data);
     return;
   }
   default:
@@ -617,11 +622,13 @@ gab_value gab_obj_record_at(gab_obj_record *self, gab_value prop) {
 }
 
 gab_obj_container *gab_obj_container_create(gab_engine *gab, gab_value type,
+                                            gab_obj_container_cb cb,
                                             void *data) {
 
   gab_obj_container *self =
       GAB_CREATE_OBJ(gab_obj_container, GAB_KIND_CONTAINER);
 
+  self->cb = cb;
   self->data = data;
   self->type = type;
 

@@ -329,8 +329,8 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self);
 /**
  * A helper macro for creating a gab_obj_container
  */
-#define GAB_CONTAINER(name, data)                                              \
-  GAB_VAL_OBJ(gab_obj_container_create(gab, name, data))
+#define GAB_CONTAINER(type, cb, data)                                              \
+  GAB_VAL_OBJ(gab_obj_container_create(gab, type, cb, data))
 
 /**
  * A helper macro for creating a gab_obj_symbol

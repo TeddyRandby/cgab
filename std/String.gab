@@ -1,9 +1,11 @@
+require('string')
+
 impl String
   def [](opts)
       ?opts match
           ?{ from to } => self:slice(opts.from, opts.to)          end
           ?{ from }    => self:slice(opts.from)                   end
-          ?{ to }     => self:slice(nil, opts.to)                 end
+          ?{ to }      => self:slice(nil, opts.to)                end
           Number       => self:slice(opts)                        end
           else         => panic('Invalid call to String:__get__') end
   end

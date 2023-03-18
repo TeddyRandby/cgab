@@ -1,8 +1,5 @@
 require('pry')
 require('dis')
-require('string')
-require('record')
-require('num')
 
 require('Monad')
 require('Map')
@@ -10,5 +7,6 @@ require('List')
 require('Range')
 require('Number')
 require('Record')
+require('String')
 
 nil
