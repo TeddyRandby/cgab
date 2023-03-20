@@ -1,6 +1,5 @@
 require('std')
-def io = require('io')
 
-def file = io:open('test.txt', 'r')
+def break = do require('hi') end
 
-print(file:read:value!)
+{ hi: 1 }

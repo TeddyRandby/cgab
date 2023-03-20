@@ -118,7 +118,8 @@ static inline i32 match_and_eat_token(gab_bc *bc, gab_token tok) {
 static inline i32 expect_token(gab_bc *bc, gab_token tok) {
   if (!match_token(bc, tok)) {
     eat_token(bc);
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected %s",
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                   "Expected " ANSI_COLOR_MAGENTA "%s" ANSI_COLOR_RESET,
                    gab_token_names[tok]);
     return COMP_ERR;
   }
@@ -506,9 +507,9 @@ i32 compile_parameters(gab_engine *gab, gab_bc *bc, boolean *vse_out) {
 
       s_i8 name = bc->lex.previous_token_src;
 
-      gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
+      gab_value prop = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
 
-      i32 local = compile_local(gab, bc, val_name, 0);
+      i32 local = compile_local(gab, bc, prop, 0);
 
       if (local < 0)
         return COMP_ERR;
@@ -1012,12 +1013,9 @@ i32 compile_rec_internal_item(gab_engine *gab, gab_bc *bc) {
     if (push_slot(bc, 1) < 0)
       return COMP_ERR;
 
-    // Push the constant onto the stack.
     push_op(bc, OP_CONSTANT);
     push_short(bc, add_constant(mod(bc), val_name));
 
-    // Compile the expression if theres an '=' , or look for a local with
-    // the name and use that as the value.
     switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
 
     case COMP_OK: {
@@ -1039,23 +1037,19 @@ i32 compile_rec_internal_item(gab_engine *gab, gab_bc *bc) {
 
       case COMP_RESOLVED_TO_LOCAL:
         push_load_local(bc, value_in);
-        break;
+        return COMP_OK;
 
       case COMP_RESOLVED_TO_UPVALUE:
         push_load_upvalue(bc, value_in);
-        break;
+        return COMP_OK;
 
       case COMP_ID_NOT_FOUND:
         push_op(bc, OP_PUSH_TRUE);
-        break;
+        return COMP_OK;
 
       default:
-        compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                       "While compiling object literal");
-        return COMP_ERR;
+        goto err;
       }
-
-      return COMP_OK;
     }
 
     default:
@@ -1085,7 +1079,7 @@ i32 compile_rec_internal_item(gab_engine *gab, gab_bc *bc) {
 
 err:
   eat_token(bc);
-  compiler_error(bc, GAB_UNEXPECTED_TOKEN, "While compiling object literal");
+  compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Try '<identifier>' or '[<exp>]'");
   return COMP_ERR;
 }
 
@@ -2386,8 +2380,9 @@ i32 compile_exp_rtn(gab_engine *gab, gab_bc *bc, boolean assignable) {
   if (result < 0)
     return COMP_ERR;
 
-  if (result > 16) {
-    compiler_error(bc, GAB_TOO_MANY_RETURN_VALUES, "");
+  if (result > RET_MAX) {
+    compiler_error(bc, GAB_TOO_MANY_RETURN_VALUES,
+                   "Return expressions can't return more than 128 values");
     return COMP_ERR;
   }
 
@@ -2622,7 +2617,8 @@ static void compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
 
     a_i8_destroy(curr_under);
 
-    fprintf(stderr, ANSI_COLOR_YELLOW "%s. " ANSI_COLOR_RESET ANSI_COLOR_GREEN,
+    fprintf(stderr,
+            ANSI_COLOR_YELLOW "%s. \n\n" ANSI_COLOR_RESET "\t" ANSI_COLOR_GREEN,
             gab_status_names[e]);
 
     vfprintf(stderr, help_fmt, args);

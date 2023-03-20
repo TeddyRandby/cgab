@@ -2,6 +2,7 @@
 #include "include/gab.h"
 #include "include/object.h"
 #include "include/value.h"
+
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
@@ -165,13 +166,16 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
       GAB_STRING("connect"),
   };
 
+  gab_value container_type = GAB_STRING("Socket");
+
   gab_value types[] = {
       socket,
-      GAB_STRING("socket"),
-      GAB_STRING("socket"),
-      GAB_STRING("socket"),
-      GAB_STRING("socket"),
-      GAB_STRING("socket"),
+      container_type,
+      container_type,
+      container_type,
+      container_type,
+      container_type,
+      container_type,
   };
 
   gab_value values[] = {

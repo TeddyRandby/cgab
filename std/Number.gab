@@ -1,4 +1,4 @@
-require('number')
+require('num')
 
 impl Number
   def each

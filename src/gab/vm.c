@@ -32,10 +32,11 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
   stored->sp = stored->sb + (vm->sp - vm->sb);
 
   u64 nframes = vm->fp - vm->fb;
+  u64 n = 1;
 
   if (flags & GAB_FLAG_DUMP_ERROR) {
     for (;;) {
-      gab_vm_frame *frame = vm->fb + nframes;
+      gab_vm_frame *frame = vm->fb + n;
       gab_vm_frame *stored_frame = stored->fb + nframes;
 
       stored_frame->slots = stored->sb + (frame->slots - vm->sb);
@@ -81,7 +82,7 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
           curr_under->data[i] = ' ';
       }
 
-      if (nframes <= 1) {
+      if (n >= nframes) {
         fprintf(stderr,
                 "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET
                 "] Error near " ANSI_COLOR_BLUE "%s" ANSI_COLOR_RESET
@@ -116,7 +117,7 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
               (i32)func_name.len, func_name.data, curr_row, curr_src_len,
               curr_src_start, (i32)curr_under->len, curr_under->data);
 
-      nframes--;
+      n++;
     }
   }
 
