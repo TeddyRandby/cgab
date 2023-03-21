@@ -1954,7 +1954,7 @@ i32 compile_arguments(gab_engine *gab, gab_bc *bc, boolean *vse_out, u8 flags) {
 }
 
 i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, boolean assignable) {
-  s_i8 message = trim_prev_tok(bc);
+  s_i8 message = bc->lex.previous_token_src;
   gab_token tok = bc->previous_token;
   u64 line = bc->line;
 
