@@ -78,7 +78,7 @@ i32 gab_obj_dump(FILE *stream, gab_value value) {
   }
   case GAB_KIND_MESSAGE: {
     gab_obj_message *msg = GAB_VAL_TO_MESSAGE(value);
-    return fprintf(stream, "<message %V>", msg->name);
+    return fprintf(stream, "&%V", msg->name);
   }
   case GAB_KIND_SHAPE: {
     gab_obj_shape *shape = GAB_VAL_TO_SHAPE(value);

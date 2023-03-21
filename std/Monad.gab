@@ -17,7 +17,7 @@ end
 impl nil
   def some? false end
 
-  def value! panic() end
+  def value! panic('Called value! on nil') end
 
   def value_or(alt) alt end
 

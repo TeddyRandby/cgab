@@ -13,12 +13,11 @@ def celebrate[Person]()
 end
 
 def Bob = {
-  name: 'Bob'
-  age: 22
+  name = 'Bob'
+  age  = 22
 }
 
-Bob:celebrate
-#prints 'Happy Birthday Bob'
+Bob:celebrate # Happy Birthday Bob
 ```
 # Goals
  - Be *fast*
@@ -29,14 +28,10 @@ Gab's more defining features include:
 ### Expression focused
 In Gab, everything is an expression. 
 ```
-let a = if cond
-   1
- else
-   2
- end
+let a = cond and 1 or 2
 ```
 ### Shapes
-Although Gab is dynamically typed, types matter more than in other dynamic languages.
+Although Gab is dynamically typed, types are treated as first class.
 ```
 def Point {
     x
@@ -45,9 +40,9 @@ def Point {
 ```
 Objects in Gab are structurally typed. This means that two objects are the same type iff they share the same set of keys. This principle is used to define 'method' for our types.
 ```
-let pos = { x:10 y:20 }
-print(pos is point)
-# prints true
+let pos = { x=10 y=20 }
+
+print(pos is point) # true
 ```
 ### Message Passing
 Gab provides a nice abstraction for polymorphism through *message passing*.
@@ -56,7 +51,7 @@ A message is defined as follows:
 def Dog { ... }
 def Person { ... }
 
-def speak[Dog]()
+def speak[Dog]
     print('woof!')
 end
 
@@ -67,7 +62,7 @@ end
 The expression in brackets is used to create a specialization for the message on that type.
 In this example, the values of the Dog and Person shapes are used to instantiate a specific handler. Now later on we can write code like this:
 ```
-let animal = getAnimal()
+let animal = getMammal()
 # This could be a person or a dog
 
 animal:speak
@@ -76,33 +71,33 @@ animal:speak
 ```
 ### Globals
 Gab has no global variables. If you wan't to export code from your modules, return from the top-level, or define messages.
-### Effects
-The last major feature of Gab is effects. From any function, instead of returning you may `yield`
+### Suspensions
+The last major feature of Gab is suspensions. From any function, instead of returning you may `yield`
 ```
-def do_twice(cb)
+def do_twice = do (cb)
     yield cb()
-
     cb()
 end
 
-let first_result, eff = do_twice()
+let first_result, suspense = do_twice()
 
-let second_result = eff()
+let second_result = suspense()
 ```
-Yield pauses the functions execution, and returns an `Effect` object in addition to whatever else is yielded. This object can then be called to resume execution of the function. A yield can also receive values, which are passed to the effect as arguments.
+Yield pauses the functions execution, and returns a `Supsense` object in addition to whatever else is yielded. This object can then be called to resume execution of the function. A yield can also receive values, which are passed to the effect as arguments.
 ```
-def say_hello(name)
-    if not name
+def say_hello = do (maybe_nil)
+    let name = maybe_nil
+
+    not name then
         name = yield
     end
 
     print('Hello {name}')
 end
 
-let eff = say_hello()
+let sus = say_hello()
 
-eff('Bob')
-# prints 'Hello Bob'
+sus('Bob') # Hello Bob
 ```
 ### What about imports?
 Gab supplies a `require` global for importing code. 
@@ -132,6 +127,5 @@ This project is built with Meson. To install it:
   - run `meson setup build`
   - run `meson install`
 ### Whats coming up (in no particular order):
- - [ ] Pretty Printing for objects
  - [ ] Windows support
  - [ ] Finalize c api and documentation

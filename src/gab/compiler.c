@@ -1343,11 +1343,16 @@ i32 compile_exp_mch(gab_engine *gab, gab_bc *bc, boolean assignable) {
 i32 compile_exp_is(gab_engine *gab, gab_bc *bc, boolean assignable) {
   push_op(bc, OP_TYPE);
 
+  gab_token op = bc->previous_token;
+  u64 line = bc->line;
+  s_i8 src = bc->lex.previous_token_src;
+
   if (compile_exp_prec(gab, bc, PREC_EQUALITY) < 0)
     return COMP_ERR;
 
-  // TODO: FIXME
-  // push_op(bc, mod, OP_EQUAL);
+  u16 m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_EQ));
+
+  gab_module_push_send(mod(bc), 1, m, false, op, line, src);
 
   pop_slot(bc, 1);
 
@@ -1974,7 +1979,7 @@ i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
 i32 compile_exp_amp(gab_engine *gab, gab_bc *bc, boolean assignable) {
   if (match_and_eat_token(bc, TOKEN_MESSAGE)) {
-    s_i8 message = trim_prev_tok(bc);
+    s_i8 message = bc->lex.previous_token_src;
 
     gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, message));
 
