@@ -4,15 +4,17 @@
 #include <assert.h>
 #include <time.h>
 
-gab_value gab_lib_clock(gab_engine *gab, gab_vm *vm, u8 argc,
-                        gab_value argv[argc]) {
+void gab_lib_clock(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_clock");
+    return;
   }
 
   clock_t t = clock();
 
-  return GAB_VAL_NUMBER((f64)t / CLOCKS_PER_SEC);
+  gab_value res = GAB_VAL_NUMBER((f64)t / CLOCKS_PER_SEC);
+
+  gab_push(vm, 1, &res);
 };
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {

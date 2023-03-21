@@ -1,7 +1,7 @@
 #include "builtins.h"
 #include <stdio.h>
 
-gab_value gab_lib_print(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_print(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   for (u8 i = 0; i < argc; i++) {
     if (i > 0)
       putc(' ', stdout);
@@ -9,6 +9,4 @@ gab_value gab_lib_print(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[arg
   }
 
   printf("\n");
-
-  return GAB_VAL_NIL();
 }

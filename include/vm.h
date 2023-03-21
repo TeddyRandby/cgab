@@ -50,4 +50,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
 gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg);
 
+i32 gab_vm_push(gab_vm* vm, u8 argc, gab_value argv[argc]);
+
 #endif

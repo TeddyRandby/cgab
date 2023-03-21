@@ -275,7 +275,9 @@ gab_value gab_run(gab_engine *gab, gab_value main, u8 flags) {
 
 gab_value gab_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
   gab_value vm_container = gab_vm_panic(gab, vm, msg);
+
   gab_val_dref(vm, vm_container);
+
   return vm_container;
 }
 
@@ -679,4 +681,9 @@ void gab_engine_collect(gab_engine *gab) {
 gab_value gab_scratch(gab_engine* gab, gab_value value) {
     v_gab_value_push(&gab->scratch, value);
     return value;
+}
+
+
+i32 gab_push(gab_vm* vm, u8 argc, gab_value argv[argc]) {
+    return gab_vm_push(vm, argc, argv);
 }

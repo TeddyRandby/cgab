@@ -9,9 +9,19 @@ subdir('src/gab')
 subdir('src/core')
 subdir('src/cli')
 
+nc = dependency('ncursesw')
+
 libcgab = static_library('cgab',
   sources,
   install: true,
+)
+
+shared_library('cgabterm',
+  'src/lib/term.c',
+  dependencies: [nc],
+  link_with: [libcgab],
+  install: true,
+  install_dir: '/usr/local/lib/gab/'
 )
 
 shared_library('cgabsocket',

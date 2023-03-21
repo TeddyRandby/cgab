@@ -16,61 +16,65 @@ void dis_message(gab_engine *gab, gab_obj_message *msg, gab_value rec) {
   if (GAB_VAL_IS_BLOCK(spec)) {
     gab_obj_block *cls = GAB_VAL_TO_BLOCK(spec);
     dis_closure(cls);
-  } else if (GAB_VAL_IS_BUILTIN(spec)) {
+
+    return;
+  }
+
+  if (GAB_VAL_IS_BUILTIN(spec)) {
     gab_val_dump(stdout, spec);
     printf("\n");
   }
 }
 
-gab_value gab_lib_disstring(gab_engine *gab, gab_vm *vm, u8 argc,
-                            gab_value argv[argc]) {
+void gab_lib_disstring(gab_engine *gab, gab_vm *vm, u8 argc,
+                       gab_value argv[argc]) {
   if (argc < 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_dis");
+
+    return;
   }
 
   gab_obj_message *msg = gab_obj_message_create(gab, argv[0]);
 
   dis_message(gab, msg, argc == 1 ? GAB_VAL_UNDEFINED() : argv[1]);
-
-  return GAB_VAL_NIL();
 };
 
-gab_value gab_lib_dismessage(gab_engine *gab, gab_vm *vm, u8 argc,
-                             gab_value argv[argc]) {
+void gab_lib_dismessage(gab_engine *gab, gab_vm *vm, u8 argc,
+                        gab_value argv[argc]) {
   if (argc != 2) {
     gab_panic(gab, vm, "Invalid call to gab_lib_dis");
+
+    return;
   }
 
   gab_obj_message *msg = GAB_VAL_TO_MESSAGE(argv[0]);
 
   dis_message(gab, msg, argv[1]);
-
-  return GAB_VAL_NIL();
 }
 
-gab_value gab_lib_disclosure(gab_engine *gab, gab_vm *vm, u8 argc,
-                             gab_value argv[argc]) {
+void gab_lib_disclosure(gab_engine *gab, gab_vm *vm, u8 argc,
+                        gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_dis");
+
+    return;
   }
 
   gab_obj_block *cls = GAB_VAL_TO_BLOCK(argv[0]);
 
   dis_closure(cls);
-
-  return GAB_VAL_NIL();
 }
 
-gab_value gab_lib_disbuiltin(gab_engine *gab, gab_vm *vm, u8 argc,
-                             gab_value argv[argc]) {
+void gab_lib_disbuiltin(gab_engine *gab, gab_vm *vm, u8 argc,
+                        gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_dis");
+
+    return;
   }
 
   gab_val_dump(stdout, argv[0]);
   printf("\n");
-
-  return GAB_VAL_NIL();
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {

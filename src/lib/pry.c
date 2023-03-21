@@ -1,7 +1,7 @@
 #include "../include/gab.h"
 
-gab_value gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
-                            gab_value argv[argc]) {
+void gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
+                       gab_value argv[argc]) {
   if (argc < 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_pryframes");
   }
@@ -9,7 +9,7 @@ gab_value gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
   if (argc == 1) {
     gab_pry(gab, vm, 0);
 
-    return argv[0];
+    return;
   }
 
   if (argc == 2 && GAB_VAL_IS_NUMBER(argv[1])) {
@@ -17,10 +17,10 @@ gab_value gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
 
     gab_pry(gab, vm, depth);
 
-    return argv[0];
+    return;
   }
 
-  return GAB_VAL_NIL();
+  return;
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {

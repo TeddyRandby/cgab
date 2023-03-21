@@ -11,25 +11,37 @@
 
 void gab_container_socket_cb(void *data) { shutdown((i64)data, SHUT_RDWR); }
 
-gab_value gab_lib_sock(gab_engine *gab, gab_vm *vm, u8 argc,
-                       gab_value argv[argc]) {
+void gab_lib_sock(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   i64 result = socket(AF_INET, SOCK_STREAM, 0);
 
   if (result < 0) {
-    return GAB_VAL_NIL();
+    gab_value res =
+        GAB_SEND("err", GAB_STRING("Could not open socket"), 0, NULL);
+
+    gab_push(vm, 1, &res);
+
+    gab_val_dref(vm, res);
+
+    return;
   }
 
-  return GAB_CONTAINER(GAB_STRING("socket"), gab_container_socket_cb,
-                       (void *)result);
+  gab_value res = GAB_CONTAINER(GAB_STRING("socket"), gab_container_socket_cb,
+                                (void *)result);
+
+  gab_push(vm, 1, &res);
+
+  gab_val_dref(vm, res);
+
+  return;
 }
 
-gab_value gab_lib_bind(gab_engine *gab, gab_vm *vm, u8 argc,
-                       gab_value argv[argc]) {
+void gab_lib_bind(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   if (argc != 2 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
       !GAB_VAL_IS_NUMBER(argv[1])) {
-    return GAB_VAL_NIL();
+    gab_panic(gab, vm, "Invalid call to gab_lib_bind");
+    return;
   }
 
   i64 socket = (i64)GAB_VAL_TO_CONTAINER(argv[0])->data;
@@ -43,17 +55,27 @@ gab_value gab_lib_bind(gab_engine *gab, gab_vm *vm, u8 argc,
   i32 result = bind(socket, (struct sockaddr *)&addr, sizeof(addr));
 
   if (result < 0) {
-    return GAB_VAL_NIL();
+    gab_value res =
+        GAB_SEND("err", GAB_STRING("Could not bind socket"), 0, NULL);
+
+    gab_push(vm, 1, &res);
+
+    gab_val_dref(vm, res);
+
+    return;
   }
 
-  return GAB_VAL_BOOLEAN(true);
+  gab_value res = GAB_VAL_BOOLEAN(true);
+
+  gab_push(vm, 1, &res);
 }
 
-gab_value gab_lib_listen(gab_engine *gab, gab_vm *vm, u8 argc,
-                         gab_value argv[argc]) {
+void gab_lib_listen(gab_engine *gab, gab_vm *vm, u8 argc,
+                    gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
       !GAB_VAL_IS_NUMBER(argv[1])) {
-    return GAB_VAL_NIL();
+    gab_panic(gab, vm, "Invalid call to gab_lib_listen");
+    return;
   }
 
   i64 socket = (i64)GAB_VAL_TO_CONTAINER(argv[0])->data;
@@ -61,16 +83,25 @@ gab_value gab_lib_listen(gab_engine *gab, gab_vm *vm, u8 argc,
   i32 result = listen(socket, GAB_VAL_TO_NUMBER(argv[1]));
 
   if (result < 0) {
-    return GAB_VAL_NIL();
+    gab_value res = GAB_SEND("err", GAB_STRING("Could not listen"), 0, NULL);
+
+    gab_push(vm, 1, &res);
+
+    gab_val_dref(vm, res);
+
+    return;
   }
 
-  return GAB_VAL_IS_BOOLEAN(true);
+  gab_value res = GAB_VAL_BOOLEAN(true);
+
+  gab_push(vm, 1, &res);
 }
 
-gab_value gab_lib_accept(gab_engine *gab, gab_vm *vm, u8 argc,
-                         gab_value argv[argc]) {
-  if (argc != 1 || !GAB_VAL_IS_CONTAINER(argv[0])) {
-    return GAB_VAL_NIL();
+void gab_lib_accept(gab_engine *gab, gab_vm *vm, u8 argc,
+                    gab_value argv[argc]) {
+  if (argc != 1) {
+    gab_panic(gab, vm, "Invalid call to gab_lib_accept");
+    return;
   }
 
   i64 socket = (i64)GAB_VAL_TO_CONTAINER(argv[0])->data;
@@ -81,18 +112,28 @@ gab_value gab_lib_accept(gab_engine *gab, gab_vm *vm, u8 argc,
   i64 result = accept(socket, &addr, &addrlen);
 
   if (result < 0) {
-    return GAB_VAL_NIL();
+    gab_value res = GAB_SEND("err", GAB_STRING("Could not accept"), 0, NULL);
+
+    gab_push(vm, 1, &res);
+
+    gab_val_dref(vm, res);
+
+    return;
   }
 
-  return GAB_CONTAINER(GAB_STRING("socket"), gab_container_socket_cb,
-                       (void *)result);
+  gab_value res = GAB_CONTAINER(GAB_STRING("socket"), gab_container_socket_cb,
+                                (void *)result);
+
+  gab_push(vm, 1, &res);
+
+  gab_val_dref(vm, res);
 }
 
-gab_value gab_lib_connect(gab_engine *gab, gab_vm *vm, u8 argc,
-                          gab_value argv[argc]) {
-  if (argc != 3 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
-      !GAB_VAL_TO_NUMBER(argv[2]) || !GAB_VAL_IS_STRING(argv[1])) {
-    return GAB_VAL_NIL();
+void gab_lib_connect(gab_engine *gab, gab_vm *vm, u8 argc,
+                     gab_value argv[argc]) {
+  if (argc != 3 || !GAB_VAL_TO_NUMBER(argv[2]) || !GAB_VAL_IS_STRING(argv[1])) {
+    gab_panic(gab, vm, "Invalid call to gab_lib_connect");
+    return;
   }
 
   i64 socket = (i64)GAB_VAL_TO_CONTAINER(argv[0])->data;
@@ -104,22 +145,37 @@ gab_value gab_lib_connect(gab_engine *gab, gab_vm *vm, u8 argc,
   struct sockaddr_in addr = {.sin_family = AF_INET, .sin_port = port};
 
   if (inet_pton(AF_INET, (char *)ip->data, &addr.sin_addr) <= 0) {
-    return GAB_VAL_NIL();
+    gab_value res = GAB_SEND("err", GAB_STRING("Could not convert"), 0, NULL);
+
+    gab_push(vm, 1, &res);
+
+    gab_val_dref(vm, res);
+
+    return;
   }
 
   i32 result = connect(socket, (struct sockaddr *)&addr, sizeof(addr));
 
   if (result < 0) {
-    return GAB_VAL_NIL();
+    gab_value res = GAB_SEND("err", GAB_STRING("Could not connect"), 0, NULL);
+
+    gab_push(vm, 1, &res);
+
+    gab_val_dref(vm, res);
+
+    return;
   }
 
-  return GAB_VAL_BOOLEAN(true);
+  gab_value res = GAB_VAL_BOOLEAN(true);
+
+  gab_push(vm, 1, &res);
 }
 
-gab_value gab_lib_receive(gab_engine *gab, gab_vm *vm, u8 argc,
-                          gab_value argv[argc]) {
-  if (argc != 1 || !GAB_VAL_IS_CONTAINER(argv[0])) {
-    return GAB_VAL_NIL();
+void gab_lib_receive(gab_engine *gab, gab_vm *vm, u8 argc,
+                     gab_value argv[argc]) {
+  if (argc != 1) {
+    gab_panic(gab, vm, "Invalid call to gab_lib_receive");
+    return;
   }
 
   i8 buffer[1024] = {0};
@@ -129,19 +185,26 @@ gab_value gab_lib_receive(gab_engine *gab, gab_vm *vm, u8 argc,
   i32 result = recv(socket, buffer, 1024, 0);
 
   if (result < 0) {
-    return GAB_VAL_NIL();
+    gab_value res = GAB_SEND("err", GAB_STRING("Could not receive"), 0, NULL);
+
+    gab_push(vm, 1, &res);
+
+    gab_val_dref(vm, res);
+
+    return;
   }
 
   s_i8 msg = {.data = buffer, .len = result};
 
-  return GAB_VAL_OBJ(gab_obj_string_create(gab, msg));
+  gab_value res = GAB_VAL_OBJ(gab_obj_string_create(gab, msg));
+
+  gab_push(vm, 1, &res);
 }
 
-gab_value gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc,
-                       gab_value argv[argc]) {
-  if (argc != 2 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
-      !GAB_VAL_IS_STRING(argv[1])) {
-    return GAB_VAL_NIL();
+void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+  if (argc != 2 || !GAB_VAL_IS_STRING(argv[1])) {
+    gab_panic(gab, vm, "Invalid call to gab_lib_receive");
+    return;
   }
 
   i64 socket = (i64)GAB_VAL_TO_CONTAINER(argv[0])->data;
@@ -151,10 +214,18 @@ gab_value gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc,
   i32 result = send(socket, msg->data, msg->len, 0);
 
   if (result < 0) {
-    return GAB_VAL_NIL();
+    gab_value res = GAB_SEND("err", GAB_STRING("Could not send"), 0, NULL);
+
+    gab_push(vm, 1, &res);
+
+    gab_val_dref(vm, res);
+
+    return;
   }
 
-  return GAB_VAL_BOOLEAN(true);
+  gab_value res = GAB_VAL_BOOLEAN(true);
+
+  gab_push(vm, 1, &res);
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
@@ -169,13 +240,8 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value container_type = GAB_STRING("Socket");
 
   gab_value types[] = {
-      socket,
-      container_type,
-      container_type,
-      container_type,
-      container_type,
-      container_type,
-      container_type,
+      socket,         container_type, container_type, container_type,
+      container_type, container_type, container_type,
   };
 
   gab_value values[] = {

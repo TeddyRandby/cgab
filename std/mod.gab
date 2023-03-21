@@ -1,5 +1,6 @@
 require('pry')
 require('dis')
+require('term')
 
 require('Monad')
 require('Map')

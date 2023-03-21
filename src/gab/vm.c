@@ -268,6 +268,18 @@ static inline boolean call_block_var(gab_engine *gab, gab_vm *vm,
   return true;
 }
 
+i32 gab_vm_push(gab_vm *vm, u8 argc, gab_value *argv) {
+  if (!has_callspace(vm, argc)) {
+    return -1;
+  }
+
+  for (u8 n = 0; n < argc; n++) {
+    *vm->sp++ = argv[n];
+  }
+
+  return argc;
+}
+
 static inline boolean call_block(gab_vm *vm, gab_obj_block *c, u8 have,
                                  u8 want) {
   if (!has_callspace(vm, c->p->nslots - c->p->narguments - 1)) {
@@ -295,12 +307,17 @@ static inline boolean call_block(gab_vm *vm, gab_obj_block *c, u8 have,
 
 static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_obj_builtin *b,
                                 u8 arity, u8 want, boolean is_message) {
+  gab_value *to = vm->sp - arity - 1; // Is this -1 correct?
+
+  gab_value *before = vm->sp;
+
   // Only pass in the extra "self" argument if this is a message.
-  gab_value result =
-      (*b->function)(gab, vm, arity + is_message, vm->sp - arity - is_message);
+  (*b->function)(gab, vm, arity + is_message, vm->sp - arity - is_message);
+
+  u8 have = vm->sp - before;
 
   // There is always an extra to trim bc of the receiver or callee.
-  vm->sp = trim_return(&result, vm->sp - arity - 1, 1, want);
+  vm->sp = trim_return(vm->sp - have, to, have, want);
 }
 
 gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,

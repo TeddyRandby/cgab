@@ -58,7 +58,7 @@ static f64 random_float() {
   return result;
 }
 
-gab_value gab_lib_between(gab_engine *gab, gab_vm *vm, u8 argc,
+void gab_lib_between(gab_engine *gab, gab_vm *vm, u8 argc,
                           gab_value argv[argc]) {
 
   f64 min = 0, max = 1;
@@ -70,6 +70,8 @@ gab_value gab_lib_between(gab_engine *gab, gab_vm *vm, u8 argc,
   case 2: {
     if (!GAB_VAL_IS_NUMBER(argv[1])) {
       gab_panic(gab, vm, "Invalid call to gab_lib_random");
+
+      return;
     }
 
     max = GAB_VAL_TO_NUMBER(argv[1]);
@@ -80,6 +82,8 @@ gab_value gab_lib_between(gab_engine *gab, gab_vm *vm, u8 argc,
   case 3: {
     if (!GAB_VAL_IS_NUMBER(argv[1]) || !GAB_VAL_IS_NUMBER(argv[2])) {
       gab_panic(gab, vm, "Invalid call to gab_lib_random");
+
+      return;
     }
 
     min = GAB_VAL_TO_NUMBER(argv[1]);
@@ -93,26 +97,34 @@ gab_value gab_lib_between(gab_engine *gab, gab_vm *vm, u8 argc,
 
   f64 num = min + (random_float() * max);
 
-  return GAB_VAL_NUMBER(num);
+  gab_value res = GAB_VAL_NUMBER(num);
+
+  gab_push(vm, 1, &res);
 }
 
-gab_value gab_lib_floor(gab_engine *gab, gab_vm *vm, u8 argc,
+void gab_lib_floor(gab_engine *gab, gab_vm *vm, u8 argc,
                         gab_value argv[argc]) {
 
   if (argc != 1 || !GAB_VAL_IS_NUMBER(argv[0])) {
     gab_panic(gab, vm, "Invalid call to gab_lib_floor");
+
+    return;
   }
 
   f64 float_num = GAB_VAL_TO_NUMBER(argv[0]);
   i64 int_num = GAB_VAL_TO_NUMBER(argv[0]);
 
-  return GAB_VAL_NUMBER(int_num + (float_num < 0));
+  gab_value res = GAB_VAL_NUMBER(int_num + (float_num < 0));
+
+  gab_push(vm, 1, &res);
 }
 
-gab_value gab_lib_from(gab_engine *gab, gab_vm *vm, u8 argc,
+void gab_lib_from(gab_engine *gab, gab_vm *vm, u8 argc,
                        gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_STRING(argv[1])) {
     gab_panic(gab, vm, "Invalid call to gab_lib_from");
+
+    return;
   }
 
   gab_obj_string *str = GAB_VAL_TO_STRING(argv[1]);
@@ -123,7 +135,9 @@ gab_value gab_lib_from(gab_engine *gab, gab_vm *vm, u8 argc,
 
   cstr[str->len] = '\0';
 
-  return GAB_VAL_NUMBER(strtod(cstr, NULL));
+  gab_value res = GAB_VAL_NUMBER(strtod(cstr, NULL));
+
+  gab_push(vm, 1, &res);
 };
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {

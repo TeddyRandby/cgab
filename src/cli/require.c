@@ -108,8 +108,8 @@ a_i8 *match_resource(resource *res, s_i8 name) {
   return NULL;
 }
 
-gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
-                          gab_value argv[argc]) {
+void gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
+                     gab_value argv[argc]) {
 
   if (!GAB_VAL_IS_STRING(argv[0]) || argc != 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_require");
@@ -121,7 +121,8 @@ gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
 
   gab_value cached = gab_imports_exists(gab, name);
   if (!GAB_VAL_IS_UNDEFINED(cached)) {
-    return cached;
+    gab_push(vm, 1, &cached);
+    return;
   }
 
   for (i32 i = 0; i < sizeof(resources) / sizeof(resource); i++) {
@@ -131,7 +132,8 @@ gab_value gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
     if (path) {
       gab_value result = res->handler(gab, vm, path, name);
       a_i8_destroy(path);
-      return result;
+      gab_push(vm, 1, &result);
+      return;
     }
 
     a_i8_destroy(path);

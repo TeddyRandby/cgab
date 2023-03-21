@@ -1,0 +1,12 @@
+require('std')
+def Terminal = require('term')
+
+def T = Terminal:new { noecho }
+
+T:print("Hello World")
+
+T:refresh
+
+T:key
+
+T:key

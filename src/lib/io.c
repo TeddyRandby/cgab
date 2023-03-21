@@ -3,10 +3,11 @@
 
 void file_cb(void *data) { fclose(data); }
 
-gab_value gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc,
-                       gab_value argv[argc]) {
+void gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (argc != 3 || !GAB_VAL_IS_STRING(argv[1]) || !GAB_VAL_IS_STRING(argv[2])) {
-    return gab_panic(gab, vm, "Invalid call to gab_lib_open");
+    gab_panic(gab, vm, "Invalid call to gab_lib_open");
+
+    return;
   }
 
   gab_obj_string *path_obj = GAB_VAL_TO_STRING(argv[1]);
@@ -21,20 +22,27 @@ gab_value gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc,
 
   FILE *file = fopen(path, perms);
   if (file == NULL) {
-    return GAB_SEND("err", GAB_STRING("Unable to open file"), 0, NULL);
+    gab_value err = GAB_SEND("err", GAB_STRING("Unable to open file"), 0, NULL);
+
+    gab_push(vm, 1, &err);
+
+    gab_val_dref(vm, err);
+
+    return;
   }
 
   gab_value container = GAB_CONTAINER(GAB_STRING("File"), file_cb, file);
 
-  gab_val_dref(vm, container);
+  gab_push(vm, 1, &container);
 
-  return container;
+  gab_val_dref(vm, container);
 }
 
-gab_value gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc,
-                       gab_value argv[argc]) {
+void gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (argc != 1 || !GAB_VAL_TO_CONTAINER(argv[0])) {
-    return gab_panic(gab, vm, "Invalid call to gab_lib_read");
+    gab_panic(gab, vm, "Invalid call to gab_lib_read");
+
+    return;
   }
 
   gab_obj_container *file_obj = GAB_VAL_TO_CONTAINER(argv[0]);
@@ -50,17 +58,26 @@ gab_value gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc,
   size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
 
   if (bytesRead < fileSize) {
-    return GAB_SEND("err", GAB_STRING("Could not read file"), 0, NULL);
+    gab_value err = GAB_SEND("err", GAB_STRING("Could not read file"), 0, NULL);
+
+    gab_push(vm, 1, &err);
+
+    gab_val_dref(vm, err);
+
+    return;
   }
 
   gab_obj_string *result =
       gab_obj_string_create(gab, s_i8_create((i8 *)buffer + 0, bytesRead));
 
-  return GAB_VAL_OBJ(result);
+  gab_value res = GAB_VAL_OBJ(result);
+
+  gab_push(vm, 1, &res);
+
+  gab_val_dref(vm, res);
 }
 
-gab_value gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc,
-                        gab_value argv[argc]) {
+void gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
       !GAB_VAL_IS_STRING(argv[1])) {
     gab_panic(gab, vm, "Invalid call to gab_lib_write");
@@ -76,10 +93,14 @@ gab_value gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc,
   i32 result = fputs(data, handle->data);
 
   if (result > 0) {
-    return GAB_VAL_BOOLEAN(true);
-  } else {
-    return GAB_SEND("err", GAB_STRING("Failed to write file"), 0, NULL);
+    return;
   }
+
+  gab_value err = GAB_SEND("err", GAB_STRING("Failed to write file"), 0, NULL);
+
+  gab_push(vm, 1, &err);
+
+  gab_val_dref(vm, err);
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {

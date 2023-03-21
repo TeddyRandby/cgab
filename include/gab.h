@@ -52,6 +52,17 @@ void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
 gab_value gab_scratch(gab_engine* gab, gab_value value);
 
 /**
+ * Push a value(s) onto the vm's stack (ie. as return values from a builtin)
+ *
+ * @param vm The vm that will receive the values
+ *
+ * @param argc The number of values
+ *
+ * @param argv The array of values
+ */
+i32 gab_push(gab_vm* vm, u8 argc, gab_value argv[argc]);
+
+/**
  * Compile a source string into a Gab Module.
  *
  * @param gab The engine
