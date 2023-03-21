@@ -8,5 +8,6 @@ require('Range')
 require('Number')
 require('Record')
 require('String')
+require('Time')
 
 nil

@@ -1,15 +1,13 @@
 require('std')
 
-def Array = require('Array')
-
-def impl_one()
-    for a in 5000:to
+def impl_one = do
+    for a in 5000:to:each
         a * a * a / a
     end
 end
 
-def impl_two()
-    for a in 50000:to
+def impl_two = do
+    for a in 50000:to:each
         a * a * a / a
     end
 end

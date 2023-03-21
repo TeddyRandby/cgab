@@ -32,13 +32,14 @@ let a = cond and 1 or 2
 ```
 ### Shapes
 Although Gab is dynamically typed, types are treated as first class.
+Many dynamic languages implement their objects using hidden classes (V8), or shapes (cruby). Gab makes this a first class language feature!
 ```
 def Point {
     x
     y
 }
 ```
-Objects in Gab are structurally typed. This means that two objects are the same type iff they share the same set of keys. This principle is used to define 'method' for our types.
+Objects in Gab are structurally typed. This means that two objects are the same type iff they share the same set of keys. This principle is used to define 'methods' for our types.
 ```
 let pos = { x=10 y=20 }
 
@@ -51,10 +52,12 @@ A message is defined as follows:
 def Dog { ... }
 def Person { ... }
 
+# Define a message 'speak' that can be sent to the receiver <Dog>
 def speak[Dog]
     print('woof!')
 end
 
+# Define a message 'speak' that can be sent to the receiver <Person>
 def speak[Person]
     print('hello!')
 end

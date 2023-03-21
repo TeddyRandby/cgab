@@ -1,41 +1,43 @@
+require('time')
+
 def bench = do (cb, runs)
-    let times = List:new
+  let times = List:new
 
-    for _ in runs:to
-        def before = :clock
+  for _ in runs:to:each
+    def before = :clock
 
-        cb()
+    cb()
 
-        times:push(:clock - before)
-    end
+    times:push(:clock - before)
+  end
 
-    let sum = times:fold(0, do (a, c) a + c end)
+  let sum = times:fold(0) do (a, c) a + c end
 
-    sum / runs
+  sum / runs
 end
 
 def headToHead = do (a, b, runs)
-    let a_avg = bench(a, runs)
-    let b_avg = bench(b, runs)
+  let a_avg = bench(a, runs)
+  let b_avg = bench(b, runs)
 
-    a_avg < b_avg then
-        print(a, 'ran {b_avg / a_avg} times faster than', b)
+  a_avg < b_avg then
+    print(a, 'ran {b_avg / a_avg} times faster than', b)
 
-        return a_avg
-    end else
-        print(b, 'ran {a_avg / b_avg} times faster than', a)
+    return a_avg
+  end else
+    print(b, 'ran {a_avg / b_avg} times faster than', a)
 
-        return b_avg
-    end
+    return b_avg
+  end
 end
 
 
 def timeit[Block](opts)
-    def avg = ?opts match
-        ?{ runs against } => headToHead(self, opts.against, opts.runs)  end
-        ?{ runs }         => bench(self, opts.runs)                     end
-        Number            => bench(self, opts)                          end
-        else              => panic('Invalid call to Block:timeit')      end
+  def avg = ?opts match
+    ?{ runs against } => headToHead(self, opts.against, opts.runs)  end
+    ?{ runs }         => bench(self, opts.runs)                     end
+    Number            => bench(self, opts)                          end
+    else              => panic('Invalid call to Block:timeit')      end
 
-    print(self, 'ran in avg of {avg}s')
+  print(self, 'ran in avg of {avg}s')
 end
