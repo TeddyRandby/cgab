@@ -95,7 +95,7 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
         a_i8_destroy(curr_under);
 
         fprintf(stderr,
-                ANSI_COLOR_YELLOW "%s.\n  " ANSI_COLOR_RESET ANSI_COLOR_GREEN,
+                ANSI_COLOR_YELLOW "%s.\n\n\t" ANSI_COLOR_RESET ANSI_COLOR_GREEN,
                 gab_status_names[e]);
 
         va_list args;
@@ -343,8 +343,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
   }                                                                            \
   if (!GAB_VAL_IS_NUMBER(PEEK())) {                                            \
     STORE_FRAME();                                                             \
-    return vm_error(ENGINE(), VM(), flags, GAB_NOT_NUMERIC, "Found %V",        \
-                    PEEK());                                                   \
+    return vm_error(ENGINE(), VM(), flags, GAB_NOT_NUMERIC,                    \
+                    "Tried to add %V to %V", PEEK(), PEEK2());                 \
   }                                                                            \
   operation_type b = GAB_VAL_TO_NUMBER(POP());                                 \
   operation_type a = GAB_VAL_TO_NUMBER(POP());                                 \

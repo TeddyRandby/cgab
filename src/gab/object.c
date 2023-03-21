@@ -42,28 +42,28 @@ gab_obj *gab_obj_create(gab_engine *gab, gab_obj *self, gab_kind k) {
 
 i32 shape_dump_properties(FILE *stream, gab_obj_shape *shape) {
   if (shape->len == 0)
-    return fprintf(stream, ">");
+    return 0;
 
   i32 bytes = 0;
 
   for (u64 i = 0; i < shape->len - 1; i++) {
-    bytes += fprintf(stream, "%V, ", shape->data[i]);
+    bytes += fprintf(stream, "%V ", shape->data[i]);
   }
 
-  return bytes + fprintf(stream, "%V>", shape->data[shape->len - 1]);
+  return bytes + fprintf(stream, "%V", shape->data[shape->len - 1]);
 }
 
 i32 rec_dump_properties(FILE *stream, gab_obj_record *rec) {
   if (rec->len == 0)
-    return fprintf(stream, ">");
+    return 0;
 
   i32 bytes = 0;
 
   for (u64 i = 0; i < rec->len - 1; i++) {
-    bytes += fprintf(stream, "%V, ", rec->data[i]);
+    bytes += fprintf(stream, "%V ", rec->data[i]);
   }
 
-  return bytes += fprintf(stream, "%V>", rec->data[rec->len - 1]);
+  return bytes += fprintf(stream, "%V", rec->data[rec->len - 1]);
 }
 
 i32 gab_obj_dump(FILE *stream, gab_value value) {
@@ -82,11 +82,13 @@ i32 gab_obj_dump(FILE *stream, gab_value value) {
   }
   case GAB_KIND_SHAPE: {
     gab_obj_shape *shape = GAB_VAL_TO_SHAPE(value);
-    return fprintf(stream, "<shape:") + shape_dump_properties(stream, shape);
+    return fprintf(stream, "{ ") + shape_dump_properties(stream, shape) +
+           fprintf(stream, " }");
   }
   case GAB_KIND_RECORD: {
     gab_obj_record *rec = GAB_VAL_TO_RECORD(value);
-    return fprintf(stream, "<record:") + rec_dump_properties(stream, rec);
+    return fprintf(stream, "{ ") + rec_dump_properties(stream, rec) +
+           fprintf(stream, " }");
   }
   case GAB_KIND_LIST: {
     gab_obj_list *list = GAB_VAL_TO_LIST(value);
