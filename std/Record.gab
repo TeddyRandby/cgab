@@ -1,3 +1,5 @@
+require('record')
+
 impl Any
     def first self:at(0) end
 

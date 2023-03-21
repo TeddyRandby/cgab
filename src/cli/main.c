@@ -11,33 +11,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-gab_value make_panic(gab_engine *gab) {
-  return gab_scratch(gab, GAB_BUILTIN(panic));
-}
-
-gab_value make_print(gab_engine *gab) {
-  return gab_scratch(gab, GAB_BUILTIN(print));
-}
-
-gab_value make_require(gab_engine *gab) {
-  return gab_scratch(gab, GAB_BUILTIN(require));
-}
-
-void gab_repl() {
-
-  gab_engine *gab = gab_create();
-
+void gab_setup_builtins(gab_engine* gab) {
   gab_value arg_names[] = {
       GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
       GAB_STRING("String"), GAB_STRING("Number"),  GAB_STRING("Boolean"),
       GAB_STRING("Block"),  GAB_STRING("Message"), GAB_STRING("Suspense"),
       GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"),
-      GAB_STRING("Any"),    GAB_STRING("it")};
+      GAB_STRING("Any")};
 
   gab_value args[] = {
-      make_print(gab),
-      make_require(gab),
-      make_panic(gab),
+      gab_scratch(gab, GAB_BUILTIN(print)),
+      gab_scratch(gab, GAB_BUILTIN(require)),
+      gab_scratch(gab, GAB_BUILTIN(panic)),
       gab_type(gab, GAB_KIND_STRING),
       gab_type(gab, GAB_KIND_NUMBER),
       gab_type(gab, GAB_KIND_BOOLEAN),
@@ -48,12 +33,19 @@ void gab_repl() {
       gab_type(gab, GAB_KIND_LIST),
       gab_type(gab, GAB_KIND_MAP),
       gab_type(gab, GAB_KIND_UNDEFINED),
-      GAB_VAL_NIL(),
   };
 
   static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
 
   gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
+
+};
+
+void gab_repl() {
+
+  gab_engine *gab = gab_create();
+
+  gab_setup_builtins(gab);
 
   for (;;) {
 
@@ -86,10 +78,6 @@ void gab_repl() {
     }
 
     gab_scratch(gab, result);
-
-    args[LEN_CARRAY(args) - 1] = result;
-
-    gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
   }
 
   gab_destroy(gab);
@@ -99,32 +87,7 @@ void gab_run_file(const char *path) {
 
   gab_engine *gab = gab_create();
 
-  gab_value arg_names[] = {
-      GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
-      GAB_STRING("String"), GAB_STRING("Number"),  GAB_STRING("Boolean"),
-      GAB_STRING("Block"),  GAB_STRING("Message"), GAB_STRING("Suspense"),
-      GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"),
-      GAB_STRING("Any")};
-
-  gab_value args[] = {
-      make_print(gab),
-      make_require(gab),
-      make_panic(gab),
-      gab_type(gab, GAB_KIND_STRING),
-      gab_type(gab, GAB_KIND_NUMBER),
-      gab_type(gab, GAB_KIND_BOOLEAN),
-      gab_type(gab, GAB_KIND_BLOCK),
-      gab_type(gab, GAB_KIND_MESSAGE),
-      gab_type(gab, GAB_KIND_SUSPENSE),
-      gab_type(gab, GAB_KIND_RECORD),
-      gab_type(gab, GAB_KIND_LIST),
-      gab_type(gab, GAB_KIND_MAP),
-      gab_type(gab, GAB_KIND_UNDEFINED),
-  };
-
-  static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
-
-  gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
+  gab_setup_builtins(gab);
 
   a_i8 *src = os_read_file(path);
 

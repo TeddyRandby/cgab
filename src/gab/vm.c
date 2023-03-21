@@ -1527,18 +1527,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       gab_obj_shape *shape;
       u8 len;
 
-      CASE_CODE(RECORD_DEF) : {
-        gab_value name = READ_CONSTANT;
-
-        len = READ_BYTE;
-
-        shape = gab_obj_shape_create(ENGINE(), VM(), len, 2, TOP() - len * 2);
-
-        shape->name = name;
-
-        goto complete_record;
-      }
-
       CASE_CODE(RECORD) : {
         len = READ_BYTE;
 
@@ -1559,24 +1547,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       NEXT();
     }
-    }
-
-    CASE_CODE(SPREAD) : {
-      gab_value index = POP();
-
-      if (GAB_VAL_IS_RECORD(index)) {
-        gab_obj_record *r = GAB_VAL_TO_RECORD(index);
-
-        for (u64 i = 0; i < r->len; i++)
-          PUSH(r->data[i]);
-
-        VAR() = r->len;
-
-        NEXT();
-      }
-
-      return vm_error(ENGINE(), VM(), flags, GAB_NOT_RECORD,
-                      "Tried to spread %V", index);
     }
 
     CASE_CODE(TUPLE) : {

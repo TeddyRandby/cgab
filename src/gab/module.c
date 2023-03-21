@@ -572,8 +572,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     }
     return offset;
   }
-  case OP_RECORD_DEF:
-    offset += 2;
   case OP_RECORD: {
     return dumpDictInstruction(self, op, offset);
   }

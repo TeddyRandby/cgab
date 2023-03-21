@@ -328,7 +328,12 @@ static i32 resolve_upvalue(gab_engine *gab, gab_bc *bc, gab_value name,
                 GAB_VARIABLE_FLAG_CAPTURED);
 
     if (flags & GAB_VARIABLE_FLAG_MUTABLE) {
-      compiler_error(bc, GAB_CAPTURED_MUTABLE, "Tried to capture %V", name);
+      compiler_error(bc, GAB_CAPTURED_MUTABLE,
+                     "To make '%V' immutable, change the " ANSI_COLOR_MAGENTA
+                     "%s" ANSI_COLOR_GREEN " to " ANSI_COLOR_MAGENTA
+                     "%s" ANSI_COLOR_RESET ".",
+                     name, gab_token_names[TOKEN_LET],
+                     gab_token_names[TOKEN_DEF]);
       return COMP_ERR;
     }
 
@@ -618,6 +623,8 @@ i32 compile_expressions_body(gab_engine *gab, gab_bc *bc) {
 i32 compile_expressions(gab_engine *gab, gab_bc *bc) {
   down_scope(bc);
 
+  u64 line = bc->line;
+
   if (compile_expressions_body(gab, bc) < 0)
     return COMP_ERR;
 
@@ -625,7 +632,8 @@ i32 compile_expressions(gab_engine *gab, gab_bc *bc) {
 
   if (match_token(bc, TOKEN_EOF)) {
     eat_token(bc);
-    compiler_error(bc, GAB_MISSING_END, "");
+    compiler_error(bc, GAB_MISSING_END,
+                   "Make sure the block at line %lu is closed.", line);
     return COMP_ERR;
   }
 
@@ -673,7 +681,10 @@ i32 compile_message_spec(gab_engine *gab, gab_bc *bc) {
     return COMP_OK;
   }
 
-  compiler_error(bc, GAB_MISSING_RECEIVER, "");
+  compiler_error(bc, GAB_MISSING_RECEIVER,
+                 "Try either:\n\n\tSurrounding the definition with an "
+                 "impl\n\t\timpl <receiver> ... end\n\n\tSpecifying a "
+                 "receiver\n\t\tmsg[<receiver>] ... end");
   return COMP_ERR;
 }
 
@@ -1110,14 +1121,7 @@ i32 compile_rec_internals(gab_engine *gab, gab_bc *bc) {
   return size;
 }
 
-i32 compile_record(gab_engine *gab, gab_bc *bc, gab_value name) {
-  boolean is_def = !GAB_VAL_IS_NIL(name);
-  i32 name_const;
-
-  if (is_def) {
-    name_const = add_constant(mod(bc), name);
-  }
-
+i32 compile_record(gab_engine *gab, gab_bc *bc) {
   i32 size = compile_rec_internals(gab, bc);
 
   if (size < 0)
@@ -1125,10 +1129,7 @@ i32 compile_record(gab_engine *gab, gab_bc *bc, gab_value name) {
 
   pop_slot(bc, size * 2);
 
-  push_op(bc, is_def ? OP_RECORD_DEF : OP_RECORD);
-
-  if (is_def)
-    push_short(bc, name_const);
+  push_op(bc, OP_RECORD);
 
   push_byte(bc, size);
 
@@ -1162,7 +1163,7 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, s_i8 name) {
     u8 local = add_local(gab, bc, val_name, 0);
     initialize_local(bc, local);
 
-    if (compile_record(gab, bc, val_name) < 0)
+    if (compile_record(gab, bc) < 0)
       return COMP_ERR;
 
     push_op(bc, OP_TYPE);
@@ -1455,10 +1456,6 @@ i32 compile_exp_una(gab_engine *gab, gab_bc *bc, boolean assignable) {
     push_op(bc, OP_TYPE);
     return COMP_OK;
 
-  case TOKEN_DOT_DOT:
-    push_op(bc, OP_SPREAD);
-    return COMP_OK;
-
   default:
     compiler_error(bc, GAB_UNEXPECTED_TOKEN,
                    "While compiling unary expression");
@@ -1725,7 +1722,7 @@ i32 compile_exp_arr(gab_engine *gab, gab_bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_rec(gab_engine *gab, gab_bc *bc, boolean assignable) {
-  return compile_record(gab, bc, GAB_VAL_NIL());
+  return compile_record(gab, bc);
 }
 
 i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, boolean assignable) {
@@ -1784,8 +1781,8 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, boolean assignable) {
   }
 
   case COMP_ID_NOT_FOUND: {
-    compiler_error(bc, GAB_MISSING_IDENTIFIER, "Could not find '%.*s", name.len,
-                   name.data);
+    compiler_error(bc, GAB_MISSING_IDENTIFIER,
+                   "Double check the spelling of '%.*s'.", name.len, name.data);
     return COMP_ERR;
   }
 
@@ -1802,16 +1799,14 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, boolean assignable) {
       return COMP_ERR;
     }
 
-    if (!is_local_var) {
-      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                     "Cannot assign to captured values");
-      return COMP_ERR;
-    }
-
     gab_bc_frame *frame = peek_frame(bc, 0);
     if (!(frame->locals_flag[var] & GAB_VARIABLE_FLAG_MUTABLE)) {
       compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                     "Variable is not mutable");
+                     "To make '%.*s' mutable, change " ANSI_COLOR_MAGENTA
+                     "%s" ANSI_COLOR_GREEN " to " ANSI_COLOR_MAGENTA
+                     "%s" ANSI_COLOR_RESET ".",
+                     name.len, name.data, gab_token_names[TOKEN_DEF],
+                     gab_token_names[TOKEN_LET]);
       return COMP_ERR;
     }
 
@@ -1931,7 +1926,7 @@ i32 compile_arguments(gab_engine *gab, gab_bc *bc, boolean *vse_out, u8 flags) {
 
   if (flags & FLAG_HAS_BRACK || match_and_eat_token(bc, TOKEN_LBRACK)) {
     // record argument
-    if (compile_record(gab, bc, GAB_VAL_NIL()) < 0)
+    if (compile_record(gab, bc) < 0)
       return COMP_ERR;
 
     result += 1 + *vse_out;
@@ -2048,7 +2043,7 @@ i32 compile_exp_amp(gab_engine *gab, gab_bc *bc, boolean assignable) {
     expect_token(bc, TOKEN_RBRACE);
     break;
   default:
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected a message literal");
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected a message literal.");
     return COMP_ERR;
   }
 
@@ -2173,7 +2168,7 @@ i32 compile_exp_prec(gab_engine *gab, gab_bc *bc, gab_precedence prec) {
   gab_compile_rule rule = get_rule(bc->previous_token);
 
   if (rule.prefix == NULL) {
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected an expression");
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected an expression.");
     return COMP_ERR;
   }
 
@@ -2381,8 +2376,7 @@ i32 compile_exp_rtn(gab_engine *gab, gab_bc *bc, boolean assignable) {
     return COMP_ERR;
 
   if (result > RET_MAX) {
-    compiler_error(bc, GAB_TOO_MANY_RETURN_VALUES,
-                   "Return expressions can't return more than 128 values");
+    compiler_error(bc, GAB_TOO_MANY_RETURN_VALUES, "");
     return COMP_ERR;
   }
 
@@ -2434,7 +2428,7 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(dot, PROPERTY, true), // PROPERTY
     PREFIX_INFIX(emp, snd, SEND, true), // MESSAGE
     INFIX(dot, PROPERTY, true),              // DOT
-    PREFIX(una),                  // DOT_DOT
+    NONE(),                  // DOT_DOT
     NONE(),                            // EQUAL
     INFIX(bin, EQUALITY, false),              // EQUALEQUAL
     PREFIX(una),                            // QUESTION

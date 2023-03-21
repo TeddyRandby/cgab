@@ -1,5 +1,6 @@
-require('std')
-
-def break = do require('hi') end
-
-{ hi: 1 }
+do
+    1
+    2
+    3
+    4
+    4

@@ -289,8 +289,6 @@ typedef struct gab_obj_shape gab_obj_shape;
 struct gab_obj_shape {
   gab_obj header;
 
-  gab_value name;
-
   u64 hash;
 
   u64 len;

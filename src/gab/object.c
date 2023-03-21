@@ -40,60 +40,86 @@ gab_obj *gab_obj_create(gab_engine *gab, gab_obj *self, gab_kind k) {
   return self;
 }
 
+i32 shape_dump_properties(FILE *stream, gab_obj_shape *shape) {
+  if (shape->len == 0)
+    return fprintf(stream, ">");
+
+  i32 bytes = 0;
+
+  for (u64 i = 0; i < shape->len - 1; i++) {
+    bytes += fprintf(stream, "%V, ", shape->data[i]);
+  }
+
+  return bytes + fprintf(stream, "%V>", shape->data[shape->len - 1]);
+}
+
+i32 rec_dump_properties(FILE *stream, gab_obj_record *rec) {
+  if (rec->len == 0)
+    return fprintf(stream, ">");
+
+  i32 bytes = 0;
+
+  for (u64 i = 0; i < rec->len - 1; i++) {
+    bytes += fprintf(stream, "%V, ", rec->data[i]);
+  }
+
+  return bytes += fprintf(stream, "%V>", rec->data[rec->len - 1]);
+}
+
 i32 gab_obj_dump(FILE *stream, gab_value value) {
   switch (GAB_VAL_TO_OBJ(value)->kind) {
-  case GAB_KIND_SYMBOL: {
-    gab_obj_symbol *obj = GAB_VAL_TO_SYMBOL(value);
-    return fprintf(stream, "[symbol:%V]", obj->name);
-  }
   case GAB_KIND_STRING: {
-    gab_obj_string *obj = GAB_VAL_TO_STRING(value);
-    return fprintf(stream, "%.*s", (i32)obj->len, (const char *)obj->data);
+    gab_obj_string *str = GAB_VAL_TO_STRING(value);
+    return fprintf(stream, "%.*s", (i32)str->len, (const char *)str->data);
+  }
+  case GAB_KIND_SYMBOL: {
+    gab_obj_symbol *sym = GAB_VAL_TO_SYMBOL(value);
+    return fprintf(stream, "$%V", sym->name);
   }
   case GAB_KIND_MESSAGE: {
-    gab_obj_message *obj = GAB_VAL_TO_MESSAGE(value);
-    return fprintf(stream, "[message:%V]", obj->name);
+    gab_obj_message *msg = GAB_VAL_TO_MESSAGE(value);
+    return fprintf(stream, "<message %V>", msg->name);
   }
   case GAB_KIND_SHAPE: {
     gab_obj_shape *shape = GAB_VAL_TO_SHAPE(value);
-    return fprintf(stream, "[shape:%V]", shape->name);
+    return fprintf(stream, "<shape:") + shape_dump_properties(stream, shape);
   }
   case GAB_KIND_RECORD: {
-    gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
-    return fprintf(stream, "[record:%V]", obj->shape->name);
+    gab_obj_record *rec = GAB_VAL_TO_RECORD(value);
+    return fprintf(stream, "<record:") + rec_dump_properties(stream, rec);
   }
   case GAB_KIND_LIST: {
-    gab_obj_list *obj = GAB_VAL_TO_LIST(value);
-    return fprintf(stream, "[list:%p]", obj);
+    gab_obj_list *list = GAB_VAL_TO_LIST(value);
+    return fprintf(stream, "[list:%p]", list);
   }
   case GAB_KIND_MAP: {
-    gab_obj_map *obj = GAB_VAL_TO_MAP(value);
-    return fprintf(stream, "[map:%p]", obj);
+    gab_obj_map *map = GAB_VAL_TO_MAP(value);
+    return fprintf(stream, "[map:%p]", map);
   }
   case GAB_KIND_BUILTIN: {
-    gab_obj_builtin *obj = GAB_VAL_TO_BUILTIN(value);
-    return fprintf(stream, "[builtin:%V]", obj->name);
+    gab_obj_builtin *blt = GAB_VAL_TO_BUILTIN(value);
+    return fprintf(stream, "[builtin:%V]", blt->name);
   }
   case GAB_KIND_CONTAINER: {
-    gab_obj_container *obj = GAB_VAL_TO_CONTAINER(value);
-    return fprintf(stream, "[%V:%p]", obj->type, obj->data);
+    gab_obj_container *con = GAB_VAL_TO_CONTAINER(value);
+    return fprintf(stream, "[%V:%p]", con->type, con->data);
   }
   case GAB_KIND_PROTOTYPE: {
-    gab_obj_prototype *obj = GAB_VAL_TO_PROTOTYPE(value);
+    gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(value);
     gab_value name =
-        v_gab_constant_val_at(&obj->mod->constants, obj->mod->name);
+        v_gab_constant_val_at(&proto->mod->constants, proto->mod->name);
     return fprintf(stream, "[prototype:%V]", name);
   }
   case GAB_KIND_BLOCK: {
-    gab_obj_block *obj = GAB_VAL_TO_BLOCK(value);
+    gab_obj_block *blk = GAB_VAL_TO_BLOCK(value);
     gab_value name =
-        v_gab_constant_val_at(&obj->p->mod->constants, obj->p->mod->name);
+        v_gab_constant_val_at(&blk->p->mod->constants, blk->p->mod->name);
     return fprintf(stream, "[block:%V]", name);
   }
   case GAB_KIND_SUSPENSE: {
-    gab_obj_suspense *obj = GAB_VAL_TO_SUSPENSE(value);
+    gab_obj_suspense *sus = GAB_VAL_TO_SUSPENSE(value);
     gab_value name =
-        v_gab_constant_val_at(&obj->c->p->mod->constants, obj->c->p->mod->name);
+        v_gab_constant_val_at(&sus->c->p->mod->constants, sus->c->p->mod->name);
     return fprintf(stream, "[suspense:%V]", name);
   }
   default: {
@@ -208,7 +234,8 @@ void gab_obj_destroy(gab_obj *self) {
   }
   case GAB_KIND_CONTAINER: {
     gab_obj_container *container = (gab_obj_container *)self;
-    container->cb(container->data);
+    if (container->cb)
+      container->cb(container->data);
     return;
   }
   default:
@@ -442,7 +469,6 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 len,
 
   self->hash = hash;
   self->len = len;
-  self->name = GAB_STRING("anonymous");
 
   for (u64 i = 0; i < len; i++) {
     self->data[i] = keys[i * stride];
