@@ -2,7 +2,6 @@
 #define GAB_OBJECT_H
 
 #include "value.h"
-#include <stdint.h>
 
 typedef struct gab_module gab_module;
 typedef struct gab_vm gab_vm;
@@ -365,6 +364,8 @@ boolean gab_obj_record_put(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
                            gab_value key, gab_value value);
 
 gab_value gab_obj_record_at(gab_obj_record *self, gab_value prop);
+
+boolean gab_obj_record_has(gab_obj_record *self, gab_value prop);
 /*
  *------------- OBJ_LIST -------------
  */

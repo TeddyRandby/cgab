@@ -42,6 +42,7 @@ void gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   switch (argc) {
   case 1:
     break;
+
   case 3: {
     if (!GAB_VAL_IS_NUMBER(argv[1]) || !GAB_VAL_IS_NUMBER(argv[2])) {
       gab_panic(gab, vm, "Invalid call to gab_lib_slice");
@@ -49,9 +50,20 @@ void gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     }
 
     u64 a = GAB_VAL_TO_NUMBER(argv[1]);
-    start = CLAMP(a, len);
+    start = MAX(a, 0);
+
+    u64 b = GAB_VAL_TO_NUMBER(argv[2]);
+    end = MIN(b, len);
     break;
   }
+
+  case 2:
+    if (GAB_VAL_IS_NUMBER(argv[1])) {
+      u64 a = GAB_VAL_TO_NUMBER(argv[1]);
+      end = MIN(a, len);
+      break;
+    }
+
   default:
     gab_panic(gab, vm, "Invalid call to gab_lib_slice");
     return;

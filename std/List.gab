@@ -130,6 +130,14 @@ impl List
       false
   end
 
+  def collect!(..args)
+    for ..all in args:splat
+        self:push(all:splat)
+    end
+
+    self
+  end
+
 end
 
 

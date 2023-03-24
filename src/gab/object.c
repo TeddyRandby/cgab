@@ -649,6 +649,10 @@ gab_value gab_obj_record_at(gab_obj_record *self, gab_value prop) {
   return gab_obj_record_get(self, prop_offset);
 }
 
+boolean gab_obj_record_has(gab_obj_record *self, gab_value prop) {
+  return !GAB_VAL_IS_NIL(gab_obj_record_at(self, prop));
+}
+
 gab_obj_container *gab_obj_container_create(gab_engine *gab, gab_value type,
                                             gab_obj_container_cb cb,
                                             void *data) {

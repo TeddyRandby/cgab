@@ -25,4 +25,10 @@ impl Number
         Number  => { from = self to = dest }            end
         else    => panic('Invalid call to Number:to')   end
   end
+
+  def clamp(arg)
+    ?arg match
+        ?{ from to } => self< arg.from and arg.from or self > arg.to and arg.to or self end
+        else         => panic("Invalid call to Number:clamp") end
+  end
 end

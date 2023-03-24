@@ -939,9 +939,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     }
 
     CASE_CODE(ITER) : {
-      u16 dist = READ_SHORT;
       u8 want = READ_BYTE;
       u8 start = READ_BYTE;
+      u16 dist = READ_SHORT;
 
       u8 have = VAR();
 
@@ -950,8 +950,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       if (!GAB_VAL_IS_SUSPENSE(eff)) {
         DROP_N(have - 1);
 
-        // Account for the two bytes we read already
-        ip += dist - 2;
+        ip += dist;
 
         NEXT();
       }

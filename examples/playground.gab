@@ -1,0 +1,14 @@
+require('std')
+
+def list = List:collect!(500:to:each)
+
+for item in list:each
+    print(item)
+end
+
+#
+# I don't like that shapes and symbels are themselves as a type
+#  it is convenient for some things,
+#  but it means you can get a type you aren't expecting in the methods
+#
+

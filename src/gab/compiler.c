@@ -1347,16 +1347,16 @@ i32 compile_exp_is(gab_engine *gab, gab_bc *bc, boolean assignable) {
   u64 line = bc->line;
   s_i8 src = bc->lex.previous_token_src;
 
-  if (compile_exp_prec(gab, bc, PREC_EQUALITY) < 0)
+  if (compile_exp_prec(gab, bc, PREC_EQUALITY + 1) < 0)
     return COMP_ERR;
 
   u16 m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_EQ));
 
-  gab_module_push_send(mod(bc), 1, m, false, op, line, src);
-
   pop_slot(bc, 1);
 
-  return COMP_OK;
+  gab_module_push_send(mod(bc), 1, m, false, op, line, src);
+
+  return VAR_EXP;
 }
 
 i32 compile_exp_bin(gab_engine *gab, gab_bc *bc, boolean assignable) {
@@ -2198,7 +2198,6 @@ i32 compile_exp_prec(gab_engine *gab, gab_bc *bc, gab_precedence prec) {
     }
   }
 
-  // TODO: See if this actually does anything.
   if (assignable && match_token(bc, TOKEN_EQUAL)) {
     compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
     return COMP_ERR;
@@ -2217,21 +2216,38 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
   u16 loop_locals = 0;
   i32 result;
 
+  boolean is_var = false;
+
   do {
-    if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
+    if (is_var)
+      break; // If we encountered a var param, break out of this loop.
+
+    switch (match_and_eat_token(bc, TOKEN_DOT_DOT)) {
+
+    case COMP_OK:
+      is_var = true;
+      // Fallthrough
+    case COMP_TOKEN_NO_MATCH: {
+      if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
+        return COMP_ERR;
+
+      s_i8 name = bc->lex.previous_token_src;
+
+      gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
+
+      i32 loc = compile_local(gab, bc, val_name, 0);
+
+      if (loc < 0)
+        return COMP_ERR;
+
+      initialize_local(bc, loc);
+      loop_locals++;
+      break;
+    }
+
+    default:
       return COMP_ERR;
-
-    s_i8 name = bc->lex.previous_token_src;
-
-    gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
-
-    i32 loc = compile_local(gab, bc, val_name, 0);
-
-    if (loc < 0)
-      return COMP_ERR;
-
-    initialize_local(bc, loc);
-    loop_locals++;
+    }
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)));
 
   u8 iter = add_local(gab, bc, GAB_VAL_NIL(), 0);
