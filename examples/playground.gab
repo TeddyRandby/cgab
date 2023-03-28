@@ -1,14 +1,15 @@
 require('std')
 
-def list = List:collect!(500:to:each)
+def main = do
+    for j in 1:to(6):each
+        let i = j
 
-for item in list:each
-    print(item)
+        for k in 1:to(6):each
+            i = i + k
+        end
+
+        print(i)
+    end
 end
 
-#
-# I don't like that shapes and symbels are themselves as a type
-#  it is convenient for some things,
-#  but it means you can get a type you aren't expecting in the methods
-#
-
+main()

@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void gab_setup_builtins(gab_engine* gab) {
+void gab_setup_builtins(gab_engine *gab) {
   gab_value arg_names[] = {
       GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
       GAB_STRING("String"), GAB_STRING("Number"),  GAB_STRING("Boolean"),
@@ -38,7 +38,6 @@ void gab_setup_builtins(gab_engine* gab) {
   static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
 
   gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
-
 };
 
 void gab_repl() {
@@ -102,7 +101,6 @@ void gab_run_file(const char *path) {
 
   gab_value result =
       gab_run(gab, main, GAB_FLAG_DUMP_ERROR | GAB_FLAG_EXIT_ON_PANIC);
-
 
   gab_scratch(gab, main);
   gab_scratch(gab, result);

@@ -50,7 +50,7 @@ gab_module *gab_module_copy(gab_engine *gab, gab_module *self,
   return copy;
 }
 
-void gab_module_destroy(gab_engine *gab, gab_gc* gc, gab_module *mod) {
+void gab_module_destroy(gab_engine *gab, gab_gc *gc, gab_module *mod) {
   if (!mod)
     return;
 
@@ -265,10 +265,10 @@ void gab_module_push_inline_cache(gab_module *self, gab_token t, u64 l,
   gab_module_push_byte(self, OP_NOP, t, l, s);
 }
 
-void gab_module_push_next(gab_module *self, u8 iter, gab_token t, u64 l,
+void gab_module_push_next(gab_module *self, u8 start, gab_token t, u64 l,
                           s_i8 s) {
   gab_module_push_byte(self, OP_NEXT, t, l, s);
-  gab_module_push_byte(self, iter, t, l, s);
+  gab_module_push_byte(self, start, t, l, s);
 }
 
 u64 gab_module_push_iter(gab_module *self, u8 want, u8 start, gab_token t,
@@ -398,23 +398,23 @@ u64 dumpJumpInstruction(gab_module *self, u64 sign, u64 offset) {
 }
 
 u64 dumpIter(gab_module *self, u64 offset) {
-  u16 dist = (u16)v_u8_val_at(&self->bytecode, offset + 1) << 8;
-  dist |= v_u8_val_at(&self->bytecode, offset + 2);
+  u16 dist = (u16)v_u8_val_at(&self->bytecode, offset + 3) << 8;
+  dist |= v_u8_val_at(&self->bytecode, offset + 4);
 
-  u8 nlocals = v_u8_val_at(&self->bytecode, offset + 3);
-  u8 start = v_u8_val_at(&self->bytecode, offset + 4);
+  u8 nlocals = v_u8_val_at(&self->bytecode, offset + 1);
+  u8 start = v_u8_val_at(&self->bytecode, offset + 2);
 
   printf("%-25s" ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
          " -> " ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
          " %03d locals from %03d\n",
-         "ITER", offset, offset + 3 + dist, nlocals, start);
+         "ITER", offset, offset + 2 + dist, nlocals, start);
 
   return offset + 5;
 }
 
 u64 dumpNext(gab_module *self, u64 offset) {
   printf("%-25s\n", "NEXT");
-  return offset + 1;
+  return offset + 2;
 }
 
 u64 dumpInstruction(gab_module *self, u64 offset) {
@@ -521,6 +521,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_POP_STORE_LOCAL:
   case OP_LOAD_UPVALUE:
   case OP_INTERPOLATE:
+  case OP_DROP:
   case OP_LOAD_LOCAL: {
     return dumpByteInstruction(self, offset);
   }

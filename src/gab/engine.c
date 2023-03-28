@@ -14,8 +14,8 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <time.h>
+#include <unistd.h>
 
 struct primitive {
   const char *name;
@@ -184,7 +184,6 @@ void gab_destroy(gab_engine *gab) {
     gab_gc_dref(gc, NULL, v_gab_value_val_at(&gab->scratch, i));
   }
 
-
   for (u64 i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
       gab_obj_string *v = d_strings_ikey(&gab->interned_strings, i);
@@ -352,8 +351,7 @@ gab_value send_msg(gab_engine *gab, gab_vm *vm, gab_value msg,
   if (GAB_VAL_IS_UNDEFINED(mod))
     return mod;
 
-  gab_value result = gab_vm_run(
-      gab, mod, GAB_FLAG_DUMP_ERROR, 0, NULL);
+  gab_value result = gab_vm_run(gab, mod, GAB_FLAG_DUMP_ERROR, 0, NULL);
 
   gab_val_dref(vm, mod);
 
@@ -548,7 +546,7 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
 
     gab_obj_prototype *copy = gab_obj_prototype_create(
         gab, gab->modules, self->narguments, self->nslots, self->nupvalues,
-        self->nlocals, self->var, self->upv_desc, self->upv_desc);
+        self->var, self->upv_desc, self->upv_desc);
 
     memcpy(copy->upv_desc, self->upv_desc, self->nupvalues * 2);
 
@@ -640,9 +638,8 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
     gab_obj_block *b_copy =
         GAB_VAL_TO_BLOCK(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->c)));
 
-    gab_obj_suspense *copy =
-        gab_obj_suspense_create(gab, vm, b_copy, self->offset, self->have,
-                                self->want, self->len, frame);
+    gab_obj_suspense *copy = gab_obj_suspense_create(
+        gab, vm, b_copy, self->ip, self->have, self->want, self->len, frame);
 
     return GAB_VAL_OBJ(copy);
   }
@@ -678,12 +675,11 @@ void gab_engine_collect(gab_engine *gab) {
   }
 }
 
-gab_value gab_scratch(gab_engine* gab, gab_value value) {
-    v_gab_value_push(&gab->scratch, value);
-    return value;
+gab_value gab_scratch(gab_engine *gab, gab_value value) {
+  v_gab_value_push(&gab->scratch, value);
+  return value;
 }
 
-
-i32 gab_push(gab_vm* vm, u8 argc, gab_value argv[argc]) {
-    return gab_vm_push(vm, argc, argv);
+i32 gab_push(gab_vm *vm, u8 argc, gab_value argv[argc]) {
+  return gab_vm_push(vm, argc, argv);
 }

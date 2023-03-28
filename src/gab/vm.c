@@ -159,18 +159,13 @@ void gab_pry(gab_engine *gab, gab_vm *vm, u64 value) {
       v_gab_constant_val_at(&f->c->p->mod->constants, f->c->p->mod->name)));
 
   printf(ANSI_COLOR_GREEN " %03lu" ANSI_COLOR_RESET " closure:" ANSI_COLOR_CYAN
-                          "%-20.*s" ANSI_COLOR_RESET "%d locals, %d upvalues\n",
+                          "%-20.*s" ANSI_COLOR_RESET " %d upvalues\n",
          frame_count - value, (i32)func_name.len, func_name.data,
-         f->c->p->nlocals, f->c->p->nupvalues);
+         f->c->p->nupvalues);
 
   for (i32 i = f->c->p->nslots - 1; i >= 0; i--) {
-    if (i < f->c->p->nlocals)
-      printf(ANSI_COLOR_MAGENTA "%4i " ANSI_COLOR_RESET, i);
-    else
-      printf(ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET, i);
-
-    gab_val_dump(stdout, f->slots[i]);
-    printf("\n");
+    printf("%2s" ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET "%V\n",
+           vm->sp == f->slots + i ? "->" : "", i, f->slots[i]);
   }
 }
 
@@ -225,7 +220,7 @@ static inline boolean call_suspense(gab_vm *vm, gab_obj_suspense *sus, u8 arity,
 
   vm->fp++;
   vm->fp->c = sus->c;
-  vm->fp->ip = sus->c->p->mod->bytecode.data + sus->offset;
+  vm->fp->ip = sus->c->p->mod->bytecode.data + sus->ip;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - arity - 1;
 
@@ -262,8 +257,8 @@ static inline boolean call_block_var(gab_engine *gab, gab_vm *vm,
 
   vm->fp->slots = vm->sp - have - 1;
 
-  for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
-    *vm->sp++ = GAB_VAL_NIL();
+  // for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
+  //   *vm->sp++ = GAB_VAL_NIL();
 
   return true;
 }
@@ -299,8 +294,8 @@ static inline boolean call_block(gab_vm *vm, gab_obj_block *c, u8 have,
 
   vm->fp->slots = vm->sp - have - 1;
 
-  for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
-    *vm->sp++ = GAB_VAL_NIL();
+  // for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
+  //   *vm->sp++ = GAB_VAL_NIL();
 
   return true;
 }
@@ -389,27 +384,29 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 #if GAB_DEBUG_VM
 #define PUSH(value)                                                            \
   ({                                                                           \
-    if (TOP() > (SLOTS() + CLOSURE()->p->nslots)) {                            \
-      fprintf(stderr, "Stack exceeded frame. %lu passed\n",                    \
-              TOP() - SLOTS() - CLOSURE()->p->nslots);                         \
-      dump_frame(SLOTS(), TOP(), "stack");                                     \
+    if (TOP() > (SLOTS() + CLOSURE()->p->nslots + 1)) {                        \
+      fprintf(stderr, "Stack exceeded frame (%d). %lu passed\n",               \
+              CLOSURE()->p->nslots, TOP() - SLOTS() - CLOSURE()->p->nslots);   \
+      gab_pry(ENGINE(), VM(), 0);                                              \
+      exit(1);                                                                 \
     }                                                                          \
     *TOP()++ = value;                                                          \
   })
+
 #else
 #define PUSH(value) (*TOP()++ = value)
 #endif
 #define POP() (*(--TOP()))
 #define DROP() (TOP()--)
-#define POP_N(n) (TOP() -= n)
-#define DROP_N(n) (TOP() -= n)
+#define POP_N(n) (TOP() -= (n))
+#define DROP_N(n) (TOP() -= (n))
 #define PEEK() (*(TOP() - 1))
 #define PEEK2() (*(TOP() - 2))
 #define PEEK_N(n) (*(TOP() - (n)))
 
-#define WRITE_BYTE(dist, n) (*(IP() - dist) = n)
+#define WRITE_BYTE(dist, n) (*(IP() - dist) = (n))
 
-#define WRITE_INLINEBYTE(n) (*IP()++ = n)
+#define WRITE_INLINEBYTE(n) (*IP()++ = (n))
 #define WRITE_INLINESHORT(n)                                                   \
   (IP() += 2, IP()[-2] = (n >> 8) & 0xFF, IP()[-1] = n & 0xFF)
 #define WRITE_INLINEQWORD(n) (IP() += 8, *((u64 *)(IP() - 8)) = n)
@@ -441,9 +438,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
   register u8 instr = OP_NOP;
   register u8 *ip = NULL;
 
-  PUSH(main);
+  *vm->sp++ = main;
   for (u8 i = 0; i < argc; i++)
-    PUSH(argv[i]);
+    *vm->sp++ = argv[i];
 
   if (GAB_VAL_IS_BLOCK(main)) {
     gab_obj_block *b = GAB_VAL_TO_BLOCK(main);
@@ -939,41 +936,66 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     }
 
     CASE_CODE(ITER) : {
-      u8 want = READ_BYTE;
+      u8 want = READ_BYTE; // Parse out if its var here?
       u8 start = READ_BYTE;
       u16 dist = READ_SHORT;
 
       u8 have = VAR();
 
-      gab_value eff = PEEK();
+      gab_value sus = PEEK();
 
-      if (!GAB_VAL_IS_SUSPENSE(eff)) {
-        DROP_N(have - 1);
+      /*
+       * In the case where we want to capture all the yielded args
+       *  in a tuple, we have to:
+       *    POP the suspense
+       *    Build a tuple with size = have - 1 - other_locals
+       *    Push it
+       *    Then trim into that
+       */
+
+      // Hide the effect but pretending to have one less
+      // Don't update the top of the stack, just trim into the locals
+      // where we expect.
+      //
+
+      // There is a slight bug here
+      // trim_return writes into the stack at what it
+      // assumes is the next unused slot.
+      // Here, that is always the hidden iterator local.
+      TOP() = trim_return(TOP() - have, SLOTS() + start, have - 1, want);
+
+      if (!GAB_VAL_IS_SUSPENSE(sus)) {
+        PUSH(GAB_VAL_NIL()); // Fulfill the iterator var with nil
+
+        PUSH(sus);           // Push a result for the for expression
 
         ip += dist;
 
         NEXT();
       }
 
-      // Hide the effect but pretending to have one less
-      // Don't update the top of the stack, just trim into the locals
-      // where we expect.
-      trim_return(TOP() - have, SLOTS() + start, have - 1, want);
-
       // Update the iterator
-      LOCAL(start + want) = eff;
-
-      DROP_N(have);
+      PUSH(sus);
 
       NEXT();
     }
 
     CASE_CODE(NEXT) : {
-      u8 iter = READ_BYTE;
+      u8 vars = READ_BYTE;
 
-      PUSH(LOCAL(iter));
+      gab_value sus = POP();
+
+      DROP_N(vars);
+
+      PUSH(sus);
 
       STORE_FRAME();
+
+      if (!GAB_VAL_IS_SUSPENSE(PEEK())) {
+        printf("Expected a suspense, but got: %V\n", PEEK());
+        gab_pry(ENGINE(), VM(), 0);
+        exit(1);
+      }
 
       if (!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(PEEK()), 0, VAR_EXP))
         return vm_error(ENGINE(), VM(), flags, GAB_OVERFLOW, "");
@@ -1251,6 +1273,15 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       gab_value tmp = PEEK();
       PEEK() = PEEK2();
       PEEK2() = tmp;
+      NEXT();
+    }
+
+    CASE_CODE(DROP) : {
+      gab_value tmp = POP();
+
+      DROP_N(READ_BYTE);
+      PUSH(tmp);
+
       NEXT();
     }
 

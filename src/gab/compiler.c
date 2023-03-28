@@ -256,8 +256,8 @@ static i32 add_local(gab_engine *gab, gab_bc *bc, gab_value name, u8 flags) {
   if (++f->next_local > f->nlocals)
     f->nlocals = f->next_local;
 
-  if (push_slot(bc, 1) < 0)
-    return COMP_ERR;
+  // if (push_slot(bc, 1) < 0)
+  //   return COMP_ERR;
 
   return local;
 }
@@ -403,10 +403,18 @@ static void up_scope(gab_bc *bc) {
 
   f->scope_depth--;
 
+  u8 dropped = 0;
+
   while (f->next_local > 1 &&
          f->locals_depth[f->next_local - 1] > f->scope_depth) {
     f->next_local--;
-    pop_slot(bc, 1);
+    dropped++;
+  }
+
+  if (dropped > 0) {
+    pop_slot(bc, dropped);
+    push_op(bc, OP_DROP);
+    push_byte(bc, dropped);
   }
 }
 
@@ -428,6 +436,9 @@ static gab_module *down_frame(gab_engine *gab, gab_bc *bc, gab_value name,
   f->nupvalues = 0;
   f->scope_depth = 0;
 
+  if (push_slot(bc, 1) < 0)
+    return NULL;
+
   initialize_local(bc, add_local(gab, bc, GAB_STRING("self"), 0));
 
   return mod;
@@ -439,11 +450,10 @@ static gab_obj_prototype *up_frame(gab_engine *gab, gab_bc *bc, u8 nargs,
 
   u8 nupvalues = frame->nupvalues;
   u8 nslots = frame->nslots;
-  u8 nlocals = frame->nlocals;
 
-  gab_obj_prototype *p = gab_obj_prototype_create(
-      gab, frame->mod, nargs, nslots, nupvalues, nlocals, vse, frame->upvs_flag,
-      frame->upvs_index);
+  gab_obj_prototype *p =
+      gab_obj_prototype_create(gab, frame->mod, nargs, nslots, nupvalues, vse,
+                               frame->upvs_flag, frame->upvs_index);
 
   bc->nframe--;
 
@@ -990,23 +1000,27 @@ initializer:
     return COMP_ERR;
   }
 
-  pop_slot(bc, local_count);
+  // pop_slot(bc, local_count);
+
+  push_op(bc, OP_DUP);
 
   while (local_count--) {
     u8 local = locals[local_count];
     initialize_local(bc, local);
 
-    if (local_count > 0) {
-      gab_module_push_store_local(mod(bc), local, bc->previous_token, bc->line,
-                                  bc->lex.previous_token_src);
-      push_pop(bc, 1);
-    } else {
-      gab_module_push_store_local(mod(bc), local, bc->previous_token, bc->line,
-                                  bc->lex.previous_token_src);
-    }
+    // if (local_count > 0) {
+    //   gab_module_push_store_local(mod(bc), local, bc->previous_token,
+    //   bc->line,
+    //                               bc->lex.previous_token_src);
+    //   push_pop(bc, 1);
+    // } else {
+    //   gab_module_push_store_local(mod(bc), local, bc->previous_token,
+    //   bc->line,
+    //                               bc->lex.previous_token_src);
+    // }
   }
 
-  push_slot(bc, 1);
+  // push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1160,6 +1174,9 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, s_i8 name) {
   if (match_and_eat_token(bc, TOKEN_LBRACK)) {
     gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
 
+    if (push_slot(bc, 1) < 0)
+      return COMP_ERR;
+
     u8 local = add_local(gab, bc, val_name, 0);
     initialize_local(bc, local);
 
@@ -1168,8 +1185,7 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, s_i8 name) {
 
     push_op(bc, OP_TYPE);
 
-    gab_module_push_store_local(mod(bc), local, bc->previous_token, bc->line,
-                                bc->lex.previous_token_src);
+    push_op(bc, OP_DUP);
 
     return COMP_OK;
   }
@@ -1196,15 +1212,19 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, s_i8 name) {
 
   gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
 
-  // Now compile the impl
-  if (compile_message(gab, bc, val_name) < 0)
+  if (push_slot(bc, 1) < 0)
     return COMP_ERR;
 
   // Create a local to store the new function in
   u8 local = add_local(gab, bc, val_name, 0);
+
+  // Now compile the impl
+  if (compile_message(gab, bc, val_name) < 0)
+    return COMP_ERR;
+
   initialize_local(bc, local);
 
-  push_store_local(bc, local);
+  push_op(bc, OP_DUP);
 
   return COMP_OK;
 }
@@ -1731,7 +1751,12 @@ i32 compile_exp_rec(gab_engine *gab, gab_bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, boolean assignable) {
+  down_scope(bc);
+
   if (!compile_expression(gab, bc))
+    return COMP_ERR;
+
+  if (push_slot(bc, 1) < 0)
     return COMP_ERR;
 
   i32 local = add_local(gab, bc, GAB_STRING(""), 0);
@@ -1740,12 +1765,6 @@ i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, boolean assignable) {
     return COMP_ERR;
 
   initialize_local(bc, local);
-
-  push_store_local(bc, local);
-
-  push_pop(bc, 1);
-
-  pop_slot(bc, 1);
 
   if (push_impl(gab, bc, local) < 0)
     return COMP_ERR;
@@ -1756,9 +1775,9 @@ i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, boolean assignable) {
   if (!expect_token(bc, TOKEN_END))
     return COMP_ERR;
 
-  push_load_local(bc, local);
-
   pop_impl(bc);
+
+  up_scope(bc);
 
   return COMP_OK;
 }
@@ -2250,8 +2269,10 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
     }
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)));
 
-  u8 iter = add_local(gab, bc, GAB_VAL_NIL(), 0);
-  initialize_local(bc, iter);
+  initialize_local(bc, add_local(gab, bc, GAB_STRING(""), 0));
+
+  if (push_slot(bc, loop_locals + 1) < 0)
+    return COMP_ERR;
 
   if (result == COMP_ERR)
     return COMP_ERR;
@@ -2262,9 +2283,6 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
   if (compile_expression(gab, bc) < 0)
     return COMP_ERR;
 
-  if (push_slot(bc, loop_locals) < 0)
-    return COMP_ERR;
-
   gab_module_try_patch_vse(mod(bc), VAR_EXP);
 
   u64 loop = gab_module_push_loop(mod(bc));
@@ -2272,7 +2290,6 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
   u64 jump_start = gab_module_push_iter(mod(bc), loop_locals, local_start,
                                         bc->previous_token, bc->line,
                                         bc->lex.previous_token_src);
-  pop_slot(bc, loop_locals);
 
   if (compile_expressions(gab, bc) < 0)
     return COMP_ERR;
@@ -2285,7 +2302,7 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
     return COMP_ERR;
 
   // Load and call the effect member
-  gab_module_push_next(mod(bc), iter, bc->previous_token, bc->line,
+  gab_module_push_next(mod(bc), loop_locals, bc->previous_token, bc->line,
                        bc->lex.previous_token_src);
 
   pop_slot(bc, 1);
@@ -2497,6 +2514,8 @@ gab_value compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
   if (eat_token(bc) == COMP_ERR)
     return GAB_VAL_UNDEFINED();
 
+  push_slot(bc, narguments);
+
   for (u8 i = 0; i < narguments; i++) {
     initialize_local(bc, add_local(gab, bc, arguments[i], 0));
   }
@@ -2512,6 +2531,10 @@ gab_value compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
   add_constant(new_mod, GAB_VAL_OBJ(p));
 
   gab_obj_block *main = gab_obj_block_create(gab, p);
+
+  if (GAB_FLAG_DUMP_BYTECODE & bc->flags) {
+    gab_dis(new_mod);
+  }
 
   return GAB_VAL_OBJ(main);
 }
@@ -2541,7 +2564,7 @@ gab_value gab_bc_compile_send(gab_engine *gab, gab_value msg,
   gab_module_push_return(mod, 1, false, 0, 0, (s_i8){0});
 
   gab_obj_prototype *p = gab_obj_prototype_create(
-      gab, mod, narguments, narguments + 1, 0, 0, false, NULL, NULL);
+      gab, mod, narguments, narguments + 1, 0, false, NULL, NULL);
 
   add_constant(mod, GAB_VAL_OBJ(p));
 
@@ -2555,9 +2578,9 @@ gab_value gab_bc_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags,
   gab_bc bc;
   gab_bc_create(&bc, gab_source_create(gab, source), flags);
 
-  gab_value mod = compile(gab, &bc, name, narguments, arguments);
+  gab_value module = compile(gab, &bc, name, narguments, arguments);
 
-  return mod;
+  return module;
 }
 
 static void compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,

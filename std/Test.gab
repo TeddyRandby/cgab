@@ -34,7 +34,9 @@ impl Any
     end
 end
 
-impl $Test
+def test = $Test
+
+impl test
     def describe(name, cb)
         print('\nTesting {name}...')
         cb()
@@ -48,3 +50,5 @@ impl $Test
         print('{T:passed? and '✓' or '×'} it {name}')
     end
 end
+
+test

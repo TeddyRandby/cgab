@@ -1,4 +1,5 @@
 require('std')
+
 def Test = require('Test')
 
 Test:describe('Numbers') do

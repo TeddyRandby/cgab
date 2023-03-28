@@ -376,8 +376,8 @@ s_i8 gab_obj_string_ref(gab_obj_string *self) {
 
 gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
                                             u8 narguments, u8 nslots,
-                                            u8 nupvalues, u8 nlocals,
-                                            boolean var, u8 flags[nupvalues],
+                                            u8 nupvalues, boolean var,
+                                            u8 flags[nupvalues],
                                             u8 indexes[nupvalues]) {
   gab_obj_prototype *self = GAB_CREATE_FLEX_OBJ(
       gab_obj_prototype, u8, nupvalues * 2, GAB_KIND_PROTOTYPE);
@@ -386,7 +386,6 @@ gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
   self->narguments = narguments;
   self->nslots = nslots;
   self->nupvalues = nupvalues;
-  self->nlocals = nlocals;
   self->var = var;
 
   for (u8 i = 0; i < nupvalues; i++) {
@@ -686,7 +685,7 @@ gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm,
       GAB_CREATE_FLEX_OBJ(gab_obj_suspense, gab_value, len, GAB_KIND_SUSPENSE);
 
   self->c = c;
-  self->offset = offset;
+  self->ip = offset;
   self->have = have;
   self->want = want;
   self->len = len;

@@ -126,7 +126,7 @@ s_i8 gab_obj_string_ref(gab_obj_string *self);
   A function pointer. to a native c function.
 */
 typedef void (*gab_builtin)(gab_engine *gab, gab_vm *vm, u8 argc,
-                                 gab_value argv[argc]);
+                            gab_value argv[argc]);
 typedef struct gab_obj_builtin gab_obj_builtin;
 struct gab_obj_builtin {
   gab_obj header;
@@ -160,16 +160,6 @@ struct gab_obj_prototype {
   u8 nupvalues;
 
   /*
-   * The module this prototype owns
-   */
-  gab_module *mod;
-
-  /*
-   * The number of locals
-   */
-  u8 nlocals;
-
-  /*
    * The number of slots the proto needs.
    */
   u8 nslots;
@@ -178,6 +168,11 @@ struct gab_obj_prototype {
    * If the prototype accepts variable arguments
    */
   u8 var;
+
+  /*
+   * The module this prototype owns
+   */
+  gab_module *mod;
 
   u8 upv_desc[FLEXIBLE_ARRAY];
 };
@@ -189,8 +184,8 @@ struct gab_obj_prototype {
 
 gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
                                             u8 narguments, u8 nslots,
-                                            u8 nupvalues, u8 nlocals,
-                                            boolean var, u8 flags[nupvalues],
+                                            u8 nupvalues, boolean var,
+                                            u8 flags[nupvalues],
                                             u8 indexes[nupvalues]);
 
 /*
@@ -489,7 +484,7 @@ struct gab_obj_suspense {
   gab_obj_block *c;
 
   // Instruction Pointer
-  u64 offset;
+  u64 ip;
 
   // Stack frame
   gab_value frame[FLEXIBLE_ARRAY];
