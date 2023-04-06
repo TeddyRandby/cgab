@@ -1,15 +1,5 @@
 require('std')
 
-def main = do
-    for j in 1:to(6):each
-        let i = j
-
-        for k in 1:to(6):each
-            i = i + k
-        end
-
-        print(i)
-    end
+for ..all in 1:to(4):each
+  print(all[0])
 end
-
-main()

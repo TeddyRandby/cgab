@@ -47,7 +47,7 @@ i32 shape_dump_properties(FILE *stream, gab_obj_shape *shape) {
   i32 bytes = 0;
 
   for (u64 i = 0; i < shape->len - 1; i++) {
-    bytes += fprintf(stream, "%V ", shape->data[i]);
+    bytes += fprintf(stream, "%V, ", shape->data[i]);
   }
 
   return bytes + fprintf(stream, "%V", shape->data[shape->len - 1]);
@@ -60,10 +60,10 @@ i32 rec_dump_properties(FILE *stream, gab_obj_record *rec) {
   i32 bytes = 0;
 
   for (u64 i = 0; i < rec->len - 1; i++) {
-    bytes += fprintf(stream, "%V ", rec->data[i]);
+    bytes += fprintf(stream, "%V = %V, ", rec->shape->data[i], rec->data[i]);
   }
 
-  return bytes += fprintf(stream, "%V", rec->data[rec->len - 1]);
+  return bytes += fprintf(stream, "%V = %V", rec->shape->data[rec->len - 1], rec->data[rec->len - 1]);
 }
 
 i32 gab_obj_dump(FILE *stream, gab_value value) {

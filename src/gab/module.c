@@ -271,10 +271,11 @@ void gab_module_push_next(gab_module *self, u8 start, gab_token t, u64 l,
   gab_module_push_byte(self, start, t, l, s);
 }
 
-u64 gab_module_push_iter(gab_module *self, u8 want, u8 start, gab_token t,
+u64 gab_module_push_iter(gab_module *self, u8 start, u8 want, boolean var, gab_token t,
                          u64 l, s_i8 s) {
+  want -= var;
   gab_module_push_byte(self, OP_ITER, t, l, s);
-  gab_module_push_byte(self, want, t, l, s);
+  gab_module_push_byte(self, (want << 1) | var, t, l, s);
   gab_module_push_byte(self, start, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);

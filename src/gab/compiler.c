@@ -2235,16 +2235,16 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
   u16 loop_locals = 0;
   i32 result;
 
-  boolean is_var = false;
+  boolean var = false;
 
   do {
-    if (is_var)
+    if (var)
       break; // If we encountered a var param, break out of this loop.
 
     switch (match_and_eat_token(bc, TOKEN_DOT_DOT)) {
 
     case COMP_OK:
-      is_var = true;
+      var = true;
       // Fallthrough
     case COMP_TOKEN_NO_MATCH: {
       if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
@@ -2287,7 +2287,7 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
   u64 loop = gab_module_push_loop(mod(bc));
 
-  u64 jump_start = gab_module_push_iter(mod(bc), loop_locals, local_start,
+  u64 jump_start = gab_module_push_iter(mod(bc), local_start, loop_locals, var,
                                         bc->previous_token, bc->line,
                                         bc->lex.previous_token_src);
 

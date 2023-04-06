@@ -19,9 +19,11 @@ void gab_setup_builtins(gab_engine *gab) {
       GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"),
       GAB_STRING("Any")};
 
+  gab_value require = GAB_BUILTIN(require);
+
   gab_value args[] = {
       gab_scratch(gab, GAB_BUILTIN(print)),
-      gab_scratch(gab, GAB_BUILTIN(require)),
+      gab_scratch(gab, require),
       gab_scratch(gab, GAB_BUILTIN(panic)),
       gab_type(gab, GAB_KIND_STRING),
       gab_type(gab, GAB_KIND_NUMBER),
@@ -41,7 +43,6 @@ void gab_setup_builtins(gab_engine *gab) {
 };
 
 void gab_repl() {
-
   gab_engine *gab = gab_create();
 
   gab_setup_builtins(gab);
