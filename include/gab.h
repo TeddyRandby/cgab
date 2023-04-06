@@ -282,7 +282,6 @@ static inline gab_value gab_val_type(gab_engine *gab, gab_value value) {
   case GAB_KIND_NIL:
   case GAB_KIND_UNDEFINED:
   case GAB_KIND_SYMBOL:
-  case GAB_KIND_SHAPE:
     return value;
 
   case GAB_KIND_RECORD: {

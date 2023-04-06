@@ -1286,6 +1286,14 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       NEXT();
     }
 
+    CASE_CODE(IS) : {
+        gab_value a = POP();
+        gab_value b = POP();
+
+        PUSH(GAB_VAL_BOOLEAN(a == b));
+        NEXT();
+    }
+
     CASE_CODE(DUP) : {
       gab_value a = PEEK();
       PUSH(a);

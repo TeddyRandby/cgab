@@ -1,10 +1,10 @@
 def TestState  { fails }
 
-impl TestState 
-    def new
-        Record:new(TestState):reset
-    end
+def new[TestState]
+    Record:new(TestState):reset
+end
 
+impl TestState 
     def reset
         self.fails = 0
 
@@ -34,9 +34,7 @@ impl Any
     end
 end
 
-def test = $Test
-
-impl test
+impl $Test
     def describe(name, cb)
         print('\nTesting {name}...')
         cb()
@@ -50,5 +48,3 @@ impl test
         print('{T:passed? and '✓' or '×'} it {name}')
     end
 end
-
-test

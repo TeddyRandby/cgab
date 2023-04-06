@@ -467,6 +467,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_MATCH:
   case OP_POP:
   case OP_TYPE:
+  case OP_IS:
   case OP_NOP: {
     return dumpSimpleInstruction(self, offset);
   }
