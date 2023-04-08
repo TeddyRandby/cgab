@@ -25,6 +25,17 @@ void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   gab_val_dref(vm, result);
 }
 
+void gab_lib_splat(gab_engine* gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
+  if (!GAB_VAL_IS_RECORD(argv[0])) {
+    gab_panic(gab, vm, "Invalid call to gab_lib_splat");
+    return;
+  }
+
+  gab_obj_record *rec = GAB_VAL_TO_RECORD(argv[0]);
+
+  gab_push(vm, rec->len, rec->data);
+}
+
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (a < 0 ? 0 : MIN(a, b))

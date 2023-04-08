@@ -4,9 +4,9 @@
 
 // Collect as frequently as possible (on every RC push). Also collect debug
 // info.
-#define GAB_DEBUG_GC 0
+#define GAB_DEBUG_GC 1
 // Log what is happening during collection.
-#define GAB_LOG_GC 0
+#define GAB_LOG_GC 1
 // Log what is happening during execution.
 #define GAB_LOG_EXECUTION 0
 // Make sure functions don't break out of their frame
@@ -24,7 +24,7 @@
 // Initial capacity of module constant table
 #define CONSTANTS_INITIAL_CAP 64
 // Use the simple custom chunk allocator
-#define CHUNK_ALLOCATOR 1
+#define CHUNK_ALLOCATOR 0
 
 // Derived macros
 // Garbage collection increment/decrement buffer size

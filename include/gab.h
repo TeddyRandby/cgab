@@ -60,7 +60,7 @@ gab_value gab_scratch(gab_engine* gab, gab_value value);
  *
  * @param argv The array of values
  */
-i32 gab_push(gab_vm* vm, u8 argc, gab_value argv[argc]);
+i32 gab_push(gab_vm* vm, u64 argc, gab_value argv[argc]);
 
 /**
  * Compile a source string into a Gab Module.
@@ -127,18 +127,6 @@ void gab_dis(gab_module *mod);
  * @param depth The depth
  */
 void gab_pry(gab_engine* gab, gab_vm* vm, u64 depth);
-
-/**
- * Deep-copy a value into the given gab engine.
- *
- * @param gab The engine
- *
- * @param value The value to copy
- *
- * @return The copied value
- *
- */
-gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value);
 
 /**
  * Decrement the reference count of a value

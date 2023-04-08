@@ -109,9 +109,11 @@ void gab_lib_split(gab_engine *gab, gab_vm *vm, u8 argc,
   s_i8 split = s_i8_create(start, len);
   v_u64_push(&splits, GAB_VAL_OBJ(gab_obj_string_create(gab, split)));
 
-  gab_obj_list *list = gab_obj_list_create(gab, vm, splits.len, 1, splits.data);
+  gab_obj_shape* shape = gab_obj_shape_create_tuple(gab, vm, splits.len);
 
-  gab_value result = GAB_VAL_OBJ(list);
+  gab_obj_record* record = gab_obj_record_create(gab, vm, shape, 1, splits.data);
+
+  gab_value result = GAB_VAL_OBJ(record);
 
   gab_push(vm, 1, &result);
 

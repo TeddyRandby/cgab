@@ -22,30 +22,28 @@ void gab_setup_builtins(gab_engine *gab) {
   gab_value require = GAB_BUILTIN(require);
 
   gab_value args[] = {
-      gab_scratch(gab, GAB_BUILTIN(print)),
-      gab_scratch(gab, require),
-      gab_scratch(gab, GAB_BUILTIN(panic)),
-      gab_type(gab, GAB_KIND_STRING),
-      gab_type(gab, GAB_KIND_NUMBER),
-      gab_type(gab, GAB_KIND_BOOLEAN),
-      gab_type(gab, GAB_KIND_BLOCK),
-      gab_type(gab, GAB_KIND_MESSAGE),
-      gab_type(gab, GAB_KIND_SUSPENSE),
-      gab_type(gab, GAB_KIND_RECORD),
-      gab_type(gab, GAB_KIND_LIST),
-      gab_type(gab, GAB_KIND_MAP),
+      gab_scratch(gab, GAB_BUILTIN(print)), gab_scratch(gab, require),
+      gab_scratch(gab, GAB_BUILTIN(panic)), gab_type(gab, GAB_KIND_STRING),
+      gab_type(gab, GAB_KIND_NUMBER),       gab_type(gab, GAB_KIND_BOOLEAN),
+      gab_type(gab, GAB_KIND_BLOCK),        gab_type(gab, GAB_KIND_MESSAGE),
+      gab_type(gab, GAB_KIND_SUSPENSE),     gab_type(gab, GAB_KIND_RECORD),
+      gab_type(gab, GAB_KIND_LIST),         gab_type(gab, GAB_KIND_MAP),
       gab_type(gab, GAB_KIND_UNDEFINED),
   };
 
   static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
 
   gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
-};
+
+  gab_specialize(gab, NULL, GAB_STRING("require"), gab_type(gab, GAB_KIND_STRING), require);
+}
 
 void gab_repl() {
   gab_engine *gab = gab_create();
 
   gab_setup_builtins(gab);
+
+  gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING("std"), 0, NULL);
 
   for (;;) {
 
@@ -93,7 +91,7 @@ void gab_run_file(const char *path) {
 
   gab_value main =
       gab_compile(gab, GAB_STRING("__main__"), s_i8_create(src->data, src->len),
-                  GAB_FLAG_DUMP_ERROR);
+                  GAB_FLAG_DUMP_ERROR | GAB_FLAG_DUMP_BYTECODE);
 
   a_i8_destroy(src);
 

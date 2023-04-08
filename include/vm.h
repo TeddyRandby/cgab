@@ -5,31 +5,41 @@
 #include "object.h"
 
 /*
-  A run-time representation of a callframe.
-*/
+ * A run-time representation of a callframe.
+ */
 typedef struct gab_vm_frame {
   gab_obj_block *c;
 
   /*
-    The instruction pointer.
-    This is stored and loaded by the macros STORE_FRAME and LOAD_FRAME.
-  */
+   *The instruction pointer.
+   *This is stored and loaded by the macros STORE_FRAME and LOAD_FRAME.
+   */
   u8 *ip;
 
-  /* The value on the stack where this callframe begins.
-    Locals are offset from this.
-  */
+  /*
+   * The value on the stack where this callframe begins.
+   * Locals are offset from this.
+   */
   gab_value *slots;
   /*
-    Every call expects a certain number of results.
-    This is set during when the values are called.
-  */
+   * Every call expects a certain number of results.
+   * This is set during when the values are called.
+   */
   u8 want;
 } gab_vm_frame;
 
+/*
+ * The gab virtual machine. This has all the state needed for executing bytecode.
+ */
 typedef struct gab_vm {
+  /*
+   * The flags passed in to the vm
+   */
   u8 flags;
 
+  /*
+   * The garbage collector used to cleanup the memory as the vm runs
+   */
   gab_gc gc;
 
   gab_vm_frame *fp;
@@ -50,6 +60,6 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
 gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg);
 
-i32 gab_vm_push(gab_vm* vm, u8 argc, gab_value argv[argc]);
+i32 gab_vm_push(gab_vm* vm, u64 argc, gab_value argv[argc]);
 
 #endif

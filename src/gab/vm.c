@@ -199,7 +199,7 @@ static inline gab_value *trim_return(gab_value *from, gab_value *to, u8 have,
   return to;
 }
 
-static inline boolean has_callspace(gab_vm *vm, u8 space_needed) {
+static inline boolean has_callspace(gab_vm *vm, u64 space_needed) {
   if (vm->fp - vm->fb + 1 >= FRAMES_MAX) {
     return false;
   }
@@ -263,7 +263,7 @@ static inline boolean call_block_var(gab_engine *gab, gab_vm *vm,
   return true;
 }
 
-i32 gab_vm_push(gab_vm *vm, u8 argc, gab_value *argv) {
+i32 gab_vm_push(gab_vm *vm, u64 argc, gab_value *argv) {
   if (!has_callspace(vm, argc)) {
     return -1;
   }

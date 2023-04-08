@@ -48,7 +48,7 @@ struct gab_bc_frame {
 
   u8 locals_flag[LOCAL_MAX];
   i32 locals_depth[LOCAL_MAX];
-  gab_value locals_name[LOCAL_MAX];
+  u16 locals_name[LOCAL_MAX];
 
   u8 upvs_flag[UPVALUE_MAX];
   u8 upvs_index[UPVALUE_MAX];

@@ -25,31 +25,6 @@ gab_module *gab_module_create(gab_value name, gab_source *source,
   return self;
 }
 
-gab_module *gab_module_copy(gab_engine *gab, gab_module *self,
-                            gab_module *next) {
-  gab_module *copy = NEW(gab_module);
-  copy->source = gab_source_copy(gab, self->source);
-  copy->previous_compiled_op = OP_NOP;
-  copy->next = next;
-
-  v_u8_copy(&copy->bytecode, &self->bytecode);
-  v_u8_copy(&copy->tokens, &self->tokens);
-  v_u64_copy(&copy->lines, &self->lines);
-  v_s_i8_copy(&copy->sources, &self->sources);
-  v_gab_constant_copy(&copy->constants, &self->constants);
-
-  for (u64 i = 0; i < self->constants.len; i++) {
-    gab_value v = v_gab_constant_val_at(&copy->constants, i);
-    if (GAB_VAL_IS_OBJ(v)) {
-      v_gab_constant_set(&copy->constants, i, gab_val_copy(gab, NULL, v));
-    }
-  }
-
-  copy->name = self->name;
-
-  return copy;
-}
-
 void gab_module_destroy(gab_engine *gab, gab_gc *gc, gab_module *mod) {
   if (!mod)
     return;

@@ -188,26 +188,6 @@ static inline void push_short(gab_bc *bc, u16 data) {
                         bc->lex.previous_token_src);
 }
 
-static inline i32 push_impl(gab_engine *gab, gab_bc *bc, u8 local) {
-
-  if (bc->nimpls == UINT8_MAX) {
-    compiler_error(bc, GAB_PANIC, "Too many nested impls");
-    return COMP_ERR;
-  }
-
-  bc->impls[bc->nimpls++] = local;
-
-  return COMP_OK;
-}
-
-static inline void pop_impl(gab_bc *bc) { bc->nimpls--; }
-
-static inline boolean has_impl(gab_bc *bc) { return bc->nimpls > 0; }
-
-static inline gab_value peek_impl(gab_bc *bc) {
-  return bc->impls[bc->nimpls - 1];
-}
-
 static inline i32 push_slot(gab_bc *bc, u8 n) {
   gab_bc_frame *f = peek_frame(bc, 0);
 
@@ -229,6 +209,33 @@ static inline void pop_slot(gab_bc *bc, u8 n) {
     compiler_error(bc, GAB_PANIC, "Too few slots\n");
   }
   peek_frame(bc, 0)->next_slot -= n;
+}
+
+static inline i32 push_impl(gab_engine *gab, gab_bc *bc, u8 local) {
+
+  if (bc->nimpls == UINT8_MAX) {
+    compiler_error(bc, GAB_PANIC, "Too many nested impls");
+    return COMP_ERR;
+  }
+
+  bc->impls[bc->nimpls++] = local;
+
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
+
+  return COMP_OK;
+}
+
+static inline void pop_impl(gab_bc *bc) {
+  bc->nimpls--;
+
+  pop_slot(bc, 1);
+}
+
+static inline boolean has_impl(gab_bc *bc) { return bc->nimpls > 0; }
+
+static inline gab_value peek_impl(gab_bc *bc) {
+  return bc->impls[bc->nimpls - 1];
 }
 
 static void initialize_local(gab_bc *bc, u8 local) {
@@ -255,9 +262,6 @@ static i32 add_local(gab_engine *gab, gab_bc *bc, gab_value name, u8 flags) {
 
   if (++f->next_local > f->nlocals)
     f->nlocals = f->next_local;
-
-  // if (push_slot(bc, 1) < 0)
-  //   return COMP_ERR;
 
   return local;
 }
@@ -405,14 +409,19 @@ static void up_scope(gab_bc *bc) {
 
   u8 dropped = 0;
 
-  while (f->next_local > 1 &&
-         f->locals_depth[f->next_local - 1] > f->scope_depth) {
-    f->next_local--;
+  while (f->next_local > 1) {
+    u8 local = f->next_local - 1;
+
+    if (f->locals_depth[local] <= f->scope_depth)
+      break;
+
     dropped++;
+    f->next_local--;
   }
 
   if (dropped > 0) {
     pop_slot(bc, dropped);
+
     push_op(bc, OP_DROP);
     push_byte(bc, dropped);
   }
@@ -725,8 +734,6 @@ i32 compile_block(gab_engine *gab, gab_bc *bc) {
 i32 compile_message(gab_engine *gab, gab_bc *bc, gab_value name) {
   if (compile_message_spec(gab, bc) < 0)
     return COMP_ERR;
-
-  down_scope(bc);
 
   down_frame(gab, bc, name, true);
 
@@ -1195,7 +1202,6 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, s_i8 name) {
     gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
 
     u8 local = add_local(gab, bc, val_name, 0);
-
     if (match_and_eat_token(bc, TOKEN_COMMA) < 0)
       return COMP_ERR;
 
@@ -1207,6 +1213,7 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, s_i8 name) {
   // or, if the name is op
   if (match_and_eat_token(bc, TOKEN_QUESTION))
     name.len++;
+
   else if (match_and_eat_token(bc, TOKEN_BANG))
     name.len++;
 
@@ -1687,7 +1694,9 @@ i32 compile_exp_nil(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
 i32 compile_exp_def(gab_engine *gab, gab_bc *bc, boolean assignable) {
   eat_token(bc);
+
   s_i8 name = {0};
+
   switch (bc->previous_token) {
   case TOKEN_IDENTIFIER:
   case TOKEN_PLUS:
@@ -1750,18 +1759,15 @@ i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, boolean assignable) {
   if (!compile_expression(gab, bc))
     return COMP_ERR;
 
-  if (push_slot(bc, 1) < 0)
-    return COMP_ERR;
-
   i32 local = add_local(gab, bc, GAB_STRING(""), 0);
 
   if (local < 0)
     return COMP_ERR;
 
-  initialize_local(bc, local);
-
   if (push_impl(gab, bc, local) < 0)
     return COMP_ERR;
+
+  initialize_local(bc, local);
 
   if (compile_expressions(gab, bc) < 0)
     return COMP_ERR;
@@ -1769,9 +1775,9 @@ i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, boolean assignable) {
   if (!expect_token(bc, TOKEN_END))
     return COMP_ERR;
 
-  pop_impl(bc);
-
   push_pop(bc, 1);
+
+  pop_impl(bc);
 
   return COMP_OK;
 }
@@ -2262,8 +2268,6 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
       return COMP_ERR;
     }
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)));
-
-  initialize_local(bc, add_local(gab, bc, GAB_STRING(""), 0));
 
   if (push_slot(bc, loop_locals + 1) < 0)
     return COMP_ERR;

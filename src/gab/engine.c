@@ -146,21 +146,21 @@ gab_engine *gab_create() {
 
   gab->types[GAB_KIND_UNDEFINED] = GAB_VAL_UNDEFINED();
   gab->types[GAB_KIND_NIL] = GAB_VAL_NIL();
-  gab->types[GAB_KIND_NUMBER] = GAB_SYMBOL("number");
-  gab->types[GAB_KIND_BOOLEAN] = GAB_SYMBOL("boolean");
-  gab->types[GAB_KIND_STRING] = GAB_SYMBOL("string");
-  gab->types[GAB_KIND_MESSAGE] = GAB_SYMBOL("message");
-  gab->types[GAB_KIND_PROTOTYPE] = GAB_SYMBOL("prototype");
-  gab->types[GAB_KIND_BUILTIN] = GAB_SYMBOL("builtin");
-  gab->types[GAB_KIND_BLOCK] = GAB_SYMBOL("block");
-  gab->types[GAB_KIND_RECORD] = GAB_SYMBOL("record");
-  gab->types[GAB_KIND_SHAPE] = GAB_SYMBOL("shape");
-  gab->types[GAB_KIND_SYMBOL] = GAB_SYMBOL("symbol");
-  gab->types[GAB_KIND_CONTAINER] = GAB_SYMBOL("container");
-  gab->types[GAB_KIND_SUSPENSE] = GAB_SYMBOL("suspsense");
-  gab->types[GAB_KIND_LIST] = GAB_SYMBOL("list");
-  gab->types[GAB_KIND_PRIMITIVE] = GAB_SYMBOL("primitive");
-  gab->types[GAB_KIND_MAP] = GAB_SYMBOL("map");
+  gab->types[GAB_KIND_NUMBER] = GAB_SYMBOL("Number");
+  gab->types[GAB_KIND_BOOLEAN] = GAB_SYMBOL("Boolean");
+  gab->types[GAB_KIND_STRING] = GAB_SYMBOL("String");
+  gab->types[GAB_KIND_MESSAGE] = GAB_SYMBOL("Message");
+  gab->types[GAB_KIND_PROTOTYPE] = GAB_SYMBOL("Prototype");
+  gab->types[GAB_KIND_BUILTIN] = GAB_SYMBOL("Builtin");
+  gab->types[GAB_KIND_BLOCK] = GAB_SYMBOL("Block");
+  gab->types[GAB_KIND_RECORD] = GAB_SYMBOL("Record");
+  gab->types[GAB_KIND_SHAPE] = GAB_SYMBOL("Shape");
+  gab->types[GAB_KIND_SYMBOL] = GAB_SYMBOL("Symbol");
+  gab->types[GAB_KIND_CONTAINER] = GAB_SYMBOL("Container");
+  gab->types[GAB_KIND_SUSPENSE] = GAB_SYMBOL("Suspsense");
+  gab->types[GAB_KIND_LIST] = GAB_SYMBOL("List");
+  gab->types[GAB_KIND_PRIMITIVE] = GAB_SYMBOL("Primitive");
+  gab->types[GAB_KIND_MAP] = GAB_SYMBOL("Map");
 
   for (int i = 0; i < LEN_CARRAY(primitives); i++) {
     gab_value name =
@@ -222,8 +222,6 @@ void gab_destroy(gab_engine *gab) {
   }
 
   gab_gc_run(gc, NULL);
-  gab_gc_destroy(gc);
-  DESTROY(gc);
 
   gab_engine_collect(gab);
 
@@ -239,6 +237,8 @@ void gab_destroy(gab_engine *gab) {
 
   v_gab_value_destroy(&gab->scratch);
 
+  gab_gc_destroy(gc);
+  DESTROY(gc);
   DESTROY(gab);
 }
 
@@ -351,9 +351,9 @@ gab_value send_msg(gab_engine *gab, gab_vm *vm, gab_value msg,
   if (GAB_VAL_IS_UNDEFINED(mod))
     return mod;
 
-  gab_value result = gab_vm_run(gab, mod, GAB_FLAG_DUMP_ERROR, 0, NULL);
+  gab_scratch(gab, mod);
 
-  gab_val_dref(vm, mod);
+  gab_value result = gab_vm_run(gab, mod, GAB_FLAG_DUMP_ERROR, 0, NULL);
 
   return result;
 }
@@ -502,150 +502,6 @@ int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
   return 1;
 }
 
-gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
-  switch (gab_val_kind(value)) {
-  case GAB_KIND_CONTAINER:
-    fprintf(stderr, "Uh oh, trying to copy %V. This is unsafe!\n", value);
-  case GAB_KIND_BOOLEAN:
-  case GAB_KIND_NUMBER:
-  case GAB_KIND_NIL:
-  case GAB_KIND_UNDEFINED:
-  case GAB_KIND_PRIMITIVE:
-  case GAB_KIND_NKINDS:
-    return value;
-
-  case GAB_KIND_SYMBOL: {
-    gab_obj_symbol *self = GAB_VAL_TO_SYMBOL(value);
-    gab_obj_symbol *copy =
-        gab_obj_symbol_create(gab, gab_val_copy(gab, vm, self->name));
-    return GAB_VAL_OBJ(copy);
-  }
-
-  case GAB_KIND_MESSAGE: {
-    gab_obj_message *self = GAB_VAL_TO_MESSAGE(value);
-    gab_obj_message *copy =
-        gab_obj_message_create(gab, gab_val_copy(gab, vm, self->name));
-
-    return GAB_VAL_OBJ(copy);
-  }
-
-  case GAB_KIND_STRING: {
-    gab_obj_string *self = GAB_VAL_TO_STRING(value);
-    return GAB_VAL_OBJ(gab_obj_string_create(gab, gab_obj_string_ref(self)));
-  }
-
-  case GAB_KIND_BUILTIN: {
-    gab_obj_builtin *self = GAB_VAL_TO_BUILTIN(value);
-    return GAB_VAL_OBJ(gab_obj_builtin_create(
-        gab, self->function, gab_val_copy(gab, vm, self->name)));
-  }
-
-  case GAB_KIND_PROTOTYPE: {
-    gab_obj_prototype *self = GAB_VAL_TO_PROTOTYPE(value);
-    gab->modules = gab_module_copy(gab, self->mod, gab->modules);
-
-    gab_obj_prototype *copy = gab_obj_prototype_create(
-        gab, gab->modules, self->narguments, self->nslots, self->nupvalues,
-        self->var, self->upv_desc, self->upv_desc);
-
-    memcpy(copy->upv_desc, self->upv_desc, self->nupvalues * 2);
-
-    return GAB_VAL_OBJ(copy);
-  }
-
-  case GAB_KIND_MAP: {
-    gab_obj_map *self = GAB_VAL_TO_MAP(value);
-
-    gab_obj_map *copy = gab_obj_map_create(gab, vm, 0, 0, NULL, NULL);
-
-    for (u64 i = 0; i < self->data.cap; i++) {
-      if (d_gab_value_iexists(&self->data, i)) {
-        gab_value key = gab_val_copy(gab, vm, d_gab_value_ikey(&self->data, i));
-        gab_value val = gab_val_copy(gab, vm, d_gab_value_ival(&self->data, i));
-        gab_obj_map_put(gab, vm, copy, key, val);
-      }
-    }
-
-    return GAB_VAL_OBJ(copy);
-  }
-
-  case GAB_KIND_LIST: {
-    gab_obj_list *self = GAB_VAL_TO_LIST(value);
-
-    gab_obj_list *copy = gab_obj_list_create(gab, vm, 0, 0, NULL);
-
-    for (u64 i = 0; i < copy->data.len; i++) {
-      gab_value val = gab_val_copy(gab, vm, v_gab_value_val_at(&self->data, i));
-      gab_obj_list_put(gab, vm, copy, i, val);
-    }
-
-    return GAB_VAL_OBJ(copy);
-  }
-
-  case GAB_KIND_BLOCK: {
-    gab_obj_block *self = GAB_VAL_TO_BLOCK(value);
-
-    gab_obj_prototype *p_copy =
-        GAB_VAL_TO_PROTOTYPE(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->p)));
-
-    gab_obj_block *copy = gab_obj_block_create(gab, p_copy);
-
-    for (u8 i = 0; i < p_copy->nupvalues; i++) {
-      copy->upvalues[i] = gab_val_copy(gab, vm, self->upvalues[i]);
-    }
-
-    return GAB_VAL_OBJ(copy);
-  }
-
-  case GAB_KIND_SHAPE: {
-    gab_obj_shape *self = GAB_VAL_TO_SHAPE(value);
-
-    gab_value keys[self->len];
-
-    for (u64 i = 0; i < self->len; i++) {
-      keys[i] = gab_val_copy(gab, vm, self->data[i]);
-    }
-
-    gab_obj_shape *copy = gab_obj_shape_create(gab, vm, self->len, 1, keys);
-
-    return GAB_VAL_OBJ(copy);
-  }
-
-  case GAB_KIND_RECORD: {
-    gab_obj_record *self = GAB_VAL_TO_RECORD(value);
-
-    gab_obj_shape *s_copy =
-        GAB_VAL_TO_SHAPE(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->shape)));
-
-    gab_value values[self->len];
-
-    for (u64 i = 0; i < self->len; i++)
-      values[i] = gab_val_copy(gab, vm, self->data[i]);
-
-    gab_obj_record *copy = gab_obj_record_create(gab, vm, s_copy, 1, values);
-
-    return GAB_VAL_OBJ(copy);
-  }
-
-  case GAB_KIND_SUSPENSE: {
-    gab_obj_suspense *self = GAB_VAL_TO_SUSPENSE(value);
-
-    gab_value frame[self->len];
-
-    for (u64 i = 0; i < self->len; i++)
-      frame[i] = gab_val_copy(gab, vm, self->frame[i]);
-
-    gab_obj_block *b_copy =
-        GAB_VAL_TO_BLOCK(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->c)));
-
-    gab_obj_suspense *copy = gab_obj_suspense_create(
-        gab, vm, b_copy, self->ip, self->have, self->want, self->len, frame);
-
-    return GAB_VAL_OBJ(copy);
-  }
-  }
-}
-
 u64 gab_seed(gab_engine *gab) { return gab->hash_seed; }
 
 void gab_engine_collect(gab_engine *gab) {
@@ -680,6 +536,6 @@ gab_value gab_scratch(gab_engine *gab, gab_value value) {
   return value;
 }
 
-i32 gab_push(gab_vm *vm, u8 argc, gab_value argv[argc]) {
+i32 gab_push(gab_vm *vm, u64 argc, gab_value argv[argc]) {
   return gab_vm_push(vm, argc, argv);
 }
