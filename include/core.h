@@ -10,7 +10,7 @@
 // Log what is happening during execution.
 #define GAB_LOG_EXECUTION 0
 // Make sure functions don't break out of their frame
-#define GAB_DEBUG_VM 1
+#define GAB_DEBUG_VM 0
 
 // Configurable macros
 // Dictionary maximum load
@@ -24,7 +24,7 @@
 // Initial capacity of module constant table
 #define CONSTANTS_INITIAL_CAP 64
 // Use the simple custom chunk allocator
-#define CHUNK_ALLOCATOR 0
+#define CHUNK_ALLOCATOR 1
 
 // Derived macros
 // Garbage collection increment/decrement buffer size

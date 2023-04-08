@@ -2285,6 +2285,8 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
   if (compile_expression(gab, bc) < 0)
     return COMP_ERR;
 
+  initialize_local(bc, add_local(gab, bc, GAB_STRING(""), 0));
+
   gab_module_try_patch_vse(mod(bc), VAR_EXP);
 
   u64 loop = gab_module_push_loop(mod(bc));

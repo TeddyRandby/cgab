@@ -91,7 +91,7 @@ void gab_run_file(const char *path) {
 
   gab_value main =
       gab_compile(gab, GAB_STRING("__main__"), s_i8_create(src->data, src->len),
-                  GAB_FLAG_DUMP_ERROR | GAB_FLAG_DUMP_BYTECODE);
+                  GAB_FLAG_DUMP_ERROR);
 
   a_i8_destroy(src);
 
