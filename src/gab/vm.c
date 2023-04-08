@@ -949,9 +949,9 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (var) {
         i32 size = have - want - 1;
-        
+
         if (size < 0)
-            size = 0;
+          size = 0;
 
         gab_obj_shape *shape = gab_obj_shape_create_tuple(gab, vm, size);
 
@@ -990,7 +990,7 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       if (!GAB_VAL_IS_SUSPENSE(sus)) {
         PUSH(GAB_VAL_NIL()); // Fulfill the iterator var with nil
 
-        PUSH(sus);           // Push a result for the for expression
+        PUSH(sus); // Push a result for the for expression
 
         ip += dist;
 
@@ -1287,11 +1287,11 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     }
 
     CASE_CODE(IS) : {
-        gab_value a = POP();
-        gab_value b = POP();
+      gab_value a = POP();
+      gab_value b = POP();
 
-        PUSH(GAB_VAL_BOOLEAN(a == b));
-        NEXT();
+      PUSH(GAB_VAL_BOOLEAN(a == b));
+      NEXT();
     }
 
     CASE_CODE(DUP) : {

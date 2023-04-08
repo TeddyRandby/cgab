@@ -1756,6 +1756,8 @@ i32 compile_exp_rec(gab_engine *gab, gab_bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, boolean assignable) {
+  down_scope(bc);
+
   if (!compile_expression(gab, bc))
     return COMP_ERR;
 
@@ -1775,9 +1777,11 @@ i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, boolean assignable) {
   if (!expect_token(bc, TOKEN_END))
     return COMP_ERR;
 
-  push_pop(bc, 1);
+  push_op(bc, OP_SWAP);
 
   pop_impl(bc);
+
+  up_scope(bc);
 
   return COMP_OK;
 }
