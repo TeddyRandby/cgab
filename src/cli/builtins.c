@@ -146,7 +146,7 @@ void gab_lib_panic(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   }
 }
 
-void gab_lib_print(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_print(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   for (u8 i = 0; i < argc; i++) {
     if (i > 0)
       putc(' ', stdout);
@@ -156,15 +156,17 @@ void gab_lib_print(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
   printf("\n");
 }
 
-void gab_setup_builtins(gab_engine *gab) {
+void gab_setup_builtins(gab_engine *gab, const char *it) {
   gab_value arg_names[] = {
       GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
       GAB_STRING("String"), GAB_STRING("Number"),  GAB_STRING("Boolean"),
       GAB_STRING("Block"),  GAB_STRING("Message"), GAB_STRING("Suspense"),
       GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"),
-      GAB_STRING("Any")};
+      GAB_STRING("Any"),    GAB_STRING("it")};
 
   gab_value require = GAB_BUILTIN(require);
+
+  gab_value it_val = it ? GAB_STRING(it) : GAB_VAL_UNDEFINED();
 
   gab_value args[] = {
       gab_scratch(gab, GAB_BUILTIN(print)), gab_scratch(gab, require),
@@ -173,12 +175,12 @@ void gab_setup_builtins(gab_engine *gab) {
       gab_type(gab, GAB_KIND_BLOCK),        gab_type(gab, GAB_KIND_MESSAGE),
       gab_type(gab, GAB_KIND_SUSPENSE),     gab_type(gab, GAB_KIND_RECORD),
       gab_type(gab, GAB_KIND_LIST),         gab_type(gab, GAB_KIND_MAP),
-      gab_type(gab, GAB_KIND_UNDEFINED),
-  };
+      gab_type(gab, GAB_KIND_UNDEFINED),    it_val};
 
   static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
 
   gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
 
-  gab_specialize(gab, NULL, GAB_STRING("require"), gab_type(gab, GAB_KIND_STRING), require);
+  gab_specialize(gab, NULL, GAB_STRING("require"),
+                 gab_type(gab, GAB_KIND_STRING), require);
 }

@@ -24,12 +24,14 @@ void print_help(FILE *stream) {
 }
 
 [[noreturn]] void throw_err(const char *msg) {
-  fprintf(stderr, "Error: %s", msg);
+  fprintf(stderr, "Error: %s\n", msg);
   print_help(stderr);
   exit(1);
 }
 
 boolean execute_arg(const char *flags) { return strchr(flags, 'e') != NULL; }
+
+boolean module_arg(const char *flags) { return strchr(flags, 'r') != NULL; }
 
 u8 parse_flags(const char *arg) {
   u8 flags = GAB_FLAG_DUMP_ERROR;
@@ -68,13 +70,53 @@ u8 parse_flags(const char *arg) {
   }
 }
 
+i32 run_3_args(const char *arg_flags, const char *arg1) {
+  u8 flags = parse_flags(arg_flags);
+
+  if (execute_arg(arg_flags)) {
+    if (module_arg(arg_flags))
+      throw_err("Too few arguments for -e and -r flags");
+
+    gab_run_string(arg1, NULL, flags);
+    return 0;
+  }
+
+  if (module_arg(arg_flags)) {
+    gab_repl(arg1, flags);
+    return 0;
+  }
+
+  gab_run_file(arg1, NULL, flags);
+  return 0;
+}
+
+i32 run_4_args(const char *arg_flags, const char *arg1, const char *arg2) {
+  u8 flags = parse_flags(arg_flags);
+
+  if (execute_arg(arg_flags)) {
+    if (module_arg(arg_flags)) {
+      gab_run_string(arg2, arg1, flags);
+      return 0;
+    }
+
+    throw_err("Too many arguments");
+  }
+
+  if (module_arg(arg_flags)) {
+    gab_run_file(arg2, arg1, flags);
+    return 0;
+  }
+
+  throw_err("Too many arguments");
+}
+
 i32 main(i32 argc, const char **argv) {
   register_printf_specifier('V', gab_val_printf_handler,
                             gab_val_printf_arginfo);
 
   switch (argc) {
   case 1:
-    gab_repl(GAB_FLAG_DUMP_ERROR);
+    gab_repl(NULL, GAB_FLAG_DUMP_ERROR);
     break;
 
   case 2:
@@ -83,38 +125,39 @@ i32 main(i32 argc, const char **argv) {
         throw_err("Not enough arguments for -e flag");
       }
 
+      if (module_arg(argv[1])) {
+        throw_err("Not enough arguments for -r flag");
+      }
+
       u8 flags = parse_flags(argv[1]);
-      gab_repl(flags);
+      gab_repl(NULL, flags);
       return 0;
     }
 
-    gab_run_file(argv[1], GAB_FLAG_DUMP_ERROR);
+    gab_run_file(argv[1], NULL, GAB_FLAG_DUMP_ERROR);
     break;
 
   case 3:
-    if (argv[1][0] == '-') {
-      u8 flags = parse_flags(argv[1]);
-      if (execute_arg(argv[1])) {
-        gab_run_string(argv[2], flags);
-        return 0;
-      }
+    if (argv[1][0] == '-')
+      return run_3_args(argv[1], argv[2]);
 
-      gab_run_file(argv[2], flags);
-      return 0;
-    }
-
-    if (argv[2][0] == '-') {
-      u8 flags = parse_flags(argv[2]);
-      if (execute_arg(argv[2])) {
-        gab_run_string(argv[1], flags);
-        return 0;
-      }
-
-      gab_run_file(argv[1], flags);
-      return 0;
-    }
+    if (argv[2][0] == '-')
+      return run_3_args(argv[2], argv[1]);
 
     throw_err("Too many arguments");
+
+  case 4:
+    if (argv[1][0] == '-')
+      return run_4_args(argv[1], argv[2], argv[3]);
+
+    if (argv[2][0] == '-')
+      return run_4_args(argv[2], argv[1], argv[3]);
+
+    if (argv[3][0] == '-')
+      return run_4_args(argv[3], argv[1], argv[2]);
+
+    throw_err("Too many arguments");
+
   default:
     print_help(stderr);
     return 1;

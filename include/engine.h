@@ -71,9 +71,9 @@ struct gab_engine {
 
   u64 hash_seed;
 
-  a_u64 *argv_values;
+  v_gab_value argv_names;
 
-  a_u64 *argv_names;
+  v_gab_value argv_values;
 };
 
 gab_obj_string *gab_engine_find_string(gab_engine *gab, s_i8 str, u64 hash);

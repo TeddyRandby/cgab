@@ -105,6 +105,9 @@ static inline s_i8 s_i8_cstr(const char *str) {
 #define T s_i8
 #include "vector.h"
 
+#define T i8
+#include "vector.h"
+
 #define T s_i8
 #include "array.h"
 

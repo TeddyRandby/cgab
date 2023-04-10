@@ -41,6 +41,18 @@ void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]);
 
 /**
+ * Push an additional argument onto the engine's argument list.
+ *
+ *  @param gab The engine
+ *
+ *  @param name The name of the argument (Passed to the compiler)
+ * 
+ *  @param value The values of the argument (Passed to the vm)
+ */
+void gab_arg_push(gab_engine* gab, gab_value name, gab_value value);
+void gab_arg_pop(gab_engine* gab);
+
+/**
  * Pass the ownership of a value to the engine.
  *
  *  @param gab The engine

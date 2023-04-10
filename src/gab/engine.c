@@ -133,8 +133,8 @@ gab_engine *gab_create() {
   gab->objects = NULL;
   gab->modules = NULL;
   gab->sources = NULL;
-  gab->argv_names = NULL;
-  gab->argv_values = NULL;
+  v_gab_value_create(&gab->argv_values, 8);
+  v_gab_value_create(&gab->argv_names, 8);
 
   d_strings_create(&gab->interned_strings, INTERN_INITIAL_CAP);
   d_shapes_create(&gab->interned_shapes, INTERN_INITIAL_CAP);
@@ -232,8 +232,8 @@ void gab_destroy(gab_engine *gab) {
   d_messages_destroy(&gab->interned_messages);
   d_gab_import_destroy(&gab->imports);
 
-  a_u64_destroy(gab->argv_values);
-  a_u64_destroy(gab->argv_names);
+  v_gab_value_destroy(&gab->argv_values);
+  v_gab_value_destroy(&gab->argv_names);
 
   v_gab_value_destroy(&gab->scratch);
 
@@ -249,27 +249,36 @@ void gab_collect(gab_engine *gab, gab_vm *vm) {
 
 void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]) {
-  if (gab->argv_values != NULL) {
-    a_u64_destroy(gab->argv_values);
+  v_gab_value_destroy(&gab->argv_values);
+  v_gab_value_destroy(&gab->argv_names);
+
+  v_gab_value_create(&gab->argv_values, argc * 2);
+  v_gab_value_create(&gab->argv_names, argc * 2);
+
+  for (u8 i = 0; i < argc; i++) {
+    v_gab_value_push(&gab->argv_names, argv_names[i]);
+    v_gab_value_push(&gab->argv_values, argv_values[i]);
   }
-
-  if (gab->argv_names != NULL)
-    a_u64_destroy(gab->argv_names);
-
-  gab->argv_names = a_u64_create(argv_names, argc);
-  gab->argv_values = a_u64_create(argv_values, argc);
 }
 
+void gab_arg_push(gab_engine* gab, gab_value name, gab_value value) {
+    v_gab_value_push(&gab->argv_names, name);
+    v_gab_value_push(&gab->argv_values, value);
+}
+
+void gab_arg_pop(gab_engine* gab) {
+    v_gab_value_pop(&gab->argv_names);
+    v_gab_value_pop(&gab->argv_values);
+};
+
 gab_value gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags) {
-  assert(gab->argv_names != NULL);
-  return gab_bc_compile(gab, name, source, flags, gab->argv_values->len,
-                        gab->argv_names->data);
+  return gab_bc_compile(gab, name, source, flags, gab->argv_values.len,
+                        gab->argv_names.data);
 }
 
 gab_value gab_run(gab_engine *gab, gab_value main, u8 flags) {
-  assert(gab->argv_values != NULL);
-  return gab_vm_run(gab, main, flags, gab->argv_values->len,
-                    gab->argv_values->data);
+  return gab_vm_run(gab, main, flags, gab->argv_values.len,
+                    gab->argv_values.data);
 };
 
 gab_value gab_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
