@@ -1,123 +1,123 @@
-#include "builtins.h"
 #include "include/alloc.h"
 #include "include/core.h"
 #include "include/gab.h"
 #include "include/object.h"
 #include "include/os.h"
 #include "include/value.h"
+#include "runners.h"
 #include <assert.h>
 #include <printf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-void gab_setup_builtins(gab_engine *gab) {
-  gab_value arg_names[] = {
-      GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
-      GAB_STRING("String"), GAB_STRING("Number"),  GAB_STRING("Boolean"),
-      GAB_STRING("Block"),  GAB_STRING("Message"), GAB_STRING("Suspense"),
-      GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"),
-      GAB_STRING("Any")};
-
-  gab_value require = GAB_BUILTIN(require);
-
-  gab_value args[] = {
-      gab_scratch(gab, GAB_BUILTIN(print)), gab_scratch(gab, require),
-      gab_scratch(gab, GAB_BUILTIN(panic)), gab_type(gab, GAB_KIND_STRING),
-      gab_type(gab, GAB_KIND_NUMBER),       gab_type(gab, GAB_KIND_BOOLEAN),
-      gab_type(gab, GAB_KIND_BLOCK),        gab_type(gab, GAB_KIND_MESSAGE),
-      gab_type(gab, GAB_KIND_SUSPENSE),     gab_type(gab, GAB_KIND_RECORD),
-      gab_type(gab, GAB_KIND_LIST),         gab_type(gab, GAB_KIND_MAP),
-      gab_type(gab, GAB_KIND_UNDEFINED),
-  };
-
-  static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
-
-  gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
-
-  gab_specialize(gab, NULL, GAB_STRING("require"), gab_type(gab, GAB_KIND_STRING), require);
+void print_help(FILE *stream) {
+  fprintf(stream, "Usage: gab [options] <path>\n"
+                  "\t-q\tQuiet mode\n"
+                  "\t-b\tDump bytecode to stdout\n"
+                  "\t-e\tExecute argument as code\n"
+                  "\t-r\tRequire argument as module\n"
+                  "\t-s\tStream input from stdin\n"
+                  "\t-d\tDelimit input from stdin by newline\n"
+                  "\t-h\tPrint this help message\n"
+                  "\t-v\tPrint version\n");
 }
 
-void gab_repl() {
-  gab_engine *gab = gab_create();
+[[noreturn]] void throw_err(const char *msg) {
+  fprintf(stderr, "Error: %s", msg);
+  print_help(stderr);
+  exit(1);
+}
 
-  gab_setup_builtins(gab);
+boolean execute_arg(const char *flags) { return strchr(flags, 'e') != NULL; }
 
-  gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING("std"), 0, NULL);
+u8 parse_flags(const char *arg) {
+  u8 flags = GAB_FLAG_DUMP_ERROR;
 
+  u8 i = 0;
   for (;;) {
+    const char c = arg[++i];
 
-    printf("grepl> ");
-    a_i8 *src = os_read_line();
-
-    if (src == NULL || src->data[0] == '\0') {
-      a_i8_destroy(src);
+    switch (c) {
+    case 'q':
+      flags &= ~GAB_FLAG_DUMP_ERROR;
       break;
+    case 'b':
+      flags |= GAB_FLAG_DUMP_BYTECODE;
+      break;
+    case 's':
+      flags |= GAB_FLAG_STREAM_INPUT;
+      break;
+    case 'd':
+      flags |= GAB_FLAG_DELIMIT_INPUT;
+      break;
+    case '\0':
+      return flags;
+    case 'r':
+    case 'e': // Special case- ignore
+      break;
+    case 'h':
+      print_help(stdout);
+      exit(0);
+    case 'v':
+      printf("gab %d.%d\n", GAB_VERSION_MAJOR, GAB_VERSION_MINOR);
+      exit(0);
+    default:
+      throw_err("Unknown flag");
     }
-
-    if (src->data[1] == '\0') {
-      a_i8_destroy(src);
-      continue;
-    }
-
-    gab_value main =
-        gab_compile(gab, GAB_STRING("__main__"),
-                    s_i8_create(src->data, src->len), GAB_FLAG_DUMP_ERROR);
-
-    a_i8_destroy(src);
-
-    if (GAB_VAL_IS_NIL(main))
-      continue;
-
-    gab_value result = gab_run(gab, main, GAB_FLAG_DUMP_ERROR);
-
-    if (!GAB_VAL_IS_NIL(result)) {
-      printf("%V\n", result);
-    }
-
-    gab_scratch(gab, result);
   }
-
-  gab_destroy(gab);
-}
-
-void gab_run_file(const char *path) {
-
-  gab_engine *gab = gab_create();
-
-  gab_setup_builtins(gab);
-
-  a_i8 *src = os_read_file(path);
-
-  gab_value main =
-      gab_compile(gab, GAB_STRING("__main__"), s_i8_create(src->data, src->len),
-                  GAB_FLAG_DUMP_ERROR);
-
-  a_i8_destroy(src);
-
-  if (GAB_VAL_IS_NIL(main))
-    goto fin;
-
-  gab_value result =
-      gab_run(gab, main, GAB_FLAG_DUMP_ERROR | GAB_FLAG_EXIT_ON_PANIC);
-
-  gab_scratch(gab, main);
-  gab_scratch(gab, result);
-fin:
-  gab_destroy(gab);
 }
 
 i32 main(i32 argc, const char **argv) {
   register_printf_specifier('V', gab_val_printf_handler,
                             gab_val_printf_arginfo);
 
-  if (argc == 1) {
-    gab_repl();
-  } else if (argc == 2) {
-    gab_run_file(argv[1]);
-  } else {
-    fprintf(stderr, "Usage: gab [path]\n");
-    exit(64);
+  switch (argc) {
+  case 1:
+    gab_repl(GAB_FLAG_DUMP_ERROR);
+    break;
+
+  case 2:
+    if (argv[1][0] == '-') {
+      if (execute_arg(argv[1])) {
+        throw_err("Not enough arguments for -e flag");
+      }
+
+      u8 flags = parse_flags(argv[1]);
+      gab_repl(flags);
+      return 0;
+    }
+
+    gab_run_file(argv[1], GAB_FLAG_DUMP_ERROR);
+    break;
+
+  case 3:
+    if (argv[1][0] == '-') {
+      u8 flags = parse_flags(argv[1]);
+      if (execute_arg(argv[1])) {
+        gab_run_string(argv[2], flags);
+        return 0;
+      }
+
+      gab_run_file(argv[2], flags);
+      return 0;
+    }
+
+    if (argv[2][0] == '-') {
+      u8 flags = parse_flags(argv[2]);
+      if (execute_arg(argv[2])) {
+        gab_run_string(argv[1], flags);
+        return 0;
+      }
+
+      gab_run_file(argv[1], flags);
+      return 0;
+    }
+
+    throw_err("Too many arguments");
+  default:
+    print_help(stderr);
+    return 1;
   }
 
   return 0;

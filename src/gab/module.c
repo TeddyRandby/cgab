@@ -324,9 +324,12 @@ u64 dumpSendInstruction(gab_module *self, u64 offset) {
   u8 have = v_u8_val_at(&self->bytecode, offset + 3);
   u8 want = v_u8_val_at(&self->bytecode, offset + 4);
 
+  u8 var = have & FLAG_VAR_EXP;;
+  have = have >> 1;
+
   printf("%-25s" ANSI_COLOR_BLUE "%-17V" ANSI_COLOR_RESET
-         "%03d args -> %03d results\n",
-         name, msg, have, want);
+         " (%s%d) -> %d\n",
+         name, msg, var ? "VAR" : "", have, want);
   return offset + 22;
 }
 

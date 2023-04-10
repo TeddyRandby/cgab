@@ -1,12 +1,7 @@
 #include "builtins.h"
-#include "include/core.h"
-#include "include/engine.h"
 #include "include/gab.h"
 #include "include/import.h"
-#include "include/object.h"
 #include "include/os.h"
-#include "include/types.h"
-#include "include/value.h"
 #include <dlfcn.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -140,4 +135,50 @@ void gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
   }
 
   gab_panic(gab, vm, "Could not locate module");
+}
+
+void gab_lib_panic(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+  if (argc == 1) {
+    gab_obj_string *str = GAB_VAL_TO_STRING(gab_val_to_string(gab, argv[0]));
+    char buffer[str->len + 1];
+    memcpy(buffer, str->data, str->len);
+    buffer[str->len] = '\0';
+  }
+}
+
+void gab_lib_print(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
+  for (u8 i = 0; i < argc; i++) {
+    if (i > 0)
+      putc(' ', stdout);
+    gab_val_dump(stdout, argv[i]);
+  }
+
+  printf("\n");
+}
+
+void gab_setup_builtins(gab_engine *gab) {
+  gab_value arg_names[] = {
+      GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
+      GAB_STRING("String"), GAB_STRING("Number"),  GAB_STRING("Boolean"),
+      GAB_STRING("Block"),  GAB_STRING("Message"), GAB_STRING("Suspense"),
+      GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"),
+      GAB_STRING("Any")};
+
+  gab_value require = GAB_BUILTIN(require);
+
+  gab_value args[] = {
+      gab_scratch(gab, GAB_BUILTIN(print)), gab_scratch(gab, require),
+      gab_scratch(gab, GAB_BUILTIN(panic)), gab_type(gab, GAB_KIND_STRING),
+      gab_type(gab, GAB_KIND_NUMBER),       gab_type(gab, GAB_KIND_BOOLEAN),
+      gab_type(gab, GAB_KIND_BLOCK),        gab_type(gab, GAB_KIND_MESSAGE),
+      gab_type(gab, GAB_KIND_SUSPENSE),     gab_type(gab, GAB_KIND_RECORD),
+      gab_type(gab, GAB_KIND_LIST),         gab_type(gab, GAB_KIND_MAP),
+      gab_type(gab, GAB_KIND_UNDEFINED),
+  };
+
+  static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
+
+  gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
+
+  gab_specialize(gab, NULL, GAB_STRING("require"), gab_type(gab, GAB_KIND_STRING), require);
 }
