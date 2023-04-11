@@ -117,7 +117,7 @@ i32 main(i32 argc, const char **argv) {
   switch (argc) {
   case 1:
     gab_repl(NULL, GAB_FLAG_DUMP_ERROR);
-    break;
+    return 0;
 
   case 2:
     if (argv[1][0] == '-') {
@@ -135,7 +135,7 @@ i32 main(i32 argc, const char **argv) {
     }
 
     gab_run_file(argv[1], NULL, GAB_FLAG_DUMP_ERROR);
-    break;
+    return 0;
 
   case 3:
     if (argv[1][0] == '-')

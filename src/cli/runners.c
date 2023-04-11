@@ -16,13 +16,12 @@ void gab_repl(const char *module, u8 flags) {
   gab_arg_push(gab, GAB_STRING("it"), GAB_VAL_NIL());
 
   for (;;) {
-
     printf("grepl> ");
     a_i8 *src = os_read_fd_line(stdin);
 
-    if (src == NULL || src->data[0] == '\0') {
+    if (src->data[0] == EOF) {
       a_i8_destroy(src);
-      break;
+      goto fin;
     }
 
     if (src->data[1] == '\0') {
@@ -51,6 +50,7 @@ void gab_repl(const char *module, u8 flags) {
     gab_arg_push(gab, GAB_STRING("it"), result);
   }
 
+fin:
   gab_destroy(gab);
 }
 
@@ -104,7 +104,6 @@ void gab_run_string(const char *string, const char *module, u8 flags) {
       goto fin;
     }
 
-
     a_i8 *it = os_read_fd(stdin);
 
     gab_value it_val =
@@ -113,7 +112,8 @@ void gab_run_string(const char *string, const char *module, u8 flags) {
     gab_arg_push(gab, GAB_STRING("it"), it_val);
   }
 
-  gab_value main = gab_compile(gab, GAB_STRING("__main__"), src, flags); // This is wasteful
+  gab_value main =
+      gab_compile(gab, GAB_STRING("__main__"), src, flags); // This is wasteful
 
   if (GAB_VAL_IS_NIL(main))
     goto fin;

@@ -7,7 +7,7 @@
 #include <unistd.h>
 #endif
 
-a_i8* os_read_fd(FILE* fd) {
+a_i8 *os_read_fd(FILE *fd) {
   v_i8 buffer;
   v_i8_create(&buffer, 1024);
 
@@ -19,7 +19,9 @@ a_i8* os_read_fd(FILE* fd) {
     v_i8_push(&buffer, c);
   }
 
-  a_i8* data = a_i8_create(buffer.data, buffer.len);
+  v_i8_push(&buffer, '\0');
+
+  a_i8 *data = a_i8_create(buffer.data, buffer.len);
 
   v_i8_destroy(&buffer);
 
@@ -40,25 +42,27 @@ a_i8 *os_read_file(const char *path) {
   return data;
 }
 
-a_i8 *os_read_fd_line(FILE* fd) {
-    v_i8 buffer;
-    v_i8_create(&buffer, 1024);
+a_i8 *os_read_fd_line(FILE *fd) {
+  v_i8 buffer;
+  v_i8_create(&buffer, 1024);
 
-    while (1) {
-        char c = fgetc(fd);
+  while (1) {
+    char c = fgetc(fd);
 
-        v_i8_push(&buffer, c);
+    v_i8_push(&buffer, c);
 
-        if (c == '\n') {
-            break;
-        }
-
-        if (c == EOF) {
-            break;
-        }
+    if (c == '\n') {
+      break;
     }
 
-  a_i8* data = a_i8_create(buffer.data, buffer.len);
+    if (c == EOF) {
+      break;
+    }
+  }
+
+  v_i8_push(&buffer, '\0');
+
+  a_i8 *data = a_i8_create(buffer.data, buffer.len);
 
   v_i8_destroy(&buffer);
 
