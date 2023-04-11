@@ -27,7 +27,7 @@ void gab_lib_sock(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   }
 
   gab_value res = GAB_CONTAINER(GAB_STRING("socket"), gab_container_socket_cb,
-                                (void *)result);
+                                NULL, (void *)result);
 
   gab_push(vm, 1, &res);
 
@@ -122,7 +122,7 @@ void gab_lib_accept(gab_engine *gab, gab_vm *vm, u8 argc,
   }
 
   gab_value res = GAB_CONTAINER(GAB_STRING("socket"), gab_container_socket_cb,
-                                (void *)result);
+                                NULL, (void *)result);
 
   gab_push(vm, 1, &res);
 

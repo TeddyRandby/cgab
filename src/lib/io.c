@@ -31,7 +31,7 @@ void gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     return;
   }
 
-  gab_value container = GAB_CONTAINER(GAB_STRING("File"), file_cb, file);
+  gab_value container = GAB_CONTAINER(GAB_STRING("File"), file_cb, NULL, file);
 
   gab_push(vm, 1, &container);
 

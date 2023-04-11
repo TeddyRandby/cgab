@@ -91,14 +91,6 @@ i32 gab_obj_dump(FILE *stream, gab_value value) {
     return fprintf(stream, "{ ") + rec_dump_properties(stream, rec) +
            fprintf(stream, " }");
   }
-  case GAB_KIND_LIST: {
-    gab_obj_list *list = GAB_VAL_TO_LIST(value);
-    return fprintf(stream, "[list:%p]", list);
-  }
-  case GAB_KIND_MAP: {
-    gab_obj_map *map = GAB_VAL_TO_MAP(value);
-    return fprintf(stream, "[map:%p]", map);
-  }
   case GAB_KIND_BUILTIN: {
     gab_obj_builtin *blt = GAB_VAL_TO_BUILTIN(value);
     return fprintf(stream, "[builtin:%V]", blt->name);
@@ -158,10 +150,6 @@ gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self) {
     return (gab_obj_string *)self;
   case GAB_KIND_BLOCK:
     return gab_obj_string_create(gab, s_i8_cstr("[block]"));
-  case GAB_KIND_MAP:
-    return gab_obj_string_create(gab, s_i8_cstr("[map]"));
-  case GAB_KIND_LIST:
-    return gab_obj_string_create(gab, s_i8_cstr("[list]"));
   case GAB_KIND_RECORD:
     return gab_obj_string_create(gab, s_i8_cstr("[record]"));
   case GAB_KIND_SHAPE:
@@ -219,17 +207,6 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self) {
 */
 void gab_obj_destroy(gab_obj *self) {
   switch (self->kind) {
-  case GAB_KIND_LIST: {
-    gab_obj_list *lst = (gab_obj_list *)self;
-
-    v_gab_value_destroy(&lst->data);
-    return;
-  }
-  case GAB_KIND_MAP: {
-    gab_obj_map *map = (gab_obj_map *)self;
-    d_gab_value_destroy(&map->data);
-    return;
-  }
   case GAB_KIND_MESSAGE: {
     gab_obj_message *function = (gab_obj_message *)self;
     d_specs_destroy(&function->specs);
@@ -237,8 +214,8 @@ void gab_obj_destroy(gab_obj *self) {
   }
   case GAB_KIND_CONTAINER: {
     gab_obj_container *container = (gab_obj_container *)self;
-    if (container->cb)
-      container->cb(container->data);
+    if (container->do_destroy)
+      container->do_destroy(container->data);
     return;
   }
   default:
@@ -256,10 +233,6 @@ u64 gab_obj_size(gab_obj *self) {
     return sizeof(gab_obj_symbol);
   case GAB_KIND_CONTAINER:
     return sizeof(gab_obj_container);
-  case GAB_KIND_LIST:
-    return sizeof(gab_obj_list);
-  case GAB_KIND_MAP:
-    return sizeof(gab_obj_map);
   case GAB_KIND_PROTOTYPE: {
     gab_obj_prototype *obj = (gab_obj_prototype *)self;
     return sizeof(gab_obj_prototype) + obj->nupvalues * 2;
@@ -486,106 +459,6 @@ gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 len,
   return self;
 }
 
-inline gab_value gab_obj_map_at(gab_obj_map *self, gab_value key) {
-  return d_gab_value_read(&self->data, key);
-}
-
-inline boolean gab_obj_map_has(gab_obj_map *self, gab_value key) {
-  return d_gab_value_exists(&self->data, key);
-}
-
-gab_value gab_obj_map_put(gab_engine *gab, gab_vm *vm, gab_obj_map *self,
-                          gab_value key, gab_value value) {
-  if (vm) {
-    if (d_gab_value_exists(&self->data, key)) {
-      gab_gc_dref(&vm->gc, vm, d_gab_value_read(&self->data, key));
-    } else {
-      gab_gc_iref(&vm->gc, vm, key);
-    }
-
-    gab_gc_iref(&vm->gc, vm, value);
-  }
-
-  d_gab_value_insert(&self->data, key, value);
-
-  return value;
-}
-
-inline gab_value gab_obj_list_put(gab_engine *gab, gab_vm *vm,
-                                  gab_obj_list *self, u64 offset,
-                                  gab_value value) {
-  if (offset >= self->data.len) {
-    u64 nils = offset - self->data.len;
-
-    while (nils-- > 0) {
-      v_gab_value_push(&self->data, GAB_VAL_NIL());
-    }
-
-    v_gab_value_push(&self->data, value);
-
-    return value;
-  }
-
-  v_gab_value_set(&self->data, offset, value);
-
-  if (vm)
-    gab_gc_iref(&vm->gc, vm, value);
-
-  return value;
-}
-
-inline gab_value gab_obj_list_at(gab_obj_list *self, u64 offset) {
-  if (offset >= self->data.len)
-    return GAB_VAL_NIL();
-
-  return v_gab_value_val_at(&self->data, offset);
-}
-
-gab_obj_map *gab_obj_map_create(gab_engine *gab, gab_vm *vm, u64 len,
-                                u64 stride, gab_value keys[len],
-                                gab_value values[len]) {
-  gab_obj_map *self = GAB_CREATE_OBJ(gab_obj_map, GAB_KIND_MAP);
-
-  d_gab_value_create(&self->data, len < 8 ? 8 : len * 2);
-
-  for (u64 i = 0; i < len; i++) {
-    d_gab_value_insert(&self->data, keys[i * stride], values[i * stride]);
-  }
-
-  if (vm) {
-    gab_gc_iref_many(&vm->gc, vm, len, keys);
-    gab_gc_iref_many(&vm->gc, vm, len, values);
-  }
-
-  return self;
-}
-
-gab_obj_list *gab_obj_list_create_empty(gab_engine *gab, u64 len) {
-  gab_obj_list *self = GAB_CREATE_OBJ(gab_obj_list, GAB_KIND_LIST);
-
-  v_gab_value_create(&self->data, len);
-
-  return self;
-}
-
-gab_obj_list *gab_obj_list_create(gab_engine *gab, gab_vm *vm, u64 len,
-                                  u64 stride, gab_value values[len]) {
-  gab_obj_list *self = GAB_CREATE_OBJ(gab_obj_list, GAB_KIND_LIST);
-
-  v_gab_value_create(&self->data, len < 8 ? 8 : len * 2);
-
-  self->data.len = len;
-
-  for (u64 i = 0; i < len; i++) {
-    self->data.data[i] = values[i * stride];
-  }
-
-  if (vm)
-    gab_gc_iref_many(&vm->gc, vm, len, values);
-
-  return self;
-}
-
 gab_obj_record *gab_obj_record_create(gab_engine *gab, gab_vm *vm,
                                       gab_obj_shape *shape, u64 stride,
                                       gab_value values[]) {
@@ -662,14 +535,19 @@ boolean gab_obj_record_has(gab_obj_record *self, gab_value prop) {
   return !GAB_VAL_IS_NIL(gab_obj_record_at(self, prop));
 }
 
-gab_obj_container *gab_obj_container_create(gab_engine *gab, gab_value type,
-                                            gab_obj_container_cb cb,
-                                            void *data) {
+gab_obj_container *
+gab_obj_container_create(gab_engine *gab, gab_vm *vm, gab_value type,
+                         gab_obj_container_destructor destructor,
+                         gab_obj_container_visitor visitor, void *data) {
 
   gab_obj_container *self =
       GAB_CREATE_OBJ(gab_obj_container, GAB_KIND_CONTAINER);
 
-  self->cb = cb;
+  if (vm)
+    gab_gc_iref(&vm->gc, vm, type);
+
+  self->do_destroy = destructor;
+  self->do_visit = visitor;
   self->data = data;
   self->type = type;
 

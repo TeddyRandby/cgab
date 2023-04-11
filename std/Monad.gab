@@ -1,18 +1,16 @@
-impl Any
-  def err
-    ({ err = self })
-  end
-
-  def some? true end
-
-  def ok? true end
-
-  def value! self end
-
-  def value_or(alt) self end
-
-  def value_else(cb) self end
+def err[]
+({ err = self })
 end
+
+def some?[] true end
+
+def ok?[] true end
+
+def value![] self end
+
+def value_or[](alt) self end
+
+def value_else[](cb) self end
 
 impl nil
   def some? false end

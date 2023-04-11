@@ -12,7 +12,7 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   case 1: {
     initscr();
 
-    gab_value k = GAB_CONTAINER(GAB_STRING("Term"), ncurses_cb, NULL);
+    gab_value k = GAB_CONTAINER(GAB_STRING("Term"), ncurses_cb, NULL, NULL);
 
     gab_push(vm, 1, &k);
 
@@ -40,7 +40,7 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     if (gab_obj_record_has(opts, GAB_STRING("keypad")))
       keypad(stdscr, true);
 
-    gab_value k = GAB_CONTAINER(GAB_STRING("Term"), ncurses_cb, NULL);
+    gab_value k = GAB_CONTAINER(GAB_STRING("Term"), ncurses_cb, NULL, NULL);
 
     gab_push(vm, 1, &k);
 

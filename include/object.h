@@ -1,11 +1,11 @@
 #ifndef GAB_OBJECT_H
 #define GAB_OBJECT_H
 
+#include "include/gc.h"
 #include "value.h"
 
 typedef struct gab_module gab_module;
 typedef struct gab_vm gab_vm;
-typedef struct gab_gc gab_gc;
 typedef struct gab_engine gab_engine;
 
 typedef enum gab_kind {
@@ -19,8 +19,6 @@ typedef enum gab_kind {
   GAB_KIND_CONTAINER,
   GAB_KIND_RECORD,
   GAB_KIND_SHAPE,
-  GAB_KIND_LIST,
-  GAB_KIND_MAP,
   GAB_KIND_NIL,
   GAB_KIND_UNDEFINED,
   GAB_KIND_NUMBER,
@@ -361,79 +359,25 @@ boolean gab_obj_record_put(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
 gab_value gab_obj_record_at(gab_obj_record *self, gab_value prop);
 
 boolean gab_obj_record_has(gab_obj_record *self, gab_value prop);
-/*
- *------------- OBJ_LIST -------------
- */
-#define T gab_value
-#include "vector.h"
 
-typedef struct gab_obj_list gab_obj_list;
-struct gab_obj_list {
-  gab_obj header;
-
-  v_gab_value data;
-};
-
-#define GAB_VAL_IS_LIST(value) (gab_val_is_obj_kind(value, GAB_KIND_LIST))
-#define GAB_VAL_TO_LIST(value) ((gab_obj_list *)GAB_VAL_TO_OBJ(value))
-#define GAB_OBJ_TO_LIST(value) ((gab_obj_list *)value)
-
-gab_obj_list *gab_obj_list_create(gab_engine *gab, gab_vm *vm, u64 size,
-                                  u64 stride, gab_value values[size]);
-
-gab_obj_list *gab_obj_list_create_empty(gab_engine *gab, u64 size);
-
-gab_value gab_obj_list_put(gab_engine *gab, gab_vm *vm, gab_obj_list *self,
-                           u64 offset, gab_value value);
-
-gab_value gab_obj_list_at(gab_obj_list *self, u64 offset);
-/*
- *------------- OBJ_MAP -------------
- */
-
-#define K gab_value
-#define V gab_value
-#define DEF_V GAB_VAL_NIL()
-#define HASH(a) a
-#define EQUAL(a, b) (a == b)
-#define LOAD DICT_MAX_LOAD
-#include "dict.h"
-
-typedef struct gab_obj_map gab_obj_map;
-struct gab_obj_map {
-  gab_obj header;
-
-  d_gab_value data;
-};
-
-#define GAB_VAL_IS_MAP(value) (gab_val_is_obj_kind(value, GAB_KIND_MAP))
-#define GAB_VAL_TO_MAP(value) ((gab_obj_map *)GAB_VAL_TO_OBJ(value))
-#define GAB_OBJ_TO_MAP(value) ((gab_obj_map *)value)
-
-gab_obj_map *gab_obj_map_create(gab_engine *gab, gab_vm *vm, u64 len,
-                                u64 stride, gab_value keys[len],
-                                gab_value values[len]);
-
-gab_value gab_obj_map_put(gab_engine *gab, gab_vm *vm, gab_obj_map *self,
-                          gab_value key, gab_value value);
-
-gab_value gab_obj_map_at(gab_obj_map *self, gab_value key);
-
-boolean gab_obj_map_has(gab_obj_map *self, gab_value key);
 /*
   ------------- OBJ_CONTAINER-------------
   A container to some unknown data.
 */
-typedef void (*gab_obj_container_cb)(void *);
+typedef void (*gab_obj_container_destructor)(void *data);
+typedef void (*gab_obj_container_visitor)(gab_gc *gc, gab_gc_visitor visitor,
+                                          void *data);
+
 typedef struct gab_obj_container gab_obj_container;
 struct gab_obj_container {
   gab_obj header;
 
+  gab_obj_container_destructor do_destroy;
+
+  gab_obj_container_visitor do_visit;
+
   gab_value type;
 
-  gab_obj_container_cb cb;
-
-  /* The pointer owned by this object */
   void *data;
 };
 
@@ -442,9 +386,10 @@ struct gab_obj_container {
 #define GAB_VAL_TO_CONTAINER(value) ((gab_obj_container *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_CONTAINER(value) ((gab_obj_container *)value)
 
-gab_obj_container *gab_obj_container_create(gab_engine *gab, gab_value type,
-                                            gab_obj_container_cb cb,
-                                            void *data);
+gab_obj_container *
+gab_obj_container_create(gab_engine *gab, gab_vm *vm, gab_value type,
+                         gab_obj_container_destructor destructor,
+                         gab_obj_container_visitor visitor, void *data);
 
 /*
   ------------- OBJ_SYMBOL-------------

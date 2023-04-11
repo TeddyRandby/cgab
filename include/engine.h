@@ -39,6 +39,9 @@ static const char *gab_status_names[] = {
 #define LOAD DICT_MAX_LOAD
 #include "include/dict.h"
 
+#define T gab_value
+#include "include/vector.h"
+
 struct gab_engine {
   gab_obj *objects;
 

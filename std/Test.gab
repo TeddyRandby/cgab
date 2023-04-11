@@ -1,7 +1,7 @@
 def TestState  { fails }
 
-def new[TestState]
-    Record:new(TestState):reset
+def testState[nil]
+    :record(TestState):reset
 end
 
 impl TestState 
@@ -20,7 +20,7 @@ impl TestState
     end
 end
 
-def T = TestState:new
+def T = :testState
 
 impl Any
     def expect(other, opt_msg)

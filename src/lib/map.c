@@ -1,13 +1,11 @@
-#include "include/core.h"
-#include "include/gab.h"
-#include "include/object.h"
+#include "map.h"
 #include <assert.h>
 #include <stdio.h>
 
 void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   switch (argc) {
   case 1: {
-    gab_obj_map *map = gab_obj_map_create(gab, vm, 0, 0, NULL, NULL);
+    gab_obj_container *map = map_create(gab, vm, 0, 0, NULL, NULL);
 
     gab_value result = GAB_VAL_OBJ(map);
 
@@ -28,8 +26,8 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     gab_obj_record *rec = GAB_VAL_TO_RECORD(argv[1]);
     gab_obj_shape *shp = rec->shape;
 
-    gab_obj_map *map =
-        gab_obj_map_create(gab, vm, rec->len, 1, shp->data, rec->data);
+    gab_obj_container *map =
+        map_create(gab, vm, rec->len, 1, shp->data, rec->data);
 
     gab_value result = GAB_VAL_OBJ(map);
 
@@ -54,9 +52,11 @@ void gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     return;
   }
 
-  gab_obj_map *obj = GAB_VAL_TO_MAP(argv[0]);
+  gab_obj_container *obj = GAB_VAL_TO_CONTAINER(argv[0]);
 
-  gab_value res = GAB_VAL_NUMBER(obj->data.len);
+  d_gab_value *data = obj->data;
+
+  gab_value res = GAB_VAL_NUMBER(data->len);
 
   gab_push(vm, 1, &res);
 
@@ -70,9 +70,9 @@ void gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     return;
   }
 
-  gab_obj_map *map = GAB_VAL_TO_MAP(argv[0]);
+  gab_obj_container *map = GAB_VAL_TO_CONTAINER(argv[0]);
 
-  gab_value res = gab_obj_map_at(map, argv[1]);
+  gab_value res = map_at(map, argv[1]);
 
   gab_push(vm, 1, &res);
 
@@ -86,11 +86,11 @@ void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     return;
   }
 
-  gab_obj_map *map = GAB_VAL_TO_MAP(argv[0]);
+  gab_obj_container *map = GAB_VAL_TO_CONTAINER(argv[0]);
 
   gab_value key = argv[1];
 
-  gab_obj_map_put(gab, vm, map, key, argv[2]);
+  map_put(gab, vm, map, key, argv[2]);
 
   gab_push(vm, 1, argv);
 
@@ -98,12 +98,12 @@ void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 }
 
 void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
-  gab_obj_map *map = GAB_VAL_TO_MAP(argv[0]);
+  gab_obj_container *map = GAB_VAL_TO_CONTAINER(argv[0]);
 
   switch (argc) {
 
   case 1: {
-    u64 next_index = d_gab_value_inext(&map->data, 0);
+    u64 next_index = d_gab_value_inext(map->data, 0);
 
     if (next_index == -1) {
       gab_value res = GAB_VAL_NIL();
@@ -113,7 +113,7 @@ void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
       return;
     }
 
-    gab_value res = d_gab_value_ikey(&map->data, next_index);
+    gab_value res = d_gab_value_ikey(map->data, next_index);
 
     gab_push(vm, 1, &res);
 
@@ -124,9 +124,9 @@ void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
     gab_value key = argv[1];
 
-    u64 index = d_gab_value_index_of(&map->data, key);
+    u64 index = d_gab_value_index_of(map->data, key);
 
-    u64 next_index = d_gab_value_inext(&map->data, index + 1);
+    u64 next_index = d_gab_value_inext(map->data, index + 1);
 
     if (next_index == -1) {
       gab_value res = GAB_VAL_NIL();
@@ -136,7 +136,7 @@ void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
       return;
     }
 
-    gab_value res = d_gab_value_ikey(&map->data, next_index);
+    gab_value res = d_gab_value_ikey(map->data, next_index);
 
     gab_push(vm, 1, &res);
 
@@ -152,14 +152,14 @@ void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value names[] = {
-      GAB_STRING("new"), GAB_STRING("len"),  GAB_STRING("put"),
+      GAB_STRING("map"), GAB_STRING("len"),  GAB_STRING("put"),
       GAB_STRING("at"),  GAB_STRING("next"),
   };
 
+  gab_value type = GAB_STRING("Map");
+
   gab_value receivers[] = {
-      gab_type(gab, GAB_KIND_MAP), gab_type(gab, GAB_KIND_MAP),
-      gab_type(gab, GAB_KIND_MAP), gab_type(gab, GAB_KIND_MAP),
-      gab_type(gab, GAB_KIND_MAP),
+      GAB_VAL_NIL(), type, type, type, type,
   };
 
   gab_value specs[] = {

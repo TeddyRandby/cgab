@@ -61,6 +61,8 @@ shared_library('cgabstring',
 
 shared_library('cgabrecord',
   'src/lib/rec.c',
+  'src/lib/map.h',
+  'src/lib/list.h',
   link_with: [libcgab],
   install: true,
   install_dir: '/usr/local/lib/gab/'

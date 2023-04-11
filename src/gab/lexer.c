@@ -387,6 +387,7 @@ gab_token gab_lexer_next(gab_lexer *self) {
 
   if (peek(self) == '\0') {
     self->current_token_src = s_i8_create(self->cursor, 0);
+    finish_row(self);
     return TOKEN_EOF;
   }
 

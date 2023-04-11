@@ -24,22 +24,12 @@ void gab_vm_container_cb(void *data) { DESTROY(data); }
 
 gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
                    const char *help_fmt, ...) {
-  gab_vm *stored = NEW(gab_vm);
-  memcpy(stored, vm, sizeof(gab_vm));
-
-  /* These pointers have to be recalculated for the copy */
-  stored->fp = stored->fb + (vm->fp - vm->fb);
-  stored->sp = stored->sb + (vm->sp - vm->sb);
-
   u64 nframes = vm->fp - vm->fb;
   u64 n = 1;
 
   if (flags & GAB_FLAG_DUMP_ERROR) {
     for (;;) {
       gab_vm_frame *frame = vm->fb + n;
-      gab_vm_frame *stored_frame = stored->fb + nframes;
-
-      stored_frame->slots = stored->sb + (frame->slots - vm->sb);
 
       s_i8 func_name =
           gab_obj_string_ref(GAB_VAL_TO_STRING(v_gab_constant_val_at(
@@ -125,7 +115,7 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
     exit(0);
   }
 
-  return GAB_CONTAINER(GAB_STRING("gab_vm"), gab_vm_container_cb, stored);
+  return GAB_CONTAINER(GAB_STRING("gab_vm"), gab_vm_container_cb, NULL, vm);
 }
 
 gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg) {

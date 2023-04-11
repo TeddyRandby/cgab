@@ -120,8 +120,8 @@ void gab_run_string(const char *string, const char *module, u8 flags) {
 
   gab_value result = gab_run(gab, main, flags | GAB_FLAG_EXIT_ON_PANIC);
 
-  gab_scratch(gab, main);
   gab_scratch(gab, result);
+  gab_scratch(gab, main);
 
 fin:
   gab_destroy(gab);

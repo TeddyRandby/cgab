@@ -45,6 +45,8 @@ typedef struct gab_gc {
   gab_obj *decrements[GC_DEC_BUFF_MAX];
 } gab_gc;
 
+typedef void (*gab_gc_visitor)(gab_gc *gc, gab_obj *obj);
+
 void gab_gc_create(gab_gc *vm);
 
 void gab_gc_destroy(gab_gc *vm);

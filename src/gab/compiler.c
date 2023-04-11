@@ -1959,7 +1959,6 @@ i32 compile_arguments(gab_engine *gab, gab_bc *bc, boolean *vse_out, u8 flags) {
 
     result += 1 + *vse_out;
 
-    // result += 1 + *vse_out;
     *vse_out = false;
   }
 
@@ -1981,7 +1980,8 @@ i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, boolean assignable) {
   gab_token tok = bc->previous_token;
   u64 line = bc->line;
 
-  gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, message));
+  gab_value val_name =
+      GAB_VAL_OBJ(gab_obj_string_create(gab, trim_prev_tok(bc)));
 
   u16 m = add_message_constant(gab, mod(bc), val_name);
 
@@ -1991,11 +1991,19 @@ i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, boolean assignable) {
     return COMP_ERR;
 
   boolean vse;
-  i32 args = compile_arguments(gab, bc, &vse, 0);
+  i32 result = compile_arguments(gab, bc, &vse, 0);
 
-  gab_module_push_send(mod(bc), args, m, vse, tok, line, message);
+  if (result < 0)
+    return COMP_ERR;
 
-  pop_slot(bc, args + 1);
+  if (result > ARG_MAX) {
+    compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
+    return COMP_ERR;
+  }
+
+  gab_module_push_send(mod(bc), result, m, vse, tok, line, message);
+
+  pop_slot(bc, result + 1);
 
   return VAR_EXP;
 }

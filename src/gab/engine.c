@@ -158,9 +158,7 @@ gab_engine *gab_create() {
   gab->types[GAB_KIND_SYMBOL] = GAB_SYMBOL("Symbol");
   gab->types[GAB_KIND_CONTAINER] = GAB_SYMBOL("Container");
   gab->types[GAB_KIND_SUSPENSE] = GAB_SYMBOL("Suspsense");
-  gab->types[GAB_KIND_LIST] = GAB_SYMBOL("List");
   gab->types[GAB_KIND_PRIMITIVE] = GAB_SYMBOL("Primitive");
-  gab->types[GAB_KIND_MAP] = GAB_SYMBOL("Map");
 
   for (int i = 0; i < LEN_CARRAY(primitives); i++) {
     gab_value name =

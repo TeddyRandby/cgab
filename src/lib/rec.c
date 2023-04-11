@@ -2,6 +2,8 @@
 #include "include/gab.h"
 #include "include/object.h"
 #include "include/value.h"
+#include "list.h"
+#include "map.h"
 #include <assert.h>
 #include <stdint.h>
 
@@ -25,7 +27,7 @@ void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   gab_val_dref(vm, result);
 }
 
-void gab_lib_splat(gab_engine* gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_splat(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (!GAB_VAL_IS_RECORD(argv[0])) {
     gab_panic(gab, vm, "Invalid call to gab_lib_splat");
     return;
@@ -222,7 +224,7 @@ void gab_lib_to_l(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     if (GAB_VAL_IS_RECORD(argv[0])) {
       gab_obj_record *rec = GAB_VAL_TO_RECORD(argv[0]);
 
-      gab_obj_list *list = gab_obj_list_create(gab, vm, rec->len, 1, rec->data);
+      gab_obj_container *list = list_create(gab, vm, rec->len, rec->data);
 
       gab_value result = GAB_VAL_OBJ(list);
 
@@ -236,8 +238,7 @@ void gab_lib_to_l(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     if (GAB_VAL_IS_SHAPE(argv[0])) {
       gab_obj_shape *shape = GAB_VAL_TO_SHAPE(argv[0]);
 
-      gab_obj_list *list =
-          gab_obj_list_create(gab, vm, shape->len, 1, shape->data);
+      gab_obj_container *list = list_create(gab, vm, shape->len, shape->data);
 
       gab_value result = GAB_VAL_OBJ(list);
 
@@ -268,8 +269,8 @@ void gab_lib_to_m(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   switch (argc) {
   case 1: {
-    gab_obj_map *map =
-        gab_obj_map_create(gab, vm, rec->len, 1, rec->shape->data, rec->data);
+    gab_obj_container *map =
+        map_create(gab, vm, rec->len, 1, rec->shape->data, rec->data);
 
     gab_value result = GAB_VAL_OBJ(map);
 
@@ -287,13 +288,13 @@ void gab_lib_to_m(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 }
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value names[] = {
-      GAB_STRING("new"),  GAB_STRING("len"),  GAB_STRING("to_l"),
+      GAB_STRING("record"),  GAB_STRING("len"),  GAB_STRING("to_l"),
       GAB_STRING("to_m"), GAB_STRING("send"), GAB_STRING("put"),
       GAB_STRING("at"),   GAB_STRING("next"), GAB_STRING("slice"),
   };
 
   gab_value receivers[] = {
-      gab_type(gab, GAB_KIND_RECORD),    gab_type(gab, GAB_KIND_UNDEFINED),
+      gab_type(gab, GAB_KIND_NIL),    gab_type(gab, GAB_KIND_UNDEFINED),
       gab_type(gab, GAB_KIND_UNDEFINED), gab_type(gab, GAB_KIND_UNDEFINED),
       gab_type(gab, GAB_KIND_UNDEFINED), gab_type(gab, GAB_KIND_UNDEFINED),
       gab_type(gab, GAB_KIND_UNDEFINED), gab_type(gab, GAB_KIND_UNDEFINED),

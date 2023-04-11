@@ -181,15 +181,12 @@ static inline void obj_possible_root(gab_gc *gc, gab_obj *obj) {
   }
 }
 
-typedef void (*child_iter)(gab_gc *gc, gab_obj *obj);
-
-static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_gc *gc) {
+static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
   switch (obj->kind) {
   case GAB_KIND_STRING:
   case GAB_KIND_PROTOTYPE:
   case GAB_KIND_BUILTIN:
   case GAB_KIND_SYMBOL:
-  case GAB_KIND_CONTAINER:
   case GAB_KIND_NIL:
   case GAB_KIND_NUMBER:
   case GAB_KIND_BOOLEAN:
@@ -198,26 +195,43 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_gc *gc) {
   case GAB_KIND_NKINDS:
     return;
 
+  case GAB_KIND_CONTAINER: {
+    gab_obj_container *container = (gab_obj_container *)obj;
+
+    if (GAB_VAL_IS_OBJ(container->type))
+      fnc(gc, GAB_VAL_TO_OBJ(container->type));
+
+    if (container->do_visit)
+      container->do_visit(gc, fnc, container->data);
+
+    return;
+  }
+
   case GAB_KIND_SUSPENSE: {
     gab_obj_suspense *eff = (gab_obj_suspense *)obj;
+
     for (u8 i = 0; i < eff->len; i++) {
       if (GAB_VAL_IS_OBJ(eff->frame[i]))
         fnc(gc, GAB_VAL_TO_OBJ(eff->frame[i]));
     }
+
     return;
   }
 
   case (GAB_KIND_BLOCK): {
     gab_obj_block *closure = (gab_obj_block *)obj;
+
     for (u8 i = 0; i < closure->nupvalues; i++) {
       if (GAB_VAL_IS_OBJ(closure->upvalues[i]))
         fnc(gc, GAB_VAL_TO_OBJ(closure->upvalues[i]));
     }
+
     return;
   }
 
   case (GAB_KIND_MESSAGE): {
     gab_obj_message *func = (gab_obj_message *)obj;
+
     for (u64 i = 0; i < func->specs.cap; i++) {
       if (d_specs_iexists(&func->specs, i)) {
         gab_value r = d_specs_ikey(&func->specs, i);
@@ -229,16 +243,19 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_gc *gc) {
           fnc(gc, GAB_VAL_TO_OBJ(s));
       }
     }
+
     return;
   }
 
   case GAB_KIND_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
+
     for (u64 i = 0; i < shape->len; i++) {
       if (GAB_VAL_IS_OBJ(shape->data[i])) {
         fnc(gc, GAB_VAL_TO_OBJ(shape->data[i]));
       }
     }
+
     return;
   }
 
@@ -253,30 +270,7 @@ static inline void for_child_do(gab_obj *obj, child_iter fnc, gab_gc *gc) {
     return;
   }
 
-  case GAB_KIND_LIST: {
-    gab_obj_list *lst = (gab_obj_list *)obj;
-    for (u64 i = 0; i < lst->data.len; i++) {
-      if (GAB_VAL_IS_OBJ(lst->data.data[i])) {
-        fnc(gc, GAB_VAL_TO_OBJ(lst->data.data[i]));
-      }
-    }
     return;
-  }
-
-  case GAB_KIND_MAP: {
-    gab_obj_map *map = (gab_obj_map *)obj;
-    for (u64 i = 0; i < map->data.cap; i++) {
-      if (d_gab_value_iexists(&map->data, i)) {
-        gab_value k = d_gab_value_ikey(&map->data, i);
-        gab_value v = d_gab_value_ival(&map->data, i);
-        if (GAB_VAL_IS_OBJ(k))
-          fnc(gc, GAB_VAL_TO_OBJ(k));
-        if (GAB_VAL_IS_OBJ(v))
-          fnc(gc, GAB_VAL_TO_OBJ(v));
-      }
-    }
-    return;
-  }
   }
 }
 

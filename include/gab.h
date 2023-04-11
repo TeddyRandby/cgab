@@ -46,11 +46,11 @@ void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
  *  @param gab The engine
  *
  *  @param name The name of the argument (Passed to the compiler)
- * 
+ *
  *  @param value The values of the argument (Passed to the vm)
  */
-void gab_arg_push(gab_engine* gab, gab_value name, gab_value value);
-void gab_arg_pop(gab_engine* gab);
+void gab_arg_push(gab_engine *gab, gab_value name, gab_value value);
+void gab_arg_pop(gab_engine *gab);
 
 /**
  * Pass the ownership of a value to the engine.
@@ -61,7 +61,7 @@ void gab_arg_pop(gab_engine* gab);
  *
  *  @return The value that was added to scratch
  */
-gab_value gab_scratch(gab_engine* gab, gab_value value);
+gab_value gab_scratch(gab_engine *gab, gab_value value);
 
 /**
  * Push a value(s) onto the vm's stack (ie. as return values from a builtin)
@@ -72,7 +72,7 @@ gab_value gab_scratch(gab_engine* gab, gab_value value);
  *
  * @param argv The array of values
  */
-i32 gab_push(gab_vm* vm, u64 argc, gab_value argv[argc]);
+i32 gab_push(gab_vm *vm, u64 argc, gab_value argv[argc]);
 
 /**
  * Compile a source string into a Gab Module.
@@ -138,7 +138,7 @@ void gab_dis(gab_module *mod);
  *
  * @param depth The depth
  */
-void gab_pry(gab_engine* gab, gab_vm* vm, u64 depth);
+void gab_pry(gab_engine *gab, gab_vm *vm, u64 depth);
 
 /**
  * Decrement the reference count of a value
@@ -339,8 +339,8 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self);
 /**
  * A helper macro for creating a gab_obj_container
  */
-#define GAB_CONTAINER(type, cb, data)                                              \
-  GAB_VAL_OBJ(gab_obj_container_create(gab, type, cb, data))
+#define GAB_CONTAINER(type, des, vis, data)                                    \
+  GAB_VAL_OBJ(gab_obj_container_create(gab, vm, type, des, vis, data))
 
 /**
  * A helper macro for creating a gab_obj_symbol
