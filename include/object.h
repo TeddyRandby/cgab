@@ -411,7 +411,7 @@ struct gab_obj_suspense {
   gab_obj_block *c;
 
   // Instruction Pointer
-  u64 ip;
+  u64 offset;
 
   // Stack frame
   gab_value frame[FLEXIBLE_ARRAY];

@@ -225,6 +225,8 @@ gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
 gab_value gab_send(gab_engine *gab, gab_vm *vm, gab_value message,
                    gab_value receiver, u8 argc, gab_value argv[argc]);
 
+gab_value gab_val_copy(gab_engine* gab, gab_vm* vm, gab_value value);
+
 /**
  * Dump a gab value to stdout
  *

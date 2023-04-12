@@ -246,11 +246,8 @@ void gab_collect(gab_engine *gab, gab_vm *vm) {
 
 void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]) {
-  v_gab_value_destroy(&gab->argv_values);
-  v_gab_value_destroy(&gab->argv_names);
-
-  v_gab_value_create(&gab->argv_values, argc * 2);
-  v_gab_value_create(&gab->argv_names, argc * 2);
+  gab->argv_values.len = 0;
+  gab->argv_names.len = 0;
 
   for (u8 i = 0; i < argc; i++) {
     v_gab_value_push(&gab->argv_names, argv_names[i]);
@@ -258,14 +255,14 @@ void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
   }
 }
 
-void gab_arg_push(gab_engine* gab, gab_value name, gab_value value) {
-    v_gab_value_push(&gab->argv_names, name);
-    v_gab_value_push(&gab->argv_values, value);
+void gab_arg_push(gab_engine *gab, gab_value name, gab_value value) {
+  v_gab_value_push(&gab->argv_names, name);
+  v_gab_value_push(&gab->argv_values, value);
 }
 
-void gab_arg_pop(gab_engine* gab) {
-    v_gab_value_pop(&gab->argv_names);
-    v_gab_value_pop(&gab->argv_values);
+void gab_arg_pop(gab_engine *gab) {
+  v_gab_value_pop(&gab->argv_names);
+  v_gab_value_pop(&gab->argv_values);
 };
 
 gab_value gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags) {
@@ -544,4 +541,113 @@ gab_value gab_scratch(gab_engine *gab, gab_value value) {
 
 i32 gab_push(gab_vm *vm, u64 argc, gab_value argv[argc]) {
   return gab_vm_push(vm, argc, argv);
+}
+
+gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
+  switch (gab_val_kind(value)) {
+  case GAB_KIND_CONTAINER:
+    fprintf(stderr, "Uh oh, trying to copy %V. This is unsafe!\n", value);
+  case GAB_KIND_BOOLEAN:
+  case GAB_KIND_NUMBER:
+  case GAB_KIND_NIL:
+  case GAB_KIND_UNDEFINED:
+  case GAB_KIND_PRIMITIVE:
+  case GAB_KIND_NKINDS:
+    return value;
+
+  case GAB_KIND_MESSAGE: {
+    gab_obj_message *self = GAB_VAL_TO_MESSAGE(value);
+    gab_obj_message *copy =
+        gab_obj_message_create(gab, gab_val_copy(gab, vm, self->name));
+
+    return GAB_VAL_OBJ(copy);
+  }
+
+  case GAB_KIND_STRING: {
+    gab_obj_string *self = GAB_VAL_TO_STRING(value);
+    return GAB_VAL_OBJ(gab_obj_string_create(gab, gab_obj_string_ref(self)));
+  }
+
+  case GAB_KIND_BUILTIN: {
+    gab_obj_builtin *self = GAB_VAL_TO_BUILTIN(value);
+    return GAB_VAL_OBJ(gab_obj_builtin_create(
+        gab, self->function, gab_val_copy(gab, vm, self->name)));
+  }
+
+  case GAB_KIND_PROTOTYPE: {
+    gab_obj_prototype *self = GAB_VAL_TO_PROTOTYPE(value);
+    gab->modules = gab_module_copy(gab, self->mod, gab->modules);
+
+    gab_obj_prototype *copy = gab_obj_prototype_create(
+        gab, gab->modules, self->narguments, self->nslots, self->nupvalues,
+        self->var, self->upv_desc, self->upv_desc);
+
+    memcpy(copy->upv_desc, self->upv_desc, self->nupvalues * 2);
+
+    return GAB_VAL_OBJ(copy);
+  }
+
+  case GAB_KIND_BLOCK: {
+    gab_obj_block *self = GAB_VAL_TO_BLOCK(value);
+
+    gab_obj_prototype *p_copy =
+        GAB_VAL_TO_PROTOTYPE(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->p)));
+
+    gab_obj_block *copy = gab_obj_block_create(gab, p_copy);
+
+    for (u8 i = 0; i < p_copy->nupvalues; i++) {
+      copy->upvalues[i] = gab_val_copy(gab, vm, self->upvalues[i]);
+    }
+
+    return GAB_VAL_OBJ(copy);
+  }
+
+  case GAB_KIND_SHAPE: {
+    gab_obj_shape *self = GAB_VAL_TO_SHAPE(value);
+
+    gab_value keys[self->len];
+
+    for (u64 i = 0; i < self->len; i++) {
+      keys[i] = gab_val_copy(gab, vm, self->data[i]);
+    }
+
+    gab_obj_shape *copy = gab_obj_shape_create(gab, vm, self->len, 1, keys);
+
+    return GAB_VAL_OBJ(copy);
+  }
+
+  case GAB_KIND_RECORD: {
+    gab_obj_record *self = GAB_VAL_TO_RECORD(value);
+
+    gab_obj_shape *s_copy =
+        GAB_VAL_TO_SHAPE(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->shape)));
+
+    gab_value values[self->len];
+
+    for (u64 i = 0; i < self->len; i++)
+      values[i] = gab_val_copy(gab, vm, self->data[i]);
+
+    gab_obj_record *copy = gab_obj_record_create(gab, vm, s_copy, 1, values);
+
+    return GAB_VAL_OBJ(copy);
+  }
+
+  case GAB_KIND_SUSPENSE: {
+    gab_obj_suspense *self = GAB_VAL_TO_SUSPENSE(value);
+
+    gab_value frame[self->len];
+
+    for (u64 i = 0; i < self->len; i++)
+      frame[i] = gab_val_copy(gab, vm, self->frame[i]);
+
+    gab_obj_block *b_copy =
+        GAB_VAL_TO_BLOCK(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->c)));
+
+    gab_obj_suspense *copy =
+        gab_obj_suspense_create(gab, vm, b_copy, self->offset, self->have,
+                                self->want, self->len, frame);
+
+    return GAB_VAL_OBJ(copy);
+  }
+  }
 }

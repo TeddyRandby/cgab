@@ -210,7 +210,7 @@ static inline boolean call_suspense(gab_vm *vm, gab_obj_suspense *sus, u8 arity,
 
   vm->fp++;
   vm->fp->c = sus->c;
-  vm->fp->ip = sus->c->p->mod->bytecode.data + sus->ip;
+  vm->fp->ip = sus->c->p->mod->bytecode.data + sus->offset;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - arity - 1;
 

@@ -1,8 +1,31 @@
 require('std')
+require('fiber')
 
-let l = :list:collect!(5000:each)
+:go do
+    print('hello world')
+    print('hello world')
+    print('hello world')
+    print('hello world')
+    print('hello world')
+    print('hello world')
+    print('hello world')
+    print('hello world')
+    print('hello world')
+    print('hello world')
+    print('hello world')
+end
 
-
-for i in l:each
-    print(i)
+:go do
+    print('goodbye world')
+    print('goodbye world')
+    print('goodbye world')
+    print('goodbye world')
+    print('goodbye world')
+    print('goodbye world')
+    print('goodbye world')
+    print('goodbye world')
+    print('goodbye world')
+    print('goodbye world')
+    print('goodbye world')
+    print('goodbye world')
 end

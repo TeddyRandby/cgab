@@ -1946,6 +1946,7 @@ i32 compile_arg_list(gab_engine *gab, gab_bc *bc, boolean *vse_out) {
 
 i32 compile_arguments(gab_engine *gab, gab_bc *bc, boolean *vse_out, u8 flags) {
   i32 result = 0;
+  *vse_out = false;
 
   if (flags & FLAG_HAS_PAREN || match_and_eat_token(bc, TOKEN_LPAREN)) {
     // Normal function args
@@ -1960,7 +1961,6 @@ i32 compile_arguments(gab_engine *gab, gab_bc *bc, boolean *vse_out, u8 flags) {
       return COMP_ERR;
 
     result += 1 + *vse_out;
-
     *vse_out = false;
   }
 

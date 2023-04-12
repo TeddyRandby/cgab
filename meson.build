@@ -16,6 +16,13 @@ libcgab = static_library('cgab',
   install: true,
 )
 
+shared_library('cgabfiber',
+  'src/lib/fiber.c',
+  link_with: [libcgab],
+  install: true,
+  install_dir: '/usr/local/lib/gab/'
+)
+
 shared_library('cgabterm',
   'src/lib/term.c',
   dependencies: [nc],

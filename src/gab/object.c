@@ -556,7 +556,7 @@ gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm,
       GAB_CREATE_FLEX_OBJ(gab_obj_suspense, gab_value, len, GAB_KIND_SUSPENSE);
 
   self->c = c;
-  self->ip = offset;
+  self->offset = offset;
   self->have = have;
   self->want = want;
   self->len = len;
