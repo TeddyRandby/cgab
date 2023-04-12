@@ -104,20 +104,18 @@ void gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  gab_value io = GAB_SYMBOL("io");
-
   gab_value keys[] = {
       GAB_STRING("open"),
       GAB_STRING("read"),
       GAB_STRING("write"),
   };
 
-  gab_value container_type = GAB_STRING("File");
+  gab_value type = GAB_STRING("File");
 
   gab_value receiver_types[] = {
-      io,
-      container_type,
-      container_type,
+      GAB_VAL_NIL(),
+      type,
+      type,
   };
 
   gab_value values[] = {
@@ -131,7 +129,5 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
     gab_val_dref(vm, values[i]);
   }
 
-  gab_val_dref(vm, io);
-
-  return io;
+  return GAB_VAL_NIL();
 }

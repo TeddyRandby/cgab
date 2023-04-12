@@ -146,19 +146,18 @@ gab_engine *gab_create() {
 
   gab->types[GAB_KIND_UNDEFINED] = GAB_VAL_UNDEFINED();
   gab->types[GAB_KIND_NIL] = GAB_VAL_NIL();
-  gab->types[GAB_KIND_NUMBER] = GAB_SYMBOL("Number");
-  gab->types[GAB_KIND_BOOLEAN] = GAB_SYMBOL("Boolean");
-  gab->types[GAB_KIND_STRING] = GAB_SYMBOL("String");
-  gab->types[GAB_KIND_MESSAGE] = GAB_SYMBOL("Message");
-  gab->types[GAB_KIND_PROTOTYPE] = GAB_SYMBOL("Prototype");
-  gab->types[GAB_KIND_BUILTIN] = GAB_SYMBOL("Builtin");
-  gab->types[GAB_KIND_BLOCK] = GAB_SYMBOL("Block");
-  gab->types[GAB_KIND_RECORD] = GAB_SYMBOL("Record");
-  gab->types[GAB_KIND_SHAPE] = GAB_SYMBOL("Shape");
-  gab->types[GAB_KIND_SYMBOL] = GAB_SYMBOL("Symbol");
-  gab->types[GAB_KIND_CONTAINER] = GAB_SYMBOL("Container");
-  gab->types[GAB_KIND_SUSPENSE] = GAB_SYMBOL("Suspsense");
-  gab->types[GAB_KIND_PRIMITIVE] = GAB_SYMBOL("Primitive");
+  gab->types[GAB_KIND_NUMBER] = GAB_STRING("Number");
+  gab->types[GAB_KIND_BOOLEAN] = GAB_STRING("Boolean");
+  gab->types[GAB_KIND_STRING] = GAB_STRING("String");
+  gab->types[GAB_KIND_MESSAGE] = GAB_STRING("Message");
+  gab->types[GAB_KIND_PROTOTYPE] = GAB_STRING("Prototype");
+  gab->types[GAB_KIND_BUILTIN] = GAB_STRING("Builtin");
+  gab->types[GAB_KIND_BLOCK] = GAB_STRING("Block");
+  gab->types[GAB_KIND_RECORD] = GAB_STRING("Record");
+  gab->types[GAB_KIND_SHAPE] = GAB_STRING("Shape");
+  gab->types[GAB_KIND_CONTAINER] = GAB_STRING("Container");
+  gab->types[GAB_KIND_SUSPENSE] = GAB_STRING("Suspsense");
+  gab->types[GAB_KIND_PRIMITIVE] = GAB_STRING("Primitive");
 
   for (int i = 0; i < LEN_CARRAY(primitives); i++) {
     gab_value name =

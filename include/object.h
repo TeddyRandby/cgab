@@ -10,7 +10,6 @@ typedef struct gab_engine gab_engine;
 
 typedef enum gab_kind {
   GAB_KIND_SUSPENSE,
-  GAB_KIND_SYMBOL,
   GAB_KIND_STRING,
   GAB_KIND_MESSAGE,
   GAB_KIND_PROTOTYPE,
@@ -390,23 +389,6 @@ gab_obj_container *
 gab_obj_container_create(gab_engine *gab, gab_vm *vm, gab_value type,
                          gab_obj_container_destructor destructor,
                          gab_obj_container_visitor visitor, void *data);
-
-/*
-  ------------- OBJ_SYMBOL-------------
-  A unique symbol.
-*/
-typedef struct gab_obj_symbol gab_obj_symbol;
-struct gab_obj_symbol {
-  gab_obj header;
-
-  gab_value name;
-};
-
-#define GAB_VAL_IS_SYMBOL(value) (gab_val_is_obj_kind(value, GAB_KIND_SYMBOL))
-#define GAB_VAL_TO_SYMBOL(value) ((gab_obj_symbol *)GAB_VAL_TO_OBJ(value))
-#define GAB_OBJ_TO_SYMBOL(value) ((gab_obj_symbol *)value)
-
-gab_obj_symbol *gab_obj_symbol_create(gab_engine *gab, gab_value name);
 
 /*
   ------------- OBJ_SUSPENSE -------------

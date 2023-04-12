@@ -281,7 +281,6 @@ static inline gab_value gab_val_type(gab_engine *gab, gab_value value) {
   switch (k) {
   case GAB_KIND_NIL:
   case GAB_KIND_UNDEFINED:
-  case GAB_KIND_SYMBOL:
     return value;
 
   case GAB_KIND_RECORD: {
@@ -341,10 +340,4 @@ gab_value gab_val_to_string(gab_engine *gab, gab_value self);
  */
 #define GAB_CONTAINER(type, des, vis, data)                                    \
   GAB_VAL_OBJ(gab_obj_container_create(gab, vm, type, des, vis, data))
-
-/**
- * A helper macro for creating a gab_obj_symbol
- */
-#define GAB_SYMBOL(name)                                                       \
-  GAB_VAL_OBJ(gab_obj_symbol_create(gab, GAB_STRING(name)))
 #endif

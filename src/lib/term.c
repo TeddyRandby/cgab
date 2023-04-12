@@ -100,10 +100,8 @@ void gab_lib_key(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  gab_value term = GAB_SYMBOL("Term");
-
   gab_value receivers[] = {
-      term,
+      GAB_VAL_NIL(),
       GAB_STRING("Term"),
       GAB_STRING("Term"),
       GAB_STRING("Term"),
@@ -112,7 +110,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   };
 
   gab_value names[] = {
-      GAB_STRING("new"),
+      GAB_STRING("term"),
       GAB_STRING("refresh"),
       GAB_STRING("key"),
       GAB_STRING("print"),
@@ -137,6 +135,5 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
     gab_val_dref(vm, values[i]);
   }
 
-  gab_val_dref(vm, term);
-  return term;
+  return GAB_VAL_NIL();
 }

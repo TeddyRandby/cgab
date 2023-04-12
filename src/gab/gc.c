@@ -186,7 +186,6 @@ static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
   case GAB_KIND_STRING:
   case GAB_KIND_PROTOTYPE:
   case GAB_KIND_BUILTIN:
-  case GAB_KIND_SYMBOL:
   case GAB_KIND_NIL:
   case GAB_KIND_NUMBER:
   case GAB_KIND_BOOLEAN:

@@ -2007,7 +2007,7 @@ i32 compile_exp_emp(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
   gab_module_push_send(mod(bc), result, m, vse, tok, line, message);
 
-  pop_slot(bc, result + 1);
+  pop_slot(bc, result);
 
   return VAR_EXP;
 }
@@ -2372,9 +2372,7 @@ i32 compile_exp_lop(gab_engine *gab, gab_bc *bc, boolean assignable) {
 i32 compile_exp_sym(gab_engine *gab, gab_bc *bc, boolean assignable) {
   s_i8 name = trim_prev_tok(bc);
 
-  gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
-
-  gab_obj_symbol *sym = gab_obj_symbol_create(gab, val_name);
+  gab_value sym = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
 
   push_op(bc, OP_CONSTANT);
   push_short(bc, add_constant(mod(bc), GAB_VAL_OBJ(sym)));

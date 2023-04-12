@@ -33,8 +33,7 @@ void gab_module_destroy(gab_engine *gab, gab_gc *gc, gab_module *mod) {
     gab_value v = v_gab_constant_val_at(&mod->constants, i);
     // The only kind of value owned by the modules
     // are their prototypes and the main closure
-    if (GAB_VAL_IS_SYMBOL(v) || GAB_VAL_IS_PROTOTYPE(v) ||
-        GAB_VAL_IS_BLOCK(v)) {
+    if (GAB_VAL_IS_PROTOTYPE(v) || GAB_VAL_IS_BLOCK(v)) {
       gab_gc_dref(gc, NULL, v);
     }
   }
@@ -246,8 +245,8 @@ void gab_module_push_next(gab_module *self, u8 start, gab_token t, u64 l,
   gab_module_push_byte(self, start, t, l, s);
 }
 
-u64 gab_module_push_iter(gab_module *self, u8 start, u8 want, boolean var, gab_token t,
-                         u64 l, s_i8 s) {
+u64 gab_module_push_iter(gab_module *self, u8 start, u8 want, boolean var,
+                         gab_token t, u64 l, s_i8 s) {
   want -= var;
   gab_module_push_byte(self, OP_ITER, t, l, s);
   gab_module_push_byte(self, (want << 1) | var, t, l, s);
@@ -324,11 +323,11 @@ u64 dumpSendInstruction(gab_module *self, u64 offset) {
   u8 have = v_u8_val_at(&self->bytecode, offset + 3);
   u8 want = v_u8_val_at(&self->bytecode, offset + 4);
 
-  u8 var = have & FLAG_VAR_EXP;;
+  u8 var = have & FLAG_VAR_EXP;
+  ;
   have = have >> 1;
 
-  printf("%-25s" ANSI_COLOR_BLUE "%-17V" ANSI_COLOR_RESET
-         " (%s%d) -> %d\n",
+  printf("%-25s" ANSI_COLOR_BLUE "%-17V" ANSI_COLOR_RESET " (%s%d) -> %d\n",
          name, msg, var ? "VAR" : "", have, want);
   return offset + 22;
 }

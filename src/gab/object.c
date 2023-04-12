@@ -73,10 +73,6 @@ i32 gab_obj_dump(FILE *stream, gab_value value) {
     gab_obj_string *str = GAB_VAL_TO_STRING(value);
     return fprintf(stream, "%.*s", (i32)str->len, (const char *)str->data);
   }
-  case GAB_KIND_SYMBOL: {
-    gab_obj_symbol *sym = GAB_VAL_TO_SYMBOL(value);
-    return fprintf(stream, "$%V", sym->name);
-  }
   case GAB_KIND_MESSAGE: {
     gab_obj_message *msg = GAB_VAL_TO_MESSAGE(value);
     return fprintf(stream, "&%V", msg->name);
@@ -160,8 +156,6 @@ gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self) {
     return gab_obj_string_create(gab, s_i8_cstr("[prototype]"));
   case GAB_KIND_BUILTIN:
     return gab_obj_string_create(gab, s_i8_cstr("[builtin]"));
-  case GAB_KIND_SYMBOL:
-    return gab_obj_string_create(gab, s_i8_cstr("[symbol]"));
   case GAB_KIND_CONTAINER:
     return gab_obj_string_create(gab, s_i8_cstr("[container]"));
   case GAB_KIND_SUSPENSE:
@@ -229,8 +223,6 @@ u64 gab_obj_size(gab_obj *self) {
     return sizeof(gab_obj_message);
   case GAB_KIND_BUILTIN:
     return sizeof(gab_obj_builtin);
-  case GAB_KIND_SYMBOL:
-    return sizeof(gab_obj_symbol);
   case GAB_KIND_CONTAINER:
     return sizeof(gab_obj_container);
   case GAB_KIND_PROTOTYPE: {
@@ -550,15 +542,6 @@ gab_obj_container_create(gab_engine *gab, gab_vm *vm, gab_value type,
   self->do_visit = visitor;
   self->data = data;
   self->type = type;
-
-  GAB_OBJ_GREEN((gab_obj *)self);
-
-  return self;
-}
-
-gab_obj_symbol *gab_obj_symbol_create(gab_engine *gab, gab_value name) {
-  gab_obj_symbol *self = GAB_CREATE_OBJ(gab_obj_symbol, GAB_KIND_SYMBOL);
-  self->name = name;
 
   GAB_OBJ_GREEN((gab_obj *)self);
 

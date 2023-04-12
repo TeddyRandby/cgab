@@ -229,10 +229,8 @@ void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  gab_value socket = GAB_SYMBOL("socket");
-
   gab_value names[] = {
-      GAB_STRING("sock"),    GAB_STRING("bind"),    GAB_STRING("listen"),
+      GAB_STRING("socket"),    GAB_STRING("bind"),    GAB_STRING("listen"),
       GAB_STRING("accept"),  GAB_STRING("receive"), GAB_STRING("send"),
       GAB_STRING("connect"),
   };
@@ -240,7 +238,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value container_type = GAB_STRING("Socket");
 
   gab_value types[] = {
-      socket,         container_type, container_type, container_type,
+      GAB_VAL_NIL(),         container_type, container_type, container_type,
       container_type, container_type, container_type,
   };
 
@@ -259,6 +257,5 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
     gab_val_dref(vm, values[i]);
   }
 
-  gab_val_dref(vm, socket);
-  return socket;
+  return GAB_VAL_NIL();
 }
