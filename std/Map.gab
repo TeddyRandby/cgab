@@ -1,6 +1,6 @@
 require('map')
 
-impl Map
+impl$Map
     def [] (key) self:at(key) end
 
     def [=] (key, value) self:put(key, value) end

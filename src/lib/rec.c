@@ -287,24 +287,30 @@ void gab_lib_to_m(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   }
 }
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  gab_value names[] = {
-      GAB_STRING("record"),  GAB_STRING("len"),  GAB_STRING("to_l"),
-      GAB_STRING("to_m"), GAB_STRING("send"), GAB_STRING("put"),
-      GAB_STRING("at"),   GAB_STRING("next"), GAB_STRING("slice"),
-  };
+  gab_value names[] = {GAB_STRING("record"), GAB_STRING("len"),
+                       GAB_STRING("to_l"),   GAB_STRING("to_m"),
+                       GAB_STRING("send"),   GAB_STRING("put"),
+                       GAB_STRING("at"),     GAB_STRING("next"),
+                       GAB_STRING("slice"),  GAB_STRING("splat")};
 
   gab_value receivers[] = {
-      gab_type(gab, GAB_KIND_NIL),    gab_type(gab, GAB_KIND_UNDEFINED),
-      gab_type(gab, GAB_KIND_UNDEFINED), gab_type(gab, GAB_KIND_UNDEFINED),
-      gab_type(gab, GAB_KIND_UNDEFINED), gab_type(gab, GAB_KIND_UNDEFINED),
-      gab_type(gab, GAB_KIND_UNDEFINED), gab_type(gab, GAB_KIND_UNDEFINED),
+      GAB_VAL_NIL(),
+      gab_type(gab, GAB_KIND_UNDEFINED),
+      gab_type(gab, GAB_KIND_UNDEFINED),
+      gab_type(gab, GAB_KIND_UNDEFINED),
+      gab_type(gab, GAB_KIND_UNDEFINED),
+      gab_type(gab, GAB_KIND_UNDEFINED),
+      gab_type(gab, GAB_KIND_UNDEFINED),
+      gab_type(gab, GAB_KIND_UNDEFINED),
+      gab_type(gab, GAB_KIND_UNDEFINED),
       gab_type(gab, GAB_KIND_UNDEFINED),
   };
 
-  gab_value specs[] = {
-      GAB_BUILTIN(new),  GAB_BUILTIN(len),  GAB_BUILTIN(to_l),
-      GAB_BUILTIN(to_m), GAB_BUILTIN(send), GAB_BUILTIN(put),
-      GAB_BUILTIN(at),   GAB_BUILTIN(next), GAB_BUILTIN(slice),
+  gab_value specs[] = {GAB_BUILTIN(new),  GAB_BUILTIN(len),  GAB_BUILTIN(to_l),
+                       GAB_BUILTIN(to_m), GAB_BUILTIN(send), GAB_BUILTIN(put),
+                       GAB_BUILTIN(at),   GAB_BUILTIN(next), GAB_BUILTIN(slice),
+                       GAB_BUILTIN(splat)
+
   };
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));

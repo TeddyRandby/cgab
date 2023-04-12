@@ -1,6 +1,6 @@
 require('num')
 
-impl Number
+impl $Number
   def each
     let v = 0
 
@@ -22,7 +22,7 @@ impl Number
   def to(dest)
     ?dest match
         nil     => { from = 0    to = self }            end
-        Number  => { from = self to = dest }            end
+        $Number => { from = self to = dest }            end
         else    => panic('Invalid call to Number:to')   end
   end
 

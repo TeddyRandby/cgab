@@ -157,12 +157,8 @@ void gab_lib_print(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 }
 
 void gab_setup_builtins(gab_engine *gab, const char *it) {
-  gab_value arg_names[] = {
-      GAB_STRING("print"),  GAB_STRING("require"), GAB_STRING("panic"),
-      GAB_STRING("String"), GAB_STRING("Number"),  GAB_STRING("Boolean"),
-      GAB_STRING("Block"),  GAB_STRING("Message"), GAB_STRING("Suspense"),
-      GAB_STRING("Record"), GAB_STRING("List"),    GAB_STRING("Map"),
-      GAB_STRING("it")};
+  gab_value arg_names[] = {GAB_STRING("print"), GAB_STRING("require"),
+                           GAB_STRING("panic"), GAB_STRING("it")};
 
   gab_value require = GAB_BUILTIN(require);
 
@@ -170,17 +166,7 @@ void gab_setup_builtins(gab_engine *gab, const char *it) {
 
   gab_value args[] = {gab_scratch(gab, GAB_BUILTIN(print)),
                       gab_scratch(gab, require),
-                      gab_scratch(gab, GAB_BUILTIN(panic)),
-                      gab_type(gab, GAB_KIND_STRING),
-                      gab_type(gab, GAB_KIND_NUMBER),
-                      gab_type(gab, GAB_KIND_BOOLEAN),
-                      gab_type(gab, GAB_KIND_BLOCK),
-                      gab_type(gab, GAB_KIND_MESSAGE),
-                      gab_type(gab, GAB_KIND_SUSPENSE),
-                      gab_type(gab, GAB_KIND_RECORD),
-                      GAB_STRING("List"),
-                      GAB_STRING("Map"),
-                      it_val};
+                      gab_scratch(gab, GAB_BUILTIN(panic)), it_val};
 
   static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
 

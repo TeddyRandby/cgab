@@ -1,26 +1,26 @@
 require('std')
 
-def Matrix { data n }
+def Matrix { n data }
+
+def matrix[](n, data) { n data } end
 
 impl Matrix
-  def new(n, data) { data n } end
-
   def + (other)
     def N = self.n
 
-    let data = Record:new(?self.data)
+    let data = :record(?self.data)
 
     for i in (N * N):each
       data[i] = self.data[i] + other.data[i]
     end
 
-    Matrix:new(N, data)
+    :matrix(N, data)
   end
 
   def * (other)
     def N = self.n
 
-    def data = Record:new(?self.data)
+    def data = :record(?self.data)
 
     for i in N:each
       for j in N:each
@@ -34,7 +34,7 @@ impl Matrix
       end
     end
 
-    Matrix:new(N, data)
+    :matrix(N, data)
   end
 
   def diag_sum
@@ -58,8 +58,8 @@ let sum = 0
 let N = 2
 
 for _ in 5000:each
-  let a = Matrix:new(N, List:new(N * N):map! do (_, i) i end :slice)
-  let b = Matrix:new(N, List:new(N * N):map! do (_, i) i end :slice)
+  let a = :matrix(N, :list(N * N):map! do (_, i) i end :slice)
+  let b = :matrix(N, :list(N * N):map! do (_, i) i end :slice)
 
   let c = a + b
   let d = c * a * b

@@ -1,12 +1,12 @@
 require('list')
 
-impl List
+impl $List
   def [](key)
     ?key match
       ?{ from to }     => self:slice(key.from, key.to)        end
       ?{ from }        => self:slice(key.from)                end
       ?{ to }          => self:slice(0, key.to)               end
-      Number           => self:at(key)                        end
+      $Number          => self:at(key)                        end
       else             => panic('Invalid call to List::[]')   end
   end
 
@@ -48,7 +48,7 @@ impl List
   end
 
   def filter(filterer)
-    let v = List:new
+    let v = :list
 
     for i, index in self:each
         filterer(i, index) and v:push(i)
@@ -58,7 +58,7 @@ impl List
   end
 
   def map(mapper)
-    let v = List:new
+    let v = :list
 
     for i, index in self:each
         v:push(mapper(i, index))
@@ -68,7 +68,7 @@ impl List
   end
 
   def fill(value)
-    let v = List:new
+    let v = :list
 
     for _, index in self:each
         self:put(index, value)

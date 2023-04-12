@@ -1,5 +1,17 @@
 def Range { from to }
 
+def range[](opts, to)
+    ?opts match
+        ?{  to  }   => { from = 0 to = opts.to }            end
+        ?{ from }   => { from = opts.from to = 0 }          end
+        $Number     => {          
+            from = to and opts or 0
+            to   = to or opts
+        }                                                 end
+        Range       => opts                                 end
+        else        => panic('Invalid call to Range:new')   end
+end
+
 impl Range
   def each
     let v = self.from
@@ -8,18 +20,6 @@ impl Range
       yield v
       v = v + 1
     until v >= self.to
-  end
-
-  def new(opts, to)
-    ?opts match
-      ?{  to  }   => { from = 0 to = opts.to }            end
-      ?{ from }   => { from = opts.from to = 0 }          end
-      Number      => {          
-          from = to and opts or 0
-          to   = to or opts
-        }                                                 end
-      Range       => opts                                 end
-      else        => panic('Invalid call to Range:new')   end
   end
 
   def print

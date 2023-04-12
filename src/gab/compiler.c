@@ -708,8 +708,6 @@ i32 compile_message_spec(gab_engine *gab, gab_bc *bc) {
 }
 
 i32 compile_block(gab_engine *gab, gab_bc *bc) {
-  down_scope(bc);
-
   down_frame(gab, bc, GAB_STRING("anonymous"), false);
 
   boolean vse;

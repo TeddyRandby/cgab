@@ -977,18 +977,16 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       // Here, that is always the hidden iterator local.
       TOP() = trim_return(TOP() - have, SLOTS() + start, have - 1, want);
 
+      // Update the iterator
+      PUSH(sus);
+
       if (!GAB_VAL_IS_SUSPENSE(sus)) {
         PUSH(GAB_VAL_NIL()); // Fulfill the iterator var with nil
-
-        PUSH(sus); // Push a result for the for expression
 
         ip += dist;
 
         NEXT();
       }
-
-      // Update the iterator
-      PUSH(sus);
 
       NEXT();
     }

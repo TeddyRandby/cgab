@@ -1,7 +1,7 @@
 require('time')
 
 def bench = do (cb, runs)
-  let times = List:new
+  let times = :list
 
   for _ in runs:to:each
     def before = :clock
@@ -32,11 +32,11 @@ def headToHead = do (a, b, runs)
 end
 
 
-def timeit[Block](opts)
+def timeit[$Block](opts)
   def avg = ?opts match
     ?{ runs against } => headToHead(self, opts.against, opts.runs)  end
     ?{ runs }         => bench(self, opts.runs)                     end
-    Number            => bench(self, opts)                          end
+    $Number           => bench(self, opts)                          end
     else              => panic('Invalid call to Block:timeit')      end
 
   print(self, 'ran in avg of {avg}s')
