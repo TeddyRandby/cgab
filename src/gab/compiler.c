@@ -1695,6 +1695,10 @@ i32 compile_exp_nil(gab_engine *gab, gab_bc *bc, boolean assignable) {
 i32 compile_exp_def(gab_engine *gab, gab_bc *bc, boolean assignable) {
   eat_token(bc);
 
+  gab_token tok = bc->previous_token;
+  s_i8 src = bc->lex.previous_token_src;
+  u64 line = bc->line;
+
   s_i8 name = {0};
 
   switch (bc->previous_token) {
