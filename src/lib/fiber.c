@@ -1,4 +1,5 @@
 #include "include/gab.h"
+#include <stdio.h>
 #include <threads.h>
 
 typedef struct {
@@ -17,8 +18,8 @@ fiber *fiber_create(gab_value init) {
   v_s_i8_create(&self->queue, 8);
 
   gab_engine *gab = gab_create();
-  self->gab = gab;
 
+  self->gab = gab;
   self->init = gab_val_copy(gab, NULL, init);
 
   gab_scratch(self->gab, self->init);
@@ -51,9 +52,10 @@ i32 fiber_launch(void *d) {
 
     mtx_lock(&self->mutex);
 
+    printf("Queue len: %lu\n", self->queue.len);
     if (self->queue.len == 0) {
       mtx_unlock(&self->mutex);
-      thrd_yield();
+      // thrd_yield();
       continue;
     }
 
@@ -95,14 +97,36 @@ void gab_lib_go(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
       gab, vm, GAB_STRING("Fiber"), fiber_destructor, NULL, f));
 
   gab_push(vm, 1, &fiber);
+
+  if (thrd_detach(thread) != thrd_success) {
+    gab_panic(gab, vm, "Invalid call to gab_lib_go");
+    return;
+  }
+}
+
+void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+  if (argc != 2) {
+    gab_panic(gab, vm, "Invalid call to gab_lib_send");
+    return;
+  }
+
+  gab_obj_container *container = GAB_VAL_TO_CONTAINER(argv[0]);
+
+  fiber *f = (fiber *)container->data;
+
+  gab_value msg = gab_val_to_string(gab, argv[1]);
+
+  mtx_lock(&f->mutex);
+  v_s_i8_push(&f->queue, gab_obj_string_ref(GAB_VAL_TO_STRING(msg)));
+  mtx_unlock(&f->mutex);
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  gab_value names[] = {GAB_STRING("go")};
+  gab_value names[] = {GAB_STRING("go"), GAB_STRING("send")};
 
-  gab_value receivers[] = {GAB_VAL_NIL()};
+  gab_value receivers[] = {GAB_VAL_NIL(), GAB_STRING("Fiber")};
 
-  gab_value specs[] = {GAB_BUILTIN(go)};
+  gab_value specs[] = {GAB_BUILTIN(go), GAB_BUILTIN(send)};
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));

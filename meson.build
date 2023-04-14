@@ -11,7 +11,7 @@ subdir('src/cli')
 
 nc = dependency('ncursesw')
 
-libcgab = static_library('cgab',
+libcgab = library('cgab',
   sources,
   install: true,
 )

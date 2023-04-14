@@ -2382,7 +2382,7 @@ i32 compile_exp_yld(gab_engine *gab, gab_bc *bc, boolean assignable) {
   if (push_slot(bc, 1) < 0)
     return COMP_ERR;
 
-  if (match_token(bc, TOKEN_NEWLINE)) {
+  if (!get_rule(bc->current_token).prefix) {
     gab_module_push_yield(mod(bc), 0, false, bc->previous_token, bc->line,
                           bc->lex.previous_token_src);
     return VAR_EXP;
@@ -2408,13 +2408,15 @@ i32 compile_exp_yld(gab_engine *gab, gab_bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_rtn(gab_engine *gab, gab_bc *bc, boolean assignable) {
-  if (match_token(bc, TOKEN_NEWLINE)) {
+  if (!get_rule(bc->current_token).prefix) {
+    if (push_slot(bc, 1) < 0)
+      return COMP_ERR;
+
     push_op(bc, OP_PUSH_NIL);
+
     gab_module_push_return(mod(bc), 1, false, bc->previous_token, bc->line,
                            bc->lex.previous_token_src);
 
-    if (push_slot(bc, 1) < 0)
-      return COMP_ERR;
     pop_slot(bc, 1);
     return COMP_OK;
   }

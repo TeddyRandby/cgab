@@ -1,31 +1,10 @@
 require('std')
 require('fiber')
 
-:go do
-    print('hello world')
-    print('hello world')
-    print('hello world')
-    print('hello world')
-    print('hello world')
-    print('hello world')
-    print('hello world')
-    print('hello world')
-    print('hello world')
-    print('hello world')
-    print('hello world')
+def chan = :go do
+    loop
+        print(yield)
+    end
 end
 
-:go do
-    print('goodbye world')
-    print('goodbye world')
-    print('goodbye world')
-    print('goodbye world')
-    print('goodbye world')
-    print('goodbye world')
-    print('goodbye world')
-    print('goodbye world')
-    print('goodbye world')
-    print('goodbye world')
-    print('goodbye world')
-    print('goodbye world')
-end
+loop 1 end

@@ -47,24 +47,34 @@ void gab_module_destroy(gab_engine *gab, gab_gc *gc, gab_module *mod) {
   DESTROY(mod);
 }
 
-gab_module *gab_module_copy(gab_engine *gab, gab_module *self,
-                            gab_module *next) {
+gab_module *gab_module_copy(gab_engine *gab, gab_module *self) {
+
   gab_module *copy = NEW(gab_module);
   copy->source = gab_source_copy(gab, self->source);
   copy->previous_compiled_op = OP_NOP;
-  copy->next = next;
+  copy->next = gab->modules;
 
   v_u8_copy(&copy->bytecode, &self->bytecode);
   v_u8_copy(&copy->tokens, &self->tokens);
   v_u64_copy(&copy->lines, &self->lines);
-  v_s_i8_copy(&copy->sources, &self->sources);
   v_gab_constant_copy(&copy->constants, &self->constants);
+  v_s_i8_copy(&copy->sources, &self->sources);
 
+  // Reconcile the constant array by copying the non trivial values
   for (u64 i = 0; i < self->constants.len; i++) {
     gab_value v = v_gab_constant_val_at(&copy->constants, i);
     if (GAB_VAL_IS_OBJ(v)) {
       v_gab_constant_set(&copy->constants, i, gab_val_copy(gab, NULL, v));
     }
+  }
+
+  // Reconcile the copied slices to point to the new source
+  for (u64 i = 0; i < copy->sources.len; i++) {
+    s_i8 *copy_src = v_s_i8_ref_at(&copy->sources, i);
+    s_i8 *src_src = v_s_i8_ref_at(&self->sources, i);
+
+    copy_src->data = copy->source->source->data +
+                     (src_src->data - self->source->source->data);
   }
 
   copy->name = self->name;

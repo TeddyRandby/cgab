@@ -447,11 +447,19 @@ gab_source *gab_source_create(gab_engine *gab, s_i8 source) {
   return self;
 }
 
-gab_source* gab_source_copy(gab_engine* gab, gab_source* self) {
+gab_source *gab_source_copy(gab_engine *gab, gab_source *self) {
   gab_source *copy = NEW(gab_source);
-  self->source = a_i8_create(self->source->data, self->source->len);
+  copy->source = a_i8_create(self->source->data, self->source->len);
 
   v_s_i8_copy(&copy->source_lines, &self->source_lines);
+
+  // Reconcile the copied slices to point to the new source
+  for (u64 i = 0; i < copy->source_lines.len; i++) {
+    s_i8 *copy_src = v_s_i8_ref_at(&copy->source_lines, i);
+    s_i8 *src_src = v_s_i8_ref_at(&self->source_lines, i);
+
+    copy_src->data = copy->source->data + (src_src->data - self->source->data);
+  }
 
   copy->next = gab->sources;
   gab->sources = copy;

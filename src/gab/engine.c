@@ -576,7 +576,7 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
 
   case GAB_KIND_PROTOTYPE: {
     gab_obj_prototype *self = GAB_VAL_TO_PROTOTYPE(value);
-    gab->modules = gab_module_copy(gab, self->mod, gab->modules);
+    gab->modules = gab_module_copy(gab, self->mod);
 
     gab_obj_prototype *copy = gab_obj_prototype_create(
         gab, gab->modules, self->narguments, self->nslots, self->nupvalues,
