@@ -7,12 +7,13 @@
 #include "include/object.h"
 #include <stdio.h>
 
-gab_module *gab_module_create(gab_value name, gab_source *source,
-                              gab_module *next) {
+gab_module *gab_module_create(gab_engine* gab, gab_value name, gab_source *source) {
   gab_module *self = NEW(gab_module);
   self->source = source;
   self->previous_compiled_op = OP_NOP;
-  self->next = next;
+
+  self->next = gab->modules;
+  gab->modules = self;
 
   v_u8_create(&self->bytecode, 256);
   v_u8_create(&self->tokens, 256);
@@ -50,9 +51,13 @@ void gab_module_destroy(gab_engine *gab, gab_gc *gc, gab_module *mod) {
 gab_module *gab_module_copy(gab_engine *gab, gab_module *self) {
 
   gab_module *copy = NEW(gab_module);
+
+  copy->name = self->name;
   copy->source = gab_source_copy(gab, self->source);
   copy->previous_compiled_op = OP_NOP;
+
   copy->next = gab->modules;
+  gab->modules = copy;
 
   v_u8_copy(&copy->bytecode, &self->bytecode);
   v_u8_copy(&copy->tokens, &self->tokens);
@@ -61,8 +66,8 @@ gab_module *gab_module_copy(gab_engine *gab, gab_module *self) {
   v_s_i8_copy(&copy->sources, &self->sources);
 
   // Reconcile the constant array by copying the non trivial values
-  for (u64 i = 0; i < self->constants.len; i++) {
-    gab_value v = v_gab_constant_val_at(&copy->constants, i);
+  for (u64 i = 0; i < copy->constants.len; i++) {
+    gab_value v = v_gab_constant_val_at(&self->constants, i);
     if (GAB_VAL_IS_OBJ(v)) {
       v_gab_constant_set(&copy->constants, i, gab_val_copy(gab, NULL, v));
     }
@@ -76,8 +81,6 @@ gab_module *gab_module_copy(gab_engine *gab, gab_module *self) {
     copy_src->data = copy->source->source->data +
                      (src_src->data - self->source->source->data);
   }
-
-  copy->name = self->name;
 
   return copy;
 }

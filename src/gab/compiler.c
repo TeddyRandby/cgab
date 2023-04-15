@@ -431,8 +431,7 @@ static gab_module *down_frame(gab_engine *gab, gab_bc *bc, gab_value name,
                               boolean is_method) {
   gab_bc_frame *f = bc->frames + bc->nframe++;
 
-  gab_module *mod = gab_module_create(name, bc->lex.source, gab->modules);
-  gab->modules = mod;
+  gab_module *mod = gab_module_create(gab, name, bc->lex.source);
 
   f->mod = mod;
 
@@ -2556,8 +2555,7 @@ gab_value compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
 gab_value gab_bc_compile_send(gab_engine *gab, gab_value msg,
                               gab_value receiver, u8 flags, u8 narguments,
                               gab_value arguments[narguments]) {
-  gab_module *mod = gab_module_create(GAB_STRING("send"), NULL, gab->modules);
-  gab->modules = mod;
+  gab_module *mod = gab_module_create(gab, GAB_STRING("send"), NULL);
 
   u16 message = add_constant(mod, msg);
 

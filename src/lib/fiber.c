@@ -1,10 +1,13 @@
 #include "include/gab.h"
+#include <stdatomic.h>
 #include <stdio.h>
 #include <threads.h>
 
 typedef struct {
+  atomic_int rc;
   v_s_i8 queue;
   mtx_t mutex;
+  thrd_t parent;
 
   gab_value init;
   gab_engine *gab;
@@ -19,8 +22,10 @@ fiber *fiber_create(gab_value init) {
 
   gab_engine *gab = gab_create();
 
+  self->rc = 1;
   self->gab = gab;
   self->init = gab_val_copy(gab, NULL, init);
+  self->parent = thrd_current();
 
   gab_scratch(self->gab, self->init);
 
@@ -31,8 +36,6 @@ void fiber_destroy(fiber *self) {
   mtx_destroy(&self->mutex);
   v_s_i8_destroy(&self->queue);
 }
-
-void fiber_destructor(void *self) { fiber_destroy((fiber *)self); }
 
 boolean callable(gab_value v) {
   return GAB_VAL_IS_BLOCK(v) || GAB_VAL_IS_SUSPENSE(v);
@@ -52,7 +55,6 @@ i32 fiber_launch(void *d) {
 
     mtx_lock(&self->mutex);
 
-    printf("Queue len: %lu\n", self->queue.len);
     if (self->queue.len == 0) {
       mtx_unlock(&self->mutex);
       // thrd_yield();
@@ -70,6 +72,8 @@ i32 fiber_launch(void *d) {
   }
 
   gab_destroy(self->gab);
+
+  thrd_join(self->parent, NULL);
 
   return 0;
 }
@@ -93,15 +97,10 @@ void gab_lib_go(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     return;
   }
 
-  gab_value fiber = GAB_VAL_OBJ(gab_obj_container_create(
-      gab, vm, GAB_STRING("Fiber"), fiber_destructor, NULL, f));
+  gab_value fiber = GAB_VAL_OBJ(
+      gab_obj_container_create(gab, vm, GAB_STRING("Fiber"), NULL, NULL, f));
 
   gab_push(vm, 1, &fiber);
-
-  if (thrd_detach(thread) != thrd_success) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_go");
-    return;
-  }
 }
 
 void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {

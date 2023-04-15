@@ -171,6 +171,8 @@ gab_engine *gab_create() {
 }
 
 void gab_destroy(gab_engine *gab) {
+  printf("Destroying gab engine\n");
+
   if (gab == NULL)
     return;
 
@@ -222,7 +224,7 @@ void gab_destroy(gab_engine *gab) {
 
   gab_engine_collect(gab);
 
-  gab_imports_destroy(gab, gc);
+  // gab_imports_destroy(gab, gc);
 
   d_strings_destroy(&gab->interned_strings);
   d_shapes_destroy(&gab->interned_shapes);

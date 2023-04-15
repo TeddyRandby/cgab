@@ -71,8 +71,7 @@ struct gab_module {
 /*
   Creating and destroying modules, from nothing and from a base module.
 */
-gab_module *gab_module_create(gab_value name, gab_source *src,
-                              gab_module *next);
+gab_module *gab_module_create(gab_engine* gab, gab_value name, gab_source *src);
 
 void gab_module_destroy(gab_engine *gab, gab_gc *gc, gab_module *mod);
 

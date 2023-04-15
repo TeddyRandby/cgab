@@ -1,4 +1,3 @@
-require('std')
 require('fiber')
 
 def chan = :go do
@@ -6,5 +5,11 @@ def chan = :go do
         print(yield)
     end
 end
+
+chan:send('Hello')
+chan:send('Hello')
+chan:send('Hello')
+chan:send('Hello')
+chan:send('Hello')
 
 loop 1 end

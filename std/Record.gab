@@ -1,16 +1,14 @@
 require('record')
 
-impl $Record
-    def first self:at(0) end
+def first[] self:at(0) end
 
-    def last self:at(self:len - 1) end
+def last[] self:at(self:len - 1) end
 
-    def each
-        let key = self:next
+def each[]
+    let key = self:next
 
-        loop
-        yield key, self:at(key)
-        key = self:next(key)
-        until key == nil
-    end
+    loop
+    yield key, self:at(key)
+    key = self:next(key)
+    until key == nil
 end

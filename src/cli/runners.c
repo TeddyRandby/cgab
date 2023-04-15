@@ -51,7 +51,10 @@ void gab_repl(const char *module, u8 flags) {
   }
 
 fin:
+#if GAB_DEBUG_GC
   gab_destroy(gab);
+#endif
+  return;
 }
 
 void run_src(gab_engine *gab, s_i8 src, u8 flags) {
@@ -65,7 +68,10 @@ void run_src(gab_engine *gab, s_i8 src, u8 flags) {
   gab_scratch(gab, main);
   gab_scratch(gab, result);
 fin:
+#if GAB_DEBUG_GC
   gab_destroy(gab);
+#endif
+  return;
 }
 
 void gab_run_string(const char *string, const char *module, u8 flags) {
@@ -124,7 +130,10 @@ void gab_run_string(const char *string, const char *module, u8 flags) {
   gab_scratch(gab, main);
 
 fin:
+#if GAB_DEBUG_GC
   gab_destroy(gab);
+#endif
+  return;
 }
 
 void gab_run_file(const char *path, const char *module, u8 flags) {
@@ -141,4 +150,9 @@ void gab_run_file(const char *path, const char *module, u8 flags) {
   run_src(gab, s_i8_create(src->data, src->len), flags);
 
   a_i8_destroy(src);
+
+#if GAB_DEBUG_GC
+  gab_destroy(gab);
+#endif
+  return;
 }
