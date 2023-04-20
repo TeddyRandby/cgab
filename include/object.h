@@ -1,7 +1,7 @@
 #ifndef GAB_OBJECT_H
 #define GAB_OBJECT_H
 
-#include "include/gc.h"
+#include "gc.h"
 #include "value.h"
 
 typedef struct gab_module gab_module;
@@ -220,7 +220,7 @@ typedef struct gab_obj_message gab_obj_message;
 #define DEF_V GAB_VAL_UNDEFINED()
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
-#include "include/dict.h"
+#include "dict.h"
 
 struct gab_obj_message {
   gab_obj header;

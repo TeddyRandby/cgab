@@ -10,8 +10,8 @@ void gab_repl(const char *module, u8 flags) {
 
   if (module != NULL)
     gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING(module), 0, NULL);
-
-  gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING("std"), 0, NULL);
+  else 
+    gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING("std"), 0, NULL);
 
   gab_arg_push(gab, GAB_STRING("it"), GAB_VAL_NIL());
 

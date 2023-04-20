@@ -59,6 +59,13 @@ shared_library('cgablist',
   install_dir: '/usr/local/lib/gab/'
 )
 
+shared_library('cgabsymbol',
+  'src/lib/symbol.c',
+  link_with: [libcgab],
+  install: true,
+  install_dir: '/usr/local/lib/gab/'
+)
+
 shared_library('cgabstring',
   'src/lib/string.c',
   link_with: [libcgab],
@@ -114,6 +121,7 @@ install_headers(
   'include/vector.h',
   'include/dict.h',
   'include/hash.h',
+  'include/gc.h',
   install_dir: '/usr/local/include/gab/'
   )
 

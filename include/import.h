@@ -22,7 +22,7 @@ typedef struct {
 #define DEF_V NULL
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
-#include "include/dict.h"
+#include "dict.h"
 
 u64 gab_imports_module(gab_engine* gab, s_i8 name, gab_value mod, gab_value val);
 

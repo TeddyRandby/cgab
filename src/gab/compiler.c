@@ -2096,6 +2096,7 @@ i32 compile_exp_snd(gab_engine *gab, gab_bc *bc, boolean assignable) {
   s_i8 prev_src = bc->lex.previous_token_src;
   gab_token prev_tok = bc->previous_token;
   u64 prev_line = bc->line;
+
   s_i8 message = trim_prev_tok(bc);
 
   gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, message));
@@ -2119,6 +2120,7 @@ i32 compile_exp_snd(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
   if (push_slot(bc, 1) < 0)
     return COMP_ERR;
+
   return VAR_EXP;
 }
 
@@ -2525,6 +2527,9 @@ gab_value compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
   gab_module *new_mod = down_frame(gab, bc, name, false);
 
   if (eat_token(bc) == COMP_ERR)
+    return GAB_VAL_UNDEFINED();
+
+  if (bc->current_token == TOKEN_EOF)
     return GAB_VAL_UNDEFINED();
 
   push_slot(bc, narguments);

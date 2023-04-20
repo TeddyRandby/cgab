@@ -23,24 +23,24 @@ static const char *gab_status_names[] = {
 #define HASH(a) (a->hash)
 #define EQUAL(a, b) (a == b)
 #define LOAD DICT_MAX_LOAD
-#include "include/dict.h"
+#include "dict.h"
 
 #define NAME shapes
 #define K gab_obj_shape *
 #define HASH(a) (a->hash)
 #define EQUAL(a, b) (a == b)
 #define LOAD DICT_MAX_LOAD
-#include "include/dict.h"
+#include "dict.h"
 
 #define NAME messages
 #define K gab_obj_message *
 #define HASH(a) (a->hash)
 #define EQUAL(a, b) (a == b)
 #define LOAD DICT_MAX_LOAD
-#include "include/dict.h"
+#include "dict.h"
 
 #define T gab_value
-#include "include/vector.h"
+#include "vector.h"
 
 struct gab_engine {
   gab_obj *objects;

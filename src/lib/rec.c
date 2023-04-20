@@ -259,6 +259,33 @@ void gab_lib_to_l(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   }
 }
 
+void gab_lib_implements(gab_engine *gab, gab_vm *vm, u8 argc,
+                        gab_value argv[argc]) {
+  switch (argc) {
+  case 2: {
+    if (!GAB_VAL_IS_MESSAGE(argv[1])) {
+      gab_panic(gab, vm, "Invalid call to gab_lib_implements");
+      return;
+    }
+
+    gab_value type = gab_val_type(gab, argv[0]);
+
+    gab_obj_message *msg = GAB_VAL_TO_MESSAGE(argv[1]);
+
+    u64 index = gab_obj_message_find(msg, type);
+
+    gab_value result = GAB_VAL_BOOLEAN(index != UINT64_MAX);
+
+    gab_push(vm, 1, &result);
+
+    return;
+  }
+  default:
+    gab_panic(gab, vm, "Invalid call to gab_lib_implements");
+    return;
+  }
+}
+
 void gab_lib_to_m(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (!GAB_VAL_IS_RECORD(argv[0])) {
     gab_panic(gab, vm, "Invalid call to gab_lib_to_l");
@@ -287,11 +314,12 @@ void gab_lib_to_m(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   }
 }
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  gab_value names[] = {GAB_STRING("record"), GAB_STRING("len"),
-                       GAB_STRING("to_l"),   GAB_STRING("to_m"),
-                       GAB_STRING("send"),   GAB_STRING("put"),
-                       GAB_STRING("at"),     GAB_STRING("next"),
-                       GAB_STRING("slice"),  GAB_STRING("splat")};
+  gab_value names[] = {
+      GAB_STRING("record"), GAB_STRING("len"),        GAB_STRING("to_l"),
+      GAB_STRING("to_m"),   GAB_STRING("send"),       GAB_STRING("put"),
+      GAB_STRING("at"),     GAB_STRING("next"),       GAB_STRING("slice"),
+      GAB_STRING("splat"),  GAB_STRING("implements"),
+  };
 
   gab_value receivers[] = {
       GAB_VAL_NIL(),
@@ -304,12 +332,14 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
       gab_type(gab, GAB_KIND_UNDEFINED),
       gab_type(gab, GAB_KIND_UNDEFINED),
       gab_type(gab, GAB_KIND_UNDEFINED),
+      gab_type(gab, GAB_KIND_UNDEFINED),
   };
 
-  gab_value specs[] = {GAB_BUILTIN(new),  GAB_BUILTIN(len),  GAB_BUILTIN(to_l),
-                       GAB_BUILTIN(to_m), GAB_BUILTIN(send), GAB_BUILTIN(put),
-                       GAB_BUILTIN(at),   GAB_BUILTIN(next), GAB_BUILTIN(slice),
-                       GAB_BUILTIN(splat)
+  gab_value specs[] = {
+      GAB_BUILTIN(new),   GAB_BUILTIN(len),        GAB_BUILTIN(to_l),
+      GAB_BUILTIN(to_m),  GAB_BUILTIN(send),       GAB_BUILTIN(put),
+      GAB_BUILTIN(at),    GAB_BUILTIN(next),       GAB_BUILTIN(slice),
+      GAB_BUILTIN(splat), GAB_BUILTIN(implements),
 
   };
 

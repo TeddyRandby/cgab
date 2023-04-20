@@ -1,3 +1,5 @@
+require('std')
+
 def TestState  { fails }
 
 def testState[nil]
@@ -34,7 +36,7 @@ end
 
 impl nil
     def describe(name, cb)
-        print('\nTesting {name}...')
+        print('\n{name}:')
         cb()
     end
 
@@ -43,6 +45,6 @@ impl nil
 
         cb()
 
-        print('{T:passed? and '✓' or '×'} it {name}')
+        print('  {T:passed? and '✓' or '×'} it {name}')
     end
 end

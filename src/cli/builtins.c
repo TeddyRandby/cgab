@@ -64,6 +64,10 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
 
 resource resources[] = {
     // Local resources
+    {.prefix = "./mod/", .suffix = ".gab", .handler = gab_source_file_handler},
+    {.prefix = "./",
+     .suffix = "/mod/mod.gab",
+     .handler = gab_source_file_handler},
     {.prefix = "./", .suffix = ".gab", .handler = gab_source_file_handler},
     {.prefix = "./", .suffix = "/mod.gab", .handler = gab_source_file_handler},
     {.prefix = "./libcgab",
@@ -78,6 +82,9 @@ resource resources[] = {
      .handler = gab_source_file_handler},
     {.prefix = "/usr/local/share/gab/",
      .suffix = "/mod.gab",
+     .handler = gab_source_file_handler},
+    {.prefix = "/usr/local/share/gab/",
+     .suffix = "mod/mod.gab",
      .handler = gab_source_file_handler},
     {.prefix = "/usr/local/lib/gab/libcgab",
      .suffix = ".so",
@@ -114,17 +121,20 @@ void gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
 
   const s_i8 name = gab_obj_string_ref(arg);
 
-  gab_value cached = gab_imports_exists(gab, name);
-  if (!GAB_VAL_IS_UNDEFINED(cached)) {
-    gab_push(vm, 1, &cached);
-    return;
-  }
-
   for (i32 i = 0; i < sizeof(resources) / sizeof(resource); i++) {
     resource *res = resources + i;
     a_i8 *path = match_resource(res, name);
 
     if (path) {
+      gab_value cached =
+          gab_imports_exists(gab, s_i8_create(path->data, path->len));
+
+      if (!GAB_VAL_IS_UNDEFINED(cached)) {
+        gab_push(vm, 1, &cached);
+        a_i8_destroy(path);
+        return;
+      }
+
       gab_value result = res->handler(gab, vm, path, name);
       a_i8_destroy(path);
       gab_push(vm, 1, &result);

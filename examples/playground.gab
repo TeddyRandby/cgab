@@ -1,15 +1,7 @@
-require('fiber')
 
-def chan = :go do
-    loop
-        print(yield)
-    end
-end
+require('std')
+require('std')
+require('std')
+require('std')
 
-chan:send('Hello')
-chan:send('Hello')
-chan:send('Hello')
-chan:send('Hello')
-chan:send('Hello')
-
-loop 1 end
+require('get_std')
