@@ -1808,26 +1808,29 @@ i32 compile_exp_ipm(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
   gab_bc_frame *frame = peek_frame(bc, 0);
 
-  if (local >= frame->narguments) {
-      // There will always be at least one more local than arguments -
-      //   The self local!
-      if (frame->nlocals - frame->narguments > 1) {
-          compiler_error(bc, GAB_INVALID_IMPLICIT, "");
-          return COMP_ERR;
-      }
+  if (local - 1 >= frame->narguments) {
+    // There will always be at least one more local than arguments -
+    //   The self local!
+    if ((frame->nlocals - frame->narguments) > 1) {
+      compiler_error(bc, GAB_INVALID_IMPLICIT, "");
+      return COMP_ERR;
+    }
 
-      u8 missing_locals = local - frame->narguments;
+    u8 missing_locals = local - frame->narguments;
 
-      for (i32 i = 0; i < missing_locals; i++) {
-        i32 pad_local = compile_local(gab, bc, GAB_VAL_NUMBER(local - i), 0);
+    if (push_slot(bc, missing_locals) < 0)
+      return COMP_ERR;
 
-        if (pad_local < 0)
-          return COMP_ERR;
-        
-        initialize_local(bc, pad_local);
-      }
+    for (i32 i = 0; i < missing_locals; i++) {
+      i32 pad_local = compile_local(gab, bc, GAB_VAL_NUMBER(local - i), 0);
 
-      frame->narguments += missing_locals;
+      if (pad_local < 0)
+        return COMP_ERR;
+
+      initialize_local(bc, pad_local);
+    }
+
+    frame->narguments += missing_locals;
   }
 
   switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
