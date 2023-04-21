@@ -52,7 +52,7 @@ static inline u8 peek(gab_lexer *self) { return *self->cursor; }
 
 static inline u8 peek_next(gab_lexer *self) { return *(self->cursor + 1); }
 
-gab_token return_error(gab_lexer *self, gab_status s) {
+static inline gab_token error(gab_lexer *self, gab_status s) {
   self->status = s;
   return TOKEN_ERROR;
 }
@@ -177,12 +177,12 @@ gab_token string(gab_lexer *self) {
     advance(self);
 
     if (peek(self) == '\0') {
-      return return_error(self, GAB_MALFORMED_STRING);
+      return error(self, GAB_MALFORMED_STRING);
     }
 
     if (start != '"') {
       if (peek(self) == '\n') {
-        return return_error(self, GAB_MALFORMED_STRING);
+        return error(self, GAB_MALFORMED_STRING);
       }
 
       if (peek(self) == '{') {
@@ -199,10 +199,20 @@ gab_token string(gab_lexer *self) {
   return start == '}' ? TOKEN_INTERPOLATION_END : TOKEN_STRING;
 }
 
-gab_token number(gab_lexer *self) {
-  while (is_digit(peek(self))) {
+gab_token integer(gab_lexer *self) {
+  if (!is_digit(peek(self)))
+    return error(self, GAB_MALFORMED_TOKEN);
+
+  while (is_digit(peek(self)))
     advance(self);
-  }
+
+  return TOKEN_NUMBER;
+}
+
+gab_token floating(gab_lexer *self) {
+  
+  if (integer(self) == TOKEN_ERROR)
+    return TOKEN_ERROR;
 
   if (peek(self) == '.' && is_digit(peek_next(self))) {
     advance(self);
@@ -238,7 +248,6 @@ gab_token other(gab_lexer *self) {
     CHAR_CASE('?', QUESTION)
     CHAR_CASE('&', AMPERSAND)
     CHAR_CASE('!', BANG)
-    CHAR_CASE('@', AT)
 
   case '{': {
     advance(self);
@@ -246,12 +255,27 @@ gab_token other(gab_lexer *self) {
       self->nested_curly++;
     return TOKEN_LBRACK;
   }
+
   case '}': {
     advance(self);
     if (self->nested_curly > 0)
       self->nested_curly--;
     return TOKEN_RBRACK;
   }
+
+  case '@': {
+    advance(self);
+
+    if (is_digit(peek(self))) {
+      if (integer(self) == TOKEN_NUMBER)
+        return TOKEN_IMPLICIT;
+
+      return error(self, GAB_MALFORMED_TOKEN);
+    }
+
+    return TOKEN_AT;
+  }
+
   case '$': {
     advance(self);
 
@@ -261,8 +285,7 @@ gab_token other(gab_lexer *self) {
         return TOKEN_SYMBOL;
 
       // Otherwise, we got a keyword and this was an error
-
-      return return_error(self, GAB_MALFORMED_TOKEN);
+      return error(self, GAB_MALFORMED_TOKEN);
     }
 
     return TOKEN_DOLLAR;
@@ -277,7 +300,7 @@ gab_token other(gab_lexer *self) {
 
       // Otherwise, we got a keyword and this was an error
 
-      return return_error(self, GAB_MALFORMED_TOKEN);
+      return error(self, GAB_MALFORMED_TOKEN);
     }
 
     switch (peek(self)) {
@@ -312,7 +335,7 @@ gab_token other(gab_lexer *self) {
 
       // Otherwise, we got a keyword and this was an error
 
-      return return_error(self, GAB_MALFORMED_TOKEN);
+      return error(self, GAB_MALFORMED_TOKEN);
     }
 
     switch (peek(self)) {
@@ -354,7 +377,7 @@ gab_token other(gab_lexer *self) {
   }
   default: {
     advance(self);
-    return return_error(self, GAB_MALFORMED_TOKEN);
+    return error(self, GAB_MALFORMED_TOKEN);
   }
   }
 }
@@ -405,7 +428,7 @@ gab_token gab_lexer_next(gab_lexer *self) {
   }
 
   if (is_digit(peek(self))) {
-    return number(self);
+    return floating(self);
   }
 
   if (peek(self) == '"') {

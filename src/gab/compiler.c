@@ -433,6 +433,8 @@ static gab_module *down_frame(gab_engine *gab, gab_bc *bc, gab_value name,
 
   gab_module *mod = gab_module_create(gab, name, bc->lex.source);
 
+  f->narguments = 0;
+
   f->mod = mod;
 
   f->next_local = 0;
@@ -452,12 +454,12 @@ static gab_module *down_frame(gab_engine *gab, gab_bc *bc, gab_value name,
   return mod;
 }
 
-static gab_obj_prototype *up_frame(gab_engine *gab, gab_bc *bc, u8 nargs,
-                                   boolean vse) {
+static gab_obj_prototype *up_frame(gab_engine *gab, gab_bc *bc, boolean vse) {
   gab_bc_frame *frame = peek_frame(bc, 0);
 
   u8 nupvalues = frame->nupvalues;
   u8 nslots = frame->nslots;
+  u8 nargs = frame->narguments;
 
   gab_obj_prototype *p =
       gab_obj_prototype_create(gab, frame->mod, nargs, nslots, nupvalues, vse,
@@ -584,6 +586,7 @@ fin:
   if (vse_out)
     *vse_out = vse;
 
+  peek_frame(bc, 0)->narguments = narguments;
   return narguments;
 }
 
@@ -658,7 +661,7 @@ i32 compile_expressions(gab_engine *gab, gab_bc *bc) {
   return COMP_OK;
 }
 
-i32 compile_block_body(gab_engine *gab, gab_bc *bc, u8 narguments, u8 vse) {
+i32 compile_block_body(gab_engine *gab, gab_bc *bc, u8 vse) {
   i32 result = compile_expressions(gab, bc);
 
   if (result < 0)
@@ -715,10 +718,10 @@ i32 compile_block(gab_engine *gab, gab_bc *bc) {
   if (narguments < 0)
     return COMP_ERR;
 
-  if (compile_block_body(gab, bc, narguments, vse) < 0)
+  if (compile_block_body(gab, bc, vse) < 0)
     return COMP_ERR;
 
-  gab_obj_prototype *p = up_frame(gab, bc, narguments, vse);
+  gab_obj_prototype *p = up_frame(gab, bc, vse);
 
   // Create the closure, adding a specialization to the pushed function.
   push_op(bc, OP_BLOCK);
@@ -740,10 +743,10 @@ i32 compile_message(gab_engine *gab, gab_bc *bc, gab_value name) {
   if (narguments < 0)
     return COMP_ERR;
 
-  if (compile_block_body(gab, bc, narguments, vse) < 0)
+  if (compile_block_body(gab, bc, vse) < 0)
     return COMP_ERR;
 
-  gab_obj_prototype *p = up_frame(gab, bc, narguments, vse);
+  gab_obj_prototype *p = up_frame(gab, bc, vse);
 
   // Create the closure, adding a specialization to the pushed function.
   push_op(bc, OP_MESSAGE);
@@ -1791,6 +1794,80 @@ i32 compile_exp_let(gab_engine *gab, gab_bc *bc, boolean assignable) {
   return compile_var_decl(gab, bc, GAB_VARIABLE_FLAG_MUTABLE, 0);
 }
 
+i32 compile_exp_at(gab_engine *gab, gab_bc *bc, boolean assignable) {}
+
+i32 compile_exp_ipm(gab_engine *gab, gab_bc *bc, boolean assignable) {
+  s_i8 offset = trim_prev_tok(bc);
+
+  u32 local = strtoul((char *)offset.data, NULL, 10);
+
+  if (local > LOCAL_MAX) {
+    compiler_error(bc, GAB_TOO_MANY_LOCALS, "");
+    return COMP_ERR;
+  }
+
+  gab_bc_frame *frame = peek_frame(bc, 0);
+
+  if (local >= frame->narguments) {
+      // There will always be at least one more local than arguments -
+      //   The self local!
+      if (frame->nlocals - frame->narguments > 1) {
+          compiler_error(bc, GAB_INVALID_IMPLICIT, "");
+          return COMP_ERR;
+      }
+
+      u8 missing_locals = local - frame->narguments;
+
+      for (i32 i = 0; i < missing_locals; i++) {
+        i32 pad_local = compile_local(gab, bc, GAB_VAL_NUMBER(local - i), 0);
+
+        if (pad_local < 0)
+          return COMP_ERR;
+        
+        initialize_local(bc, pad_local);
+      }
+
+      frame->narguments += missing_locals;
+  }
+
+  switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
+
+  case COMP_OK: {
+    if (!assignable) {
+      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
+      return COMP_ERR;
+    }
+
+    if (!(frame->locals_flag[local] & GAB_VARIABLE_FLAG_MUTABLE)) {
+      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                     "Parameters are not assignable, implicit or otherwise.");
+      return COMP_ERR;
+    }
+
+    if (compile_expression(gab, bc) < 0)
+      return COMP_ERR;
+
+    push_store_local(bc, local);
+
+    break;
+  }
+
+  case COMP_TOKEN_NO_MATCH:
+    push_load_local(bc, local);
+    break;
+
+  default:
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                   "While compiling 'implicit parameter' expression");
+    return COMP_ERR;
+  }
+
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
+
+  return COMP_OK;
+}
+
 i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, boolean assignable) {
   s_i8 name = bc->lex.previous_token_src;
 
@@ -2508,6 +2585,7 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(bin, BITWISE_OR, false),            // PIPE
     NONE(),                            // SEMI
     PREFIX(idn),                       // ID
+    PREFIX(ipm), //IMPLICIT
     PREFIX(str),                       // STRING
     PREFIX(itp),                       // INTERPOLATION
     NONE(),                       // INTERPOLATION END
@@ -2525,6 +2603,7 @@ gab_compile_rule get_rule(gab_token k) { return gab_bc_rules[k]; }
 gab_value compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
                   gab_value arguments[narguments]) {
   gab_module *new_mod = down_frame(gab, bc, name, false);
+  peek_frame(bc, 0)->narguments = narguments;
 
   if (eat_token(bc) == COMP_ERR)
     return GAB_VAL_UNDEFINED();
@@ -2544,7 +2623,7 @@ gab_value compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
   gab_module_push_return(mod(bc), 1, false, bc->previous_token, bc->line,
                          bc->lex.previous_token_src);
 
-  gab_obj_prototype *p = up_frame(gab, bc, narguments, false);
+  gab_obj_prototype *p = up_frame(gab, bc, false);
 
   add_constant(new_mod, GAB_VAL_OBJ(p));
 

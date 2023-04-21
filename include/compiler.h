@@ -37,6 +37,7 @@ struct gab_bc_frame {
     If and for statements also create new scopes.
   */
   i32 scope_depth;
+  u8 narguments;
 
   u8 next_slot;
   u8 nslots;

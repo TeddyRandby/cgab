@@ -1,7 +1,9 @@
-
-require('std')
-require('std')
-require('std')
 require('std')
 
-require('get_std')
+def items = :list:collect!(1:to(10):each)
+
+items :map! do @1 * 2 end
+
+for item in items:each print(item) end
+
+items :map! do print('{@2}: {@1}') end
