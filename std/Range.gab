@@ -1,28 +1,26 @@
-def Range { from to }
+def range_up = do (from, to)
+  let v = from
+
+  loop
+    yield v
+    v = v + 1
+  until v == to
+end
+
+def range_down = do (from, to)
+  let v = from
+
+  loop
+    yield v
+    v = v - 1
+  until v == to
+end
 
 def range[](opts, to)
     ?opts match
-        ?{  to  }   => { from = 0 to = opts.to }            end
-        ?{ from }   => { from = opts.from to = 0 }          end
-        $Number     => {          
-            from = to and opts or 0
-            to   = to or opts
-        }                                                 end
-        Range       => opts                                 end
-        else        => panic('Invalid call to Range:new')   end
-end
-
-impl Range
-  def each
-    let v = self.from
-
-    loop
-      yield v
-      v = v + 1
-    until v >= self.to
-  end
-
-  def print
-    'Range({self.from},{self.to})':print
-  end
+        ?{  to  }    => range_up(0, opts.to )                   end
+        ?{ from }    => range_down(opts.from, 0)                end
+        ?{ from to } => range_up(from, to)                      end
+        $Number      => range_up(to and opts or 0, to or opts)  end
+        else         => panic('Invalid call to :range')         end
 end
