@@ -60,6 +60,23 @@ end
 
       varfunc(onetwo())
    end
+
+   :it('should take implicit parameters') do
+        def imp_func = do (a)
+            a:expect(@1)
+        end
+
+        imp_func(1)
+   end
+
+   :it('should add implicit parameters') do
+        def imp_func = do
+            @1:expect(1)
+            @2:expect(2)
+        end
+
+        imp_func(1,2)
+   end
 end
 
 :describe('Records') do
@@ -79,13 +96,13 @@ end
     let pone = { x = 1 y = 2}
     let ptwo = { x = 3 y = 4}
 
-    ?pone:expect(?ptwo)
+    (?pone):expect(?ptwo)
   end
 
   :it('should work for all kinds of keys') do
     let obj = {
         [?{}] = 3
-        [$hi] = 3
+        [$hi] = 4
     }
 
     3:expect(obj[?{}])
@@ -108,22 +125,28 @@ end
     def get_a[?{ a b c }]
         self.a
     end
-    
-    true:expect(justa:get_a)
 
-    3:expect(ab:get_a)
+    def test_get_a = do (obj, v)
+        obj:get_a:expect(v)
+    end
 
-    'hi':expect(abc:get_a)
 
-    3:expect(ab:get_a)
-    3:expect(ab:get_a)
+    test_get_a(justa, true)
+
+    test_get_a(ab, 3)
+
+    test_get_a(abc, 'hi')
+
+    test_get_a(ab, 3)
+    test_get_a(ab, 3)
 
     ab.a = 5
 
-    'hi':expect(abc:get_a)
+    test_get_a(abc, 'hi')
 
-    5:expect(ab:get_a)
-    true:expect(justa:get_a)
+    test_get_a(ab, 5)
+
+    test_get_a(justa, true)
   end
 
   :it('should make tuples') do
@@ -242,7 +265,7 @@ end
     end
 end
 
-:describe('Supensions') do
+:describe('Suspensions') do
     def once = do
         yield 1
         2

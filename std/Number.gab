@@ -21,8 +21,8 @@ impl $Number
 
   def to(dest)
     ?dest match
-        nil     => :range { to = self }               end
-        $Number => :range { from = self to = dest }   end
+        nil     => { to = self }               end
+        $Number => { from = self to = dest }   end
         else    => panic('Invalid call to Number:to') end
   end
 

@@ -1007,27 +1007,14 @@ initializer:
     return COMP_ERR;
   }
 
-  // pop_slot(bc, local_count);
-
   push_op(bc, OP_DUP);
+  push_slot(bc, 1);
 
   while (local_count--) {
     u8 local = locals[local_count];
     initialize_local(bc, local);
-
-    // if (local_count > 0) {
-    //   gab_module_push_store_local(mod(bc), local, bc->previous_token,
-    //   bc->line,
-    //                               bc->lex.previous_token_src);
-    //   push_pop(bc, 1);
-    // } else {
-    //   gab_module_push_store_local(mod(bc), local, bc->previous_token,
-    //   bc->line,
-    //                               bc->lex.previous_token_src);
-    // }
   }
 
-  // push_slot(bc, 1);
   return COMP_OK;
 }
 
@@ -1219,9 +1206,6 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, s_i8 name) {
 
   gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
 
-  if (push_slot(bc, 1) < 0)
-    return COMP_ERR;
-
   // Create a local to store the new function in
   u8 local = add_local(gab, bc, val_name, 0);
 
@@ -1232,6 +1216,10 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, s_i8 name) {
   initialize_local(bc, local);
 
   push_op(bc, OP_DUP);
+
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
+
 
   return COMP_OK;
 }
@@ -1818,6 +1806,8 @@ i32 compile_exp_ipm(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
     u8 missing_locals = local - frame->narguments;
 
+    frame->narguments += missing_locals;
+
     if (push_slot(bc, missing_locals) < 0)
       return COMP_ERR;
 
@@ -1829,8 +1819,6 @@ i32 compile_exp_ipm(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
       initialize_local(bc, pad_local);
     }
-
-    frame->narguments += missing_locals;
   }
 
   switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
@@ -1841,22 +1829,17 @@ i32 compile_exp_ipm(gab_engine *gab, gab_bc *bc, boolean assignable) {
       return COMP_ERR;
     }
 
-    if (!(frame->locals_flag[local] & GAB_VARIABLE_FLAG_MUTABLE)) {
-      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                     "Parameters are not assignable, implicit or otherwise.");
-      return COMP_ERR;
-    }
-
-    if (compile_expression(gab, bc) < 0)
-      return COMP_ERR;
-
-    push_store_local(bc, local);
-
-    break;
+    compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                   "Parameters are not assignable, implicit or otherwise.");
+    return COMP_ERR;
   }
 
   case COMP_TOKEN_NO_MATCH:
     push_load_local(bc, local);
+
+    if (push_slot(bc, 1) < 0)
+      return COMP_ERR;
+
     break;
 
   default:
@@ -1864,9 +1847,6 @@ i32 compile_exp_ipm(gab_engine *gab, gab_bc *bc, boolean assignable) {
                    "While compiling 'implicit parameter' expression");
     return COMP_ERR;
   }
-
-  if (push_slot(bc, 1) < 0)
-    return COMP_ERR;
 
   return COMP_OK;
 }

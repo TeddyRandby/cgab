@@ -1,9 +1,7 @@
-require('std')
+def test = do
+    let once = 1
 
-def items = :list:collect!(1:to(10):each)
+    let twice = 2
 
-items :map! do @1 * 2 end
-
-for item in items:each print(item) end
-
-items :map! do print('{@2}: {@1}') end
+    let a = 1
+end

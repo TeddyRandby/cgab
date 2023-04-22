@@ -20,7 +20,7 @@ def range[](opts, to)
     ?opts match
         ?{  to  }    => range_up(0, opts.to )                   end
         ?{ from }    => range_down(opts.from, 0)                end
-        ?{ from to } => range_up(from, to)                      end
+        ?{ from to } => range_up(opts.from, opts.to)            end
         $Number      => range_up(to and opts or 0, to or opts)  end
         else         => panic('Invalid call to :range')         end
 end

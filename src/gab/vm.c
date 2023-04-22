@@ -8,6 +8,7 @@
 #include "include/gc.h"
 #include "include/module.h"
 #include "include/object.h"
+#include "include/value.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -461,23 +462,29 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       gab_value type = gab_val_type(ENGINE(), receiver);
 
-      gab_value spec = gab_obj_message_read(msg, type);
+      u64 offset = gab_obj_message_find(msg, type);
 
-      u64 offset;
-      if (GAB_VAL_IS_UNDEFINED(spec)) {
-        spec = gab_obj_message_read(msg, GAB_VAL_UNDEFINED());
+      if (offset == UINT64_MAX) {
+        if (GAB_VAL_IS_RECORD(receiver)) {
+          offset =
+              gab_obj_message_find(msg, gab_type(ENGINE(), GAB_KIND_RECORD));
 
-        if (GAB_VAL_IS_UNDEFINED(spec)) {
+          if (offset != UINT64_MAX)
+            goto fin;
+        }
+
+        offset = gab_obj_message_find(msg, GAB_VAL_UNDEFINED());
+
+        if (offset == UINT64_MAX) {
           STORE_FRAME();
           return vm_error(ENGINE(), VM(), flags, GAB_IMPLEMENTATION_MISSING,
                           "Could not send %V to %V", GAB_VAL_OBJ(msg),
                           receiver);
         }
-
-        offset = gab_obj_message_find(msg, GAB_VAL_UNDEFINED());
-      } else {
-        offset = gab_obj_message_find(msg, type);
       }
+
+    fin : {
+      gab_value spec = gab_obj_message_get(msg, offset);
 
       WRITE_INLINEBYTE(msg->version);
       WRITE_INLINEQWORD(type);
@@ -499,6 +506,8 @@ gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       IP() -= SEND_CACHE_DIST;
 
       NEXT();
+    }
+
     }
 
     CASE_CODE(SEND_MONO_CLOSURE) : {
