@@ -10,7 +10,7 @@ void gab_repl(const char *module, u8 flags) {
 
   if (module != NULL)
     gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING(module), 0, NULL);
-  else 
+  else
     gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING("std"), 0, NULL);
 
   gab_arg_push(gab, GAB_STRING("it"), GAB_VAL_NIL());
@@ -89,17 +89,20 @@ void gab_run_string(const char *string, const char *module, u8 flags) {
       for (;;) {
         a_i8 *it = os_read_fd_line(stdin);
 
-        if (it->len <= 1 || it->data[0] == '\n')
+        if (it->data[0] == EOF)
           break;
 
         gab_value it_val = GAB_VAL_OBJ(
-            gab_obj_string_create(gab, s_i8_create(it->data, it->len)));
+            gab_obj_string_create(gab, s_i8_create(it->data, it->len - 2)));
 
         gab_arg_push(gab, GAB_STRING("it"), it_val);
 
         gab_value main = gab_compile(gab, GAB_STRING("__main__"), src, flags);
 
         gab_value result = gab_run(gab, main, flags | GAB_FLAG_EXIT_ON_PANIC);
+
+        gab_val_dump(stdout, result);
+        fputc('\n', stdout);
 
         gab_scratch(gab, main);
         gab_scratch(gab, result);
