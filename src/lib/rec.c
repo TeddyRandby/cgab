@@ -14,17 +14,17 @@ void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     return;
   }
 
-  gab_value result = gab_send(gab, vm, argv[1], argv[0], argc - 2, argv + 2);
+  a_gab_value *result = gab_send(gab, vm, argv[1], argv[0], argc - 2, argv + 2);
 
-  if (GAB_VAL_IS_UNDEFINED(result)) {
+  if (GAB_VAL_IS_UNDEFINED(result->data[0])) {
     gab_panic(gab, vm, "Invalid send");
 
     return;
   }
 
-  gab_push(vm, 1, &result);
+  gab_push(vm, 1, result->data);
 
-  gab_val_dref(vm, result);
+  gab_val_dref(vm, result->data[0]);
 }
 
 void gab_lib_splat(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {

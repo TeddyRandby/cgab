@@ -8,6 +8,9 @@ typedef struct gab_module gab_module;
 typedef struct gab_vm gab_vm;
 typedef struct gab_engine gab_engine;
 
+#define T gab_value
+#include "include/array.h"
+
 typedef enum gab_kind {
   GAB_KIND_SUSPENSE,
   GAB_KIND_STRING,

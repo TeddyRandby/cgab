@@ -1220,7 +1220,6 @@ i32 compile_definition(gab_engine *gab, gab_bc *bc, s_i8 name) {
   if (push_slot(bc, 1) < 0)
     return COMP_ERR;
 
-
   return COMP_OK;
 }
 

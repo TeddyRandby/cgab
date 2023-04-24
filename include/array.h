@@ -34,6 +34,10 @@ LINKAGE TYPENAME *METHOD(empty)(u64 len) {
   return self;
 }
 
+LINKAGE TYPENAME *METHOD(one)(T value) {
+    return METHOD(create)(&value, 1);
+}
+
 LINKAGE boolean METHOD(match)(TYPENAME *self, TYPENAME *other) {
   if (self->len != other->len)
     return false;

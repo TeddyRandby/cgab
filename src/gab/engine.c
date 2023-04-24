@@ -171,8 +171,6 @@ gab_engine *gab_create() {
 }
 
 void gab_destroy(gab_engine *gab) {
-  printf("Destroying gab engine\n");
-
   if (gab == NULL)
     return;
 
@@ -257,9 +255,13 @@ void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
   }
 }
 
-void gab_arg_push(gab_engine *gab, gab_value name, gab_value value) {
-  v_gab_value_push(&gab->argv_names, name);
-  v_gab_value_push(&gab->argv_values, value);
+u64 gab_arg_push(gab_engine *gab, gab_value name) {
+  v_gab_value_push(&gab->argv_values, GAB_VAL_UNDEFINED());
+  return v_gab_value_push(&gab->argv_names, name);
+}
+
+void gab_arg_set(gab_engine *gab, gab_value value, u64 index) {
+  gab->argv_values.data[index] = value;
 }
 
 void gab_arg_pop(gab_engine *gab) {
@@ -272,7 +274,7 @@ gab_value gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags) {
                         gab->argv_names.data);
 }
 
-gab_value gab_run(gab_engine *gab, gab_value main, u8 flags) {
+a_gab_value *gab_run(gab_engine *gab, gab_value main, u8 flags) {
   return gab_vm_run(gab, main, flags, gab->argv_values.len,
                     gab->argv_values.data);
 };
@@ -345,26 +347,26 @@ gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
   return GAB_VAL_OBJ(m);
 }
 
-gab_value send_msg(gab_engine *gab, gab_vm *vm, gab_value msg,
-                   gab_value receiver, u8 argc, gab_value argv[argc]) {
+a_gab_value *send_msg(gab_engine *gab, gab_vm *vm, gab_value msg,
+                      gab_value receiver, u8 argc, gab_value argv[argc]) {
   if (GAB_VAL_IS_UNDEFINED(msg))
-    return msg;
+    return a_gab_value_one(GAB_VAL_UNDEFINED());
 
   gab_value mod =
       gab_bc_compile_send(gab, msg, receiver, GAB_FLAG_DUMP_ERROR, argc, argv);
 
   if (GAB_VAL_IS_UNDEFINED(mod))
-    return mod;
+    return a_gab_value_one(mod);
 
   gab_scratch(gab, mod);
 
-  gab_value result = gab_vm_run(gab, mod, GAB_FLAG_DUMP_ERROR, 0, NULL);
+  a_gab_value *result = gab_vm_run(gab, mod, GAB_FLAG_DUMP_ERROR, 0, NULL);
 
   return result;
 }
 
-gab_value gab_send(gab_engine *gab, gab_vm *vm, gab_value msg,
-                   gab_value receiver, u8 argc, gab_value argv[argc]) {
+a_gab_value *gab_send(gab_engine *gab, gab_vm *vm, gab_value msg,
+                      gab_value receiver, u8 argc, gab_value argv[argc]) {
   if (GAB_VAL_IS_STRING(msg)) {
     gab_obj_message *main = gab_obj_message_create(gab, msg);
     return send_msg(gab, vm, GAB_VAL_OBJ(main), receiver, argc, argv);
@@ -372,7 +374,7 @@ gab_value gab_send(gab_engine *gab, gab_vm *vm, gab_value msg,
     return send_msg(gab, vm, msg, receiver, argc, argv);
   }
 
-  return GAB_VAL_NIL();
+  return a_gab_value_one(GAB_VAL_NIL());
 }
 
 /**

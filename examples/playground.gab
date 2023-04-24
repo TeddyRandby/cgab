@@ -1,7 +1,0 @@
-def test = do
-    let once = 1
-
-    let twice = 2
-
-    let a = 1
-end

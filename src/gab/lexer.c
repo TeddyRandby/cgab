@@ -48,9 +48,9 @@ void gab_lexer_create(gab_lexer *self, gab_source *src) {
   start_row(self);
 }
 
-static inline u8 peek(gab_lexer *self) { return *self->cursor; }
+static inline i8 peek(gab_lexer *self) { return *self->cursor; }
 
-static inline u8 peek_next(gab_lexer *self) { return *(self->cursor + 1); }
+static inline i8 peek_next(gab_lexer *self) { return *(self->cursor + 1); }
 
 static inline gab_token error(gab_lexer *self, gab_status s) {
   self->status = s;
@@ -408,7 +408,7 @@ gab_token gab_lexer_next(gab_lexer *self) {
 
   start_token(self);
 
-  if (peek(self) == '\0') {
+  if (peek(self) == '\0' || peek(self) == EOF) {
     self->current_token_src = s_i8_create(self->cursor, 0);
     finish_row(self);
     return TOKEN_EOF;

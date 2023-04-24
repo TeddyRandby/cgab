@@ -29,7 +29,8 @@ typedef struct gab_vm_frame {
 } gab_vm_frame;
 
 /*
- * The gab virtual machine. This has all the state needed for executing bytecode.
+ * The gab virtual machine. This has all the state needed for executing
+ * bytecode.
  */
 typedef struct gab_vm {
   /*
@@ -55,11 +56,11 @@ void gab_vm_create(gab_vm *vm, u8 flags, u8 argc, gab_value argv[argc]);
 
 void gab_vm_destroy(gab_vm *vm);
 
-gab_value gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
-                     gab_value argv[argc]);
+a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
+                        gab_value argv[argc]);
 
 gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg);
 
-i32 gab_vm_push(gab_vm* vm, u64 argc, gab_value argv[argc]);
+i32 gab_vm_push(gab_vm *vm, u64 argc, gab_value argv[argc]);
 
 #endif

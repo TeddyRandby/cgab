@@ -49,7 +49,8 @@ void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
  *
  *  @param value The values of the argument (Passed to the vm)
  */
-void gab_arg_push(gab_engine *gab, gab_value name, gab_value value);
+void gab_arg_set(gab_engine* gab, gab_value value, u64 index);
+u64 gab_arg_push(gab_engine *gab, gab_value name);
 void gab_arg_pop(gab_engine *gab);
 
 /**
@@ -102,7 +103,8 @@ gab_value gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags);
  *
  * @return The return value of the closure
  */
-gab_value gab_run(gab_engine *gab, gab_value main, u8 flags);
+
+a_gab_value* gab_run(gab_engine *gab, gab_value main, u8 flags);
 
 /**
  * Crash the given VM with the given message
@@ -222,7 +224,7 @@ gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
  *
  * @return The return value of the message
  */
-gab_value gab_send(gab_engine *gab, gab_vm *vm, gab_value message,
+a_gab_value* gab_send(gab_engine *gab, gab_vm *vm, gab_value message,
                    gab_value receiver, u8 argc, gab_value argv[argc]);
 
 gab_value gab_val_copy(gab_engine* gab, gab_vm* vm, gab_value value);
