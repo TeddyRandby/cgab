@@ -16,7 +16,7 @@
 
 typedef struct TYPENAME TYPENAME;
 struct TYPENAME {
-  T *data;
+  const T *data;
   u64 len;
 };
 

@@ -86,10 +86,6 @@
 #define T i8
 #include "slice.h"
 
-static inline s_i8 s_i8_cstr(const char *str) {
-  return (s_i8){.data = (i8 *)str, .len = strlen(str)};
-}
-
 #define T i8
 #include "array.h"
 
@@ -111,6 +107,10 @@ static inline s_i8 s_i8_cstr(const char *str) {
 #define T s_i8
 #include "array.h"
 
+#define T a_i8 *
+#define NAME a_i8
+#include "vector.h"
+
 #define T u64
 #include "array.h"
 
@@ -121,5 +121,13 @@ static inline s_i8 s_i8_cstr(const char *str) {
 #define EQUAL(a, b) (a == b)
 #define LOAD DICT_MAX_LOAD
 #include "dict.h"
+
+static inline s_i8 s_i8_cstr(const char *str) {
+  return (s_i8){.data = (i8 *)str, .len = strlen(str)};
+}
+
+static inline s_i8 s_i8_arr(const a_i8* str) {
+    return (s_i8) { .data = str->data, .len = str->len };
+}
 
 #endif

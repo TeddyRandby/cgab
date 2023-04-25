@@ -19,7 +19,7 @@ void gab_repl(const char *module, u8 flags) {
   gab_arg_set(gab, GAB_VAL_NIL(), index);
 
   for (;;) {
-    printf("grepl> ");
+    printf("grepl: ");
     a_i8 *src = os_read_fd_line(stdin);
 
     if (src->data[0] == EOF) {
@@ -37,17 +37,19 @@ void gab_repl(const char *module, u8 flags) {
 
     a_i8_destroy(src);
 
-    if (GAB_VAL_IS_NIL(main))
+    if (GAB_VAL_IS_UNDEFINED(main))
       continue;
 
     a_gab_value *result = gab_run(gab, main, flags);
 
+    printf("=> ");
     for (i32 i = 0; i < result->len; i++) {
       gab_value arg = result->data[i];
 
-      if (!GAB_VAL_IS_NIL(arg)) {
+      if (i == result->len - 1)
         printf("%V\n", arg);
-      }
+      else
+        printf("%V, ", arg);
 
       gab_scratch(gab, arg);
     }
@@ -90,6 +92,7 @@ void gab_run_string(const char *string, const char *module, u8 flags) {
 
   gab_setup_builtins(gab, NULL);
 
+  // This is a weird case where we actually want to include the null terminator
   s_i8 src = s_i8_create((i8 *)string, strlen(string) + 1);
 
   if (module != NULL)

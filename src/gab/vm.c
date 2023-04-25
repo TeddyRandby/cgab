@@ -963,24 +963,6 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         have = ++want + 1;
       }
 
-      /*
-       * In the case where we want to capture all the yielded args
-       *  in a tuple, we have to:
-       *    POP the suspense
-       *    Build a tuple with size = have - 1 - other_locals
-       *    Push it
-       *    Then trim into that
-       */
-
-      // Hide the effect but pretending to have one less
-      // Don't update the top of the stack, just trim into the locals
-      // where we expect.
-      //
-
-      // There is a slight bug here
-      // trim_return writes into the stack at what it
-      // assumes is the next unused slot.
-      // Here, that is always the hidden iterator local.
       TOP() = trim_return(TOP() - have, SLOTS() + start, have - 1, want);
 
       // Update the iterator
@@ -1056,15 +1038,17 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (--FRAME() == VM()->fb) {
         // Increment and pop the module.
-        gab_value result = POP();
+        a_gab_value *results = a_gab_value_create(from, have);
 
-        gab_gc_iref(GC(), VM(), result);
+        for (u32 i = 0; i < results->len; i++) {
+          gab_gc_iref(GC(), VM(), results->data[i]);
+        }
 
         gab_vm_destroy(VM());
 
         DESTROY(VM());
 
-        return a_gab_value_one(result);
+        return results;
       }
 
       LOAD_FRAME();

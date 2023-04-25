@@ -119,15 +119,15 @@ void gab_lib_floor(gab_engine *gab, gab_vm *vm, u8 argc,
   gab_push(vm, 1, &res);
 }
 
-void gab_lib_from(gab_engine *gab, gab_vm *vm, u8 argc,
+void gab_lib_to_n(gab_engine *gab, gab_vm *vm, u8 argc,
                        gab_value argv[argc]) {
-  if (argc != 2 || !GAB_VAL_IS_STRING(argv[1])) {
+  if (argc != 1 || !GAB_VAL_IS_STRING(argv[0])) {
     gab_panic(gab, vm, "Invalid call to gab_lib_from");
 
     return;
   }
 
-  gab_obj_string *str = GAB_VAL_TO_STRING(argv[1]);
+  gab_obj_string *str = GAB_VAL_TO_STRING(argv[0]);
 
   char cstr[str->len + 1];
 
@@ -144,21 +144,19 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value names[] = {
       GAB_STRING("between"),
       GAB_STRING("floor"),
-      GAB_STRING("from"),
+      GAB_STRING("to_n"),
   };
 
-  gab_value type_num = gab_type(gab, GAB_KIND_NUMBER);
-
   gab_value receivers[] = {
-      type_num,
-      type_num,
-      type_num,
+      gab_type(gab, GAB_KIND_NUMBER),
+      gab_type(gab, GAB_KIND_NUMBER),
+      gab_type(gab, GAB_KIND_STRING),
   };
 
   gab_value values[] = {
       GAB_BUILTIN(between),
       GAB_BUILTIN(floor),
-      GAB_BUILTIN(from),
+      GAB_BUILTIN(to_n),
   };
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(values));

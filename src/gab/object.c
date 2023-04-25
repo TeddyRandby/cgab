@@ -40,35 +40,74 @@ gab_obj *gab_obj_create(gab_engine *gab, gab_obj *self, gab_kind k) {
   return self;
 }
 
-i32 shape_dump_properties(FILE *stream, gab_obj_shape *shape) {
+i32 __dump_value(FILE *stream, gab_value self, u8 depth);
+
+i32 shape_dump_properties(FILE *stream, gab_obj_shape *shape, u8 depth) {
   if (shape->len == 0)
     return 0;
 
   i32 bytes = 0;
 
   for (u64 i = 0; i < shape->len - 1; i++) {
-    bytes += fprintf(stream, "%V, ", shape->data[i]);
+    bytes += __dump_value(stream, shape->data[i], depth - 1);
+
+    bytes += fprintf(stream, ", ");
   }
 
-  return bytes + fprintf(stream, "%V", shape->data[shape->len - 1]);
+  bytes += __dump_value(stream, shape->data[shape->len - 1], depth - 1);
+
+  return bytes;
 }
 
-i32 rec_dump_properties(FILE *stream, gab_obj_record *rec) {
+i32 rec_dump_properties(FILE *stream, gab_obj_record *rec, u8 depth) {
   if (rec->len == 0)
     return 0;
 
   i32 bytes = 0;
 
   for (u64 i = 0; i < rec->len - 1; i++) {
-    bytes += fprintf(stream, "%V = %V, ", rec->shape->data[i], rec->data[i]);
+    bytes += __dump_value(stream, rec->shape->data[i], depth - 1);
+
+    bytes += fprintf(stream, " = ");
+
+    if (rec->data[i] == GAB_VAL_OBJ(rec))
+      bytes += fprintf(stream, "{ ... }");
+    else
+      bytes += __dump_value(stream, rec->data[i], depth - 1);
+
+    bytes += fprintf(stream, ", ");
   }
 
-  return bytes += fprintf(stream, "%V = %V", rec->shape->data[rec->len - 1],
-                          rec->data[rec->len - 1]);
+  bytes += __dump_value(stream, rec->shape->data[rec->len - 1], depth - 1);
+
+  bytes += fprintf(stream, " = ");
+
+  if (rec->data[rec->len - 1] == GAB_VAL_OBJ(rec))
+    bytes += fprintf(stream, "{ ... }");
+  else
+    bytes += __dump_value(stream, rec->data[rec->len - 1], depth - 1);
+
+  return bytes;
 }
 
-i32 gab_obj_dump(FILE *stream, gab_value value) {
+i32 gab_obj_dump(FILE *stream, gab_value value, u8 depth) {
   switch (GAB_VAL_TO_OBJ(value)->kind) {
+  case GAB_KIND_SHAPE: {
+    if (depth == 0)
+      return fprintf(stream, "{ ... }");
+
+    gab_obj_shape *shape = GAB_VAL_TO_SHAPE(value);
+    return fprintf(stream, "{ ") + shape_dump_properties(stream, shape, depth) +
+           fprintf(stream, " }");
+  }
+  case GAB_KIND_RECORD: {
+    if (depth == 0)
+      return fprintf(stream, "{ ... }");
+
+    gab_obj_record *rec = GAB_VAL_TO_RECORD(value);
+    return fprintf(stream, "{ ") + rec_dump_properties(stream, rec, depth) +
+           fprintf(stream, " }");
+  }
   case GAB_KIND_STRING: {
     gab_obj_string *str = GAB_VAL_TO_STRING(value);
     return fprintf(stream, "%.*s", (i32)str->len, (const char *)str->data);
@@ -76,16 +115,6 @@ i32 gab_obj_dump(FILE *stream, gab_value value) {
   case GAB_KIND_MESSAGE: {
     gab_obj_message *msg = GAB_VAL_TO_MESSAGE(value);
     return fprintf(stream, "&%V", msg->name);
-  }
-  case GAB_KIND_SHAPE: {
-    gab_obj_shape *shape = GAB_VAL_TO_SHAPE(value);
-    return fprintf(stream, "{ ") + shape_dump_properties(stream, shape) +
-           fprintf(stream, " }");
-  }
-  case GAB_KIND_RECORD: {
-    gab_obj_record *rec = GAB_VAL_TO_RECORD(value);
-    return fprintf(stream, "{ ") + rec_dump_properties(stream, rec) +
-           fprintf(stream, " }");
   }
   case GAB_KIND_BUILTIN: {
     gab_obj_builtin *blt = GAB_VAL_TO_BUILTIN(value);
@@ -120,7 +149,7 @@ i32 gab_obj_dump(FILE *stream, gab_value value) {
   }
 }
 
-i32 gab_val_dump(FILE *stream, gab_value self) {
+i32 __dump_value(FILE *stream, gab_value self, u8 depth) {
   if (GAB_VAL_IS_BOOLEAN(self)) {
     return fprintf(stream, "%s", GAB_VAL_TO_BOOLEAN(self) ? "true" : "false");
   } else if (GAB_VAL_IS_NUMBER(self)) {
@@ -128,13 +157,17 @@ i32 gab_val_dump(FILE *stream, gab_value self) {
   } else if (GAB_VAL_IS_NIL(self)) {
     return fprintf(stream, "nil");
   } else if (GAB_VAL_IS_OBJ(self)) {
-    return gab_obj_dump(stream, self);
+    return gab_obj_dump(stream, self, depth);
   } else if (GAB_VAL_IS_PRIMITIVE(self)) {
     return fprintf(stream, "[primitive:%s]",
                    gab_opcode_names[GAB_VAL_TO_PRIMITIVE(self)]);
   } else if (GAB_VAL_IS_UNDEFINED(self)) {
     return fprintf(stream, "undefined");
   }
+}
+
+i32 gab_val_dump(FILE *stream, gab_value self) {
+  return __dump_value(stream, self, 2);
 }
 
 /*

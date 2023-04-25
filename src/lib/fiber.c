@@ -1,3 +1,4 @@
+#include "include/core.h"
 #include "include/gab.h"
 #include <stdatomic.h>
 #include <stdio.h>
@@ -12,7 +13,8 @@ enum {
 typedef struct {
   atomic_char status;
   atomic_int rc;
-  v_s_i8 queue;
+  v_a_i8 in_queue;
+  v_a_i8 out_queue;
   mtx_t mutex;
   thrd_t parent;
 
@@ -26,7 +28,8 @@ fiber *fiber_create(gab_value init) {
   fiber *self = NEW(fiber);
 
   mtx_init(&self->mutex, mtx_plain);
-  v_s_i8_create(&self->queue, 8);
+  v_a_i8_create(&self->in_queue, 8);
+  v_a_i8_create(&self->out_queue, 8);
 
   gab_engine *gab = gab_create();
 
@@ -44,7 +47,8 @@ fiber *fiber_create(gab_value init) {
 
 void fiber_destroy(fiber *self) {
   mtx_destroy(&self->mutex);
-  v_s_i8_destroy(&self->queue);
+  v_a_i8_destroy(&self->in_queue);
+  v_a_i8_destroy(&self->out_queue);
 }
 
 boolean callable(gab_value v) {
@@ -70,7 +74,7 @@ i32 fiber_launch(void *d) {
 
     mtx_lock(&self->mutex);
 
-    if (self->queue.len == 0) {
+    if (self->in_queue.len == 0) {
       self->status = FLAG_FIBER_WAITING;
       mtx_unlock(&self->mutex);
 
@@ -80,16 +84,31 @@ i32 fiber_launch(void *d) {
 
     self->status = FLAG_FIBER_RUNNING;
 
-    s_i8 msg = v_s_i8_pop(&self->queue);
+    a_i8 *msg = v_a_i8_pop(&self->in_queue);
 
     mtx_unlock(&self->mutex);
 
-    gab_value arg = GAB_VAL_OBJ(gab_obj_string_create(self->gab, msg));
+    gab_value arg =
+        GAB_VAL_OBJ(gab_obj_string_create(self->gab, s_i8_arr(msg)));
+
+    a_i8_destroy(msg);
+
     gab_args(self->gab, 1, &arg, &arg);
 
-    a_gab_value *result = gab_run(self->gab, runner, 0);
+    a_gab_value *result = gab_run(self->gab, runner, GAB_FLAG_DUMP_ERROR);
 
     runner = result->data[result->len - 1];
+
+    mtx_lock(&self->mutex);
+    for (u32 i = 0; i < result->len - 1; i++) {
+      gab_scratch(self->gab, result->data[i]);
+
+      s_i8 ref = gab_obj_string_ref(
+          GAB_VAL_TO_STRING(gab_val_to_string(self->gab, result->data[i])));
+
+      v_a_i8_push(&self->out_queue, a_i8_create(ref.data, ref.len));
+    }
+    mtx_unlock(&self->mutex);
 
     if (callable(runner))
       gab_scratch(self->gab, runner);
@@ -150,8 +169,14 @@ void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   }
 
   mtx_lock(&f->mutex);
-  v_s_i8_push(&f->queue, gab_obj_string_ref(GAB_VAL_TO_STRING(msg)));
+
+  s_i8 ref = gab_obj_string_ref(GAB_VAL_TO_STRING(msg));
+
+  v_a_i8_push(&f->in_queue, a_i8_create(ref.data, ref.len));
+
   mtx_unlock(&f->mutex);
+
+  gab_push(vm, 1, argv);
 }
 
 void gab_lib_await(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -159,10 +184,31 @@ void gab_lib_await(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   fiber *f = (fiber *)container->data;
 
-  while (f->status != FLAG_FIBER_DONE)
-    thrd_yield();
+  for (;;) {
+    if (f->status == FLAG_FIBER_DONE) {
+      gab_push(vm, 1, &f->final);
+      return;
+    }
 
-  gab_value result = gab_val_copy(gab, vm, f->final);
+    mtx_lock(&f->mutex);
+
+    if (f->out_queue.len < 1) {
+      mtx_unlock(&f->mutex);
+
+      thrd_yield();
+      continue;
+    }
+
+    break;
+  }
+
+  a_i8 *msg = v_a_i8_pop(&f->out_queue);
+
+  mtx_unlock(&f->mutex);
+
+  gab_value result = GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_arr(msg)));
+
+  a_i8_destroy(msg);
 
   gab_push(vm, 1, &result);
 
@@ -172,7 +218,7 @@ void gab_lib_await(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value names[] = {
       GAB_STRING("fiber"),
-      GAB_STRING("send"),
+      GAB_STRING(GAB_MESSAGE_CAL),
       GAB_STRING("await"),
   };
 

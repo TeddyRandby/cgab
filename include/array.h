@@ -20,7 +20,7 @@ struct TYPENAME {
   T data[FLEXIBLE_ARRAY];
 };
 
-LINKAGE TYPENAME *METHOD(create)(T *data, u64 len) {
+LINKAGE TYPENAME *METHOD(create)(const T *data, u64 len) {
   TYPENAME *self = NEW_FLEX(TYPENAME, T, len);
   memcpy(self->data, data, len * sizeof(T));
   self->len = len;
