@@ -22,5 +22,5 @@ def range[](opts, to)
         ?{ from }    => return range_down(opts.from, 0)                end
         ?{ from to } => return range_up(opts.from, opts.to)            end
         $Number      => return range_up(to and opts or 0, to or opts)  end
-        else         => panic('Invalid call to :range')         end
+        else         => panic($INVALID_ARGUMENTS)                      end
 end

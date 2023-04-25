@@ -268,13 +268,13 @@ void gab_lib_implements(gab_engine *gab, gab_vm *vm, u8 argc,
       return;
     }
 
-    gab_value type = gab_val_type(gab, argv[0]);
+    gab_value type = argv[0];
 
     gab_obj_message *msg = GAB_VAL_TO_MESSAGE(argv[1]);
 
-    u64 index = gab_obj_message_find(msg, type);
+    boolean implements = gab_obj_message_find(msg, type) != UINT64_MAX;
 
-    gab_value result = GAB_VAL_BOOLEAN(index != UINT64_MAX);
+    gab_value result = GAB_VAL_BOOLEAN(implements);
 
     gab_push(vm, 1, &result);
 
@@ -318,20 +318,20 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
       GAB_STRING("record"), GAB_STRING("len"),        GAB_STRING("to_l"),
       GAB_STRING("to_m"),   GAB_STRING("send"),       GAB_STRING("put"),
       GAB_STRING("at"),     GAB_STRING("next"),       GAB_STRING("slice"),
-      GAB_STRING("splat"),  GAB_STRING("implements"),
+      GAB_STRING("splat"),  GAB_STRING("implements?"),
   };
 
   gab_value receivers[] = {
       GAB_VAL_NIL(),
+      gab_type(gab, GAB_KIND_RECORD),
+      gab_type(gab, GAB_KIND_RECORD),
+      gab_type(gab, GAB_KIND_RECORD),
       gab_type(gab, GAB_KIND_UNDEFINED),
-      gab_type(gab, GAB_KIND_UNDEFINED),
-      gab_type(gab, GAB_KIND_UNDEFINED),
-      gab_type(gab, GAB_KIND_UNDEFINED),
-      gab_type(gab, GAB_KIND_UNDEFINED),
-      gab_type(gab, GAB_KIND_UNDEFINED),
-      gab_type(gab, GAB_KIND_UNDEFINED),
-      gab_type(gab, GAB_KIND_UNDEFINED),
-      gab_type(gab, GAB_KIND_UNDEFINED),
+      gab_type(gab, GAB_KIND_RECORD),
+      gab_type(gab, GAB_KIND_RECORD),
+      gab_type(gab, GAB_KIND_RECORD),
+      gab_type(gab, GAB_KIND_RECORD),
+      gab_type(gab, GAB_KIND_RECORD),
       gab_type(gab, GAB_KIND_UNDEFINED),
   };
 

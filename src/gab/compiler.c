@@ -192,7 +192,8 @@ static inline i32 push_slot(gab_bc *bc, u8 n) {
   gab_bc_frame *f = peek_frame(bc, 0);
 
   if (f->next_slot + n >= UINT16_MAX) {
-    compiler_error(bc, GAB_PANIC, "Too many slots\n");
+    compiler_error(bc, GAB_PANIC,
+                   "Too many slots. This is an internal compiler error.\n");
     return COMP_ERR;
   }
 
@@ -206,7 +207,8 @@ static inline i32 push_slot(gab_bc *bc, u8 n) {
 
 static inline void pop_slot(gab_bc *bc, u8 n) {
   if (peek_frame(bc, 0)->next_slot - n < 0) {
-    compiler_error(bc, GAB_PANIC, "Too few slots\n");
+    compiler_error(bc, GAB_PANIC,
+                   "Too few slots. This is an internal compiler error.\n");
   }
   peek_frame(bc, 0)->next_slot -= n;
 }
@@ -2305,6 +2307,10 @@ i32 compile_exp_prec(gab_engine *gab, gab_bc *bc, gab_precedence prec) {
 i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
   down_scope(bc);
 
+  gab_token prev_tok = bc->previous_token;
+  u64 prev_line = bc->line;
+  s_i8 prev_src = bc->lex.previous_token_src;
+
   u8 local_start = peek_frame(bc, 0)->next_local;
   u16 loop_locals = 0;
   i32 result;
@@ -2362,8 +2368,7 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
   u64 loop = gab_module_push_loop(mod(bc));
 
   u64 jump_start = gab_module_push_iter(mod(bc), local_start, loop_locals, var,
-                                        bc->previous_token, bc->line,
-                                        bc->lex.previous_token_src);
+                                        prev_tok, prev_line, prev_src);
 
   if (compile_expressions(gab, bc) < 0)
     return COMP_ERR;
@@ -2376,13 +2381,11 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
     return COMP_ERR;
 
   // Load and call the effect member
-  gab_module_push_next(mod(bc), loop_locals, bc->previous_token, bc->line,
-                       bc->lex.previous_token_src);
+  gab_module_push_next(mod(bc), loop_locals, prev_tok, prev_line, prev_src);
 
   pop_slot(bc, 1);
 
-  gab_module_patch_loop(mod(bc), loop, bc->previous_token, bc->line,
-                        bc->lex.previous_token_src);
+  gab_module_patch_loop(mod(bc), loop, prev_tok, prev_line, prev_src);
 
   gab_module_patch_jump(mod(bc), jump_start);
 
@@ -2393,6 +2396,10 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
 i32 compile_exp_lop(gab_engine *gab, gab_bc *bc, boolean assignable) {
   down_scope(bc);
+
+  gab_token prev_tok = bc->previous_token;
+  u64 prev_line = bc->line;
+  s_i8 prev_src = bc->lex.previous_token_src;
 
   u64 loop = gab_module_push_loop(mod(bc));
 
@@ -2405,20 +2412,21 @@ i32 compile_exp_lop(gab_engine *gab, gab_bc *bc, boolean assignable) {
     if (compile_expression(gab, bc) < 0)
       return COMP_ERR;
 
-    u64 jump =
-        gab_module_push_jump(mod(bc), OP_POP_JUMP_IF_TRUE, bc->previous_token,
-                             bc->line, bc->lex.previous_token_src);
+    prev_tok = bc->previous_token;
+    prev_line = bc->line;
+    prev_src = bc->lex.previous_token_src;
 
-    gab_module_patch_loop(mod(bc), loop, bc->previous_token, bc->line,
-                          bc->lex.previous_token_src);
+    u64 jump = gab_module_push_jump(mod(bc), OP_POP_JUMP_IF_TRUE, prev_tok,
+                                    prev_line, prev_src);
+
+    gab_module_patch_loop(mod(bc), loop, prev_tok, prev_line, prev_src);
 
     gab_module_patch_jump(mod(bc), jump);
   } else {
     if (expect_token(bc, TOKEN_END) < 0)
       return COMP_ERR;
 
-    gab_module_patch_loop(mod(bc), loop, bc->previous_token, bc->line,
-                          bc->lex.previous_token_src);
+    gab_module_patch_loop(mod(bc), loop, prev_tok, prev_line, prev_src);
   }
 
   push_op(bc, OP_PUSH_NIL);
@@ -2434,6 +2442,9 @@ i32 compile_exp_sym(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
   push_op(bc, OP_CONSTANT);
   push_short(bc, add_constant(mod(bc), GAB_VAL_OBJ(sym)));
+
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
 
   return COMP_OK;
 }

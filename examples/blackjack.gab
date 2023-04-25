@@ -16,7 +16,7 @@ def permutations![](opt_k)
     self:len == k then
         yield self
     end else
-        for i in k:to(self:len):each
+        for i in :range(k:to(self:len))
             self:swap!(i, k)
 
             for val in self:permutations!(k + 1)
@@ -28,13 +28,11 @@ def permutations![](opt_k)
     end
 end
 
-def ops = :list
+def ops, hands = :list, :list
 
 for seq in [ &+, &-, &*, &/ ]:permutations!
     ops:push(seq:slice)
 end
-
-def hands = :list
 
 for hand in [ 8 5 3 10 11 ]:permutations!
     hands:push(hand:slice)

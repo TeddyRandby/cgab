@@ -29,7 +29,9 @@ static void finish_row(gab_lexer *self) {
 
   self->previous_row_src = self->current_row_src;
   // Skip the newline at the end of the row.
-  self->previous_row_src.len--;
+  self->previous_row_src.len -=
+      self->previous_row_src.data[self->previous_row_src.len - 1] == '\n';
+
   v_s_i8_push(&self->source->source_lines, self->previous_row_src);
   start_row(self);
 }
@@ -210,7 +212,7 @@ gab_token integer(gab_lexer *self) {
 }
 
 gab_token floating(gab_lexer *self) {
-  
+
   if (integer(self) == TOKEN_ERROR)
     return TOKEN_ERROR;
 

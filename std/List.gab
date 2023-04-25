@@ -7,7 +7,7 @@ impl $List
       ?{ from }        => self:slice(key.from)                end
       ?{ to }          => self:slice(0, key.to)               end
       $Number          => self:at(key)                        end
-      else             => panic('Invalid call to List::[]')   end
+      else             => panic($INVALID_ARGUMENTS)   end
   end
 
   def [=](key, value)

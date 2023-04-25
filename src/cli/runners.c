@@ -103,6 +103,9 @@ void gab_run_string(const char *string, const char *module, u8 flags) {
 
     gab_value main = gab_compile(gab, GAB_STRING("__main__"), src, flags);
 
+    if (GAB_VAL_IS_UNDEFINED(main))
+        return;
+
     gab_scratch(gab, main);
 
     if (flags & GAB_FLAG_DELIMIT_INPUT) {
@@ -145,7 +148,7 @@ void gab_run_string(const char *string, const char *module, u8 flags) {
   gab_value main = gab_compile(gab, GAB_STRING("__main__"), src,
                                flags); // This is wasteful
 
-  if (GAB_VAL_IS_NIL(main))
+  if (GAB_VAL_IS_UNDEFINED(main))
     goto fin;
 
   a_gab_value *result = gab_run(gab, main, flags | GAB_FLAG_EXIT_ON_PANIC);

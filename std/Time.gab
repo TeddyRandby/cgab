@@ -37,7 +37,7 @@ def timeit[$Block](opts)
     ?{ runs against } => headToHead(self, opts.against, opts.runs)  end
     ?{ runs }         => bench(self, opts.runs)                     end
     $Number           => bench(self, opts)                          end
-    else              => panic('Invalid call to Block:timeit')      end
+    else              => panic($INVALID_ARGUMENTS)      end
 
   print(self, 'ran in avg of {avg}s')
 end

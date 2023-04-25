@@ -19,16 +19,27 @@ impl $Number
     until v == self
   end
 
+  def from(src)
+    ?src match
+        nil     => { from = self }           end
+        $Number => { from = src to = self }  end
+        else    => panic($INVALID_ARGUMENTS) end
+  end
+
   def to(dest)
     ?dest match
-        nil     => { to = self }               end
-        $Number => { from = self to = dest }   end
-        else    => panic('Invalid call to Number:to') end
+        nil     => { to = self }             end
+        $Number => { from = self to = dest } end
+        else    => panic($INVALID_ARGUMENTS) end
   end
 
   def clamp(arg)
     ?arg match
-        ?{ from to } => self< arg.from and arg.from or self > arg.to and arg.to or self end
-        else         => panic("Invalid call to Number:clamp") end
+        ?{ from to } =>
+          self < arg.from and arg.from or
+          self > arg.to   and arg.to   or
+          self
+        end
+        else => panic($INVALID_ARGUMENTS) end
   end
 end

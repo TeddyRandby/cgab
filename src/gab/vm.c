@@ -346,7 +346,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
   }                                                                            \
   if (!GAB_VAL_IS_NUMBER(PEEK())) {                                            \
     STORE_FRAME();                                                             \
-    return ERROR(GAB_NOT_NUMERIC, "Tried to add %V to %V", PEEK(), PEEK2());   \
+    return ERROR(GAB_NOT_NUMERIC, "Found '%V'", PEEK());                       \
   }                                                                            \
   operation_type b = GAB_VAL_TO_NUMBER(POP());                                 \
   operation_type a = GAB_VAL_TO_NUMBER(POP());                                 \
@@ -479,7 +479,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
         if (offset == UINT64_MAX) {
           STORE_FRAME();
-          return ERROR(GAB_IMPLEMENTATION_MISSING, "Could not send %V to %V",
+          return ERROR(GAB_IMPLEMENTATION_MISSING, "Could not send %V to '%V'",
                        GAB_VAL_OBJ(msg), receiver);
         }
       }
@@ -500,7 +500,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         WRITE_BYTE(SEND_CACHE_DIST, instr + 2);
       } else {
         STORE_FRAME();
-        return ERROR(GAB_NOT_CALLABLE, "Found %V", spec);
+        return ERROR(GAB_NOT_CALLABLE, "Found '%V'", spec);
       }
 
       IP() -= SEND_CACHE_DIST;
@@ -751,7 +751,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_STRING(PEEK())) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_STRING, "Found %V", PEEK());
+        return ERROR(GAB_NOT_STRING, "Found '%V'", PEEK());
       }
 
       gab_obj_string *b = GAB_VAL_TO_STRING(POP());
@@ -805,8 +805,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Tried to store property %V on %V", key,
-                     index);
+        return ERROR(GAB_NOT_RECORD, "Found '%V'", index);
       }
       gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
 
@@ -814,7 +813,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (prop_offset == UINT16_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "Found %V", index);
+        return ERROR(GAB_MISSING_PROPERTY, "Found '%V'", index);
       }
 
       WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_STORE_MONO);
@@ -1069,7 +1068,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found %V", index);
+        return ERROR(GAB_NOT_RECORD, "Found '%V'", index);
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1094,8 +1093,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Tried to load property %V on %V", key,
-                     index);
+        return ERROR(GAB_NOT_RECORD, "Found '%V'", index);
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1125,7 +1123,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found %V", index);
+        return ERROR(GAB_NOT_RECORD, "Found '%V'", index);
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1149,7 +1147,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found %V", index);
+        return ERROR(GAB_NOT_RECORD, "Found '%V'", index);
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1158,7 +1156,8 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (prop_offset == UINT16_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "%V has no property %V", index, key);
+        return ERROR(GAB_MISSING_PROPERTY, "Found '%V'",
+                     GAB_VAL_OBJ(rec->shape));
       }
 
       // Write to the cache and transition to monomorphic
@@ -1193,8 +1192,8 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
         if (prop_offset == UINT16_MAX) {
           STORE_FRAME();
-          return ERROR(GAB_MISSING_PROPERTY, "%V has no property %V", index,
-                       key);
+          return ERROR(GAB_MISSING_PROPERTY, "Found '%V'",
+                       GAB_VAL_OBJ(rec->shape));
         }
 
         // Transition to polymorphic
@@ -1221,7 +1220,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (!GAB_VAL_IS_RECORD(index)) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found %V", index);
+        return ERROR(GAB_NOT_RECORD, "Found '%V'", index);
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1229,7 +1228,8 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (prop_offset == UINT16_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "%V has no property %V", index, key);
+        return ERROR(GAB_MISSING_PROPERTY, "Found '%V'",
+                     GAB_VAL_OBJ(rec->shape));
       }
 
       gab_obj_record_set(ENGINE(), VM(), rec, prop_offset, value);
@@ -1348,7 +1348,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     CASE_CODE(NEGATE) : {
       if (!GAB_VAL_IS_NUMBER(PEEK())) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_NUMERIC, "Found %V", PEEK());
+        return ERROR(GAB_NOT_NUMERIC, "Found '%V'", PEEK());
       }
 
       gab_value new_value = GAB_VAL_NUMBER(-GAB_VAL_TO_NUMBER(POP()));
