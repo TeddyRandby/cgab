@@ -104,7 +104,7 @@ void gab_run_string(const char *string, const char *module, u8 flags) {
     gab_value main = gab_compile(gab, GAB_STRING("__main__"), src, flags);
 
     if (GAB_VAL_IS_UNDEFINED(main))
-        return;
+      return;
 
     gab_scratch(gab, main);
 
@@ -155,6 +155,8 @@ void gab_run_string(const char *string, const char *module, u8 flags) {
 
   for (i32 i = 0; i < result->len; i++) {
     gab_value arg = result->data[i];
+
+    printf("%V\n", arg);
 
     gab_scratch(gab, arg);
   }

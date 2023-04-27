@@ -61,9 +61,9 @@ void gab_lib_refresh(gab_engine *gab, gab_vm *vm, u8 argc,
 }
 
 void gab_lib_dim(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
-    gab_value dim[] = { GAB_VAL_NUMBER(LINES), GAB_VAL_NUMBER(COLS)};
+  gab_value dim[] = {GAB_VAL_NUMBER(LINES), GAB_VAL_NUMBER(COLS)};
 
-    gab_push(vm, 2, dim);
+  gab_push(vm, 2, dim);
 }
 
 void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -72,7 +72,7 @@ void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     gab_panic(gab, vm, "Invalid call to gab_lib_put");
     return;
   }
-  gab_obj_string* c = GAB_VAL_TO_STRING(argv[3]);
+  gab_obj_string *c = GAB_VAL_TO_STRING(argv[3]);
 
   if (c->len > 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_put");
@@ -101,30 +101,18 @@ void gab_lib_key(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value receivers[] = {
-      GAB_VAL_NIL(),
-      GAB_STRING("Term"),
-      GAB_STRING("Term"),
-      GAB_STRING("Term"),
-      GAB_STRING("Term"),
-      GAB_STRING("Term"),
+      GAB_VAL_NIL(),      GAB_STRING("Term"), GAB_STRING("Term"),
+      GAB_STRING("Term"), GAB_STRING("Term"), GAB_STRING("Term"),
   };
 
   gab_value names[] = {
-      GAB_STRING("term"),
-      GAB_STRING("refresh"),
-      GAB_STRING("key"),
-      GAB_STRING("print"),
-      GAB_STRING("put"),
-      GAB_STRING("dim"),
+      GAB_STRING("term"),  GAB_STRING("refresh"), GAB_STRING("key"),
+      GAB_STRING("print"), GAB_STRING("put"),     GAB_STRING("dim"),
   };
 
   gab_value values[] = {
-      GAB_BUILTIN(new),
-      GAB_BUILTIN(refresh),
-      GAB_BUILTIN(key),
-      GAB_BUILTIN(print),
-      GAB_BUILTIN(put),
-      GAB_BUILTIN(dim),
+      GAB_BUILTIN(new),   GAB_BUILTIN(refresh), GAB_BUILTIN(key),
+      GAB_BUILTIN(print), GAB_BUILTIN(put),     GAB_BUILTIN(dim),
   };
 
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));

@@ -1891,12 +1891,7 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
     gab_bc_frame *frame = peek_frame(bc, 0);
     if (!(frame->locals_flag[var] & GAB_VARIABLE_FLAG_MUTABLE)) {
-      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                     "To make '%.*s' mutable, change " ANSI_COLOR_MAGENTA
-                     "%s" ANSI_COLOR_GREEN " to " ANSI_COLOR_MAGENTA
-                     "%s" ANSI_COLOR_RESET ".",
-                     name.len, name.data, gab_token_names[TOKEN_DEF],
-                     gab_token_names[TOKEN_LET]);
+      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
       return COMP_ERR;
     }
 

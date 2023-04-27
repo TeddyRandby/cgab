@@ -1,7 +1,20 @@
-def a = {
-    b = {
-        c = [1, 2, 3]
-    }
-}
+require('fiber')
 
-print(a)
+let worker = :fiber do
+    require('num')
+
+    let sum = 0
+
+    loop
+        def msg = yield sum
+        sum = sum + msg:to_n
+    end
+end
+
+worker(1)
+worker(1)
+worker(1)
+
+print(worker:await)
+print(worker:await)
+print(worker:await)
