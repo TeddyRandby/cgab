@@ -31,7 +31,7 @@
 #define GC_DEC_BUFF_MAX (STACK_MAX) // This MUST be at LEAST STACK_MAX
 #define GC_INC_BUFF_MAX (STACK_MAX)
 #define GC_ROOT_BUFF_MAX (256)
-// Size of the engines constant table.
+// Size of a modules  constant table.
 #define CONSTANTS_MAX (UINT16_MAX + 1)
 // Maximum size of the stack
 #define STACK_MAX (FRAMES_MAX * 256)
