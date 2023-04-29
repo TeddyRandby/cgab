@@ -1,20 +1,10 @@
-require('fiber')
-
-let worker = :fiber do
-    require('num')
-
-    let sum = 0
-
-    loop
-        def msg = yield sum
-        sum = sum + msg:to_n
+impl nil
+  def example
+    def nested_method
+      self
     end
+  end
 end
 
-worker(1)
-worker(1)
-worker(1)
-
-print(worker:await)
-print(worker:await)
-print(worker:await)
+nil:example
+nil:nested_method

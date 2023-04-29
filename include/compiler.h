@@ -29,14 +29,8 @@ typedef struct gab_bc_frame gab_bc_frame;
 struct gab_bc_frame {
   gab_module *mod;
 
-  /*
-    Scope keeps track of local variables, prevents name collisions,
-    and pops variables off the stack when they go out of scope.
-
-    Functions always create new scopes.
-    If and for statements also create new scopes.
-  */
   i32 scope_depth;
+
   u8 narguments;
 
   u8 next_slot;
@@ -47,12 +41,12 @@ struct gab_bc_frame {
 
   u8 nupvalues;
 
-  u8 locals_flag[LOCAL_MAX];
-  i32 locals_depth[LOCAL_MAX];
-  u16 locals_name[LOCAL_MAX];
+  u8 local_flags[LOCAL_MAX];
+  i32 local_depths[LOCAL_MAX];
+  u16 local_names[LOCAL_MAX];
 
-  u8 upvs_flag[UPVALUE_MAX];
-  u8 upvs_index[UPVALUE_MAX];
+  u8 upv_flags[UPVALUE_MAX];
+  u8 upv_indexes[UPVALUE_MAX];
 };
 
 /*
@@ -78,7 +72,8 @@ typedef struct gab_bc {
 
   u8 nimpls;
 
-  u8 impls[FUNCTION_DEF_NESTING_MAX];
+  u8 impl_frames[FUNCTION_DEF_NESTING_MAX];
+  u8 impl_locals[FUNCTION_DEF_NESTING_MAX];
 
   /**
    * The number of compile frames

@@ -213,37 +213,10 @@ static inline void pop_slot(gab_bc *bc, u8 n) {
   peek_frame(bc, 0)->next_slot -= n;
 }
 
-static inline i32 push_impl(gab_engine *gab, gab_bc *bc, u8 local) {
-
-  if (bc->nimpls == UINT8_MAX) {
-    compiler_error(bc, GAB_PANIC, "Too many nested impls");
-    return COMP_ERR;
-  }
-
-  bc->impls[bc->nimpls++] = local;
-
-  if (push_slot(bc, 1) < 0)
-    return COMP_ERR;
-
-  return COMP_OK;
-}
-
-static inline void pop_impl(gab_bc *bc) {
-  bc->nimpls--;
-
-  pop_slot(bc, 1);
-}
-
-static inline boolean has_impl(gab_bc *bc) { return bc->nimpls > 0; }
-
-static inline gab_value peek_impl(gab_bc *bc) {
-  return bc->impls[bc->nimpls - 1];
-}
-
 static void initialize_local(gab_bc *bc, u8 local) {
   gab_bc_frame *f = peek_frame(bc, 0);
 
-  f->locals_depth[local] = f->scope_depth;
+  f->local_depths[local] = f->scope_depth;
 }
 
 /* Returns COMP_ERR if an error is encountered, and otherwise the offset of the
@@ -258,9 +231,9 @@ static i32 add_local(gab_engine *gab, gab_bc *bc, gab_value name, u8 flags) {
   }
 
   u8 local = f->next_local;
-  f->locals_name[local] = add_constant(mod(bc), name);
-  f->locals_depth[local] = -1;
-  f->locals_flag[local] = flags;
+  f->local_names[local] = add_constant(mod(bc), name);
+  f->local_depths[local] = -1;
+  f->local_flags[local] = flags;
 
   if (++f->next_local > f->nlocals)
     f->nlocals = f->next_local;
@@ -277,7 +250,7 @@ static i32 add_upvalue(gab_bc *bc, u32 depth, u8 index, u8 flags) {
 
   // Don't pull redundant upvalues
   for (int i = 0; i < count; i++) {
-    if (f->upvs_index[i] == index && (f->upvs_flag[i]) == flags) {
+    if (f->upv_indexes[i] == index && (f->upv_flags[i]) == flags) {
       return i;
     }
   }
@@ -287,8 +260,8 @@ static i32 add_upvalue(gab_bc *bc, u32 depth, u8 index, u8 flags) {
     return COMP_ERR;
   }
 
-  f->upvs_index[count] = index;
-  f->upvs_flag[count] = flags;
+  f->upv_indexes[count] = index;
+  f->upv_flags[count] = flags;
   f->nupvalues++;
 
   return count;
@@ -304,10 +277,10 @@ static i32 resolve_local(gab_engine *gab, gab_bc *bc, gab_value name,
 
   for (i32 local = f->next_local - 1; local >= 0; local--) {
     gab_value other_local_name =
-        v_gab_constant_val_at(&f->mod->constants, f->locals_name[local]);
+        v_gab_constant_val_at(&f->mod->constants, f->local_names[local]);
 
     if (name == other_local_name) {
-      if (f->locals_depth[local] == -1) {
+      if (f->local_depths[local] == -1) {
         compiler_error(bc, GAB_REFERENCE_BEFORE_INITIALIZE, "");
         return COMP_ERR;
       }
@@ -330,7 +303,7 @@ static i32 resolve_upvalue(gab_engine *gab, gab_bc *bc, gab_value name,
 
   i32 local = resolve_local(gab, bc, name, depth + 1);
   if (local >= 0) {
-    u8 flags = (peek_frame(bc, depth + 1)->locals_flag[local] |=
+    u8 flags = (peek_frame(bc, depth + 1)->local_flags[local] |=
                 GAB_VARIABLE_FLAG_CAPTURED);
 
     if (flags & GAB_VARIABLE_FLAG_MUTABLE) {
@@ -348,7 +321,7 @@ static i32 resolve_upvalue(gab_engine *gab, gab_bc *bc, gab_value name,
 
   i32 upvalue = resolve_upvalue(gab, bc, name, depth + 1);
   if (upvalue >= 0) {
-    u8 flags = peek_frame(bc, depth + 1)->upvs_flag[upvalue];
+    u8 flags = peek_frame(bc, depth + 1)->upv_flags[upvalue];
     return add_upvalue(bc, depth, upvalue, flags & ~GAB_VARIABLE_FLAG_LOCAL);
   }
 
@@ -387,24 +360,13 @@ static i32 resolve_id(gab_engine *gab, gab_bc *bc, gab_value name,
   return COMP_RESOLVED_TO_LOCAL;
 }
 
-static inline i32 push_load_id(gab_engine *gab, gab_bc *bc, gab_value name) {
-  u8 value;
-  switch (resolve_id(gab, bc, name, &value)) {
-  case COMP_RESOLVED_TO_LOCAL:
-    push_load_local(bc, value);
-    return COMP_OK;
-  case COMP_RESOLVED_TO_UPVALUE:
-    push_load_upvalue(bc, value);
-    return COMP_OK;
-  default:
-    compiler_error(bc, GAB_MISSING_IDENTIFIER, "");
-    return COMP_ERR;
-  }
+static inline i32 peek_scope(gab_bc *bc) {
+  return peek_frame(bc, 0)->scope_depth;
 }
 
-static void down_scope(gab_bc *bc) { peek_frame(bc, 0)->scope_depth++; }
+static void push_scope(gab_bc *bc) { peek_frame(bc, 0)->scope_depth++; }
 
-static void up_scope(gab_bc *bc) {
+static void pop_scope(gab_bc *bc) {
   gab_bc_frame *f = peek_frame(bc, 0);
 
   f->scope_depth--;
@@ -414,7 +376,7 @@ static void up_scope(gab_bc *bc) {
   while (f->next_local > 1) {
     u8 local = f->next_local - 1;
 
-    if (f->locals_depth[local] <= f->scope_depth)
+    if (f->local_depths[local] <= f->scope_depth)
       break;
 
     dropped++;
@@ -429,7 +391,42 @@ static void up_scope(gab_bc *bc) {
   }
 }
 
-static gab_module *down_frame(gab_engine *gab, gab_bc *bc, gab_value name,
+static inline i32 push_impl(gab_engine *gab, gab_bc *bc, u8 local) {
+
+  if (bc->nimpls == UINT8_MAX) {
+    compiler_error(bc, GAB_PANIC, "Too many nested impls");
+    return COMP_ERR;
+  }
+
+  bc->impl_locals[bc->nimpls] = local;
+  bc->impl_frames[bc->nimpls] = bc->nframe - 1;
+  bc->nimpls++;
+
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
+
+  return COMP_OK;
+}
+
+static inline void pop_impl(gab_bc *bc) {
+  bc->nimpls--;
+
+  pop_slot(bc, 1);
+}
+
+static inline u8 peek_impl_frame(gab_bc *bc) {
+  return bc->impl_frames[bc->nimpls - 1];
+}
+
+static inline boolean has_impl(gab_bc *bc) {
+  return bc->nimpls > 0 && (bc->nframe - 1) == peek_impl_frame(bc);
+}
+
+static inline u8 peek_impl_local(gab_bc *bc) {
+  return bc->impl_locals[bc->nimpls - 1];
+}
+
+static gab_module *push_frame(gab_engine *gab, gab_bc *bc, gab_value name,
                               boolean is_method) {
   gab_bc_frame *f = bc->frames + bc->nframe++;
 
@@ -456,7 +453,7 @@ static gab_module *down_frame(gab_engine *gab, gab_bc *bc, gab_value name,
   return mod;
 }
 
-static gab_obj_prototype *up_frame(gab_engine *gab, gab_bc *bc, boolean vse) {
+static gab_obj_prototype *pop_frame(gab_engine *gab, gab_bc *bc, boolean vse) {
   gab_bc_frame *frame = peek_frame(bc, 0);
 
   u8 nupvalues = frame->nupvalues;
@@ -465,7 +462,7 @@ static gab_obj_prototype *up_frame(gab_engine *gab, gab_bc *bc, boolean vse) {
 
   gab_obj_prototype *p =
       gab_obj_prototype_create(gab, frame->mod, nargs, nslots, nupvalues, vse,
-                               frame->upvs_flag, frame->upvs_index);
+                               frame->upv_flags, frame->upv_indexes);
 
   bc->nframe--;
 
@@ -487,13 +484,13 @@ static i32 compile_local(gab_engine *gab, gab_bc *bc, gab_value name,
   gab_bc_frame *f = peek_frame(bc, 0);
 
   for (i32 local = f->next_local - 1; local >= 0; local--) {
-    if (f->locals_depth[local] != -1 &&
-        f->locals_depth[local] < f->scope_depth) {
+    if (f->local_depths[local] != -1 &&
+        f->local_depths[local] < f->scope_depth) {
       break;
     }
 
     gab_value other_local_name =
-        v_gab_constant_val_at(&f->mod->constants, f->locals_name[local]);
+        v_gab_constant_val_at(&f->mod->constants, f->local_names[local]);
 
     if (name == other_local_name) {
       compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
@@ -644,14 +641,14 @@ i32 compile_expressions_body(gab_engine *gab, gab_bc *bc) {
 }
 
 i32 compile_expressions(gab_engine *gab, gab_bc *bc) {
-  down_scope(bc);
+  push_scope(bc);
 
   u64 line = bc->line;
 
   if (compile_expressions_body(gab, bc) < 0)
     return COMP_ERR;
 
-  up_scope(bc);
+  pop_scope(bc);
 
   if (match_token(bc, TOKEN_EOF)) {
     eat_token(bc);
@@ -700,7 +697,7 @@ i32 compile_message_spec(gab_engine *gab, gab_bc *bc) {
   }
 
   if (has_impl(bc)) {
-    push_load_local(bc, peek_impl(bc));
+    push_load_local(bc, peek_impl_local(bc));
     return COMP_OK;
   }
 
@@ -712,7 +709,7 @@ i32 compile_message_spec(gab_engine *gab, gab_bc *bc) {
 }
 
 i32 compile_block(gab_engine *gab, gab_bc *bc) {
-  down_frame(gab, bc, GAB_STRING("anonymous"), false);
+  push_frame(gab, bc, GAB_STRING("anonymous"), false);
 
   boolean vse;
   i32 narguments = compile_parameters(gab, bc, &vse);
@@ -723,7 +720,7 @@ i32 compile_block(gab_engine *gab, gab_bc *bc) {
   if (compile_block_body(gab, bc, vse) < 0)
     return COMP_ERR;
 
-  gab_obj_prototype *p = up_frame(gab, bc, vse);
+  gab_obj_prototype *p = pop_frame(gab, bc, vse);
 
   // Create the closure, adding a specialization to the pushed function.
   push_op(bc, OP_BLOCK);
@@ -737,7 +734,7 @@ i32 compile_message(gab_engine *gab, gab_bc *bc, gab_value name) {
   if (compile_message_spec(gab, bc) < 0)
     return COMP_ERR;
 
-  down_frame(gab, bc, name, true);
+  push_frame(gab, bc, name, true);
 
   boolean vse;
   i32 narguments = compile_parameters(gab, bc, &vse);
@@ -748,7 +745,7 @@ i32 compile_message(gab_engine *gab, gab_bc *bc, gab_value name) {
   if (compile_block_body(gab, bc, vse) < 0)
     return COMP_ERR;
 
-  gab_obj_prototype *p = up_frame(gab, bc, vse);
+  gab_obj_prototype *p = pop_frame(gab, bc, vse);
 
   // Create the closure, adding a specialization to the pushed function.
   push_op(bc, OP_MESSAGE);
@@ -1353,15 +1350,8 @@ i32 compile_exp_mch(gab_engine *gab, gab_bc *bc, boolean assignable) {
   return push_slot(bc, 1);
 }
 
-/*
- * Infix is expression.
- */
 i32 compile_exp_is(gab_engine *gab, gab_bc *bc, boolean assignable) {
   push_op(bc, OP_TYPE);
-
-  gab_token op = bc->previous_token;
-  u64 line = bc->line;
-  s_i8 src = bc->lex.previous_token_src;
 
   if (compile_exp_prec(gab, bc, PREC_EQUALITY + 1) < 0)
     return COMP_ERR;
@@ -1684,10 +1674,6 @@ i32 compile_exp_nil(gab_engine *gab, gab_bc *bc, boolean assignable) {
 i32 compile_exp_def(gab_engine *gab, gab_bc *bc, boolean assignable) {
   eat_token(bc);
 
-  gab_token tok = bc->previous_token;
-  s_i8 src = bc->lex.previous_token_src;
-  u64 line = bc->line;
-
   s_i8 name = {0};
 
   switch (bc->previous_token) {
@@ -1749,7 +1735,7 @@ i32 compile_exp_rec(gab_engine *gab, gab_bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, boolean assignable) {
-  down_scope(bc);
+  push_scope(bc);
 
   if (!compile_expression(gab, bc))
     return COMP_ERR;
@@ -1774,7 +1760,7 @@ i32 compile_exp_imp(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
   pop_impl(bc);
 
-  up_scope(bc);
+  pop_scope(bc);
 
   return COMP_OK;
 }
@@ -1890,7 +1876,7 @@ i32 compile_exp_idn(gab_engine *gab, gab_bc *bc, boolean assignable) {
     }
 
     gab_bc_frame *frame = peek_frame(bc, 0);
-    if (!(frame->locals_flag[var] & GAB_VARIABLE_FLAG_MUTABLE)) {
+    if (!(frame->local_flags[var] & GAB_VARIABLE_FLAG_MUTABLE)) {
       compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
       return COMP_ERR;
     }
@@ -2300,7 +2286,7 @@ i32 compile_exp_prec(gab_engine *gab, gab_bc *bc, gab_precedence prec) {
  * For loops are broken
  */
 i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
-  down_scope(bc);
+  push_scope(bc);
 
   gab_token prev_tok = bc->previous_token;
   u64 prev_line = bc->line;
@@ -2384,13 +2370,13 @@ i32 compile_exp_for(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
   gab_module_patch_jump(mod(bc), jump_start);
 
-  up_scope(bc);
+  pop_scope(bc);
 
   return COMP_OK;
 }
 
 i32 compile_exp_lop(gab_engine *gab, gab_bc *bc, boolean assignable) {
-  down_scope(bc);
+  push_scope(bc);
 
   gab_token prev_tok = bc->previous_token;
   u64 prev_line = bc->line;
@@ -2426,7 +2412,7 @@ i32 compile_exp_lop(gab_engine *gab, gab_bc *bc, boolean assignable) {
 
   push_op(bc, OP_PUSH_NIL);
 
-  up_scope(bc);
+  pop_scope(bc);
   return COMP_OK;
 }
 
@@ -2590,7 +2576,7 @@ gab_compile_rule get_rule(gab_token k) { return gab_bc_rules[k]; }
 
 gab_value compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
                   gab_value arguments[narguments]) {
-  gab_module *new_mod = down_frame(gab, bc, name, false);
+  gab_module *new_mod = push_frame(gab, bc, name, false);
   peek_frame(bc, 0)->narguments = narguments;
 
   if (eat_token(bc) == COMP_ERR)
@@ -2611,7 +2597,7 @@ gab_value compile(gab_engine *gab, gab_bc *bc, gab_value name, u8 narguments,
   gab_module_push_return(mod(bc), 1, false, bc->previous_token, bc->line,
                          bc->lex.previous_token_src);
 
-  gab_obj_prototype *p = up_frame(gab, bc, false);
+  gab_obj_prototype *p = pop_frame(gab, bc, false);
 
   add_constant(new_mod, GAB_VAL_OBJ(p));
 
@@ -2694,7 +2680,7 @@ static void compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
       curr_src = s_i8_cstr("");
     }
 
-    i8 *curr_src_start = curr_src.data;
+    const i8 *curr_src_start = curr_src.data;
     i32 curr_src_len = curr_src.len;
 
     while (is_whitespace(*curr_src_start)) {
@@ -2709,7 +2695,7 @@ static void compiler_error(gab_bc *bc, gab_status e, const char *help_fmt,
 
     a_i8 *curr_under = a_i8_empty(curr_src_len);
 
-    i8 *tok_start, *tok_end;
+    const i8 *tok_start, *tok_end;
 
     tok_start = curr_token.data;
     tok_end = curr_token.data + curr_token.len;
