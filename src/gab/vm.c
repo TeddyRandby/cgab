@@ -285,8 +285,8 @@ static inline boolean call_block(gab_vm *vm, gab_obj_block *c, u8 have,
 
   vm->fp->slots = vm->sp - have - 1;
 
-  // for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
-  //   *vm->sp++ = GAB_VAL_NIL();
+  for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
+    *vm->sp++ = GAB_VAL_NIL();
 
   return true;
 }
@@ -1272,6 +1272,18 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       NEXT();
     }
 
+    CASE_CODE(SHIFT) : {
+        u8 n = READ_BYTE;
+        gab_pry(ENGINE(), VM(), 0);
+
+        gab_value tmp = POP();
+        memcpy(TOP() - n, TOP() - n + 1, n * sizeof(gab_value));
+        TOP()[-n] = tmp;
+
+        gab_pry(ENGINE(), VM(), 0);
+        NEXT();
+    }
+
     CASE_CODE(DROP) : {
       gab_value tmp = POP();
 
@@ -1512,7 +1524,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         u8 flags = p->upv_desc[i * 2];
         u8 index = p->upv_desc[i * 2 + 1];
 
-        if (flags & GAB_VARIABLE_FLAG_LOCAL) {
+        if (flags & fLOCAL) {
           blk->upvalues[i] = LOCAL(index);
         } else {
           blk->upvalues[i] = CLOSURE()->upvalues[index];
@@ -1547,7 +1559,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         u8 flags = p->upv_desc[i * 2];
         u8 index = p->upv_desc[i * 2 + 1];
 
-        if (flags & GAB_VARIABLE_FLAG_LOCAL) {
+        if (flags & fLOCAL) {
           blk->upvalues[i] = LOCAL(index);
         } else {
           blk->upvalues[i] = CLOSURE()->upvalues[index];

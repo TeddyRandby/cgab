@@ -5,8 +5,6 @@ typedef enum gab_status gab_status;
 
 #include "include/object.h"
 typedef struct gab_source gab_source;
-typedef struct gab_bc gab_bc;
-typedef struct gab_vm_frame gab_vm_frame;
 
 #include "gc.h"
 #include "alloc.h"

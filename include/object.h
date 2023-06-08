@@ -149,29 +149,17 @@ gab_obj_builtin *gab_obj_builtin_create(gab_engine *gab, gab_builtin function,
 typedef struct gab_obj_prototype gab_obj_prototype;
 struct gab_obj_prototype {
   gab_obj header;
-  /*
-   * The number of arguments the function takes.
-   */
+
   u8 narguments;
 
-  /*
-   * The number of upvalues the function captures.
-   */
   u8 nupvalues;
 
-  /*
-   * The number of slots the proto needs.
-   */
   u8 nslots;
 
-  /*
-   * If the prototype accepts variable arguments
-   */
+  u8 nlocals;
+
   u8 var;
 
-  /*
-   * The module this prototype owns
-   */
   gab_module *mod;
 
   u8 upv_desc[FLEXIBLE_ARRAY];
@@ -183,7 +171,7 @@ struct gab_obj_prototype {
 #define GAB_OBJ_TO_PROTOTYPE(value) ((gab_obj_prototype *)value)
 
 gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
-                                            u8 narguments, u8 nslots,
+                                            u8 narguments, u8 nslots, u8 nlocals,
                                             u8 nupvalues, boolean var,
                                             u8 flags[nupvalues],
                                             u8 indexes[nupvalues]);

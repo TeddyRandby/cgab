@@ -19,6 +19,7 @@
 #define LINKAGE static inline
 #define METHOD(name) CONCAT(PREFIX, CONCAT(_, name))
 
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
 #define GROW(type, loc, new_count)                                             \
   ((type *)realloc(loc, sizeof(type) * (new_count)))
 
@@ -52,7 +53,7 @@ LINKAGE u64 METHOD(set)(TYPENAME *self, u64 index, T value) {
 
 LINKAGE u32 METHOD(push)(TYPENAME *self, T value) {
   if (self->len >= self->cap) {
-    self->data = GROW(T, self->data, self->cap * 2);
+    self->data = GROW(T, self->data, MAX(8, self->cap * 2));
     self->cap = self->cap * 2;
   }
 
@@ -76,7 +77,7 @@ LINKAGE T METHOD(val_at)(TYPENAME *self, u64 index) {
 
 LINKAGE T *METHOD(emplace)(TYPENAME *self) {
   if (self->len >= self->cap) {
-    self->data = GROW(T, self->data, self->cap * 2);
+    self->data = GROW(T, self->data, MAX(8, self->cap * 2));
     self->cap = self->cap * 2;
   }
   return self->data + (self->len++);

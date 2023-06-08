@@ -7,7 +7,8 @@
 #include "include/object.h"
 #include <stdio.h>
 
-gab_module *gab_module_create(gab_engine* gab, gab_value name, gab_source *source) {
+gab_module *gab_module_create(gab_engine *gab, gab_value name,
+                              gab_source *source) {
   gab_module *self = NEW(gab_module);
   self->source = source;
   self->previous_compiled_op = OP_NOP;
@@ -539,6 +540,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_LOAD_UPVALUE:
   case OP_INTERPOLATE:
   case OP_DROP:
+  case OP_SHIFT:
   case OP_LOAD_LOCAL: {
     return dumpByteInstruction(self, offset);
   }
@@ -560,7 +562,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     for (int j = 0; j < p->nupvalues; j++) {
       u8 flags = p->upv_desc[j * 2];
       u8 index = p->upv_desc[j * 2 + 1];
-      int isLocal = flags & GAB_VARIABLE_FLAG_LOCAL;
+      int isLocal = flags & fLOCAL;
       printf("      |                   %d %s\n", index,
              isLocal ? "local" : "upvalue");
     }
@@ -584,7 +586,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     for (int j = 0; j < p->nupvalues; j++) {
       u8 flags = p->upv_desc[j * 2];
       u8 index = p->upv_desc[j * 2 + 1];
-      int isLocal = flags & GAB_VARIABLE_FLAG_LOCAL;
+      int isLocal = flags & fLOCAL;
       printf("      |                   %d %s\n", index,
              isLocal ? "local" : "upvalue");
     }

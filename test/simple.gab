@@ -1,3 +1,7 @@
-def test = do
-    print('h')
+impl $Number
+
+    def sayhi() print('hello world') end
+
 end
+
+1:sayhi

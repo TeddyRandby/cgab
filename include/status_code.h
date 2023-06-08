@@ -19,7 +19,7 @@ STATUS(TOO_MANY_EXPRESSIONS_IN_LET,
 STATUS(REFERENCE_BEFORE_INITIALIZE,
        "Variables cannot be referenced before they are initialized")
 STATUS(LOCAL_ALREADY_EXISTS, "A local with this name already exists")
-STATUS(EXPRESSION_NOT_ASSIGNABLE, "The expression is not assignable")
+STATUS(EXPRESSION_NOT_ASSIGNABLE, "The expression on the left is not assignable")
 STATUS(MISSING_END, "Block need a corresponding 'end'")
 STATUS(MISSING_INITIALIZER, "Variables must be initialized")
 STATUS(MISSING_IDENTIFIER, "Identifier could not be resolved")

@@ -374,7 +374,7 @@ s_i8 gab_obj_string_ref(gab_obj_string *self) {
 }
 
 gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
-                                            u8 narguments, u8 nslots,
+                                            u8 narguments, u8 nslots, u8 nlocals,
                                             u8 nupvalues, boolean var,
                                             u8 flags[nupvalues],
                                             u8 indexes[nupvalues]) {
@@ -384,6 +384,7 @@ gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
   self->mod = mod;
   self->narguments = narguments;
   self->nslots = nslots;
+  self->nlocals = nlocals;
   self->nupvalues = nupvalues;
   self->var = var;
 
