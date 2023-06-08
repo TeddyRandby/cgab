@@ -1,7 +1,11 @@
-impl $Number
+# Multi assignment
 
-    def sayhi() print('hello world') end
+a = { h, e }
 
-end
+#a.h, b = 2,3
 
-1:sayhi
+#print(a.h, b)
+
+c, a.e, a.h, a.e = 1, 2, 3, 4
+
+print(a.e, a.h, c)

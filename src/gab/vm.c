@@ -807,6 +807,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         STORE_FRAME();
         return ERROR(GAB_NOT_RECORD, "Found '%V'", index);
       }
+
       gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
 
       u16 prop_offset = gab_obj_shape_find(obj->shape, key);
@@ -1274,13 +1275,11 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
     CASE_CODE(SHIFT) : {
         u8 n = READ_BYTE;
-        gab_pry(ENGINE(), VM(), 0);
 
-        gab_value tmp = POP();
-        memcpy(TOP() - n, TOP() - n + 1, n * sizeof(gab_value));
-        TOP()[-n] = tmp;
+        gab_value tmp = PEEK();
+        memcpy(TOP() - n, TOP() - n - 1, n * sizeof(gab_value));
+        PEEK_N(n) = tmp;
 
-        gab_pry(ENGINE(), VM(), 0);
         NEXT();
     }
 

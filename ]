@@ -312,7 +312,7 @@ static inline u16 peek_slot(bc *bc) {
   i32 ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
-  return f->next_slot;
+  return f->next_slot - 1;
 }
 
 static inline i32 push_slot(bc *bc, u16 n) {
@@ -454,7 +454,12 @@ static i32 resolve_upvalue(gab_engine *gab, bc *bc, gab_value name, u8 depth) {
     u8 flags = f->local_flags[local] |= fCAPTURED;
 
     if (flags & fMUTABLE) {
-      compiler_error(bc, GAB_CAPTURED_MUTABLE, "");
+      compiler_error(bc, GAB_CAPTURED_MUTABLE,
+                     "To make '%V' immutable, change the " ANSI_COLOR_MAGENTA
+                     "%s" ANSI_COLOR_GREEN " to " ANSI_COLOR_MAGENTA
+                     "%s" ANSI_COLOR_RESET ".",
+                     name, gab_token_names[TOKEN_LET],
+                     gab_token_names[TOKEN_DEF]);
       return COMP_ERR;
     }
 
@@ -1147,27 +1152,16 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
   if (compile_tuple(gab, bc, lvalues->len, NULL) < 0)
     return COMP_ERR;
 
+  u16 top = peek_slot(bc);
+
+  printf("top: %d\n", top);
   for (u8 i = 0; i < lvalues->len; i++) {
     lvalue lval = v_lvalue_val_at(lvalues, lvalues->len - 1 - i);
-
-    switch (lval.kind) {
-    case kLOCAL:
-      push_store_local(bc, lval.as.local);
-
-      initialize_local(bc, lval.as.local);
-
-      push_pop(bc, 1);
-      pop_slot(bc, 1);
-      break;
-    case kINDEX:
-    case kPROP: {
-      u16 top = peek_slot(bc);
-
-      u16 dist = top - lval.slot;
-
-      push_shift(bc, dist);
-    }
-    }
+    u16 dist = top - lval.slot;
+    dist = dist < lvalues->len ? lvalues->len : dist;
+    
+    printf("slot: %d, dist: %d\n", lval.slot, dist);
+    push_shift(bc, dist);
   }
 
   for (u8 i = 0; i < lvalues->len; i++) {
@@ -1175,6 +1169,8 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
 
     switch (lval.kind) {
     case kLOCAL:
+      push_store_local(bc, lval.as.local);
+      initialize_local(bc, lval.as.local);
       break;
 
     case kPROP: {
@@ -1186,9 +1182,7 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
 
       gab_module_push_inline_cache(mod(bc), prop_tok, prop_line, prop_src);
 
-      push_pop(bc, 1);
-
-      pop_slot(bc, 2);
+      pop_slot(bc, 1);
       break;
     }
 
@@ -1196,15 +1190,16 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
       u16 m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_SET));
       gab_module_push_send(mod(bc), 2, m, false, prop_tok, prop_line, prop_src);
 
-      push_pop(bc, 1);
-
-      pop_slot(bc, 3);
+      pop_slot(bc, 2);
       break;
     }
     }
-  }
 
-  push_op(bc, OP_PUSH_NIL);
+    if (i < lvalues->len - 1) {
+      push_pop(bc, 1);
+      pop_slot(bc, 1);
+    }
+  }
 
   return COMP_OK;
 }
@@ -2037,6 +2032,10 @@ i32 compile_exp_imp(gab_engine *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
+i32 compile_exp_let(gab_engine *gab, bc *bc, boolean assignable) {
+  return compile_var_decl(gab, bc, fMUTABLE, 0);
+}
+
 i32 compile_exp_ipm(gab_engine *gab, bc *bc, boolean assignable) {
   s_i8 offset = trim_prev_tok(bc);
 
@@ -2115,39 +2114,17 @@ i32 compile_exp_idn(gab_engine *gab, bc *bc, boolean assignable) {
     if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
       switch (result) {
       case COMP_ID_NOT_FOUND:
-        index = add_local(gab, bc, id, fMUTABLE);
+        index = add_local(gab, bc, id, 0);
 
         if (push_slot(bc, 1) < 0)
-          return COMP_ERR;
-
-        /* A variable is declared in this assignment.
-         * The slots of all previous lvalues must be corrected.
-         */
-
-        i32 ctx = peek_ctx(bc, kASSIGNMENT_TARGET, 0);
-        v_lvalue *lvalues = &bc->contexts[ctx].as.assignment_target;
-
-        for (i32 i = 0; i < lvalues->len; i++) {
-          v_lvalue_ref_at(lvalues, i)->slot++;
-        }
-
-      case COMP_RESOLVED_TO_LOCAL: {
-        i32 ctx = peek_ctx(bc, kFRAME, 0);
-        frame *f = &bc->contexts[ctx].as.frame;
-
-        if (!(f->local_flags[index] & fMUTABLE)) {
-          compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                         "Cannot assign to immutable variable.");
-          return COMP_ERR;
-        }
-
+          return NULL;
+      case COMP_RESOLVED_TO_LOCAL:
         return compile_assignment(gab, bc,
                                   (lvalue){
                                       .kind = kLOCAL,
                                       .slot = peek_slot(bc),
                                       .as.local = index,
                                   });
-      }
       case COMP_RESOLVED_TO_UPVALUE:
         compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
                        "Captured variables are not assignable.");
@@ -2177,7 +2154,10 @@ i32 compile_exp_idn(gab_engine *gab, bc *bc, boolean assignable) {
     return COMP_ERR;
   }
 
-  return push_slot(bc, 1);
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
+
+  return COMP_OK;
 }
 
 i32 compile_exp_idx(gab_engine *gab, bc *bc, boolean assignable) {
@@ -2784,6 +2764,7 @@ i32 compile_exp_rtn(gab_engine *gab, bc *bc, boolean assignable) {
 
 // ----------------Pratt Parsing Table ----------------------
 const gab_compile_rule gab_bc_rules[] = {
+    PREFIX(let),                       // LET
     INFIX(then, AND, false),                        // THEN
     INFIX(else, OR, false),                            // ELSE
     PREFIX(blk),                       // DO
