@@ -6,7 +6,7 @@ impl $Record
     def last self:at(self:len - 1) end
 
     def each
-        let key = self:next
+        key = self:next
 
         loop
         yield key, self:at(key)

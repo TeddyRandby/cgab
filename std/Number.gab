@@ -2,7 +2,7 @@ require('num')
 
 impl $Number
   def each
-    let v = 0
+    v = 0
 
     loop
       yield v
@@ -11,7 +11,7 @@ impl $Number
   end
 
   def times(cb)
-    let v = 0
+    v = 0
 
     loop
         cb(v)

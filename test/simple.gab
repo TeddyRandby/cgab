@@ -1,11 +1,6 @@
 # Multi assignment
 
-a = { h, e }
+a,b = 1,2
 
-#a.h, b = 2,3
 
-#print(a.h, b)
-
-c, a.e, a.h, a.e = 1, 2, 3, 4
-
-print(a.e, a.h, c)
+print(a,b)

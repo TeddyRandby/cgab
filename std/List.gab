@@ -29,7 +29,7 @@ impl $List
   def each
     self:len == 0 and return
 
-    let v = 0 
+    v = 0 
 
     loop
       yield self:at(v), v
@@ -38,7 +38,7 @@ impl $List
   end
 
   def fold(init, folder)
-    let v = init
+    v = init
 
     for i, index in self:each
         v = folder(v, i, index)
@@ -48,7 +48,7 @@ impl $List
   end
 
   def filter(filterer)
-    let v = :list
+    v = :list
 
     for i, index in self:each
         filterer(i, index) and v:push(i)
@@ -58,7 +58,7 @@ impl $List
   end
 
   def map(mapper)
-    let v = :list
+    v = :list
 
     for i, index in self:each
         v:push(mapper(i, index))
@@ -68,7 +68,7 @@ impl $List
   end
 
   def fill(value)
-    let v = :list
+    v = :list
 
     for _, index in self:each
         self:put(index, value)

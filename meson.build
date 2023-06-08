@@ -13,6 +13,7 @@ nc = dependency('ncursesw')
 
 libcgab = library('cgab',
   sources,
+  install: true,
 )
 
 shared_library('cgabfiber',
@@ -129,4 +130,5 @@ install_data(
 executable('gab',
   'src/cli/main.c',
   link_with: [libcgab],
+  install: true,
 )

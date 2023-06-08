@@ -1,5 +1,5 @@
 def range_up = do (from, to)
-  let v = from
+  v = from
 
   loop
     yield v
@@ -8,7 +8,7 @@ def range_up = do (from, to)
 end
 
 def range_down = do (from, to)
-  let v = from
+  v = from
 
   loop
     yield v

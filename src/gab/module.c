@@ -253,6 +253,9 @@ u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l, s_i8 s) {
       return replace_previous_op(self, self->previous_compiled_op + 9, 0);
     case OP_STORE_LOCAL:
       return replace_previous_op(self, OP_POP_STORE_LOCAL, 1);
+    case OP_DUP:
+      self->bytecode.len--;
+      return OP_POP;
     }
 
     gab_module_push_op(self, op, t, l, s);

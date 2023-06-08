@@ -1279,11 +1279,15 @@ initializer:
     return COMP_ERR;
   }
 
-  push_op(bc, OP_DUP);
-  push_slot(bc, 1);
-
   while (local_count--) {
     u8 local = locals[local_count];
+    push_store_local(bc, local);
+
+    if (local_count > 0) {
+      push_pop(bc, 1);
+      pop_slot(bc, 1);
+    }
+
     initialize_local(bc, local);
   }
 
@@ -1443,14 +1447,15 @@ i32 compile_definition(gab_engine *gab, bc *bc, s_i8 name) {
       return COMP_ERR;
 
     u8 local = add_local(gab, bc, val_name, 0);
-    initialize_local(bc, local);
 
     if (compile_record(gab, bc) < 0)
       return COMP_ERR;
 
     push_op(bc, OP_TYPE);
 
-    push_op(bc, OP_DUP);
+    push_store_local(bc, local);
+
+    initialize_local(bc, local);
 
     return COMP_OK;
   }
@@ -1484,25 +1489,17 @@ i32 compile_definition(gab_engine *gab, bc *bc, s_i8 name) {
   if (compile_message(gab, bc, val_name) < 0)
     return COMP_ERR;
 
+  push_store_local(bc, local);
+
   initialize_local(bc, local);
 
-  push_op(bc, OP_DUP);
-
-  if (push_slot(bc, 1) < 0)
-    return COMP_ERR;
-
-  return COMP_OK;
+  return push_slot(bc, 1);
 }
 
 //---------------- Compiling Expressions ------------------
 
 i32 compile_exp_blk(gab_engine *gab, bc *bc, boolean assignable) {
-
-  // We are an anonyumous function
-  if (compile_block(gab, bc) < 0)
-    return COMP_ERR;
-
-  return COMP_OK;
+  return compile_block(gab, bc);
 }
 
 i32 compile_exp_then(gab_engine *gab, bc *bc, boolean assignable) {
@@ -2017,10 +2014,14 @@ i32 compile_exp_imp(gab_engine *gab, bc *bc, boolean assignable) {
   if (local < 0)
     return COMP_ERR;
 
+  initialize_local(bc, local);
+
+  push_store_local(bc, local);
+
+  push_pop(bc, local);
+
   if (push_ctximpl(gab, bc, local) < 0)
     return COMP_ERR;
-
-  initialize_local(bc, local);
 
   if (compile_expressions(gab, bc) < 0)
     return COMP_ERR;

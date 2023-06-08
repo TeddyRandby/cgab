@@ -1,7 +1,7 @@
 require('time')
 
 def bench = do (cb, runs)
-  let times = :list
+  times = :list
 
   for _ in runs:to:each
     def before = :clock
@@ -11,14 +11,14 @@ def bench = do (cb, runs)
     times:push(:clock - before)
   end
 
-  let sum = times:fold(0) do (a, c) a + c end
+  sum = times:fold(0) do (a, c) a + c end
 
   sum / runs
 end
 
 def headToHead = do (a, b, runs)
-  let a_avg = bench(a, runs)
-  let b_avg = bench(b, runs)
+  a_avg = bench(a, runs)
+  b_avg = bench(b, runs)
 
   a_avg < b_avg then
     print(a, 'ran {b_avg / a_avg} times faster than', b)
