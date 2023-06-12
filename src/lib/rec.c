@@ -19,12 +19,14 @@ void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (GAB_VAL_IS_UNDEFINED(result->data[0])) {
     gab_panic(gab, vm, "Invalid send");
 
+    a_gab_value_destroy(result);
+
     return;
   }
 
   gab_push(vm, 1, result->data);
 
-  gab_val_dref(vm, result->data[0]);
+  a_gab_value_destroy(result);
 }
 
 void gab_lib_splat(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -315,9 +317,9 @@ void gab_lib_to_m(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 }
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value names[] = {
-      GAB_STRING("record"), GAB_STRING("len"),        GAB_STRING("to_l"),
-      GAB_STRING("to_m"),   GAB_STRING("send"),       GAB_STRING("put"),
-      GAB_STRING("at"),     GAB_STRING("next"),       GAB_STRING("slice"),
+      GAB_STRING("record"), GAB_STRING("len"),         GAB_STRING("to_l"),
+      GAB_STRING("to_m"),   GAB_STRING("send"),        GAB_STRING("put"),
+      GAB_STRING("at"),     GAB_STRING("next"),        GAB_STRING("slice"),
       GAB_STRING("splat"),  GAB_STRING("implements?"),
   };
 

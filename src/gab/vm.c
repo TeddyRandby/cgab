@@ -248,13 +248,13 @@ static inline boolean call_block_var(gab_engine *gab, gab_vm *vm,
 
   vm->fp->slots = vm->sp - have - 1;
 
-  // for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
-  //   *vm->sp++ = GAB_VAL_NIL();
+  for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
+    *vm->sp++ = GAB_VAL_NIL();
 
   return true;
 }
 
-i32 gab_vm_push(gab_vm *vm, u64 argc, gab_value *argv) {
+i32 gab_vm_push(gab_vm *vm, u64 argc, gab_value argv[argc]) {
   if (!has_callspace(vm, argc)) {
     return -1;
   }
@@ -437,12 +437,10 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
   if (GAB_VAL_IS_BLOCK(main)) {
     gab_obj_block *b = GAB_VAL_TO_BLOCK(main);
-
     if (!call_block(VM(), b, argc, 1))
       return ERROR(GAB_OVERFLOW, "", "");
   } else if (GAB_VAL_IS_SUSPENSE(main)) {
     gab_obj_suspense *s = GAB_VAL_TO_SUSPENSE(main);
-
     if (!call_suspense(VM(), s, argc, 1))
       return ERROR(GAB_OVERFLOW, "", "");
   } else {
@@ -454,7 +452,6 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
   NEXT();
 
   LOOP() {
-
     CASE_CODE(SEND_ANA) : {
       gab_obj_message *msg = READ_MESSAGE;
       u8 have = parse_have(VM(), READ_BYTE);
@@ -1044,6 +1041,8 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
           gab_gc_iref(GC(), VM(), results->data[i]);
         }
 
+        VM()->sp = VM()->sb;
+
         gab_vm_destroy(VM());
 
         DESTROY(VM());
@@ -1086,7 +1085,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     }
 
     CASE_CODE(LOAD_PROPERTY_MONO) : {
-      gab_value key = READ_CONSTANT;
+      SKIP_SHORT;
       u16 prop_offset = READ_SHORT;
       gab_obj_shape *cached_shape = GAB_VAL_TO_SHAPE(*READ_QWORD);
 
@@ -1274,13 +1273,13 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     }
 
     CASE_CODE(SHIFT) : {
-        u8 n = READ_BYTE;
+      u8 n = READ_BYTE;
 
-        gab_value tmp = PEEK();
-        memcpy(TOP() - n, TOP() - n - 1, n * sizeof(gab_value));
-        PEEK_N(n) = tmp;
+      gab_value tmp = PEEK();
+      memcpy(TOP() - n, TOP() - n - 1, n * sizeof(gab_value));
+      PEEK_N(n) = tmp;
 
-        NEXT();
+      NEXT();
     }
 
     CASE_CODE(DROP) : {
@@ -1559,8 +1558,10 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         u8 index = p->upv_desc[i * 2 + 1];
 
         if (flags & fLOCAL) {
+          assert(index < CLOSURE()->p->nlocals);
           blk->upvalues[i] = LOCAL(index);
         } else {
+          assert(index < CLOSURE()->nupvalues);
           blk->upvalues[i] = CLOSURE()->upvalues[index];
         }
       }

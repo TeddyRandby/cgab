@@ -19,50 +19,58 @@ libcgab = library('cgab',
 shared_library('cgabfiber',
   'src/lib/fiber.c',
   link_with: [libcgab],
-  install_dir: '/usr/local/lib/gab/'
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
 )
 
 shared_library('cgabterm',
   'src/lib/term.c',
   dependencies: [nc],
   link_with: [libcgab],
-  install_dir: '/usr/local/lib/gab/'
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
 )
 
 shared_library('cgabsocket',
   'src/lib/socket.c',
   link_with: [libcgab],
-  install_dir: '/usr/local/lib/gab/'
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
 )
 
 shared_library('cgabtime',
   'src/lib/time.c',
   link_with: [libcgab],
-  install_dir: '/usr/local/lib/gab/'
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
 )
 
 shared_library('cgabmap',
   'src/lib/map.c',
   link_with: [libcgab],
-  install_dir: '/usr/local/lib/gab/'
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
 )
 
 shared_library('cgablist',
   'src/lib/list.c',
   link_with: [libcgab],
-  install_dir: '/usr/local/lib/gab/'
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
 )
 
 shared_library('cgabsymbol',
   'src/lib/symbol.c',
   link_with: [libcgab],
-  install_dir: '/usr/local/lib/gab/'
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
 )
 
 shared_library('cgabstring',
   'src/lib/string.c',
   link_with: [libcgab],
-  install_dir: '/usr/local/lib/gab/'
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
 )
 
 shared_library('cgabrecord',
@@ -70,31 +78,36 @@ shared_library('cgabrecord',
   'src/lib/map.h',
   'src/lib/list.h',
   link_with: [libcgab],
-  install_dir: '/usr/local/lib/gab/'
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
 )
 
 shared_library('cgabnum',
   'src/lib/num.c',
   link_with: [libcgab],
-  install_dir: '/usr/local/lib/gab/'
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
 )
 
 shared_library('cgabio',
   'src/lib/io.c',
   link_with: [libcgab],
-  install_dir: '/usr/local/lib/gab/'
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
 )
 
 shared_library('cgabdis',
   'src/lib/dis.c',
   link_with: [libcgab],
-  install_dir: '/usr/local/lib/gab/'
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
 )
 
 shared_library('cgabpry',
   'src/lib/pry.c',
   link_with: [libcgab],
-  install_dir: '/usr/local/lib/gab/'
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
 )
 
 install_headers(

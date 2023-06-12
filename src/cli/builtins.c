@@ -55,11 +55,16 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
   if (GAB_VAL_IS_NIL(pkg))
     return gab_panic(gab, vm, "Failed to compile module");
 
-  gab_value res = gab_run(gab, pkg, GAB_FLAG_DUMP_ERROR);
+  a_gab_value *res = gab_run(gab, pkg, GAB_FLAG_DUMP_ERROR);
 
-  gab_imports_module(gab, s_i8_create(path->data, path->len), pkg, res);
+  gab_imports_module(gab, s_i8_create(path->data, path->len), pkg,
+                     res->data[0]);
 
-  return res;
+  gab_value val = res->data[0];
+
+  a_gab_value_destroy(res);
+
+  return val;
 }
 
 resource resources[] = {

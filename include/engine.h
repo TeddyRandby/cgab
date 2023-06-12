@@ -51,23 +51,14 @@ struct gab_engine {
 
   v_gab_value scratch;
 
-  /*
-   * Where all the interned values live.
-   */
   d_strings interned_strings;
 
   d_shapes interned_shapes;
 
   d_messages interned_messages;
 
-  /*
-   * A simple allocator
-   */
   gab_allocator allocator;
 
-  /*
-   * The Engine's builtin types
-   */
   gab_value types[GAB_KIND_NKINDS];
 
   u64 hash_seed;

@@ -38,7 +38,8 @@ typedef struct {
 } frame;
 
 typedef enum {
-  kLOCAL,
+  kNEW_LOCAL,
+  kEXISTING_LOCAL,
   kPROP,
   kINDEX,
 } lvalue_k;
@@ -384,7 +385,8 @@ static i32 add_local(gab_engine *gab, bc *bc, gab_value name, u8 flags) {
  * upvalue.
  */
 static i32 add_upvalue(bc *bc, u32 depth, u8 index, u8 flags) {
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+  i32 ctx = peek_ctx(bc, kFRAME, depth);
+
   frame *f = &bc->contexts[ctx].as.frame;
   u16 count = f->nupvalues;
 
@@ -520,25 +522,6 @@ static void pop_scope(bc *bc) {
   frame *f = &bc->contexts[ctx].as.frame;
 
   f->scope_depth--;
-
-  u8 dropped = 0;
-
-  while (f->next_local > 1) {
-    u8 local = f->next_local - 1;
-
-    if (f->local_depths[local] <= f->scope_depth)
-      break;
-
-    dropped++;
-    f->next_local--;
-  }
-
-  if (dropped > 0) {
-    pop_slot(bc, dropped);
-
-    push_op(bc, OP_DROP);
-    push_byte(bc, dropped);
-  }
 }
 
 static inline boolean match_ctx(bc *bc, context_k kind) {
@@ -558,6 +541,7 @@ static inline i32 pop_ctx(bc *bc, context_k kind) {
   }
 
   bc->ncontext--;
+
   return COMP_OK;
 }
 
@@ -567,22 +551,10 @@ static inline i32 push_ctx(bc *bc, context_k kind) {
     return COMP_ERR;
   }
 
+  memset(bc->contexts + bc->ncontext, 0, sizeof(context));
   bc->contexts[bc->ncontext].kind = kind;
 
   return bc->ncontext++;
-}
-
-static inline i32 push_ctxassignment_target(gab_engine *gab, bc *bc) {
-  i32 ctx = push_ctx(bc, kASSIGNMENT_TARGET);
-
-  if (ctx < 0)
-    return COMP_ERR;
-
-  v_lvalue *lvalues = &bc->contexts[ctx].as.assignment_target;
-
-  lvalues->len = 0;
-
-  return ctx;
 }
 
 static inline i32 push_ctximpl(gab_engine *gab, bc *bc, u8 local) {
@@ -596,9 +568,6 @@ static inline i32 push_ctximpl(gab_engine *gab, bc *bc, u8 local) {
   c->as.impl.local = local;
   c->as.impl.ctx = peek_ctx(bc, kFRAME, 0);
 
-  if (push_slot(bc, 1) < 0)
-    return COMP_ERR;
-
   return COMP_OK;
 }
 
@@ -606,8 +575,7 @@ static inline i32 pop_ctximpl(bc *bc) {
   if (pop_ctx(bc, kIMPL) < 0)
     return COMP_ERR;
 
-  pop_slot(bc, 1);
-  return COMP_OK;
+  return pop_slot(bc, 1);
 }
 
 static inline i32 peek_impl_frame(bc *bc) {
@@ -632,8 +600,7 @@ static inline boolean has_impl(bc *bc) {
   return peek_ctx(bc, kFRAME, 0) == peek_impl_frame(bc);
 }
 
-static gab_module *push_ctxframe(gab_engine *gab, bc *bc, gab_value name,
-                                 boolean is_method) {
+static gab_module *push_ctxframe(gab_engine *gab, bc *bc, gab_value name) {
   i32 ctx = push_ctx(bc, kFRAME);
 
   if (ctx < 0)
@@ -643,25 +610,15 @@ static gab_module *push_ctxframe(gab_engine *gab, bc *bc, gab_value name,
 
   frame *f = &c->as.frame;
 
+  memset(f, 0, sizeof(frame));
+
   gab_module *mod = gab_module_create(gab, name, bc->lex.source);
-
-  f->narguments = 0;
-
   f->mod = mod;
 
-  f->next_local = 0;
-  f->nlocals = 0;
-
-  f->next_slot = 0;
-  f->nslots = 0;
-
-  f->nupvalues = 0;
-  f->scope_depth = 0;
+  initialize_local(bc, add_local(gab, bc, GAB_STRING("self"), 0));
 
   if (push_slot(bc, 1) < 0)
     return NULL;
-
-  initialize_local(bc, add_local(gab, bc, GAB_STRING("self"), 0));
 
   return mod;
 }
@@ -680,6 +637,7 @@ static gab_obj_prototype *pop_ctxframe(gab_engine *gab, bc *bc, boolean vse) {
                                vse, f->upv_flags, f->upv_indexes);
 
   assert(match_ctx(bc, kFRAME));
+
   if (pop_ctx(bc, kFRAME) < 0)
     return NULL;
 
@@ -929,7 +887,7 @@ i32 compile_message_spec(gab_engine *gab, bc *bc) {
 }
 
 i32 compile_block(gab_engine *gab, bc *bc) {
-  push_ctxframe(gab, bc, GAB_STRING("anonymous"), false);
+  push_ctxframe(gab, bc, GAB_STRING("anonymous"));
 
   boolean vse;
   i32 narguments = compile_parameters(gab, bc, &vse);
@@ -942,19 +900,17 @@ i32 compile_block(gab_engine *gab, bc *bc) {
 
   gab_obj_prototype *p = pop_ctxframe(gab, bc, vse);
 
-  // Create the closure, adding a specialization to the pushed function.
   push_op(bc, OP_BLOCK);
   push_short(bc, add_constant(mod(bc), GAB_VAL_OBJ(p)));
 
-  push_slot(bc, 1);
-  return COMP_OK;
+  return push_slot(bc, 1);
 }
 
 i32 compile_message(gab_engine *gab, bc *bc, gab_value name) {
   if (compile_message_spec(gab, bc) < 0)
     return COMP_ERR;
 
-  push_ctxframe(gab, bc, name, true);
+  push_ctxframe(gab, bc, name);
 
   boolean vse;
   i32 narguments = compile_parameters(gab, bc, &vse);
@@ -975,8 +931,7 @@ i32 compile_message(gab_engine *gab, bc *bc, gab_value name) {
   u16 func_constant = add_constant(mod(bc), GAB_VAL_OBJ(m));
   push_short(bc, func_constant);
 
-  push_slot(bc, 1);
-  return COMP_OK;
+  return push_slot(bc, 1);
 }
 
 i32 compile_expression(gab_engine *gab, bc *bc) {
@@ -1113,9 +1068,10 @@ i32 compile_lst_internals(gab_engine *gab, bc *bc, boolean *vse_out) {
 i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
   boolean first = !match_ctx(bc, kASSIGNMENT_TARGET);
 
-  if (first)
-    if (push_ctxassignment_target(gab, bc) < 0)
+  if (first) {
+    if (push_ctx(bc, kASSIGNMENT_TARGET) < 0)
       return COMP_ERR;
+  }
 
   i32 ctx = peek_ctx(bc, kASSIGNMENT_TARGET, 0);
 
@@ -1126,6 +1082,14 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
 
   v_lvalue_push(lvalues, target);
 
+  /* A variable is declared in this assignment.
+   * The slots of all previous lvalues must be corrected.
+   */
+  if (!first && target.kind == kNEW_LOCAL)
+    for (i32 i = 0; i < lvalues->len; i++) {
+      v_lvalue_ref_at(lvalues, i)->slot++;
+    }
+
   if (!first)
     return COMP_OK;
 
@@ -1133,9 +1097,6 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
     if (compile_exp_prec(gab, bc, kASSIGNMENT) < 0)
       return COMP_ERR;
   }
-
-  assert(match_ctx(bc, kASSIGNMENT_TARGET));
-  pop_ctx(bc, kASSIGNMENT_TARGET);
 
   if (expect_token(bc, TOKEN_EQUAL) < 0)
     return COMP_ERR;
@@ -1151,9 +1112,9 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
     lvalue lval = v_lvalue_val_at(lvalues, lvalues->len - 1 - i);
 
     switch (lval.kind) {
-    case kLOCAL:
+    case kNEW_LOCAL:
+    case kEXISTING_LOCAL:
       push_store_local(bc, lval.as.local);
-
       initialize_local(bc, lval.as.local);
 
       push_pop(bc, 1);
@@ -1174,7 +1135,8 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
     lvalue lval = v_lvalue_val_at(lvalues, lvalues->len - 1 - i);
 
     switch (lval.kind) {
-    case kLOCAL:
+    case kNEW_LOCAL:
+    case kEXISTING_LOCAL:
       break;
 
     case kPROP: {
@@ -1205,6 +1167,10 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
   }
 
   push_op(bc, OP_PUSH_NIL);
+
+  v_lvalue_destroy(lvalues);
+  assert(match_ctx(bc, kASSIGNMENT_TARGET));
+  pop_ctx(bc, kASSIGNMENT_TARGET);
 
   return COMP_OK;
 }
@@ -1253,8 +1219,6 @@ i32 compile_var_decl(gab_engine *gab, bc *bc, u8 flags, u8 additional_local) {
     }
 
     default:
-      compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                     "While compiling let expression");
       return COMP_ERR;
     }
 
@@ -1266,29 +1230,30 @@ i32 compile_var_decl(gab_engine *gab, bc *bc, u8 flags, u8 additional_local) {
     return COMP_ERR;
 
 initializer:
+  push_slot(bc, local_count);
+
   switch (expect_token(bc, TOKEN_EQUAL)) {
 
-  case COMP_OK: {
+  case COMP_OK:
     if (compile_tuple(gab, bc, local_count, NULL) < 0)
       return COMP_ERR;
 
     break;
-  }
 
   default:
     return COMP_ERR;
   }
 
+  pop_slot(bc, local_count - 1);
+
   while (local_count--) {
     u8 local = locals[local_count];
     push_store_local(bc, local);
-
-    if (local_count > 0) {
-      push_pop(bc, 1);
-      pop_slot(bc, 1);
-    }
-
     initialize_local(bc, local);
+
+    if (local_count > 1) {
+      push_pop(bc, 1);
+    }
   }
 
   return COMP_OK;
@@ -1416,9 +1381,7 @@ i32 compile_record(gab_engine *gab, bc *bc) {
 
   push_byte(bc, size);
 
-  if (push_slot(bc, 1) < 0)
-    return COMP_ERR;
-  return COMP_OK;
+  return push_slot(bc, 1);
 }
 
 i32 compile_array(gab_engine *gab, bc *bc) {
@@ -1433,9 +1396,7 @@ i32 compile_array(gab_engine *gab, bc *bc) {
 
   pop_slot(bc, size);
 
-  if (push_slot(bc, 1) < 0)
-    return COMP_ERR;
-  return COMP_OK;
+  return push_slot(bc, 1);
 }
 
 i32 compile_definition(gab_engine *gab, bc *bc, s_i8 name) {
@@ -1443,10 +1404,10 @@ i32 compile_definition(gab_engine *gab, bc *bc, s_i8 name) {
   if (match_and_eat_token(bc, TOKEN_LBRACK)) {
     gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
 
+    u8 local = add_local(gab, bc, val_name, 0);
+
     if (push_slot(bc, 1) < 0)
       return COMP_ERR;
-
-    u8 local = add_local(gab, bc, val_name, 0);
 
     if (compile_record(gab, bc) < 0)
       return COMP_ERR;
@@ -1465,6 +1426,7 @@ i32 compile_definition(gab_engine *gab, bc *bc, s_i8 name) {
     gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
 
     u8 local = add_local(gab, bc, val_name, 0);
+
     if (match_and_eat_token(bc, TOKEN_COMMA) < 0)
       return COMP_ERR;
 
@@ -1485,6 +1447,9 @@ i32 compile_definition(gab_engine *gab, bc *bc, s_i8 name) {
   // Create a local to store the new function in
   u8 local = add_local(gab, bc, val_name, 0);
 
+  if (push_slot(bc, 1) < 0)
+    return COMP_ERR;
+
   // Now compile the impl
   if (compile_message(gab, bc, val_name) < 0)
     return COMP_ERR;
@@ -1493,7 +1458,7 @@ i32 compile_definition(gab_engine *gab, bc *bc, s_i8 name) {
 
   initialize_local(bc, local);
 
-  return push_slot(bc, 1);
+  return COMP_OK;
 }
 
 //---------------- Compiling Expressions ------------------
@@ -2018,7 +1983,7 @@ i32 compile_exp_imp(gab_engine *gab, bc *bc, boolean assignable) {
 
   push_store_local(bc, local);
 
-  push_pop(bc, local);
+  push_pop(bc, 1);
 
   if (push_ctximpl(gab, bc, local) < 0)
     return COMP_ERR;
@@ -2028,8 +1993,6 @@ i32 compile_exp_imp(gab_engine *gab, bc *bc, boolean assignable) {
 
   if (!expect_token(bc, TOKEN_END))
     return COMP_ERR;
-
-  push_op(bc, OP_SWAP);
 
   pop_ctximpl(bc);
 
@@ -2121,16 +2084,12 @@ i32 compile_exp_idn(gab_engine *gab, bc *bc, boolean assignable) {
         if (push_slot(bc, 1) < 0)
           return COMP_ERR;
 
-        /* A variable is declared in this assignment.
-         * The slots of all previous lvalues must be corrected.
-         */
-
-        i32 ctx = peek_ctx(bc, kASSIGNMENT_TARGET, 0);
-        v_lvalue *lvalues = &bc->contexts[ctx].as.assignment_target;
-
-        for (i32 i = 0; i < lvalues->len; i++) {
-          v_lvalue_ref_at(lvalues, i)->slot++;
-        }
+        return compile_assignment(gab, bc,
+                                  (lvalue){
+                                      .kind = kNEW_LOCAL,
+                                      .slot = peek_slot(bc),
+                                      .as.local = index,
+                                  });
 
       case COMP_RESOLVED_TO_LOCAL: {
         i32 ctx = peek_ctx(bc, kFRAME, 0);
@@ -2144,7 +2103,7 @@ i32 compile_exp_idn(gab_engine *gab, bc *bc, boolean assignable) {
 
         return compile_assignment(gab, bc,
                                   (lvalue){
-                                      .kind = kLOCAL,
+                                      .kind = kEXISTING_LOCAL,
                                       .slot = peek_slot(bc),
                                       .as.local = index,
                                   });
@@ -2856,7 +2815,7 @@ gab_compile_rule get_rule(gab_token k) { return gab_bc_rules[k]; }
 
 gab_value compile(gab_engine *gab, bc *bc, gab_value name, u8 narguments,
                   gab_value arguments[narguments]) {
-  gab_module *new_mod = push_ctxframe(gab, bc, name, false);
+  gab_module *new_mod = push_ctxframe(gab, bc, name);
 
   i32 ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
@@ -2886,6 +2845,8 @@ gab_value compile(gab_engine *gab, bc *bc, gab_value name, u8 narguments,
   add_constant(new_mod, GAB_VAL_OBJ(p));
 
   gab_obj_block *main = gab_obj_block_create(gab, p);
+
+  add_constant(new_mod, GAB_VAL_OBJ(main));
 
   if (GAB_FLAG_DUMP_BYTECODE & bc->flags) {
     gab_dis(new_mod);

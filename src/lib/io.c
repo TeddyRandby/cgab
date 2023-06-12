@@ -22,11 +22,14 @@ void gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   FILE *file = fopen(path, perms);
   if (file == NULL) {
-    gab_value err = GAB_SEND("err", GAB_STRING("Unable to open file"), 0, NULL);
+    a_gab_value *err =
+        GAB_SEND("err", GAB_STRING("Unable to open file"), 0, NULL);
 
-    gab_push(vm, 1, &err);
+    gab_push(vm, 1, err->data);
 
-    gab_val_dref(vm, err);
+    gab_val_dref(vm, err->data[0]);
+
+    a_gab_value_destroy(err);
 
     return;
   }
@@ -58,11 +61,14 @@ void gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
 
   if (bytesRead < fileSize) {
-    gab_value err = GAB_SEND("err", GAB_STRING("Could not read file"), 0, NULL);
+    a_gab_value *err =
+        GAB_SEND("err", GAB_STRING("Could not read file"), 0, NULL);
 
-    gab_push(vm, 1, &err);
+    gab_push(vm, 1, err->data);
 
-    gab_val_dref(vm, err);
+    gab_val_dref(vm, err->data[0]);
+
+    a_gab_value_destroy(err);
 
     return;
   }
@@ -96,11 +102,12 @@ void gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     return;
   }
 
-  gab_value err = GAB_SEND("err", GAB_STRING("Failed to write file"), 0, NULL);
+  a_gab_value *err =
+      GAB_SEND("err", GAB_STRING("Failed to write file"), 0, NULL);
 
-  gab_push(vm, 1, &err);
+  gab_push(vm, 1, err->data);
 
-  gab_val_dref(vm, err);
+  gab_val_dref(vm, err->data[0]);
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {

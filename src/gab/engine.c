@@ -171,7 +171,7 @@ gab_engine *gab_create() {
 }
 
 void gab_destroy(gab_engine *gab) {
-  if (gab == NULL)
+  if (!gab)
     return;
 
   gab_gc *gc = NEW(gab_gc);
@@ -206,23 +206,23 @@ void gab_destroy(gab_engine *gab) {
     gab_gc_dref(gc, NULL, gab->types[i]);
   }
 
-  while (gab->modules) {
-    gab_module *m = gab->modules;
-    gab->modules = m->next;
-    gab_module_destroy(gab, gc, m);
-  }
-
   while (gab->sources) {
     gab_source *s = gab->sources;
     gab->sources = s->next;
     gab_source_destroy(s);
   }
 
+  while (gab->modules) {
+    gab_module *m = gab->modules;
+    gab->modules = m->next;
+    gab_module_destroy(gab, gc, m);
+  }
+
   gab_gc_run(gc, NULL);
 
   gab_engine_collect(gab);
 
-  // gab_imports_destroy(gab, gc);
+  gab_imports_destroy(gab, gc);
 
   d_strings_destroy(&gab->interned_strings);
   d_shapes_destroy(&gab->interned_shapes);
@@ -340,8 +340,8 @@ gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
   gab_obj_message_insert(m, receiver, specialization);
 
   if (vm) {
-    gab_val_iref(vm, receiver);
-    gab_val_iref(vm, specialization);
+    gab_gc_iref(&vm->gc, vm, receiver);
+    gab_gc_iref(&vm->gc, vm, specialization);
   }
 
   return GAB_VAL_OBJ(m);
@@ -376,10 +376,6 @@ a_gab_value *gab_send(gab_engine *gab, gab_vm *vm, gab_value msg,
 
   return a_gab_value_one(GAB_VAL_NIL());
 }
-
-/**
- * Gab internal stuff
- */
 
 i32 gab_engine_intern(gab_engine *self, gab_value value) {
   if (GAB_VAL_IS_STRING(value)) {
@@ -583,8 +579,8 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
     gab->modules = gab_module_copy(gab, self->mod);
 
     gab_obj_prototype *copy = gab_obj_prototype_create(
-        gab, gab->modules, self->narguments, self->nslots, self->nlocals, self->nupvalues,
-        self->var, self->upv_desc, self->upv_desc);
+        gab, gab->modules, self->narguments, self->nslots, self->nlocals,
+        self->nupvalues, self->var, self->upv_desc, self->upv_desc);
 
     memcpy(copy->upv_desc, self->upv_desc, self->nupvalues * 2);
 

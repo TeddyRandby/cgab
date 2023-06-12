@@ -2,6 +2,54 @@ require('std')
 
 require('Test')
 
+:describe('Multiple Assignment') do
+    :it('should declare new variables') do
+        a = 2
+        a:expect(2)
+
+        a = 3
+        a:expect(3)
+    end
+
+    :it('should mix locals and properties') do
+        a = { b c }
+
+        a.b, d, a.c = 1, 2, 3
+        a.b:expect(1)
+        d:expect(2)
+        a.c:expect(3)
+
+        e, a.b, a.c = 1, 2, 3
+        e:expect(1)
+        a.b:expect(2)
+        a.c:expect(3)
+
+        a.c, a.b, e = 1, 2, 3
+        a.c:expect(1)
+        a.b:expect(2)
+        e:expect(3)
+    end
+
+    :it('should mix locals and sets') do
+        a = { b c }
+
+        a['b'], d, a['c'] = 1, 2, 3
+        a.b:expect(1)
+        d:expect(2)
+        a.c:expect(3)
+
+        e, a['b'], a['c'] = 1, 2, 3
+        e:expect(1)
+        a.b:expect(2)
+        a.c:expect(3)
+
+        a['c'], a['b'], e = 1, 2, 3
+        a.c:expect(1)
+        a.b:expect(2)
+        e:expect(3)
+    end
+end
+
 :describe('Numbers') do
   :it('should be equal to itself') do
     5:expect(5)
@@ -83,7 +131,7 @@ end
   def Point { x y }
 
   :it('should have properties') do
-    let point = {
+    point = {
       x = 1
       y = 2
     }
@@ -93,14 +141,14 @@ end
   end
 
   :it('should be structurally shaped') do
-    let pone = { x = 1 y = 2}
-    let ptwo = { x = 3 y = 4}
+    pone = { x = 1 y = 2}
+    ptwo = { x = 3 y = 4}
 
     (?pone):expect(?ptwo)
   end
 
   :it('should work for all kinds of keys') do
-    let obj = {
+    obj = {
         [?{}] = 3
         [$hi] = 4
     }
@@ -110,9 +158,9 @@ end
   end
 
   :it('should work when shapes change') do
-    let justa = { a }
-    let ab = { a = 3 b }
-    let abc = { a = 'hi' b c}
+    justa = { a }
+    ab = { a = 3 b }
+    abc = { a = 'hi' b c}
 
     def get_a[?{ a }]
         self.a
@@ -150,7 +198,7 @@ end
   end
 
   :it('should make tuples') do
-    let tup = [ 1 2 3 ]
+    tup = [ 1 2 3 ]
 
     1:expect(tup[0])
     2:expect(tup[1])
@@ -171,7 +219,7 @@ end
     end
 
     :it('should overload binary') do
-        let test = { x=1 y=2 } + { x=2 y=1 }
+        test = { x=1 y=2 } + { x=2 y=1 }
 
         3:expect(test.x)
         3:expect(test.y)
@@ -180,8 +228,8 @@ end
     def < [Vector](other)
         other is Vector or panic()
 
-        let mag = self.x * self.x + self.y * self.y
-        let other_mag = other.x * other.x + other.y * other.y
+        mag = self.x * self.x + self.y * self.y
+        other_mag = other.x * other.x + other.y * other.y
 
         mag < other_mag
     end
@@ -279,13 +327,13 @@ end
     end
 
     def receive_one = do
-        let val = yield
+        val = yield
 
         1:expect(val)
     end
 
     def receive_onetwo = do
-        let one, two = yield
+        one, two = yield
         
         1:expect(one)
         2:expect(two)
@@ -300,35 +348,35 @@ end
     end
 
    :it('should yield once') do
-       let val, eff = once()
+       val, eff = once()
 
        1:expect(val)
        2:expect(eff())
    end
 
    :it('should yield twice') do
-       let _, eff = twice()
+       _, eff = twice()
 
-       let valtwo, efftwo = eff()
+       valtwo, efftwo = eff()
 
        2:expect(valtwo)
        3:expect(efftwo())
    end
 
    :it('should receive a value') do
-       let eff = receive_one()
+       eff = receive_one()
 
        eff(1)
    end
 
    :it('should yield var') do
-       let one, two, eff = yields_many()
+       one, two, eff = yields_many()
        1:expect(one)
        2:expect(two)
    end
 
    :it('should receive var') do
-       let eff = receive_onetwo()
+       eff = receive_onetwo()
 
        eff(onetwo())
    end
@@ -336,13 +384,13 @@ end
 
 :describe('Lists') do
     :it('should create') do
-        let list = :list(100)
+        list = :list(100)
 
         list:expect_not(nil)
     end
 
     :it('should put') do
-        let list = :list
+        list = :list
 
         list:at(0):expect(nil)
 
@@ -356,7 +404,7 @@ end
     end
 
     :it('should get/set') do
-        let list = :list
+        list = :list
 
         list[0]:expect(nil)
 
@@ -372,9 +420,9 @@ end
     end
 
     :it('should index with range') do
-        let list = :list(5):map! do (_, i) i + 1 end
+        list = :list(5):map! do (_, i) i + 1 end
 
-        let slice = list[3:to]
+        slice = list[3:to]
 
         slice[0]:expect(1)
         slice[2]:expect(3)
@@ -388,13 +436,13 @@ end
 
 :describe('Maps') do
   :it('should create') do
-    let map = :map
+    map = :map
 
     map:expect_not(nil)
   end
 
   :it('should create with initial') do
-    let map = :map { hi = 'bob' }
+    map = :map { hi = 'bob' }
 
     map:expect_not(nil)
 
@@ -402,7 +450,7 @@ end
   end
 
   :it('should put') do
-    let map = :map
+    map = :map
 
     map:put('hi', 'bob')
 
@@ -411,7 +459,7 @@ end
   end
 
   :it('should get/set') do
-    let map = :map
+    map = :map
 
     map['hi'] = 'bob'
 

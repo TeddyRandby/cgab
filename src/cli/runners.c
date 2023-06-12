@@ -9,10 +9,16 @@ void gab_repl(const char *module, u8 flags) {
 
   gab_setup_builtins(gab, NULL);
 
+  a_gab_value *result = NULL;
+
   if (module != NULL)
-    gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING(module), 0, NULL);
+    result =
+        gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING(module), 0, NULL);
   else
-    gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING("std"), 0, NULL);
+    result =
+        gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING("std"), 0, NULL);
+
+  a_gab_value_destroy(result);
 
   u64 index = gab_arg_push(gab, GAB_STRING("it"));
 
@@ -70,7 +76,7 @@ void run_src(gab_engine *gab, s_i8 src, u8 flags) {
   gab_value main = gab_compile(gab, GAB_STRING("__main__"), src, flags);
 
   if (GAB_VAL_IS_NIL(main))
-    goto fin;
+    return;
 
   a_gab_value *result = gab_run(gab, main, flags | GAB_FLAG_EXIT_ON_PANIC);
 
@@ -80,11 +86,6 @@ void run_src(gab_engine *gab, s_i8 src, u8 flags) {
   }
 
   a_gab_value_destroy(result);
-fin:
-#if GAB_DEBUG_GC
-  gab_destroy(gab);
-#endif
-  return;
 }
 
 void gab_run_string(const char *string, const char *module, u8 flags) {
@@ -95,8 +96,12 @@ void gab_run_string(const char *string, const char *module, u8 flags) {
   // This is a weird case where we actually want to include the null terminator
   s_i8 src = s_i8_create((i8 *)string, strlen(string) + 1);
 
-  if (module != NULL)
-    gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING(module), 0, NULL);
+  if (module != NULL) {
+    a_gab_value *result =
+        gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING(module), 0, NULL);
+
+    a_gab_value_destroy(result);
+  }
 
   if (flags & GAB_FLAG_STREAM_INPUT) {
     u64 index = gab_arg_push(gab, GAB_STRING("it"));
@@ -178,8 +183,10 @@ void gab_run_file(const char *path, const char *module, u8 flags) {
 
   gab_setup_builtins(gab, NULL);
 
-  if (module != NULL)
-    gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING(module), 0, NULL);
+  if (module != NULL) {
+    a_gab_value* res = gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING(module), 0, NULL);
+    a_gab_value_destroy(res);
+  }
 
   a_i8 *src = os_read_file(path);
 

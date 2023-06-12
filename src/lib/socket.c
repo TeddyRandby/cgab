@@ -16,12 +16,14 @@ void gab_lib_sock(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   i64 result = socket(AF_INET, SOCK_STREAM, 0);
 
   if (result < 0) {
-    gab_value res =
+    a_gab_value *res =
         GAB_SEND("err", GAB_STRING("Could not open socket"), 0, NULL);
 
-    gab_push(vm, 1, &res);
+    gab_push(vm, 1, res->data);
 
-    gab_val_dref(vm, res);
+    gab_val_dref(vm, res->data[0]);
+
+    a_gab_value_destroy(res);
 
     return;
   }
@@ -55,12 +57,14 @@ void gab_lib_bind(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   i32 result = bind(socket, (struct sockaddr *)&addr, sizeof(addr));
 
   if (result < 0) {
-    gab_value res =
+    a_gab_value *res =
         GAB_SEND("err", GAB_STRING("Could not bind socket"), 0, NULL);
 
-    gab_push(vm, 1, &res);
+    gab_push(vm, 1, res->data);
 
-    gab_val_dref(vm, res);
+    gab_val_dref(vm, res->data[0]);
+
+    a_gab_value_destroy(res);
 
     return;
   }
@@ -83,11 +87,11 @@ void gab_lib_listen(gab_engine *gab, gab_vm *vm, u8 argc,
   i32 result = listen(socket, GAB_VAL_TO_NUMBER(argv[1]));
 
   if (result < 0) {
-    gab_value res = GAB_SEND("err", GAB_STRING("Could not listen"), 0, NULL);
+    a_gab_value *res = GAB_SEND("err", GAB_STRING("Could not listen"), 0, NULL);
 
-    gab_push(vm, 1, &res);
+    gab_push(vm, 1, res->data);
 
-    gab_val_dref(vm, res);
+    a_gab_value_destroy(res);
 
     return;
   }
@@ -112,11 +116,11 @@ void gab_lib_accept(gab_engine *gab, gab_vm *vm, u8 argc,
   i64 result = accept(socket, &addr, &addrlen);
 
   if (result < 0) {
-    gab_value res = GAB_SEND("err", GAB_STRING("Could not accept"), 0, NULL);
+    a_gab_value *res = GAB_SEND("err", GAB_STRING("Could not accept"), 0, NULL);
 
-    gab_push(vm, 1, &res);
+    gab_push(vm, 1, res->data);
 
-    gab_val_dref(vm, res);
+    a_gab_value_destroy(res);
 
     return;
   }
@@ -145,11 +149,12 @@ void gab_lib_connect(gab_engine *gab, gab_vm *vm, u8 argc,
   struct sockaddr_in addr = {.sin_family = AF_INET, .sin_port = port};
 
   if (inet_pton(AF_INET, (char *)ip->data, &addr.sin_addr) <= 0) {
-    gab_value res = GAB_SEND("err", GAB_STRING("Could not convert"), 0, NULL);
+    a_gab_value *res =
+        GAB_SEND("err", GAB_STRING("Could not convert"), 0, NULL);
 
-    gab_push(vm, 1, &res);
+    gab_push(vm, 1, res->data);
 
-    gab_val_dref(vm, res);
+    a_gab_value_destroy(res);
 
     return;
   }
@@ -157,11 +162,11 @@ void gab_lib_connect(gab_engine *gab, gab_vm *vm, u8 argc,
   i32 result = connect(socket, (struct sockaddr *)&addr, sizeof(addr));
 
   if (result < 0) {
-    gab_value res = GAB_SEND("err", GAB_STRING("Could not connect"), 0, NULL);
+    a_gab_value* res = GAB_SEND("err", GAB_STRING("Could not connect"), 0, NULL);
 
-    gab_push(vm, 1, &res);
+    gab_push(vm, 1, res->data);
 
-    gab_val_dref(vm, res);
+    a_gab_value_destroy(res);
 
     return;
   }
@@ -185,11 +190,11 @@ void gab_lib_receive(gab_engine *gab, gab_vm *vm, u8 argc,
   i32 result = recv(socket, buffer, 1024, 0);
 
   if (result < 0) {
-    gab_value res = GAB_SEND("err", GAB_STRING("Could not receive"), 0, NULL);
+    a_gab_value* res = GAB_SEND("err", GAB_STRING("Could not receive"), 0, NULL);
 
-    gab_push(vm, 1, &res);
+    gab_push(vm, 1, res->data);
 
-    gab_val_dref(vm, res);
+    a_gab_value_destroy(res);
 
     return;
   }
@@ -214,11 +219,11 @@ void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   i32 result = send(socket, msg->data, msg->len, 0);
 
   if (result < 0) {
-    gab_value res = GAB_SEND("err", GAB_STRING("Could not send"), 0, NULL);
+    a_gab_value *res = GAB_SEND("err", GAB_STRING("Could not send"), 0, NULL);
 
-    gab_push(vm, 1, &res);
+    gab_push(vm, 1, res->data);
 
-    gab_val_dref(vm, res);
+    a_gab_value_destroy(res);
 
     return;
   }
@@ -230,7 +235,7 @@ void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value names[] = {
-      GAB_STRING("socket"),    GAB_STRING("bind"),    GAB_STRING("listen"),
+      GAB_STRING("socket"),  GAB_STRING("bind"),    GAB_STRING("listen"),
       GAB_STRING("accept"),  GAB_STRING("receive"), GAB_STRING("send"),
       GAB_STRING("connect"),
   };
@@ -238,7 +243,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value container_type = GAB_STRING("Socket");
 
   gab_value types[] = {
-      GAB_VAL_NIL(),         container_type, container_type, container_type,
+      GAB_VAL_NIL(),  container_type, container_type, container_type,
       container_type, container_type, container_type,
   };
 
