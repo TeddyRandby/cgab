@@ -167,8 +167,7 @@ static inline i32 parse_have(gab_vm *vm, u8 have) {
     return have >> 1;
 }
 
-static inline gab_value *trim_return(gab_value *from, gab_value *to, u8 have,
-                                     u8 want) {
+static inline u8 trim_values(gab_value *from, gab_value *to, u8 have, u8 want) {
   u8 nulls = have == 0;
 
   if ((have != want) && (want != VAR_EXP)) {
@@ -186,8 +185,18 @@ static inline gab_value *trim_return(gab_value *from, gab_value *to, u8 have,
   while (nulls--)
     *to++ = GAB_VAL_NIL();
 
-  *to = got;
-  return to;
+  return got;
+}
+
+static inline gab_value *trim_return(gab_value *from, gab_value *to, u8 have,
+                                     u8 want) {
+
+  u8 got = trim_values(from, to, have, want);
+
+  gab_value *sp = to + got;
+  *sp = got;
+
+  return sp;
 }
 
 static inline boolean has_callspace(gab_vm *vm, u64 space_needed) {
@@ -811,7 +820,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (prop_offset == UINT16_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "Found '%V'", index);
+        return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
       }
 
       WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_STORE_MONO);
@@ -929,7 +938,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     }
 
     CASE_CODE(ITER) : {
-      u8 want = READ_BYTE; // Parse out if its var here?
+      u8 want = READ_BYTE;
       u8 start = READ_BYTE;
       u16 dist = READ_SHORT;
 
@@ -960,14 +969,13 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         have = ++want + 1;
       }
 
-      TOP() = trim_return(TOP() - have, SLOTS() + start, have - 1, want);
+      trim_values(TOP() - have, SLOTS() + start, have - 1, want);
 
-      // Update the iterator
-      PUSH(sus);
+      DROP_N(have);
+
+      LOCAL(start + want) = sus;
 
       if (!GAB_VAL_IS_SUSPENSE(sus)) {
-        PUSH(GAB_VAL_NIL()); // Fulfill the iterator var with nil
-
         ip += dist;
 
         NEXT();
@@ -977,13 +985,9 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     }
 
     CASE_CODE(NEXT) : {
-      u8 vars = READ_BYTE;
+      u8 iterator = READ_BYTE;
 
-      gab_value sus = POP();
-
-      DROP_N(vars);
-
-      PUSH(sus);
+      PUSH(LOCAL(iterator));
 
       STORE_FRAME();
 
@@ -1156,8 +1160,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (prop_offset == UINT16_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "Found '%V'",
-                     GAB_VAL_OBJ(rec->shape));
+        return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
       }
 
       // Write to the cache and transition to monomorphic
@@ -1192,8 +1195,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
         if (prop_offset == UINT16_MAX) {
           STORE_FRAME();
-          return ERROR(GAB_MISSING_PROPERTY, "Found '%V'",
-                       GAB_VAL_OBJ(rec->shape));
+          return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
         }
 
         // Transition to polymorphic
@@ -1228,8 +1230,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (prop_offset == UINT16_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "Found '%V'",
-                     GAB_VAL_OBJ(rec->shape));
+        return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
       }
 
       gab_obj_record_set(ENGINE(), VM(), rec, prop_offset, value);
@@ -1276,7 +1277,8 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       u8 n = READ_BYTE;
 
       gab_value tmp = PEEK();
-      memcpy(TOP() - n, TOP() - n - 1, n * sizeof(gab_value));
+
+      memcpy(TOP() - (n - 1), TOP() - n, (n - 1) * sizeof(gab_value));
       PEEK_N(n) = tmp;
 
       NEXT();

@@ -1,5 +1,5 @@
-#include <assert.h>
 #include "list.h"
+#include <assert.h>
 
 void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   switch (argc) {
@@ -206,8 +206,8 @@ void gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value names[] = {
-      GAB_STRING("list"),  GAB_STRING("len"), GAB_STRING("slice"),
-      GAB_STRING("push"), GAB_STRING("pop"), GAB_STRING("put"),
+      GAB_STRING("list"),  GAB_STRING("len"),  GAB_STRING("slice"),
+      GAB_STRING("push!"), GAB_STRING("pop!"), GAB_STRING("put!"),
       GAB_STRING("at"),
   };
 

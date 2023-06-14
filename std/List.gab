@@ -11,7 +11,7 @@ impl $List
   end
 
   def [=](key, value)
-    self:put(key, value)
+    self:put!(key, value)
   end
 
   def first
@@ -51,7 +51,7 @@ impl $List
     v = :list
 
     for i, index in self:each
-        filterer(i, index) and v:push(i)
+        filterer(i, index) and v:push!(i)
     end
 
     v
@@ -61,7 +61,7 @@ impl $List
     v = :list
 
     for i, index in self:each
-        v:push(mapper(i, index))
+        v:push!(mapper(i, index))
     end
 
     v
@@ -71,7 +71,7 @@ impl $List
     v = :list
 
     for _, index in self:each
-        self:put(index, value)
+        self:put!(index, value)
     end
 
     v
@@ -79,7 +79,7 @@ impl $List
 
   def map!(mapper)
       for i, index in self:each
-          self:put(index, mapper(i, index))
+          self:put!(index, mapper(i, index))
       end
 
       self
@@ -88,7 +88,7 @@ impl $List
 
   def fill!(value)
       for _, index in self:each
-        self:put(index, value)
+        self:put!(index, value)
       end
 
       self
@@ -132,7 +132,7 @@ impl $List
 
   def collect!(..args)
     for ..all in args:splat
-        self:push(all:splat)
+        self:push!(all:splat)
     end
 
     self

@@ -152,7 +152,7 @@ void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value names[] = {
-      GAB_STRING("map"), GAB_STRING("len"),  GAB_STRING("put"),
+      GAB_STRING("map"), GAB_STRING("len"),  GAB_STRING("put!"),
       GAB_STRING("at"),  GAB_STRING("next"),
   };
 

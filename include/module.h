@@ -71,7 +71,7 @@ struct gab_module {
 /*
   Creating and destroying modules, from nothing and from a base module.
 */
-gab_module *gab_module_create(gab_engine* gab, gab_value name, gab_source *src);
+gab_module *gab_module_create(gab_engine *gab, gab_value name, gab_source *src);
 
 void gab_module_destroy(gab_engine *gab, gab_gc *gc, gab_module *mod);
 
@@ -100,10 +100,9 @@ u8 gab_module_push_pop(gab_module *, u8, gab_token, u64, s_i8);
 void gab_module_push_inline_cache(gab_module *, gab_token, u64, s_i8);
 u64 gab_module_push_iter(gab_module *self, u8 start, u8 want, boolean var,
                          gab_token t, u64 l, s_i8 s);
-void gab_module_push_next(gab_module *self, u8 start, gab_token t, u64 l,
-                          s_i8 s);
-u64 gab_module_push_loop(gab_module *);
-u64 gab_module_push_jump(gab_module *, u8, gab_token, u64, s_i8);
+void gab_module_push_next(gab_module *self, u8 local, gab_token t, u64 l, s_i8 s);
+u64 gab_module_push_loop(gab_module *gab);
+u64 gab_module_push_jump(gab_module *gab, u8, gab_token, u64, s_i8);
 
 void gab_module_patch_jump(gab_module *, u64);
 void gab_module_patch_loop(gab_module *, u64, gab_token, u64, s_i8);

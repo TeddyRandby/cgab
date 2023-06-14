@@ -254,6 +254,7 @@ u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l, s_i8 s) {
     case OP_STORE_LOCAL:
       return replace_previous_op(self, OP_POP_STORE_LOCAL, 1);
     case OP_CONSTANT:
+      self->bytecode.len -= 2;
     case OP_PUSH_FALSE:
     case OP_PUSH_TRUE:
     case OP_PUSH_UNDEFINED:
@@ -286,16 +287,16 @@ void gab_module_push_inline_cache(gab_module *self, gab_token t, u64 l,
   gab_module_push_byte(self, OP_NOP, t, l, s);
 }
 
-void gab_module_push_next(gab_module *self, u8 start, gab_token t, u64 l,
+void gab_module_push_next(gab_module *self, u8 next, gab_token t, u64 l,
                           s_i8 s) {
-  gab_module_push_byte(self, OP_NEXT, t, l, s);
-  gab_module_push_byte(self, start, t, l, s);
+  gab_module_push_op(self, OP_NEXT, t, l, s);
+  gab_module_push_byte(self, next, t, l, s);
 }
 
 u64 gab_module_push_iter(gab_module *self, u8 start, u8 want, boolean var,
                          gab_token t, u64 l, s_i8 s) {
   want -= var;
-  gab_module_push_byte(self, OP_ITER, t, l, s);
+  gab_module_push_op(self, OP_ITER, t, l, s);
   gab_module_push_byte(self, (want << 1) | var, t, l, s);
   gab_module_push_byte(self, start, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
@@ -305,7 +306,7 @@ u64 gab_module_push_iter(gab_module *self, u8 start, u8 want, boolean var,
 }
 
 u64 gab_module_push_jump(gab_module *self, u8 op, gab_token t, u64 l, s_i8 s) {
-  gab_module_push_byte(self, op, t, l, s);
+  gab_module_push_op(self, op, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
   return self->bytecode.len - 2;
@@ -432,7 +433,7 @@ u64 dumpIter(gab_module *self, u64 offset) {
   printf("%-25s" ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
          " -> " ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
          " %03d locals from %03d\n",
-         "ITER", offset, offset + 2 + dist, nlocals, start);
+         "ITER", offset, offset + 5 + dist, nlocals, start);
 
   return offset + 5;
 }
@@ -507,8 +508,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     return dumpJumpInstruction(self, -1, offset);
   case OP_CONSTANT:
     return dumpConstantInstruction(self, offset);
-  case OP_NEXT:
-    return dumpNext(self, offset);
   case OP_ITER:
     return dumpIter(self, offset);
   case OP_STORE_PROPERTY_ANA:
@@ -549,6 +548,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_INTERPOLATE:
   case OP_DROP:
   case OP_SHIFT:
+  case OP_NEXT:
   case OP_LOAD_LOCAL: {
     return dumpByteInstruction(self, offset);
   }

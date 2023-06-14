@@ -185,7 +185,7 @@ void gab_setup_builtins(gab_engine *gab, const char *it) {
 
   static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
 
-  gab_args(gab, LEN_CARRAY(arg_names), arg_names, args);
+  gab_args(gab, LEN_CARRAY(arg_names) - (it == NULL), arg_names, args);
 
   gab_specialize(gab, NULL, GAB_STRING("require"),
                  gab_type(gab, GAB_KIND_STRING), require);

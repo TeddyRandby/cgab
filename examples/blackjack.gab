@@ -1,7 +1,7 @@
 # The objective of the game is to find all the different
 #  combinations of operators that add up 20
 #
-# I realize its not actually blackjack
+# Yes, its not actually blackjack
 require('std')
 
 def swap![](i, j)
@@ -44,7 +44,7 @@ end
 
 for seq in ops:each
     for hand in hands:each
-        let total = hand[0]
+        total = hand[0]
 
         for i, op in seq:each
             total = total:send(op, hand[i + 1])
