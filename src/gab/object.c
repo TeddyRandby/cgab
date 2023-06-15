@@ -94,19 +94,19 @@ i32 gab_obj_dump(FILE *stream, gab_value value, u8 depth) {
   switch (GAB_VAL_TO_OBJ(value)->kind) {
   case GAB_KIND_SHAPE: {
     if (depth == 0)
-      return fprintf(stream, "{ ... }");
+      return fprintf(stream, "{...}");
 
     gab_obj_shape *shape = GAB_VAL_TO_SHAPE(value);
-    return fprintf(stream, "{ ") + shape_dump_properties(stream, shape, depth) +
-           fprintf(stream, " }");
+    return fprintf(stream, "{") + shape_dump_properties(stream, shape, depth) +
+           fprintf(stream, "}");
   }
   case GAB_KIND_RECORD: {
     if (depth == 0)
-      return fprintf(stream, "{ ... }");
+      return fprintf(stream, "{...}");
 
     gab_obj_record *rec = GAB_VAL_TO_RECORD(value);
-    return fprintf(stream, "{ ") + rec_dump_properties(stream, rec, depth) +
-           fprintf(stream, " }");
+    return fprintf(stream, "{") + rec_dump_properties(stream, rec, depth) +
+           fprintf(stream, "}");
   }
   case GAB_KIND_STRING: {
     gab_obj_string *str = GAB_VAL_TO_STRING(value);

@@ -34,7 +34,7 @@ impl $List
     loop
       yield self:at(v), v
       v = v + 1
-    until v >= self:len
+    until v >= self:len end
   end
 
   def fold(init, folder)

@@ -5,7 +5,7 @@ def obj = {
     rooster
 } 
 
-let i = 0
+i = 0
 
 loop
     obj.zebra = i

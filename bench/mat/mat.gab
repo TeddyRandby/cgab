@@ -8,7 +8,7 @@ impl Matrix
   def + (other)
     def N = self.n
 
-    let data = :record(?self.data)
+    data = :record(?self.data)
 
     for i in (N * N):each
       data[i] = self.data[i] + other.data[i]
@@ -24,7 +24,7 @@ impl Matrix
 
     for i in N:each
       for j in N:each
-        let sum = 0
+        sum = 0
 
         for k in N:each
           sum = sum + self.data[i*N+k] * other.data[k*N+j]
@@ -38,7 +38,7 @@ impl Matrix
   end
 
   def diag_sum
-    let sum = 0
+    sum = 0
 
     def N = self.n
 
@@ -53,16 +53,16 @@ impl Matrix
 end
 
 
-let sum = 0
+sum = 0
 
-let N = 2
+N = 2
 
 for _ in 5000:each
-  let a = :matrix(N, :list(N * N):map! do (_, i) i end :slice)
-  let b = :matrix(N, :list(N * N):map! do (_, i) i end :slice)
+  a = :matrix(N, :list(N * N):map! do (_, i) i end :slice)
+  b = :matrix(N, :list(N * N):map! do (_, i) i end :slice)
 
-  let c = a + b
-  let d = c * a * b
+  c = a + b
+  d = c * a * b
 
   sum = d:diag_sum
 end

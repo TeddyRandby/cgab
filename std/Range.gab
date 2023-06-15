@@ -4,7 +4,7 @@ def range_up = do (from, to)
   loop
     yield v
     v = v + 1
-  until v == to
+  until v == to end
 end
 
 def range_down = do (from, to)
@@ -13,7 +13,7 @@ def range_down = do (from, to)
   loop
     yield v
     v = v - 1
-  until v == to
+  until v == to end
 end
 
 def range[](opts, to)

@@ -7,7 +7,7 @@ impl $Number
     loop
       yield v
       v = v + 1
-    until v == self
+    until v == self end
   end
 
   def times(cb)
@@ -16,7 +16,7 @@ impl $Number
     loop
         cb(v)
         v = v + 1
-    until v == self
+    until v == self end
   end
 
   def from(src)

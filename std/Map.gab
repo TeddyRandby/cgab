@@ -15,6 +15,6 @@ impl $Map
       loop
         yield key, self:at(key)
         key = self:next(key)
-      until key == nil
+      until key == nil end
     end
 end

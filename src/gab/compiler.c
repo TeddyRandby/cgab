@@ -2658,6 +2658,9 @@ i32 compile_exp_lop(gab_engine *gab, bc *bc, boolean assignable) {
     gab_module_patch_loop(mod(bc), loop, prev_tok, prev_line, prev_src);
 
     gab_module_patch_jump(mod(bc), jump);
+
+    if (expect_token(bc, TOKEN_END) < 0)
+      return COMP_ERR;
   } else {
     if (expect_token(bc, TOKEN_END) < 0)
       return COMP_ERR;

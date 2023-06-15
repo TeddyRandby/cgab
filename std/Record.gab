@@ -9,8 +9,8 @@ impl $Record
         key = self:next
 
         loop
-        yield key, self:at(key)
-        key = self:next(key)
-        until key == nil
+          yield key, self:at(key)
+          key = self:next(key)
+        until key == nil end
     end
 end
