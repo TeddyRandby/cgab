@@ -79,10 +79,10 @@ void gab_lib_disbuiltin(gab_engine *gab, gab_vm *vm, u8 argc,
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value receivers[] = {
-      gab_type(gab, GAB_KIND_BLOCK),
-      gab_type(gab, GAB_KIND_MESSAGE),
-      gab_type(gab, GAB_KIND_STRING),
-      gab_type(gab, GAB_KIND_BUILTIN),
+      gab_type(gab, kGAB_BLOCK),
+      gab_type(gab, kGAB_MESSAGE),
+      gab_type(gab, kGAB_STRING),
+      gab_type(gab, kGAB_BUILTIN),
   };
 
   gab_value values[] = {

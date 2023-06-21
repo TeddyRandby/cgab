@@ -34,7 +34,7 @@ boolean execute_arg(const char *flags) { return strchr(flags, 'e') != NULL; }
 boolean module_arg(const char *flags) { return strchr(flags, 'r') != NULL; }
 
 u8 parse_flags(const char *arg) {
-  u8 flags = GAB_FLAG_DUMP_ERROR;
+  u8 flags = fGAB_DUMP_ERROR;
 
   u8 i = 0;
   for (;;) {
@@ -42,16 +42,16 @@ u8 parse_flags(const char *arg) {
 
     switch (c) {
     case 'q':
-      flags &= ~GAB_FLAG_DUMP_ERROR;
+      flags &= ~fGAB_DUMP_ERROR;
       break;
     case 'b':
-      flags |= GAB_FLAG_DUMP_BYTECODE;
+      flags |= fGAB_DUMP_BYTECODE;
       break;
     case 's':
-      flags |= GAB_FLAG_STREAM_INPUT;
+      flags |= fGAB_STREAM_INPUT;
       break;
     case 'd':
-      flags |= GAB_FLAG_DELIMIT_INPUT;
+      flags |= fGAB_DELIMIT_INPUT;
       break;
     case '\0':
       return flags;
@@ -116,7 +116,7 @@ i32 main(i32 argc, const char **argv) {
 
   switch (argc) {
   case 1:
-    gab_repl(NULL, GAB_FLAG_DUMP_ERROR);
+    gab_repl(NULL, fGAB_DUMP_ERROR);
     return 0;
 
   case 2:
@@ -134,7 +134,7 @@ i32 main(i32 argc, const char **argv) {
       return 0;
     }
 
-    gab_run_file(argv[1], NULL, GAB_FLAG_DUMP_ERROR);
+    gab_run_file(argv[1], NULL, fGAB_DUMP_ERROR);
     return 0;
 
   case 3:

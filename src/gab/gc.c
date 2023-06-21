@@ -14,7 +14,7 @@ boolean debug_collect = true;
 void gab_obj_iref(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
   gc->increments[gc->nincrements++] = obj;
 
-  if (gc->nincrements + 1 >= GC_INC_BUFF_MAX) {
+  if (gc->nincrements + 1 >= cGAB_GC_INC_BUFF_MAX) {
     gab_gc_run(gc, vm);
 #if GAB_DEBUG_GC
   } else {
@@ -25,7 +25,7 @@ void gab_obj_iref(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
 }
 
 void gab_obj_dref(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
-  if (gc->ndecrements + 1 >= GC_DEC_BUFF_MAX) {
+  if (gc->ndecrements + 1 >= cGAB_GC_DEC_BUFF_MAX) {
     gab_gc_run(gc, vm);
 #if GAB_DEBUG_GC
   } else {
@@ -52,7 +52,7 @@ void gab_gc_iref_many(gab_gc *gc, gab_vm *vm, u64 len, gab_value values[len]) {
 }
 
 void gab_gc_dref_many(gab_gc *gc, gab_vm *vm, u64 len, gab_value values[len]) {
-  if (vm->gc.ndecrements + len >= GC_DEC_BUFF_MAX) {
+  if (vm->gc.ndecrements + len >= cGAB_GC_DEC_BUFF_MAX) {
     gab_gc_run(gc, vm);
 #if GAB_DEBUG_GC
   } else {
@@ -165,7 +165,7 @@ static inline void queue_destroy(gab_obj *obj) { GAB_OBJ_GARBAGE(obj); }
 void collect_cycles(gab_gc *gc);
 
 static inline void push_root(gab_gc *gc, gab_obj *obj) {
-  if (gc->ndecrements + 1 >= GC_ROOT_BUFF_MAX)
+  if (gc->ndecrements + 1 >= cGAB_GC_ROOT_BUFF_MAX)
     collect_cycles(gc);
 
   gc->roots[gc->nroots++] = obj;
@@ -183,18 +183,18 @@ static inline void obj_possible_root(gab_gc *gc, gab_obj *obj) {
 
 static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
   switch (obj->kind) {
-  case GAB_KIND_STRING:
-  case GAB_KIND_PROTOTYPE:
-  case GAB_KIND_BUILTIN:
-  case GAB_KIND_NIL:
-  case GAB_KIND_NUMBER:
-  case GAB_KIND_BOOLEAN:
-  case GAB_KIND_UNDEFINED:
-  case GAB_KIND_PRIMITIVE:
-  case GAB_KIND_NKINDS:
+  case kGAB_STRING:
+  case kGAB_PROTOTYPE:
+  case kGAB_BUILTIN:
+  case kGAB_NIL:
+  case kGAB_NUMBER:
+  case kGAB_BOOLEAN:
+  case kGAB_UNDEFINED:
+  case kGAB_PRIMITIVE:
+  case kGAB_NKINDS:
     return;
 
-  case GAB_KIND_CONTAINER: {
+  case kGAB_CONTAINER: {
     gab_obj_container *container = (gab_obj_container *)obj;
 
     if (GAB_VAL_IS_OBJ(container->type))
@@ -206,7 +206,7 @@ static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
     return;
   }
 
-  case GAB_KIND_SUSPENSE: {
+  case kGAB_SUSPENSE: {
     gab_obj_suspense *eff = (gab_obj_suspense *)obj;
 
     for (u8 i = 0; i < eff->len; i++) {
@@ -217,7 +217,7 @@ static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
     return;
   }
 
-  case (GAB_KIND_BLOCK): {
+  case (kGAB_BLOCK): {
     gab_obj_block *closure = (gab_obj_block *)obj;
 
     for (u8 i = 0; i < closure->nupvalues; i++) {
@@ -228,7 +228,7 @@ static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
     return;
   }
 
-  case (GAB_KIND_MESSAGE): {
+  case (kGAB_MESSAGE): {
     gab_obj_message *func = (gab_obj_message *)obj;
 
     for (u64 i = 0; i < func->specs.cap; i++) {
@@ -246,7 +246,7 @@ static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
     return;
   }
 
-  case GAB_KIND_SHAPE: {
+  case kGAB_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
 
     for (u64 i = 0; i < shape->len; i++) {
@@ -258,7 +258,7 @@ static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
     return;
   }
 
-  case GAB_KIND_RECORD: {
+  case kGAB_RECORD: {
     gab_obj_record *rec = (gab_obj_record *)obj;
 
     for (u64 i = 0; i < rec->len; i++) {

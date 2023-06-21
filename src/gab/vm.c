@@ -28,7 +28,7 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
   u64 nframes = vm->fp - vm->fb;
   u64 n = 1;
 
-  if (flags & GAB_FLAG_DUMP_ERROR) {
+  if (flags & fGAB_DUMP_ERROR) {
     for (;;) {
       gab_vm_frame *frame = vm->fb + n;
 
@@ -112,7 +112,7 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
     }
   }
 
-  if (flags & GAB_FLAG_EXIT_ON_PANIC) {
+  if (flags & fGAB_EXIT_ON_PANIC) {
     exit(0);
   }
 
@@ -120,8 +120,8 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
 }
 
 gab_value gab_vm_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
-  return vm_error(gab, vm, GAB_FLAG_DUMP_ERROR | GAB_FLAG_EXIT_ON_PANIC,
-                  GAB_PANIC, msg);
+  return vm_error(gab, vm, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC, GAB_PANIC,
+                  msg);
 }
 
 void gab_vm_create(gab_vm *self, u8 flags, u8 argc, gab_value argv[argc]) {
@@ -200,11 +200,11 @@ static inline gab_value *trim_return(gab_value *from, gab_value *to, u8 have,
 }
 
 static inline boolean has_callspace(gab_vm *vm, u64 space_needed) {
-  if (vm->fp - vm->fb + 1 >= FRAMES_MAX) {
+  if (vm->fp - vm->fb + 1 >= cGAB_FRAMES_MAX) {
     return false;
   }
 
-  if (vm->sp - vm->sb + space_needed >= STACK_MAX) {
+  if (vm->sp - vm->sb + space_needed >= cGAB_STACK_MAX) {
     return false;
   }
 
@@ -474,8 +474,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       if (offset == UINT64_MAX) {
         if (GAB_VAL_IS_RECORD(receiver)) {
-          offset =
-              gab_obj_message_find(msg, gab_type(ENGINE(), GAB_KIND_RECORD));
+          offset = gab_obj_message_find(msg, gab_type(ENGINE(), kGAB_RECORD));
 
           if (offset != UINT64_MAX)
             goto fin;
@@ -1296,11 +1295,11 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     CASE_CODE(INTERPOLATE) : {
       u8 n = READ_BYTE;
       gab_obj_string *acc =
-          GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK_N(n)));
+          GAB_VAL_TO_STRING(gab_val_to_s(ENGINE(), PEEK_N(n)));
 
       for (u8 i = n - 1; i > 0; i--) {
         gab_obj_string *curr =
-            GAB_VAL_TO_STRING(gab_val_to_string(ENGINE(), PEEK_N(i)));
+            GAB_VAL_TO_STRING(gab_val_to_s(ENGINE(), PEEK_N(i)));
         acc = gab_obj_string_concat(ENGINE(), acc, curr);
       }
 

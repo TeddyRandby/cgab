@@ -40,9 +40,9 @@ typedef struct gab_gc {
   d_rc_tracker tracked_values;
 #endif
 
-  gab_obj *roots[GC_ROOT_BUFF_MAX];
-  gab_obj *increments[GC_INC_BUFF_MAX];
-  gab_obj *decrements[GC_DEC_BUFF_MAX];
+  gab_obj *roots[cGAB_GC_ROOT_BUFF_MAX];
+  gab_obj *increments[cGAB_GC_INC_BUFF_MAX];
+  gab_obj *decrements[cGAB_GC_DEC_BUFF_MAX];
 } gab_gc;
 
 typedef void (*gab_gc_visitor)(gab_gc *gc, gab_obj *obj);

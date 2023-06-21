@@ -31,15 +31,15 @@ end
 def ops, hands = :list, :list
 
 for seq in [ &+, &-, &*, &/ ]:permutations!
-    ops:push(seq:slice)
+    ops:push!(seq:slice)
 end
 
 for hand in [ 8 5 3 10 11 ]:permutations!
-    hands:push(hand:slice)
+    hands:push!(hand:slice)
 end
 
 for hand in [ 8 5 3 10 1]:permutations!
-    hands:push(hand:slice)
+    hands:push!(hand:slice)
 end
 
 for seq in ops:each

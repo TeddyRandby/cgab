@@ -97,6 +97,7 @@ LINKAGE T METHOD(del)(TYPENAME *self, u64 index) {
 #undef TYPENAME
 #undef NAME
 #undef GROW
+#undef MAX
 #undef PREFIX
 #undef LINKAGE
 #undef METHOD

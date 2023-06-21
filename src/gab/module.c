@@ -20,7 +20,7 @@ gab_module *gab_module_create(gab_engine *gab, gab_value name,
   v_u8_create(&self->tokens, 256);
   v_u64_create(&self->lines, 256);
   v_s_i8_create(&self->sources, 256);
-  v_gab_constant_create(&self->constants, CONSTANTS_INITIAL_CAP);
+  v_gab_constant_create(&self->constants, cGAB_CONSTANTS_INITIAL_CAP);
 
   self->name = gab_module_add_constant(self, name);
 
@@ -345,7 +345,7 @@ boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
 }
 
 u16 gab_module_add_constant(gab_module *self, gab_value value) {
-  if (self->constants.len >= CONSTANTS_MAX) {
+  if (self->constants.len >= GAB_CONSTANTS_MAX) {
     fprintf(stderr, "Uh oh, too many constants in the module.\n");
     exit(1);
   }

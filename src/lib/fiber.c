@@ -95,7 +95,7 @@ i32 fiber_launch(void *d) {
 
     gab_args(self->gab, 1, &arg, &arg);
 
-    a_gab_value *result = gab_run(self->gab, runner, GAB_FLAG_DUMP_ERROR);
+    a_gab_value *result = gab_run(self->gab, runner, fGAB_DUMP_ERROR);
 
     runner = result->data[result->len - 1];
 
@@ -104,7 +104,7 @@ i32 fiber_launch(void *d) {
       gab_scratch(self->gab, result->data[i]);
 
       s_i8 ref = gab_obj_string_ref(
-          GAB_VAL_TO_STRING(gab_val_to_string(self->gab, result->data[i])));
+          GAB_VAL_TO_STRING(gab_val_to_s(self->gab, result->data[i])));
 
       v_a_i8_push(&self->out_queue, a_i8_create(ref.data, ref.len));
     }
@@ -161,7 +161,7 @@ void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   fiber *f = (fiber *)container->data;
 
-  gab_value msg = gab_val_to_string(gab, argv[1]);
+  gab_value msg = gab_val_to_s(gab, argv[1]);
 
   if (f->status == FLAG_FIBER_DONE) {
     gab_panic(gab, vm, "Invalid call to gab_lib_send");
@@ -218,7 +218,7 @@ void gab_lib_await(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   gab_value names[] = {
       GAB_STRING("fiber"),
-      GAB_STRING(GAB_MESSAGE_CAL),
+      GAB_STRING(mGAB_CALL),
       GAB_STRING("await"),
   };
 

@@ -21,19 +21,13 @@ typedef struct gab_lexer gab_lexer;
 
 struct gab_source {
   gab_source *next;
-  /*
-     A vector of each line of source code.
-  */
+
   v_s_i8 source_lines;
 
-  /*
-     A copy of the source code
-  */
   a_i8 *source;
 };
 
 struct gab_lexer {
-
   i8 *cursor;
   i8 *row_start;
   u64 row;
@@ -44,13 +38,16 @@ struct gab_lexer {
 
   gab_source* source;
 
+  s_i8 previous_comment;
   s_i8 previous_row_src;
   s_i8 previous_token_src;
   u64 previous_row;
+  gab_token previous_token;
 
   s_i8 current_row_src;
   s_i8 current_token_src;
   u64 current_row;
+  gab_token current_token;
 
   u64 skip_lines;
 };

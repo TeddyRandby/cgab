@@ -37,15 +37,12 @@ static void finish_row(gab_lexer *self) {
 }
 
 void gab_lexer_create(gab_lexer *self, gab_source *src) {
+  memset(self, 0, sizeof(gab_lexer));
+
   self->source = src;
   self->cursor = src->source->data;
   self->row_start = src->source->data;
-  self->nested_curly = 0;
   self->current_row = 1;
-  self->skip_lines = 0;
-
-  self->row = 0;
-  self->col = 0;
 
   start_row(self);
 }
@@ -381,28 +378,32 @@ gab_token other(gab_lexer *self) {
 }
 
 static inline void parse_comment(gab_lexer *self) {
-  while (peek(self) != '\n') {
+  i8 *start = self->cursor;
+
+  while (is_comment(peek(self))) {
+    while (peek(self) != '\n')
+      advance(self);
+
     advance(self);
   }
+
+  self->previous_comment = s_i8_create(start, self->cursor - start);
 }
 
 static inline void parse_whitespace(gab_lexer *self) { advance(self); }
 
-void handle_ignored(gab_lexer *self) {
-  while (is_whitespace(peek(self)) || is_comment(peek(self))) {
-    if (is_comment(peek(self))) {
-      parse_comment(self);
-    } else if (is_whitespace(peek(self))) {
-      parse_whitespace(self);
-    }
-  }
-}
-
 gab_token gab_lexer_next(gab_lexer *self) {
-  // copy current into previous.
   self->previous_token_src = self->current_token_src;
+  self->previous_token = self->current_token;
+  self->previous_comment = (s_i8){0};
 
-  handle_ignored(self);
+  while (is_whitespace(peek(self)) || is_comment(peek(self))) {
+    if (is_comment(peek(self)))
+      parse_comment(self);
+
+    if (is_whitespace(peek(self)))
+      parse_whitespace(self);
+  }
 
   start_token(self);
 

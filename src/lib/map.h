@@ -5,7 +5,6 @@
 #define DEF_V GAB_VAL_NIL()
 #define HASH(a) a
 #define EQUAL(a, b) (a == b)
-#define LOAD DICT_MAX_LOAD
 #include "include/dict.h"
 
 void map_destroy(void *data) {

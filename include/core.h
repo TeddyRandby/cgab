@@ -1,85 +1,125 @@
 #ifndef GAB_COMMON_H
 #define GAB_COMMON_H
-// Compilation options
 
-// Collect as frequently as possible (on every RC push). Also collect debug
-// info.
-#define GAB_DEBUG_GC 0
+// Collect as frequently as possible (on every RC push) and collect debug info.
+#ifndef cGAB_DEBUG_GC
+#define cGAB_DEBUG_GC 0
+#endif
+
 // Log what is happening during collection.
-#define GAB_LOG_GC 0
+#ifndef cGAB_LOG_GC
+#define cGAB_LOG_GC 0
+#endif
+
 // Log what is happening during execution.
-#define GAB_LOG_EXECUTION 0
+#ifndef cGAB_DEBUG_VM
+#define cGAB_DEBUG_VM 0
+#endif
+
 // Make sure functions don't break out of their frame
-#define GAB_DEBUG_VM 0
+#ifndef cGAB_LOG_VM
+#define cGAB_LOG_VM 0
+#endif
+
 // Use the simple custom chunk allocator
-#define CHUNK_ALLOCATOR 1
+#ifndef cGAB_CHUNK_ALLOCATOR
+#define cGAB_CHUNK_ALLOCATOR 1
+#endif
 
-// Configurable macros
-// Dictionary maximum load
-#define DICT_MAX_LOAD 0.6
+// Capacity at which point dictionaries are resized
+#ifndef cGAB_DICT_MAX_LOAD
+#define cGAB_DICT_MAX_LOAD 0.6
+#endif
+
 // Maximum number of call frames that can be on the call stack
-#define FRAMES_MAX 512
-// Maximum number of function defintions that can be nested.
-#define FUNCTION_DEF_NESTING_MAX 64
-// Initial capacity of interned table
-#define INTERN_INITIAL_CAP 256
-// Initial capacity of module constant table
-#define CONSTANTS_INITIAL_CAP 64
+#ifndef cGAB_FRAMES_MAX
+#define cGAB_FRAMES_MAX 512
+#endif
 
-// Derived macros
+// Maximum number of function defintions that can be nested.
+#ifndef cGAB_FUNCTION_DEF_NESTING_MAX
+#define cGAB_FUNCTION_DEF_NESTING_MAX 64
+#endif
+
+// Initial capacity of interned table
+#ifndef cGAB_INTERN_INITIAL_CAP
+#define cGAB_INTERN_INITIAL_CAP 256
+#endif
+
+// Initial capacity of module constant table
+#ifndef cGAB_CONSTANTS_INITIAL_CAP
+#define cGAB_CONSTANTS_INITIAL_CAP 64
+#endif
+
+// Size of the vm's stack
+#ifndef cGAB_STACK_MAX
+#define cGAB_STACK_MAX (cGAB_FRAMES_MAX * 256)
+#endif
+
 // Garbage collection increment/decrement buffer size
-#define GC_DEC_BUFF_MAX (STACK_MAX) // This MUST be at LEAST STACK_MAX
-#define GC_INC_BUFF_MAX (STACK_MAX)
-#define GC_ROOT_BUFF_MAX (256)
-// Size of a modules  constant table.
-#define CONSTANTS_MAX (UINT16_MAX + 1)
-// Maximum size of the stack
-#define STACK_MAX (FRAMES_MAX * 256)
+#ifndef cGAB_GC_DEC_BUFF_MAX
+#define cGAB_GC_DEC_BUFF_MAX (cGAB_STACK_MAX)
+#endif
+
+#if cGAB_GC_DEC_BUFF_MAX < STACK_MAX
+#error "cGAB_GC_DEC_BUFF_MAX must be less than or equal to STACK_MAX"
+#endif
+
+#ifndef cGAB_GC_INC_BUFF_MAX
+#define cGAB_GC_INC_BUFF_MAX (cGAB_STACK_MAX)
+#endif
+
+#if cGAB_GC_DEC_BUFF_MAX < STACK_MAX
+#error "cGAB_GC_DEC_BUFF_MAX must be less than or equal to STACK_MAX"
+#endif
+
+#ifndef cGAB_GC_ROOT_BUFF_MAX
+#define cGAB_GC_ROOT_BUFF_MAX (256)
+#endif
 
 // Not configurable, just constants
+#define GAB_CONSTANTS_MAX (UINT16_MAX + 1)
 // Maximum value of a local.
-#define LOCAL_MAX 255
+#define GAB_LOCAL_MAX 255
 // Maximum value of an upvalues.
-#define UPVALUE_MAX 255
+#define GAB_UPVALUE_MAX 255
 // Maximum number of function arguments.
-#define ARG_MAX 128
+#define GAB_ARG_MAX 128
 // Maximum number of function return values.
-#define RET_MAX 128
-// Values used to encode variable return.
+#define GAB_RET_MAX 128
+
 #define VAR_EXP 255
 #define FLAG_VAR_EXP 1
 
 // GAB optional flags
-#define GAB_FLAG_NONE 0
-#define GAB_FLAG_DUMP_BYTECODE 1
-#define GAB_FLAG_DUMP_ERROR 2
-#define GAB_FLAG_EXIT_ON_PANIC 4
-#define GAB_FLAG_STREAM_INPUT 8
-#define GAB_FLAG_DELIMIT_INPUT 16
+#define fGAB_DUMP_BYTECODE (1 << 0)
+#define fGAB_DUMP_ERROR (1 << 1)
+#define fGAB_EXIT_ON_PANIC (1 << 2)
+#define fGAB_STREAM_INPUT (1 << 3)
+#define fGAB_DELIMIT_INPUT (1 << 4)
 
 // VERSION
 #define GAB_VERSION_MAJOR 0
 #define GAB_VERSION_MINOR 1
 
-#define GAB_MESSAGE_ADD "+"
-#define GAB_MESSAGE_SUB "-"
-#define GAB_MESSAGE_MUL "*"
-#define GAB_MESSAGE_DIV "/"
-#define GAB_MESSAGE_MOD "%"
-#define GAB_MESSAGE_BND "&"
-#define GAB_MESSAGE_BOR "|"
-#define GAB_MESSAGE_LSH "<<"
-#define GAB_MESSAGE_RSH ">>"
-#define GAB_MESSAGE_LT "<"
-#define GAB_MESSAGE_GT ">"
-#define GAB_MESSAGE_LTE "<="
-#define GAB_MESSAGE_GTE ">="
-#define GAB_MESSAGE_EQ "=="
-#define GAB_MESSAGE_SET "[=]"
-#define GAB_MESSAGE_GET "[]"
-#define GAB_MESSAGE_CAL "()"
-
-#define LEN_CARRAY(arr) (sizeof(arr) / sizeof(arr[0]))
+// Message constants
+#define mGAB_ADD  "+"
+#define mGAB_SUB  "-"
+#define mGAB_MUL  "*"
+#define mGAB_DIV  "/"
+#define mGAB_MOD  "%"
+#define mGAB_BND  "&"
+#define mGAB_BOR  "|"
+#define mGAB_LSH  "<<"
+#define mGAB_RSH  ">>"
+#define mGAB_LT   "<"
+#define mGAB_GT   ">"
+#define mGAB_LTE  "<="
+#define mGAB_GTE  ">="
+#define mGAB_EQ   "=="
+#define mGAB_SET  "[=]"
+#define mGAB_GET  "[]"
+#define mGAB_CALL "()"
 
 #include "types.h"
 
@@ -119,15 +159,17 @@
 #define DEF_V 0
 #define HASH(a) a
 #define EQUAL(a, b) (a == b)
-#define LOAD DICT_MAX_LOAD
+#define LOAD cGAB_DICT_MAX_LOAD
 #include "dict.h"
 
 static inline s_i8 s_i8_cstr(const char *str) {
   return (s_i8){.data = (i8 *)str, .len = strlen(str)};
 }
 
-static inline s_i8 s_i8_arr(const a_i8* str) {
-    return (s_i8) { .data = str->data, .len = str->len };
+static inline s_i8 s_i8_arr(const a_i8 *str) {
+  return (s_i8){.data = str->data, .len = str->len};
 }
+
+#define LEN_CARRAY(a) (sizeof(a) / sizeof(a[0]))
 
 #endif

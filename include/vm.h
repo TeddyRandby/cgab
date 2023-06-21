@@ -47,9 +47,9 @@ typedef struct gab_vm {
 
   gab_value *sp;
 
-  gab_value sb[STACK_MAX];
+  gab_value sb[cGAB_STACK_MAX];
 
-  gab_vm_frame fb[FRAMES_MAX];
+  gab_vm_frame fb[cGAB_FRAMES_MAX];
 } gab_vm;
 
 void gab_vm_create(gab_vm *vm, u8 flags, u8 argc, gab_value argv[argc]);

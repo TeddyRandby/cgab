@@ -28,8 +28,10 @@
 #endif
 
 #ifndef LOAD
-#define LOAD 0.75
+#define LOAD 0.6
 #endif
+
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
 
 #define CONCAT(a, b) CONCAT_(a, b)
 #define CONCAT_(a, b) a##b
@@ -179,7 +181,7 @@ LINKAGE void METHOD(cap)(TYPENAME *self, u64 cap) {
 }
 
 LINKAGE boolean METHOD(insert)(TYPENAME *self, K key, V val) {
-  if (self->len + 1 > (self->cap * LOAD)) {
+  if (self->len > (self->cap * LOAD)) {
     METHOD(cap)(self, self->cap * 2);
   }
 
@@ -248,3 +250,4 @@ LINKAGE V METHOD(read)(TYPENAME *self, K key) {
 #undef METHOD
 #undef CONCAT
 #undef CONCAT_
+#undef MAX

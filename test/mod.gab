@@ -394,11 +394,11 @@ end
 
         list:at(0):expect(nil)
 
-        list:push('hello')
+        list:push!('hello')
 
         list:at(0):expect('hello')
 
-        list:put(2, 'hello')
+        list:put!(2, 'hello')
 
         list:at(2):expect('hello')
     end
@@ -452,7 +452,7 @@ end
   :it('should put') do
     map = :map
 
-    map:put('hi', 'bob')
+    map:put!('hi', 'bob')
 
     map:at('hi'):expect('bob')
     map:at('bye'):expect(nil)

@@ -29,12 +29,12 @@ typedef struct {
 
   u8 nupvalues;
 
-  u8 local_flags[LOCAL_MAX];
-  i32 local_depths[LOCAL_MAX];
-  u16 local_names[LOCAL_MAX];
+  u8 local_flags[GAB_LOCAL_MAX];
+  i32 local_depths[GAB_LOCAL_MAX];
+  u16 local_names[GAB_LOCAL_MAX];
 
-  u8 upv_flags[UPVALUE_MAX];
-  u8 upv_indexes[UPVALUE_MAX];
+  u8 upv_flags[GAB_UPVALUE_MAX];
+  u8 upv_indexes[GAB_UPVALUE_MAX];
 } frame;
 
 typedef enum {
@@ -91,14 +91,8 @@ typedef struct {
 
   boolean panic;
 
-  gab_token current_token;
-
-  gab_token previous_token;
-
-  u8 previous_op;
-
   u8 ncontext;
-  context contexts[FUNCTION_DEF_NESTING_MAX];
+  context contexts[cGAB_FUNCTION_DEF_NESTING_MAX];
 } bc;
 
 const char *gab_token_names[] = {
@@ -145,6 +139,7 @@ void gab_bc_create(bc *self, gab_source *source, u8 flags) {
   memset(self, 0, sizeof(*self));
 
   self->flags = flags;
+
   gab_lexer_create(&self->lex, source);
 }
 
@@ -173,7 +168,7 @@ static i32 eat_token(bc *bc);
 //------------------- Token Helpers -----------------------
 // Can't return an error.
 static inline boolean match_token(bc *bc, gab_token tok) {
-  return bc->current_token == tok;
+  return bc->lex.current_token == tok;
 }
 
 static inline boolean match_terminator(bc *bc) {
@@ -183,8 +178,8 @@ static inline boolean match_terminator(bc *bc) {
 
 // Returns less than 0 if there was an error, greater than 0 otherwise.
 static i32 eat_token(bc *bc) {
-  bc->previous_token = bc->current_token;
-  bc->current_token = gab_lexer_next(&bc->lex);
+  bc->lex.previous_token = bc->lex.current_token;
+  bc->lex.current_token = gab_lexer_next(&bc->lex);
   bc->line = bc->lex.current_row;
 
   if (match_token(bc, TOKEN_ERROR)) {
@@ -264,7 +259,7 @@ static inline u16 add_constant(gab_module *mod, gab_value value) {
 }
 
 static inline void push_op(bc *bc, gab_opcode op) {
-  gab_module_push_op(mod(bc), op, bc->previous_token, bc->line,
+  gab_module_push_op(mod(bc), op, bc->lex.previous_token, bc->line,
                      bc->lex.previous_token_src);
 }
 
@@ -272,40 +267,40 @@ static inline void push_shift(bc *bc, u8 n) {
   if (n <= 1)
     return;
 
-  gab_module_push_op(mod(bc), OP_SHIFT, bc->previous_token, bc->line,
+  gab_module_push_op(mod(bc), OP_SHIFT, bc->lex.previous_token, bc->line,
                      bc->lex.previous_token_src);
 
-  gab_module_push_byte(mod(bc), n, bc->previous_token, bc->line,
+  gab_module_push_byte(mod(bc), n, bc->lex.previous_token, bc->line,
                        bc->lex.previous_token_src);
 }
 
 static inline void push_pop(bc *bc, u8 n) {
-  gab_module_push_pop(mod(bc), n, bc->previous_token, bc->line,
+  gab_module_push_pop(mod(bc), n, bc->lex.previous_token, bc->line,
                       bc->lex.previous_token_src);
 }
 
 static inline void push_store_local(bc *bc, u8 local) {
-  gab_module_push_store_local(mod(bc), local, bc->previous_token, bc->line,
+  gab_module_push_store_local(mod(bc), local, bc->lex.previous_token, bc->line,
                               bc->lex.previous_token_src);
 }
 
 static inline void push_load_local(bc *bc, u8 local) {
-  gab_module_push_load_local(mod(bc), local, bc->previous_token, bc->line,
+  gab_module_push_load_local(mod(bc), local, bc->lex.previous_token, bc->line,
                              bc->lex.previous_token_src);
 }
 
 static inline void push_load_upvalue(bc *bc, u8 upv) {
-  gab_module_push_load_upvalue(mod(bc), upv, bc->previous_token, bc->line,
+  gab_module_push_load_upvalue(mod(bc), upv, bc->lex.previous_token, bc->line,
                                bc->lex.previous_token_src);
 }
 
 static inline void push_byte(bc *bc, u8 data) {
-  gab_module_push_byte(mod(bc), data, bc->previous_token, bc->line,
+  gab_module_push_byte(mod(bc), data, bc->lex.previous_token, bc->line,
                        bc->lex.previous_token_src);
 }
 
 static inline void push_short(bc *bc, u16 data) {
-  gab_module_push_short(mod(bc), data, bc->previous_token, bc->line,
+  gab_module_push_short(mod(bc), data, bc->lex.previous_token, bc->line,
                         bc->lex.previous_token_src);
 }
 
@@ -362,7 +357,7 @@ static i32 add_local(gab_engine *gab, bc *bc, gab_value name, u8 flags) {
   i32 ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
-  if (f->nlocals == LOCAL_MAX) {
+  if (f->nlocals == GAB_LOCAL_MAX) {
     compiler_error(bc, GAB_TOO_MANY_LOCALS, "");
     return COMP_ERR;
   }
@@ -394,7 +389,7 @@ static i32 add_upvalue(bc *bc, u32 depth, u8 index, u8 flags) {
     }
   }
 
-  if (count == UPVALUE_MAX) {
+  if (count == GAB_UPVALUE_MAX) {
     compiler_error(bc, GAB_TOO_MANY_UPVALUES, "");
     return COMP_ERR;
   }
@@ -697,7 +692,7 @@ i32 compile_parameters(gab_engine *gab, bc *bc, boolean *vse_out) {
 
   do {
 
-    if (narguments >= ARG_MAX) {
+    if (narguments >= GAB_ARG_MAX) {
       compiler_error(bc, GAB_TOO_MANY_PARAMETERS, "");
       return COMP_ERR;
     }
@@ -853,8 +848,8 @@ i32 compile_block_body(gab_engine *gab, bc *bc, u8 vse) {
   if (expect_token(bc, TOKEN_END) < 0)
     return COMP_ERR;
 
-  gab_module_push_return(mod(bc), result, false, bc->previous_token, bc->line,
-                         bc->lex.previous_token_src);
+  gab_module_push_return(mod(bc), result, false, bc->lex.previous_token,
+                         bc->line, bc->lex.previous_token_src);
 
   return COMP_OK;
 }
@@ -1109,7 +1104,7 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
   if (expect_token(bc, TOKEN_EQUAL) < 0)
     return COMP_ERR;
 
-  gab_token prop_tok = bc->previous_token;
+  gab_token prop_tok = bc->lex.previous_token;
   u64 prop_line = bc->line;
   s_i8 prop_src = bc->lex.previous_token_src;
 
@@ -1162,7 +1157,7 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
     }
 
     case kINDEX: {
-      u16 m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_SET));
+      u16 m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_SET));
       gab_module_push_send(mod(bc), 2, m, false, prop_tok, prop_line, prop_src);
 
       push_pop(bc, 1);
@@ -1257,7 +1252,7 @@ initializer:
     u8 local = locals[local_count];
     push_store_local(bc, local);
     initialize_local(bc, local);
-    
+
     if (local_count != 0)
       push_pop(bc, 1);
   }
@@ -1266,7 +1261,7 @@ initializer:
 }
 
 // Forward decl
-i32 compile_definition(gab_engine *gab, bc *bc, s_i8 name);
+i32 compile_definition(gab_engine *gab, bc *bc, s_i8 name, s_i8 help);
 
 i32 compile_rec_internal_item(gab_engine *gab, bc *bc) {
   if (match_and_eat_token(bc, TOKEN_IDENTIFIER)) {
@@ -1397,7 +1392,7 @@ i32 compile_array(gab_engine *gab, bc *bc) {
   if (size < 0)
     return COMP_ERR;
 
-  gab_module_push_tuple(mod(bc), size, vse, bc->previous_token, bc->line,
+  gab_module_push_tuple(mod(bc), size, vse, bc->lex.previous_token, bc->line,
                         bc->lex.previous_token_src);
 
   pop_slot(bc, size);
@@ -1407,7 +1402,7 @@ i32 compile_array(gab_engine *gab, bc *bc) {
   return COMP_OK;
 }
 
-i32 compile_definition(gab_engine *gab, bc *bc, s_i8 name) {
+i32 compile_definition(gab_engine *gab, bc *bc, s_i8 name, s_i8 help) {
   // A record definition
   if (match_and_eat_token(bc, TOKEN_LBRACK)) {
     gab_value val_name = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
@@ -1475,7 +1470,7 @@ i32 compile_exp_blk(gab_engine *gab, bc *bc, boolean assignable) {
 
 i32 compile_exp_then(gab_engine *gab, bc *bc, boolean assignable) {
   u64 then_jump =
-      gab_module_push_jump(mod(bc), OP_JUMP_IF_FALSE, bc->previous_token,
+      gab_module_push_jump(mod(bc), OP_JUMP_IF_FALSE, bc->lex.previous_token,
                            bc->line, bc->lex.previous_token_src);
 
   pop_slot(bc, 1);
@@ -1495,7 +1490,7 @@ i32 compile_exp_then(gab_engine *gab, bc *bc, boolean assignable) {
 
 i32 compile_exp_else(gab_engine *gab, bc *bc, boolean assignable) {
   u64 then_jump =
-      gab_module_push_jump(mod(bc), OP_JUMP_IF_TRUE, bc->previous_token,
+      gab_module_push_jump(mod(bc), OP_JUMP_IF_TRUE, bc->lex.previous_token,
                            bc->line, bc->lex.previous_token_src);
 
   pop_slot(bc, 1);
@@ -1534,9 +1529,9 @@ i32 compile_exp_mch(gab_engine *gab, bc *bc, boolean assignable) {
 
     push_op(bc, OP_MATCH);
 
-    next =
-        gab_module_push_jump(mod(bc), OP_POP_JUMP_IF_FALSE, bc->previous_token,
-                             bc->line, bc->lex.previous_token_src);
+    next = gab_module_push_jump(mod(bc), OP_POP_JUMP_IF_FALSE,
+                                bc->lex.previous_token, bc->line,
+                                bc->lex.previous_token_src);
 
     pop_slot(bc, 1);
 
@@ -1559,7 +1554,7 @@ i32 compile_exp_mch(gab_engine *gab, bc *bc, boolean assignable) {
 
     // Push a jump out of the match statement at the end of every case.
     v_u64_push(&done_jumps,
-               gab_module_push_jump(mod(bc), OP_JUMP, bc->previous_token,
+               gab_module_push_jump(mod(bc), OP_JUMP, bc->lex.previous_token,
                                     bc->line, bc->lex.previous_token_src));
   }
 
@@ -1604,7 +1599,7 @@ i32 compile_exp_is(gab_engine *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_bin(gab_engine *gab, bc *bc, boolean assignable) {
-  gab_token op = bc->previous_token;
+  gab_token op = bc->lex.previous_token;
   u64 line = bc->line;
   s_i8 src = bc->lex.previous_token_src;
 
@@ -1612,59 +1607,59 @@ i32 compile_exp_bin(gab_engine *gab, bc *bc, boolean assignable) {
 
   switch (op) {
   case TOKEN_MINUS:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_SUB));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_SUB));
     break;
 
   case TOKEN_PLUS:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_ADD));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_ADD));
     break;
 
   case TOKEN_STAR:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_MUL));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_MUL));
     break;
 
   case TOKEN_SLASH:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_DIV));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_DIV));
     break;
 
   case TOKEN_PERCENT:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_MOD));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_MOD));
     break;
 
   case TOKEN_PIPE:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_BOR));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_BOR));
     break;
 
   case TOKEN_AMPERSAND:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_BND));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_BND));
     break;
 
   case TOKEN_EQUAL_EQUAL:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_EQ));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_EQ));
     break;
 
   case TOKEN_LESSER:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_LT));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_LT));
     break;
 
   case TOKEN_LESSER_EQUAL:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_LTE));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_LTE));
     break;
 
   case TOKEN_LESSER_LESSER:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_LSH));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_LSH));
     break;
 
   case TOKEN_GREATER:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_GT));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_GT));
     break;
 
   case TOKEN_GREATER_EQUAL:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_GTE));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_GTE));
     break;
 
   case TOKEN_GREATER_GREATER:
-    m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_RSH));
+    m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_RSH));
     break;
 
   default:
@@ -1685,7 +1680,7 @@ i32 compile_exp_bin(gab_engine *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_una(gab_engine *gab, bc *bc, boolean assignable) {
-  gab_token op = bc->previous_token;
+  gab_token op = bc->lex.previous_token;
 
   i32 result = compile_exp_prec(gab, bc, kUNARY);
 
@@ -1904,7 +1899,8 @@ i32 compile_exp_num(gab_engine *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_bool(gab_engine *gab, bc *bc, boolean assignable) {
-  push_op(bc, bc->previous_token == TOKEN_TRUE ? OP_PUSH_TRUE : OP_PUSH_FALSE);
+  push_op(bc,
+          bc->lex.previous_token == TOKEN_TRUE ? OP_PUSH_TRUE : OP_PUSH_FALSE);
   push_slot(bc, 1);
   return COMP_OK;
 }
@@ -1916,11 +1912,12 @@ i32 compile_exp_nil(gab_engine *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_def(gab_engine *gab, bc *bc, boolean assignable) {
+  s_i8 help = bc->lex.previous_comment;
   eat_token(bc);
 
   s_i8 name = {0};
 
-  switch (bc->previous_token) {
+  switch (bc->lex.previous_token) {
   case TOKEN_IDENTIFIER:
   case TOKEN_PLUS:
   case TOKEN_MINUS:
@@ -1964,7 +1961,7 @@ i32 compile_exp_def(gab_engine *gab, bc *bc, boolean assignable) {
     return COMP_ERR;
   }
 
-  if (compile_definition(gab, bc, name) < 0)
+  if (compile_definition(gab, bc, name, help) < 0)
     return COMP_ERR;
 
   return COMP_OK;
@@ -2016,7 +2013,7 @@ i32 compile_exp_ipm(gab_engine *gab, bc *bc, boolean assignable) {
 
   u32 local = strtoul((char *)offset.data, NULL, 10);
 
-  if (local > LOCAL_MAX) {
+  if (local > GAB_LOCAL_MAX) {
     compiler_error(bc, GAB_TOO_MANY_LOCALS, "");
     return COMP_ERR;
   }
@@ -2150,7 +2147,7 @@ i32 compile_exp_idn(gab_engine *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_idx(gab_engine *gab, bc *bc, boolean assignable) {
-  gab_token prop_tok = bc->previous_token;
+  gab_token prop_tok = bc->lex.previous_token;
   u64 prop_line = bc->line;
   s_i8 prop_src = bc->lex.previous_token_src;
 
@@ -2170,7 +2167,7 @@ i32 compile_exp_idx(gab_engine *gab, bc *bc, boolean assignable) {
     }
   }
 
-  u16 m = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_GET));
+  u16 m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_GET));
   gab_module_push_send(mod(bc), 1, m, false, prop_tok, prop_line, prop_src);
 
   pop_slot(bc, 2);
@@ -2187,7 +2184,7 @@ i32 compile_exp_dot(gab_engine *gab, bc *bc, boolean assignable) {
   if (prop < 0)
     return COMP_ERR;
 
-  gab_token prop_tok = bc->previous_token;
+  gab_token prop_tok = bc->lex.previous_token;
   u64 prop_line = bc->line;
   s_i8 prop_src = bc->lex.previous_token_src;
 
@@ -2271,7 +2268,7 @@ i32 compile_arguments(gab_engine *gab, bc *bc, boolean *vse_out, u8 flags) {
 
 i32 compile_exp_emp(gab_engine *gab, bc *bc, boolean assignable) {
   s_i8 message = bc->lex.previous_token_src;
-  gab_token tok = bc->previous_token;
+  gab_token tok = bc->lex.previous_token;
   u64 line = bc->line;
 
   gab_value val_name =
@@ -2289,7 +2286,7 @@ i32 compile_exp_emp(gab_engine *gab, bc *bc, boolean assignable) {
   if (result < 0)
     return COMP_ERR;
 
-  if (result > ARG_MAX) {
+  if (result > GAB_ARG_MAX) {
     compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
     return COMP_ERR;
   }
@@ -2319,58 +2316,58 @@ i32 compile_exp_amp(gab_engine *gab, bc *bc, boolean assignable) {
 
   const char *msg;
   eat_token(bc);
-  switch (bc->previous_token) {
+  switch (bc->lex.previous_token) {
   case TOKEN_EQUAL_EQUAL:
-    msg = GAB_MESSAGE_EQ;
+    msg = mGAB_EQ;
     break;
   case TOKEN_STAR:
-    msg = GAB_MESSAGE_MUL;
+    msg = mGAB_MUL;
     break;
   case TOKEN_SLASH:
-    msg = GAB_MESSAGE_DIV;
+    msg = mGAB_DIV;
     break;
   case TOKEN_PLUS:
-    msg = GAB_MESSAGE_ADD;
+    msg = mGAB_ADD;
     break;
   case TOKEN_MINUS:
-    msg = GAB_MESSAGE_SUB;
+    msg = mGAB_SUB;
     break;
   case TOKEN_PERCENT:
-    msg = GAB_MESSAGE_MOD;
+    msg = mGAB_MOD;
     break;
   case TOKEN_GREATER_GREATER:
-    msg = GAB_MESSAGE_RSH;
+    msg = mGAB_RSH;
     break;
   case TOKEN_GREATER_EQUAL:
-    msg = GAB_MESSAGE_GTE;
+    msg = mGAB_GTE;
     break;
   case TOKEN_GREATER:
-    msg = GAB_MESSAGE_GT;
+    msg = mGAB_GT;
     break;
   case TOKEN_LESSER_LESSER:
-    msg = GAB_MESSAGE_LSH;
+    msg = mGAB_LSH;
     break;
   case TOKEN_LESSER_EQUAL:
-    msg = GAB_MESSAGE_LTE;
+    msg = mGAB_LTE;
     break;
   case TOKEN_LESSER:
-    msg = GAB_MESSAGE_LT;
+    msg = mGAB_LT;
     break;
   case TOKEN_PIPE:
-    msg = GAB_MESSAGE_BOR;
+    msg = mGAB_BOR;
     break;
   case TOKEN_AMPERSAND:
-    msg = GAB_MESSAGE_BND;
+    msg = mGAB_BND;
     break;
   case TOKEN_LPAREN:
     expect_token(bc, TOKEN_RPAREN);
-    msg = GAB_MESSAGE_CAL;
+    msg = mGAB_CALL;
     break;
   case TOKEN_LBRACE:
     if (match_and_eat_token(bc, TOKEN_EQUAL))
-      msg = GAB_MESSAGE_SET;
+      msg = mGAB_SET;
     else
-      msg = GAB_MESSAGE_GET;
+      msg = mGAB_GET;
     expect_token(bc, TOKEN_RBRACE);
     break;
   default:
@@ -2390,7 +2387,7 @@ i32 compile_exp_amp(gab_engine *gab, bc *bc, boolean assignable) {
 
 i32 compile_exp_snd(gab_engine *gab, bc *bc, boolean assignable) {
   s_i8 prev_src = bc->lex.previous_token_src;
-  gab_token prev_tok = bc->previous_token;
+  gab_token prev_tok = bc->lex.previous_token;
   u64 prev_line = bc->line;
 
   s_i8 message = trim_prev_tok(bc);
@@ -2405,7 +2402,7 @@ i32 compile_exp_snd(gab_engine *gab, bc *bc, boolean assignable) {
   if (result < 0)
     return COMP_ERR;
 
-  if (result > ARG_MAX) {
+  if (result > GAB_ARG_MAX) {
     compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
     return COMP_ERR;
   }
@@ -2420,7 +2417,7 @@ i32 compile_exp_snd(gab_engine *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_cal(gab_engine *gab, bc *bc, boolean assignable) {
-  gab_token call_tok = bc->previous_token;
+  gab_token call_tok = bc->lex.previous_token;
   u64 call_line = bc->line;
   s_i8 call_src = bc->lex.previous_token_src;
 
@@ -2437,7 +2434,7 @@ i32 compile_exp_cal(gab_engine *gab, bc *bc, boolean assignable) {
 
   pop_slot(bc, result);
 
-  u16 msg = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_CAL));
+  u16 msg = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_CALL));
 
   gab_module_push_send(mod(bc), result, msg, vse, call_tok, call_line,
                        call_src);
@@ -2446,7 +2443,7 @@ i32 compile_exp_cal(gab_engine *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_rcal(gab_engine *gab, bc *bc, boolean assignable) {
-  gab_token call_tok = bc->previous_token;
+  gab_token call_tok = bc->lex.previous_token;
   u64 call_line = bc->line;
   s_i8 call_src = bc->lex.previous_token_src;
 
@@ -2455,7 +2452,7 @@ i32 compile_exp_rcal(gab_engine *gab, bc *bc, boolean assignable) {
 
   pop_slot(bc, 1);
 
-  u16 msg = add_message_constant(gab, mod(bc), GAB_STRING(GAB_MESSAGE_CAL));
+  u16 msg = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_CALL));
 
   gab_module_push_send(mod(bc), result, msg, vse, call_tok, call_line,
                        call_src);
@@ -2465,7 +2462,7 @@ i32 compile_exp_rcal(gab_engine *gab, bc *bc, boolean assignable) {
 
 i32 compile_exp_and(gab_engine *gab, bc *bc, boolean assignable) {
   u64 end_jump =
-      gab_module_push_jump(mod(bc), OP_LOGICAL_AND, bc->previous_token,
+      gab_module_push_jump(mod(bc), OP_LOGICAL_AND, bc->lex.previous_token,
                            bc->line, bc->lex.previous_token_src);
 
   if (optional_newline(bc) < 0)
@@ -2481,8 +2478,8 @@ i32 compile_exp_and(gab_engine *gab, bc *bc, boolean assignable) {
 
 i32 compile_exp_or(gab_engine *gab, bc *bc, boolean assignable) {
   u64 end_jump =
-      gab_module_push_jump(mod(bc), OP_LOGICAL_OR, bc->previous_token, bc->line,
-                           bc->lex.previous_token_src);
+      gab_module_push_jump(mod(bc), OP_LOGICAL_OR, bc->lex.previous_token,
+                           bc->line, bc->lex.previous_token_src);
 
   if (optional_newline(bc) < 0)
     return COMP_ERR;
@@ -2499,7 +2496,7 @@ i32 compile_exp_prec(gab_engine *gab, bc *bc, prec_k prec) {
   if (eat_token(bc) < 0)
     return COMP_ERR;
 
-  gab_compile_rule rule = get_rule(bc->previous_token);
+  gab_compile_rule rule = get_rule(bc->lex.previous_token);
 
   if (rule.prefix == NULL) {
     compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected an expression.");
@@ -2512,14 +2509,14 @@ i32 compile_exp_prec(gab_engine *gab, bc *bc, prec_k prec) {
   if (have < 0)
     return COMP_ERR;
 
-  while (prec <= get_rule(bc->current_token).prec) {
+  while (prec <= get_rule(bc->lex.current_token).prec) {
     if (have < 0)
       return COMP_ERR;
 
     if (eat_token(bc) < 0)
       return COMP_ERR;
 
-    rule = get_rule(bc->previous_token);
+    rule = get_rule(bc->lex.previous_token);
 
     if (rule.infix != NULL) {
       // Treat this as an infix expression.
@@ -2538,7 +2535,7 @@ i32 compile_exp_prec(gab_engine *gab, bc *bc, prec_k prec) {
 i32 compile_exp_for(gab_engine *gab, bc *bc, boolean assignable) {
   push_scope(bc);
 
-  gab_token prev_tok = bc->previous_token;
+  gab_token prev_tok = bc->lex.previous_token;
   u64 prev_line = bc->line;
   s_i8 prev_src = bc->lex.previous_token_src;
 
@@ -2614,7 +2611,8 @@ i32 compile_exp_for(gab_engine *gab, bc *bc, boolean assignable) {
   if (expect_token(bc, TOKEN_END) < 0)
     return COMP_ERR;
 
-  gab_module_push_next(mod(bc), local_start + nlooplocals, prev_tok, prev_line, prev_src);
+  gab_module_push_next(mod(bc), local_start + nlooplocals, prev_tok, prev_line,
+                       prev_src);
 
   pop_slot(bc, 1);
 
@@ -2633,7 +2631,7 @@ i32 compile_exp_for(gab_engine *gab, bc *bc, boolean assignable) {
 i32 compile_exp_lop(gab_engine *gab, bc *bc, boolean assignable) {
   push_scope(bc);
 
-  gab_token prev_tok = bc->previous_token;
+  gab_token prev_tok = bc->lex.previous_token;
   u64 prev_line = bc->line;
   s_i8 prev_src = bc->lex.previous_token_src;
 
@@ -2648,7 +2646,7 @@ i32 compile_exp_lop(gab_engine *gab, bc *bc, boolean assignable) {
     if (compile_expression(gab, bc) < 0)
       return COMP_ERR;
 
-    prev_tok = bc->previous_token;
+    prev_tok = bc->lex.previous_token;
     prev_line = bc->line;
     prev_src = bc->lex.previous_token_src;
 
@@ -2690,8 +2688,8 @@ i32 compile_exp_sym(gab_engine *gab, bc *bc, boolean assignable) {
 i32 compile_exp_yld(gab_engine *gab, bc *bc, boolean assignable) {
   push_slot(bc, 1);
 
-  if (!get_rule(bc->current_token).prefix) {
-    gab_module_push_yield(mod(bc), 0, false, bc->previous_token, bc->line,
+  if (!get_rule(bc->lex.current_token).prefix) {
+    gab_module_push_yield(mod(bc), 0, false, bc->lex.previous_token, bc->line,
                           bc->lex.previous_token_src);
     return VAR_EXP;
   }
@@ -2707,7 +2705,7 @@ i32 compile_exp_yld(gab_engine *gab, bc *bc, boolean assignable) {
     return COMP_ERR;
   }
 
-  gab_module_push_yield(mod(bc), result, vse, bc->previous_token, bc->line,
+  gab_module_push_yield(mod(bc), result, vse, bc->lex.previous_token, bc->line,
                         bc->lex.previous_token_src);
 
   pop_slot(bc, result);
@@ -2716,12 +2714,12 @@ i32 compile_exp_yld(gab_engine *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_rtn(gab_engine *gab, bc *bc, boolean assignable) {
-  if (!get_rule(bc->current_token).prefix) {
+  if (!get_rule(bc->lex.current_token).prefix) {
     push_slot(bc, 1);
 
     push_op(bc, OP_PUSH_NIL);
 
-    gab_module_push_return(mod(bc), 1, false, bc->previous_token, bc->line,
+    gab_module_push_return(mod(bc), 1, false, bc->lex.previous_token, bc->line,
                            bc->lex.previous_token_src);
 
     pop_slot(bc, 1);
@@ -2734,12 +2732,12 @@ i32 compile_exp_rtn(gab_engine *gab, bc *bc, boolean assignable) {
   if (result < 0)
     return COMP_ERR;
 
-  if (result > RET_MAX) {
+  if (result > GAB_RET_MAX) {
     compiler_error(bc, GAB_TOO_MANY_RETURN_VALUES, "");
     return COMP_ERR;
   }
 
-  gab_module_push_return(mod(bc), result, vse, bc->previous_token, bc->line,
+  gab_module_push_return(mod(bc), result, vse, bc->lex.previous_token, bc->line,
                          bc->lex.previous_token_src);
 
   pop_slot(bc, result);
@@ -2840,7 +2838,7 @@ gab_value compile(gab_engine *gab, bc *bc, gab_value name, u8 narguments,
   if (eat_token(bc) == COMP_ERR)
     return GAB_VAL_UNDEFINED();
 
-  if (bc->current_token == TOKEN_EOF)
+  if (bc->lex.current_token == TOKEN_EOF)
     return GAB_VAL_UNDEFINED();
 
   push_slot(bc, narguments);
@@ -2852,7 +2850,7 @@ gab_value compile(gab_engine *gab, bc *bc, gab_value name, u8 narguments,
   if (compile_expressions_body(gab, bc) < 0)
     return GAB_VAL_UNDEFINED();
 
-  gab_module_push_return(mod(bc), 1, false, bc->previous_token, bc->line,
+  gab_module_push_return(mod(bc), 1, false, bc->lex.previous_token, bc->line,
                          bc->lex.previous_token_src);
 
   gab_obj_prototype *p = pop_ctxframe(gab, bc, false);
@@ -2863,7 +2861,7 @@ gab_value compile(gab_engine *gab, bc *bc, gab_value name, u8 narguments,
 
   add_constant(new_mod, GAB_VAL_OBJ(main));
 
-  if (GAB_FLAG_DUMP_BYTECODE & bc->flags) {
+  if (fGAB_DUMP_BYTECODE & bc->flags) {
     gab_dis(new_mod);
   }
 
@@ -2922,7 +2920,7 @@ static void compiler_error(bc *bc, gab_status e, const char *help_fmt, ...) {
 
   bc->panic = true;
 
-  if (bc->flags & GAB_FLAG_DUMP_ERROR) {
+  if (bc->flags & fGAB_DUMP_ERROR) {
     gab_source *src = mod(bc)->source;
 
     va_list args;
@@ -2963,7 +2961,7 @@ static void compiler_error(bc *bc, gab_status e, const char *help_fmt, ...) {
     tok_start = curr_token.data;
     tok_end = curr_token.data + curr_token.len;
 
-    const char *tok = gab_token_names[bc->previous_token];
+    const char *tok = gab_token_names[bc->lex.previous_token];
 
     for (u8 i = 0; i < curr_under->len; i++) {
       if (curr_src_start + i >= tok_start && curr_src_start + i < tok_end)

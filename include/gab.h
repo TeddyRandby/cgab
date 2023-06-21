@@ -5,7 +5,6 @@
 #include <printf.h>
 
 typedef struct gab_engine gab_engine;
-typedef struct gab_module gab_module;
 
 /**
  * Create a Gab Engine. If you want libraries included, build and bind them
@@ -33,12 +32,23 @@ void gab_destroy(gab_engine *gab);
  *
  *  @param argc The number of arguments
  *
- *  @param argv_names The names of each argument (Passed to the compiler)
+ *  @param argv_names The names of each argument
  *
- *  @param argv_values The values of each argument (Passed to the vm)
+ *  @param argv_values The values of each argument
  */
 void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]);
+
+/**
+ * Set the value of the argument at index to value.
+ *
+ *  @param gab The engine
+ *
+ *  @param value The values of the argument
+ *
+ *  @param index The index of the argument to change
+ */
+void gab_args_put(gab_engine *gab, gab_value value, u64 index);
 
 /**
  * Push an additional argument onto the engine's argument list.
@@ -49,18 +59,23 @@ void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
  *
  *  @param value The values of the argument (Passed to the vm)
  */
-void gab_arg_set(gab_engine* gab, gab_value value, u64 index);
-u64 gab_arg_push(gab_engine *gab, gab_value name);
-void gab_arg_pop(gab_engine *gab);
+u64 gab_args_push(gab_engine *gab, gab_value name);
 
 /**
- * Pass the ownership of a value to the engine.
+ * Pop an argument off the engine's argument list.
+ *
+ *  @param gab The engine
+ */
+void gab_args_pop(gab_engine *gab);
+
+/**
+ * Give the engine ownership of the value.
  *
  *  @param gab The engine
  *
  *  @param value The value
  *
- *  @return The value that was added to scratch
+ *  @return The value
  */
 gab_value gab_scratch(gab_engine *gab, gab_value value);
 
@@ -80,11 +95,13 @@ i32 gab_push(gab_vm *vm, u64 argc, gab_value argv[argc]);
  *
  * @param gab The engine
  *
+ * @param name The name to give the module
+ *
  * @param source The source code
  *
- * @param name A name for the package
+ * @param flags Options for the compiler
  *
- * @return The gab_obj_closure on a success, and GAB_VAL_NULL on error.
+ * @return The gab_obj_closure on a success, and GAB_VAL_UNDEFINED on error.
  */
 gab_value gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags);
 
@@ -97,14 +114,9 @@ gab_value gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags);
  *
  * @param main The module to run
  *
- * @param argc The number of arguments to the closure
- *
- * @param argv The array of arguments to pass to the main closure
- *
- * @return The return value of the closure
+ * @return The return value of the closure, or an error
  */
-
-a_gab_value* gab_run(gab_engine *gab, gab_value main, u8 flags);
+a_gab_value *gab_run(gab_engine *gab, gab_value main, u8 flags);
 
 /**
  * Crash the given VM with the given message
@@ -113,15 +125,14 @@ a_gab_value* gab_run(gab_engine *gab, gab_value main, u8 flags);
  *
  * @param   vm The vm to panic
  *
- * @param  msg The message to present
+ * @param  msg The message to display
  *
- * @return A gab value wrapping the state of the panic'd vm
- *
+ * @return A gab value wrapping the error
  */
 gab_value gab_panic(gab_engine *gab, gab_vm *vm, const char *msg);
 
 /**
- * Disassemble a module from start to end.
+ * Disassemble a module.
  *
  * @param mod The module the bytecode is in
  *
@@ -224,10 +235,10 @@ gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
  *
  * @return The return value of the message
  */
-a_gab_value* gab_send(gab_engine *gab, gab_vm *vm, gab_value message,
-                   gab_value receiver, u8 argc, gab_value argv[argc]);
+a_gab_value *gab_send(gab_engine *gab, gab_vm *vm, gab_value message,
+                      gab_value receiver, u8 argc, gab_value argv[argc]);
 
-gab_value gab_val_copy(gab_engine* gab, gab_vm* vm, gab_value value);
+gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value);
 
 /**
  * Dump a gab value to stdout
@@ -255,17 +266,17 @@ gab_value gab_type(gab_engine *gab, gab_kind kind);
 
 static inline gab_kind gab_val_kind(gab_value value) {
   if (GAB_VAL_IS_NUMBER(value))
-    return GAB_KIND_NUMBER;
+    return kGAB_NUMBER;
   if (GAB_VAL_IS_NIL(value))
-    return GAB_KIND_NIL;
+    return kGAB_NIL;
   if (GAB_VAL_IS_UNDEFINED(value))
-    return GAB_KIND_UNDEFINED;
+    return kGAB_UNDEFINED;
   if (GAB_VAL_IS_BOOLEAN(value))
-    return GAB_KIND_BOOLEAN;
+    return kGAB_BOOLEAN;
   if (GAB_VAL_IS_OBJ(value))
     return GAB_VAL_TO_OBJ(value)->kind;
 
-  return GAB_KIND_PRIMITIVE;
+  return kGAB_PRIMITIVE;
 }
 
 /**
@@ -283,16 +294,16 @@ static inline gab_value gab_val_type(gab_engine *gab, gab_value value) {
   gab_kind k = gab_val_kind(value);
 
   switch (k) {
-  case GAB_KIND_NIL:
-  case GAB_KIND_UNDEFINED:
+  case kGAB_NIL:
+  case kGAB_UNDEFINED:
     return value;
 
-  case GAB_KIND_RECORD: {
+  case kGAB_RECORD: {
     gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
     return GAB_VAL_OBJ(obj->shape);
   }
 
-  case GAB_KIND_CONTAINER: {
+  case kGAB_CONTAINER: {
     gab_obj_container *con = GAB_VAL_TO_CONTAINER(value);
     return con->type;
   }
@@ -319,7 +330,7 @@ static inline boolean gab_val_falsey(gab_value self) {
  *
  * @param self The value to convert
  */
-gab_value gab_val_to_string(gab_engine *gab, gab_value self);
+gab_value gab_val_to_s(gab_engine *gab, gab_value self);
 
 /**
  * A helper macro for sending simply

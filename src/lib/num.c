@@ -148,9 +148,9 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   };
 
   gab_value receivers[] = {
-      gab_type(gab, GAB_KIND_NUMBER),
-      gab_type(gab, GAB_KIND_NUMBER),
-      gab_type(gab, GAB_KIND_STRING),
+      gab_type(gab, kGAB_NUMBER),
+      gab_type(gab, kGAB_NUMBER),
+      gab_type(gab, kGAB_STRING),
   };
 
   gab_value values[] = {

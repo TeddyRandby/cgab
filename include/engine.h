@@ -20,21 +20,21 @@ static const char *gab_status_names[] = {
 #define K gab_obj_string *
 #define HASH(a) (a->hash)
 #define EQUAL(a, b) (a == b)
-#define LOAD DICT_MAX_LOAD
+#define LOAD cGAB_DICT_MAX_LOAD
 #include "dict.h"
 
 #define NAME shapes
 #define K gab_obj_shape *
 #define HASH(a) (a->hash)
 #define EQUAL(a, b) (a == b)
-#define LOAD DICT_MAX_LOAD
+#define LOAD cGAB_DICT_MAX_LOAD
 #include "dict.h"
 
 #define NAME messages
 #define K gab_obj_message *
 #define HASH(a) (a->hash)
 #define EQUAL(a, b) (a == b)
-#define LOAD DICT_MAX_LOAD
+#define LOAD cGAB_DICT_MAX_LOAD
 #include "dict.h"
 
 #define T gab_value
@@ -59,7 +59,7 @@ struct gab_engine {
 
   gab_allocator allocator;
 
-  gab_value types[GAB_KIND_NKINDS];
+  gab_value types[kGAB_NKINDS];
 
   u64 hash_seed;
 

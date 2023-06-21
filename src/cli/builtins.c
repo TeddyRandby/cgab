@@ -48,14 +48,14 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
       gab_compile(gab,
                   GAB_VAL_OBJ(gab_obj_string_create(
                       gab, s_i8_create(path->data, path->len))),
-                  s_i8_create(src->data, src->len), GAB_FLAG_DUMP_ERROR);
+                  s_i8_create(src->data, src->len), fGAB_DUMP_ERROR);
 
   a_i8_destroy(src);
 
   if (GAB_VAL_IS_NIL(pkg))
     return gab_panic(gab, vm, "Failed to compile module");
 
-  a_gab_value *res = gab_run(gab, pkg, GAB_FLAG_DUMP_ERROR);
+  a_gab_value *res = gab_run(gab, pkg, fGAB_DUMP_ERROR);
 
   gab_imports_module(gab, s_i8_create(path->data, path->len), pkg,
                      res->data[0]);
@@ -154,7 +154,7 @@ void gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
 
 void gab_lib_panic(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (argc == 1) {
-    gab_obj_string *str = GAB_VAL_TO_STRING(gab_val_to_string(gab, argv[0]));
+    gab_obj_string *str = GAB_VAL_TO_STRING(gab_val_to_s(gab, argv[0]));
     char buffer[str->len + 1];
     memcpy(buffer, str->data, str->len);
     buffer[str->len] = '\0';
@@ -187,6 +187,6 @@ void gab_setup_builtins(gab_engine *gab, const char *it) {
 
   gab_args(gab, LEN_CARRAY(arg_names) - (it == NULL), arg_names, args);
 
-  gab_specialize(gab, NULL, GAB_STRING("require"),
-                 gab_type(gab, GAB_KIND_STRING), require);
+  gab_specialize(gab, NULL, GAB_STRING("require"), gab_type(gab, kGAB_STRING),
+                 require);
 }

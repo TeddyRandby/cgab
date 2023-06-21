@@ -325,16 +325,16 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
 
   gab_value receivers[] = {
       GAB_VAL_NIL(),
-      gab_type(gab, GAB_KIND_RECORD),
-      gab_type(gab, GAB_KIND_RECORD),
-      gab_type(gab, GAB_KIND_RECORD),
-      gab_type(gab, GAB_KIND_UNDEFINED),
-      gab_type(gab, GAB_KIND_RECORD),
-      gab_type(gab, GAB_KIND_RECORD),
-      gab_type(gab, GAB_KIND_RECORD),
-      gab_type(gab, GAB_KIND_RECORD),
-      gab_type(gab, GAB_KIND_RECORD),
-      gab_type(gab, GAB_KIND_UNDEFINED),
+      gab_type(gab, kGAB_RECORD),
+      gab_type(gab, kGAB_RECORD),
+      gab_type(gab, kGAB_RECORD),
+      gab_type(gab, kGAB_UNDEFINED),
+      gab_type(gab, kGAB_RECORD),
+      gab_type(gab, kGAB_RECORD),
+      gab_type(gab, kGAB_RECORD),
+      gab_type(gab, kGAB_RECORD),
+      gab_type(gab, kGAB_RECORD),
+      gab_type(gab, kGAB_UNDEFINED),
   };
 
   gab_value specs[] = {
