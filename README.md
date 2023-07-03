@@ -23,6 +23,54 @@ Bob:celebrate # Happy Birthday Bob
  - Be *embeddable*
 # Features
 Gab's more defining features include:
+### Syntax
+It seems like it shouldn't matter, and yet it does. If you love `{}`, here are the parts of Gab's syntax that you might find peculiar.
+```
+anonymous_function = do (argument)
+    'I am an anonymous function. Here is my argument: {argument}':print
+end
+
+do_work(anonymous_function, { config = true })
+
+# is the same as:
+
+do_work(anonymous_function) { config = true }
+
+# you can also:
+
+do_work { config = true }
+
+# and with callbacks:
+
+do_work do (argument)
+    'Here is my argument: {argument}':print
+end
+
+# Thus, spawning a thread to do some other work looks like:
+
+:fiber { mod = 'my_module' } do
+    :some_other_work()
+end
+
+# There is no 'if'
+
+condition then
+    '{condition} was true':print
+end
+
+condition else
+    '{condition} was false':print
+end
+
+# 'then' and 'else' aren't statements, they're actually expressions.
+# They evaluate to their condition. The following works like a conventional if-else
+
+condition then
+    do_something()
+end else
+    do_something_else()
+end
+```
 ### Expression focused
 In Gab, everything is an expression. 
 ```
@@ -79,9 +127,14 @@ def do_twice = do (cb)
     cb()
 end
 
-let first_result, suspense = do_twice 
+first_result, suspense = do_twice do 
+    yield 20
+    return 22
+end
 
-let second_result = suspense()
+second_result = suspense()
+
+'The answer to life, the universe, and everything: {first_result + second_result}':print # 42
 ```
 Yield pauses the block's execution, and returns a `Supsense` value in addition to whatever else is yielded. This value can be called to resume execution of the block. A yield can also receive values, which are passed to the block as the results of the yield expression.
 ```

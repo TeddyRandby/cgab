@@ -1,5 +1,13 @@
-def say_hello = do (name)
-    'Hello {name or yield}':print
+def do_twice = do (cb)
+    yield cb()
+    cb()
 end
 
-sus = say_hello()('bob')
+first_result, suspense = do_twice do 
+    yield 20
+    return 22
+end
+
+second_result = suspense()
+
+'The answer to life, the universe, and everything: {first_result + second_result}':print # 42
