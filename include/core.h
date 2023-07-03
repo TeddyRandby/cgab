@@ -103,22 +103,22 @@
 #define GAB_VERSION_MINOR 1
 
 // Message constants
-#define mGAB_ADD  "+"
-#define mGAB_SUB  "-"
-#define mGAB_MUL  "*"
-#define mGAB_DIV  "/"
-#define mGAB_MOD  "%"
-#define mGAB_BND  "&"
-#define mGAB_BOR  "|"
-#define mGAB_LSH  "<<"
-#define mGAB_RSH  ">>"
-#define mGAB_LT   "<"
-#define mGAB_GT   ">"
-#define mGAB_LTE  "<="
-#define mGAB_GTE  ">="
-#define mGAB_EQ   "=="
-#define mGAB_SET  "[=]"
-#define mGAB_GET  "[]"
+#define mGAB_ADD "+"
+#define mGAB_SUB "-"
+#define mGAB_MUL "*"
+#define mGAB_DIV "/"
+#define mGAB_MOD "%"
+#define mGAB_BND "&"
+#define mGAB_BOR "|"
+#define mGAB_LSH "<<"
+#define mGAB_RSH ">>"
+#define mGAB_LT "<"
+#define mGAB_GT ">"
+#define mGAB_LTE "<="
+#define mGAB_GTE ">="
+#define mGAB_EQ "=="
+#define mGAB_SET "[=]"
+#define mGAB_GET "[]"
 #define mGAB_CALL "()"
 
 #include "types.h"
@@ -168,6 +168,18 @@ static inline s_i8 s_i8_cstr(const char *str) {
 
 static inline s_i8 s_i8_arr(const a_i8 *str) {
   return (s_i8){.data = str->data, .len = str->len};
+}
+
+static inline s_i8 s_i8_tok(s_i8 str, u64 start, i8 ch) {
+  if (start >= str.len)
+    return (s_i8){.data = str.data + start, .len = 0};
+
+  u64 cursor = start;
+
+  while (cursor < str.len && str.data[cursor] != ch)
+    cursor++;
+
+  return (s_i8){.data = str.data + start, .len = cursor - start};
 }
 
 #define LEN_CARRAY(a) (sizeof(a) / sizeof(a[0]))

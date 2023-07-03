@@ -43,21 +43,15 @@ a_i8 *os_read_file(const char *path) {
 }
 
 a_i8 *os_read_fd_line(FILE *fd) {
-  v_i8 buffer;
-  v_i8_create(&buffer, 1024);
+  v_i8 buffer = {};
 
-  while (1) {
+  for (;;) {
     char c = fgetc(fd);
 
     v_i8_push(&buffer, c);
 
-    if (c == '\n') {
+    if (c == '\n' || c == EOF)
       break;
-    }
-
-    if (c == EOF) {
-      break;
-    }
   }
 
   v_i8_push(&buffer, '\0');

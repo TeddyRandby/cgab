@@ -173,7 +173,7 @@ static inline boolean match_token(bc *bc, gab_token tok) {
 
 static inline boolean match_terminator(bc *bc) {
   return match_token(bc, TOKEN_END) || match_token(bc, TOKEN_ELSE) ||
-         match_token(bc, TOKEN_UNTIL);
+         match_token(bc, TOKEN_UNTIL) || match_token(bc, TOKEN_EOF);
 }
 
 // Returns less than 0 if there was an error, greater than 0 otherwise.
@@ -1587,17 +1587,6 @@ i32 compile_exp_mch(gab_engine *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_exp_is(gab_engine *gab, bc *bc, boolean assignable) {
-  push_op(bc, OP_TYPE);
-
-  if (compile_exp_prec(gab, bc, kEQUALITY + 1) < 0)
-    return COMP_ERR;
-
-  push_op(bc, OP_IS);
-
-  return VAR_EXP;
-}
-
 i32 compile_exp_bin(gab_engine *gab, bc *bc, boolean assignable) {
   gab_token op = bc->lex.previous_token;
   u64 line = bc->line;
@@ -2230,21 +2219,22 @@ i32 compile_arg_list(gab_engine *gab, bc *bc, boolean *vse_out) {
   return nargs;
 }
 
-#define FLAG_HAS_PAREN 1
-#define FLAG_HAS_BRACK 2
+#define fHAS_PAREN 1
+#define fHAS_BRACK 2
+#define fHAS_DO 4
 
 i32 compile_arguments(gab_engine *gab, bc *bc, boolean *vse_out, u8 flags) {
   i32 result = 0;
   *vse_out = false;
 
-  if (flags & FLAG_HAS_PAREN || match_and_eat_token(bc, TOKEN_LPAREN)) {
+  if (flags & fHAS_PAREN || (~flags & fHAS_DO && match_and_eat_token(bc, TOKEN_LPAREN))) {
     // Normal function args
     result = compile_arg_list(gab, bc, vse_out);
     if (result < 0)
       return COMP_ERR;
   }
 
-  if (flags & FLAG_HAS_BRACK || match_and_eat_token(bc, TOKEN_LBRACK)) {
+  if (flags & fHAS_BRACK || match_and_eat_token(bc, TOKEN_LBRACK)) {
     // record argument
     if (compile_record(gab, bc) < 0)
       return COMP_ERR;
@@ -2253,8 +2243,7 @@ i32 compile_arguments(gab_engine *gab, bc *bc, boolean *vse_out, u8 flags) {
     *vse_out = false;
   }
 
-  if (match_and_eat_token(bc, TOKEN_DO)) {
-
+  if (flags & fHAS_DO || match_and_eat_token(bc, TOKEN_DO)) {
     // We are an anonyumous function
     if (compile_block(gab, bc) < 0)
       return COMP_ERR;
@@ -2422,7 +2411,7 @@ i32 compile_exp_cal(gab_engine *gab, bc *bc, boolean assignable) {
   s_i8 call_src = bc->lex.previous_token_src;
 
   boolean vse = false;
-  i32 result = compile_arguments(gab, bc, &vse, FLAG_HAS_PAREN);
+  i32 result = compile_arguments(gab, bc, &vse, fHAS_PAREN);
 
   if (result < 0)
     return COMP_ERR;
@@ -2442,13 +2431,34 @@ i32 compile_exp_cal(gab_engine *gab, bc *bc, boolean assignable) {
   return VAR_EXP;
 }
 
+i32 compile_exp_bcal(gab_engine* gab, bc* bc, boolean assignable) {
+  gab_token call_tok = bc->lex.previous_token;
+  u64 call_line = bc->line;
+  s_i8 call_src = bc->lex.previous_token_src;
+
+  boolean vse = false;
+  i32 result = compile_arguments(gab, bc, &vse, fHAS_DO);
+
+  if (result < 0)
+    return COMP_ERR;
+  if (result > 254) {
+    compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
+    return COMP_ERR;
+  }
+  pop_slot(bc, result);
+  u16 msg = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_CALL));
+  gab_module_push_send(mod(bc), result, msg, vse, call_tok, call_line,
+                       call_src);
+  return VAR_EXP;
+}
+
 i32 compile_exp_rcal(gab_engine *gab, bc *bc, boolean assignable) {
   gab_token call_tok = bc->lex.previous_token;
   u64 call_line = bc->line;
   s_i8 call_src = bc->lex.previous_token_src;
 
   boolean vse = false;
-  i32 result = compile_arguments(gab, bc, &vse, FLAG_HAS_BRACK);
+  i32 result = compile_arguments(gab, bc, &vse, fHAS_BRACK);
 
   pop_slot(bc, 1);
 
@@ -2759,11 +2769,10 @@ i32 compile_exp_rtn(gab_engine *gab, bc *bc, boolean assignable) {
 const gab_compile_rule gab_bc_rules[] = {
     INFIX(then, AND, false),                        // THEN
     INFIX(else, OR, false),                            // ELSE
-    PREFIX(blk),                       // DO
+    PREFIX_INFIX(blk, bcal, SEND, false),                       // DO
     PREFIX(for),                       // FOR
     INFIX(mch, MATCH, false),                       //MATCH 
     NONE(),                            // IN
-    INFIX(is, COMPARISON, false),                            // IS
     NONE(),                            // END
     PREFIX(def),                       // DEF
     PREFIX(rtn),                       // RETURN

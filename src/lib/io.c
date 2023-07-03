@@ -5,8 +5,7 @@ void file_cb(void *data) { fclose(data); }
 
 void gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (argc != 3 || !GAB_VAL_IS_STRING(argv[1]) || !GAB_VAL_IS_STRING(argv[2])) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_open");
-
+    gab_panic(gab, vm, "&:open expects a path and permissions string");
     return;
   }
 
@@ -43,8 +42,7 @@ void gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
 void gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (argc != 1 || !GAB_VAL_TO_CONTAINER(argv[0])) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_read");
-
+    gab_panic(gab, vm, "&:read expects a file handle");
     return;
   }
 
@@ -86,7 +84,7 @@ void gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 void gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_CONTAINER(argv[0]) ||
       !GAB_VAL_IS_STRING(argv[1])) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_write");
+    gab_panic(gab, vm, "&:write expects a file handle and data string");
   }
 
   gab_obj_container *handle = GAB_VAL_TO_CONTAINER(argv[0]);

@@ -20,7 +20,7 @@ struct TYPENAME {
   u64 len;
 };
 
-LINKAGE TYPENAME METHOD(create)(T *data, u64 len) {
+LINKAGE TYPENAME METHOD(create)(const T *data, u64 len) {
   return (TYPENAME){.data = data, .len = len};
 }
 

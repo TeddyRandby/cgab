@@ -18,8 +18,7 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   case 2: {
     if (!GAB_VAL_IS_RECORD(argv[1])) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_len");
-
+      gab_panic(gab, vm, "&:new expects a record as second argument");
       return;
     }
 
@@ -39,16 +38,14 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   }
 
   default:
-    gab_panic(gab, vm, "Invalid call to gab_lib_new");
-
+    gab_panic(gab, vm, "&:new expects 1 or 2 arguments");
     return;
   }
 }
 
 void gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (argc != 1) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_len");
-
+    gab_panic(gab, vm, "&:len expects 1 argument");
     return;
   }
 
@@ -65,8 +62,7 @@ void gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
 void gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (argc != 2) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_at");
-
+    gab_panic(gab, vm, "&:at expects 2 arguments");
     return;
   }
 
@@ -81,8 +77,7 @@ void gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
 void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (argc != 3) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_put");
-
+    gab_panic(gab, vm, "&:put! expects 3 arguments");
     return;
   }
 
@@ -144,8 +139,7 @@ void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   }
 
   default:
-    gab_panic(gab, vm, "Invalid call to gab_lib_next");
-
+    gab_panic(gab, vm, "&:next expects 1 or 2 arguments");
     return;
   }
 }

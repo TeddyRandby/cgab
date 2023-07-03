@@ -114,33 +114,33 @@ i32 gab_obj_dump(FILE *stream, gab_value value, u8 depth) {
   }
   case kGAB_MESSAGE: {
     gab_obj_message *msg = GAB_VAL_TO_MESSAGE(value);
-    return fprintf(stream, "&%V", msg->name);
-  }
-  case kGAB_BUILTIN: {
-    gab_obj_builtin *blt = GAB_VAL_TO_BUILTIN(value);
-    return fprintf(stream, "[builtin:%V]", blt->name);
+    return fprintf(stream, "&:%V", msg->name);
   }
   case kGAB_CONTAINER: {
     gab_obj_container *con = GAB_VAL_TO_CONTAINER(value);
-    return fprintf(stream, "[%V:%p]", con->type, con->data);
-  }
-  case kGAB_PROTOTYPE: {
-    gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(value);
-    gab_value name =
-        v_gab_constant_val_at(&proto->mod->constants, proto->mod->name);
-    return fprintf(stream, "[prototype:%V]", name);
+    return fprintf(stream, "<%V %p>", con->type, con->data);
   }
   case kGAB_BLOCK: {
     gab_obj_block *blk = GAB_VAL_TO_BLOCK(value);
     gab_value name =
         v_gab_constant_val_at(&blk->p->mod->constants, blk->p->mod->name);
-    return fprintf(stream, "[block:%V]", name);
+    return fprintf(stream, "<block %V>", name);
   }
   case kGAB_SUSPENSE: {
     gab_obj_suspense *sus = GAB_VAL_TO_SUSPENSE(value);
     gab_value name =
         v_gab_constant_val_at(&sus->c->p->mod->constants, sus->c->p->mod->name);
-    return fprintf(stream, "[suspense:%V]", name);
+    return fprintf(stream, "<suspense %V>", name);
+  }
+  case kGAB_BUILTIN: {
+    gab_obj_builtin *blt = GAB_VAL_TO_BUILTIN(value);
+    return fprintf(stream, "<builtin %V>", blt->name);
+  }
+  case kGAB_PROTOTYPE: {
+    gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(value);
+    gab_value name =
+        v_gab_constant_val_at(&proto->mod->constants, proto->mod->name);
+    return fprintf(stream, "<prototype %V>", name);
   }
   default: {
     fprintf(stderr, "%d is not an object.\n", GAB_VAL_TO_OBJ(value)->kind);
@@ -178,21 +178,21 @@ gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self) {
   case kGAB_STRING:
     return (gab_obj_string *)self;
   case kGAB_BLOCK:
-    return gab_obj_string_create(gab, s_i8_cstr("[block]"));
+    return gab_obj_string_create(gab, s_i8_cstr("<block>"));
   case kGAB_RECORD:
-    return gab_obj_string_create(gab, s_i8_cstr("[record]"));
+    return gab_obj_string_create(gab, s_i8_cstr("<record>"));
   case kGAB_SHAPE:
-    return gab_obj_string_create(gab, s_i8_cstr("[shape]"));
+    return gab_obj_string_create(gab, s_i8_cstr("<shape>"));
   case kGAB_MESSAGE:
-    return gab_obj_string_create(gab, s_i8_cstr("[message]"));
+    return gab_obj_string_create(gab, s_i8_cstr("<message>"));
   case kGAB_PROTOTYPE:
-    return gab_obj_string_create(gab, s_i8_cstr("[prototype]"));
+    return gab_obj_string_create(gab, s_i8_cstr("<prototype>"));
   case kGAB_BUILTIN:
-    return gab_obj_string_create(gab, s_i8_cstr("[builtin]"));
+    return gab_obj_string_create(gab, s_i8_cstr("<builtin>"));
   case kGAB_CONTAINER:
-    return gab_obj_string_create(gab, s_i8_cstr("[container]"));
+    return gab_obj_string_create(gab, s_i8_cstr("<container>"));
   case kGAB_SUSPENSE:
-    return gab_obj_string_create(gab, s_i8_cstr("[suspense]"));
+    return gab_obj_string_create(gab, s_i8_cstr("<suspense>"));
   default: {
     fprintf(stderr, "%d is not an object.\n", self->kind);
     exit(0);
@@ -201,27 +201,22 @@ gab_obj_string *gab_obj_to_obj_string(gab_engine *gab, gab_obj *self) {
 }
 
 gab_value gab_val_to_s(gab_engine *gab, gab_value self) {
-  if (GAB_VAL_IS_BOOLEAN(self)) {
-    return GAB_VAL_OBJ(gab_obj_string_create(
-        gab, s_i8_cstr(GAB_VAL_TO_BOOLEAN(self) ? "true" : "false")));
-  }
+  if (GAB_VAL_IS_BOOLEAN(self))
+    return GAB_VAL_TO_BOOLEAN(self) ? GAB_STRING("true") : GAB_STRING("false");
 
-  if (GAB_VAL_IS_NIL(self)) {
-    return GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("nil")));
-  }
+  if (GAB_VAL_IS_NIL(self))
+    return GAB_STRING("nil");
+
+  if (GAB_VAL_IS_UNDEFINED(self))
+    return GAB_STRING("undefined");
+
+  if (GAB_VAL_IS_OBJ(self))
+    return GAB_VAL_OBJ(gab_obj_to_obj_string(gab, GAB_VAL_TO_OBJ(self)));
 
   if (GAB_VAL_IS_NUMBER(self)) {
     char str[24];
     snprintf(str, 24, "%g", GAB_VAL_TO_NUMBER(self));
     return GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr(str)));
-  }
-
-  if (GAB_VAL_IS_UNDEFINED(self)) {
-    return GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr("[undefined]")));
-  }
-
-  if (GAB_VAL_IS_OBJ(self)) {
-    return GAB_VAL_OBJ(gab_obj_to_obj_string(gab, GAB_VAL_TO_OBJ(self)));
   }
 
   printf("Tried to convert unhandled type to string\n");
@@ -354,12 +349,6 @@ gab_obj_string *gab_obj_string_concat(gab_engine *gab, gab_obj_string *a,
     return interned;
 
   gab_obj_string *self = gab_obj_string_create(gab, ref);
-
-  // Intern the string in the module
-  gab_engine_intern(gab, GAB_VAL_OBJ(self));
-
-  // Strings cannot reference other objects - mark them green.
-  GAB_OBJ_GREEN((gab_obj *)self);
 
   // The module contains a reference to the string, so add a reference.
   return self;

@@ -7,7 +7,7 @@
 
 void gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (argc != 1) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_len");
+    gab_panic(gab, vm, "&:len expects 1 argument");
     return;
   }
 
@@ -20,7 +20,7 @@ void gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)
-#define CLAMP(a, b) (a < 0 ? 0 : MIN(a, b))
+#define CLAMP(a, b) (MAX(0, MIN(a, b)))
 
 void gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
@@ -32,40 +32,43 @@ void gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   switch (argc) {
   case 2:
     if (!GAB_VAL_IS_NUMBER(argv[1])) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_slice");
+      gab_panic(gab, vm, "&:slice expects a number as the second argument");
       return;
     }
 
-    u64 a = GAB_VAL_TO_NUMBER(argv[1]);
-    start = CLAMP(a, len);
+    f64 a = GAB_VAL_TO_NUMBER(argv[1]);
+    end = MIN(a, len);
     break;
 
   case 3:
     if (GAB_VAL_IS_NUMBER(argv[1])) {
-      start = CLAMP(GAB_VAL_TO_NUMBER(argv[1]), len);
+      start = MIN(GAB_VAL_TO_NUMBER(argv[1]), len);
     } else if (!GAB_VAL_IS_NIL(argv[1])) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_slice");
+      gab_panic(gab, vm, "&:slice expects a number as the second argument");
       return;
     }
 
     if (GAB_VAL_TO_NUMBER(argv[2])) {
-      end = CLAMP(GAB_VAL_TO_NUMBER(argv[2]), len);
+      end = MIN(GAB_VAL_TO_NUMBER(argv[2]), len);
     } else if (!GAB_VAL_IS_NIL(argv[2])) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_slice");
+      gab_panic(gab, vm, "&:slice expects a number as the third argument");
       return;
     }
     break;
 
   default:
-    gab_panic(gab, vm, "Invalid call to gab_lib_slice");
+    gab_panic(gab, vm, "&:slice expects 2 or 3 arguments");
     return;
   }
 
-  gab_obj_string *src = GAB_VAL_TO_STRING(argv[0]);
+  if (start < end) {
+    gab_panic(gab, vm, "&:slice expects the start to be before the end");
+    return;
+  }
 
   u64 size = end - start;
 
-  s_i8 result = s_i8_create(src->data + start, size);
+  s_i8 result = s_i8_create(str->data + start, size);
 
   gab_value res = GAB_VAL_OBJ(gab_obj_string_create(gab, result));
 
@@ -75,7 +78,7 @@ void gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 void gab_lib_split(gab_engine *gab, gab_vm *vm, u8 argc,
                         gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_STRING(argv[1])) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_split");
+    gab_panic(gab, vm, "&:split expects 2 arguments");
     return;
   }
 
@@ -85,7 +88,7 @@ void gab_lib_split(gab_engine *gab, gab_vm *vm, u8 argc,
   s_i8 delim = gab_obj_string_ref(delim_src);
   s_i8 window = s_i8_create(src->data, delim.len);
 
-  i8 *start = window.data;
+  const i8 *start = window.data;
   u64 len = 0;
 
   v_u64 splits;

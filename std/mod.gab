@@ -1,15 +1,16 @@
-require('pry')
-require('dis')
-require('term')
-require('symbol')
+'pry':require
+'dis':require
+'term':require
+'symbol':require
 
-require('Monad')
-require('Map')
-require('List')
-require('Range')
-require('Number')
-require('Record')
-require('String')
-require('Time')
+
+'Monad':require
+'Map':require
+'List':require
+'Range':require
+'Number':require
+'Record':require
+'String':require
+'Time':require
 
 nil

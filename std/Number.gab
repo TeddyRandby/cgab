@@ -1,4 +1,4 @@
-require('num')
+'num':require
 
 impl $Number
   def each
@@ -23,14 +23,14 @@ impl $Number
     ?src match
         nil     => { from = self }           end
         $Number => { from = src to = self }  end
-        else    => panic($INVALID_ARGUMENTS) end
+        else    => $INVALID_ARGUMENTS:panic end
   end
 
   def to(dest)
     ?dest match
         nil     => { to = self }             end
         $Number => { from = self to = dest } end
-        else    => panic($INVALID_ARGUMENTS) end
+        else    => $INVALID_ARGUMENTS:panic end
   end
 
   def clamp(arg)
@@ -40,6 +40,6 @@ impl $Number
           self > arg.to   and arg.to   or
           self
         end
-        else => panic($INVALID_ARGUMENTS) end
+        else => $INVALID_ARGUMENTS:panic end
   end
 end

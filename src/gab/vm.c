@@ -797,39 +797,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       NEXT();
     }
 
-    CASE_CODE(SEND_PRIMITIVE_STORE_ANA) : {
-      SKIP_SHORT;
-      SKIP_BYTE;
-      SKIP_BYTE;
-      SKIP_BYTE;
-      SKIP_QWORD;
-      SKIP_QWORD;
-
-      gab_value key = PEEK2();
-      gab_value index = PEEK_N(3);
-
-      if (!GAB_VAL_IS_RECORD(index)) {
-        STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found '%V'", index);
-      }
-
-      gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
-
-      u16 prop_offset = gab_obj_shape_find(obj->shape, key);
-
-      if (prop_offset == UINT16_MAX) {
-        STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
-      }
-
-      WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_STORE_MONO);
-
-      IP() -= SEND_CACHE_DIST;
-
-      NEXT();
-    }
-
-    CASE_CODE(SEND_PRIMITIVE_STORE_MONO) : {
+    CASE_CODE(SEND_PRIMITIVE_STORE) : {
       gab_obj_message *msg = READ_MESSAGE;
       SKIP_BYTE;
       SKIP_BYTE;
@@ -843,13 +811,17 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       gab_value type = gab_val_type(ENGINE(), index);
 
-      u16 prop_offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
-
-      if ((cached_type != type) | (version != msg->version) |
-          (prop_offset == UINT16_MAX)) {
+      if ((cached_type != type) | (version != msg->version)) {
         WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
         IP() -= SEND_CACHE_DIST;
         NEXT();
+      }
+
+      u16 prop_offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
+
+      if (prop_offset == UINT16_MAX) {
+        STORE_FRAME();
+        return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
       }
 
       gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
@@ -865,27 +837,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       NEXT();
     }
 
-    CASE_CODE(SEND_PRIMITIVE_LOAD_ANA) : {
-      SKIP_SHORT;
-      SKIP_BYTE;
-      SKIP_BYTE;
-      SKIP_BYTE;
-      SKIP_QWORD;
-      SKIP_QWORD;
-
-      gab_value index = PEEK2();
-
-      if (GAB_VAL_IS_RECORD(index)) {
-        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_LOAD_MONO);
-        IP() -= SEND_CACHE_DIST;
-        NEXT();
-      }
-
-      STORE_FRAME();
-      return ERROR(GAB_NOT_RECORD, "Found %V", index);
-    }
-
-    CASE_CODE(SEND_PRIMITIVE_LOAD_MONO) : {
+    CASE_CODE(SEND_PRIMITIVE_LOAD) : {
       gab_obj_message *msg = READ_MESSAGE;
       SKIP_BYTE;
       SKIP_BYTE;
@@ -926,10 +878,11 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       DROP_N(2);
 
-      if (prop_offset == UINT16_MAX)
-        PUSH(GAB_VAL_NIL());
-      else
-        PUSH(gab_obj_record_get(obj, prop_offset));
+      gab_value val = prop_offset == UINT16_MAX
+                          ? GAB_VAL_NIL()
+                          : gab_obj_record_get(obj, prop_offset);
+
+      PUSH(val);
 
       VAR() = 1;
 
@@ -1248,14 +1201,6 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
     CASE_CODE(CONSTANT) : {
       PUSH(READ_CONSTANT);
-      NEXT();
-    }
-
-    CASE_CODE(IS) : {
-      gab_value a = POP();
-      gab_value b = POP();
-
-      PUSH(GAB_VAL_BOOLEAN(a == b));
       NEXT();
     }
 

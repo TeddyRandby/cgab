@@ -96,18 +96,43 @@ struct primitive primitives[] = {
     },
     {
         .name = mGAB_EQ,
-        .type = kGAB_UNDEFINED,
+        .type = kGAB_STRING,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),
+    },
+    {
+        .name = mGAB_EQ,
+        .type = kGAB_NUMBER,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),
+    },
+    {
+        .name = mGAB_EQ,
+        .type = kGAB_BOOLEAN,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),
+    },
+    {
+        .name = mGAB_EQ,
+        .type = kGAB_SHAPE,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),
+    },
+    {
+        .name = mGAB_EQ,
+        .type = kGAB_MESSAGE,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),
+    },
+    {
+        .name = mGAB_EQ,
+        .type = kGAB_NIL,
         .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),
     },
     {
         .name = mGAB_SET,
-        .type = kGAB_UNDEFINED,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_STORE_ANA),
+        .type = kGAB_RECORD,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_STORE),
     },
     {
         .name = mGAB_GET,
-        .type = kGAB_UNDEFINED,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LOAD_ANA),
+        .type = kGAB_RECORD,
+        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LOAD),
     },
     {
         .name = mGAB_CALL,

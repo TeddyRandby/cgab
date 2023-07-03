@@ -4,10 +4,10 @@
 #include "include/value.h"
 #include <stdio.h>
 
-void gab_repl(const char *module, u8 flags) {
+void repl(const char *module, u8 flags) {
   gab_engine *gab = gab_create();
 
-  gab_setup_builtins(gab, NULL);
+  gab_setup_builtins(gab);
 
   a_gab_value *result = NULL;
 
@@ -72,126 +72,104 @@ fin:
   return;
 }
 
-void run_src(gab_engine *gab, s_i8 src, u8 flags) {
-  gab_value main = gab_compile(gab, GAB_STRING("__main__"), src, flags);
-
-  if (GAB_VAL_IS_NIL(main))
-    return;
-
-  a_gab_value *result = gab_run(gab, main, flags | fGAB_EXIT_ON_PANIC);
-
-  for (i32 i = 0; i < result->len; i++) {
-    gab_value arg = result->data[i];
-    gab_scratch(gab, arg);
-  }
-
-  a_gab_value_destroy(result);
-}
-
-void gab_run_string(const char *string, const char *module, u8 flags) {
-  gab_engine *gab = gab_create();
-
-  gab_setup_builtins(gab, NULL);
-
-  // This is a weird case where we actually want to include the null terminator
-  s_i8 src = s_i8_create((i8 *)string, strlen(string) + 1);
-
-  if (module != NULL) {
-    a_gab_value *result =
-        gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING(module), 0, NULL);
-
-    a_gab_value_destroy(result);
-  }
-
-  if (flags & fGAB_STREAM_INPUT) {
-    u64 index = gab_args_push(gab, GAB_STRING("it"));
-
-    gab_value main = gab_compile(gab, GAB_STRING("__main__"), src, flags);
-
-    if (GAB_VAL_IS_UNDEFINED(main))
-      return;
-
-    gab_scratch(gab, main);
-
-    if (flags & fGAB_DELIMIT_INPUT) {
-      for (;;) {
-        a_i8 *it = os_read_fd_line(stdin);
-
-        if (it->data[0] == EOF)
-          break;
-
-        gab_value it_val = GAB_VAL_OBJ(
-            gab_obj_string_create(gab, s_i8_create(it->data, it->len - 2)));
-
-        gab_args_put(gab, it_val, index);
-
-        a_gab_value *result =
-            gab_run(gab, main, flags | fGAB_EXIT_ON_PANIC);
-
-        for (i32 i = 0; i < result->len; i++) {
-          gab_value arg = result->data[i];
-
-          printf("%V\n", arg);
-
-          gab_scratch(gab, arg);
-        }
-
-        a_gab_value_destroy(result);
-      }
-
-      goto fin;
-    }
-
-    a_i8 *it = os_read_fd(stdin);
-
-    gab_value it_val =
-        GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_create(it->data, it->len)));
-
-    gab_args_put(gab, it_val, index);
-  }
-
-  gab_value main = gab_compile(gab, GAB_STRING("__main__"), src,
-                               flags); // This is wasteful
-
-  if (GAB_VAL_IS_UNDEFINED(main))
-    goto fin;
-
-  a_gab_value *result = gab_run(gab, main, flags | fGAB_EXIT_ON_PANIC);
-
-  for (i32 i = 0; i < result->len; i++) {
-    gab_value arg = result->data[i];
-
-    printf("%V\n", arg);
-
-    gab_scratch(gab, arg);
-  }
-
-  a_gab_value_destroy(result);
-
-  gab_scratch(gab, main);
-
-fin:
-#if GAB_DEBUG_GC
-  gab_destroy(gab);
-#endif
-  return;
-}
-
-void gab_run_file(const char *path, const char *module, u8 flags) {
-
-  gab_engine *gab = gab_create();
-
-  gab_setup_builtins(gab, NULL);
-
+void run_src(gab_engine *gab, s_i8 src, const char *module, char delim,
+             u8 flags) {
   if (module != NULL) {
     a_gab_value *res =
         gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING(module), 0, NULL);
     a_gab_value_destroy(res);
   }
 
+  gab_value main = gab_compile(gab, GAB_STRING("__main__"), src, flags);
+
+  if (GAB_VAL_IS_UNDEFINED(main))
+    return;
+
+  gab_scratch(gab, main);
+
+  if (flags & fGAB_STREAM_INPUT) {
+
+    if (delim == 0)
+      delim = ' ';
+
+    for (;;) {
+      a_i8 *line = os_read_fd_line(stdin);
+
+      if (line->data[0] == EOF || line->data[0] == '\0')
+        break;
+
+      u64 offset = 0;
+      u64 nargs = 0;
+
+      // Skip the \n and the \0
+      s_i8 line_s = s_i8_create(line->data, line->len - 2);
+      
+      for (;;) {
+        s_i8 arg = s_i8_tok(line_s, offset, delim);
+
+        if (arg.len == 0)
+          break;
+
+        gab_value arg_val = GAB_VAL_OBJ(gab_obj_string_create(gab, arg));
+
+        gab_args_put(gab, arg_val, gab_args_push(gab, GAB_STRING("")));
+
+        offset += arg.len + 1;
+        nargs++;
+      }
+
+      a_gab_value *result = gab_run(gab, main, flags | fGAB_EXIT_ON_PANIC);
+
+      for (i32 i = 0; i < result->len; i++) {
+        gab_value arg = result->data[i];
+
+        gab_scratch(gab, arg);
+      }
+
+      a_gab_value_destroy(result);
+
+      while (nargs--)
+        gab_args_pop(gab);
+    }
+
+    return;
+  }
+
+  a_gab_value *result = gab_run(gab, main, flags | fGAB_EXIT_ON_PANIC);
+
+  for (i32 i = 0; i < result->len; i++) {
+    gab_value arg = result->data[i];
+    gab_scratch(gab, arg);
+  }
+
+  a_gab_value_destroy(result);
+}
+
+void run_string(const char *string, const char *module, char delim, u8 flags) {
+  gab_engine *gab = gab_create();
+
+  gab_setup_builtins(gab);
+
+  // This is a weird case where we actually want to include the null terminator
+  s_i8 src = s_i8_create((i8 *)string, strlen(string) + 1);
+
+  run_src(gab, src, module, delim, flags);
+
+#if GAB_DEBUG_GC
+  gab_destroy(gab);
+#endif
+  return;
+}
+
+void run_file(const char *path, const char *module, char delim, u8 flags) {
+
+  gab_engine *gab = gab_create();
+
+  gab_setup_builtins(gab);
+
   a_i8 *src = os_read_file(path);
 
-  run_src(gab, s_i8_create(src->data, src->len), flags);
+  run_src(gab, s_i8_create(src->data, src->len), module, delim, flags);
 
   a_i8_destroy(src);
 

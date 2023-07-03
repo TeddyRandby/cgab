@@ -106,10 +106,6 @@ const keyword keywords[] = {
         TOKEN_IN,
     },
     {
-        "is",
-        TOKEN_IS,
-    },
-    {
         "not",
         TOKEN_NOT,
     },

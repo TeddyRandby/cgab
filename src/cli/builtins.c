@@ -158,7 +158,12 @@ void gab_lib_panic(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     char buffer[str->len + 1];
     memcpy(buffer, str->data, str->len);
     buffer[str->len] = '\0';
+
+    gab_panic(gab, vm, buffer);
+    return;
   }
+
+  gab_panic(gab, vm, "Error");
 }
 
 void gab_lib_print(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -171,22 +176,18 @@ void gab_lib_print(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   printf("\n");
 }
 
-void gab_setup_builtins(gab_engine *gab, const char *it) {
-  gab_value arg_names[] = {GAB_STRING("print"), GAB_STRING("require"),
-                           GAB_STRING("panic"), GAB_STRING("it")};
+void gab_setup_builtins(gab_engine *gab) {
 
   gab_value require = GAB_BUILTIN(require);
-
-  gab_value it_val = it ? GAB_STRING(it) : GAB_VAL_UNDEFINED();
-
-  gab_value args[] = {gab_scratch(gab, GAB_BUILTIN(print)),
-                      gab_scratch(gab, require),
-                      gab_scratch(gab, GAB_BUILTIN(panic)), it_val};
-
-  static_assert(LEN_CARRAY(arg_names) == LEN_CARRAY(args));
-
-  gab_args(gab, LEN_CARRAY(arg_names) - (it == NULL), arg_names, args);
+  gab_value panic = GAB_BUILTIN(panic);
+  gab_value print = GAB_BUILTIN(print);
 
   gab_specialize(gab, NULL, GAB_STRING("require"), gab_type(gab, kGAB_STRING),
                  require);
+
+  gab_specialize(gab, NULL, GAB_STRING("panic"), gab_type(gab, kGAB_STRING),
+                 panic);
+
+  gab_specialize(gab, NULL, GAB_STRING("print"), gab_type(gab, kGAB_UNDEFINED),
+                 print);
 }

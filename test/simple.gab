@@ -1,9 +1,5 @@
-require('Number')
-
-for _ in 2:each
-  for _ in 2:each
-    for i, j, k in 2:each
-      print(i, j, k)
-    end
-  end
+def say_hello = do (name)
+    'Hello {name or yield}':print
 end
+
+sus = say_hello()('bob')

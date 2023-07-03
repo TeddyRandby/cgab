@@ -12,7 +12,7 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     return;
   }
   default:
-    gab_panic(gab, vm, "Invalid call to gab_lib_new");
+    gab_panic(gab, vm, "&:new expects 2 arguments");
     return;
   }
 }

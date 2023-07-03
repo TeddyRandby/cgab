@@ -1,4 +1,6 @@
-require('record')
+'record':require
+
+def is[](other) ?self == other end
 
 impl $Record
     def first self:at(0) end

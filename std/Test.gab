@@ -1,4 +1,4 @@
-require('std')
+'std':require
 
 def TestState  { fails }
 
@@ -36,7 +36,7 @@ end
 
 impl nil
     def describe(name, cb)
-        print('\n{name}:')
+        '\n{name}:':print
         cb()
     end
 
@@ -45,6 +45,6 @@ impl nil
 
         cb()
 
-        print('  {T:passed? and '✓' or '×'} it {name}')
+        '  {T:passed? and '✓' or '×'} it {name}':print
     end
 end

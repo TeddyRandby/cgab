@@ -1,4 +1,4 @@
-require('map')
+'map':require
 
 impl $Map
     def [] (key) self:at(key) end

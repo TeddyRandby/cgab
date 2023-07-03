@@ -1,4 +1,4 @@
-require('list')
+'list':require
 
 impl $List
   def [](key)
@@ -7,7 +7,7 @@ impl $List
       ?{ from }        => self:slice(key.from)                end
       ?{ to }          => self:slice(0, key.to)               end
       $Number          => self:at(key)                        end
-      else             => panic($INVALID_ARGUMENTS)   end
+      else             => $INVALID_ARGUMENTS:panic            end
   end
 
   def [=](key, value)
@@ -139,6 +139,3 @@ impl $List
   end
 
 end
-
-
-

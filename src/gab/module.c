@@ -492,7 +492,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_MATCH:
   case OP_POP:
   case OP_TYPE:
-  case OP_IS:
   case OP_NOP: {
     return dumpSimpleInstruction(self, offset);
   }
@@ -520,10 +519,8 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_SEND_ANA:
   case OP_SEND_MONO_CLOSURE:
   case OP_SEND_MONO_BUILTIN:
-  case OP_SEND_PRIMITIVE_STORE_ANA:
-  case OP_SEND_PRIMITIVE_STORE_MONO:
-  case OP_SEND_PRIMITIVE_LOAD_ANA:
-  case OP_SEND_PRIMITIVE_LOAD_MONO:
+  case OP_SEND_PRIMITIVE_STORE:
+  case OP_SEND_PRIMITIVE_LOAD:
   case OP_SEND_PRIMITIVE_CONCAT:
   case OP_SEND_PRIMITIVE_ADD:
   case OP_SEND_PRIMITIVE_SUB:

@@ -1,6 +1,6 @@
-require('std')
+'std':require
 
-require('Test')
+'Test':require
 
 :describe('Multiple Assignment') do
     :it('should declare new variables') do
@@ -210,7 +210,7 @@ end
     def Vector { x y }
 
     def + [Vector](other)
-        other is Vector or panic()
+        other:is(Vector) or $INVALID_ARGUMENTS:panic
 
         {
             x = self.x + other.x
@@ -226,7 +226,7 @@ end
     end
 
     def < [Vector](other)
-        other is Vector or panic()
+        other:is(Vector) or $INVALID_ARGUMENTS:panic
 
         mag = self.x * self.x + self.y * self.y
         other_mag = other.x * other.x + other.y * other.y
@@ -386,7 +386,7 @@ end
     :it('should create') do
         list = :list(100)
 
-        list:expect_not(nil)
+        nil:expect_not(list)
     end
 
     :it('should put') do
@@ -438,13 +438,13 @@ end
   :it('should create') do
     map = :map
 
-    map:expect_not(nil)
+    nil:expect_not(map)
   end
 
   :it('should create with initial') do
     map = :map { hi = 'bob' }
 
-    map:expect_not(nil)
+    nil:expect_not(map)
 
     map:at('hi'):expect('bob')
   end
