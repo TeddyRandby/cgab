@@ -1,17 +1,11 @@
 #ifndef GAB_OBJECT_H
 #define GAB_OBJECT_H
 
-#include "gc.h"
 #include "value.h"
-#include <stdio.h>
-
-typedef struct gab_module gab_module;
-typedef struct gab_engine gab_engine;
 
 typedef struct gab_obj gab_obj;
-
 typedef struct gab_obj_string gab_obj_string;
-typedef struct gab_obj_prototype gab_obj_prototype;
+typedef struct gab_obj_block_proto gab_obj_block_proto;
 typedef struct gab_obj_builtin gab_obj_builtin;
 typedef struct gab_obj_block gab_obj_block;
 typedef struct gab_obj_message gab_obj_message;
@@ -20,6 +14,13 @@ typedef struct gab_obj_record gab_obj_record;
 typedef struct gab_obj_container gab_obj_container;
 typedef struct gab_obj_suspense gab_obj_suspense;
 
+typedef struct gab_module gab_module;
+typedef struct gab_engine gab_engine;
+typedef struct gab_vm gab_vm;
+typedef struct gab_gc gab_gc;
+
+typedef void (*gab_gc_visitor)(gab_gc *gc, gab_obj *obj);
+
 #define T gab_value
 #include "include/array.h"
 
@@ -27,7 +28,7 @@ typedef enum gab_kind {
   kGAB_SUSPENSE,
   kGAB_STRING,
   kGAB_MESSAGE,
-  kGAB_PROTOTYPE,
+  kGAB_BLOCK_PROTO,
   kGAB_BUILTIN,
   kGAB_BLOCK,
   kGAB_CONTAINER,
@@ -46,9 +47,6 @@ typedef enum gab_kind {
 
   This allows a kind of polymorphism, casting between a
   gab_obj* and the kind of pointer denoted by gab_obj->kind
-
-  I need some sort of prototype. A pointer to a dict that
-  objects can share.
 */
 struct gab_obj {
   gab_obj *next;
@@ -57,12 +55,11 @@ struct gab_obj {
   u8 flags;
 };
 
-void *gab_obj_alloc(gab_engine *gab, gab_obj *loc, u64 size);
-
 /*
-  These macros are used to toggle flags in objects for RC garbage collection.
+  These macros are used to check-for and toggle flags in objects for RC garbage
+  collection.
 
-  Sol uses a pure RC garbage collection approach.
+  Gab uses a purely RC garbage collection approach.
 
   The algorithm is described in this paper:
   https://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon03Pure.pdf
@@ -99,18 +96,51 @@ void *gab_obj_alloc(gab_engine *gab, gab_obj *loc, u64 size);
 #define GAB_OBJ_PURPLE(obj)                                                    \
   ((obj)->flags = ((obj)->flags & fGAB_OBJ_BUFFERED) | fGAB_OBJ_PURPLE)
 
-void gab_obj_destroy(gab_obj *self);
+/**
+ * An under-the-hood allocator for objects.
+ *
+ * @param gab The gab engine.
+ *
+ * @param loc The object whose memory is being reallocated, or NULL.
+ *
+ * @param size The size to allocate. When size is 0, the object is freed.
+ *
+ * @return The allocated memory, or NULL.
+ */
+void *gab_obj_alloc(gab_engine *gab, gab_obj *loc, u64 size);
 
-u64 gab_obj_size(gab_obj *self);
+/**
+ * Free memory owned by the object, but not the object itself.
+ *
+ * @param self The object whose memory should be freed.
+ */
+void gab_obj_destroy(gab_obj *obj);
 
-static inline boolean gab_val_is_obj_kind(gab_value self, gab_kind k) {
-  return GAB_VAL_IS_OBJ(self) && GAB_VAL_TO_OBJ(self)->kind == k;
+/**
+ * Get the size of the object in bytes.
+ *
+ * @param obj The object to calculate the size of.
+ *
+ * @return The size of the object in bytes.
+ */
+u64 gab_obj_size(gab_obj *obj);
+
+/**
+ * Check if a value is of a particular kind.
+ *
+ * @param val The value to check.
+ *
+ * @param k The kind to check for.
+ *
+ * @return True if the value is of the given kind, false otherwise.
+ */
+static inline boolean gab_val_is_obj_kind(gab_value val, gab_kind k) {
+  return GAB_VAL_IS_OBJ(val) && GAB_VAL_TO_OBJ(val)->kind == k;
 }
 
-/*
-  ------------- OBJ_STRING -------------
-  A sequence of chars. Interned by the module.
-*/
+/**
+ * A sequence of chars.
+ */
 struct gab_obj_string {
   gab_obj header;
 
@@ -120,23 +150,49 @@ struct gab_obj_string {
 
   i8 data[FLEXIBLE_ARRAY];
 };
+
 #define GAB_VAL_IS_STRING(value) (gab_val_is_obj_kind(value, kGAB_STRING))
 #define GAB_VAL_TO_STRING(value) ((gab_obj_string *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_STRING(value) ((gab_obj_string *)value)
 
+/**
+ * Create a new string object.
+ *
+ * @param gab The gab engine.
+ *
+ * @param data The value of the string.
+ *
+ * @return The new string object.
+ */
 gab_obj_string *gab_obj_string_create(gab_engine *gab, s_i8 data);
 
+/**
+ * Concatenate two strings.
+ *
+ * @param gab The gab engine.
+ *
+ * @param a The first string.
+ *
+ * @param b The second string.
+ *
+ * @return The concatenated string.
+ */
 gab_obj_string *gab_obj_string_concat(gab_engine *gab, gab_obj_string *a,
                                       gab_obj_string *b);
-
+/**
+ * Get a slice referencing a string's data.
+ *
+ * @param self The string get a reference to.
+ *
+ * @param The reference.
+ */
 s_i8 gab_obj_string_ref(gab_obj_string *self);
 
-/*
-  ------------- OBJ_BUILTIN-------------
-  A function pointer. to a native c function.
-*/
 typedef void (*gab_builtin)(gab_engine *gab, gab_vm *vm, u8 argc,
                             gab_value argv[argc]);
+/**
+ * A native c function.
+ */
 struct gab_obj_builtin {
   gab_obj header;
 
@@ -149,54 +205,75 @@ struct gab_obj_builtin {
 #define GAB_VAL_TO_BUILTIN(value) ((gab_obj_builtin *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_BUILTIN(value) ((gab_obj_builtin *)value)
 
+/**
+ * Create a new builtin object.
+ *
+ * @param gab The gab engine.
+ *
+ * @param function The native function
+ *
+ * @param name The name of the function.
+ */
 gab_obj_builtin *gab_obj_builtin_create(gab_engine *gab, gab_builtin function,
                                         gab_value name);
 
-/*
-  ------------- OBJ_PROTOTYPE -------------
-*/
-struct gab_obj_prototype {
+/**
+ * The prototype of a function, used to stamp out blocks.
+ */
+struct gab_obj_block_proto {
   gab_obj header;
 
-  u8 narguments;
-
-  u8 nupvalues;
-
-  u8 nslots;
-
-  u8 nlocals;
-
-  u8 var;
+  u8 narguments, nupvalues, nslots, nlocals, var;
 
   gab_module *mod;
 
   u8 upv_desc[FLEXIBLE_ARRAY];
 };
 
-#define GAB_VAL_IS_PROTOTYPE(value) (gab_val_is_obj_kind(value, kGAB_PROTOTYPE))
-#define GAB_VAL_TO_PROTOTYPE(value) ((gab_obj_prototype *)GAB_VAL_TO_OBJ(value))
-#define GAB_OBJ_TO_PROTOTYPE(value) ((gab_obj_prototype *)value)
+#define GAB_VAL_IS_BLOCK_PROTO(value)                                          \
+  (gab_val_is_obj_kind(value, kGAB_BLOCK_PROTO))
+#define GAB_VAL_TO_BLOCK_PROTO(value)                                          \
+  ((gab_obj_block_proto *)GAB_VAL_TO_OBJ(value))
+#define GAB_OBJ_TO_BLOCK_PROTO(value) ((gab_obj_block_proto *)value)
 
-gab_obj_prototype *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
-                                            u8 narguments, u8 nslots,
-                                            u8 nlocals, u8 nupvalues,
-                                            boolean var, u8 flags[nupvalues],
-                                            u8 indexes[nupvalues]);
+/**
+ * Create a new prototype object.
+ *
+ * @param gab The gab engine.
+ *
+ * @param mod The bytecode module that the prototype should wrap.
+ *
+ * @param narguments The number of arguments the function takes.
+ *
+ * @param nslots The number of slots the function uses.
+ *
+ * @param nlocals The number of locals the function uses.
+ *
+ * @param nupvalues The number of upvalues the function uses.
+ *
+ * @param var Whether the function is variadic.
+ *
+ * @param flags The flags of the upvalues.
+ *
+ * @param indexes The indexes of the upvalues.
+ */
+gab_obj_block_proto *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
+                                              u8 narguments, u8 nslots,
+                                              u8 nlocals, u8 nupvalues,
+                                              boolean var,
+                                              u8 flags[static nupvalues],
+                                              u8 indexes[static nupvalues]);
 
-/*
-  ------------- OBJ_CLOSURE-------------
-  The wrapper to OBJ_FUNCTION, which is actually called at runtime.
-*/
+/**
+ * The block object, used to represent a closure.
+ */
 struct gab_obj_block {
   gab_obj header;
 
   u8 nupvalues;
 
-  gab_obj_prototype *p;
+  gab_obj_block_proto *p;
 
-  /*
-   * The array of captured upvalues
-   */
   gab_value upvalues[FLEXIBLE_ARRAY];
 };
 
@@ -204,11 +281,16 @@ struct gab_obj_block {
 #define GAB_VAL_TO_BLOCK(value) ((gab_obj_block *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_BLOCK(value) ((gab_obj_block *)value)
 
-gab_obj_block *gab_obj_block_create(gab_engine *gab, gab_obj_prototype *p);
-
-/*
- *------------- OBJ_MESSAGE -------------
+/**
+ * Create a new block object.
+ *
+ * @param gab The gab engine.
+ *
+ * @param p The prototype of the block.
+ *
+ * @return The new block object.
  */
+gab_obj_block *gab_obj_block_create(gab_engine *gab, gab_obj_block_proto *p);
 
 #define NAME specs
 #define K gab_value
@@ -226,6 +308,10 @@ gab_obj_block *gab_obj_block_create(gab_engine *gab, gab_obj_prototype *p);
 #define EQUAL(a, b) (a == b)
 #include "dict.h"
 
+/**
+ * The message object, a collection of receivers and specializations, under a
+ * name.
+ */
 struct gab_obj_message {
   gab_obj header;
 
@@ -242,50 +328,106 @@ struct gab_obj_message {
 #define GAB_VAL_TO_MESSAGE(value) ((gab_obj_message *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_MESSAGE(value) ((gab_obj_message *)value)
 
+/**
+ * Create a new message object.
+ *
+ * @param gab The gab engine.
+ *
+ * @param name The name of the message.
+ *
+ * @return The new message object.
+ */
 gab_obj_message *gab_obj_message_create(gab_engine *gab, gab_value name);
 
-static inline u64 gab_obj_message_find(gab_obj_message *self,
+/**
+ * Find the index of a receiver's specializtion in the message.
+ *
+ * @param self The message object.
+ *
+ * @param receiver The receiver to look for.
+ *
+ * @return The index of the receiver's specialization, or UINT64_MAX if it
+ * doesn't exist.
+ */
+static inline u64 gab_obj_message_find(gab_obj_message *obj,
                                        gab_value receiver) {
-  if (!d_specs_exists(&self->specs, receiver))
+  if (!d_specs_exists(&obj->specs, receiver))
     return UINT64_MAX;
 
-  return d_specs_index_of(&self->specs, receiver);
+  return d_specs_index_of(&obj->specs, receiver);
 }
 
-static inline void gab_obj_message_set(gab_obj_message *self, u64 offset,
-                                       gab_value rec, gab_value spec) {
-  d_specs_iset_key(&self->specs, offset, rec);
-  d_specs_iset_val(&self->specs, offset, spec);
-  self->version++;
+/**
+ * Set the receiver and specialization at the given offset in the message.
+ * This is to be used internally by the vm.
+ *
+ * @param obj The message object.
+ *
+ * @param offset The offset in the message.
+ *
+ * @param rec The receiver.
+ *
+ * @param spec The specialization.
+ */
+static inline void gab_obj_message_set(gab_obj_message *obj, u64 offset,
+                                       gab_value receiver,
+                                       gab_value specialization) {
+  d_specs_iset_key(&obj->specs, offset, receiver);
+  d_specs_iset_val(&obj->specs, offset, specialization);
+  obj->version++;
 }
 
-static inline gab_value gab_obj_message_get(gab_obj_message *self, u64 offset) {
-  return d_specs_ival(&self->specs, offset);
+/**
+ * Get the specialization at the given offset in the message.
+ *
+ * @param obj The message object.
+ *
+ * @param offset The offset in the message.
+ */
+static inline gab_value gab_obj_message_get(gab_obj_message *obj, u64 offset) {
+  return d_specs_ival(&obj->specs, offset);
 }
 
-static inline void gab_obj_message_insert(gab_obj_message *self,
+/**
+ * Insert a specialization into the message for a given receiver.
+ *
+ * @param obj The message object.
+ *
+ * @param receiver The receiver.
+ *
+ * @param specialization The specialization.
+
+ *
+ */
+static inline void gab_obj_message_insert(gab_obj_message *obj,
                                           gab_value receiver,
                                           gab_value specialization) {
-  d_specs_insert(&self->specs, receiver, specialization);
-  self->version++;
+  d_specs_insert(&obj->specs, receiver, specialization);
+  obj->version++;
 }
 
-static inline gab_value gab_obj_message_read(gab_obj_message *self,
+/**
+ * Read the specialization for a given receiver.
+ *
+ * @param obj The message object.
+ *
+ * @param receiver The receiver.
+ *
+ * @return The specialization for the receiver, or GAB_VAL_UNDEFINED if it did
+ * not exist.
+ */
+static inline gab_value gab_obj_message_read(gab_obj_message *obj,
                                              gab_value receiver) {
-  return d_specs_read(&self->specs, receiver);
+  return d_specs_read(&obj->specs, receiver);
 }
 
-/*
-  ------------- OBJ_SHAPE-------------
-  A javascript object, or a python dictionary, or a lua table.
-  Known by many names.
-*/
+/**
+ * A shape object, used to define the layout of a record.
+ */
 struct gab_obj_shape {
   gab_obj header;
 
-  u64 hash;
-
-  u64 len;
+  u64 hash, len;
 
   gab_value data[FLEXIBLE_ARRAY];
 };
@@ -294,43 +436,83 @@ struct gab_obj_shape {
 #define GAB_VAL_TO_SHAPE(value) ((gab_obj_shape *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SHAPE(value) ((gab_obj_shape *)value)
 
+/**
+ * Create a new shape object.
+ *
+ * @param gab The gab engine.
+ *
+ * @param vm The vm.
+ *
+ * @param len The length of the shape.
+ *
+ * @param stride The stride of the keys in they key array.
+ *
+ * @param keys The key array.
+ */
 gab_obj_shape *gab_obj_shape_create(gab_engine *gab, gab_vm *vm, u64 len,
-                                    u64 stride, gab_value key[len]);
+                                    u64 stride, gab_value keys[static len]);
 
+/**
+ * Create a new shape for a tuple. The keys are monotonic increasing integers,
+ * starting from 0.
+ *
+ * @param gab The gab engine.
+ *
+ * @param vm The vm.
+ *
+ * @param len The length of the tuple.
+ */
 gab_obj_shape *gab_obj_shape_create_tuple(gab_engine *gab, gab_vm *vm, u64 len);
 
-static inline u16 gab_obj_shape_find(gab_obj_shape *self, gab_value key) {
+/**
+ * Find the offset of a key in the shape.
+ *
+ * @param obj The shape object.
+ *
+ * @param key The key to look for.
+ *
+ * @return The offset of the key, or UINT64_MAX if it doesn't exist.
+ */
+static inline u64 gab_obj_shape_find(gab_obj_shape *obj, gab_value key) {
 
-  for (u64 i = 0; i < self->len; i++) {
-    assert(i < UINT16_MAX);
+  for (u64 i = 0; i < obj->len; i++) {
+    assert(i < UINT64_MAX);
 
-    if (self->data[i] == key)
+    if (obj->data[i] == key)
       return i;
   }
 
-  return UINT16_MAX;
+  return UINT64_MAX;
 };
 
-static inline u16 gab_obj_shape_next(gab_obj_shape *self, gab_value key) {
+/**
+ * Get the offset of the next key in the shape.
+ *
+ * @param obj The shape object.
+ *
+ * @param key The key to look for.
+ *
+ * @return The offset of the next key, 0 if the key is GAB_VAL_UNDEFINED(), or
+ * UINT64_MAX if it doesn't exist.
+ */
+static inline u64 gab_obj_shape_next(gab_obj_shape *obj, gab_value key) {
   if (GAB_VAL_IS_UNDEFINED(key))
     return 0;
 
-  u16 offset = gab_obj_shape_find(self, key);
+  u64 offset = gab_obj_shape_find(obj, key);
 
-  if (offset == UINT16_MAX)
-    return UINT16_MAX;
+  if (offset == UINT64_MAX)
+    return UINT64_MAX;
 
   return offset + 1;
 };
 
-/*
- *------------- OBJ_RECORD -------------
+/**
+ * The counterpart to shape, which holds the data.
  */
 struct gab_obj_record {
   gab_obj header;
-  /*
-    The shape of this object.
-  */
+
   gab_obj_shape *shape;
 
   u64 len;
@@ -342,33 +524,111 @@ struct gab_obj_record {
 #define GAB_VAL_TO_RECORD(value) ((gab_obj_record *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_RECORD(value) ((gab_obj_record *)value)
 
+/**
+ * Create a new record object.
+ *
+ * @param gab The gab engine.
+ *
+ * @param vm The vm.
+ *
+ * @param shape The shape of the record.
+ *
+ * @param stride The stride of the values in the values array.
+ *
+ * @param values The values array. The length is inferred from shape.
+ *
+ * @return The new record object.
+ */
 gab_obj_record *gab_obj_record_create(gab_engine *gab, gab_vm *vm,
                                       gab_obj_shape *shape, u64 stride,
-                                      gab_value values[]);
+                                      gab_value values[static shape->len]);
 
+/**
+ * Create a new record object, with values initialized to nil.
+ *
+ * @param gab The gab engine.
+ *
+ * @param shape The shape of the record.
+ *
+ * @return The new record object.
+ */
 gab_obj_record *gab_obj_record_create_empty(gab_engine *gab,
                                             gab_obj_shape *shape);
 
-void gab_obj_record_set(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
-                        u16 offset, gab_value value);
+/**
+ * Set a value in the record. This function is not bounds checked. It should be
+ * used only internally in the vm.
+ *
+ * @param gab The gab engine.
+ *
+ * @param vm The vm.
+ *
+ * @param obj The record object.
+ */
+void gab_obj_record_set(gab_vm *vm, gab_obj_record *obj, u64 offset,
+                        gab_value value);
 
-gab_value gab_obj_record_get(gab_obj_record *self, u16 offset);
+/**
+ * Get a value at the given offset. This function is not bounds checked. It
+ * should be used only internally in the vm.
+ *
+ * @param obj The record object.
+ *
+ * @param offset The offset.
+ *
+ * @return The value at the offset, or GAB_VAL_NIL.
+ */
+gab_value gab_obj_record_get(gab_obj_record *obj, u64 offset);
 
-boolean gab_obj_record_put(gab_engine *gab, gab_vm *vm, gab_obj_record *self,
-                           gab_value key, gab_value value);
+/**
+ * Get the value corresponding to the given key.
+ *
+ * @param obj The record object.
+ *
+ * @param key The key.
+ *
+ * @return The value at the key, or GAB_VAL_NIL.
+ */
+gab_value gab_obj_record_at(gab_obj_record *obj, gab_value key);
 
-gab_value gab_obj_record_at(gab_obj_record *self, gab_value prop);
+/**
+ * Put a value in the record at the given key.
+ *
+ * @param vm The vm.
+ *
+ * @param obj The record object.
+ *
+ * @param key The key.
+ *
+ * @param value The value.
+ *
+ * @return true if the put was a success, false otherwise.
+ */
+boolean gab_obj_record_put(gab_vm *vm, gab_obj_record *obj, gab_value key,
+                           gab_value value);
 
-boolean gab_obj_record_has(gab_obj_record *self, gab_value prop);
+/**
+ * Check if the record has a value at the given key.
+ *
+ * @param obj The record object.
+ *
+ * @param key The key.
+ *
+ * @return true if the key exists on the record, false otherwise.
+ */
+boolean gab_obj_record_has(gab_obj_record *obj, gab_value key);
 
-/*
-  ------------- OBJ_CONTAINER-------------
-  A container to some unknown data.
-*/
 typedef void (*gab_obj_container_destructor)(void *data);
 typedef void (*gab_obj_container_visitor)(gab_gc *gc, gab_gc_visitor visitor,
                                           void *data);
 
+/**
+ * A container object, which holds arbitrary data.
+ *
+ * There are two callbacks:
+ *  - one to do cleanup when the object is destroyed
+ *  - one to visit children values when doing garbage collection.
+ */
 struct gab_obj_container {
   gab_obj header;
 
@@ -385,34 +645,38 @@ struct gab_obj_container {
 #define GAB_VAL_TO_CONTAINER(value) ((gab_obj_container *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_CONTAINER(value) ((gab_obj_container *)value)
 
+/**
+ * Create a new container object.
+ *
+ * @param gab The gab engine.
+ *
+ * @param vm The vm.
+ *
+ * @param type The type of the container.
+ *
+ * @param destructor The destructor callback.
+ *
+ * @param visitor The visitor callback.
+ *
+ * @param data The data to store in the container.
+ */
 gab_obj_container *
 gab_obj_container_create(gab_engine *gab, gab_vm *vm, gab_value type,
                          gab_obj_container_destructor destructor,
                          gab_obj_container_visitor visitor, void *data);
 
-/*
-  ------------- OBJ_SUSPENSE -------------
-  A suspended call that can be handled.
-*/
+/**
+ * A suspense object, which holds the state of a suspended coroutine.
+ */
 struct gab_obj_suspense {
   gab_obj header;
 
-  // The number of arguments yielded
-  u8 have;
+  u8 have, want, len;
 
-  // The number of values wanted
-  u8 want;
-
-  // Size of the stack frame
-  u8 len;
-
-  // Closure
   gab_obj_block *c;
 
-  // Instruction Pointer
   u64 offset;
 
-  // Stack frame
   gab_value frame[FLEXIBLE_ARRAY];
 };
 
@@ -420,9 +684,28 @@ struct gab_obj_suspense {
 #define GAB_VAL_TO_SUSPENSE(value) ((gab_obj_suspense *)GAB_VAL_TO_OBJ(value))
 #define GAB_OBJ_TO_SUSPENSE(value) ((gab_obj_suspense *)value)
 
+/**
+ * Create a new suspense object.
+ *
+ * @param gab The gab engine.
+ *
+ * @param vm The vm.
+ *
+ * @param c The paused block.
+ *
+ * @param offset The offset in the block.
+ *
+ * @param arity The arity of the block.
+ *
+ * @param want The number of values the block wants.
+ *
+ * @param len The length of the frame.
+ *
+ * @param frame The frame.
+ */
 gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm,
-                                          gab_obj_block *c, u64 offset,
+                                          gab_obj_block *block, u64 offset,
                                           u8 arity, u8 want, u8 len,
-                                          gab_value frame[len]);
+                                          gab_value frame[static len]);
 
 #endif

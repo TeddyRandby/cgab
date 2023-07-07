@@ -1,7 +1,6 @@
 'list':require
 
-impl $List
-  def [](key)
+impl $List def [](key)
     ?key match
       ?{ from to }     => self:slice(key.from, key.to)        end
       ?{ from }        => self:slice(key.from)                end
@@ -30,7 +29,6 @@ impl $List
     self:len == 0 and return
 
     v = 0 
-
     loop
       yield self:at(v), v
       v = v + 1

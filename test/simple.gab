@@ -1,13 +1,9 @@
-def do_twice = do (cb)
-    yield cb()
-    cb()
+'std':require
+
+def list = :list
+
+list:push!(1,2,3,5,8)
+
+for i in list:each
+    i:print
 end
-
-first_result, suspense = do_twice do 
-    yield 20
-    return 22
-end
-
-second_result = suspense()
-
-'The answer to life, the universe, and everything: {first_result + second_result}':print # 42

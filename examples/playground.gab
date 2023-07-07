@@ -1,10 +1,5 @@
-impl nil
-  def example
-    def nested_method
-      self
-    end
-  end
-end
+'std':require
 
-nil:example
-nil:nested_method
+for i in :range(10)
+  i:print
+end

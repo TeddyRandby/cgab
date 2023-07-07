@@ -35,7 +35,7 @@ void gab_module_destroy(gab_engine *gab, gab_gc *gc, gab_module *mod) {
     gab_value v = v_gab_constant_val_at(&mod->constants, i);
     // The only kind of value owned by the modules
     // are their prototypes and the main closure
-    if (GAB_VAL_IS_PROTOTYPE(v) || GAB_VAL_IS_BLOCK(v)) {
+    if (GAB_VAL_IS_BLOCK_PROTO(v) || GAB_VAL_IS_BLOCK(v)) {
       gab_gc_dref(gc, NULL, v);
     }
   }
@@ -225,12 +225,6 @@ u8 gab_module_push_send(gab_module *self, u8 have, u16 message, boolean vse,
   gab_module_push_byte(self, 1, t, l, s);
 
   gab_module_push_byte(self, OP_NOP, t, l, s); // Version
-  gab_module_push_byte(self, OP_NOP, t, l, s);
-  gab_module_push_byte(self, OP_NOP, t, l, s);
-  gab_module_push_byte(self, OP_NOP, t, l, s);
-  gab_module_push_byte(self, OP_NOP, t, l, s);
-  gab_module_push_byte(self, OP_NOP, t, l, s);
-  gab_module_push_byte(self, OP_NOP, t, l, s);
   gab_module_push_inline_cache(self, t, l, s);
 
   return OP_SEND_ANA;
@@ -277,6 +271,13 @@ void gab_module_push_inline_cache(gab_module *self, gab_token t, u64 l,
                                   s_i8 s) {
   gab_module_push_byte(self, OP_NOP, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+  gab_module_push_byte(self, OP_NOP, t, l, s);
+
   gab_module_push_byte(self, OP_NOP, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
@@ -556,7 +557,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     offset += 4;
 
     gab_value pval = v_gab_constant_val_at(&self->constants, proto_constant);
-    gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(pval);
+    gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(pval);
 
     s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(
         v_gab_constant_val_at(&p->mod->constants, p->mod->name)));
@@ -580,7 +581,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
     offset += 2;
 
     gab_value pval = v_gab_constant_val_at(&self->constants, proto_constant);
-    gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(pval);
+    gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(pval);
 
     s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(
         v_gab_constant_val_at(&p->mod->constants, p->mod->name)));

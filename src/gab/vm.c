@@ -47,7 +47,7 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
 
       s_i8 curr_src = v_s_i8_val_at(&mod->source->source_lines, curr_row - 1);
 
-      i8 *curr_src_start = curr_src.data;
+      const i8 *curr_src_start = curr_src.data;
       i32 curr_src_len = curr_src.len;
 
       while (is_whitespace(*curr_src_start)) {
@@ -62,7 +62,7 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
       s_i8 curr_token = v_s_i8_val_at(&mod->sources, offset);
       a_i8 *curr_under = a_i8_empty(curr_src_len);
 
-      i8 *tok_start, *tok_end;
+      const i8 *tok_start, *tok_end;
       tok_start = curr_token.data;
       tok_end = curr_token.data + curr_token.len;
 
@@ -167,8 +167,9 @@ static inline i32 parse_have(gab_vm *vm, u8 have) {
     return have >> 1;
 }
 
-static inline u8 trim_values(gab_value *from, gab_value *to, u8 have, u8 want) {
-  u8 nulls = have == 0;
+static inline u64 trim_values(gab_value *from, gab_value *to, u64 have,
+                              u8 want) {
+  u64 nulls = have == 0;
 
   if ((have != want) && (want != VAR_EXP)) {
     if (have > want)
@@ -177,7 +178,7 @@ static inline u8 trim_values(gab_value *from, gab_value *to, u8 have, u8 want) {
       nulls = want - have;
   }
 
-  const u8 got = have + nulls;
+  const u64 got = have + nulls;
 
   while (have--)
     *to++ = *from++;
@@ -188,10 +189,9 @@ static inline u8 trim_values(gab_value *from, gab_value *to, u8 have, u8 want) {
   return got;
 }
 
-static inline gab_value *trim_return(gab_value *from, gab_value *to, u8 have,
+static inline gab_value *trim_return(gab_value *from, gab_value *to, u64 have,
                                      u8 want) {
-
-  u8 got = trim_values(from, to, have, want);
+  u64 got = trim_values(from, to, have, want);
 
   gab_value *sp = to + got;
   *sp = got;
@@ -416,17 +416,18 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
 #define READ_BYTE (*IP()++)
 #define READ_SHORT (IP() += 2, (((u16)IP()[-2] << 8) | IP()[-1]))
-#define READ_QWORD (IP() += 8, (gab_value *)(IP() - 8))
+#define READ_QWORD (IP() += 8, (u64 *)(IP() - 8))
 
 #define READ_CONSTANT (MOD_CONSTANT(READ_SHORT))
 #define READ_STRING (GAB_VAL_TO_STRING(READ_CONSTANT))
 #define READ_MESSAGE (GAB_VAL_TO_MESSAGE(READ_CONSTANT))
-#define READ_PROTOTYPE (GAB_VAL_TO_PROTOTYPE(READ_CONSTANT))
+#define READ_PROTOTYPE (GAB_VAL_TO_BLOCK_PROTO(READ_CONSTANT))
 
 #define STORE_FRAME() ({ FRAME()->ip = IP(); })
 #define LOAD_FRAME() ({ IP() = FRAME()->ip; })
 
 #define SEND_CACHE_DIST 22
+#define PROP_CACHE_DIST 19
 
 #define ERROR(status, help, ...)                                               \
   (a_gab_value_one(vm_error(ENGINE(), VM(), flags, status, help, __VA_ARGS__)))
@@ -826,7 +827,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
 
-      gab_obj_record_set(ENGINE(), VM(), obj, prop_offset, value);
+      gab_obj_record_set(VM(), obj, prop_offset, value);
 
       DROP_N(3);
 
@@ -1028,21 +1029,21 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-      u16 prop_offset = gab_obj_shape_find(rec->shape, key);
+      u64 prop_offset = gab_obj_shape_find(rec->shape, key);
 
       // Transition state and store in the ache
-      WRITE_INLINESHORT(prop_offset);
+      WRITE_INLINEQWORD(prop_offset);
       WRITE_INLINEQWORD(GAB_VAL_OBJ(rec->shape));
-      WRITE_BYTE(13, OP_LOAD_PROPERTY_MONO);
+      WRITE_BYTE(PROP_CACHE_DIST, OP_LOAD_PROPERTY_MONO);
 
-      IP() -= 13;
+      IP() -= PROP_CACHE_DIST;
 
       NEXT();
     }
 
     CASE_CODE(LOAD_PROPERTY_MONO) : {
       SKIP_SHORT;
-      u16 prop_offset = READ_SHORT;
+      u64 prop_offset = *READ_QWORD;
       gab_obj_shape *cached_shape = GAB_VAL_TO_SHAPE(*READ_QWORD);
 
       gab_value index = PEEK();
@@ -1055,14 +1056,14 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
 
       if (cached_shape != rec->shape) {
-        WRITE_BYTE(13, OP_LOAD_PROPERTY_POLY);
-        IP() -= 13;
+        WRITE_BYTE(PROP_CACHE_DIST, OP_LOAD_PROPERTY_POLY);
+        IP() -= PROP_CACHE_DIST;
         NEXT();
       }
 
       DROP();
 
-      if (prop_offset == UINT16_MAX)
+      if (prop_offset == UINT64_MAX)
         PUSH(GAB_VAL_NIL());
       else
         PUSH(gab_obj_record_get(rec, prop_offset));
@@ -1072,7 +1073,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
     CASE_CODE(LOAD_PROPERTY_POLY) : {
       gab_value key = READ_CONSTANT;
-      SKIP_SHORT;
+      SKIP_QWORD;
       SKIP_QWORD;
 
       gab_value index = PEEK();
@@ -1084,11 +1085,11 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
 
-      u16 prop_offset = gab_obj_shape_find(rec->shape, key);
+      u64 prop_offset = gab_obj_shape_find(rec->shape, key);
 
       DROP();
 
-      if (prop_offset == UINT16_MAX)
+      if (prop_offset == UINT64_MAX)
         PUSH(GAB_VAL_NIL());
       else
         PUSH(gab_obj_record_get(rec, prop_offset));
@@ -1108,19 +1109,19 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
 
-      u16 prop_offset = gab_obj_shape_find(rec->shape, key);
+      u64 prop_offset = gab_obj_shape_find(rec->shape, key);
 
-      if (prop_offset == UINT16_MAX) {
+      if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
         return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
       }
 
       // Write to the cache and transition to monomorphic
-      WRITE_INLINESHORT(prop_offset);
+      WRITE_INLINEQWORD(prop_offset);
       WRITE_INLINEQWORD((u64)rec->shape);
-      WRITE_BYTE(13, OP_STORE_PROPERTY_MONO);
+      WRITE_BYTE(PROP_CACHE_DIST, OP_STORE_PROPERTY_MONO);
 
-      IP() -= 13;
+      IP() -= PROP_CACHE_DIST;
 
       NEXT();
     }
@@ -1128,7 +1129,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     CASE_CODE(STORE_PROPERTY_MONO) : {
       gab_value key = READ_CONSTANT;
       // Use the cache
-      u16 prop_offset = READ_SHORT;
+      u64 prop_offset = *READ_QWORD;
       gab_obj_shape *cached_shape = GAB_VAL_TO_SHAPE(*READ_QWORD);
 
       gab_value value = PEEK();
@@ -1142,19 +1143,18 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
 
       if (rec->shape != cached_shape) {
-
         prop_offset = gab_obj_shape_find(rec->shape, key);
 
-        if (prop_offset == UINT16_MAX) {
+        if (prop_offset == UINT64_MAX) {
           STORE_FRAME();
           return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
         }
 
         // Transition to polymorphic
-        WRITE_BYTE(13, OP_STORE_PROPERTY_POLY);
+        WRITE_BYTE(PROP_CACHE_DIST, OP_STORE_PROPERTY_POLY);
       }
 
-      gab_obj_record_set(ENGINE(), VM(), rec, prop_offset, value);
+      gab_obj_record_set(VM(), rec, prop_offset, value);
 
       DROP_N(2);
 
@@ -1178,14 +1178,14 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-      u16 prop_offset = gab_obj_shape_find(rec->shape, key);
+      u64 prop_offset = gab_obj_shape_find(rec->shape, key);
 
-      if (prop_offset == UINT16_MAX) {
+      if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
         return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
       }
 
-      gab_obj_record_set(ENGINE(), VM(), rec, prop_offset, value);
+      gab_obj_record_set(VM(), rec, prop_offset, value);
 
       DROP_N(2);
 
@@ -1194,10 +1194,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       NEXT();
     }
 
-    CASE_CODE(NOP) : {
-      exit(1);
-      NEXT();
-    }
+    CASE_CODE(NOP) : { NEXT(); }
 
     CASE_CODE(CONSTANT) : {
       PUSH(READ_CONSTANT);
@@ -1460,7 +1457,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     }
 
     CASE_CODE(BLOCK) : {
-      gab_obj_prototype *p = READ_PROTOTYPE;
+      gab_obj_block_proto *p = READ_PROTOTYPE;
 
       gab_obj_block *blk = gab_obj_block_create(ENGINE(), p);
 
@@ -1485,7 +1482,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     }
 
     CASE_CODE(MESSAGE) : {
-      gab_obj_prototype *p = READ_PROTOTYPE;
+      gab_obj_block_proto *p = READ_PROTOTYPE;
       gab_obj_message *m = READ_MESSAGE;
       gab_value r = PEEK();
 
@@ -1566,6 +1563,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       NEXT();
     }
   }
+
   // This should be unreachable
   return a_gab_value_one(GAB_VAL_NIL());
 }

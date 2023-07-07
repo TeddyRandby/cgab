@@ -118,8 +118,7 @@ void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     return;
   }
 
-  if (!gab_obj_record_put(gab, vm, GAB_VAL_TO_RECORD(argv[0]), argv[1],
-                          argv[2])) {
+  if (!gab_obj_record_put(vm, GAB_VAL_TO_RECORD(argv[0]), argv[1], argv[2])) {
     gab_panic(gab, vm, "Invalid call to gab_lib_put");
     return;
   }

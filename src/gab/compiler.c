@@ -624,7 +624,7 @@ static gab_module *push_ctxframe(gab_engine *gab, bc *bc, gab_value name) {
   return mod;
 }
 
-static gab_obj_prototype *pop_ctxframe(gab_engine *gab, bc *bc, boolean vse) {
+static gab_obj_block_proto *pop_ctxframe(gab_engine *gab, bc *bc, boolean vse) {
   i32 ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
@@ -633,7 +633,7 @@ static gab_obj_prototype *pop_ctxframe(gab_engine *gab, bc *bc, boolean vse) {
   u8 nargs = f->narguments;
   u8 nlocals = f->nlocals;
 
-  gab_obj_prototype *p =
+  gab_obj_block_proto *p =
       gab_obj_prototype_create(gab, f->mod, nargs, nslots, nlocals, nupvalues,
                                vse, f->upv_flags, f->upv_indexes);
 
@@ -896,7 +896,7 @@ i32 compile_block(gab_engine *gab, bc *bc) {
   if (compile_block_body(gab, bc, vse) < 0)
     return COMP_ERR;
 
-  gab_obj_prototype *p = pop_ctxframe(gab, bc, vse);
+  gab_obj_block_proto *p = pop_ctxframe(gab, bc, vse);
 
   push_op(bc, OP_BLOCK);
   push_short(bc, add_constant(mod(bc), GAB_VAL_OBJ(p)));
@@ -921,7 +921,7 @@ i32 compile_message(gab_engine *gab, bc *bc, gab_value name) {
   if (compile_block_body(gab, bc, vse) < 0)
     return COMP_ERR;
 
-  gab_obj_prototype *p = pop_ctxframe(gab, bc, vse);
+  gab_obj_block_proto *p = pop_ctxframe(gab, bc, vse);
 
   // Create the closure, adding a specialization to the pushed function.
   push_op(bc, OP_MESSAGE);
@@ -1023,22 +1023,19 @@ i32 add_string_constant(gab_engine *gab, gab_module *mod, s_i8 str) {
   return add_constant(mod, GAB_VAL_OBJ(obj));
 }
 
-i32 compile_lst_internal_item(gab_engine *gab, bc *bc, u8 index) {
+i32 compile_rec_tup_internal_item(gab_engine *gab, bc *bc, u8 index) {
   return compile_expression(gab, bc);
 }
 
-i32 compile_lst_internals(gab_engine *gab, bc *bc, boolean *vse_out) {
+i32 compile_rec_tup_internals(gab_engine *gab, bc *bc, boolean *vse_out) {
   u8 size = 0;
-  boolean vse = false;
 
   if (skip_newlines(bc) < 0)
     return COMP_ERR;
 
   while (!match_token(bc, TOKEN_RBRACE)) {
 
-    i32 result = compile_lst_internal_item(gab, bc, size);
-
-    vse = result == VAR_EXP;
+    i32 result = compile_rec_tup_internal_item(gab, bc, size);
 
     if (result < 0)
       return COMP_ERR;
@@ -1058,14 +1055,12 @@ i32 compile_lst_internals(gab_engine *gab, bc *bc, boolean *vse_out) {
   if (expect_token(bc, TOKEN_RBRACE) < 0)
     return COMP_ERR;
 
+  boolean vse = gab_module_try_patch_vse(mod(bc), VAR_EXP);
+
   if (vse_out)
     *vse_out = vse;
 
-  if (vse) {
-    return size - gab_module_try_patch_vse(mod(bc), VAR_EXP);
-  }
-
-  return size;
+  return size - vse;
 }
 
 i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
@@ -1385,9 +1380,9 @@ i32 compile_record(gab_engine *gab, bc *bc) {
   return COMP_OK;
 }
 
-i32 compile_array(gab_engine *gab, bc *bc) {
+i32 compile_record_tuple(gab_engine *gab, bc *bc) {
   boolean vse;
-  i32 size = compile_lst_internals(gab, bc, &vse);
+  i32 size = compile_rec_tup_internals(gab, bc, &vse);
 
   if (size < 0)
     return COMP_ERR;
@@ -1957,7 +1952,7 @@ i32 compile_exp_def(gab_engine *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_arr(gab_engine *gab, bc *bc, boolean assignable) {
-  return compile_array(gab, bc);
+  return compile_record_tuple(gab, bc);
 }
 
 i32 compile_exp_rec(gab_engine *gab, bc *bc, boolean assignable) {
@@ -2227,7 +2222,8 @@ i32 compile_arguments(gab_engine *gab, bc *bc, boolean *vse_out, u8 flags) {
   i32 result = 0;
   *vse_out = false;
 
-  if (flags & fHAS_PAREN || (~flags & fHAS_DO && match_and_eat_token(bc, TOKEN_LPAREN))) {
+  if (flags & fHAS_PAREN ||
+      (~flags & fHAS_DO && match_and_eat_token(bc, TOKEN_LPAREN))) {
     // Normal function args
     result = compile_arg_list(gab, bc, vse_out);
     if (result < 0)
@@ -2431,7 +2427,7 @@ i32 compile_exp_cal(gab_engine *gab, bc *bc, boolean assignable) {
   return VAR_EXP;
 }
 
-i32 compile_exp_bcal(gab_engine* gab, bc* bc, boolean assignable) {
+i32 compile_exp_bcal(gab_engine *gab, bc *bc, boolean assignable) {
   gab_token call_tok = bc->lex.previous_token;
   u64 call_line = bc->line;
   s_i8 call_src = bc->lex.previous_token_src;
@@ -2862,7 +2858,7 @@ gab_value compile(gab_engine *gab, bc *bc, gab_value name, u8 narguments,
   gab_module_push_return(mod(bc), 1, false, bc->lex.previous_token, bc->line,
                          bc->lex.previous_token_src);
 
-  gab_obj_prototype *p = pop_ctxframe(gab, bc, false);
+  gab_obj_block_proto *p = pop_ctxframe(gab, bc, false);
 
   add_constant(new_mod, GAB_VAL_OBJ(p));
 
@@ -2902,7 +2898,7 @@ gab_value gab_bc_compile_send(gab_engine *gab, gab_value msg,
 
   u8 nlocals = narguments + 1;
 
-  gab_obj_prototype *p = gab_obj_prototype_create(
+  gab_obj_block_proto *p = gab_obj_prototype_create(
       gab, mod, narguments, nlocals, nlocals, 0, false, NULL, NULL);
 
   add_constant(mod, GAB_VAL_OBJ(p));

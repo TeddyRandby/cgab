@@ -184,7 +184,7 @@ static inline void obj_possible_root(gab_gc *gc, gab_obj *obj) {
 static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
   switch (obj->kind) {
   case kGAB_STRING:
-  case kGAB_PROTOTYPE:
+  case kGAB_BLOCK_PROTO:
   case kGAB_BUILTIN:
   case kGAB_NIL:
   case kGAB_NUMBER:

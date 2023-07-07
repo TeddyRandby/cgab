@@ -175,7 +175,7 @@ gab_engine *gab_create() {
   gab->types[kGAB_BOOLEAN] = GAB_STRING("Boolean");
   gab->types[kGAB_STRING] = GAB_STRING("String");
   gab->types[kGAB_MESSAGE] = GAB_STRING("Message");
-  gab->types[kGAB_PROTOTYPE] = GAB_STRING("Prototype");
+  gab->types[kGAB_BLOCK_PROTO] = GAB_STRING("Prototype");
   gab->types[kGAB_BUILTIN] = GAB_STRING("Builtin");
   gab->types[kGAB_BLOCK] = GAB_STRING("Block");
   gab->types[kGAB_RECORD] = GAB_STRING("Record");
@@ -265,7 +265,9 @@ void gab_destroy(gab_engine *gab) {
 }
 
 void gab_collect(gab_engine *gab, gab_vm *vm) {
-  gab_gc_run(&vm->gc, vm);
+  if (vm != NULL)
+    gab_gc_run(&vm->gc, vm);
+
   gab_engine_collect(gab);
 }
 
@@ -598,11 +600,11 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
         gab, self->function, gab_val_copy(gab, vm, self->name)));
   }
 
-  case kGAB_PROTOTYPE: {
-    gab_obj_prototype *self = GAB_VAL_TO_PROTOTYPE(value);
+  case kGAB_BLOCK_PROTO: {
+    gab_obj_block_proto *self = GAB_VAL_TO_BLOCK_PROTO(value);
     gab->modules = gab_module_copy(gab, self->mod);
 
-    gab_obj_prototype *copy = gab_obj_prototype_create(
+    gab_obj_block_proto *copy = gab_obj_prototype_create(
         gab, gab->modules, self->narguments, self->nslots, self->nlocals,
         self->nupvalues, self->var, self->upv_desc, self->upv_desc);
 
@@ -614,8 +616,8 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
   case kGAB_BLOCK: {
     gab_obj_block *self = GAB_VAL_TO_BLOCK(value);
 
-    gab_obj_prototype *p_copy =
-        GAB_VAL_TO_PROTOTYPE(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->p)));
+    gab_obj_block_proto *p_copy =
+        GAB_VAL_TO_BLOCK_PROTO(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->p)));
 
     gab_obj_block *copy = gab_obj_block_create(gab, p_copy);
 
