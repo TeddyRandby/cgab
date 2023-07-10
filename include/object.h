@@ -22,7 +22,7 @@ typedef struct gab_gc gab_gc;
 typedef void (*gab_gc_visitor)(gab_gc *gc, gab_obj *obj);
 
 #define T gab_value
-#include "include/array.h"
+#include "array.h"
 
 typedef enum gab_kind {
   kGAB_SUSPENSE,

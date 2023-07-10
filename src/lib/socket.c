@@ -28,7 +28,7 @@ void gab_lib_sock(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     return;
   }
 
-  gab_value res = GAB_CONTAINER(GAB_STRING("socket"), gab_container_socket_cb,
+  gab_value res = GAB_CONTAINER(GAB_STRING("Socket"), gab_container_socket_cb,
                                 NULL, (void *)result);
 
   gab_push(vm, 1, &res);
@@ -162,7 +162,8 @@ void gab_lib_connect(gab_engine *gab, gab_vm *vm, u8 argc,
   i32 result = connect(socket, (struct sockaddr *)&addr, sizeof(addr));
 
   if (result < 0) {
-    a_gab_value* res = GAB_SEND("err", GAB_STRING("Could not connect"), 0, NULL);
+    a_gab_value *res =
+        GAB_SEND("err", GAB_STRING("Could not connect"), 0, NULL);
 
     gab_push(vm, 1, res->data);
 
@@ -190,7 +191,8 @@ void gab_lib_receive(gab_engine *gab, gab_vm *vm, u8 argc,
   i32 result = recv(socket, buffer, 1024, 0);
 
   if (result < 0) {
-    a_gab_value* res = GAB_SEND("err", GAB_STRING("Could not receive"), 0, NULL);
+    a_gab_value *res =
+        GAB_SEND("err", GAB_STRING("Could not receive"), 0, NULL);
 
     gab_push(vm, 1, res->data);
 
