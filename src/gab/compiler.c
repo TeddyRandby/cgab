@@ -40,6 +40,8 @@ typedef struct {
 typedef enum {
   kNEW_LOCAL,
   kEXISTING_LOCAL,
+  kNEW_REST_LOCAL,
+  kEXISTING_REST_LOCAL,
   kPROP,
   kINDEX,
 } lvalue_k;
@@ -1080,9 +1082,8 @@ boolean preceding_lvalues_are_new_locals(v_lvalue *lvalues, u8 index) {
 i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
   boolean first = !match_ctx(bc, kASSIGNMENT_TARGET);
 
-  if (first)
-    if (push_ctx(bc, kASSIGNMENT_TARGET) < 0)
-      return COMP_ERR;
+  if (first && push_ctx(bc, kASSIGNMENT_TARGET) < 0)
+    return COMP_ERR;
 
   i32 ctx = peek_ctx(bc, kASSIGNMENT_TARGET, 0);
 
@@ -1131,6 +1132,11 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
       push_pop(bc, 1);
 
       pop_slot(bc, 1);
+      break;
+    case kEXISTING_REST_LOCAL:
+      push_op(bc, OP_TUPLE);
+
+      push_byte(bc, lvalues->len);
       break;
     case kINDEX:
     case kPROP:
@@ -2062,6 +2068,58 @@ i32 compile_exp_ipm(gab_engine *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
+i32 compile_exp_spd(gab_engine *gab, bc *bc, boolean assignable) {
+  if (match_ctx(bc, kASSIGNMENT_TARGET)) {
+    if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
+      return COMP_ERR;
+
+    gab_value id = prev_id(gab, bc);
+
+    u8 index;
+    i32 result = resolve_id(gab, bc, id, &index);
+
+    switch (result) {
+    case COMP_ID_NOT_FOUND:
+      index = compile_local(gab, bc, id, fMUTABLE);
+
+      push_slot(bc, 1);
+
+      return compile_assignment(gab, bc,
+                                (lvalue){
+                                    .kind = kNEW_REST_LOCAL,
+                                    .slot = peek_slot(bc),
+                                    .as.local = index,
+                                });
+    case COMP_RESOLVED_TO_LOCAL: {
+      i32 ctx = peek_ctx(bc, kFRAME, 0);
+      frame *f = &bc->contexts[ctx].as.frame;
+
+      if (!(f->local_flags[index] & fMUTABLE)) {
+        compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                       "Cannot assign to immutable variable.");
+        return COMP_ERR;
+      }
+
+      return compile_assignment(gab, bc,
+                                (lvalue){
+                                    .kind = kEXISTING_REST_LOCAL,
+                                    .slot = peek_slot(bc),
+                                    .as.local = index,
+                                });
+    }
+    case COMP_RESOLVED_TO_UPVALUE:
+      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                     "Captured variables are not assignable.");
+      return COMP_ERR;
+    default:
+      return COMP_ERR;
+    }
+  }
+
+  compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected an expression");
+  return COMP_ERR;
+}
+
 i32 compile_exp_idn(gab_engine *gab, bc *bc, boolean assignable) {
   gab_value id = prev_id(gab, bc);
 
@@ -2100,6 +2158,8 @@ i32 compile_exp_idn(gab_engine *gab, bc *bc, boolean assignable) {
       case COMP_RESOLVED_TO_UPVALUE:
         compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
                        "Captured variables are not assignable.");
+        return COMP_ERR;
+      default:
         return COMP_ERR;
       }
     }
