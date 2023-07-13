@@ -6,6 +6,7 @@
 #include "map.h"
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 
 void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   if (argc < 2) {
@@ -165,6 +166,7 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     if (!GAB_VAL_IS_SHAPE(argv[1])) {
+      printf("got %V\n", argv[1]);
       gab_panic(gab, vm, "Invalid call to gab_lib_new");
       return;
     }

@@ -34,9 +34,9 @@ gab_value vm_error(gab_engine *gab, gab_vm *vm, u8 flags, gab_status e,
 
       s_i8 func_name =
           gab_obj_string_ref(GAB_VAL_TO_STRING(v_gab_constant_val_at(
-              &frame->c->p->mod->constants, frame->c->p->mod->name)));
+              &frame->b->p->mod->constants, frame->b->p->mod->name)));
 
-      gab_module *mod = frame->c->p->mod;
+      gab_module *mod = frame->b->p->mod;
 
       if (!mod->source)
         break;
@@ -138,7 +138,7 @@ void gab_vm_destroy(gab_vm *self) {
   gab_gc_destroy(&self->gc);
 }
 
-void gab_pry(gab_engine *gab, gab_vm *vm, u64 value) {
+void gab_pry(gab_vm *vm, u64 value) {
   u64 frame_count = vm->fp - vm->fb;
 
   if (value >= frame_count)
@@ -147,14 +147,14 @@ void gab_pry(gab_engine *gab, gab_vm *vm, u64 value) {
   gab_vm_frame *f = vm->fp - value;
 
   s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(
-      v_gab_constant_val_at(&f->c->p->mod->constants, f->c->p->mod->name)));
+      v_gab_constant_val_at(&f->b->p->mod->constants, f->b->p->mod->name)));
 
   printf(ANSI_COLOR_GREEN " %03lu" ANSI_COLOR_RESET " closure:" ANSI_COLOR_CYAN
                           "%-20.*s" ANSI_COLOR_RESET " %d upvalues\n",
          frame_count - value, (i32)func_name.len, func_name.data,
-         f->c->p->nupvalues);
+         f->b->p->nupvalues);
 
-  for (i32 i = f->c->p->nslots - 1; i >= 0; i--) {
+  for (i32 i = f->b->p->nslots - 1; i >= 0; i--) {
     printf("%2s" ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET "%V\n",
            vm->sp == f->slots + i ? "->" : "", i, f->slots[i]);
   }
@@ -211,38 +211,39 @@ static inline boolean has_callspace(gab_vm *vm, u64 space_needed) {
   return true;
 }
 
-static inline boolean call_suspense(gab_vm *vm, gab_obj_suspense *sus, u8 arity,
+static inline boolean call_suspense(gab_vm *vm, gab_obj_suspense *sus, u8 have,
                                     u8 want) {
-  i16 space_needed = sus->len - sus->have - arity;
+  i16 space_needed = sus->len;
 
   if (space_needed > 0 && !has_callspace(vm, space_needed))
     return false;
 
   vm->fp++;
-  vm->fp->c = sus->c;
-  vm->fp->ip = sus->c->p->mod->bytecode.data + sus->offset;
+  vm->fp->b = sus->b;
+  vm->fp->ip = sus->b->p->mod->bytecode.data + sus->p->offset;
   vm->fp->want = want;
-  vm->fp->slots = vm->sp - arity - 1;
+  vm->fp->slots = vm->sp - have;
 
-  gab_value *from = vm->sp - arity;
-  gab_value *to = vm->fp->slots + sus->len - sus->have;
+  gab_value *from = vm->sp - have;
+  gab_value *to = vm->fp->slots + sus->len;
 
-  vm->sp = trim_return(from, to, arity, sus->want);
-  memcpy(vm->fp->slots, sus->frame, (sus->len - sus->have) * sizeof(gab_value));
+  vm->sp = trim_return(from, to, have, sus->p->want);
+
+  memcpy(vm->fp->slots, sus->frame, sus->len * sizeof(gab_value));
 
   return true;
 }
 
 static inline boolean call_block_var(gab_engine *gab, gab_vm *vm,
-                                     gab_obj_block *c, u8 have, u8 want) {
+                                     gab_obj_block *b, u8 have, u8 want) {
   vm->fp++;
-  vm->fp->c = c;
-  vm->fp->ip = c->p->mod->bytecode.data;
+  vm->fp->b = b;
+  vm->fp->ip = b->p->mod->bytecode.data;
   vm->fp->want = want;
 
-  u8 size = have - c->p->narguments;
+  u8 size = have - b->p->narguments;
 
-  have = c->p->narguments + 1;
+  have = b->p->narguments + 1;
 
   gab_obj_shape *shape = gab_obj_shape_create_tuple(gab, vm, size);
 
@@ -257,7 +258,7 @@ static inline boolean call_block_var(gab_engine *gab, gab_vm *vm,
 
   vm->fp->slots = vm->sp - have - 1;
 
-  for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
+  for (u8 i = b->p->narguments + 1; i < b->p->nlocals; i++)
     *vm->sp++ = GAB_VAL_NIL();
 
   return true;
@@ -275,26 +276,26 @@ i32 gab_vm_push(gab_vm *vm, u64 argc, gab_value argv[argc]) {
   return argc;
 }
 
-static inline boolean call_block(gab_vm *vm, gab_obj_block *c, u8 have,
+static inline boolean call_block(gab_vm *vm, gab_obj_block *b, u8 have,
                                  u8 want) {
-  if (!has_callspace(vm, c->p->nslots - c->p->narguments - 1)) {
+  if (!has_callspace(vm, b->p->nslots - b->p->narguments - 1)) {
     return false;
   }
 
   vm->fp++;
-  vm->fp->c = c;
-  vm->fp->ip = c->p->mod->bytecode.data;
+  vm->fp->b = b;
+  vm->fp->ip = b->p->mod->bytecode.data;
   vm->fp->want = want;
 
-  while (have < c->p->narguments)
+  while (have < b->p->narguments)
     *vm->sp++ = GAB_VAL_NIL(), have++;
 
-  while (have > c->p->narguments)
+  while (have > b->p->narguments)
     vm->sp--, have--;
 
   vm->fp->slots = vm->sp - have - 1;
 
-  for (u8 i = c->p->narguments + 1; i < c->p->nlocals; i++)
+  for (u8 i = b->p->narguments + 1; i < b->p->nlocals; i++)
     *vm->sp++ = GAB_VAL_NIL();
 
   return true;
@@ -317,7 +318,7 @@ static inline void call_builtin(gab_engine *gab, gab_vm *vm, gab_obj_builtin *b,
 
 a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
                         gab_value argv[argc]) {
-#if GAB_LOG_EXECUTION
+#if cGAB_LOG_VM
 #define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
 #else
 #define LOG()
@@ -370,7 +371,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 #define VM() (vm)
 #define INSTR() (instr)
 #define FRAME() (VM()->fp)
-#define CLOSURE() (FRAME()->c)
+#define CLOSURE() (FRAME()->b)
 #define MODULE() (CLOSURE()->p->mod)
 #define IP() (ip)
 #define TOP() (VM()->sp)
@@ -380,13 +381,13 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 #define UPVALUE(i) (CLOSURE()->upvalues[i])
 #define MOD_CONSTANT(k) (v_gab_constant_val_at(&MODULE()->constants, k))
 
-#if GAB_DEBUG_VM
+#if cGAB_DEBUG_VM
 #define PUSH(value)                                                            \
   ({                                                                           \
     if (TOP() > (SLOTS() + CLOSURE()->p->nslots + 1)) {                        \
       fprintf(stderr, "Stack exceeded frame (%d). %lu passed\n",               \
               CLOSURE()->p->nslots, TOP() - SLOTS() - CLOSURE()->p->nslots);   \
-      gab_pry(ENGINE(), VM(), 0);                                              \
+      gab_pry(VM(), 0);                                                        \
       exit(1);                                                                 \
     }                                                                          \
     *TOP()++ = value;                                                          \
@@ -421,7 +422,8 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 #define READ_CONSTANT (MOD_CONSTANT(READ_SHORT))
 #define READ_STRING (GAB_VAL_TO_STRING(READ_CONSTANT))
 #define READ_MESSAGE (GAB_VAL_TO_MESSAGE(READ_CONSTANT))
-#define READ_PROTOTYPE (GAB_VAL_TO_BLOCK_PROTO(READ_CONSTANT))
+#define READ_BLOCK_PROTOTYPE (GAB_VAL_TO_BLOCK_PROTO(READ_CONSTANT))
+#define READ_SUSPENSE_PROTOTYPE (GAB_VAL_TO_SUSPENSE_PROTO(READ_CONSTANT))
 
 #define STORE_FRAME() ({ FRAME()->ip = IP(); })
 #define LOAD_FRAME() ({ IP() = FRAME()->ip; })
@@ -924,9 +926,9 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       trim_values(TOP() - have, SLOTS() + start, have - 1, want);
 
-      DROP_N(have);
-
       LOCAL(start + want) = sus;
+
+      DROP_N(have);
 
       if (!GAB_VAL_IS_SUSPENSE(sus)) {
         ip += dist;
@@ -940,11 +942,10 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     CASE_CODE(NEXT) : {
       u8 iterator = READ_BYTE;
 
-      PUSH(LOCAL(iterator));
-
       STORE_FRAME();
 
-      if (!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(PEEK()), 0, VAR_EXP))
+      if (!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(LOCAL(iterator)), 0,
+                         VAR_EXP))
         return ERROR(GAB_OVERFLOW, "", "");
 
       LOAD_FRAME();
@@ -957,17 +958,16 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       u8 have;
 
       {
-        u8 want;
-
         CASE_CODE(YIELD) : {
+          gab_obj_suspense_proto *proto = READ_SUSPENSE_PROTOTYPE;
           have = parse_have(VM(), READ_BYTE);
-          want = READ_BYTE;
 
-          u64 frame_len = TOP() - SLOTS();
+          u64 frame_len = TOP() - SLOTS() - have;
+
+          assert(frame_len < UINT16_MAX);
 
           gab_value sus = GAB_VAL_OBJ(gab_obj_suspense_create(
-              ENGINE(), VM(), CLOSURE(), IP() - MODULE()->bytecode.data, have,
-              want, frame_len, SLOTS()));
+              ENGINE(), VM(), frame_len, CLOSURE(), proto, SLOTS()));
 
           PUSH(sus);
 
@@ -1457,7 +1457,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     }
 
     CASE_CODE(BLOCK) : {
-      gab_obj_block_proto *p = READ_PROTOTYPE;
+      gab_obj_block_proto *p = READ_BLOCK_PROTOTYPE;
 
       gab_obj_block *blk = gab_obj_block_create(ENGINE(), p);
 
@@ -1482,7 +1482,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     }
 
     CASE_CODE(MESSAGE) : {
-      gab_obj_block_proto *p = READ_PROTOTYPE;
+      gab_obj_block_proto *p = READ_BLOCK_PROTOTYPE;
       gab_obj_message *m = READ_MESSAGE;
       gab_value r = PEEK();
 

@@ -7,7 +7,7 @@ void gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
   }
 
   if (argc == 1) {
-    gab_pry(gab, vm, 0);
+    gab_pry(vm, 0);
 
     return;
   }
@@ -15,7 +15,7 @@ void gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
   if (argc == 2 && GAB_VAL_IS_NUMBER(argv[1])) {
     u64 depth = GAB_VAL_TO_NUMBER(argv[1]);
 
-    gab_pry(gab, vm, depth);
+    gab_pry(vm, depth);
 
     return;
   }

@@ -161,7 +161,7 @@ void gab_dis(gab_module *mod);
  *
  * @param depth The depth.
  */
-void gab_pry(gab_engine *gab, gab_vm *vm, u64 depth);
+void gab_pry(gab_vm *vm, u64 depth);
 
 /**
  * Decrement the reference count of a value

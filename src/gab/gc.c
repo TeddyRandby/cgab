@@ -185,6 +185,7 @@ static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
   switch (obj->kind) {
   case kGAB_STRING:
   case kGAB_BLOCK_PROTO:
+  case kGAB_SUSPENSE_PROTO:
   case kGAB_BUILTIN:
   case kGAB_NIL:
   case kGAB_NUMBER:
@@ -207,22 +208,24 @@ static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
   }
 
   case kGAB_SUSPENSE: {
-    gab_obj_suspense *eff = (gab_obj_suspense *)obj;
+    gab_obj_suspense *sus = (gab_obj_suspense *)obj;
 
-    for (u8 i = 0; i < eff->len; i++) {
-      if (GAB_VAL_IS_OBJ(eff->frame[i]))
-        fnc(gc, GAB_VAL_TO_OBJ(eff->frame[i]));
+    for (u8 i = 0; i < sus->len; i++) {
+      if (GAB_VAL_IS_OBJ(sus->frame[i]))
+        fnc(gc, GAB_VAL_TO_OBJ(sus->frame[i]));
     }
+
+    fnc(gc, (gab_obj *)sus->p);
 
     return;
   }
 
   case (kGAB_BLOCK): {
-    gab_obj_block *closure = (gab_obj_block *)obj;
+    gab_obj_block *b = (gab_obj_block *)obj;
 
-    for (u8 i = 0; i < closure->nupvalues; i++) {
-      if (GAB_VAL_IS_OBJ(closure->upvalues[i]))
-        fnc(gc, GAB_VAL_TO_OBJ(closure->upvalues[i]));
+    for (u8 i = 0; i < b->nupvalues; i++) {
+      if (GAB_VAL_IS_OBJ(b->upvalues[i]))
+        fnc(gc, GAB_VAL_TO_OBJ(b->upvalues[i]));
     }
 
     return;

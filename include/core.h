@@ -11,12 +11,12 @@
 #define cGAB_LOG_GC 0
 #endif
 
-// Log what is happening during execution.
+// Make sure functions don't break out of their frame
 #ifndef cGAB_DEBUG_VM
 #define cGAB_DEBUG_VM 0
 #endif
 
-// Make sure functions don't break out of their frame
+// Log what is happening during execution.
 #ifndef cGAB_LOG_VM
 #define cGAB_LOG_VM 0
 #endif
@@ -58,7 +58,7 @@
 
 // Garbage collection increment/decrement buffer size
 #ifndef cGAB_GC_DEC_BUFF_MAX
-#define cGAB_GC_DEC_BUFF_MAX (cGAB_STACK_MAX)
+#define cGAB_GC_DEC_BUFF_MAX (cGAB_STACK_MAX * 2)
 #endif
 
 #if cGAB_GC_DEC_BUFF_MAX < STACK_MAX
@@ -66,7 +66,7 @@
 #endif
 
 #ifndef cGAB_GC_INC_BUFF_MAX
-#define cGAB_GC_INC_BUFF_MAX (cGAB_STACK_MAX)
+#define cGAB_GC_INC_BUFF_MAX (cGAB_STACK_MAX * 2)
 #endif
 
 #if cGAB_GC_DEC_BUFF_MAX < STACK_MAX

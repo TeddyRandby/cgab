@@ -28,7 +28,6 @@
       gab, (gab_obj *)GAB_CREATE_FLEX_STRUCT(obj_type, flex_type, flex_count), \
       kind))
 
-
 gab_obj *gab_obj_create(gab_engine *gab, gab_obj *self, gab_kind k) {
   // Maintain the global list of objects
   self->next = gab->objects;
@@ -130,19 +129,16 @@ i32 gab_obj_dump(FILE *stream, gab_value value, u8 depth) {
   case kGAB_SUSPENSE: {
     gab_obj_suspense *sus = GAB_VAL_TO_SUSPENSE(value);
     gab_value name =
-        v_gab_constant_val_at(&sus->c->p->mod->constants, sus->c->p->mod->name);
+        v_gab_constant_val_at(&sus->b->p->mod->constants, sus->b->p->mod->name);
     return fprintf(stream, "<suspense %V>", name);
   }
   case kGAB_BUILTIN: {
     gab_obj_builtin *blt = GAB_VAL_TO_BUILTIN(value);
     return fprintf(stream, "<builtin %V>", blt->name);
   }
-  case kGAB_BLOCK_PROTO: {
-    gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(value);
-    gab_value name =
-        v_gab_constant_val_at(&proto->mod->constants, proto->mod->name);
-    return fprintf(stream, "<prototype %V>", name);
-  }
+  case kGAB_BLOCK_PROTO:
+  case kGAB_SUSPENSE_PROTO:
+    return fprintf(stream, "<prototype>");
   default: {
     fprintf(stderr, "%d is not an object.\n", GAB_VAL_TO_OBJ(value)->kind);
     exit(0);
@@ -571,22 +567,31 @@ gab_obj_container_create(gab_engine *gab, gab_vm *vm, gab_value type,
   return self;
 }
 
-gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm,
-                                          gab_obj_block *c, u64 offset, u8 have,
-                                          u8 want, u8 len,
-                                          gab_value frame[len]) {
+gab_obj_suspense_proto *gab_obj_suspense_proto_create(gab_engine *gab,
+                                                      u64 offset, u8 want) {
+  gab_obj_suspense_proto *self =
+      GAB_CREATE_OBJ(gab_obj_suspense_proto, kGAB_SUSPENSE_PROTO);
+
+  self->offset = offset;
+  self->want = want;
+
+  GAB_OBJ_GREEN((gab_obj *)self);
+
+  return self;
+}
+
+gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm, u16 len,
+                                          gab_obj_block *b,
+                                          gab_obj_suspense_proto *p,
+                                          gab_value frame[static len]) {
   gab_obj_suspense *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_suspense, gab_value, len, kGAB_SUSPENSE);
 
-  self->c = c;
-  self->offset = offset;
-  self->have = have;
-  self->want = want;
+  self->p = p;
+  self->b = b;
   self->len = len;
 
-  for (u8 i = 0; i < len; i++) {
-    self->frame[i] = frame[i];
-  }
+  memcpy(self->frame, frame, len * sizeof(gab_value));
 
   if (vm)
     gab_gc_iref_many(&vm->gc, vm, len, frame);

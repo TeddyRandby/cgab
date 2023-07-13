@@ -6,6 +6,7 @@
 typedef struct gab_obj gab_obj;
 typedef struct gab_obj_string gab_obj_string;
 typedef struct gab_obj_block_proto gab_obj_block_proto;
+typedef struct gab_obj_suspense_proto gab_obj_suspense_proto;
 typedef struct gab_obj_builtin gab_obj_builtin;
 typedef struct gab_obj_block gab_obj_block;
 typedef struct gab_obj_message gab_obj_message;
@@ -29,6 +30,7 @@ typedef enum gab_kind {
   kGAB_STRING,
   kGAB_MESSAGE,
   kGAB_BLOCK_PROTO,
+  kGAB_SUSPENSE_PROTO,
   kGAB_BUILTIN,
   kGAB_BLOCK,
   kGAB_CONTAINER,
@@ -664,6 +666,35 @@ gab_obj_container *
 gab_obj_container_create(gab_engine *gab, gab_vm *vm, gab_value type,
                          gab_obj_container_destructor destructor,
                          gab_obj_container_visitor visitor, void *data);
+/**
+ * A suspense object prototye, which holds the information about a suspense that
+ * we know at compile time
+ */
+struct gab_obj_suspense_proto {
+  gab_obj header;
+
+  u8 want;
+
+  u64 offset;
+};
+
+#define GAB_VAL_IS_SUSPENSE_PROTO(value)                                       \
+  (gab_val_is_obj_kind(value, kGAB_SUSPENSE_PROTO))
+#define GAB_VAL_TO_SUSPENSE_PROTO(value)                                       \
+  ((gab_obj_suspense_proto *)GAB_VAL_TO_OBJ(value))
+#define GAB_OBJ_TO_SUSPENSE_PROTO(value) ((gab_obj_suspense_proto *)value)
+
+/**
+ * Create a new suspense object prototype.
+ *
+ * @param gab The gab engine.
+ *
+ * @param offset The offset in the block.
+ *
+ * @param want The number of values the block wants.
+ */
+gab_obj_suspense_proto *
+gab_obj_suspense_proto_create(gab_engine *gab, u64 offset, u8 want);
 
 /**
  * A suspense object, which holds the state of a suspended coroutine.
@@ -671,11 +702,11 @@ gab_obj_container_create(gab_engine *gab, gab_vm *vm, gab_value type,
 struct gab_obj_suspense {
   gab_obj header;
 
-  u8 have, want, len;
+  u16 len;
 
-  gab_obj_block *c;
+  gab_obj_suspense_proto *p;
 
-  u64 offset;
+  gab_obj_block *b;
 
   gab_value frame[FLEXIBLE_ARRAY];
 };
@@ -693,19 +724,13 @@ struct gab_obj_suspense {
  *
  * @param c The paused block.
  *
- * @param offset The offset in the block.
- *
- * @param arity The arity of the block.
- *
- * @param want The number of values the block wants.
- *
  * @param len The length of the frame.
  *
  * @param frame The frame.
  */
-gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm,
-                                          gab_obj_block *block, u64 offset,
-                                          u8 arity, u8 want, u8 len,
+gab_obj_suspense *gab_obj_suspense_create(gab_engine *gab, gab_vm *vm, u16 len,
+                                          gab_obj_block *block,
+                                          gab_obj_suspense_proto *proto,
                                           gab_value frame[static len]);
 
 #endif

@@ -1,9 +1,14 @@
-'std':require
+'Range':require
 
-def list = :list
+test = do
+    for _ in :range(30) # Puts a suspense on the stack
+        for i, j in :range(30) # Puts a suspense on the stack
+            yield i, j # Creates a suspense, which references these two suspenses
+                        # And the block.
+        end
+    end
+end
 
-list:push!(1,2,3,5,8)
-
-for i in list:each
-    i:print
+for i, j in test()
+    '{i}, {j}':print
 end

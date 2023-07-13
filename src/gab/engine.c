@@ -658,20 +658,31 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
     return GAB_VAL_OBJ(copy);
   }
 
+  case kGAB_SUSPENSE_PROTO: {
+    gab_obj_suspense_proto *self = GAB_VAL_TO_SUSPENSE_PROTO(value);
+
+    gab_obj_suspense_proto *copy =
+        gab_obj_suspense_proto_create(gab, self->offset, self->want);
+
+    return GAB_VAL_OBJ(copy);
+  }
+
   case kGAB_SUSPENSE: {
     gab_obj_suspense *self = GAB_VAL_TO_SUSPENSE(value);
 
     gab_value frame[self->len];
 
+    gab_obj_suspense_proto *p_copy =
+        GAB_VAL_TO_SUSPENSE_PROTO(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->p)));
+
     for (u64 i = 0; i < self->len; i++)
       frame[i] = gab_val_copy(gab, vm, self->frame[i]);
 
     gab_obj_block *b_copy =
-        GAB_VAL_TO_BLOCK(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->c)));
+        GAB_VAL_TO_BLOCK(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->b)));
 
     gab_obj_suspense *copy =
-        gab_obj_suspense_create(gab, vm, b_copy, self->offset, self->have,
-                                self->want, self->len, frame);
+        gab_obj_suspense_create(gab, vm, self->len, b_copy, p_copy, frame);
 
     return GAB_VAL_OBJ(copy);
   }

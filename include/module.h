@@ -91,8 +91,9 @@ u8 gab_module_push_load_local(gab_module *, u8, gab_token, u64, s_i8);
 u8 gab_module_push_store_local(gab_module *, u8, gab_token, u64, s_i8);
 u8 gab_module_push_load_upvalue(gab_module *, u8, gab_token, u64, s_i8);
 u8 gab_module_push_return(gab_module *, u8, boolean vse, gab_token, u64, s_i8);
-u8 gab_module_push_yield(gab_module *, u8, boolean vse, gab_token, u64, s_i8);
 u8 gab_module_push_tuple(gab_module *, u8, boolean vse, gab_token, u64, s_i8);
+u8 gab_module_push_yield(gab_module *, u16 proto, u8 have, boolean vse,
+                         gab_token, u64, s_i8);
 u8 gab_module_push_send(gab_module *mod, u8 have, u16 message, boolean vse,
                         gab_token, u64, s_i8);
 u8 gab_module_push_pop(gab_module *, u8, gab_token, u64, s_i8);
@@ -100,7 +101,8 @@ u8 gab_module_push_pop(gab_module *, u8, gab_token, u64, s_i8);
 void gab_module_push_inline_cache(gab_module *, gab_token, u64, s_i8);
 u64 gab_module_push_iter(gab_module *self, u8 start, u8 want, boolean var,
                          gab_token t, u64 l, s_i8 s);
-void gab_module_push_next(gab_module *self, u8 local, gab_token t, u64 l, s_i8 s);
+void gab_module_push_next(gab_module *self, u8 local, gab_token t, u64 l,
+                          s_i8 s);
 u64 gab_module_push_loop(gab_module *gab);
 u64 gab_module_push_jump(gab_module *gab, u8, gab_token, u64, s_i8);
 

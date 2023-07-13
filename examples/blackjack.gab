@@ -16,7 +16,8 @@ def permutations![](opt_k)
     self:len == k then
         yield self
     end else
-        for i in :range(k:to(self:len))
+        for i in :range { from = k to = self:len }
+
             self:swap!(i, k)
 
             for val in self:permutations!(k + 1)

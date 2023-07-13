@@ -205,13 +205,14 @@ u8 gab_module_push_tuple(gab_module *self, u8 have, boolean vse, gab_token t,
   return OP_RETURN;
 }
 
-u8 gab_module_push_yield(gab_module *self, u8 have, boolean vse, gab_token t,
-                         u64 l, s_i8 s) {
+u8 gab_module_push_yield(gab_module *self, u16 proto, u8 have, boolean vse,
+                         gab_token t, u64 l, s_i8 s) {
   assert(have < 16);
 
   gab_module_push_op(self, OP_YIELD, t, l, s);
+  gab_module_push_short(self, proto, t, l, s);
   gab_module_push_byte(self, (have << 1) | vse, t, l, s);
-  gab_module_push_byte(self, 1, t, l, s);
+
   return OP_YIELD;
 }
 
@@ -297,6 +298,7 @@ void gab_module_push_next(gab_module *self, u8 next, gab_token t, u64 l,
 u64 gab_module_push_iter(gab_module *self, u8 start, u8 want, boolean var,
                          gab_token t, u64 l, s_i8 s) {
   want -= var;
+
   gab_module_push_op(self, OP_ITER, t, l, s);
   gab_module_push_byte(self, (want << 1) | var, t, l, s);
   gab_module_push_byte(self, start, t, l, s);
@@ -338,9 +340,20 @@ boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
   case OP_SEND_ANA:
     v_u8_set(&self->bytecode, self->bytecode.len - 18, want);
     return true;
-  case OP_YIELD:
-    v_u8_set(&self->bytecode, self->bytecode.len - 1, want);
+  case OP_YIELD: {
+    u16 offset =
+        ((u16)v_u8_val_at(&self->bytecode, self->bytecode.len - 3) << 8) |
+        v_u8_val_at(&self->bytecode, self->bytecode.len - 2);
+
+    gab_value value = v_gab_constant_val_at(&self->constants, offset);
+
+    assert(GAB_VAL_IS_SUSPENSE_PROTO(value));
+
+    gab_obj_suspense_proto *proto = GAB_VAL_TO_SUSPENSE_PROTO(value);
+
+    proto->want = want;
     return true;
+  }
   }
   return false;
 }

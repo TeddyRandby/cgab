@@ -2417,12 +2417,14 @@ i32 compile_exp_cal(gab_engine *gab, bc *bc, boolean assignable) {
     return COMP_ERR;
   }
 
-  pop_slot(bc, result);
+  pop_slot(bc, result + 1);
 
   u16 msg = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_CALL));
 
   gab_module_push_send(mod(bc), result, msg, vse, call_tok, call_line,
                        call_src);
+
+  push_slot(bc, 1);
 
   return VAR_EXP;
 }
@@ -2549,7 +2551,7 @@ i32 compile_exp_for(gab_engine *gab, bc *bc, boolean assignable) {
   frame *f = &bc->contexts[ctx].as.frame;
 
   u8 local_start = f->next_local;
-  u16 nlooplocals = 0;
+  u8 nlooplocals = 0;
   i32 result;
 
   boolean var = false;
@@ -2586,18 +2588,18 @@ i32 compile_exp_for(gab_engine *gab, bc *bc, boolean assignable) {
     }
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)));
 
-  push_slot(bc, nlooplocals + 1);
-
   if (result == COMP_ERR)
     return COMP_ERR;
+
+  initialize_local(bc, add_local(gab, bc, GAB_STRING(""), 0));
+
+  push_slot(bc, nlooplocals + 1);
 
   if (expect_token(bc, TOKEN_IN) < 0)
     return COMP_ERR;
 
   if (compile_expression(gab, bc) < 0)
     return COMP_ERR;
-
-  initialize_local(bc, add_local(gab, bc, GAB_STRING(""), 0));
 
   gab_module_try_patch_vse(mod(bc), VAR_EXP);
 
@@ -2692,11 +2694,18 @@ i32 compile_exp_sym(gab_engine *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_yld(gab_engine *gab, bc *bc, boolean assignable) {
-  push_slot(bc, 1);
 
   if (!get_rule(bc->lex.current_token).prefix) {
-    gab_module_push_yield(mod(bc), 0, false, bc->lex.previous_token, bc->line,
-                          bc->lex.previous_token_src);
+    gab_obj_suspense_proto *proto =
+        gab_obj_suspense_proto_create(gab, mod(bc)->bytecode.len + 4, 1);
+
+    u16 kproto = add_constant(mod(bc), GAB_VAL_OBJ(proto));
+
+    gab_module_push_yield(mod(bc), kproto, 0, false, bc->lex.previous_token,
+                          bc->line, bc->lex.previous_token_src);
+
+    push_slot(bc, 1);
+
     return VAR_EXP;
   }
 
@@ -2711,8 +2720,15 @@ i32 compile_exp_yld(gab_engine *gab, bc *bc, boolean assignable) {
     return COMP_ERR;
   }
 
-  gab_module_push_yield(mod(bc), result, vse, bc->lex.previous_token, bc->line,
-                        bc->lex.previous_token_src);
+  gab_obj_suspense_proto *proto =
+      gab_obj_suspense_proto_create(gab, mod(bc)->bytecode.len + 4, 1);
+
+  u16 kproto = add_constant(mod(bc), GAB_VAL_OBJ(proto));
+
+  push_slot(bc, 1);
+
+  gab_module_push_yield(mod(bc), kproto, result, vse, bc->lex.previous_token,
+                        bc->line, bc->lex.previous_token_src);
 
   pop_slot(bc, result);
 

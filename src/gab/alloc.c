@@ -111,7 +111,7 @@ void *gab_obj_alloc(gab_engine *gab, gab_obj *obj, u64 size) {
       u64 old_size = gab_obj_size(obj);
 
 #if cGAB_CHUNK_ALLOCATOR
-    if (old_size <= CHUNK_MAX_SIZE)
+    if (old_size < CHUNK_MAX_SIZE)
       chunk_dealloc(&gab->allocator, old_size, obj);
     else
 #endif
@@ -123,7 +123,7 @@ void *gab_obj_alloc(gab_engine *gab, gab_obj *obj, u64 size) {
   assert(!obj);
 
 #if cGAB_CHUNK_ALLOCATOR
-  if (size <= CHUNK_MAX_SIZE) {
+  if (size < CHUNK_MAX_SIZE) {
     return chunk_alloc(&gab->allocator, size);
   }
 #endif
