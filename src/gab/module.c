@@ -106,10 +106,9 @@ void gab_module_push_op(gab_module *self, gab_opcode op, gab_token t, u64 l,
   v_s_i8_push(&self->sources, s);
 };
 
-u8 replace_previous_op(gab_module *self, gab_opcode op, u8 args) {
+void replace_previous_op(gab_module *self, gab_opcode op, u8 args) {
   v_u8_set(&self->bytecode, self->bytecode.len - 1 - args, op);
   self->previous_compiled_op = op;
-  return op;
 };
 
 void gab_module_push_byte(gab_module *self, u8 data, gab_token t, u64 l,
@@ -128,8 +127,8 @@ void gab_module_push_short(gab_module *self, u16 data, gab_token t, u64 l,
 };
 
 /* These helpers return the instruction they push. */
-u8 gab_module_push_load_local(gab_module *self, u8 local, gab_token t, u64 l,
-                              s_i8 s) {
+void gab_module_push_load_local(gab_module *self, u8 local, gab_token t, u64 l,
+                                s_i8 s) {
   if (local < 9) {
     u8 op = MAKE_LOAD_LOCAL(local);
     switch (self->previous_compiled_op) {
@@ -147,77 +146,64 @@ u8 gab_module_push_load_local(gab_module *self, u8 local, gab_token t, u64 l,
     }
     }
     gab_module_push_op(self, op, t, l, s);
-    return op;
+    return;
   }
 
   gab_module_push_op(self, OP_LOAD_LOCAL, t, l, s);
   gab_module_push_byte(self, local, t, l, s);
-
-  return OP_LOAD_LOCAL;
 }
 
-u8 gab_module_push_load_upvalue(gab_module *self, u8 upvalue, gab_token t,
-                                u64 l, s_i8 s) {
+void gab_module_push_load_upvalue(gab_module *self, u8 upvalue, gab_token t,
+                                  u64 l, s_i8 s) {
   if (upvalue < 9) {
     u8 op = MAKE_LOAD_UPVALUE(upvalue);
     gab_module_push_op(self, op, t, l, s);
-
-    return op;
+    return;
   }
 
   gab_module_push_op(self, OP_LOAD_UPVALUE, t, l, s);
   gab_module_push_byte(self, upvalue, t, l, s);
-
-  return OP_LOAD_UPVALUE;
 };
 
-u8 gab_module_push_store_local(gab_module *self, u8 local, gab_token t, u64 l,
-                               s_i8 s) {
+void gab_module_push_store_local(gab_module *self, u8 local, gab_token t, u64 l,
+                                 s_i8 s) {
   if (local < 9) {
     u8 op = MAKE_STORE_LOCAL(local);
     gab_module_push_op(self, op, t, l, s);
-    return op;
+    return;
   }
 
   gab_module_push_op(self, OP_STORE_LOCAL, t, l, s);
   gab_module_push_byte(self, local, t, l, s);
-
-  return OP_STORE_LOCAL;
 };
 
-u8 gab_module_push_return(gab_module *self, u8 have, boolean vse, gab_token t,
-                          u64 l, s_i8 s) {
+void gab_module_push_return(gab_module *self, u8 have, boolean vse, gab_token t,
+                            u64 l, s_i8 s) {
   assert(have < 16);
 
   gab_module_push_op(self, OP_RETURN, t, l, s);
   gab_module_push_byte(self, (have << 1) | vse, t, l, s);
-
-  return OP_RETURN;
 }
 
-u8 gab_module_push_tuple(gab_module *self, u8 have, boolean vse, gab_token t,
-                         u64 l, s_i8 s) {
+void gab_module_push_tuple(gab_module *self, u8 have, boolean vse, gab_token t,
+                           u64 l, s_i8 s) {
   assert(have < 128);
 
   gab_module_push_op(self, OP_TUPLE, t, l, s);
   gab_module_push_byte(self, (have << 1) | vse, t, l, s);
-
-  return OP_RETURN;
 }
 
-u8 gab_module_push_yield(gab_module *self, u16 proto, u8 have, boolean vse,
-                         gab_token t, u64 l, s_i8 s) {
+void gab_module_push_yield(gab_module *self, u16 proto, u8 have, boolean vse,
+                           gab_token t, u64 l, s_i8 s) {
   assert(have < 16);
 
   gab_module_push_op(self, OP_YIELD, t, l, s);
   gab_module_push_short(self, proto, t, l, s);
   gab_module_push_byte(self, (have << 1) | vse, t, l, s);
-
-  return OP_YIELD;
 }
 
-u8 gab_module_push_send(gab_module *self, u8 have, u16 message, boolean vse,
-                        gab_token t, u64 l, s_i8 s) {
+void gab_module_push_send(gab_module *self, u8 have, u16 message, boolean vse,
+                          gab_token t, u64 l, s_i8 s) {
   assert(have < 16);
 
   gab_module_push_op(self, OP_SEND_ANA, t, l, s);
@@ -227,11 +213,9 @@ u8 gab_module_push_send(gab_module *self, u8 have, u16 message, boolean vse,
 
   gab_module_push_byte(self, OP_NOP, t, l, s); // Version
   gab_module_push_inline_cache(self, t, l, s);
-
-  return OP_SEND_ANA;
 }
 
-u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l, s_i8 s) {
+void gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l, s_i8 s) {
   if (n == 1) {
     u8 op = OP_POP;
     // Perform a simple optimazation
@@ -256,16 +240,15 @@ u8 gab_module_push_pop(gab_module *self, u8 n, gab_token t, u64 l, s_i8 s) {
     case OP_PUSH_NIL:
     case OP_DUP:
       self->bytecode.len--;
-      return OP_POP;
+      return;
     }
 
     gab_module_push_op(self, op, t, l, s);
-    return OP_POP;
+    return;
   }
 
   gab_module_push_op(self, OP_POP_N, t, l, s);
   gab_module_push_byte(self, n, t, l, s);
-  return OP_POP_N;
 }
 
 void gab_module_push_inline_cache(gab_module *self, gab_token t, u64 l,
@@ -295,12 +278,16 @@ void gab_module_push_next(gab_module *self, u8 next, gab_token t, u64 l,
   gab_module_push_byte(self, next, t, l, s);
 }
 
-u64 gab_module_push_iter(gab_module *self, u8 start, u8 want, boolean var,
-                         gab_token t, u64 l, s_i8 s) {
-  want -= var;
+void gab_module_push_pack(gab_module *self, u8 want, gab_token t, u64 l,
+                          s_i8 s) {
+  gab_module_push_op(self, OP_PACK, t, l, s);
+  gab_module_push_byte(self, want, t, l, s);
+}
 
+u64 gab_module_push_iter(gab_module *self, u8 start, u8 want, gab_token t,
+                         u64 l, s_i8 s) {
   gab_module_push_op(self, OP_ITER, t, l, s);
-  gab_module_push_byte(self, (want << 1) | var, t, l, s);
+  gab_module_push_byte(self, want, t, l, s);
   gab_module_push_byte(self, start, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
   gab_module_push_byte(self, OP_NOP, t, l, s);
@@ -550,6 +537,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_SEND_PRIMITIVE_CALL_BUILTIN:
   case OP_SEND_PRIMITIVE_CALL_SUSPENSE:
     return dumpSendInstruction(self, offset);
+  case OP_PACK:
   case OP_RETURN:
   case OP_YIELD:
   case OP_POP_N:

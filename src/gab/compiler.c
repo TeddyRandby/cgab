@@ -2561,7 +2561,6 @@ i32 compile_exp_for(gab_engine *gab, bc *bc, boolean assignable) {
       break; // If we encountered a var param, break out of this loop.
 
     switch (match_and_eat_token(bc, TOKEN_DOT_DOT)) {
-
     case COMP_OK:
       var = true;
       // Fallthrough
@@ -2607,7 +2606,11 @@ i32 compile_exp_for(gab_engine *gab, bc *bc, boolean assignable) {
 
   u64 loop = gab_module_push_loop(mod(bc));
 
-  u64 jump_start = gab_module_push_iter(mod(bc), local_start, nlooplocals, var,
+  if (var)
+    gab_module_push_pack(mod(bc), nlooplocals - 1, prev_tok, prev_line,
+                         prev_src);
+
+  u64 jump_start = gab_module_push_iter(mod(bc), local_start, nlooplocals,
                                         prev_tok, prev_line, prev_src);
 
   if (compile_expressions(gab, bc) < 0)

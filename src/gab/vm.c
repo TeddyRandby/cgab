@@ -899,30 +899,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       u8 have = VAR();
 
-      boolean var = want & FLAG_VAR_EXP;
-      want >>= 1;
-
       gab_value sus = PEEK();
-
-      if (var) {
-        i32 size = have - want - 1;
-
-        if (size < 0)
-          size = 0;
-
-        gab_obj_shape *shape = gab_obj_shape_create_tuple(gab, vm, size);
-
-        gab_value args =
-            GAB_VAL_OBJ(gab_obj_record_create(gab, vm, shape, 1, TOP() - have));
-
-        DROP_N(size + 1);
-
-        PUSH(args);
-
-        PUSH(sus);
-
-        have = ++want + 1;
-      }
 
       trim_values(TOP() - have, SLOTS() + start, have - 1, want);
 
@@ -1522,12 +1499,16 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
     CASE_CODE(PACK) : {
       u8 want = READ_BYTE;
-      u8 have = VAR();
+      u64 have = VAR();
+
+      printf("PACK: %d %lu\n", want, have);
+
+      gab_pry(VM(), 0);
 
       while (have < want)
         PUSH(GAB_VAL_NIL()), have++;
 
-      u8 len = have - want;
+      u64 len = have - want;
 
       gab_obj_shape *shape = gab_obj_shape_create_tuple(ENGINE(), VM(), len);
 
@@ -1538,7 +1519,11 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       PUSH(GAB_VAL_OBJ(rec));
 
+      gab_pry(VM(), 0);
+
       gab_gc_dref(GC(), VM(), GAB_VAL_OBJ(rec));
+
+      VAR() = want;
 
       NEXT();
     }
