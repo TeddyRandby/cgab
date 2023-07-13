@@ -1520,19 +1520,35 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       NEXT();
     }
 
-    {
-      gab_obj_shape *shape;
-      u8 len;
+    CASE_CODE(PACK) : {
+      u8 want = READ_BYTE;
+      u8 have = VAR();
 
-      CASE_CODE(RECORD) : {
-        len = READ_BYTE;
+      while (have < want)
+        PUSH(GAB_VAL_NIL()), have++;
 
-        shape = gab_obj_shape_create(ENGINE(), VM(), len, 2, TOP() - len * 2);
+      u8 len = have - want;
 
-        goto complete_record;
-      }
+      gab_obj_shape *shape = gab_obj_shape_create_tuple(ENGINE(), VM(), len);
 
-    complete_record : {
+      gab_obj_record *rec =
+          gab_obj_record_create(ENGINE(), VM(), shape, 1, TOP() - len);
+
+      DROP_N(len);
+
+      PUSH(GAB_VAL_OBJ(rec));
+
+      gab_gc_dref(GC(), VM(), GAB_VAL_OBJ(rec));
+
+      NEXT();
+    }
+
+    CASE_CODE(RECORD) : {
+      u8 len = READ_BYTE;
+
+      gab_obj_shape *shape =
+          gab_obj_shape_create(ENGINE(), VM(), len, 2, TOP() - len * 2);
+
       gab_obj_record *rec = gab_obj_record_create(ENGINE(), VM(), shape, 2,
                                                   TOP() + 1 - (len * 2));
 
@@ -1543,7 +1559,6 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       gab_gc_dref(GC(), VM(), GAB_VAL_OBJ(rec));
 
       NEXT();
-    }
     }
 
     CASE_CODE(TUPLE) : {
