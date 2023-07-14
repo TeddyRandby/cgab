@@ -2607,7 +2607,7 @@ i32 compile_exp_for(gab_engine *gab, bc *bc, boolean assignable) {
   u64 loop = gab_module_push_loop(mod(bc));
 
   if (var)
-    gab_module_push_pack(mod(bc), nlooplocals - 1, prev_tok, prev_line,
+    gab_module_push_pack(mod(bc), nlooplocals - 1, 1, prev_tok, prev_line,
                          prev_src);
 
   u64 jump_start = gab_module_push_iter(mod(bc), local_start, nlooplocals,

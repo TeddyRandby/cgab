@@ -897,21 +897,17 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       u8 start = READ_BYTE;
       u16 dist = READ_SHORT;
 
-      u8 have = VAR();
+      u64 have = VAR();
 
       gab_value sus = PEEK();
 
       trim_values(TOP() - have, SLOTS() + start, have - 1, want);
 
-      LOCAL(start + want) = sus;
-
       DROP_N(have);
 
-      if (!GAB_VAL_IS_SUSPENSE(sus)) {
-        ip += dist;
+      LOCAL(start + want) = sus;
 
-        NEXT();
-      }
+      IP() += dist * !GAB_VAL_IS_SUSPENSE(sus);
 
       NEXT();
     }
@@ -1197,6 +1193,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       gab_value tmp = PEEK();
 
       memcpy(TOP() - (n - 1), TOP() - n, (n - 1) * sizeof(gab_value));
+
       PEEK_N(n) = tmp;
 
       NEXT();
@@ -1498,12 +1495,11 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
     }
 
     CASE_CODE(PACK) : {
-      u8 want = READ_BYTE;
+      u8 below = READ_BYTE;
+      u8 above = READ_BYTE;
+
+      u64 want = below + above;
       u64 have = VAR();
-
-      printf("PACK: %d %lu\n", want, have);
-
-      gab_pry(VM(), 0);
 
       while (have < want)
         PUSH(GAB_VAL_NIL()), have++;
@@ -1513,17 +1509,17 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       gab_obj_shape *shape = gab_obj_shape_create_tuple(ENGINE(), VM(), len);
 
       gab_obj_record *rec =
-          gab_obj_record_create(ENGINE(), VM(), shape, 1, TOP() - len);
+          gab_obj_record_create(ENGINE(), VM(), shape, 1, TOP() - len - above);
 
-      DROP_N(len);
+      memcpy(TOP() - len, TOP() - above, above * sizeof(gab_value));
 
-      PUSH(GAB_VAL_OBJ(rec));
+      PEEK_N(above + 1) = GAB_VAL_OBJ(rec);
 
-      gab_pry(VM(), 0);
+      DROP_N(len + len == 0);
 
       gab_gc_dref(GC(), VM(), GAB_VAL_OBJ(rec));
 
-      VAR() = want;
+      VAR() = want + 1;
 
       NEXT();
     }

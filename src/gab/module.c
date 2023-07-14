@@ -278,10 +278,11 @@ void gab_module_push_next(gab_module *self, u8 next, gab_token t, u64 l,
   gab_module_push_byte(self, next, t, l, s);
 }
 
-void gab_module_push_pack(gab_module *self, u8 want, gab_token t, u64 l,
-                          s_i8 s) {
+void gab_module_push_pack(gab_module *self, u8 below, u8 above, gab_token t,
+                          u64 l, s_i8 s) {
   gab_module_push_op(self, OP_PACK, t, l, s);
-  gab_module_push_byte(self, want, t, l, s);
+  gab_module_push_byte(self, below, t, l, s);
+  gab_module_push_byte(self, above, t, l, s);
 }
 
 u64 gab_module_push_iter(gab_module *self, u8 start, u8 want, gab_token t,
@@ -493,9 +494,10 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_MATCH:
   case OP_POP:
   case OP_TYPE:
-  case OP_NOP: {
+  case OP_NOP:
     return dumpSimpleInstruction(self, offset);
-  }
+  case OP_PACK:
+    return dumpTwoByteInstruction(self, offset);
   case OP_LOGICAL_AND:
   case OP_JUMP_IF_FALSE:
   case OP_JUMP_IF_TRUE:
@@ -537,7 +539,6 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_SEND_PRIMITIVE_CALL_BUILTIN:
   case OP_SEND_PRIMITIVE_CALL_SUSPENSE:
     return dumpSendInstruction(self, offset);
-  case OP_PACK:
   case OP_RETURN:
   case OP_YIELD:
   case OP_POP_N:

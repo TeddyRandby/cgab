@@ -100,7 +100,7 @@ void gab_module_push_tuple(gab_module *, u8, boolean vse, gab_token, u64, s_i8);
 void gab_module_push_yield(gab_module *, u16 proto, u8 have, boolean vse,
                            gab_token, u64, s_i8);
 
-void gab_module_push_pack(gab_module *self, u8 want, gab_token, u64, s_i8);
+void gab_module_push_pack(gab_module *self, u8 below, u8 above, gab_token, u64, s_i8);
 
 void gab_module_push_send(gab_module *mod, u8 have, u16 message, boolean vse,
                           gab_token, u64, s_i8);
