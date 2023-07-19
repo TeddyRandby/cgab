@@ -1,9 +1,4 @@
-'dis':require
 
-def varfunc = do (first, ..args)
-    { first, args }:print
-end
+..a = 1, 2
 
-varfunc:dis
-
-varfunc(1,2)
+a:print
