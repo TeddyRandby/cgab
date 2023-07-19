@@ -606,7 +606,7 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
 
     gab_obj_block_proto *copy = gab_obj_prototype_create(
         gab, gab->modules, self->narguments, self->nslots, self->nlocals,
-        self->nupvalues, self->var, self->upv_desc, self->upv_desc);
+        self->nupvalues, self->upv_desc, self->upv_desc);
 
     memcpy(copy->upv_desc, self->upv_desc, self->nupvalues * 2);
 

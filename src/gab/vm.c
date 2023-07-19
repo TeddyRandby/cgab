@@ -13,6 +13,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 static const char *gab_token_names[] = {
@@ -169,7 +170,7 @@ static inline i32 parse_have(gab_vm *vm, u8 have) {
 
 static inline u64 trim_values(gab_value *from, gab_value *to, u64 have,
                               u8 want) {
-  u64 nulls = have == 0;
+  u64 nulls = 0;
 
   if ((have != want) && (want != VAR_EXP)) {
     if (have > want)
@@ -222,44 +223,13 @@ static inline boolean call_suspense(gab_vm *vm, gab_obj_suspense *sus, u8 have,
   vm->fp->b = sus->b;
   vm->fp->ip = sus->b->p->mod->bytecode.data + sus->p->offset;
   vm->fp->want = want;
-  vm->fp->slots = vm->sp - have;
+  vm->fp->slots = vm->sp - have - 1;
 
   gab_value *from = vm->sp - have;
   gab_value *to = vm->fp->slots + sus->len;
 
   vm->sp = trim_return(from, to, have, sus->p->want);
-
   memcpy(vm->fp->slots, sus->frame, sus->len * sizeof(gab_value));
-
-  return true;
-}
-
-static inline boolean call_block_var(gab_engine *gab, gab_vm *vm,
-                                     gab_obj_block *b, u8 have, u8 want) {
-  vm->fp++;
-  vm->fp->b = b;
-  vm->fp->ip = b->p->mod->bytecode.data;
-  vm->fp->want = want;
-
-  u8 size = have - b->p->narguments;
-
-  have = b->p->narguments + 1;
-
-  gab_obj_shape *shape = gab_obj_shape_create_tuple(gab, vm, size);
-
-  gab_value args =
-      GAB_VAL_OBJ(gab_obj_record_create(gab, vm, shape, 1, vm->sp - size));
-
-  vm->sp -= size;
-
-  *vm->sp++ = args;
-
-  gab_gc_dref(&vm->gc, vm, args);
-
-  vm->fp->slots = vm->sp - have - 1;
-
-  for (u8 i = b->p->narguments + 1; i < b->p->nlocals; i++)
-    *vm->sp++ = GAB_VAL_NIL();
 
   return true;
 }
@@ -276,27 +246,21 @@ i32 gab_vm_push(gab_vm *vm, u64 argc, gab_value argv[argc]) {
   return argc;
 }
 
-static inline boolean call_block(gab_vm *vm, gab_obj_block *b, u8 have,
+static inline boolean call_block(gab_vm *vm, gab_obj_block *b, u64 have,
                                  u8 want) {
-  if (!has_callspace(vm, b->p->nslots - b->p->narguments - 1)) {
+  u64 len = b->p->narguments == VAR_EXP ? have : b->p->narguments;
+
+  if (!has_callspace(vm, b->p->nslots - len - 1))
     return false;
-  }
 
   vm->fp++;
   vm->fp->b = b;
   vm->fp->ip = b->p->mod->bytecode.data;
   vm->fp->want = want;
-
-  while (have < b->p->narguments)
-    *vm->sp++ = GAB_VAL_NIL(), have++;
-
-  while (have > b->p->narguments)
-    vm->sp--, have--;
-
   vm->fp->slots = vm->sp - have - 1;
 
-  for (u8 i = b->p->narguments + 1; i < b->p->nlocals; i++)
-    *vm->sp++ = GAB_VAL_NIL();
+  vm->sp =
+      trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, len);
 
   return true;
 }
@@ -542,13 +506,8 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       STORE_FRAME();
 
-      if (blk->p->var) {
-        if (!call_block_var(ENGINE(), VM(), blk, have, want))
-          return ERROR(GAB_OVERFLOW, "", "");
-      } else {
-        if (!call_block(VM(), blk, have, want))
-          return ERROR(GAB_OVERFLOW, "", "");
-      }
+      if (!call_block(VM(), blk, have, want))
+        return ERROR(GAB_OVERFLOW, "", "");
 
       LOAD_FRAME();
 
@@ -636,13 +595,8 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       gab_obj_block *blk = GAB_VAL_TO_BLOCK(receiver);
 
-      if (blk->p->var) {
-        if (!call_block_var(ENGINE(), VM(), blk, have, want))
-          return ERROR(GAB_OVERFLOW, "", "");
-      } else {
-        if (!call_block(VM(), blk, have, want))
-          return ERROR(GAB_OVERFLOW, "", "");
-      }
+      if (!call_block(VM(), blk, have, want))
+        return ERROR(GAB_OVERFLOW, "", "");
 
       LOAD_FRAME();
 
@@ -896,16 +850,14 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       u8 want = READ_BYTE;
       u8 start = READ_BYTE;
       u16 dist = READ_SHORT;
-
       u64 have = VAR();
 
-      gab_value sus = PEEK();
+      gab_value sus = POP();
+      have--;
 
-      trim_values(TOP() - have, SLOTS() + start, have - 1, want);
+      TOP() = trim_return(TOP() - have, SLOTS() + start, have, want);
 
-      DROP_N(have);
-
-      LOCAL(start + want) = sus;
+      PUSH(sus);
 
       IP() += dist * !GAB_VAL_IS_SUSPENSE(sus);
 
@@ -1174,19 +1126,6 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       NEXT();
     }
 
-    CASE_CODE(DUP) : {
-      gab_value a = PEEK();
-      PUSH(a);
-      NEXT();
-    }
-
-    CASE_CODE(SWAP) : {
-      gab_value tmp = PEEK();
-      PEEK() = PEEK2();
-      PEEK2() = tmp;
-      NEXT();
-    }
-
     CASE_CODE(SHIFT) : {
       u8 n = READ_BYTE;
 
@@ -1205,6 +1144,29 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       DROP_N(READ_BYTE);
       PUSH(tmp);
 
+      NEXT();
+    }
+
+    CASE_CODE(POP) : {
+      DROP();
+      NEXT();
+    }
+
+    CASE_CODE(POP_N) : {
+      DROP_N(READ_BYTE);
+      NEXT();
+    }
+
+    CASE_CODE(DUP) : {
+      gab_value a = PEEK();
+      PUSH(a);
+      NEXT();
+    }
+
+    CASE_CODE(SWAP) : {
+      gab_value tmp = PEEK();
+      PEEK() = PEEK2();
+      PEEK2() = tmp;
       NEXT();
     }
 
@@ -1305,16 +1267,6 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       } else {
         PUSH(GAB_VAL_BOOLEAN(false));
       }
-      NEXT();
-    }
-
-    CASE_CODE(POP) : {
-      DROP();
-      NEXT();
-    }
-
-    CASE_CODE(POP_N) : {
-      DROP_N(READ_BYTE);
       NEXT();
     }
 
@@ -1500,22 +1452,19 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       u64 want = below + above;
       u64 have = VAR();
+      u64 len = have - want;
 
       while (have < want)
         PUSH(GAB_VAL_NIL()), have++;
-
-      u64 len = have - want;
 
       gab_obj_shape *shape = gab_obj_shape_create_tuple(ENGINE(), VM(), len);
 
       gab_obj_record *rec =
           gab_obj_record_create(ENGINE(), VM(), shape, 1, TOP() - len - above);
 
-      memcpy(TOP() - len, TOP() - above, above * sizeof(gab_value));
+      memcpy(TOP() - above, TOP() - above - 1, above * sizeof(gab_value));
 
       PEEK_N(above + 1) = GAB_VAL_OBJ(rec);
-
-      DROP_N(len + len == 0);
 
       gab_gc_dref(GC(), VM(), GAB_VAL_OBJ(rec));
 

@@ -1,6 +1,5 @@
 # @returns The error object
-#
-#
+
 def err[] { err = self } end
 
 def some?[] true end

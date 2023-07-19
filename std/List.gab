@@ -1,6 +1,7 @@
 'list':require
 
-impl $List def [](key)
+impl $List
+def [](key)
     ?key match
       ?{ from to }     => self:slice(key.from, key.to)        end
       ?{ from }        => self:slice(key.from)                end

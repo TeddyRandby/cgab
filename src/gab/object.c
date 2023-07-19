@@ -359,7 +359,7 @@ s_i8 gab_obj_string_ref(gab_obj_string *self) {
 gab_obj_block_proto *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
                                               u8 narguments, u8 nslots,
                                               u8 nlocals, u8 nupvalues,
-                                              boolean var, u8 flags[nupvalues],
+                                              u8 flags[nupvalues],
                                               u8 indexes[nupvalues]) {
   gab_obj_block_proto *self = GAB_CREATE_FLEX_OBJ(
       gab_obj_block_proto, u8, nupvalues * 2, kGAB_BLOCK_PROTO);
@@ -369,7 +369,6 @@ gab_obj_block_proto *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
   self->nslots = nslots;
   self->nlocals = nlocals;
   self->nupvalues = nupvalues;
-  self->var = var;
 
   for (u8 i = 0; i < nupvalues; i++) {
     self->upv_desc[i * 2] = flags[i];

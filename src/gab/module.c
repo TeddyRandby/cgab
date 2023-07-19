@@ -518,7 +518,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_LOAD_PROPERTY_ANA:
   case OP_LOAD_PROPERTY_MONO:
   case OP_LOAD_PROPERTY_POLY:
-    return dumpConstantInstruction(self, offset) + 10;
+    return dumpConstantInstruction(self, offset) + 16;
   case OP_SEND_ANA:
   case OP_SEND_MONO_CLOSURE:
   case OP_SEND_MONO_BUILTIN:

@@ -1,14 +1,9 @@
-'Range':require
+'dis':require
 
-test = do
-    for _ in :range(30) # Puts a suspense on the stack
-        for i, j in :range(30) # Puts a suspense on the stack
-            yield i, j # Creates a suspense, which references these two suspenses
-                        # And the block.
-        end
-    end
+def varfunc = do (first, ..args)
+    { first, args }:print
 end
 
-for ..all in test()
-    all:print
-end
+varfunc:dis
+
+varfunc(1,2)

@@ -225,7 +225,7 @@ gab_obj_builtin *gab_obj_builtin_create(gab_engine *gab, gab_builtin function,
 struct gab_obj_block_proto {
   gab_obj header;
 
-  u8 narguments, nupvalues, nslots, nlocals, var;
+  u8 narguments, nupvalues, nslots, nlocals;
 
   gab_module *mod;
 
@@ -262,7 +262,6 @@ struct gab_obj_block_proto {
 gab_obj_block_proto *gab_obj_prototype_create(gab_engine *gab, gab_module *mod,
                                               u8 narguments, u8 nslots,
                                               u8 nlocals, u8 nupvalues,
-                                              boolean var,
                                               u8 flags[static nupvalues],
                                               u8 indexes[static nupvalues]);
 
@@ -567,7 +566,7 @@ gab_obj_record *gab_obj_record_create_empty(gab_engine *gab,
  *
  * @param obj The record object.
  */
-void gab_obj_record_set(gab_vm *vm, gab_obj_record *obj, u64 offset,
+inline void gab_obj_record_set(gab_vm *vm, gab_obj_record *obj, u64 offset,
                         gab_value value);
 
 /**
@@ -580,7 +579,7 @@ void gab_obj_record_set(gab_vm *vm, gab_obj_record *obj, u64 offset,
  *
  * @return The value at the offset, or GAB_VAL_NIL.
  */
-gab_value gab_obj_record_get(gab_obj_record *obj, u64 offset);
+inline gab_value gab_obj_record_get(gab_obj_record *obj, u64 offset);
 
 /**
  * Get the value corresponding to the given key.
@@ -693,8 +692,8 @@ struct gab_obj_suspense_proto {
  *
  * @param want The number of values the block wants.
  */
-gab_obj_suspense_proto *
-gab_obj_suspense_proto_create(gab_engine *gab, u64 offset, u8 want);
+gab_obj_suspense_proto *gab_obj_suspense_proto_create(gab_engine *gab,
+                                                      u64 offset, u8 want);
 
 /**
  * A suspense object, which holds the state of a suspended coroutine.
