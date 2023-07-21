@@ -1079,6 +1079,16 @@ boolean preceding_lvalues_are_new_locals(v_lvalue *lvalues, u8 index) {
   return true;
 }
 
+boolean rest_lvalues(v_lvalue *lvalues) {
+  u8 rest = 0;
+
+  for (i32 i = 0; i < lvalues->len; i++)
+    rest += lvalues->data[i].kind == kNEW_REST_LOCAL ||
+            lvalues->data[i].kind == kEXISTING_REST_LOCAL;
+
+  return rest;
+}
+
 i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
   boolean first = !match_ctx(bc, kASSIGNMENT_TARGET);
 
@@ -1097,9 +1107,29 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
   if (!first)
     return COMP_OK;
 
-  while (match_and_eat_token(bc, TOKEN_COMMA))
+  u16 targets = 0;
+
+  while (match_and_eat_token(bc, TOKEN_COMMA)) {
     if (compile_exp_prec(gab, bc, kASSIGNMENT) < 0)
       return COMP_ERR;
+
+    targets++;
+  }
+
+  if (targets > lvalues->len) {
+    compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
+    return COMP_ERR;
+  }
+
+  u8 n_rest_values = rest_lvalues(lvalues);
+
+  if (n_rest_values > 1) {
+    compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                   "Only one rest value allowed");
+    return COMP_ERR;
+  }
+
+  u8 want = n_rest_values ? VAR_EXP : lvalues->len;
 
   if (expect_token(bc, TOKEN_EQUAL) < 0)
     return COMP_ERR;
@@ -1108,7 +1138,7 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
   u64 prop_line = bc->line;
   s_i8 prop_src = bc->lex.previous_token_src;
 
-  if (compile_tuple(gab, bc, lvalues->len, NULL) < 0)
+  if (compile_tuple(gab, bc, want, NULL) < 0)
     return COMP_ERR;
 
   for (u8 i = 0; i < lvalues->len; i++) {
@@ -1133,11 +1163,30 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
 
       pop_slot(bc, 1);
       break;
-    case kEXISTING_REST_LOCAL:
-      push_op(bc, OP_TUPLE);
+    case kNEW_REST_LOCAL: {
+      u8 before = i;
+      u8 after = lvalues->len - i - 1;
+      gab_module_push_pack(mod(bc), before, after, prop_tok, prop_line,
+                           prop_src);
 
-      push_byte(bc, lvalues->len);
+      if (!preceding_lvalues_are_new_locals(lvalues, i)) {
+        push_shift(bc, peek_slot(bc) - lval.as.local);
+
+        // We've shifted a value underneath all the remaining lvalues.
+        for (u8 j = 0; j < i; j++)
+          v_lvalue_ref_at(lvalues, j)->slot++;
+      }
+
+      initialize_local(bc, lval.as.local);
       break;
+    }
+    case kEXISTING_REST_LOCAL: {
+      u8 before = i;
+      u8 after = lvalues->len - i - 1;
+      gab_module_push_pack(mod(bc), before, after, prop_tok, prop_line,
+                           prop_src);
+      break;
+    }
     case kINDEX:
     case kPROP:
       push_shift(bc, peek_slot(bc) - lval.slot);
@@ -1200,7 +1249,7 @@ i32 compile_var_decl(gab_engine *gab, bc *bc, u8 flags, u8 additional_local) {
 
   do {
     if (local_count == 16) {
-      compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_LET, "");
+      compiler_error(bc, GAB_TOO_MANY_VARIABLES_IN_DEF, "");
       return COMP_ERR;
     }
 
@@ -2069,15 +2118,15 @@ i32 compile_exp_ipm(gab_engine *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_spd(gab_engine *gab, bc *bc, boolean assignable) {
-  if (match_ctx(bc, kASSIGNMENT_TARGET)) {
-    if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
-      return COMP_ERR;
+  if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
+    return COMP_ERR;
 
-    gab_value id = prev_id(gab, bc);
+  gab_value id = prev_id(gab, bc);
 
-    u8 index;
-    i32 result = resolve_id(gab, bc, id, &index);
+  u8 index;
+  i32 result = resolve_id(gab, bc, id, &index);
 
+  if (assignable && !match_ctx(bc, kTUPLE)) {
     switch (result) {
     case COMP_ID_NOT_FOUND:
       index = compile_local(gab, bc, id, fMUTABLE);
@@ -2116,7 +2165,7 @@ i32 compile_exp_spd(gab_engine *gab, bc *bc, boolean assignable) {
     }
   }
 
-  compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected an expression");
+  compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expression is not assignable");
   return COMP_ERR;
 }
 
@@ -2867,7 +2916,7 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(dot, PROPERTY, true), // PROPERTY
     PREFIX_INFIX(emp, snd, SEND, true), // MESSAGE
     INFIX(dot, PROPERTY, true),              // DOT
-    NONE(),                  // DOT_DOT
+    PREFIX(spd),                  // DOT_DOT
     NONE(),                            // EQUAL
     INFIX(bin, EQUALITY, false),              // EQUALEQUAL
     PREFIX(una),                            // QUESTION

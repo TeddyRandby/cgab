@@ -5,6 +5,7 @@ STATUS(MALFORMED_STRING, "Unexpected character in string literal")
 STATUS(MALFORMED_TOKEN, "Unrecognized token")
 STATUS(UNEXPECTED_TOKEN, "Unexpected token")
 STATUS(CAPTURED_MUTABLE, "Blocks cannot capture mutable variables")
+STATUS(TOO_MANY_VARIABLES_IN_DEF, "Cannot define more than 16 variables")
 STATUS(INVALID_IMPLICIT, "Cannot implicitly add parameters after locals")
 STATUS(TOO_MANY_LOCALS, "Blocks cannot have more than 255 locals")
 STATUS(TOO_MANY_UPVALUES, "Blocks cannot capture more than 255 locals")
@@ -14,8 +15,6 @@ STATUS(TOO_MANY_RETURN_VALUES, "Blocks cannot return more than 16 values")
 STATUS(TOO_MANY_EXPRESSIONS, "Expected fewer expressions")
 STATUS(TOO_MANY_EXPRESSIONS_IN_INITIALIZER,
        "Record literals cannot initialize more than 255 properties")
-STATUS(TOO_MANY_EXPRESSIONS_IN_LET,
-       "'let' expressions cannot declare more than 16 locals")
 STATUS(REFERENCE_BEFORE_INITIALIZE,
        "Variables cannot be referenced before they are initialized")
 STATUS(LOCAL_ALREADY_EXISTS, "A local with this name already exists")
