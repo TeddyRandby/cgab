@@ -549,6 +549,7 @@ u64 dumpInstruction(gab_module *self, u64 offset) {
   case OP_DROP:
   case OP_SHIFT:
   case OP_NEXT:
+  case OP_VAR:
   case OP_LOAD_LOCAL: {
     return dumpByteInstruction(self, offset);
   }

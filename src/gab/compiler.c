@@ -1073,7 +1073,8 @@ i32 compile_rec_tup_internals(gab_engine *gab, bc *bc, boolean *vse_out) {
 
 boolean preceding_lvalues_are_new_locals(v_lvalue *lvalues, u8 index) {
   for (i32 i = 0; i < index; i++)
-    if (lvalues->data[i].kind != kNEW_LOCAL)
+    if (lvalues->data[i].kind != kNEW_LOCAL &&
+        lvalues->data[i].kind != kNEW_REST_LOCAL)
       return false;
 
   return true;
@@ -1138,13 +1139,39 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
   u64 prop_line = bc->line;
   s_i8 prop_src = bc->lex.previous_token_src;
 
-  if (compile_tuple(gab, bc, want, NULL) < 0)
+  boolean vse = false;
+  i32 have = compile_tuple(gab, bc, want, &vse);
+
+  if (have < 0)
     return COMP_ERR;
+
+  if (!vse && n_rest_values) {
+    push_op(bc, OP_VAR);
+    push_byte(bc, have);
+  }
+
+  if (n_rest_values) {
+    for (u8 i = 0; i < lvalues->len; i++) {
+      if (lvalues->data[i].kind == kEXISTING_REST_LOCAL ||
+          lvalues->data[i].kind == kNEW_REST_LOCAL) {
+        u8 before = i;
+        u8 after = lvalues->len - i - 1;
+
+        gab_module_push_pack(mod(bc), before, after, prop_tok, prop_line,
+                             prop_src);
+
+        pop_slot(bc, vse ? 1 : have);
+
+        push_slot(bc, 1);
+      }
+    }
+  }
 
   for (u8 i = 0; i < lvalues->len; i++) {
     lvalue lval = v_lvalue_val_at(lvalues, lvalues->len - 1 - i);
 
     switch (lval.kind) {
+    case kNEW_REST_LOCAL:
     case kNEW_LOCAL:
       if (!preceding_lvalues_are_new_locals(lvalues, i)) {
         push_shift(bc, peek_slot(bc) - lval.as.local);
@@ -1156,6 +1183,8 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
 
       initialize_local(bc, lval.as.local);
       break;
+
+    case kEXISTING_REST_LOCAL:
     case kEXISTING_LOCAL:
       push_store_local(bc, lval.as.local);
 
@@ -1163,30 +1192,7 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
 
       pop_slot(bc, 1);
       break;
-    case kNEW_REST_LOCAL: {
-      u8 before = i;
-      u8 after = lvalues->len - i - 1;
-      gab_module_push_pack(mod(bc), before, after, prop_tok, prop_line,
-                           prop_src);
 
-      if (!preceding_lvalues_are_new_locals(lvalues, i)) {
-        push_shift(bc, peek_slot(bc) - lval.as.local);
-
-        // We've shifted a value underneath all the remaining lvalues.
-        for (u8 j = 0; j < i; j++)
-          v_lvalue_ref_at(lvalues, j)->slot++;
-      }
-
-      initialize_local(bc, lval.as.local);
-      break;
-    }
-    case kEXISTING_REST_LOCAL: {
-      u8 before = i;
-      u8 after = lvalues->len - i - 1;
-      gab_module_push_pack(mod(bc), before, after, prop_tok, prop_line,
-                           prop_src);
-      break;
-    }
     case kINDEX:
     case kPROP:
       push_shift(bc, peek_slot(bc) - lval.slot);
@@ -1199,7 +1205,9 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
 
     switch (lval.kind) {
     case kNEW_LOCAL:
+    case kNEW_REST_LOCAL:
     case kEXISTING_LOCAL:
+    case kEXISTING_REST_LOCAL:
       break;
 
     case kPROP: {

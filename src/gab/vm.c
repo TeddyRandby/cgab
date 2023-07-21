@@ -259,8 +259,7 @@ static inline boolean call_block(gab_vm *vm, gab_obj_block *b, u64 have,
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
 
-  vm->sp =
-      trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, len);
+  vm->sp = trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, len);
 
   return true;
 }
@@ -1446,6 +1445,11 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       NEXT();
     }
 
+    CASE_CODE(VAR) : {
+      VAR() = READ_BYTE;
+      NEXT();
+    }
+
     CASE_CODE(PACK) : {
       u8 below = READ_BYTE;
       u8 above = READ_BYTE;
@@ -1457,18 +1461,23 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       while (have < want)
         PUSH(GAB_VAL_NIL()), have++;
 
+      gab_value *ap = TOP() - above;
+
       gab_obj_shape *shape = gab_obj_shape_create_tuple(ENGINE(), VM(), len);
 
-      gab_obj_record *rec =
-          gab_obj_record_create(ENGINE(), VM(), shape, 1, TOP() - len - above);
+      gab_value rec = GAB_VAL_OBJ(
+          gab_obj_record_create(ENGINE(), VM(), shape, 1, ap - len));
 
-      memcpy(TOP() - above, TOP() - above - 1, above * sizeof(gab_value));
+      DROP_N(len + above);
 
-      PEEK_N(above + 1) = GAB_VAL_OBJ(rec);
+      PUSH(rec);
 
-      gab_gc_dref(GC(), VM(), GAB_VAL_OBJ(rec));
+      while (above--)
+        PUSH(*ap++);
 
       VAR() = want + 1;
+
+      gab_gc_dref(GC(), VM(), rec);
 
       NEXT();
     }

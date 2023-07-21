@@ -1,4 +1,6 @@
 
-..a = 1, 2
+one_through_five = do return 1,2,3,4,5 end
 
-a:print
+..a, b, c = one_through_five()
+
+{ a b c } :print
