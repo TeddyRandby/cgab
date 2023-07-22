@@ -52,8 +52,7 @@ typedef struct {
   u16 slot;
 
   union {
-    gab_value local;
-
+    u16 local;
     u16 property;
   } as;
 
@@ -1071,13 +1070,19 @@ i32 compile_rec_tup_internals(gab_engine *gab, bc *bc, boolean *vse_out) {
   return size - vse;
 }
 
-boolean preceding_lvalues_are_new_locals(v_lvalue *lvalues, u8 index) {
-  for (i32 i = 0; i < index; i++)
+boolean new_local_needs_shift(v_lvalue *lvalues, u8 index) {
+  for (i32 i = 0; i < index; i++) {
     if (lvalues->data[i].kind != kNEW_LOCAL &&
         lvalues->data[i].kind != kNEW_REST_LOCAL)
-      return false;
+      return true;
+  }
 
-  return true;
+  for (i32 i = index; i < lvalues->len; i++) {
+    if (lvalues->data[i].kind == kPROP || lvalues->data[i].kind == kINDEX)
+      return true;
+  }
+
+  return false;
 }
 
 boolean rest_lvalues(v_lvalue *lvalues) {
@@ -1160,9 +1165,15 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
         gab_module_push_pack(mod(bc), before, after, prop_tok, prop_line,
                              prop_src);
 
-        pop_slot(bc, vse ? 1 : have);
+        i32 slots = lvalues->len - have;
 
-        push_slot(bc, 1);
+        for (u8 j = i; j < lvalues->len; j++)
+          v_lvalue_ref_at(lvalues, j)->slot += slots;
+
+        if (slots > 0)
+          push_slot(bc, slots - 1);
+        else
+          pop_slot(bc, -slots + 1);
       }
     }
   }
@@ -1173,7 +1184,7 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
     switch (lval.kind) {
     case kNEW_REST_LOCAL:
     case kNEW_LOCAL:
-      if (!preceding_lvalues_are_new_locals(lvalues, i)) {
+      if (new_local_needs_shift(lvalues, lvalues->len - 1 - i)) {
         push_shift(bc, peek_slot(bc) - lval.as.local);
 
         // We've shifted a value underneath all the remaining lvalues.
@@ -2192,6 +2203,7 @@ i32 compile_exp_idn(gab_engine *gab, bc *bc, boolean assignable) {
         return compile_assignment(gab, bc,
                                   (lvalue){
                                       .kind = kNEW_LOCAL,
+                                      .slot = peek_slot(bc),
                                       .as.local = index,
                                   });
 
