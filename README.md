@@ -3,18 +3,19 @@ Gab is a dynamic scripting language.
 
 ```
 def Person {
-  name
+  first_name
+  last_name
   age
 }
 
-def celebrate[Person]()
-  'Happy Birthday {self.name}!':print
+def birthday[Person]()
+  'Happy Birthday {self.first_name}!':print
   self.age = self.age + 1
 end
 
-Bob = { name = 'Bob', age  = 22 }
+Bob = { first_name = 'Bob', last_name = 'Smith', age  = 22 }
 
-Bob:celebrate # Happy Birthday Bob
+Bob:birthday # Happy Birthday Bob
 ```
 # Goals
  - Be *fast*
@@ -46,7 +47,7 @@ do_work do (argument)
     'Here is my argument: {argument}':print
 end
 
-# Thus, spawning a thread to do some other work looks like:
+# Thus, spawning a thread to do some work with some configuration looks like:
 
 :fiber { mod = 'my_module' } do
     :some_other_work()
@@ -96,7 +97,6 @@ Gab provides an abstraction for polymorphism through *message passing*.
 A message is defined as follows:
 ```
 def Dog { ... }
-def Person { ... }
 
 # Define a message 'speak' that can be sent to the receiver <Dog>
 def speak[Dog]
@@ -151,6 +151,15 @@ end
 sus = say_hello()
 
 sus('Bob') # Hello Bob
+```
+### Multi Values
+The feature `multi values` is similar to multiple return values that are in other languages like Go and Lua.
+```
+def full_name[Person]
+    return self.first_name, self.last_name
+end
+
+first, last = Bob:full_name
 ```
 ### What about imports?
 Gab defines several builtin messages. `:print` is one you should be familiar with by now - `:require` is another!

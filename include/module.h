@@ -92,17 +92,17 @@ void gab_module_push_store_local(gab_module *, u8, gab_token, u64, s_i8);
 
 void gab_module_push_load_upvalue(gab_module *, u8, gab_token, u64, s_i8);
 
-void gab_module_push_return(gab_module *, u8, boolean vse, gab_token, u64,
+void gab_module_push_return(gab_module *, u8, boolean mv, gab_token, u64,
                             s_i8);
 
-void gab_module_push_tuple(gab_module *, u8, boolean vse, gab_token, u64, s_i8);
+void gab_module_push_tuple(gab_module *, u8, boolean mv, gab_token, u64, s_i8);
 
-void gab_module_push_yield(gab_module *, u16 proto, u8 have, boolean vse,
+void gab_module_push_yield(gab_module *, u16 proto, u8 have, boolean mv,
                            gab_token, u64, s_i8);
 
 void gab_module_push_pack(gab_module *self, u8 below, u8 above, gab_token, u64, s_i8);
 
-void gab_module_push_send(gab_module *mod, u8 have, u16 message, boolean vse,
+void gab_module_push_send(gab_module *mod, u8 have, u16 message, boolean mv,
                           gab_token, u64, s_i8);
 
 void gab_module_push_pop(gab_module *, u8, gab_token, u64, s_i8);
@@ -123,7 +123,7 @@ void gab_module_patch_jump(gab_module *, u64);
 
 void gab_module_patch_loop(gab_module *, u64, gab_token, u64, s_i8);
 
-boolean gab_module_try_patch_vse(gab_module *, u8);
+boolean gab_module_try_patch_mv(gab_module *, u8);
 
 u16 gab_module_add_constant(gab_module *, gab_value);
 

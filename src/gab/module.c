@@ -177,38 +177,38 @@ void gab_module_push_store_local(gab_module *self, u8 local, gab_token t, u64 l,
   gab_module_push_byte(self, local, t, l, s);
 };
 
-void gab_module_push_return(gab_module *self, u8 have, boolean vse, gab_token t,
+void gab_module_push_return(gab_module *self, u8 have, boolean mv, gab_token t,
                             u64 l, s_i8 s) {
   assert(have < 16);
 
   gab_module_push_op(self, OP_RETURN, t, l, s);
-  gab_module_push_byte(self, (have << 1) | vse, t, l, s);
+  gab_module_push_byte(self, (have << 1) | mv, t, l, s);
 }
 
-void gab_module_push_tuple(gab_module *self, u8 have, boolean vse, gab_token t,
+void gab_module_push_tuple(gab_module *self, u8 have, boolean mv, gab_token t,
                            u64 l, s_i8 s) {
   assert(have < 128);
 
   gab_module_push_op(self, OP_TUPLE, t, l, s);
-  gab_module_push_byte(self, (have << 1) | vse, t, l, s);
+  gab_module_push_byte(self, (have << 1) | mv, t, l, s);
 }
 
-void gab_module_push_yield(gab_module *self, u16 proto, u8 have, boolean vse,
+void gab_module_push_yield(gab_module *self, u16 proto, u8 have, boolean mv,
                            gab_token t, u64 l, s_i8 s) {
   assert(have < 16);
 
   gab_module_push_op(self, OP_YIELD, t, l, s);
   gab_module_push_short(self, proto, t, l, s);
-  gab_module_push_byte(self, (have << 1) | vse, t, l, s);
+  gab_module_push_byte(self, (have << 1) | mv, t, l, s);
 }
 
-void gab_module_push_send(gab_module *self, u8 have, u16 message, boolean vse,
+void gab_module_push_send(gab_module *self, u8 have, u16 message, boolean mv,
                           gab_token t, u64 l, s_i8 s) {
   assert(have < 16);
 
   gab_module_push_op(self, OP_SEND_ANA, t, l, s);
   gab_module_push_short(self, message, t, l, s);
-  gab_module_push_byte(self, (have << 1) | vse, t, l, s);
+  gab_module_push_byte(self, (have << 1) | mv, t, l, s);
   gab_module_push_byte(self, 1, t, l, s);
 
   gab_module_push_byte(self, OP_NOP, t, l, s); // Version
@@ -323,7 +323,7 @@ void gab_module_patch_loop(gab_module *self, u64 start, gab_token t, u64 l,
   gab_module_push_short(self, diff, t, l, s);
 }
 
-boolean gab_module_try_patch_vse(gab_module *self, u8 want) {
+boolean gab_module_try_patch_mv(gab_module *self, u8 want) {
   switch (self->previous_compiled_op) {
   case OP_SEND_ANA:
     v_u8_set(&self->bytecode, self->bytecode.len - 18, want);
