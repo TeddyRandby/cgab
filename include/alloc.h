@@ -5,7 +5,6 @@
 
 #define CHUNK_MAX_SIZE 256
 
-// Can't be greater than 64 - because the mask is 64 bits
 #define CHUNK_LEN 64
 
 typedef struct gab_chunk gab_chunk;

@@ -162,6 +162,20 @@ end
       varfunc(onetwo())
    end
 
+   :it('should work more with varargs') do
+      def varfunc = do (first, ..args, last)
+        first:expect(1)
+        args[0]:expect(2)
+        last:expect(3)
+      end
+
+      varfunc(1,2,3)
+
+      def onetwothree = do return 1, 2, 3 end
+
+      varfunc(onetwothree())
+   end
+
    :it('should take implicit parameters') do
         def imp_func = do (a)
             a:expect(@1)
@@ -203,11 +217,11 @@ end
   :it('should work for all kinds of keys') do
     obj = {
         [?{}] = 3
-        [$hi] = 4
+        [.hi] = 4
     }
 
     3:expect(obj[?{}])
-    4:expect(obj[$hi])
+    4:expect(obj[.hi])
   end
 
   :it('should work when shapes change') do
@@ -263,7 +277,7 @@ end
     def Vector { x y }
 
     def + [Vector](other)
-        other:is(Vector) or $INVALID_ARGUMENTS:panic
+        other:is(Vector) or .INVALID_ARGUMENTS:panic
 
         {
             x = self.x + other.x
@@ -279,7 +293,7 @@ end
     end
 
     def < [Vector](other)
-        other:is(Vector) or $INVALID_ARGUMENTS:panic
+        other:is(Vector) or .INVALID_ARGUMENTS:panic
 
         mag = self.x * self.x + self.y * self.y
         other_mag = other.x * other.x + other.y * other.y
@@ -338,7 +352,7 @@ end
         1:expect(1:test)
     end
 
-    def test[$Number](a)
+    def test[.Number](a)
         self + 1
     end
 
@@ -499,7 +513,7 @@ end
 
     nil:expect_not(map)
 
-    map:at('hi'):expect('bob')
+    map['hi']:expect('bob')
   end
 
   :it('should put') do
@@ -507,8 +521,8 @@ end
 
     map:put!('hi', 'bob')
 
-    map:at('hi'):expect('bob')
-    map:at('bye'):expect(nil)
+    map['hi']:expect('bob')
+    map['bye']:expect(nil)
   end
 
   :it('should get/set') do

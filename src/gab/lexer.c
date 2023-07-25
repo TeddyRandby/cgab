@@ -267,20 +267,6 @@ gab_token other(gab_lexer *self) {
     return TOKEN_AT;
   }
 
-  case '$': {
-    advance(self);
-
-    if (is_alpha(peek(self))) {
-      // If we didn't get a keyword, return a token message
-      if (identifier(self) == TOKEN_IDENTIFIER)
-        return TOKEN_SYMBOL;
-
-      // Otherwise, we got a keyword and this was an error
-      return error(self, GAB_MALFORMED_TOKEN);
-    }
-
-    return TOKEN_DOLLAR;
-  }
   case '.': {
     advance(self);
 

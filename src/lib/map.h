@@ -2,7 +2,7 @@
 
 #define K gab_value
 #define V gab_value
-#define DEF_V GAB_VAL_NIL()
+#define DEF_V GAB_VAL_UNDEFINED()
 #define HASH(a) a
 #define EQUAL(a, b) (a == b)
 #include "include/dict.h"

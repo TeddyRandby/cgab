@@ -107,10 +107,11 @@ void chunk_dealloc(gab_allocator *s, u64 size, void *ptr) {
 void *gab_obj_alloc(gab_engine *gab, gab_obj *obj, u64 size) {
 
   if (size == 0) {
-      assert(obj);
-      u64 old_size = gab_obj_size(obj);
+    assert(obj);
 
 #if cGAB_CHUNK_ALLOCATOR
+    u64 old_size = gab_obj_size(obj);
+
     if (old_size < CHUNK_MAX_SIZE)
       chunk_dealloc(&gab->allocator, old_size, obj);
     else

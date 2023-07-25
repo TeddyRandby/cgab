@@ -32,12 +32,12 @@ def headToHead = do (a, b, runs)
 end
 
 
-def timeit[$Block](opts)
+def timeit[.Block](opts)
   def avg = ?opts match
     ?{ runs against } => headToHead(self, opts.against, opts.runs)  end
     ?{ runs }         => bench(self, opts.runs)                     end
-    $Number           => bench(self, opts)                          end
-    else              => $INVALID_ARGUMENTS:panic                   end
+    .Number           => bench(self, opts)                          end
+    else              => .INVALID_ARGUMENTS:panic                   end
 
   '{self} ran in avg of {avg}s':print
 end

@@ -1,12 +1,12 @@
 'string':require
 
-impl $String
+impl .String
   def [] (opts)
       ?opts match
           ?{ from to } => self:slice(opts.from, opts.to) end
           ?{ from }    => self:slice(opts.from)          end
           ?{ to }      => self:slice(nil, opts.to)       end
-          $Number      => self:slice(opts)               end
-          else         => $INVALID_ARGUMENTS:panic       end
+          .Number      => self:slice(opts)               end
+          else         => .INVALID_ARGUMENTS:panic       end
   end
 end

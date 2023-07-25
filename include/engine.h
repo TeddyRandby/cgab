@@ -77,6 +77,4 @@ gab_obj_shape *gab_engine_find_shape(gab_engine *gab, u64 size, u64 stride,
                                      u64 hash, gab_value keys[size]);
 
 i32 gab_engine_intern(gab_engine *gab, gab_value value);
-
-void gab_engine_collect(gab_engine* gab);
 #endif

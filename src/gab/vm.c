@@ -985,12 +985,12 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
         NEXT();
       }
 
-      DROP();
+      if (prop_offset == UINT64_MAX) {
+        STORE_FRAME();
+        return ERROR(GAB_MISSING_PROPERTY, "On '%V'", index);
+      }
 
-      if (prop_offset == UINT64_MAX)
-        PUSH(GAB_VAL_NIL());
-      else
-        PUSH(gab_obj_record_get(rec, prop_offset));
+      PEEK() = gab_obj_record_get(rec, prop_offset);
 
       NEXT();
     }
@@ -1013,10 +1013,12 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
 
       DROP();
 
-      if (prop_offset == UINT64_MAX)
-        PUSH(GAB_VAL_NIL());
-      else
-        PUSH(gab_obj_record_get(rec, prop_offset));
+      if (prop_offset == UINT64_MAX) {
+        STORE_FRAME();
+        return ERROR(GAB_MISSING_PROPERTY, "On '%V'", index);
+      }
+
+      PEEK() = gab_obj_record_get(rec, prop_offset);
 
       NEXT();
     }

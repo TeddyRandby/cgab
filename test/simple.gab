@@ -1,5 +1,10 @@
-a = { b c }
+'std':require
 
-e, a.b, a.c = 1, 2, 3
+map = :map
 
-a:print
+map:put!('a', 1)
+map:put!('b', 2)
+map:put!('c', 3)
+
+[ map:at('a') ] :print
+[ map:at('d') ] :print

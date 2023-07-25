@@ -21,6 +21,6 @@ def range[](opts, to)
         ?{  to  }    => return range_up(0, opts.to )                   end
         ?{ from }    => return range_down(opts.from, 0)                end
         ?{ from to } => return range_up(opts.from, opts.to)            end
-        $Number      => return range_up(to and opts or 0, to or opts)  end
-        else         => $INVALID_ARGUMENTS:panic                end
+        .Number      => return range_up(to and opts or 0, to or opts)  end
+        else         => .INVALID_ARGUMENTS:panic                end
 end

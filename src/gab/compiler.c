@@ -686,17 +686,15 @@ static i32 compile_local(gab_engine *gab, bc *bc, gab_value name, u8 flags) {
 }
 
 i32 compile_parameters(gab_engine *gab, bc *bc) {
-  boolean mv = false;
+  i32 mv = -1;
   i32 result = 0;
   u8 narguments = 0;
 
-  if (!match_and_eat_token(bc, TOKEN_LPAREN)) {
+  if (!match_and_eat_token(bc, TOKEN_LPAREN))
     goto fin;
-  }
 
-  if (match_and_eat_token(bc, TOKEN_RPAREN) > 0) {
+  if (match_and_eat_token(bc, TOKEN_RPAREN) > 0)
     goto fin;
-  }
 
   do {
 
@@ -708,30 +706,16 @@ i32 compile_parameters(gab_engine *gab, bc *bc) {
     narguments++;
 
     switch (match_and_eat_token(bc, TOKEN_DOT_DOT)) {
-    case COMP_OK: {
-      // This is a vararg parameter
-      if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
+    case COMP_OK:
+      if (mv >= 0) {
+        compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                       "Multiple variadic parameters");
         return COMP_ERR;
+      }
 
-      s_i8 name = bc->lex.previous_token_src;
-
-      gab_value prop = GAB_VAL_OBJ(gab_obj_string_create(gab, name));
-
-      i32 local = compile_local(gab, bc, prop, 0);
-
-      if (local < 0)
-        return COMP_ERR;
-
-      initialize_local(bc, local);
-
-      if (expect_token(bc, TOKEN_RPAREN) < 0)
-        return COMP_ERR;
-
-      // This should be the last parameter
-      mv = true;
       narguments--;
-      goto fin;
-    }
+      mv = narguments;
+      // falthrough
 
     case COMP_TOKEN_NO_MATCH: {
       // This is a normal paramter
@@ -766,14 +750,14 @@ i32 compile_parameters(gab_engine *gab, bc *bc) {
     return COMP_ERR;
 
 fin:
-  if (mv)
-    gab_module_push_pack(mod(bc), narguments, 0, bc->lex.previous_token,
+  if (mv >= 0)
+    gab_module_push_pack(mod(bc), mv, narguments - mv, bc->lex.previous_token,
                          bc->line, bc->lex.previous_token_src);
 
   i32 ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
-  f->narguments = mv ? VAR_EXP : narguments;
+  f->narguments = mv >= 0 ? VAR_EXP : narguments;
   return f->narguments;
 }
 
@@ -1585,6 +1569,12 @@ i32 compile_exp_else(gab_engine *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
+i32 compile_pattern(gab_engine* gab, bc *bc) {
+    do {
+    } while (match_and_eat_token(bc, TOKEN_COMMA));
+
+}
+
 i32 compile_exp_mch(gab_engine *gab, bc *bc, boolean assignable) {
   if (skip_newlines(bc) < 0)
     return COMP_ERR;
@@ -1596,7 +1586,7 @@ i32 compile_exp_mch(gab_engine *gab, bc *bc, boolean assignable) {
   v_u64 done_jumps;
   v_u64_create(&done_jumps, 8);
 
-  // While we don't match the closing question
+  // While we don't match the closing else case
   while (match_and_eat_token(bc, TOKEN_ELSE) == COMP_TOKEN_NO_MATCH) {
     if (next != 0)
       gab_module_patch_jump(mod(bc), next);
@@ -2681,15 +2671,12 @@ i32 compile_exp_for(gab_engine *gab, bc *bc, boolean assignable) {
   u8 nlooplocals = 0;
   i32 result;
 
-  boolean var = false;
+  i32 mv = -1;
 
   do {
-    if (var)
-      break; // If we encountered a var param, break out of this loop.
-
     switch (match_and_eat_token(bc, TOKEN_DOT_DOT)) {
     case COMP_OK:
-      var = true;
+      mv = nlooplocals;
       // Fallthrough
     case COMP_TOKEN_NO_MATCH: {
       if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
@@ -2733,8 +2720,8 @@ i32 compile_exp_for(gab_engine *gab, bc *bc, boolean assignable) {
 
   u64 loop = gab_module_push_loop(mod(bc));
 
-  if (var)
-    gab_module_push_pack(mod(bc), nlooplocals - 1, 1, prev_tok, prev_line,
+  if (mv >= 0)
+    gab_module_push_pack(mod(bc), mv, nlooplocals - mv, prev_tok, prev_line,
                          prev_src);
 
   u64 jump_start = gab_module_push_iter(mod(bc), local_start, nlooplocals,
@@ -2929,10 +2916,9 @@ const gab_compile_rule gab_bc_rules[] = {
     PREFIX(emp),       // COLON
     PREFIX_INFIX(amp, bin, BITWISE_AND, false),           // AMPERSAND
     NONE(),           // DOLLAR
-    PREFIX(sym), // SYMBOL
-    INFIX(dot, PROPERTY, true), // PROPERTY
+    PREFIX_INFIX(sym, dot, PROPERTY, true), // PROPERTY
     PREFIX_INFIX(emp, snd, SEND, true), // MESSAGE
-    INFIX(dot, PROPERTY, true),              // DOT
+    NONE(),              // DOT
     PREFIX(spd),                  // DOT_DOT
     NONE(),                            // EQUAL
     INFIX(bin, EQUALITY, false),              // EQUALEQUAL

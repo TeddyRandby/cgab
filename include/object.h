@@ -51,7 +51,6 @@ typedef enum gab_kind {
   gab_obj* and the kind of pointer denoted by gab_obj->kind
 */
 struct gab_obj {
-  gab_obj *next;
   i32 references;
   gab_kind kind;
   u8 flags;
@@ -72,7 +71,6 @@ struct gab_obj {
 #define fGAB_OBJ_WHITE (1 << 3)
 #define fGAB_OBJ_PURPLE (1 << 4)
 #define fGAB_OBJ_GREEN (1 << 5)
-#define fGAB_OBJ_GARBAGE (1 << 6)
 
 #define GAB_OBJ_IS_BUFFERED(obj) ((obj)->flags & fGAB_OBJ_BUFFERED)
 #define GAB_OBJ_IS_BLACK(obj) ((obj)->flags & fGAB_OBJ_BLACK)
@@ -80,12 +78,9 @@ struct gab_obj {
 #define GAB_OBJ_IS_WHITE(obj) ((obj)->flags & fGAB_OBJ_WHITE)
 #define GAB_OBJ_IS_PURPLE(obj) ((obj)->flags & fGAB_OBJ_PURPLE)
 #define GAB_OBJ_IS_GREEN(obj) ((obj)->flags & fGAB_OBJ_GREEN)
-#define GAB_OBJ_IS_GARBAGE(obj) ((obj)->flags & fGAB_OBJ_GARBAGE)
 
 #define GAB_OBJ_BUFFERED(obj) ((obj)->flags |= fGAB_OBJ_BUFFERED)
 #define GAB_OBJ_NOT_BUFFERED(obj) ((obj)->flags &= ~fGAB_OBJ_BUFFERED)
-
-#define GAB_OBJ_GARBAGE(obj) ((obj)->flags |= fGAB_OBJ_GARBAGE)
 
 #define GAB_OBJ_GREEN(obj)                                                     \
   ((obj)->flags = ((obj)->flags & fGAB_OBJ_BUFFERED) | fGAB_OBJ_GREEN)

@@ -7,7 +7,7 @@ typedef struct gab_engine gab_engine;
 typedef struct gab_obj gab_obj;
 typedef struct gab_vm gab_vm;
 
-#if GAB_LOG_GC
+#if cGAB_LOG_GC
 
 typedef struct rc_update {
   const char *file;
@@ -28,17 +28,23 @@ typedef struct rc_update {
 
 #endif
 
+#define T gab_obj*
+#define NAME gab_obj
+#include "vector.h"
+
 typedef struct gab_gc {
   u64 nincrements;
   u64 ndecrements;
   u64 nroots;
 
-#if GAB_LOG_GC
+#if cGAB_LOG_GC
   v_rc_update tracked_increments;
   v_rc_update tracked_decrements;
 
   d_rc_tracker tracked_values;
 #endif
+
+  v_gab_obj garbage;
 
   gab_obj *roots[cGAB_GC_ROOT_BUFF_MAX];
   gab_obj *increments[cGAB_GC_INC_BUFF_MAX];
@@ -59,7 +65,7 @@ void gab_gc_iref_many(gab_gc* gc, gab_vm *vm, u64 len,
 void gab_gc_dref_many(gab_gc* gc, gab_vm *vm, u64 len,
                       gab_value values[len]);
 
-#if GAB_LOG_GC
+#if cGAB_LOG_GC
 
 void __gab_gc_iref(gab_gc* gc, gab_vm *vm, gab_value val, const char *file,
                    i32 line);

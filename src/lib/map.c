@@ -70,8 +70,15 @@ void gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_value res = map_at(map, argv[1]);
 
-  gab_push(vm, 1, &res);
+  if (GAB_VAL_IS_UNDEFINED(res)) {
+    gab_value tag = GAB_STRING("none");
+    gab_push(vm, 1, &tag);
+    return;
+  }
 
+  gab_value tag = GAB_STRING("some");
+  gab_push(vm, 1, &tag);
+  gab_push(vm, 1, &res);
   return;
 }
 

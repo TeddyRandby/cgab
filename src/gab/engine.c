@@ -245,8 +245,6 @@ void gab_destroy(gab_engine *gab) {
 
   gab_gc_run(gc, NULL);
 
-  gab_engine_collect(gab);
-
   gab_imports_destroy(gab, gc);
 
   d_strings_destroy(&gab->interned_strings);
@@ -267,8 +265,6 @@ void gab_destroy(gab_engine *gab) {
 void gab_collect(gab_engine *gab, gab_vm *vm) {
   if (vm != NULL)
     gab_gc_run(&vm->gc, vm);
-
-  gab_engine_collect(gab);
 }
 
 void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
@@ -533,33 +529,6 @@ int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
 }
 
 u64 gab_seed(gab_engine *gab) { return gab->hash_seed; }
-
-void gab_engine_collect(gab_engine *gab) {
-  // Maintain the global list of objects
-  gab_obj *obj = gab->objects;
-  gab_obj *prev = NULL;
-
-  while (obj) {
-    if (GAB_OBJ_IS_GARBAGE(obj)) {
-
-      gab_obj *old_obj = obj;
-      obj = obj->next;
-
-      gab_obj_destroy(old_obj);
-      gab_obj_alloc(gab, old_obj, 0);
-
-      if (prev)
-        prev->next = obj;
-
-      if (old_obj == gab->objects)
-        gab->objects = obj;
-
-    } else {
-      prev = obj;
-      obj = obj->next;
-    }
-  }
-}
 
 gab_value gab_scratch(gab_engine *gab, gab_value value) {
   v_gab_value_push(&gab->scratch, value);

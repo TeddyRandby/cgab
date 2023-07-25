@@ -30,7 +30,6 @@
 
 gab_obj *gab_obj_create(gab_engine *gab, gab_obj *self, gab_kind k) {
   // Maintain the global list of objects
-  self->next = gab->objects;
   gab->objects = self;
 
   self->kind = k;

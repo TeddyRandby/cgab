@@ -1,13 +1,13 @@
 'list':require
 
-impl $List
+impl .List
 def [](key)
     ?key match
       ?{ from to }     => self:slice(key.from, key.to)        end
       ?{ from }        => self:slice(key.from)                end
       ?{ to }          => self:slice(0, key.to)               end
-      $Number          => self:at(key)                        end
-      else             => $INVALID_ARGUMENTS:panic            end
+      .Number          => self:at(key)                        end
+      else             => .INVALID_ARGUMENTS:panic            end
   end
 
   def [=](key, value)

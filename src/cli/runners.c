@@ -155,7 +155,7 @@ void run_string(const char *string, const char *module, char delim, u8 flags) {
 
   run_src(gab, src, module, delim, flags);
 
-#if GAB_DEBUG_GC
+#if cGAB_DEBUG_GC
   gab_destroy(gab);
 #endif
   return;
@@ -173,7 +173,7 @@ void run_file(const char *path, const char *module, char delim, u8 flags) {
 
   a_i8_destroy(src);
 
-#if GAB_DEBUG_GC
+#if cGAB_DEBUG_GC
   gab_destroy(gab);
 #endif
   return;
