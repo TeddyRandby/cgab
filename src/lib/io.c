@@ -21,23 +21,19 @@ void gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   FILE *file = fopen(path, perms);
   if (file == NULL) {
-    a_gab_value *err =
-        GAB_SEND("err", GAB_STRING("Unable to open file"), 0, NULL);
-
-    gab_push(vm, 1, err->data);
-
-    gab_val_dref(vm, err->data[0]);
-
-    a_gab_value_destroy(err);
-
+    gab_value r = GAB_STRING("err");
+    gab_push(vm, 1, &r);
     return;
   }
 
-  gab_value container = GAB_CONTAINER(GAB_STRING("File"), file_cb, NULL, file);
+  gab_value result[2] = {
+      GAB_STRING("ok"),
+      GAB_CONTAINER(GAB_STRING("File"), file_cb, NULL, file),
+  };
 
-  gab_push(vm, 1, &container);
+  gab_push(vm, 2, result);
 
-  gab_val_dref(vm, container);
+  gab_val_dref(vm, result[1]);
 }
 
 void gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -59,26 +55,22 @@ void gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
 
   if (bytesRead < fileSize) {
-    a_gab_value *err =
-        GAB_SEND("err", GAB_STRING("Could not read file"), 0, NULL);
-
-    gab_push(vm, 1, err->data);
-
-    gab_val_dref(vm, err->data[0]);
-
-    a_gab_value_destroy(err);
-
+    gab_value r = GAB_STRING("err");
+    gab_push(vm, 1, &r);
     return;
   }
 
   gab_obj_string *result =
       gab_obj_string_create(gab, s_i8_create((i8 *)buffer + 0, bytesRead));
 
-  gab_value res = GAB_VAL_OBJ(result);
+  gab_value res[2] = {
+      GAB_STRING("ok"),
+      GAB_VAL_OBJ(result),
+  };
 
-  gab_push(vm, 1, &res);
+  gab_push(vm, 2, res);
 
-  gab_val_dref(vm, res);
+  gab_val_dref(vm, res[1]);
 }
 
 void gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -97,15 +89,14 @@ void gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   i32 result = fputs(data, handle->data);
 
   if (result > 0) {
+    gab_value r = GAB_STRING("ok");
+    gab_push(vm, 1, &r);
     return;
   }
 
-  a_gab_value *err =
-      GAB_SEND("err", GAB_STRING("Failed to write file"), 0, NULL);
-
-  gab_push(vm, 1, err->data);
-
-  gab_val_dref(vm, err->data[0]);
+  gab_value r = GAB_STRING("err");
+  gab_push(vm, 1, &r);
+  return;
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {

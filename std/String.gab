@@ -1,5 +1,9 @@
 'string':require
 
+def string[](..args)
+  return args:join('')
+end
+
 impl .String
   def [] (opts)
       ?opts match

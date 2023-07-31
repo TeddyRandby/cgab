@@ -262,10 +262,7 @@ void gab_destroy(gab_engine *gab) {
   DESTROY(gab);
 }
 
-void gab_collect(gab_engine *gab, gab_vm *vm) {
-  if (vm != NULL)
-    gab_gc_run(&vm->gc, vm);
-}
+void gab_collect(gab_engine *gab, gab_vm *vm) { gab_gc_run(&vm->gc, vm); }
 
 void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]) {
@@ -298,6 +295,9 @@ gab_value gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags) {
 }
 
 a_gab_value *gab_run(gab_engine *gab, gab_value main, u8 flags) {
+  if (!GAB_VAL_IS_BLOCK(main))
+      return NULL;
+
   return gab_vm_run(gab, main, flags, gab->argv_values.len,
                     gab->argv_values.data);
 };
@@ -540,7 +540,7 @@ i32 gab_push(gab_vm *vm, u64 argc, gab_value argv[argc]) {
 }
 
 gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
-  switch (gab_val_kind(value)) {
+  switch (gab_val_type(gab, value)) {
   case kGAB_CONTAINER:
   case kGAB_BOOLEAN:
   case kGAB_NUMBER:

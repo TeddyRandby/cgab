@@ -42,8 +42,8 @@ gab_obj *gab_obj_create(gab_engine *gab, gab_obj *self, gab_kind k) {
 i32 __dump_value(FILE *stream, gab_value self, u8 depth);
 
 i32 shape_dump_properties(FILE *stream, gab_obj_shape *shape, u8 depth) {
-  if (shape->len == 0)
-    return 0;
+  if (shape->len == 0 || shape->len > 8)
+    return fprintf(stream, "...");
 
   i32 bytes = 0;
 
@@ -59,8 +59,8 @@ i32 shape_dump_properties(FILE *stream, gab_obj_shape *shape, u8 depth) {
 }
 
 i32 rec_dump_properties(FILE *stream, gab_obj_record *rec, u8 depth) {
-  if (rec->len == 0)
-    return 0;
+  if (rec->len == 0 || rec->shape->len > 8)
+    return fprintf(stream, "...");
 
   i32 bytes = 0;
 
@@ -92,17 +92,11 @@ i32 rec_dump_properties(FILE *stream, gab_obj_record *rec, u8 depth) {
 i32 gab_obj_dump(FILE *stream, gab_value value, u8 depth) {
   switch (GAB_VAL_TO_OBJ(value)->kind) {
   case kGAB_SHAPE: {
-    if (depth == 0)
-      return fprintf(stream, "{...}");
-
     gab_obj_shape *shape = GAB_VAL_TO_SHAPE(value);
     return fprintf(stream, "{") + shape_dump_properties(stream, shape, depth) +
            fprintf(stream, "}");
   }
   case kGAB_RECORD: {
-    if (depth == 0)
-      return fprintf(stream, "{...}");
-
     gab_obj_record *rec = GAB_VAL_TO_RECORD(value);
     return fprintf(stream, "{") + rec_dump_properties(stream, rec, depth) +
            fprintf(stream, "}");
@@ -113,7 +107,7 @@ i32 gab_obj_dump(FILE *stream, gab_value value, u8 depth) {
   }
   case kGAB_MESSAGE: {
     gab_obj_message *msg = GAB_VAL_TO_MESSAGE(value);
-    return fprintf(stream, "&:%V", msg->name);
+    return fprintf(stream, "&%V", msg->name);
   }
   case kGAB_CONTAINER: {
     gab_obj_container *con = GAB_VAL_TO_CONTAINER(value);

@@ -1,0 +1,43 @@
+# See: https://adventofcode.com/2022/day/1
+
+'Record':require
+'String':require
+'Number':require
+
+def io = 'io':require
+
+def Elf {
+  snacks
+}
+
+impl Elf
+  def cals
+    self.snacks:fold(0) do (cals, snack) cals + snack end
+  end
+end
+
+impl .String
+  def to_elf
+    snacks = self:split('\n'):map do return @1:to_n end
+    return { snacks }
+  end
+
+  def solve
+    elves = self:split('\n\n'):map do return @1:to_elf:cals end
+
+    solution = elves:fold(0) do (max, elf) return elf > max and elf or max end
+
+    return solution
+  end
+end
+
+
+status, puzzle = io:open('input.txt', 'r')
+
+status == .ok or status:panic
+
+status, puzzle = puzzle:read
+
+status == .ok or status:panic
+
+puzzle:solve:print

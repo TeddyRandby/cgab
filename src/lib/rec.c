@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[static argc]) {
   if (argc < 2) {
     gab_panic(gab, vm, "Invalid call to gab_lib_send");
 
@@ -30,7 +30,7 @@ void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   a_gab_value_destroy(result);
 }
 
-void gab_lib_splat(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_splat(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[static argc]) {
   if (!GAB_VAL_IS_RECORD(argv[0])) {
     gab_panic(gab, vm, "Invalid call to gab_lib_splat");
     return;

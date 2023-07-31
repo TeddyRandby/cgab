@@ -1,6 +1,6 @@
 'record':require
 
-def is[](other) ?self == other end
+def is[](other) return ?self == other end
 
 impl .Record
     def first self:at(0) end
@@ -14,5 +14,39 @@ impl .Record
           yield key, self:at(key)
           key = self:next(key)
         until key == nil end
+    end
+
+    def map(mapper)
+        other = :record(?self)
+
+        for key, value in self:each
+            other[key] = mapper(value)
+        end
+
+        return other
+    end
+
+    def map!(mapper)
+        for key, value in self:each
+            self[key] = mapper(value)
+        end
+
+        return self
+    end
+
+    def fold(init, folder)
+        acc = init
+
+        for key, value in self:each
+            acc = folder(acc, value)
+        end
+
+        return acc
+    end
+
+    def join(sep)
+      self:fold('') do (str, cur, i)
+        return i == 0 and '{cur}' or str + sep + '{cur}'
+      end
     end
 end

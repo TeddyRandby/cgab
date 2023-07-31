@@ -1,0 +1,5 @@
+impl .IO
+    def read(flags) :fiber { m = 'io' } do
+
+    end
+end

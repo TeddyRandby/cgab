@@ -52,10 +52,13 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
 
   a_i8_destroy(src);
 
-  if (GAB_VAL_IS_NIL(pkg))
+  if (GAB_VAL_IS_UNDEFINED(pkg))
     return gab_panic(gab, vm, "Failed to compile module");
 
   a_gab_value *res = gab_run(gab, pkg, fGAB_DUMP_ERROR);
+
+  if (res == NULL)
+      return GAB_VAL_UNDEFINED();
 
   gab_imports_module(gab, s_i8_create(path->data, path->len), pkg,
                      res->data[0]);

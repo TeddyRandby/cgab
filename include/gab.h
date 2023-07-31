@@ -4,11 +4,9 @@
 #include "object.h"
 #include <printf.h>
 
-typedef struct gab_vm gab_vm;
-typedef struct gab_engine gab_engine;
-
 /**
- * Create a Gab Engine. This struct stores data about an environment that gab
+ * # Create a gab_engine.
+ * This struct stores data about the environment that gab
  * code executes in.
  *
  * @return A pointer to the struct on the heap.
@@ -16,28 +14,26 @@ typedef struct gab_engine gab_engine;
 gab_engine *gab_create(void);
 
 /**
- * Destroy a Gab Engine.
- *
- * This function calls gab_collect internally, so there is no need to call it
- * manually before cleanup.
+ * # Destroy a gab_engine.
+ * Free all memory associated with the engine.
  *
  * @param gab The engine.
  */
 void gab_destroy(gab_engine *gab);
 
 /**
- * Trigger a garbage collection. If vm is NULL, the engine will only reclaim
- * objects that are already marked as garbage.
+ * # Trigger a garbage collection.
  *
  * @param gab The engine to reclaim garbage from.
  *
- * @param vm The vm to find garbage in.
+ * @param vm The vm to find garbage in. This may be NULL.
  */
 void gab_collect(gab_engine *gab, gab_vm *vm);
 
 /**
- * Set the arguments that the engine will pass to
- *  the modules it compiles or runs. The arguments are copied into the engine.
+ * # Set the arguments that the engine will pass to
+ *  the modules it compiles and blocks it runs. The arguments are shallow
+ *  copied.
  *
  *  @param gab The engine.
  *
@@ -51,7 +47,7 @@ void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[static argc],
               gab_value argv_values[static argc]);
 
 /**
- * Set the value of the argument at index to value.
+ * # Set the value of the argument at index to value.
  *
  *  @param gab The engine.
  *
@@ -62,7 +58,7 @@ void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[static argc],
 void gab_args_put(gab_engine *gab, gab_value value, u64 index);
 
 /**
- * Push an additional argument onto the engine's argument list.
+ * # Push an additional argument onto the engine's argument list.
  *
  *  @param gab The engine.
  *
@@ -73,18 +69,18 @@ void gab_args_put(gab_engine *gab, gab_value value, u64 index);
 u64 gab_args_push(gab_engine *gab, gab_value name);
 
 /**
- * Pop an argument off the engine's argument list.
+ * # Pop an argument off the engine's argument list.
  *
  *  @param gab The engine.
  */
 void gab_args_pop(gab_engine *gab);
 
 /**
- * Give the engine ownership of the value.
+ * # Give the engine ownership of the value.
  *
- *  When in c-code, it is useful to have gab_values outlive the function they
- * are created in, but if they aren't referenced by another value they will be
- * collected. Thus, the scratch buffer is useful to hold a reference to the
+ *  When in c-code, it can be useful to have gab_values outlive the function
+ * they are created in, but if they aren't referenced by another value they will
+ * be collected. Thus, the scratch buffer is useful to hold a reference to the
  * value until the engine is destroyed.
  *
  *  @param gab The engine.
@@ -96,7 +92,9 @@ void gab_args_pop(gab_engine *gab);
 gab_value gab_scratch(gab_engine *gab, gab_value value);
 
 /**
- * Push a value(s) onto the vm's stack (ie. as return values from a builtin).
+ * # Push a value(s) onto the vm's internal stack
+ *
+ * This is used to return values from c-builtins.
  *
  * @param vm The vm that will receive the values.
  *
@@ -107,7 +105,9 @@ gab_value gab_scratch(gab_engine *gab, gab_value value);
 i32 gab_push(gab_vm *vm, u64 argc, gab_value argv[static argc]);
 
 /**
- * Compile a source string into a gab block.
+ * # Compile a source string into a block.
+ *
+ * @see enum gab_flags
  *
  * @param gab The engine.
  *
@@ -122,7 +122,7 @@ i32 gab_push(gab_vm *vm, u64 argc, gab_value argv[static argc]);
 gab_value gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags);
 
 /**
- * Execute a gab_block
+ * # Execute a gab_block
  *
  * @param  gab The engine.
  *
@@ -133,7 +133,9 @@ gab_value gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags);
 a_gab_value *gab_run(gab_engine *gab, gab_value main, u8 flags);
 
 /**
- * Panic the VM with an error message. Useful for builtin functions.
+ * # Panic the VM with an error message. Useful for builtin functions.
+ *
+ * This is useful in builtins when an unrecoverable error occurs.
  *
  * @param  gab The engine.
  *
@@ -146,14 +148,16 @@ a_gab_value *gab_run(gab_engine *gab, gab_value main, u8 flags);
 gab_value gab_panic(gab_engine *gab, gab_vm *vm, const char *msg);
 
 /**
- * Disassemble a module.
+ * # Disassemble a module.
+ *
+ * This is useful for debugging bytecode.
  *
  * @param mod The module.
  */
 void gab_dis(gab_module *mod);
 
 /**
- * Pry into the frame at the given depth in the callstack.
+ * # Pry into the frame at the given depth in the callstack.
  *
  * @param gab The engine.
  *
@@ -164,7 +168,7 @@ void gab_dis(gab_module *mod);
 void gab_pry(gab_vm *vm, u64 depth);
 
 /**
- * Decrement the reference count of a value
+ * # Decrement the reference count of a value
  *
  * @param vm The vm.
  *
@@ -173,7 +177,7 @@ void gab_pry(gab_vm *vm, u64 depth);
 void gab_val_dref(gab_vm *vm, gab_value value);
 
 /**
- * Decrement the reference count of a many values
+ * # Decrement the reference count of many values
  *
  * @param vm The vm.
  *
@@ -184,7 +188,7 @@ void gab_val_dref(gab_vm *vm, gab_value value);
 void gab_val_dref_many(gab_vm *vm, u64 len, gab_value values[static len]);
 
 /**
- * Increment the reference count of a value
+ * # Increment the reference count of a value
  *
  * @param vm The vm.
  *
@@ -193,7 +197,7 @@ void gab_val_dref_many(gab_vm *vm, u64 len, gab_value values[static len]);
 void gab_val_iref(gab_vm *vm, gab_value value);
 
 /**
- * Increment the reference count of a many values
+ * # Increment the reference count of a many values
  *
  * @param vm The vm.
  *
@@ -201,10 +205,10 @@ void gab_val_iref(gab_vm *vm, gab_value value);
  *
  * @param values The values.
  */
-void gab_val_iref_many(gab_vm *vm, u64 len, gab_value values[len]);
+void gab_val_iref_many(gab_vm *vm, u64 len, gab_value values[static len]);
 
 /**
- * Bundle a list of keys and values into a record.
+ * # Bundle a list of keys and values into a record.
  *
  * @param gab The engine.
  *
@@ -222,7 +226,7 @@ gab_value gab_record(gab_engine *gab, gab_vm *vm, u64 len,
                      s_i8 keys[static len], gab_value values[static len]);
 
 /**
- * Bundle a list of values into an ordered record.
+ * # Bundle a list of values into a tuple.
  *
  * @param gab The engine
  *
@@ -238,7 +242,7 @@ gab_value gab_tuple(gab_engine *gab, gab_vm *vm, u64 len,
                     gab_value values[static len]);
 
 /**
- * Create a specialization on the given message for the given receiver
+ * # Create a specialization on the given message for the given receiver
  *
  * @param gab The engine.
  *
@@ -256,7 +260,7 @@ gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
                          gab_value receiver, gab_value specialization);
 
 /**
- * Send the message to the receiver.
+ * # Send the message to the receiver.
  *
  * @param gab The engine.
  *
@@ -276,7 +280,7 @@ a_gab_value *gab_send(gab_engine *gab, gab_vm *vm, gab_value message,
                       gab_value receiver, u8 len, gab_value argv[len]);
 
 /**
- * Deep-copy a value.
+ * # Deep-copy a value.
  *
  * @param gab The engine.
  *
@@ -289,7 +293,7 @@ a_gab_value *gab_send(gab_engine *gab, gab_vm *vm, gab_value message,
 gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value);
 
 /**
- * Dump a gab value to a file stream.
+ * # Dump a gab value to a file stream.
  *
  * @param stream The file stream to dump to.
  *
@@ -299,14 +303,16 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value);
  */
 i32 gab_val_dump(FILE *stream, gab_value self);
 
+/**
+ * # builtin printf handlers so that you can easily debug with gab values.
+ */
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
                            const void *const *args);
-
 int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
                            int *sizes);
 
 /**
- * Get the value that corresponds to a given type.
+ * # Get the value that corresponds to a given type.
  *
  * @param gab The engine
  *
@@ -343,7 +349,7 @@ static inline gab_kind gab_val_kind(gab_value value) {
 }
 
 /**
- * Get the type of a gab value. This function is used internally to send
+ * # Get the type of a gab value. This function is used internally to send
  * messages.
  *
  * @param gab The engine
@@ -352,7 +358,7 @@ static inline gab_kind gab_val_kind(gab_value value) {
  *
  * @return The runtime value corresponding to the type of the given value
  */
-static inline gab_value gab_val_type(gab_engine *gab, gab_value value) {
+static inline gab_value gab_val_type(gab_engine* gab, gab_value value) {
   gab_kind k = gab_val_kind(value);
 
   switch (k) {
@@ -375,7 +381,7 @@ static inline gab_value gab_val_type(gab_engine *gab, gab_value value) {
 }
 
 /**
- * Check if a value is falsey.
+ * # Check if a value is falsey.
  *
  * @param self The value to check.
  *
@@ -386,7 +392,7 @@ static inline boolean gab_val_falsey(gab_value self) {
 }
 
 /**
- * Convert a value to a string
+ * # Convert a value to a string
  *
  * @param gab The engine
  *

@@ -92,11 +92,13 @@
 #define FLAG_VAR_EXP 1
 
 // GAB optional flags
-#define fGAB_DUMP_BYTECODE (1 << 0)
-#define fGAB_DUMP_ERROR (1 << 1)
-#define fGAB_EXIT_ON_PANIC (1 << 2)
-#define fGAB_STREAM_INPUT (1 << 3)
-#define fGAB_DELIMIT_INPUT (1 << 4)
+enum gab_flags {
+  fGAB_DUMP_BYTECODE = 1 << 0,
+  fGAB_DUMP_ERROR = 1 << 1,
+  fGAB_EXIT_ON_PANIC = 1 << 2,
+  fGAB_STREAM_INPUT = 1 << 3,
+  fGAB_DELIMIT_INPUT = 1 << 4,
+};
 
 // VERSION
 #define GAB_VERSION_MAJOR 0

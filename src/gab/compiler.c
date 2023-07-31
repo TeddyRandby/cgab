@@ -8,6 +8,7 @@
 #include "include/module.h"
 #include "include/object.h"
 #include "include/value.h"
+#include <math.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -61,11 +62,15 @@ typedef struct {
 #define T lvalue
 #include "include/vector.h"
 
+#define T u16
+#include "include/vector.h"
+
 typedef enum {
   kIMPL,
   kFRAME,
   kTUPLE,
   kASSIGNMENT_TARGET,
+  kMATCH_TARGET,
   kLOOP,
 } context_k;
 
@@ -78,6 +83,11 @@ typedef struct {
     } impl;
 
     v_lvalue assignment_target;
+
+    struct {
+      v_u16 slots;
+      v_u64 jumps;
+    } pattern;
 
     frame frame;
   } as;
@@ -123,11 +133,7 @@ typedef enum prec_k {
   kPRIMARY
 } prec_k;
 
-/*
-  Compile rules used for Pratt parsing of expressions.
-*/
 typedef i32 (*gab_compile_func)(gab_engine *, bc *, boolean);
-
 typedef struct gab_compile_rule gab_compile_rule;
 struct gab_compile_rule {
   gab_compile_func prefix;
@@ -144,7 +150,6 @@ void gab_bc_create(bc *self, gab_source *source, u8 flags) {
   gab_lexer_create(&self->lex, source);
 }
 
-// A positive result is known to be OK, and can carry a value.
 enum comp_status {
   COMP_OK = 1,
   COMP_TOKEN_NO_MATCH = 0,
@@ -177,7 +182,6 @@ static inline boolean match_terminator(bc *bc) {
          match_token(bc, TOKEN_UNTIL) || match_token(bc, TOKEN_EOF);
 }
 
-// Returns less than 0 if there was an error, greater than 0 otherwise.
 static i32 eat_token(bc *bc) {
   bc->lex.previous_token = bc->lex.current_token;
   bc->lex.current_token = gab_lexer_next(&bc->lex);
@@ -498,11 +502,11 @@ static i32 resolve_id(gab_engine *gab, bc *bc, gab_value name, u8 *value_in) {
   return COMP_RESOLVED_TO_LOCAL;
 }
 
-static inline i32 peek_scope(bc *bc) {
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
-  frame *f = &bc->contexts[ctx].as.frame;
-  return f->scope_depth;
-}
+// static inline i32 peek_scope(bc *bc) {
+//   i32 ctx = peek_ctx(bc, kFRAME, 0);
+//   frame *f = &bc->contexts[ctx].as.frame;
+//   return f->scope_depth;
+// }
 
 static void push_scope(bc *bc) {
   i32 ctx = peek_ctx(bc, kFRAME, 0);
@@ -608,6 +612,25 @@ static inline i32 peek_impl_local(bc *bc) {
 
 static inline boolean has_impl(bc *bc) {
   return peek_ctx(bc, kFRAME, 0) == peek_impl_frame(bc);
+}
+
+static inline i32 push_ctxpattern(bc *bc) {
+  i32 ctx = push_ctx(bc, kMATCH_TARGET);
+
+  if (ctx < 0)
+    return COMP_ERR;
+
+  return ctx;
+}
+
+static inline void pop_ctxpattern(bc *bc) {
+  i32 ctx = peek_ctx(bc, kFRAME, 0);
+
+  v_u16 *slots = &bc->contexts[ctx].as.pattern.slots;
+  v_u64 *jumps = &bc->contexts[ctx].as.pattern.jumps;
+
+  v_u16_destroy(slots);
+  v_u64_destroy(jumps);
 }
 
 static gab_module *push_ctxframe(gab_engine *gab, bc *bc, gab_value name) {
@@ -1569,30 +1592,23 @@ i32 compile_exp_else(gab_engine *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_pattern(gab_engine* gab, bc *bc) {
-    do {
-    } while (match_and_eat_token(bc, TOKEN_COMMA));
-
-}
-
 i32 compile_exp_mch(gab_engine *gab, bc *bc, boolean assignable) {
   if (skip_newlines(bc) < 0)
     return COMP_ERR;
 
-  pop_slot(bc, 1);
-
   u64 next = 0;
 
-  v_u64 done_jumps;
-  v_u64_create(&done_jumps, 8);
-
-  // While we don't match the closing else case
-  while (match_and_eat_token(bc, TOKEN_ELSE) == COMP_TOKEN_NO_MATCH) {
+  while (!match_and_eat_token(bc, TOKEN_ELSE)) {
     if (next != 0)
       gab_module_patch_jump(mod(bc), next);
 
+    if (push_ctxpattern(bc) < 0)
+      return COMP_ERR;
+
     if (compile_expression(gab, bc) < 0)
       return COMP_ERR;
+
+    pop_ctxpattern(bc);
 
     push_op(bc, OP_MATCH);
 

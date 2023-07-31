@@ -561,7 +561,7 @@ gab_obj_record *gab_obj_record_create_empty(gab_engine *gab,
  *
  * @param obj The record object.
  */
-inline void gab_obj_record_set(gab_vm *vm, gab_obj_record *obj, u64 offset,
+void gab_obj_record_set(gab_vm *vm, gab_obj_record *obj, u64 offset,
                         gab_value value);
 
 /**
@@ -574,7 +574,7 @@ inline void gab_obj_record_set(gab_vm *vm, gab_obj_record *obj, u64 offset,
  *
  * @return The value at the offset, or GAB_VAL_NIL.
  */
-inline gab_value gab_obj_record_get(gab_obj_record *obj, u64 offset);
+gab_value gab_obj_record_get(gab_obj_record *obj, u64 offset);
 
 /**
  * Get the value corresponding to the given key.
