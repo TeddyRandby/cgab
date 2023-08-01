@@ -83,7 +83,7 @@ void gab_lib_push(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   for (u8 i = 1; i < argc; i++)
     v_gab_value_push(obj->data, argv[i]);
 
-  gab_val_iref_many(vm, argc - 1, argv + 1);
+  gab_val_viref(vm, argc - 1, argv + 1);
 
   gab_push(vm, *argv);
 }

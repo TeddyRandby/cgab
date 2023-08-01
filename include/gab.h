@@ -108,8 +108,7 @@ gab_value gab_scratch(gab_engine *gab, gab_value value);
  *
  *  @return The number of values pushed.
  */
-i32 gab_scratch_many(gab_engine *gab, u64 len,
-                           gab_value values[static len]);
+i32 gab_vscratch(gab_engine *gab, u64 len, gab_value values[static len]);
 
 /**
  * # Push a value(s) onto the vm's internal stack
@@ -216,7 +215,7 @@ void gab_val_dref(gab_vm *vm, gab_value value);
  *
  * @param values The values.
  */
-void gab_val_dref_many(gab_vm *vm, u64 len, gab_value values[static len]);
+void gab_val_vdref(gab_vm *vm, u64 len, gab_value values[static len]);
 
 /**
  * # Increment the reference count of a value
@@ -236,7 +235,7 @@ void gab_val_iref(gab_vm *vm, gab_value value);
  *
  * @param values The values.
  */
-void gab_val_iref_many(gab_vm *vm, u64 len, gab_value values[static len]);
+void gab_val_viref(gab_vm *vm, u64 len, gab_value values[static len]);
 
 /**
  * # Bundle a list of keys and values into a record.

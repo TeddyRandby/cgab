@@ -65,8 +65,8 @@ gab_obj_container *map_create(gab_engine *gab, gab_vm *vm, u64 len, u64 stride,
   }
 
   if (vm) {
-    gab_val_iref_many(vm, len, keys);
-    gab_val_iref_many(vm, len, values);
+    gab_val_viref(vm, len, keys);
+    gab_val_viref(vm, len, values);
   }
 
   return self;

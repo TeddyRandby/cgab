@@ -1,3 +1,5 @@
 def io = 'IO':require
 
 fiber = io:read('test.txt')
+
+fiber:await

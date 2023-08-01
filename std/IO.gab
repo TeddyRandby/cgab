@@ -2,7 +2,7 @@
 'fiber':require
 
 impl .IO
-    def read(path)
+    def read(path, config)
         return :fiber do
             def io = 'io':require
 

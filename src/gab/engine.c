@@ -317,7 +317,7 @@ void gab_val_dref(gab_vm *vm, gab_value value) {
   gab_gc_dref(&vm->gc, vm, value);
 }
 
-void gab_val_dref_many(gab_vm *vm, u64 len, gab_value values[len]) {
+void gab_val_vdref(gab_vm *vm, u64 len, gab_value values[len]) {
   gab_gc_dref_many(&vm->gc, vm, len, values);
 }
 
@@ -325,7 +325,7 @@ void gab_val_iref(gab_vm *vm, gab_value value) {
   gab_gc_iref(&vm->gc, vm, value);
 }
 
-void gab_val_iref_many(gab_vm *vm, u64 len, gab_value values[len]) {
+void gab_val_viref(gab_vm *vm, u64 len, gab_value values[len]) {
   gab_gc_iref_many(&vm->gc, vm, len, values);
 }
 
@@ -533,7 +533,7 @@ int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
 
 u64 gab_seed(gab_engine *gab) { return gab->hash_seed; }
 
-i32 gab_scratch_many(gab_engine *gab, u64 len, gab_value *values) {
+i32 gab_vscratch(gab_engine *gab, u64 len, gab_value *values) {
   for (u64 i = 0; i < len; i++) {
     v_gab_value_push(&gab->scratch, values[i]);
   }
