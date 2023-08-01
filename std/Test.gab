@@ -1,6 +1,6 @@
 'std':require
 
-def TestState  { fails }
+def TestState  { fails errs }
 
 def testState[nil]
     :record(TestState):reset
@@ -9,16 +9,24 @@ end
 impl TestState 
     def reset
         self.fails = 0
+        self.errs = :list
 
         self
     end
 
-    def fail
+    def fail(got, expected)
         self.fails = self.fails + 1
+        self.errs:push!([got, expected])
     end
 
     def passed?
         self.fails == 0
+    end
+
+    def show_errs
+        for mismatch in self.errs:each
+            '     - got {mismatch[0]}, expecting {mismatch[1]}':print
+        end
     end
 end
 
@@ -26,12 +34,12 @@ def T = :testState
 
 def expect[](other, opt_msg)
     def msg = opt_msg or &==
-    self:send(msg, other) or T:fail
+    self:send(msg, other) or T:fail(self, other)
 end
 
 def expect_not[](other, opt_msg)
     def msg = opt_msg or &==
-    self:send(msg, other) and T:fail
+    self:send(msg, other) and T:fail(self, other)
 end
 
 impl nil
@@ -46,5 +54,6 @@ impl nil
         cb()
 
         '  {T:passed? and '✓' or '×'} it {name}':print
+        T:passed? or T:show_errs
     end
 end

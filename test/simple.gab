@@ -1,5 +1,3 @@
-def to_uri[.String]
-    return .ok, 'path', 'args' 
-end
-
-(status, path, args = '/':to_uri) :print
+status, val = .ok, 'value' ! match
+    .ok  => val:print    end
+    else => status:panic end

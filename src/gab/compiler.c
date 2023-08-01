@@ -1185,6 +1185,7 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
 
       push_pop(bc, 1);
       pop_slot(bc, 1);
+
       break;
 
     case kINDEX:
@@ -1196,12 +1197,15 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
 
   for (u8 i = 0; i < lvalues->len; i++) {
     lvalue lval = v_lvalue_val_at(lvalues, lvalues->len - 1 - i);
+    boolean is_last_assignment = i + 1 == lvalues->len;
 
     switch (lval.kind) {
     case kNEW_LOCAL:
     case kNEW_REST_LOCAL:
     case kEXISTING_LOCAL:
     case kEXISTING_REST_LOCAL:
+      if (is_last_assignment)
+        push_load_local(bc, lval.as.local), push_slot(bc, 1);
       break;
 
     case kPROP: {
@@ -1213,9 +1217,10 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
 
       gab_module_push_inline_cache(mod(bc), prop_tok, prop_line, prop_src);
 
-      push_pop(bc, 1);
+      if (!is_last_assignment)
+        push_pop(bc, 1);
 
-      pop_slot(bc, 2);
+      pop_slot(bc, 1 + !is_last_assignment);
       break;
     }
 
@@ -1223,15 +1228,14 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
       u16 m = add_message_constant(gab, mod(bc), GAB_STRING(mGAB_SET));
       gab_module_push_send(mod(bc), 2, m, false, prop_tok, prop_line, prop_src);
 
-      push_pop(bc, 1);
-      pop_slot(bc, 3);
+      if (!is_last_assignment)
+        push_pop(bc, 1);
+
+      pop_slot(bc, 2 + !is_last_assignment);
       break;
     }
     }
   }
-
-  push_slot(bc, 1);
-  push_op(bc, OP_PUSH_NIL);
 
   v_lvalue_destroy(lvalues);
 
@@ -2643,9 +2647,8 @@ i32 compile_exp_prec(gab_engine *gab, bc *bc, prec_k prec) {
       have = rule.infix(gab, bc, assignable);
     }
 
-    if (bc->lex.previous_token == TOKEN_ARROW) {
-      printf("Found arrow\n");
-    }
+    if (bc->lex.previous_token == TOKEN_BANG)
+        break;
   }
 
   if (!assignable && match_token(bc, TOKEN_EQUAL)) {
@@ -2884,6 +2887,8 @@ i32 compile_exp_rtn(gab_engine *gab, bc *bc, boolean assignable) {
 // compile_exp_XXX.
 #define NONE()                                                                 \
   { NULL, NULL, kNONE, false }
+#define PREC(prec)                                                             \
+  { NULL, NULL, k##prec, false }
 #define PREFIX(fnc)                                                            \
   { compile_exp_##fnc, NULL, kNONE, false }
 #define INFIX(fnc, prec, is_multi)                                             \
@@ -2922,7 +2927,7 @@ const gab_compile_rule gab_bc_rules[] = {
     NONE(),                            // EQUAL
     INFIX(bin, EQUALITY, false),              // EQUALEQUAL
     PREFIX(una),                            // QUESTION
-    NONE(),                      // BANG
+    PREC(PRIMARY),                      // BANG
     NONE(),                            // AT
     NONE(),                            // COLON_EQUAL
     INFIX(bin, COMPARISON, false),            // LESSER
@@ -2931,7 +2936,7 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(bin, COMPARISON, false),            // GREATER
     INFIX(bin, EQUALITY, false),              // GREATEREQUAL
     INFIX(bin, TERM, false),                            // GREATER_GREATER
-    {NULL, NULL, kPRIMARY, false},                            // ARROW
+    NONE(),                            // ARROW
     NONE(),                            // FATARROW
     INFIX(and, AND, false),                   // AND
     INFIX(or, OR, false),                     // OR
