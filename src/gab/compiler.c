@@ -2041,6 +2041,8 @@ i32 compile_exp_imp(gab_engine *gab, bc *bc, boolean assignable) {
   if (!expect_token(bc, TOKEN_END))
     return COMP_ERR;
 
+  push_pop(bc, 1);
+
   push_load_local(bc, local);
 
   pop_ctximpl(bc);
