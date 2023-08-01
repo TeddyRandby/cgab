@@ -1,21 +1,20 @@
 'std':require
-
 'Test':require
 
 :describe('Multiple Assignment') do
     :it('should declare new variables') do
-        a = 2
+        (a = 2):expect(2)
         a:expect(2)
 
-        a = 3
+        (a = 3):expect(3)
         a:expect(3)
     end
 
     :it('should assign multiple variables') do
-        a, b = 1, 2
+        (a, b = 1, 2):expect(2)
         a:expect(1)
         b:expect(2)
-        a, b = b, a
+        (a, b = b, a):expect(1)
         a:expect(2)
         b:expect(1)
     end

@@ -1,5 +1,5 @@
-def io = 'IO':require
+def to_uri[.String]
+    return .ok, 'path', 'args' 
+end
 
-fiber = io:read('test.txt')
-
-fiber:await
+(status, path, args = '/':to_uri) :print

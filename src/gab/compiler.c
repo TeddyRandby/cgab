@@ -1176,6 +1176,7 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
       }
 
       initialize_local(bc, lval.as.local);
+
       break;
 
     case kEXISTING_REST_LOCAL:
@@ -1183,7 +1184,6 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
       push_store_local(bc, lval.as.local);
 
       push_pop(bc, 1);
-
       pop_slot(bc, 1);
       break;
 
@@ -1214,6 +1214,7 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
       gab_module_push_inline_cache(mod(bc), prop_tok, prop_line, prop_src);
 
       push_pop(bc, 1);
+
       pop_slot(bc, 2);
       break;
     }
@@ -1233,6 +1234,7 @@ i32 compile_assignment(gab_engine *gab, bc *bc, lvalue target) {
   push_op(bc, OP_PUSH_NIL);
 
   v_lvalue_destroy(lvalues);
+
   assert(match_ctx(bc, kASSIGNMENT_TARGET));
   pop_ctx(bc, kASSIGNMENT_TARGET);
 
@@ -2623,6 +2625,7 @@ i32 compile_exp_prec(gab_engine *gab, bc *bc, prec_k prec) {
   boolean assignable = prec <= kASSIGNMENT;
 
   i32 have = rule.prefix(gab, bc, assignable);
+
   if (have < 0)
     return COMP_ERR;
 
@@ -2638,6 +2641,10 @@ i32 compile_exp_prec(gab_engine *gab, bc *bc, prec_k prec) {
     if (rule.infix != NULL) {
       // Treat this as an infix expression.
       have = rule.infix(gab, bc, assignable);
+    }
+
+    if (bc->lex.previous_token == TOKEN_ARROW) {
+      printf("Found arrow\n");
     }
   }
 
@@ -2924,7 +2931,7 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(bin, COMPARISON, false),            // GREATER
     INFIX(bin, EQUALITY, false),              // GREATEREQUAL
     INFIX(bin, TERM, false),                            // GREATER_GREATER
-    NONE(),                            // ARROW
+    {NULL, NULL, kPRIMARY, false},                            // ARROW
     NONE(),                            // FATARROW
     INFIX(and, AND, false),                   // AND
     INFIX(or, OR, false),                     // OR
