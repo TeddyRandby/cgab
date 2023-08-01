@@ -1,5 +1,18 @@
-impl .IO
-    def read(flags) :fiber { m = 'io' } do
+'symbol':require
+'fiber':require
 
+impl .IO
+    def read(path)
+        return :fiber do
+            def io = 'io':require
+
+            status, fd = io:open(path, 'r')
+
+            status == .ok or return status
+
+            return fd:read
+        end
     end
 end
+
+:symbol('IO')

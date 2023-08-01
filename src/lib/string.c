@@ -15,7 +15,7 @@ void gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_value result = GAB_VAL_NUMBER(str->len);
 
-  gab_push(vm, 1, &result);
+  gab_push(vm, result);
 };
 
 #define MIN(a, b) (a < b ? a : b)
@@ -72,7 +72,7 @@ void gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_value res = GAB_VAL_OBJ(gab_obj_string_create(gab, result));
 
-  gab_push(vm, 1, &res);
+  gab_push(vm, res);
 };
 
 void gab_lib_split(gab_engine *gab, gab_vm *vm, u8 argc,
@@ -118,7 +118,7 @@ void gab_lib_split(gab_engine *gab, gab_vm *vm, u8 argc,
 
   gab_value result = GAB_VAL_OBJ(record);
 
-  gab_push(vm, 1, &result);
+  gab_push(vm, result);
 
   gab_val_dref(vm, result);
 }

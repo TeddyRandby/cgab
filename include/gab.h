@@ -3,6 +3,7 @@
 
 #include "object.h"
 #include <printf.h>
+#include <stdio.h>
 
 /**
  * # Create a gab_engine.
@@ -92,6 +93,36 @@ void gab_args_pop(gab_engine *gab);
 gab_value gab_scratch(gab_engine *gab, gab_value value);
 
 /**
+ * # Give the engine ownership of the value.
+ *
+ *  When in c-code, it can be useful to have gab_values outlive the function
+ * they are created in, but if they aren't referenced by another value they will
+ * be collected. Thus, the scratch buffer is useful to hold a reference to the
+ * value until the engine is destroyed.
+ *
+ *  @param gab The engine.
+ *
+ *  @param len The number of values to scratch..
+ *
+ *  @param values The values.
+ *
+ *  @return The number of values pushed.
+ */
+i32 gab_scratch_many(gab_engine *gab, u64 len,
+                           gab_value values[static len]);
+
+/**
+ * # Push a value(s) onto the vm's internal stack
+ *
+ * This is used to return values from c-builtins.
+ *
+ * @param vm The vm that will receive the values.
+ *
+ * @param value The value.
+ */
+gab_value gab_push(gab_vm *vm, gab_value value);
+
+/**
  * # Push a value(s) onto the vm's internal stack
  *
  * This is used to return values from c-builtins.
@@ -102,7 +133,7 @@ gab_value gab_scratch(gab_engine *gab, gab_value value);
  *
  * @param argv The array of values.
  */
-i32 gab_push(gab_vm *vm, u64 argc, gab_value argv[static argc]);
+i32 gab_vpush(gab_vm *vm, u64 len, gab_value argv[static len]);
 
 /**
  * # Compile a source string into a block.
@@ -358,7 +389,7 @@ static inline gab_kind gab_val_kind(gab_value value) {
  *
  * @return The runtime value corresponding to the type of the given value
  */
-static inline gab_value gab_val_type(gab_engine* gab, gab_value value) {
+static inline gab_value gab_val_type(gab_engine *gab, gab_value value) {
   gab_kind k = gab_val_kind(value);
 
   switch (k) {

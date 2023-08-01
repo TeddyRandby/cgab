@@ -8,7 +8,7 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
     gab_value result = GAB_VAL_OBJ(list);
 
-    gab_push(vm, 1, &result);
+    gab_push(vm, result);
 
     gab_val_dref(vm, result);
 
@@ -28,7 +28,7 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
       v_gab_value_push(list->data, GAB_VAL_NIL());
 
     gab_value result = GAB_VAL_OBJ(list);
-    gab_push(vm, 1, &result);
+    gab_push(vm, result);
 
     gab_val_dref(vm, result);
 
@@ -50,7 +50,7 @@ void gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_value result = GAB_VAL_NUMBER(((v_gab_value *)obj->data)->len);
 
-  gab_push(vm, 1, &result);
+  gab_push(vm, result);
 
   return;
 }
@@ -65,7 +65,7 @@ void gab_lib_pop(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_value result = v_gab_value_pop(obj->data);
 
-  gab_push(vm, 1, &result);
+  gab_push(vm, result);
 
   gab_val_dref(vm, result);
 
@@ -85,7 +85,7 @@ void gab_lib_push(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_val_iref_many(vm, argc - 1, argv + 1);
 
-  gab_push(vm, 1, argv);
+  gab_push(vm, *argv);
 }
 
 void gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -100,7 +100,7 @@ void gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_value res = list_at(list, offset);
 
-  gab_push(vm, 1, &res);
+  gab_push(vm, res);
 }
 
 void gab_lib_del(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -117,7 +117,7 @@ void gab_lib_del(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   v_gab_value_del(list->data, index);
 
-  gab_push(vm, 1, argv);
+  gab_push(vm, *argv);
 }
 
 void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -140,7 +140,7 @@ void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     return;
   }
 
-  gab_push(vm, 1, argv);
+  gab_push(vm, *argv);
 }
 
 // Boy do NOT put side effects in here
@@ -196,7 +196,7 @@ void gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_value result = GAB_VAL_OBJ(rec);
 
-  gab_push(vm, 1, &result);
+  gab_push(vm, result);
 
   gab_val_dref(vm, result);
 }

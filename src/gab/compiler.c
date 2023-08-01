@@ -84,11 +84,6 @@ typedef struct {
 
     v_lvalue assignment_target;
 
-    struct {
-      v_u16 slots;
-      v_u64 jumps;
-    } pattern;
-
     frame frame;
   } as;
 } context;
@@ -612,25 +607,6 @@ static inline i32 peek_impl_local(bc *bc) {
 
 static inline boolean has_impl(bc *bc) {
   return peek_ctx(bc, kFRAME, 0) == peek_impl_frame(bc);
-}
-
-static inline i32 push_ctxpattern(bc *bc) {
-  i32 ctx = push_ctx(bc, kMATCH_TARGET);
-
-  if (ctx < 0)
-    return COMP_ERR;
-
-  return ctx;
-}
-
-static inline void pop_ctxpattern(bc *bc) {
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
-
-  v_u16 *slots = &bc->contexts[ctx].as.pattern.slots;
-  v_u64 *jumps = &bc->contexts[ctx].as.pattern.jumps;
-
-  v_u16_destroy(slots);
-  v_u64_destroy(jumps);
 }
 
 static gab_module *push_ctxframe(gab_engine *gab, bc *bc, gab_value name) {
@@ -1597,18 +1573,14 @@ i32 compile_exp_mch(gab_engine *gab, bc *bc, boolean assignable) {
     return COMP_ERR;
 
   u64 next = 0;
+  v_u64 done_jumps = {0};
 
   while (!match_and_eat_token(bc, TOKEN_ELSE)) {
     if (next != 0)
       gab_module_patch_jump(mod(bc), next);
 
-    if (push_ctxpattern(bc) < 0)
-      return COMP_ERR;
-
     if (compile_expression(gab, bc) < 0)
       return COMP_ERR;
-
-    pop_ctxpattern(bc);
 
     push_op(bc, OP_MATCH);
 
@@ -2055,7 +2027,7 @@ i32 compile_exp_imp(gab_engine *gab, bc *bc, boolean assignable) {
   if (local < 0)
     return COMP_ERR;
 
-  if (!compile_expression(gab, bc))
+  if (compile_expression(gab, bc) < 0)
     return COMP_ERR;
 
   initialize_local(bc, local);
@@ -2068,6 +2040,8 @@ i32 compile_exp_imp(gab_engine *gab, bc *bc, boolean assignable) {
 
   if (!expect_token(bc, TOKEN_END))
     return COMP_ERR;
+
+  push_load_local(bc, local);
 
   pop_ctximpl(bc);
 

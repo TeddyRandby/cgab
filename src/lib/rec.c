@@ -8,7 +8,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[static argc]) {
+void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc,
+                  gab_value argv[static argc]) {
   if (argc < 2) {
     gab_panic(gab, vm, "Invalid call to gab_lib_send");
 
@@ -17,20 +18,18 @@ void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[static ar
 
   a_gab_value *result = gab_send(gab, vm, argv[1], argv[0], argc - 2, argv + 2);
 
-  if (GAB_VAL_IS_UNDEFINED(result->data[0])) {
+  if (!result) {
     gab_panic(gab, vm, "Invalid send");
-
-    a_gab_value_destroy(result);
-
     return;
   }
 
-  gab_push(vm, 1, result->data);
+  gab_vpush(vm, result->len, result->data);
 
   a_gab_value_destroy(result);
 }
 
-void gab_lib_splat(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[static argc]) {
+void gab_lib_splat(gab_engine *gab, gab_vm *vm, u8 argc,
+                   gab_value argv[static argc]) {
   if (!GAB_VAL_IS_RECORD(argv[0])) {
     gab_panic(gab, vm, "Invalid call to gab_lib_splat");
     return;
@@ -38,7 +37,7 @@ void gab_lib_splat(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[static a
 
   gab_obj_record *rec = GAB_VAL_TO_RECORD(argv[0]);
 
-  gab_push(vm, rec->len, rec->data);
+  gab_vpush(vm, rec->len, rec->data);
 }
 
 #define MIN(a, b) (a < b ? a : b)
@@ -94,7 +93,7 @@ void gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_value result = GAB_VAL_OBJ(val);
 
-  gab_push(vm, 1, &result);
+  gab_push(vm, result);
 
   gab_val_dref(vm, result);
 }
@@ -110,7 +109,7 @@ void gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_value result = gab_obj_record_at(GAB_VAL_TO_RECORD(argv[0]), argv[1]);
 
-  gab_push(vm, 1, &result);
+  gab_push(vm, result);
 }
 
 void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -124,7 +123,7 @@ void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     return;
   }
 
-  gab_push(vm, 1, argv + 1);
+  gab_push(vm, argv[1]);
 }
 
 void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -159,7 +158,7 @@ void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   }
 
 fin:
-  gab_push(vm, 1, &res);
+  gab_push(vm, res);
 }
 
 void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -176,7 +175,7 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
     gab_value result = GAB_VAL_OBJ(rec);
 
-    gab_push(vm, 1, &result);
+    gab_push(vm, result);
 
     gab_val_dref(vm, result);
 
@@ -196,7 +195,7 @@ void gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
       gab_value result = GAB_VAL_NUMBER(rec->len);
 
-      gab_push(vm, 1, &result);
+      gab_push(vm, result);
 
       return;
     }
@@ -206,7 +205,7 @@ void gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
       gab_value result = GAB_VAL_NUMBER(shape->len);
 
-      gab_push(vm, 1, &result);
+      gab_push(vm, result);
 
       return;
     }
@@ -230,7 +229,7 @@ void gab_lib_to_l(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
       gab_value result = GAB_VAL_OBJ(list);
 
-      gab_push(vm, 1, &result);
+      gab_push(vm, result);
 
       gab_val_dref(vm, result);
 
@@ -244,7 +243,7 @@ void gab_lib_to_l(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
       gab_value result = GAB_VAL_OBJ(list);
 
-      gab_push(vm, 1, &result);
+      gab_push(vm, result);
 
       gab_val_dref(vm, result);
 
@@ -278,7 +277,7 @@ void gab_lib_implements(gab_engine *gab, gab_vm *vm, u8 argc,
 
     gab_value result = GAB_VAL_BOOLEAN(implements);
 
-    gab_push(vm, 1, &result);
+    gab_push(vm, result);
 
     return;
   }
@@ -303,7 +302,7 @@ void gab_lib_to_m(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
     gab_value result = GAB_VAL_OBJ(map);
 
-    gab_push(vm, 1, &result);
+    gab_push(vm, result);
 
     gab_val_dref(vm, result);
 

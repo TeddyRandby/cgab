@@ -14,7 +14,7 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
     gab_value k = GAB_CONTAINER(GAB_STRING("Term"), ncurses_cb, NULL, NULL);
 
-    gab_push(vm, 1, &k);
+    gab_push(vm, k);
 
     gab_val_dref(vm, k);
 
@@ -42,7 +42,7 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
     gab_value k = GAB_CONTAINER(GAB_STRING("Term"), ncurses_cb, NULL, NULL);
 
-    gab_push(vm, 1, &k);
+    gab_push(vm, k);
 
     gab_val_dref(vm, k);
 
@@ -63,7 +63,7 @@ void gab_lib_refresh(gab_engine *gab, gab_vm *vm, u8 argc,
 void gab_lib_dim(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   gab_value dim[] = {GAB_VAL_NUMBER(LINES), GAB_VAL_NUMBER(COLS)};
 
-  gab_push(vm, 2, dim);
+  gab_vpush(vm, 2, dim);
 }
 
 void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -96,7 +96,7 @@ void gab_lib_key(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_value res = GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_create(&c, 1)));
 
-  gab_push(vm, 1, &res);
+  gab_push(vm, res);
 }
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {

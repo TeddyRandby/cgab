@@ -1,10 +1,9 @@
-#include "builtins.h"
+#include "include/builtins.h"
 #include "include/gab.h"
 #include "include/import.h"
 #include "include/os.h"
 #include <dlfcn.h>
 #include <stdio.h>
-#include <unistd.h>
 
 typedef gab_value (*handler_f)(gab_engine *, gab_vm *, a_i8 *path,
                                const s_i8 module);
@@ -58,7 +57,7 @@ gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
   a_gab_value *res = gab_run(gab, pkg, fGAB_DUMP_ERROR);
 
   if (res == NULL)
-      return GAB_VAL_UNDEFINED();
+    return GAB_VAL_UNDEFINED();
 
   gab_imports_module(gab, s_i8_create(path->data, path->len), pkg,
                      res->data[0]);
@@ -109,13 +108,15 @@ a_i8 *match_resource(resource *res, s_i8 name) {
   memcpy(buffer->data + p_len, name.data, name.len);
   memcpy(buffer->data + p_len + name.len, res->suffix, s_len + 1);
 
-  if (access((char *)buffer->data, F_OK) == 0) {
-    return buffer;
+  FILE *f = fopen((char *)buffer->data, "r");
+
+  if (!f) {
+    a_i8_destroy(buffer);
+    return NULL;
   }
 
-  a_i8_destroy(buffer);
-
-  return NULL;
+  fclose(f);
+  return buffer;
 }
 
 void gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
@@ -138,14 +139,14 @@ void gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
           gab_imports_exists(gab, s_i8_create(path->data, path->len));
 
       if (!GAB_VAL_IS_UNDEFINED(cached)) {
-        gab_push(vm, 1, &cached);
+        gab_push(vm, cached);
         a_i8_destroy(path);
         return;
       }
 
       gab_value result = res->handler(gab, vm, path, name);
       a_i8_destroy(path);
-      gab_push(vm, 1, &result);
+      gab_push(vm, result);
       return;
     }
 

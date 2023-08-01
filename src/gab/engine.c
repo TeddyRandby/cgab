@@ -1,4 +1,5 @@
 #include "include/engine.h"
+#include "include/builtins.h"
 #include "include/compiler.h"
 #include "include/core.h"
 #include "include/gab.h"
@@ -192,6 +193,8 @@ gab_engine *gab_create() {
                    primitives[i].primitive);
   }
 
+  gab_setup_builtins(gab);
+
   return gab;
 }
 
@@ -296,7 +299,7 @@ gab_value gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags) {
 
 a_gab_value *gab_run(gab_engine *gab, gab_value main, u8 flags) {
   if (!GAB_VAL_IS_BLOCK(main))
-      return NULL;
+    return NULL;
 
   return gab_vm_run(gab, main, flags, gab->argv_values.len,
                     gab->argv_values.data);
@@ -530,17 +533,32 @@ int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
 
 u64 gab_seed(gab_engine *gab) { return gab->hash_seed; }
 
+i32 gab_scratch_many(gab_engine *gab, u64 len, gab_value *values) {
+  for (u64 i = 0; i < len; i++) {
+    v_gab_value_push(&gab->scratch, values[i]);
+  }
+
+  return len;
+}
+
 gab_value gab_scratch(gab_engine *gab, gab_value value) {
   v_gab_value_push(&gab->scratch, value);
+
   return value;
 }
 
-i32 gab_push(gab_vm *vm, u64 argc, gab_value argv[argc]) {
+gab_value gab_push(gab_vm *vm, gab_value value) {
+  gab_vm_push(vm, 1, &value);
+
+  return value;
+}
+
+i32 gab_vpush(gab_vm *vm, u64 argc, gab_value argv[argc]) {
   return gab_vm_push(vm, argc, argv);
 }
 
 gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
-  switch (gab_val_type(gab, value)) {
+  switch (gab_val_kind(value)) {
   case kGAB_CONTAINER:
   case kGAB_BOOLEAN:
   case kGAB_NUMBER:

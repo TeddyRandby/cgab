@@ -7,7 +7,7 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
     gab_value sym = GAB_VAL_OBJ(symbol_create(gab, vm, name));
 
-    gab_push(vm, 1, &sym);
+    gab_push(vm, sym);
 
     return;
   }

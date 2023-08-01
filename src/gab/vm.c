@@ -1143,6 +1143,7 @@ a_gab_value *gab_vm_run(gab_engine *gab, gab_value main, u8 flags, u8 argc,
       gab_value tmp = POP();
 
       DROP_N(READ_BYTE);
+
       PUSH(tmp);
 
       NEXT();

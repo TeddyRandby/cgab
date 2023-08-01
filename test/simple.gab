@@ -1,10 +1,3 @@
-'std':require
+def io = 'IO':require
 
-map = :map
-
-map:put!('a', 1)
-map:put!('b', 2)
-map:put!('c', 3)
-
-[ map:at('a') ] :print
-[ map:at('d') ] :print
+fiber = io:read('test.txt')

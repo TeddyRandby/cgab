@@ -9,7 +9,7 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
     gab_value result = GAB_VAL_OBJ(map);
 
-    gab_push(vm, 1, &result);
+    gab_push(vm, result);
 
     gab_val_dref(vm, result);
 
@@ -30,7 +30,7 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
     gab_value result = GAB_VAL_OBJ(map);
 
-    gab_push(vm, 1, &result);
+    gab_push(vm, result);
 
     gab_val_dref(vm, result);
 
@@ -55,7 +55,7 @@ void gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_value res = GAB_VAL_NUMBER(data->len);
 
-  gab_push(vm, 1, &res);
+  gab_push(vm, res);
 
   return;
 }
@@ -71,14 +71,12 @@ void gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   gab_value res = map_at(map, argv[1]);
 
   if (GAB_VAL_IS_UNDEFINED(res)) {
-    gab_value tag = GAB_STRING("none");
-    gab_push(vm, 1, &tag);
+    gab_push(vm, GAB_STRING("none"));
     return;
   }
 
-  gab_value tag = GAB_STRING("some");
-  gab_push(vm, 1, &tag);
-  gab_push(vm, 1, &res);
+  gab_push(vm, GAB_STRING("some"));
+  gab_push(vm, res);
   return;
 }
 
@@ -94,7 +92,7 @@ void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   map_put(gab, vm, map, key, argv[2]);
 
-  gab_push(vm, 1, argv);
+  gab_push(vm, *argv);
 
   return;
 }
@@ -110,14 +108,14 @@ void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     if (next_index == -1) {
       gab_value res = GAB_VAL_NIL();
 
-      gab_push(vm, 1, &res);
+      gab_push(vm, res);
 
       return;
     }
 
     gab_value res = d_gab_value_ikey(map->data, next_index);
 
-    gab_push(vm, 1, &res);
+    gab_push(vm, res);
 
     return;
   }
@@ -133,14 +131,14 @@ void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
     if (next_index == -1) {
       gab_value res = GAB_VAL_NIL();
 
-      gab_push(vm, 1, &res);
+      gab_push(vm, res);
 
       return;
     }
 
     gab_value res = d_gab_value_ikey(map->data, next_index);
 
-    gab_push(vm, 1, &res);
+    gab_push(vm, res);
 
     return;
   }

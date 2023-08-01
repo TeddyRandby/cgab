@@ -14,7 +14,7 @@ void gab_lib_clock(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_value res = GAB_VAL_NUMBER((f64)t / CLOCKS_PER_SEC);
 
-  gab_push(vm, 1, &res);
+  gab_push(vm, res);
 };
 
 gab_value gab_mod(gab_engine *gab, gab_vm *vm) {

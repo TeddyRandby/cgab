@@ -21,8 +21,8 @@ void gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   FILE *file = fopen(path, perms);
   if (file == NULL) {
-    gab_value r = GAB_STRING("err");
-    gab_push(vm, 1, &r);
+    gab_value r = GAB_STRING("FILE_COULD_NOT_OPEN");
+    gab_push(vm, r);
     return;
   }
 
@@ -31,7 +31,7 @@ void gab_lib_open(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
       GAB_CONTAINER(GAB_STRING("File"), file_cb, NULL, file),
   };
 
-  gab_push(vm, 2, result);
+  gab_vpush(vm, 2, result);
 
   gab_val_dref(vm, result[1]);
 }
@@ -55,8 +55,7 @@ void gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
 
   if (bytesRead < fileSize) {
-    gab_value r = GAB_STRING("err");
-    gab_push(vm, 1, &r);
+    gab_push(vm, GAB_STRING("FILE_COULD_NOT_READ"));
     return;
   }
 
@@ -68,7 +67,7 @@ void gab_lib_read(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
       GAB_VAL_OBJ(result),
   };
 
-  gab_push(vm, 2, res);
+  gab_vpush(vm, 2, res);
 
   gab_val_dref(vm, res[1]);
 }
@@ -89,13 +88,11 @@ void gab_lib_write(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   i32 result = fputs(data, handle->data);
 
   if (result > 0) {
-    gab_value r = GAB_STRING("ok");
-    gab_push(vm, 1, &r);
+    gab_push(vm, GAB_STRING("ok"));
     return;
   }
 
-  gab_value r = GAB_STRING("err");
-  gab_push(vm, 1, &r);
+  gab_push(vm, GAB_STRING("FILE_COULD_NOT_WRITE"));
   return;
 }
 

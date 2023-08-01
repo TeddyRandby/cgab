@@ -1,13 +1,14 @@
 #include "include/core.h"
 #include "include/gab.h"
+#include "include/value.h"
 #include <stdatomic.h>
 #include <stdio.h>
 #include <threads.h>
 
 enum {
-  FLAG_FIBER_DONE = 1 << 0,
-  FLAG_FIBER_WAITING = 1 << 1,
-  FLAG_FIBER_RUNNING = 1 << 2,
+  fDONE = 1 << 0,
+  fWAITING = 1 << 1,
+  fRUNNING = 1 << 2,
 };
 
 typedef struct {
@@ -21,7 +22,7 @@ typedef struct {
   gab_value init;
   gab_engine *gab;
 
-  gab_value final;
+  a_gab_value *final;
 } fiber;
 
 fiber *fiber_create(gab_value init) {
@@ -40,7 +41,7 @@ fiber *fiber_create(gab_value init) {
 
   gab_scratch(self->gab, self->init);
 
-  self->status = FLAG_FIBER_RUNNING;
+  self->status = fRUNNING;
 
   return self;
 }
@@ -60,29 +61,46 @@ i32 fiber_launch(void *d) {
 
   gab_value runner = self->init;
 
-  a_gab_value *result = gab_run(self->gab, runner, 0);
+  a_gab_value *result =
+      gab_run(self->gab, runner, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC);
+
+  if (!result) {
+    mtx_lock(&self->mutex);
+    self->final = a_gab_value_one(GAB_VAL_NIL());
+    self->status = fDONE;
+    mtx_unlock(&self->mutex);
+    return 0;
+  }
 
   runner = result->data[result->len - 1];
 
-  gab_scratch(self->gab, runner);
+  if (!callable(runner)) {
+    mtx_lock(&self->mutex);
 
+    self->final = result;
+    self->status = fDONE;
+
+    mtx_unlock(&self->mutex);
+
+    gab_destroy(self->gab);
+    return 0;
+  }
+
+  gab_scratch(self->gab, runner);
   a_gab_value_destroy(result);
 
   for (;;) {
-    if (!callable(runner))
-      break;
-
     mtx_lock(&self->mutex);
 
     if (self->in_queue.len == 0) {
-      self->status = FLAG_FIBER_WAITING;
+      self->status = fWAITING;
       mtx_unlock(&self->mutex);
 
       thrd_yield();
       continue;
     }
 
-    self->status = FLAG_FIBER_RUNNING;
+    self->status = fRUNNING;
 
     a_i8 *msg = v_a_i8_pop(&self->in_queue);
 
@@ -110,15 +128,16 @@ i32 fiber_launch(void *d) {
     }
     mtx_unlock(&self->mutex);
 
-    if (callable(runner))
-      gab_scratch(self->gab, runner);
+    if (!callable(runner))
+      break;
 
+    gab_scratch(self->gab, runner);
     a_gab_value_destroy(result);
   }
 
   mtx_lock(&self->mutex);
-  self->final = runner;
-  self->status = FLAG_FIBER_DONE;
+  self->final = result;
+  self->status = fDONE;
   mtx_unlock(&self->mutex);
 
   gab_destroy(self->gab);
@@ -127,28 +146,31 @@ i32 fiber_launch(void *d) {
 }
 
 void gab_lib_fiber(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
-  if (argc != 2) {
+  switch (argc) {
+  case 2: {
+    if (!callable(argv[1])) {
+      gab_panic(gab, vm, "Invalid call to gab_lib_go");
+      return;
+    }
+
+    fiber *f = fiber_create(argv[1]);
+    thrd_t thread;
+
+    if (thrd_create(&thread, fiber_launch, f) != thrd_success) {
+      gab_panic(gab, vm, "Invalid call to gab_lib_go");
+      return;
+    }
+
+    gab_value fiber = GAB_VAL_OBJ(
+        gab_obj_container_create(gab, vm, GAB_STRING("Fiber"), NULL, NULL, f));
+
+    gab_push(vm, fiber);
+    break;
+  }
+  default:
     gab_panic(gab, vm, "Invalid call to gab_lib_go");
     return;
   }
-
-  if (!callable(argv[1])) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_go");
-    return;
-  }
-
-  fiber *f = fiber_create(argv[1]);
-  thrd_t thread;
-
-  if (thrd_create(&thread, fiber_launch, f) != thrd_success) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_go");
-    return;
-  }
-
-  gab_value fiber = GAB_VAL_OBJ(
-      gab_obj_container_create(gab, vm, GAB_STRING("Fiber"), NULL, NULL, f));
-
-  gab_push(vm, 1, &fiber);
 }
 
 void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -163,7 +185,7 @@ void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   gab_value msg = gab_val_to_s(gab, argv[1]);
 
-  if (f->status == FLAG_FIBER_DONE) {
+  if (f->status == fDONE) {
     gab_panic(gab, vm, "Invalid call to gab_lib_send");
     return;
   }
@@ -176,7 +198,7 @@ void gab_lib_send(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   mtx_unlock(&f->mutex);
 
-  gab_push(vm, 1, argv);
+  gab_push(vm, *argv);
 }
 
 void gab_lib_await(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
@@ -185,8 +207,8 @@ void gab_lib_await(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   fiber *f = (fiber *)container->data;
 
   for (;;) {
-    if (f->status == FLAG_FIBER_DONE) {
-      gab_push(vm, 1, &f->final);
+    if (f->status == fDONE) {
+      gab_vpush(vm, f->final->len, f->final->data);
       return;
     }
 
@@ -210,7 +232,7 @@ void gab_lib_await(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   a_i8_destroy(msg);
 
-  gab_push(vm, 1, &result);
+  gab_push(vm, result);
 
   gab_val_dref(vm, result);
 }
