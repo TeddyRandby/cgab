@@ -5,9 +5,7 @@
 'std':require
 
 def swap![](i, j)
-    def temp = self[i]
-    self[i] = self[j]
-    self[j] = temp
+    self[i], self[j] = self[j], self[i]
 end
 
 def permutations![](opt_k)

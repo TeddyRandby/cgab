@@ -267,12 +267,12 @@ void gab_destroy(gab_engine *gab) {
 
 void gab_collect(gab_engine *gab, gab_vm *vm) { gab_gc_run(&vm->gc, vm); }
 
-void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[argc],
+void gab_args(gab_engine *gab, u64 argc, gab_value argv_names[argc],
               gab_value argv_values[argc]) {
   gab->argv_values.len = 0;
   gab->argv_names.len = 0;
 
-  for (u8 i = 0; i < argc; i++) {
+  for (u64 i = 0; i < argc; i++) {
     v_gab_value_push(&gab->argv_names, argv_names[i]);
     v_gab_value_push(&gab->argv_values, argv_values[i]);
   }

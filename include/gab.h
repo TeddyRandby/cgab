@@ -33,8 +33,9 @@ void gab_collect(gab_engine *gab, gab_vm *vm);
 
 /**
  * # Set the arguments that the engine will pass to
- *  the modules it compiles and blocks it runs. The arguments are shallow
- *  copied.
+ *  the modules it compiles and blocks it runs.
+ *
+ *  The arrays are shallow copied.
  *
  *  @param gab The engine.
  *
@@ -44,7 +45,7 @@ void gab_collect(gab_engine *gab, gab_vm *vm);
  *
  *  @param argv_values The values of each argument.
  */
-void gab_args(gab_engine *gab, u8 argc, gab_value argv_names[static argc],
+void gab_args(gab_engine *gab, u64 argc, gab_value argv_names[static argc],
               gab_value argv_values[static argc]);
 
 /**
