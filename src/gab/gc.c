@@ -52,7 +52,7 @@ void gab_ngciref(gab_gc *gc, gab_vm *vm, u64 len, gab_value values[len]) {
 }
 
 void gab_ngcdref(gab_gc *gc, gab_vm *vm, u64 len, gab_value values[len]) {
-  if (vm->gc.ndecrements + len >= cGAB_GC_DEC_BUFF_MAX) {
+  if (gc->ndecrements + len >= cGAB_GC_DEC_BUFF_MAX) {
     gab_gc_run(gc, vm);
 #if cGAB_DEBUG_GC
   } else {
@@ -63,7 +63,7 @@ void gab_ngcdref(gab_gc *gc, gab_vm *vm, u64 len, gab_value values[len]) {
 
   while (len--) {
     if (gab_valiso(values[len]))
-      vm->gc.decrements[vm->gc.ndecrements++] = gab_valtoo(values[len]);
+      gc->decrements[gc->ndecrements++] = gab_valtoo(values[len]);
   }
 }
 

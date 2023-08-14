@@ -167,6 +167,8 @@ gab_eg *gab_create(u64 argc, gab_value argv_names[argc],
     v_gab_value_push(&gab->argv_values, argv_values[i]);
   }
 
+  memset(gab->types, 0, sizeof(gab->types));
+
   gab->hash_seed = time(NULL);
 
   gab->types[kGAB_UNDEFINED] = gab_undefined;

@@ -5,11 +5,9 @@ def read[.IO](path, config)
     return :fiber do
         def io = 'io':require
 
-        status, fd = io:open(path, 'r')
-
-        status == .ok or return status
-
-        return fd:read
+        status, fd = io:open(path, 'r') in match
+           .ok => return fd:read end
+           else => return status end
     end
 end
 
