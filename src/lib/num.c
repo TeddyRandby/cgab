@@ -58,8 +58,8 @@ static f64 random_float() {
   return result;
 }
 
-void gab_lib_between(gab_engine *gab, gab_vm *vm, u8 argc,
-                          gab_value argv[argc]) {
+void gab_lib_between(gab_eg *gab, gab_vm *vm, size_t argc,
+                     gab_value argv[argc]) {
 
   f64 min = 0, max = 1;
 
@@ -68,26 +68,27 @@ void gab_lib_between(gab_engine *gab, gab_vm *vm, u8 argc,
     break;
 
   case 2: {
-    if (!GAB_VAL_IS_NUMBER(argv[1])) {
+    if (gab_valknd(argv[1]) != kGAB_NUMBER) {
       gab_panic(gab, vm, "Invalid call to gab_lib_random");
 
       return;
     }
 
-    max = GAB_VAL_TO_NUMBER(argv[1]);
+    max = gab_valton(argv[1]);
 
     break;
   }
 
   case 3: {
-    if (!GAB_VAL_IS_NUMBER(argv[1]) || !GAB_VAL_IS_NUMBER(argv[2])) {
+    if (gab_valknd(argv[1]) != kGAB_NUMBER ||
+        gab_valknd(argv[2]) != kGAB_NUMBER) {
       gab_panic(gab, vm, "Invalid call to gab_lib_random");
 
       return;
     }
 
-    min = GAB_VAL_TO_NUMBER(argv[1]);
-    max = GAB_VAL_TO_NUMBER(argv[2]);
+    min = gab_valton(argv[1]);
+    max = gab_valton(argv[2]);
     break;
   }
 
@@ -97,75 +98,72 @@ void gab_lib_between(gab_engine *gab, gab_vm *vm, u8 argc,
 
   f64 num = min + (random_float() * max);
 
-  gab_value res = GAB_VAL_NUMBER(num);
+  gab_value res = gab_number(num);
 
-  gab_push(vm, res);
+  gab_vmpush(vm, res);
 }
 
-void gab_lib_floor(gab_engine *gab, gab_vm *vm, u8 argc,
-                        gab_value argv[argc]) {
+void gab_lib_floor(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
-  if (argc != 1 || !GAB_VAL_IS_NUMBER(argv[0])) {
+  if (argc != 1 || gab_valknd(argv[0]) != kGAB_NUMBER) {
     gab_panic(gab, vm, "Invalid call to gab_lib_floor");
 
     return;
   }
 
-  f64 float_num = GAB_VAL_TO_NUMBER(argv[0]);
-  i64 int_num = GAB_VAL_TO_NUMBER(argv[0]);
+  f64 float_num = gab_valton(argv[0]);
+  i64 int_num = gab_valton(argv[0]);
 
-  gab_value res = GAB_VAL_NUMBER(int_num + (float_num < 0));
+  gab_value res = gab_number(int_num + (float_num < 0));
 
-  gab_push(vm, res);
+  gab_vmpush(vm, res);
 }
 
-void gab_lib_to_n(gab_engine *gab, gab_vm *vm, u8 argc,
-                       gab_value argv[argc]) {
-  if (argc != 1 || !GAB_VAL_IS_STRING(argv[0])) {
+void gab_lib_to_n(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+  if (argc != 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_from");
-
     return;
   }
 
-  gab_obj_string *str = GAB_VAL_TO_STRING(argv[0]);
+  const char *str = gab_valtocs(gab, argv[0]);
 
-  char cstr[str->len + 1];
+  gab_value res = gab_number(strtod(str, NULL));
 
-  memcpy(cstr, str->data, str->len);
-
-  cstr[str->len] = '\0';
-
-  gab_value res = GAB_VAL_NUMBER(strtod(cstr, NULL));
-
-  gab_push(vm, res);
+  gab_vmpush(vm, res);
 };
 
-gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  gab_value names[] = {
-      GAB_STRING("between"),
-      GAB_STRING("floor"),
-      GAB_STRING("to_n"),
+a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
+  const char *names[] = {
+      "between",
+      "floor",
+      "to_n",
   };
 
   gab_value receivers[] = {
-      gab_type(gab, kGAB_NUMBER),
-      gab_type(gab, kGAB_NUMBER),
-      gab_type(gab, kGAB_STRING),
+      gab_typ(gab, kGAB_NUMBER),
+      gab_typ(gab, kGAB_NUMBER),
+      gab_typ(gab, kGAB_STRING),
   };
 
   gab_value values[] = {
-      GAB_BUILTIN(between),
-      GAB_BUILTIN(floor),
-      GAB_BUILTIN(to_n),
+      gab_builtin(gab, "between", gab_lib_between),
+      gab_builtin(gab, "floor", gab_lib_floor),
+      gab_builtin(gab, "to_n", gab_lib_to_n),
   };
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(values));
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
 
   for (int i = 0; i < LEN_CARRAY(names); i++) {
-    gab_specialize(gab, vm, names[i], receivers[i], values[i]);
-    gab_val_dref(vm, values[i]);
+    gab_spec(gab, vm,
+             (struct gab_spec_argt){
+                 .name = names[i],
+                 .receiver = receivers[i],
+                 .specialization = values[i],
+             });
   }
 
-  return GAB_VAL_NIL();
+  gab_ngcdref(gab_vmgc(vm), vm, LEN_CARRAY(values), values);
+
+  return NULL;
 }

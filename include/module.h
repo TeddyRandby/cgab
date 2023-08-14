@@ -1,9 +1,9 @@
-#ifndef GAB_MODULE_H
-#define GAB_MODULE_H
+#ifndef gab_mod_H
+#define gab_mod_H
 #include "include/gab.h"
 #include "lexer.h"
 
-typedef struct gab_module gab_module;
+typedef struct gab_mod gab_mod;
 
 /*
   The bytecode of the vm.
@@ -29,10 +29,10 @@ static const char *gab_opcode_names[] = {
 /*
   State required to run a gab program.
 */
-struct gab_module {
-  gab_module *next;
+struct gab_mod {
+  gab_mod *next;
 
-  gab_source *source;
+  gab_src *source;
 
   /*
     The constant table.
@@ -71,61 +71,61 @@ struct gab_module {
 /*
   Creating and destroying modules, from nothing and from a base module.
 */
-gab_module *gab_module_create(gab_engine *gab, gab_value name, gab_source *src);
+gab_mod *gab_mod_create(gab_eg *gab, gab_value name, gab_src *src);
 
-void gab_module_destroy(gab_engine *gab, gab_gc *gc, gab_module *mod);
+void gab_mod_destroy(gab_eg *gab, gab_gc *gc, gab_mod *mod);
 
-gab_module *gab_module_copy(gab_engine *gab, gab_module *self);
+gab_mod *gab_mod_copy(gab_eg *gab, gab_mod *self);
 
 /*
   Helpers for pushing ops into the module.
 */
-void gab_module_push_op(gab_module *, gab_opcode, gab_token, u64, s_i8);
+void gab_mod_push_op(gab_mod *, gab_opcode, gab_token, u64, s_i8);
 
-void gab_module_push_byte(gab_module *, u8, gab_token, u64, s_i8);
+void gab_mod_push_byte(gab_mod *, u8, gab_token, u64, s_i8);
 
-void gab_module_push_short(gab_module *, u16, gab_token, u64, s_i8);
+void gab_mod_push_short(gab_mod *, u16, gab_token, u64, s_i8);
 
-void gab_module_push_load_local(gab_module *, u8, gab_token, u64, s_i8);
+void gab_mod_push_load_local(gab_mod *, u8, gab_token, u64, s_i8);
 
-void gab_module_push_store_local(gab_module *, u8, gab_token, u64, s_i8);
+void gab_mod_push_store_local(gab_mod *, u8, gab_token, u64, s_i8);
 
-void gab_module_push_load_upvalue(gab_module *, u8, gab_token, u64, s_i8);
+void gab_mod_push_load_upvalue(gab_mod *, u8, gab_token, u64, s_i8);
 
-void gab_module_push_return(gab_module *, u8, boolean mv, gab_token, u64,
+void gab_mod_push_return(gab_mod *, u8, boolean mv, gab_token, u64,
                             s_i8);
 
-void gab_module_push_tuple(gab_module *, u8, boolean mv, gab_token, u64, s_i8);
+void gab_mod_push_tuple(gab_mod *, u8, boolean mv, gab_token, u64, s_i8);
 
-void gab_module_push_yield(gab_module *, u16 proto, u8 have, boolean mv,
+void gab_mod_push_yield(gab_mod *, u16 proto, u8 have, boolean mv,
                            gab_token, u64, s_i8);
 
-void gab_module_push_pack(gab_module *self, u8 below, u8 above, gab_token, u64, s_i8);
+void gab_mod_push_pack(gab_mod *self, u8 below, u8 above, gab_token, u64, s_i8);
 
-void gab_module_push_send(gab_module *mod, u8 have, u16 message, boolean mv,
+void gab_mod_push_send(gab_mod *mod, u8 have, u16 message, boolean mv,
                           gab_token, u64, s_i8);
 
-void gab_module_push_pop(gab_module *, u8, gab_token, u64, s_i8);
+void gab_mod_push_pop(gab_mod *, u8, gab_token, u64, s_i8);
 
-void gab_module_push_inline_cache(gab_module *, gab_token, u64, s_i8);
+void gab_mod_push_inline_cache(gab_mod *, gab_token, u64, s_i8);
 
-u64 gab_module_push_iter(gab_module *self, u8 start, u8 want, gab_token t,
+u64 gab_mod_push_iter(gab_mod *self, u8 start, u8 want, gab_token t,
                          u64 l, s_i8 s);
 
-void gab_module_push_next(gab_module *self, u8 local, gab_token t, u64 l,
+void gab_mod_push_next(gab_mod *self, u8 local, gab_token t, u64 l,
                           s_i8 s);
 
-u64 gab_module_push_loop(gab_module *gab);
+u64 gab_mod_push_loop(gab_mod *gab);
 
-u64 gab_module_push_jump(gab_module *gab, u8, gab_token, u64, s_i8);
+u64 gab_mod_push_jump(gab_mod *gab, u8, gab_token, u64, s_i8);
 
-void gab_module_patch_jump(gab_module *, u64);
+void gab_mod_patch_jump(gab_mod *, u64);
 
-void gab_module_patch_loop(gab_module *, u64, gab_token, u64, s_i8);
+void gab_mod_patch_loop(gab_mod *, u64, gab_token, u64, s_i8);
 
-boolean gab_module_try_patch_mv(gab_module *, u8);
+boolean gab_mod_try_patch_mv(gab_mod *, u8);
 
-u16 gab_module_add_constant(gab_module *, gab_value);
+u16 gab_mod_add_constant(gab_mod *, gab_value);
 
-void gab_module_dump(gab_module *, s_i8);
+void gab_mod_dump(gab_mod *, s_i8);
 #endif

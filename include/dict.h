@@ -31,7 +31,7 @@
 #define LOAD 0.6
 #endif
 
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 #define CONCAT(a, b) CONCAT_(a, b)
 #define CONCAT_(a, b) a##b
@@ -181,9 +181,8 @@ LINKAGE void METHOD(cap)(TYPENAME *self, u64 cap) {
 }
 
 LINKAGE boolean METHOD(insert)(TYPENAME *self, K key, V val) {
-  if (self->len > (self->cap * LOAD)) {
-    METHOD(cap)(self, self->cap * 2);
-  }
+  if (self->len >= (self->cap * LOAD))
+    METHOD(cap)(self, MAX(self->cap * 2, 8));
 
   u64 index = METHOD(index_of)(self, key);
 
@@ -233,7 +232,7 @@ LINKAGE V METHOD(read)(TYPENAME *self, K key) {
 
   BUCKET_T *bucket = self->buckets + index;
 
-  return bucket->status == D_FULL ? bucket->val: DEF_V;
+  return bucket->status == D_FULL ? bucket->val : DEF_V;
 }
 
 #undef NAME

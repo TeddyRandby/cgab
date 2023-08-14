@@ -1,4 +1,4 @@
-#! /usr/bin/fish
+#!/usr/bin/fish
 
 valgrind --tool=callgrind --callgrind-out-file=callgrind.out --dump-line=yes gab countup.gab
 

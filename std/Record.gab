@@ -1,6 +1,6 @@
 'record':require
 
-def is[](other) return ?self == other end
+def is[](other); ?self == other end
 
 impl .Record
     def first self:at(0) end

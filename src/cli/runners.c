@@ -5,24 +5,24 @@
 #include <stdio.h>
 
 void repl(const char *module, u8 flags) {
-  gab_engine *gab = gab_create();
+  gab_eg *gab = gab_create(0, NULL, NULL);
 
   gab_setup_builtins(gab);
 
   a_gab_value *result = NULL;
 
   if (module != NULL)
-    result =
-        gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING(module), 0, NULL);
+    result = gab_send(gab, NULL, gab_string(gab, "require"),
+                      gab_string(gab, module), 0, NULL);
   else
-    result =
-        gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING("std"), 0, NULL);
+    result = gab_send(gab, NULL, gab_string(gab, "require"),
+                      gab_string(gab, "std"), 0, NULL);
 
   a_gab_value_destroy(result);
 
-  u64 index = gab_args_push(gab, GAB_STRING("it"));
+  u64 index = gab_argpush(gab, gab_string(gab, "it"));
 
-  gab_args_put(gab, GAB_VAL_NIL(), index);
+  gab_argput(gab, gab_nil, index);
 
   for (;;) {
     printf("grepl: ");
@@ -38,12 +38,15 @@ void repl(const char *module, u8 flags) {
       continue;
     }
 
-    gab_value main = gab_compile(gab, GAB_STRING("__main__"),
-                                 s_i8_create(src->data, src->len), flags);
+    gab_value main = gab_block(gab, (struct gab_block_argt){
+                                        .name = "__main__",
+                                        .source = (char *)src->data,
+                                        flags,
+                                    });
 
     a_i8_destroy(src);
 
-    if (GAB_VAL_IS_UNDEFINED(main))
+    if (main == gab_undefined)
       continue;
 
     a_gab_value *result = gab_run(gab, main, flags);
@@ -57,10 +60,10 @@ void repl(const char *module, u8 flags) {
       else
         printf("%V, ", arg);
 
-      gab_scratch(gab, arg);
+      gab_egkeep(gab, arg);
     }
 
-    gab_args_put(gab, result->data[0], index);
+    gab_argput(gab, result->data[0], index);
 
     a_gab_value_destroy(result);
   }
@@ -72,20 +75,23 @@ fin:
   return;
 }
 
-void run_src(gab_engine *gab, s_i8 src, const char *module, char delim,
-             u8 flags) {
+void run_src(gab_eg *gab, s_i8 src, const char *module, char delim, u8 flags) {
   if (module != NULL) {
-    a_gab_value *res =
-        gab_send(gab, NULL, GAB_STRING("require"), GAB_STRING(module), 0, NULL);
+    a_gab_value *res = gab_send(gab, NULL, gab_string(gab, "require"),
+                                gab_string(gab, module), 0, NULL);
     a_gab_value_destroy(res);
   }
 
-  gab_value main = gab_compile(gab, GAB_STRING("__main__"), src, flags);
+  gab_value main = gab_block(gab, (struct gab_block_argt){
+                                      .name = "__main__",
+                                      .source = (char *)src.data,
+                                      .flags = flags,
+                                  });
 
-  if (GAB_VAL_IS_UNDEFINED(main))
+  if (main == gab_undefined)
     return;
 
-  gab_scratch(gab, main);
+  gab_egkeep(gab, main);
 
   if (flags & fGAB_STREAM_INPUT) {
 
@@ -103,16 +109,16 @@ void run_src(gab_engine *gab, s_i8 src, const char *module, char delim,
 
       // Skip the \n and the \0
       s_i8 line_s = s_i8_create(line->data, line->len - 2);
-      
+
       for (;;) {
         s_i8 arg = s_i8_tok(line_s, offset, delim);
 
         if (arg.len == 0)
           break;
 
-        gab_value arg_val = GAB_VAL_OBJ(gab_obj_string_create(gab, arg));
+        gab_value arg_val = gab_nstring(gab, arg.len, (const char *)arg.data);
 
-        gab_args_put(gab, arg_val, gab_args_push(gab, GAB_STRING("")));
+        gab_argput(gab, arg_val, gab_argpush(gab, gab_string(gab, "")));
 
         offset += arg.len + 1;
         nargs++;
@@ -123,13 +129,13 @@ void run_src(gab_engine *gab, s_i8 src, const char *module, char delim,
       for (i32 i = 0; i < result->len; i++) {
         gab_value arg = result->data[i];
 
-        gab_scratch(gab, arg);
+        gab_egkeep(gab, arg);
       }
 
       a_gab_value_destroy(result);
 
       while (nargs--)
-        gab_args_pop(gab);
+        gab_argpop(gab);
     }
 
     return;
@@ -139,14 +145,14 @@ void run_src(gab_engine *gab, s_i8 src, const char *module, char delim,
 
   for (i32 i = 0; i < result->len; i++) {
     gab_value arg = result->data[i];
-    gab_scratch(gab, arg);
+    gab_egkeep(gab, arg);
   }
 
   a_gab_value_destroy(result);
 }
 
 void run_string(const char *string, const char *module, char delim, u8 flags) {
-  gab_engine *gab = gab_create();
+  gab_eg *gab = gab_create(0, NULL, NULL);
 
   gab_setup_builtins(gab);
 
@@ -162,8 +168,7 @@ void run_string(const char *string, const char *module, char delim, u8 flags) {
 }
 
 void run_file(const char *path, const char *module, char delim, u8 flags) {
-
-  gab_engine *gab = gab_create();
+  gab_eg *gab = gab_create(0, NULL, NULL);
 
   gab_setup_builtins(gab);
 

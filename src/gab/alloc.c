@@ -104,7 +104,7 @@ void chunk_dealloc(gab_allocator *s, u64 size, void *ptr) {
     chunk_destroy(s, chunk);
 }
 
-void *gab_obj_alloc(gab_engine *gab, gab_obj *obj, u64 size) {
+void *gab_obj_alloc(gab_eg *gab, gab_obj *obj, u64 size) {
 
   if (size == 0) {
     assert(obj);

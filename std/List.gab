@@ -93,9 +93,7 @@ def [](key)
       self
   end
 
-  def compact
-    self:filter do (i) not i == nil end
-  end
+  def compact; self:filter do; not @1 == nil end end
 
   def join(sep)
     self:fold('') do (str, cur, i)

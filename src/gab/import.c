@@ -4,52 +4,54 @@
 #include "include/gc.h"
 #include <dlfcn.h>
 
-u64 gab_imports_module(gab_engine *gab, s_i8 name, gab_value mod,
-                       gab_value val) {
-  u64 hash = s_i8_hash(name, gab->hash_seed);
+u64 gab_impmod(gab_eg *gab, const char *name, gab_value mod, a_gab_value *val) {
+  u64 hash = s_i8_hash(s_i8_cstr(name), gab->hash_seed);
 
-  gab_import *i = NEW(gab_import);
+  gab_imp *i = NEW(gab_imp);
 
   i->k = IMPORT_SOURCE;
   i->cache = val;
   i->as.mod = mod;
 
-  gab_scratch(gab, mod);
-  gab_scratch(gab, val);
+  gab_egkeep(gab, mod);
+  gab_negkeep(gab, val->len, val->data);
 
-  d_gab_import_insert(&gab->imports, hash, i);
+  d_gab_imp_insert(&gab->imports, hash, i);
 
   return hash;
 }
 
-u64 gab_imports_shared(gab_engine *gab, s_i8 name, void *obj, gab_value val) {
-  u64 hash = s_i8_hash(name, gab->hash_seed);
+u64 gab_impshd(gab_eg *gab, const char *name, void *obj, a_gab_value *val) {
+  u64 hash = s_i8_hash(s_i8_cstr(name), gab->hash_seed);
 
-  gab_import *i = NEW(gab_import);
+  gab_imp *i = NEW(gab_imp);
 
   i->k = IMPORT_SHARED;
   i->cache = val;
   i->as.shared = obj;
 
-  gab_scratch(gab, val);
+  if (val)
+    gab_negkeep(gab, val->len, val->data);
 
-  d_gab_import_insert(&gab->imports, hash, i);
+  d_gab_imp_insert(&gab->imports, hash, i);
 
   return hash;
 }
 
-gab_value gab_imports_exists(gab_engine *gab, s_i8 name) {
-  u64 hash = s_i8_hash(name, gab->hash_seed);
+a_gab_value *gab_imphas(gab_eg *gab, const char *name) {
+  u64 hash = s_i8_hash(s_i8_cstr(name), gab->hash_seed);
 
-  if (d_gab_import_exists(&gab->imports, hash)) {
-    gab_import *i = d_gab_import_read(&gab->imports, hash);
+  if (d_gab_imp_exists(&gab->imports, hash)) {
+    gab_imp *i = d_gab_imp_read(&gab->imports, hash);
     return i->cache;
   }
 
-  return GAB_VAL_UNDEFINED();
+  return NULL;
 }
 
-void gab_import_destroy(gab_engine *gab, gab_gc *gc, gab_import *i) {
+void gab_import_destroy(gab_eg *gab, gab_gc *gc, gab_imp *i) {
+  a_gab_value_destroy(i->cache);
+
   switch (i->k) {
   case IMPORT_SHARED:
     dlclose(i->as.shared);
@@ -57,13 +59,14 @@ void gab_import_destroy(gab_engine *gab, gab_gc *gc, gab_import *i) {
   default:
     break;
   }
+
   DESTROY(i);
 }
 
-void gab_imports_destroy(gab_engine *gab, gab_gc *gc) {
+void gab_impdestroy(gab_eg *gab, gab_gc *gc) {
   for (u64 i = 0; i < gab->imports.cap; i++) {
-    if (d_gab_import_iexists(&gab->imports, i)) {
-      gab_import_destroy(gab, gc, d_gab_import_ival(&gab->imports, i));
+    if (d_gab_imp_iexists(&gab->imports, i)) {
+      gab_import_destroy(gab, gc, d_gab_imp_ival(&gab->imports, i));
     }
   }
 }

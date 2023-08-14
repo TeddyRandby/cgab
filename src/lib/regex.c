@@ -5,12 +5,12 @@
 #include <regex.h>
 #include <stdio.h>
 
-void gab_container_reg_cb(gab_obj_container *self) {
+void gab_box_reg_cb(gab_obj_box *self) {
   regfree(self->data);
   DESTROY(self->data);
 }
 
-gab_value gab_lib_comp(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_comp(gab_eg *gab, gab_vm* vm, size_t argc, gab_value argv[argc]) {
   if (argc != 1 || !GAB_VAL_IS_STRING(argv[0])) {
     return GAB_VAL_NULL();
   }
@@ -24,14 +24,14 @@ gab_value gab_lib_comp(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc
   return GAB_CONTAINER(gab_container_reg_cb, re);
 }
 
-gab_value gab_lib_exec(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_exec(gab_eg *gab, gab_vm* vm, size_t argc, gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_STRING(argv[0]) ||
-      !GAB_VAL_IS_CONTAINER(argv[1])) {
+      !GAB_VAL_IS_BOX(argv[1])) {
     return GAB_VAL_NULL();
   }
 
   gab_obj_string *str = GAB_VAL_TO_STRING(argv[0]);
-  regex_t *re = GAB_VAL_TO_CONTAINER(argv[1])->data;
+  regex_t *re = GAB_VAL_TO_BOX(argv[1])->data;
 
   regmatch_t matches[255] = {0};
 
@@ -49,7 +49,7 @@ gab_value gab_lib_exec(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc
     s_i8 match = s_i8_create(str->data + matches[i].rm_so,
                              matches[i].rm_eo - matches[i].rm_so);
 
-    gab_value key = GAB_VAL_NUMBER(i);
+    gab_value key = gab_number(i);
     gab_value value = GAB_VAL_OBJ(gab_obj_string_create(gab, match));
 
     gab_obj_record_insert(gab, vm, list, key, value);
@@ -59,7 +59,7 @@ gab_value gab_lib_exec(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc
   return GAB_VAL_OBJ(list);
 }
 
-gab_value gab_lib_find(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc]) {
+gab_value gab_lib_find(gab_eg *gab, gab_vm* vm, size_t argc, gab_value argv[argc]) {
   if (argc != 2 || !GAB_VAL_IS_STRING(argv[0]) || !GAB_VAL_IS_STRING(argv[1])) {
     return GAB_VAL_NULL();
   }
@@ -90,7 +90,7 @@ gab_value gab_lib_find(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc
     s_i8 match = s_i8_create(str->data + matches[i].rm_so,
                              matches[i].rm_eo - matches[i].rm_so);
 
-    gab_value key = GAB_VAL_NUMBER(i);
+    gab_value key = gab_number(i);
     gab_value value = GAB_VAL_OBJ(gab_obj_string_create(gab, match));
 
     gab_obj_record_insert(gab, vm, list, key, value);
@@ -100,7 +100,7 @@ gab_value gab_lib_find(gab_engine *gab, gab_vm* vm, u8 argc, gab_value argv[argc
   return GAB_VAL_OBJ(list);
 }
 
-gab_value gab_mod(gab_engine *gab, gab_vm* vm) {
+gab_value gab_mod(gab_eg *gab, gab_vm* vm) {
   s_i8 keys[] = {
       s_i8_cstr("find"),
       s_i8_cstr("comp"),

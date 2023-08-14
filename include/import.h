@@ -7,29 +7,42 @@ typedef enum {
   IMPORT_SHARED,
   IMPORT_SOURCE,
 } gab_import_k;
+
 typedef struct {
   gab_import_k k;
   union {
     gab_value mod;
     void *shared;
   } as;
-  gab_value cache;
-} gab_import ;
+  a_gab_value *cache;
+} gab_imp;
 
-#define NAME gab_import
+#define NAME gab_imp
 #define K u64
-#define V gab_import *
+#define V gab_imp *
 #define DEF_V NULL
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
 #include "dict.h"
 
-u64 gab_imports_module(gab_engine* gab, s_i8 name, gab_value mod, gab_value val);
+/**
+ * Allocate a new import for a gab_value module
+ */
+u64 gab_impmod(gab_eg *gab, const char *name, gab_value mod, a_gab_value* val);
 
-u64 gab_imports_shared(gab_engine* gab, s_i8 name, void* obj, gab_value val);
+/**
+ * Allocate a new import for a shared object
+ */
+u64 gab_impshd(gab_eg *gab, const char *name, void *obj, a_gab_value* val);
 
-gab_value gab_imports_exists(gab_engine* gab, s_i8 name);
+/**
+ * Check if an import exists
+ */
+a_gab_value* gab_imphas(gab_eg *gab, const char *name);
 
-void gab_imports_destroy(gab_engine* gab, gab_gc* gc);
+/**
+ * Destroy an import
+ */
+void gab_impdestroy(gab_eg *gab, gab_gc *gc);
 
 #endif

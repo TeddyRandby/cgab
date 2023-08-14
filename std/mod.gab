@@ -1,10 +1,6 @@
-'pry':require
-'dis':require
 'term':require
 'symbol':require
 
-
-'Monad':require
 'Map':require
 'List':require
 'Range':require

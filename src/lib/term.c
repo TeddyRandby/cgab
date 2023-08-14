@@ -1,50 +1,58 @@
 #include "../include/gab.h"
-#include "include/object.h"
-#include "include/value.h"
 #include <curses.h>
 #include <ncurses.h>
 
 void ncurses_cb(void *data) { endwin(); }
 
-void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_new(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   switch (argc) {
 
   case 1: {
     initscr();
 
-    gab_value k = GAB_CONTAINER(GAB_STRING("Term"), ncurses_cb, NULL, NULL);
+    gab_value k = gab_box(gab, vm,
+                          (struct gab_box_argt){
+                              .data = NULL,
+                              .type = gab_string(gab, "Term"),
+                              .destructor = ncurses_cb,
+                              .visitor = NULL,
+                          });
 
-    gab_push(vm, k);
+    gab_vmpush(vm, k);
 
-    gab_val_dref(vm, k);
+    gab_gcdref(gab_vmgc(vm), vm, k);
 
     break;
   }
 
   case 2: {
-    if (!GAB_VAL_IS_RECORD(argv[1])) {
+    if (gab_valknd(argv[1]) != kGAB_RECORD) {
       gab_panic(gab, vm, "Invalid call to gab_lib_new");
       return;
     }
 
-    gab_obj_record *opts = GAB_VAL_TO_RECORD(argv[1]);
-
     initscr();
 
-    if (gab_obj_record_has(opts, GAB_STRING("noecho")))
+    if (gab_srechas(gab, argv[1], "noecho"))
       noecho();
 
-    if (gab_obj_record_has(opts, GAB_STRING("raw")))
+    if (gab_srechas(gab, argv[1], "raw"))
       raw();
 
-    if (gab_obj_record_has(opts, GAB_STRING("keypad")))
+    if (gab_srechas(gab, argv[1], "keypad"))
       keypad(stdscr, true);
 
-    gab_value k = GAB_CONTAINER(GAB_STRING("Term"), ncurses_cb, NULL, NULL);
+    gab_value k = gab_box(gab, vm,
+                          (struct gab_box_argt){
+                              .data = NULL,
+                              .type = gab_string(gab, "Term"),
+                              .destructor = ncurses_cb,
+                              .visitor = NULL,
+                          });
 
-    gab_push(vm, k);
+    gab_vmpush(vm, k);
 
-    gab_val_dref(vm, k);
+    gab_gcdref(gab_vmgc(vm), vm, k);
 
     break;
   }
@@ -55,73 +63,90 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   }
 }
 
-void gab_lib_refresh(gab_engine *gab, gab_vm *vm, u8 argc,
+void gab_lib_refresh(gab_eg *gab, gab_vm *vm, size_t argc,
                      gab_value argv[argc]) {
   refresh();
 }
 
-void gab_lib_dim(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
-  gab_value dim[] = {GAB_VAL_NUMBER(LINES), GAB_VAL_NUMBER(COLS)};
+void gab_lib_dim(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+  gab_value dim[] = {gab_number(LINES), gab_number(COLS)};
 
-  gab_vpush(vm, 2, dim);
+  gab_nvmpush(vm, 2, dim);
 }
 
-void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
-  if (!GAB_VAL_IS_NUMBER(argv[1] || !GAB_VAL_IS_NUMBER(argv[2]) ||
-                         !GAB_VAL_IS_STRING(argv[3]))) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_put");
-    return;
-  }
-  gab_obj_string *c = GAB_VAL_TO_STRING(argv[3]);
-
-  if (c->len > 1) {
+void gab_lib_put(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+  if (gab_valknd(argv[1]) != kGAB_NUMBER ||
+      gab_valknd(argv[2]) != kGAB_NUMBER) {
     gab_panic(gab, vm, "Invalid call to gab_lib_put");
     return;
   }
 
-  i32 x = GAB_VAL_TO_NUMBER(argv[1]);
-  i32 y = GAB_VAL_TO_NUMBER(argv[2]);
+  char *str = gab_valtocs(gab, argv[3]);
 
-  mvaddch(y, x, c->data[0]);
+  if (strlen(str) > 1) {
+    free(str);
+    gab_panic(gab, vm, "Invalid call to gab_lib_put");
+    return;
+  }
+
+  i32 x = gab_valton(argv[1]);
+  i32 y = gab_valton(argv[2]);
+
+  mvaddch(y, x, str);
+
+  free(str);
 }
 
-void gab_lib_print(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_print(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   for (u8 i = 1; i < argc; i++) {
     printw("%V", argv[i]);
   }
 };
 
-void gab_lib_key(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_key(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   i8 c = getch();
 
-  gab_value res = GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_create(&c, 1)));
+  gab_value res = gab_nstring(gab, 1, (char *)&c);
 
-  gab_push(vm, res);
+  gab_vmpush(vm, res);
 }
 
-gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
+a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
   gab_value receivers[] = {
-      GAB_VAL_NIL(),      GAB_STRING("Term"), GAB_STRING("Term"),
-      GAB_STRING("Term"), GAB_STRING("Term"), GAB_STRING("Term"),
+      gab_nil,
+      gab_string(gab, "Term"),
+      gab_string(gab, "Term"),
+      gab_string(gab, "Term"),
+      gab_string(gab, "Term"),
+      gab_string(gab, "Term"),
   };
 
-  gab_value names[] = {
-      GAB_STRING("term"),  GAB_STRING("refresh"), GAB_STRING("key"),
-      GAB_STRING("print"), GAB_STRING("put"),     GAB_STRING("dim"),
+  const char *names[] = {
+      "term", "refresh", "key", "print", "put", "dim",
   };
 
   gab_value values[] = {
-      GAB_BUILTIN(new),   GAB_BUILTIN(refresh), GAB_BUILTIN(key),
-      GAB_BUILTIN(print), GAB_BUILTIN(put),     GAB_BUILTIN(dim),
+      gab_builtin(gab, "new", gab_lib_new),
+      gab_builtin(gab, "refresh", gab_lib_refresh),
+      gab_builtin(gab, "key", gab_lib_key),
+      gab_builtin(gab, "print", gab_lib_print),
+      gab_builtin(gab, "put", gab_lib_put),
+      gab_builtin(gab, "dim", gab_lib_dim),
   };
 
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(names));
 
   for (u8 i = 0; i < LEN_CARRAY(values); i++) {
-    gab_specialize(gab, vm, names[i], receivers[i], values[i]);
-    gab_val_dref(vm, values[i]);
+    gab_spec(gab, vm,
+             (struct gab_spec_argt){
+                 .receiver = receivers[i],
+                 .name = names[i],
+                 .specialization = values[i],
+             });
   }
 
-  return GAB_VAL_NIL();
+  gab_ngcdref(gab_vmgc(vm), vm, LEN_CARRAY(values), values);
+
+  return NULL;
 }

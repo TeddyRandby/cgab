@@ -28,169 +28,170 @@ struct primitive primitives[] = {
     {
         .name = mGAB_BOR,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_BOR),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_BOR),
     },
     {
         .name = mGAB_BND,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_BND),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_BND),
     },
     {
         .name = mGAB_LSH,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LSH),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LSH),
     },
     {
         .name = mGAB_RSH,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_RSH),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_RSH),
     },
     {
         .name = mGAB_ADD,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_ADD),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_ADD),
     },
     {
         .name = mGAB_SUB,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_SUB),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_SUB),
     },
     {
         .name = mGAB_MUL,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_MUL),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_MUL),
     },
     {
         .name = mGAB_DIV,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_DIV),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_DIV),
     },
     {
         .name = mGAB_MOD,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_MOD),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_MOD),
     },
     {
         .name = mGAB_LT,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LT),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LT),
     },
     {
         .name = mGAB_LTE,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LTE),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LTE),
     },
     {
         .name = mGAB_GT,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_GT),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_GT),
     },
     {
         .name = mGAB_GTE,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_GTE),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_GTE),
     },
     {
         .name = mGAB_ADD,
         .type = kGAB_STRING,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_CONCAT),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CONCAT),
     },
     {
         .name = mGAB_EQ,
         .type = kGAB_STRING,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
     },
     {
         .name = mGAB_EQ,
         .type = kGAB_NUMBER,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
     },
     {
         .name = mGAB_EQ,
-        .type = kGAB_BOOLEAN,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),
+        .type = kGAB_TRUE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
+    },
+    {
+        .name = mGAB_EQ,
+        .type = kGAB_FALSE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
     },
     {
         .name = mGAB_EQ,
         .type = kGAB_SHAPE,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
     },
     {
         .name = mGAB_EQ,
         .type = kGAB_MESSAGE,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
     },
     {
         .name = mGAB_EQ,
         .type = kGAB_NIL,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_EQ),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
     },
     {
         .name = mGAB_SET,
         .type = kGAB_RECORD,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_STORE),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_STORE),
     },
     {
         .name = mGAB_GET,
         .type = kGAB_RECORD,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_LOAD),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOAD),
     },
     {
         .name = mGAB_CALL,
         .type = kGAB_BUILTIN,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_CALL_BUILTIN),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BUILTIN),
     },
     {
         .name = mGAB_CALL,
         .type = kGAB_BLOCK,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_CALL_BLOCK),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BLOCK),
     },
     {
         .name = mGAB_CALL,
         .type = kGAB_SUSPENSE,
-        .primitive = GAB_VAL_PRIMITIVE(OP_SEND_PRIMITIVE_CALL_SUSPENSE),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_SUSPENSE),
     },
 };
 
-gab_engine *gab_create() {
-  gab_engine *gab = NEW(gab_engine);
+gab_eg *gab_create(u64 argc, gab_value argv_names[argc],
+                   gab_value argv_values[argc]) {
+  gab_eg *gab = NEW(gab_eg);
+  memset(gab, 0, sizeof(gab_eg));
+
+  for (u64 i = 0; i < argc; i++) {
+    v_gab_value_push(&gab->argv_names, argv_names[i]);
+    v_gab_value_push(&gab->argv_values, argv_values[i]);
+  }
 
   gab->hash_seed = time(NULL);
-  gab->objects = NULL;
-  gab->modules = NULL;
-  gab->sources = NULL;
-  v_gab_value_create(&gab->argv_values, 8);
-  v_gab_value_create(&gab->argv_names, 8);
 
-  d_strings_create(&gab->interned_strings, cGAB_INTERN_INITIAL_CAP);
-  d_shapes_create(&gab->interned_shapes, cGAB_INTERN_INITIAL_CAP);
-  d_messages_create(&gab->interned_messages, cGAB_INTERN_INITIAL_CAP);
-  d_gab_import_create(&gab->imports, 8);
-  v_gab_value_create(&gab->scratch, 8);
-
-  memset(&gab->allocator, 0, sizeof(gab->allocator));
-
-  gab->types[kGAB_UNDEFINED] = GAB_VAL_UNDEFINED();
-  gab->types[kGAB_NIL] = GAB_VAL_NIL();
-  gab->types[kGAB_NUMBER] = GAB_STRING("Number");
-  gab->types[kGAB_BOOLEAN] = GAB_STRING("Boolean");
-  gab->types[kGAB_STRING] = GAB_STRING("String");
-  gab->types[kGAB_MESSAGE] = GAB_STRING("Message");
-  gab->types[kGAB_BLOCK_PROTO] = GAB_STRING("Prototype");
-  gab->types[kGAB_BUILTIN] = GAB_STRING("Builtin");
-  gab->types[kGAB_BLOCK] = GAB_STRING("Block");
-  gab->types[kGAB_RECORD] = GAB_STRING("Record");
-  gab->types[kGAB_SHAPE] = GAB_STRING("Shape");
-  gab->types[kGAB_CONTAINER] = GAB_STRING("Container");
-  gab->types[kGAB_SUSPENSE] = GAB_STRING("Suspsense");
-  gab->types[kGAB_PRIMITIVE] = GAB_STRING("Primitive");
+  gab->types[kGAB_UNDEFINED] = gab_undefined;
+  gab->types[kGAB_NIL] = gab_nil;
+  gab->types[kGAB_NUMBER] = gab_string(gab, "Number");
+  gab->types[kGAB_TRUE] = gab_string(gab, "Boolean");
+  gab->types[kGAB_FALSE] = gab_string(gab, "Boolean");
+  gab->types[kGAB_STRING] = gab_string(gab, "String");
+  gab->types[kGAB_MESSAGE] = gab_string(gab, "Message");
+  gab->types[kGAB_BLOCK_PROTO] = gab_string(gab, "Prototype");
+  gab->types[kGAB_BUILTIN] = gab_string(gab, "Builtin");
+  gab->types[kGAB_BLOCK] = gab_string(gab, "Block");
+  gab->types[kGAB_RECORD] = gab_string(gab, "Record");
+  gab->types[kGAB_SHAPE] = gab_string(gab, "Shape");
+  gab->types[kGAB_BOX] = gab_string(gab, "Box");
+  gab->types[kGAB_SUSPENSE] = gab_string(gab, "Suspsense");
+  gab->types[kGAB_PRIMITIVE] = gab_string(gab, "Primitive");
 
   for (int i = 0; i < LEN_CARRAY(primitives); i++) {
-    gab_value name =
-        GAB_VAL_OBJ(gab_obj_string_create(gab, s_i8_cstr(primitives[i].name)));
-
-    gab_specialize(gab, NULL, name, gab->types[primitives[i].type],
-                   primitives[i].primitive);
+    gab_spec(gab, NULL,
+             (struct gab_spec_argt){
+                 .name = primitives[i].name,
+                 .receiver = gab_typ(gab, primitives[i].type),
+                 .specialization = primitives[i].primitive,
+             });
   }
 
   gab_setup_builtins(gab);
@@ -198,62 +199,57 @@ gab_engine *gab_create() {
   return gab;
 }
 
-void gab_destroy(gab_engine *gab) {
+void gab_destroy(gab_eg *gab) {
   if (!gab)
     return;
 
   gab_gc *gc = NEW(gab_gc);
   gab_gc_create(gc);
 
-  for (u64 i = 0; i < gab->scratch.len; i++) {
-    gab_gc_dref(gc, NULL, v_gab_value_val_at(&gab->scratch, i));
-  }
+  gab_ngcdref(gc, NULL, kGAB_NKINDS, gab->types);
+  gab_ngcdref(gc, NULL, gab->scratch.len, gab->scratch.data);
 
   for (u64 i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
       gab_obj_string *v = d_strings_ikey(&gab->interned_strings, i);
-      gab_gc_dref(gc, NULL, GAB_VAL_OBJ(v));
+      gab_gcdref(gc, NULL, __gab_obj(v));
     }
   }
 
   for (u64 i = 0; i < gab->interned_shapes.cap; i++) {
     if (d_shapes_iexists(&gab->interned_shapes, i)) {
       gab_obj_shape *v = d_shapes_ikey(&gab->interned_shapes, i);
-      gab_gc_dref(gc, NULL, GAB_VAL_OBJ(v));
+      gab_gcdref(gc, NULL, __gab_obj(v));
     }
   }
 
   for (u64 i = 0; i < gab->interned_messages.cap; i++) {
     if (d_messages_iexists(&gab->interned_messages, i)) {
       gab_obj_message *v = d_messages_ikey(&gab->interned_messages, i);
-      gab_gc_dref(gc, NULL, GAB_VAL_OBJ(v));
+      gab_gcdref(gc, NULL, __gab_obj(v));
     }
   }
 
-  for (u8 i = 0; i < kGAB_NKINDS; i++) {
-    gab_gc_dref(gc, NULL, gab->types[i]);
-  }
-
   while (gab->sources) {
-    gab_source *s = gab->sources;
+    gab_src *s = gab->sources;
     gab->sources = s->next;
-    gab_source_destroy(s);
+    gab_srcdestroy(s);
   }
 
   while (gab->modules) {
-    gab_module *m = gab->modules;
+    gab_mod *m = gab->modules;
     gab->modules = m->next;
-    gab_module_destroy(gab, gc, m);
+    gab_mod_destroy(gab, gc, m);
   }
 
   gab_gc_run(gc, NULL);
 
-  gab_imports_destroy(gab, gc);
+  gab_impdestroy(gab, gc);
 
   d_strings_destroy(&gab->interned_strings);
   d_shapes_destroy(&gab->interned_shapes);
   d_messages_destroy(&gab->interned_messages);
-  d_gab_import_destroy(&gab->imports);
+  d_gab_imp_destroy(&gab->imports);
 
   v_gab_value_destroy(&gab->argv_values);
   v_gab_value_destroy(&gab->argv_names);
@@ -265,174 +261,92 @@ void gab_destroy(gab_engine *gab) {
   DESTROY(gab);
 }
 
-void gab_collect(gab_engine *gab, gab_vm *vm) { gab_gc_run(&vm->gc, vm); }
+void gab_collect(gab_eg *gab, gab_vm *vm) { gab_gc_run(&vm->gc, vm); }
 
-void gab_args(gab_engine *gab, u64 argc, gab_value argv_names[argc],
-              gab_value argv_values[argc]) {
-  gab->argv_values.len = 0;
-  gab->argv_names.len = 0;
-
-  for (u64 i = 0; i < argc; i++) {
-    v_gab_value_push(&gab->argv_names, argv_names[i]);
-    v_gab_value_push(&gab->argv_values, argv_values[i]);
-  }
-}
-
-u64 gab_args_push(gab_engine *gab, gab_value name) {
-  v_gab_value_push(&gab->argv_values, GAB_VAL_UNDEFINED());
+u64 gab_argpush(gab_eg *gab, gab_value name) {
+  v_gab_value_push(&gab->argv_values, gab_undefined);
   return v_gab_value_push(&gab->argv_names, name);
 }
 
-void gab_args_put(gab_engine *gab, gab_value value, u64 index) {
-  gab->argv_values.data[index] = value;
+void gab_argput(gab_eg *gab, gab_value value, u64 index) {
+  v_gab_value_set(&gab->argv_values, index, value);
 }
 
-void gab_args_pop(gab_engine *gab) {
+void gab_argpop(gab_eg *gab) {
   v_gab_value_pop(&gab->argv_names);
   v_gab_value_pop(&gab->argv_values);
 };
 
-gab_value gab_compile(gab_engine *gab, gab_value name, s_i8 source, u8 flags) {
-  return gab_bc_compile(gab, name, source, flags, gab->argv_values.len,
-                        gab->argv_names.data);
-}
-
-a_gab_value *gab_run(gab_engine *gab, gab_value main, u8 flags) {
-  if (!GAB_VAL_IS_BLOCK(main))
+a_gab_value *gab_run(gab_eg *gab, gab_value main, size_t flags) {
+  if (gab_valknd(main) != kGAB_BLOCK)
     return NULL;
 
   return gab_vm_run(gab, main, flags, gab->argv_values.len,
                     gab->argv_values.data);
 };
 
-gab_value gab_panic(gab_engine *gab, gab_vm *vm, const char *msg) {
+a_gab_value *gab_execute(gab_eg *gab, const char *name, const char *source,
+                         size_t flags) {
+  gab_value main = gab_block(gab, (struct gab_block_argt){name, source, flags});
+
+  if (main == gab_undefined)
+    return NULL;
+
+  return gab_run(gab, main, flags);
+}
+
+gab_value gab_panic(gab_eg *gab, gab_vm *vm, const char *msg) {
   gab_value vm_container = gab_vm_panic(gab, vm, msg);
-
-  gab_val_dref(vm, vm_container);
-
+  gab_gcdref(&vm->gc, vm, vm_container);
   return vm_container;
 }
 
-void gab_val_dref(gab_vm *vm, gab_value value) {
-  gab_gc_dref(&vm->gc, vm, value);
+gab_value gab_spec(gab_eg *gab, gab_vm *vm, struct gab_spec_argt args) {
+  gab_obj_message *m = gab_obj_message_create(gab, gab_string(gab, args.name));
+
+  if (gab_obj_message_find(m, args.receiver) != UINT64_MAX)
+    return gab_nil;
+
+  gab_obj_message_insert(m, args.receiver, args.specialization);
+
+  if (vm)
+    gab_ngciref(&vm->gc, vm, 2,
+                (gab_value[2]){args.receiver, args.specialization});
+
+  return __gab_obj(m);
 }
 
-void gab_val_vdref(gab_vm *vm, u64 len, gab_value values[len]) {
-  gab_gc_dref_many(&vm->gc, vm, len, values);
-}
-
-void gab_val_iref(gab_vm *vm, gab_value value) {
-  gab_gc_iref(&vm->gc, vm, value);
-}
-
-void gab_val_viref(gab_vm *vm, u64 len, gab_value values[len]) {
-  gab_gc_iref_many(&vm->gc, vm, len, values);
-}
-
-gab_value gab_record(gab_engine *gab, gab_vm *vm, u64 size, s_i8 keys[size],
-                     gab_value values[size]) {
-  gab_value value_keys[size];
-
-  for (u64 i = 0; i < size; i++) {
-    value_keys[i] = GAB_VAL_OBJ(gab_obj_string_create(gab, keys[i]));
-  }
-
-  gab_obj_shape *bundle_shape =
-      gab_obj_shape_create(gab, vm, size, 1, value_keys);
-
-  gab_value bundle =
-      GAB_VAL_OBJ(gab_obj_record_create(gab, vm, bundle_shape, 1, values));
-
-  return bundle;
-}
-
-gab_value gab_tuple(gab_engine *gab, gab_vm *vm, u64 size,
-                    gab_value values[size]) {
-  gab_obj_shape *bundle_shape = gab_obj_shape_create_tuple(gab, vm, size);
-
-  gab_value bundle =
-      GAB_VAL_OBJ(gab_obj_record_create(gab, vm, bundle_shape, 1, values));
-
-  return bundle;
-}
-
-gab_value gab_specialize(gab_engine *gab, gab_vm *vm, gab_value name,
-                         gab_value receiver, gab_value specialization) {
-  gab_obj_message *m = gab_obj_message_create(gab, name);
-
-  if (gab_obj_message_find(m, receiver) != UINT64_MAX)
-    return GAB_VAL_NIL();
-
-  gab_obj_message_insert(m, receiver, specialization);
-
-  if (vm) {
-    gab_gc_iref(&vm->gc, vm, receiver);
-    gab_gc_iref(&vm->gc, vm, specialization);
-  }
-
-  return GAB_VAL_OBJ(m);
-}
-
-a_gab_value *send_msg(gab_engine *gab, gab_vm *vm, gab_value msg,
-                      gab_value receiver, u8 argc, gab_value argv[argc]) {
-  if (GAB_VAL_IS_UNDEFINED(msg))
-    return a_gab_value_one(GAB_VAL_UNDEFINED());
+a_gab_value *send_msg(gab_eg *gab, gab_vm *vm, gab_value msg,
+                      gab_value receiver, size_t argc, gab_value argv[argc]) {
+  if (msg == gab_undefined)
+    return a_gab_value_one(gab_undefined);
 
   gab_value mod =
-      gab_bc_compile_send(gab, msg, receiver, fGAB_DUMP_ERROR, argc, argv);
+      gab_bccompsend(gab, msg, receiver, fGAB_DUMP_ERROR, argc, argv);
 
-  if (GAB_VAL_IS_UNDEFINED(mod))
-    return a_gab_value_one(mod);
+  if (mod == gab_undefined)
+    return a_gab_value_one(gab_undefined);
 
-  gab_scratch(gab, mod);
+  gab_egkeep(gab, mod);
 
-  a_gab_value *result = gab_vm_run(gab, mod, fGAB_DUMP_ERROR, 0, NULL);
-
-  return result;
+  return gab_vm_run(gab, mod, fGAB_DUMP_ERROR, 0, NULL);
 }
 
-a_gab_value *gab_send(gab_engine *gab, gab_vm *vm, gab_value msg,
-                      gab_value receiver, u8 argc, gab_value argv[argc]) {
-  if (GAB_VAL_IS_STRING(msg)) {
+a_gab_value *gab_send(gab_eg *gab, gab_vm *vm, gab_value msg,
+                      gab_value receiver, size_t argc, gab_value argv[argc]) {
+  switch (gab_valknd(msg)) {
+  case kGAB_STRING: {
     gab_obj_message *main = gab_obj_message_create(gab, msg);
-    return send_msg(gab, vm, GAB_VAL_OBJ(main), receiver, argc, argv);
-  } else if (GAB_VAL_IS_MESSAGE(msg)) {
+    return send_msg(gab, vm, __gab_obj(main), receiver, argc, argv);
+  }
+  case kGAB_MESSAGE:
     return send_msg(gab, vm, msg, receiver, argc, argv);
+  default:
+    return a_gab_value_one(gab_nil);
   }
-
-  return a_gab_value_one(GAB_VAL_NIL());
 }
 
-i32 gab_engine_intern(gab_engine *self, gab_value value) {
-  if (GAB_VAL_IS_STRING(value)) {
-    gab_obj_string *k = GAB_VAL_TO_STRING(value);
-
-    d_strings_insert(&self->interned_strings, k, 0);
-
-    return d_strings_index_of(&self->interned_strings, k);
-  }
-
-  if (GAB_VAL_IS_SHAPE(value)) {
-    gab_obj_shape *k = GAB_VAL_TO_SHAPE(value);
-
-    d_shapes_insert(&self->interned_shapes, k, 0);
-
-    return d_shapes_index_of(&self->interned_shapes, k);
-  }
-
-  if (GAB_VAL_IS_MESSAGE(value)) {
-    gab_obj_message *k = GAB_VAL_TO_MESSAGE(value);
-
-    d_messages_insert(&self->interned_messages, k, 0);
-
-    return d_messages_index_of(&self->interned_messages, k);
-  }
-
-  return -1;
-}
-
-gab_obj_message *gab_engine_find_message(gab_engine *self, gab_value name,
-                                         u64 hash) {
+gab_obj_message *gab_eg_find_message(gab_eg *self, gab_value name, u64 hash) {
   if (self->interned_messages.len == 0)
     return NULL;
 
@@ -454,7 +368,7 @@ gab_obj_message *gab_engine_find_message(gab_engine *self, gab_value name,
   }
 }
 
-gab_obj_string *gab_engine_find_string(gab_engine *self, s_i8 str, u64 hash) {
+gab_obj_string *gab_eg_find_string(gab_eg *self, s_i8 str, u64 hash) {
   if (self->interned_strings.len == 0)
     return NULL;
 
@@ -492,8 +406,8 @@ static inline boolean shape_matches_keys(gab_obj_shape *self,
   return true;
 }
 
-gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size, u64 stride,
-                                     u64 hash, gab_value keys[size]) {
+gab_obj_shape *gab_eg_find_shape(gab_eg *self, u64 size, u64 stride, u64 hash,
+                                 gab_value keys[size]) {
   if (self->interned_shapes.len == 0)
     return NULL;
 
@@ -514,12 +428,44 @@ gab_obj_shape *gab_engine_find_shape(gab_engine *self, u64 size, u64 stride,
   }
 }
 
-gab_value gab_type(gab_engine *gab, gab_kind k) { return gab->types[k]; }
+gab_value gab_typ(gab_eg *gab, gab_kind k) { return gab->types[k]; }
+
+gab_kind gab_valknd(gab_value value) {
+  if (__gab_valisn(value))
+    return kGAB_NUMBER;
+
+  if (gab_valiso(value))
+    return gab_valtoo(value)->kind;
+
+  return __GAB_VAL_TAG(value);
+}
+
+gab_value gab_valtyp(gab_eg *gab, gab_value value) {
+  gab_kind k = gab_valknd(value);
+
+  switch (k) {
+  case kGAB_NIL:
+  case kGAB_UNDEFINED:
+    return value;
+
+  case kGAB_RECORD: {
+    gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
+    return __gab_obj(obj->shape);
+  }
+
+  case kGAB_BOX: {
+    gab_obj_box *con = GAB_VAL_TO_BOX(value);
+    return con->type;
+  }
+  default:
+    return gab_typ(gab, k);
+  }
+}
 
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
                            const void *const *args) {
   const gab_value value = *(const gab_value *const)args[0];
-  return gab_val_dump(stream, value);
+  return gab_fdump(stream, value);
 }
 int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
                            int *sizes) {
@@ -531,65 +477,55 @@ int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
   return 1;
 }
 
-u64 gab_seed(gab_engine *gab) { return gab->hash_seed; }
+size_t gab_egkeep(gab_eg *gab, gab_value v) {
+  v_gab_value_push(&gab->scratch, v);
+  return gab->scratch.len;
+}
 
-i32 gab_vscratch(gab_engine *gab, u64 len, gab_value *values) {
-  for (u64 i = 0; i < len; i++) {
+size_t gab_negkeep(gab_eg *gab, size_t len, gab_value *values) {
+  for (u64 i = 0; i < len; i++)
     v_gab_value_push(&gab->scratch, values[i]);
-  }
 
-  return len;
+  return gab->scratch.len;
 }
 
-gab_value gab_scratch(gab_engine *gab, gab_value value) {
-  v_gab_value_push(&gab->scratch, value);
+gab_gc *gab_vmgc(gab_vm *vm) { return &vm->gc; }
 
-  return value;
+size_t gab_vmpush(gab_vm *vm, gab_value value) {
+  return gab_vm_push(vm, 1, &value);
 }
 
-gab_value gab_push(gab_vm *vm, gab_value value) {
-  gab_vm_push(vm, 1, &value);
-
-  return value;
-}
-
-i32 gab_vpush(gab_vm *vm, u64 argc, gab_value argv[argc]) {
+size_t gab_nvmpush(gab_vm *vm, size_t argc, gab_value argv[argc]) {
   return gab_vm_push(vm, argc, argv);
 }
 
-gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
-  switch (gab_val_kind(value)) {
-  case kGAB_CONTAINER:
-  case kGAB_BOOLEAN:
-  case kGAB_NUMBER:
-  case kGAB_NIL:
-  case kGAB_UNDEFINED:
-  case kGAB_PRIMITIVE:
-  case kGAB_NKINDS:
+gab_value gab_valcpy(gab_eg *gab, gab_vm *vm, gab_value value) {
+  switch (gab_valknd(value)) {
+  default:
     return value;
 
   case kGAB_MESSAGE: {
     gab_obj_message *self = GAB_VAL_TO_MESSAGE(value);
     gab_obj_message *copy =
-        gab_obj_message_create(gab, gab_val_copy(gab, vm, self->name));
+        gab_obj_message_create(gab, gab_valcpy(gab, vm, self->name));
 
-    return GAB_VAL_OBJ(copy);
+    return __gab_obj(copy);
   }
 
   case kGAB_STRING: {
     gab_obj_string *self = GAB_VAL_TO_STRING(value);
-    return GAB_VAL_OBJ(gab_obj_string_create(gab, gab_obj_string_ref(self)));
+    return __gab_obj(gab_obj_string_create(gab, gab_obj_string_ref(self)));
   }
 
   case kGAB_BUILTIN: {
     gab_obj_builtin *self = GAB_VAL_TO_BUILTIN(value);
-    return GAB_VAL_OBJ(gab_obj_builtin_create(
-        gab, self->function, gab_val_copy(gab, vm, self->name)));
+    return __gab_obj(gab_obj_builtin_create(gab, self->function,
+                                            gab_valcpy(gab, vm, self->name)));
   }
 
   case kGAB_BLOCK_PROTO: {
     gab_obj_block_proto *self = GAB_VAL_TO_BLOCK_PROTO(value);
-    gab->modules = gab_module_copy(gab, self->mod);
+    gab->modules = gab_mod_copy(gab, self->mod);
 
     gab_obj_block_proto *copy = gab_obj_prototype_create(
         gab, gab->modules, self->narguments, self->nslots, self->nlocals,
@@ -597,22 +533,22 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
 
     memcpy(copy->upv_desc, self->upv_desc, self->nupvalues * 2);
 
-    return GAB_VAL_OBJ(copy);
+    return __gab_obj(copy);
   }
 
   case kGAB_BLOCK: {
     gab_obj_block *self = GAB_VAL_TO_BLOCK(value);
 
     gab_obj_block_proto *p_copy =
-        GAB_VAL_TO_BLOCK_PROTO(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->p)));
+        GAB_VAL_TO_BLOCK_PROTO(gab_valcpy(gab, vm, __gab_obj(self->p)));
 
     gab_obj_block *copy = gab_obj_block_create(gab, p_copy);
 
     for (u8 i = 0; i < p_copy->nupvalues; i++) {
-      copy->upvalues[i] = gab_val_copy(gab, vm, self->upvalues[i]);
+      copy->upvalues[i] = gab_valcpy(gab, vm, self->upvalues[i]);
     }
 
-    return GAB_VAL_OBJ(copy);
+    return __gab_obj(copy);
   }
 
   case kGAB_SHAPE: {
@@ -621,28 +557,28 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
     gab_value keys[self->len];
 
     for (u64 i = 0; i < self->len; i++) {
-      keys[i] = gab_val_copy(gab, vm, self->data[i]);
+      keys[i] = gab_valcpy(gab, vm, self->data[i]);
     }
 
     gab_obj_shape *copy = gab_obj_shape_create(gab, vm, self->len, 1, keys);
 
-    return GAB_VAL_OBJ(copy);
+    return __gab_obj(copy);
   }
 
   case kGAB_RECORD: {
     gab_obj_record *self = GAB_VAL_TO_RECORD(value);
 
     gab_obj_shape *s_copy =
-        GAB_VAL_TO_SHAPE(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->shape)));
+        GAB_VAL_TO_SHAPE(gab_valcpy(gab, vm, __gab_obj(self->shape)));
 
     gab_value values[self->len];
 
     for (u64 i = 0; i < self->len; i++)
-      values[i] = gab_val_copy(gab, vm, self->data[i]);
+      values[i] = gab_valcpy(gab, vm, self->data[i]);
 
     gab_obj_record *copy = gab_obj_record_create(gab, vm, s_copy, 1, values);
 
-    return GAB_VAL_OBJ(copy);
+    return __gab_obj(copy);
   }
 
   case kGAB_SUSPENSE_PROTO: {
@@ -651,7 +587,7 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
     gab_obj_suspense_proto *copy =
         gab_obj_suspense_proto_create(gab, self->offset, self->want);
 
-    return GAB_VAL_OBJ(copy);
+    return __gab_obj(copy);
   }
 
   case kGAB_SUSPENSE: {
@@ -660,18 +596,136 @@ gab_value gab_val_copy(gab_engine *gab, gab_vm *vm, gab_value value) {
     gab_value frame[self->len];
 
     gab_obj_suspense_proto *p_copy =
-        GAB_VAL_TO_SUSPENSE_PROTO(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->p)));
+        GAB_VAL_TO_SUSPENSE_PROTO(gab_valcpy(gab, vm, __gab_obj(self->p)));
 
     for (u64 i = 0; i < self->len; i++)
-      frame[i] = gab_val_copy(gab, vm, self->frame[i]);
+      frame[i] = gab_valcpy(gab, vm, self->frame[i]);
 
     gab_obj_block *b_copy =
-        GAB_VAL_TO_BLOCK(gab_val_copy(gab, vm, GAB_VAL_OBJ(self->b)));
+        GAB_VAL_TO_BLOCK(gab_valcpy(gab, vm, __gab_obj(self->b)));
 
     gab_obj_suspense *copy =
         gab_obj_suspense_create(gab, vm, self->len, b_copy, p_copy, frame);
 
-    return GAB_VAL_OBJ(copy);
+    return __gab_obj(copy);
   }
   }
+}
+
+gab_value gab_builtin(gab_eg *gab, const char *name, gab_builtin_f f) {
+  return __gab_obj(gab_obj_builtin_create(gab, f, gab_string(gab, name)));
+}
+
+gab_value gab_string(gab_eg *gab, const char *data) {
+  return __gab_obj(gab_obj_string_create(gab, s_i8_cstr(data)));
+}
+
+gab_value gab_nstring(gab_eg *gab, size_t len, const char *data) {
+  return __gab_obj(
+      gab_obj_string_create(gab, s_i8_create((const i8 *)data, len)));
+}
+
+gab_value gab_block(gab_eg *gab, struct gab_block_argt args) {
+  return gab_bccomp(gab, gab_string(gab, args.name),
+                    s_i8_create((i8 *)args.source, strlen(args.source) + 1),
+                    args.flags, gab->argv_values.len, gab->argv_names.data);
+}
+
+gab_value gab_record(gab_eg *gab, gab_vm *vm, u64 size, const char *keys[size],
+                     gab_value values[size]) {
+  gab_value value_keys[size];
+
+  for (u64 i = 0; i < size; i++)
+    value_keys[i] = gab_string(gab, keys[i]);
+
+  gab_obj_shape *bundle_shape =
+      gab_obj_shape_create(gab, vm, size, 1, value_keys);
+
+  return __gab_obj(gab_obj_record_create(gab, vm, bundle_shape, 1, values));
+}
+
+gab_value gab_erecord(gab_eg *gab, gab_value shape) {
+  assert(gab_valknd(shape) == kGAB_SHAPE);
+  return __gab_obj(gab_obj_record_create_empty(gab, GAB_VAL_TO_SHAPE(shape)));
+}
+
+gab_value gab_tuple(gab_eg *gab, gab_vm *vm, u64 size, gab_value values[size]) {
+  gab_obj_shape *bundle_shape = gab_obj_shape_create_tuple(gab, vm, size);
+  return __gab_obj(gab_obj_record_create(gab, vm, bundle_shape, 1, values));
+}
+
+void *gab_boxdata(gab_value value) {
+  assert(gab_valknd(value) == kGAB_BOX);
+  return GAB_VAL_TO_BOX(value)->data;
+}
+
+gab_value gab_recshp(gab_value value) {
+  assert(gab_valknd(value) == kGAB_RECORD);
+  return __gab_obj(GAB_VAL_TO_RECORD(value)->shape);
+}
+
+size_t gab_reclen(gab_value value) {
+  assert(gab_valknd(value) == kGAB_RECORD);
+  return GAB_VAL_TO_RECORD(value)->len;
+}
+
+gab_value *gab_recdata(gab_value value) {
+  assert(gab_valknd(value) == kGAB_RECORD);
+  return GAB_VAL_TO_RECORD(value)->data;
+}
+
+size_t gab_shplen(gab_value value) {
+  assert(gab_valknd(value) == kGAB_SHAPE);
+  return GAB_VAL_TO_SHAPE(value)->len;
+}
+
+gab_value *gab_shpdata(gab_value value) {
+  assert(gab_valknd(value) == kGAB_SHAPE);
+  return GAB_VAL_TO_SHAPE(value)->data;
+}
+
+size_t gab_strlen(gab_value value) {
+  assert(gab_valknd(value) == kGAB_STRING);
+  return GAB_VAL_TO_STRING(value)->len;
+}
+
+bool gab_rechas(gab_value value, gab_value key) {
+  assert(gab_valknd(value) == kGAB_RECORD);
+  return gab_obj_record_has(GAB_VAL_TO_RECORD(value), key);
+}
+
+bool gab_srechas(gab_eg *gab, gab_value value, const char *key) {
+  assert(gab_valknd(value) == kGAB_RECORD);
+  return gab_obj_record_has(GAB_VAL_TO_RECORD(value), gab_string(gab, key));
+}
+
+gab_value gab_recat(gab_value value, gab_value key) {
+  assert(gab_valknd(value) == kGAB_RECORD);
+  return gab_obj_record_at(GAB_VAL_TO_RECORD(value), key);
+}
+
+gab_value gab_srecat(gab_eg *gab, gab_value value, const char *key) {
+  assert(gab_valknd(value) == kGAB_RECORD);
+  return gab_obj_record_at(GAB_VAL_TO_RECORD(value), gab_string(gab, key));
+}
+
+void gab_recput(gab_vm *vm, gab_value value, gab_value key, gab_value val) {
+  assert(gab_valknd(value) == kGAB_RECORD);
+  gab_obj_record_put(vm, GAB_VAL_TO_RECORD(value), key, val);
+}
+
+void gab_srecput(gab_eg *gab, gab_vm *vm, gab_value value, const char *key,
+                 gab_value val) {
+  assert(gab_valknd(value) == kGAB_RECORD);
+  gab_obj_record_put(vm, GAB_VAL_TO_RECORD(value), gab_string(gab, key), val);
+}
+
+size_t gab_shpfind(gab_value value, gab_value needle) {
+  assert(gab_valknd(value) == kGAB_SHAPE);
+  return gab_obj_shape_find(GAB_VAL_TO_SHAPE(value), needle);
+}
+
+gab_value gab_msgfind(gab_value msg, gab_value spec) {
+  assert(gab_valknd(msg) == kGAB_MESSAGE);
+  return gab_obj_message_find(GAB_VAL_TO_MESSAGE(msg), spec);
 }

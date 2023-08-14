@@ -11,7 +11,7 @@ def bench = do (cb, runs)
     times:push(:clock - before)
   end
 
-  sum = times:fold(0) do (a, c) a + c end
+  sum = times:fold(0) do; @1 + @2 end
 
   sum / runs
 end

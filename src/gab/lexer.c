@@ -4,14 +4,14 @@
 #include "include/types.h"
 #include <stdio.h>
 
-static void advance(gab_lexer *self) {
+static void advance(gab_lex *self) {
   self->cursor++;
   self->col++;
   self->current_token_src.len++;
   self->current_row_src.len++;
 }
 
-static void start_row(gab_lexer *self) {
+static void start_row(gab_lex *self) {
   self->current_row_src.data = self->cursor;
   self->current_row_src.len = 0;
   self->col = 0;
@@ -19,12 +19,12 @@ static void start_row(gab_lexer *self) {
   self->previous_row = self->current_row;
 }
 
-static void start_token(gab_lexer *self) {
+static void start_token(gab_lex *self) {
   self->current_token_src.data = self->cursor;
   self->current_token_src.len = 0;
 }
 
-static void finish_row(gab_lexer *self) {
+static void finish_row(gab_lex *self) {
   self->skip_lines++;
 
   self->previous_row_src = self->current_row_src;
@@ -36,8 +36,8 @@ static void finish_row(gab_lexer *self) {
   start_row(self);
 }
 
-void gab_lexer_create(gab_lexer *self, gab_source *src) {
-  memset(self, 0, sizeof(gab_lexer));
+void gab_lexcreate(gab_lex *self, gab_src *src) {
+  memset(self, 0, sizeof(gab_lex));
 
   self->source = src;
   self->cursor = src->source->data;
@@ -47,11 +47,11 @@ void gab_lexer_create(gab_lexer *self, gab_source *src) {
   start_row(self);
 }
 
-static inline i8 peek(gab_lexer *self) { return *self->cursor; }
+static inline i8 peek(gab_lex *self) { return *self->cursor; }
 
-static inline i8 peek_next(gab_lexer *self) { return *(self->cursor + 1); }
+static inline i8 peek_next(gab_lex *self) { return *(self->cursor + 1); }
 
-static inline gab_token error(gab_lexer *self, gab_status s) {
+static inline gab_token error(gab_lex *self, gab_status s) {
   self->status = s;
   return TOKEN_ERROR;
 }
@@ -143,11 +143,13 @@ const keyword keywords[] = {
     },
 };
 
-gab_token identifier(gab_lexer *self) {
+gab_token identifier(gab_lex *self) {
 
-  while (is_alpha(peek(self)) || is_digit(peek(self))) {
+  while (is_alpha(peek(self)) || is_digit(peek(self)))
     advance(self);
-  }
+
+  if (peek(self) == '?' || peek(self) == '!')
+    advance(self);
 
   for (i32 i = 0; i < sizeof(keywords) / sizeof(keyword); i++) {
     keyword k = keywords[i];
@@ -160,7 +162,7 @@ gab_token identifier(gab_lexer *self) {
   return TOKEN_IDENTIFIER;
 }
 
-gab_token string(gab_lexer *self) {
+gab_token string(gab_lex *self) {
   u8 start = peek(self);
   u8 stop = start == '"' ? '"' : '\'';
 
@@ -190,7 +192,7 @@ gab_token string(gab_lexer *self) {
   return start == '}' ? TOKEN_INTERPOLATION_END : TOKEN_STRING;
 }
 
-gab_token integer(gab_lexer *self) {
+gab_token integer(gab_lex *self) {
   if (!is_digit(peek(self)))
     return error(self, GAB_MALFORMED_TOKEN);
 
@@ -200,7 +202,7 @@ gab_token integer(gab_lexer *self) {
   return TOKEN_NUMBER;
 }
 
-gab_token floating(gab_lexer *self) {
+gab_token floating(gab_lex *self) {
 
   if (integer(self) == TOKEN_ERROR)
     return TOKEN_ERROR;
@@ -222,7 +224,7 @@ gab_token floating(gab_lexer *self) {
     return TOKEN_##name;                                                       \
   }
 
-gab_token other(gab_lexer *self) {
+gab_token other(gab_lex *self) {
   switch (peek(self)) {
 
     CHAR_CASE('+', PLUS)
@@ -234,7 +236,7 @@ gab_token other(gab_lexer *self) {
     CHAR_CASE('(', LPAREN)
     CHAR_CASE(')', RPAREN)
     CHAR_CASE(',', COMMA)
-    CHAR_CASE(';', SEMICOLON)
+    CHAR_CASE(';', NEWLINE) // Treat as a line break for the compiler
     CHAR_CASE('|', PIPE)
     CHAR_CASE('?', QUESTION)
     CHAR_CASE('&', AMPERSAND)
@@ -359,7 +361,7 @@ gab_token other(gab_lexer *self) {
   }
 }
 
-static inline void parse_comment(gab_lexer *self) {
+static inline void parse_comment(gab_lex *self) {
   i8 *start = self->cursor;
 
   while (is_comment(peek(self))) {
@@ -372,9 +374,9 @@ static inline void parse_comment(gab_lexer *self) {
   self->previous_comment = s_i8_create(start, self->cursor - start);
 }
 
-static inline void parse_whitespace(gab_lexer *self) { advance(self); }
+static inline void parse_whitespace(gab_lex *self) { advance(self); }
 
-gab_token gab_lexer_next(gab_lexer *self) {
+gab_token gab_lexnxt(gab_lex *self) {
   self->previous_token_src = self->current_token_src;
   self->previous_token = self->current_token;
   self->previous_comment = (s_i8){0};
@@ -387,13 +389,17 @@ gab_token gab_lexer_next(gab_lexer *self) {
       parse_whitespace(self);
   }
 
-  start_token(self);
+  if (self->cursor - self->source->source->data > self->source->source->len) {
+    fprintf(stderr, "UhOH Out of bounds!");
+  }
 
   if (peek(self) == '\0' || peek(self) == EOF) {
     self->current_token_src = s_i8_create(self->cursor, 0);
-    finish_row(self);
+    self->current_token = TOKEN_EOF;
     return TOKEN_EOF;
   }
+
+  start_token(self);
 
   if (peek(self) == '\n') {
     advance(self);
@@ -428,7 +434,7 @@ gab_token gab_lexer_next(gab_lexer *self) {
   return other(self);
 }
 
-void gab_lexer_finish_line(gab_lexer *self) {
+void gab_lexendl(gab_lex *self) {
   while (peek(self) != '\n' && peek(self) != '\0') {
     advance(self);
   }
@@ -440,19 +446,19 @@ void gab_lexer_finish_line(gab_lexer *self) {
   self->skip_lines = 0;
 };
 
-gab_source *gab_source_create(gab_engine *gab, s_i8 source) {
-  gab_source *self = NEW(gab_source);
-  self->source = a_i8_create(source.data, source.len);
-  v_s_i8_create(&self->source_lines, 32);
+gab_src *gab_srccreate(gab_eg *gab, s_i8 source) {
+  gab_src *self = NEW(gab_src);
+  memset(self, 0, sizeof(gab_src));
 
+  self->source = a_i8_create(source.data, source.len);
   self->next = gab->sources;
   gab->sources = self;
 
   return self;
 }
 
-gab_source *gab_source_copy(gab_engine *gab, gab_source *self) {
-  gab_source *copy = NEW(gab_source);
+gab_src *gab_srccpy(gab_eg *gab, gab_src *self) {
+  gab_src *copy = NEW(gab_src);
   copy->source = a_i8_create(self->source->data, self->source->len);
 
   v_s_i8_copy(&copy->source_lines, &self->source_lines);
@@ -471,7 +477,7 @@ gab_source *gab_source_copy(gab_engine *gab, gab_source *self) {
   return copy;
 }
 
-void gab_source_destroy(gab_source *self) {
+void gab_srcdestroy(gab_src *self) {
   v_s_i8_destroy(&self->source_lines);
   a_i8_destroy(self->source);
   DESTROY(self);

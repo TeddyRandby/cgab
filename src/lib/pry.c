@@ -1,6 +1,6 @@
 #include "../include/gab.h"
 
-void gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
+void gab_lib_pryframes(gab_eg *gab, gab_vm *vm, size_t argc,
                        gab_value argv[argc]) {
   if (argc < 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_pryframes");
@@ -23,9 +23,9 @@ void gab_lib_pryframes(gab_engine *gab, gab_vm *vm, u8 argc,
   return;
 }
 
-gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
+gab_value gab_mod(gab_eg *gab, gab_vm *vm) {
   gab_value receivers[] = {
-      GAB_STRING("gab_vm"),
+      gab_string(gab,"gab_vm"),
   };
 
   gab_value values[] = {
@@ -33,7 +33,7 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
   };
 
   gab_value names[] = {
-      GAB_STRING("pry"),
+      gab_string(gab,"pry"),
   };
 
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));
@@ -44,5 +44,5 @@ gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
     gab_val_dref(vm, values[i]);
   }
 
-  return GAB_VAL_NIL();
+  return gab_nil;
 }

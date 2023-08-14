@@ -19,7 +19,7 @@
 #define LINKAGE static inline
 #define METHOD(name) CONCAT(PREFIX, CONCAT(_, name))
 
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 #define GROW(type, loc, new_count)                                             \
   ((type *)realloc(loc, sizeof(type) * (new_count)))
 
@@ -36,7 +36,7 @@ LINKAGE void METHOD(create)(TYPENAME *self, u64 cap) {
   self->data = NEW_ARRAY(T, cap);
 }
 
-LINKAGE void METHOD(copy)(TYPENAME*self, TYPENAME*other) {
+LINKAGE void METHOD(copy)(TYPENAME *self, TYPENAME *other) {
   self->cap = other->cap;
   self->len = other->len;
   self->data = NEW_ARRAY(T, other->cap);
@@ -53,8 +53,8 @@ LINKAGE u64 METHOD(set)(TYPENAME *self, u64 index, T value) {
 
 LINKAGE u32 METHOD(push)(TYPENAME *self, T value) {
   if (self->len >= self->cap) {
-    self->data = GROW(T, self->data, MAX(8, self->cap * 2));
-    self->cap = self->cap * 2;
+    self->cap = MAX(8, self->cap * 2);
+    self->data = GROW(T, self->data, self->cap);
   }
 
   return METHOD(set)(self, self->len++, value);
@@ -86,7 +86,7 @@ LINKAGE T *METHOD(emplace)(TYPENAME *self) {
 LINKAGE T METHOD(del)(TYPENAME *self, u64 index) {
   assert(index < self->len);
   if (index + 1 == self->len) {
-      return METHOD(pop)(self);
+    return METHOD(pop)(self);
   }
   T removed = METHOD(val_at)(self, index);
   memcpy(self->data + index, self->data + index + 1, self->len-- - index);

@@ -1,6 +1,6 @@
 #ifndef GAB_VALUE_H
 #define GAB_VALUE_H
-#include "core.h"
+#include "include/core.h"
 
 // An IEEE 754 double-precision float is a 64-bit value with bits laid out like:
 //
@@ -58,49 +58,70 @@
 // all stuffed into a single 64-bit sequence. Even better, we don't have to
 // do any masking or work to extract number values: they are unmodified. This
 // means math on numbers is fast.
-typedef u64 gab_value;
 
-#define QNAN ((u64)0x7ffc000000000000)
+typedef uint64_t gab_value;
 
-#define SIGN_BIT ((u64)1 << 63)
+typedef enum gab_kind {
+  kGAB_NAN = 0,
+  kGAB_UNDEFINED = 1,
+  kGAB_NIL = 2,
+  kGAB_FALSE = 3,
+  kGAB_TRUE,
+  kGAB_PRIMITIVE,
+  kGAB_NUMBER,
+  kGAB_SUSPENSE,
+  kGAB_STRING,
+  kGAB_MESSAGE,
+  kGAB_BLOCK_PROTO,
+  kGAB_SUSPENSE_PROTO,
+  kGAB_BUILTIN,
+  kGAB_BLOCK,
+  kGAB_BOX,
+  kGAB_RECORD,
+  kGAB_SHAPE,
+  kGAB_NKINDS,
+} gab_kind;
 
-#define GAB_TAG_NAN (0)
-#define GAB_TAG_NIL (1)
-#define GAB_TAG_FALSE (2)
-#define GAB_TAG_TRUE (3)
-#define GAB_TAG_UNDEFINED (4)
-#define GAB_TAG_UNUSED3 (5)
-#define GAB_TAG_UNUSED4 (6)
-#define GAB_TAG_PRIMITIVE (7)
+#define T gab_value
+#include "include/array.h"
 
-#define GAB_VAL_IS_NIL(val) (val == GAB_NIL)
-#define GAB_VAL_IS_UNDEFINED(val) (val == GAB_UNDEFINED)
-#define GAB_VAL_IS_FALSE(val) (val == GAB_FALSE)
-#define GAB_VAL_IS_NUMBER(val) (((val)&QNAN) != QNAN)
-#define GAB_VAL_IS_BOOLEAN(val) (((val) | 1) == GAB_TRUE)
-#define GAB_VAL_IS_PRIMITIVE(val) (((val) & (QNAN | GAB_TAG_PRIMITIVE)) == (QNAN | GAB_TAG_PRIMITIVE))
-#define GAB_VAL_IS_OBJ(val) (((val) & (QNAN | SIGN_BIT)) == (QNAN | SIGN_BIT))
+#define __GAB_QNAN ((u64)0x7ffc000000000000)
 
-#define GAB_NIL ((gab_value)(u64)(QNAN | GAB_TAG_NIL))
-#define GAB_FALSE ((gab_value)(u64)(QNAN | GAB_TAG_FALSE))
-#define GAB_TRUE ((gab_value)(u64)(QNAN | GAB_TAG_TRUE))
-#define GAB_UNDEFINED ((gab_value)(u64)(QNAN | GAB_TAG_UNDEFINED))
+#define __GAB_SIGN_BIT ((u64)1 << 63)
 
-#define GAB_VAL_UNDEFINED() (GAB_UNDEFINED)
-#define GAB_VAL_NIL() (GAB_NIL)
-#define GAB_VAL_NUMBER(val) (f64_to_value(val))
-#define GAB_VAL_BOOLEAN(val) (val ? GAB_TRUE : GAB_FALSE)
-#define GAB_VAL_OBJ(val) (gab_value)(SIGN_BIT | QNAN | (u64)(uintptr_t)(val))
-#define GAB_VAL_PRIMITIVE(op) ((gab_value)(GAB_TAG_PRIMITIVE | QNAN | ((u64)op << 8)))
+#define __GAB_TAGMASK (7)
 
-#define GAB_VAL_TO_BOOLEAN(val) ((val) == GAB_TRUE)
-#define GAB_VAL_TO_NUMBER(val) (value_to_f64(val))
-#define GAB_VAL_TO_PRIMITIVE(val) ((u8)((val >> 8) & 0xff))
-#define GAB_VAL_TO_OBJ(val) ((gab_obj *)(uintptr_t)((val) & ~(SIGN_BIT | QNAN)))
+#define __GAB_VAL_TAG(val) ((u64)((val)&__GAB_TAGMASK))
 
-static inline f64 value_to_f64(gab_value value) { return *(f64 *)(&value); }
-static inline gab_value f64_to_value(f64 value) {
+static inline f64 __gab_valtod(gab_value value) { return *(f64 *)(&value); }
+
+static inline gab_value __gab_dtoval(f64 value) {
   return *(gab_value *)(&value);
 }
+
+#define __gab_valisn(val) (((val)&__GAB_QNAN) != __GAB_QNAN)
+
+#define gab_valiso(val)                                                        \
+  (((val) & (__GAB_QNAN | __GAB_SIGN_BIT)) == (__GAB_QNAN | __GAB_SIGN_BIT))
+
+#define __gab_obj(val)                                                         \
+  (gab_value)(__GAB_SIGN_BIT | __GAB_QNAN | (u64)(uintptr_t)(val))
+
+#define gab_nil ((gab_value)(u64)(__GAB_QNAN | kGAB_NIL))
+#define gab_false ((gab_value)(u64)(__GAB_QNAN | kGAB_FALSE))
+#define gab_true ((gab_value)(u64)(__GAB_QNAN | kGAB_TRUE))
+#define gab_undefined ((gab_value)(u64)(__GAB_QNAN | kGAB_UNDEFINED))
+
+#define gab_bool(val) (val ? gab_true : gab_false)
+#define gab_number(val) (__gab_dtoval(val))
+#define gab_primitive(op)                                                      \
+  ((gab_value)(kGAB_PRIMITIVE | __GAB_QNAN | ((u64)op << 8)))
+
+#define gab_valton(val) (__gab_valtod(val))
+
+#define gab_valtoo(val)                                                        \
+  ((gab_obj *)(uintptr_t)((val) & ~(__GAB_SIGN_BIT | __GAB_QNAN)))
+
+#define gab_valtop(val) ((u8)((val >> 8) & 0xff))
 
 #endif

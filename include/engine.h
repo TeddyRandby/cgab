@@ -1,13 +1,13 @@
 #ifndef GAB_ENGINE_H
 #define GAB_ENGINE_H
 
-typedef enum gab_status gab_status;
-
 #include "include/object.h"
-typedef struct gab_source gab_source;
 
-#include "gc.h"
+typedef enum gab_status gab_status;
+typedef struct gab_src gab_src;
+
 #include "alloc.h"
+#include "gc.h"
 #include "import.h"
 
 static const char *gab_status_names[] = {
@@ -40,14 +40,12 @@ static const char *gab_status_names[] = {
 #define T gab_value
 #include "vector.h"
 
-struct gab_engine {
-  gab_obj *objects;
+struct gab_eg {
+  gab_mod *modules;
 
-  gab_module* modules;
+  gab_src *sources;
 
-  gab_source* sources;
-
-  d_gab_import imports;
+  d_gab_imp imports;
 
   v_gab_value scratch;
 
@@ -68,13 +66,10 @@ struct gab_engine {
   v_gab_value argv_values;
 };
 
-gab_obj_string *gab_engine_find_string(gab_engine *gab, s_i8 str, u64 hash);
+gab_obj_string *gab_eg_find_string(gab_eg *gab, s_i8 str, u64 hash);
 
-gab_obj_message *gab_engine_find_message(gab_engine *gab, gab_value name,
-                                         u64 hash);
+gab_obj_message *gab_eg_find_message(gab_eg *gab, gab_value name, u64 hash);
 
-gab_obj_shape *gab_engine_find_shape(gab_engine *gab, u64 size, u64 stride,
-                                     u64 hash, gab_value keys[size]);
-
-i32 gab_engine_intern(gab_engine *gab, gab_value value);
+gab_obj_shape *gab_eg_find_shape(gab_eg *gab, u64 size, u64 stride, u64 hash,
+                                 gab_value keys[size]);
 #endif

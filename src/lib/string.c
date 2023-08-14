@@ -1,56 +1,50 @@
-#include "include/core.h"
 #include "include/gab.h"
-#include "include/object.h"
-#include "include/value.h"
 #include <stdio.h>
 #include <string.h>
 
-void gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_len(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, vm, "&:len expects 1 argument");
     return;
   }
 
-  gab_obj_string *str = GAB_VAL_TO_STRING(argv[0]);
+  gab_value result = gab_number(gab_strlen(argv[0]));
 
-  gab_value result = GAB_VAL_NUMBER(str->len);
-
-  gab_push(vm, result);
+  gab_vmpush(vm, result);
 };
 
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (MAX(0, MIN(a, b)))
 
-void gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+  char *str = gab_valtocs(gab, argv[0]);
 
-  gab_obj_string *str = GAB_VAL_TO_STRING(argv[0]);
-
-  u64 len = str->len;
+  u64 len = gab_strlen(argv[0]);
   u64 start = 0, end = len;
 
   switch (argc) {
   case 2:
-    if (!GAB_VAL_IS_NUMBER(argv[1])) {
+    if (gab_valknd(argv[1]) != kGAB_NUMBER) {
       gab_panic(gab, vm, "&:slice expects a number as the second argument");
       return;
     }
 
-    f64 a = GAB_VAL_TO_NUMBER(argv[1]);
+    double a = gab_valton(argv[1]);
     end = MIN(a, len);
     break;
 
   case 3:
-    if (GAB_VAL_IS_NUMBER(argv[1])) {
-      start = MIN(GAB_VAL_TO_NUMBER(argv[1]), len);
-    } else if (!GAB_VAL_IS_NIL(argv[1])) {
+    if (gab_valknd(argv[1]) == kGAB_NUMBER) {
+      start = MIN(gab_valton(argv[1]), len);
+    } else if (argv[1] == gab_nil) {
       gab_panic(gab, vm, "&:slice expects a number as the second argument");
       return;
     }
 
-    if (GAB_VAL_TO_NUMBER(argv[2])) {
-      end = MIN(GAB_VAL_TO_NUMBER(argv[2]), len);
-    } else if (!GAB_VAL_IS_NIL(argv[2])) {
+    if (gab_valknd(argv[2]) == kGAB_NUMBER) {
+      end = MIN(gab_valton(argv[2]), len);
+    } else if (argv[2] == gab_nil) {
       gab_panic(gab, vm, "&:slice expects a number as the third argument");
       return;
     }
@@ -68,25 +62,26 @@ void gab_lib_slice(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
   u64 size = end - start;
 
-  s_i8 result = s_i8_create(str->data + start, size);
+  gab_value res = gab_nstring(gab, size, str + start);
+  free(str);
 
-  gab_value res = GAB_VAL_OBJ(gab_obj_string_create(gab, result));
+  gab_vmpush(vm, res);
+}
 
-  gab_push(vm, res);
-};
-
-void gab_lib_split(gab_engine *gab, gab_vm *vm, u8 argc,
-                        gab_value argv[argc]) {
-  if (argc != 2 || !GAB_VAL_IS_STRING(argv[1])) {
+void gab_lib_split(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+  if (argc != 2 || gab_valknd(argv[1]) != kGAB_STRING) {
     gab_panic(gab, vm, "&:split expects 2 arguments");
     return;
   }
 
-  gab_obj_string *src = GAB_VAL_TO_STRING(argv[0]);
-  gab_obj_string *delim_src = GAB_VAL_TO_STRING(argv[1]);
+  char *src = gab_valtocs(gab, argv[0]);
+  char *delim_src = gab_valtocs(gab, argv[1]);
 
-  s_i8 delim = gab_obj_string_ref(delim_src);
-  s_i8 window = s_i8_create(src->data, delim.len);
+  size_t srclen = gab_strlen(argv[0]);
+  size_t delimlen = gab_strlen(argv[1]);
+
+  s_i8 delim = s_i8_cstr(delim_src);
+  s_i8 window = s_i8_create((const i8 *)src, delimlen);
 
   const i8 *start = window.data;
   u64 len = 0;
@@ -94,11 +89,11 @@ void gab_lib_split(gab_engine *gab, gab_vm *vm, u8 argc,
   v_u64 splits;
   v_u64_create(&splits, 8);
 
-  while (window.data + window.len <= src->data + src->len) {
+  while (window.data + window.len <= (i8 *)src + srclen) {
     if (s_i8_match(window, delim)) {
       s_i8 split = s_i8_create(start, len);
 
-      v_u64_push(&splits, GAB_VAL_OBJ(gab_obj_string_create(gab, split)));
+      v_u64_push(&splits, gab_nstring(gab, split.len, (char *)split.data));
 
       window.data += window.len;
       start = window.data;
@@ -110,38 +105,40 @@ void gab_lib_split(gab_engine *gab, gab_vm *vm, u8 argc,
   }
 
   s_i8 split = s_i8_create(start, len);
-  v_u64_push(&splits, GAB_VAL_OBJ(gab_obj_string_create(gab, split)));
+  v_u64_push(&splits, gab_nstring(gab, split.len, (char *)split.data));
 
-  gab_obj_shape* shape = gab_obj_shape_create_tuple(gab, vm, splits.len);
+  gab_value result = gab_tuple(gab, vm, splits.len, splits.data);
 
-  gab_obj_record* record = gab_obj_record_create(gab, vm, shape, 1, splits.data);
+  gab_vmpush(vm, result);
 
-  gab_value result = GAB_VAL_OBJ(record);
-
-  gab_push(vm, result);
-
-  gab_val_dref(vm, result);
+  gab_gcdref(gab_vmgc(vm), vm, result);
 }
 
-gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  gab_value string_type = gab_type(gab, kGAB_STRING);
+a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
+  gab_value string_type = gab_typ(gab, kGAB_STRING);
 
-  gab_value keys[] = {
-      GAB_STRING("slice"),
-      GAB_STRING("split"),
-      GAB_STRING("len"),
+  const char *keys[] = {
+      "slice",
+      "split",
+      "len",
   };
 
   gab_value values[] = {
-      GAB_BUILTIN(slice),
-      GAB_BUILTIN(split),
-      GAB_BUILTIN(len),
+      gab_builtin(gab, "slice", gab_lib_slice),
+      gab_builtin(gab, "split", gab_lib_split),
+      gab_builtin(gab, "len", gab_lib_len),
   };
 
   for (u8 i = 0; i < LEN_CARRAY(keys); i++) {
-    gab_specialize(gab, vm, keys[i], string_type, values[i]);
-    gab_val_dref(vm, values[i]);
+    gab_spec(gab, vm,
+             (struct gab_spec_argt){
+                 .name = keys[i],
+                 .receiver = string_type,
+                 .specialization = values[i],
+             });
   }
 
-  return GAB_VAL_NIL();
+  gab_ngcdref(gab_vmgc(vm), vm, LEN_CARRAY(keys), values);
+
+  return NULL;
 }

@@ -3,7 +3,7 @@
 
 #include "value.h"
 
-typedef struct gab_engine gab_engine;
+typedef struct gab_eg gab_eg;
 typedef struct gab_obj gab_obj;
 typedef struct gab_vm gab_vm;
 
@@ -28,7 +28,7 @@ typedef struct rc_update {
 
 #endif
 
-#define T gab_obj*
+#define T gab_obj *
 #define NAME gab_obj
 #include "vector.h"
 
@@ -57,31 +57,21 @@ void gab_gc_create(gab_gc *vm);
 
 void gab_gc_destroy(gab_gc *vm);
 
-void gab_gc_run(gab_gc* gc, gab_vm* vm);
-
-void gab_gc_iref_many(gab_gc* gc, gab_vm *vm, u64 len,
-                      gab_value values[len]);
-
-void gab_gc_dref_many(gab_gc* gc, gab_vm *vm, u64 len,
-                      gab_value values[len]);
+void gab_gc_run(gab_gc *gc, gab_vm *vm);
 
 #if cGAB_LOG_GC
 
-void __gab_gc_iref(gab_gc* gc, gab_vm *vm, gab_value val, const char *file,
+void __gab_gc_iref(gab_gc *gc, gab_vm *vm, gab_value val, const char *file,
                    i32 line);
-void __gab_gc_dref(gab_gc* gc, gab_vm *vm, gab_value val, const char *file,
+void __gab_gc_dref(gab_gc *gc, gab_vm *vm, gab_value val, const char *file,
                    i32 line);
 
-#define gab_gc_iref(gc, vm, val)                                          \
+#define gab_gc_iref(gc, vm, val)                                               \
   (__gab_gc_iref(gc, vm, val, __FILE__, __LINE__))
-#define gab_gc_dref(gc, vm, val)                                          \
+#define gab_gc_dref(gc, vm, val)                                               \
   (__gab_gc_dref(gc, vm, val, __FILE__, __LINE__))
 
 #else
-
-void gab_gc_iref(gab_gc* gc, gab_vm *vm, gab_value val);
-
-void gab_gc_dref(gab_gc* gc, gab_vm *vm, gab_value val);
 
 #endif
 

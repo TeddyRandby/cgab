@@ -1,14 +1,18 @@
 #include "include/builtins.h"
+#include "include/core.h"
 #include "include/gab.h"
 #include "include/import.h"
 #include "include/os.h"
+#include "include/value.h"
 #include <dlfcn.h>
 #include <stdio.h>
 
-typedef gab_value (*handler_f)(gab_engine *, gab_vm *, a_i8 *path,
-                               const s_i8 module);
+#define MODULE_SYMBOL "gab_lib"
 
-typedef gab_value (*module_f)(gab_engine *, gab_vm *);
+typedef a_gab_value *(*handler_f)(gab_eg *, gab_vm *, const char *,
+                                  const char *);
+
+typedef a_gab_value *(*module_f)(gab_eg *, gab_vm *);
 
 typedef struct {
   handler_f handler;
@@ -16,57 +20,57 @@ typedef struct {
   const char *suffix;
 } resource;
 
-gab_value gab_shared_object_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
-                                    const s_i8 module) {
+a_gab_value *gab_shared_object_handler(gab_eg *gab, gab_vm *vm,
+                                       const char *path, const char *name) {
 
-  void *handle = dlopen((char *)path->data, RTLD_LAZY);
+  void *handle = dlopen(path, RTLD_LAZY);
 
   if (!handle) {
     gab_panic(gab, vm, "Couldn't open module");
+    return NULL;
   }
 
-  module_f symbol = dlsym(handle, "gab_mod");
+  module_f symbol = dlsym(handle, MODULE_SYMBOL);
 
   if (!symbol) {
     dlclose(handle);
-    gab_panic(gab, vm, "Missing symbol 'gab_mod'");
+    gab_panic(gab, vm, "Missing symbol " MODULE_SYMBOL);
+    return NULL;
   }
 
-  gab_value res = symbol(gab, vm);
+  a_gab_value *res = symbol(gab, vm);
 
-  gab_imports_shared(gab, s_i8_create(path->data, path->len), handle, res);
+  gab_impshd(gab, path, handle, res);
 
   return res;
 }
 
-gab_value gab_source_file_handler(gab_engine *gab, gab_vm *vm, a_i8 *path,
-                                  const s_i8 module) {
-  a_i8 *src = os_read_file((char *)path->data);
+a_gab_value *gab_source_file_handler(gab_eg *gab, gab_vm *vm, const char *path,
+                                     const char *module) {
+  a_i8 *src = os_read_file(path);
 
-  gab_value pkg =
-      gab_compile(gab,
-                  GAB_VAL_OBJ(gab_obj_string_create(
-                      gab, s_i8_create(path->data, path->len))),
-                  s_i8_create(src->data, src->len), fGAB_DUMP_ERROR);
+  if (src == NULL)
+    return a_gab_value_one(gab_panic(gab, vm, "Failed to read module"));
+
+  gab_value pkg = gab_block(gab, (struct gab_block_argt){
+                                     .name = module,
+                                     .source = (const char *)src->data,
+                                     .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
+                                 });
 
   a_i8_destroy(src);
 
-  if (GAB_VAL_IS_UNDEFINED(pkg))
-    return gab_panic(gab, vm, "Failed to compile module");
+  if (pkg == gab_undefined)
+    return a_gab_value_one(gab_panic(gab, vm, "Failed to compile module"));
 
   a_gab_value *res = gab_run(gab, pkg, fGAB_DUMP_ERROR);
 
   if (res == NULL)
-    return GAB_VAL_UNDEFINED();
+    return a_gab_value_one(gab_undefined);
 
-  gab_imports_module(gab, s_i8_create(path->data, path->len), pkg,
-                     res->data[0]);
+  gab_impmod(gab, path, pkg, res);
 
-  gab_value val = res->data[0];
-
-  a_gab_value_destroy(res);
-
-  return val;
+  return res;
 }
 
 resource resources[] = {
@@ -98,100 +102,106 @@ resource resources[] = {
      .handler = gab_shared_object_handler},
 };
 
-a_i8 *match_resource(resource *res, s_i8 name) {
+a_i8 *match_resource(resource *res, const char *name, u64 len) {
   const u64 p_len = strlen(res->prefix);
   const u64 s_len = strlen(res->suffix);
+  const u64 total_len = p_len + len + s_len + 1;
 
-  a_i8 *buffer = a_i8_empty(p_len + name.len + s_len + 1);
+  char buffer[total_len];
 
-  memcpy(buffer->data, res->prefix, p_len);
-  memcpy(buffer->data + p_len, name.data, name.len);
-  memcpy(buffer->data + p_len + name.len, res->suffix, s_len + 1);
+  memcpy(buffer, res->prefix, p_len);
+  memcpy(buffer + p_len, name, len);
+  memcpy(buffer + p_len + len, res->suffix, s_len + 1);
 
-  FILE *f = fopen((char *)buffer->data, "r");
+  FILE *f = fopen(buffer, "r");
 
-  if (!f) {
-    a_i8_destroy(buffer);
+  if (!f)
     return NULL;
-  }
 
   fclose(f);
-  return buffer;
+  return a_i8_create((i8 *)buffer, total_len);
 }
 
-void gab_lib_require(gab_engine *gab, gab_vm *vm, u8 argc,
+void gab_lib_require(gab_eg *gab, gab_vm *vm, size_t argc,
                      gab_value argv[argc]) {
 
-  if (!GAB_VAL_IS_STRING(argv[0]) || argc != 1) {
+  if (argc != 1)
     gab_panic(gab, vm, "Invalid call to gab_lib_require");
-  }
 
-  gab_obj_string *arg = GAB_VAL_TO_STRING(argv[0]);
-
-  const s_i8 name = gab_obj_string_ref(arg);
+  char *name = gab_valtocs(gab, argv[0]);
 
   for (i32 i = 0; i < sizeof(resources) / sizeof(resource); i++) {
     resource *res = resources + i;
-    a_i8 *path = match_resource(res, name);
+    a_i8 *path = match_resource(res, name, strlen(name));
 
     if (path) {
-      gab_value cached =
-          gab_imports_exists(gab, s_i8_create(path->data, path->len));
+      a_gab_value *cached = gab_imphas(gab, (char *)path->data);
 
-      if (!GAB_VAL_IS_UNDEFINED(cached)) {
-        gab_push(vm, cached);
-        a_i8_destroy(path);
-        return;
+      if (cached != NULL) {
+        gab_nvmpush(vm, cached->len, cached->data);
+        goto fin;
       }
 
-      gab_value result = res->handler(gab, vm, path, name);
+      a_gab_value *result = res->handler(gab, vm, (char *)path->data, name);
+      free(name);
+
+      if (result != NULL) {
+        gab_nvmpush(vm, result->len, result->data);
+        a_gab_value_destroy(result);
+        goto fin;
+      }
+
+    fin:
       a_i8_destroy(path);
-      gab_push(vm, result);
       return;
     }
-
-    a_i8_destroy(path);
   }
 
   gab_panic(gab, vm, "Could not locate module");
 }
 
-void gab_lib_panic(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_panic(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   if (argc == 1) {
-    gab_obj_string *str = GAB_VAL_TO_STRING(gab_val_to_s(gab, argv[0]));
-    char buffer[str->len + 1];
-    memcpy(buffer, str->data, str->len);
-    buffer[str->len] = '\0';
+    char *str = gab_valtocs(gab, argv[0]);
 
-    gab_panic(gab, vm, buffer);
+    gab_panic(gab, vm, str);
+
+    free(str);
     return;
   }
 
   gab_panic(gab, vm, "Error");
 }
 
-void gab_lib_print(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_print(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   for (u8 i = 0; i < argc; i++) {
     if (i > 0)
       putc(' ', stdout);
-    gab_val_dump(stdout, argv[i]);
+    gab_fdump(stdout, argv[i]);
   }
 
   printf("\n");
 }
 
-void gab_setup_builtins(gab_engine *gab) {
+void gab_setup_builtins(gab_eg *gab) {
+  gab_spec(gab, NULL,
+           (struct gab_spec_argt){
+               .name = "require",
+               .receiver = gab_typ(gab, kGAB_STRING),
+               .specialization = gab_builtin(gab, "require", gab_lib_require),
+           });
 
-  gab_value require = GAB_BUILTIN(require);
-  gab_value panic = GAB_BUILTIN(panic);
-  gab_value print = GAB_BUILTIN(print);
+  gab_spec(gab, NULL,
+           (struct gab_spec_argt){
+               .name = "panic",
+               .receiver = gab_typ(gab, kGAB_STRING),
+               .specialization = gab_builtin(gab, "panic", gab_lib_panic),
+           });
 
-  gab_specialize(gab, NULL, GAB_STRING("require"), gab_type(gab, kGAB_STRING),
-                 require);
-
-  gab_specialize(gab, NULL, GAB_STRING("panic"), gab_type(gab, kGAB_STRING),
-                 panic);
-
-  gab_specialize(gab, NULL, GAB_STRING("print"), gab_type(gab, kGAB_UNDEFINED),
-                 print);
+  gab_spec(gab, NULL,
+           (struct gab_spec_argt){
+               .name = "print",
+               .receiver = gab_typ(gab, kGAB_UNDEFINED),
+               .specialization = gab_builtin(gab, "print", gab_lib_print),
+           });
 }

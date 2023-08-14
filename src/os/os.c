@@ -8,14 +8,14 @@
 #endif
 
 a_i8 *os_read_fd(FILE *fd) {
-  v_i8 buffer;
-  v_i8_create(&buffer, 1024);
+  v_i8 buffer = {0};
 
   while (1) {
     char c = fgetc(fd);
-    if (c == EOF) {
+
+    if (c == EOF)
       break;
-    }
+
     v_i8_push(&buffer, c);
   }
 

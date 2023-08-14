@@ -1,38 +1,37 @@
 #include "map.h"
+#include "include/core.h"
+#include "include/value.h"
 #include <assert.h>
 #include <stdio.h>
 
-void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_new(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 1: {
-    gab_obj_container *map = map_create(gab, vm, 0, 0, NULL, NULL);
+    gab_value map = map_create(gab, vm, 0, 0, NULL, NULL);
 
-    gab_value result = GAB_VAL_OBJ(map);
+    gab_vmpush(vm, map);
 
-    gab_push(vm, result);
-
-    gab_val_dref(vm, result);
+    gab_gcdref(gab_vmgc(vm), vm, map);
 
     return;
   }
 
   case 2: {
-    if (!GAB_VAL_IS_RECORD(argv[1])) {
+    if (gab_valknd(argv[1]) != kGAB_RECORD) {
       gab_panic(gab, vm, "&:new expects a record as second argument");
       return;
     }
 
-    gab_obj_record *rec = GAB_VAL_TO_RECORD(argv[1]);
-    gab_obj_shape *shp = rec->shape;
+    gab_value shp = gab_recshp(argv[1]);
 
-    gab_obj_container *map =
-        map_create(gab, vm, rec->len, 1, shp->data, rec->data);
+    size_t len = gab_reclen(argv[1]);
 
-    gab_value result = GAB_VAL_OBJ(map);
+    gab_value map =
+        map_create(gab, vm, len, 1, gab_shpdata(shp), gab_recdata(argv[1]));
 
-    gab_push(vm, result);
+    gab_vmpush(vm, map);
 
-    gab_val_dref(vm, result);
+    gab_gcdref(gab_vmgc(vm), vm, map);
 
     return;
   }
@@ -43,79 +42,71 @@ void gab_lib_new(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   }
 }
 
-void gab_lib_len(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_len(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, vm, "&:len expects 1 argument");
     return;
   }
 
-  gab_obj_container *obj = GAB_VAL_TO_CONTAINER(argv[0]);
+  d_gab_value *data = gab_boxdata(argv[0]);
 
-  d_gab_value *data = obj->data;
+  gab_value res = gab_number(data->len);
 
-  gab_value res = GAB_VAL_NUMBER(data->len);
-
-  gab_push(vm, res);
+  gab_vmpush(vm, res);
 
   return;
 }
 
-void gab_lib_at(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_at(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   if (argc != 2) {
     gab_panic(gab, vm, "&:at expects 2 arguments");
     return;
   }
 
-  gab_obj_container *map = GAB_VAL_TO_CONTAINER(argv[0]);
+  gab_value res = map_at(argv[0], argv[1]);
 
-  gab_value res = map_at(map, argv[1]);
-
-  if (GAB_VAL_IS_UNDEFINED(res)) {
-    gab_push(vm, GAB_STRING("none"));
+  if (res == gab_undefined) {
+    gab_vmpush(vm, gab_string(gab, "none"));
     return;
   }
 
-  gab_push(vm, GAB_STRING("some"));
-  gab_push(vm, res);
+  gab_vmpush(vm, gab_string(gab, "some"));
+  gab_vmpush(vm, res);
   return;
 }
 
-void gab_lib_put(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
+void gab_lib_put(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   if (argc != 3) {
     gab_panic(gab, vm, "&:put! expects 3 arguments");
     return;
   }
 
-  gab_obj_container *map = GAB_VAL_TO_CONTAINER(argv[0]);
+  map_put(gab, vm, argv[0], argv[1], argv[2]);
 
-  gab_value key = argv[1];
-
-  map_put(gab, vm, map, key, argv[2]);
-
-  gab_push(vm, *argv);
+  gab_vmpush(vm, *argv);
 
   return;
 }
 
-void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
-  gab_obj_container *map = GAB_VAL_TO_CONTAINER(argv[0]);
+void gab_lib_next(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+  d_gab_value *map = gab_boxdata(argv[0]);
 
   switch (argc) {
 
   case 1: {
-    u64 next_index = d_gab_value_inext(map->data, 0);
+    u64 next_index = d_gab_value_inext(map, 0);
 
     if (next_index == -1) {
-      gab_value res = GAB_VAL_NIL();
+      gab_value res = gab_nil;
 
-      gab_push(vm, res);
+      gab_vmpush(vm, res);
 
       return;
     }
 
-    gab_value res = d_gab_value_ikey(map->data, next_index);
+    gab_value res = d_gab_value_ikey(map, next_index);
 
-    gab_push(vm, res);
+    gab_vmpush(vm, res);
 
     return;
   }
@@ -124,21 +115,21 @@ void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
 
     gab_value key = argv[1];
 
-    u64 index = d_gab_value_index_of(map->data, key);
+    u64 index = d_gab_value_index_of(map, key);
 
-    u64 next_index = d_gab_value_inext(map->data, index + 1);
+    u64 next_index = d_gab_value_inext(map, index + 1);
 
     if (next_index == -1) {
-      gab_value res = GAB_VAL_NIL();
+      gab_value res = gab_nil;
 
-      gab_push(vm, res);
+      gab_vmpush(vm, res);
 
       return;
     }
 
-    gab_value res = d_gab_value_ikey(map->data, next_index);
+    gab_value res = d_gab_value_ikey(map, next_index);
 
-    gab_push(vm, res);
+    gab_vmpush(vm, res);
 
     return;
   }
@@ -149,30 +140,38 @@ void gab_lib_next(gab_engine *gab, gab_vm *vm, u8 argc, gab_value argv[argc]) {
   }
 }
 
-gab_value gab_mod(gab_engine *gab, gab_vm *vm) {
-  gab_value names[] = {
-      GAB_STRING("map"), GAB_STRING("len"),  GAB_STRING("put!"),
-      GAB_STRING("at"),  GAB_STRING("next"),
+a_gab_value* gab_lib(gab_eg *gab, gab_vm *vm) {
+  const char *names[] = {
+      "map", "len", "put!", "at", "next",
   };
 
-  gab_value type = GAB_STRING("Map");
+  gab_value type = gab_string(gab, "Map");
 
   gab_value receivers[] = {
-      GAB_VAL_NIL(), type, type, type, type,
+      gab_nil, type, type, type, type,
   };
 
   gab_value specs[] = {
-      GAB_BUILTIN(new), GAB_BUILTIN(len),  GAB_BUILTIN(put),
-      GAB_BUILTIN(at),  GAB_BUILTIN(next),
+      gab_builtin(gab, "new", gab_lib_new),
+      gab_builtin(gab, "len", gab_lib_len),
+      gab_builtin(gab, "put", gab_lib_put),
+      gab_builtin(gab, "at", gab_lib_at),
+      gab_builtin(gab, "next", gab_lib_next),
   };
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
 
   for (int i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_specialize(gab, vm, names[i], receivers[i], specs[i]);
-    gab_val_dref(vm, specs[i]);
+    gab_spec(gab, vm,
+             (struct gab_spec_argt){
+                 .name = names[i],
+                 .receiver = receivers[i],
+                 .specialization = specs[i],
+             });
   }
 
-  return GAB_VAL_NIL();
+  gab_ngcdref(gab_vmgc(vm), vm, LEN_CARRAY(specs), specs);
+
+  return NULL;
 }

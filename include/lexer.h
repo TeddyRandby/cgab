@@ -15,19 +15,19 @@ typedef enum gab_status {
 #undef STATUS
 } gab_status;
 
-typedef struct gab_engine gab_engine;
-typedef struct gab_source gab_source;
-typedef struct gab_lexer gab_lexer;
+typedef struct gab_eg gab_eg;
+typedef struct gab_src gab_src;
+typedef struct gab_lex gab_lex;
 
-struct gab_source {
-  gab_source *next;
+struct gab_src {
+  gab_src *next;
 
   v_s_i8 source_lines;
 
   a_i8 *source;
 };
 
-struct gab_lexer {
+struct gab_lex {
   i8 *cursor;
   i8 *row_start;
   u64 row;
@@ -36,7 +36,7 @@ struct gab_lexer {
   u8 nested_curly;
   u8 status;
 
-  gab_source* source;
+  gab_src* source;
 
   s_i8 previous_comment;
   s_i8 previous_row_src;
@@ -52,16 +52,16 @@ struct gab_lexer {
   u64 skip_lines;
 };
 
-gab_source* gab_source_create(gab_engine* gab, s_i8 source);
+gab_src* gab_srccreate(gab_eg* gab, s_i8 source);
 
-gab_source* gab_source_copy(gab_engine* gab, gab_source* self);
+gab_src* gab_srccpy(gab_eg* gab, gab_src* self);
 
-void gab_source_destroy(gab_source* self);
+void gab_srcdestroy(gab_src* self);
 
-void gab_lexer_create(gab_lexer *self, gab_source* src);
+void gab_lexcreate(gab_lex *self, gab_src* src);
 
-gab_token gab_lexer_next(gab_lexer *self);
+gab_token gab_lexnxt(gab_lex *self);
 
-void gab_lexer_finish_line(gab_lexer *self);
+void gab_lexendl(gab_lex *self);
 
 #endif

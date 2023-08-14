@@ -101,19 +101,19 @@ shared_library('cgabio',
   install: true,
 )
 
-shared_library('cgabdis',
-  'src/lib/dis.c',
-  link_with: [cgab],
-  install_dir: '/usr/local/lib/gab/',
-  install: true,
-)
-
-shared_library('cgabpry',
-  'src/lib/pry.c',
-  link_with: [cgab],
-  install_dir: '/usr/local/lib/gab/',
-  install: true,
-)
+# shared_library('cgabdis',
+#   'src/lib/dis.c',
+#   link_with: [cgab],
+#   install_dir: '/usr/local/lib/gab/',
+#   install: true,
+# )
+#
+# shared_library('cgabpry',
+#   'src/lib/pry.c',
+#   link_with: [cgab],
+#   install_dir: '/usr/local/lib/gab/',
+#   install: true,
+# )
 
 install_headers(
   'include/gab.h',
@@ -132,7 +132,6 @@ install_headers(
 
 install_data(
   'std/mod.gab',
-  'std/Monad.gab',
   'std/Range.gab',
   'std/String.gab',
   'std/Number.gab',
