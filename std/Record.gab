@@ -2,51 +2,49 @@
 
 def is[](other); ?self == other end
 
-impl .Record
-    def first self:at(0) end
+def first[.Record]; self:at(0) end
 
-    def last self:at(self:len - 1) end
+def last[.Record]; self:at(self:len - 1) end
 
-    def each
-        key = self:next
+def each[.Record]
+    key = self:next
 
-        loop
-          yield key, self:at(key)
-          key = self:next(key)
-        until key == nil end
+    loop
+      yield key, self:at(key)
+      key = self:next(key)
+    until key == nil end
+end
+
+def map[.Record](mapper)
+    other = :record(?self)
+
+    for key, value in self:each
+        other[key] = mapper(value)
     end
 
-    def map(mapper)
-        other = :record(?self)
+    return other
+end
 
-        for key, value in self:each
-            other[key] = mapper(value)
-        end
-
-        return other
+def map![.Record](mapper)
+    for key, value in self:each
+        self[key] = mapper(value)
     end
 
-    def map!(mapper)
-        for key, value in self:each
-            self[key] = mapper(value)
-        end
+    return self
+end
 
-        return self
+def fold[.Record](init, folder)
+    acc = init
+
+    for key, value in self:each
+        acc = folder(acc, value)
     end
 
-    def fold(init, folder)
-        acc = init
+    return acc
+end
 
-        for key, value in self:each
-            acc = folder(acc, value)
-        end
-
-        return acc
-    end
-
-    def join(sep)
-      self:fold('') do (str, cur, i)
-        return i == 0 and '{cur}' or str + sep + '{cur}'
-      end
-    end
+def join[.Record](sep)
+  self:fold('') do (str, cur, i)
+    return i == 0 and '{cur}' or str + sep + '{cur}'
+  end
 end

@@ -1,7 +1,6 @@
 'list':require
 
-impl .List
-def [](key)
+def [][.List](key)
     ?key match
       ?{ from to }     => self:slice(key.from, key.to)        end
       ?{ from }        => self:slice(key.from)                end
@@ -10,23 +9,23 @@ def [](key)
       else             => .INVALID_ARGUMENTS:panic            end
   end
 
-  def [=](key, value)
+  def [=][.List](key, value)
     self:put!(key, value)
   end
 
-  def first
+  def first[.List]
     self:at(0)
   end
 
-  def last
+  def last[.List]
     self:at(self:len - 1)
   end
 
-  def take(to)
+  def take[.List](to)
     self:slice(0, to)
   end
 
-  def each
+  def each[.List]
     self:len == 0 and return
 
     v = 0 
@@ -36,7 +35,7 @@ def [](key)
     until v >= self:len end
   end
 
-  def fold(init, folder)
+  def fold[.List](init, folder)
     v = init
 
     for i, index in self:each
@@ -46,7 +45,7 @@ def [](key)
     v
   end
 
-  def filter(filterer)
+  def filter[.List](filterer)
     v = :list
 
     for i, index in self:each
@@ -56,7 +55,7 @@ def [](key)
     v
   end
 
-  def map(mapper)
+  def map[.List](mapper)
     v = :list
 
     for i, index in self:each
@@ -66,7 +65,7 @@ def [](key)
     v
   end
 
-  def fill(value)
+  def fill[.List](value)
     v = :list
 
     for _, index in self:each
@@ -76,7 +75,7 @@ def [](key)
     v
   end
 
-  def map!(mapper)
+  def map![.List](mapper)
       for i, index in self:each
           self:put!(index, mapper(i, index))
       end
@@ -85,7 +84,7 @@ def [](key)
   end
 
 
-  def fill!(value)
+  def fill![.List](value)
       for _, index in self:each
         self:put!(index, value)
       end
@@ -93,15 +92,15 @@ def [](key)
       self
   end
 
-  def compact; self:filter do; not @1 == nil end end
+  def compact[.List]; self:filter do; not @1 == nil end end
 
-  def join(sep)
+  def join[.List](sep)
     self:fold('') do (str, cur, i)
       i == 0 and '{cur}' or str + sep + '{cur}'
     end
   end
 
-  def every?(pred)
+  def every?[.List](pred)
     for i, _ in self:each
       pred(i) or return false
     end
@@ -109,7 +108,7 @@ def [](key)
     true
   end
 
-  def some?(pred)
+  def some?[.List](pred)
     for i, _ in self:each
       pred(i) and return true
     end
@@ -117,9 +116,9 @@ def [](key)
     false
   end
 
-  def empty? self:len > 0 end
+  def empty?[.List]; self:len > 0 end
 
-  def include?(value)
+  def include?[.List](value)
       for i, _ in self:each
           i == value and return true
       end
@@ -127,7 +126,7 @@ def [](key)
       false
   end
 
-  def collect!(..args)
+  def collect![.List](..args)
     for ..all in args:splat
         self:push!(all:splat)
     end
@@ -135,4 +134,3 @@ def [](key)
     self
   end
 
-end

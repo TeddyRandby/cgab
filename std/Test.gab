@@ -6,27 +6,25 @@ def testState[nil]
     :record(TestState):reset
 end
 
-impl TestState 
-    def reset
-        self.fails = 0
-        self.errs = :list
+def reset[TestState]
+    self.fails = 0
+    self.errs = :list
 
-        self
-    end
+    self
+end
 
-    def fail(got, expected)
-        self.fails = self.fails + 1
-        self.errs:push!([got, expected])
-    end
+def fail[TestState](got, expected)
+    self.fails = self.fails + 1
+    self.errs:push!([got, expected])
+end
 
-    def passed?
-        self.fails == 0
-    end
+def passed?[TestState]
+    self.fails == 0
+end
 
-    def show_errs
-        for mismatch in self.errs:each
-            '     - got {mismatch[0]}, expecting {mismatch[1]}':print
-        end
+def show_errs[TestState]
+    for mismatch in self.errs:each
+        '     - got {mismatch[0]}, expecting {mismatch[1]}':print
     end
 end
 

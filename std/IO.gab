@@ -1,17 +1,15 @@
 'symbol':require
 'fiber':require
 
-impl .IO
-    def read(path, config)
-        return :fiber do
-            def io = 'io':require
+def read[.IO](path, config)
+    return :fiber do
+        def io = 'io':require
 
-            status, fd = io:open(path, 'r')
+        status, fd = io:open(path, 'r')
 
-            status == .ok or return status
+        status == .ok or return status
 
-            return fd:read
-        end
+        return fd:read
     end
 end
 

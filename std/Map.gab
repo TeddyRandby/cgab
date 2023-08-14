@@ -1,24 +1,22 @@
 'map':require
 
-impl .Map
-    def [] (key)
-      status, value = self:at(key) in match
-        .some => value end
-        else => nil end
-    end
+def [][.Map](key)
+  status, value = self:at(key) in match
+    .some => value end
+    else => nil end
+end
 
-    def [=] (key, value); self:put!(key, value) end
+def [=][.Map](key, value); self:put!(key, value) end
 
-    def has(key); not self:at(key) == .some end
+def has[.Map](key); not self:at(key) == .some end
 
-    def del(key); self:put!(key, nil) end
+def del[.Map](key); self:put!(key, nil) end
 
-    def each
-      key = self:next
+def each[.Map]
+  key = self:next
 
-      loop
-        yield key, self:at(key)
-        key = self:next(key)
-      until key == nil end
-    end
+  loop
+    yield key, self:at(key)
+    key = self:next(key)
+  until key == nil end
 end

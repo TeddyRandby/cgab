@@ -78,10 +78,6 @@ typedef struct {
   context_k kind;
 
   union {
-    struct {
-      u8 ctx, local;
-    } impl;
-
     v_lvalue assignment_target;
 
     frame frame;
@@ -558,50 +554,6 @@ static inline i32 push_ctx(bc *bc, context_k kind) {
   return bc->ncontext++;
 }
 
-static inline i32 push_ctximpl(gab_eg *gab, bc *bc, u8 local) {
-  i32 ctx = push_ctx(bc, kIMPL);
-
-  if (ctx < 0)
-    return COMP_ERR;
-
-  context *c = bc->contexts + ctx;
-
-  c->as.impl.local = local;
-  c->as.impl.ctx = peek_ctx(bc, kFRAME, 0);
-
-  return COMP_OK;
-}
-
-static inline i32 pop_ctximpl(bc *bc) {
-  if (pop_ctx(bc, kIMPL) < 0)
-    return COMP_ERR;
-
-  pop_slot(bc, 1);
-  return COMP_OK;
-}
-
-static inline i32 peek_impl_frame(bc *bc) {
-  i32 ctx = peek_ctx(bc, kIMPL, 0);
-
-  if (ctx < 0)
-    return COMP_ERR;
-
-  return bc->contexts[ctx].as.impl.ctx;
-}
-
-static inline i32 peek_impl_local(bc *bc) {
-  i32 ctx = peek_ctx(bc, kIMPL, 0);
-
-  if (ctx < 0)
-    return COMP_ERR;
-
-  return bc->contexts[ctx].as.impl.local;
-}
-
-static inline boolean has_impl(bc *bc) {
-  return peek_ctx(bc, kFRAME, 0) == peek_impl_frame(bc);
-}
-
 static gab_mod *push_ctxframe(gab_eg *gab, bc *bc, gab_value name) {
   i32 ctx = push_ctx(bc, kFRAME);
 
@@ -740,10 +692,10 @@ i32 compile_parameters(gab_eg *gab, bc *bc) {
   if (expect_token(bc, TOKEN_RPAREN) < 0)
     return COMP_ERR;
 
+fin:
+
   if (expect_token(bc, TOKEN_NEWLINE) < 0)
     return COMP_ERR;
-
-fin:
   if (mv >= 0)
     gab_mod_push_pack(mod(bc), mv, narguments - mv, bc->lex.previous_token,
                       bc->line, bc->lex.previous_token_src);
@@ -856,11 +808,6 @@ i32 compile_message_spec(gab_eg *gab, bc *bc) {
     if (expect_token(bc, TOKEN_RBRACE) < 0)
       return COMP_ERR;
 
-    return COMP_OK;
-  }
-
-  if (has_impl(bc)) {
-    push_load_local(bc, peek_impl_local(bc));
     return COMP_OK;
   }
 
@@ -2020,39 +1967,6 @@ i32 compile_exp_rec(gab_eg *gab, bc *bc, boolean assignable) {
   return compile_record(gab, bc);
 }
 
-i32 compile_exp_imp(gab_eg *gab, bc *bc, boolean assignable) {
-  push_scope(bc);
-
-  i32 local = add_local(gab, bc, gab_string(gab, ""), 0);
-
-  if (local < 0)
-    return COMP_ERR;
-
-  if (compile_expression(gab, bc) < 0)
-    return COMP_ERR;
-
-  initialize_local(bc, local);
-
-  if (push_ctximpl(gab, bc, local) < 0)
-    return COMP_ERR;
-
-  if (compile_expressions(gab, bc) < 0)
-    return COMP_ERR;
-
-  if (!expect_token(bc, TOKEN_END))
-    return COMP_ERR;
-
-  push_pop(bc, 1);
-
-  push_load_local(bc, local);
-
-  pop_ctximpl(bc);
-
-  pop_scope(bc);
-
-  return COMP_OK;
-}
-
 i32 compile_exp_ipm(gab_eg *gab, bc *bc, boolean assignable) {
   s_i8 offset = trim_prev_tok(bc);
 
@@ -2903,7 +2817,6 @@ const gab_compile_rule gab_bc_rules[] = {
     PREFIX(yld),// YIELD
     PREFIX(lop),                       // LOOP
     NONE(),                       // UNTIL
-    PREFIX(imp),                       // IMPL
     INFIX(bin, TERM, false),                  // PLUS
     PREFIX_INFIX(una, bin, TERM, false),      // MINUS
     INFIX(bin, FACTOR, false),                // STAR
