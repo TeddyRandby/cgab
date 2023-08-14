@@ -332,6 +332,10 @@ gab_value gab_block(gab_eg *gab, struct gab_block_argt args);
 
 /**
  * # Create a nil-initialized (empty) record of shape shape.
+ *
+ * @param gab The engine.
+ *
+ * @param shape The shape of the record.
  */
 gab_value gab_erecord(gab_eg *gab, gab_value shape);
 
@@ -517,11 +521,8 @@ struct gab_spec_argt {
  *
  * @param vm The vm.
  *
- * @param name The name of the message.
- *
- * @param receiver The receiver of the specialization.
- *
- * @param specialization The specialization.
+ * @param args The arguments.
+ * @see struct gab_spec_argt
  *
  * @return The message that was updated.
  */

@@ -52,21 +52,16 @@ a_gab_value *gab_source_file_handler(gab_eg *gab, gab_vm *vm, const char *path,
   if (src == NULL)
     return a_gab_value_one(gab_panic(gab, vm, "Failed to read module"));
 
-  gab_value pkg = gab_block(gab, (struct gab_block_argt){
-                                     .name = module,
-                                     .source = (const char *)src->data,
-                                     .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
-                                 });
+  gab_value pkg =
+      gab_block(gab, (struct gab_block_argt){
+                         .name = module,
+                         .source = (const char *)src->data,
+                         .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
+                     });
 
   a_i8_destroy(src);
 
-  if (pkg == gab_undefined)
-    return a_gab_value_one(gab_panic(gab, vm, "Failed to compile module"));
-
-  a_gab_value *res = gab_run(gab, pkg, fGAB_DUMP_ERROR);
-
-  if (res == NULL)
-    return a_gab_value_one(gab_undefined);
+  a_gab_value *res = gab_run(gab, pkg, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC);
 
   gab_impmod(gab, path, pkg, res);
 
@@ -147,7 +142,6 @@ void gab_lib_require(gab_eg *gab, gab_vm *vm, size_t argc,
 
       if (result != NULL) {
         gab_nvmpush(vm, result->len, result->data);
-        a_gab_value_destroy(result);
         goto fin;
       }
 
@@ -189,7 +183,7 @@ void gab_setup_builtins(gab_eg *gab) {
                .name = "require",
                .receiver = gab_typ(gab, kGAB_STRING),
                .specialization = gab_builtin(gab, "require", gab_lib_require),
-           });
+          });
 
   gab_spec(gab, NULL,
            (struct gab_spec_argt){

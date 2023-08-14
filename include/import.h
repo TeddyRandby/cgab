@@ -10,10 +10,12 @@ typedef enum {
 
 typedef struct {
   gab_import_k k;
+
   union {
     gab_value mod;
     void *shared;
   } as;
+
   a_gab_value *cache;
 } gab_imp;
 

@@ -216,9 +216,8 @@ LINKAGE boolean METHOD(remove)(TYPENAME *self, K key) {
 }
 
 LINKAGE boolean METHOD(exists)(TYPENAME *self, K key) {
-  if (self->len == 0) {
+  if (self->len == 0)
     return false;
-  }
 
   u64 index = METHOD(index_of)(self, key);
 
@@ -228,6 +227,9 @@ LINKAGE boolean METHOD(exists)(TYPENAME *self, K key) {
 }
 
 LINKAGE V METHOD(read)(TYPENAME *self, K key) {
+  if (self->len == 0)
+    return DEF_V;
+  
   u64 index = METHOD(index_of)(self, key);
 
   BUCKET_T *bucket = self->buckets + index;

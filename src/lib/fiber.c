@@ -162,7 +162,7 @@ void gab_lib_fiber(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     gab_value fiber = gab_box(gab, vm,
                               (struct gab_box_argt){
                                   .data = f,
-                                  .type = gab_string(gab, "fiber"),
+                                  .type = gab_string(gab, "Fiber"),
                                   .visitor = NULL,
                                   .destructor = NULL,
                               });
@@ -204,7 +204,7 @@ void gab_lib_send(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_await(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
-  fiber *f = gab_boxdata(argv[9]);
+  fiber *f = gab_boxdata(argv[0]);
 
   for (;;) {
     if (f->status == fDONE) {

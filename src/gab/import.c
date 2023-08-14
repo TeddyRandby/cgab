@@ -3,6 +3,7 @@
 #include "include/gab.h"
 #include "include/gc.h"
 #include <dlfcn.h>
+#include <stdio.h>
 
 u64 gab_impmod(gab_eg *gab, const char *name, gab_value mod, a_gab_value *val) {
   u64 hash = s_i8_hash(s_i8_cstr(name), gab->hash_seed);
@@ -14,7 +15,9 @@ u64 gab_impmod(gab_eg *gab, const char *name, gab_value mod, a_gab_value *val) {
   i->as.mod = mod;
 
   gab_egkeep(gab, mod);
-  gab_negkeep(gab, val->len, val->data);
+
+  if (val)
+    gab_negkeep(gab, val->len, val->data);
 
   d_gab_imp_insert(&gab->imports, hash, i);
 
@@ -41,17 +44,12 @@ u64 gab_impshd(gab_eg *gab, const char *name, void *obj, a_gab_value *val) {
 a_gab_value *gab_imphas(gab_eg *gab, const char *name) {
   u64 hash = s_i8_hash(s_i8_cstr(name), gab->hash_seed);
 
-  if (d_gab_imp_exists(&gab->imports, hash)) {
-    gab_imp *i = d_gab_imp_read(&gab->imports, hash);
-    return i->cache;
-  }
+  gab_imp *i = d_gab_imp_read(&gab->imports, hash);
 
-  return NULL;
+  return i ? i->cache: NULL;
 }
 
 void gab_import_destroy(gab_eg *gab, gab_gc *gc, gab_imp *i) {
-  a_gab_value_destroy(i->cache);
-
   switch (i->k) {
   case IMPORT_SHARED:
     dlclose(i->as.shared);
@@ -59,6 +57,8 @@ void gab_import_destroy(gab_eg *gab, gab_gc *gc, gab_imp *i) {
   default:
     break;
   }
+
+  a_gab_value_destroy(i->cache);
 
   DESTROY(i);
 }
