@@ -1,7 +1,4 @@
-#include "include/core.h"
 #include "include/gab.h"
-#include "include/object.h"
-#include "include/value.h"
 
 #include <arpa/inet.h>
 #include <netdb.h>

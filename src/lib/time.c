@@ -1,6 +1,4 @@
-#include "include/core.h"
 #include "include/gab.h"
-#include "include/object.h"
 #include <assert.h>
 #include <time.h>
 

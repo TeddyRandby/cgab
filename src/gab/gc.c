@@ -2,8 +2,6 @@
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
-#include "include/object.h"
-#include "include/value.h"
 #include "include/vm.h"
 #include <stdio.h>
 
@@ -124,7 +122,11 @@ void gab_gcdref(gab_gc *gc, gab_vm *vm, gab_value obj) {
 
 #endif
 
-void gab_gc_create(gab_gc *gc) { memset(gc, 0, sizeof(gab_gc)); };
+void gab_gc_create(gab_gc *gc) {
+  gc->nroots = 0;
+  gc->ndecrements = 0;
+  gc->nincrements = 0;
+};
 
 void gab_gc_destroy(gab_gc *gc) {
 #if cGAB_LOG_GC
@@ -297,12 +299,11 @@ static inline void increment_stack(gab_gc *gc, gab_vm *vm) {
 
 #if cGAB_LOG_GC
     if (GAB_VAL_IS_OBJ(*tracker)) {
-      v_rc_update_push(&gc->tracked_increments,
-                       (rc_update){
-                           .val = gab_valtoo(*tracker),
-                           .file = __FILE__,
-                           .line = __LINE__,
-                       });
+      v_rc_update_push(&gc->tracked_increments, (rc_update){
+                                                    .val = gab_valtoo(*tracker),
+                                                    .file = __FILE__,
+                                                    .line = __LINE__,
+                                                });
     }
 #endif
 

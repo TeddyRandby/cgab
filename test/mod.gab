@@ -38,7 +38,7 @@
     end
 
     :it('should rest assign a runtime multi value') do
-        one_through_five = do return 1,2,3,4,5 end
+        one_through_five = do; return 1,2,3,4,5 end
 
         (..a, b, c = one_through_five())
 
@@ -50,7 +50,7 @@
     end
 
     :it('should rest assign to existing variables') do
-        one_through_five = do return 1,2,3,4,5 end
+        one_through_five = do; return 1,2,3,4,5 end
 
         b = 1
 
@@ -156,7 +156,7 @@ end
 
       varfunc(1,2)
 
-      def onetwo = do return 1, 2 end
+      def onetwo = do; return 1, 2 end
 
       varfunc(onetwo())
    end
@@ -170,7 +170,7 @@ end
 
       varfunc(1,2,3)
 
-      def onetwothree = do return 1, 2, 3 end
+      def onetwothree = do; return 1, 2, 3 end
 
       varfunc(onetwothree())
    end
@@ -359,7 +359,7 @@ end
         2:expect(1:test)
     end
 
-    def repeat = do 1:test end
+    def repeat = do; 1:test end
 
     :it('should cache') do
         2:expect(repeat())
@@ -367,7 +367,7 @@ end
         2:expect(repeat())
     end
 
-    def oneTwo = do return 1, 2 end
+    def oneTwo = do; return 1, 2 end
 
     :it('should send/receive var') do
       def takeOneTwo = do (a, b)

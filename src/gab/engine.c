@@ -7,9 +7,7 @@
 #include "include/import.h"
 #include "include/lexer.h"
 #include "include/module.h"
-#include "include/object.h"
 #include "include/types.h"
-#include "include/value.h"
 #include "include/vm.h"
 
 #include <stdarg.h>
@@ -201,7 +199,7 @@ gab_eg *gab_create(u64 argc, gab_value argv_names[argc],
   return gab;
 }
 
-void gab_destroy(gab_eg *gab) {
+void gab_free(gab_eg *gab) {
   if (!gab)
     return;
 
@@ -235,7 +233,7 @@ void gab_destroy(gab_eg *gab) {
   while (gab->sources) {
     gab_src *s = gab->sources;
     gab->sources = s->next;
-    gab_srcdestroy(s);
+    gab_srcfree(s);
   }
 
   while (gab->modules) {
@@ -431,38 +429,6 @@ gab_obj_shape *gab_eg_find_shape(gab_eg *self, u64 size, u64 stride, u64 hash,
 }
 
 gab_value gab_typ(gab_eg *gab, gab_kind k) { return gab->types[k]; }
-
-gab_kind gab_valknd(gab_value value) {
-  if (__gab_valisn(value))
-    return kGAB_NUMBER;
-
-  if (gab_valiso(value))
-    return gab_valtoo(value)->kind;
-
-  return __GAB_VAL_TAG(value);
-}
-
-gab_value gab_valtyp(gab_eg *gab, gab_value value) {
-  gab_kind k = gab_valknd(value);
-
-  switch (k) {
-  case kGAB_NIL:
-  case kGAB_UNDEFINED:
-    return value;
-
-  case kGAB_RECORD: {
-    gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
-    return __gab_obj(obj->shape);
-  }
-
-  case kGAB_BOX: {
-    gab_obj_box *con = GAB_VAL_TO_BOX(value);
-    return con->type;
-  }
-  default:
-    return gab_typ(gab, k);
-  }
-}
 
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
                            const void *const *args) {

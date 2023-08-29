@@ -7,8 +7,6 @@
 #include "include/gab.h"
 #include "include/gc.h"
 #include "include/module.h"
-#include "include/object.h"
-#include "include/value.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -46,7 +44,7 @@ gab_value vm_error(gab_eg *gab, gab_vm *vm, u8 flags, gab_status e,
 
       u64 curr_row = v_u64_val_at(&mod->lines, offset);
 
-      s_i8 curr_src = v_s_i8_val_at(&mod->source->source_lines, curr_row - 1);
+      s_i8 curr_src = v_s_i8_val_at(&mod->source->lines, curr_row - 1);
 
       const i8 *curr_src_start = curr_src.data;
       i32 curr_src_len = curr_src.len;
@@ -843,9 +841,8 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
 
       DROP_N(2);
 
-      gab_value val = prop_offset == UINT16_MAX
-                          ? gab_nil
-                          : gab_obj_record_get(obj, prop_offset);
+      gab_value val =
+          prop_offset == UINT16_MAX ? gab_nil : obj->data[prop_offset];
 
       PUSH(val);
 
@@ -999,7 +996,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
         return ERROR(GAB_MISSING_PROPERTY, "On '%V'", index);
       }
 
-      PEEK() = gab_obj_record_get(rec, prop_offset);
+      PEEK() = rec->data[prop_offset];
 
       NEXT();
     }
@@ -1027,7 +1024,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
         return ERROR(GAB_MISSING_PROPERTY, "On '%V'", index);
       }
 
-      PEEK() = gab_obj_record_get(rec, prop_offset);
+      PEEK() = rec->data[prop_offset];
 
       NEXT();
     }

@@ -127,5 +127,5 @@ a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
 
   gab_ngcdref(gab_vmgc(vm), vm, LEN_CARRAY(values), values);
 
-  return NULL;
+  return a_gab_value_one(type);
 }

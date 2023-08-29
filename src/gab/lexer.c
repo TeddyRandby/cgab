@@ -4,54 +4,67 @@
 #include "include/types.h"
 #include <stdio.h>
 
-static void advance(gab_lex *self) {
+typedef struct gab_lx {
+  i8 *cursor;
+  i8 *row_start;
+  size_t row;
+  u64 col;
+
+  u8 nested_curly;
+  u8 status;
+
+  gab_src *source;
+
+  s_i8 current_row_comment;
+  s_i8 current_row_src;
+  s_i8 current_token_src;
+} gab_lx;
+
+static void advance(gab_lx *self) {
   self->cursor++;
   self->col++;
   self->current_token_src.len++;
   self->current_row_src.len++;
 }
 
-static void start_row(gab_lex *self) {
+static void start_row(gab_lx *self) {
+  self->current_row_comment = (s_i8){0};
   self->current_row_src.data = self->cursor;
   self->current_row_src.len = 0;
   self->col = 0;
   self->row++;
-  self->previous_row = self->current_row;
 }
 
-static void start_token(gab_lex *self) {
+static void start_token(gab_lx *self) {
   self->current_token_src.data = self->cursor;
   self->current_token_src.len = 0;
 }
 
-static void finish_row(gab_lex *self) {
-  self->skip_lines++;
+static void finish_row(gab_lx *self) {
+  if (self->current_row_src.data[self->current_row_src.len - 1] == '\n')
+    self->current_row_src.len--;
 
-  self->previous_row_src = self->current_row_src;
-  // Skip the newline at the end of the row.
-  self->previous_row_src.len -=
-      self->previous_row_src.data[self->previous_row_src.len - 1] == '\n';
+  v_s_i8_push(&self->source->lines, self->current_row_src);
+  v_s_i8_push(&self->source->line_comments, self->current_row_comment);
 
-  v_s_i8_push(&self->source->source_lines, self->previous_row_src);
   start_row(self);
 }
 
-void gab_lexcreate(gab_lex *self, gab_src *src) {
-  memset(self, 0, sizeof(gab_lex));
+void gab_lexcreate(gab_lx *self, gab_src *src) {
+  memset(self, 0, sizeof(gab_lx));
 
   self->source = src;
   self->cursor = src->source->data;
   self->row_start = src->source->data;
-  self->current_row = 1;
 
   start_row(self);
 }
 
-static inline i8 peek(gab_lex *self) { return *self->cursor; }
+static inline i8 peek(gab_lx *self) { return *self->cursor; }
 
-static inline i8 peek_next(gab_lex *self) { return *(self->cursor + 1); }
+static inline i8 peek_next(gab_lx *self) { return *(self->cursor + 1); }
 
-static inline gab_token error(gab_lex *self, gab_status s) {
+static inline gab_token error(gab_lx *self, gab_status s) {
   self->status = s;
   return TOKEN_ERROR;
 }
@@ -139,7 +152,7 @@ const keyword keywords[] = {
     },
 };
 
-gab_token identifier(gab_lex *self) {
+gab_token identifier(gab_lx *self) {
 
   while (is_alpha(peek(self)) || is_digit(peek(self)))
     advance(self);
@@ -158,7 +171,7 @@ gab_token identifier(gab_lex *self) {
   return TOKEN_IDENTIFIER;
 }
 
-gab_token string(gab_lex *self) {
+gab_token string(gab_lx *self) {
   u8 start = peek(self);
   u8 stop = start == '"' ? '"' : '\'';
 
@@ -188,7 +201,7 @@ gab_token string(gab_lex *self) {
   return start == '}' ? TOKEN_INTERPOLATION_END : TOKEN_STRING;
 }
 
-gab_token integer(gab_lex *self) {
+gab_token integer(gab_lx *self) {
   if (!is_digit(peek(self)))
     return error(self, GAB_MALFORMED_TOKEN);
 
@@ -198,7 +211,7 @@ gab_token integer(gab_lex *self) {
   return TOKEN_NUMBER;
 }
 
-gab_token floating(gab_lex *self) {
+gab_token floating(gab_lx *self) {
 
   if (integer(self) == TOKEN_ERROR)
     return TOKEN_ERROR;
@@ -220,7 +233,7 @@ gab_token floating(gab_lex *self) {
     return TOKEN_##name;                                                       \
   }
 
-gab_token other(gab_lex *self) {
+gab_token other(gab_lx *self) {
   switch (peek(self)) {
 
     CHAR_CASE('+', PLUS)
@@ -357,7 +370,7 @@ gab_token other(gab_lex *self) {
   }
 }
 
-static inline void parse_comment(gab_lex *self) {
+static inline void parse_comment(gab_lx *self) {
   i8 *start = self->cursor;
 
   while (is_comment(peek(self))) {
@@ -367,80 +380,71 @@ static inline void parse_comment(gab_lex *self) {
     advance(self);
   }
 
-  self->previous_comment = s_i8_create(start, self->cursor - start);
+  self->current_row_comment = s_i8_create(start, self->cursor - start);
 }
 
-static inline void parse_whitespace(gab_lex *self) { advance(self); }
-
-gab_token gab_lexnxt(gab_lex *self) {
-  self->previous_token_src = self->current_token_src;
-  self->previous_token = self->current_token;
-  self->previous_comment = (s_i8){0};
-
+gab_token gab_lexnxt(gab_lx *self) {
   while (is_whitespace(peek(self)) || is_comment(peek(self))) {
     if (is_comment(peek(self)))
       parse_comment(self);
 
     if (is_whitespace(peek(self)))
-      parse_whitespace(self);
+      advance(self);
   }
 
-  if (self->cursor - self->source->source->data > self->source->source->len) {
-    fprintf(stderr, "UhOH Out of bounds!");
-  }
+  // Sanity check
+  assert(self->cursor - self->source->source->data < self->source->source->len);
+
+  gab_token tok;
+  start_token(self);
 
   if (peek(self) == '\0' || peek(self) == EOF) {
-    self->current_token_src = s_i8_create(self->cursor, 0);
-    self->current_token = TOKEN_EOF;
-    return TOKEN_EOF;
+    tok = TOKEN_EOF;
+    goto fin;
   }
-
-  start_token(self);
 
   if (peek(self) == '\n') {
     advance(self);
     finish_row(self);
-    return TOKEN_NEWLINE;
+    tok = TOKEN_NEWLINE;
+    goto fin;
   }
 
-  self->current_row += self->skip_lines;
-  self->skip_lines = 0;
-
   if (is_alpha(peek(self))) {
-    return identifier(self);
+    tok = identifier(self);
+    goto fin;
   }
 
   if (is_digit(peek(self))) {
-    return floating(self);
+    tok = floating(self);
+    goto fin;
   }
 
   if (peek(self) == '"') {
-    return string(self);
+    tok = string(self);
+    goto fin;
   }
 
   if (peek(self) == '\'') {
-    return string(self);
+    tok = string(self);
+    goto fin;
   }
 
   if (self->nested_curly == 1 && peek(self) == '}') {
     self->nested_curly--;
-    return string(self);
+    tok = string(self);
+    goto fin;
   }
 
-  return other(self);
+  tok = other(self);
+
+fin:
+  v_gab_token_push(&self->source->tokens, tok);
+  v_s_i8_push(&self->source->tokens_src, self->current_token_src);
+  v_u64_push(&self->source->tokens_line, self->row);
+
+  return tok;
 }
-
-void gab_lexendl(gab_lex *self) {
-  while (peek(self) != '\n' && peek(self) != '\0') {
-    advance(self);
-  }
-
-  advance(self);
-  finish_row(self);
-
-  self->current_row += self->skip_lines;
-  self->skip_lines = 0;
-};
 
 gab_src *gab_srccreate(gab_eg *gab, s_i8 source) {
   gab_src *self = NEW(gab_src);
@@ -457,12 +461,12 @@ gab_src *gab_srccpy(gab_eg *gab, gab_src *self) {
   gab_src *copy = NEW(gab_src);
   copy->source = a_i8_create(self->source->data, self->source->len);
 
-  v_s_i8_copy(&copy->source_lines, &self->source_lines);
+  v_s_i8_copy(&copy->lines, &self->lines);
 
   // Reconcile the copied slices to point to the new source
-  for (u64 i = 0; i < copy->source_lines.len; i++) {
-    s_i8 *copy_src = v_s_i8_ref_at(&copy->source_lines, i);
-    s_i8 *src_src = v_s_i8_ref_at(&self->source_lines, i);
+  for (u64 i = 0; i < copy->lines.len; i++) {
+    s_i8 *copy_src = v_s_i8_ref_at(&copy->lines, i);
+    s_i8 *src_src = v_s_i8_ref_at(&self->lines, i);
 
     copy_src->data = copy->source->data + (src_src->data - self->source->data);
   }
@@ -473,10 +477,25 @@ gab_src *gab_srccpy(gab_eg *gab, gab_src *self) {
   return copy;
 }
 
-void gab_srcdestroy(gab_src *self) {
-  v_s_i8_destroy(&self->source_lines);
+void gab_srcfree(gab_src *self) {
+  v_s_i8_destroy(&self->lines);
   a_i8_destroy(self->source);
   DESTROY(self);
+}
+
+gab_src *gab_lex(gab_eg *gab, const char *source, size_t len) {
+  gab_src *src = gab_srccreate(gab, s_i8_create((i8 *)source, len));
+
+  gab_lx lex;
+  gab_lexcreate(&lex, src);
+
+  for (;;) {
+    gab_token t = gab_lexnxt(&lex);
+    if (t == TOKEN_EOF)
+      break;
+  }
+
+  return src;
 }
 
 #undef CURSOR

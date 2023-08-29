@@ -1,7 +1,7 @@
 #ifndef GAB_ENGINE_H
 #define GAB_ENGINE_H
 
-#include "include/object.h"
+#include "gab.h"
 
 typedef enum gab_status gab_status;
 typedef struct gab_src gab_src;

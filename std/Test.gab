@@ -40,18 +40,16 @@ def expect_not[](other, opt_msg)
     self:send(msg, other) and T:fail(self, other)
 end
 
-impl nil
-    def describe(name, cb)
-        '\n{name}:':print
-        cb()
-    end
+def describe[](name, cb)
+  '\n{name}:':print
+  cb()
+end
 
-    def it(name, cb)
-        T:reset
+def it[](name, cb)
+  T:reset
 
-        cb()
+  cb()
 
-        '  {T:passed? and '✓' or '×'} it {name}':print
-        T:passed? or T:show_errs
-    end
+  '  {T:passed? and '✓' or '×'} it {name}':print
+  T:passed? or T:show_errs
 end

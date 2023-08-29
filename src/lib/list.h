@@ -1,11 +1,10 @@
 #include "include/gab.h"
-#include "include/value.h"
 #include <stdio.h>
 
 #define T gab_value
 #include "include/vector.h"
 
-void list_destroy(void *data) {
+static inline void list_destroy(void *data) {
   v_gab_value *self = data;
   v_gab_value_destroy(self);
   DESTROY(self);
@@ -21,8 +20,8 @@ void list_visit(gab_gc *gc, gab_gcvisit_f v, void *data) {
   }
 }
 
-gab_value list_put(gab_eg *gab, gab_vm *vm, gab_value self, u64 offset,
-                   gab_value value) {
+static inline gab_value list_put(gab_eg *gab, gab_vm *vm, gab_value self,
+                                 u64 offset, gab_value value) {
   v_gab_value *data = gab_boxdata(self);
 
   if (offset >= data->len) {
@@ -45,7 +44,7 @@ gab_value list_put(gab_eg *gab, gab_vm *vm, gab_value self, u64 offset,
   return value;
 }
 
-gab_value list_at(gab_value self, u64 offset) {
+static inline gab_value list_at(gab_value self, u64 offset) {
   v_gab_value *data = gab_boxdata(self);
 
   if (offset >= data->len)
@@ -54,7 +53,7 @@ gab_value list_at(gab_value self, u64 offset) {
   return v_gab_value_val_at(data, offset);
 }
 
-gab_value list_create_empty(gab_eg *gab, gab_vm *vm, u64 len) {
+static inline gab_value list_create_empty(gab_eg *gab, gab_vm *vm, u64 len) {
   v_gab_value *data = NEW(v_gab_value);
   v_gab_value_create(data, len);
 
@@ -67,7 +66,8 @@ gab_value list_create_empty(gab_eg *gab, gab_vm *vm, u64 len) {
                  });
 }
 
-gab_value list_create(gab_eg *gab, gab_vm *vm, u64 len, gab_value argv[len]) {
+static inline gab_value list_create(gab_eg *gab, gab_vm *vm, u64 len,
+                                    gab_value argv[len]) {
   gab_value self = list_create_empty(gab, vm, len);
 
   for (u64 i = 0; i < len; i++)

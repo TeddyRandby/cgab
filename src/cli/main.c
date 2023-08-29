@@ -1,9 +1,7 @@
 #include "include/alloc.h"
 #include "include/core.h"
 #include "include/gab.h"
-#include "include/object.h"
 #include "include/os.h"
-#include "include/value.h"
 #include "runners.h"
 #include <assert.h>
 #include <printf.h>

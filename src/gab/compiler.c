@@ -6,8 +6,6 @@
 #include "include/gab.h"
 #include "include/lexer.h"
 #include "include/module.h"
-#include "include/object.h"
-#include "include/value.h"
 #include <math.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -85,9 +83,9 @@ typedef struct {
 } context;
 
 typedef struct {
-  gab_lex lex;
+  gab_src *source;
 
-  u64 line;
+  u64 offset;
 
   u8 flags;
 
@@ -97,7 +95,7 @@ typedef struct {
   context contexts[cGAB_FUNCTION_DEF_NESTING_MAX];
 } bc;
 
-const char *gab_token_names[] = {
+static const char *gab_token_names[] = {
 #define TOKEN(name) #name,
 #include "include/token.h"
 #undef TOKEN
@@ -137,8 +135,7 @@ void gab_bc_create(bc *self, gab_src *source, u8 flags) {
   memset(self, 0, sizeof(*self));
 
   self->flags = flags;
-
-  gab_lexcreate(&self->lex, source);
+  self->source = source;
 }
 
 enum comp_status {
@@ -165,7 +162,7 @@ static i32 eat_token(bc *bc);
 //------------------- Token Helpers -----------------------
 // Can't return an error.
 static inline boolean match_token(bc *bc, gab_token tok) {
-  return bc->lex.current_token == tok;
+  return v_gab_token_val_at(&bc->source->tokens, bc->offset) == tok;
 }
 
 static inline boolean match_terminator(bc *bc) {
@@ -174,13 +171,11 @@ static inline boolean match_terminator(bc *bc) {
 }
 
 static i32 eat_token(bc *bc) {
-  bc->lex.previous_token = bc->lex.current_token;
-  bc->lex.current_token = gab_lexnxt(&bc->lex);
-  bc->line = bc->lex.current_row;
+  bc->offset++;
 
   if (match_token(bc, TOKEN_ERROR)) {
     eat_token(bc);
-    compiler_error(bc, bc->lex.status, "");
+    compiler_error(bc, GAB_MALFORMED_TOKEN, "");
     return COMP_ERR;
   }
 
@@ -210,18 +205,33 @@ static inline i32 match_tokoneof(bc *bc, gab_token toka, gab_token tokb) {
   return match_token(bc, toka) || match_token(bc, tokb);
 }
 
-gab_value prev_id(gab_eg *gab, bc *bc) {
-  s_i8 message = bc->lex.previous_token_src;
-  return __gab_obj(gab_obj_string_create(gab, message));
+size_t prev_line(bc *bc) {
+  return v_u64_val_at(&bc->source->tokens_line, bc->offset - 1);
 }
 
-s_i8 trim_prev_tok(bc *bc) {
-  s_i8 message = bc->lex.previous_token_src;
+gab_token curr_tok(bc *bc) {
+  return v_gab_token_val_at(&bc->source->tokens, bc->offset);
+}
+
+gab_token prev_tok(bc *bc) {
+  return v_gab_token_val_at(&bc->source->tokens, bc->offset - 1);
+}
+
+s_i8 prev_src(bc *bc) {
+  return v_s_i8_val_at(&bc->source->tokens_src, bc->offset - 1);
+}
+
+s_i8 trim_prev_src(bc *bc) {
+  s_i8 message = prev_src(bc);
   // SKip the ':' at the beginning
   message.data++;
   message.len--;
 
   return message;
+}
+
+gab_value prev_id(gab_eg *gab, bc *bc) {
+  return __gab_obj(gab_obj_string_create(gab, prev_src(bc)));
 }
 
 static inline i32 peek_ctx(bc *bc, context_k kind, u8 depth) {
@@ -248,49 +258,43 @@ static inline u16 add_constant(gab_mod *mod, gab_value value) {
 }
 
 static inline void push_op(bc *bc, gab_opcode op) {
-  gab_mod_push_op(mod(bc), op, bc->lex.previous_token, bc->line,
-                  bc->lex.previous_token_src);
+  gab_mod_push_op(mod(bc), op, prev_tok(bc), prev_line(bc), prev_src(bc));
+}
+
+static inline void push_byte(bc *bc, u8 data) {
+  gab_mod_push_byte(mod(bc), data, prev_tok(bc), prev_line(bc), prev_src(bc));
 }
 
 static inline void push_shift(bc *bc, u8 n) {
   if (n <= 1)
     return;
 
-  gab_mod_push_op(mod(bc), OP_SHIFT, bc->lex.previous_token, bc->line,
-                  bc->lex.previous_token_src);
+  push_op(bc, OP_SHIFT);
 
-  gab_mod_push_byte(mod(bc), n, bc->lex.previous_token, bc->line,
-                    bc->lex.previous_token_src);
+  push_byte(bc, n);
 }
 
 static inline void push_pop(bc *bc, u8 n) {
-  gab_mod_push_pop(mod(bc), n, bc->lex.previous_token, bc->line,
-                   bc->lex.previous_token_src);
+  gab_mod_push_pop(mod(bc), n, prev_tok(bc), prev_line(bc), prev_src(bc));
 }
 
 static inline void push_store_local(bc *bc, u8 local) {
-  gab_mod_push_store_local(mod(bc), local, bc->lex.previous_token, bc->line,
-                           bc->lex.previous_token_src);
+  gab_mod_push_store_local(mod(bc), local, prev_tok(bc), prev_line(bc),
+                           prev_src(bc));
 }
 
 static inline void push_load_local(bc *bc, u8 local) {
-  gab_mod_push_load_local(mod(bc), local, bc->lex.previous_token, bc->line,
-                          bc->lex.previous_token_src);
+  gab_mod_push_load_local(mod(bc), local, prev_tok(bc), prev_line(bc),
+                          prev_src(bc));
 }
 
 static inline void push_load_upvalue(bc *bc, u8 upv) {
-  gab_mod_push_load_upvalue(mod(bc), upv, bc->lex.previous_token, bc->line,
-                            bc->lex.previous_token_src);
-}
-
-static inline void push_byte(bc *bc, u8 data) {
-  gab_mod_push_byte(mod(bc), data, bc->lex.previous_token, bc->line,
-                    bc->lex.previous_token_src);
+  gab_mod_push_load_upvalue(mod(bc), upv, prev_tok(bc), prev_line(bc),
+                            prev_src(bc));
 }
 
 static inline void push_short(bc *bc, u16 data) {
-  gab_mod_push_short(mod(bc), data, bc->lex.previous_token, bc->line,
-                     bc->lex.previous_token_src);
+  gab_mod_push_short(mod(bc), data, prev_tok(bc), prev_line(bc), prev_src(bc));
 }
 
 static inline u16 peek_slot(bc *bc) {
@@ -566,7 +570,7 @@ static gab_mod *push_ctxframe(gab_eg *gab, bc *bc, gab_value name) {
 
   memset(f, 0, sizeof(frame));
 
-  gab_mod *mod = gab_mod_create(gab, name, bc->lex.source);
+  gab_mod *mod = gab_mod_create(gab, name, bc->source);
   f->mod = mod;
 
   push_slot(bc, 1);
@@ -665,7 +669,7 @@ i32 compile_parameters(gab_eg *gab, bc *bc) {
       if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
         return COMP_ERR;
 
-      s_i8 name = bc->lex.previous_token_src;
+      s_i8 name = prev_src(bc);
 
       gab_value val_name = __gab_obj(gab_obj_string_create(gab, name));
 
@@ -697,8 +701,8 @@ fin:
   if (expect_token(bc, TOKEN_NEWLINE) < 0)
     return COMP_ERR;
   if (mv >= 0)
-    gab_mod_push_pack(mod(bc), mv, narguments - mv, bc->lex.previous_token,
-                      bc->line, bc->lex.previous_token_src);
+    gab_mod_push_pack(mod(bc), mv, narguments - mv, prev_tok(bc), prev_line(bc),
+                      prev_src(bc));
 
   i32 ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
@@ -761,7 +765,7 @@ i32 compile_expressions_body(gab_eg *gab, bc *bc) {
 i32 compile_expressions(gab_eg *gab, bc *bc) {
   push_scope(bc);
 
-  u64 line = bc->line;
+  u64 line = prev_line(bc);
 
   if (compile_expressions_body(gab, bc) < 0)
     return COMP_ERR;
@@ -787,8 +791,8 @@ i32 compile_block_body(gab_eg *gab, bc *bc) {
   if (expect_token(bc, TOKEN_END) < 0)
     return COMP_ERR;
 
-  gab_mod_push_return(mod(bc), result, false, bc->lex.previous_token, bc->line,
-                      bc->lex.previous_token_src);
+  gab_mod_push_return(mod(bc), result, false, prev_tok(bc), prev_line(bc),
+                      prev_src(bc));
 
   return COMP_OK;
 }
@@ -945,13 +949,11 @@ i32 compile_tuple(gab_eg *gab, bc *bc, u8 want, boolean *mv_out) {
 
 i32 add_message_constant(gab_eg *gab, gab_mod *mod, gab_value name) {
   gab_obj_message *f = gab_obj_message_create(gab, name);
-
   return add_constant(mod, __gab_obj(f));
 }
 
 i32 add_string_constant(gab_eg *gab, gab_mod *mod, s_i8 str) {
   gab_obj_string *obj = gab_obj_string_create(gab, str);
-
   return add_constant(mod, __gab_obj(obj));
 }
 
@@ -1065,9 +1067,9 @@ i32 compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
   if (expect_token(bc, TOKEN_EQUAL) < 0)
     return COMP_ERR;
 
-  gab_token prop_tok = bc->lex.previous_token;
-  u64 prop_line = bc->line;
-  s_i8 prop_src = bc->lex.previous_token_src;
+  gab_token prop_tok = prev_tok(bc);
+  u64 prop_line = prev_line(bc);
+  s_i8 prop_src = prev_src(bc);
 
   boolean mv = false;
   i32 have = compile_tuple(gab, bc, want, &mv);
@@ -1206,7 +1208,7 @@ i32 compile_var_decl(gab_eg *gab, bc *bc, u8 flags, u8 additional_local) {
     if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
       return COMP_ERR;
 
-    s_i8 name = bc->lex.previous_token_src;
+    s_i8 name = prev_src(bc);
 
     gab_value val_name = __gab_obj(gab_obj_string_create(gab, name));
 
@@ -1274,10 +1276,7 @@ i32 compile_definition(gab_eg *gab, bc *bc, s_i8 name, s_i8 help);
 i32 compile_rec_internal_item(gab_eg *gab, bc *bc) {
   if (match_and_eat_token(bc, TOKEN_IDENTIFIER)) {
 
-    gab_obj_string *obj =
-        gab_obj_string_create(gab, bc->lex.previous_token_src);
-
-    gab_value val_name = __gab_obj(obj);
+    gab_value val_name = prev_id(gab, bc);
 
     push_slot(bc, 1);
 
@@ -1400,8 +1399,8 @@ i32 compile_record_tuple(gab_eg *gab, bc *bc) {
   if (size < 0)
     return COMP_ERR;
 
-  gab_mod_push_tuple(mod(bc), size, mv, bc->lex.previous_token, bc->line,
-                     bc->lex.previous_token_src);
+  gab_mod_push_tuple(mod(bc), size, mv, prev_tok(bc), prev_line(bc),
+                     prev_src(bc));
 
   pop_slot(bc, size);
 
@@ -1477,9 +1476,8 @@ i32 compile_exp_blk(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_then(gab_eg *gab, bc *bc, boolean assignable) {
-  u64 then_jump =
-      gab_mod_push_jump(mod(bc), OP_JUMP_IF_FALSE, bc->lex.previous_token,
-                        bc->line, bc->lex.previous_token_src);
+  u64 then_jump = gab_mod_push_jump(mod(bc), OP_JUMP_IF_FALSE, prev_tok(bc),
+                                    prev_line(bc), prev_src(bc));
 
   pop_slot(bc, 1);
 
@@ -1497,9 +1495,8 @@ i32 compile_exp_then(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_else(gab_eg *gab, bc *bc, boolean assignable) {
-  u64 then_jump =
-      gab_mod_push_jump(mod(bc), OP_JUMP_IF_TRUE, bc->lex.previous_token,
-                        bc->line, bc->lex.previous_token_src);
+  u64 then_jump = gab_mod_push_jump(mod(bc), OP_JUMP_IF_TRUE, prev_tok(bc),
+                                    prev_line(bc), prev_src(bc));
 
   pop_slot(bc, 1);
 
@@ -1532,9 +1529,8 @@ i32 compile_exp_mch(gab_eg *gab, bc *bc, boolean assignable) {
 
     push_op(bc, OP_MATCH);
 
-    next =
-        gab_mod_push_jump(mod(bc), OP_POP_JUMP_IF_FALSE, bc->lex.previous_token,
-                          bc->line, bc->lex.previous_token_src);
+    next = gab_mod_push_jump(mod(bc), OP_POP_JUMP_IF_FALSE, prev_tok(bc),
+                             prev_line(bc), prev_src(bc));
 
     pop_slot(bc, 1);
 
@@ -1556,9 +1552,8 @@ i32 compile_exp_mch(gab_eg *gab, bc *bc, boolean assignable) {
     pop_slot(bc, 1);
 
     // Push a jump out of the match statement at the end of every case.
-    v_u64_push(&done_jumps,
-               gab_mod_push_jump(mod(bc), OP_JUMP, bc->lex.previous_token,
-                                 bc->line, bc->lex.previous_token_src));
+    v_u64_push(&done_jumps, gab_mod_push_jump(mod(bc), OP_JUMP, prev_tok(bc),
+                                              prev_line(bc), prev_src(bc)));
   }
 
   // If none of the cases match, the last jump should end up here.
@@ -1591,9 +1586,9 @@ i32 compile_exp_mch(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_bin(gab_eg *gab, bc *bc, boolean assignable) {
-  gab_token op = bc->lex.previous_token;
-  u64 line = bc->line;
-  s_i8 src = bc->lex.previous_token_src;
+  gab_token op = prev_tok(bc);
+  u64 line = prev_line(bc);
+  s_i8 src = prev_src(bc);
 
   u16 m;
 
@@ -1672,7 +1667,7 @@ i32 compile_exp_bin(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_una(gab_eg *gab, bc *bc, boolean assignable) {
-  gab_token op = bc->lex.previous_token;
+  gab_token op = prev_tok(bc);
 
   i32 result = compile_exp_prec(gab, bc, kUNARY);
 
@@ -1808,22 +1803,20 @@ a_i8 *parse_raw_str(bc *bc, s_i8 raw_str) {
  * Returns COMP_ERR if an error occured, otherwise the size of the expressions
  */
 i32 compile_exp_str(gab_eg *gab, bc *bc, boolean assignable) {
-  s_i8 raw_token = bc->lex.previous_token_src;
-
-  a_i8 *parsed = parse_raw_str(bc, raw_token);
+  a_i8 *parsed = parse_raw_str(bc, prev_src(bc));
 
   if (parsed == NULL) {
     compiler_error(bc, GAB_MALFORMED_STRING, "");
     return COMP_ERR;
   }
 
-  gab_obj_string *obj =
-      gab_obj_string_create(gab, s_i8_create(parsed->data, parsed->len));
+  u16 k =
+      add_string_constant(gab, mod(bc), s_i8_create(parsed->data, parsed->len));
 
   a_i8_destroy(parsed);
 
   push_op(bc, OP_CONSTANT);
-  push_short(bc, add_constant(mod(bc), __gab_obj(obj)));
+  push_short(bc, k);
 
   push_slot(bc, 1);
 
@@ -1883,7 +1876,7 @@ i32 compile_exp_grp(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_num(gab_eg *gab, bc *bc, boolean assignable) {
-  f64 num = strtod((char *)bc->lex.previous_token_src.data, NULL);
+  f64 num = strtod((char *)prev_src(bc).data, NULL);
   push_op(bc, OP_CONSTANT);
   push_short(bc, add_constant(mod(bc), gab_number(num)));
   push_slot(bc, 1);
@@ -1891,8 +1884,7 @@ i32 compile_exp_num(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_bool(gab_eg *gab, bc *bc, boolean assignable) {
-  push_op(bc,
-          bc->lex.previous_token == TOKEN_TRUE ? OP_PUSH_TRUE : OP_PUSH_FALSE);
+  push_op(bc, prev_tok(bc) == TOKEN_TRUE ? OP_PUSH_TRUE : OP_PUSH_FALSE);
   push_slot(bc, 1);
   return COMP_OK;
 }
@@ -1904,12 +1896,18 @@ i32 compile_exp_nil(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_def(gab_eg *gab, bc *bc, boolean assignable) {
-  s_i8 help = bc->lex.previous_comment;
+  size_t help_cmt_line = prev_line(bc);
+  // 1 indexed, so correct for that if not the first line
+  if (help_cmt_line > 0)
+    help_cmt_line--;
+
+  s_i8 help = v_s_i8_val_at(&bc->source->line_comments, help_cmt_line);
+
   eat_token(bc);
 
   s_i8 name = {0};
 
-  switch (bc->lex.previous_token) {
+  switch (prev_tok(bc)) {
   case TOKEN_IDENTIFIER:
   case TOKEN_PLUS:
   case TOKEN_MINUS:
@@ -1924,17 +1922,17 @@ i32 compile_exp_def(gab_eg *gab, bc *bc, boolean assignable) {
   case TOKEN_EQUAL_EQUAL:
   case TOKEN_PIPE:
   case TOKEN_AMPERSAND:
-    name = bc->lex.previous_token_src;
+    name = prev_src(bc);
     break;
   case TOKEN_LPAREN:
-    name = bc->lex.previous_token_src;
+    name = prev_src(bc);
     if (match_and_eat_token(bc, TOKEN_RPAREN)) {
       name.len++;
       break;
     }
     break;
   case TOKEN_LBRACE: {
-    name = bc->lex.previous_token_src;
+    name = prev_src(bc);
     if (match_and_eat_token(bc, TOKEN_RBRACE)) {
       name.len++;
       break;
@@ -1968,7 +1966,7 @@ i32 compile_exp_rec(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_ipm(gab_eg *gab, bc *bc, boolean assignable) {
-  s_i8 offset = trim_prev_tok(bc);
+  s_i8 offset = trim_prev_src(bc);
 
   u32 local = strtoul((char *)offset.data, NULL, 10);
 
@@ -2158,9 +2156,9 @@ i32 compile_exp_idn(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_idx(gab_eg *gab, bc *bc, boolean assignable) {
-  gab_token prop_tok = bc->lex.previous_token;
-  u64 prop_line = bc->line;
-  s_i8 prop_src = bc->lex.previous_token_src;
+  gab_token prop_tok = prev_tok(bc);
+  u64 prop_line = prev_line(bc);
+  s_i8 prop_src = prev_src(bc);
 
   if (compile_expression(gab, bc) < 0)
     return COMP_ERR;
@@ -2188,16 +2186,16 @@ i32 compile_exp_idx(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_dot(gab_eg *gab, bc *bc, boolean assignable) {
-  s_i8 prop_name = trim_prev_tok(bc);
+  s_i8 prop_name = trim_prev_src(bc);
 
   i32 prop = add_string_constant(gab, mod(bc), prop_name);
 
   if (prop < 0)
     return COMP_ERR;
 
-  gab_token prop_tok = bc->lex.previous_token;
-  u64 prop_line = bc->line;
-  s_i8 prop_src = bc->lex.previous_token_src;
+  gab_token prop_tok = prev_tok(bc);
+  u64 prop_line = prev_line(bc);
+  s_i8 prop_src = prev_src(bc);
 
   if (assignable && !match_ctx(bc, kTUPLE)) {
     if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
@@ -2278,11 +2276,11 @@ i32 compile_arguments(gab_eg *gab, bc *bc, boolean *mv_out, u8 flags) {
 }
 
 i32 compile_exp_emp(gab_eg *gab, bc *bc, boolean assignable) {
-  s_i8 message = bc->lex.previous_token_src;
-  gab_token tok = bc->lex.previous_token;
-  u64 line = bc->line;
+  s_i8 message = prev_src(bc);
+  gab_token tok = prev_tok(bc);
+  u64 line = prev_line(bc);
 
-  gab_value val_name = __gab_obj(gab_obj_string_create(gab, trim_prev_tok(bc)));
+  gab_value val_name = __gab_obj(gab_obj_string_create(gab, trim_prev_src(bc)));
 
   u16 m = add_message_constant(gab, mod(bc), val_name);
 
@@ -2310,9 +2308,7 @@ i32 compile_exp_emp(gab_eg *gab, bc *bc, boolean assignable) {
 
 i32 compile_exp_amp(gab_eg *gab, bc *bc, boolean assignable) {
   if (match_and_eat_token(bc, TOKEN_MESSAGE)) {
-    s_i8 message = bc->lex.previous_token_src;
-
-    gab_value val_name = __gab_obj(gab_obj_string_create(gab, message));
+    gab_value val_name = prev_id(gab, bc);
 
     u16 f = add_message_constant(gab, mod(bc), val_name);
 
@@ -2325,8 +2321,10 @@ i32 compile_exp_amp(gab_eg *gab, bc *bc, boolean assignable) {
   }
 
   const char *msg;
+
   eat_token(bc);
-  switch (bc->lex.previous_token) {
+
+  switch (prev_tok(bc)) {
   case TOKEN_EQUAL_EQUAL:
     msg = mGAB_EQ;
     break;
@@ -2396,11 +2394,11 @@ i32 compile_exp_amp(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_snd(gab_eg *gab, bc *bc, boolean assignable) {
-  s_i8 prev_src = bc->lex.previous_token_src;
-  gab_token prev_tok = bc->lex.previous_token;
-  u64 prev_line = bc->line;
+  s_i8 src = prev_src(bc);
+  gab_token tok = prev_tok(bc);
+  u64 line = prev_line(bc);
 
-  s_i8 message = trim_prev_tok(bc);
+  s_i8 message = trim_prev_src(bc);
 
   gab_value val_name = __gab_obj(gab_obj_string_create(gab, message));
 
@@ -2419,7 +2417,7 @@ i32 compile_exp_snd(gab_eg *gab, bc *bc, boolean assignable) {
 
   pop_slot(bc, result + 1);
 
-  gab_mod_push_send(mod(bc), result, m, mv, prev_tok, prev_line, prev_src);
+  gab_mod_push_send(mod(bc), result, m, mv, tok, line, src);
 
   push_slot(bc, 1);
 
@@ -2427,9 +2425,9 @@ i32 compile_exp_snd(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_cal(gab_eg *gab, bc *bc, boolean assignable) {
-  gab_token call_tok = bc->lex.previous_token;
-  u64 call_line = bc->line;
-  s_i8 call_src = bc->lex.previous_token_src;
+  gab_token call_tok = prev_tok(bc);
+  u64 call_line = prev_line(bc);
+  s_i8 call_src = prev_src(bc);
 
   boolean mv = false;
   i32 result = compile_arguments(gab, bc, &mv, fHAS_PAREN);
@@ -2454,9 +2452,9 @@ i32 compile_exp_cal(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_bcal(gab_eg *gab, bc *bc, boolean assignable) {
-  gab_token call_tok = bc->lex.previous_token;
-  u64 call_line = bc->line;
-  s_i8 call_src = bc->lex.previous_token_src;
+  gab_token call_tok = prev_tok(bc);
+  u64 call_line = prev_line(bc);
+  s_i8 call_src = prev_src(bc);
 
   boolean mv = false;
   i32 result = compile_arguments(gab, bc, &mv, fHAS_DO);
@@ -2474,9 +2472,9 @@ i32 compile_exp_bcal(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_rcal(gab_eg *gab, bc *bc, boolean assignable) {
-  gab_token call_tok = bc->lex.previous_token;
-  u64 call_line = bc->line;
-  s_i8 call_src = bc->lex.previous_token_src;
+  gab_token call_tok = prev_tok(bc);
+  u64 call_line = prev_line(bc);
+  s_i8 call_src = prev_src(bc);
 
   boolean mv = false;
   i32 result = compile_arguments(gab, bc, &mv, fHAS_BRACK);
@@ -2491,9 +2489,8 @@ i32 compile_exp_rcal(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_and(gab_eg *gab, bc *bc, boolean assignable) {
-  u64 end_jump =
-      gab_mod_push_jump(mod(bc), OP_LOGICAL_AND, bc->lex.previous_token,
-                        bc->line, bc->lex.previous_token_src);
+  u64 end_jump = gab_mod_push_jump(mod(bc), OP_LOGICAL_AND, prev_tok(bc),
+                                   prev_line(bc), prev_src(bc));
 
   if (optional_newline(bc) < 0)
     return COMP_ERR;
@@ -2507,9 +2504,8 @@ i32 compile_exp_and(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_or(gab_eg *gab, bc *bc, boolean assignable) {
-  u64 end_jump =
-      gab_mod_push_jump(mod(bc), OP_LOGICAL_OR, bc->lex.previous_token,
-                        bc->line, bc->lex.previous_token_src);
+  u64 end_jump = gab_mod_push_jump(mod(bc), OP_LOGICAL_OR, prev_tok(bc),
+                                   prev_line(bc), prev_src(bc));
 
   if (optional_newline(bc) < 0)
     return COMP_ERR;
@@ -2526,7 +2522,7 @@ i32 compile_exp_prec(gab_eg *gab, bc *bc, prec_k prec) {
   if (eat_token(bc) < 0)
     return COMP_ERR;
 
-  gab_compile_rule rule = get_rule(bc->lex.previous_token);
+  gab_compile_rule rule = get_rule(prev_tok(bc));
 
   if (rule.prefix == NULL) {
     compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected an expression.");
@@ -2540,21 +2536,21 @@ i32 compile_exp_prec(gab_eg *gab, bc *bc, prec_k prec) {
   if (have < 0)
     return COMP_ERR;
 
-  while (prec <= get_rule(bc->lex.current_token).prec) {
+  while (prec <= get_rule(curr_tok(bc)).prec) {
     if (have < 0)
       return COMP_ERR;
 
     if (eat_token(bc) < 0)
       return COMP_ERR;
 
-    rule = get_rule(bc->lex.previous_token);
+    rule = get_rule(prev_tok(bc));
 
     if (rule.infix != NULL) {
       // Treat this as an infix expression.
       have = rule.infix(gab, bc, assignable);
     }
 
-    if (bc->lex.previous_token == TOKEN_IN)
+    if (prev_tok(bc) == TOKEN_IN)
       break;
   }
 
@@ -2569,9 +2565,9 @@ i32 compile_exp_prec(gab_eg *gab, bc *bc, prec_k prec) {
 i32 compile_exp_for(gab_eg *gab, bc *bc, boolean assignable) {
   push_scope(bc);
 
-  gab_token prev_tok = bc->lex.previous_token;
-  u64 prev_line = bc->line;
-  s_i8 prev_src = bc->lex.previous_token_src;
+  gab_token tok = prev_tok(bc);
+  u64 line = prev_line(bc);
+  s_i8 src = prev_src(bc);
 
   i32 ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
@@ -2591,9 +2587,7 @@ i32 compile_exp_for(gab_eg *gab, bc *bc, boolean assignable) {
       if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
         return COMP_ERR;
 
-      s_i8 name = bc->lex.previous_token_src;
-
-      gab_value val_name = __gab_obj(gab_obj_string_create(gab, name));
+      gab_value val_name = prev_id(gab, bc);
 
       i32 loc = compile_local(gab, bc, val_name, 0);
 
@@ -2630,11 +2624,10 @@ i32 compile_exp_for(gab_eg *gab, bc *bc, boolean assignable) {
   u64 loop = gab_mod_push_loop(mod(bc));
 
   if (mv >= 0)
-    gab_mod_push_pack(mod(bc), mv, nlooplocals - mv, prev_tok, prev_line,
-                      prev_src);
+    gab_mod_push_pack(mod(bc), mv, nlooplocals - mv, tok, line, src);
 
-  u64 jump_start = gab_mod_push_iter(mod(bc), local_start, nlooplocals,
-                                     prev_tok, prev_line, prev_src);
+  u64 jump_start =
+      gab_mod_push_iter(mod(bc), local_start, nlooplocals, tok, line, src);
 
   if (compile_expressions(gab, bc) < 0)
     return COMP_ERR;
@@ -2645,10 +2638,9 @@ i32 compile_exp_for(gab_eg *gab, bc *bc, boolean assignable) {
   if (expect_token(bc, TOKEN_END) < 0)
     return COMP_ERR;
 
-  gab_mod_push_next(mod(bc), local_start + nlooplocals, prev_tok, prev_line,
-                    prev_src);
+  gab_mod_push_next(mod(bc), local_start + nlooplocals, tok, line, src);
 
-  gab_mod_patch_loop(mod(bc), loop, prev_tok, prev_line, prev_src);
+  gab_mod_patch_loop(mod(bc), loop, tok, line, src);
 
   pop_scope(bc); /* Pop the scope once, after we exit the loop. */
 
@@ -2663,9 +2655,9 @@ i32 compile_exp_for(gab_eg *gab, bc *bc, boolean assignable) {
 i32 compile_exp_lop(gab_eg *gab, bc *bc, boolean assignable) {
   push_scope(bc);
 
-  gab_token prev_tok = bc->lex.previous_token;
-  u64 prev_line = bc->line;
-  s_i8 prev_src = bc->lex.previous_token_src;
+  gab_token tok = prev_tok(bc);
+  u64 line = prev_line(bc);
+  s_i8 src = prev_src(bc);
 
   u64 loop = gab_mod_push_loop(mod(bc));
 
@@ -2678,14 +2670,13 @@ i32 compile_exp_lop(gab_eg *gab, bc *bc, boolean assignable) {
     if (compile_expression(gab, bc) < 0)
       return COMP_ERR;
 
-    prev_tok = bc->lex.previous_token;
-    prev_line = bc->line;
-    prev_src = bc->lex.previous_token_src;
+    tok = prev_tok(bc);
+    line = prev_line(bc);
+    src = prev_src(bc);
 
-    u64 jump = gab_mod_push_jump(mod(bc), OP_POP_JUMP_IF_TRUE, prev_tok,
-                                 prev_line, prev_src);
+    u64 jump = gab_mod_push_jump(mod(bc), OP_POP_JUMP_IF_TRUE, tok, line, src);
 
-    gab_mod_patch_loop(mod(bc), loop, prev_tok, prev_line, prev_src);
+    gab_mod_patch_loop(mod(bc), loop, tok, line, src);
 
     gab_mod_patch_jump(mod(bc), jump);
 
@@ -2695,7 +2686,7 @@ i32 compile_exp_lop(gab_eg *gab, bc *bc, boolean assignable) {
     if (expect_token(bc, TOKEN_END) < 0)
       return COMP_ERR;
 
-    gab_mod_patch_loop(mod(bc), loop, prev_tok, prev_line, prev_src);
+    gab_mod_patch_loop(mod(bc), loop, tok, line, src);
   }
 
   push_op(bc, OP_PUSH_NIL);
@@ -2705,7 +2696,7 @@ i32 compile_exp_lop(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_sym(gab_eg *gab, bc *bc, boolean assignable) {
-  s_i8 name = trim_prev_tok(bc);
+  s_i8 name = trim_prev_src(bc);
 
   gab_value sym = __gab_obj(gab_obj_string_create(gab, name));
 
@@ -2719,14 +2710,14 @@ i32 compile_exp_sym(gab_eg *gab, bc *bc, boolean assignable) {
 
 i32 compile_exp_yld(gab_eg *gab, bc *bc, boolean assignable) {
 
-  if (!get_rule(bc->lex.current_token).prefix) {
+  if (!get_rule(curr_tok(bc)).prefix) {
     gab_obj_suspense_proto *proto =
         gab_obj_suspense_proto_create(gab, mod(bc)->bytecode.len + 4, 1);
 
     u16 kproto = add_constant(mod(bc), __gab_obj(proto));
 
-    gab_mod_push_yield(mod(bc), kproto, 0, false, bc->lex.previous_token,
-                       bc->line, bc->lex.previous_token_src);
+    gab_mod_push_yield(mod(bc), kproto, 0, false, prev_tok(bc), prev_line(bc),
+                       prev_src(bc));
 
     push_slot(bc, 1);
 
@@ -2751,8 +2742,8 @@ i32 compile_exp_yld(gab_eg *gab, bc *bc, boolean assignable) {
 
   push_slot(bc, 1);
 
-  gab_mod_push_yield(mod(bc), kproto, result, mv, bc->lex.previous_token,
-                     bc->line, bc->lex.previous_token_src);
+  gab_mod_push_yield(mod(bc), kproto, result, mv, prev_tok(bc), prev_line(bc),
+                     prev_src(bc));
 
   pop_slot(bc, result);
 
@@ -2760,13 +2751,13 @@ i32 compile_exp_yld(gab_eg *gab, bc *bc, boolean assignable) {
 }
 
 i32 compile_exp_rtn(gab_eg *gab, bc *bc, boolean assignable) {
-  if (!get_rule(bc->lex.current_token).prefix) {
+  if (!get_rule(curr_tok(bc)).prefix) {
     push_slot(bc, 1);
 
     push_op(bc, OP_PUSH_NIL);
 
-    gab_mod_push_return(mod(bc), 1, false, bc->lex.previous_token, bc->line,
-                        bc->lex.previous_token_src);
+    gab_mod_push_return(mod(bc), 1, false, prev_tok(bc), prev_line(bc),
+                        prev_src(bc));
 
     pop_slot(bc, 1);
     return COMP_OK;
@@ -2783,8 +2774,8 @@ i32 compile_exp_rtn(gab_eg *gab, bc *bc, boolean assignable) {
     return COMP_ERR;
   }
 
-  gab_mod_push_return(mod(bc), result, mv, bc->lex.previous_token, bc->line,
-                      bc->lex.previous_token_src);
+  gab_mod_push_return(mod(bc), result, mv, prev_tok(bc), prev_line(bc),
+                      prev_src(bc));
 
   pop_slot(bc, result);
   return COMP_OK;
@@ -2838,7 +2829,7 @@ const gab_compile_rule gab_bc_rules[] = {
     NONE(),                            // COLON_EQUAL
     INFIX(bin, COMPARISON, false),            // LESSER
     INFIX(bin, EQUALITY, false),              // LESSEREQUAL
-    INFIX(bin, TERM, false),              // LESSEREQUAL
+    INFIX(bin, TERM, false),              // LESSERLESSER
     INFIX(bin, COMPARISON, false),            // GREATER
     INFIX(bin, EQUALITY, false),              // GREATEREQUAL
     INFIX(bin, TERM, false),                            // GREATER_GREATER
@@ -2862,7 +2853,7 @@ const gab_compile_rule gab_bc_rules[] = {
     PREFIX(num),                       // NUMBER
     PREFIX(bool),                      // FALSE
     PREFIX(bool),                      // TRUE
-    PREFIX(nil),                      // TRUE
+    PREFIX(nil),                      // NIL
     NONE(),                      // NEWLINE
     NONE(),                            // EOF
     NONE(),                            // ERROR
@@ -2879,10 +2870,7 @@ gab_value compile(gab_eg *gab, bc *bc, gab_value name, u8 narguments,
 
   f->narguments = narguments;
 
-  if (eat_token(bc) == COMP_ERR)
-    return gab_undefined;
-
-  if (bc->lex.current_token == TOKEN_EOF)
+  if (curr_tok(bc) == TOKEN_EOF)
     return gab_undefined;
 
   push_slot(bc, narguments);
@@ -2894,8 +2882,8 @@ gab_value compile(gab_eg *gab, bc *bc, gab_value name, u8 narguments,
   if (compile_expressions_body(gab, bc) < 0)
     return gab_undefined;
 
-  gab_mod_push_return(mod(bc), 1, false, bc->lex.previous_token, bc->line,
-                      bc->lex.previous_token_src);
+  gab_mod_push_return(mod(bc), 1, false, prev_tok(bc), prev_line(bc),
+                      prev_src(bc));
 
   gab_obj_block_proto *p = pop_ctxframe(gab, bc);
 
@@ -2949,7 +2937,7 @@ gab_value gab_bccompsend(gab_eg *gab, gab_value msg, gab_value receiver,
 gab_value gab_bccomp(gab_eg *gab, gab_value name, s_i8 source, u8 flags,
                      u8 narguments, gab_value arguments[narguments]) {
   bc bc;
-  gab_bc_create(&bc, gab_srccreate(gab, source), flags);
+  gab_bc_create(&bc, gab_lex(gab, (char *)source.data, source.len), flags);
 
   gab_value module = compile(gab, &bc, name, narguments, arguments);
 
@@ -2957,9 +2945,8 @@ gab_value gab_bccomp(gab_eg *gab, gab_value name, s_i8 source, u8 flags,
 }
 
 static void compiler_error(bc *bc, gab_status e, const char *help_fmt, ...) {
-  if (bc->panic) {
+  if (bc->panic)
     return;
-  }
 
   bc->panic = true;
 
@@ -2969,17 +2956,19 @@ static void compiler_error(bc *bc, gab_status e, const char *help_fmt, ...) {
     va_list args;
     va_start(args, help_fmt);
 
-    gab_lexendl(&bc->lex);
-
     i32 ctx = peek_ctx(bc, kFRAME, 0);
     frame *f = &bc->contexts[ctx].as.frame;
 
-    s_i8 curr_token = bc->lex.previous_token_src;
-    u64 curr_src_index = bc->line - 1;
+    s_i8 curr_token = prev_src(bc);
+    u64 line = prev_line(bc);
+
+    if (line > 0)
+      line--;
+
     s_i8 curr_src;
 
-    if (curr_src_index < src->source->len) {
-      curr_src = v_s_i8_val_at(&src->source_lines, curr_src_index);
+    if (line < src->source->len) {
+      curr_src = v_s_i8_val_at(&src->lines, line);
     } else {
       curr_src = s_i8_cstr("");
     }
@@ -3004,7 +2993,7 @@ static void compiler_error(bc *bc, gab_status e, const char *help_fmt, ...) {
     tok_start = curr_token.data;
     tok_end = curr_token.data + curr_token.len;
 
-    const char *tok = gab_token_names[bc->lex.previous_token];
+    const char *tok = gab_token_names[prev_tok(bc)];
 
     for (u8 i = 0; i < curr_under->len; i++) {
       if (curr_src_start + i >= tok_start && curr_src_start + i < tok_end)
@@ -3022,9 +3011,8 @@ static void compiler_error(bc *bc, gab_status e, const char *help_fmt, ...) {
             ":\n\t%s%s %.4lu " ANSI_COLOR_RESET "%.*s"
             "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
             "\n\t\u2570\u2500> ",
-            func_name, tok, curr_box, curr_color, curr_src_index + 1,
-            (i32)curr_src_len, curr_src_start, (i32)curr_under->len,
-            curr_under->data);
+            func_name, tok, curr_box, curr_color, line + 1, (i32)curr_src_len,
+            curr_src_start, (i32)curr_under->len, curr_under->data);
 
     a_i8_destroy(curr_under);
 

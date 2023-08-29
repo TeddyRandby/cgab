@@ -1,3 +1,3 @@
-status, val = .ok, 'value' in match
-    .ok  => val:print    end
-    else => status:panic end
+
+# A point in 2D space
+def Point { x y }

@@ -117,8 +117,6 @@ shared_library('cgabio',
 
 install_headers(
   'include/gab.h',
-  'include/object.h',
-  'include/value.h',
   'include/core.h',
   'include/types.h',
   'include/slice.h',

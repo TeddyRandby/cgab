@@ -4,8 +4,6 @@
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/lexer.h"
-#include "include/object.h"
-#include "include/value.h"
 #include <stdio.h>
 
 gab_mod *gab_mod_create(gab_eg *gab, gab_value name, gab_src *source) {

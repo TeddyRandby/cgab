@@ -1,10 +1,8 @@
-#include "include/object.h"
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
 #include "include/module.h"
 #include "include/types.h"
-#include "include/value.h"
 #include "include/vm.h"
 #include <assert.h>
 #include <stddef.h>
@@ -490,49 +488,6 @@ gab_obj_record *gab_obj_record_create_empty(gab_eg *gab, gab_obj_shape *shape) {
     self->data[i] = gab_nil;
 
   return self;
-}
-
-void gab_obj_record_set(gab_vm *vm, gab_obj_record *obj, u64 offset,
-                        gab_value value) {
-  assert(offset < obj->len);
-
-  if (vm) {
-    gab_gcdref(&vm->gc, vm, obj->data[offset]);
-    gab_gciref(&vm->gc, vm, value);
-  }
-
-  obj->data[offset] = value;
-}
-
-gab_value gab_obj_record_get(gab_obj_record *obj, u64 offset) {
-  assert(offset < obj->len);
-  return obj->data[offset];
-}
-
-boolean gab_obj_record_put(gab_vm *vm, gab_obj_record *obj, gab_value key,
-                           gab_value value) {
-  u16 prop_offset = gab_obj_shape_find(obj->shape, key);
-
-  if (prop_offset == UINT16_MAX) {
-    return false;
-  }
-
-  gab_obj_record_set(vm, obj, prop_offset, value);
-
-  return true;
-}
-
-gab_value gab_obj_record_at(gab_obj_record *self, gab_value prop) {
-  u64 prop_offset = gab_obj_shape_find(self->shape, prop);
-
-  if (prop_offset >= self->len)
-    return gab_nil;
-
-  return gab_obj_record_get(self, prop_offset);
-}
-
-boolean gab_obj_record_has(gab_obj_record *self, gab_value prop) {
-  return gab_obj_record_at(self, prop) != gab_nil;
 }
 
 gab_obj_box *gab_obj_box_create(gab_eg *gab, gab_vm *vm, gab_value type,

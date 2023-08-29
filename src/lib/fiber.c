@@ -81,7 +81,7 @@ i32 fiber_launch(void *d) {
 
     mtx_unlock(&self->mutex);
 
-    gab_destroy(self->gab);
+    gab_free(self->gab);
     return 0;
   }
 
@@ -138,7 +138,7 @@ i32 fiber_launch(void *d) {
   self->status = fDONE;
   mtx_unlock(&self->mutex);
 
-  gab_destroy(self->gab);
+  gab_free(self->gab);
 
   return 0;
 }

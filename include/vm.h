@@ -2,7 +2,6 @@
 #define GAB_VM_H
 
 #include "gc.h"
-#include "object.h"
 
 /*
  * A run-time representation of a callframe.

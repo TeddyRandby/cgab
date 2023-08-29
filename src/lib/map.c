@@ -1,6 +1,4 @@
 #include "map.h"
-#include "include/core.h"
-#include "include/value.h"
 #include <assert.h>
 #include <stdio.h>
 

@@ -1,7 +1,7 @@
 #ifndef GAB_GC_H
 #define GAB_GC_H
 
-#include "value.h"
+#include "gab.h"
 
 typedef struct gab_eg gab_eg;
 typedef struct gab_obj gab_obj;

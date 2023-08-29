@@ -81,10 +81,7 @@ a = cond and 1 or 2
 Although Gab is dynamically typed, types are treated as first class.
 Many dynamic languages implement their objects/tables/hashes using hidden classes (V8), or shapes (cruby). Gab takes this idea and makes it a first class language feature!
 ```
-def Point {
-    x
-    y
-}
+def Point { x y }
 ```
 Records in Gab are structurally typed. This means that two records are the same type iff they share the same set of keys (order matters). This principle is used to define 'methods' for our types.
 ```
@@ -206,5 +203,5 @@ This project is built with Meson. To install it:
   - run `meson setup build`
   - run `meson install`
 ### Whats coming up (in no particular order):
- - [ ] Windows support
  - [ ] Finalize c api and documentation
+ - [ ] Windows support

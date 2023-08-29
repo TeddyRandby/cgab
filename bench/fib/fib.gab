@@ -1,4 +1,4 @@
-def fib[$Number]
+def fib[.Number]
    self < 2 and self or (self - 1):fib + (self - 2):fib
 end
 
