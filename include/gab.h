@@ -84,41 +84,41 @@ typedef enum gab_kind {
   kGAB_NKINDS,
 } gab_kind;
 
-#define __GAB_QNAN ((u64)0x7ffc000000000000)
+#define __GAB_QNAN ((uint64_t)0x7ffc000000000000)
 
-#define __GAB_SIGN_BIT ((u64)1 << 63)
+#define __GAB_SIGN_BIT ((uint64_t)1 << 63)
 
 #define __GAB_TAGMASK (7)
 
-#define __GAB_VAL_TAG(val) ((u64)((val)&__GAB_TAGMASK))
+#define __GAB_VAL_TAG(val) ((uint64_t)((val)&__GAB_TAGMASK))
 
-static inline f64 __gab_valtod(gab_value value) { return *(f64 *)(&value); }
+static inline double __gab_valtod(gab_value value) { return *(double *)(&value); }
 
-static inline gab_value __gab_dtoval(f64 value) {
+static inline gab_value __gab_dtoval(double value) {
   return *(gab_value *)(&value);
 }
 
 #define __gab_valisn(val) (((val)&__GAB_QNAN) != __GAB_QNAN)
 
 #define __gab_obj(val)                                                         \
-  (gab_value)(__GAB_SIGN_BIT | __GAB_QNAN | (u64)(uintptr_t)(val))
+  (gab_value)(__GAB_SIGN_BIT | __GAB_QNAN | (uint64_t)(uintptr_t)(val))
 
 #define gab_valiso(val)                                                        \
   (((val) & (__GAB_QNAN | __GAB_SIGN_BIT)) == (__GAB_QNAN | __GAB_SIGN_BIT))
 
 /* The gab value 'nil'*/
-#define gab_nil ((gab_value)(u64)(__GAB_QNAN | kGAB_NIL))
+#define gab_nil ((gab_value)(uint64_t)(__GAB_QNAN | kGAB_NIL))
 
 /* The gab value 'false'*/
-#define gab_false ((gab_value)(u64)(__GAB_QNAN | kGAB_FALSE))
+#define gab_false ((gab_value)(uint64_t)(__GAB_QNAN | kGAB_FALSE))
 
 /* The gab value 'true'*/
-#define gab_true ((gab_value)(u64)(__GAB_QNAN | kGAB_TRUE))
+#define gab_true ((gab_value)(uint64_t)(__GAB_QNAN | kGAB_TRUE))
 
 /* The gab value 'undefined'*/
-#define gab_undefined ((gab_value)(u64)(__GAB_QNAN | kGAB_UNDEFINED))
+#define gab_undefined ((gab_value)(uint64_t)(__GAB_QNAN | kGAB_UNDEFINED))
 
-/* Convert a boolean into the corresponding gab value */
+/* Convert a bool into the corresponding gab value */
 #define gab_bool(val) (val ? gab_true : gab_false)
 
 /* Convert a double into a gab value */
@@ -126,7 +126,7 @@ static inline gab_value __gab_dtoval(f64 value) {
 
 /* Create the gab value for a primitive operation */
 #define gab_primitive(op)                                                      \
-  ((gab_value)(kGAB_PRIMITIVE | __GAB_QNAN | ((u64)op << 8)))
+  ((gab_value)(kGAB_PRIMITIVE | __GAB_QNAN | ((uint64_t)op << 8)))
 
 /* Cast a gab value to a number */
 #define gab_valton(val) (__gab_valtod(val))
@@ -136,7 +136,7 @@ static inline gab_value __gab_dtoval(f64 value) {
   ((gab_obj *)(uintptr_t)((val) & ~(__GAB_SIGN_BIT | __GAB_QNAN)))
 
 /* Cast a gab value to a primitive operation */
-#define gab_valtop(val) ((u8)((val >> 8) & 0xff))
+#define gab_valtop(val) ((uint8_t)((val >> 8) & 0xff))
 
 /*
  * Gab uses a purely RC garbage collection approach.
@@ -206,9 +206,9 @@ typedef void (*gab_boxvisit_f)(gab_gc *gc, gab_gcvisit_f visitor, void *data);
  * single interface.
  */
 struct gab_obj {
-  i32 references;
+  int32_t references;
   gab_kind kind;
-  u8 flags;
+  uint8_t flags;
 };
 
 /**
@@ -222,7 +222,7 @@ struct gab_obj {
  *
  * @return The allocated memory, or NULL.
  */
-void *gab_obj_alloc(gab_eg *gab, gab_obj *loc, u64 size);
+void *gab_obj_alloc(gab_eg *gab, gab_obj *loc, uint64_t size);
 
 /**
  * Free any memory owned by the object, but not the object itself.
@@ -238,7 +238,7 @@ void gab_obj_destroy(gab_obj *obj);
  *
  * @return The size of the object in bytes.
  */
-u64 gab_obj_size(gab_obj *obj);
+uint64_t gab_obj_size(gab_obj *obj);
 
 /**
  * # Create a gab_eg.
@@ -486,11 +486,11 @@ void gab_ngcdref(gab_gc *gc, gab_vm *vm, size_t len, gab_value values[len]);
 struct gab_obj_string {
   gab_obj header;
 
-  u64 hash;
+  uint64_t hash;
 
-  u64 len;
+  uint64_t len;
 
-  i8 data[FLEXIBLE_ARRAY];
+  int8_t data[FLEXIBLE_ARRAY];
 };
 
 /* Cast a value to a (gab_obj_string*) */
@@ -505,7 +505,7 @@ struct gab_obj_string {
  *
  * @return The new string object.
  */
-gab_obj_string *gab_obj_string_create(gab_eg *gab, s_i8 data);
+gab_obj_string *gab_obj_string_create(gab_eg *gab, s_int8_t data);
 
 /**
  * Concatenate two strings.
@@ -528,7 +528,7 @@ gab_obj_string *gab_obj_string_concat(gab_eg *gab, gab_obj_string *a,
  *
  * @param The reference.
  */
-s_i8 gab_obj_string_ref(gab_obj_string *self);
+s_int8_t gab_obj_string_ref(gab_obj_string *self);
 
 /**
  * A wrapper for a native c function.
@@ -563,11 +563,11 @@ gab_obj_builtin *gab_obj_builtin_create(gab_eg *gab, gab_builtin_f function,
 struct gab_obj_block_proto {
   gab_obj header;
 
-  u8 narguments, nupvalues, nslots, nlocals;
+  uint8_t narguments, nupvalues, nslots, nlocals;
 
   gab_mod *mod;
 
-  u8 upv_desc[FLEXIBLE_ARRAY];
+  uint8_t upv_desc[FLEXIBLE_ARRAY];
 };
 
 /* Cast a value to a (gab_obj_block_proto*) */
@@ -595,10 +595,10 @@ struct gab_obj_block_proto {
  * @param indexes The indexes of the upvalues.
  */
 gab_obj_block_proto *gab_obj_prototype_create(gab_eg *gab, gab_mod *mod,
-                                              u8 narguments, u8 nslots,
-                                              u8 nlocals, u8 nupvalues,
-                                              u8 flags[static nupvalues],
-                                              u8 indexes[static nupvalues]);
+                                              uint8_t narguments, uint8_t nslots,
+                                              uint8_t nlocals, uint8_t nupvalues,
+                                              uint8_t flags[static nupvalues],
+                                              uint8_t indexes[static nupvalues]);
 
 /**
  * A block - aka a prototype and it's captures.
@@ -606,7 +606,7 @@ gab_obj_block_proto *gab_obj_prototype_create(gab_eg *gab, gab_mod *mod,
 struct gab_obj_block {
   gab_obj header;
 
-  u8 nupvalues;
+  uint8_t nupvalues;
 
   gab_obj_block_proto *p;
 
@@ -637,8 +637,8 @@ gab_obj_block *gab_obj_block_create(gab_eg *gab, gab_obj_block_proto *p);
 
 #define NAME helps
 #define K gab_value
-#define V s_i8
-#define DEF_V ((s_i8){0})
+#define V s_int8_t
+#define DEF_V ((s_int8_t){0})
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
 #include "dict.h"
@@ -650,11 +650,11 @@ gab_obj_block *gab_obj_block_create(gab_eg *gab, gab_obj_block_proto *p);
 struct gab_obj_message {
   gab_obj header;
 
-  u8 version;
+  uint8_t version;
 
   gab_value name;
 
-  u64 hash;
+  uint64_t hash;
 
   d_specs specs;
 };
@@ -683,7 +683,7 @@ gab_obj_message *gab_obj_message_create(gab_eg *gab, gab_value name);
  * @return The index of the receiver's specialization, or UINT64_MAX if it
  * doesn't exist.
  */
-static inline u64 gab_obj_message_find(gab_obj_message *obj,
+static inline uint64_t gab_obj_message_find(gab_obj_message *obj,
                                        gab_value receiver) {
   if (!d_specs_exists(&obj->specs, receiver))
     return UINT64_MAX;
@@ -703,7 +703,7 @@ static inline u64 gab_obj_message_find(gab_obj_message *obj,
  *
  * @param spec The specialization.
  */
-static inline void gab_obj_message_set(gab_obj_message *obj, u64 offset,
+static inline void gab_obj_message_set(gab_obj_message *obj, uint64_t offset,
                                        gab_value receiver,
                                        gab_value specialization) {
   d_specs_iset_key(&obj->specs, offset, receiver);
@@ -718,7 +718,7 @@ static inline void gab_obj_message_set(gab_obj_message *obj, u64 offset,
  *
  * @param offset The offset in the message.
  */
-static inline gab_value gab_obj_message_get(gab_obj_message *obj, u64 offset) {
+static inline gab_value gab_obj_message_get(gab_obj_message *obj, uint64_t offset) {
   return d_specs_ival(&obj->specs, offset);
 }
 
@@ -759,7 +759,7 @@ static inline gab_value gab_obj_message_read(gab_obj_message *obj,
 struct gab_obj_shape {
   gab_obj header;
 
-  u64 hash, len;
+  uint64_t hash, len;
 
   gab_value data[FLEXIBLE_ARRAY];
 };
@@ -780,8 +780,8 @@ struct gab_obj_shape {
  *
  * @param keys The key array.
  */
-gab_obj_shape *gab_obj_shape_create(gab_eg *gab, gab_vm *vm, u64 len,
-                                    u64 stride, gab_value keys[static len]);
+gab_obj_shape *gab_obj_shape_create(gab_eg *gab, gab_vm *vm, uint64_t len,
+                                    uint64_t stride, gab_value keys[static len]);
 
 /**
  * Create a new shape for a tuple. The keys are monotonic increasing integers,
@@ -793,7 +793,7 @@ gab_obj_shape *gab_obj_shape_create(gab_eg *gab, gab_vm *vm, u64 len,
  *
  * @param len The length of the tuple.
  */
-gab_obj_shape *gab_obj_shape_create_tuple(gab_eg *gab, gab_vm *vm, u64 len);
+gab_obj_shape *gab_obj_shape_create_tuple(gab_eg *gab, gab_vm *vm, uint64_t len);
 
 /**
  * Find the offset of a key in the shape.
@@ -804,8 +804,8 @@ gab_obj_shape *gab_obj_shape_create_tuple(gab_eg *gab, gab_vm *vm, u64 len);
  *
  * @return The offset of the key, or UINT64_MAX if it doesn't exist.
  */
-static inline u64 gab_obj_shape_find(gab_obj_shape *obj, gab_value key) {
-  for (u64 i = 0; i < obj->len; i++) {
+static inline uint64_t gab_obj_shape_find(gab_obj_shape *obj, gab_value key) {
+  for (uint64_t i = 0; i < obj->len; i++) {
     assert(i < UINT64_MAX);
 
     if (obj->data[i] == key)
@@ -825,11 +825,11 @@ static inline u64 gab_obj_shape_find(gab_obj_shape *obj, gab_value key) {
  * @return The offset of the next key, 0 if the key is gab_undefined, or
  * UINT64_MAX if it doesn't exist.
  */
-static inline u64 gab_obj_shape_next(gab_obj_shape *obj, gab_value key) {
+static inline uint64_t gab_obj_shape_next(gab_obj_shape *obj, gab_value key) {
   if (key == gab_undefined)
     return 0;
 
-  u64 offset = gab_obj_shape_find(obj, key);
+  uint64_t offset = gab_obj_shape_find(obj, key);
 
   if (offset == UINT64_MAX)
     return UINT64_MAX;
@@ -845,7 +845,7 @@ struct gab_obj_record {
 
   gab_obj_shape *shape;
 
-  u64 len;
+  uint64_t len;
 
   gab_value data[FLEXIBLE_ARRAY];
 };
@@ -869,7 +869,7 @@ struct gab_obj_record {
  * @return The new record object.
  */
 gab_obj_record *gab_obj_record_create(gab_eg *gab, gab_vm *vm,
-                                      gab_obj_shape *shape, u64 stride,
+                                      gab_obj_shape *shape, uint64_t stride,
                                       gab_value values[static shape->len]);
 
 /**
@@ -894,7 +894,7 @@ gab_obj_record *gab_obj_record_create_empty(gab_eg *gab, gab_obj_shape *shape);
  * @param obj The record object.
  */
 static inline void gab_obj_record_set(gab_vm *vm, gab_obj_record *obj,
-                                      u64 offset, gab_value value) {
+                                      uint64_t offset, gab_value value) {
   assert(offset < obj->len);
 
   if (vm) {
@@ -915,7 +915,7 @@ static inline void gab_obj_record_set(gab_vm *vm, gab_obj_record *obj,
  * @return The value at the key, or gab_nil.
  */
 static inline gab_value gab_obj_record_at(gab_obj_record *obj, gab_value key) {
-  u64 offset = gab_obj_shape_find(obj->shape, key);
+  uint64_t offset = gab_obj_shape_find(obj->shape, key);
 
   if (offset >= obj->len)
     return gab_nil;
@@ -936,9 +936,9 @@ static inline gab_value gab_obj_record_at(gab_obj_record *obj, gab_value key) {
  *
  * @return true if the put was a success, false otherwise.
  */
-static inline boolean gab_obj_record_put(gab_vm *vm, gab_obj_record *obj,
+static inline bool gab_obj_record_put(gab_vm *vm, gab_obj_record *obj,
                                          gab_value key, gab_value value) {
-  u64 prop_offset = gab_obj_shape_find(obj->shape, key);
+  uint64_t prop_offset = gab_obj_shape_find(obj->shape, key);
 
   if (prop_offset == UINT64_MAX)
     return false;
@@ -957,7 +957,7 @@ static inline boolean gab_obj_record_put(gab_vm *vm, gab_obj_record *obj,
  *
  * @return true if the key exists on the record, false otherwise.
  */
-static inline boolean gab_obj_record_has(gab_obj_record *obj, gab_value key) {
+static inline bool gab_obj_record_has(gab_obj_record *obj, gab_value key) {
   return gab_obj_record_at(obj, key) != gab_nil;
 }
 
@@ -1007,9 +1007,9 @@ gab_obj_box *gab_obj_box_create(gab_eg *gab, gab_vm *vm, gab_value type,
 struct gab_obj_suspense_proto {
   gab_obj header;
 
-  u8 want;
+  uint8_t want;
 
-  u64 offset;
+  uint64_t offset;
 };
 
 #define GAB_VAL_TO_SUSPENSE_PROTO(value)                                       \
@@ -1024,8 +1024,8 @@ struct gab_obj_suspense_proto {
  *
  * @param want The number of values the block wants.
  */
-gab_obj_suspense_proto *gab_obj_suspense_proto_create(gab_eg *gab, u64 offset,
-                                                      u8 want);
+gab_obj_suspense_proto *gab_obj_suspense_proto_create(gab_eg *gab, uint64_t offset,
+                                                      uint8_t want);
 
 /**
  * A suspense object, which holds the state of a suspended coroutine.
@@ -1033,7 +1033,7 @@ gab_obj_suspense_proto *gab_obj_suspense_proto_create(gab_eg *gab, u64 offset,
 struct gab_obj_suspense {
   gab_obj header;
 
-  u16 len;
+  uint16_t len;
 
   gab_obj_suspense_proto *p;
 
@@ -1057,7 +1057,7 @@ struct gab_obj_suspense {
  *
  * @param frame The frame.
  */
-gab_obj_suspense *gab_obj_suspense_create(gab_eg *gab, gab_vm *vm, u16 len,
+gab_obj_suspense *gab_obj_suspense_create(gab_eg *gab, gab_vm *vm, uint16_t len,
                                           gab_obj_block *block,
                                           gab_obj_suspense_proto *proto,
                                           gab_value frame[static len]);
@@ -1412,7 +1412,7 @@ static inline gab_value gab_valtyp(gab_eg *gab, gab_value value) {
 }
 
 /**
- * # Coerce a value to a boolean.
+ * # Coerce a value to a bool.
  *
  * @param self The value to check.
  *
@@ -1460,7 +1460,7 @@ int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
  *
  * @return The number of bytes written.
  */
-i32 gab_fdump(FILE *stream, gab_value self);
+int32_t gab_fdump(FILE *stream, gab_value self);
 
 /**
  * # Disassemble a module.
@@ -1480,5 +1480,5 @@ void gab_fdis(FILE *stream, gab_mod *mod);
  *
  * @param depth The depth.
  */
-void gab_fpry(FILE *stream, gab_vm *vm, u64 depth);
+void gab_fpry(FILE *stream, gab_vm *vm, uint64_t depth);
 #endif

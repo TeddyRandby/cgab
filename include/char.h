@@ -3,16 +3,16 @@
 
 #include "core.h"
 
-boolean is_whitespace(u8 c);
+bool is_whitespace(uint8_t c);
 
-boolean is_alpha_lower(u8 c);
+bool is_alpha_lower(uint8_t c);
 
-boolean is_alpha_upper(u8 c);
+bool is_alpha_upper(uint8_t c);
 
-boolean is_alpha(u8 c);
+bool is_alpha(uint8_t c);
 
-boolean is_digit(u8 c);
+bool is_digit(uint8_t c);
 
-boolean is_comment(u8 c);
+bool is_comment(uint8_t c);
 
 #endif

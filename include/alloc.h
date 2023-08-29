@@ -12,9 +12,9 @@ typedef struct gab_chunk gab_chunk;
 struct gab_chunk {
   gab_chunk *prev;
   gab_chunk *next;
-  u64 mask;
-  u8 size;
-  u8 bytes[FLEXIBLE_ARRAY];
+  uint64_t mask;
+  uint8_t size;
+  uint8_t bytes[FLEXIBLE_ARRAY];
 };
 
 typedef struct {

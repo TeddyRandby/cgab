@@ -17,21 +17,21 @@
 typedef struct TYPENAME TYPENAME;
 struct TYPENAME {
   const T *data;
-  u64 len;
+  uint64_t len;
 };
 
-LINKAGE TYPENAME METHOD(create)(const T *data, u64 len) {
+LINKAGE TYPENAME METHOD(create)(const T *data, uint64_t len) {
   return (TYPENAME){.data = data, .len = len};
 }
 
-LINKAGE boolean METHOD(match)(TYPENAME self, TYPENAME other) {
+LINKAGE bool METHOD(match)(TYPENAME self, TYPENAME other) {
   if (self.len != other.len)
     return false;
   return memcmp(self.data, other.data, self.len) == 0;
 }
 
-LINKAGE u64 METHOD(hash)(TYPENAME self, u64 seed) {
-  return hash_bytes(seed, self.len * sizeof(T), (u8 *)self.data);
+LINKAGE uint64_t METHOD(hash)(TYPENAME self, uint64_t seed) {
+  return hash_bytes(seed, self.len * sizeof(T), (uint8_t *)self.data);
 }
 
 #undef T

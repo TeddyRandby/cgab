@@ -27,16 +27,16 @@ void print_help(FILE *stream) {
   exit(1);
 }
 
-boolean execute_arg(const char *flags) { return strchr(flags, 'e') != NULL; }
+bool execute_arg(const char *flags) { return strchr(flags, 'e') != NULL; }
 
-boolean module_arg(const char *flags) { return strchr(flags, 'r') != NULL; }
+bool module_arg(const char *flags) { return strchr(flags, 'r') != NULL; }
 
-boolean delimit_arg(const char *flags) { return strchr(flags, 'd') != NULL; }
+bool delimit_arg(const char *flags) { return strchr(flags, 'd') != NULL; }
 
-u8 parse_flags(const char *arg) {
-  u8 flags = fGAB_DUMP_ERROR;
+uint8_t parse_flags(const char *arg) {
+  uint8_t flags = fGAB_DUMP_ERROR;
 
-  u8 i = 0;
+  uint8_t i = 0;
   for (;;) {
     const char c = arg[++i];
 
@@ -70,8 +70,8 @@ u8 parse_flags(const char *arg) {
   }
 }
 
-i32 run_3_args(const char *arg_flags, const char *arg1) {
-  u8 flags = parse_flags(arg_flags);
+int32_t run_3_args(const char *arg_flags, const char *arg1) {
+  uint8_t flags = parse_flags(arg_flags);
 
   if (execute_arg(arg_flags)) {
     if (module_arg(arg_flags))
@@ -93,8 +93,8 @@ i32 run_3_args(const char *arg_flags, const char *arg1) {
   return 0;
 }
 
-i32 run_4_args(const char *arg_flags, const char *arg1, const char *arg2) {
-  u8 flags = parse_flags(arg_flags);
+int32_t run_4_args(const char *arg_flags, const char *arg1, const char *arg2) {
+  uint8_t flags = parse_flags(arg_flags);
 
   if (execute_arg(arg_flags)) {
     if (module_arg(arg_flags)) {
@@ -125,7 +125,7 @@ i32 run_4_args(const char *arg_flags, const char *arg1, const char *arg2) {
   throw_err("Too many arguments");
 }
 
-i32 main(i32 argc, const char **argv) {
+int32_t main(int32_t argc, const char **argv) {
   register_printf_specifier('V', gab_val_printf_handler,
                             gab_val_printf_arginfo);
 
@@ -145,7 +145,7 @@ i32 main(i32 argc, const char **argv) {
       if (delimit_arg(argv[1]))
         throw_err("Not enough arguments for -d flag");
 
-      u8 flags = parse_flags(argv[1]);
+      uint8_t flags = parse_flags(argv[1]);
       repl(NULL, flags);
       return 0;
     }

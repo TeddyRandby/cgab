@@ -15,7 +15,7 @@ void map_destroy(void *data) {
 
 void map_visit(gab_gc *gc, gab_gcvisit_f v, void *data) {
   d_gab_value *map = data;
-  for (u64 i = 0; i < map->cap; i++) {
+  for (uint64_t i = 0; i < map->cap; i++) {
     if (d_gab_value_iexists(map, i)) {
       gab_value key = d_gab_value_ikey(map, i);
       gab_value val = d_gab_value_ival(map, i);
@@ -31,7 +31,7 @@ gab_value map_at(gab_value self, gab_value key) {
   return d_gab_value_read(gab_boxdata(self), key);
 }
 
-boolean map_has(gab_value self, gab_value key) {
+bool map_has(gab_value self, gab_value key) {
   return d_gab_value_exists(gab_boxdata(self), key);
 }
 
@@ -52,7 +52,7 @@ gab_value map_put(gab_eg *gab, gab_vm *vm, gab_value self, gab_value key,
   return value;
 }
 
-gab_value map_create(gab_eg *gab, gab_vm *vm, u64 len, u64 stride,
+gab_value map_create(gab_eg *gab, gab_vm *vm, uint64_t len, uint64_t stride,
                      gab_value keys[len], gab_value values[len]) {
   d_gab_value *data = NEW(d_gab_value);
   d_gab_value_create(data, 8);
@@ -65,7 +65,7 @@ gab_value map_create(gab_eg *gab, gab_vm *vm, u64 len, u64 stride,
                                .data = data,
                            });
 
-  for (u64 i = 0; i < len; i++) {
+  for (uint64_t i = 0; i < len; i++) {
     d_gab_value_insert(data, keys[i * stride], values[i * stride]);
   }
 

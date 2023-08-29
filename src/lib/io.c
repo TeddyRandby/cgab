@@ -82,7 +82,7 @@ void gab_lib_write(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
   char *data = gab_valtocs(gab, argv[1]);
 
-  i32 result = fputs(data, file);
+  int32_t result = fputs(data, file);
 
   free(data);
 
@@ -116,7 +116,7 @@ a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
       gab_builtin(gab, "write", gab_lib_write),
   };
 
-  for (u8 i = 0; i < LEN_CARRAY(values); i++) {
+  for (uint8_t i = 0; i < LEN_CARRAY(values); i++) {
     gab_spec(gab, vm,
              (struct gab_spec_argt){
                  .name = names[i],

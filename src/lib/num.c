@@ -5,9 +5,9 @@
 #include <time.h>
 
 typedef struct {
-  u32 state[16];
-  u32 index;
-  boolean seeded;
+  uint32_t state[16];
+  uint32_t index;
+  bool seeded;
 } Well512;
 
 static void random_seed(Well512 *well) {
@@ -34,7 +34,7 @@ static uint32_t advanceState(Well512 *well) {
   return well->state[well->index];
 }
 
-static f64 random_float() {
+static double random_float() {
   static Well512 well;
 
   if (!well.seeded) {
@@ -46,10 +46,10 @@ static f64 random_float() {
   // full advantage of that, so we need 53 bits of random source data.
 
   // First, start with 32 random bits, shifted to the left 21 bits.
-  f64 result = (f64)advanceState(&well) * (1 << 21);
+  double result = (double)advanceState(&well) * (1 << 21);
 
   // Then add another 21 random bits.
-  result += (f64)(advanceState(&well) & ((1 << 21) - 1));
+  result += (double)(advanceState(&well) & ((1 << 21) - 1));
 
   // Now we have a number from 0 - (2^53). Divide be the range to get a double
   // from 0 to 1.0 (half-inclusive).
@@ -61,7 +61,7 @@ static f64 random_float() {
 void gab_lib_between(gab_eg *gab, gab_vm *vm, size_t argc,
                      gab_value argv[argc]) {
 
-  f64 min = 0, max = 1;
+  double min = 0, max = 1;
 
   switch (argc) {
   case 1:
@@ -96,7 +96,7 @@ void gab_lib_between(gab_eg *gab, gab_vm *vm, size_t argc,
     gab_panic(gab, vm, "Invalid call to gab_lib_random");
   }
 
-  f64 num = min + (random_float() * max);
+  double num = min + (random_float() * max);
 
   gab_value res = gab_number(num);
 
@@ -111,8 +111,8 @@ void gab_lib_floor(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  f64 float_num = gab_valton(argv[0]);
-  i64 int_num = gab_valton(argv[0]);
+  double float_num = gab_valton(argv[0]);
+  int64_t int_num = gab_valton(argv[0]);
 
   gab_value res = gab_number(int_num + (float_num < 0));
 

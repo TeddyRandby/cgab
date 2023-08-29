@@ -47,25 +47,25 @@ struct gab_mod {
   /*
     The instructions, a contiguous vector of single-byte op-codes and args.
   */
-  v_u8 bytecode;
+  v_uint8_t bytecode;
 
   /* A sister vector to 'bytecode'.
      This vector relates each instruction to a line in the source code.
   */
-  v_u64 lines;
+  v_uint64_t lines;
 
   /*
     A sister vector to 'bytecode'.
     This vector relates each instruction to a token.
   */
-  v_u8 tokens;
+  v_uint8_t tokens;
 
   /*
    * A vector which relates each instruction to a slice in the source.
    */
-  v_s_i8 sources;
+  v_s_int8_t sources;
 
-  u8 previous_compiled_op;
+  uint8_t previous_compiled_op;
 };
 
 /*
@@ -80,52 +80,52 @@ gab_mod *gab_mod_copy(gab_eg *gab, gab_mod *self);
 /*
   Helpers for pushing ops into the module.
 */
-void gab_mod_push_op(gab_mod *, gab_opcode, gab_token, u64, s_i8);
+void gab_mod_push_op(gab_mod *, gab_opcode, gab_token, uint64_t, s_int8_t);
 
-void gab_mod_push_byte(gab_mod *, u8, gab_token, u64, s_i8);
+void gab_mod_push_byte(gab_mod *, uint8_t, gab_token, uint64_t, s_int8_t);
 
-void gab_mod_push_short(gab_mod *, u16, gab_token, u64, s_i8);
+void gab_mod_push_short(gab_mod *, uint16_t, gab_token, uint64_t, s_int8_t);
 
-void gab_mod_push_load_local(gab_mod *, u8, gab_token, u64, s_i8);
+void gab_mod_push_load_local(gab_mod *, uint8_t, gab_token, uint64_t, s_int8_t);
 
-void gab_mod_push_store_local(gab_mod *, u8, gab_token, u64, s_i8);
+void gab_mod_push_store_local(gab_mod *, uint8_t, gab_token, uint64_t, s_int8_t);
 
-void gab_mod_push_load_upvalue(gab_mod *, u8, gab_token, u64, s_i8);
+void gab_mod_push_load_upvalue(gab_mod *, uint8_t, gab_token, uint64_t, s_int8_t);
 
-void gab_mod_push_return(gab_mod *, u8, boolean mv, gab_token, u64,
-                            s_i8);
+void gab_mod_push_return(gab_mod *, uint8_t, bool mv, gab_token, uint64_t,
+                            s_int8_t);
 
-void gab_mod_push_tuple(gab_mod *, u8, boolean mv, gab_token, u64, s_i8);
+void gab_mod_push_tuple(gab_mod *, uint8_t, bool mv, gab_token, uint64_t, s_int8_t);
 
-void gab_mod_push_yield(gab_mod *, u16 proto, u8 have, boolean mv,
-                           gab_token, u64, s_i8);
+void gab_mod_push_yield(gab_mod *, uint16_t proto, uint8_t have, bool mv,
+                           gab_token, uint64_t, s_int8_t);
 
-void gab_mod_push_pack(gab_mod *self, u8 below, u8 above, gab_token, u64, s_i8);
+void gab_mod_push_pack(gab_mod *self, uint8_t below, uint8_t above, gab_token, uint64_t, s_int8_t);
 
-void gab_mod_push_send(gab_mod *mod, u8 have, u16 message, boolean mv,
-                          gab_token, u64, s_i8);
+void gab_mod_push_send(gab_mod *mod, uint8_t have, uint16_t message, bool mv,
+                          gab_token, uint64_t, s_int8_t);
 
-void gab_mod_push_pop(gab_mod *, u8, gab_token, u64, s_i8);
+void gab_mod_push_pop(gab_mod *, uint8_t, gab_token, uint64_t, s_int8_t);
 
-void gab_mod_push_inline_cache(gab_mod *, gab_token, u64, s_i8);
+void gab_mod_push_inline_cache(gab_mod *, gab_token, uint64_t, s_int8_t);
 
-u64 gab_mod_push_iter(gab_mod *self, u8 start, u8 want, gab_token t,
-                         u64 l, s_i8 s);
+uint64_t gab_mod_push_iter(gab_mod *self, uint8_t start, uint8_t want, gab_token t,
+                         uint64_t l, s_int8_t s);
 
-void gab_mod_push_next(gab_mod *self, u8 local, gab_token t, u64 l,
-                          s_i8 s);
+void gab_mod_push_next(gab_mod *self, uint8_t local, gab_token t, uint64_t l,
+                          s_int8_t s);
 
-u64 gab_mod_push_loop(gab_mod *gab);
+uint64_t gab_mod_push_loop(gab_mod *gab);
 
-u64 gab_mod_push_jump(gab_mod *gab, u8, gab_token, u64, s_i8);
+uint64_t gab_mod_push_jump(gab_mod *gab, uint8_t, gab_token, uint64_t, s_int8_t);
 
-void gab_mod_patch_jump(gab_mod *, u64);
+void gab_mod_patch_jump(gab_mod *, uint64_t);
 
-void gab_mod_patch_loop(gab_mod *, u64, gab_token, u64, s_i8);
+void gab_mod_patch_loop(gab_mod *, uint64_t, gab_token, uint64_t, s_int8_t);
 
-boolean gab_mod_try_patch_mv(gab_mod *, u8);
+bool gab_mod_try_patch_mv(gab_mod *, uint8_t);
 
-u16 gab_mod_add_constant(gab_mod *, gab_value);
+uint16_t gab_mod_add_constant(gab_mod *, gab_value);
 
-void gab_mod_dump(gab_mod *, s_i8);
+void gab_mod_dump(gab_mod *, s_int8_t);
 #endif

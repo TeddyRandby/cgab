@@ -89,8 +89,8 @@ void gab_lib_put(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  i32 x = gab_valton(argv[1]);
-  i32 y = gab_valton(argv[2]);
+  int32_t x = gab_valton(argv[1]);
+  int32_t y = gab_valton(argv[2]);
 
   mvaddch(y, x, str);
 
@@ -98,13 +98,13 @@ void gab_lib_put(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_print(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
-  for (u8 i = 1; i < argc; i++) {
+  for (uint8_t i = 1; i < argc; i++) {
     printw("%V", argv[i]);
   }
 };
 
 void gab_lib_key(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
-  i8 c = getch();
+  int8_t c = getch();
 
   gab_value res = gab_nstring(gab, 1, (char *)&c);
 
@@ -137,7 +137,7 @@ a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(names));
 
-  for (u8 i = 0; i < LEN_CARRAY(values); i++) {
+  for (uint8_t i = 0; i < LEN_CARRAY(values); i++) {
     gab_spec(gab, vm,
              (struct gab_spec_argt){
                  .receiver = receivers[i],

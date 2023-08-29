@@ -19,7 +19,7 @@ void gab_lib_new(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
       return;
     }
 
-    u64 len = gab_valton(argv[1]);
+    uint64_t len = gab_valton(argv[1]);
 
     gab_value list = list_create_empty(gab, vm, len * 2);
 
@@ -72,7 +72,7 @@ void gab_lib_push(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  for (u8 i = 1; i < argc; i++)
+  for (uint8_t i = 1; i < argc; i++)
     v_gab_value_push(gab_boxdata(argv[0]), argv[i]);
 
   gab_ngciref(gab_vmgc(vm), vm, argc - 1, argv + 1);
@@ -86,7 +86,7 @@ void gab_lib_at(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  u64 offset = gab_valton(argv[1]);
+  uint64_t offset = gab_valton(argv[1]);
 
   gab_value res = list_at(argv[0], offset);
 
@@ -99,7 +99,7 @@ void gab_lib_del(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  u64 index = gab_valton(argv[1]);
+  uint64_t index = gab_valton(argv[1]);
 
   gab_gcdref(gab_vmgc(vm), vm, v_gab_value_val_at(gab_boxdata(argv[0]), index));
 
@@ -137,8 +137,8 @@ void gab_lib_put(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   v_gab_value *data = gab_boxdata(argv[0]);
 
-  u64 len = data->len;
-  u64 start = 0, end = len;
+  uint64_t len = data->len;
+  uint64_t start = 0, end = len;
 
   switch (argc) {
   case 1:
@@ -150,7 +150,7 @@ void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
       return;
     }
 
-    u64 a = gab_valton(argv[1]);
+    uint64_t a = gab_valton(argv[1]);
     start = CLAMP(a, len);
     break;
   }
@@ -161,8 +161,8 @@ void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
       return;
     }
 
-    u64 a = gab_valton(argv[1]);
-    u64 b = gab_valton(argv[2]);
+    uint64_t a = gab_valton(argv[1]);
+    uint64_t b = gab_valton(argv[2]);
     start = CLAMP(a, len);
     end = CLAMP(b, len);
     break;
@@ -172,7 +172,7 @@ void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  u64 result_len = end - start;
+  uint64_t result_len = end - start;
 
   gab_value result = gab_tuple(gab, vm, result_len, data->data + start);
 

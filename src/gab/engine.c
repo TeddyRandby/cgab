@@ -155,12 +155,12 @@ struct primitive primitives[] = {
     },
 };
 
-gab_eg *gab_create(u64 argc, gab_value argv_names[argc],
+gab_eg *gab_create(uint64_t argc, gab_value argv_names[argc],
                    gab_value argv_values[argc]) {
   gab_eg *gab = NEW(gab_eg);
   memset(gab, 0, sizeof(gab_eg));
 
-  for (u64 i = 0; i < argc; i++) {
+  for (uint64_t i = 0; i < argc; i++) {
     v_gab_value_push(&gab->argv_names, argv_names[i]);
     v_gab_value_push(&gab->argv_values, argv_values[i]);
   }
@@ -172,8 +172,8 @@ gab_eg *gab_create(u64 argc, gab_value argv_names[argc],
   gab->types[kGAB_UNDEFINED] = gab_undefined;
   gab->types[kGAB_NIL] = gab_nil;
   gab->types[kGAB_NUMBER] = gab_string(gab, "Number");
-  gab->types[kGAB_TRUE] = gab_string(gab, "Boolean");
-  gab->types[kGAB_FALSE] = gab_string(gab, "Boolean");
+  gab->types[kGAB_TRUE] = gab_string(gab, "bool");
+  gab->types[kGAB_FALSE] = gab_string(gab, "bool");
   gab->types[kGAB_STRING] = gab_string(gab, "String");
   gab->types[kGAB_MESSAGE] = gab_string(gab, "Message");
   gab->types[kGAB_BLOCK_PROTO] = gab_string(gab, "Prototype");
@@ -209,21 +209,21 @@ void gab_free(gab_eg *gab) {
   gab_ngcdref(gc, NULL, kGAB_NKINDS, gab->types);
   gab_ngcdref(gc, NULL, gab->scratch.len, gab->scratch.data);
 
-  for (u64 i = 0; i < gab->interned_strings.cap; i++) {
+  for (uint64_t i = 0; i < gab->interned_strings.cap; i++) {
     if (d_strings_iexists(&gab->interned_strings, i)) {
       gab_obj_string *v = d_strings_ikey(&gab->interned_strings, i);
       gab_gcdref(gc, NULL, __gab_obj(v));
     }
   }
 
-  for (u64 i = 0; i < gab->interned_shapes.cap; i++) {
+  for (uint64_t i = 0; i < gab->interned_shapes.cap; i++) {
     if (d_shapes_iexists(&gab->interned_shapes, i)) {
       gab_obj_shape *v = d_shapes_ikey(&gab->interned_shapes, i);
       gab_gcdref(gc, NULL, __gab_obj(v));
     }
   }
 
-  for (u64 i = 0; i < gab->interned_messages.cap; i++) {
+  for (uint64_t i = 0; i < gab->interned_messages.cap; i++) {
     if (d_messages_iexists(&gab->interned_messages, i)) {
       gab_obj_message *v = d_messages_ikey(&gab->interned_messages, i);
       gab_gcdref(gc, NULL, __gab_obj(v));
@@ -263,12 +263,12 @@ void gab_free(gab_eg *gab) {
 
 void gab_collect(gab_eg *gab, gab_vm *vm) { gab_gc_run(&vm->gc, vm); }
 
-u64 gab_argpush(gab_eg *gab, gab_value name) {
+uint64_t gab_argpush(gab_eg *gab, gab_value name) {
   v_gab_value_push(&gab->argv_values, gab_undefined);
   return v_gab_value_push(&gab->argv_names, name);
 }
 
-void gab_argput(gab_eg *gab, gab_value value, u64 index) {
+void gab_argput(gab_eg *gab, gab_value value, uint64_t index) {
   v_gab_value_set(&gab->argv_values, index, value);
 }
 
@@ -346,11 +346,11 @@ a_gab_value *gab_send(gab_eg *gab, gab_vm *vm, gab_value msg,
   }
 }
 
-gab_obj_message *gab_eg_find_message(gab_eg *self, gab_value name, u64 hash) {
+gab_obj_message *gab_eg_find_message(gab_eg *self, gab_value name, uint64_t hash) {
   if (self->interned_messages.len == 0)
     return NULL;
 
-  u64 index = hash & (self->interned_messages.cap - 1);
+  uint64_t index = hash & (self->interned_messages.cap - 1);
 
   for (;;) {
     gab_obj_message *key = d_messages_ikey(&self->interned_messages, index);
@@ -368,11 +368,11 @@ gab_obj_message *gab_eg_find_message(gab_eg *self, gab_value name, u64 hash) {
   }
 }
 
-gab_obj_string *gab_eg_find_string(gab_eg *self, s_i8 str, u64 hash) {
+gab_obj_string *gab_eg_find_string(gab_eg *self, s_int8_t str, uint64_t hash) {
   if (self->interned_strings.len == 0)
     return NULL;
 
-  u64 index = hash & (self->interned_strings.cap - 1);
+  uint64_t index = hash & (self->interned_strings.cap - 1);
 
   for (;;) {
     gab_obj_string *key = d_strings_ikey(&self->interned_strings, index);
@@ -381,7 +381,7 @@ gab_obj_string *gab_eg_find_string(gab_eg *self, s_i8 str, u64 hash) {
     if (status != D_FULL) {
       return NULL;
     } else {
-      if (key->hash == hash && s_i8_match(str, gab_obj_string_ref(key))) {
+      if (key->hash == hash && s_int8_t_match(str, gab_obj_string_ref(key))) {
         return key;
       }
     }
@@ -390,14 +390,14 @@ gab_obj_string *gab_eg_find_string(gab_eg *self, s_i8 str, u64 hash) {
   }
 }
 
-static inline boolean shape_matches_keys(gab_obj_shape *self,
-                                         gab_value values[], u64 len,
-                                         u64 stride) {
+static inline bool shape_matches_keys(gab_obj_shape *self,
+                                         gab_value values[], uint64_t len,
+                                         uint64_t stride) {
 
   if (self->len != len)
     return false;
 
-  for (u64 i = 0; i < len; i++) {
+  for (uint64_t i = 0; i < len; i++) {
     gab_value key = values[i * stride];
     if (self->data[i] != key)
       return false;
@@ -406,12 +406,12 @@ static inline boolean shape_matches_keys(gab_obj_shape *self,
   return true;
 }
 
-gab_obj_shape *gab_eg_find_shape(gab_eg *self, u64 size, u64 stride, u64 hash,
+gab_obj_shape *gab_eg_find_shape(gab_eg *self, uint64_t size, uint64_t stride, uint64_t hash,
                                  gab_value keys[size]) {
   if (self->interned_shapes.len == 0)
     return NULL;
 
-  u64 index = hash & (self->interned_shapes.cap - 1);
+  uint64_t index = hash & (self->interned_shapes.cap - 1);
 
   for (;;) {
     d_status status = d_shapes_istatus(&self->interned_shapes, index);
@@ -451,7 +451,7 @@ size_t gab_egkeep(gab_eg *gab, gab_value v) {
 }
 
 size_t gab_negkeep(gab_eg *gab, size_t len, gab_value *values) {
-  for (u64 i = 0; i < len; i++)
+  for (uint64_t i = 0; i < len; i++)
     v_gab_value_push(&gab->scratch, values[i]);
 
   return gab->scratch.len;
@@ -512,7 +512,7 @@ gab_value gab_valcpy(gab_eg *gab, gab_vm *vm, gab_value value) {
 
     gab_obj_block *copy = gab_obj_block_create(gab, p_copy);
 
-    for (u8 i = 0; i < p_copy->nupvalues; i++) {
+    for (uint8_t i = 0; i < p_copy->nupvalues; i++) {
       copy->upvalues[i] = gab_valcpy(gab, vm, self->upvalues[i]);
     }
 
@@ -524,7 +524,7 @@ gab_value gab_valcpy(gab_eg *gab, gab_vm *vm, gab_value value) {
 
     gab_value keys[self->len];
 
-    for (u64 i = 0; i < self->len; i++) {
+    for (uint64_t i = 0; i < self->len; i++) {
       keys[i] = gab_valcpy(gab, vm, self->data[i]);
     }
 
@@ -541,7 +541,7 @@ gab_value gab_valcpy(gab_eg *gab, gab_vm *vm, gab_value value) {
 
     gab_value values[self->len];
 
-    for (u64 i = 0; i < self->len; i++)
+    for (uint64_t i = 0; i < self->len; i++)
       values[i] = gab_valcpy(gab, vm, self->data[i]);
 
     gab_obj_record *copy = gab_obj_record_create(gab, vm, s_copy, 1, values);
@@ -566,7 +566,7 @@ gab_value gab_valcpy(gab_eg *gab, gab_vm *vm, gab_value value) {
     gab_obj_suspense_proto *p_copy =
         GAB_VAL_TO_SUSPENSE_PROTO(gab_valcpy(gab, vm, __gab_obj(self->p)));
 
-    for (u64 i = 0; i < self->len; i++)
+    for (uint64_t i = 0; i < self->len; i++)
       frame[i] = gab_valcpy(gab, vm, self->frame[i]);
 
     gab_obj_block *b_copy =
@@ -585,25 +585,25 @@ gab_value gab_builtin(gab_eg *gab, const char *name, gab_builtin_f f) {
 }
 
 gab_value gab_string(gab_eg *gab, const char *data) {
-  return __gab_obj(gab_obj_string_create(gab, s_i8_cstr(data)));
+  return __gab_obj(gab_obj_string_create(gab, s_int8_t_cstr(data)));
 }
 
 gab_value gab_nstring(gab_eg *gab, size_t len, const char *data) {
   return __gab_obj(
-      gab_obj_string_create(gab, s_i8_create((const i8 *)data, len)));
+      gab_obj_string_create(gab, s_int8_t_create((const int8_t *)data, len)));
 }
 
 gab_value gab_block(gab_eg *gab, struct gab_block_argt args) {
   return gab_bccomp(gab, gab_string(gab, args.name),
-                    s_i8_create((i8 *)args.source, strlen(args.source) + 1),
+                    s_int8_t_create((int8_t *)args.source, strlen(args.source) + 1),
                     args.flags, gab->argv_values.len, gab->argv_names.data);
 }
 
-gab_value gab_record(gab_eg *gab, gab_vm *vm, u64 size, const char *keys[size],
+gab_value gab_record(gab_eg *gab, gab_vm *vm, uint64_t size, const char *keys[size],
                      gab_value values[size]) {
   gab_value value_keys[size];
 
-  for (u64 i = 0; i < size; i++)
+  for (uint64_t i = 0; i < size; i++)
     value_keys[i] = gab_string(gab, keys[i]);
 
   gab_obj_shape *bundle_shape =
@@ -617,7 +617,7 @@ gab_value gab_erecord(gab_eg *gab, gab_value shape) {
   return __gab_obj(gab_obj_record_create_empty(gab, GAB_VAL_TO_SHAPE(shape)));
 }
 
-gab_value gab_tuple(gab_eg *gab, gab_vm *vm, u64 size, gab_value values[size]) {
+gab_value gab_tuple(gab_eg *gab, gab_vm *vm, uint64_t size, gab_value values[size]) {
   gab_obj_shape *bundle_shape = gab_obj_shape_create_tuple(gab, vm, size);
   return __gab_obj(gab_obj_record_create(gab, vm, bundle_shape, 1, values));
 }

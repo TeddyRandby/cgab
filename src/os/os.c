@@ -7,8 +7,8 @@
 #include <unistd.h>
 #endif
 
-a_i8 *os_read_fd(FILE *fd) {
-  v_i8 buffer = {0};
+a_int8_t *os_read_fd(FILE *fd) {
+  v_int8_t buffer = {0};
 
   while (1) {
     char c = fgetc(fd);
@@ -16,19 +16,19 @@ a_i8 *os_read_fd(FILE *fd) {
     if (c == EOF)
       break;
 
-    v_i8_push(&buffer, c);
+    v_int8_t_push(&buffer, c);
   }
 
-  v_i8_push(&buffer, '\0');
+  v_int8_t_push(&buffer, '\0');
 
-  a_i8 *data = a_i8_create(buffer.data, buffer.len);
+  a_int8_t *data = a_int8_t_create(buffer.data, buffer.len);
 
-  v_i8_destroy(&buffer);
+  v_int8_t_destroy(&buffer);
 
   return data;
 }
 
-a_i8 *os_read_file(const char *path) {
+a_int8_t *os_read_file(const char *path) {
   FILE *file = fopen(path, "rb");
 
   if (file == NULL) {
@@ -36,38 +36,38 @@ a_i8 *os_read_file(const char *path) {
     exit(74);
   }
 
-  a_i8 *data = os_read_fd(file);
+  a_int8_t *data = os_read_fd(file);
 
   fclose(file);
   return data;
 }
 
-a_i8 *os_read_fd_line(FILE *fd) {
-  v_i8 buffer;
-  v_i8_create(&buffer, 1024);
+a_int8_t *os_read_fd_line(FILE *fd) {
+  v_int8_t buffer;
+  v_int8_t_create(&buffer, 1024);
 
   for (;;) {
     char c = fgetc(fd);
 
-    v_i8_push(&buffer, c);
+    v_int8_t_push(&buffer, c);
 
     if (c == '\n' || c == EOF)
       break;
   }
 
-  v_i8_push(&buffer, '\0');
+  v_int8_t_push(&buffer, '\0');
 
-  a_i8 *data = a_i8_create(buffer.data, buffer.len);
+  a_int8_t *data = a_int8_t_create(buffer.data, buffer.len);
 
-  v_i8_destroy(&buffer);
+  v_int8_t_destroy(&buffer);
 
   return data;
 }
 
 #define BUFFER_MAX 1024
-a_i8 *os_pwd() {
+a_int8_t *os_pwd() {
 #if OS_UNIX
-  a_i8 *result = a_i8_empty(BUFFER_MAX);
+  a_int8_t *result = a_int8_t_empty(BUFFER_MAX);
   getcwd((char *)result->data, BUFFER_MAX);
 
   return result;

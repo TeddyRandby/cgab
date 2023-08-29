@@ -13,8 +13,8 @@ enum {
 typedef struct {
   atomic_char status;
   atomic_int rc;
-  v_a_i8 in_queue;
-  v_a_i8 out_queue;
+  v_a_int8_t in_queue;
+  v_a_int8_t out_queue;
   mtx_t mutex;
   thrd_t parent;
 
@@ -28,8 +28,8 @@ fiber *fiber_create(gab_value init) {
   fiber *self = NEW(fiber);
 
   mtx_init(&self->mutex, mtx_plain);
-  v_a_i8_create(&self->in_queue, 8);
-  v_a_i8_create(&self->out_queue, 8);
+  v_a_int8_t_create(&self->in_queue, 8);
+  v_a_int8_t_create(&self->out_queue, 8);
 
   gab_eg *gab = gab_create(0, NULL, NULL);
 
@@ -47,15 +47,15 @@ fiber *fiber_create(gab_value init) {
 
 void fiber_destroy(fiber *self) {
   mtx_destroy(&self->mutex);
-  v_a_i8_destroy(&self->in_queue);
-  v_a_i8_destroy(&self->out_queue);
+  v_a_int8_t_destroy(&self->in_queue);
+  v_a_int8_t_destroy(&self->out_queue);
 }
 
-boolean callable(gab_value v) {
+bool callable(gab_value v) {
   return gab_valknd(v) == kGAB_BLOCK || gab_valknd(v) == kGAB_SUSPENSE;
 }
 
-i32 fiber_launch(void *d) {
+int32_t fiber_launch(void *d) {
   fiber *self = (fiber *)d;
 
   gab_value runner = self->init;
@@ -101,13 +101,13 @@ i32 fiber_launch(void *d) {
 
     self->status = fRUNNING;
 
-    a_i8 *msg = v_a_i8_pop(&self->in_queue);
+    a_int8_t *msg = v_a_int8_t_pop(&self->in_queue);
 
     mtx_unlock(&self->mutex);
 
     gab_value arg = gab_nstring(self->gab, msg->len, (char *)msg->data);
 
-    a_i8_destroy(msg);
+    a_int8_t_destroy(msg);
 
     gab_argput(self->gab, arg, 1);
 
@@ -116,12 +116,12 @@ i32 fiber_launch(void *d) {
     runner = result->data[result->len - 1];
 
     mtx_lock(&self->mutex);
-    for (u32 i = 0; i < result->len - 1; i++) {
+    for (uint32_t i = 0; i < result->len - 1; i++) {
       gab_egkeep(self->gab, result->data[i]);
 
       char *ref = gab_valtocs(self->gab, result->data[i]);
 
-      v_a_i8_push(&self->out_queue, a_i8_create((const i8 *)ref, strlen(ref)));
+      v_a_int8_t_push(&self->out_queue, a_int8_t_create((const int8_t *)ref, strlen(ref)));
       free(ref);
     }
     mtx_unlock(&self->mutex);
@@ -194,7 +194,7 @@ void gab_lib_send(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
   char *ref = gab_valtocs(gab, msg);
 
-  v_a_i8_push(&f->in_queue, a_i8_create((char *)ref, strlen(ref)));
+  v_a_int8_t_push(&f->in_queue, a_int8_t_create((char *)ref, strlen(ref)));
 
   free(ref);
 
@@ -224,13 +224,13 @@ void gab_lib_await(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     break;
   }
 
-  a_i8 *msg = v_a_i8_pop(&f->out_queue);
+  a_int8_t *msg = v_a_int8_t_pop(&f->out_queue);
 
   mtx_unlock(&f->mutex);
 
   gab_value result = gab_nstring(gab, msg->len, (char *)msg->data);
 
-  a_i8_destroy(msg);
+  a_int8_t_destroy(msg);
 
   gab_vmpush(vm, result);
 

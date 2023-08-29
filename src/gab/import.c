@@ -5,8 +5,8 @@
 #include <dlfcn.h>
 #include <stdio.h>
 
-u64 gab_impmod(gab_eg *gab, const char *name, gab_value mod, a_gab_value *val) {
-  u64 hash = s_i8_hash(s_i8_cstr(name), gab->hash_seed);
+uint64_t gab_impmod(gab_eg *gab, const char *name, gab_value mod, a_gab_value *val) {
+  uint64_t hash = s_int8_t_hash(s_int8_t_cstr(name), gab->hash_seed);
 
   gab_imp *i = NEW(gab_imp);
 
@@ -24,8 +24,8 @@ u64 gab_impmod(gab_eg *gab, const char *name, gab_value mod, a_gab_value *val) {
   return hash;
 }
 
-u64 gab_impshd(gab_eg *gab, const char *name, void *obj, a_gab_value *val) {
-  u64 hash = s_i8_hash(s_i8_cstr(name), gab->hash_seed);
+uint64_t gab_impshd(gab_eg *gab, const char *name, void *obj, a_gab_value *val) {
+  uint64_t hash = s_int8_t_hash(s_int8_t_cstr(name), gab->hash_seed);
 
   gab_imp *i = NEW(gab_imp);
 
@@ -42,7 +42,7 @@ u64 gab_impshd(gab_eg *gab, const char *name, void *obj, a_gab_value *val) {
 }
 
 a_gab_value *gab_imphas(gab_eg *gab, const char *name) {
-  u64 hash = s_i8_hash(s_i8_cstr(name), gab->hash_seed);
+  uint64_t hash = s_int8_t_hash(s_int8_t_cstr(name), gab->hash_seed);
 
   gab_imp *i = d_gab_imp_read(&gab->imports, hash);
 
@@ -64,7 +64,7 @@ void gab_import_destroy(gab_eg *gab, gab_gc *gc, gab_imp *i) {
 }
 
 void gab_impdestroy(gab_eg *gab, gab_gc *gc) {
-  for (u64 i = 0; i < gab->imports.cap; i++) {
+  for (uint64_t i = 0; i < gab->imports.cap; i++) {
     if (d_gab_imp_iexists(&gab->imports, i)) {
       gab_import_destroy(gab, gc, d_gab_imp_ival(&gab->imports, i));
     }

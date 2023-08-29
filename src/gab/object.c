@@ -36,15 +36,18 @@ gab_obj *gab_obj_create(gab_eg *gab, gab_obj *self, gab_kind k) {
   return self;
 }
 
-i32 __dump_value(FILE *stream, gab_value self, u8 depth);
+int32_t __dump_value(FILE *stream, gab_value self, uint8_t depth);
 
-i32 shape_dump_properties(FILE *stream, gab_obj_shape *shape, u8 depth) {
-  if (shape->len == 0 || shape->len > 8)
+int32_t shape_dump_properties(FILE *stream, gab_obj_shape *shape, uint8_t depth) {
+  if (shape->len == 0)
+    return fprintf(stream, "");
+
+  if (shape->len > 8)
     return fprintf(stream, "...");
 
-  i32 bytes = 0;
+  int32_t bytes = 0;
 
-  for (u64 i = 0; i < shape->len - 1; i++) {
+  for (uint64_t i = 0; i < shape->len - 1; i++) {
     bytes += __dump_value(stream, shape->data[i], depth - 1);
 
     bytes += fprintf(stream, ", ");
@@ -55,13 +58,16 @@ i32 shape_dump_properties(FILE *stream, gab_obj_shape *shape, u8 depth) {
   return bytes;
 }
 
-i32 rec_dump_properties(FILE *stream, gab_obj_record *rec, u8 depth) {
-  if (rec->len == 0 || rec->shape->len > 8)
+int32_t rec_dump_properties(FILE *stream, gab_obj_record *rec, uint8_t depth) {
+  if (rec->len == 0)
+    return fprintf(stream, "");
+
+  if (rec->len > 8)
     return fprintf(stream, "...");
 
-  i32 bytes = 0;
+  int32_t bytes = 0;
 
-  for (u64 i = 0; i < rec->len - 1; i++) {
+  for (uint64_t i = 0; i < rec->len - 1; i++) {
     bytes += __dump_value(stream, rec->shape->data[i], depth - 1);
 
     bytes += fprintf(stream, " = ");
@@ -86,7 +92,7 @@ i32 rec_dump_properties(FILE *stream, gab_obj_record *rec, u8 depth) {
   return bytes;
 }
 
-i32 __dump_value(FILE *stream, gab_value self, u8 depth) {
+int32_t __dump_value(FILE *stream, gab_value self, uint8_t depth) {
   switch (gab_valknd(self)) {
   case kGAB_TRUE:
     return fprintf(stream, "%s", "true");
@@ -112,7 +118,7 @@ i32 __dump_value(FILE *stream, gab_value self, u8 depth) {
   }
   case kGAB_STRING: {
     gab_obj_string *str = GAB_VAL_TO_STRING(self);
-    return fprintf(stream, "%.*s", (i32)str->len, (const char *)str->data);
+    return fprintf(stream, "%.*s", (int32_t)str->len, (const char *)str->data);
   }
   case kGAB_MESSAGE: {
     gab_obj_message *msg = GAB_VAL_TO_MESSAGE(self);
@@ -148,7 +154,7 @@ i32 __dump_value(FILE *stream, gab_value self, u8 depth) {
   assert(false && "Unknown value type.");
 }
 
-i32 gab_fdump(FILE *stream, gab_value self) {
+int32_t gab_fdump(FILE *stream, gab_value self) {
   return __dump_value(stream, self, 2);
 }
 
@@ -230,7 +236,7 @@ void gab_obj_destroy(gab_obj *self) {
   }
 }
 
-u64 gab_obj_size(gab_obj *self) {
+uint64_t gab_obj_size(gab_obj *self) {
   switch (self->kind) {
   case kGAB_MESSAGE:
     return sizeof(gab_obj_message);
@@ -260,24 +266,24 @@ u64 gab_obj_size(gab_obj *self) {
   }
   case kGAB_STRING: {
     gab_obj_string *obj = (gab_obj_string *)self;
-    return sizeof(gab_obj_string) + obj->len * sizeof(i8);
+    return sizeof(gab_obj_string) + obj->len * sizeof(int8_t);
   }
   default:
     return sizeof(gab_value);
   }
 }
 
-static inline u64 hash_keys(u64 seed, u64 len, u64 stride,
+static inline uint64_t hash_keys(uint64_t seed, uint64_t len, uint64_t stride,
                             gab_value values[len]) {
   gab_value words[len];
-  for (u64 i = 0; i < len; i++) {
+  for (uint64_t i = 0; i < len; i++) {
     words[i] = values[i * stride];
   }
   return hash_words(seed, len, words);
 };
 
-gab_obj_string *gab_obj_string_create(gab_eg *gab, s_i8 str) {
-  u64 hash = s_i8_hash(str, gab->hash_seed);
+gab_obj_string *gab_obj_string_create(gab_eg *gab, s_int8_t str) {
+  uint64_t hash = s_int8_t_hash(str, gab->hash_seed);
 
   gab_obj_string *interned = gab_eg_find_string(gab, str, hash);
 
@@ -285,7 +291,7 @@ gab_obj_string *gab_obj_string_create(gab_eg *gab, s_i8 str) {
     return interned;
 
   gab_obj_string *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_string, u8, str.len, kGAB_STRING);
+      GAB_CREATE_FLEX_OBJ(gab_obj_string, uint8_t, str.len, kGAB_STRING);
 
   memcpy(self->data, str.data, str.len);
   self->len = str.len;
@@ -309,9 +315,9 @@ gab_obj_string *gab_obj_string_concat(gab_eg *gab, gab_obj_string *a,
   if (b->len == 0)
     return a;
 
-  u64 len = a->len + b->len;
+  uint64_t len = a->len + b->len;
 
-  i8 data[len];
+  int8_t data[len];
 
   // Copy the data into the string obj.
   memcpy(data, a->data, a->len);
@@ -319,8 +325,8 @@ gab_obj_string *gab_obj_string_concat(gab_eg *gab, gab_obj_string *a,
   memcpy(data + a->len, b->data, b->len);
 
   // Pre compute the hash
-  s_i8 ref = s_i8_create(data, len);
-  u64 hash = s_i8_hash(ref, gab->hash_seed);
+  s_int8_t ref = s_int8_t_create(data, len);
+  uint64_t hash = s_int8_t_hash(ref, gab->hash_seed);
 
   /*
     If this string was interned already, destroy and return.
@@ -339,18 +345,18 @@ gab_obj_string *gab_obj_string_concat(gab_eg *gab, gab_obj_string *a,
   return self;
 };
 
-s_i8 gab_obj_string_ref(gab_obj_string *self) {
-  s_i8 ref = {.data = self->data, .len = self->len};
+s_int8_t gab_obj_string_ref(gab_obj_string *self) {
+  s_int8_t ref = {.data = self->data, .len = self->len};
   return ref;
 }
 
 gab_obj_block_proto *gab_obj_prototype_create(gab_eg *gab, gab_mod *mod,
-                                              u8 narguments, u8 nslots,
-                                              u8 nlocals, u8 nupvalues,
-                                              u8 flags[nupvalues],
-                                              u8 indexes[nupvalues]) {
+                                              uint8_t narguments, uint8_t nslots,
+                                              uint8_t nlocals, uint8_t nupvalues,
+                                              uint8_t flags[nupvalues],
+                                              uint8_t indexes[nupvalues]) {
   gab_obj_block_proto *self = GAB_CREATE_FLEX_OBJ(
-      gab_obj_block_proto, u8, nupvalues * 2, kGAB_BLOCK_PROTO);
+      gab_obj_block_proto, uint8_t, nupvalues * 2, kGAB_BLOCK_PROTO);
 
   self->mod = mod;
   self->narguments = narguments;
@@ -358,7 +364,7 @@ gab_obj_block_proto *gab_obj_prototype_create(gab_eg *gab, gab_mod *mod,
   self->nlocals = nlocals;
   self->nupvalues = nupvalues;
 
-  for (u8 i = 0; i < nupvalues; i++) {
+  for (uint8_t i = 0; i < nupvalues; i++) {
     self->upv_desc[i * 2] = flags[i];
     self->upv_desc[i * 2 + 1] = indexes[i];
   }
@@ -368,7 +374,7 @@ gab_obj_block_proto *gab_obj_prototype_create(gab_eg *gab, gab_mod *mod,
 }
 
 gab_obj_message *gab_obj_message_create(gab_eg *gab, gab_value name) {
-  u64 hash = GAB_VAL_TO_STRING(name)->hash;
+  uint64_t hash = GAB_VAL_TO_STRING(name)->hash;
   gab_obj_message *interned = gab_eg_find_message(gab, name, hash);
 
   if (interned != NULL) {
@@ -410,26 +416,26 @@ gab_obj_block *gab_obj_block_create(gab_eg *gab, gab_obj_block_proto *p) {
   self->nupvalues = p->nupvalues;
   self->p = p;
 
-  for (u8 i = 0; i < self->nupvalues; i++) {
+  for (uint8_t i = 0; i < self->nupvalues; i++) {
     self->upvalues[i] = gab_nil;
   }
 
   return self;
 }
 
-gab_obj_shape *gab_obj_shape_create_tuple(gab_eg *gab, gab_vm *vm, u64 len) {
+gab_obj_shape *gab_obj_shape_create_tuple(gab_eg *gab, gab_vm *vm, uint64_t len) {
   gab_value keys[len];
 
-  for (u64 i = 0; i < len; i++) {
+  for (uint64_t i = 0; i < len; i++) {
     keys[i] = gab_number(i);
   }
 
   return gab_obj_shape_create(gab, vm, len, 1, keys);
 }
 
-gab_obj_shape *gab_obj_shape_create(gab_eg *gab, gab_vm *vm, u64 len,
-                                    u64 stride, gab_value keys[len]) {
-  u64 hash = hash_keys(gab->hash_seed, len, stride, keys);
+gab_obj_shape *gab_obj_shape_create(gab_eg *gab, gab_vm *vm, uint64_t len,
+                                    uint64_t stride, gab_value keys[len]) {
+  uint64_t hash = hash_keys(gab->hash_seed, len, stride, keys);
 
   gab_obj_shape *interned = gab_eg_find_shape(gab, len, stride, hash, keys);
 
@@ -442,7 +448,7 @@ gab_obj_shape *gab_obj_shape_create(gab_eg *gab, gab_vm *vm, u64 len,
   self->hash = hash;
   self->len = len;
 
-  for (u64 i = 0; i < len; i++) {
+  for (uint64_t i = 0; i < len; i++) {
     self->data[i] = keys[i * stride];
   }
 
@@ -457,7 +463,7 @@ gab_obj_shape *gab_obj_shape_create(gab_eg *gab, gab_vm *vm, u64 len,
 }
 
 gab_obj_record *gab_obj_record_create(gab_eg *gab, gab_vm *vm,
-                                      gab_obj_shape *shape, u64 stride,
+                                      gab_obj_shape *shape, uint64_t stride,
                                       gab_value values[static shape->len]) {
 
   gab_obj_record *self =
@@ -466,7 +472,7 @@ gab_obj_record *gab_obj_record_create(gab_eg *gab, gab_vm *vm,
   self->shape = shape;
   self->len = shape->len;
 
-  for (u64 i = 0; i < shape->len; i++)
+  for (uint64_t i = 0; i < shape->len; i++)
     self->data[i] = values[i * stride];
 
   if (vm)
@@ -482,7 +488,7 @@ gab_obj_record *gab_obj_record_create_empty(gab_eg *gab, gab_obj_shape *shape) {
   self->shape = shape;
   self->len = shape->len;
 
-  for (u64 i = 0; i < shape->len; i++)
+  for (uint64_t i = 0; i < shape->len; i++)
     self->data[i] = gab_nil;
 
   return self;
@@ -512,8 +518,8 @@ gab_value gab_box(gab_eg *gab, gab_vm *vm, struct gab_box_argt args) {
                                       args.visitor, args.data));
 }
 
-gab_obj_suspense_proto *gab_obj_suspense_proto_create(gab_eg *gab, u64 offset,
-                                                      u8 want) {
+gab_obj_suspense_proto *gab_obj_suspense_proto_create(gab_eg *gab, uint64_t offset,
+                                                      uint8_t want) {
   gab_obj_suspense_proto *self =
       GAB_CREATE_OBJ(gab_obj_suspense_proto, kGAB_SUSPENSE_PROTO);
 
@@ -525,7 +531,7 @@ gab_obj_suspense_proto *gab_obj_suspense_proto_create(gab_eg *gab, u64 offset,
   return self;
 }
 
-gab_obj_suspense *gab_obj_suspense_create(gab_eg *gab, gab_vm *vm, u16 len,
+gab_obj_suspense *gab_obj_suspense_create(gab_eg *gab, gab_vm *vm, uint16_t len,
                                           gab_obj_block *b,
                                           gab_obj_suspense_proto *p,
                                           gab_value frame[static len]) {

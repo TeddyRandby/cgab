@@ -6,11 +6,11 @@
 #include <stdint.h>
 #include <sys/socket.h>
 
-void gab_container_socket_cb(void *data) { shutdown((i64)data, SHUT_RDWR); }
+void gab_container_socket_cb(void *data) { shutdown((int64_t)data, SHUT_RDWR); }
 
 void gab_lib_sock(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
-  i64 result = socket(AF_INET, SOCK_STREAM, 0);
+  int64_t result = socket(AF_INET, SOCK_STREAM, 0);
 
   if (result < 0) {
     gab_vmpush(vm, gab_string(gab, "Could not open socket"));
@@ -40,9 +40,9 @@ void gab_lib_bind(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  i64 socket = (i64)GAB_VAL_TO_BOX(argv[0])->data;
+  int64_t socket = (int64_t)GAB_VAL_TO_BOX(argv[0])->data;
 
-  i32 port = htons(gab_valton(argv[1]));
+  int32_t port = htons(gab_valton(argv[1]));
 
   struct sockaddr_in addr = {
       .sin_family = AF_INET,
@@ -50,7 +50,7 @@ void gab_lib_bind(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
       .sin_port = port,
   };
 
-  i32 result = bind(socket, (struct sockaddr *)&addr, sizeof(addr));
+  int32_t result = bind(socket, (struct sockaddr *)&addr, sizeof(addr));
 
   if (result < 0) {
     gab_vmpush(vm, gab_string(gab, "COULD_NOT_BIND"));
@@ -67,9 +67,9 @@ void gab_lib_listen(gab_eg *gab, gab_vm *vm, size_t argc,
     return;
   }
 
-  i64 socket = (i64)GAB_VAL_TO_BOX(argv[0])->data;
+  int64_t socket = (int64_t)GAB_VAL_TO_BOX(argv[0])->data;
 
-  i32 result = listen(socket, gab_valton(argv[1]));
+  int32_t result = listen(socket, gab_valton(argv[1]));
 
   if (result < 0) {
     gab_vmpush(vm, gab_string(gab, "COULD_NOT_LISTEN"));
@@ -85,12 +85,12 @@ void gab_lib_accept(gab_eg *gab, gab_vm *vm, size_t argc,
     return;
   }
 
-  i64 socket = (i64)GAB_VAL_TO_BOX(argv[0])->data;
+  int64_t socket = (int64_t)GAB_VAL_TO_BOX(argv[0])->data;
 
   struct sockaddr addr = {0};
   socklen_t addrlen = 0;
 
-  i64 result = accept(socket, &addr, &addrlen);
+  int64_t result = accept(socket, &addr, &addrlen);
 
   if (result < 0) {
     gab_vmpush(vm, gab_string(gab, "COULD_NOT_ACCEPT"));
@@ -120,11 +120,11 @@ void gab_lib_connect(gab_eg *gab, gab_vm *vm, size_t argc,
     return;
   }
 
-  i64 socket = (i64)GAB_VAL_TO_BOX(argv[0])->data;
+  int64_t socket = (int64_t)GAB_VAL_TO_BOX(argv[0])->data;
 
   gab_obj_string *ip = GAB_VAL_TO_STRING(argv[1]);
 
-  i32 port = htons(gab_valton(argv[2]));
+  int32_t port = htons(gab_valton(argv[2]));
 
   struct sockaddr_in addr = {.sin_family = AF_INET, .sin_port = port};
 
@@ -133,7 +133,7 @@ void gab_lib_connect(gab_eg *gab, gab_vm *vm, size_t argc,
     return;
   }
 
-  i32 result = connect(socket, (struct sockaddr *)&addr, sizeof(addr));
+  int32_t result = connect(socket, (struct sockaddr *)&addr, sizeof(addr));
 
   if (result < 0) {
     gab_vmpush(vm, gab_string(gab, "COULD_NOT_CONNECT"));
@@ -149,11 +149,11 @@ void gab_lib_receive(gab_eg *gab, gab_vm *vm, size_t argc,
     return;
   }
 
-  i8 buffer[1024] = {0};
+  int8_t buffer[1024] = {0};
 
-  i64 socket = (i64)GAB_VAL_TO_BOX(argv[0])->data;
+  int64_t socket = (int64_t)GAB_VAL_TO_BOX(argv[0])->data;
 
-  i32 result = recv(socket, buffer, 1024, 0);
+  int32_t result = recv(socket, buffer, 1024, 0);
 
   if (result < 0) {
     gab_vmpush(vm, gab_string(gab, "COULD_NOT_RECEIVE"));
@@ -168,11 +168,11 @@ void gab_lib_send(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  i64 socket = (i64)GAB_VAL_TO_BOX(argv[0])->data;
+  int64_t socket = (int64_t)GAB_VAL_TO_BOX(argv[0])->data;
 
   gab_obj_string *msg = GAB_VAL_TO_STRING(argv[1]);
 
-  i32 result = send(socket, msg->data, msg->len, 0);
+  int32_t result = send(socket, msg->data, msg->len, 0);
 
   if (result < 0) {
     gab_vmpush(vm, gab_string(gab, "COULD_NOT_SEND"));
@@ -207,7 +207,7 @@ a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
   assert(LEN_CARRAY(values) == LEN_CARRAY(types));
   assert(LEN_CARRAY(values) == LEN_CARRAY(names));
 
-  for (u64 i = 0; i < LEN_CARRAY(names); i++) {
+  for (uint64_t i = 0; i < LEN_CARRAY(names); i++) {
     gab_spec(gab, vm,
              (struct gab_spec_argt){
                  .name = names[i],

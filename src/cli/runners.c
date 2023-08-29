@@ -3,7 +3,7 @@
 #include "include/os.h"
 #include <stdio.h>
 
-void repl(const char *module, u8 flags) {
+void repl(const char *module, uint8_t flags) {
   gab_eg *gab = gab_create(0, NULL, NULL);
 
   gab_setup_builtins(gab);
@@ -19,21 +19,21 @@ void repl(const char *module, u8 flags) {
 
   a_gab_value_destroy(result);
 
-  u64 index = gab_argpush(gab, gab_string(gab, "it"));
+  uint64_t index = gab_argpush(gab, gab_string(gab, "it"));
 
   gab_argput(gab, gab_nil, index);
 
   for (;;) {
     printf("grepl: ");
-    a_i8 *src = os_read_fd_line(stdin);
+    a_int8_t *src = os_read_fd_line(stdin);
 
     if (src->data[0] == EOF) {
-      a_i8_destroy(src);
+      a_int8_t_destroy(src);
       goto fin;
     }
 
     if (src->data[1] == '\0') {
-      a_i8_destroy(src);
+      a_int8_t_destroy(src);
       continue;
     }
 
@@ -43,7 +43,7 @@ void repl(const char *module, u8 flags) {
                                         flags,
                                     });
 
-    a_i8_destroy(src);
+    a_int8_t_destroy(src);
 
     if (main == gab_undefined)
       continue;
@@ -51,7 +51,7 @@ void repl(const char *module, u8 flags) {
     a_gab_value *result = gab_run(gab, main, flags);
 
     printf("=> ");
-    for (i32 i = 0; i < result->len; i++) {
+    for (int32_t i = 0; i < result->len; i++) {
       gab_value arg = result->data[i];
 
       if (i == result->len - 1)
@@ -74,7 +74,7 @@ fin:
   return;
 }
 
-void run_src(gab_eg *gab, s_i8 src, const char *module, char delim, u8 flags) {
+void run_src(gab_eg *gab, s_int8_t src, const char *module, char delim, uint8_t flags) {
   if (module != NULL) {
     a_gab_value *res = gab_send(gab, NULL, gab_string(gab, "require"),
                                 gab_string(gab, module), 0, NULL);
@@ -98,19 +98,19 @@ void run_src(gab_eg *gab, s_i8 src, const char *module, char delim, u8 flags) {
       delim = ' ';
 
     for (;;) {
-      a_i8 *line = os_read_fd_line(stdin);
+      a_int8_t *line = os_read_fd_line(stdin);
 
       if (line->data[0] == EOF || line->data[0] == '\0')
         break;
 
-      u64 offset = 0;
-      u64 nargs = 0;
+      uint64_t offset = 0;
+      uint64_t nargs = 0;
 
       // Skip the \n and the \0
-      s_i8 line_s = s_i8_create(line->data, line->len - 2);
+      s_int8_t line_s = s_int8_t_create(line->data, line->len - 2);
 
       for (;;) {
-        s_i8 arg = s_i8_tok(line_s, offset, delim);
+        s_int8_t arg = s_int8_t_tok(line_s, offset, delim);
 
         if (arg.len == 0)
           break;
@@ -125,7 +125,7 @@ void run_src(gab_eg *gab, s_i8 src, const char *module, char delim, u8 flags) {
 
       a_gab_value *result = gab_run(gab, main, flags | fGAB_EXIT_ON_PANIC);
 
-      for (i32 i = 0; i < result->len; i++) {
+      for (int32_t i = 0; i < result->len; i++) {
         gab_value arg = result->data[i];
 
         gab_egkeep(gab, arg);
@@ -142,7 +142,7 @@ void run_src(gab_eg *gab, s_i8 src, const char *module, char delim, u8 flags) {
 
   a_gab_value *result = gab_run(gab, main, flags | fGAB_EXIT_ON_PANIC);
 
-  for (i32 i = 0; i < result->len; i++) {
+  for (int32_t i = 0; i < result->len; i++) {
     gab_value arg = result->data[i];
     gab_egkeep(gab, arg);
   }
@@ -150,13 +150,13 @@ void run_src(gab_eg *gab, s_i8 src, const char *module, char delim, u8 flags) {
   a_gab_value_destroy(result);
 }
 
-void run_string(const char *string, const char *module, char delim, u8 flags) {
+void run_string(const char *string, const char *module, char delim, uint8_t flags) {
   gab_eg *gab = gab_create(0, NULL, NULL);
 
   gab_setup_builtins(gab);
 
   // This is a weird case where we actually want to include the null terminator
-  s_i8 src = s_i8_create((i8 *)string, strlen(string) + 1);
+  s_int8_t src = s_int8_t_create((int8_t *)string, strlen(string) + 1);
 
   run_src(gab, src, module, delim, flags);
 
@@ -166,16 +166,16 @@ void run_string(const char *string, const char *module, char delim, u8 flags) {
   return;
 }
 
-void run_file(const char *path, const char *module, char delim, u8 flags) {
+void run_file(const char *path, const char *module, char delim, uint8_t flags) {
   gab_eg *gab = gab_create(0, NULL, NULL);
 
   gab_setup_builtins(gab);
 
-  a_i8 *src = os_read_file(path);
+  a_int8_t *src = os_read_file(path);
 
-  run_src(gab, s_i8_create(src->data, src->len), module, delim, flags);
+  run_src(gab, s_int8_t_create(src->data, src->len), module, delim, flags);
 
-  a_i8_destroy(src);
+  a_int8_t_destroy(src);
 
 #if cGAB_DEBUG_GC
   gab_destroy(gab);

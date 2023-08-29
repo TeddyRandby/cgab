@@ -20,8 +20,8 @@ void gab_lib_len(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   char *str = gab_valtocs(gab, argv[0]);
 
-  u64 len = gab_strlen(argv[0]);
-  u64 start = 0, end = len;
+  uint64_t len = gab_strlen(argv[0]);
+  uint64_t start = 0, end = len;
 
   switch (argc) {
   case 2:
@@ -60,7 +60,7 @@ void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  u64 size = end - start;
+  uint64_t size = end - start;
 
   gab_value res = gab_nstring(gab, size, str + start);
   free(str);
@@ -80,20 +80,20 @@ void gab_lib_split(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   size_t srclen = gab_strlen(argv[0]);
   size_t delimlen = gab_strlen(argv[1]);
 
-  s_i8 delim = s_i8_cstr(delim_src);
-  s_i8 window = s_i8_create((const i8 *)src, delimlen);
+  s_int8_t delim = s_int8_t_cstr(delim_src);
+  s_int8_t window = s_int8_t_create((const int8_t *)src, delimlen);
 
-  const i8 *start = window.data;
-  u64 len = 0;
+  const int8_t *start = window.data;
+  uint64_t len = 0;
 
-  v_u64 splits;
-  v_u64_create(&splits, 8);
+  v_uint64_t splits;
+  v_uint64_t_create(&splits, 8);
 
-  while (window.data + window.len <= (i8 *)src + srclen) {
-    if (s_i8_match(window, delim)) {
-      s_i8 split = s_i8_create(start, len);
+  while (window.data + window.len <= (int8_t *)src + srclen) {
+    if (s_int8_t_match(window, delim)) {
+      s_int8_t split = s_int8_t_create(start, len);
 
-      v_u64_push(&splits, gab_nstring(gab, split.len, (char *)split.data));
+      v_uint64_t_push(&splits, gab_nstring(gab, split.len, (char *)split.data));
 
       window.data += window.len;
       start = window.data;
@@ -104,8 +104,8 @@ void gab_lib_split(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     }
   }
 
-  s_i8 split = s_i8_create(start, len);
-  v_u64_push(&splits, gab_nstring(gab, split.len, (char *)split.data));
+  s_int8_t split = s_int8_t_create(start, len);
+  v_uint64_t_push(&splits, gab_nstring(gab, split.len, (char *)split.data));
 
   gab_value result = gab_tuple(gab, vm, splits.len, splits.data);
 
@@ -129,7 +129,7 @@ a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
       gab_builtin(gab, "len", gab_lib_len),
   };
 
-  for (u8 i = 0; i < LEN_CARRAY(keys); i++) {
+  for (uint8_t i = 0; i < LEN_CARRAY(keys); i++) {
     gab_spec(gab, vm,
              (struct gab_spec_argt){
                  .name = keys[i],

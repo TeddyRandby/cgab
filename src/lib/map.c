@@ -92,7 +92,7 @@ void gab_lib_next(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   switch (argc) {
 
   case 1: {
-    u64 next_index = d_gab_value_inext(map, 0);
+    uint64_t next_index = d_gab_value_inext(map, 0);
 
     if (next_index == -1) {
       gab_value res = gab_nil;
@@ -113,9 +113,9 @@ void gab_lib_next(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
     gab_value key = argv[1];
 
-    u64 index = d_gab_value_index_of(map, key);
+    uint64_t index = d_gab_value_index_of(map, key);
 
-    u64 next_index = d_gab_value_inext(map, index + 1);
+    uint64_t next_index = d_gab_value_inext(map, index + 1);
 
     if (next_index == -1) {
       gab_value res = gab_nil;

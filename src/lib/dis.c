@@ -76,10 +76,10 @@ void gab_lib_disbuiltin(gab_eg *gab, gab_vm *vm, size_t argc,
 
 gab_value gab_mod(gab_eg *gab, gab_vm *vm) {
   gab_value receivers[] = {
-      gab_type(gab, kGAB_BLOCK),
-      gab_type(gab, kGAB_MESSAGE),
-      gab_type(gab, kGAB_STRING),
-      gab_type(gab, kGAB_BUILTIN),
+      gab_typ(gab, kGAB_BLOCK),
+      gab_typ(gab, kGAB_MESSAGE),
+      gab_typ(gab, kGAB_STRING),
+      gab_typ(gab, kGAB_BUILTIN),
   };
 
   gab_value values[] = {
@@ -91,7 +91,7 @@ gab_value gab_mod(gab_eg *gab, gab_vm *vm) {
 
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));
 
-  for (u8 i = 0; i < LEN_CARRAY(values); i++) {
+  for (uint8_t i = 0; i < LEN_CARRAY(values); i++) {
     gab_specialize(gab, vm, gab_string(gab, "dis"), receivers[i], values[i]);
     gab_val_dref(vm, values[i]);
   }

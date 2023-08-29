@@ -13,13 +13,13 @@
     (h) ^= (h) >> 47;                                                          \
   })
 
-static u64 hash(const void *buf, u64 len, u64 seed) {
-  const u64 m = 0x880355f21e6d1965ULL;
-  const u64 *pos = (const u64 *)buf;
-  const u64 *end = pos + (len / 8);
+static uint64_t hash(const void *buf, uint64_t len, uint64_t seed) {
+  const uint64_t m = 0x880355f21e6d1965ULL;
+  const uint64_t *pos = (const uint64_t *)buf;
+  const uint64_t *end = pos + (len / 8);
   const unsigned char *pos2;
-  u64 h = seed ^ (len * m);
-  u64 v;
+  uint64_t h = seed ^ (len * m);
+  uint64_t v;
 
   while (pos != end) {
     v = *pos++;
@@ -32,19 +32,19 @@ static u64 hash(const void *buf, u64 len, u64 seed) {
 
   switch (len & 7) {
   case 7:
-    v ^= (u64)pos2[6] << 48;
+    v ^= (uint64_t)pos2[6] << 48;
   case 6:
-    v ^= (u64)pos2[5] << 40;
+    v ^= (uint64_t)pos2[5] << 40;
   case 5:
-    v ^= (u64)pos2[4] << 32;
+    v ^= (uint64_t)pos2[4] << 32;
   case 4:
-    v ^= (u64)pos2[3] << 24;
+    v ^= (uint64_t)pos2[3] << 24;
   case 3:
-    v ^= (u64)pos2[2] << 16;
+    v ^= (uint64_t)pos2[2] << 16;
   case 2:
-    v ^= (u64)pos2[1] << 8;
+    v ^= (uint64_t)pos2[1] << 8;
   case 1:
-    v ^= (u64)pos2[0];
+    v ^= (uint64_t)pos2[0];
     h ^= mix(v);
     h *= m;
   }
@@ -54,11 +54,11 @@ static u64 hash(const void *buf, u64 len, u64 seed) {
 
 #undef mix
 
-static inline u64 hash_bytes(u64 seed, u64 len, u8 bytes[len]) {
-  return hash(bytes, len * sizeof(u8), seed);
+static inline uint64_t hash_bytes(uint64_t seed, uint64_t len, uint8_t bytes[len]) {
+  return hash(bytes, len * sizeof(uint8_t), seed);
 }
 
-static inline u64 hash_words(u64 seed, u64 len, u64 words[len]) {
-  return hash(words, len * sizeof(u64), seed);
+static inline uint64_t hash_words(uint64_t seed, uint64_t len, uint64_t words[len]) {
+  return hash(words, len * sizeof(uint64_t), seed);
 }
 #endif

@@ -10,7 +10,7 @@ void gab_lib_now(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
   clock_t t = clock();
 
-  gab_value res = gab_number((f64)t / CLOCKS_PER_SEC);
+  gab_value res = gab_number((double)t / CLOCKS_PER_SEC);
 
   gab_vmpush(vm, res);
 };

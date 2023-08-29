@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 #if cGAB_DEBUG_GC
-boolean debug_collect = true;
+bool debug_collect = true;
 #endif
 
 void gab_obj_iref(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
@@ -35,7 +35,7 @@ void gab_obj_dref(gab_gc *gc, gab_vm *vm, gab_obj *obj) {
   gc->decrements[gc->ndecrements++] = obj;
 }
 
-void gab_ngciref(gab_gc *gc, gab_vm *vm, u64 len, gab_value values[len]) {
+void gab_ngciref(gab_gc *gc, gab_vm *vm, uint64_t len, gab_value values[len]) {
 #if cGAB_DEBUG_GC
   debug_collect = false;
 #endif
@@ -49,7 +49,7 @@ void gab_ngciref(gab_gc *gc, gab_vm *vm, u64 len, gab_value values[len]) {
 #endif
 }
 
-void gab_ngcdref(gab_gc *gc, gab_vm *vm, u64 len, gab_value values[len]) {
+void gab_ngcdref(gab_gc *gc, gab_vm *vm, uint64_t len, gab_value values[len]) {
   if (gc->ndecrements + len >= cGAB_GC_DEC_BUFF_MAX) {
     gab_gc_run(gc, vm);
 #if cGAB_DEBUG_GC
@@ -68,7 +68,7 @@ void gab_ngcdref(gab_gc *gc, gab_vm *vm, u64 len, gab_value values[len]) {
 #if cGAB_LOG_GC
 
 void __gab_gc_iref(gab_gc *gc, gab_vm *vm, gab_value obj, const char *file,
-                   i32 line) {
+                   int32_t line) {
   if (GAB_VAL_IS_OBJ(obj)) {
     gab_obj_iref(gc, vm, gab_valtoo(obj));
     v_rc_update_push(&gc->tracked_increments, (rc_update){
@@ -80,7 +80,7 @@ void __gab_gc_iref(gab_gc *gc, gab_vm *vm, gab_value obj, const char *file,
 }
 
 void __gab_gc_dref(gab_gc *gc, gab_vm *vm, gab_value obj, const char *file,
-                   i32 line) {
+                   int32_t line) {
   if (GAB_VAL_IS_OBJ(obj)) {
     gab_obj_dref(gc, vm, gab_valtoo(obj));
     v_rc_update_push(&gc->tracked_decrements, (rc_update){
@@ -93,14 +93,14 @@ void __gab_gc_dref(gab_gc *gc, gab_vm *vm, gab_value obj, const char *file,
 
 static inline void dump_rcs_for(gab_gc *gc, gab_obj *val) {
 
-  for (u64 j = 0; j < gc->tracked_increments.len; j++) {
+  for (uint64_t j = 0; j < gc->tracked_increments.len; j++) {
     rc_update *u = v_rc_update_ref_at(&gc->tracked_increments, j);
     if (u->val == val) {
       fprintf(stdout, "+1 %s:%i.\n", u->file, u->line);
     }
   }
 
-  for (u64 j = 0; j < gc->tracked_decrements.len; j++) {
+  for (uint64_t j = 0; j < gc->tracked_decrements.len; j++) {
     rc_update *u = v_rc_update_ref_at(&gc->tracked_decrements, j);
     if (u->val == val) {
       fprintf(stdout, "-1 %s:%i.\n", u->file, u->line);
@@ -131,10 +131,10 @@ void gab_gc_create(gab_gc *gc) {
 void gab_gc_destroy(gab_gc *gc) {
 #if cGAB_LOG_GC
   fprintf(stdout, "Checking remaining objects...\n");
-  for (u64 i = 0; i < gc->tracked_values.cap; i++) {
+  for (uint64_t i = 0; i < gc->tracked_values.cap; i++) {
     if (d_rc_tracker_iexists(&gc->tracked_values, i)) {
       gab_obj *k = d_rc_tracker_ikey(&gc->tracked_values, i);
-      i32 v = d_rc_tracker_ival(&gc->tracked_values, i);
+      int32_t v = d_rc_tracker_ival(&gc->tracked_values, i);
       if (v > 0) {
         gab_val_dump(stdout, GAB_VAL_OBJ(k));
         fprintf(stdout, " had %i remaining references.\n", v);
@@ -194,7 +194,7 @@ static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
   case kGAB_SUSPENSE: {
     gab_obj_suspense *sus = (gab_obj_suspense *)obj;
 
-    for (u8 i = 0; i < sus->len; i++) {
+    for (uint8_t i = 0; i < sus->len; i++) {
       if (gab_valiso(sus->frame[i]))
         fnc(gc, gab_valtoo(sus->frame[i]));
     }
@@ -207,7 +207,7 @@ static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
   case (kGAB_BLOCK): {
     gab_obj_block *b = (gab_obj_block *)obj;
 
-    for (u8 i = 0; i < b->nupvalues; i++) {
+    for (uint8_t i = 0; i < b->nupvalues; i++) {
       if (gab_valiso(b->upvalues[i]))
         fnc(gc, gab_valtoo(b->upvalues[i]));
     }
@@ -218,7 +218,7 @@ static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
   case (kGAB_MESSAGE): {
     gab_obj_message *func = (gab_obj_message *)obj;
 
-    for (u64 i = 0; i < func->specs.cap; i++) {
+    for (uint64_t i = 0; i < func->specs.cap; i++) {
       if (d_specs_iexists(&func->specs, i)) {
         gab_value r = d_specs_ikey(&func->specs, i);
         if (gab_valiso(r))
@@ -236,7 +236,7 @@ static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
   case kGAB_SHAPE: {
     gab_obj_shape *shape = (gab_obj_shape *)obj;
 
-    for (u64 i = 0; i < shape->len; i++) {
+    for (uint64_t i = 0; i < shape->len; i++) {
       if (gab_valiso(shape->data[i])) {
         fnc(gc, gab_valtoo(shape->data[i]));
       }
@@ -248,7 +248,7 @@ static inline void for_child_do(gab_obj *obj, gab_gc_visitor fnc, gab_gc *gc) {
   case kGAB_RECORD: {
     gab_obj_record *rec = (gab_obj_record *)obj;
 
-    for (u64 i = 0; i < rec->len; i++) {
+    for (uint64_t i = 0; i < rec->len; i++) {
       if (gab_valiso(rec->data[i]))
         fnc(gc, gab_valtoo(rec->data[i]));
     }
@@ -351,7 +351,7 @@ static inline void mark_gray(gab_obj *obj) {
 }
 
 static inline void mark_roots(gab_gc *gc) {
-  for (u64 i = 0; i < gc->nroots; i++) {
+  for (uint64_t i = 0; i < gc->nroots; i++) {
     gab_obj *obj = gc->roots[i];
 
     if (GAB_OBJ_IS_PURPLE(obj) && obj->references > 0) {
@@ -390,7 +390,7 @@ static inline void scan_root(gab_gc *, gab_obj *obj) {
 }
 
 static inline void scan_roots(gab_gc *gc) {
-  for (u64 i = 0; i < gc->nroots; i++) {
+  for (uint64_t i = 0; i < gc->nroots; i++) {
     gab_obj *obj = gc->roots[i];
     if (obj)
       scan_root(NULL, obj);
@@ -409,7 +409,7 @@ static inline void collect_white(gab_gc *gc, gab_obj *obj) {
 
 // Collecting roots is putting me in an infinte loop somehow
 static inline void collect_roots(gab_gc *gc) {
-  for (u64 i = 0; i < gc->nroots; i++) {
+  for (uint64_t i = 0; i < gc->nroots; i++) {
     gab_obj *obj = gc->roots[i];
     if (obj) {
       GAB_OBJ_NOT_BUFFERED(obj);
@@ -423,9 +423,9 @@ void collect_cycles(gab_gc *gc) {
   mark_roots(gc);
   scan_roots(gc);
   collect_roots(gc);
-  u64 n = gc->nroots;
+  uint64_t n = gc->nroots;
   gc->nroots = 0;
-  for (u64 i = 0; i < n; i++) {
+  for (uint64_t i = 0; i < n; i++) {
     if (gc->roots[i]) {
       gc->roots[gc->nroots++] = gc->roots[i];
     }

@@ -59,17 +59,17 @@ struct gab_eg {
 
   gab_value types[kGAB_NKINDS];
 
-  u64 hash_seed;
+  uint64_t hash_seed;
 
   v_gab_value argv_names;
 
   v_gab_value argv_values;
 };
 
-gab_obj_string *gab_eg_find_string(gab_eg *gab, s_i8 str, u64 hash);
+gab_obj_string *gab_eg_find_string(gab_eg *gab, s_int8_t str, uint64_t hash);
 
-gab_obj_message *gab_eg_find_message(gab_eg *gab, gab_value name, u64 hash);
+gab_obj_message *gab_eg_find_message(gab_eg *gab, gab_value name, uint64_t hash);
 
-gab_obj_shape *gab_eg_find_shape(gab_eg *gab, u64 size, u64 stride, u64 hash,
+gab_obj_shape *gab_eg_find_shape(gab_eg *gab, uint64_t size, uint64_t stride, uint64_t hash,
                                  gab_value keys[size]);
 #endif

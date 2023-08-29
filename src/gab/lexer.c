@@ -5,19 +5,19 @@
 #include <stdio.h>
 
 typedef struct gab_lx {
-  i8 *cursor;
-  i8 *row_start;
+  int8_t *cursor;
+  int8_t *row_start;
   size_t row;
-  u64 col;
+  uint64_t col;
 
-  u8 nested_curly;
-  u8 status;
+  uint8_t nested_curly;
+  uint8_t status;
 
   gab_src *source;
 
-  s_i8 current_row_comment;
-  s_i8 current_row_src;
-  s_i8 current_token_src;
+  s_int8_t current_row_comment;
+  s_int8_t current_row_src;
+  s_int8_t current_token_src;
 } gab_lx;
 
 static void advance(gab_lx *self) {
@@ -28,7 +28,7 @@ static void advance(gab_lx *self) {
 }
 
 static void start_row(gab_lx *self) {
-  self->current_row_comment = (s_i8){0};
+  self->current_row_comment = (s_int8_t){0};
   self->current_row_src.data = self->cursor;
   self->current_row_src.len = 0;
   self->col = 0;
@@ -44,8 +44,8 @@ static void finish_row(gab_lx *self) {
   if (self->current_row_src.data[self->current_row_src.len - 1] == '\n')
     self->current_row_src.len--;
 
-  v_s_i8_push(&self->source->lines, self->current_row_src);
-  v_s_i8_push(&self->source->line_comments, self->current_row_comment);
+  v_s_int8_t_push(&self->source->lines, self->current_row_src);
+  v_s_int8_t_push(&self->source->line_comments, self->current_row_comment);
 
   start_row(self);
 }
@@ -60,9 +60,9 @@ void gab_lexcreate(gab_lx *self, gab_src *src) {
   start_row(self);
 }
 
-static inline i8 peek(gab_lx *self) { return *self->cursor; }
+static inline int8_t peek(gab_lx *self) { return *self->cursor; }
 
-static inline i8 peek_next(gab_lx *self) { return *(self->cursor + 1); }
+static inline int8_t peek_next(gab_lx *self) { return *(self->cursor + 1); }
 
 static inline gab_token error(gab_lx *self, gab_status s) {
   self->status = s;
@@ -153,17 +153,16 @@ const keyword keywords[] = {
 };
 
 gab_token identifier(gab_lx *self) {
-
   while (is_alpha(peek(self)) || is_digit(peek(self)))
     advance(self);
 
   if (peek(self) == '?' || peek(self) == '!')
     advance(self);
 
-  for (i32 i = 0; i < sizeof(keywords) / sizeof(keyword); i++) {
+  for (int32_t i = 0; i < sizeof(keywords) / sizeof(keyword); i++) {
     keyword k = keywords[i];
-    s_i8 lit = s_i8_create((i8 *)k.literal, strlen(k.literal));
-    if (s_i8_match(self->current_token_src, lit)) {
+    s_int8_t lit = s_int8_t_create((int8_t *)k.literal, strlen(k.literal));
+    if (s_int8_t_match(self->current_token_src, lit)) {
       return k.token;
     }
   }
@@ -172,8 +171,8 @@ gab_token identifier(gab_lx *self) {
 }
 
 gab_token string(gab_lx *self) {
-  u8 start = peek(self);
-  u8 stop = start == '"' ? '"' : '\'';
+  uint8_t start = peek(self);
+  uint8_t stop = start == '"' ? '"' : '\'';
 
   do {
     advance(self);
@@ -307,6 +306,7 @@ gab_token other(gab_lx *self) {
     }
     }
   }
+
   case ':': {
     advance(self);
 
@@ -333,6 +333,7 @@ gab_token other(gab_lx *self) {
     }
     }
   }
+
   case '=': {
     advance(self);
     switch (peek(self)) {
@@ -371,7 +372,7 @@ gab_token other(gab_lx *self) {
 }
 
 static inline void parse_comment(gab_lx *self) {
-  i8 *start = self->cursor;
+  int8_t *start = self->cursor;
 
   while (is_comment(peek(self))) {
     while (peek(self) != '\n')
@@ -380,7 +381,7 @@ static inline void parse_comment(gab_lx *self) {
     advance(self);
   }
 
-  self->current_row_comment = s_i8_create(start, self->cursor - start);
+  self->current_row_comment = s_int8_t_create(start, self->cursor - start);
 }
 
 gab_token gab_lexnxt(gab_lx *self) {
@@ -440,17 +441,17 @@ gab_token gab_lexnxt(gab_lx *self) {
 
 fin:
   v_gab_token_push(&self->source->tokens, tok);
-  v_s_i8_push(&self->source->tokens_src, self->current_token_src);
-  v_u64_push(&self->source->tokens_line, self->row);
+  v_s_int8_t_push(&self->source->tokens_src, self->current_token_src);
+  v_uint64_t_push(&self->source->tokens_line, self->row);
 
   return tok;
 }
 
-gab_src *gab_srccreate(gab_eg *gab, s_i8 source) {
+gab_src *gab_srccreate(gab_eg *gab, s_int8_t source) {
   gab_src *self = NEW(gab_src);
   memset(self, 0, sizeof(gab_src));
 
-  self->source = a_i8_create(source.data, source.len);
+  self->source = a_int8_t_create(source.data, source.len);
   self->next = gab->sources;
   gab->sources = self;
 
@@ -459,14 +460,14 @@ gab_src *gab_srccreate(gab_eg *gab, s_i8 source) {
 
 gab_src *gab_srccpy(gab_eg *gab, gab_src *self) {
   gab_src *copy = NEW(gab_src);
-  copy->source = a_i8_create(self->source->data, self->source->len);
+  copy->source = a_int8_t_create(self->source->data, self->source->len);
 
-  v_s_i8_copy(&copy->lines, &self->lines);
+  v_s_int8_t_copy(&copy->lines, &self->lines);
 
   // Reconcile the copied slices to point to the new source
-  for (u64 i = 0; i < copy->lines.len; i++) {
-    s_i8 *copy_src = v_s_i8_ref_at(&copy->lines, i);
-    s_i8 *src_src = v_s_i8_ref_at(&self->lines, i);
+  for (uint64_t i = 0; i < copy->lines.len; i++) {
+    s_int8_t *copy_src = v_s_int8_t_ref_at(&copy->lines, i);
+    s_int8_t *src_src = v_s_int8_t_ref_at(&self->lines, i);
 
     copy_src->data = copy->source->data + (src_src->data - self->source->data);
   }
@@ -478,13 +479,13 @@ gab_src *gab_srccpy(gab_eg *gab, gab_src *self) {
 }
 
 void gab_srcfree(gab_src *self) {
-  v_s_i8_destroy(&self->lines);
-  a_i8_destroy(self->source);
+  v_s_int8_t_destroy(&self->lines);
+  a_int8_t_destroy(self->source);
   DESTROY(self);
 }
 
 gab_src *gab_lex(gab_eg *gab, const char *source, size_t len) {
-  gab_src *src = gab_srccreate(gab, s_i8_create((i8 *)source, len));
+  gab_src *src = gab_srccreate(gab, s_int8_t_create((int8_t *)source, len));
 
   gab_lx lex;
   gab_lexcreate(&lex, src);

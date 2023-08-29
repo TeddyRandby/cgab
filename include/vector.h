@@ -26,11 +26,11 @@
 typedef struct TYPENAME TYPENAME;
 struct TYPENAME {
   T *data;
-  u64 len;
-  u64 cap;
+  uint64_t len;
+  uint64_t cap;
 };
 
-LINKAGE void METHOD(create)(TYPENAME *self, u64 cap) {
+LINKAGE void METHOD(create)(TYPENAME *self, uint64_t cap) {
   self->cap = cap;
   self->len = 0;
   self->data = NEW_ARRAY(T, cap);
@@ -45,13 +45,13 @@ LINKAGE void METHOD(copy)(TYPENAME *self, TYPENAME *other) {
 
 LINKAGE void METHOD(destroy)(TYPENAME *self) { DESTROY(self->data); }
 
-LINKAGE u64 METHOD(set)(TYPENAME *self, u64 index, T value) {
+LINKAGE uint64_t METHOD(set)(TYPENAME *self, uint64_t index, T value) {
   assert(index < self->len);
   self->data[index] = value;
   return index;
 }
 
-LINKAGE u32 METHOD(push)(TYPENAME *self, T value) {
+LINKAGE uint32_t METHOD(push)(TYPENAME *self, T value) {
   if (self->len >= self->cap) {
     self->cap = MAX(8, self->cap * 2);
     self->data = GROW(T, self->data, self->cap);
@@ -65,12 +65,12 @@ LINKAGE T METHOD(pop)(TYPENAME *self) {
   return self->data[--self->len];
 }
 
-LINKAGE T *METHOD(ref_at)(TYPENAME *self, u64 index) {
+LINKAGE T *METHOD(ref_at)(TYPENAME *self, uint64_t index) {
   assert(index < self->len);
   return self->data + index;
 }
 
-LINKAGE T METHOD(val_at)(TYPENAME *self, u64 index) {
+LINKAGE T METHOD(val_at)(TYPENAME *self, uint64_t index) {
   assert(index < self->len);
   return self->data[index];
 }
@@ -83,7 +83,7 @@ LINKAGE T *METHOD(emplace)(TYPENAME *self) {
   return self->data + (self->len++);
 }
 
-LINKAGE T METHOD(del)(TYPENAME *self, u64 index) {
+LINKAGE T METHOD(del)(TYPENAME *self, uint64_t index) {
   assert(index < self->len);
   if (index + 1 == self->len) {
     return METHOD(pop)(self);

@@ -16,24 +16,24 @@
 typedef struct {
   gab_mod *mod;
 
-  i32 scope_depth;
+  int32_t scope_depth;
 
-  u8 narguments;
+  uint8_t narguments;
 
-  u16 next_slot;
-  u16 nslots;
+  uint16_t next_slot;
+  uint16_t nslots;
 
-  u8 next_local;
-  u8 nlocals;
+  uint8_t next_local;
+  uint8_t nlocals;
 
-  u8 nupvalues;
+  uint8_t nupvalues;
 
-  u8 local_flags[GAB_LOCAL_MAX];
-  i32 local_depths[GAB_LOCAL_MAX];
-  u16 local_names[GAB_LOCAL_MAX];
+  uint8_t local_flags[GAB_LOCAL_MAX];
+  int32_t local_depths[GAB_LOCAL_MAX];
+  uint16_t local_names[GAB_LOCAL_MAX];
 
-  u8 upv_flags[GAB_UPVALUE_MAX];
-  u8 upv_indexes[GAB_UPVALUE_MAX];
+  uint8_t upv_flags[GAB_UPVALUE_MAX];
+  uint8_t upv_indexes[GAB_UPVALUE_MAX];
 } frame;
 
 typedef enum {
@@ -48,11 +48,11 @@ typedef enum {
 typedef struct {
   lvalue_k kind;
 
-  u16 slot;
+  uint16_t slot;
 
   union {
-    u16 local;
-    u16 property;
+    uint16_t local;
+    uint16_t property;
   } as;
 
 } lvalue;
@@ -60,7 +60,7 @@ typedef struct {
 #define T lvalue
 #include "include/vector.h"
 
-#define T u16
+#define T uint16_t
 #include "include/vector.h"
 
 typedef enum {
@@ -85,13 +85,13 @@ typedef struct {
 typedef struct {
   gab_src *source;
 
-  u64 offset;
+  uint64_t offset;
 
-  u8 flags;
+  uint8_t flags;
 
-  boolean panic;
+  bool panic;
 
-  u8 ncontext;
+  uint8_t ncontext;
   context contexts[cGAB_FUNCTION_DEF_NESTING_MAX];
 } bc;
 
@@ -122,16 +122,16 @@ typedef enum prec_k {
   kPRIMARY
 } prec_k;
 
-typedef i32 (*gab_compile_func)(gab_eg *, bc *, boolean);
+typedef int32_t (*gab_compile_func)(gab_eg *, bc *, bool);
 typedef struct gab_compile_rule gab_compile_rule;
 struct gab_compile_rule {
   gab_compile_func prefix;
   gab_compile_func infix;
   prec_k prec;
-  boolean multi_line;
+  bool multi_line;
 };
 
-void gab_bc_create(bc *self, gab_src *source, u8 flags) {
+void gab_bc_create(bc *self, gab_src *source, uint8_t flags) {
   memset(self, 0, sizeof(*self));
 
   self->flags = flags;
@@ -155,22 +155,22 @@ enum comp_status {
 
 static void compiler_error(bc *bc, gab_status e, const char *help_fmt, ...);
 
-static boolean match_token(bc *bc, gab_token tok);
+static bool match_token(bc *bc, gab_token tok);
 
-static i32 eat_token(bc *bc);
+static int32_t eat_token(bc *bc);
 
 //------------------- Token Helpers -----------------------
 // Can't return an error.
-static inline boolean match_token(bc *bc, gab_token tok) {
+static inline bool match_token(bc *bc, gab_token tok) {
   return v_gab_token_val_at(&bc->source->tokens, bc->offset) == tok;
 }
 
-static inline boolean match_terminator(bc *bc) {
+static inline bool match_terminator(bc *bc) {
   return match_token(bc, TOKEN_END) || match_token(bc, TOKEN_ELSE) ||
          match_token(bc, TOKEN_UNTIL) || match_token(bc, TOKEN_EOF);
 }
 
-static i32 eat_token(bc *bc) {
+static int32_t eat_token(bc *bc) {
   bc->offset++;
 
   if (match_token(bc, TOKEN_ERROR)) {
@@ -182,14 +182,14 @@ static i32 eat_token(bc *bc) {
   return COMP_OK;
 }
 
-static inline i32 match_and_eat_token(bc *bc, gab_token tok) {
+static inline int32_t match_and_eat_token(bc *bc, gab_token tok) {
   if (!match_token(bc, tok))
     return COMP_TOKEN_NO_MATCH;
 
   return eat_token(bc);
 }
 
-static inline i32 expect_token(bc *bc, gab_token tok) {
+static inline int32_t expect_token(bc *bc, gab_token tok) {
   if (!match_token(bc, tok)) {
     eat_token(bc);
     compiler_error(bc, GAB_UNEXPECTED_TOKEN,
@@ -201,12 +201,12 @@ static inline i32 expect_token(bc *bc, gab_token tok) {
   return eat_token(bc);
 }
 
-static inline i32 match_tokoneof(bc *bc, gab_token toka, gab_token tokb) {
+static inline int32_t match_tokoneof(bc *bc, gab_token toka, gab_token tokb) {
   return match_token(bc, toka) || match_token(bc, tokb);
 }
 
 size_t prev_line(bc *bc) {
-  return v_u64_val_at(&bc->source->tokens_line, bc->offset - 1);
+  return v_uint64_t_val_at(&bc->source->tokens_line, bc->offset - 1);
 }
 
 gab_token curr_tok(bc *bc) {
@@ -217,12 +217,12 @@ gab_token prev_tok(bc *bc) {
   return v_gab_token_val_at(&bc->source->tokens, bc->offset - 1);
 }
 
-s_i8 prev_src(bc *bc) {
-  return v_s_i8_val_at(&bc->source->tokens_src, bc->offset - 1);
+s_int8_t prev_src(bc *bc) {
+  return v_s_int8_t_val_at(&bc->source->tokens_src, bc->offset - 1);
 }
 
-s_i8 trim_prev_src(bc *bc) {
-  s_i8 message = prev_src(bc);
+s_int8_t trim_prev_src(bc *bc) {
+  s_int8_t message = prev_src(bc);
   // SKip the ':' at the beginning
   message.data++;
   message.len--;
@@ -234,8 +234,8 @@ gab_value prev_id(gab_eg *gab, bc *bc) {
   return __gab_obj(gab_obj_string_create(gab, prev_src(bc)));
 }
 
-static inline i32 peek_ctx(bc *bc, context_k kind, u8 depth) {
-  i32 idx = bc->ncontext - 1;
+static inline int32_t peek_ctx(bc *bc, context_k kind, uint8_t depth) {
+  int32_t idx = bc->ncontext - 1;
 
   while (idx >= 0) {
     if (bc->contexts[idx].kind == kind)
@@ -249,11 +249,11 @@ static inline i32 peek_ctx(bc *bc, context_k kind, u8 depth) {
 }
 
 static inline gab_mod *mod(bc *bc) {
-  i32 frame = peek_ctx(bc, kFRAME, 0);
+  int32_t frame = peek_ctx(bc, kFRAME, 0);
   return bc->contexts[frame].as.frame.mod;
 }
 
-static inline u16 add_constant(gab_mod *mod, gab_value value) {
+static inline uint16_t add_constant(gab_mod *mod, gab_value value) {
   return gab_mod_add_constant(mod, value);
 }
 
@@ -261,11 +261,11 @@ static inline void push_op(bc *bc, gab_opcode op) {
   gab_mod_push_op(mod(bc), op, prev_tok(bc), prev_line(bc), prev_src(bc));
 }
 
-static inline void push_byte(bc *bc, u8 data) {
+static inline void push_byte(bc *bc, uint8_t data) {
   gab_mod_push_byte(mod(bc), data, prev_tok(bc), prev_line(bc), prev_src(bc));
 }
 
-static inline void push_shift(bc *bc, u8 n) {
+static inline void push_shift(bc *bc, uint8_t n) {
   if (n <= 1)
     return;
 
@@ -274,38 +274,38 @@ static inline void push_shift(bc *bc, u8 n) {
   push_byte(bc, n);
 }
 
-static inline void push_pop(bc *bc, u8 n) {
+static inline void push_pop(bc *bc, uint8_t n) {
   gab_mod_push_pop(mod(bc), n, prev_tok(bc), prev_line(bc), prev_src(bc));
 }
 
-static inline void push_store_local(bc *bc, u8 local) {
+static inline void push_store_local(bc *bc, uint8_t local) {
   gab_mod_push_store_local(mod(bc), local, prev_tok(bc), prev_line(bc),
                            prev_src(bc));
 }
 
-static inline void push_load_local(bc *bc, u8 local) {
+static inline void push_load_local(bc *bc, uint8_t local) {
   gab_mod_push_load_local(mod(bc), local, prev_tok(bc), prev_line(bc),
                           prev_src(bc));
 }
 
-static inline void push_load_upvalue(bc *bc, u8 upv) {
+static inline void push_load_upvalue(bc *bc, uint8_t upv) {
   gab_mod_push_load_upvalue(mod(bc), upv, prev_tok(bc), prev_line(bc),
                             prev_src(bc));
 }
 
-static inline void push_short(bc *bc, u16 data) {
+static inline void push_short(bc *bc, uint16_t data) {
   gab_mod_push_short(mod(bc), data, prev_tok(bc), prev_line(bc), prev_src(bc));
 }
 
-static inline u16 peek_slot(bc *bc) {
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+static inline uint16_t peek_slot(bc *bc) {
+  int32_t ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
   return f->next_slot;
 }
 
-static inline void push_slot(bc *bc, u16 n) {
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+static inline void push_slot(bc *bc, uint16_t n) {
+  int32_t ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
   if (f->next_slot + n >= UINT16_MAX) {
@@ -320,8 +320,8 @@ static inline void push_slot(bc *bc, u16 n) {
     f->nslots = f->next_slot;
 }
 
-static inline void pop_slot(bc *bc, u16 n) {
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+static inline void pop_slot(bc *bc, uint16_t n) {
+  int32_t ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
   if (f->next_slot - n < 0) {
@@ -333,8 +333,8 @@ static inline void pop_slot(bc *bc, u16 n) {
   f->next_slot -= n;
 }
 
-static void initialize_local(bc *bc, u8 local) {
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+static void initialize_local(bc *bc, uint8_t local) {
+  int32_t ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
   if (f->local_depths[local] != -1)
@@ -346,8 +346,8 @@ static void initialize_local(bc *bc, u8 local) {
 /* Returns COMP_ERR if an error is encountered, and otherwise the offset of the
  * local.
  */
-static i32 add_local(gab_eg *gab, bc *bc, gab_value name, u8 flags) {
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+static int32_t add_local(gab_eg *gab, bc *bc, gab_value name, uint8_t flags) {
+  int32_t ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
   if (f->nlocals == GAB_LOCAL_MAX) {
@@ -355,7 +355,7 @@ static i32 add_local(gab_eg *gab, bc *bc, gab_value name, u8 flags) {
     return COMP_ERR;
   }
 
-  u8 local = f->next_local;
+  uint8_t local = f->next_local;
   f->local_names[local] = add_constant(mod(bc), name);
   f->local_depths[local] = -1;
   f->local_flags[local] = flags;
@@ -369,11 +369,12 @@ static i32 add_local(gab_eg *gab, bc *bc, gab_value name, u8 flags) {
 /* Returns COMP_ERR if an error is encountered, and otherwise the offset of the
  * upvalue.
  */
-static i32 add_upvalue(bc *bc, u32 depth, u8 index, u8 flags) {
-  i32 ctx = peek_ctx(bc, kFRAME, depth);
+static int32_t add_upvalue(bc *bc, uint32_t depth, uint8_t index,
+                           uint8_t flags) {
+  int32_t ctx = peek_ctx(bc, kFRAME, depth);
 
   frame *f = &bc->contexts[ctx].as.frame;
-  u16 count = f->nupvalues;
+  uint16_t count = f->nupvalues;
 
   // Don't pull redundant upvalues
   for (int i = 0; i < count; i++) {
@@ -398,8 +399,9 @@ static i32 add_upvalue(bc *bc, u32 depth, u8 index, u8 flags) {
  * COMP_LOCAL_NOT_FOUND if no matching local is found,
  * and otherwise the offset of the local.
  */
-static i32 resolve_local(gab_eg *gab, bc *bc, gab_value name, u8 depth) {
-  i32 ctx = peek_ctx(bc, kFRAME, depth);
+static int32_t resolve_local(gab_eg *gab, bc *bc, gab_value name,
+                             uint8_t depth) {
+  int32_t ctx = peek_ctx(bc, kFRAME, depth);
 
   if (ctx < 0) {
     return COMP_LOCAL_NOT_FOUND;
@@ -407,7 +409,7 @@ static i32 resolve_local(gab_eg *gab, bc *bc, gab_value name, u8 depth) {
 
   frame *f = &bc->contexts[ctx].as.frame;
 
-  for (i32 local = f->next_local - 1; local >= 0; local--) {
+  for (int32_t local = f->next_local - 1; local >= 0; local--) {
     gab_value other_local_name =
         v_gab_constant_val_at(&f->mod->constants, f->local_names[local]);
 
@@ -427,18 +429,19 @@ static i32 resolve_local(gab_eg *gab, bc *bc, gab_value name, u8 depth) {
  * COMP_UPVALUE_NOT_FOUND if no matching upvalue is found,
  * and otherwise the offset of the upvalue.
  */
-static i32 resolve_upvalue(gab_eg *gab, bc *bc, gab_value name, u8 depth) {
+static int32_t resolve_upvalue(gab_eg *gab, bc *bc, gab_value name,
+                               uint8_t depth) {
   if (depth >= bc->ncontext) {
     return COMP_UPVALUE_NOT_FOUND;
   }
 
-  i32 local = resolve_local(gab, bc, name, depth + 1);
+  int32_t local = resolve_local(gab, bc, name, depth + 1);
 
   if (local >= 0) {
-    i32 ctx = peek_ctx(bc, kFRAME, depth + 1);
+    int32_t ctx = peek_ctx(bc, kFRAME, depth + 1);
     frame *f = &bc->contexts[ctx].as.frame;
 
-    u8 flags = f->local_flags[local] |= fCAPTURED;
+    uint8_t flags = f->local_flags[local] |= fCAPTURED;
 
     if (flags & fMUTABLE) {
       compiler_error(bc, GAB_CAPTURED_MUTABLE, "");
@@ -448,12 +451,12 @@ static i32 resolve_upvalue(gab_eg *gab, bc *bc, gab_value name, u8 depth) {
     return add_upvalue(bc, depth, local, flags | fLOCAL);
   }
 
-  i32 upvalue = resolve_upvalue(gab, bc, name, depth + 1);
+  int32_t upvalue = resolve_upvalue(gab, bc, name, depth + 1);
   if (upvalue >= 0) {
-    i32 ctx = peek_ctx(bc, kFRAME, depth + 1);
+    int32_t ctx = peek_ctx(bc, kFRAME, depth + 1);
     frame *f = &bc->contexts[ctx].as.frame;
 
-    u8 flags = f->upv_flags[upvalue];
+    uint8_t flags = f->upv_flags[upvalue];
     return add_upvalue(bc, depth, upvalue, flags & ~fLOCAL);
   }
 
@@ -465,8 +468,9 @@ static i32 resolve_upvalue(gab_eg *gab, bc *bc, gab_value name, u8 depth) {
  * COMP_RESOLVED_TO_LOCAL if the id was a local, and
  * COMP_RESOLVED_TO_UPVALUE if the id was an upvalue.
  */
-static i32 resolve_id(gab_eg *gab, bc *bc, gab_value name, u8 *value_in) {
-  i32 arg = resolve_local(gab, bc, name, 0);
+static int32_t resolve_id(gab_eg *gab, bc *bc, gab_value name,
+                          uint8_t *value_in) {
+  int32_t arg = resolve_local(gab, bc, name, 0);
 
   if (arg == COMP_ERR)
     return arg;
@@ -481,36 +485,36 @@ static i32 resolve_id(gab_eg *gab, bc *bc, gab_value name, u8 *value_in) {
       return COMP_ID_NOT_FOUND;
 
     if (value_in)
-      *value_in = (u8)arg;
+      *value_in = (uint8_t)arg;
     return COMP_RESOLVED_TO_UPVALUE;
   }
 
   if (value_in)
-    *value_in = (u8)arg;
+    *value_in = (uint8_t)arg;
   return COMP_RESOLVED_TO_LOCAL;
 }
 
-// static inline i32 peek_scope(bc *bc) {
-//   i32 ctx = peek_ctx(bc, kFRAME, 0);
+// static inline int32_t peek_scope(bc *bc) {
+//   int32_t ctx = peek_ctx(bc, kFRAME, 0);
 //   frame *f = &bc->contexts[ctx].as.frame;
 //   return f->scope_depth;
 // }
 
 static void push_scope(bc *bc) {
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+  int32_t ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
   f->scope_depth++;
 }
 
 static void pop_scope(bc *bc) {
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+  int32_t ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
   f->scope_depth--;
 
-  u8 slots = 0;
+  uint8_t slots = 0;
   while (f->next_local > 1) {
-    u8 local = f->next_local - 1;
+    uint8_t local = f->next_local - 1;
 
     if (f->local_depths[local] <= f->scope_depth)
       break;
@@ -525,11 +529,11 @@ static void pop_scope(bc *bc) {
   push_byte(bc, slots);
 }
 
-static inline boolean match_ctx(bc *bc, context_k kind) {
+static inline bool match_ctx(bc *bc, context_k kind) {
   return bc->contexts[bc->ncontext - 1].kind == kind;
 }
 
-static inline i32 pop_ctx(bc *bc, context_k kind) {
+static inline int32_t pop_ctx(bc *bc, context_k kind) {
   while (bc->contexts[bc->ncontext - 1].kind != kind) {
     if (bc->ncontext == 0) {
       compiler_error(bc, GAB_PANIC,
@@ -545,7 +549,7 @@ static inline i32 pop_ctx(bc *bc, context_k kind) {
   return COMP_OK;
 }
 
-static inline i32 push_ctx(bc *bc, context_k kind) {
+static inline int32_t push_ctx(bc *bc, context_k kind) {
   if (bc->ncontext == UINT8_MAX) {
     compiler_error(bc, GAB_PANIC, "Too many nested contexts");
     return COMP_ERR;
@@ -558,7 +562,7 @@ static inline i32 push_ctx(bc *bc, context_k kind) {
 }
 
 static gab_mod *push_ctxframe(gab_eg *gab, bc *bc, gab_value name) {
-  i32 ctx = push_ctx(bc, kFRAME);
+  int32_t ctx = push_ctx(bc, kFRAME);
 
   if (ctx < 0)
     return NULL;
@@ -580,13 +584,13 @@ static gab_mod *push_ctxframe(gab_eg *gab, bc *bc, gab_value name) {
 }
 
 static gab_obj_block_proto *pop_ctxframe(gab_eg *gab, bc *bc) {
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+  int32_t ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
-  u8 nupvalues = f->nupvalues;
-  u8 nslots = f->nslots;
-  u8 nargs = f->narguments;
-  u8 nlocals = f->nlocals;
+  uint8_t nupvalues = f->nupvalues;
+  uint8_t nslots = f->nslots;
+  uint8_t nargs = f->narguments;
+  uint8_t nlocals = f->nlocals;
 
   gab_obj_block_proto *p =
       gab_obj_prototype_create(gab, f->mod, nargs, nslots, nlocals, nupvalues,
@@ -601,20 +605,21 @@ static gab_obj_block_proto *pop_ctxframe(gab_eg *gab, bc *bc) {
 }
 
 gab_compile_rule get_rule(gab_token k);
-i32 compile_exp_prec(gab_eg *gab, bc *bc, prec_k prec);
-i32 compile_expression(gab_eg *gab, bc *bc);
-i32 compile_tuple(gab_eg *gab, bc *bc, u8 want, boolean *mv_out);
+int32_t compile_exp_prec(gab_eg *gab, bc *bc, prec_k prec);
+int32_t compile_expression(gab_eg *gab, bc *bc);
+int32_t compile_tuple(gab_eg *gab, bc *bc, uint8_t want, bool *mv_out);
 
 //---------------- Compiling Helpers -------------------
 /*
   These functions consume tokens and can emit bytes.
 */
 
-static i32 compile_local(gab_eg *gab, bc *bc, gab_value name, u8 flags) {
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+static int32_t compile_local(gab_eg *gab, bc *bc, gab_value name,
+                             uint8_t flags) {
+  int32_t ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
-  for (i32 local = f->next_local - 1; local >= 0; local--) {
+  for (int32_t local = f->next_local - 1; local >= 0; local--) {
     if (f->local_depths[local] != -1 &&
         f->local_depths[local] < f->scope_depth) {
       break;
@@ -632,10 +637,10 @@ static i32 compile_local(gab_eg *gab, bc *bc, gab_value name, u8 flags) {
   return add_local(gab, bc, name, flags);
 }
 
-i32 compile_parameters(gab_eg *gab, bc *bc) {
-  i32 mv = -1;
-  i32 result = 0;
-  u8 narguments = 0;
+int32_t compile_parameters(gab_eg *gab, bc *bc) {
+  int32_t mv = -1;
+  int32_t result = 0;
+  uint8_t narguments = 0;
 
   if (push_ctx(bc, kTUPLE) < 0)
     return COMP_ERR;
@@ -671,11 +676,11 @@ i32 compile_parameters(gab_eg *gab, bc *bc) {
       if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
         return COMP_ERR;
 
-      s_i8 name = prev_src(bc);
+      s_int8_t name = prev_src(bc);
 
       gab_value val_name = __gab_obj(gab_obj_string_create(gab, name));
 
-      i32 local = compile_local(gab, bc, val_name, 0);
+      int32_t local = compile_local(gab, bc, val_name, 0);
 
       if (local < 0)
         return COMP_ERR;
@@ -710,14 +715,14 @@ fin:
     gab_mod_push_pack(mod(bc), mv, narguments - mv, prev_tok(bc), prev_line(bc),
                       prev_src(bc));
 
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+  int32_t ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
   f->narguments = mv >= 0 ? VAR_EXP : narguments;
   return f->narguments;
 }
 
-static inline i32 skip_newlines(bc *bc) {
+static inline int32_t skip_newlines(bc *bc) {
   while (match_token(bc, TOKEN_NEWLINE)) {
     if (eat_token(bc) < 0)
       return COMP_ERR;
@@ -726,12 +731,12 @@ static inline i32 skip_newlines(bc *bc) {
   return COMP_OK;
 }
 
-static inline i32 optional_newline(bc *bc) {
+static inline int32_t optional_newline(bc *bc) {
   match_and_eat_token(bc, TOKEN_NEWLINE);
   return COMP_OK;
 }
 
-i32 compile_expressions_body(gab_eg *gab, bc *bc) {
+int32_t compile_expressions_body(gab_eg *gab, bc *bc) {
   if (skip_newlines(bc) < 0)
     return COMP_ERR;
 
@@ -768,10 +773,10 @@ i32 compile_expressions_body(gab_eg *gab, bc *bc) {
   return COMP_OK;
 }
 
-i32 compile_expressions(gab_eg *gab, bc *bc) {
+int32_t compile_expressions(gab_eg *gab, bc *bc) {
   push_scope(bc);
 
-  u64 line = prev_line(bc);
+  uint64_t line = prev_line(bc);
 
   if (compile_expressions_body(gab, bc) < 0)
     return COMP_ERR;
@@ -788,8 +793,8 @@ i32 compile_expressions(gab_eg *gab, bc *bc) {
   return COMP_OK;
 }
 
-i32 compile_block_body(gab_eg *gab, bc *bc) {
-  i32 result = compile_expressions(gab, bc);
+int32_t compile_block_body(gab_eg *gab, bc *bc) {
+  int32_t result = compile_expressions(gab, bc);
 
   if (result < 0)
     return COMP_ERR;
@@ -803,7 +808,7 @@ i32 compile_block_body(gab_eg *gab, bc *bc) {
   return COMP_OK;
 }
 
-i32 compile_message_spec(gab_eg *gab, bc *bc) {
+int32_t compile_message_spec(gab_eg *gab, bc *bc) {
   if (match_and_eat_token(bc, TOKEN_LBRACE)) {
 
     if (match_and_eat_token(bc, TOKEN_RBRACE)) {
@@ -828,10 +833,10 @@ i32 compile_message_spec(gab_eg *gab, bc *bc) {
   return COMP_ERR;
 }
 
-i32 compile_block(gab_eg *gab, bc *bc) {
+int32_t compile_block(gab_eg *gab, bc *bc) {
   push_ctxframe(gab, bc, gab_string(gab, "anonymous"));
 
-  i32 narguments = compile_parameters(gab, bc);
+  int32_t narguments = compile_parameters(gab, bc);
 
   if (narguments < 0)
     return COMP_ERR;
@@ -849,13 +854,13 @@ i32 compile_block(gab_eg *gab, bc *bc) {
   return COMP_OK;
 }
 
-i32 compile_message(gab_eg *gab, bc *bc, gab_value name) {
+int32_t compile_message(gab_eg *gab, bc *bc, gab_value name) {
   if (compile_message_spec(gab, bc) < 0)
     return COMP_ERR;
 
   push_ctxframe(gab, bc, name);
 
-  i32 narguments = compile_parameters(gab, bc);
+  int32_t narguments = compile_parameters(gab, bc);
 
   if (narguments < 0)
     return COMP_ERR;
@@ -870,25 +875,25 @@ i32 compile_message(gab_eg *gab, bc *bc, gab_value name) {
   push_short(bc, add_constant(mod(bc), __gab_obj(p)));
 
   gab_obj_message *m = gab_obj_message_create(gab, name);
-  u16 func_constant = add_constant(mod(bc), __gab_obj(m));
+  uint16_t func_constant = add_constant(mod(bc), __gab_obj(m));
   push_short(bc, func_constant);
 
   push_slot(bc, 1);
   return COMP_OK;
 }
 
-i32 compile_expression(gab_eg *gab, bc *bc) {
+int32_t compile_expression(gab_eg *gab, bc *bc) {
   return compile_exp_prec(gab, bc, kASSIGNMENT);
 }
 
-i32 compile_tuple(gab_eg *gab, bc *bc, u8 want, boolean *mv_out) {
+int32_t compile_tuple(gab_eg *gab, bc *bc, uint8_t want, bool *mv_out) {
   if (push_ctx(bc, kTUPLE) < 0)
     return COMP_ERR;
 
-  u8 have = 0;
-  boolean mv;
+  uint8_t have = 0;
+  bool mv;
 
-  i32 result;
+  int32_t result;
   do {
     if (optional_newline(bc) < 0)
       return COMP_ERR;
@@ -953,29 +958,29 @@ i32 compile_tuple(gab_eg *gab, bc *bc, u8 want, boolean *mv_out) {
   return have;
 }
 
-i32 add_message_constant(gab_eg *gab, gab_mod *mod, gab_value name) {
+int32_t add_message_constant(gab_eg *gab, gab_mod *mod, gab_value name) {
   gab_obj_message *f = gab_obj_message_create(gab, name);
   return add_constant(mod, __gab_obj(f));
 }
 
-i32 add_string_constant(gab_eg *gab, gab_mod *mod, s_i8 str) {
+int32_t add_string_constant(gab_eg *gab, gab_mod *mod, s_int8_t str) {
   gab_obj_string *obj = gab_obj_string_create(gab, str);
   return add_constant(mod, __gab_obj(obj));
 }
 
-i32 compile_rec_tup_internal_item(gab_eg *gab, bc *bc, u8 index) {
+int32_t compile_rec_tup_internal_item(gab_eg *gab, bc *bc, uint8_t index) {
   return compile_expression(gab, bc);
 }
 
-i32 compile_rec_tup_internals(gab_eg *gab, bc *bc, boolean *mv_out) {
-  u8 size = 0;
+int32_t compile_rec_tup_internals(gab_eg *gab, bc *bc, bool *mv_out) {
+  uint8_t size = 0;
 
   if (skip_newlines(bc) < 0)
     return COMP_ERR;
 
   while (!match_token(bc, TOKEN_RBRACE)) {
 
-    i32 result = compile_rec_tup_internal_item(gab, bc, size);
+    int32_t result = compile_rec_tup_internal_item(gab, bc, size);
 
     if (result < 0)
       return COMP_ERR;
@@ -995,7 +1000,7 @@ i32 compile_rec_tup_internals(gab_eg *gab, bc *bc, boolean *mv_out) {
   if (expect_token(bc, TOKEN_RBRACE) < 0)
     return COMP_ERR;
 
-  boolean mv = gab_mod_try_patch_mv(mod(bc), VAR_EXP);
+  bool mv = gab_mod_try_patch_mv(mod(bc), VAR_EXP);
 
   if (mv_out)
     *mv_out = mv;
@@ -1003,14 +1008,14 @@ i32 compile_rec_tup_internals(gab_eg *gab, bc *bc, boolean *mv_out) {
   return size - mv;
 }
 
-boolean new_local_needs_shift(v_lvalue *lvalues, u8 index) {
-  for (i32 i = 0; i < index; i++) {
+bool new_local_needs_shift(v_lvalue *lvalues, uint8_t index) {
+  for (int32_t i = 0; i < index; i++) {
     if (lvalues->data[i].kind != kNEW_LOCAL &&
         lvalues->data[i].kind != kNEW_REST_LOCAL)
       return true;
   }
 
-  for (i32 i = index; i < lvalues->len; i++) {
+  for (int32_t i = index; i < lvalues->len; i++) {
     if (lvalues->data[i].kind == kPROP || lvalues->data[i].kind == kINDEX)
       return true;
   }
@@ -1018,23 +1023,23 @@ boolean new_local_needs_shift(v_lvalue *lvalues, u8 index) {
   return false;
 }
 
-boolean rest_lvalues(v_lvalue *lvalues) {
-  u8 rest = 0;
+bool rest_lvalues(v_lvalue *lvalues) {
+  uint8_t rest = 0;
 
-  for (i32 i = 0; i < lvalues->len; i++)
+  for (int32_t i = 0; i < lvalues->len; i++)
     rest += lvalues->data[i].kind == kNEW_REST_LOCAL ||
             lvalues->data[i].kind == kEXISTING_REST_LOCAL;
 
   return rest;
 }
 
-i32 compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
-  boolean first = !match_ctx(bc, kASSIGNMENT_TARGET);
+int32_t compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
+  bool first = !match_ctx(bc, kASSIGNMENT_TARGET);
 
   if (first && push_ctx(bc, kASSIGNMENT_TARGET) < 0)
     return COMP_ERR;
 
-  i32 ctx = peek_ctx(bc, kASSIGNMENT_TARGET, 0);
+  int32_t ctx = peek_ctx(bc, kASSIGNMENT_TARGET, 0);
 
   if (ctx < 0)
     return COMP_ERR;
@@ -1046,7 +1051,7 @@ i32 compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
   if (!first)
     return COMP_OK;
 
-  u16 targets = 0;
+  uint16_t targets = 0;
 
   while (match_and_eat_token(bc, TOKEN_COMMA)) {
     if (compile_exp_prec(gab, bc, kASSIGNMENT) < 0)
@@ -1060,7 +1065,7 @@ i32 compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
     return COMP_ERR;
   }
 
-  u8 n_rest_values = rest_lvalues(lvalues);
+  uint8_t n_rest_values = rest_lvalues(lvalues);
 
   if (n_rest_values > 1) {
     compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
@@ -1068,17 +1073,17 @@ i32 compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
     return COMP_ERR;
   }
 
-  u8 want = n_rest_values ? VAR_EXP : lvalues->len;
+  uint8_t want = n_rest_values ? VAR_EXP : lvalues->len;
 
   if (expect_token(bc, TOKEN_EQUAL) < 0)
     return COMP_ERR;
 
   gab_token prop_tok = prev_tok(bc);
-  u64 prop_line = prev_line(bc);
-  s_i8 prop_src = prev_src(bc);
+  uint64_t prop_line = prev_line(bc);
+  s_int8_t prop_src = prev_src(bc);
 
-  boolean mv = false;
-  i32 have = compile_tuple(gab, bc, want, &mv);
+  bool mv = false;
+  int32_t have = compile_tuple(gab, bc, want, &mv);
 
   if (have < 0)
     return COMP_ERR;
@@ -1089,18 +1094,18 @@ i32 compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
   }
 
   if (n_rest_values) {
-    for (u8 i = 0; i < lvalues->len; i++) {
+    for (uint8_t i = 0; i < lvalues->len; i++) {
       if (lvalues->data[i].kind == kEXISTING_REST_LOCAL ||
           lvalues->data[i].kind == kNEW_REST_LOCAL) {
-        u8 before = i;
-        u8 after = lvalues->len - i - 1;
+        uint8_t before = i;
+        uint8_t after = lvalues->len - i - 1;
 
         gab_mod_push_pack(mod(bc), before, after, prop_tok, prop_line,
                           prop_src);
 
-        i32 slots = lvalues->len - have;
+        int32_t slots = lvalues->len - have;
 
-        for (u8 j = i; j < lvalues->len; j++)
+        for (uint8_t j = i; j < lvalues->len; j++)
           v_lvalue_ref_at(lvalues, j)->slot += slots;
 
         if (slots > 0)
@@ -1111,7 +1116,7 @@ i32 compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
     }
   }
 
-  for (u8 i = 0; i < lvalues->len; i++) {
+  for (uint8_t i = 0; i < lvalues->len; i++) {
     lvalue lval = v_lvalue_val_at(lvalues, lvalues->len - 1 - i);
 
     switch (lval.kind) {
@@ -1121,7 +1126,7 @@ i32 compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
         push_shift(bc, peek_slot(bc) - lval.as.local);
 
         // We've shifted a value underneath all the remaining lvalues.
-        for (u8 j = 0; j < i; j++)
+        for (uint8_t j = 0; j < i; j++)
           v_lvalue_ref_at(lvalues, j)->slot++;
       }
 
@@ -1145,9 +1150,9 @@ i32 compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
     }
   }
 
-  for (u8 i = 0; i < lvalues->len; i++) {
+  for (uint8_t i = 0; i < lvalues->len; i++) {
     lvalue lval = v_lvalue_val_at(lvalues, lvalues->len - 1 - i);
-    boolean is_last_assignment = i + 1 == lvalues->len;
+    bool is_last_assignment = i + 1 == lvalues->len;
 
     switch (lval.kind) {
     case kNEW_LOCAL:
@@ -1175,7 +1180,8 @@ i32 compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
     }
 
     case kINDEX: {
-      u16 m = add_message_constant(gab, mod(bc), gab_string(gab, mGAB_SET));
+      uint16_t m =
+          add_message_constant(gab, mod(bc), gab_string(gab, mGAB_SET));
       gab_mod_push_send(mod(bc), 2, m, false, prop_tok, prop_line, prop_src);
 
       if (!is_last_assignment)
@@ -1195,12 +1201,13 @@ i32 compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
   return COMP_OK;
 }
 
-i32 compile_var_decl(gab_eg *gab, bc *bc, u8 flags, u8 additional_local) {
-  u8 locals[16] = {additional_local};
+int32_t compile_var_decl(gab_eg *gab, bc *bc, uint8_t flags,
+                         uint8_t additional_local) {
+  uint8_t locals[16] = {additional_local};
 
-  u8 local_count = additional_local > 0;
+  uint8_t local_count = additional_local > 0;
 
-  i32 result = COMP_OK;
+  int32_t result = COMP_OK;
 
   if (match_token(bc, TOKEN_EQUAL))
     goto initializer;
@@ -1214,16 +1221,16 @@ i32 compile_var_decl(gab_eg *gab, bc *bc, u8 flags, u8 additional_local) {
     if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
       return COMP_ERR;
 
-    s_i8 name = prev_src(bc);
+    s_int8_t name = prev_src(bc);
 
     gab_value val_name = __gab_obj(gab_obj_string_create(gab, name));
 
-    i32 result = resolve_id(gab, bc, val_name, NULL);
+    int32_t result = resolve_id(gab, bc, val_name, NULL);
 
     switch (result) {
 
     case COMP_ID_NOT_FOUND: {
-      i32 loc = compile_local(gab, bc, val_name, flags);
+      int32_t loc = compile_local(gab, bc, val_name, flags);
 
       if (loc < 0)
         return COMP_ERR;
@@ -1267,7 +1274,7 @@ initializer:
   pop_slot(bc, local_count - 1);
 
   while (local_count--) {
-    u8 local = locals[local_count];
+    uint8_t local = locals[local_count];
     initialize_local(bc, local);
   }
 
@@ -1277,9 +1284,9 @@ initializer:
 }
 
 // Forward decl
-i32 compile_definition(gab_eg *gab, bc *bc, s_i8 name, s_i8 help);
+int32_t compile_definition(gab_eg *gab, bc *bc, s_int8_t name, s_int8_t help);
 
-i32 compile_rec_internal_item(gab_eg *gab, bc *bc) {
+int32_t compile_rec_internal_item(gab_eg *gab, bc *bc) {
   if (match_and_eat_token(bc, TOKEN_IDENTIFIER)) {
 
     gab_value val_name = prev_id(gab, bc);
@@ -1299,8 +1306,8 @@ i32 compile_rec_internal_item(gab_eg *gab, bc *bc) {
     }
 
     case COMP_TOKEN_NO_MATCH: {
-      u8 value_in;
-      i32 result = resolve_id(gab, bc, val_name, &value_in);
+      uint8_t value_in;
+      int32_t result = resolve_id(gab, bc, val_name, &value_in);
 
       push_slot(bc, 1);
 
@@ -1354,8 +1361,8 @@ err:
   return COMP_ERR;
 }
 
-i32 compile_rec_internals(gab_eg *gab, bc *bc) {
-  u8 size = 0;
+int32_t compile_rec_internals(gab_eg *gab, bc *bc) {
+  uint8_t size = 0;
 
   if (skip_newlines(bc) < 0)
     return COMP_ERR;
@@ -1381,8 +1388,8 @@ i32 compile_rec_internals(gab_eg *gab, bc *bc) {
   return size;
 }
 
-i32 compile_record(gab_eg *gab, bc *bc) {
-  i32 size = compile_rec_internals(gab, bc);
+int32_t compile_record(gab_eg *gab, bc *bc) {
+  int32_t size = compile_rec_internals(gab, bc);
 
   if (size < 0)
     return COMP_ERR;
@@ -1398,9 +1405,9 @@ i32 compile_record(gab_eg *gab, bc *bc) {
   return COMP_OK;
 }
 
-i32 compile_record_tuple(gab_eg *gab, bc *bc) {
-  boolean mv;
-  i32 size = compile_rec_tup_internals(gab, bc, &mv);
+int32_t compile_record_tuple(gab_eg *gab, bc *bc) {
+  bool mv;
+  int32_t size = compile_rec_tup_internals(gab, bc, &mv);
 
   if (size < 0)
     return COMP_ERR;
@@ -1415,12 +1422,12 @@ i32 compile_record_tuple(gab_eg *gab, bc *bc) {
   return COMP_OK;
 }
 
-i32 compile_definition(gab_eg *gab, bc *bc, s_i8 name, s_i8 help) {
+int32_t compile_definition(gab_eg *gab, bc *bc, s_int8_t name, s_int8_t help) {
   // A record definition
   if (match_and_eat_token(bc, TOKEN_LBRACK)) {
     gab_value val_name = __gab_obj(gab_obj_string_create(gab, name));
 
-    u8 local = add_local(gab, bc, val_name, 0);
+    uint8_t local = add_local(gab, bc, val_name, 0);
 
     if (compile_record(gab, bc) < 0)
       return COMP_ERR;
@@ -1440,7 +1447,7 @@ i32 compile_definition(gab_eg *gab, bc *bc, s_i8 name, s_i8 help) {
   if (match_token(bc, TOKEN_EQUAL) || match_token(bc, TOKEN_COMMA)) {
     gab_value val_name = __gab_obj(gab_obj_string_create(gab, name));
 
-    u8 local = add_local(gab, bc, val_name, 0);
+    uint8_t local = add_local(gab, bc, val_name, 0);
 
     if (match_and_eat_token(bc, TOKEN_COMMA) < 0)
       return COMP_ERR;
@@ -1460,7 +1467,7 @@ i32 compile_definition(gab_eg *gab, bc *bc, s_i8 name, s_i8 help) {
   gab_value val_name = __gab_obj(gab_obj_string_create(gab, name));
 
   // Create a local to store the new function in
-  u8 local = add_local(gab, bc, val_name, 0);
+  uint8_t local = add_local(gab, bc, val_name, 0);
 
   // Now compile the impl
   if (compile_message(gab, bc, val_name) < 0)
@@ -1477,13 +1484,13 @@ i32 compile_definition(gab_eg *gab, bc *bc, s_i8 name, s_i8 help) {
 
 //---------------- Compiling Expressions ------------------
 
-i32 compile_exp_blk(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_blk(gab_eg *gab, bc *bc, bool assignable) {
   return compile_block(gab, bc);
 }
 
-i32 compile_exp_then(gab_eg *gab, bc *bc, boolean assignable) {
-  u64 then_jump = gab_mod_push_jump(mod(bc), OP_JUMP_IF_FALSE, prev_tok(bc),
-                                    prev_line(bc), prev_src(bc));
+int32_t compile_exp_then(gab_eg *gab, bc *bc, bool assignable) {
+  uint64_t then_jump = gab_mod_push_jump(
+      mod(bc), OP_JUMP_IF_FALSE, prev_tok(bc), prev_line(bc), prev_src(bc));
 
   pop_slot(bc, 1);
 
@@ -1500,9 +1507,9 @@ i32 compile_exp_then(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_exp_else(gab_eg *gab, bc *bc, boolean assignable) {
-  u64 then_jump = gab_mod_push_jump(mod(bc), OP_JUMP_IF_TRUE, prev_tok(bc),
-                                    prev_line(bc), prev_src(bc));
+int32_t compile_exp_else(gab_eg *gab, bc *bc, bool assignable) {
+  uint64_t then_jump = gab_mod_push_jump(mod(bc), OP_JUMP_IF_TRUE, prev_tok(bc),
+                                         prev_line(bc), prev_src(bc));
 
   pop_slot(bc, 1);
 
@@ -1519,12 +1526,12 @@ i32 compile_exp_else(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_exp_mch(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_mch(gab_eg *gab, bc *bc, bool assignable) {
   if (skip_newlines(bc) < 0)
     return COMP_ERR;
 
-  u64 next = 0;
-  v_u64 done_jumps = {0};
+  uint64_t next = 0;
+  v_uint64_t done_jumps = {0};
 
   while (!match_and_eat_token(bc, TOKEN_ELSE)) {
     if (next != 0)
@@ -1558,8 +1565,9 @@ i32 compile_exp_mch(gab_eg *gab, bc *bc, boolean assignable) {
     pop_slot(bc, 1);
 
     // Push a jump out of the match statement at the end of every case.
-    v_u64_push(&done_jumps, gab_mod_push_jump(mod(bc), OP_JUMP, prev_tok(bc),
-                                              prev_line(bc), prev_src(bc)));
+    v_uint64_t_push(&done_jumps,
+                    gab_mod_push_jump(mod(bc), OP_JUMP, prev_tok(bc),
+                                      prev_line(bc), prev_src(bc)));
   }
 
   // If none of the cases match, the last jump should end up here.
@@ -1579,24 +1587,24 @@ i32 compile_exp_mch(gab_eg *gab, bc *bc, boolean assignable) {
 
   pop_slot(bc, 1);
 
-  for (i32 i = 0; i < done_jumps.len; i++) {
+  for (int32_t i = 0; i < done_jumps.len; i++) {
     // Patch all the jumps to the end of the match expression.
-    gab_mod_patch_jump(mod(bc), v_u64_val_at(&done_jumps, i));
+    gab_mod_patch_jump(mod(bc), v_uint64_t_val_at(&done_jumps, i));
   }
 
-  v_u64_destroy(&done_jumps);
+  v_uint64_t_destroy(&done_jumps);
 
   push_slot(bc, 1);
 
   return COMP_OK;
 }
 
-i32 compile_exp_bin(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_bin(gab_eg *gab, bc *bc, bool assignable) {
   gab_token op = prev_tok(bc);
-  u64 line = prev_line(bc);
-  s_i8 src = prev_src(bc);
+  uint64_t line = prev_line(bc);
+  s_int8_t src = prev_src(bc);
 
-  u16 m;
+  uint16_t m;
 
   switch (op) {
   case TOKEN_MINUS:
@@ -1661,7 +1669,7 @@ i32 compile_exp_bin(gab_eg *gab, bc *bc, boolean assignable) {
     return COMP_ERR;
   }
 
-  i32 result = compile_exp_prec(gab, bc, get_rule(op).prec + 1);
+  int32_t result = compile_exp_prec(gab, bc, get_rule(op).prec + 1);
 
   pop_slot(bc, 1);
 
@@ -1672,10 +1680,10 @@ i32 compile_exp_bin(gab_eg *gab, bc *bc, boolean assignable) {
   return VAR_EXP;
 }
 
-i32 compile_exp_una(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_una(gab_eg *gab, bc *bc, bool assignable) {
   gab_token op = prev_tok(bc);
 
-  i32 result = compile_exp_prec(gab, bc, kUNARY);
+  int32_t result = compile_exp_prec(gab, bc, kUNARY);
 
   if (result < 0)
     return COMP_ERR;
@@ -1700,7 +1708,7 @@ i32 compile_exp_una(gab_eg *gab, bc *bc, boolean assignable) {
   }
 }
 
-i32 encode_codepoint(i8 *out, u32 utf) {
+int32_t encode_codepoint(int8_t *out, uint32_t utf) {
   if (utf <= 0x7F) {
     // Plain ASCII
     out[0] = (char)utf;
@@ -1735,15 +1743,15 @@ i32 encode_codepoint(i8 *out, u32 utf) {
 /*
  * Returns null if an error occured.
  */
-a_i8 *parse_raw_str(bc *bc, s_i8 raw_str) {
+a_int8_t *parse_raw_str(bc *bc, s_int8_t raw_str) {
   // The parsed string will be at most as long as the raw string.
   // (\n -> one char)
-  i8 buffer[raw_str.len];
-  u64 buf_end = 0;
+  int8_t buffer[raw_str.len];
+  uint64_t buf_end = 0;
 
   // Skip the first and last character (")
-  for (u64 i = 1; i < raw_str.len - 1; i++) {
-    i8 c = raw_str.data[i];
+  for (uint64_t i = 1; i < raw_str.len - 1; i++) {
+    int8_t c = raw_str.data[i];
 
     if (c == '\\') {
 
@@ -1767,7 +1775,7 @@ a_i8 *parse_raw_str(bc *bc, s_i8 raw_str) {
 
         i++;
 
-        u8 cpl = 0;
+        uint8_t cpl = 0;
         char codepoint[8] = {0};
 
         while (raw_str.data[i] != ']') {
@@ -1780,9 +1788,9 @@ a_i8 *parse_raw_str(bc *bc, s_i8 raw_str) {
 
         i++;
 
-        u32 cp = strtol(codepoint, NULL, 16);
+        uint32_t cp = strtol(codepoint, NULL, 16);
 
-        i32 result = encode_codepoint(buffer + buf_end, cp);
+        int32_t result = encode_codepoint(buffer + buf_end, cp);
 
         buf_end += result;
 
@@ -1802,24 +1810,24 @@ a_i8 *parse_raw_str(bc *bc, s_i8 raw_str) {
     }
   }
 
-  return a_i8_create(buffer, buf_end);
+  return a_int8_t_create(buffer, buf_end);
 };
 
 /*
  * Returns COMP_ERR if an error occured, otherwise the size of the expressions
  */
-i32 compile_exp_str(gab_eg *gab, bc *bc, boolean assignable) {
-  a_i8 *parsed = parse_raw_str(bc, prev_src(bc));
+int32_t compile_exp_str(gab_eg *gab, bc *bc, bool assignable) {
+  a_int8_t *parsed = parse_raw_str(bc, prev_src(bc));
 
   if (parsed == NULL) {
     compiler_error(bc, GAB_MALFORMED_STRING, "");
     return COMP_ERR;
   }
 
-  u16 k =
-      add_string_constant(gab, mod(bc), s_i8_create(parsed->data, parsed->len));
+  uint16_t k = add_string_constant(gab, mod(bc),
+                                   s_int8_t_create(parsed->data, parsed->len));
 
-  a_i8_destroy(parsed);
+  a_int8_t_destroy(parsed);
 
   push_op(bc, OP_CONSTANT);
   push_short(bc, k);
@@ -1832,9 +1840,9 @@ i32 compile_exp_str(gab_eg *gab, bc *bc, boolean assignable) {
 /*
  * Returns COMP_ERR if an error occured, otherwise the size of the expressions
  */
-i32 compile_exp_itp(gab_eg *gab, bc *bc, boolean assignable) {
-  i32 result = COMP_OK;
-  u8 n = 0;
+int32_t compile_exp_itp(gab_eg *gab, bc *bc, bool assignable) {
+  int32_t result = COMP_OK;
+  uint8_t n = 0;
   do {
     if (compile_exp_str(gab, bc, assignable) < 0)
       return COMP_ERR;
@@ -1871,7 +1879,7 @@ fin:
   return COMP_OK;
 }
 
-i32 compile_exp_grp(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_grp(gab_eg *gab, bc *bc, bool assignable) {
   if (compile_expression(gab, bc) < 0)
     return COMP_ERR;
 
@@ -1881,37 +1889,37 @@ i32 compile_exp_grp(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_exp_num(gab_eg *gab, bc *bc, boolean assignable) {
-  f64 num = strtod((char *)prev_src(bc).data, NULL);
+int32_t compile_exp_num(gab_eg *gab, bc *bc, bool assignable) {
+  double num = strtod((char *)prev_src(bc).data, NULL);
   push_op(bc, OP_CONSTANT);
   push_short(bc, add_constant(mod(bc), gab_number(num)));
   push_slot(bc, 1);
   return COMP_OK;
 }
 
-i32 compile_exp_bool(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_bool(gab_eg *gab, bc *bc, bool assignable) {
   push_op(bc, prev_tok(bc) == TOKEN_TRUE ? OP_PUSH_TRUE : OP_PUSH_FALSE);
   push_slot(bc, 1);
   return COMP_OK;
 }
 
-i32 compile_exp_nil(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_nil(gab_eg *gab, bc *bc, bool assignable) {
   push_op(bc, OP_PUSH_NIL);
   push_slot(bc, 1);
   return COMP_OK;
 }
 
-i32 compile_exp_def(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_def(gab_eg *gab, bc *bc, bool assignable) {
   size_t help_cmt_line = prev_line(bc);
   // 1 indexed, so correct for that if not the first line
   if (help_cmt_line > 0)
     help_cmt_line--;
 
-  s_i8 help = v_s_i8_val_at(&bc->source->line_comments, help_cmt_line);
+  s_int8_t help = v_s_int8_t_val_at(&bc->source->line_comments, help_cmt_line);
 
   eat_token(bc);
 
-  s_i8 name = {0};
+  s_int8_t name = {0};
 
   switch (prev_tok(bc)) {
   case TOKEN_IDENTIFIER:
@@ -1963,25 +1971,25 @@ i32 compile_exp_def(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_exp_arr(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_arr(gab_eg *gab, bc *bc, bool assignable) {
   return compile_record_tuple(gab, bc);
 }
 
-i32 compile_exp_rec(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_rec(gab_eg *gab, bc *bc, bool assignable) {
   return compile_record(gab, bc);
 }
 
-i32 compile_exp_ipm(gab_eg *gab, bc *bc, boolean assignable) {
-  s_i8 offset = trim_prev_src(bc);
+int32_t compile_exp_ipm(gab_eg *gab, bc *bc, bool assignable) {
+  s_int8_t offset = trim_prev_src(bc);
 
-  u32 local = strtoul((char *)offset.data, NULL, 10);
+  uint32_t local = strtoul((char *)offset.data, NULL, 10);
 
   if (local > GAB_LOCAL_MAX) {
     compiler_error(bc, GAB_TOO_MANY_LOCALS, "");
     return COMP_ERR;
   }
 
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+  int32_t ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
   if (local - 1 >= f->narguments) {
@@ -1992,14 +2000,14 @@ i32 compile_exp_ipm(gab_eg *gab, bc *bc, boolean assignable) {
       return COMP_ERR;
     }
 
-    u8 missing_locals = local - f->narguments;
+    uint8_t missing_locals = local - f->narguments;
 
     f->narguments += missing_locals;
 
     push_slot(bc, missing_locals);
 
-    for (i32 i = 0; i < missing_locals; i++) {
-      i32 pad_local = compile_local(gab, bc, gab_number(local - i), 0);
+    for (int32_t i = 0; i < missing_locals; i++) {
+      int32_t pad_local = compile_local(gab, bc, gab_number(local - i), 0);
 
       if (pad_local < 0)
         return COMP_ERR;
@@ -2037,14 +2045,14 @@ i32 compile_exp_ipm(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_exp_spd(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_spd(gab_eg *gab, bc *bc, bool assignable) {
   if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
     return COMP_ERR;
 
   gab_value id = prev_id(gab, bc);
 
-  u8 index;
-  i32 result = resolve_id(gab, bc, id, &index);
+  uint8_t index;
+  int32_t result = resolve_id(gab, bc, id, &index);
 
   if (assignable && !match_ctx(bc, kTUPLE)) {
     switch (result) {
@@ -2060,7 +2068,7 @@ i32 compile_exp_spd(gab_eg *gab, bc *bc, boolean assignable) {
                                     .as.local = index,
                                 });
     case COMP_RESOLVED_TO_LOCAL: {
-      i32 ctx = peek_ctx(bc, kFRAME, 0);
+      int32_t ctx = peek_ctx(bc, kFRAME, 0);
       frame *f = &bc->contexts[ctx].as.frame;
 
       if (!(f->local_flags[index] & fMUTABLE)) {
@@ -2089,11 +2097,11 @@ i32 compile_exp_spd(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_ERR;
 }
 
-i32 compile_exp_idn(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_idn(gab_eg *gab, bc *bc, bool assignable) {
   gab_value id = prev_id(gab, bc);
 
-  u8 index;
-  i32 result = resolve_id(gab, bc, id, &index);
+  uint8_t index;
+  int32_t result = resolve_id(gab, bc, id, &index);
 
   if (assignable && !match_ctx(bc, kTUPLE)) {
     if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
@@ -2109,7 +2117,7 @@ i32 compile_exp_idn(gab_eg *gab, bc *bc, boolean assignable) {
                                   });
 
       case COMP_RESOLVED_TO_LOCAL: {
-        i32 ctx = peek_ctx(bc, kFRAME, 0);
+        int32_t ctx = peek_ctx(bc, kFRAME, 0);
         frame *f = &bc->contexts[ctx].as.frame;
 
         if (!(f->local_flags[index] & fMUTABLE)) {
@@ -2161,10 +2169,10 @@ i32 compile_exp_idn(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_exp_idx(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_idx(gab_eg *gab, bc *bc, bool assignable) {
   gab_token prop_tok = prev_tok(bc);
-  u64 prop_line = prev_line(bc);
-  s_i8 prop_src = prev_src(bc);
+  uint64_t prop_line = prev_line(bc);
+  s_int8_t prop_src = prev_src(bc);
 
   if (compile_expression(gab, bc) < 0)
     return COMP_ERR;
@@ -2182,7 +2190,7 @@ i32 compile_exp_idx(gab_eg *gab, bc *bc, boolean assignable) {
     }
   }
 
-  u16 m = add_message_constant(gab, mod(bc), gab_string(gab, mGAB_GET));
+  uint16_t m = add_message_constant(gab, mod(bc), gab_string(gab, mGAB_GET));
   gab_mod_push_send(mod(bc), 1, m, false, prop_tok, prop_line, prop_src);
 
   pop_slot(bc, 2);
@@ -2191,17 +2199,17 @@ i32 compile_exp_idx(gab_eg *gab, bc *bc, boolean assignable) {
   return VAR_EXP;
 }
 
-i32 compile_exp_dot(gab_eg *gab, bc *bc, boolean assignable) {
-  s_i8 prop_name = trim_prev_src(bc);
+int32_t compile_exp_dot(gab_eg *gab, bc *bc, bool assignable) {
+  s_int8_t prop_name = trim_prev_src(bc);
 
-  i32 prop = add_string_constant(gab, mod(bc), prop_name);
+  int32_t prop = add_string_constant(gab, mod(bc), prop_name);
 
   if (prop < 0)
     return COMP_ERR;
 
   gab_token prop_tok = prev_tok(bc);
-  u64 prop_line = prev_line(bc);
-  s_i8 prop_src = prev_src(bc);
+  uint64_t prop_line = prev_line(bc);
+  s_int8_t prop_src = prev_src(bc);
 
   if (assignable && !match_ctx(bc, kTUPLE)) {
     if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
@@ -2227,8 +2235,8 @@ i32 compile_exp_dot(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_arg_list(gab_eg *gab, bc *bc, boolean *mv_out) {
-  i32 nargs = 0;
+int32_t compile_arg_list(gab_eg *gab, bc *bc, bool *mv_out) {
+  int32_t nargs = 0;
 
   if (!match_token(bc, TOKEN_RPAREN)) {
 
@@ -2248,8 +2256,8 @@ i32 compile_arg_list(gab_eg *gab, bc *bc, boolean *mv_out) {
 #define fHAS_BRACK 2
 #define fHAS_DO 4
 
-i32 compile_arguments(gab_eg *gab, bc *bc, boolean *mv_out, u8 flags) {
-  i32 result = 0;
+int32_t compile_arguments(gab_eg *gab, bc *bc, bool *mv_out, uint8_t flags) {
+  int32_t result = 0;
   *mv_out = false;
 
   if (flags & fHAS_PAREN ||
@@ -2281,21 +2289,21 @@ i32 compile_arguments(gab_eg *gab, bc *bc, boolean *mv_out, u8 flags) {
   return result;
 }
 
-i32 compile_exp_emp(gab_eg *gab, bc *bc, boolean assignable) {
-  s_i8 message = prev_src(bc);
+int32_t compile_exp_emp(gab_eg *gab, bc *bc, bool assignable) {
+  s_int8_t message = prev_src(bc);
   gab_token tok = prev_tok(bc);
-  u64 line = prev_line(bc);
+  uint64_t line = prev_line(bc);
 
   gab_value val_name = __gab_obj(gab_obj_string_create(gab, trim_prev_src(bc)));
 
-  u16 m = add_message_constant(gab, mod(bc), val_name);
+  uint16_t m = add_message_constant(gab, mod(bc), val_name);
 
   push_op(bc, OP_PUSH_NIL);
 
   push_slot(bc, 1);
 
-  boolean mv;
-  i32 result = compile_arguments(gab, bc, &mv, 0);
+  bool mv;
+  int32_t result = compile_arguments(gab, bc, &mv, 0);
 
   if (result < 0)
     return COMP_ERR;
@@ -2312,11 +2320,11 @@ i32 compile_exp_emp(gab_eg *gab, bc *bc, boolean assignable) {
   return VAR_EXP;
 }
 
-i32 compile_exp_amp(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_amp(gab_eg *gab, bc *bc, bool assignable) {
   if (match_and_eat_token(bc, TOKEN_MESSAGE)) {
     gab_value val_name = prev_id(gab, bc);
 
-    u16 f = add_message_constant(gab, mod(bc), val_name);
+    uint16_t f = add_message_constant(gab, mod(bc), val_name);
 
     push_op(bc, OP_CONSTANT);
     push_short(bc, f);
@@ -2389,7 +2397,7 @@ i32 compile_exp_amp(gab_eg *gab, bc *bc, boolean assignable) {
     return COMP_ERR;
   }
 
-  u16 f = add_message_constant(gab, mod(bc), gab_string(gab, msg));
+  uint16_t f = add_message_constant(gab, mod(bc), gab_string(gab, msg));
 
   push_op(bc, OP_CONSTANT);
   push_short(bc, f);
@@ -2399,19 +2407,19 @@ i32 compile_exp_amp(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_exp_snd(gab_eg *gab, bc *bc, boolean assignable) {
-  s_i8 src = prev_src(bc);
+int32_t compile_exp_snd(gab_eg *gab, bc *bc, bool assignable) {
+  s_int8_t src = prev_src(bc);
   gab_token tok = prev_tok(bc);
-  u64 line = prev_line(bc);
+  uint64_t line = prev_line(bc);
 
-  s_i8 message = trim_prev_src(bc);
+  s_int8_t message = trim_prev_src(bc);
 
   gab_value val_name = __gab_obj(gab_obj_string_create(gab, message));
 
-  u16 m = add_message_constant(gab, mod(bc), val_name);
+  uint16_t m = add_message_constant(gab, mod(bc), val_name);
 
-  boolean mv = false;
-  i32 result = compile_arguments(gab, bc, &mv, 0);
+  bool mv = false;
+  int32_t result = compile_arguments(gab, bc, &mv, 0);
 
   if (result < 0)
     return COMP_ERR;
@@ -2430,13 +2438,13 @@ i32 compile_exp_snd(gab_eg *gab, bc *bc, boolean assignable) {
   return VAR_EXP;
 }
 
-i32 compile_exp_cal(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_cal(gab_eg *gab, bc *bc, bool assignable) {
   gab_token call_tok = prev_tok(bc);
-  u64 call_line = prev_line(bc);
-  s_i8 call_src = prev_src(bc);
+  uint64_t call_line = prev_line(bc);
+  s_int8_t call_src = prev_src(bc);
 
-  boolean mv = false;
-  i32 result = compile_arguments(gab, bc, &mv, fHAS_PAREN);
+  bool mv = false;
+  int32_t result = compile_arguments(gab, bc, &mv, fHAS_PAREN);
 
   if (result < 0)
     return COMP_ERR;
@@ -2448,7 +2456,7 @@ i32 compile_exp_cal(gab_eg *gab, bc *bc, boolean assignable) {
 
   pop_slot(bc, result + 1);
 
-  u16 msg = add_message_constant(gab, mod(bc), gab_string(gab, mGAB_CALL));
+  uint16_t msg = add_message_constant(gab, mod(bc), gab_string(gab, mGAB_CALL));
 
   gab_mod_push_send(mod(bc), result, msg, mv, call_tok, call_line, call_src);
 
@@ -2457,13 +2465,13 @@ i32 compile_exp_cal(gab_eg *gab, bc *bc, boolean assignable) {
   return VAR_EXP;
 }
 
-i32 compile_exp_bcal(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_bcal(gab_eg *gab, bc *bc, bool assignable) {
   gab_token call_tok = prev_tok(bc);
-  u64 call_line = prev_line(bc);
-  s_i8 call_src = prev_src(bc);
+  uint64_t call_line = prev_line(bc);
+  s_int8_t call_src = prev_src(bc);
 
-  boolean mv = false;
-  i32 result = compile_arguments(gab, bc, &mv, fHAS_DO);
+  bool mv = false;
+  int32_t result = compile_arguments(gab, bc, &mv, fHAS_DO);
 
   if (result < 0)
     return COMP_ERR;
@@ -2472,31 +2480,31 @@ i32 compile_exp_bcal(gab_eg *gab, bc *bc, boolean assignable) {
     return COMP_ERR;
   }
   pop_slot(bc, result);
-  u16 msg = add_message_constant(gab, mod(bc), gab_string(gab, mGAB_CALL));
+  uint16_t msg = add_message_constant(gab, mod(bc), gab_string(gab, mGAB_CALL));
   gab_mod_push_send(mod(bc), result, msg, mv, call_tok, call_line, call_src);
   return VAR_EXP;
 }
 
-i32 compile_exp_rcal(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_rcal(gab_eg *gab, bc *bc, bool assignable) {
   gab_token call_tok = prev_tok(bc);
-  u64 call_line = prev_line(bc);
-  s_i8 call_src = prev_src(bc);
+  uint64_t call_line = prev_line(bc);
+  s_int8_t call_src = prev_src(bc);
 
-  boolean mv = false;
-  i32 result = compile_arguments(gab, bc, &mv, fHAS_BRACK);
+  bool mv = false;
+  int32_t result = compile_arguments(gab, bc, &mv, fHAS_BRACK);
 
   pop_slot(bc, 1);
 
-  u16 msg = add_message_constant(gab, mod(bc), gab_string(gab, mGAB_CALL));
+  uint16_t msg = add_message_constant(gab, mod(bc), gab_string(gab, mGAB_CALL));
 
   gab_mod_push_send(mod(bc), result, msg, mv, call_tok, call_line, call_src);
 
   return VAR_EXP;
 }
 
-i32 compile_exp_and(gab_eg *gab, bc *bc, boolean assignable) {
-  u64 end_jump = gab_mod_push_jump(mod(bc), OP_LOGICAL_AND, prev_tok(bc),
-                                   prev_line(bc), prev_src(bc));
+int32_t compile_exp_and(gab_eg *gab, bc *bc, bool assignable) {
+  uint64_t end_jump = gab_mod_push_jump(mod(bc), OP_LOGICAL_AND, prev_tok(bc),
+                                        prev_line(bc), prev_src(bc));
 
   if (optional_newline(bc) < 0)
     return COMP_ERR;
@@ -2509,9 +2517,9 @@ i32 compile_exp_and(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_exp_or(gab_eg *gab, bc *bc, boolean assignable) {
-  u64 end_jump = gab_mod_push_jump(mod(bc), OP_LOGICAL_OR, prev_tok(bc),
-                                   prev_line(bc), prev_src(bc));
+int32_t compile_exp_or(gab_eg *gab, bc *bc, bool assignable) {
+  uint64_t end_jump = gab_mod_push_jump(mod(bc), OP_LOGICAL_OR, prev_tok(bc),
+                                        prev_line(bc), prev_src(bc));
 
   if (optional_newline(bc) < 0)
     return COMP_ERR;
@@ -2524,7 +2532,7 @@ i32 compile_exp_or(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_exp_prec(gab_eg *gab, bc *bc, prec_k prec) {
+int32_t compile_exp_prec(gab_eg *gab, bc *bc, prec_k prec) {
   if (eat_token(bc) < 0)
     return COMP_ERR;
 
@@ -2535,9 +2543,9 @@ i32 compile_exp_prec(gab_eg *gab, bc *bc, prec_k prec) {
     return COMP_ERR;
   }
 
-  boolean assignable = prec <= kASSIGNMENT;
+  bool assignable = prec <= kASSIGNMENT;
 
-  i32 have = rule.prefix(gab, bc, assignable);
+  int32_t have = rule.prefix(gab, bc, assignable);
 
   if (have < 0)
     return COMP_ERR;
@@ -2568,21 +2576,21 @@ i32 compile_exp_prec(gab_eg *gab, bc *bc, prec_k prec) {
   return have;
 }
 
-i32 compile_exp_for(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_for(gab_eg *gab, bc *bc, bool assignable) {
   push_scope(bc);
 
   gab_token tok = prev_tok(bc);
-  u64 line = prev_line(bc);
-  s_i8 src = prev_src(bc);
+  uint64_t line = prev_line(bc);
+  s_int8_t src = prev_src(bc);
 
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+  int32_t ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
-  u8 local_start = f->next_local;
-  u8 nlooplocals = 0;
-  i32 result;
+  uint8_t local_start = f->next_local;
+  uint8_t nlooplocals = 0;
+  int32_t result;
 
-  i32 mv = -1;
+  int32_t mv = -1;
 
   do {
     switch (match_and_eat_token(bc, TOKEN_DOT_DOT)) {
@@ -2595,7 +2603,7 @@ i32 compile_exp_for(gab_eg *gab, bc *bc, boolean assignable) {
 
       gab_value val_name = prev_id(gab, bc);
 
-      i32 loc = compile_local(gab, bc, val_name, 0);
+      int32_t loc = compile_local(gab, bc, val_name, 0);
 
       if (loc < 0)
         return COMP_ERR;
@@ -2627,12 +2635,12 @@ i32 compile_exp_for(gab_eg *gab, bc *bc, boolean assignable) {
 
   gab_mod_try_patch_mv(mod(bc), VAR_EXP);
 
-  u64 loop = gab_mod_push_loop(mod(bc));
+  uint64_t loop = gab_mod_push_loop(mod(bc));
 
   if (mv >= 0)
     gab_mod_push_pack(mod(bc), mv, nlooplocals - mv, tok, line, src);
 
-  u64 jump_start =
+  uint64_t jump_start =
       gab_mod_push_iter(mod(bc), local_start, nlooplocals, tok, line, src);
 
   if (compile_expressions(gab, bc) < 0)
@@ -2658,14 +2666,14 @@ i32 compile_exp_for(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_exp_lop(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_lop(gab_eg *gab, bc *bc, bool assignable) {
   push_scope(bc);
 
   gab_token tok = prev_tok(bc);
-  u64 line = prev_line(bc);
-  s_i8 src = prev_src(bc);
+  uint64_t line = prev_line(bc);
+  s_int8_t src = prev_src(bc);
 
-  u64 loop = gab_mod_push_loop(mod(bc));
+  uint64_t loop = gab_mod_push_loop(mod(bc));
 
   if (compile_expressions(gab, bc) < 0)
     return COMP_ERR;
@@ -2680,7 +2688,8 @@ i32 compile_exp_lop(gab_eg *gab, bc *bc, boolean assignable) {
     line = prev_line(bc);
     src = prev_src(bc);
 
-    u64 jump = gab_mod_push_jump(mod(bc), OP_POP_JUMP_IF_TRUE, tok, line, src);
+    uint64_t jump =
+        gab_mod_push_jump(mod(bc), OP_POP_JUMP_IF_TRUE, tok, line, src);
 
     gab_mod_patch_loop(mod(bc), loop, tok, line, src);
 
@@ -2701,8 +2710,8 @@ i32 compile_exp_lop(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_exp_sym(gab_eg *gab, bc *bc, boolean assignable) {
-  s_i8 name = trim_prev_src(bc);
+int32_t compile_exp_sym(gab_eg *gab, bc *bc, bool assignable) {
+  s_int8_t name = trim_prev_src(bc);
 
   gab_value sym = __gab_obj(gab_obj_string_create(gab, name));
 
@@ -2714,13 +2723,13 @@ i32 compile_exp_sym(gab_eg *gab, bc *bc, boolean assignable) {
   return COMP_OK;
 }
 
-i32 compile_exp_yld(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_yld(gab_eg *gab, bc *bc, bool assignable) {
 
   if (!get_rule(curr_tok(bc)).prefix) {
     gab_obj_suspense_proto *proto =
         gab_obj_suspense_proto_create(gab, mod(bc)->bytecode.len + 4, 1);
 
-    u16 kproto = add_constant(mod(bc), __gab_obj(proto));
+    uint16_t kproto = add_constant(mod(bc), __gab_obj(proto));
 
     gab_mod_push_yield(mod(bc), kproto, 0, false, prev_tok(bc), prev_line(bc),
                        prev_src(bc));
@@ -2730,8 +2739,8 @@ i32 compile_exp_yld(gab_eg *gab, bc *bc, boolean assignable) {
     return VAR_EXP;
   }
 
-  boolean mv;
-  i32 result = compile_tuple(gab, bc, VAR_EXP, &mv);
+  bool mv;
+  int32_t result = compile_tuple(gab, bc, VAR_EXP, &mv);
 
   if (result < 0)
     return COMP_ERR;
@@ -2744,7 +2753,7 @@ i32 compile_exp_yld(gab_eg *gab, bc *bc, boolean assignable) {
   gab_obj_suspense_proto *proto =
       gab_obj_suspense_proto_create(gab, mod(bc)->bytecode.len + 4, 1);
 
-  u16 kproto = add_constant(mod(bc), __gab_obj(proto));
+  uint16_t kproto = add_constant(mod(bc), __gab_obj(proto));
 
   push_slot(bc, 1);
 
@@ -2756,7 +2765,7 @@ i32 compile_exp_yld(gab_eg *gab, bc *bc, boolean assignable) {
   return VAR_EXP;
 }
 
-i32 compile_exp_rtn(gab_eg *gab, bc *bc, boolean assignable) {
+int32_t compile_exp_rtn(gab_eg *gab, bc *bc, bool assignable) {
   if (!get_rule(curr_tok(bc)).prefix) {
     push_slot(bc, 1);
 
@@ -2769,8 +2778,8 @@ i32 compile_exp_rtn(gab_eg *gab, bc *bc, boolean assignable) {
     return COMP_OK;
   }
 
-  boolean mv;
-  i32 result = compile_tuple(gab, bc, VAR_EXP, &mv);
+  bool mv;
+  int32_t result = compile_tuple(gab, bc, VAR_EXP, &mv);
 
   if (result < 0)
     return COMP_ERR;
@@ -2820,7 +2829,7 @@ const gab_compile_rule gab_bc_rules[] = {
     INFIX(bin, FACTOR, false),                // SLASH
     INFIX(bin, FACTOR, false),                // PERCENT
     NONE(),                            // COMMA
-    PREFIX(emp),       // COLON
+    NONE(),       // COLON
     PREFIX_INFIX(amp, bin, BITWISE_AND, false),           // AMPERSAND
     NONE(),           // DOLLAR
     PREFIX_INFIX(sym, dot, PROPERTY, true), // PROPERTY
@@ -2867,11 +2876,11 @@ const gab_compile_rule gab_bc_rules[] = {
 
 gab_compile_rule get_rule(gab_token k) { return gab_bc_rules[k]; }
 
-gab_value compile(gab_eg *gab, bc *bc, gab_value name, u8 narguments,
+gab_value compile(gab_eg *gab, bc *bc, gab_value name, uint8_t narguments,
                   gab_value arguments[narguments]) {
   gab_mod *new_mod = push_ctxframe(gab, bc, name);
 
-  i32 ctx = peek_ctx(bc, kFRAME, 0);
+  int32_t ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
   f->narguments = narguments;
@@ -2881,7 +2890,7 @@ gab_value compile(gab_eg *gab, bc *bc, gab_value name, u8 narguments,
 
   push_slot(bc, narguments);
 
-  for (u8 i = 0; i < narguments; i++) {
+  for (uint8_t i = 0; i < narguments; i++) {
     initialize_local(bc, add_local(gab, bc, arguments[i], 0));
   }
 
@@ -2906,29 +2915,29 @@ gab_value compile(gab_eg *gab, bc *bc, gab_value name, u8 narguments,
 }
 
 gab_value gab_bccompsend(gab_eg *gab, gab_value msg, gab_value receiver,
-                         u8 flags, u8 narguments,
+                         uint8_t flags, uint8_t narguments,
                          gab_value arguments[narguments]) {
   gab_mod *mod = gab_mod_create(gab, gab_string(gab, "send"), NULL);
 
-  u16 message = add_constant(mod, msg);
+  uint16_t message = add_constant(mod, msg);
 
-  u16 constant = add_constant(mod, receiver);
+  uint16_t constant = add_constant(mod, receiver);
 
-  gab_mod_push_op(mod, OP_CONSTANT, 0, 0, (s_i8){0});
-  gab_mod_push_short(mod, constant, 0, 0, (s_i8){0});
+  gab_mod_push_op(mod, OP_CONSTANT, 0, 0, (s_int8_t){0});
+  gab_mod_push_short(mod, constant, 0, 0, (s_int8_t){0});
 
-  for (u8 i = 0; i < narguments; i++) {
-    u16 constant = add_constant(mod, arguments[i]);
+  for (uint8_t i = 0; i < narguments; i++) {
+    uint16_t constant = add_constant(mod, arguments[i]);
 
-    gab_mod_push_op(mod, OP_CONSTANT, 0, 0, (s_i8){0});
-    gab_mod_push_short(mod, constant, 0, 0, (s_i8){0});
+    gab_mod_push_op(mod, OP_CONSTANT, 0, 0, (s_int8_t){0});
+    gab_mod_push_short(mod, constant, 0, 0, (s_int8_t){0});
   }
 
-  gab_mod_push_send(mod, narguments, message, false, 0, 0, (s_i8){0});
+  gab_mod_push_send(mod, narguments, message, false, 0, 0, (s_int8_t){0});
 
-  gab_mod_push_return(mod, 0, true, 0, 0, (s_i8){0});
+  gab_mod_push_return(mod, 0, true, 0, 0, (s_int8_t){0});
 
-  u8 nlocals = narguments + 1;
+  uint8_t nlocals = narguments + 1;
 
   gab_obj_block_proto *p = gab_obj_prototype_create(
       gab, mod, narguments, nlocals, nlocals, 0, NULL, NULL);
@@ -2940,8 +2949,9 @@ gab_value gab_bccompsend(gab_eg *gab, gab_value msg, gab_value receiver,
   return __gab_obj(main);
 }
 
-gab_value gab_bccomp(gab_eg *gab, gab_value name, s_i8 source, u8 flags,
-                     u8 narguments, gab_value arguments[narguments]) {
+gab_value gab_bccomp(gab_eg *gab, gab_value name, s_int8_t source,
+                     uint8_t flags, uint8_t narguments,
+                     gab_value arguments[narguments]) {
   bc bc;
   gab_bc_create(&bc, gab_lex(gab, (char *)source.data, source.len), flags);
 
@@ -2962,25 +2972,25 @@ static void compiler_error(bc *bc, gab_status e, const char *help_fmt, ...) {
     va_list args;
     va_start(args, help_fmt);
 
-    i32 ctx = peek_ctx(bc, kFRAME, 0);
+    int32_t ctx = peek_ctx(bc, kFRAME, 0);
     frame *f = &bc->contexts[ctx].as.frame;
 
-    s_i8 curr_token = prev_src(bc);
-    u64 line = prev_line(bc);
+    s_int8_t curr_token = prev_src(bc);
+    uint64_t line = prev_line(bc);
 
     if (line > 0)
       line--;
 
-    s_i8 curr_src;
+    s_int8_t curr_src;
 
     if (line < src->source->len) {
-      curr_src = v_s_i8_val_at(&src->lines, line);
+      curr_src = v_s_int8_t_val_at(&src->lines, line);
     } else {
-      curr_src = s_i8_cstr("");
+      curr_src = s_int8_t_cstr("");
     }
 
-    const i8 *curr_src_start = curr_src.data;
-    i32 curr_src_len = curr_src.len;
+    const int8_t *curr_src_start = curr_src.data;
+    int32_t curr_src_len = curr_src.len;
 
     while (is_whitespace(*curr_src_start)) {
       curr_src_start++;
@@ -2989,16 +2999,16 @@ static void compiler_error(bc *bc, gab_status e, const char *help_fmt, ...) {
         break;
     }
 
-    a_i8 *curr_under = a_i8_empty(curr_src_len);
+    a_int8_t *curr_under = a_int8_t_empty(curr_src_len);
 
-    const i8 *tok_start, *tok_end;
+    const int8_t *tok_start, *tok_end;
 
     tok_start = curr_token.data;
     tok_end = curr_token.data + curr_token.len;
 
     const char *tok = gab_token_names[prev_tok(bc)];
 
-    for (u8 i = 0; i < curr_under->len; i++) {
+    for (uint8_t i = 0; i < curr_under->len; i++) {
       if (curr_src_start + i >= tok_start && curr_src_start + i < tok_end)
         curr_under->data[i] = '^';
       else
@@ -3015,10 +3025,10 @@ static void compiler_error(bc *bc, gab_status e, const char *help_fmt, ...) {
             "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
             "\n\t\u2570\u2500> ",
             f->mod->name, tok, curr_box, curr_color, line + 1,
-            (i32)curr_src_len, curr_src_start, (i32)curr_under->len,
+            (int32_t)curr_src_len, curr_src_start, (int32_t)curr_under->len,
             curr_under->data);
 
-    a_i8_destroy(curr_under);
+    a_int8_t_destroy(curr_under);
 
     fprintf(stderr,
             ANSI_COLOR_YELLOW "%s. \n\n" ANSI_COLOR_RESET "\t" ANSI_COLOR_GREEN,

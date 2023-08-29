@@ -13,7 +13,7 @@ void gab_lib_pryframes(gab_eg *gab, gab_vm *vm, size_t argc,
   }
 
   if (argc == 2 && GAB_VAL_IS_NUMBER(argv[1])) {
-    u64 depth = GAB_VAL_TO_NUMBER(argv[1]);
+    uint64_t depth = GAB_VAL_TO_NUMBER(argv[1]);
 
     gab_pry(vm, depth);
 
@@ -39,7 +39,7 @@ gab_value gab_mod(gab_eg *gab, gab_vm *vm) {
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(names));
 
-  for (u8 i = 0; i < LEN_CARRAY(values); i++) {
+  for (uint8_t i = 0; i < LEN_CARRAY(values); i++) {
     gab_specialize(gab, vm, names[i], receivers[i], values[i]);
     gab_val_dref(vm, values[i]);
   }

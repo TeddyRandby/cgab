@@ -20,7 +20,7 @@ typedef struct {
 } gab_imp;
 
 #define NAME gab_imp
-#define K u64
+#define K uint64_t
 #define V gab_imp *
 #define DEF_V NULL
 #define HASH(a) (a)
@@ -30,12 +30,12 @@ typedef struct {
 /**
  * Allocate a new import for a gab_value module
  */
-u64 gab_impmod(gab_eg *gab, const char *name, gab_value mod, a_gab_value* val);
+uint64_t gab_impmod(gab_eg *gab, const char *name, gab_value mod, a_gab_value* val);
 
 /**
  * Allocate a new import for a shared object
  */
-u64 gab_impshd(gab_eg *gab, const char *name, void *obj, a_gab_value* val);
+uint64_t gab_impshd(gab_eg *gab, const char *name, void *obj, a_gab_value* val);
 
 /**
  * Check if an import exists

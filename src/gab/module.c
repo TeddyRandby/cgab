@@ -22,7 +22,7 @@ void gab_mod_destroy(gab_eg *gab, gab_gc *gc, gab_mod *mod) {
   if (!mod)
     return;
 
-  for (u64 i = 0; i < mod->constants.len; i++) {
+  for (uint64_t i = 0; i < mod->constants.len; i++) {
     gab_value v = v_gab_constant_val_at(&mod->constants, i);
     // The only kind of value owned by the modules
     // are their prototypes and the main closure
@@ -31,11 +31,11 @@ void gab_mod_destroy(gab_eg *gab, gab_gc *gc, gab_mod *mod) {
     }
   }
 
-  v_u8_destroy(&mod->bytecode);
-  v_u8_destroy(&mod->tokens);
-  v_u64_destroy(&mod->lines);
+  v_uint8_t_destroy(&mod->bytecode);
+  v_uint8_t_destroy(&mod->tokens);
+  v_uint64_t_destroy(&mod->lines);
   v_gab_constant_destroy(&mod->constants);
-  v_s_i8_destroy(&mod->sources);
+  v_s_int8_t_destroy(&mod->sources);
 
   DESTROY(mod);
 }
@@ -51,14 +51,14 @@ gab_mod *gab_mod_copy(gab_eg *gab, gab_mod *self) {
   copy->next = gab->modules;
   gab->modules = copy;
 
-  v_u8_copy(&copy->bytecode, &self->bytecode);
-  v_u8_copy(&copy->tokens, &self->tokens);
-  v_u64_copy(&copy->lines, &self->lines);
+  v_uint8_t_copy(&copy->bytecode, &self->bytecode);
+  v_uint8_t_copy(&copy->tokens, &self->tokens);
+  v_uint64_t_copy(&copy->lines, &self->lines);
   v_gab_constant_copy(&copy->constants, &self->constants);
-  v_s_i8_copy(&copy->sources, &self->sources);
+  v_s_int8_t_copy(&copy->sources, &self->sources);
 
   // Reconcile the constant array by copying the non trivial values
-  for (u64 i = 0; i < copy->constants.len; i++) {
+  for (uint64_t i = 0; i < copy->constants.len; i++) {
     gab_value v = v_gab_constant_val_at(&self->constants, i);
     if (gab_valiso(v)) {
       v_gab_constant_set(&copy->constants, i, gab_valcpy(gab, NULL, v));
@@ -66,9 +66,9 @@ gab_mod *gab_mod_copy(gab_eg *gab, gab_mod *self) {
   }
 
   // Reconcile the copied slices to point to the new source
-  for (u64 i = 0; i < copy->sources.len; i++) {
-    s_i8 *copy_src = v_s_i8_ref_at(&copy->sources, i);
-    s_i8 *src_src = v_s_i8_ref_at(&self->sources, i);
+  for (uint64_t i = 0; i < copy->sources.len; i++) {
+    s_int8_t *copy_src = v_s_int8_t_ref_at(&copy->sources, i);
+    s_int8_t *src_src = v_s_int8_t_ref_at(&self->sources, i);
 
     copy_src->data = copy->source->source->data +
                      (src_src->data - self->source->source->data);
@@ -88,37 +88,37 @@ gab_mod *gab_mod_copy(gab_eg *gab, gab_mod *self) {
 /*
   Helpers for pushing ops into the module.
 */
-void gab_mod_push_op(gab_mod *self, gab_opcode op, gab_token t, u64 l, s_i8 s) {
+void gab_mod_push_op(gab_mod *self, gab_opcode op, gab_token t, uint64_t l, s_int8_t s) {
   self->previous_compiled_op = op;
-  v_u8_push(&self->bytecode, op);
-  v_u8_push(&self->tokens, t);
-  v_u64_push(&self->lines, l);
-  v_s_i8_push(&self->sources, s);
+  v_uint8_t_push(&self->bytecode, op);
+  v_uint8_t_push(&self->tokens, t);
+  v_uint64_t_push(&self->lines, l);
+  v_s_int8_t_push(&self->sources, s);
 };
 
-void replace_previous_op(gab_mod *self, gab_opcode op, u8 args) {
-  v_u8_set(&self->bytecode, self->bytecode.len - 1 - args, op);
+void replace_previous_op(gab_mod *self, gab_opcode op, uint8_t args) {
+  v_uint8_t_set(&self->bytecode, self->bytecode.len - 1 - args, op);
   self->previous_compiled_op = op;
 };
 
-void gab_mod_push_byte(gab_mod *self, u8 data, gab_token t, u64 l, s_i8 s) {
-  v_u8_push(&self->bytecode, data);
-  v_u8_push(&self->tokens, t);
-  v_u64_push(&self->lines, l);
-  v_s_i8_push(&self->sources, s);
+void gab_mod_push_byte(gab_mod *self, uint8_t data, gab_token t, uint64_t l, s_int8_t s) {
+  v_uint8_t_push(&self->bytecode, data);
+  v_uint8_t_push(&self->tokens, t);
+  v_uint64_t_push(&self->lines, l);
+  v_s_int8_t_push(&self->sources, s);
 }
 
-void gab_mod_push_short(gab_mod *self, u16 data, gab_token t, u64 l, s_i8 s) {
+void gab_mod_push_short(gab_mod *self, uint16_t data, gab_token t, uint64_t l, s_int8_t s) {
   gab_mod_push_byte(self, (data >> 8) & 0xff, t, l, s);
   gab_mod_push_byte(self, data & 0xff, t, l, s);
-  v_s_i8_push(&self->sources, s);
+  v_s_int8_t_push(&self->sources, s);
 };
 
 /* These helpers return the instruction they push. */
-void gab_mod_push_load_local(gab_mod *self, u8 local, gab_token t, u64 l,
-                             s_i8 s) {
+void gab_mod_push_load_local(gab_mod *self, uint8_t local, gab_token t, uint64_t l,
+                             s_int8_t s) {
   if (local < 9) {
-    u8 op = MAKE_LOAD_LOCAL(local);
+    uint8_t op = MAKE_LOAD_LOCAL(local);
     switch (self->previous_compiled_op) {
     case OP_POP_STORE_LOCAL_0:
     case OP_POP_STORE_LOCAL_1:
@@ -141,10 +141,10 @@ void gab_mod_push_load_local(gab_mod *self, u8 local, gab_token t, u64 l,
   gab_mod_push_byte(self, local, t, l, s);
 }
 
-void gab_mod_push_load_upvalue(gab_mod *self, u8 upvalue, gab_token t, u64 l,
-                               s_i8 s) {
+void gab_mod_push_load_upvalue(gab_mod *self, uint8_t upvalue, gab_token t, uint64_t l,
+                               s_int8_t s) {
   if (upvalue < 9) {
-    u8 op = MAKE_LOAD_UPVALUE(upvalue);
+    uint8_t op = MAKE_LOAD_UPVALUE(upvalue);
     gab_mod_push_op(self, op, t, l, s);
     return;
   }
@@ -153,10 +153,10 @@ void gab_mod_push_load_upvalue(gab_mod *self, u8 upvalue, gab_token t, u64 l,
   gab_mod_push_byte(self, upvalue, t, l, s);
 };
 
-void gab_mod_push_store_local(gab_mod *self, u8 local, gab_token t, u64 l,
-                              s_i8 s) {
+void gab_mod_push_store_local(gab_mod *self, uint8_t local, gab_token t, uint64_t l,
+                              s_int8_t s) {
   if (local < 9) {
-    u8 op = MAKE_STORE_LOCAL(local);
+    uint8_t op = MAKE_STORE_LOCAL(local);
     gab_mod_push_op(self, op, t, l, s);
     return;
   }
@@ -165,24 +165,24 @@ void gab_mod_push_store_local(gab_mod *self, u8 local, gab_token t, u64 l,
   gab_mod_push_byte(self, local, t, l, s);
 };
 
-void gab_mod_push_return(gab_mod *self, u8 have, boolean mv, gab_token t, u64 l,
-                         s_i8 s) {
+void gab_mod_push_return(gab_mod *self, uint8_t have, bool mv, gab_token t, uint64_t l,
+                         s_int8_t s) {
   assert(have < 16);
 
   gab_mod_push_op(self, OP_RETURN, t, l, s);
   gab_mod_push_byte(self, (have << 1) | mv, t, l, s);
 }
 
-void gab_mod_push_tuple(gab_mod *self, u8 have, boolean mv, gab_token t, u64 l,
-                        s_i8 s) {
+void gab_mod_push_tuple(gab_mod *self, uint8_t have, bool mv, gab_token t, uint64_t l,
+                        s_int8_t s) {
   assert(have < 128);
 
   gab_mod_push_op(self, OP_TUPLE, t, l, s);
   gab_mod_push_byte(self, (have << 1) | mv, t, l, s);
 }
 
-void gab_mod_push_yield(gab_mod *self, u16 proto, u8 have, boolean mv,
-                        gab_token t, u64 l, s_i8 s) {
+void gab_mod_push_yield(gab_mod *self, uint16_t proto, uint8_t have, bool mv,
+                        gab_token t, uint64_t l, s_int8_t s) {
   assert(have < 16);
 
   gab_mod_push_op(self, OP_YIELD, t, l, s);
@@ -190,8 +190,8 @@ void gab_mod_push_yield(gab_mod *self, u16 proto, u8 have, boolean mv,
   gab_mod_push_byte(self, (have << 1) | mv, t, l, s);
 }
 
-void gab_mod_push_send(gab_mod *self, u8 have, u16 message, boolean mv,
-                       gab_token t, u64 l, s_i8 s) {
+void gab_mod_push_send(gab_mod *self, uint8_t have, uint16_t message, bool mv,
+                       gab_token t, uint64_t l, s_int8_t s) {
   assert(have < 16);
 
   gab_mod_push_op(self, OP_SEND_ANA, t, l, s);
@@ -203,9 +203,9 @@ void gab_mod_push_send(gab_mod *self, u8 have, u16 message, boolean mv,
   gab_mod_push_inline_cache(self, t, l, s);
 }
 
-void gab_mod_push_pop(gab_mod *self, u8 n, gab_token t, u64 l, s_i8 s) {
+void gab_mod_push_pop(gab_mod *self, uint8_t n, gab_token t, uint64_t l, s_int8_t s) {
   if (n == 1) {
-    u8 op = OP_POP;
+    uint8_t op = OP_POP;
     // Perform a simple optimazation
     switch (self->previous_compiled_op) {
     case OP_STORE_LOCAL_0:
@@ -239,7 +239,7 @@ void gab_mod_push_pop(gab_mod *self, u8 n, gab_token t, u64 l, s_i8 s) {
   gab_mod_push_byte(self, n, t, l, s);
 }
 
-void gab_mod_push_inline_cache(gab_mod *self, gab_token t, u64 l, s_i8 s) {
+void gab_mod_push_inline_cache(gab_mod *self, gab_token t, uint64_t l, s_int8_t s) {
   gab_mod_push_byte(self, OP_NOP, t, l, s);
   gab_mod_push_byte(self, OP_NOP, t, l, s);
   gab_mod_push_byte(self, OP_NOP, t, l, s);
@@ -259,20 +259,20 @@ void gab_mod_push_inline_cache(gab_mod *self, gab_token t, u64 l, s_i8 s) {
   gab_mod_push_byte(self, OP_NOP, t, l, s);
 }
 
-void gab_mod_push_next(gab_mod *self, u8 next, gab_token t, u64 l, s_i8 s) {
+void gab_mod_push_next(gab_mod *self, uint8_t next, gab_token t, uint64_t l, s_int8_t s) {
   gab_mod_push_op(self, OP_NEXT, t, l, s);
   gab_mod_push_byte(self, next, t, l, s);
 }
 
-void gab_mod_push_pack(gab_mod *self, u8 below, u8 above, gab_token t, u64 l,
-                       s_i8 s) {
+void gab_mod_push_pack(gab_mod *self, uint8_t below, uint8_t above, gab_token t, uint64_t l,
+                       s_int8_t s) {
   gab_mod_push_op(self, OP_PACK, t, l, s);
   gab_mod_push_byte(self, below, t, l, s);
   gab_mod_push_byte(self, above, t, l, s);
 }
 
-u64 gab_mod_push_iter(gab_mod *self, u8 start, u8 want, gab_token t, u64 l,
-                      s_i8 s) {
+uint64_t gab_mod_push_iter(gab_mod *self, uint8_t start, uint8_t want, gab_token t, uint64_t l,
+                      s_int8_t s) {
   gab_mod_push_op(self, OP_ITER, t, l, s);
   gab_mod_push_byte(self, want, t, l, s);
   gab_mod_push_byte(self, start, t, l, s);
@@ -282,41 +282,41 @@ u64 gab_mod_push_iter(gab_mod *self, u8 start, u8 want, gab_token t, u64 l,
   return self->bytecode.len - 2;
 }
 
-u64 gab_mod_push_jump(gab_mod *self, u8 op, gab_token t, u64 l, s_i8 s) {
+uint64_t gab_mod_push_jump(gab_mod *self, uint8_t op, gab_token t, uint64_t l, s_int8_t s) {
   gab_mod_push_op(self, op, t, l, s);
   gab_mod_push_byte(self, OP_NOP, t, l, s);
   gab_mod_push_byte(self, OP_NOP, t, l, s);
   return self->bytecode.len - 2;
 }
 
-void gab_mod_patch_jump(gab_mod *self, u64 jump) {
-  u64 dist = self->bytecode.len - jump - 2;
+void gab_mod_patch_jump(gab_mod *self, uint64_t jump) {
+  uint64_t dist = self->bytecode.len - jump - 2;
 
   assert(dist < UINT16_MAX);
 
-  v_u8_set(&self->bytecode, jump, (dist >> 8) & 0xff);
-  v_u8_set(&self->bytecode, jump + 1, dist & 0xff);
+  v_uint8_t_set(&self->bytecode, jump, (dist >> 8) & 0xff);
+  v_uint8_t_set(&self->bytecode, jump + 1, dist & 0xff);
 }
 
-u64 gab_mod_push_loop(gab_mod *self) { return self->bytecode.len; }
+uint64_t gab_mod_push_loop(gab_mod *self) { return self->bytecode.len; }
 
-void gab_mod_patch_loop(gab_mod *self, u64 start, gab_token t, u64 l, s_i8 s) {
-  u64 diff = self->bytecode.len - start + 3;
+void gab_mod_patch_loop(gab_mod *self, uint64_t start, gab_token t, uint64_t l, s_int8_t s) {
+  uint64_t diff = self->bytecode.len - start + 3;
   assert(diff < UINT16_MAX);
 
   gab_mod_push_op(self, OP_LOOP, t, l, s);
   gab_mod_push_short(self, diff, t, l, s);
 }
 
-boolean gab_mod_try_patch_mv(gab_mod *self, u8 want) {
+bool gab_mod_try_patch_mv(gab_mod *self, uint8_t want) {
   switch (self->previous_compiled_op) {
   case OP_SEND_ANA:
-    v_u8_set(&self->bytecode, self->bytecode.len - 18, want);
+    v_uint8_t_set(&self->bytecode, self->bytecode.len - 18, want);
     return true;
   case OP_YIELD: {
-    u16 offset =
-        ((u16)v_u8_val_at(&self->bytecode, self->bytecode.len - 3) << 8) |
-        v_u8_val_at(&self->bytecode, self->bytecode.len - 2);
+    uint16_t offset =
+        ((uint16_t)v_uint8_t_val_at(&self->bytecode, self->bytecode.len - 3) << 8) |
+        v_uint8_t_val_at(&self->bytecode, self->bytecode.len - 2);
 
     gab_value value = v_gab_constant_val_at(&self->constants, offset);
 
@@ -331,7 +331,7 @@ boolean gab_mod_try_patch_mv(gab_mod *self, u8 want) {
   return false;
 }
 
-u16 gab_mod_add_constant(gab_mod *self, gab_value value) {
+uint16_t gab_mod_add_constant(gab_mod *self, gab_value value) {
   if (self->constants.len >= GAB_CONSTANTS_MAX) {
     fprintf(stderr, "Uh oh, too many constants in the module.\n");
     exit(1);
@@ -340,25 +340,25 @@ u16 gab_mod_add_constant(gab_mod *self, gab_value value) {
   return self->constants.len - 1;
 };
 
-u64 dumpInstruction(FILE *stream, gab_mod *self, u64 offset);
+uint64_t dumpInstruction(FILE *stream, gab_mod *self, uint64_t offset);
 
-u64 dumpSimpleInstruction(FILE *stream, gab_mod *self, u64 offset) {
-  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
+uint64_t dumpSimpleInstruction(FILE *stream, gab_mod *self, uint64_t offset) {
+  const char *name = gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
   fprintf(stream, "%-25s\n", name);
   return offset + 1;
 }
 
-u64 dumpSendInstruction(FILE *stream, gab_mod *self, u64 offset) {
-  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
-  u16 constant = ((u16)v_u8_val_at(&self->bytecode, offset + 1)) << 8 |
-                 v_u8_val_at(&self->bytecode, offset + 2);
+uint64_t dumpSendInstruction(FILE *stream, gab_mod *self, uint64_t offset) {
+  const char *name = gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
+  uint16_t constant = ((uint16_t)v_uint8_t_val_at(&self->bytecode, offset + 1)) << 8 |
+                 v_uint8_t_val_at(&self->bytecode, offset + 2);
 
   gab_value msg = v_gab_constant_val_at(&self->constants, constant);
 
-  u8 have = v_u8_val_at(&self->bytecode, offset + 3);
-  u8 want = v_u8_val_at(&self->bytecode, offset + 4);
+  uint8_t have = v_uint8_t_val_at(&self->bytecode, offset + 3);
+  uint8_t want = v_uint8_t_val_at(&self->bytecode, offset + 4);
 
-  u8 var = have & FLAG_VAR_EXP;
+  uint8_t var = have & FLAG_VAR_EXP;
   ;
   have = have >> 1;
 
@@ -368,42 +368,42 @@ u64 dumpSendInstruction(FILE *stream, gab_mod *self, u64 offset) {
   return offset + 22;
 }
 
-u64 dumpByteInstruction(FILE *stream, gab_mod *self, u64 offset) {
-  u8 operand = v_u8_val_at(&self->bytecode, offset + 1);
-  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
+uint64_t dumpByteInstruction(FILE *stream, gab_mod *self, uint64_t offset) {
+  uint8_t operand = v_uint8_t_val_at(&self->bytecode, offset + 1);
+  const char *name = gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
   fprintf(stream, "%-25s%hhx\n", name, operand);
   return offset + 2;
 }
 
-u64 dumpTwoByteInstruction(FILE *stream, gab_mod *self, u64 offset) {
-  u8 operandA = v_u8_val_at(&self->bytecode, offset + 1);
-  u8 operandB = v_u8_val_at(&self->bytecode, offset + 2);
-  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
+uint64_t dumpTwoByteInstruction(FILE *stream, gab_mod *self, uint64_t offset) {
+  uint8_t operandA = v_uint8_t_val_at(&self->bytecode, offset + 1);
+  uint8_t operandB = v_uint8_t_val_at(&self->bytecode, offset + 2);
+  const char *name = gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
   fprintf(stream, "%-25s%hhx %hhx\n", name, operandA, operandB);
   return offset + 3;
 }
 
-u64 dumpDictInstruction(FILE *stream, gab_mod *self, u8 i, u64 offset) {
-  u8 operand = v_u8_val_at(&self->bytecode, offset + 1);
+uint64_t dumpDictInstruction(FILE *stream, gab_mod *self, uint8_t i, uint64_t offset) {
+  uint8_t operand = v_uint8_t_val_at(&self->bytecode, offset + 1);
   const char *name = gab_opcode_names[i];
   fprintf(stream, "%-25s%hhx\n", name, operand);
   return offset + 2;
 };
 
-u64 dumpConstantInstruction(FILE *stream, gab_mod *self, u64 offset) {
-  u16 constant = ((u16)v_u8_val_at(&self->bytecode, offset + 1)) << 8 |
-                 v_u8_val_at(&self->bytecode, offset + 2);
-  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
+uint64_t dumpConstantInstruction(FILE *stream, gab_mod *self, uint64_t offset) {
+  uint16_t constant = ((uint16_t)v_uint8_t_val_at(&self->bytecode, offset + 1)) << 8 |
+                 v_uint8_t_val_at(&self->bytecode, offset + 2);
+  const char *name = gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
   fprintf(stream, "%-25s", name);
   gab_fdump(stdout, v_gab_constant_val_at(&self->constants, constant));
   fprintf(stream, "\n");
   return offset + 3;
 }
 
-u64 dumpJumpInstruction(FILE *stream, gab_mod *self, u64 sign, u64 offset) {
-  const char *name = gab_opcode_names[v_u8_val_at(&self->bytecode, offset)];
-  u16 dist = (u16)v_u8_val_at(&self->bytecode, offset + 1) << 8;
-  dist |= v_u8_val_at(&self->bytecode, offset + 2);
+uint64_t dumpJumpInstruction(FILE *stream, gab_mod *self, uint64_t sign, uint64_t offset) {
+  const char *name = gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
+  uint16_t dist = (uint16_t)v_uint8_t_val_at(&self->bytecode, offset + 1) << 8;
+  dist |= v_uint8_t_val_at(&self->bytecode, offset + 2);
 
   fprintf(stream,
           "%-25s" ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
@@ -412,12 +412,12 @@ u64 dumpJumpInstruction(FILE *stream, gab_mod *self, u64 sign, u64 offset) {
   return offset + 3;
 }
 
-u64 dumpIter(FILE *stream, gab_mod *self, u64 offset) {
-  u16 dist = (u16)v_u8_val_at(&self->bytecode, offset + 3) << 8;
-  dist |= v_u8_val_at(&self->bytecode, offset + 4);
+uint64_t dumpIter(FILE *stream, gab_mod *self, uint64_t offset) {
+  uint16_t dist = (uint16_t)v_uint8_t_val_at(&self->bytecode, offset + 3) << 8;
+  dist |= v_uint8_t_val_at(&self->bytecode, offset + 4);
 
-  u8 nlocals = v_u8_val_at(&self->bytecode, offset + 1);
-  u8 start = v_u8_val_at(&self->bytecode, offset + 2);
+  uint8_t nlocals = v_uint8_t_val_at(&self->bytecode, offset + 1);
+  uint8_t start = v_uint8_t_val_at(&self->bytecode, offset + 2);
 
   fprintf(stream,
           "%-25s" ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
@@ -428,13 +428,13 @@ u64 dumpIter(FILE *stream, gab_mod *self, u64 offset) {
   return offset + 5;
 }
 
-u64 dumpNext(FILE *stream, gab_mod *self, u64 offset) {
+uint64_t dumpNext(FILE *stream, gab_mod *self, uint64_t offset) {
   fprintf(stream, "%-25s\n", "NEXT");
   return offset + 2;
 }
 
-u64 dumpInstruction(FILE *stream, gab_mod *self, u64 offset) {
-  u8 op = v_u8_val_at(&self->bytecode, offset);
+uint64_t dumpInstruction(FILE *stream, gab_mod *self, uint64_t offset) {
+  uint8_t op = v_uint8_t_val_at(&self->bytecode, offset);
   switch (op) {
   case OP_STORE_LOCAL_0:
   case OP_STORE_LOCAL_1:
@@ -543,21 +543,21 @@ u64 dumpInstruction(FILE *stream, gab_mod *self, u64 offset) {
   }
   case OP_MESSAGE: {
     offset++;
-    u16 proto_constant = ((((u16)self->bytecode.data[offset]) << 8) |
+    uint16_t proto_constant = ((((uint16_t)self->bytecode.data[offset]) << 8) |
                           self->bytecode.data[offset + 1]);
     offset += 4;
 
     gab_value pval = v_gab_constant_val_at(&self->constants, proto_constant);
     gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(pval);
 
-    s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(p->mod->name));
+    s_int8_t func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(p->mod->name));
 
     printf("%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET, "OP_MESSAGE",
            (int)func_name.len, func_name.data);
 
     for (int j = 0; j < p->nupvalues; j++) {
-      u8 flags = p->upv_desc[j * 2];
-      u8 index = p->upv_desc[j * 2 + 1];
+      uint8_t flags = p->upv_desc[j * 2];
+      uint8_t index = p->upv_desc[j * 2 + 1];
       int isLocal = flags & fLOCAL;
       printf("      |                   %d %s\n", index,
              isLocal ? "local" : "upvalue");
@@ -566,21 +566,21 @@ u64 dumpInstruction(FILE *stream, gab_mod *self, u64 offset) {
   }
   case OP_BLOCK: {
     offset++;
-    u16 proto_constant = ((((u16)self->bytecode.data[offset]) << 8) |
+    uint16_t proto_constant = ((((uint16_t)self->bytecode.data[offset]) << 8) |
                           self->bytecode.data[offset + 1]);
     offset += 2;
 
     gab_value pval = v_gab_constant_val_at(&self->constants, proto_constant);
     gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(pval);
 
-    s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(p->mod->name));
+    s_int8_t func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(p->mod->name));
 
     printf("%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET, "OP_BLOCK",
            (int)func_name.len, func_name.data);
 
     for (int j = 0; j < p->nupvalues; j++) {
-      u8 flags = p->upv_desc[j * 2];
-      u8 index = p->upv_desc[j * 2 + 1];
+      uint8_t flags = p->upv_desc[j * 2];
+      uint8_t index = p->upv_desc[j * 2 + 1];
       int isLocal = flags & fLOCAL;
       printf("      |                   %d %s\n", index,
              isLocal ? "local" : "upvalue");
@@ -594,7 +594,7 @@ u64 dumpInstruction(FILE *stream, gab_mod *self, u64 offset) {
     return dumpDictInstruction(stream, self, op, offset);
   }
   default: {
-    u8 code = v_u8_val_at(&self->bytecode, offset);
+    uint8_t code = v_uint8_t_val_at(&self->bytecode, offset);
     printf("Unknown opcode %d (%s?)\n", code, gab_opcode_names[code]);
     return offset + 1;
   }
@@ -602,14 +602,14 @@ u64 dumpInstruction(FILE *stream, gab_mod *self, u64 offset) {
 }
 
 void gab_fdis(FILE *stream, gab_mod *mod) {
-  u64 offset = 0;
+  uint64_t offset = 0;
   while (offset < mod->bytecode.len) {
     fprintf(stream, ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);
     offset = dumpInstruction(stream, mod, offset);
   }
 }
 
-void gab_mod_dump(gab_mod *self, s_i8 name) {
+void gab_mod_dump(gab_mod *self, s_int8_t name) {
   printf("     %.*s\n", (int)name.len, name.data);
   gab_fdis(stdout, self);
 }

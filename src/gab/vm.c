@@ -22,16 +22,16 @@ static const char *gab_token_names[] = {
 
 void gab_vm_container_cb(void *data) { DESTROY(data); }
 
-gab_value vm_error(gab_eg *gab, gab_vm *vm, u8 flags, gab_status e,
+gab_value vm_error(gab_eg *gab, gab_vm *vm, uint8_t flags, gab_status e,
                    const char *help_fmt, ...) {
-  u64 nframes = vm->fp - vm->fb;
-  u64 n = 1;
+  uint64_t nframes = vm->fp - vm->fb;
+  uint64_t n = 1;
 
   if (flags & fGAB_DUMP_ERROR) {
     for (;;) {
       gab_vm_frame *frame = vm->fb + n;
 
-      s_i8 func_name =
+      s_int8_t func_name =
           gab_obj_string_ref(GAB_VAL_TO_STRING(frame->b->p->mod->name));
 
       gab_mod *mod = frame->b->p->mod;
@@ -39,14 +39,14 @@ gab_value vm_error(gab_eg *gab, gab_vm *vm, u8 flags, gab_status e,
       if (!mod->source)
         break;
 
-      u64 offset = frame->ip - mod->bytecode.data;
+      uint64_t offset = frame->ip - mod->bytecode.data;
 
-      u64 curr_row = v_u64_val_at(&mod->lines, offset);
+      uint64_t curr_row = v_uint64_t_val_at(&mod->lines, offset);
 
-      s_i8 curr_src = v_s_i8_val_at(&mod->source->lines, curr_row - 1);
+      s_int8_t curr_src = v_s_int8_t_val_at(&mod->source->lines, curr_row - 1);
 
-      const i8 *curr_src_start = curr_src.data;
-      i32 curr_src_len = curr_src.len;
+      const int8_t *curr_src_start = curr_src.data;
+      int32_t curr_src_len = curr_src.len;
 
       while (is_whitespace(*curr_src_start)) {
         curr_src_start++;
@@ -55,16 +55,16 @@ gab_value vm_error(gab_eg *gab, gab_vm *vm, u8 flags, gab_status e,
           break;
       }
 
-      const char *tok = gab_token_names[v_u8_val_at(&mod->tokens, offset)];
+      const char *tok = gab_token_names[v_uint8_t_val_at(&mod->tokens, offset)];
 
-      s_i8 curr_token = v_s_i8_val_at(&mod->sources, offset);
-      a_i8 *curr_under = a_i8_empty(curr_src_len);
+      s_int8_t curr_token = v_s_int8_t_val_at(&mod->sources, offset);
+      a_int8_t *curr_under = a_int8_t_empty(curr_src_len);
 
-      const i8 *tok_start, *tok_end;
+      const int8_t *tok_start, *tok_end;
       tok_start = curr_token.data;
       tok_end = curr_token.data + curr_token.len;
 
-      for (u8 i = 0; i < curr_under->len; i++) {
+      for (uint8_t i = 0; i < curr_under->len; i++) {
         if (curr_src_start + i >= tok_start && curr_src_start + i < tok_end)
           curr_under->data[i] = '^';
         else
@@ -78,10 +78,11 @@ gab_value vm_error(gab_eg *gab, gab_vm *vm, u8 flags, gab_status e,
                 ":\n\t\u256d " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
                 "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
                 "\n\t\u2570\u2500> ",
-                (i32)func_name.len, func_name.data, tok, curr_row, curr_src_len,
-                curr_src_start, (i32)curr_under->len, curr_under->data);
+                (int32_t)func_name.len, func_name.data, tok, curr_row,
+                curr_src_len, curr_src_start, (int32_t)curr_under->len,
+                curr_under->data);
 
-        a_i8_destroy(curr_under);
+        a_int8_t_destroy(curr_under);
 
         fprintf(stderr,
                 ANSI_COLOR_YELLOW "%s.\n\n\t" ANSI_COLOR_RESET ANSI_COLOR_GREEN,
@@ -103,8 +104,8 @@ gab_value vm_error(gab_eg *gab, gab_vm *vm, u8 flags, gab_status e,
               "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET "] Called at:"
               "\n\t  " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
               "\n\t       " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET "\n",
-              (i32)func_name.len, func_name.data, curr_row, curr_src_len,
-              curr_src_start, (i32)curr_under->len, curr_under->data);
+              (int32_t)func_name.len, func_name.data, curr_row, curr_src_len,
+              curr_src_start, (int32_t)curr_under->len, curr_under->data);
 
       n++;
     }
@@ -123,7 +124,8 @@ gab_value gab_vm_panic(gab_eg *gab, gab_vm *vm, const char *msg) {
                   msg);
 }
 
-void gab_vm_create(gab_vm *self, u8 flags, size_t argc, gab_value argv[argc]) {
+void gab_vm_create(gab_vm *self, uint8_t flags, size_t argc,
+                   gab_value argv[argc]) {
   gab_gc_create(&self->gc);
 
   self->fp = self->fb;
@@ -137,37 +139,38 @@ void gab_vm_destroy(gab_vm *self) {
   gab_gc_destroy(&self->gc);
 }
 
-void gab_pry(gab_vm *vm, u64 value) {
-  u64 frame_count = vm->fp - vm->fb;
+void gab_pry(gab_vm *vm, uint64_t value) {
+  uint64_t frame_count = vm->fp - vm->fb;
 
   if (value >= frame_count)
     return;
 
   gab_vm_frame *f = vm->fp - value;
 
-  s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(f->b->p->mod->name));
+  s_int8_t func_name =
+      gab_obj_string_ref(GAB_VAL_TO_STRING(f->b->p->mod->name));
 
   printf(ANSI_COLOR_GREEN " %03lu" ANSI_COLOR_RESET " closure:" ANSI_COLOR_CYAN
                           "%-20.*s" ANSI_COLOR_RESET " %d upvalues\n",
-         frame_count - value, (i32)func_name.len, func_name.data,
+         frame_count - value, (int32_t)func_name.len, func_name.data,
          f->b->p->nupvalues);
 
-  for (i32 i = f->b->p->nslots - 1; i >= 0; i--) {
+  for (int32_t i = f->b->p->nslots - 1; i >= 0; i--) {
     printf("%2s" ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET "%V\n",
            vm->sp == f->slots + i ? "->" : "", i, f->slots[i]);
   }
 }
 
-static inline i32 parse_have(gab_vm *vm, u8 have) {
+static inline int32_t parse_have(gab_vm *vm, uint8_t have) {
   if (have & FLAG_VAR_EXP)
     return *vm->sp + (have >> 1);
   else
     return have >> 1;
 }
 
-static inline u64 trim_values(gab_value *from, gab_value *to, u64 have,
-                              u8 want) {
-  u64 nulls = 0;
+static inline uint64_t trim_values(gab_value *from, gab_value *to,
+                                   uint64_t have, uint8_t want) {
+  uint64_t nulls = 0;
 
   if ((have != want) && (want != VAR_EXP)) {
     if (have > want)
@@ -176,7 +179,7 @@ static inline u64 trim_values(gab_value *from, gab_value *to, u64 have,
       nulls = want - have;
   }
 
-  const u64 got = have + nulls;
+  const uint64_t got = have + nulls;
 
   while (have--)
     *to++ = *from++;
@@ -187,9 +190,9 @@ static inline u64 trim_values(gab_value *from, gab_value *to, u64 have,
   return got;
 }
 
-static inline gab_value *trim_return(gab_value *from, gab_value *to, u64 have,
-                                     u8 want) {
-  u64 got = trim_values(from, to, have, want);
+static inline gab_value *trim_return(gab_value *from, gab_value *to,
+                                     uint64_t have, uint8_t want) {
+  uint64_t got = trim_values(from, to, have, want);
 
   gab_value *sp = to + got;
   *sp = got;
@@ -197,7 +200,7 @@ static inline gab_value *trim_return(gab_value *from, gab_value *to, u64 have,
   return sp;
 }
 
-static inline boolean has_callspace(gab_vm *vm, u64 space_needed) {
+static inline bool has_callspace(gab_vm *vm, uint64_t space_needed) {
   if (vm->fp - vm->fb + 1 >= cGAB_FRAMES_MAX) {
     return false;
   }
@@ -209,9 +212,9 @@ static inline boolean has_callspace(gab_vm *vm, u64 space_needed) {
   return true;
 }
 
-static inline boolean call_suspense(gab_vm *vm, gab_obj_suspense *sus, u8 have,
-                                    u8 want) {
-  i16 space_needed = sus->len;
+static inline bool call_suspense(gab_vm *vm, gab_obj_suspense *sus,
+                                 uint8_t have, uint8_t want) {
+  int32_t space_needed = sus->len;
 
   if (space_needed > 0 && !has_callspace(vm, space_needed))
     return false;
@@ -231,21 +234,21 @@ static inline boolean call_suspense(gab_vm *vm, gab_obj_suspense *sus, u8 have,
   return true;
 }
 
-i32 gab_vm_push(gab_vm *vm, u64 argc, gab_value argv[argc]) {
+int32_t gab_vm_push(gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
   if (!has_callspace(vm, argc)) {
     return -1;
   }
 
-  for (u8 n = 0; n < argc; n++) {
+  for (uint8_t n = 0; n < argc; n++) {
     *vm->sp++ = argv[n];
   }
 
   return argc;
 }
 
-static inline boolean call_block(gab_vm *vm, gab_obj_block *b, u64 have,
-                                 u8 want) {
-  u64 len = b->p->narguments == VAR_EXP ? have : b->p->narguments;
+static inline bool call_block(gab_vm *vm, gab_obj_block *b, uint64_t have,
+                              uint8_t want) {
+  uint64_t len = b->p->narguments == VAR_EXP ? have : b->p->narguments;
 
   if (!has_callspace(vm, b->p->nslots - len - 1))
     return false;
@@ -262,7 +265,7 @@ static inline boolean call_block(gab_vm *vm, gab_obj_block *b, u64 have,
 }
 
 static inline void call_builtin(gab_eg *gab, gab_vm *vm, gab_obj_builtin *b,
-                                u8 arity, u8 want, boolean is_message) {
+                                uint8_t arity, uint8_t want, bool is_message) {
   gab_value *to = vm->sp - arity - 1; // Is this -1 correct?
 
   gab_value *before = vm->sp;
@@ -270,13 +273,13 @@ static inline void call_builtin(gab_eg *gab, gab_vm *vm, gab_obj_builtin *b,
   // Only pass in the extra "self" argument if this is a message.
   (*b->function)(gab, vm, arity + is_message, vm->sp - arity - is_message);
 
-  u8 have = vm->sp - before;
+  uint8_t have = vm->sp - before;
 
   // There is always an extra to trim bc of the receiver or callee.
   vm->sp = trim_return(vm->sp - have, to, have, want);
 }
 
-a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
+a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, uint8_t flags, size_t argc,
                         gab_value argv[argc]) {
 #if cGAB_LOG_VM
 #define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
@@ -369,15 +372,15 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
 #define WRITE_INLINEBYTE(n) (*IP()++ = (n))
 #define WRITE_INLINESHORT(n)                                                   \
   (IP() += 2, IP()[-2] = (n >> 8) & 0xFF, IP()[-1] = n & 0xFF)
-#define WRITE_INLINEQWORD(n) (IP() += 8, *((u64 *)(IP() - 8)) = n)
+#define WRITE_INLINEQWORD(n) (IP() += 8, *((uint64_t *)(IP() - 8)) = n)
 
 #define SKIP_BYTE (IP()++)
 #define SKIP_SHORT (IP() += 2)
 #define SKIP_QWORD (IP() += 8)
 
 #define READ_BYTE (*IP()++)
-#define READ_SHORT (IP() += 2, (((u16)IP()[-2] << 8) | IP()[-1]))
-#define READ_QWORD (IP() += 8, (u64 *)(IP() - 8))
+#define READ_SHORT (IP() += 2, (((uint16_t)IP()[-2] << 8) | IP()[-1]))
+#define READ_QWORD (IP() += 8, (uint64_t *)(IP() - 8))
 
 #define READ_CONSTANT (MOD_CONSTANT(READ_SHORT))
 #define READ_STRING (GAB_VAL_TO_STRING(READ_CONSTANT))
@@ -400,11 +403,11 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
   gab_vm *vm = NEW(gab_vm);
   gab_vm_create(vm, flags, argc, argv);
 
-  register u8 instr = OP_NOP;
-  register u8 *ip = NULL;
+  register uint8_t instr = OP_NOP;
+  register uint8_t *ip = NULL;
 
   *vm->sp++ = main;
-  for (u8 i = 0; i < argc; i++)
+  for (uint8_t i = 0; i < argc; i++)
     *vm->sp++ = argv[i];
 
   switch (gab_valknd(main)) {
@@ -431,14 +434,14 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
   LOOP() {
     CASE_CODE(SEND_ANA) : {
       gab_obj_message *msg = READ_MESSAGE;
-      u8 have = parse_have(VM(), READ_BYTE);
+      uint8_t have = parse_have(VM(), READ_BYTE);
       SKIP_BYTE;
 
       gab_value receiver = PEEK_N(have + 1);
 
       gab_value type = gab_valtyp(ENGINE(), receiver);
 
-      u64 offset = gab_obj_message_find(msg, type);
+      uint64_t offset = gab_obj_message_find(msg, type);
 
       if (offset == UINT64_MAX) {
         if (gab_valknd(receiver) == kGAB_RECORD) {
@@ -487,11 +490,11 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
 
     CASE_CODE(SEND_MONO_CLOSURE) : {
       gab_obj_message *msg = READ_MESSAGE;
-      u8 have = parse_have(VM(), READ_BYTE);
-      u8 want = READ_BYTE;
-      u8 version = READ_BYTE;
+      uint8_t have = parse_have(VM(), READ_BYTE);
+      uint8_t want = READ_BYTE;
+      uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
-      u64 offset = *READ_QWORD;
+      uint64_t offset = *READ_QWORD;
 
       gab_value receiver = PEEK_N(have + 1);
 
@@ -520,11 +523,11 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
 
     CASE_CODE(SEND_MONO_BUILTIN) : {
       gab_obj_message *msg = READ_MESSAGE;
-      u8 have = parse_have(VM(), READ_BYTE);
-      u8 want = READ_BYTE;
-      u8 version = READ_BYTE;
+      uint8_t have = parse_have(VM(), READ_BYTE);
+      uint8_t want = READ_BYTE;
+      uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
-      u64 offset = *READ_QWORD;
+      uint64_t offset = *READ_QWORD;
 
       gab_value receiver = PEEK_N(have + 1);
 
@@ -550,9 +553,9 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
 
     CASE_CODE(SEND_PRIMITIVE_CALL_BUILTIN) : {
       gab_obj_message *msg = READ_MESSAGE;
-      u8 have = parse_have(VM(), READ_BYTE);
-      u8 want = READ_BYTE;
-      u8 version = READ_BYTE;
+      uint8_t have = parse_have(VM(), READ_BYTE);
+      uint8_t want = READ_BYTE;
+      uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
       SKIP_QWORD;
 
@@ -578,9 +581,9 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
 
     CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) : {
       gab_obj_message *msg = READ_MESSAGE;
-      u8 have = parse_have(VM(), READ_BYTE);
-      u8 want = READ_BYTE;
-      u8 version = READ_BYTE;
+      uint8_t have = parse_have(VM(), READ_BYTE);
+      uint8_t want = READ_BYTE;
+      uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
       SKIP_QWORD;
 
@@ -609,9 +612,9 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
 
     CASE_CODE(SEND_PRIMITIVE_CALL_SUSPENSE) : {
       gab_obj_message *msg = READ_MESSAGE;
-      u8 have = parse_have(VM(), READ_BYTE);
-      u8 want = READ_BYTE;
-      u8 version = READ_BYTE;
+      uint8_t have = parse_have(VM(), READ_BYTE);
+      uint8_t want = READ_BYTE;
+      uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
       SKIP_QWORD;
 
@@ -637,67 +640,67 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
     }
 
     CASE_CODE(SEND_PRIMITIVE_ADD) : {
-      BINARY_PRIMITIVE(gab_number, f64, +);
+      BINARY_PRIMITIVE(gab_number, double, +);
       NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_SUB) : {
-      BINARY_PRIMITIVE(gab_number, f64, -);
+      BINARY_PRIMITIVE(gab_number, double, -);
       NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_MUL) : {
-      BINARY_PRIMITIVE(gab_number, f64, *);
+      BINARY_PRIMITIVE(gab_number, double, *);
       NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_DIV) : {
-      BINARY_PRIMITIVE(gab_number, f64, /);
+      BINARY_PRIMITIVE(gab_number, double, /);
       NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_MOD) : {
-      BINARY_PRIMITIVE(gab_number, u64, %);
+      BINARY_PRIMITIVE(gab_number, uint64_t, %);
       NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_BOR) : {
-      BINARY_PRIMITIVE(gab_number, u64, |);
+      BINARY_PRIMITIVE(gab_number, uint64_t, |);
       NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_BND) : {
-      BINARY_PRIMITIVE(gab_number, u64, &);
+      BINARY_PRIMITIVE(gab_number, uint64_t, &);
       NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_LSH) : {
-      BINARY_PRIMITIVE(gab_number, u64, <<);
+      BINARY_PRIMITIVE(gab_number, uint64_t, <<);
       NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_RSH) : {
-      BINARY_PRIMITIVE(gab_number, u64, >>);
+      BINARY_PRIMITIVE(gab_number, uint64_t, >>);
       NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_LT) : {
-      BINARY_PRIMITIVE(gab_bool, f64, <);
+      BINARY_PRIMITIVE(gab_bool, double, <);
       NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_LTE) : {
-      BINARY_PRIMITIVE(gab_bool, f64, <=);
+      BINARY_PRIMITIVE(gab_bool, double, <=);
       NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_GT) : {
-      BINARY_PRIMITIVE(gab_bool, f64, >);
+      BINARY_PRIMITIVE(gab_bool, double, >);
       NEXT();
     }
 
     CASE_CODE(SEND_PRIMITIVE_GTE) : {
-      BINARY_PRIMITIVE(gab_bool, f64, >=);
+      BINARY_PRIMITIVE(gab_bool, double, >=);
       NEXT();
     }
 
@@ -734,7 +737,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
       gab_obj_message *msg = READ_MESSAGE;
       SKIP_BYTE;
       SKIP_BYTE;
-      u8 version = READ_BYTE;
+      uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
       SKIP_QWORD;
 
@@ -762,7 +765,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
       gab_obj_message *msg = READ_MESSAGE;
       SKIP_BYTE;
       SKIP_BYTE;
-      u8 version = READ_BYTE;
+      uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
       SKIP_QWORD;
 
@@ -778,7 +781,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
         NEXT();
       }
 
-      u16 prop_offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
+      uint16_t prop_offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
 
       if (prop_offset == UINT16_MAX) {
         STORE_FRAME();
@@ -802,7 +805,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
       gab_obj_message *msg = READ_MESSAGE;
       SKIP_BYTE;
       SKIP_BYTE;
-      u8 version = READ_BYTE;
+      uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
       SKIP_QWORD;
 
@@ -833,7 +836,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
         NEXT();
       }
 
-      u16 prop_offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
+      uint16_t prop_offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
 
       gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
 
@@ -850,10 +853,10 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
     }
 
     CASE_CODE(ITER) : {
-      u8 want = READ_BYTE;
-      u8 start = READ_BYTE;
-      u16 dist = READ_SHORT;
-      u64 have = VAR();
+      uint8_t want = READ_BYTE;
+      uint8_t start = READ_BYTE;
+      uint16_t dist = READ_SHORT;
+      uint64_t have = VAR();
 
       gab_value sus = POP();
       have--;
@@ -868,7 +871,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
     }
 
     CASE_CODE(NEXT) : {
-      u8 iterator = READ_BYTE;
+      uint8_t iterator = READ_BYTE;
 
       STORE_FRAME();
 
@@ -883,14 +886,14 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
 
     {
 
-      u8 have;
+      uint8_t have;
 
       {
         CASE_CODE(YIELD) : {
           gab_obj_suspense_proto *proto = READ_SUSPENSE_PROTOTYPE;
           have = parse_have(VM(), READ_BYTE);
 
-          u64 frame_len = TOP() - SLOTS() - have;
+          uint64_t frame_len = TOP() - SLOTS() - have;
 
           assert(frame_len < UINT16_MAX);
 
@@ -922,7 +925,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
         // Increment and pop the module.
         a_gab_value *results = a_gab_value_create(from, have);
 
-        for (u32 i = 0; i < results->len; i++) {
+        for (uint32_t i = 0; i < results->len; i++) {
           gab_gciref(GC(), VM(), results->data[i]);
         }
 
@@ -957,7 +960,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-      u64 prop_offset = gab_obj_shape_find(rec->shape, key);
+      uint64_t prop_offset = gab_obj_shape_find(rec->shape, key);
 
       // Transition state and store in the ache
       WRITE_INLINEQWORD(prop_offset);
@@ -971,7 +974,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
 
     CASE_CODE(LOAD_PROPERTY_MONO) : {
       SKIP_SHORT;
-      u64 prop_offset = *READ_QWORD;
+      uint64_t prop_offset = *READ_QWORD;
       gab_obj_shape *cached_shape = GAB_VAL_TO_SHAPE(*READ_QWORD);
 
       gab_value index = PEEK();
@@ -1013,7 +1016,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
 
-      u64 prop_offset = gab_obj_shape_find(rec->shape, key);
+      uint64_t prop_offset = gab_obj_shape_find(rec->shape, key);
 
       DROP();
 
@@ -1039,7 +1042,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
 
-      u64 prop_offset = gab_obj_shape_find(rec->shape, key);
+      uint64_t prop_offset = gab_obj_shape_find(rec->shape, key);
 
       if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
@@ -1048,7 +1051,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
 
       // Write to the cache and transition to monomorphic
       WRITE_INLINEQWORD(prop_offset);
-      WRITE_INLINEQWORD((u64)rec->shape);
+      WRITE_INLINEQWORD((uint64_t)rec->shape);
       WRITE_BYTE(PROP_CACHE_DIST, OP_STORE_PROPERTY_MONO);
 
       IP() -= PROP_CACHE_DIST;
@@ -1059,7 +1062,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
     CASE_CODE(STORE_PROPERTY_MONO) : {
       gab_value key = READ_CONSTANT;
       // Use the cache
-      u64 prop_offset = *READ_QWORD;
+      uint64_t prop_offset = *READ_QWORD;
       gab_obj_shape *cached_shape = GAB_VAL_TO_SHAPE(*READ_QWORD);
 
       gab_value value = PEEK();
@@ -1108,7 +1111,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
       }
 
       gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-      u64 prop_offset = gab_obj_shape_find(rec->shape, key);
+      uint64_t prop_offset = gab_obj_shape_find(rec->shape, key);
 
       if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
@@ -1132,7 +1135,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
     }
 
     CASE_CODE(SHIFT) : {
-      u8 n = READ_BYTE;
+      uint8_t n = READ_BYTE;
 
       gab_value tmp = PEEK();
 
@@ -1177,10 +1180,10 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
     }
 
     CASE_CODE(INTERPOLATE) : {
-      u8 n = READ_BYTE;
+      uint8_t n = READ_BYTE;
       gab_obj_string *acc = GAB_VAL_TO_STRING(gab_valtos(ENGINE(), PEEK_N(n)));
 
-      for (u8 i = n - 1; i > 0; i--) {
+      for (uint8_t i = n - 1; i > 0; i--) {
         gab_obj_string *curr =
             GAB_VAL_TO_STRING(gab_valtos(ENGINE(), PEEK_N(i)));
         acc = gab_obj_string_concat(ENGINE(), acc, curr);
@@ -1194,7 +1197,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
     }
 
     CASE_CODE(LOGICAL_AND) : {
-      u16 offset = READ_SHORT;
+      uint16_t offset = READ_SHORT;
       gab_value cond = PEEK();
 
       if (gab_valtob(cond))
@@ -1206,7 +1209,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
     }
 
     CASE_CODE(LOGICAL_OR) : {
-      u16 offset = READ_SHORT;
+      uint16_t offset = READ_SHORT;
       gab_value cond = PEEK();
 
       if (gab_valtob(cond))
@@ -1350,37 +1353,37 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
     }
 
     CASE_CODE(POP_JUMP_IF_TRUE) : {
-      u16 dist = READ_SHORT;
+      uint16_t dist = READ_SHORT;
       ip += dist * gab_valtob(POP());
       NEXT();
     }
 
     CASE_CODE(POP_JUMP_IF_FALSE) : {
-      u16 dist = READ_SHORT;
+      uint16_t dist = READ_SHORT;
       ip += dist * !gab_valtob(POP());
       NEXT();
     }
 
     CASE_CODE(JUMP_IF_TRUE) : {
-      u16 dist = READ_SHORT;
+      uint16_t dist = READ_SHORT;
       ip += dist * gab_valtob(PEEK());
       NEXT();
     }
 
     CASE_CODE(JUMP_IF_FALSE) : {
-      u16 dist = READ_SHORT;
+      uint16_t dist = READ_SHORT;
       ip += dist * !gab_valtob(PEEK());
       NEXT();
     }
 
     CASE_CODE(JUMP) : {
-      u16 dist = READ_SHORT;
+      uint16_t dist = READ_SHORT;
       ip += dist;
       NEXT();
     }
 
     CASE_CODE(LOOP) : {
-      u16 dist = READ_SHORT;
+      uint16_t dist = READ_SHORT;
       ip -= dist;
       NEXT();
     }
@@ -1391,8 +1394,8 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
       gab_obj_block *blk = gab_obj_block_create(ENGINE(), p);
 
       for (int i = 0; i < p->nupvalues; i++) {
-        u8 flags = p->upv_desc[i * 2];
-        u8 index = p->upv_desc[i * 2 + 1];
+        uint8_t flags = p->upv_desc[i * 2];
+        uint8_t index = p->upv_desc[i * 2 + 1];
 
         if (flags & fLOCAL) {
           blk->upvalues[i] = LOCAL(index);
@@ -1415,7 +1418,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
       gab_obj_message *m = READ_MESSAGE;
       gab_value r = PEEK();
 
-      u64 offset = gab_obj_message_find(m, r);
+      uint64_t offset = gab_obj_message_find(m, r);
 
       if (offset != UINT64_MAX) {
         STORE_FRAME();
@@ -1426,8 +1429,8 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
       gab_obj_block *blk = gab_obj_block_create(ENGINE(), p);
 
       for (int i = 0; i < blk->nupvalues; i++) {
-        u8 flags = p->upv_desc[i * 2];
-        u8 index = p->upv_desc[i * 2 + 1];
+        uint8_t flags = p->upv_desc[i * 2];
+        uint8_t index = p->upv_desc[i * 2 + 1];
 
         if (flags & fLOCAL) {
           assert(index < CLOSURE()->p->nlocals);
@@ -1455,12 +1458,12 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
     }
 
     CASE_CODE(PACK) : {
-      u8 below = READ_BYTE;
-      u8 above = READ_BYTE;
+      uint8_t below = READ_BYTE;
+      uint8_t above = READ_BYTE;
 
-      u64 want = below + above;
-      u64 have = VAR();
-      u64 len = have - want;
+      uint64_t want = below + above;
+      uint64_t have = VAR();
+      uint64_t len = have - want;
 
       while (have < want)
         PUSH(gab_nil), have++;
@@ -1487,7 +1490,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
     }
 
     CASE_CODE(RECORD) : {
-      u8 len = READ_BYTE;
+      uint8_t len = READ_BYTE;
 
       gab_obj_shape *shape =
           gab_obj_shape_create(ENGINE(), VM(), len, 2, TOP() - len * 2);
@@ -1505,7 +1508,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, u8 flags, size_t argc,
     }
 
     CASE_CODE(TUPLE) : {
-      u8 len = parse_have(VM(), READ_BYTE);
+      uint8_t len = parse_have(VM(), READ_BYTE);
 
       gab_obj_shape *shape = gab_obj_shape_create_tuple(ENGINE(), VM(), len);
 

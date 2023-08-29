@@ -18,17 +18,17 @@ typedef struct gab_src gab_src;
 struct gab_src {
   gab_src *next;
 
-  a_i8 *source;
+  a_int8_t *source;
 
-  v_s_i8 lines;
+  v_s_int8_t lines;
 
-  v_s_i8 line_comments;
+  v_s_int8_t line_comments;
 
   v_gab_token tokens;
 
-  v_s_i8 tokens_src;
+  v_s_int8_t tokens_src;
 
-  v_u64 tokens_line;
+  v_uint64_t tokens_line;
 };
 
 gab_src *gab_lex(gab_eg* gab, const char* src, size_t len);

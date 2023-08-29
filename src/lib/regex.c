@@ -35,7 +35,7 @@ gab_value gab_lib_exec(gab_eg *gab, gab_vm* vm, size_t argc, gab_value argv[argc
 
   regmatch_t matches[255] = {0};
 
-  i32 result = regexec(re, (char *)str->data, 255, &matches[0], 0);
+  int32_t result = regexec(re, (char *)str->data, 255, &matches[0], 0);
 
   if (result != 0) {
     return GAB_VAL_NULL();
@@ -44,9 +44,9 @@ gab_value gab_lib_exec(gab_eg *gab, gab_vm* vm, size_t argc, gab_value argv[argc
   gab_obj_record *list = gab_obj_record_create(
       gab_obj_shape_create(gab, NULL, 0, 0, NULL), 0, 0, NULL);
 
-  u8 i = 0;
+  uint8_t i = 0;
   while (matches[i].rm_so >= 0) {
-    s_i8 match = s_i8_create(str->data + matches[i].rm_so,
+    s_int8_t match = s_int8_t_create(str->data + matches[i].rm_so,
                              matches[i].rm_eo - matches[i].rm_so);
 
     gab_value key = gab_number(i);
@@ -74,7 +74,7 @@ gab_value gab_lib_find(gab_eg *gab, gab_vm* vm, size_t argc, gab_value argv[argc
 
   regmatch_t matches[255] = {0};
 
-  i32 result = regexec(&re, (char *)str->data, 255, &matches[0], 0);
+  int32_t result = regexec(&re, (char *)str->data, 255, &matches[0], 0);
 
   regfree(&re);
 
@@ -85,9 +85,9 @@ gab_value gab_lib_find(gab_eg *gab, gab_vm* vm, size_t argc, gab_value argv[argc
   gab_obj_record *list = gab_obj_record_create(
       gab_obj_shape_create(gab, NULL, 0, 0, NULL), 0, 0, NULL);
 
-  u8 i = 0;
+  uint8_t i = 0;
   while (matches[i].rm_so >= 0) {
-    s_i8 match = s_i8_create(str->data + matches[i].rm_so,
+    s_int8_t match = s_int8_t_create(str->data + matches[i].rm_so,
                              matches[i].rm_eo - matches[i].rm_so);
 
     gab_value key = gab_number(i);
@@ -101,10 +101,10 @@ gab_value gab_lib_find(gab_eg *gab, gab_vm* vm, size_t argc, gab_value argv[argc
 }
 
 gab_value gab_mod(gab_eg *gab, gab_vm* vm) {
-  s_i8 keys[] = {
-      s_i8_cstr("find"),
-      s_i8_cstr("comp"),
-      s_i8_cstr("exec"),
+  s_int8_t keys[] = {
+      s_int8_t_cstr("find"),
+      s_int8_t_cstr("comp"),
+      s_int8_t_cstr("exec"),
   };
 
   gab_value values[] = {

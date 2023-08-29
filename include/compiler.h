@@ -12,9 +12,9 @@ typedef enum {
 } variable_flag;
 
 gab_value gab_bccompsend(gab_eg *gab, gab_value msg,
-                              gab_value receiver, u8 flags, u8 narguments,
+                              gab_value receiver, uint8_t flags, uint8_t narguments,
                               gab_value arguments[narguments]);
 
-gab_value gab_bccomp(gab_eg *gab, gab_value name, s_i8 source, u8 flags,
-                         u8 narguments, gab_value arguments[narguments]);
+gab_value gab_bccomp(gab_eg *gab, gab_value name, s_int8_t source, uint8_t flags,
+                         uint8_t narguments, gab_value arguments[narguments]);
 #endif

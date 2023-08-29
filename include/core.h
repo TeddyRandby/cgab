@@ -131,63 +131,63 @@ enum gab_flags {
 
 #include "types.h"
 
-#define T i8
+#define T int8_t
 #include "slice.h"
 
-#define T i8
+#define T int8_t
 #include "array.h"
 
-#define T u8
+#define T uint8_t
 #include "vector.h"
 
-#define T u32
+#define T uint32_t
 #include "vector.h"
 
-#define T u64
+#define T uint64_t
 #include "vector.h"
 
-#define T s_i8
+#define T s_int8_t
 #include "vector.h"
 
-#define T i8
+#define T int8_t
 #include "vector.h"
 
-#define T s_i8
+#define T s_int8_t
 #include "array.h"
 
-#define T a_i8 *
-#define NAME a_i8
+#define T a_int8_t *
+#define NAME a_int8_t
 #include "vector.h"
 
-#define T u64
+#define T uint64_t
 #include "array.h"
 
-#define K u64
-#define V u64
+#define K uint64_t
+#define V uint64_t
 #define DEF_V 0
 #define HASH(a) a
 #define EQUAL(a, b) (a == b)
 #define LOAD cGAB_DICT_MAX_LOAD
 #include "dict.h"
 
-static inline s_i8 s_i8_cstr(const char *str) {
-  return (s_i8){.data = (i8 *)str, .len = strlen(str)};
+static inline s_int8_t s_int8_t_cstr(const char *str) {
+  return (s_int8_t){.data = (int8_t *)str, .len = strlen(str)};
 }
 
-static inline s_i8 s_i8_arr(const a_i8 *str) {
-  return (s_i8){.data = str->data, .len = str->len};
+static inline s_int8_t s_int8_t_arr(const a_int8_t *str) {
+  return (s_int8_t){.data = str->data, .len = str->len};
 }
 
-static inline s_i8 s_i8_tok(s_i8 str, u64 start, i8 ch) {
+static inline s_int8_t s_int8_t_tok(s_int8_t str, uint64_t start, int8_t ch) {
   if (start >= str.len)
-    return (s_i8){.data = str.data + start, .len = 0};
+    return (s_int8_t){.data = str.data + start, .len = 0};
 
-  u64 cursor = start;
+  uint64_t cursor = start;
 
   while (cursor < str.len && str.data[cursor] != ch)
     cursor++;
 
-  return (s_i8){.data = str.data + start, .len = cursor - start};
+  return (s_int8_t){.data = str.data + start, .len = cursor - start};
 }
 
 #define LEN_CARRAY(a) (sizeof(a) / sizeof(a[0]))

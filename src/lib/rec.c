@@ -40,8 +40,8 @@ void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
   gab_value rec = argv[0];
 
-  u64 len = gab_reclen(rec);
-  u64 start = 0, end = len;
+  uint64_t len = gab_reclen(rec);
+  uint64_t start = 0, end = len;
 
   switch (argc) {
   case 1:
@@ -54,17 +54,17 @@ void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
       return;
     }
 
-    u64 a = gab_valton(argv[1]);
+    uint64_t a = gab_valton(argv[1]);
     start = MAX(a, 0);
 
-    u64 b = gab_valton(argv[2]);
+    uint64_t b = gab_valton(argv[2]);
     end = MIN(b, len);
     break;
   }
 
   case 2:
     if (gab_valknd(argv[1]) == kGAB_NUMBER) {
-      u64 a = gab_valton(argv[1]);
+      uint64_t a = gab_valton(argv[1]);
       end = MIN(a, len);
       break;
     }
@@ -74,7 +74,7 @@ void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  u64 result_len = end - start;
+  uint64_t result_len = end - start;
 
   gab_value result = gab_tuple(gab, vm, result_len, gab_recdata(rec) + start);
 

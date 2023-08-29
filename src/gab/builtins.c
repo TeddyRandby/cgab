@@ -46,7 +46,7 @@ a_gab_value *gab_shared_object_handler(gab_eg *gab, gab_vm *vm,
 
 a_gab_value *gab_source_file_handler(gab_eg *gab, gab_vm *vm, const char *path,
                                      const char *module) {
-  a_i8 *src = os_read_file(path);
+  a_int8_t *src = os_read_file(path);
 
   if (src == NULL)
     return a_gab_value_one(gab_panic(gab, vm, "Failed to read module"));
@@ -58,7 +58,7 @@ a_gab_value *gab_source_file_handler(gab_eg *gab, gab_vm *vm, const char *path,
                          .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
                      });
 
-  a_i8_destroy(src);
+  a_int8_t_destroy(src);
 
   a_gab_value *res = gab_run(gab, pkg, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC);
 
@@ -96,10 +96,10 @@ resource resources[] = {
      .handler = gab_shared_object_handler},
 };
 
-a_i8 *match_resource(resource *res, const char *name, u64 len) {
-  const u64 p_len = strlen(res->prefix);
-  const u64 s_len = strlen(res->suffix);
-  const u64 total_len = p_len + len + s_len + 1;
+a_int8_t *match_resource(resource *res, const char *name, uint64_t len) {
+  const uint64_t p_len = strlen(res->prefix);
+  const uint64_t s_len = strlen(res->suffix);
+  const uint64_t total_len = p_len + len + s_len + 1;
 
   char buffer[total_len];
 
@@ -113,7 +113,7 @@ a_i8 *match_resource(resource *res, const char *name, u64 len) {
     return NULL;
 
   fclose(f);
-  return a_i8_create((i8 *)buffer, total_len);
+  return a_int8_t_create((int8_t *)buffer, total_len);
 }
 
 void gab_lib_require(gab_eg *gab, gab_vm *vm, size_t argc,
@@ -124,9 +124,9 @@ void gab_lib_require(gab_eg *gab, gab_vm *vm, size_t argc,
 
   char *name = gab_valtocs(gab, argv[0]);
 
-  for (i32 i = 0; i < sizeof(resources) / sizeof(resource); i++) {
+  for (int32_t i = 0; i < sizeof(resources) / sizeof(resource); i++) {
     resource *res = resources + i;
-    a_i8 *path = match_resource(res, name, strlen(name));
+    a_int8_t *path = match_resource(res, name, strlen(name));
 
     if (path) {
       a_gab_value *cached = gab_imphas(gab, (char *)path->data);
@@ -145,7 +145,7 @@ void gab_lib_require(gab_eg *gab, gab_vm *vm, size_t argc,
       }
 
     fin:
-      a_i8_destroy(path);
+      a_int8_t_destroy(path);
       return;
     }
   }
@@ -167,7 +167,7 @@ void gab_lib_panic(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_print(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
-  for (u8 i = 0; i < argc; i++) {
+  for (uint8_t i = 0; i < argc; i++) {
     if (i > 0)
       putc(' ', stdout);
     gab_fdump(stdout, argv[i]);

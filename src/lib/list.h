@@ -12,7 +12,7 @@ static inline void list_destroy(void *data) {
 
 void list_visit(gab_gc *gc, gab_gcvisit_f v, void *data) {
   v_gab_value *self = data;
-  for (u64 i = 0; i < self->len; i++) {
+  for (uint64_t i = 0; i < self->len; i++) {
     gab_value val = v_gab_value_val_at(self, i);
     if (gab_valiso(val)) {
       v(gc, gab_valtoo(val));
@@ -21,11 +21,11 @@ void list_visit(gab_gc *gc, gab_gcvisit_f v, void *data) {
 }
 
 static inline gab_value list_put(gab_eg *gab, gab_vm *vm, gab_value self,
-                                 u64 offset, gab_value value) {
+                                 uint64_t offset, gab_value value) {
   v_gab_value *data = gab_boxdata(self);
 
   if (offset >= data->len) {
-    u64 nils = offset - data->len;
+    uint64_t nils = offset - data->len;
 
     while (nils-- > 0) {
       v_gab_value_push(data, gab_nil);
@@ -44,7 +44,7 @@ static inline gab_value list_put(gab_eg *gab, gab_vm *vm, gab_value self,
   return value;
 }
 
-static inline gab_value list_at(gab_value self, u64 offset) {
+static inline gab_value list_at(gab_value self, uint64_t offset) {
   v_gab_value *data = gab_boxdata(self);
 
   if (offset >= data->len)
@@ -53,7 +53,7 @@ static inline gab_value list_at(gab_value self, u64 offset) {
   return v_gab_value_val_at(data, offset);
 }
 
-static inline gab_value list_create_empty(gab_eg *gab, gab_vm *vm, u64 len) {
+static inline gab_value list_create_empty(gab_eg *gab, gab_vm *vm, uint64_t len) {
   v_gab_value *data = NEW(v_gab_value);
   v_gab_value_create(data, len);
 
@@ -66,11 +66,11 @@ static inline gab_value list_create_empty(gab_eg *gab, gab_vm *vm, u64 len) {
                  });
 }
 
-static inline gab_value list_create(gab_eg *gab, gab_vm *vm, u64 len,
+static inline gab_value list_create(gab_eg *gab, gab_vm *vm, uint64_t len,
                                     gab_value argv[len]) {
   gab_value self = list_create_empty(gab, vm, len);
 
-  for (u64 i = 0; i < len; i++)
+  for (uint64_t i = 0; i < len; i++)
     list_put(gab, vm, self, i, argv[i]);
 
   return self;
