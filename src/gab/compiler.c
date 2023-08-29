@@ -535,7 +535,6 @@ static inline i32 pop_ctx(bc *bc, context_k kind) {
       compiler_error(bc, GAB_PANIC,
                      "Internal compiler error: context stack underflow");
       return COMP_ERR;
-      ;
     }
 
     bc->ncontext--;
@@ -638,6 +637,9 @@ i32 compile_parameters(gab_eg *gab, bc *bc) {
   i32 result = 0;
   u8 narguments = 0;
 
+  if (push_ctx(bc, kTUPLE) < 0)
+    return COMP_ERR;
+
   if (!match_and_eat_token(bc, TOKEN_LPAREN))
     goto fin;
 
@@ -700,6 +702,10 @@ fin:
 
   if (expect_token(bc, TOKEN_NEWLINE) < 0)
     return COMP_ERR;
+
+  if (pop_ctx(bc, kTUPLE) < 0)
+    return COMP_ERR;
+
   if (mv >= 0)
     gab_mod_push_pack(mod(bc), mv, narguments - mv, prev_tok(bc), prev_line(bc),
                       prev_src(bc));
@@ -2983,9 +2989,6 @@ static void compiler_error(bc *bc, gab_status e, const char *help_fmt, ...) {
         break;
     }
 
-    gab_value func_name =
-        v_gab_constant_val_at(&f->mod->constants, f->mod->name);
-
     a_i8 *curr_under = a_i8_empty(curr_src_len);
 
     const i8 *tok_start, *tok_end;
@@ -3011,8 +3014,9 @@ static void compiler_error(bc *bc, gab_status e, const char *help_fmt, ...) {
             ":\n\t%s%s %.4lu " ANSI_COLOR_RESET "%.*s"
             "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
             "\n\t\u2570\u2500> ",
-            func_name, tok, curr_box, curr_color, line + 1, (i32)curr_src_len,
-            curr_src_start, (i32)curr_under->len, curr_under->data);
+            f->mod->name, tok, curr_box, curr_color, line + 1,
+            (i32)curr_src_len, curr_src_start, (i32)curr_under->len,
+            curr_under->data);
 
     a_i8_destroy(curr_under);
 

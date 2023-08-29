@@ -2,64 +2,59 @@
 
 def Matrix { n data }
 
-def matrix[](n, data) { n data } end
+def matrix[](n, data); { n data } end
 
-impl Matrix
-  def + (other)
-    def N = self.n
+def +[Matrix](other)
+  def N = self.n
 
-    data = :record(?self.data)
+  data = :record(?self.data)
 
-    for i in (N * N):each
-      data[i] = self.data[i] + other.data[i]
-    end
-
-    :matrix(N, data)
+  for i in (N * N):each
+    data[i] = self.data[i] + other.data[i]
   end
 
-  def * (other)
-    def N = self.n
-
-    def data = :record(?self.data)
-
-    for i in N:each
-      for j in N:each
-        sum = 0
-
-        for k in N:each
-          sum = sum + self.data[i*N+k] * other.data[k*N+j]
-        end
-
-        data[i*N+j] = sum
-      end
-    end
-
-    :matrix(N, data)
-  end
-
-  def diag_sum
-    sum = 0
-
-    def N = self.n
-
-    for i in N:each
-      sum = sum + self.data[i*(N + 1)]
-    end
-
-    sum
-  end
-
-
+  :matrix(N, data)
 end
 
+def *[Matrix](other)
+  def N = self.n
+
+  def data = :record(?self.data)
+
+  for i in N:each
+    for j in N:each
+      sum = 0
+
+      for k in N:each
+        sum = sum + self.data[i*N+k] * other.data[k*N+j]
+      end
+
+      data[i*N+j] = sum
+    end
+  end
+
+  :matrix(N, data)
+end
+
+def diag_sum[Matrix]
+  sum = 0
+
+  def N = self.n
+
+  for i in N:each
+    sum = sum + self.data[i*(N + 1)]
+  end
+
+  sum
+end
 
 sum = 0
 
 N = 2
 
 for _ in :range(5000)
-  a = :matrix(N, :list(N * N):map! do (_, i) i end :slice)
-  b = :matrix(N, :list(N * N):map! do (_, i) i end :slice)
+  a = :matrix(N, :list(N * N):map! do; @2 end)
+  b = :matrix(N, :list(N * N):map! do; @2 end)
 
   c = a + b
   d = c * a * b

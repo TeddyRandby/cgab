@@ -32,8 +32,7 @@ gab_value vm_error(gab_eg *gab, gab_vm *vm, u8 flags, gab_status e,
       gab_vm_frame *frame = vm->fb + n;
 
       s_i8 func_name =
-          gab_obj_string_ref(GAB_VAL_TO_STRING(v_gab_constant_val_at(
-              &frame->b->p->mod->constants, frame->b->p->mod->name)));
+          gab_obj_string_ref(GAB_VAL_TO_STRING(frame->b->p->mod->name));
 
       gab_mod *mod = frame->b->p->mod;
 
@@ -146,8 +145,7 @@ void gab_pry(gab_vm *vm, u64 value) {
 
   gab_vm_frame *f = vm->fp - value;
 
-  s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(
-      v_gab_constant_val_at(&f->b->p->mod->constants, f->b->p->mod->name)));
+  s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(f->b->p->mod->name));
 
   printf(ANSI_COLOR_GREEN " %03lu" ANSI_COLOR_RESET " closure:" ANSI_COLOR_CYAN
                           "%-20.*s" ANSI_COLOR_RESET " %d upvalues\n",

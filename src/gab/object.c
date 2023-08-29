@@ -124,14 +124,12 @@ i32 __dump_value(FILE *stream, gab_value self, u8 depth) {
   }
   case kGAB_BLOCK: {
     gab_obj_block *blk = GAB_VAL_TO_BLOCK(self);
-    gab_value name =
-        v_gab_constant_val_at(&blk->p->mod->constants, blk->p->mod->name);
+    gab_value name = blk->p->mod->name;
     return fprintf(stream, "<block %V>", name);
   }
   case kGAB_SUSPENSE: {
     gab_obj_suspense *sus = GAB_VAL_TO_SUSPENSE(self);
-    gab_value name =
-        v_gab_constant_val_at(&sus->b->p->mod->constants, sus->b->p->mod->name);
+    gab_value name = sus->b->p->mod->name;
     return fprintf(stream, "<suspense %V>", name);
   }
   case kGAB_BUILTIN: {

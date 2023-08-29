@@ -35,6 +35,11 @@ struct gab_mod {
   gab_src *source;
 
   /*
+   * The name of the module
+   **/
+  gab_value name;
+
+  /*
     The constant table.
   */
   v_gab_constant constants;
@@ -59,11 +64,6 @@ struct gab_mod {
    * A vector which relates each instruction to a slice in the source.
    */
   v_s_i8 sources;
-
-  /*
-   * The name of the module
-   **/
-  u16 name;
 
   u8 previous_compiled_op;
 };

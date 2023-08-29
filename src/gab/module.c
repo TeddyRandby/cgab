@@ -10,7 +10,7 @@ gab_mod *gab_mod_create(gab_eg *gab, gab_value name, gab_src *source) {
   gab_mod *self = NEW(gab_mod);
   memset(self, 0, sizeof(gab_mod));
 
-  self->name = gab_mod_add_constant(self, name);
+  self->name = name;
   self->source = source;
   self->next = gab->modules;
   gab->modules = self;
@@ -550,8 +550,7 @@ u64 dumpInstruction(FILE *stream, gab_mod *self, u64 offset) {
     gab_value pval = v_gab_constant_val_at(&self->constants, proto_constant);
     gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(pval);
 
-    s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(
-        v_gab_constant_val_at(&p->mod->constants, p->mod->name)));
+    s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(p->mod->name));
 
     printf("%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET, "OP_MESSAGE",
            (int)func_name.len, func_name.data);
@@ -574,8 +573,7 @@ u64 dumpInstruction(FILE *stream, gab_mod *self, u64 offset) {
     gab_value pval = v_gab_constant_val_at(&self->constants, proto_constant);
     gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(pval);
 
-    s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(
-        v_gab_constant_val_at(&p->mod->constants, p->mod->name)));
+    s_i8 func_name = gab_obj_string_ref(GAB_VAL_TO_STRING(p->mod->name));
 
     printf("%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET, "OP_BLOCK",
            (int)func_name.len, func_name.data);
