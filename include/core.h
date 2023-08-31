@@ -93,7 +93,7 @@
 
 typedef enum gab_status {
 #define STATUS(name, message) GAB_##name,
-#include "include/status_code.h"
+#include "status_code.h"
 #undef STATUS
 } gab_status;
 

@@ -1,12 +1,10 @@
 #include "include/compiler.h"
 #include "include/char.h"
 #include "include/colors.h"
-#include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
 #include "include/lexer.h"
 #include "include/module.h"
-#include <math.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -106,6 +104,7 @@ static const char *gab_token_names[] = {
 */
 typedef enum prec_k {
   kNONE,
+  kIN,
   kASSIGNMENT,  // =
   kOR,          // or, infix else
   kAND,         // and, infix then
@@ -123,7 +122,7 @@ typedef enum prec_k {
 } prec_k;
 
 typedef int32_t (*gab_compile_func)(gab_eg *, bc *, bool);
-typedef struct gab_compile_rule gab_compile_rule;
+typedef struct gab_compile_rule compile_rule;
 struct gab_compile_rule {
   gab_compile_func prefix;
   gab_compile_func infix;
@@ -604,7 +603,7 @@ static gab_obj_block_proto *pop_ctxframe(gab_eg *gab, bc *bc) {
   return p;
 }
 
-gab_compile_rule get_rule(gab_token k);
+compile_rule get_rule(gab_token k);
 int32_t compile_exp_prec(gab_eg *gab, bc *bc, prec_k prec);
 int32_t compile_expression(gab_eg *gab, bc *bc);
 int32_t compile_tuple(gab_eg *gab, bc *bc, uint8_t want, bool *mv_out);
@@ -883,7 +882,7 @@ int32_t compile_message(gab_eg *gab, bc *bc, gab_value name) {
 }
 
 int32_t compile_expression(gab_eg *gab, bc *bc) {
-  return compile_exp_prec(gab, bc, kASSIGNMENT);
+  return compile_exp_prec(gab, bc, kIN);
 }
 
 int32_t compile_tuple(gab_eg *gab, bc *bc, uint8_t want, bool *mv_out) {
@@ -2517,6 +2516,13 @@ int32_t compile_exp_and(gab_eg *gab, bc *bc, bool assignable) {
   return COMP_OK;
 }
 
+int32_t compile_exp_in(gab_eg *gab, bc *bc, bool assignable) {
+  if (optional_newline(bc) < 0)
+    return COMP_ERR;
+
+  return COMP_OK;
+}
+
 int32_t compile_exp_or(gab_eg *gab, bc *bc, bool assignable) {
   uint64_t end_jump = gab_mod_push_jump(mod(bc), OP_LOGICAL_OR, prev_tok(bc),
                                         prev_line(bc), prev_src(bc));
@@ -2536,7 +2542,7 @@ int32_t compile_exp_prec(gab_eg *gab, bc *bc, prec_k prec) {
   if (eat_token(bc) < 0)
     return COMP_ERR;
 
-  gab_compile_rule rule = get_rule(prev_tok(bc));
+  compile_rule rule = get_rule(prev_tok(bc));
 
   if (rule.prefix == NULL) {
     compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected an expression.");
@@ -2563,9 +2569,6 @@ int32_t compile_exp_prec(gab_eg *gab, bc *bc, prec_k prec) {
       // Treat this as an infix expression.
       have = rule.infix(gab, bc, assignable);
     }
-
-    if (prev_tok(bc) == TOKEN_IN)
-      break;
   }
 
   if (!assignable && match_token(bc, TOKEN_EQUAL)) {
@@ -2810,13 +2813,13 @@ int32_t compile_exp_rtn(gab_eg *gab, bc *bc, bool assignable) {
   { compile_exp_##pre, compile_exp_##in, k##prec, is_multi }
 
 // ----------------Pratt Parsing Table ----------------------
-const gab_compile_rule gab_bc_rules[] = {
+const compile_rule rules[] = {
     INFIX(then, AND, false),                        // THEN
     INFIX(else, OR, false),                            // ELSE
     PREFIX_INFIX(blk, bcal, SEND, false),                       // DO
     PREFIX(for),                       // FOR
     INFIX(mch, MATCH, false),                       //MATCH 
-    PREC(PRIMARY),                            // IN
+    INFIX(in, IN, false),                            // IN
     NONE(),                            // END
     PREFIX(def),                       // DEF
     PREFIX(rtn),                       // RETURN
@@ -2874,7 +2877,7 @@ const gab_compile_rule gab_bc_rules[] = {
     NONE(),                            // ERROR
 };
 
-gab_compile_rule get_rule(gab_token k) { return gab_bc_rules[k]; }
+compile_rule get_rule(gab_token k) { return rules[k]; }
 
 gab_value compile(gab_eg *gab, bc *bc, gab_value name, uint8_t narguments,
                   gab_value arguments[narguments]) {

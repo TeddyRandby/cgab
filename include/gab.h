@@ -4,7 +4,7 @@
 #include <printf.h>
 #include <stdint.h>
 
-#include "include/core.h"
+#include "core.h"
 
 /**
  An IEEE 754 double-precision float is a 64-bit value with bits laid out like:
@@ -61,7 +61,7 @@
 typedef uint64_t gab_value;
 
 #define T gab_value
-#include "include/array.h"
+#include "array.h"
 
 typedef enum gab_kind {
   kGAB_NAN = 0,
@@ -92,7 +92,9 @@ typedef enum gab_kind {
 
 #define __GAB_VAL_TAG(val) ((uint64_t)((val)&__GAB_TAGMASK))
 
-static inline double __gab_valtod(gab_value value) { return *(double *)(&value); }
+static inline double __gab_valtod(gab_value value) {
+  return *(double *)(&value);
+}
 
 static inline gab_value __gab_dtoval(double value) {
   return *(gab_value *)(&value);
@@ -594,11 +596,11 @@ struct gab_obj_block_proto {
  *
  * @param indexes The indexes of the upvalues.
  */
-gab_obj_block_proto *gab_obj_prototype_create(gab_eg *gab, gab_mod *mod,
-                                              uint8_t narguments, uint8_t nslots,
-                                              uint8_t nlocals, uint8_t nupvalues,
-                                              uint8_t flags[static nupvalues],
-                                              uint8_t indexes[static nupvalues]);
+gab_obj_block_proto *
+gab_obj_prototype_create(gab_eg *gab, gab_mod *mod, uint8_t narguments,
+                         uint8_t nslots, uint8_t nlocals, uint8_t nupvalues,
+                         uint8_t flags[static nupvalues],
+                         uint8_t indexes[static nupvalues]);
 
 /**
  * A block - aka a prototype and it's captures.
@@ -684,7 +686,7 @@ gab_obj_message *gab_obj_message_create(gab_eg *gab, gab_value name);
  * doesn't exist.
  */
 static inline uint64_t gab_obj_message_find(gab_obj_message *obj,
-                                       gab_value receiver) {
+                                            gab_value receiver) {
   if (!d_specs_exists(&obj->specs, receiver))
     return UINT64_MAX;
 
@@ -718,7 +720,8 @@ static inline void gab_obj_message_set(gab_obj_message *obj, uint64_t offset,
  *
  * @param offset The offset in the message.
  */
-static inline gab_value gab_obj_message_get(gab_obj_message *obj, uint64_t offset) {
+static inline gab_value gab_obj_message_get(gab_obj_message *obj,
+                                            uint64_t offset) {
   return d_specs_ival(&obj->specs, offset);
 }
 
@@ -781,7 +784,8 @@ struct gab_obj_shape {
  * @param keys The key array.
  */
 gab_obj_shape *gab_obj_shape_create(gab_eg *gab, gab_vm *vm, uint64_t len,
-                                    uint64_t stride, gab_value keys[static len]);
+                                    uint64_t stride,
+                                    gab_value keys[static len]);
 
 /**
  * Create a new shape for a tuple. The keys are monotonic increasing integers,
@@ -793,7 +797,8 @@ gab_obj_shape *gab_obj_shape_create(gab_eg *gab, gab_vm *vm, uint64_t len,
  *
  * @param len The length of the tuple.
  */
-gab_obj_shape *gab_obj_shape_create_tuple(gab_eg *gab, gab_vm *vm, uint64_t len);
+gab_obj_shape *gab_obj_shape_create_tuple(gab_eg *gab, gab_vm *vm,
+                                          uint64_t len);
 
 /**
  * Find the offset of a key in the shape.
@@ -937,7 +942,7 @@ static inline gab_value gab_obj_record_at(gab_obj_record *obj, gab_value key) {
  * @return true if the put was a success, false otherwise.
  */
 static inline bool gab_obj_record_put(gab_vm *vm, gab_obj_record *obj,
-                                         gab_value key, gab_value value) {
+                                      gab_value key, gab_value value) {
   uint64_t prop_offset = gab_obj_shape_find(obj->shape, key);
 
   if (prop_offset == UINT64_MAX)
@@ -1024,8 +1029,8 @@ struct gab_obj_suspense_proto {
  *
  * @param want The number of values the block wants.
  */
-gab_obj_suspense_proto *gab_obj_suspense_proto_create(gab_eg *gab, uint64_t offset,
-                                                      uint8_t want);
+gab_obj_suspense_proto *
+gab_obj_suspense_proto_create(gab_eg *gab, uint64_t offset, uint8_t want);
 
 /**
  * A suspense object, which holds the state of a suspended coroutine.
@@ -1160,8 +1165,26 @@ gab_value gab_erecord(gab_eg *gab, gab_value shape);
  * @return The new record.
  */
 gab_value gab_record(gab_eg *gab, gab_vm *vm, size_t len,
-                     const char *keys[static len],
-                     gab_value values[static len]);
+                     gab_value keys[static len], gab_value values[static len]);
+
+/**
+ * # Bundle a list of keys and values into a record.
+ *
+ * @param gab The engine.
+ *
+ * @param vm The vm. This can be NULL.
+ *
+ * @param len The length of keys and values arrays
+ *
+ * @param keys The keys of the record to bundle.
+ *
+ * @param values The values of the record to bundle.
+ *
+ * @return The new record.
+ */
+gab_value gab_csrecord(gab_eg *gab, gab_vm *vm, size_t len,
+                       const char *keys[static len],
+                       gab_value values[static len]);
 
 /**
  * # Get the shape of a record.

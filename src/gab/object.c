@@ -50,7 +50,7 @@ int32_t shape_dump_properties(FILE *stream, gab_obj_shape *shape, uint8_t depth)
   for (uint64_t i = 0; i < shape->len - 1; i++) {
     bytes += __dump_value(stream, shape->data[i], depth - 1);
 
-    bytes += fprintf(stream, ", ");
+    bytes += fprintf(stream, " ");
   }
 
   bytes += __dump_value(stream, shape->data[shape->len - 1], depth - 1);
@@ -77,7 +77,7 @@ int32_t rec_dump_properties(FILE *stream, gab_obj_record *rec, uint8_t depth) {
     else
       bytes += __dump_value(stream, rec->data[i], depth - 1);
 
-    bytes += fprintf(stream, ", ");
+    bytes += fprintf(stream, " ");
   }
 
   bytes += __dump_value(stream, rec->shape->data[rec->len - 1], depth - 1);

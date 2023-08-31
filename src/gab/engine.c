@@ -346,7 +346,8 @@ a_gab_value *gab_send(gab_eg *gab, gab_vm *vm, gab_value msg,
   }
 }
 
-gab_obj_message *gab_eg_find_message(gab_eg *self, gab_value name, uint64_t hash) {
+gab_obj_message *gab_eg_find_message(gab_eg *self, gab_value name,
+                                     uint64_t hash) {
   if (self->interned_messages.len == 0)
     return NULL;
 
@@ -390,9 +391,8 @@ gab_obj_string *gab_eg_find_string(gab_eg *self, s_int8_t str, uint64_t hash) {
   }
 }
 
-static inline bool shape_matches_keys(gab_obj_shape *self,
-                                         gab_value values[], uint64_t len,
-                                         uint64_t stride) {
+static inline bool shape_matches_keys(gab_obj_shape *self, gab_value values[],
+                                      uint64_t len, uint64_t stride) {
 
   if (self->len != len)
     return false;
@@ -406,8 +406,8 @@ static inline bool shape_matches_keys(gab_obj_shape *self,
   return true;
 }
 
-gab_obj_shape *gab_eg_find_shape(gab_eg *self, uint64_t size, uint64_t stride, uint64_t hash,
-                                 gab_value keys[size]) {
+gab_obj_shape *gab_eg_find_shape(gab_eg *self, uint64_t size, uint64_t stride,
+                                 uint64_t hash, gab_value keys[size]) {
   if (self->interned_shapes.len == 0)
     return NULL;
 
@@ -594,13 +594,20 @@ gab_value gab_nstring(gab_eg *gab, size_t len, const char *data) {
 }
 
 gab_value gab_block(gab_eg *gab, struct gab_block_argt args) {
-  return gab_bccomp(gab, gab_string(gab, args.name),
-                    s_int8_t_create((int8_t *)args.source, strlen(args.source) + 1),
-                    args.flags, gab->argv_values.len, gab->argv_names.data);
+  return gab_bccomp(
+      gab, gab_string(gab, args.name),
+      s_int8_t_create((int8_t *)args.source, strlen(args.source) + 1),
+      args.flags, gab->argv_values.len, gab->argv_names.data);
 }
 
-gab_value gab_record(gab_eg *gab, gab_vm *vm, uint64_t size, const char *keys[size],
-                     gab_value values[size]) {
+gab_value gab_record(gab_eg *gab, gab_vm *vm, uint64_t size,
+                     gab_value keys[size], gab_value values[size]) {
+  gab_obj_shape *bundle_shape = gab_obj_shape_create(gab, vm, size, 1, keys);
+  return __gab_obj(gab_obj_record_create(gab, vm, bundle_shape, 1, values));
+}
+
+gab_value gab_csrecord(gab_eg *gab, gab_vm *vm, uint64_t size,
+                       const char *keys[size], gab_value values[size]) {
   gab_value value_keys[size];
 
   for (uint64_t i = 0; i < size; i++)
@@ -617,7 +624,8 @@ gab_value gab_erecord(gab_eg *gab, gab_value shape) {
   return __gab_obj(gab_obj_record_create_empty(gab, GAB_VAL_TO_SHAPE(shape)));
 }
 
-gab_value gab_tuple(gab_eg *gab, gab_vm *vm, uint64_t size, gab_value values[size]) {
+gab_value gab_tuple(gab_eg *gab, gab_vm *vm, uint64_t size,
+                    gab_value values[size]) {
   gab_obj_shape *bundle_shape = gab_obj_shape_create_tuple(gab, vm, size);
   return __gab_obj(gab_obj_record_create(gab, vm, bundle_shape, 1, values));
 }
