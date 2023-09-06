@@ -427,8 +427,6 @@ gab_obj_shape *gab_eg_find_shape(gab_eg *self, uint64_t size, uint64_t stride,
   }
 }
 
-const char *gab_strerr(gab_eg *gab) { return gab->error; }
-
 gab_value gab_typ(gab_eg *gab, gab_kind k) { return gab->types[k]; }
 
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,

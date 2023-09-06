@@ -127,9 +127,8 @@ int fiber_launch(void *d) {
     a_gab_value *result = gab_run(self->gab, runner, 0);
 
     if (!result) {
+      // Maybe we should panic here?
       mtx_lock(&self->mutex);
-
-      printf("err: %s\n", gab_strerr(self->gab));
 
       self->final = a_gab_value_one(gab_nil);
 

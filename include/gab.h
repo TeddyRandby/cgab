@@ -267,15 +267,6 @@ gab_eg *gab_create(size_t argc, gab_value argv_names[argc],
 void gab_free(gab_eg *gab);
 
 /**
- * # Get a string corresponding to the last error encountered.
- *
- * @param gab The engine.
- *
- * @return A string describing the error.
- */
-const char *gab_strerr(gab_eg *gab);
-
-/**
  * # Set the value of the argument at index to value.
  *
  *  @param gab The engine.
