@@ -1182,7 +1182,7 @@ gab_value gab_record(gab_eg *gab, gab_vm *vm, size_t len,
  *
  * @return The new record.
  */
-gab_value gab_csrecord(gab_eg *gab, gab_vm *vm, size_t len,
+gab_value gab_srecord(gab_eg *gab, gab_vm *vm, size_t len,
                        const char *keys[static len],
                        gab_value values[static len]);
 

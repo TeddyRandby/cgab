@@ -1,17 +1,33 @@
+  def sk = 'socket':require
 
-# A point in 2D space
-def Point { x y }
+  status, socket = :socket { family = sk.AF_INET type = sk.SOCK_STREAM } in
+    match
+      .ok => socket:print end
+      else => status:print end
 
-def add[Point](other)
-  return ?other match
-    Point => { x = self.x + other.x y = self.y + other.y } end
-    else  => .TYPE_ERROR:panic end
-end
+  def port = 8080
 
-origin = { x = 0 y = 0 }
+  { status, socket, port }:print
 
-origin in
-  :add { x = 1 y = 2 } in
-  :add { x = 1 y = 2 } in
-  :add { x = 1 y = 2 } in
-  :print
+  status = socket:bind { family = sk.AF_INET port } in
+    match
+      .ok => 'Bound to ::{port}':print end
+      else => status:print end
+
+  { status, socket, port }:print
+
+  status = socket:listen(10) in
+    match
+      .ok => 'Listening!':print end
+      else => status:print end
+
+  { status, socket, port }:print
+
+  yield
+
+  { status, socket, port }:print
+
+  status, conn = socket:accept
+
+  { status, socket, port, conn }:print
+

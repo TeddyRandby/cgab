@@ -1,4 +1,5 @@
 #include "../include/gab.h"
+#include <stdio.h>
 
 void gab_lib_pryframes(gab_eg *gab, gab_vm *vm, size_t argc,
                        gab_value argv[argc]) {
@@ -7,15 +8,15 @@ void gab_lib_pryframes(gab_eg *gab, gab_vm *vm, size_t argc,
   }
 
   if (argc == 1) {
-    gab_pry(vm, 0);
+    gab_fpry(stdout, vm, 0);
 
     return;
   }
 
-  if (argc == 2 && GAB_VAL_IS_NUMBER(argv[1])) {
-    uint64_t depth = GAB_VAL_TO_NUMBER(argv[1]);
+  if (argc == 2 && gab_valknd(argv[1]) == kGAB_NUMBER) {
+    uint64_t depth = gab_valton(argv[1]);
 
-    gab_pry(vm, depth);
+    gab_fpry(stdout, vm, depth);
 
     return;
   }
@@ -23,13 +24,13 @@ void gab_lib_pryframes(gab_eg *gab, gab_vm *vm, size_t argc,
   return;
 }
 
-gab_value gab_mod(gab_eg *gab, gab_vm *vm) {
+gab_value gab_lib(gab_eg *gab, gab_vm *vm) {
   gab_value receivers[] = {
       gab_string(gab,"gab_vm"),
   };
 
   gab_value values[] = {
-      GAB_BUILTIN(pryframes),
+      gab_builtin(gab, "pry", gab_lib_pryframes),
   };
 
   gab_value names[] = {

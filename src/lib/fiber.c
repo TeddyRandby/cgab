@@ -55,7 +55,7 @@ bool callable(gab_value v) {
   return gab_valknd(v) == kGAB_BLOCK || gab_valknd(v) == kGAB_SUSPENSE;
 }
 
-int32_t fiber_launch(void *d) {
+int fiber_launch(void *d) {
   fiber *self = (fiber *)d;
 
   gab_value runner = self->init;
@@ -70,6 +70,18 @@ int32_t fiber_launch(void *d) {
     mtx_unlock(&self->mutex);
     return 0;
   }
+
+  mtx_lock(&self->mutex);
+  for (int i = 0; i < result->len - 1; i++) {
+    gab_egkeep(self->gab, result->data[i]);
+
+    char *ref = gab_valtocs(self->gab, result->data[i]);
+
+    v_a_int8_t_push(&self->out_queue,
+                    a_int8_t_create((const int8_t *)ref, strlen(ref)));
+    free(ref);
+  }
+  mtx_unlock(&self->mutex);
 
   runner = result->data[result->len - 1];
 
@@ -109,9 +121,22 @@ int32_t fiber_launch(void *d) {
 
     a_int8_t_destroy(msg);
 
-    gab_argput(self->gab, arg, 1);
+    gab_argpop(self->gab);
+    gab_argpush(self->gab, arg);
 
-    a_gab_value *result = gab_run(self->gab, runner, fGAB_DUMP_ERROR);
+    a_gab_value *result = gab_run(self->gab, runner, 0);
+
+    if (!result) {
+      mtx_lock(&self->mutex);
+
+      printf("err: %s\n", gab_strerr(self->gab));
+
+      self->final = a_gab_value_one(gab_nil);
+
+      self->status = fDONE;
+      mtx_unlock(&self->mutex);
+      return 0;
+    }
 
     runner = result->data[result->len - 1];
 
@@ -121,7 +146,8 @@ int32_t fiber_launch(void *d) {
 
       char *ref = gab_valtocs(self->gab, result->data[i]);
 
-      v_a_int8_t_push(&self->out_queue, a_int8_t_create((const int8_t *)ref, strlen(ref)));
+      v_a_int8_t_push(&self->out_queue,
+                      a_int8_t_create((const int8_t *)ref, strlen(ref)));
       free(ref);
     }
     mtx_unlock(&self->mutex);

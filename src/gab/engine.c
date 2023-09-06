@@ -273,14 +273,13 @@ void gab_argput(gab_eg *gab, gab_value value, uint64_t index) {
 }
 
 void gab_argpop(gab_eg *gab) {
-  v_gab_value_pop(&gab->argv_names);
-  v_gab_value_pop(&gab->argv_values);
+  if (gab->argv_names.len > 0) {
+    v_gab_value_pop(&gab->argv_names);
+    v_gab_value_pop(&gab->argv_values);
+  }
 };
 
 a_gab_value *gab_run(gab_eg *gab, gab_value main, size_t flags) {
-  if (gab_valknd(main) != kGAB_BLOCK)
-    return NULL;
-
   return gab_vm_run(gab, main, flags, gab->argv_values.len,
                     gab->argv_values.data);
 };
@@ -427,6 +426,8 @@ gab_obj_shape *gab_eg_find_shape(gab_eg *self, uint64_t size, uint64_t stride,
     index = (index + 1) & (self->interned_shapes.cap - 1);
   }
 }
+
+const char *gab_strerr(gab_eg *gab) { return gab->error; }
 
 gab_value gab_typ(gab_eg *gab, gab_kind k) { return gab->types[k]; }
 
@@ -606,8 +607,8 @@ gab_value gab_record(gab_eg *gab, gab_vm *vm, uint64_t size,
   return __gab_obj(gab_obj_record_create(gab, vm, bundle_shape, 1, values));
 }
 
-gab_value gab_csrecord(gab_eg *gab, gab_vm *vm, uint64_t size,
-                       const char *keys[size], gab_value values[size]) {
+gab_value gab_srecord(gab_eg *gab, gab_vm *vm, uint64_t size,
+                      const char *keys[size], gab_value values[size]) {
   gab_value value_keys[size];
 
   for (uint64_t i = 0; i < size; i++)

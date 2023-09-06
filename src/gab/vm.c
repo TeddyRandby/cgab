@@ -139,7 +139,7 @@ void gab_vm_destroy(gab_vm *self) {
   gab_gc_destroy(&self->gc);
 }
 
-void gab_pry(gab_vm *vm, uint64_t value) {
+void gab_fpry(FILE* stream, gab_vm *vm, uint64_t value) {
   uint64_t frame_count = vm->fp - vm->fb;
 
   if (value >= frame_count)
@@ -150,13 +150,13 @@ void gab_pry(gab_vm *vm, uint64_t value) {
   s_int8_t func_name =
       gab_obj_string_ref(GAB_VAL_TO_STRING(f->b->p->mod->name));
 
-  printf(ANSI_COLOR_GREEN " %03lu" ANSI_COLOR_RESET " closure:" ANSI_COLOR_CYAN
+  fprintf(stream, ANSI_COLOR_GREEN " %03lu" ANSI_COLOR_RESET " closure:" ANSI_COLOR_CYAN
                           "%-20.*s" ANSI_COLOR_RESET " %d upvalues\n",
          frame_count - value, (int32_t)func_name.len, func_name.data,
          f->b->p->nupvalues);
 
   for (int32_t i = f->b->p->nslots - 1; i >= 0; i--) {
-    printf("%2s" ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET "%V\n",
+    fprintf(stream, "%2s" ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET "%V\n",
            vm->sp == f->slots + i ? "->" : "", i, f->slots[i]);
   }
 }
@@ -424,7 +424,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, uint8_t flags, size_t argc,
     break;
   }
   default:
-    return a_gab_value_one(gab_nil);
+    return ERROR(GAB_NOT_CALLABLE, "Found '%V'", main);
   }
 
   LOAD_FRAME();
