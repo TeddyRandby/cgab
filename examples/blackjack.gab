@@ -4,11 +4,11 @@
 # Yes, its not actually blackjack
 'std':require
 
-def swap![](i, j)
+def swap![.Record](i, j)
     self[i], self[j] = self[j], self[i]
 end
 
-def permutations![](opt_k)
+def permutations![.Record](opt_k)
     def k = opt_k or 0
     
     self:len == k then

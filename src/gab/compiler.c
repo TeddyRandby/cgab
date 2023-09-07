@@ -1122,8 +1122,6 @@ int32_t compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
     case kNEW_REST_LOCAL:
     case kNEW_LOCAL:
       if (new_local_needs_shift(lvalues, lvalues->len - 1 - i)) {
-        printf("Shifting new local(%d) down %i from %i\n", lval.as.local,
-               peek_slot(bc) - lval.as.local, peek_slot(bc));
         push_shift(bc, peek_slot(bc) - lval.as.local);
 
         // We've shifted a value underneath all the remaining lvalues.
@@ -2730,7 +2728,6 @@ int32_t compile_exp_sym(gab_eg *gab, bc *bc, bool assignable) {
 }
 
 int32_t compile_exp_yld(gab_eg *gab, bc *bc, bool assignable) {
-
   if (!get_rule(curr_tok(bc)).prefix) {
     gab_obj_suspense_proto *proto =
         gab_obj_suspense_proto_create(gab, mod(bc)->bytecode.len + 4, 1);
@@ -2761,12 +2758,12 @@ int32_t compile_exp_yld(gab_eg *gab, bc *bc, bool assignable) {
 
   uint16_t kproto = add_constant(mod(bc), __gab_obj(proto));
 
-  pop_slot(bc, result);
+  push_slot(bc, 1);
 
   gab_mod_push_yield(mod(bc), kproto, result, mv, prev_tok(bc), prev_line(bc),
                      prev_src(bc));
 
-  push_slot(bc, 1);
+  pop_slot(bc, result);
 
   return VAR_EXP;
 }

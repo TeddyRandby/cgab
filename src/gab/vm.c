@@ -1139,15 +1139,11 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, uint8_t flags, size_t argc,
     CASE_CODE(SHIFT) : {
       uint8_t n = READ_BYTE;
 
-      gab_fpry(stderr, vm, 0);
-
       gab_value tmp = PEEK();
 
       memcpy(TOP() - (n - 1), TOP() - n, (n - 1) * sizeof(gab_value));
 
       PEEK_N(n) = tmp;
-
-      gab_fpry(stderr, vm, 0);
 
       NEXT();
     }

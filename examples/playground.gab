@@ -1,21 +1,9 @@
-'fiber':require
-'std':require
+def fold[.Record](init, folder)
+    acc = init
 
-test = :fiber do
-  a = yield
-  a:print
-  a = yield
-  a:print
-  a = yield
-  a:print
-  a = yield
-  a:print
+    for key, value in self:each
+        acc = folder(acc, value)
+    end
+
+    return acc
 end
-
-test('hello')
-test('hello')
-test('hello')
-test('hello')
-
-# Waste some time
-loop 1 end

@@ -72,8 +72,6 @@ void out_queue_push(fiber *f, gab_value v) {
 
   char *ref = gab_valtocs(f->gab, v);
 
-  fprintf(stderr, "Pushing %s to outqueue\n", ref);
-
   v_a_int8_t_push(&f->out_queue,
                   a_int8_t_create((const int8_t *)ref, strlen(ref)));
   free(ref);

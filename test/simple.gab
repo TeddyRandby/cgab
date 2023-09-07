@@ -26,7 +26,7 @@ server = :fiber do
 
   { status, socket, port }:print
 
-  yield
+  yield .ok
 
   'Accepting connections...':print
 
@@ -47,7 +47,10 @@ client = :fiber do
       .ok => socket:print end
       else => status:print end
 
-  status = socket:connect('127.0.0.1', 8080)
+  status = socket:connect('127.0.0.1', 8080) in
+    match
+      .ok => 'Connected!':print end
+      else => status:print end
 end
 
 server(.ok)
