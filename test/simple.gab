@@ -1,3 +1,6 @@
+'fiber':require  
+
+server = :fiber do
   def sk = 'socket':require
 
   status, socket = :socket { family = sk.AF_INET type = sk.SOCK_STREAM } in
@@ -25,9 +28,30 @@
 
   yield
 
+  'Accepting connections...':print
+
   { status, socket, port }:print
 
   status, conn = socket:accept
 
   { status, socket, port, conn }:print
+end
 
+server:await:print
+
+client = :fiber do
+  def sk = 'socket':require
+
+  status, socket = :socket { family = sk.AF_INET type = sk.SOCK_STREAM } in
+    match
+      .ok => socket:print end
+      else => status:print end
+
+  status = socket:connect('127.0.0.1', 8080)
+end
+
+server(.ok)
+
+client:await
+
+server:await

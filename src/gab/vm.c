@@ -139,7 +139,7 @@ void gab_vm_destroy(gab_vm *self) {
   gab_gc_destroy(&self->gc);
 }
 
-void gab_fpry(FILE* stream, gab_vm *vm, uint64_t value) {
+void gab_fpry(FILE *stream, gab_vm *vm, uint64_t value) {
   uint64_t frame_count = vm->fp - vm->fb;
 
   if (value >= frame_count)
@@ -150,14 +150,15 @@ void gab_fpry(FILE* stream, gab_vm *vm, uint64_t value) {
   s_int8_t func_name =
       gab_obj_string_ref(GAB_VAL_TO_STRING(f->b->p->mod->name));
 
-  fprintf(stream, ANSI_COLOR_GREEN " %03lu" ANSI_COLOR_RESET " closure:" ANSI_COLOR_CYAN
-                          "%-20.*s" ANSI_COLOR_RESET " %d upvalues\n",
-         frame_count - value, (int32_t)func_name.len, func_name.data,
-         f->b->p->nupvalues);
+  fprintf(stream,
+          ANSI_COLOR_GREEN " %03lu" ANSI_COLOR_RESET " closure:" ANSI_COLOR_CYAN
+                           "%-20.*s" ANSI_COLOR_RESET " %d upvalues\n",
+          frame_count - value, (int32_t)func_name.len, func_name.data,
+          f->b->p->nupvalues);
 
   for (int32_t i = f->b->p->nslots - 1; i >= 0; i--) {
     fprintf(stream, "%2s" ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET "%V\n",
-           vm->sp == f->slots + i ? "->" : "", i, f->slots[i]);
+            vm->sp == f->slots + i ? "->" : "", i, f->slots[i]);
   }
 }
 
@@ -413,13 +414,13 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, uint8_t flags, size_t argc,
   switch (gab_valknd(main)) {
   case kGAB_BLOCK: {
     gab_obj_block *b = GAB_VAL_TO_BLOCK(main);
-    if (!call_block(VM(), b, argc, 1))
+    if (!call_block(VM(), b, argc, VAR_EXP))
       return ERROR(GAB_OVERFLOW, "", "");
     break;
   }
   case kGAB_SUSPENSE: {
     gab_obj_suspense *s = GAB_VAL_TO_SUSPENSE(main);
-    if (!call_suspense(VM(), s, argc, 1))
+    if (!call_suspense(VM(), s, argc, VAR_EXP))
       return ERROR(GAB_OVERFLOW, "", "");
     break;
   }
@@ -918,12 +919,13 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, uint8_t flags, size_t argc,
 
     complete_return : {
       gab_value *from = TOP() - have;
+      gab_value *to = FRAME()->slots;
 
-      TOP() = trim_return(from, FRAME()->slots, have, FRAME()->want);
+      TOP() = trim_return(from, to, have, FRAME()->want);
 
       if (--FRAME() == VM()->fb) {
         // Increment and pop the module.
-        a_gab_value *results = a_gab_value_create(from, have);
+        a_gab_value *results = a_gab_value_create(to, have);
 
         for (uint32_t i = 0; i < results->len; i++) {
           gab_gciref(GC(), VM(), results->data[i]);
@@ -1137,11 +1139,15 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, uint8_t flags, size_t argc,
     CASE_CODE(SHIFT) : {
       uint8_t n = READ_BYTE;
 
+      gab_fpry(stderr, vm, 0);
+
       gab_value tmp = PEEK();
 
       memcpy(TOP() - (n - 1), TOP() - n, (n - 1) * sizeof(gab_value));
 
       PEEK_N(n) = tmp;
+
+      gab_fpry(stderr, vm, 0);
 
       NEXT();
     }

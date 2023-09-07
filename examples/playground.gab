@@ -1,5 +1,21 @@
+'fiber':require
 'std':require
 
-for i in :range(10)
-  i:print
+test = :fiber do
+  a = yield
+  a:print
+  a = yield
+  a:print
+  a = yield
+  a:print
+  a = yield
+  a:print
 end
+
+test('hello')
+test('hello')
+test('hello')
+test('hello')
+
+# Waste some time
+loop 1 end

@@ -247,16 +247,9 @@ uint64_t gab_obj_size(gab_obj *obj);
  * This struct stores data about the environment that gab
  * code executes in.
  *
- *  @param argc The number of arguments.
- *
- *  @param argv_names The names of each argument.
- *
- *  @param argv_values The values of each argument.
- *
  * @return A pointer to the struct on the heap.
  */
-gab_eg *gab_create(size_t argc, gab_value argv_names[argc],
-                   gab_value argv_values[argc]);
+gab_eg *gab_create();
 
 /**
  * # Destroy a gab_eg.

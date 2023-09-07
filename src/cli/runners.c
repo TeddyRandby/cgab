@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 void repl(const char *module, uint8_t flags) {
-  gab_eg *gab = gab_create(0, NULL, NULL);
+  gab_eg *gab = gab_create();
 
   gab_setup_builtins(gab);
 
@@ -151,7 +151,7 @@ void run_src(gab_eg *gab, s_int8_t src, const char *module, char delim, uint8_t 
 }
 
 void run_string(const char *string, const char *module, char delim, uint8_t flags) {
-  gab_eg *gab = gab_create(0, NULL, NULL);
+  gab_eg *gab = gab_create();
 
   gab_setup_builtins(gab);
 
@@ -167,7 +167,7 @@ void run_string(const char *string, const char *module, char delim, uint8_t flag
 }
 
 void run_file(const char *path, const char *module, char delim, uint8_t flags) {
-  gab_eg *gab = gab_create(0, NULL, NULL);
+  gab_eg *gab = gab_create();
 
   gab_setup_builtins(gab);
 

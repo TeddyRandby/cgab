@@ -155,15 +155,9 @@ struct primitive primitives[] = {
     },
 };
 
-gab_eg *gab_create(uint64_t argc, gab_value argv_names[argc],
-                   gab_value argv_values[argc]) {
+gab_eg *gab_create() {
   gab_eg *gab = NEW(gab_eg);
   memset(gab, 0, sizeof(gab_eg));
-
-  for (uint64_t i = 0; i < argc; i++) {
-    v_gab_value_push(&gab->argv_names, argv_names[i]);
-    v_gab_value_push(&gab->argv_values, argv_values[i]);
-  }
 
   memset(gab->types, 0, sizeof(gab->types));
 
