@@ -4,7 +4,7 @@ def bench = do (cb, runs)
   times = :list
 
   for _ in runs:to:each
-    def before = :clock
+    before = :clock
 
     cb()
 
@@ -33,7 +33,7 @@ end
 
 
 def timeit[.Block](opts)
-  def avg = ?opts match
+  avg = ?opts match
     ?{ runs against } => headToHead(self, opts.against, opts.runs)  end
     ?{ runs }         => bench(self, opts.runs)                     end
     .Number           => bench(self, opts)                          end

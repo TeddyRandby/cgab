@@ -425,7 +425,7 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, uint8_t flags, size_t argc,
     break;
   }
   default:
-    return ERROR(GAB_NOT_CALLABLE, "Found '%V'", main);
+    return a_gab_value_one(gab_nil);
   }
 
   LOAD_FRAME();

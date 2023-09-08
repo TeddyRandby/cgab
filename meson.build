@@ -131,7 +131,6 @@ install_headers(
 
 install_data(
   'std/mod.gab',
-  'std/Range.gab',
   'std/String.gab',
   'std/Number.gab',
   'std/Time.gab',

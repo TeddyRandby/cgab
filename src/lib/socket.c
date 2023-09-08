@@ -18,6 +18,11 @@ void gab_lib_sock(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   int domain, type;
 
   switch (argc) {
+  case 1: {
+    domain = AF_INET;
+    type = SOCK_STREAM;
+    break;
+  }
   case 2: {
     if (gab_valknd(argv[1]) != kGAB_RECORD) {
       gab_panic(gab, vm, "invalid_arguments");
@@ -80,56 +85,65 @@ void gab_lib_sock(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_bind(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+  int sockfd = (intptr_t)gab_boxdata(argv[0]);
+
+  int family, port;
+
   switch (argc) {
   case 2: {
     gab_value config = argv[1];
 
-    if (gab_valknd(config) != kGAB_RECORD) {
+    switch (gab_valknd(config)) {
+    case kGAB_NUMBER:
+      family = AF_INET;
+      port = htons(gab_valton(config));
+      goto fin;
+    case kGAB_RECORD: {
+      gab_value family_value = gab_srecat(gab, config, SOCKET_FAMILY);
+
+      if (gab_valknd(family_value) != kGAB_NUMBER) {
+        gab_panic(gab, vm, "invalid_arguments");
+        return;
+      }
+
+      gab_value port_value = gab_srecat(gab, config, "port");
+
+      if (gab_valknd(port_value) != kGAB_NUMBER) {
+        gab_panic(gab, vm, "invalid_arguments");
+        return;
+      }
+
+      family = gab_valton(family_value);
+
+      port = htons(gab_valton(port_value));
+
+      goto fin;
+    }
+    default:
       gab_panic(gab, vm, "invalid_arguments");
       return;
     }
-
-    int sockfd = (intptr_t)gab_boxdata(argv[0]);
-
-    gab_value family_value = gab_srecat(gab, config, SOCKET_FAMILY);
-
-    if (gab_valknd(family_value) != kGAB_NUMBER) {
-      gab_panic(gab, vm, "invalid_arguments");
-      return;
-    }
-
-    gab_value port_value = gab_srecat(gab, config, "port");
-
-    if (gab_valknd(port_value) != kGAB_NUMBER) {
-      gab_panic(gab, vm, "invalid_arguments");
-      return;
-    }
-
-    int family = gab_valton(family_value);
-
-    int port = htons(gab_valton(port_value));
-
-    int result = bind(sockfd,
-                      (struct sockaddr *)(struct sockaddr_in[]){{
-                          .sin_family = family,
-                          .sin_addr = {.s_addr = INADDR_ANY},
-                          .sin_port = port,
-                      }},
-                      sizeof(struct sockaddr_in));
-
-    if (result < 0) {
-      gab_vmpush(vm, gab_string(gab, "socket_bind_failed"));
-      return;
-    }
-
-    gab_vmpush(vm, gab_string(gab, "ok"));
-    return;
   }
 
   default:
     gab_panic(gab, vm, "invalid_arguments");
     return;
   }
+
+fin : {
+  int result = bind(sockfd,
+                    (struct sockaddr *)(struct sockaddr_in[]){{
+                        .sin_family = family,
+                        .sin_addr = {.s_addr = INADDR_ANY},
+                        .sin_port = port,
+                    }},
+                    sizeof(struct sockaddr_in));
+
+  if (result < 0)
+    gab_vmpush(vm, gab_string(gab, "socket_bind_failed"));
+  else
+    gab_vmpush(vm, gab_string(gab, "ok"));
+}
 }
 
 void gab_lib_listen(gab_eg *gab, gab_vm *vm, size_t argc,
@@ -175,7 +189,7 @@ void gab_lib_accept(gab_eg *gab, gab_vm *vm, size_t argc,
               (struct gab_box_argt){
                   .type = gab_string(gab, SOCKET_BOX_TYPE),
                   .destructor = gab_container_socket_cb,
-                  .data = (void*)connfd,
+                  .data = (void *)connfd,
               }),
   };
 

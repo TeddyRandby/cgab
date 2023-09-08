@@ -43,6 +43,11 @@ typedef enum {
   kINDEX,
 } lvalue_k;
 
+static const char *lvalue_k_names[] = {
+    "NEW_LOCAL",           "EXISTING_LOCAL", "NEW_REST_LOCAL",
+    "EXISTING_REST_LOCAL", "PROP",           "INDEX",
+};
+
 typedef struct {
   lvalue_k kind;
 
@@ -807,7 +812,7 @@ int32_t compile_block_body(gab_eg *gab, bc *bc) {
   return COMP_OK;
 }
 
-int32_t compile_message_spec(gab_eg *gab, bc *bc) {
+int32_t compile_message_spec(gab_eg *gab, bc *bc, gab_value name) {
   if (match_and_eat_token(bc, TOKEN_LBRACE)) {
 
     if (match_and_eat_token(bc, TOKEN_RBRACE)) {
@@ -826,9 +831,7 @@ int32_t compile_message_spec(gab_eg *gab, bc *bc) {
   }
 
   compiler_error(bc, GAB_MISSING_RECEIVER,
-                 "Try either:\n\n\tSurrounding the definition with an "
-                 "impl\n\t\timpl <receiver> ... end\n\n\tSpecifying a "
-                 "receiver\n\t\tmsg[<receiver>] ... end");
+                 "Specify a receiver:\n\t\tdef %V[<receiver>] ... end", name);
   return COMP_ERR;
 }
 
@@ -854,7 +857,7 @@ int32_t compile_block(gab_eg *gab, bc *bc) {
 }
 
 int32_t compile_message(gab_eg *gab, bc *bc, gab_value name) {
-  if (compile_message_spec(gab, bc) < 0)
+  if (compile_message_spec(gab, bc, name) < 0)
     return COMP_ERR;
 
   push_ctxframe(gab, bc, name);
@@ -939,11 +942,12 @@ int32_t compile_tuple(gab_eg *gab, bc *bc, uint8_t want, bool *mv_out) {
     }
 
     /*
-     * If we failed to patch and still don't have enough, push some Nils.
+     * If we failed to patch and still don't have enough, push some nils.
      */
     while (have < want) {
       // While we have fewer expressions than we want, push nulls.
       push_op(bc, OP_PUSH_NIL);
+      push_slot(bc, 1);
       have++;
     }
   }
@@ -1201,88 +1205,6 @@ int32_t compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
   return COMP_OK;
 }
 
-int32_t compile_var_decl(gab_eg *gab, bc *bc, uint8_t flags,
-                         uint8_t additional_local) {
-  uint8_t locals[16] = {additional_local};
-
-  uint8_t local_count = additional_local > 0;
-
-  int32_t result = COMP_OK;
-
-  if (match_token(bc, TOKEN_EQUAL))
-    goto initializer;
-
-  do {
-    if (local_count == 16) {
-      compiler_error(bc, GAB_TOO_MANY_VARIABLES_IN_DEF, "");
-      return COMP_ERR;
-    }
-
-    if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
-      return COMP_ERR;
-
-    s_int8_t name = prev_src(bc);
-
-    gab_value val_name = __gab_obj(gab_obj_string_create(gab, name));
-
-    int32_t result = resolve_id(gab, bc, val_name, NULL);
-
-    switch (result) {
-
-    case COMP_ID_NOT_FOUND: {
-      int32_t loc = compile_local(gab, bc, val_name, flags);
-
-      if (loc < 0)
-        return COMP_ERR;
-
-      locals[local_count] = loc;
-      break;
-    }
-
-    case COMP_RESOLVED_TO_LOCAL:
-    case COMP_RESOLVED_TO_UPVALUE: {
-      compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
-      return COMP_ERR;
-    }
-
-    default:
-      return COMP_ERR;
-    }
-
-    local_count++;
-
-  } while ((result = match_and_eat_token(bc, TOKEN_COMMA)));
-
-  if (result == COMP_ERR)
-    return COMP_ERR;
-
-initializer:
-  push_slot(bc, local_count);
-
-  switch (expect_token(bc, TOKEN_EQUAL)) {
-
-  case COMP_OK:
-    if (compile_tuple(gab, bc, local_count, NULL) < 0)
-      return COMP_ERR;
-
-    break;
-
-  default:
-    return COMP_ERR;
-  }
-
-  pop_slot(bc, local_count - 1);
-
-  while (local_count--) {
-    uint8_t local = locals[local_count];
-    initialize_local(bc, local);
-  }
-
-  push_op(bc, OP_PUSH_NIL);
-
-  return COMP_OK;
-}
-
 // Forward decl
 int32_t compile_definition(gab_eg *gab, bc *bc, s_int8_t name, s_int8_t help);
 
@@ -1443,18 +1365,6 @@ int32_t compile_definition(gab_eg *gab, bc *bc, s_int8_t name, s_int8_t help) {
     return COMP_OK;
   }
 
-  // Const variable
-  if (match_token(bc, TOKEN_EQUAL) || match_token(bc, TOKEN_COMMA)) {
-    gab_value val_name = __gab_obj(gab_obj_string_create(gab, name));
-
-    uint8_t local = add_local(gab, bc, val_name, 0);
-
-    if (match_and_eat_token(bc, TOKEN_COMMA) < 0)
-      return COMP_ERR;
-
-    return compile_var_decl(gab, bc, 0, local);
-  }
-
   // From now on, we know its a message definition.
   // Message names can end in a ? or a !
   // or, if the name is op
@@ -1575,6 +1485,7 @@ int32_t compile_exp_mch(gab_eg *gab, bc *bc, bool assignable) {
 
   // Pop the pattern that we never matched
   push_pop(bc, 1);
+  pop_slot(bc, 1);
 
   if (expect_token(bc, TOKEN_FAT_ARROW) < 0)
     return COMP_ERR;
@@ -2518,10 +2429,7 @@ int32_t compile_exp_and(gab_eg *gab, bc *bc, bool assignable) {
 }
 
 int32_t compile_exp_in(gab_eg *gab, bc *bc, bool assignable) {
-  if (optional_newline(bc) < 0)
-    return COMP_ERR;
-
-  return COMP_OK;
+  return optional_newline(bc);
 }
 
 int32_t compile_exp_or(gab_eg *gab, bc *bc, bool assignable) {
