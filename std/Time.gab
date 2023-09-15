@@ -1,7 +1,7 @@
 'time':require
 
 def bench = do (cb, runs)
-  times = :list
+  def times = :list
 
   for _ in runs:to:each
     before = :clock

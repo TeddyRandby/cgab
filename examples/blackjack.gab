@@ -27,7 +27,8 @@ def permutations![.Record](opt_k)
     end
 end
 
-def ops, hands = :list, :list
+def ops = :list
+def hands = :list
 
 for seq in [ &+, &-, &*, &/ ]:permutations!
     ops:push!(seq:slice)

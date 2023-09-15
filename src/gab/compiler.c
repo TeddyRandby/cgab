@@ -43,11 +43,6 @@ typedef enum {
   kINDEX,
 } lvalue_k;
 
-static const char *lvalue_k_names[] = {
-    "NEW_LOCAL",           "EXISTING_LOCAL", "NEW_REST_LOCAL",
-    "EXISTING_REST_LOCAL", "PROP",           "INDEX",
-};
-
 typedef struct {
   lvalue_k kind;
 
@@ -1379,9 +1374,13 @@ int32_t compile_definition(gab_eg *gab, bc *bc, s_int8_t name, s_int8_t help) {
   // Create a local to store the new function in
   uint8_t local = add_local(gab, bc, val_name, 0);
 
-  // Now compile the impl
-  if (compile_message(gab, bc, val_name) < 0)
-    return COMP_ERR;
+  if (match_and_eat_token(bc, TOKEN_EQUAL)) {
+    if (compile_expression(gab, bc) < 0)
+      return COMP_ERR;
+  } else {
+    if (compile_message(gab, bc, val_name) < 0)
+      return COMP_ERR;
+  }
 
   initialize_local(bc, local);
 
