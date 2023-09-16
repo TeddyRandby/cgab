@@ -1,136 +1,14 @@
 'list':require
+def Collection = 'Collection':require
 
-def [][.List](key)
-    ?key match
-      ?{ from to }     => self:slice(key.from, key.to)        end
-      ?{ from }        => self:slice(key.from)                end
-      ?{ to }          => self:slice(0, key.to)               end
-      .Number          => self:at(key)                        end
-      else             => .INVALID_ARGUMENTS:panic            end
-  end
+def each[.List]
+  self:len == 0 and return
 
-  def [=][.List](key, value)
-    self:put!(key, value)
-  end
+  v = 0 
+  loop
+    yield self:at(v), v
+    v = v + 1
+  until v >= self:len end
+end
 
-  def first[.List]
-    self:at(0)
-  end
-
-  def last[.List]
-    self:at(self:len - 1)
-  end
-
-  def take[.List](to)
-    self:slice(0, to)
-  end
-
-  def each[.List]
-    self:len == 0 and return
-
-    v = 0 
-    loop
-      yield self:at(v), v
-      v = v + 1
-    until v >= self:len end
-  end
-
-  def fold[.List](init, folder)
-    v = init
-
-    for i, index in self:each
-        v = folder(v, i, index)
-    end
-
-    v
-  end
-
-  def filter[.List](filterer)
-    v = :list
-
-    for i, index in self:each
-        filterer(i, index) and v:push!(i)
-    end
-
-    v
-  end
-
-  def map[.List](mapper)
-    v = :list
-
-    for i, index in self:each
-        v:push!(mapper(i, index))
-    end
-
-    v
-  end
-
-  def fill[.List](value)
-    v = :list
-
-    for _, index in self:each
-        self:put!(index, value)
-    end
-
-    v
-  end
-
-  def map![.List](mapper)
-      for i, index in self:each
-          self:put!(index, mapper(i, index))
-      end
-
-      self
-  end
-
-
-  def fill![.List](value)
-      for _, index in self:each
-        self:put!(index, value)
-      end
-
-      self
-  end
-
-  def compact[.List]; self:filter do; not @1 == nil end end
-
-  def join[.List](sep)
-    self:fold('') do (str, cur, i)
-      i == 0 and '{cur}' or str + sep + '{cur}'
-    end
-  end
-
-  def every?[.List](pred)
-    for i, _ in self:each
-      pred(i) or return false
-    end
-
-    true
-  end
-
-  def some?[.List](pred)
-    for i, _ in self:each
-      pred(i) and return true
-    end
-
-    false
-  end
-
-  def empty?[.List]; self:len > 0 end
-
-  def include?[.List](value)
-      for i, _ in self:each
-          i == value and return true
-      end
-
-      false
-  end
-
-  def collect![.List](..args)
-    for ..all in args:splat
-        self:push!(all:splat)
-    end
-
-    self
-  end
-
+Collection(.List)

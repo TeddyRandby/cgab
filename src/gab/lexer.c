@@ -400,6 +400,7 @@ gab_token gab_lexnxt(gab_lx *self) {
   start_token(self);
 
   if (peek(self) == '\0' || peek(self) == EOF) {
+    finish_row(self);
     tok = TOKEN_EOF;
     goto fin;
   }

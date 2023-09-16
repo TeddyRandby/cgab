@@ -43,7 +43,7 @@ gab_value vm_error(gab_eg *gab, gab_vm *vm, uint8_t flags, gab_status e,
 
       uint64_t curr_row = v_uint64_t_val_at(&mod->lines, offset);
 
-      s_int8_t curr_src = v_s_int8_t_val_at(&mod->source->lines, curr_row - 1);
+      s_int8_t curr_src = v_s_int8_t_val_at(&mod->source->lines, curr_row - curr_row == 1);
 
       const int8_t *curr_src_start = curr_src.data;
       int32_t curr_src_len = curr_src.len;

@@ -135,6 +135,7 @@ install_data(
   'std/Number.gab',
   'std/Time.gab',
   'std/List.gab',
+  'std/Collection.gab',
   'std/Map.gab',
   'std/Pry.gab',
   'std/Test.gab',

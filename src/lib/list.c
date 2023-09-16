@@ -186,16 +186,17 @@ void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
 a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
   const char *names[] = {
-      "list", "len", "slice", "push!", "pop!", "put!", "at",
+      "list", "new", "len", "slice", "push!", "pop!", "put!", "at",
   };
 
   gab_value type = gab_string(gab, "List");
 
   gab_value receivers[] = {
-      gab_nil, type, type, type, type, type, type,
+      gab_nil, type, type, type, type, type, type, type,
   };
 
   gab_value specs[] = {
+      gab_builtin(gab, "list", gab_lib_new),
       gab_builtin(gab, "new", gab_lib_new),
       gab_builtin(gab, "len", gab_lib_len),
       gab_builtin(gab, "slice", gab_lib_slice),
