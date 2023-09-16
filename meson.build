@@ -140,7 +140,6 @@ install_data(
   'std/Pry.gab',
   'std/Test.gab',
   'std/Record.gab',
-  'std/IO.gab',
   install_dir: '/usr/local/share/gab/std/'
   )
 
