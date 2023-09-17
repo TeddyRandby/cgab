@@ -1465,10 +1465,11 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, uint8_t flags, size_t argc,
 
       uint64_t want = below + above;
       uint64_t have = VAR();
-      uint64_t len = have - want;
 
       while (have < want)
         PUSH(gab_nil), have++;
+
+      uint64_t len = have - want;
 
       gab_value *ap = TOP() - above;
 
@@ -1477,12 +1478,11 @@ a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, uint8_t flags, size_t argc,
       gab_value rec =
           __gab_obj(gab_obj_record_create(ENGINE(), VM(), shape, 1, ap - len));
 
-      DROP_N(len + above);
+      DROP_N(len - 1);
 
-      PUSH(rec);
+      memcpy(ap - len + 1, ap, above * sizeof(gab_value));
 
-      while (above--)
-        PUSH(*ap++);
+      PEEK_N(above + 1) = rec;
 
       VAR() = want + 1;
 

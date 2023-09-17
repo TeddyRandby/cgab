@@ -932,9 +932,7 @@ int32_t compile_tuple(gab_eg *gab, bc *bc, uint8_t want, bool *mv_out) {
       // If we were successful, we have all the values we want.
       // We don't add the one because as far as the stack is concerned,
       // we have just filled the slots we wanted.
-      printf("patched mv, top from %d to \n", peek_slot(bc));
       push_slot(bc, want - have);
-      printf("%d\n", peek_slot(bc));
       have = want;
     }
 
@@ -1108,13 +1106,13 @@ int32_t compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
 
   bool mv = false;
 
-  printf("Top b4 tuple: %d\n", peek_slot(bc));
   int32_t have = compile_tuple(gab, bc, want, &mv);
 
+  // In the scenario where we want ALL possible values,
+  // compile_tuple will only push one slot. Here we know
+  // A minimum number of slots that we will have bc we call pack
   if (n_rest_values && have < n_new_values)
     push_slot(bc, n_new_values - have);
-
-  printf("Top after tuple: %d\n", peek_slot(bc));
 
   if (have < 0)
     return COMP_ERR;
@@ -1156,8 +1154,6 @@ int32_t compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
     case kNEW_LOCAL:
       if (new_local_needs_shift(lvalues, lval_index)) {
         uint8_t shift_under = preceding_existing_lvalues(lvalues, lval_index);
-        printf("shiftunder: %d\n", shift_under);
-        printf("Shifting %d by %d\n", lval.slot, peek_slot(bc) - lval.slot + shift_under);
         push_shift(bc, peek_slot(bc) - lval.slot + shift_under);
 
         // We've shifted a value underneath all the remaining lvalues.
