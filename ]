@@ -1,0 +1,6 @@
+one_through_five = do; return 1,2,3,4,5 end
+
+b = 1
+
+(a, ..b, c = one_through_five())
+

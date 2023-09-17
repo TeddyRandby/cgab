@@ -19,6 +19,20 @@
         b:expect(1)
     end
 
+    :it('should reassign') do
+      (a, b, c, d = 1, 2, 3, 4):expect(1)
+      a:expect(1)
+      b:expect(2)
+      c:expect(3)
+      d:expect(4)
+
+      (a, c, d, e = 5, 6, 7, 8):expect(5)
+      a:expect(5)
+      c:expect(6)
+      d:expect(7)
+      e:expect(8)
+    end
+
     :it('should rest assign a constant multi value') do
         (a, b, ..c = 1, 2, 3, 4, 5):expect(1)
         a:expect(1)

@@ -3,6 +3,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <sys/socket.h>
@@ -13,6 +14,43 @@
 #define SOCKET_BOX_TYPE "Socket"
 
 void gab_container_socket_cb(void *data) { shutdown((int64_t)data, SHUT_RDWR); }
+
+void gab_lib_poll(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+  int result, timeout;
+
+  struct pollfd fd = {
+      .fd = (intptr_t)gab_boxdata(argv[0]),
+      .events = POLLIN,
+  };
+
+  switch (argc) {
+  case 1:
+    timeout = -1;
+    break;
+
+  case 2:
+    if (gab_valknd(argv[1]) != kGAB_NUMBER) {
+      gab_panic(gab, vm, "invalid_arguments");
+      return;
+    }
+
+    timeout = gab_valton(argv[1]);
+    break;
+
+  default:
+    gab_panic(gab, vm, "invalid_arguments");
+    return;
+  }
+
+  result = poll(&fd, 1, timeout);
+
+  if (result < 0) {
+    gab_vmpush(vm, gab_string(gab, "poll_failed"));
+    return;
+  }
+
+  gab_vmpush(vm, gab_number(fd.revents));
+}
 
 void gab_lib_sock(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   int domain, type;
@@ -279,7 +317,7 @@ void gab_lib_send(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
 a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
   const char *names[] = {
-      "socket", "bind", "listen", "accept", "receive", "send", "connect",
+      "socket", "bind", "listen", "accept", "recv", "send", "connect",
   };
 
   gab_value container_type = gab_string(gab, "Socket");

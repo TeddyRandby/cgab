@@ -932,7 +932,9 @@ int32_t compile_tuple(gab_eg *gab, bc *bc, uint8_t want, bool *mv_out) {
       // If we were successful, we have all the values we want.
       // We don't add the one because as far as the stack is concerned,
       // we have just filled the slots we wanted.
+      printf("patched mv, top from %d to \n", peek_slot(bc));
       push_slot(bc, want - have);
+      printf("%d\n", peek_slot(bc));
       have = want;
     }
 
@@ -1021,7 +1023,7 @@ bool new_local_needs_shift(v_lvalue *lvalues, uint8_t index) {
   return false;
 }
 
-bool rest_lvalues(v_lvalue *lvalues) {
+uint8_t rest_lvalues(v_lvalue *lvalues) {
   uint8_t rest = 0;
 
   for (int32_t i = 0; i < lvalues->len; i++)
@@ -1029,6 +1031,29 @@ bool rest_lvalues(v_lvalue *lvalues) {
             lvalues->data[i].kind == kEXISTING_REST_LOCAL;
 
   return rest;
+}
+
+uint8_t new_lvalues(v_lvalue *lvalues) {
+  uint8_t new = 0;
+  for (int32_t i = 0; i < lvalues->len; i++)
+    new += lvalues->data[i].kind == kNEW_LOCAL ||
+           lvalues->data[i].kind == kNEW_REST_LOCAL;
+  return new;
+}
+
+uint8_t preceding_existing_lvalues(v_lvalue *lvalues, int32_t index) {
+  uint8_t existing = 0;
+  // for (int32_t i = 0; i < index; i++)
+  //   existing += lvalues->data[i].kind == kEXISTING_LOCAL ||
+  //               lvalues->data[i].kind == kEXISTING_REST_LOCAL;
+
+  for (int32_t i = 0; i < index; i++)
+    existing += (lvalues->data[i].kind == kPROP);
+
+  for (int32_t i = 0; i < index; i++)
+    existing +=  2 * (lvalues->data[i].kind == kINDEX);
+
+  return existing;
 }
 
 int32_t compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
@@ -1064,6 +1089,7 @@ int32_t compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
   }
 
   uint8_t n_rest_values = rest_lvalues(lvalues);
+  uint8_t n_new_values = new_lvalues(lvalues);
 
   if (n_rest_values > 1) {
     compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
@@ -1081,7 +1107,14 @@ int32_t compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
   s_int8_t prop_src = prev_src(bc);
 
   bool mv = false;
+
+  printf("Top b4 tuple: %d\n", peek_slot(bc));
   int32_t have = compile_tuple(gab, bc, want, &mv);
+
+  if (n_rest_values && have < n_new_values)
+    push_slot(bc, n_new_values - have);
+
+  printf("Top after tuple: %d\n", peek_slot(bc));
 
   if (have < 0)
     return COMP_ERR;
@@ -1115,13 +1148,17 @@ int32_t compile_assignment(gab_eg *gab, bc *bc, lvalue target) {
   }
 
   for (uint8_t i = 0; i < lvalues->len; i++) {
-    lvalue lval = v_lvalue_val_at(lvalues, lvalues->len - 1 - i);
+    int32_t lval_index = lvalues->len - 1 - i;
+    lvalue lval = v_lvalue_val_at(lvalues, lval_index);
 
     switch (lval.kind) {
     case kNEW_REST_LOCAL:
     case kNEW_LOCAL:
-      if (new_local_needs_shift(lvalues, lvalues->len - 1 - i)) {
-        push_shift(bc, peek_slot(bc) - lval.as.local);
+      if (new_local_needs_shift(lvalues, lval_index)) {
+        uint8_t shift_under = preceding_existing_lvalues(lvalues, lval_index);
+        printf("shiftunder: %d\n", shift_under);
+        printf("Shifting %d by %d\n", lval.slot, peek_slot(bc) - lval.slot + shift_under);
+        push_shift(bc, peek_slot(bc) - lval.slot + shift_under);
 
         // We've shifted a value underneath all the remaining lvalues.
         for (uint8_t j = 0; j < i; j++)

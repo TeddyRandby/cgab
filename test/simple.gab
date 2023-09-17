@@ -1,3 +1,11 @@
-def list = 'List':require
+(a, b, c, d = 1, 2, 3, 4)
+a:print
+b:print
+c:print
+d:print
 
-list:new:print
+(a, c, d, e = 5, 6, 7, 8)
+a:print
+c:print
+d:print
+e:print
