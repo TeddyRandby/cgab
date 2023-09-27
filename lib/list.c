@@ -2,14 +2,15 @@
 #include "include/gab.h"
 #include <assert.h>
 
-void gab_lib_new(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_new(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 1: {
-    gab_value list = list_create_empty(gab, vm, 8);
+    gab_value list = list_create_empty(gab, gc, vm, 8);
 
     gab_vmpush(vm, list);
 
-    gab_gcdref(gab_vmgc(vm), vm, list);
+    gab_gcdref(gab, gc, vm, list);
 
     return;
   }
@@ -21,14 +22,14 @@ void gab_lib_new(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
     uint64_t len = gab_valton(argv[1]);
 
-    gab_value list = list_create_empty(gab, vm, len * 2);
+    gab_value list = list_create_empty(gab, gc, vm, len * 2);
 
     while (len--)
       v_gab_value_push(gab_boxdata(list), gab_nil);
 
     gab_vmpush(vm, list);
 
-    gab_gcdref(gab_vmgc(vm), vm, list);
+    gab_gcdref(gab, gc, vm, list);
 
     return;
   }
@@ -38,7 +39,8 @@ void gab_lib_new(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   }
 }
 
-void gab_lib_len(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_len(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_len");
     return;
@@ -51,7 +53,8 @@ void gab_lib_len(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   return;
 }
 
-void gab_lib_pop(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_pop(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_len");
     return;
@@ -61,12 +64,13 @@ void gab_lib_pop(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
   gab_vmpush(vm, result);
 
-  gab_gcdref(gab_vmgc(vm), vm, result);
+  gab_gcdref(gab, gc, vm, result);
 
   return;
 }
 
-void gab_lib_push(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_push(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                  size_t argc, gab_value argv[argc]) {
   if (argc < 2) {
     gab_panic(gab, vm, "Invalid call to gab_lib_len");
     return;
@@ -75,12 +79,13 @@ void gab_lib_push(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   for (uint8_t i = 1; i < argc; i++)
     v_gab_value_push(gab_boxdata(argv[0]), argv[i]);
 
-  gab_ngciref(gab_vmgc(vm), vm, argc - 1, argv + 1);
+  gab_ngciref(gab, gc, vm, 1, argc - 1, argv + 1);
 
   gab_vmpush(vm, *argv);
 }
 
-void gab_lib_at(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_at(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
+                size_t argc, gab_value argv[argc]) {
   if (argc != 2 || gab_valknd(argv[1]) != kGAB_NUMBER) {
     gab_panic(gab, vm, "Invalid call to gab_lib_put");
     return;
@@ -93,7 +98,8 @@ void gab_lib_at(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   gab_vmpush(vm, res);
 }
 
-void gab_lib_del(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_del(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
   if (argc != 2 || gab_valknd(argv[1]) != kGAB_NUMBER) {
     gab_panic(gab, vm, "Invalid call to gab_lib_del");
     return;
@@ -101,14 +107,15 @@ void gab_lib_del(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
   uint64_t index = gab_valton(argv[1]);
 
-  gab_gcdref(gab_vmgc(vm), vm, v_gab_value_val_at(gab_boxdata(argv[0]), index));
+  gab_gcdref(gab, gc, vm, v_gab_value_val_at(gab_boxdata(argv[0]), index));
 
   v_gab_value_del(gab_boxdata(argv[0]), index);
 
   gab_vmpush(vm, *argv);
 }
 
-void gab_lib_put(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_put(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 3:
     // A put
@@ -117,8 +124,7 @@ void gab_lib_put(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
       return;
     }
 
-    list_put(gab, vm, argv[0], gab_valton(argv[1]), argv[2]);
-
+    list_put(gab, gc, vm, argv[0], gab_valton(argv[1]), argv[2]);
     break;
 
   default:
@@ -134,7 +140,8 @@ void gab_lib_put(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (a < 0 ? 0 : MIN(a, b))
 
-void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_slice(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                   size_t argc, gab_value argv[argc]) {
   v_gab_value *data = gab_boxdata(argv[0]);
 
   uint64_t len = data->len;
@@ -174,17 +181,17 @@ void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
   uint64_t result_len = end - start;
 
-  gab_value result = gab_tuple(gab, vm, result_len, data->data + start);
+  gab_value result = gab_tuple(gab, result_len, data->data + start);
 
   gab_vmpush(vm, result);
 
-  gab_gcdref(gab_vmgc(vm), vm, result);
+  gab_gcdref(gab, gc, vm, result);
 }
 #undef MIN
 #undef MAX
 #undef CLAMP
 
-a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   const char *names[] = {
       "list", "new", "len", "slice", "push!", "pop!", "put!", "at",
   };
@@ -210,15 +217,14 @@ a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
 
   for (int i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_spec(gab, vm,
-             (struct gab_spec_argt){
-                 .name = names[i],
-                 .specialization = specs[i],
-                 .receiver = receivers[i],
-             });
+    gab_spec(gab, (struct gab_spec_argt){
+                      .name = names[i],
+                      .specialization = specs[i],
+                      .receiver = receivers[i],
+                  });
   }
 
-  gab_ngcdref(gab_vmgc(vm), vm, LEN_CARRAY(names), specs);
+  gab_ngciref(gab, gc, vm, 1, LEN_CARRAY(receivers), receivers);
 
   return NULL;
 }

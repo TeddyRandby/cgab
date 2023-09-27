@@ -6,8 +6,8 @@
 /*
  * A run-time representation of a callframe.
  */
-typedef struct gab_vm_frame {
-  gab_obj_block *b;
+struct gab_vm_frame {
+  struct gab_obj_block *b;
 
   /*
    *The instruction pointer.
@@ -25,13 +25,13 @@ typedef struct gab_vm_frame {
    * This is set during when the values are called.
    */
   uint8_t want;
-} gab_vm_frame;
+};
 
 /*
  * The gab virtual machine. This has all the state needed for executing
  * bytecode.
  */
-typedef struct gab_vm {
+struct gab_vm {
   /*
    * The flags passed in to the vm
    */
@@ -40,26 +40,27 @@ typedef struct gab_vm {
   /*
    * The garbage collector used to cleanup the memory as the vm runs
    */
-  gab_gc gc;
+  struct gab_gc gc;
 
-  gab_vm_frame *fp;
+  struct gab_vm_frame *fp;
 
   gab_value *sp;
 
   gab_value sb[cGAB_STACK_MAX];
 
-  gab_vm_frame fb[cGAB_FRAMES_MAX];
-} gab_vm;
+  struct gab_vm_frame fb[cGAB_FRAMES_MAX];
+};
 
-void gab_vm_create(gab_vm *vm, uint8_t flags, size_t argc, gab_value argv[argc]);
+void gab_vm_create(struct gab_vm *vm, uint8_t flags, size_t argc,
+                   gab_value argv[argc]);
 
-void gab_vm_destroy(gab_vm *vm);
+void gab_vm_destroy(struct gab_eg *gab, struct gab_vm *vm);
 
-a_gab_value *gab_vm_run(gab_eg *gab, gab_value main, uint8_t flags, size_t argc,
-                        gab_value argv[argc]);
+a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
+                        size_t argc, gab_value argv[argc]);
 
-gab_value gab_vm_panic(gab_eg *gab, gab_vm *vm, const char *msg);
+gab_value gab_vm_panic(struct gab_eg *gab, struct gab_vm *vm, const char *msg);
 
-int32_t gab_vm_push(gab_vm *vm, uint64_t argc, gab_value argv[argc]);
+int32_t gab_vm_push(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]);
 
 #endif

@@ -1,15 +1,15 @@
-#include <gab/gab.h>
+#include "include/gab.h"
 #include <uriparser/Uri.h>
 #include <uriparser/UriBase.h>
 
-void gab_lib_stouri(gab_eg *gab, gab_vm *vm, size_t argc,
-                    gab_value argv[argc]) {
+void gab_lib_stouri(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                    size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
     gab_vmpush(vm, gab_string(gab, "invalid_arguments"));
     return;
   }
 
-  gab_obj_string *uri = GAB_VAL_TO_STRING(argv[0]);
+  struct gab_obj_string *uri = GAB_VAL_TO_STRING(argv[0]);
 
   gab_value r_values[] = {
       gab_string(gab, "ok"),
@@ -52,7 +52,7 @@ void gab_lib_stouri(gab_eg *gab, gab_vm *vm, size_t argc,
       index++;
     }
 
-    r_values[1] = gab_tuple(gab, vm, path_count, values);
+    r_values[1] = gab_tuple(gab, path_count, values);
   }
 
   UriQueryListA *query = NULL;
@@ -82,7 +82,7 @@ void gab_lib_stouri(gab_eg *gab, gab_vm *vm, size_t argc,
     index++;
   }
 
-  r_values[2] = gab_srecord(gab, vm, item_count, keys, values);
+  r_values[2] = gab_srecord(gab, item_count, keys, values);
 
   uriFreeQueryListA(query);
 
@@ -91,7 +91,7 @@ void gab_lib_stouri(gab_eg *gab, gab_vm *vm, size_t argc,
   gab_nvmpush(vm, sizeof(r_values) / sizeof(r_values[0]), r_values);
 }
 
-a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   const char *names[] = {
       "to_uri",
   };
@@ -105,15 +105,14 @@ a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
   };
 
   for (int32_t i = 0; i < sizeof(values) / sizeof(gab_value); i++) {
-    gab_spec(gab, vm,
-             (struct gab_spec_argt){
-                 .name = names[i],
-                 .receiver = types[i],
-                 .specialization = values[i],
-             });
-
-    gab_gcdref(gab_vmgc(vm), vm, values[i]);
+    gab_spec(gab, (struct gab_spec_argt){
+                      .name = names[i],
+                      .receiver = types[i],
+                      .specialization = values[i],
+                  });
   }
+
+  gab_ngciref(gab, gc, vm, 1, sizeof(types) / sizeof(types[0]), types);
 
   return a_gab_value_one(gab_nil);
 }

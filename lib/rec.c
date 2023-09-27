@@ -5,8 +5,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-void gab_lib_send(gab_eg *gab, gab_vm *vm, size_t argc,
-                  gab_value argv[static argc]) {
+void gab_lib_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                  size_t argc, gab_value argv[static argc]) {
   if (argc < 2) {
     gab_panic(gab, vm, "Invalid call to gab_lib_send");
     return;
@@ -24,15 +24,16 @@ void gab_lib_send(gab_eg *gab, gab_vm *vm, size_t argc,
   a_gab_value_destroy(result);
 }
 
-void gab_lib_splat(gab_eg *gab, gab_vm *vm, size_t argc,
-                   gab_value argv[static argc]) {
+void gab_lib_splat(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                   size_t argc, gab_value argv[static argc]) {
   gab_nvmpush(vm, gab_reclen(argv[0]), gab_recdata(argv[0]));
 }
 
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (a < 0 ? 0 : MIN(a, b))
-void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_slice(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                   size_t argc, gab_value argv[argc]) {
   if (gab_valknd(argv[0]) != kGAB_RECORD) {
     gab_panic(gab, vm, "Invalid call to gab_lib_slice");
     return;
@@ -76,17 +77,18 @@ void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
   uint64_t result_len = end - start;
 
-  gab_value result = gab_tuple(gab, vm, result_len, gab_recdata(rec) + start);
+  gab_value result = gab_tuple(gab, result_len, gab_recdata(rec) + start);
 
   gab_vmpush(vm, result);
 
-  gab_gcdref(gab_vmgc(vm), vm, result);
+  gab_gcdref(gab, gc, vm, result);
 }
 #undef MIN
 #undef MAX
 #undef CLAMP
 
-void gab_lib_at(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_at(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                size_t argc, gab_value argv[argc]) {
   if (argc != 2) {
     gab_panic(gab, vm, "Invalid call to  gab_lib_at");
     return;
@@ -97,18 +99,20 @@ void gab_lib_at(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   gab_vmpush(vm, result);
 }
 
-void gab_lib_put(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_put(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
   if (argc != 3) {
     gab_panic(gab, vm, "Invalid call to gab_lib_put");
     return;
   }
 
-  gab_recput(vm, argv[0], argv[1], argv[2]);
+  gab_recput(argv[0], argv[1], argv[2]);
 
   gab_vmpush(vm, argv[1]);
 }
 
-void gab_lib_next(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_next(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                  size_t argc, gab_value argv[argc]) {
   gab_value rec = argv[0];
   gab_value shp = gab_recshp(rec);
 
@@ -140,12 +144,35 @@ void gab_lib_next(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 fin:
   gab_vmpush(vm, res);
 }
+void gab_lib_tuple(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
+  switch (argc) {
+  case 2: {
+    if (gab_valknd(argv[1]) != kGAB_NUMBER) {
+      gab_panic(gab, vm, "Invalid call to :tuple");
+      return;
+    }
 
-void gab_lib_new(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+    gab_value result = gab_etuple(gab, gab_valton(argv[1]));
+
+    gab_vmpush(vm, result);
+
+    gab_gcdref(gab, gc, vm, result);
+
+    return;
+  }
+  default:
+    gab_panic(gab, vm, "Invalid call to :tuple");
+    return;
+  }
+}
+
+void gab_lib_record(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     if (gab_valknd(argv[1]) != kGAB_SHAPE) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_new");
+      gab_panic(gab, vm, "Invalid call to :record");
       return;
     }
 
@@ -153,17 +180,18 @@ void gab_lib_new(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
     gab_vmpush(vm, result);
 
-    gab_gcdref(gab_vmgc(vm), vm, result);
+    gab_gcdref(gab, gc, vm, result);
 
     return;
   }
   default:
-    gab_panic(gab, vm, "Invalid call to gab_lib_new");
+    gab_panic(gab, vm, "Invalid call to :record");
     return;
   }
 };
 
-void gab_lib_len(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_len(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 1: {
     gab_value result = gab_number(gab_reclen(argv[0]));
@@ -178,15 +206,16 @@ void gab_lib_len(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   }
 }
 
-void gab_lib_to_l(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_to_l(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                  size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 1: {
     gab_value list =
-        list_create(gab, vm, gab_reclen(argv[0]), gab_recdata(argv[0]));
+        list_create(gab, gc, vm, gab_reclen(argv[0]), gab_recdata(argv[0]));
 
     gab_vmpush(vm, list);
 
-    gab_gcdref(gab_vmgc(vm), vm, list);
+    gab_gcdref(gab, gc, vm, list);
 
     return;
   }
@@ -197,8 +226,8 @@ void gab_lib_to_l(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   }
 }
 
-void gab_lib_implements(gab_eg *gab, gab_vm *vm, size_t argc,
-                        gab_value argv[argc]) {
+void gab_lib_implements(struct gab_eg *gab, struct gab_gc *gc,
+                        struct gab_vm *vm, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     if (gab_valknd(argv[1]) != kGAB_MESSAGE) {
@@ -220,18 +249,19 @@ void gab_lib_implements(gab_eg *gab, gab_vm *vm, size_t argc,
   }
 }
 
-void gab_lib_to_m(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_to_m(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                  size_t argc, gab_value argv[argc]) {
   gab_value rec = argv[0];
   gab_value shp = gab_recshp(rec);
 
   switch (argc) {
   case 1: {
-    gab_value map = map_create(gab, vm, gab_reclen(rec), 1, gab_shpdata(shp),
-                               gab_recdata(rec));
+    gab_value map = map_create(gab, gc, vm, gab_reclen(rec), 1,
+                               gab_shpdata(shp), gab_recdata(rec));
 
     gab_vmpush(vm, map);
 
-    gab_gcdref(gab_vmgc(vm), vm, map);
+    gab_gcdref(gab, gc, vm, map);
 
     return;
   }
@@ -241,13 +271,14 @@ void gab_lib_to_m(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     return;
   }
 }
-a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   const char *names[] = {
-      "record", "len",  "to_l",  "to_m",  "send",        "put",
+      "tuple", "record", "len",  "to_l",  "to_m",  "send",        "put",
       "at",     "next", "slice", "splat", "implements?",
   };
 
   gab_value receivers[] = {
+      gab_nil,
       gab_nil,
       gab_typ(gab, kGAB_RECORD),
       gab_typ(gab, kGAB_RECORD),
@@ -262,7 +293,8 @@ a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
   };
 
   gab_value specs[] = {
-      gab_builtin(gab, "new", gab_lib_new),
+      gab_builtin(gab, "tuple", gab_lib_tuple),
+      gab_builtin(gab, "record", gab_lib_record),
       gab_builtin(gab, "len", gab_lib_len),
       gab_builtin(gab, "to_l", gab_lib_to_l),
       gab_builtin(gab, "to_m", gab_lib_to_m),
@@ -279,15 +311,14 @@ a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
 
   for (int i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_spec(gab, vm,
-             (struct gab_spec_argt){
-                 .name = names[i],
-                 .receiver = receivers[i],
-                 .specialization = specs[i],
-             });
+    gab_spec(gab, (struct gab_spec_argt){
+                      .name = names[i],
+                      .receiver = receivers[i],
+                      .specialization = specs[i],
+                  });
   }
 
-  gab_ngcdref(gab_vmgc(vm), vm, LEN_CARRAY(specs), specs);
+  gab_ngciref(gab, gc, vm, 1, LEN_CARRAY(receivers), receivers);
 
   return NULL;
 }

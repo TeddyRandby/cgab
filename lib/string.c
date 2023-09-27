@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 
-void gab_lib_len(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_len(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, vm, "&:len expects 1 argument");
     return;
@@ -17,8 +18,9 @@ void gab_lib_len(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (MAX(0, MIN(a, b)))
 
-void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
-  char *str = gab_valtocs(gab, argv[0]);
+void gab_lib_slice(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
+                   size_t argc, gab_value argv[argc]) {
+  s_char str = gab_valintocs(gab, argv[0]);
 
   uint64_t len = gab_strlen(argv[0]);
   uint64_t start = 0, end = len;
@@ -62,36 +64,32 @@ void gab_lib_slice(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
   uint64_t size = end - start;
 
-  gab_value res = gab_nstring(gab, size, str + start);
-  free(str);
+  gab_value res = gab_nstring(gab, size, str.data + start);
 
   gab_vmpush(vm, res);
 }
 
-void gab_lib_split(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_split(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                   size_t argc, gab_value argv[argc]) {
   if (argc != 2 || gab_valknd(argv[1]) != kGAB_STRING) {
     gab_panic(gab, vm, "&:split expects 2 arguments");
     return;
   }
 
-  char *src = gab_valtocs(gab, argv[0]);
-  char *delim_src = gab_valtocs(gab, argv[1]);
+  s_char src = gab_valintocs(gab, argv[0]);
+  s_char delim = gab_valintocs(gab, argv[1]);
 
-  size_t srclen = gab_strlen(argv[0]);
-  size_t delimlen = gab_strlen(argv[1]);
+  s_char window = s_char_create(src.data, delim.len);
 
-  s_int8_t delim = s_int8_t_cstr(delim_src);
-  s_int8_t window = s_int8_t_create((const int8_t *)src, delimlen);
-
-  const int8_t *start = window.data;
+  const char *start = window.data;
   uint64_t len = 0;
 
   v_uint64_t splits;
   v_uint64_t_create(&splits, 8);
 
-  while (window.data + window.len <= (int8_t *)src + srclen) {
-    if (s_int8_t_match(window, delim)) {
-      s_int8_t split = s_int8_t_create(start, len);
+  while (window.data + window.len <= src.data + src.len) {
+    if (s_char_match(window, delim)) {
+      s_char split = s_char_create(start, len);
 
       v_uint64_t_push(&splits, gab_nstring(gab, split.len, (char *)split.data));
 
@@ -104,17 +102,17 @@ void gab_lib_split(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     }
   }
 
-  s_int8_t split = s_int8_t_create(start, len);
+  s_char split = s_char_create(start, len);
   v_uint64_t_push(&splits, gab_nstring(gab, split.len, (char *)split.data));
 
-  gab_value result = gab_tuple(gab, vm, splits.len, splits.data);
+  gab_value result = gab_tuple(gab, splits.len, splits.data);
 
   gab_vmpush(vm, result);
 
-  gab_gcdref(gab_vmgc(vm), vm, result);
+  gab_gcdref(gab, gc, vm, result);
 }
 
-a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc* gc, struct gab_vm *vm) {
   gab_value string_type = gab_typ(gab, kGAB_STRING);
 
   const char *keys[] = {
@@ -130,15 +128,14 @@ a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
   };
 
   for (uint8_t i = 0; i < LEN_CARRAY(keys); i++) {
-    gab_spec(gab, vm,
-             (struct gab_spec_argt){
-                 .name = keys[i],
-                 .receiver = string_type,
-                 .specialization = values[i],
-             });
-  }
+    gab_spec(gab, (struct gab_spec_argt){
+                      .name = keys[i],
+                      .receiver = string_type,
+                      .specialization = values[i],
+                  });
 
-  gab_ngcdref(gab_vmgc(vm), vm, LEN_CARRAY(keys), values);
+    gab_gciref(gab, gc, vm, string_type);
+  }
 
   return NULL;
 }

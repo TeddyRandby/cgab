@@ -1,4 +1,5 @@
-'std':require
+'std/Record':require
+'std/Number':require
 
 def Matrix { n data }
 
@@ -48,18 +49,18 @@ def diag_sum[Matrix]
   sum
 end
 
-sum = 0
+N, sum, i = 2, 0, 0 
 
-N = 2
-
-for _ in :range(5000)
-  a = :matrix(N, :list(N * N):map! do; @2 end)
-  b = :matrix(N, :list(N * N):map! do; @2 end)
+loop
+  a = :matrix(N, :tuple(N * N):map! do; @2 end)
+  b = :matrix(N, :tuple(N * N):map! do; @2 end)
 
   c = a + b
   d = c * a * b
 
   sum = d:diag_sum
-end
+
+  i = i + 1
+until i == 5000 end
 
 sum:print

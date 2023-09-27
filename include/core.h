@@ -23,7 +23,7 @@
 
 // Use the simple custom chunk allocator
 #ifndef cGAB_CHUNK_ALLOCATOR
-#define cGAB_CHUNK_ALLOCATOR 1
+#define cGAB_CHUNK_ALLOCATOR 0
 #endif
 
 // Capacity at which point dictionaries are resized
@@ -131,10 +131,10 @@ enum gab_flags {
 
 #include "types.h"
 
-#define T int8_t
+#define T char
 #include "slice.h"
 
-#define T int8_t
+#define T char
 #include "array.h"
 
 #define T uint8_t
@@ -146,17 +146,17 @@ enum gab_flags {
 #define T uint64_t
 #include "vector.h"
 
-#define T s_int8_t
+#define T s_char
 #include "vector.h"
 
 #define T int8_t
 #include "vector.h"
 
-#define T s_int8_t
+#define T s_char
 #include "array.h"
 
-#define T a_int8_t *
-#define NAME a_int8_t
+#define T a_char *
+#define NAME a_char
 #include "vector.h"
 
 #define T uint64_t
@@ -170,24 +170,24 @@ enum gab_flags {
 #define LOAD cGAB_DICT_MAX_LOAD
 #include "dict.h"
 
-static inline s_int8_t s_int8_t_cstr(const char *str) {
-  return (s_int8_t){.data = (int8_t *)str, .len = strlen(str)};
+static inline s_char s_char_cstr(const char *str) {
+  return (s_char){.data = str, .len = strlen(str)};
 }
 
-static inline s_int8_t s_int8_t_arr(const a_int8_t *str) {
-  return (s_int8_t){.data = str->data, .len = str->len};
+static inline s_char s_char_arr(const a_char *str) {
+  return (s_char){.data = str->data, .len = str->len};
 }
 
-static inline s_int8_t s_int8_t_tok(s_int8_t str, uint64_t start, int8_t ch) {
+static inline s_char s_char_tok(s_char str, uint64_t start, char ch) {
   if (start >= str.len)
-    return (s_int8_t){.data = str.data + start, .len = 0};
+    return (s_char){.data = str.data + start, .len = 0};
 
   uint64_t cursor = start;
 
   while (cursor < str.len && str.data[cursor] != ch)
     cursor++;
 
-  return (s_int8_t){.data = str.data + start, .len = cursor - start};
+  return (s_char){.data = str.data + start, .len = cursor - start};
 }
 
 #define LEN_CARRAY(a) (sizeof(a) / sizeof(a[0]))

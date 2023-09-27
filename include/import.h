@@ -8,7 +8,7 @@ typedef enum {
   IMPORT_SOURCE,
 } gab_import_k;
 
-typedef struct {
+struct gab_imp {
   gab_import_k k;
 
   union {
@@ -17,11 +17,11 @@ typedef struct {
   } as;
 
   a_gab_value *cache;
-} gab_imp;
+};
 
 #define NAME gab_imp
 #define K uint64_t
-#define V gab_imp *
+#define V struct gab_imp *
 #define DEF_V NULL
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
@@ -30,21 +30,21 @@ typedef struct {
 /**
  * Allocate a new import for a gab_value module
  */
-uint64_t gab_impmod(gab_eg *gab, const char *name, gab_value mod, a_gab_value* val);
+uint64_t gab_impmod(struct gab_eg *gab, const char *name, gab_value mod, a_gab_value* val);
 
 /**
  * Allocate a new import for a shared object
  */
-uint64_t gab_impshd(gab_eg *gab, const char *name, void *obj, a_gab_value* val);
+uint64_t gab_impshd(struct gab_eg *gab, const char *name, void *obj, a_gab_value* val);
 
 /**
  * Check if an import exists
  */
-a_gab_value* gab_imphas(gab_eg *gab, const char *name);
+a_gab_value* gab_imphas(struct gab_eg *gab, const char *name);
 
 /**
  * Destroy an import
  */
-void gab_impdestroy(gab_eg *gab, gab_gc *gc);
+void gab_impdestroy(struct gab_eg *gab, struct gab_gc *gc);
 
 #endif

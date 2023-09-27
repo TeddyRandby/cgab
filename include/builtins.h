@@ -1,3 +1,3 @@
 #include "include/gab.h"
 
-void gab_setup_builtins(gab_eg* gab);
+void gab_setup_builtins(struct gab_eg* gab, struct gab_gc* gc);

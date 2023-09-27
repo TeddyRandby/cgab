@@ -8,10 +8,11 @@
 
 #define MODULE_SYMBOL "gab_lib"
 
-typedef a_gab_value *(*handler_f)(gab_eg *, gab_vm *, const char *,
-                                  const char *);
+typedef a_gab_value *(*handler_f)(struct gab_eg *, struct gab_gc *,
+                                  struct gab_vm *, const char *);
 
-typedef a_gab_value *(*module_f)(gab_eg *, gab_vm *);
+typedef a_gab_value *(*module_f)(struct gab_eg *, struct gab_gc *,
+                                 struct gab_vm *);
 
 typedef struct {
   handler_f handler;
@@ -19,8 +20,8 @@ typedef struct {
   const char *suffix;
 } resource;
 
-a_gab_value *gab_shared_object_handler(gab_eg *gab, gab_vm *vm,
-                                       const char *path, const char *name) {
+a_gab_value *gab_shared_object_handler(struct gab_eg *gab, struct gab_gc *gc,
+                                       struct gab_vm *vm, const char *path) {
 
   void *handle = dlopen(path, RTLD_LAZY);
 
@@ -37,28 +38,28 @@ a_gab_value *gab_shared_object_handler(gab_eg *gab, gab_vm *vm,
     return NULL;
   }
 
-  a_gab_value *res = symbol(gab, vm);
+  a_gab_value *res = symbol(gab, gc, vm);
 
   gab_impshd(gab, path, handle, res);
 
   return res;
 }
 
-a_gab_value *gab_source_file_handler(gab_eg *gab, gab_vm *vm, const char *path,
-                                     const char *module) {
-  a_int8_t *src = os_read_file(path);
+a_gab_value *gab_source_file_handler(struct gab_eg *gab, struct gab_gc *gc,
+                                     struct gab_vm *vm, const char *path) {
+  a_char *src = os_read_file(path);
 
   if (src == NULL)
     return a_gab_value_one(gab_panic(gab, vm, "Failed to read module"));
 
   gab_value pkg =
       gab_block(gab, (struct gab_block_argt){
-                         .name = module,
+                         .name = path,
                          .source = (const char *)src->data,
                          .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
                      });
 
-  a_int8_t_destroy(src);
+  a_char_destroy(src);
 
   a_gab_value *res = gab_run(gab, pkg, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC);
 
@@ -69,34 +70,55 @@ a_gab_value *gab_source_file_handler(gab_eg *gab, gab_vm *vm, const char *path,
 
 resource resources[] = {
     // Local resources
-    {.prefix = "./mod/", .suffix = ".gab", .handler = gab_source_file_handler},
-    {.prefix = "./",
-     .suffix = "/mod/mod.gab",
-     .handler = gab_source_file_handler},
-    {.prefix = "./", .suffix = ".gab", .handler = gab_source_file_handler},
-    {.prefix = "./", .suffix = "/mod.gab", .handler = gab_source_file_handler},
-    {.prefix = "./libcgab",
-     .suffix = ".so",
-     .handler = gab_shared_object_handler},
+    {
+        .prefix = "./mod/",
+        .suffix = ".gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = "./",
+        .suffix = "/mod/mod.gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = "./",
+        .suffix = ".gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = "./",
+        .suffix = "/mod.gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = "./libcgab",
+        .suffix = ".so",
+        .handler = gab_shared_object_handler,
+    },
     // Installed resources
-    {.prefix = "/usr/local/share/gab/",
-     .suffix = ".gab",
-     .handler = gab_source_file_handler},
-    {.prefix = "/usr/local/share/gab/std/",
-     .suffix = ".gab",
-     .handler = gab_source_file_handler},
-    {.prefix = "/usr/local/share/gab/",
-     .suffix = "/mod.gab",
-     .handler = gab_source_file_handler},
-    {.prefix = "/usr/local/share/gab/",
-     .suffix = "mod/mod.gab",
-     .handler = gab_source_file_handler},
-    {.prefix = "/usr/local/lib/gab/libcgab",
-     .suffix = ".so",
-     .handler = gab_shared_object_handler},
+    {
+        .prefix = "/usr/local/share/gab/",
+        .suffix = ".gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = "/usr/local/share/gab/",
+        .suffix = "/mod.gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = "/usr/local/share/gab/",
+        .suffix = "mod/mod.gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = "/usr/local/lib/gab/libcgab",
+        .suffix = ".so",
+        .handler = gab_shared_object_handler,
+    },
 };
 
-a_int8_t *match_resource(resource *res, const char *name, uint64_t len) {
+a_char *match_resource(resource *res, const char *name, uint64_t len) {
   const uint64_t p_len = strlen(res->prefix);
   const uint64_t s_len = strlen(res->suffix);
   const uint64_t total_len = p_len + len + s_len + 1;
@@ -113,20 +135,20 @@ a_int8_t *match_resource(resource *res, const char *name, uint64_t len) {
     return NULL;
 
   fclose(f);
-  return a_int8_t_create((int8_t *)buffer, total_len);
+  return a_char_create(buffer, total_len);
 }
 
-void gab_lib_require(gab_eg *gab, gab_vm *vm, size_t argc,
-                     gab_value argv[argc]) {
+void gab_lib_require(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                     size_t argc, gab_value argv[argc]) {
 
   if (argc != 1)
     gab_panic(gab, vm, "Invalid call to gab_lib_require");
 
-  char *name = gab_valtocs(gab, argv[0]);
+  s_char name = gab_valintocs(gab, argv[0]);
 
   for (int32_t i = 0; i < sizeof(resources) / sizeof(resource); i++) {
     resource *res = resources + i;
-    a_int8_t *path = match_resource(res, name, strlen(name));
+    a_char *path = match_resource(res, name.data, name.len);
 
     if (path) {
       a_gab_value *cached = gab_imphas(gab, (char *)path->data);
@@ -136,8 +158,7 @@ void gab_lib_require(gab_eg *gab, gab_vm *vm, size_t argc,
         goto fin;
       }
 
-      a_gab_value *result = res->handler(gab, vm, (char *)path->data, name);
-      free(name);
+      a_gab_value *result = res->handler(gab, gc, vm, (char *)path->data);
 
       if (result != NULL) {
         gab_nvmpush(vm, result->len, result->data);
@@ -145,7 +166,7 @@ void gab_lib_require(gab_eg *gab, gab_vm *vm, size_t argc,
       }
 
     fin:
-      a_int8_t_destroy(path);
+      a_char_destroy(path);
       return;
     }
   }
@@ -153,20 +174,25 @@ void gab_lib_require(gab_eg *gab, gab_vm *vm, size_t argc,
   gab_panic(gab, vm, "Could not locate module");
 }
 
-void gab_lib_panic(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_panic(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                   size_t argc, gab_value argv[argc]) {
   if (argc == 1) {
-    char *str = gab_valtocs(gab, argv[0]);
+    s_char str = gab_valintocs(gab, argv[0]);
 
-    gab_panic(gab, vm, str);
+    char *cstr = strndup((char *)str.data, str.len);
 
-    free(str);
+    gab_panic(gab, vm, cstr);
+
+    free(cstr);
+
     return;
   }
 
   gab_panic(gab, vm, "Error");
 }
 
-void gab_lib_print(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_print(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                   size_t argc, gab_value argv[argc]) {
   for (uint8_t i = 0; i < argc; i++) {
     if (i > 0)
       putc(' ', stdout);
@@ -176,25 +202,25 @@ void gab_lib_print(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   printf("\n");
 }
 
-void gab_setup_builtins(gab_eg *gab) {
-  gab_spec(gab, NULL,
+void gab_setup_builtins(struct gab_eg *gab, struct gab_gc *gc) {
+  gab_spec(gab,
            (struct gab_spec_argt){
                .name = "require",
-               .receiver = gab_typ(gab, kGAB_STRING),
+               .receiver = gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_STRING)),
                .specialization = gab_builtin(gab, "require", gab_lib_require),
-          });
+           });
 
-  gab_spec(gab, NULL,
+  gab_spec(gab,
            (struct gab_spec_argt){
                .name = "panic",
-               .receiver = gab_typ(gab, kGAB_STRING),
+               .receiver = gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_STRING)),
                .specialization = gab_builtin(gab, "panic", gab_lib_panic),
            });
 
-  gab_spec(gab, NULL,
-           (struct gab_spec_argt){
-               .name = "print",
-               .receiver = gab_typ(gab, kGAB_UNDEFINED),
-               .specialization = gab_builtin(gab, "print", gab_lib_print),
-           });
+  gab_spec(gab, (struct gab_spec_argt){
+                    .name = "print",
+                    .receiver =
+                        gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_UNDEFINED)),
+                    .specialization = gab_builtin(gab, "print", gab_lib_print),
+                });
 }

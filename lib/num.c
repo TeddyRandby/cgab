@@ -58,8 +58,8 @@ static double random_float() {
   return result;
 }
 
-void gab_lib_between(gab_eg *gab, gab_vm *vm, size_t argc,
-                     gab_value argv[argc]) {
+void gab_lib_between(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
+                     size_t argc, gab_value argv[argc]) {
 
   double min = 0, max = 1;
 
@@ -103,7 +103,8 @@ void gab_lib_between(gab_eg *gab, gab_vm *vm, size_t argc,
   gab_vmpush(vm, res);
 }
 
-void gab_lib_floor(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_floor(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
+                   size_t argc, gab_value argv[argc]) {
 
   if (argc != 1 || gab_valknd(argv[0]) != kGAB_NUMBER) {
     gab_panic(gab, vm, "Invalid call to gab_lib_floor");
@@ -119,20 +120,21 @@ void gab_lib_floor(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   gab_vmpush(vm, res);
 }
 
-void gab_lib_to_n(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_to_n(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
+                  size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_from");
     return;
   }
 
-  const char *str = gab_valtocs(gab, argv[0]);
+  s_char str = gab_valintocs(gab, argv[0]);
 
-  gab_value res = gab_number(strtod(str, NULL));
+  gab_value res = gab_number(strtod(str.data, NULL));
 
   gab_vmpush(vm, res);
 };
 
-a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   const char *names[] = {
       "between",
       "floor",
@@ -155,15 +157,14 @@ a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
 
   for (int i = 0; i < LEN_CARRAY(names); i++) {
-    gab_spec(gab, vm,
-             (struct gab_spec_argt){
-                 .name = names[i],
-                 .receiver = receivers[i],
-                 .specialization = values[i],
-             });
+    gab_spec(gab, (struct gab_spec_argt){
+                      .name = names[i],
+                      .receiver = receivers[i],
+                      .specialization = values[i],
+                  });
   }
 
-  gab_ngcdref(gab_vmgc(vm), vm, LEN_CARRAY(values), values);
+  gab_ngciref(gab, gc, vm, 1, LEN_CARRAY(receivers), receivers);
 
   return NULL;
 }

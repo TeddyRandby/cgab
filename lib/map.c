@@ -2,14 +2,15 @@
 #include <assert.h>
 #include <stdio.h>
 
-void gab_lib_new(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_new(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 1: {
-    gab_value map = map_create(gab, vm, 0, 0, NULL, NULL);
+    gab_value map = map_create(gab, gc, vm, 0, 0, NULL, NULL);
 
     gab_vmpush(vm, map);
 
-    gab_gcdref(gab_vmgc(vm), vm, map);
+    gab_gcdref(gab, gc, vm, map);
 
     return;
   }
@@ -25,11 +26,11 @@ void gab_lib_new(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
     size_t len = gab_reclen(argv[1]);
 
     gab_value map =
-        map_create(gab, vm, len, 1, gab_shpdata(shp), gab_recdata(argv[1]));
+        map_create(gab, gc, vm, len, 1, gab_shpdata(shp), gab_recdata(argv[1]));
 
     gab_vmpush(vm, map);
 
-    gab_gcdref(gab_vmgc(vm), vm, map);
+    gab_gcdref(gab, gc, vm, map);
 
     return;
   }
@@ -40,7 +41,8 @@ void gab_lib_new(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   }
 }
 
-void gab_lib_len(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_len(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, vm, "&:len expects 1 argument");
     return;
@@ -55,7 +57,8 @@ void gab_lib_len(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   return;
 }
 
-void gab_lib_at(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_at(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                size_t argc, gab_value argv[argc]) {
   if (argc != 2) {
     gab_panic(gab, vm, "&:at expects 2 arguments");
     return;
@@ -73,20 +76,22 @@ void gab_lib_at(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   return;
 }
 
-void gab_lib_put(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_put(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
   if (argc != 3) {
     gab_panic(gab, vm, "&:put! expects 3 arguments");
     return;
   }
 
-  map_put(gab, vm, argv[0], argv[1], argv[2]);
+  map_put(gab, gc, vm, argv[0], argv[1], argv[2]);
 
   gab_vmpush(vm, *argv);
 
   return;
 }
 
-void gab_lib_next(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_next(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                  size_t argc, gab_value argv[argc]) {
   d_gab_value *map = gab_boxdata(argv[0]);
 
   switch (argc) {
@@ -138,7 +143,7 @@ void gab_lib_next(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   }
 }
 
-a_gab_value* gab_lib(gab_eg *gab, gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   const char *names[] = {
       "map", "len", "put!", "at", "next",
   };
@@ -161,15 +166,13 @@ a_gab_value* gab_lib(gab_eg *gab, gab_vm *vm) {
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
 
   for (int i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_spec(gab, vm,
-             (struct gab_spec_argt){
-                 .name = names[i],
-                 .receiver = receivers[i],
-                 .specialization = specs[i],
-             });
+    gab_spec(gab, (struct gab_spec_argt){
+                      .name = names[i],
+                      .receiver = receivers[i],
+                      .specialization = specs[i],
+                  });
   }
 
-  gab_ngcdref(gab_vmgc(vm), vm, LEN_CARRAY(specs), specs);
-
+  gab_ngciref(gab, gc, vm, 1, LEN_CARRAY(receivers), receivers);
   return NULL;
 }

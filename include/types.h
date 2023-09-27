@@ -17,7 +17,7 @@
 #define NEW(type) ((type *)malloc(sizeof(type)))
 
 #define NEW_FLEX(obj_type, flex_type, flex_count)                              \
-  ((obj_type *)malloc(sizeof(obj_type) + sizeof(flex_type) * (flex_count)))
+  ((obj_type *)malloc(sizeof(obj_type) + (sizeof(flex_type) * (flex_count))))
 
 #define NEW_ARRAY(type, count) ((type *)malloc(sizeof(type) * count))
 

@@ -27,7 +27,7 @@ LINKAGE TYPENAME *METHOD(create)(const T *data, uint64_t len) {
   return self;
 }
 
-LINKAGE TYPENAME *METHOD(empty)(uint64_t len) {
+LINKAGE TYPENAME *METHOD(empty)(size_t len) {
   TYPENAME *self = NEW_FLEX(TYPENAME, T, len);
   memset(self->data, 0, len * sizeof(T));
   self->len = len;

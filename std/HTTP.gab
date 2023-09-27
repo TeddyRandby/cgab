@@ -1,0 +1,34 @@
+'http-parser':require
+'socket':require
+
+def HTTP {
+  port
+  socket
+}
+
+def http[](port)
+  status, socket = :socket in
+    == .ok or return status
+
+  status = socket:bind(port) in
+    == .ok or return status
+
+  status = socket:listen(15) in
+    == .ok or return status
+
+  return .ok, { port socket }
+end
+
+def serve[HTTP]
+  loop
+    status, client = self.socket:accept() in
+      == .ok or return status
+
+    status, buf = client:recv in
+      == .ok or return status
+
+    buf:print
+
+    yield buf:to_http
+  end
+end

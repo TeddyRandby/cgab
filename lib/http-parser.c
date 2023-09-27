@@ -4,49 +4,50 @@
 #include <stdio.h>
 
 typedef struct {
-  s_int8_t url;
-  s_int8_t body;
-  v_s_int8_t header_fields;
-  v_s_int8_t header_values;
+  s_char url;
+  s_char body;
+  v_s_char header_fields;
+  v_s_char header_values;
 } userdata;
 
 int handle_on_url(llhttp_t *parser, const char *data, size_t len) {
   userdata *ud = parser->data;
-  ud->url = (s_int8_t){.len = len, .data = (int8_t *)data};
+  ud->url = (s_char){.len = len, .data = data};
   return HPE_OK;
 }
 
 int handle_on_body(llhttp_t *parser, const char *data, size_t len) {
   userdata *ud = parser->data;
-  ud->body = (s_int8_t){.len = len, .data = (int8_t *)data};
+  ud->body = (s_char){.len = len, .data = data};
   return HPE_OK;
 }
 
 int handle_on_header_field(llhttp_t *parser, const char *data, size_t len) {
   userdata *ud = parser->data;
-  v_s_int8_t_push(&ud->header_fields, (s_int8_t){
-                                          .len = len,
-                                          .data = (int8_t *)data,
-                                      });
+  v_s_char_push(&ud->header_fields, (s_char){
+                                        .len = len,
+                                        .data = data,
+                                    });
   return HPE_OK;
 }
 
 int handle_on_header_value(llhttp_t *parser, const char *data, size_t len) {
   userdata *ud = parser->data;
-  v_s_int8_t_push(&ud->header_values, (s_int8_t){
-                                          .len = len,
-                                          .data = (int8_t *)data,
-                                      });
+  v_s_char_push(&ud->header_values, (s_char){
+                                        .len = len,
+                                        .data = data,
+                                    });
   return HPE_OK;
 }
 
-void gab_lib_parse(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_parse(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                   size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
     gab_vmpush(vm, gab_string(gab, "invalid_arguments"));
     return;
   }
 
-  gab_obj_string *req = GAB_VAL_TO_STRING(argv[0]);
+  struct gab_obj_string *req = GAB_VAL_TO_STRING(argv[0]);
 
   llhttp_t parser;
   llhttp_settings_t settings;
@@ -85,7 +86,7 @@ void gab_lib_parse(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
         gab_string(gab, "ok"),
         gab_string(gab, llhttp_method_name(parser.method)),
         gab_nstring(gab, ud.url.len, (char *)ud.url.data),
-        gab_record(gab, vm, header_count, header_fields, header_values),
+        gab_record(gab, header_count, header_fields, header_values),
         ud.body.len > 0 ? gab_nstring(gab, ud.body.len, (char *)ud.body.data)
                         : gab_nil,
     };
@@ -96,7 +97,7 @@ void gab_lib_parse(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   }
 }
 
-a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
 
   const char *names[] = {
       "to_http",
@@ -111,15 +112,14 @@ a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
   };
 
   for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); i++) {
-    gab_spec(gab, vm,
-             (struct gab_spec_argt){
-                 .name = names[i],
-                 .receiver = types[i],
-                 .specialization = values[i],
-             });
-
-    gab_gcdref(gab_vmgc(vm), vm, values[i]);
+    gab_spec(gab, (struct gab_spec_argt){
+                      .name = names[i],
+                      .receiver = types[i],
+                      .specialization = values[i],
+                  });
   }
+
+  gab_ngciref(gab, gc, vm, 1, sizeof(types) / sizeof(types[0]), types);
 
   return a_gab_value_one(gab_nil);
 }

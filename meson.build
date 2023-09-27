@@ -118,13 +118,13 @@ shared_library('cgabio',
   install: true,
 )
 
-# shared_library('cgabdis',
-#   'src/lib/dis.c',
-#   link_with: [cgab],
-#   install_dir: '/usr/local/lib/gab/',
-#   install: true,
-# )
-#
+shared_library('cgabdis',
+  'lib/dis.c',
+  link_with: [cgab],
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
+)
+
 # shared_library('cgabpry',
 #   'src/lib/pry.c',
 #   link_with: [cgab],
@@ -133,6 +133,7 @@ shared_library('cgabio',
 # )
 
 install_headers(
+  'include/bytecode.h',
   'include/gab.h',
   'include/core.h',
   'include/status_code.h',
@@ -147,7 +148,6 @@ install_headers(
   )
 
 install_data(
-  'std/mod.gab',
   'std/String.gab',
   'std/Number.gab',
   'std/Time.gab',
@@ -158,7 +158,7 @@ install_data(
   'std/Test.gab',
   'std/Record.gab',
   install_dir: '/usr/local/share/gab/std/'
-  )
+)
 
 executable('gab',
   'src/cli/main.c',

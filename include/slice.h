@@ -30,8 +30,8 @@ LINKAGE bool METHOD(match)(TYPENAME self, TYPENAME other) {
   return memcmp(self.data, other.data, self.len) == 0;
 }
 
-LINKAGE uint64_t METHOD(hash)(TYPENAME self, uint64_t seed) {
-  return hash_bytes(seed, self.len * sizeof(T), (uint8_t *)self.data);
+LINKAGE size_t METHOD(hash)(TYPENAME self, uint64_t seed) {
+  return hash_bytes(seed, self.len * sizeof(T), (size_t *)self.data);
 }
 
 #undef T

@@ -2,7 +2,9 @@
 #  combinations of operators that add up 20
 #
 # Yes, its not actually blackjack
-'std':require
+'std/Record':require
+'std/List':require
+'std/Number':require
 
 def swap![.Record](i, j)
     self[i], self[j] = self[j], self[i]
@@ -14,16 +16,17 @@ def permutations![.Record](opt_k)
     self:len == k then
         yield self
     end else
-        for i in :range { from = k to = self:len }
+      i = k
+      loop
+        self:swap!(i, k)
 
-            self:swap!(i, k)
-
-            for val in self:permutations!(k + 1)
-                yield val
-            end
-
-            self:swap!(i, k)
+        for val in self:permutations!(k + 1)
+            yield val
         end
+
+        self:swap!(i, k)
+        i = i + 1
+      until i == self:len end
     end
 end
 

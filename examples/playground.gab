@@ -1,9 +1,11 @@
-def fold[.Record](init, folder)
-    acc = init
-
-    for key, value in self:each
-        acc = folder(acc, value)
-    end
-
-    return acc
+def test(arg)
+  'This is a test of {arg}':print
 end
+
+
+test { arg = 'foo' }
+
+def a, b = 1, 2
+
+a:print
+b:print

@@ -46,7 +46,7 @@ gab_value gab_lib_exec(gab_eg *gab, gab_vm* vm, size_t argc, gab_value argv[argc
 
   uint8_t i = 0;
   while (matches[i].rm_so >= 0) {
-    s_int8_t match = s_int8_t_create(str->data + matches[i].rm_so,
+    s_char match = s_char_create(str->data + matches[i].rm_so,
                              matches[i].rm_eo - matches[i].rm_so);
 
     gab_value key = gab_number(i);
@@ -87,7 +87,7 @@ gab_value gab_lib_find(gab_eg *gab, gab_vm* vm, size_t argc, gab_value argv[argc
 
   uint8_t i = 0;
   while (matches[i].rm_so >= 0) {
-    s_int8_t match = s_int8_t_create(str->data + matches[i].rm_so,
+    s_char match = s_char_create(str->data + matches[i].rm_so,
                              matches[i].rm_eo - matches[i].rm_so);
 
     gab_value key = gab_number(i);
@@ -101,10 +101,10 @@ gab_value gab_lib_find(gab_eg *gab, gab_vm* vm, size_t argc, gab_value argv[argc
 }
 
 gab_value gab_mod(gab_eg *gab, gab_vm* vm) {
-  s_int8_t keys[] = {
-      s_int8_t_cstr("find"),
-      s_int8_t_cstr("comp"),
-      s_int8_t_cstr("exec"),
+  s_char keys[] = {
+      s_char_cstr("find"),
+      s_char_cstr("comp"),
+      s_char_cstr("exec"),
   };
 
   gab_value values[] = {

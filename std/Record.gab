@@ -27,7 +27,7 @@ end
 
 def map![.Record](mapper)
     for key, value in self:each
-        self[key] = mapper(value)
+        self[key] = mapper(value, key)
     end
 
     return self

@@ -2,7 +2,8 @@
 #include <assert.h>
 #include <time.h>
 
-void gab_lib_now(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
+void gab_lib_now(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_clock");
     return;
@@ -15,7 +16,7 @@ void gab_lib_now(gab_eg *gab, gab_vm *vm, size_t argc, gab_value argv[argc]) {
   gab_vmpush(vm, res);
 };
 
-a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   const char *keys[] = {
       "now",
   };
@@ -29,15 +30,12 @@ a_gab_value *gab_lib(gab_eg *gab, gab_vm *vm) {
   static_assert(LEN_CARRAY(keys) == LEN_CARRAY(values));
 
   for (int i = 0; i < LEN_CARRAY(keys); i++) {
-    gab_spec(gab, vm,
-             (struct gab_spec_argt){
-                 .receiver = receiver,
-                 .name = keys[i],
-                 .specialization = values[i],
-             });
+    gab_spec(gab, (struct gab_spec_argt){
+                      .receiver = receiver,
+                      .name = keys[i],
+                      .specialization = values[i],
+                  });
   }
-
-  gab_ngcdref(gab_vmgc(vm), vm, LEN_CARRAY(values), values);
 
   return NULL;
 }
