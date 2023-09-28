@@ -23,7 +23,7 @@
 
 // Use the simple custom chunk allocator
 #ifndef cGAB_CHUNK_ALLOCATOR
-#define cGAB_CHUNK_ALLOCATOR 0
+#define cGAB_CHUNK_ALLOCATOR 1
 #endif
 
 // Capacity at which point dictionaries are resized

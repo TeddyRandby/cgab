@@ -1492,6 +1492,8 @@ int compile_exp_then(struct gab_eg *gab, bc *bc, bool assignable) {
 
   push_load_local(bc, phantom);
 
+  push_slot(bc, 1);
+
   pop_scope(bc);
 
   if (expect_token(bc, TOKEN_END) < 0)
@@ -1522,6 +1524,8 @@ int compile_exp_else(struct gab_eg *gab, bc *bc, bool assignable) {
   pop_slot(bc, 1);
 
   push_load_local(bc, phantom);
+
+  push_slot(bc, 1);
 
   pop_scope(bc);
 

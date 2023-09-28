@@ -465,6 +465,11 @@ struct gab_src *gab_srccpy(struct gab_eg *gab, struct gab_src *self) {
   copy->source = a_char_create(self->source->data, self->source->len);
 
   v_s_char_copy(&copy->lines, &self->lines);
+  v_s_char_copy(&copy->line_comments, &self->line_comments);
+
+  v_gab_token_copy(&copy->tokens, &self->tokens);
+  v_s_char_copy(&copy->tokens_src, &self->tokens_src);
+  v_uint64_t_copy(&copy->tokens_line, &self->tokens_line);
 
   // Reconcile the copied slices to point to the new source
   for (uint64_t i = 0; i < copy->lines.len; i++) {

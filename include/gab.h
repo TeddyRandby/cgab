@@ -420,8 +420,9 @@ a_gab_value *gab_execute(struct gab_eg *gab, const char *name,
  *
  * @return A heap-allocated slice of values returned by the message.
  */
-a_gab_value *gab_send(struct gab_eg *gab, struct gab_vm *vm, gab_value message,
-                      gab_value receiver, size_t len, gab_value argv[len]);
+a_gab_value *gab_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                      gab_value message, gab_value receiver, size_t len,
+                      gab_value argv[len]);
 
 /**
  * # Panic the VM with an error message. Useful for builtin functions.

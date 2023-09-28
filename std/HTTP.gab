@@ -6,7 +6,9 @@ def HTTP {
   socket
 }
 
-def http[](port)
+def http[](opts)
+  port = opts or 8080
+
   status, socket = :socket in
     == .ok or return status
 
@@ -24,11 +26,13 @@ def serve[HTTP]
     status, client = self.socket:accept() in
       == .ok or return status
 
-    status, buf = client:recv in
-      == .ok or return status
+    yield client
 
-    buf:print
+#   status, buf = client:recv in
+#     == .ok or return status
 
-    yield buf:to_http
+#   buf:print
+
+#   yield buf:to_http
   end
 end

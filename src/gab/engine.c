@@ -307,10 +307,18 @@ gab_value gab_spec(struct gab_eg *gab, struct gab_spec_argt args) {
   return __gab_obj(m);
 }
 
-a_gab_value *send_msg(struct gab_eg *gab, struct gab_vm *vm, gab_value msg,
-                      gab_value receiver, size_t argc, gab_value argv[argc]) {
+a_gab_value *send_msg(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                      gab_value msg, gab_value receiver, size_t argc,
+                      gab_value argv[argc]) {
   if (msg == gab_undefined)
     return a_gab_value_one(gab_undefined);
+
+  gab_egkeep(gab, gab_gciref(gab, gc, vm, msg));
+
+  gab_egkeep(gab, gab_gciref(gab, gc, vm, receiver));
+
+  gab_ngciref(gab, gc, vm, 1, argc, argv);
+  gab_negkeep(gab, argc, argv);
 
   gab_value mod =
       gab_bccompsend(gab, msg, receiver, fGAB_DUMP_ERROR, argc, argv);
@@ -323,15 +331,16 @@ a_gab_value *send_msg(struct gab_eg *gab, struct gab_vm *vm, gab_value msg,
   return gab_vm_run(gab, mod, fGAB_DUMP_ERROR, 0, NULL);
 }
 
-a_gab_value *gab_send(struct gab_eg *gab, struct gab_vm *vm, gab_value msg,
-                      gab_value receiver, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                      gab_value msg, gab_value receiver, size_t argc,
+                      gab_value argv[argc]) {
   switch (gab_valknd(msg)) {
   case kGAB_STRING: {
     struct gab_obj_message *main = gab_obj_message_create(gab, msg);
-    return send_msg(gab, vm, __gab_obj(main), receiver, argc, argv);
+    return send_msg(gab, gc, vm, __gab_obj(main), receiver, argc, argv);
   }
   case kGAB_MESSAGE:
-    return send_msg(gab, vm, msg, receiver, argc, argv);
+    return send_msg(gab, gc, vm, msg, receiver, argc, argv);
   default:
     return a_gab_value_one(gab_nil);
   }
@@ -465,8 +474,17 @@ size_t gab_nvmpush(struct gab_vm *vm, size_t argc, gab_value argv[argc]) {
 
 gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value) {
   switch (gab_valknd(value)) {
+
   default:
     return value;
+
+  case kGAB_BOX: {
+    struct gab_obj_box *self = GAB_VAL_TO_BOX(value);
+    struct gab_obj_box *copy =
+        gab_obj_box_create(gab, gab_valcpy(gab, vm, self->type),
+                           self->do_destroy, self->do_visit, self->data);
+    return __gab_obj(copy);
+  }
 
   case kGAB_MESSAGE: {
     struct gab_obj_message *self = GAB_VAL_TO_MESSAGE(value);

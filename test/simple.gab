@@ -1,0 +1,26 @@
+'std/HTTP':require
+'fiber':require
+
+status, server = :http
+
+status == .ok else return end
+
+for client in server:serve
+  :fiber do
+    'socket':require
+
+    s, buf = client:recv
+      
+    s == .ok else
+      s:print
+    end
+      
+    buf:print
+      
+    s = client:send('HTTP/1.1 200 OK\r\n\r\n<div>hello</div>')
+      
+    s == .ok else
+      s:print
+    end
+  end
+ end

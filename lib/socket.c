@@ -300,7 +300,11 @@ void gab_lib_receive(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   if (result < 0) {
     gab_vmpush(vm, gab_string(gab, "COULD_NOT_RECEIVE"));
   } else {
-    gab_vmpush(vm, gab_nstring(gab, result, (char *)buffer));
+    gab_value vals[] = {
+        gab_string(gab, "ok"),
+        gab_nstring(gab, result, (char *)buffer),
+    };
+    gab_nvmpush(vm, 2, vals);
   }
 }
 
@@ -372,8 +376,6 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
 
   gab_value constants = gab_srecord(gab, LEN_CARRAY(constant_names),
                                     constant_names, constant_values);
-
-  gab_gcdref(gab, gc, vm, constants);
 
   return a_gab_value_one(constants);
 }

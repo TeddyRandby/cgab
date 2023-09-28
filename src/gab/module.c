@@ -43,7 +43,7 @@ void gab_moddestroy(struct gab_eg *gab, struct gab_gc *gc,
   v_gab_constant_destroy(&mod->constants);
   v_s_char_destroy(&mod->sources);
 
-  free(mod);
+  DESTROY(mod);
 }
 
 struct gab_mod *gab_mod_copy(struct gab_eg *gab, struct gab_mod *self) {

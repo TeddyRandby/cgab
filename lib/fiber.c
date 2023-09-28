@@ -16,6 +16,7 @@ typedef struct {
   v_a_char in_queue;
   v_a_char out_queue;
   mtx_t mutex;
+  thrd_t thrd;
   thrd_t parent;
 
   gab_value init;
@@ -44,7 +45,9 @@ fiber *fiber_create(gab_value init) {
   return self;
 }
 
-void fiber_destroy(fiber *self) {
+void fiber_destroy(void *data) {
+  fiber* self = (fiber*)data;
+
   mtx_destroy(&self->mutex);
   v_a_char_destroy(&self->in_queue);
   v_a_char_destroy(&self->out_queue);
@@ -151,6 +154,7 @@ fin:
   mtx_lock(&self->mutex);
   self->status = fDONE;
   mtx_unlock(&self->mutex);
+
   gab_destroy(self->gab);
   return 0;
 }
@@ -165,9 +169,8 @@ void gab_lib_fiber(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
     }
 
     fiber *f = fiber_create(argv[1]);
-    thrd_t thread;
 
-    if (thrd_create(&thread, fiber_launch, f) != thrd_success) {
+    if (thrd_create(&f->thrd, fiber_launch, f) != thrd_success) {
       gab_panic(gab, vm, "Invalid call to gab_lib_go");
       return;
     }
@@ -176,11 +179,12 @@ void gab_lib_fiber(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
         gab, (struct gab_box_argt){
                  .data = f,
                  .type = gab_gciref(gab, gc, vm, gab_string(gab, "Fiber")),
-                 .visitor = NULL,
-                 .destructor = NULL,
+                 .destructor = fiber_destroy,
              });
 
     gab_vmpush(vm, fiber);
+
+    gab_gcdref(gab, gc, vm, fiber);
     break;
   }
   default:

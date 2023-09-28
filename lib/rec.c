@@ -12,7 +12,8 @@ void gab_lib_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
     return;
   }
 
-  a_gab_value *result = gab_send(gab, vm, argv[1], argv[0], argc - 2, argv + 2);
+  a_gab_value *result =
+      gab_send(gab, gc, vm, argv[1], argv[0], argc - 2, argv + 2);
 
   if (!result) {
     gab_panic(gab, vm, "Invalid send");
@@ -145,7 +146,7 @@ fin:
   gab_vmpush(vm, res);
 }
 void gab_lib_tuple(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                 size_t argc, gab_value argv[argc]) {
+                   size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     if (gab_valknd(argv[1]) != kGAB_NUMBER) {
@@ -168,7 +169,7 @@ void gab_lib_tuple(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 }
 
 void gab_lib_record(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                 size_t argc, gab_value argv[argc]) {
+                    size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     if (gab_valknd(argv[1]) != kGAB_SHAPE) {
@@ -273,8 +274,8 @@ void gab_lib_to_m(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 }
 a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   const char *names[] = {
-      "tuple", "record", "len",  "to_l",  "to_m",  "send",        "put",
-      "at",     "next", "slice", "splat", "implements?",
+      "tuple", "record", "len",  "to_l",  "to_m",  "send",
+      "put",   "at",     "next", "slice", "splat", "implements?",
   };
 
   gab_value receivers[] = {
