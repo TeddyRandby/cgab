@@ -153,24 +153,6 @@ const keyword keywords[] = {
     },
 };
 
-gab_token identifier(gab_lx *self) {
-  while (is_alpha(peek(self)) || is_digit(peek(self)))
-    advance(self);
-
-  if (peek(self) == '?' || peek(self) == '!')
-    advance(self);
-
-  for (int32_t i = 0; i < sizeof(keywords) / sizeof(keyword); i++) {
-    keyword k = keywords[i];
-    s_char lit = s_char_create(k.literal, strlen(k.literal));
-    if (s_char_match(self->current_token_src, lit)) {
-      return k.token;
-    }
-  }
-
-  return TOKEN_IDENTIFIER;
-}
-
 gab_token string(gab_lx *self) {
   uint8_t start = peek(self);
   uint8_t stop = start == '"' ? '"' : '\'';
@@ -199,6 +181,27 @@ gab_token string(gab_lx *self) {
   advance(self);
 
   return start == '}' ? TOKEN_INTERPOLATION_END : TOKEN_STRING;
+}
+
+gab_token identifier(gab_lx *self) {
+  while (is_alpha(peek(self)) || is_digit(peek(self)))
+    advance(self);
+
+  if (peek(self) == '\'')
+    return string(self);
+
+  if (peek(self) == '?' || peek(self) == '!')
+    advance(self);
+
+  for (int32_t i = 0; i < sizeof(keywords) / sizeof(keyword); i++) {
+    keyword k = keywords[i];
+    s_char lit = s_char_create(k.literal, strlen(k.literal));
+    if (s_char_match(self->current_token_src, lit)) {
+      return k.token;
+    }
+  }
+
+  return TOKEN_IDENTIFIER;
 }
 
 gab_token integer(gab_lx *self) {

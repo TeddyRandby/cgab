@@ -28,6 +28,7 @@ void gab_lib_open(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   if (file == NULL) {
     gab_value r = gab_string(gab, "FILE_COULD_NOT_OPEN");
     gab_vmpush(vm, r);
+    fclose(file);
     return;
   }
 
@@ -45,6 +46,7 @@ void gab_lib_open(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   gab_nvmpush(vm, 2, result);
 
   gab_gcdref(gab, gc, vm, result[1]);
+  fclose(file);
 }
 
 void gab_lib_read(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,

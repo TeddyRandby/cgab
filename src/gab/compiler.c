@@ -28,7 +28,7 @@ typedef struct {
 
   uint8_t local_flags[GAB_LOCAL_MAX];
   int local_depths[GAB_LOCAL_MAX];
-  uint16_t local_names[GAB_LOCAL_MAX];
+  gab_value local_names[GAB_LOCAL_MAX];
 
   uint8_t upv_flags[GAB_UPVALUE_MAX];
   uint8_t upv_indexes[GAB_UPVALUE_MAX];
@@ -346,7 +346,7 @@ static void initialize_local(bc *bc, uint8_t local) {
  * local.
  */
 static int add_local(struct gab_eg *gab, bc *bc, gab_value name,
-                         uint8_t flags) {
+                     uint8_t flags) {
   int ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
@@ -356,7 +356,7 @@ static int add_local(struct gab_eg *gab, bc *bc, gab_value name,
   }
 
   uint8_t local = f->next_local;
-  f->local_names[local] = add_constant(mod(bc), name);
+  f->local_names[local] = name;
   f->local_depths[local] = -1;
   f->local_flags[local] = flags;
 
@@ -369,8 +369,7 @@ static int add_local(struct gab_eg *gab, bc *bc, gab_value name,
 /* Returns COMP_ERR if an error is encountered, and otherwise the offset of the
  * upvalue.
  */
-static int add_upvalue(bc *bc, int depth, uint8_t index,
-                           uint8_t flags) {
+static int add_upvalue(bc *bc, int depth, uint8_t index, uint8_t flags) {
   int ctx = peek_ctx(bc, kFRAME, depth);
 
   frame *f = &bc->contexts[ctx].as.frame;
@@ -400,7 +399,7 @@ static int add_upvalue(bc *bc, int depth, uint8_t index,
  * and otherwise the offset of the local.
  */
 static int resolve_local(struct gab_eg *gab, bc *bc, gab_value name,
-                             uint8_t depth) {
+                         uint8_t depth) {
   int ctx = peek_ctx(bc, kFRAME, depth);
 
   if (ctx < 0) {
@@ -410,8 +409,7 @@ static int resolve_local(struct gab_eg *gab, bc *bc, gab_value name,
   frame *f = &bc->contexts[ctx].as.frame;
 
   for (int local = f->next_local - 1; local >= 0; local--) {
-    gab_value other_local_name =
-        v_gab_constant_val_at(&f->mod->constants, f->local_names[local]);
+    gab_value other_local_name = f->local_names[local];
 
     if (name == other_local_name) {
       if (f->local_depths[local] == -1) {
@@ -430,7 +428,7 @@ static int resolve_local(struct gab_eg *gab, bc *bc, gab_value name,
  * and otherwise the offset of the upvalue.
  */
 static int resolve_upvalue(struct gab_eg *gab, bc *bc, gab_value name,
-                               uint8_t depth) {
+                           uint8_t depth) {
   if (depth >= bc->ncontext) {
     return COMP_UPVALUE_NOT_FOUND;
   }
@@ -469,7 +467,7 @@ static int resolve_upvalue(struct gab_eg *gab, bc *bc, gab_value name,
  * COMP_RESOLVED_TO_UPVALUE if the id was an upvalue.
  */
 static int resolve_id(struct gab_eg *gab, bc *bc, gab_value name,
-                          uint8_t *value_in) {
+                      uint8_t *value_in) {
   int arg = resolve_local(gab, bc, name, 0);
 
   if (arg == COMP_ERR)
@@ -574,7 +572,7 @@ static struct gab_mod *push_ctxframe(struct gab_eg *gab, bc *bc,
 
   memset(f, 0, sizeof(frame));
 
-  struct gab_mod *mod = gab_mod_create(gab, name, bc->source);
+  struct gab_mod *mod = gab_mod(gab, name, bc->source);
   f->mod = mod;
 
   push_slot(bc, 1);
@@ -616,7 +614,7 @@ int compile_tuple(struct gab_eg *gab, bc *bc, uint8_t want, bool *mv_out);
 */
 
 static int compile_local(struct gab_eg *gab, bc *bc, gab_value name,
-                             uint8_t flags) {
+                         uint8_t flags) {
   int ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
 
@@ -626,8 +624,7 @@ static int compile_local(struct gab_eg *gab, bc *bc, gab_value name,
       break;
     }
 
-    gab_value other_local_name =
-        v_gab_constant_val_at(&f->mod->constants, f->local_names[local]);
+    gab_value other_local_name = f->local_names[local];
 
     if (name == other_local_name) {
       compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
@@ -955,19 +952,17 @@ int compile_tuple(struct gab_eg *gab, bc *bc, uint8_t want, bool *mv_out) {
 }
 
 int add_message_constant(struct gab_eg *gab, struct gab_mod *mod,
-                             gab_value name) {
+                         gab_value name) {
   struct gab_obj_message *f = gab_obj_message_create(gab, name);
   return add_constant(mod, __gab_obj(f));
 }
 
-int add_string_constant(struct gab_eg *gab, struct gab_mod *mod,
-                            s_char str) {
+int add_string_constant(struct gab_eg *gab, struct gab_mod *mod, s_char str) {
   struct gab_obj_string *obj = gab_obj_string_create(gab, str);
   return add_constant(mod, __gab_obj(obj));
 }
 
-int compile_rec_tup_internal_item(struct gab_eg *gab, bc *bc,
-                                      uint8_t index) {
+int compile_rec_tup_internal_item(struct gab_eg *gab, bc *bc, uint8_t index) {
   return compile_expression(gab, bc);
 }
 
@@ -1235,8 +1230,7 @@ int compile_assignment(struct gab_eg *gab, bc *bc, lvalue target) {
 }
 
 // Forward decl
-int compile_definition(struct gab_eg *gab, bc *bc, s_char name,
-                           s_char help);
+int compile_definition(struct gab_eg *gab, bc *bc, s_char name, s_char help);
 
 int compile_rec_internal_item(struct gab_eg *gab, bc *bc) {
   if (match_and_eat_token(bc, TOKEN_IDENTIFIER)) {
@@ -1374,8 +1368,7 @@ int compile_record_tuple(struct gab_eg *gab, bc *bc) {
   return COMP_OK;
 }
 
-int compile_definition(struct gab_eg *gab, bc *bc, s_char name,
-                           s_char help) {
+int compile_definition(struct gab_eg *gab, bc *bc, s_char name, s_char help) {
   // A record definition
   if (match_and_eat_token(bc, TOKEN_LBRACK)) {
     gab_value val_name = __gab_obj(gab_obj_string_create(gab, name));
@@ -1762,13 +1755,20 @@ a_char *parse_raw_str(bc *bc, s_char raw_str) {
   size_t buf_end = 0;
 
   // Skip the first and last character (")
-  for (uint64_t i = 1; i < raw_str.len - 1; i++) {
+  size_t start = 0;
+  while (raw_str.data[start] != '\'' && raw_str.data[start] != '"')
+    start++;
+
+  for (size_t i = start + 1; i < raw_str.len - 1; i++) {
     int8_t c = raw_str.data[i];
 
     if (c == '\\') {
 
       switch (raw_str.data[i + 1]) {
 
+      case 'r':
+        buffer[buf_end++] = '\r';
+        break;
       case 'n':
         buffer[buf_end++] = '\n';
         break;
@@ -2268,8 +2268,7 @@ int compile_arg_list(struct gab_eg *gab, bc *bc, bool *mv_out) {
 #define fHAS_BRACK 2
 #define fHAS_DO 4
 
-int compile_arguments(struct gab_eg *gab, bc *bc, bool *mv_out,
-                          uint8_t flags) {
+int compile_arguments(struct gab_eg *gab, bc *bc, bool *mv_out, uint8_t flags) {
   int result = 0;
   *mv_out = false;
 
@@ -2930,7 +2929,7 @@ gab_value compile(struct gab_eg *gab, bc *bc, gab_value name,
 gab_value gab_bccompsend(struct gab_eg *gab, gab_value msg, gab_value receiver,
                          uint8_t flags, uint8_t narguments,
                          gab_value arguments[narguments]) {
-  struct gab_mod *mod = gab_mod_create(gab, gab_string(gab, "send"), NULL);
+  struct gab_mod *mod = gab_mod(gab, gab_string(gab, "send"), NULL);
 
   uint16_t message = add_constant(mod, msg);
 

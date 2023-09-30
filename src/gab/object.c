@@ -335,7 +335,7 @@ struct gab_obj_message *gab_obj_message_create(struct gab_eg *gab,
   self->hash = hash;
   self->version = 0;
 
-  d_specs_create(&self->specs, 8);
+  self->specs = (d_specs){0};
 
   GAB_OBJ_GREEN((struct gab_obj *)self);
 

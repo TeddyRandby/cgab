@@ -510,13 +510,15 @@ gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value) {
 
   case kGAB_BLOCK_PROTO: {
     struct gab_obj_block_proto *self = GAB_VAL_TO_BLOCK_PROTO(value);
-    gab->modules = gab_mod_copy(gab, self->mod);
+    gab_modcpy(gab, self->mod);
 
     struct gab_obj_block_proto *copy = gab_obj_prototype_create(
         gab, gab->modules, self->narguments, self->nslots, self->nlocals,
         self->nupvalues, self->upv_desc, self->upv_desc);
 
     memcpy(copy->upv_desc, self->upv_desc, self->nupvalues * 2);
+
+    gab_egkeep(gab, __gab_obj(copy)); // No module to own this prototype
 
     return __gab_obj(copy);
   }

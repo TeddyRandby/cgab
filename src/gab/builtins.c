@@ -22,7 +22,6 @@ typedef struct {
 
 a_gab_value *gab_shared_object_handler(struct gab_eg *gab, struct gab_gc *gc,
                                        struct gab_vm *vm, const char *path) {
-
   void *handle = dlopen(path, RTLD_LAZY);
 
   if (!handle) {
@@ -140,7 +139,6 @@ a_char *match_resource(resource *res, const char *name, uint64_t len) {
 
 void gab_lib_require(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
                      size_t argc, gab_value argv[argc]) {
-
   if (argc != 1)
     gab_panic(gab, vm, "Invalid call to gab_lib_require");
 

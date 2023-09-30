@@ -1,4 +1,5 @@
 'http-parser':require
+'record':require
 'socket':require
 
 def HTTP {
@@ -27,12 +28,28 @@ def serve[HTTP]
       == .ok or return status
 
     yield client
-
-#   status, buf = client:recv in
-#     == .ok or return status
-
-#   buf:print
-
-#   yield buf:to_http
   end
+end
+
+def res[]
+  'HTTP/1.1'
+end
+
+def code_to_name = {
+  [200] = 'OK'
+  [400] = 'Bad Request'
+  [404] = 'Not Found'
+  [500] = 'Internal Server Error'
+}
+
+def status[.String](code)
+  '{self} {code} {code_to_name:at(code)}\r\n'
+end
+
+def header[.String](name, value)
+  '{self}{name}: {value}\r\n'
+end
+
+def html[.String](body)
+  '{self:header('Content-Type', 'text/html')}\r\n{body}'
 end

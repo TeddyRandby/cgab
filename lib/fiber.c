@@ -45,12 +45,23 @@ fiber *fiber_create(gab_value init) {
   return self;
 }
 
-void fiber_destroy(void *data) {
-  fiber* self = (fiber*)data;
-
+void fiber_destroy(fiber *self) {
   mtx_destroy(&self->mutex);
   v_a_char_destroy(&self->in_queue);
   v_a_char_destroy(&self->out_queue);
+}
+
+void fiber_dref(fiber *f) {
+  f->rc--;
+  if (f->rc <= 0) {
+    fiber_destroy(f);
+    free(f);
+  }
+}
+
+void fiber_destructor_cb(void *d) {
+  fiber *f = (fiber *)d;
+  fiber_dref(f);
 }
 
 bool callable(gab_value v) {
@@ -97,6 +108,7 @@ gab_value run(fiber *f, gab_value runnable) {
     out_queue_push(f, runner);
     f->status = fDONE;
 
+    free(result);
     mtx_unlock(&f->mutex);
     return gab_undefined;
   }
@@ -106,13 +118,13 @@ gab_value run(fiber *f, gab_value runnable) {
   }
 
   free(result);
-
   mtx_unlock(&f->mutex);
   return runner;
 }
 
 int fiber_launch(void *d) {
   fiber *self = (fiber *)d;
+  self->rc++;
 
   gab_value runner = self->init;
 
@@ -155,6 +167,7 @@ fin:
   self->status = fDONE;
   mtx_unlock(&self->mutex);
 
+  fiber_dref(self);
   gab_destroy(self->gab);
   return 0;
 }
@@ -175,11 +188,13 @@ void gab_lib_fiber(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
       return;
     }
 
+    thrd_detach(f->thrd); // The fiber will clean itself up
+
     gab_value fiber = gab_box(
         gab, (struct gab_box_argt){
                  .data = f,
                  .type = gab_gciref(gab, gc, vm, gab_string(gab, "Fiber")),
-                 .destructor = fiber_destroy,
+                 .destructor = fiber_destructor_cb,
              });
 
     gab_vmpush(vm, fiber);

@@ -6,14 +6,17 @@
 #include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <sys/socket.h>
+#include <unistd.h>
 
 #define SOCKET_FAMILY "family"
 #define SOCKET_TYPE "type"
 
 #define SOCKET_BOX_TYPE "Socket"
 
-void gab_container_socket_cb(void *data) { shutdown((int64_t)data, SHUT_RDWR); }
+void gab_container_socket_cb(void *data) {
+  shutdown((int64_t)data, SHUT_RDWR);
+  close((int64_t)data);
+}
 
 void gab_lib_poll(struct gab_eg *gab, struct gab_vm *vm, size_t argc,
                   gab_value argv[argc]) {

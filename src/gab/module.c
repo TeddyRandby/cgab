@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-struct gab_mod *gab_mod_create(struct gab_eg *gab, gab_value name,
+struct gab_mod *gab_mod(struct gab_eg *gab, gab_value name,
                                struct gab_src *source) {
   struct gab_mod *self = NEW(struct gab_mod);
   memset(self, 0, sizeof(struct gab_mod));
@@ -46,8 +46,7 @@ void gab_moddestroy(struct gab_eg *gab, struct gab_gc *gc,
   DESTROY(mod);
 }
 
-struct gab_mod *gab_mod_copy(struct gab_eg *gab, struct gab_mod *self) {
-
+struct gab_mod *gab_modcpy(struct gab_eg *gab, struct gab_mod *self) {
   struct gab_mod *copy = NEW(struct gab_mod);
 
   copy->name = self->name;

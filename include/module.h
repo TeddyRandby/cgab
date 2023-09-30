@@ -49,11 +49,11 @@ struct gab_mod {
 /*
   Creating and destroying modules, from nothing and from a base module.
 */
-struct gab_mod *gab_mod_create(struct gab_eg *gab, gab_value name, struct gab_src *src);
+struct gab_mod *gab_mod(struct gab_eg *gab, gab_value name, struct gab_src *src);
 
 void gab_moddestroy(struct gab_eg *gab, struct gab_gc *gc, struct gab_mod *mod);
 
-struct gab_mod *gab_mod_copy(struct gab_eg *gab, struct gab_mod *self);
+struct gab_mod *gab_modcpy(struct gab_eg *gab, struct gab_mod *self);
 
 /*
   Helpers for pushing ops into the module.
