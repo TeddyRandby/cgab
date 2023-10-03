@@ -134,25 +134,25 @@ end
   end
 end
 
-:describe('Strings') do
-  :it('should be equal to itself') do
+:describe 'Strings' do
+  :it 'should be equal to itself' do
     'hello':expect('hello')
   end
 
-  :it('should concatenate') do
+  :it 'should concatenate'  do
     'hello world':expect('hello' + ' world')
   end
 
-  :it('should interpolate') do
+  :it 'should interpolate'  do
     '1 + 2 is 3':expect('{1} + {2} is {1 + 2}')
   end
 end
 
 
-:describe('Closures') do
+:describe 'Blocks'  do
     def a = 1
 
-    :it('should capture') do
+    :it 'should capture'  do
         a:expect(1)
 
         def test = do
@@ -163,7 +163,7 @@ end
         test():expect(1)
     end
 
-   :it('should work with varargs') do
+   :it 'should work with varargs'  do
       def varfunc = do (first, ..args)
         first:expect(1)
         args[0]:expect(2)
@@ -176,7 +176,7 @@ end
       varfunc(onetwo())
    end
 
-   :it('should work more with varargs') do
+   :it 'should work more with varargs'  do
       def varfunc = do (first, ..args, last)
         first:expect(1)
         args[0]:expect(2)
@@ -190,7 +190,7 @@ end
       varfunc(onetwothree())
    end
 
-   :it('should take implicit parameters') do
+   :it 'should take implicit parameters'  do
         def imp_func = do (a)
             a:expect(@1)
         end
@@ -198,7 +198,7 @@ end
         imp_func(1)
    end
 
-   :it('should add implicit parameters') do
+   :it 'should add implicit parameters'  do
         def imp_func = do
             @1:expect(1)
             @2:expect(2)
@@ -208,7 +208,7 @@ end
    end
 end
 
-:describe('Records') do
+:describe 'Records' do
   def Point { x y }
 
   :it('should have properties') do

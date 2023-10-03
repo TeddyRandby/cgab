@@ -173,7 +173,7 @@ void gab_lib_record(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   switch (argc) {
   case 2: {
     if (gab_valknd(argv[1]) != kGAB_SHAPE) {
-      gab_panic(gab, vm, "Invalid call to :record");
+      gab_panic(gab, vm, "Expected shape as second argument to :record");
       return;
     }
 
@@ -186,7 +186,10 @@ void gab_lib_record(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
     return;
   }
   default:
-    gab_panic(gab, vm, "Invalid call to :record");
+    for (int i = 0; i < argc; i++) {
+      printf("%V\n", argv[i]);
+    }
+    gab_panic(gab, vm, "Expected 1 argument to :record");
     return;
   }
 };

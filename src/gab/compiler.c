@@ -204,6 +204,14 @@ static inline int match_tokoneof(bc *bc, gab_token toka, gab_token tokb) {
   return match_token(bc, toka) || match_token(bc, tokb);
 }
 
+static inline int match_and_eat_tokoneof(bc *bc, gab_token toka,
+                                         gab_token tokb) {
+  if (!match_tokoneof(bc, toka, tokb))
+    return COMP_TOKEN_NO_MATCH;
+
+  return eat_token(bc);
+}
+
 size_t prev_line(bc *bc) {
   return v_uint64_t_val_at(&bc->source->tokens_line, bc->offset - 1);
 }
@@ -1756,7 +1764,8 @@ a_char *parse_raw_str(bc *bc, s_char raw_str) {
 
   // Skip the first and last character (")
   size_t start = 0;
-  while (raw_str.data[start] != '\'' && raw_str.data[start] != '"')
+  while (raw_str.data[start] != '\'' && raw_str.data[start] != '"' &&
+         raw_str.data[start] != '}')
     start++;
 
   for (size_t i = start + 1; i < raw_str.len - 1; i++) {
@@ -1825,10 +1834,7 @@ a_char *parse_raw_str(bc *bc, s_char raw_str) {
   return a_char_create(buffer, buf_end);
 };
 
-/*
- * Returns COMP_ERR if an error occured, otherwise the size of the expressions
- */
-int compile_exp_str(struct gab_eg *gab, bc *bc, bool assignable) {
+int compile_strlit(struct gab_eg *gab, bc *bc) {
   a_char *parsed = parse_raw_str(bc, prev_src(bc));
 
   if (parsed == NULL) {
@@ -1849,46 +1855,64 @@ int compile_exp_str(struct gab_eg *gab, bc *bc, bool assignable) {
   return COMP_OK;
 }
 
+int compile_string(struct gab_eg *gab, bc *bc) {
+  if (prev_tok(bc) == TOKEN_STRING)
+    return compile_strlit(gab, bc);
+
+  if (prev_tok(bc) == TOKEN_INTERPOLATION_BEGIN) {
+    int result = COMP_OK;
+    uint8_t n = 0;
+    do {
+      if (compile_strlit(gab, bc) < 0)
+        return COMP_ERR;
+
+      n++;
+
+      if (match_token(bc, TOKEN_INTERPOLATION_END)) {
+        goto fin;
+      }
+
+      if (compile_expression(gab, bc) < 0)
+        return COMP_ERR;
+      n++;
+
+    } while ((result = match_and_eat_token(bc, TOKEN_INTERPOLATION_MIDDLE)));
+
+  fin:
+    if (result < 0)
+      return COMP_ERR;
+
+    if (expect_token(bc, TOKEN_INTERPOLATION_END) < 0)
+      return COMP_ERR;
+
+    if (compile_strlit(gab, bc) < 0)
+      return COMP_ERR;
+    n++;
+
+    // Concat the final string.
+    push_op(bc, OP_INTERPOLATE);
+    push_byte(bc, n);
+
+    pop_slot(bc, n - 1);
+
+    return COMP_OK;
+  }
+
+  return COMP_ERR;
+}
+
+/*
+ * Returns COMP_ERR if an error occured, otherwise the size of the expressions
+ */
+int compile_exp_str(struct gab_eg *gab, bc *bc, bool assignable) {
+  return compile_string(gab, bc);
+}
+
 /*
  * Returns COMP_ERR if an error occured, otherwise the size of the expressions
  */
 int compile_exp_itp(struct gab_eg *gab, bc *bc, bool assignable) {
-  int result = COMP_OK;
-  uint8_t n = 0;
-  do {
-    if (compile_exp_str(gab, bc, assignable) < 0)
-      return COMP_ERR;
-
-    n++;
-
-    if (match_token(bc, TOKEN_INTERPOLATION_END)) {
-      goto fin;
-    }
-
-    if (compile_expression(gab, bc) < 0)
-      return COMP_ERR;
-    n++;
-
-  } while ((result = match_and_eat_token(bc, TOKEN_INTERPOLATION)));
-
-fin:
-  if (result < 0)
-    return COMP_ERR;
-
-  if (expect_token(bc, TOKEN_INTERPOLATION_END) < 0)
-    return COMP_ERR;
-
-  if (compile_exp_str(gab, bc, assignable) < 0)
-    return COMP_ERR;
-  n++;
-
-  // Concat the final string.
-  push_op(bc, OP_INTERPOLATE);
-  push_byte(bc, n);
-
-  pop_slot(bc, n - 1);
-
-  return COMP_OK;
+  return compile_string(gab, bc);
 }
 
 int compile_exp_grp(struct gab_eg *gab, bc *bc, bool assignable) {
@@ -2264,9 +2288,12 @@ int compile_arg_list(struct gab_eg *gab, bc *bc, bool *mv_out) {
   return nargs;
 }
 
-#define fHAS_PAREN 1
-#define fHAS_BRACK 2
-#define fHAS_DO 4
+enum {
+  fHAS_PAREN = 1 << 0,
+  fHAS_BRACK = 1 << 1,
+  fHAS_DO = 1 << 2,
+  fHAS_STRING = 1 << 3,
+};
 
 int compile_arguments(struct gab_eg *gab, bc *bc, bool *mv_out, uint8_t flags) {
   int result = 0;
@@ -2276,8 +2303,18 @@ int compile_arguments(struct gab_eg *gab, bc *bc, bool *mv_out, uint8_t flags) {
       (~flags & fHAS_DO && match_and_eat_token(bc, TOKEN_LPAREN))) {
     // Normal function args
     result = compile_arg_list(gab, bc, mv_out);
+
     if (result < 0)
       return COMP_ERR;
+  }
+
+  if (flags & fHAS_STRING ||
+      match_and_eat_tokoneof(bc, TOKEN_STRING, TOKEN_INTERPOLATION_BEGIN)) {
+    if (compile_string(gab, bc) < 0)
+      return COMP_ERR;
+
+    result += 1 + *mv_out;
+    *mv_out = false;
   }
 
   if (flags & fHAS_BRACK || match_and_eat_token(bc, TOKEN_LBRACK)) {
@@ -2494,6 +2531,23 @@ int compile_exp_bcal(struct gab_eg *gab, bc *bc, bool assignable) {
   pop_slot(bc, result);
   uint16_t msg = add_message_constant(gab, mod(bc), gab_string(gab, mGAB_CALL));
   gab_mod_push_send(mod(bc), result, msg, mv, call_tok, call_line, call_src);
+  return VAR_EXP;
+}
+
+int compile_exp_scal(struct gab_eg *gab, bc *bc, bool assignable) {
+  gab_token call_tok = prev_tok(bc);
+  uint64_t call_line = prev_line(bc);
+  s_char call_src = prev_src(bc);
+
+  bool mv = false;
+  int result = compile_arguments(gab, bc, &mv, 0);
+
+  pop_slot(bc, 1);
+
+  uint16_t msg = add_message_constant(gab, mod(bc), gab_string(gab, mGAB_CALL));
+
+  gab_mod_push_send(mod(bc), result, msg, mv, call_tok, call_line, call_src);
+
   return VAR_EXP;
 }
 
@@ -2874,8 +2928,9 @@ const compile_rule rules[] = {
     INFIX(bin, BITWISE_OR, false),            // PIPE
     PREFIX(idn),                       // ID
     PREFIX(ipm), //IMPLICIT
-    PREFIX(str),                       // STRING
-    PREFIX(itp),                       // INTERPOLATION
+    PREFIX_INFIX(str, scal, SEND, false),                       // STRING
+    PREFIX_INFIX(itp, scal, SEND, false),                       // INTERPOLATION END
+    NONE(),                       // INTERPOLATION MIDDLE 
     NONE(),                       // INTERPOLATION END
     PREFIX(num),                       // NUMBER
     PREFIX(bool),                      // FALSE

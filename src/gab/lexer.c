@@ -1,7 +1,6 @@
 #include "include/lexer.h"
 #include "include/char.h"
 #include "include/engine.h"
-#include "include/types.h"
 #include <stdio.h>
 
 typedef struct gab_lx {
@@ -172,7 +171,7 @@ gab_token string(gab_lx *self) {
       if (peek(self) == '{') {
         advance(self);
         self->nested_curly++;
-        return TOKEN_INTERPOLATION;
+        return start == '}' ? TOKEN_INTERPOLATION_MIDDLE : TOKEN_INTERPOLATION_BEGIN;
       }
     }
   } while (peek(self) != stop);
@@ -500,6 +499,12 @@ void gab_srcdestroy(struct gab_src *self) {
 
   DESTROY(self);
 }
+
+static const char *gab_token_names[] = {
+#define TOKEN(name) #name,
+#include "include/token.h"
+#undef TOKEN
+};
 
 struct gab_src *gab_lex(struct gab_eg *gab, const char *source, size_t len) {
   struct gab_src *src = gab_srccreate(gab, s_char_create(source, len));
