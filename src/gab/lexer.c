@@ -186,9 +186,6 @@ gab_token identifier(gab_lx *self) {
   while (is_alpha(peek(self)) || is_digit(peek(self)))
     advance(self);
 
-  if (peek(self) == '\'')
-    return string(self);
-
   if (peek(self) == '?' || peek(self) == '!')
     advance(self);
 
@@ -284,12 +281,11 @@ gab_token other(gab_lx *self) {
     advance(self);
 
     if (is_alpha(peek(self))) {
-      // If we didn't get a keyword, return a token message
+      // If we didn't get a keyword, return a token property
       if (identifier(self) == TOKEN_IDENTIFIER)
         return TOKEN_PROPERTY;
 
       // Otherwise, we got a keyword and this was an error
-
       return error(self, GAB_MALFORMED_TOKEN);
     }
 
@@ -325,7 +321,6 @@ gab_token other(gab_lx *self) {
       }
 
       // Otherwise, we got a keyword and this was an error
-
       return error(self, GAB_MALFORMED_TOKEN);
     }
 
