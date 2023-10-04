@@ -114,8 +114,11 @@ gab_value vm_error(struct gab_eg *gab, struct gab_vm *vm, uint8_t flags,
     exit(0);
   }
 
-  return __gab_obj(gab_obj_box_create(gab, gab_string(gab, "gab_vm"),
-                                      gab_vm_container_cb, NULL, vm));
+  return gab_box(gab, (struct gab_box_argt){
+                          .type = gab_string(gab, "gab_vm"),
+                          .data = vm,
+                          .destructor = gab_vm_container_cb,
+                      });
 }
 
 gab_value gab_vm_panic(struct gab_eg *gab, struct gab_vm *vm, const char *msg) {
@@ -271,13 +274,15 @@ static inline void call_builtin(struct gab_eg *gab, struct gab_vm *vm,
 
   gab_value *before = vm->sp;
 
-  // Only pass in the extra "self" argument if this is a message.
+  // Only pass in the extra "self" argument
+  // if this is a message.
   (*b->function)(gab, &vm->gc, vm, arity + is_message,
                  vm->sp - arity - is_message);
 
   uint8_t have = vm->sp - before;
 
-  // There is always an extra to trim bc of the receiver or callee.
+  // There is always an extra to trim bc of
+  // the receiver or callee.
   vm->sp = trim_return(vm->sp - have, to, have, want);
 }
 
@@ -290,7 +295,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 #endif
 
   /*
-    If we're using computed gotos, create the jump table and the dispatch
+    If we're using computed gotos, create
+    the jump table and the dispatch
     instructions.
   */
   static const void *dispatch_table[256] = {
@@ -350,7 +356,9 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 #define PUSH(value)                                                            \
   ({                                                                           \
     if (TOP() > (SLOTS() + CLOSURE()->p->nslots + 1)) {                        \
-      fprintf(stderr, "Stack exceeded frame (%d). %lu passed\n",               \
+      fprintf(stderr,                                                          \
+              "Stack exceeded frame "                                          \
+              "(%d). %lu passed\n",                                            \
               CLOSURE()->p->nslots, TOP() - SLOTS() - CLOSURE()->p->nslots);   \
       gab_pry(VM(), 0);                                                        \
       exit(1);                                                                 \
@@ -436,6 +444,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
   LOOP() {
     CASE_CODE(SEND_ANA) : {
       struct gab_obj_message *msg = READ_MESSAGE;
+      gab_value m = __gab_obj(msg);
+
       uint8_t have = parse_have(VM(), READ_BYTE);
       SKIP_BYTE;
 
@@ -443,17 +453,17 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       gab_value type = gab_valtyp(EG(), receiver);
 
-      uint64_t offset = gab_obj_message_find(msg, type);
+      uint64_t offset = gab_msgfind(m, type);
 
       if (offset == UINT64_MAX) {
         if (gab_valknd(receiver) == kGAB_RECORD) {
-          offset = gab_obj_message_find(msg, gab_typ(EG(), kGAB_RECORD));
+          offset = gab_msgfind(m, gab_typ(EG(), kGAB_RECORD));
 
           if (offset != UINT64_MAX)
             goto fin;
         }
 
-        offset = gab_obj_message_find(msg, gab_undefined);
+        offset = gab_msgfind(m, gab_undefined);
 
         if (offset == UINT64_MAX) {
           STORE_FRAME();
@@ -463,7 +473,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       }
 
     fin : {
-      gab_value spec = gab_obj_message_get(msg, offset);
+      gab_value spec = gab_umsgat(m, offset);
 
       WRITE_INLINEBYTE(msg->version);
       WRITE_INLINEQWORD(type);
@@ -492,6 +502,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
     CASE_CODE(SEND_MONO_CLOSURE) : {
       struct gab_obj_message *msg = READ_MESSAGE;
+      gab_value m = __gab_obj(msg);
+
       uint8_t have = parse_have(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
       uint8_t version = READ_BYTE;
@@ -509,7 +521,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         NEXT();
       }
 
-      gab_value spec = gab_obj_message_get(msg, offset);
+      gab_value spec = gab_umsgat(m, offset);
 
       struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
 
@@ -525,6 +537,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
     CASE_CODE(SEND_MONO_BUILTIN) : {
       struct gab_obj_message *msg = READ_MESSAGE;
+      gab_value m = __gab_obj(msg);
+
       uint8_t have = parse_have(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
       uint8_t version = READ_BYTE;
@@ -542,7 +556,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         NEXT();
       }
 
-      gab_value spec = gab_obj_message_get(msg, offset);
+      gab_value spec = gab_umsgat(m, offset);
 
       STORE_FRAME();
 
@@ -724,10 +738,10 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         return ERROR(GAB_NOT_STRING, "Found '%V'", PEEK());
       }
 
-      struct gab_obj_string *b = GAB_VAL_TO_STRING(POP());
-      struct gab_obj_string *a = GAB_VAL_TO_STRING(POP());
-      struct gab_obj_string *ab = gab_obj_string_concat(EG(), a, b);
-      PUSH(__gab_obj(ab));
+      gab_value b = POP();
+      gab_value a = POP();
+      gab_value ab = gab_strcat(EG(), a, b);
+      PUSH(ab);
 
       VAR() = 1;
 
@@ -782,7 +796,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         NEXT();
       }
 
-      uint64_t prop_offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
+      uint64_t prop_offset = gab_shpfind(type, key);
 
       if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
@@ -795,7 +809,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       gab_gciref(EG(), GC(), VM(), value);
 
-      gab_obj_record_set(rec, prop_offset, value);
+      gab_urecput(index, prop_offset, value);
 
       DROP_N(3);
 
@@ -820,19 +834,27 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       gab_value type = gab_valtyp(EG(), index);
 
       /*
-       * This opcode is optimized for loading properties from records.
+       * This opcode is optimized for
+       * loading properties from records.
        *
-       * We enter this opcode because we have seen a record as the receiver
+       * We enter this opcode because we
+       * have seen a record as the receiver
        * before.
        *
-       * In this case, the type of the receiver and the shape of the record are
-       * the SAME, and it is the cached_type.
+       * In this case, the type of the
+       * receiver and the shape of the
+       * record are the SAME, and it is the
+       * cached_type.
        *
-       * Therefore, if we have the cached type that we expect, then our record
-       * also has the shape that we expect.
+       * Therefore, if we have the cached
+       * type that we expect, then our
+       * record also has the shape that we
+       * expect.
        *
-       * However, we don't cache the offset because the key can change at every
-       * invocation and we don't have space to cache that.
+       * However, we don't cache the offset
+       * because the key can change at every
+       * invocation and we don't have space
+       * to cache that.
        */
 
       if ((cached_type != type) | (version != msg->version)) {
@@ -841,7 +863,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         NEXT();
       }
 
-      uint16_t prop_offset = gab_obj_shape_find(GAB_VAL_TO_SHAPE(type), key);
+      uint16_t prop_offset = gab_shpfind(type, key);
 
       struct gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
 
@@ -904,8 +926,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
           gab_ngciref(EG(), GC(), VM(), 1, frame_len, SLOTS());
 
-          gab_value sus = __gab_obj(gab_obj_suspense_create(
-              EG(), frame_len, CLOSURE(), proto, SLOTS()));
+          gab_value sus =
+              gab_suspense(EG(), frame_len, CLOSURE(), proto, SLOTS());
 
           PUSH(sus);
 
@@ -968,9 +990,10 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       }
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-      uint64_t prop_offset = gab_obj_shape_find(rec->shape, key);
+      uint64_t prop_offset = gab_shpfind(__gab_obj(rec->shape), key);
 
-      // Transition state and store in the ache
+      // Transition state and store in the
+      // ache
       WRITE_INLINEQWORD(prop_offset);
       WRITE_INLINEQWORD(__gab_obj(rec->shape));
       WRITE_BYTE(PROP_CACHE_DIST, OP_LOAD_PROPERTY_MONO);
@@ -1024,7 +1047,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
 
-      uint64_t prop_offset = gab_obj_shape_find(rec->shape, key);
+      uint64_t prop_offset = gab_shpfind(__gab_obj(rec->shape), key);
 
       DROP();
 
@@ -1050,14 +1073,15 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
 
-      uint64_t prop_offset = gab_obj_shape_find(rec->shape, key);
+      uint64_t prop_offset = gab_shpfind(__gab_obj(rec->shape), key);
 
       if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
         return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
       }
 
-      // Write to the cache and transition to monomorphic
+      // Write to the cache and transition
+      // to monomorphic
       WRITE_INLINEQWORD(prop_offset);
       WRITE_INLINEQWORD((uint64_t)rec->shape);
       WRITE_BYTE(PROP_CACHE_DIST, OP_STORE_PROPERTY_MONO);
@@ -1084,7 +1108,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
 
       if (rec->shape != cached_shape) {
-        prop_offset = gab_obj_shape_find(rec->shape, key);
+        prop_offset = gab_shpfind(__gab_obj(rec->shape), key);
 
         if (prop_offset == UINT64_MAX) {
           STORE_FRAME();
@@ -1099,7 +1123,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       gab_gciref(EG(), GC(), VM(), value);
 
-      gab_obj_record_set(rec, prop_offset, value);
+      gab_urecput(index, prop_offset, value);
 
       DROP_N(2);
 
@@ -1123,7 +1147,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       }
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-      uint64_t prop_offset = gab_obj_shape_find(rec->shape, key);
+      uint64_t prop_offset = gab_shpfind(__gab_obj(rec->shape), key);
 
       if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
@@ -1134,7 +1158,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       gab_gciref(EG(), GC(), VM(), value);
 
-      gab_obj_record_set(rec, prop_offset, value);
+      gab_urecput(index, prop_offset, value);
 
       DROP_N(2);
 
@@ -1197,18 +1221,16 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
     CASE_CODE(INTERPOLATE) : {
       uint8_t n = READ_BYTE;
-      struct gab_obj_string *acc =
-          GAB_VAL_TO_STRING(gab_valintos(EG(), PEEK_N(n)));
+      gab_value acc = gab_valintos(EG(), PEEK_N(n));
 
       for (uint8_t i = n - 1; i > 0; i--) {
-        struct gab_obj_string *curr =
-            GAB_VAL_TO_STRING(gab_valintos(EG(), PEEK_N(i)));
-        acc = gab_obj_string_concat(EG(), acc, curr);
+        gab_value curr = gab_valintos(EG(), PEEK_N(i));
+        acc = gab_strcat(EG(), acc, curr);
       }
 
       POP_N(n);
 
-      PUSH(__gab_obj(acc));
+      PUSH(acc);
 
       NEXT();
     }
@@ -1408,34 +1430,37 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
     CASE_CODE(BLOCK) : {
       struct gab_obj_block_proto *p = READ_BLOCK_PROTOTYPE;
 
-      struct gab_obj_block *blk = gab_obj_block_create(EG(), p);
+      gab_value blk = gab_block(EG(), __gab_obj(p));
+
+      struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
 
       for (int i = 0; i < p->nupvalues; i++) {
         uint8_t flags = p->upv_desc[i * 2];
         uint8_t index = p->upv_desc[i * 2 + 1];
 
         if (flags & fVAR_LOCAL) {
-          blk->upvalues[i] = LOCAL(index);
+          b->upvalues[i] = LOCAL(index);
         } else {
-          blk->upvalues[i] = CLOSURE()->upvalues[index];
+          b->upvalues[i] = CLOSURE()->upvalues[index];
         }
       }
 
-      gab_ngciref(EG(), GC(), VM(), 1, p->nupvalues, blk->upvalues);
+      gab_ngciref(EG(), GC(), VM(), 1, p->nupvalues, b->upvalues);
 
-      PUSH(__gab_obj(blk));
+      PUSH(blk);
 
-      gab_gcdref(EG(), GC(), VM(), __gab_obj(blk));
+      gab_gcdref(EG(), GC(), VM(), blk);
 
       NEXT();
     }
 
     CASE_CODE(MESSAGE) : {
       struct gab_obj_block_proto *p = READ_BLOCK_PROTOTYPE;
-      struct gab_obj_message *m = READ_MESSAGE;
+      struct gab_obj_message *msg = READ_MESSAGE;
+      gab_value m = __gab_obj(msg);
       gab_value r = PEEK();
 
-      uint64_t offset = gab_obj_message_find(m, r);
+      uint64_t offset = gab_msgfind(m, r);
 
       if (offset != UINT64_MAX) {
         STORE_FRAME();
@@ -1443,26 +1468,28 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
                      __gab_obj(m), r);
       }
 
-      struct gab_obj_block *blk = gab_obj_block_create(EG(), p);
+      gab_value blk = gab_block(EG(), __gab_obj(p));
 
-      for (int i = 0; i < blk->nupvalues; i++) {
+      struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
+
+      for (int i = 0; i < b->nupvalues; i++) {
         uint8_t flags = p->upv_desc[i * 2];
         uint8_t index = p->upv_desc[i * 2 + 1];
 
         if (flags & fVAR_LOCAL) {
           assert(index < CLOSURE()->p->nlocals);
-          blk->upvalues[i] = LOCAL(index);
+          b->upvalues[i] = LOCAL(index);
         } else {
           assert(index < CLOSURE()->nupvalues);
-          blk->upvalues[i] = CLOSURE()->upvalues[index];
+          b->upvalues[i] = CLOSURE()->upvalues[index];
         }
       }
 
-      gab_ngciref(EG(), GC(), VM(), 1, blk->nupvalues, blk->upvalues);
+      gab_ngciref(EG(), GC(), VM(), 1, b->nupvalues, b->upvalues);
 
       gab_gciref(EG(), GC(), VM(), r);
 
-      gab_obj_message_insert(m, r, __gab_obj(blk));
+      gab_msgput(m, r, blk);
 
       PEEK() = __gab_obj(m);
 
@@ -1488,10 +1515,9 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       gab_value *ap = TOP() - above;
 
-      struct gab_obj_shape *shape = gab_obj_shape_create_tuple(EG(), len);
+      gab_value shape = gab_nshape(EG(), len);
 
-      gab_value rec =
-          __gab_obj(gab_obj_record_create(EG(), shape, 1, ap - len));
+      gab_value rec = gab_recordof(EG(), shape, 1, ap - len);
 
       DROP_N(len - 1);
 
@@ -1511,14 +1537,12 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       bool internedOut;
 
-      struct gab_obj_shape *shape =
-          gab_obj_shape_create(EG(), &internedOut, 2, len, TOP() - len * 2);
+      gab_value shape = gab_shape(EG(), &internedOut, 2, len, TOP() - len * 2);
 
       if (!internedOut)
         gab_ngciref(EG(), GC(), VM(), 2, len, TOP() - len * 2);
 
-      struct gab_obj_record *rec =
-          gab_obj_record_create(EG(), shape, 2, TOP() + 1 - (len * 2));
+      gab_value rec = gab_recordof(EG(), shape, 2, TOP() + 1 - (len * 2));
 
       gab_ngciref(EG(), GC(), VM(), 2, len, TOP() + 1 - (len * 2));
 
@@ -1534,10 +1558,9 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
     CASE_CODE(TUPLE) : {
       uint8_t len = parse_have(VM(), READ_BYTE);
 
-      struct gab_obj_shape *shape = gab_obj_shape_create_tuple(EG(), len);
+      gab_value shape = gab_nshape(EG(), len);
 
-      struct gab_obj_record *rec =
-          gab_obj_record_create(EG(), shape, 1, TOP() - len);
+      gab_value rec = gab_recordof(EG(), shape, 1, TOP() - len);
 
       DROP_N(len);
 

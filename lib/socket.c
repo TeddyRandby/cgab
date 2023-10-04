@@ -344,13 +344,13 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   };
 
   gab_value values[] = {
-      gab_builtin(gab, "socket", gab_lib_sock),
-      gab_builtin(gab, "bind", gab_lib_bind),
-      gab_builtin(gab, "listen", gab_lib_listen),
-      gab_builtin(gab, "accept", gab_lib_accept),
-      gab_builtin(gab, "receive", gab_lib_receive),
-      gab_builtin(gab, "send", gab_lib_send),
-      gab_builtin(gab, "connect", gab_lib_connect),
+      gab_sbuiltin(gab, "socket", gab_lib_sock),
+      gab_sbuiltin(gab, "bind", gab_lib_bind),
+      gab_sbuiltin(gab, "listen", gab_lib_listen),
+      gab_sbuiltin(gab, "accept", gab_lib_accept),
+      gab_sbuiltin(gab, "receive", gab_lib_receive),
+      gab_sbuiltin(gab, "send", gab_lib_send),
+      gab_sbuiltin(gab, "connect", gab_lib_connect),
   };
 
   assert(LEN_CARRAY(names) == LEN_CARRAY(types));

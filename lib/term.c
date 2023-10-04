@@ -128,12 +128,12 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   };
 
   gab_value values[] = {
-      gab_builtin(gab, "new", gab_lib_new),
-      gab_builtin(gab, "refresh", gab_lib_refresh),
-      gab_builtin(gab, "key", gab_lib_key),
-      gab_builtin(gab, "print", gab_lib_print),
-      gab_builtin(gab, "put", gab_lib_put),
-      gab_builtin(gab, "dim", gab_lib_dim),
+      gab_sbuiltin(gab, "new", gab_lib_new),
+      gab_sbuiltin(gab, "refresh", gab_lib_refresh),
+      gab_sbuiltin(gab, "key", gab_lib_key),
+      gab_sbuiltin(gab, "print", gab_lib_print),
+      gab_sbuiltin(gab, "put", gab_lib_put),
+      gab_sbuiltin(gab, "dim", gab_lib_dim),
   };
 
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));

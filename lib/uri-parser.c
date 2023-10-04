@@ -101,7 +101,7 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   };
 
   gab_value values[] = {
-      gab_builtin(gab, "to_uri", gab_lib_stouri),
+      gab_sbuiltin(gab, "to_uri", gab_lib_stouri),
   };
 
   for (int32_t i = 0; i < sizeof(values) / sizeof(gab_value); i++) {

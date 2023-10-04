@@ -238,7 +238,8 @@ s_char trim_prev_src(bc *bc) {
 }
 
 gab_value prev_id(struct gab_eg *gab, bc *bc) {
-  return __gab_obj(gab_obj_string_create(gab, prev_src(bc)));
+  s_char s = prev_src(bc);
+  return gab_nstring(gab, s.len, s.data);
 }
 
 static inline int peek_ctx(bc *bc, context_k kind, uint8_t depth) {
@@ -599,16 +600,15 @@ static struct gab_obj_block_proto *pop_ctxframe(struct gab_eg *gab, bc *bc) {
   uint8_t nargs = f->narguments;
   uint8_t nlocals = f->nlocals;
 
-  struct gab_obj_block_proto *p =
-      gab_obj_prototype_create(gab, f->mod, nargs, nslots, nlocals, nupvalues,
-                               f->upv_flags, f->upv_indexes);
+  gab_value p = gab_blkproto(gab, f->mod, nargs, nslots, nlocals, nupvalues,
+                             f->upv_flags, f->upv_indexes);
 
   assert(match_ctx(bc, kFRAME));
 
   if (pop_ctx(bc, kFRAME) < 0)
     return NULL;
 
-  return p;
+  return GAB_VAL_TO_BLOCK_PROTO(p);
 }
 
 compile_rule get_rule(gab_token k);
@@ -684,7 +684,7 @@ int compile_parameters(struct gab_eg *gab, bc *bc) {
 
       s_char name = prev_src(bc);
 
-      gab_value val_name = __gab_obj(gab_obj_string_create(gab, name));
+      gab_value val_name = gab_nstring(gab, name.len, name.data);
 
       int local = compile_local(gab, bc, val_name, 0);
 
@@ -874,8 +874,8 @@ int compile_message(struct gab_eg *gab, bc *bc, gab_value name) {
   push_op(bc, OP_MESSAGE);
   push_short(bc, add_constant(mod(bc), __gab_obj(p)));
 
-  struct gab_obj_message *m = gab_obj_message_create(gab, name);
-  uint16_t func_constant = add_constant(mod(bc), __gab_obj(m));
+  gab_value m = gab_message(gab, name);
+  uint16_t func_constant = add_constant(mod(bc), m);
   push_short(bc, func_constant);
 
   push_slot(bc, 1);
@@ -961,13 +961,11 @@ int compile_tuple(struct gab_eg *gab, bc *bc, uint8_t want, bool *mv_out) {
 
 int add_message_constant(struct gab_eg *gab, struct gab_mod *mod,
                          gab_value name) {
-  struct gab_obj_message *f = gab_obj_message_create(gab, name);
-  return add_constant(mod, __gab_obj(f));
+  return add_constant(mod, gab_message(gab, name));
 }
 
 int add_string_constant(struct gab_eg *gab, struct gab_mod *mod, s_char str) {
-  struct gab_obj_string *obj = gab_obj_string_create(gab, str);
-  return add_constant(mod, __gab_obj(obj));
+  return add_constant(mod, gab_nstring(gab, str.len, str.data));
 }
 
 int compile_rec_tup_internal_item(struct gab_eg *gab, bc *bc, uint8_t index) {
@@ -1379,7 +1377,7 @@ int compile_record_tuple(struct gab_eg *gab, bc *bc) {
 int compile_definition(struct gab_eg *gab, bc *bc, s_char name, s_char help) {
   // A record definition
   if (match_and_eat_token(bc, TOKEN_LBRACK)) {
-    gab_value val_name = __gab_obj(gab_obj_string_create(gab, name));
+    gab_value val_name = gab_nstring(gab, name.len, name.data);
 
     uint8_t local = add_local(gab, bc, val_name, 0);
 
@@ -2343,7 +2341,9 @@ int compile_exp_emp(struct gab_eg *gab, bc *bc, bool assignable) {
   gab_token tok = prev_tok(bc);
   uint64_t line = prev_line(bc);
 
-  gab_value val_name = __gab_obj(gab_obj_string_create(gab, trim_prev_src(bc)));
+  s_char src = trim_prev_src(bc);
+
+  gab_value val_name = gab_nstring(gab, src.len, src.data);
 
   uint16_t m = add_message_constant(gab, mod(bc), val_name);
 
@@ -2463,7 +2463,7 @@ int compile_exp_snd(struct gab_eg *gab, bc *bc, bool assignable) {
 
   s_char message = trim_prev_src(bc);
 
-  gab_value val_name = __gab_obj(gab_obj_string_create(gab, message));
+  gab_value val_name = gab_nstring(gab, message.len, message.data);
 
   uint16_t m = add_message_constant(gab, mod(bc), val_name);
 
@@ -2780,7 +2780,7 @@ int compile_exp_lop(struct gab_eg *gab, bc *bc, bool assignable) {
 int compile_exp_sym(struct gab_eg *gab, bc *bc, bool assignable) {
   s_char name = trim_prev_src(bc);
 
-  gab_value sym = __gab_obj(gab_obj_string_create(gab, name));
+  gab_value sym = gab_nstring(gab, name.len, name.data);
 
   push_op(bc, OP_CONSTANT);
   push_short(bc, add_constant(mod(bc), __gab_obj(sym)));
@@ -2792,10 +2792,9 @@ int compile_exp_sym(struct gab_eg *gab, bc *bc, bool assignable) {
 
 int compile_exp_yld(struct gab_eg *gab, bc *bc, bool assignable) {
   if (!get_rule(curr_tok(bc)).prefix) {
-    struct gab_obj_suspense_proto *proto =
-        gab_obj_suspense_proto_create(gab, mod(bc)->bytecode.len + 4, 1);
+    gab_value proto = gab_susproto(gab, mod(bc)->bytecode.len + 4, 1);
 
-    uint16_t kproto = add_constant(mod(bc), __gab_obj(proto));
+    uint16_t kproto = add_constant(mod(bc), proto);
 
     gab_mod_push_yield(mod(bc), kproto, 0, false, prev_tok(bc), prev_line(bc),
                        prev_src(bc));
@@ -2816,10 +2815,9 @@ int compile_exp_yld(struct gab_eg *gab, bc *bc, bool assignable) {
     return COMP_ERR;
   }
 
-  struct gab_obj_suspense_proto *proto =
-      gab_obj_suspense_proto_create(gab, mod(bc)->bytecode.len + 4, 1);
+  gab_value proto = gab_susproto(gab, mod(bc)->bytecode.len + 4, 1);
 
-  uint16_t kproto = add_constant(mod(bc), __gab_obj(proto));
+  uint16_t kproto = add_constant(mod(bc), proto);
 
   push_slot(bc, 1);
 
@@ -2969,9 +2967,11 @@ gab_value compile(struct gab_eg *gab, bc *bc, gab_value name,
 
   struct gab_obj_block_proto *p = pop_ctxframe(gab, bc);
 
-  add_constant(new_mod, __gab_obj(p));
+  gab_value proto = __gab_obj(p);
 
-  struct gab_obj_block *main = gab_obj_block_create(gab, p);
+  add_constant(new_mod, proto);
+
+  gab_value main = gab_block(gab, proto);
 
   add_constant(new_mod, __gab_obj(main));
 
@@ -3006,14 +3006,14 @@ gab_value gab_bccompsend(struct gab_eg *gab, gab_value msg, gab_value receiver,
 
   uint8_t nlocals = narguments + 1;
 
-  struct gab_obj_block_proto *p = gab_obj_prototype_create(
-      gab, mod, narguments, nlocals, nlocals, 0, NULL, NULL);
+  gab_value p =
+      gab_blkproto(gab, mod, narguments, nlocals, nlocals, 0, NULL, NULL);
 
-  add_constant(mod, __gab_obj(p));
+  add_constant(mod, p);
 
-  struct gab_obj_block *main = gab_obj_block_create(gab, p);
+  gab_value main = gab_block(gab, p);
 
-  return __gab_obj(main);
+  return main;
 }
 
 gab_value gab_bccomp(struct gab_eg *gab, gab_value name, s_char source,

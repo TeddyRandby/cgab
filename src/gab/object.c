@@ -232,13 +232,16 @@ static inline uint64_t hash_keys(uint64_t seed, uint64_t len, uint64_t stride,
   return hash_words(seed, len, words);
 };
 
-struct gab_obj_string *gab_obj_string_create(struct gab_eg *gab, s_char str) {
+gab_value gab_nstring(struct gab_eg *gab, size_t len,
+                      const char data[static len]) {
+  s_char str = s_char_create(data, len);
+
   uint64_t hash = s_char_hash(str, gab->hash_seed);
 
   struct gab_obj_string *interned = gab_eg_find_string(gab, str, hash);
 
   if (interned)
-    return interned;
+    return __gab_obj(interned);
 
   struct gab_obj_string *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_string, char, str.len, kGAB_STRING);
@@ -251,20 +254,23 @@ struct gab_obj_string *gab_obj_string_create(struct gab_eg *gab, s_char str) {
 
   d_strings_insert(&gab->interned_strings, self, 0);
 
-  return self;
+  return __gab_obj(self);
 };
 
 /*
   Given two strings, create a third which is the concatenation a+b
 */
-struct gab_obj_string *gab_obj_string_concat(struct gab_eg *gab,
-                                             struct gab_obj_string *a,
-                                             struct gab_obj_string *b) {
+gab_value gab_strcat(struct gab_eg *gab, gab_value _a, gab_value _b) {
+  assert(gab_valknd(_a) == kGAB_STRING);
+  assert(gab_valknd(_b) == kGAB_STRING);
+
+  struct gab_obj_string *a = GAB_VAL_TO_STRING(_a);
+  struct gab_obj_string *b = GAB_VAL_TO_STRING(_b);
   if (a->len == 0)
-    return b;
+    return _b;
 
   if (b->len == 0)
-    return a;
+    return _a;
 
   size_t len = a->len + b->len;
 
@@ -288,19 +294,15 @@ struct gab_obj_string *gab_obj_string_concat(struct gab_eg *gab,
   struct gab_obj_string *interned = gab_eg_find_string(gab, ref, hash);
 
   if (interned)
-    return interned;
+    return __gab_obj(interned);
 
-  struct gab_obj_string *self = gab_obj_string_create(gab, ref);
-
-  // The module contains a reference to the string, so add a reference.
-  return self;
+  return gab_nstring(gab, len, data);
 };
 
-struct gab_obj_block_proto *
-gab_obj_prototype_create(struct gab_eg *gab, struct gab_mod *mod,
-                         uint8_t narguments, uint8_t nslots, uint8_t nlocals,
-                         uint8_t nupvalues, uint8_t flags[nupvalues],
-                         uint8_t indexes[nupvalues]) {
+gab_value gab_blkproto(struct gab_eg *gab, struct gab_mod *mod,
+                       uint8_t narguments, uint8_t nslots, uint8_t nlocals,
+                       uint8_t nupvalues, uint8_t flags[nupvalues],
+                       uint8_t indexes[nupvalues]) {
   struct gab_obj_block_proto *self = GAB_CREATE_FLEX_OBJ(
       gab_obj_block_proto, uint8_t, nupvalues * 2, kGAB_BLOCK_PROTO);
 
@@ -316,18 +318,16 @@ gab_obj_prototype_create(struct gab_eg *gab, struct gab_mod *mod,
   }
 
   GAB_OBJ_GREEN((struct gab_obj *)self);
-  return self;
+  return __gab_obj(self);
 }
 
-struct gab_obj_message *gab_obj_message_create(struct gab_eg *gab,
-                                               gab_value name) {
+gab_value gab_message(struct gab_eg *gab, gab_value name) {
   uint64_t hash = GAB_VAL_TO_STRING(name)->hash;
 
   struct gab_obj_message *interned = gab_eg_find_message(gab, name, hash);
 
-  if (interned != NULL) {
-    return interned;
-  }
+  if (interned != NULL)
+    return __gab_obj(interned);
 
   struct gab_obj_message *self = GAB_CREATE_OBJ(gab_obj_message, kGAB_MESSAGE);
 
@@ -341,25 +341,30 @@ struct gab_obj_message *gab_obj_message_create(struct gab_eg *gab,
 
   d_messages_insert(&gab->interned_messages, self, 0);
 
-  return self;
+  return __gab_obj(self);
 }
 
-struct gab_obj_builtin *gab_obj_builtin_create(struct gab_eg *gab,
-                                               gab_builtin_f function,
-                                               gab_value name) {
+gab_value gab_builtin(struct gab_eg *gab, gab_value name, gab_builtin_f f) {
+  assert(gab_valknd(name) == kGAB_STRING);
 
   struct gab_obj_builtin *self = GAB_CREATE_OBJ(gab_obj_builtin, kGAB_BUILTIN);
 
-  self->function = function;
   self->name = name;
+  self->function = f;
 
   // Builtins cannot reference other objects - mark them green.
   GAB_OBJ_GREEN((struct gab_obj *)self);
-  return self;
+  return __gab_obj(self);
 }
 
-struct gab_obj_block *gab_obj_block_create(struct gab_eg *gab,
-                                           struct gab_obj_block_proto *p) {
+gab_value gab_sbuiltin(struct gab_eg *gab, const char *name, gab_builtin_f f) {
+  return gab_builtin(gab, gab_string(gab, name), f);
+}
+
+gab_value gab_block(struct gab_eg *gab, gab_value prototype) {
+  assert(gab_valknd(prototype) == kGAB_BLOCK_PROTO);
+  struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(prototype);
+
   struct gab_obj_block *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_block, gab_value, p->nupvalues, kGAB_BLOCK);
 
@@ -370,23 +375,21 @@ struct gab_obj_block *gab_obj_block_create(struct gab_eg *gab,
     self->upvalues[i] = gab_nil;
   }
 
-  return self;
+  return __gab_obj(self);
 }
 
-struct gab_obj_shape *gab_obj_shape_create_tuple(struct gab_eg *gab,
-                                                 size_t len) {
+gab_value gab_nshape(struct gab_eg *gab, size_t len) {
   gab_value keys[len];
 
   for (size_t i = 0; i < len; i++) {
     keys[i] = gab_number(i);
   }
 
-  return gab_obj_shape_create(gab, NULL, 1, len, keys);
+  return gab_shape(gab, NULL, 1, len, keys);
 }
 
-struct gab_obj_shape *gab_obj_shape_create(struct gab_eg *gab,
-                                           bool *internedOut, size_t stride,
-                                           size_t len, gab_value keys[len]) {
+gab_value gab_shape(struct gab_eg *gab, bool *internedOut, size_t stride,
+                    size_t len, gab_value keys[len]) {
   uint64_t hash = hash_keys(gab->hash_seed, len, stride, keys);
 
   struct gab_obj_shape *interned =
@@ -396,7 +399,7 @@ struct gab_obj_shape *gab_obj_shape_create(struct gab_eg *gab,
     *internedOut = interned != NULL;
 
   if (interned)
-    return interned;
+    return __gab_obj(interned);
 
   struct gab_obj_shape *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_shape, gab_value, len, kGAB_SHAPE);
@@ -412,12 +415,13 @@ struct gab_obj_shape *gab_obj_shape_create(struct gab_eg *gab,
 
   d_shapes_insert(&gab->interned_shapes, self, 0);
 
-  return self;
+  return __gab_obj(self);
 }
 
-struct gab_obj_record *
-gab_obj_record_create(struct gab_eg *gab, struct gab_obj_shape *shape,
-                      uint64_t stride, gab_value values[static shape->len]) {
+gab_value gab_recordof(struct gab_eg *gab, gab_value shp, uint64_t stride,
+                       gab_value values[static GAB_VAL_TO_SHAPE(shp)->len]) {
+  assert(gab_valknd(shp) == kGAB_SHAPE);
+  struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(shp);
 
   struct gab_obj_record *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_record, gab_value, shape->len, kGAB_RECORD);
@@ -428,11 +432,13 @@ gab_obj_record_create(struct gab_eg *gab, struct gab_obj_shape *shape,
   for (uint64_t i = 0; i < shape->len; i++)
     self->data[i] = values[i * stride];
 
-  return self;
+  return __gab_obj(self);
 }
 
-struct gab_obj_record *
-gab_obj_record_create_empty(struct gab_eg *gab, struct gab_obj_shape *shape) {
+gab_value gab_erecordof(struct gab_eg *gab, gab_value shp) {
+  assert(gab_valknd(shp) == kGAB_SHAPE);
+  struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(shp);
+
   struct gab_obj_record *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_record, gab_value, shape->len, kGAB_RECORD);
 
@@ -442,33 +448,23 @@ gab_obj_record_create_empty(struct gab_eg *gab, struct gab_obj_shape *shape) {
   for (uint64_t i = 0; i < shape->len; i++)
     self->data[i] = gab_nil;
 
-  return self;
-}
-
-struct gab_obj_box *gab_obj_box_create(struct gab_eg *gab, gab_value type,
-                                       gab_boxdestroy_f destructor,
-                                       gab_boxvisit_f visitor, void *data) {
-
-  struct gab_obj_box *self = GAB_CREATE_OBJ(gab_obj_box, kGAB_BOX);
-
-  self->do_destroy = destructor;
-  self->do_visit = visitor;
-  self->data = data;
-  self->type = type;
-
-  GAB_OBJ_GREEN((struct gab_obj *)self);
-
-  return self;
+  return __gab_obj(self);
 }
 
 gab_value gab_box(struct gab_eg *gab, struct gab_box_argt args) {
-  return __gab_obj(gab_obj_box_create(gab, args.type, args.destructor,
-                                      args.visitor, args.data));
+  struct gab_obj_box *self = GAB_CREATE_OBJ(gab_obj_box, kGAB_BOX);
+
+  self->do_destroy = args.destructor;
+  self->do_visit = args.visitor;
+  self->data = args.data;
+  self->type = args.type;
+
+  GAB_OBJ_GREEN((struct gab_obj *)self);
+
+  return __gab_obj(self);
 }
 
-struct gab_obj_suspense_proto *gab_obj_suspense_proto_create(struct gab_eg *gab,
-                                                             uint64_t offset,
-                                                             uint8_t want) {
+gab_value gab_susproto(struct gab_eg *gab, uint64_t offset, uint8_t want) {
   struct gab_obj_suspense_proto *self =
       GAB_CREATE_OBJ(gab_obj_suspense_proto, kGAB_SUSPENSE_PROTO);
 
@@ -477,12 +473,13 @@ struct gab_obj_suspense_proto *gab_obj_suspense_proto_create(struct gab_eg *gab,
 
   GAB_OBJ_GREEN((struct gab_obj *)self);
 
-  return self;
+  return __gab_obj(self);
 }
 
-struct gab_obj_suspense *gab_obj_suspense_create(
-    struct gab_eg *gab, uint16_t len, struct gab_obj_block *b,
-    struct gab_obj_suspense_proto *p, gab_value frame[static len]) {
+gab_value gab_suspense(struct gab_eg *gab, uint16_t len,
+                       struct gab_obj_block *b,
+                       struct gab_obj_suspense_proto *p,
+                       gab_value frame[static len]) {
   struct gab_obj_suspense *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_suspense, gab_value, len, kGAB_SUSPENSE);
 
@@ -492,7 +489,7 @@ struct gab_obj_suspense *gab_obj_suspense_create(
 
   memcpy(self->frame, frame, len * sizeof(gab_value));
 
-  return self;
+  return __gab_obj(self);
 }
 
 #undef CREATE_GAB_FLEX_OBJ

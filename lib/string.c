@@ -122,9 +122,9 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc* gc, struct gab_vm *vm) {
   };
 
   gab_value values[] = {
-      gab_builtin(gab, "slice", gab_lib_slice),
-      gab_builtin(gab, "split", gab_lib_split),
-      gab_builtin(gab, "len", gab_lib_len),
+      gab_sbuiltin(gab, "slice", gab_lib_slice),
+      gab_sbuiltin(gab, "split", gab_lib_split),
+      gab_sbuiltin(gab, "len", gab_lib_len),
   };
 
   for (uint8_t i = 0; i < LEN_CARRAY(keys); i++) {

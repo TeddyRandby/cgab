@@ -32,7 +32,7 @@ void repl(const char *module, uint8_t flags) {
       continue;
     }
 
-    gab_value main = gab_block(gab, (struct gab_block_argt){
+    gab_value main = gab_compile(gab, (struct gab_compile_argt){
                                         .name = "__main__",
                                         .source = (char *)src->data,
                                         flags,
@@ -75,7 +75,7 @@ void run_src(struct gab_eg *gab, s_char src, const char *module, char delim,
   //   a_gab_value_destroy(res);
   // }
 
-  gab_value main = gab_block(gab, (struct gab_block_argt){
+  gab_value main = gab_compile(gab, (struct gab_compile_argt){
                                       .name = "__main__",
                                       .source = (char *)src.data,
                                       .flags = flags,

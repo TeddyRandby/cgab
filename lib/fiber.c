@@ -282,9 +282,9 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   };
 
   gab_value specs[] = {
-      gab_builtin(gab, "fiber", gab_lib_fiber),
-      gab_builtin(gab, "send", gab_lib_send),
-      gab_builtin(gab, "await", gab_lib_await),
+      gab_sbuiltin(gab, "fiber", gab_lib_fiber),
+      gab_sbuiltin(gab, "send", gab_lib_send),
+      gab_sbuiltin(gab, "await", gab_lib_await),
   };
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));

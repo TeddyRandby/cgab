@@ -281,7 +281,8 @@ a_gab_value *gab_run(struct gab_eg *gab, gab_value main, size_t flags) {
 
 a_gab_value *gab_execute(struct gab_eg *gab, const char *name,
                          const char *source, size_t flags) {
-  gab_value main = gab_block(gab, (struct gab_block_argt){name, source, flags});
+  gab_value main =
+      gab_compile(gab, (struct gab_compile_argt){name, source, flags});
 
   if (main == gab_undefined)
     return NULL;
@@ -296,13 +297,12 @@ gab_value gab_panic(struct gab_eg *gab, struct gab_vm *vm, const char *msg) {
 }
 
 gab_value gab_spec(struct gab_eg *gab, struct gab_spec_argt args) {
-  struct gab_obj_message *m =
-      gab_obj_message_create(gab, gab_string(gab, args.name));
+  gab_value m = gab_message(gab, gab_string(gab, args.name));
 
-  if (gab_obj_message_find(m, args.receiver) != UINT64_MAX)
+  if (gab_msgfind(m, args.receiver) != UINT64_MAX)
     return gab_nil;
 
-  gab_obj_message_insert(m, args.receiver, args.specialization);
+  gab_msgput(m, args.receiver, args.specialization);
 
   return __gab_obj(m);
 }
@@ -336,8 +336,8 @@ a_gab_value *gab_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
                       gab_value argv[argc]) {
   switch (gab_valknd(msg)) {
   case kGAB_STRING: {
-    struct gab_obj_message *main = gab_obj_message_create(gab, msg);
-    return send_msg(gab, gc, vm, __gab_obj(main), receiver, argc, argv);
+    gab_value main = gab_message(gab, msg);
+    return send_msg(gab, gc, vm, main, receiver, argc, argv);
   }
   case kGAB_MESSAGE:
     return send_msg(gab, gc, vm, msg, receiver, argc, argv);
@@ -480,62 +480,60 @@ gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value) {
 
   case kGAB_BOX: {
     struct gab_obj_box *self = GAB_VAL_TO_BOX(value);
-    struct gab_obj_box *copy =
-        gab_obj_box_create(gab, gab_valcpy(gab, vm, self->type),
-                           self->do_destroy, self->do_visit, self->data);
-    return __gab_obj(copy);
+    gab_value copy = gab_box(gab, (struct gab_box_argt){
+                                      .type = gab_valcpy(gab, vm, self->type),
+                                      .data = self->data,
+                                      .visitor = self->do_visit,
+                                      .destructor = self->do_destroy,
+                                  });
+    return copy;
   }
 
   case kGAB_MESSAGE: {
     struct gab_obj_message *self = GAB_VAL_TO_MESSAGE(value);
-    struct gab_obj_message *copy =
-        gab_obj_message_create(gab, gab_valcpy(gab, vm, self->name));
+    gab_value copy = gab_message(gab, gab_valcpy(gab, vm, self->name));
 
-    return __gab_obj(copy);
+    return copy;
   }
 
   case kGAB_STRING: {
     struct gab_obj_string *self = GAB_VAL_TO_STRING(value);
-    return __gab_obj(gab_obj_string_create(gab, (s_char){
-                                                    .data = self->data,
-                                                    .len = self->len,
-                                                }));
+    return gab_nstring(gab, self->len, self->data);
   }
 
   case kGAB_BUILTIN: {
     struct gab_obj_builtin *self = GAB_VAL_TO_BUILTIN(value);
-    return __gab_obj(gab_obj_builtin_create(gab, self->function,
-                                            gab_valcpy(gab, vm, self->name)));
+    return gab_builtin(gab, gab_valcpy(gab, vm, self->name), self->function);
   }
 
   case kGAB_BLOCK_PROTO: {
     struct gab_obj_block_proto *self = GAB_VAL_TO_BLOCK_PROTO(value);
     gab_modcpy(gab, self->mod);
 
-    struct gab_obj_block_proto *copy = gab_obj_prototype_create(
+    gab_value copy = gab_blkproto(
         gab, gab->modules, self->narguments, self->nslots, self->nlocals,
         self->nupvalues, self->upv_desc, self->upv_desc);
 
-    memcpy(copy->upv_desc, self->upv_desc, self->nupvalues * 2);
+    memcpy(GAB_VAL_TO_BLOCK_PROTO(copy)->upv_desc, self->upv_desc, self->nupvalues * 2);
 
-    gab_egkeep(gab, __gab_obj(copy)); // No module to own this prototype
+    gab_egkeep(gab, copy); // No module to own this prototype
 
-    return __gab_obj(copy);
+    return copy;
   }
 
   case kGAB_BLOCK: {
     struct gab_obj_block *self = GAB_VAL_TO_BLOCK(value);
 
-    struct gab_obj_block_proto *p_copy =
-        GAB_VAL_TO_BLOCK_PROTO(gab_valcpy(gab, vm, __gab_obj(self->p)));
+    gab_value p_copy = gab_valcpy(gab, vm, __gab_obj(self->p));
 
-    struct gab_obj_block *copy = gab_obj_block_create(gab, p_copy);
+    gab_value copy = gab_block(gab, p_copy);
 
-    for (uint8_t i = 0; i < p_copy->nupvalues; i++) {
-      copy->upvalues[i] = gab_valcpy(gab, vm, self->upvalues[i]);
+    for (uint8_t i = 0; i < GAB_VAL_TO_BLOCK_PROTO(p_copy)->nupvalues; i++) {
+      GAB_VAL_TO_BLOCK(copy)->upvalues[i] =
+          gab_valcpy(gab, vm, self->upvalues[i]);
     }
 
-    return __gab_obj(copy);
+    return copy;
   }
 
   case kGAB_SHAPE: {
@@ -547,35 +545,28 @@ gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value) {
       keys[i] = gab_valcpy(gab, vm, self->data[i]);
     }
 
-    struct gab_obj_shape *copy =
-        gab_obj_shape_create(gab, NULL, 1, self->len, keys);
+    gab_value copy = gab_shape(gab, NULL, 1, self->len, keys);
 
-    return __gab_obj(copy);
+    return copy;
   }
 
   case kGAB_RECORD: {
     struct gab_obj_record *self = GAB_VAL_TO_RECORD(value);
 
-    struct gab_obj_shape *s_copy =
-        GAB_VAL_TO_SHAPE(gab_valcpy(gab, vm, __gab_obj(self->shape)));
+    gab_value s_copy = gab_valcpy(gab, vm, __gab_obj(self->shape));
 
     gab_value values[self->len];
 
     for (uint64_t i = 0; i < self->len; i++)
       values[i] = gab_valcpy(gab, vm, self->data[i]);
 
-    struct gab_obj_record *copy = gab_obj_record_create(gab, s_copy, 1, values);
-
-    return __gab_obj(copy);
+    return gab_recordof(gab, s_copy, 1, values);
   }
 
   case kGAB_SUSPENSE_PROTO: {
     struct gab_obj_suspense_proto *self = GAB_VAL_TO_SUSPENSE_PROTO(value);
 
-    struct gab_obj_suspense_proto *copy =
-        gab_obj_suspense_proto_create(gab, self->offset, self->want);
-
-    return __gab_obj(copy);
+    return gab_susproto(gab, self->offset, self->want);
   }
 
   case kGAB_SUSPENSE: {
@@ -592,27 +583,16 @@ gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value) {
     struct gab_obj_block *b_copy =
         GAB_VAL_TO_BLOCK(gab_valcpy(gab, vm, __gab_obj(self->b)));
 
-    struct gab_obj_suspense *copy =
-        gab_obj_suspense_create(gab, self->len, b_copy, p_copy, frame);
-
-    return __gab_obj(copy);
+    return gab_suspense(gab, self->len, b_copy, p_copy, frame);
   }
   }
-}
-
-gab_value gab_builtin(struct gab_eg *gab, const char *name, gab_builtin_f f) {
-  return __gab_obj(gab_obj_builtin_create(gab, f, gab_string(gab, name)));
 }
 
 gab_value gab_string(struct gab_eg *gab, const char *data) {
-  return __gab_obj(gab_obj_string_create(gab, s_char_cstr(data)));
+  return gab_nstring(gab, strlen(data), data);
 }
 
-gab_value gab_nstring(struct gab_eg *gab, size_t len, const char *data) {
-  return __gab_obj(gab_obj_string_create(gab, s_char_create(data, len)));
-}
-
-gab_value gab_block(struct gab_eg *gab, struct gab_block_argt args) {
+gab_value gab_compile(struct gab_eg *gab, struct gab_compile_argt args) {
   return gab_bccomp(gab, gab_string(gab, args.name),
                     s_char_create(args.source, strlen(args.source) + 1),
                     args.flags, gab->argv_values.len, gab->argv_names.data);
@@ -620,9 +600,8 @@ gab_value gab_block(struct gab_eg *gab, struct gab_block_argt args) {
 
 gab_value gab_record(struct gab_eg *gab, uint64_t size, gab_value keys[size],
                      gab_value values[size]) {
-  struct gab_obj_shape *bundle_shape =
-      gab_obj_shape_create(gab, NULL, 1, size, keys);
-  return __gab_obj(gab_obj_record_create(gab, bundle_shape, 1, values));
+  gab_value bundle_shape = gab_shape(gab, NULL, 1, size, keys);
+  return gab_recordof(gab, bundle_shape, 1, values);
 }
 
 gab_value gab_srecord(struct gab_eg *gab, uint64_t size, const char *keys[size],
@@ -632,99 +611,16 @@ gab_value gab_srecord(struct gab_eg *gab, uint64_t size, const char *keys[size],
   for (uint64_t i = 0; i < size; i++)
     value_keys[i] = gab_string(gab, keys[i]);
 
-  struct gab_obj_shape *bundle_shape =
-      gab_obj_shape_create(gab, NULL, 1, size, value_keys);
-
-  return __gab_obj(gab_obj_record_create(gab, bundle_shape, 1, values));
-}
-
-gab_value gab_erecord(struct gab_eg *gab, gab_value shape) {
-  assert(gab_valknd(shape) == kGAB_SHAPE);
-  return __gab_obj(gab_obj_record_create_empty(gab, GAB_VAL_TO_SHAPE(shape)));
+  gab_value bundle_shape = gab_shape(gab, NULL, 1, size, value_keys);
+  return gab_recordof(gab, bundle_shape, 1, values);
 }
 
 gab_value gab_etuple(struct gab_eg *gab, size_t len) {
-  struct gab_obj_shape *bundle_shape = gab_obj_shape_create_tuple(gab, len);
-  return __gab_obj(gab_obj_record_create_empty(gab, bundle_shape));
+  gab_value bundle_shape = gab_nshape(gab, len);
+  return gab_erecordof(gab, bundle_shape);
 }
 
 gab_value gab_tuple(struct gab_eg *gab, uint64_t size, gab_value values[size]) {
-  struct gab_obj_shape *bundle_shape = gab_obj_shape_create_tuple(gab, size);
-  return __gab_obj(gab_obj_record_create(gab, bundle_shape, 1, values));
-}
-
-void *gab_boxdata(gab_value value) {
-  assert(gab_valknd(value) == kGAB_BOX);
-  return GAB_VAL_TO_BOX(value)->data;
-}
-
-gab_value gab_recshp(gab_value value) {
-  assert(gab_valknd(value) == kGAB_RECORD);
-  return __gab_obj(GAB_VAL_TO_RECORD(value)->shape);
-}
-
-size_t gab_reclen(gab_value value) {
-  assert(gab_valknd(value) == kGAB_RECORD);
-  return GAB_VAL_TO_RECORD(value)->len;
-}
-
-gab_value *gab_recdata(gab_value value) {
-  assert(gab_valknd(value) == kGAB_RECORD);
-  return GAB_VAL_TO_RECORD(value)->data;
-}
-
-size_t gab_shplen(gab_value value) {
-  assert(gab_valknd(value) == kGAB_SHAPE);
-  return GAB_VAL_TO_SHAPE(value)->len;
-}
-
-gab_value *gab_shpdata(gab_value value) {
-  assert(gab_valknd(value) == kGAB_SHAPE);
-  return GAB_VAL_TO_SHAPE(value)->data;
-}
-
-size_t gab_strlen(gab_value value) {
-  assert(gab_valknd(value) == kGAB_STRING);
-  return GAB_VAL_TO_STRING(value)->len;
-}
-
-bool gab_rechas(gab_value value, gab_value key) {
-  assert(gab_valknd(value) == kGAB_RECORD);
-  return gab_obj_record_has(GAB_VAL_TO_RECORD(value), key);
-}
-
-bool gab_srechas(struct gab_eg *gab, gab_value value, const char *key) {
-  assert(gab_valknd(value) == kGAB_RECORD);
-  return gab_obj_record_has(GAB_VAL_TO_RECORD(value), gab_string(gab, key));
-}
-
-gab_value gab_recat(gab_value value, gab_value key) {
-  assert(gab_valknd(value) == kGAB_RECORD);
-  return gab_obj_record_at(GAB_VAL_TO_RECORD(value), key);
-}
-
-gab_value gab_srecat(struct gab_eg *gab, gab_value value, const char *key) {
-  assert(gab_valknd(value) == kGAB_RECORD);
-  return gab_obj_record_at(GAB_VAL_TO_RECORD(value), gab_string(gab, key));
-}
-
-void gab_recput(gab_value value, gab_value key, gab_value val) {
-  assert(gab_valknd(value) == kGAB_RECORD);
-  gab_obj_record_put(GAB_VAL_TO_RECORD(value), key, val);
-}
-
-void gab_srecput(struct gab_eg *gab, gab_value value, const char *key,
-                 gab_value val) {
-  assert(gab_valknd(value) == kGAB_RECORD);
-  gab_obj_record_put(GAB_VAL_TO_RECORD(value), gab_string(gab, key), val);
-}
-
-size_t gab_shpfind(gab_value value, gab_value needle) {
-  assert(gab_valknd(value) == kGAB_SHAPE);
-  return gab_obj_shape_find(GAB_VAL_TO_SHAPE(value), needle);
-}
-
-gab_value gab_msgfind(gab_value msg, gab_value spec) {
-  assert(gab_valknd(msg) == kGAB_MESSAGE);
-  return gab_obj_message_find(GAB_VAL_TO_MESSAGE(msg), spec);
+  gab_value bundle_shape = gab_nshape(gab, size);
+  return gab_recordof(gab, bundle_shape, 1, values);
 }

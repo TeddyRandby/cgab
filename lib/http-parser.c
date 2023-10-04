@@ -108,7 +108,7 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   };
 
   gab_value values[] = {
-      gab_builtin(gab, "to_http", gab_lib_parse),
+      gab_sbuiltin(gab, "to_http", gab_lib_parse),
   };
 
   for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); i++) {

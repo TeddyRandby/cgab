@@ -31,7 +31,7 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc* gc, struct gab_vm *vm) {
   };
 
   gab_value specs[] = {
-      gab_builtin(gab, "new", gab_lib_new),
+      gab_sbuiltin(gab, "new", gab_lib_new),
   };
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));

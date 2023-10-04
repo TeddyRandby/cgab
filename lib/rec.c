@@ -177,7 +177,7 @@ void gab_lib_record(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
       return;
     }
 
-    gab_value result = gab_erecord(gab, argv[1]);
+    gab_value result = gab_erecordof(gab, argv[1]);
 
     gab_vmpush(vm, result);
 
@@ -297,18 +297,18 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   };
 
   gab_value specs[] = {
-      gab_builtin(gab, "tuple", gab_lib_tuple),
-      gab_builtin(gab, "record", gab_lib_record),
-      gab_builtin(gab, "len", gab_lib_len),
-      gab_builtin(gab, "to_l", gab_lib_to_l),
-      gab_builtin(gab, "to_m", gab_lib_to_m),
-      gab_builtin(gab, "send", gab_lib_send),
-      gab_builtin(gab, "put", gab_lib_put),
-      gab_builtin(gab, "at", gab_lib_at),
-      gab_builtin(gab, "next", gab_lib_next),
-      gab_builtin(gab, "slice", gab_lib_slice),
-      gab_builtin(gab, "splat", gab_lib_splat),
-      gab_builtin(gab, "implements?", gab_lib_implements),
+      gab_sbuiltin(gab, "tuple", gab_lib_tuple),
+      gab_sbuiltin(gab, "record", gab_lib_record),
+      gab_sbuiltin(gab, "len", gab_lib_len),
+      gab_sbuiltin(gab, "to_l", gab_lib_to_l),
+      gab_sbuiltin(gab, "to_m", gab_lib_to_m),
+      gab_sbuiltin(gab, "send", gab_lib_send),
+      gab_sbuiltin(gab, "put", gab_lib_put),
+      gab_sbuiltin(gab, "at", gab_lib_at),
+      gab_sbuiltin(gab, "next", gab_lib_next),
+      gab_sbuiltin(gab, "slice", gab_lib_slice),
+      gab_sbuiltin(gab, "splat", gab_lib_splat),
+      gab_sbuiltin(gab, "implements?", gab_lib_implements),
   };
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));

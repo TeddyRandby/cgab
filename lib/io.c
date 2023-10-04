@@ -123,9 +123,9 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   };
 
   gab_value values[] = {
-      gab_builtin(gab, "open", gab_lib_open),
-      gab_builtin(gab, "read", gab_lib_read),
-      gab_builtin(gab, "write", gab_lib_write),
+      gab_sbuiltin(gab, "open", gab_lib_open),
+      gab_sbuiltin(gab, "read", gab_lib_read),
+      gab_sbuiltin(gab, "write", gab_lib_write),
   };
 
   for (uint8_t i = 0; i < LEN_CARRAY(values); i++) {

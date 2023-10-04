@@ -22,7 +22,7 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   };
 
   gab_value values[] = {
-      gab_builtin(gab, "now", gab_lib_now),
+      gab_sbuiltin(gab, "now", gab_lib_now),
   };
 
   gab_value receiver = gab_nil;

@@ -203,14 +203,14 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   };
 
   gab_value specs[] = {
-      gab_builtin(gab, "list", gab_lib_new),
-      gab_builtin(gab, "new", gab_lib_new),
-      gab_builtin(gab, "len", gab_lib_len),
-      gab_builtin(gab, "slice", gab_lib_slice),
-      gab_builtin(gab, "push", gab_lib_push),
-      gab_builtin(gab, "pop", gab_lib_pop),
-      gab_builtin(gab, "put", gab_lib_put),
-      gab_builtin(gab, "at", gab_lib_at),
+      gab_sbuiltin(gab, "list", gab_lib_new),
+      gab_sbuiltin(gab, "new", gab_lib_new),
+      gab_sbuiltin(gab, "len", gab_lib_len),
+      gab_sbuiltin(gab, "slice", gab_lib_slice),
+      gab_sbuiltin(gab, "push", gab_lib_push),
+      gab_sbuiltin(gab, "pop", gab_lib_pop),
+      gab_sbuiltin(gab, "put", gab_lib_put),
+      gab_sbuiltin(gab, "at", gab_lib_at),
   };
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));

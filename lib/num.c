@@ -148,9 +148,9 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   };
 
   gab_value values[] = {
-      gab_builtin(gab, "between", gab_lib_between),
-      gab_builtin(gab, "floor", gab_lib_floor),
-      gab_builtin(gab, "to_n", gab_lib_to_n),
+      gab_sbuiltin(gab, "between", gab_lib_between),
+      gab_sbuiltin(gab, "floor", gab_lib_floor),
+      gab_sbuiltin(gab, "to_n", gab_lib_to_n),
   };
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(values));
