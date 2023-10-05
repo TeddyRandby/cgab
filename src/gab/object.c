@@ -73,8 +73,9 @@ int32_t rec_dump_properties(FILE *stream, struct gab_obj_record *rec,
 
   int32_t bytes = 0;
 
+  struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(rec->shape);
   for (uint64_t i = 0; i < rec->len - 1; i++) {
-    bytes += __dump_value(stream, rec->shape->data[i], depth - 1);
+    bytes += __dump_value(stream, shape->data[i], depth - 1);
 
     bytes += fprintf(stream, " = ");
 
@@ -86,7 +87,7 @@ int32_t rec_dump_properties(FILE *stream, struct gab_obj_record *rec,
     bytes += fprintf(stream, " ");
   }
 
-  bytes += __dump_value(stream, rec->shape->data[rec->len - 1], depth - 1);
+  bytes += __dump_value(stream, shape->data[rec->len - 1], depth - 1);
 
   bytes += fprintf(stream, " = ");
 
@@ -136,21 +137,23 @@ int32_t __dump_value(FILE *stream, gab_value self, uint8_t depth) {
   }
   case kGAB_BLOCK: {
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(self);
-    gab_value name = blk->p->mod->name;
-    return fprintf(stream, "<block %V>", name);
+    return fprintf(stream, "<block %V>", blk->p);
   }
   case kGAB_SUSPENSE: {
     struct gab_obj_suspense *sus = GAB_VAL_TO_SUSPENSE(self);
-    gab_value name = sus->b->p->mod->name;
-    return fprintf(stream, "<suspense %V>", name);
+    return fprintf(stream, "<suspense %V>", sus->b);
   }
   case kGAB_BUILTIN: {
     struct gab_obj_builtin *blt = GAB_VAL_TO_BUILTIN(self);
     return fprintf(stream, "<builtin %V>", blt->name);
   }
-  case kGAB_BLOCK_PROTO:
-  case kGAB_SUSPENSE_PROTO:
+  case kGAB_BLOCK_PROTO: {
+    struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(self);
+    return fprintf(stream, "%V", proto->mod->name);
+  }
+  case kGAB_SUSPENSE_PROTO: {
     return fprintf(stream, "<prototype>");
+  }
   default: {
     fprintf(stderr, "%d is not an object.\n", gab_valtoo(self)->kind);
     exit(0);
@@ -368,8 +371,8 @@ gab_value gab_block(struct gab_eg *gab, gab_value prototype) {
   struct gab_obj_block *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_block, gab_value, p->nupvalues, kGAB_BLOCK);
 
+  self->p = prototype;
   self->nupvalues = p->nupvalues;
-  self->p = p;
 
   for (uint8_t i = 0; i < self->nupvalues; i++) {
     self->upvalues[i] = gab_nil;
@@ -426,7 +429,7 @@ gab_value gab_recordof(struct gab_eg *gab, gab_value shp, uint64_t stride,
   struct gab_obj_record *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_record, gab_value, shape->len, kGAB_RECORD);
 
-  self->shape = shape;
+  self->shape = shp;
   self->len = shape->len;
 
   for (uint64_t i = 0; i < shape->len; i++)
@@ -442,7 +445,7 @@ gab_value gab_erecordof(struct gab_eg *gab, gab_value shp) {
   struct gab_obj_record *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_record, gab_value, shape->len, kGAB_RECORD);
 
-  self->shape = shape;
+  self->shape = shp;
   self->len = shape->len;
 
   for (uint64_t i = 0; i < shape->len; i++)
@@ -476,10 +479,11 @@ gab_value gab_susproto(struct gab_eg *gab, uint64_t offset, uint8_t want) {
   return __gab_obj(self);
 }
 
-gab_value gab_suspense(struct gab_eg *gab, uint16_t len,
-                       struct gab_obj_block *b,
-                       struct gab_obj_suspense_proto *p,
-                       gab_value frame[static len]) {
+gab_value gab_suspense(struct gab_eg *gab, uint16_t len, gab_value b,
+                       gab_value p, gab_value frame[static len]) {
+  assert(gab_valknd(b) == kGAB_BLOCK);
+  assert(gab_valknd(p) == kGAB_SUSPENSE_PROTO);
+
   struct gab_obj_suspense *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_suspense, gab_value, len, kGAB_SUSPENSE);
 

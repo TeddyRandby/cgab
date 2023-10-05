@@ -14,9 +14,7 @@ status, server = :http(8001) in match
           s:print
         end
 
-        def res = :res                     in
-          :status(200)                     in
-          :html('<div>Hello, World!</div>')
+        def res = :res:status(200):html '<div>Hello, World!</div>'
           
         s = client:send(res)
           

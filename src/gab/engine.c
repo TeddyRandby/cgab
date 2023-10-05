@@ -510,11 +510,12 @@ gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value) {
     struct gab_obj_block_proto *self = GAB_VAL_TO_BLOCK_PROTO(value);
     gab_modcpy(gab, self->mod);
 
-    gab_value copy = gab_blkproto(
-        gab, gab->modules, self->narguments, self->nslots, self->nlocals,
-        self->nupvalues, self->upv_desc, self->upv_desc);
+    gab_value copy = gab_blkproto(gab, gab->modules, self->narguments,
+                                  self->nslots, self->nlocals, self->nupvalues,
+                                  self->upv_desc, self->upv_desc);
 
-    memcpy(GAB_VAL_TO_BLOCK_PROTO(copy)->upv_desc, self->upv_desc, self->nupvalues * 2);
+    memcpy(GAB_VAL_TO_BLOCK_PROTO(copy)->upv_desc, self->upv_desc,
+           self->nupvalues * 2);
 
     gab_egkeep(gab, copy); // No module to own this prototype
 
@@ -553,7 +554,7 @@ gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value) {
   case kGAB_RECORD: {
     struct gab_obj_record *self = GAB_VAL_TO_RECORD(value);
 
-    gab_value s_copy = gab_valcpy(gab, vm, __gab_obj(self->shape));
+    gab_value s_copy = gab_valcpy(gab, vm, self->shape);
 
     gab_value values[self->len];
 
@@ -574,14 +575,12 @@ gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value) {
 
     gab_value frame[self->len];
 
-    struct gab_obj_suspense_proto *p_copy =
-        GAB_VAL_TO_SUSPENSE_PROTO(gab_valcpy(gab, vm, __gab_obj(self->p)));
+    gab_value p_copy = gab_valcpy(gab, vm, __gab_obj(self->p));
 
     for (uint64_t i = 0; i < self->len; i++)
       frame[i] = gab_valcpy(gab, vm, self->frame[i]);
 
-    struct gab_obj_block *b_copy =
-        GAB_VAL_TO_BLOCK(gab_valcpy(gab, vm, __gab_obj(self->b)));
+    gab_value b_copy = gab_valcpy(gab, vm, __gab_obj(self->b));
 
     return gab_suspense(gab, self->len, b_copy, p_copy, frame);
   }

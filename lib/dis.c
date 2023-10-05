@@ -4,7 +4,7 @@
 
 void dis_block(gab_value blk) {
   printf("     %V\n", blk);
-  gab_fdis(stdout, GAB_VAL_TO_BLOCK(blk)->p->mod);
+  gab_fdis(stdout, GAB_VAL_TO_BLOCK_PROTO(GAB_VAL_TO_BLOCK(blk)->p)->mod);
 }
 
 void dis_message(struct gab_eg *gab, struct gab_vm *vm, gab_value msg,

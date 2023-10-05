@@ -701,7 +701,7 @@ struct gab_obj_block {
 
   uint8_t nupvalues;
 
-  struct gab_obj_block_proto *p;
+  gab_value p;
 
   gab_value upvalues[FLEXIBLE_ARRAY];
 };
@@ -978,7 +978,7 @@ static inline uint64_t gab_shpnext(gab_value shp, gab_value key) {
 struct gab_obj_record {
   struct gab_obj header;
 
-  struct gab_obj_shape *shape;
+  gab_value shape;
 
   uint64_t len;
 
@@ -1048,7 +1048,7 @@ static inline gab_value gab_recat(gab_value rec, gab_value key) {
   assert(gab_valknd(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
 
-  uint64_t offset = gab_shpfind(__gab_obj(obj->shape), key);
+  uint64_t offset = gab_shpfind(obj->shape, key);
 
   if (offset >= obj->len)
     return gab_nil;
@@ -1078,7 +1078,7 @@ static inline bool gab_recput(gab_value rec, gab_value key, gab_value value) {
   assert(gab_valknd(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
 
-  uint64_t prop_offset = gab_shpfind(__gab_obj(obj->shape), key);
+  uint64_t prop_offset = gab_shpfind(obj->shape, key);
 
   if (prop_offset == UINT64_MAX)
     return false;
@@ -1119,7 +1119,7 @@ static inline bool gab_srechas(struct gab_eg *gab, gab_value value,
  */
 static inline gab_value gab_recshp(gab_value value) {
   assert(gab_valknd(value) == kGAB_RECORD);
-  return __gab_obj(GAB_VAL_TO_RECORD(value)->shape);
+  return GAB_VAL_TO_RECORD(value)->shape;
 };
 
 /**
@@ -1202,9 +1202,7 @@ struct gab_obj_suspense {
 
   uint16_t len;
 
-  struct gab_obj_suspense_proto *p;
-
-  struct gab_obj_block *b;
+  gab_value p, b;
 
   gab_value frame[FLEXIBLE_ARRAY];
 };
@@ -1225,10 +1223,8 @@ struct gab_obj_suspense {
  *
  * @param frame The frame.
  */
-gab_value gab_suspense(struct gab_eg *gab, uint16_t len,
-                       struct gab_obj_block *block,
-                       struct gab_obj_suspense_proto *proto,
-                       gab_value frame[static len]);
+gab_value gab_suspense(struct gab_eg *gab, uint16_t len, gab_value block,
+                       gab_value proto, gab_value frame[static len]);
 
 /**
  * # Create a builtin wrapper to a c function with a gab_string name.
@@ -1435,7 +1431,7 @@ static inline gab_value gab_valtyp(struct gab_eg *gab, gab_value value) {
 
   case kGAB_RECORD: {
     struct gab_obj_record *obj = GAB_VAL_TO_RECORD(value);
-    return __gab_obj(obj->shape);
+    return obj->shape;
   }
 
   case kGAB_BOX: {
