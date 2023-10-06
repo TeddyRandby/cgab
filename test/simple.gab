@@ -1,28 +1,26 @@
-'std/HTTP':require
-'fiber':require
+:use 'std/HTTP'
+:use 'fiber'
+
+:use 'std/HTTP'
 
 status, server = :http(8001) in match
   .ok => 
     for client in server:serve
       :fiber do
-        'std/HTTP':require
-        'socket':require
+        :use 'std/HTTP'
+        :use 'socket'
 
         s, buf = client:recv
           
-        s == .ok else
-          s:print
-        end
+        s == .ok or return
 
         def res = :res:status(200):html '<div>Hello, World!</div>'
           
         s = client:send(res)
           
-        s == .ok else
-          s:print
-        end
+        s == .ok or return
       end
     end
   end
-
+  
   else => status:print end

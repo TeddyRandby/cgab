@@ -3,7 +3,9 @@
 #include "include/os.h"
 #include <stdio.h>
 
-void repl(const char *module, uint8_t flags) {
+#define MAIN_MODULE "__main__"
+
+void repl(const char *module, int flags) {
   struct gab_eg *gab = gab_create();
 
   a_gab_value *result = NULL;
@@ -14,9 +16,7 @@ void repl(const char *module, uint8_t flags) {
 
   a_gab_value_destroy(result);
 
-  uint64_t index = gab_argpush(gab, gab_string(gab, "it"));
-
-  gab_argput(gab, gab_nil, index);
+  gab_value prev = gab_nil;
 
   for (;;) {
     printf("grepl: ");
@@ -32,18 +32,17 @@ void repl(const char *module, uint8_t flags) {
       continue;
     }
 
-    gab_value main = gab_compile(gab, (struct gab_compile_argt){
-                                        .name = "__main__",
-                                        .source = (char *)src->data,
-                                        flags,
-                                    });
+    a_gab_value *result = gab_exec(gab, (struct gab_exec_argt){
+                                            .name = MAIN_MODULE,
+                                            .source = (char *)src->data,
+                                            .flags = flags,
+                                            .len = 1,
+                                            .sargv = (const char *[]){"_"},
+                                            .argv = &prev,
+                                        });
 
-    a_char_destroy(src);
-
-    if (main == gab_undefined)
+    if (result == NULL)
       continue;
-
-    a_gab_value *result = gab_run(gab, main, flags);
 
     printf("=> ");
     for (int32_t i = 0; i < result->len; i++) {
@@ -57,7 +56,7 @@ void repl(const char *module, uint8_t flags) {
       gab_egkeep(gab, arg);
     }
 
-    gab_argput(gab, result->data[0], index);
+    prev = result->data[0];
 
     a_gab_value_destroy(result);
   }
@@ -75,11 +74,13 @@ void run_src(struct gab_eg *gab, s_char src, const char *module, char delim,
   //   a_gab_value_destroy(res);
   // }
 
-  gab_value main = gab_compile(gab, (struct gab_compile_argt){
-                                      .name = "__main__",
-                                      .source = (char *)src.data,
-                                      .flags = flags,
-                                  });
+  gab_value main = gab_cmpl(gab, (struct gab_cmpl_argt){
+                                     .name = MAIN_MODULE,
+                                     .source = (char *)src.data,
+                                     .flags = flags,
+                                 });
+
+  gab_egkeep(gab, main);
 
   if (main == gab_undefined)
     return;
@@ -95,11 +96,12 @@ void run_src(struct gab_eg *gab, s_char src, const char *module, char delim,
       if (line->data[0] == EOF || line->data[0] == '\0')
         break;
 
-      uint64_t offset = 0;
-      uint64_t nargs = 0;
+      uint64_t offset = 0, nargs = 0;
 
       // Skip the \n and the \0
       s_char line_s = s_char_create(line->data, line->len - 2);
+
+      gab_value buf[255];
 
       for (;;) {
         s_char arg = s_char_tok(line_s, offset, delim);
@@ -107,28 +109,31 @@ void run_src(struct gab_eg *gab, s_char src, const char *module, char delim,
         if (arg.len == 0)
           break;
 
-        gab_value arg_val = gab_nstring(gab, arg.len, (const char *)arg.data);
-
-        gab_argput(gab, arg_val, gab_argpush(gab, gab_string(gab, "")));
+        buf[nargs] = gab_nstring(gab, arg.len, (const char *)arg.data);
 
         offset += arg.len + 1;
         nargs++;
       }
 
-      a_gab_value *result = gab_run(gab, main, flags | fGAB_EXIT_ON_PANIC);
+      a_gab_value *result = gab_run(gab, (struct gab_run_argt){
+                                             .main = main,
+                                             .flags = flags,
+                                             .len = nargs,
+                                             .argv = buf,
+                                         });
 
       gab_negkeep(gab, result->len, result->data);
 
       a_gab_value_destroy(result);
-
-      while (nargs--)
-        gab_argpop(gab);
     }
 
     return;
   }
 
-  a_gab_value *result = gab_run(gab, main, flags | fGAB_EXIT_ON_PANIC);
+  a_gab_value *result = gab_run(gab, (struct gab_run_argt){
+                                         .main = main,
+                                         .flags = flags,
+                                     });
 
   gab_negkeep(gab, result->len, result->data);
   a_gab_value_destroy(result);

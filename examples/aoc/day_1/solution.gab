@@ -1,9 +1,9 @@
 # See: https://adventofcode.com/2022/day/1
 
-'Range':require
-'Record':require
-'String':require
-'Number':require
+:use 'Range'
+:use 'Record'
+:use 'String'
+:use 'Number'
 
 def partition = do (array, low, high)
 	# choose the rightmost element as pivot
@@ -49,7 +49,7 @@ def qsort[.Record](low, high)
 end
 
 
-def io = 'io':require
+def io = :use 'io'
 
 def Elf {
   snacks

@@ -16,6 +16,10 @@
 #define cGAB_DEBUG_VM 0
 #endif
 
+#ifndef cGAB_DEBUG_BC
+#define cGAB_DEBUG_BC 0
+#endif
+
 // Log what is happening during execution.
 #ifndef cGAB_LOG_VM
 #define cGAB_LOG_VM 0
@@ -23,7 +27,7 @@
 
 // Use the simple custom chunk allocator
 #ifndef cGAB_CHUNK_ALLOCATOR
-#define cGAB_CHUNK_ALLOCATOR 0
+#define cGAB_CHUNK_ALLOCATOR 1
 #endif
 
 // Capacity at which point dictionaries are resized
@@ -33,7 +37,7 @@
 
 // Maximum number of call frames that can be on the call stack
 #ifndef cGAB_FRAMES_MAX
-#define cGAB_FRAMES_MAX 512
+#define cGAB_FRAMES_MAX 64
 #endif
 
 // Maximum number of function defintions that can be nested.
@@ -53,12 +57,12 @@
 
 // Size of the vm's stack
 #ifndef cGAB_STACK_MAX
-#define cGAB_STACK_MAX (cGAB_FRAMES_MAX * 256)
+#define cGAB_STACK_MAX (cGAB_FRAMES_MAX * 128)
 #endif
 
 // Garbage collection increment/decrement buffer size
 #ifndef cGAB_GC_DEC_BUFF_MAX
-#define cGAB_GC_DEC_BUFF_MAX (cGAB_STACK_MAX * 2)
+#define cGAB_GC_DEC_BUFF_MAX (cGAB_STACK_MAX)
 #endif
 
 #if cGAB_GC_DEC_BUFF_MAX < STACK_MAX
@@ -66,7 +70,7 @@
 #endif
 
 #ifndef cGAB_GC_INC_BUFF_MAX
-#define cGAB_GC_INC_BUFF_MAX (cGAB_STACK_MAX * 2)
+#define cGAB_GC_INC_BUFF_MAX (cGAB_STACK_MAX)
 #endif
 
 #if cGAB_GC_DEC_BUFF_MAX < STACK_MAX
@@ -74,7 +78,7 @@
 #endif
 
 #ifndef cGAB_GC_ROOT_BUFF_MAX
-#define cGAB_GC_ROOT_BUFF_MAX (256)
+#define cGAB_GC_ROOT_BUFF_MAX (32)
 #endif
 
 // Not configurable, just constants

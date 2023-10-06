@@ -159,10 +159,10 @@ end
 first, last = Bob:full_name
 ```
 ### What about imports?
-Gab defines several builtin messages. `:print` is one you should be familiar with by now - `:require` is another!
+Gab defines several builtin messages. `:print` is one you should be familiar with by now - `:use` is another!
 It is used like this:
 ```
-"io":require
+:use 'io'
 ```
 The implementation searches for the following, in order:
  - `./(name).gab`
@@ -175,7 +175,7 @@ The implementation searches for the following, in order:
  - `/usr/local/lib/gab/lib(name).so`
  Files ending in the `.gab` extension are evaluated, and the result of the last top-level expression is returned to the caller of `require`. Files ending in the `.so` extension are opened dynamically, and searched for the symbol `gab_mod`. The result of this function is returned to the caller.
 
-Most of the time, the return value of the `:require` call can be ignored. It is just called once to define the messages in the module. For example, the `io` module defines three messages:
+Most of the time, the return value of the `:use` call can be ignored. It is just called once to define the messages in the module. For example, the `io` module defines three messages:
  - `<String>:open`, which returns a `<File>` handle
  - `<File>:read`
  - `<File>:write`

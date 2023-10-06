@@ -64,7 +64,7 @@ typedef uint64_t gab_value;
 #define T gab_value
 #include "array.h"
 
-typedef enum gab_kind {
+enum gab_kind {
   kGAB_NAN = 0,
   kGAB_UNDEFINED = 1,
   kGAB_NIL = 2,
@@ -83,7 +83,7 @@ typedef enum gab_kind {
   kGAB_RECORD,
   kGAB_SHAPE,
   kGAB_NKINDS,
-} gab_kind;
+};
 
 #define __GAB_QNAN ((uint64_t)0x7ffc000000000000)
 
@@ -239,7 +239,7 @@ typedef void (*gab_boxvisit_f)(struct gab_gc *gc, gab_gcvisit_f visitor,
  */
 struct gab_obj {
   int32_t references;
-  gab_kind kind;
+  enum gab_kind kind;
   uint8_t flags;
 };
 
@@ -247,11 +247,8 @@ struct gab_obj {
  * An under-the-hood allocator for objects.
  *
  * @param gab The gab engine.
- *
  * @param loc The object whose memory is being reallocated, or NULL.
- *
  * @param size The size to allocate. When size is 0, the object is freed.
- *
  * @return The allocated memory, or NULL.
  */
 void *gab_obj_alloc(struct gab_eg *gab, struct gab_obj *loc, uint64_t size);
@@ -267,7 +264,6 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *obj);
  * Get the size of the object in bytes.
  *
  * @param obj The object to calculate the size of.
- *
  * @return The size of the object in bytes.
  */
 uint64_t gab_obj_size(struct gab_obj *obj);
@@ -290,35 +286,6 @@ struct gab_eg *gab_create();
 void gab_destroy(struct gab_eg *gab);
 
 /**
- * # Set the value of the argument at index to value.
- *
- *  @param gab The engine.
- *
- *  @param value The values of the argument.
- *
- *  @param index The index of the argument to change.
- */
-void gab_argput(struct gab_eg *gab, gab_value value, size_t index);
-
-/**
- * # Push an additional argument onto the engine's argument list.
- *
- *  @param gab The engine.
- *
- *  @param name The name of the argument (Passed to the compiler).
- *
- *  @param value The values of the argument (Passed to the vm).
- */
-size_t gab_argpush(struct gab_eg *gab, gab_value name);
-
-/**
- * # Pop an argument off the engine's argument list.
- *
- *  @param gab The engine.
- */
-void gab_argpop(struct gab_eg *gab);
-
-/**
  * # Give the engine ownership of the values.
  *
  *  When in c-code, it can be useful to have gab_values outlive the function
@@ -327,7 +294,6 @@ void gab_argpop(struct gab_eg *gab);
  * value until the engine is destroyed.
  *
  *  @param gab The engine.
- *
  *  @return The value.
  */
 size_t gab_egkeep(struct gab_eg *gab, gab_value v);
@@ -341,11 +307,8 @@ size_t gab_egkeep(struct gab_eg *gab, gab_value v);
  * value until the engine is destroyed.
  *
  *  @param gab The engine.
- *
  *  @param len The number of values to scratch.
- *
  *  @param values The values.
- *
  *  @return The number of values pushed.
  */
 size_t gab_negkeep(struct gab_eg *gab, size_t len, gab_value argv[static len]);
@@ -356,73 +319,154 @@ size_t gab_negkeep(struct gab_eg *gab, size_t len, gab_value argv[static len]);
  * This is used to return values from c-builtins.
  *
  * @param vm The vm that will receive the values.
- *
  * @return The number of values pushed.
  */
 size_t gab_vmpush(struct gab_vm *vm, gab_value v);
 
 /**
- * # Push a value(s) onto the vm's internal stack
- *
- * This is used to return values from c-builtins.
+ * # Push values onto the vm's internal stack
+ * Used to return values from c-builtins.
  *
  * @param vm The vm that will receive the values.
- *
  * @param argc The number of values.
- *
  * @param argv The array of values.
  */
 size_t gab_nvmpush(struct gab_vm *vm, size_t len, gab_value argv[static len]);
 
 /**
- * # Execute a gab_block
+ * # Store a module in the engine's import table.
+ *
+ * @param gab The engine.
+ * @param name The name of the import.
+ * @param mod The module to import.
+ * @param val The value of the import.
+ */
+void gab_impputmod(struct gab_eg *gab, const char *name, gab_value mod,
+                   a_gab_value *val);
+
+/**
+ * # Store a shared library in the engine's import table.
+ *
+ * @param gab The engine.
+ * @param name The name of the import.
+ * @param obj The shared library to import.
+ * @param val The value of the import.
+ */
+void gab_impputshd(struct gab_eg *gab, const char *name, void *obj,
+                   a_gab_value *val);
+
+/**
+ * # Check if an import exists in the engine's import table.
+ *
+ * @param gab The engine.
+ * @param name The name of the import.
+ * @returns The import if it exists, NULL otherwise.
+ */
+struct gab_imp *gab_impat(struct gab_eg *gab, const char *name);
+
+/**
+ * # Get the value of an import.
+ *
+ * @param imp The import.
+ * @returns The value of the import.
+ */
+a_gab_value *gab_impval(struct gab_imp *imp);
+
+struct gab_cmpl_argt {
+  /* The name of the module */
+  const char *name;
+  /* The source code */
+  const char *source;
+  /* Options for the compiler */
+  int flags;
+  /* The number of arguments */
+  size_t len;
+  /* The names of the arguments to the main block */
+  const char **argv;
+};
+/**
+ * # Compile a source string into a block.
+ *
+ * @see enum gab_flags
+ * @param gab The engine.
+ * @param args The arguments.
+ * @see struct gab_block_argt
+ * @param argv The names of the arguments to the main block
+ * @return The block.
+ */
+gab_value gab_cmpl(struct gab_eg *gab, struct gab_cmpl_argt args);
+
+struct gab_run_argt {
+  /* The value to call */
+  gab_value main;
+  /* Options for the vm */
+  int flags;
+  /* The number of arguments */
+  size_t len;
+  /* The number of arguments */
+  gab_value *argv;
+};
+/**
+ * # Call main with the engine's arguments.
  *
  * @param  gab The engine.
- *
- * @param main The block to run
- *
- * @param flags Options for the compiler.
- *
+ * @param args The arguments.
+ * @see struct gab_run_argt
+ * @param argv The values of the arguments passed to main.
  * @return A heap-allocated slice of values returned by the block.
  */
-a_gab_value *gab_run(struct gab_eg *gab, gab_value main, size_t flags);
+a_gab_value *gab_run(struct gab_eg *gab, struct gab_run_argt args);
+
+struct gab_exec_argt {
+  /* The name of the module */
+  const char *name;
+  /* The source code */
+  const char *source;
+  /* Options for the compiler & vm */
+  int flags;
+  /* The number of arguments */
+  size_t len;
+  /* The names of the arguments to the main block */
+  const char **sargv;
+  /* The values of the arguments to the main block */
+  gab_value *argv;
+};
 
 /**
- * # Compile and run a source string
+ * # Compile a source string to a block and run it.
+ * This is equivalent to calling `gab_compile` and then `gab_run` on the
+ * result.
  *
  * @param gab The engine.
- *
- * @param name The name to give the module.
- *
- * @param source The source code.
- *
- * @param flags Options for the compiler.
- *
+ * @param args The arguments.
+ * @see struct gab_exec_argt
  * @return A heap-allocated slice of values returned by the block.
  */
-a_gab_value *gab_execute(struct gab_eg *gab, const char *name,
-                         const char *source, size_t flags);
+a_gab_value *gab_exec(struct gab_eg *gab, struct gab_exec_argt args);
 
+struct gab_send_argt {
+  /* The message to send. */
+  const char *smessage;
+  gab_value vmessage;
+  /* The receiver of the message */
+  gab_value receiver;
+  /* Options for the vm */
+  int flags;
+  /* The number of arguments */
+  size_t len;
+  /* The arguments to the message */
+  gab_value *argv;
+};
 /**
  * # Send the message to the receiver.
+ * Args.vmessage is only used if args.smessage is NULL.
  *
  * @param gab The engine.
- *
- * @param vm The vm.
- *
- * @param name The name of the message to send.
- *
- * @param receiver The receiver.
- *
- * @param len The number of arguments.
- *
- * @param argv The arguments.
- *
+ * @param args The arguments.
+ * @see struct gab_send_argt
  * @return A heap-allocated slice of values returned by the message.
  */
-a_gab_value *gab_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                      gab_value message, gab_value receiver, size_t len,
-                      gab_value argv[len]);
+a_gab_value *gab_send(struct gab_eg *gab, struct gab_send_argt args);
 
 /**
  * # Panic the VM with an error message. Useful for builtin functions.
@@ -430,11 +474,8 @@ a_gab_value *gab_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
  * This is useful in builtins when an unrecoverable error occurs.
  *
  * @param  gab The engine.
- *
  * @param   vm The vm.
- *
  * @param  msg The message to display.
- *
  * @return A gab value wrapping the error.
  */
 gab_value gab_panic(struct gab_eg *gab, struct gab_vm *vm, const char *msg);
@@ -457,7 +498,6 @@ gab_value __gab_gcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
  * # Increment the reference count of the value(s)
  *
  * @param vm The vm.
- *
  * @param value The value.
  */
 void __gab_ngciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
@@ -470,7 +510,6 @@ void __gab_ngciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
  * # Decrement the reference count of the value(s)
  *
  * @param vm The vm.
- *
  * @param value The value.
  */
 void __gab_ngcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
@@ -483,9 +522,7 @@ void __gab_ngcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
  * # Run the garbage collector.
  *
  * @param gab The engine.
- *
  * @param gc The garbage collector.
- *
  * @param vm The vm.
  */
 void __gab_gcrun(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
@@ -498,9 +535,7 @@ void __gab_gcrun(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
  * # Increment the reference count of the value(s)
  *
  * @param vm The vm.
- *
  * @param len The number of values.
- *
  * @param values The values.
  */
 gab_value gab_gciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
@@ -510,9 +545,7 @@ gab_value gab_gciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
  * # Decrement the reference count of the value(s)
  *
  * @param vm The vm.
- *
  * @param len The number of values.
- *
  * @param values The values.
  */
 gab_value gab_gcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
@@ -522,7 +555,6 @@ gab_value gab_gcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
  * # Increment the reference count of the value(s)
  *
  * @param vm The vm.
- *
  * @param value The value.
  */
 void gab_ngciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
@@ -532,7 +564,6 @@ void gab_ngciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
  * # Decrement the reference count of the value(s)
  *
  * @param vm The vm.
- *
  * @param value The value.
  */
 void gab_ngcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
@@ -542,9 +573,7 @@ void gab_ngcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
  * # Run the garbage collector.
  *
  * @param gab The engine.
- *
  * @param gc The garbage collector.
- *
  * @param vm The vm.
  */
 void gab_gcrun(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm);
@@ -558,11 +587,10 @@ void gab_gcrun(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm);
  * `gab_valtyp`.
  *
  * @param value The value.
- *
  * @return The kind of the value.
  *
  */
-static inline gab_kind gab_valknd(gab_value value) {
+static inline enum gab_kind gab_valknd(gab_value value) {
   if (__gab_valisn(value))
     return kGAB_NUMBER;
 
@@ -592,9 +620,7 @@ struct gab_obj_string {
  * # Create a gab_value from a c-string
  *
  * @param gab The engine.
- *
  * @param data The data.
- *
  * @return The value.
  */
 gab_value gab_string(struct gab_eg *gab, const char data[static 1]);
@@ -690,8 +716,8 @@ struct gab_obj_block_proto {
  */
 gab_value gab_blkproto(struct gab_eg *gab, struct gab_mod *mod,
                        uint8_t narguments, uint8_t nslots, uint8_t nlocals,
-                       uint8_t nupvalues, uint8_t flags[static nupvalues],
-                       uint8_t indexes[static nupvalues]);
+                       uint8_t nupvalues, uint8_t flags[nupvalues],
+                       uint8_t indexes[nupvalues]);
 
 /**
  * A block - aka a prototype and it's captures.
@@ -1283,25 +1309,6 @@ static inline void *gab_boxdata(gab_value value) {
   return GAB_VAL_TO_BOX(value)->data;
 }
 
-struct gab_compile_argt {
-  const char *name;
-  const char *source;
-  size_t flags;
-};
-/**
- * # Compile a source string into a block.
- *
- * @see enum gab_flags
- *
- * @param gab The engine.
- *
- * @param args The arguments.
- * @see struct gab_block_argt
- *
- * @return The block.
- */
-gab_value gab_compile(struct gab_eg *gab, struct gab_compile_argt args);
-
 /**
  * # Bundle a list of keys and values into a record.
  *
@@ -1408,7 +1415,7 @@ gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value);
  *
  * @return The runtime value corresponding to that type.
  */
-gab_value gab_typ(struct gab_eg *gab, gab_kind kind);
+gab_value gab_typ(struct gab_eg *gab, enum gab_kind kind);
 
 /**
  * # Get the **runtime type** of a gab value.
@@ -1423,7 +1430,7 @@ gab_value gab_typ(struct gab_eg *gab, gab_kind kind);
  * @return The runtime value corresponding to the type of the given value
  */
 static inline gab_value gab_valtyp(struct gab_eg *gab, gab_value value) {
-  gab_kind k = gab_valknd(value);
+  enum gab_kind k = gab_valknd(value);
   switch (k) {
   case kGAB_NIL:
   case kGAB_UNDEFINED:
@@ -1505,14 +1512,13 @@ static inline gab_value gab_valintos(struct gab_eg *gab, gab_value self) {
 }
 
 /**
- * # Coerce the given value to a string, and return a mallocd copy.
- * *NOTE*: The caller is responsible for feeing the returned string.
+ * # Coerce the given value to a string, and return a view into it.
  *
  *  @param gab The engine
  *
  *  @param value The value to convert.
  *
- *  @return An allocated c-string.
+ *  @return A view into the string
  */
 static inline s_char gab_valintocs(struct gab_eg *gab, gab_value value) {
   gab_value str = gab_valintos(gab, value);

@@ -1,5 +1,6 @@
-'std/Record':require
-'std/List':require
+:use 'std/Record'
+:use 'std/List'
+:use 'any'
 
 def TestState  { fails errs }
 

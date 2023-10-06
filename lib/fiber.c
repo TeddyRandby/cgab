@@ -31,7 +31,6 @@ fiber *fiber_create(gab_value init) {
   v_a_char_create(&self->out_queue, 8);
 
   struct gab_eg *gab = gab_create();
-  gab_argpush(gab, gab_string(gab, ""));
 
   self->rc = 1;
   self->gab = gab;
@@ -89,10 +88,15 @@ void out_queue_push(fiber *f, gab_value v) {
   v_a_char_push(&f->out_queue, a_char_create(ref.data, ref.len));
 }
 
-gab_value run(fiber *f, gab_value runnable) {
+gab_value run(fiber *f, gab_value runnable, gab_value arg) {
   // Run the runnable in the engine for the fiber
   a_gab_value *result =
-      gab_run(f->gab, runnable, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC);
+      gab_run(f->gab, (struct gab_run_argt){
+                          .main = runnable,
+                          .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
+                          .len = 1,
+                          .argv = &arg,
+                      });
 
   mtx_lock(&f->mutex);
   // Push all the values returned into the out_queue
@@ -128,7 +132,7 @@ int fiber_launch(void *d) {
 
   gab_value runner = self->init;
 
-  runner = run(self, runner);
+  runner = run(self, runner, gab_nil);
 
   if (runner == gab_undefined)
     goto fin;
@@ -152,9 +156,7 @@ int fiber_launch(void *d) {
     gab_value arg = gab_nstring(self->gab, msg->len, (char *)msg->data);
     free(msg);
 
-    gab_argput(self->gab, arg, 0);
-
-    runner = run(self, runner);
+    runner = run(self, runner, arg);
 
     if (runner == gab_undefined)
       break;
@@ -271,7 +273,7 @@ void gab_lib_await(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   const char *names[] = {
       "fiber",
-      mGAB_CALL,
+      "send",
       "await",
   };
 

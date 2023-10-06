@@ -5,26 +5,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-void gab_lib_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                  size_t argc, gab_value argv[static argc]) {
-  if (argc < 2) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_send");
-    return;
-  }
-
-  a_gab_value *result =
-      gab_send(gab, gc, vm, argv[1], argv[0], argc - 2, argv + 2);
-
-  if (!result) {
-    gab_panic(gab, vm, "Invalid send");
-    return;
-  }
-
-  gab_nvmpush(vm, result->len, result->data);
-
-  a_gab_value_destroy(result);
-}
-
 void gab_lib_splat(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
                    size_t argc, gab_value argv[static argc]) {
   gab_nvmpush(vm, gab_reclen(argv[0]), gab_recdata(argv[0]));
@@ -230,28 +210,6 @@ void gab_lib_to_l(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   }
 }
 
-void gab_lib_implements(struct gab_eg *gab, struct gab_gc *gc,
-                        struct gab_vm *vm, size_t argc, gab_value argv[argc]) {
-  switch (argc) {
-  case 2: {
-    if (gab_valknd(argv[1]) != kGAB_MESSAGE) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_implements");
-      return;
-    }
-
-    bool implements = gab_msgfind(argv[1], argv[0]) != UINT64_MAX;
-
-    gab_value result = gab_bool(implements);
-
-    gab_vmpush(vm, result);
-
-    return;
-  }
-  default:
-    gab_panic(gab, vm, "Invalid call to gab_lib_implements");
-    return;
-  }
-}
 
 void gab_lib_to_m(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
                   size_t argc, gab_value argv[argc]) {
@@ -275,10 +233,11 @@ void gab_lib_to_m(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
     return;
   }
 }
+
 a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   const char *names[] = {
-      "tuple", "record", "len",  "to_l",  "to_m",  "send",
-      "put",   "at",     "next", "slice", "splat", "implements?",
+      "tuple", "record", "len",  "to_l",  "to_m",
+      "put",   "at",     "next", "slice", "splat",
   };
 
   gab_value receivers[] = {
@@ -287,13 +246,11 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
       gab_typ(gab, kGAB_RECORD),
       gab_typ(gab, kGAB_RECORD),
       gab_typ(gab, kGAB_RECORD),
-      gab_typ(gab, kGAB_UNDEFINED),
       gab_typ(gab, kGAB_RECORD),
       gab_typ(gab, kGAB_RECORD),
       gab_typ(gab, kGAB_RECORD),
       gab_typ(gab, kGAB_RECORD),
       gab_typ(gab, kGAB_RECORD),
-      gab_typ(gab, kGAB_UNDEFINED),
   };
 
   gab_value specs[] = {
@@ -302,13 +259,11 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
       gab_sbuiltin(gab, "len", gab_lib_len),
       gab_sbuiltin(gab, "to_l", gab_lib_to_l),
       gab_sbuiltin(gab, "to_m", gab_lib_to_m),
-      gab_sbuiltin(gab, "send", gab_lib_send),
       gab_sbuiltin(gab, "put", gab_lib_put),
       gab_sbuiltin(gab, "at", gab_lib_at),
       gab_sbuiltin(gab, "next", gab_lib_next),
       gab_sbuiltin(gab, "slice", gab_lib_slice),
       gab_sbuiltin(gab, "splat", gab_lib_splat),
-      gab_sbuiltin(gab, "implements?", gab_lib_implements),
   };
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));

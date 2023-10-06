@@ -104,6 +104,13 @@ shared_library('cgabrecord',
   install: true,
 )
 
+shared_library('cgabany',
+  'lib/any.c',
+  link_with: [cgab],
+  install_dir: '/usr/local/lib/gab/',
+  install: true,
+)
+
 shared_library('cgabnum',
   'lib/num.c',
   link_with: [cgab],

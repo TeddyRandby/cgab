@@ -1,6 +1,6 @@
-'http-parser':require
-'record':require
-'socket':require
+:use 'http-parser'
+:use 'record'
+:use 'socket'
 
 def HTTP {
   port
@@ -24,8 +24,9 @@ end
 
 def serve[HTTP]
   loop
-    status, client = self.socket:accept() in
-      == .ok or return status
+    status, client = self.socket:accept()
+    
+    status == .ok or return status
 
     yield client
   end

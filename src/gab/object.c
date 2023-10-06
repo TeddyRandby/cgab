@@ -32,7 +32,7 @@
                                      kind))
 
 struct gab_obj *gab_obj_create(struct gab_eg *gab, struct gab_obj *self,
-                               gab_kind k) {
+                               enum gab_kind k) {
   self->kind = k;
   self->references = 1;
   self->flags = 0;
@@ -45,7 +45,7 @@ int32_t __dump_value(FILE *stream, gab_value self, uint8_t depth);
 int32_t shape_dump_properties(FILE *stream, struct gab_obj_shape *shape,
                               uint8_t depth) {
   if (shape->len == 0)
-    return fprintf(stream, "");
+    return 0;
 
   if (shape->len > 8)
     return fprintf(stream, "...");

@@ -272,6 +272,8 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
 
   vm->sp = trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, len);
 
+  vm->sp += (proto->nlocals - len - 1);
+
   return true;
 }
 
@@ -1052,7 +1054,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
 
-      uint64_t prop_offset = gab_shpfind(__gab_obj(rec->shape), key);
+      uint64_t prop_offset = gab_shpfind(rec->shape, key);
 
       DROP();
 
@@ -1078,7 +1080,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
 
-      uint64_t prop_offset = gab_shpfind(__gab_obj(rec->shape), key);
+      uint64_t prop_offset = gab_shpfind(rec->shape, key);
 
       if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
@@ -1113,7 +1115,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
 
       if (rec->shape != cached_shape) {
-        prop_offset = gab_shpfind(__gab_obj(rec->shape), key);
+        prop_offset = gab_shpfind(rec->shape, key);
 
         if (prop_offset == UINT64_MAX) {
           STORE_FRAME();
@@ -1152,7 +1154,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       }
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-      uint64_t prop_offset = gab_shpfind(__gab_obj(rec->shape), key);
+      uint64_t prop_offset = gab_shpfind(rec->shape, key);
 
       if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
@@ -1497,7 +1499,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       gab_msgput(m, r, blk);
 
-      PEEK() = __gab_obj(m);
+      PEEK() = m;
 
       NEXT();
     }
@@ -1554,9 +1556,9 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       DROP_N(len * 2);
 
-      PUSH(__gab_obj(rec));
+      PUSH(rec);
 
-      gab_gcdref(EG(), GC(), VM(), __gab_obj(rec));
+      gab_gcdref(EG(), GC(), VM(), rec);
 
       NEXT();
     }
@@ -1570,9 +1572,9 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       DROP_N(len);
 
-      PUSH(__gab_obj(rec));
+      PUSH(rec);
 
-      gab_gcdref(EG(), GC(), VM(), __gab_obj(rec));
+      gab_gcdref(EG(), GC(), VM(), rec);
 
       NEXT();
     }

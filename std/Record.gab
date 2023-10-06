@@ -1,4 +1,4 @@
-'record':require
+:use 'record'
 
 def is[](other); ?self == other end
 

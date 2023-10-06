@@ -1,4 +1,4 @@
-'time':require
+:use 'time'
 
 def bench = do (cb, runs)
   def times = :list

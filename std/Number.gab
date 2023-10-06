@@ -1,4 +1,4 @@
-'num':require
+:use 'num'
 
 def each[.Number]
   v = 0

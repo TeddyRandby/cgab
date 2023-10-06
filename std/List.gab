@@ -1,5 +1,5 @@
-'list':require
-def Collection = 'std/Collection':require
+:use 'list'
+def Collection = :use 'std/Collection'
 
 def each[.List]
   self:len == 0 and return

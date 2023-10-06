@@ -1,7 +1,6 @@
 #include "include/builtins.h"
 #include "include/core.h"
 #include "include/gab.h"
-#include "include/import.h"
 #include "include/os.h"
 #include <dlfcn.h>
 #include <stdio.h>
@@ -39,7 +38,7 @@ a_gab_value *gab_shared_object_handler(struct gab_eg *gab, struct gab_gc *gc,
 
   a_gab_value *res = symbol(gab, gc, vm);
 
-  gab_impshd(gab, path, handle, res);
+  gab_impputshd(gab, path, handle, res);
 
   return res;
 }
@@ -52,17 +51,21 @@ a_gab_value *gab_source_file_handler(struct gab_eg *gab, struct gab_gc *gc,
     return a_gab_value_one(gab_panic(gab, vm, "Failed to read module"));
 
   gab_value pkg =
-      gab_compile(gab, (struct gab_compile_argt){
-                         .name = path,
-                         .source = (const char *)src->data,
-                         .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
-                     });
+      gab_cmpl(gab, (struct gab_cmpl_argt){
+                        .name = path,
+                        .source = (const char *)src->data,
+                        .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
+                    });
 
   a_char_destroy(src);
 
-  a_gab_value *res = gab_run(gab, pkg, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC);
+  a_gab_value *res =
+      gab_run(gab, (struct gab_run_argt){
+                       .main = pkg,
+                       .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
+                   });
 
-  gab_impmod(gab, path, pkg, res);
+  gab_impputmod(gab, path, pkg, res);
 
   return res;
 }
@@ -137,35 +140,42 @@ a_char *match_resource(resource *res, const char *name, uint64_t len) {
   return a_char_create(buffer, total_len);
 }
 
-void gab_lib_require(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                     size_t argc, gab_value argv[argc]) {
-  if (argc != 1)
+void gab_lib_use(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t argc, gab_value argv[argc]) {
+  if (argc == 1) {
     gab_panic(gab, vm, "Invalid call to gab_lib_require");
+    return;
+  }
 
-  s_char name = gab_valintocs(gab, argv[0]);
+  //skip first argument
+  for (size_t i = 1; i < argc; i++) {
+    s_char name = gab_valintocs(gab, argv[i]);
 
-  for (int32_t i = 0; i < sizeof(resources) / sizeof(resource); i++) {
-    resource *res = resources + i;
-    a_char *path = match_resource(res, name.data, name.len);
+    for (int j = 0; j < sizeof(resources) / sizeof(resource); j++) {
+      resource *res = resources + j;
+      a_char *path = match_resource(res, name.data, name.len);
 
-    if (path) {
-      a_gab_value *cached = gab_imphas(gab, (char *)path->data);
+      if (path) {
+        struct gab_imp *cached = gab_impat(gab, (char *)path->data);
 
-      if (cached != NULL) {
-        gab_nvmpush(vm, cached->len, cached->data);
-        goto fin;
+        if (cached != NULL) {
+          a_gab_value *v = gab_impval(cached);
+          if (v != NULL)
+            gab_nvmpush(vm, v->len, v->data);
+          goto fin;
+        }
+
+        a_gab_value *result = res->handler(gab, gc, vm, (char *)path->data);
+
+        if (result != NULL) {
+          gab_nvmpush(vm, result->len, result->data);
+          goto fin;
+        }
+
+      fin:
+        a_char_destroy(path);
+        return;
       }
-
-      a_gab_value *result = res->handler(gab, gc, vm, (char *)path->data);
-
-      if (result != NULL) {
-        gab_nvmpush(vm, result->len, result->data);
-        goto fin;
-      }
-
-    fin:
-      a_char_destroy(path);
-      return;
     }
   }
 
@@ -203,9 +213,9 @@ void gab_lib_print(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 void gab_setup_builtins(struct gab_eg *gab, struct gab_gc *gc) {
   gab_spec(gab,
            (struct gab_spec_argt){
-               .name = "require",
-               .receiver = gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_STRING)),
-               .specialization = gab_sbuiltin(gab, "require", gab_lib_require),
+               .name = "use",
+               .receiver = gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_NIL)),
+               .specialization = gab_sbuiltin(gab, "use", gab_lib_use),
            });
 
   gab_spec(gab,

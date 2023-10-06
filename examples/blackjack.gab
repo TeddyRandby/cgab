@@ -2,9 +2,9 @@
 #  combinations of operators that add up 20
 #
 # Yes, its not actually blackjack
-'std/Record':require
-'std/List':require
-'std/Number':require
+:use 'std/Record'
+:use 'std/List'
+:use 'std/Number'
 
 def swap![.Record](i, j)
     self[i], self[j] = self[j], self[i]

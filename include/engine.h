@@ -5,7 +5,6 @@
 
 #include "alloc.h"
 #include "gc.h"
-#include "import.h"
 
 static const char *gab_status_names[] = {
 #define STATUS(name, message) message,
@@ -37,6 +36,14 @@ static const char *gab_status_names[] = {
 #define T gab_value
 #include "vector.h"
 
+#define NAME gab_imp
+#define K uint64_t
+#define V struct gab_imp *
+#define DEF_V NULL
+#define HASH(a) (a)
+#define EQUAL(a, b) (a == b)
+#include "dict.h"
+
 struct gab_eg {
   size_t hash_seed;
 
@@ -57,10 +64,6 @@ struct gab_eg {
   gab_value types[kGAB_NKINDS];
 
   v_gab_value scratch;
-
-  v_gab_value argv_names;
-
-  v_gab_value argv_values;
 };
 
 struct gab_obj_string *gab_eg_find_string(struct gab_eg *gab, s_char str,

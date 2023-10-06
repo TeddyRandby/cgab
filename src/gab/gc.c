@@ -53,7 +53,7 @@ gab_value __gab_gciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 
 #if cGAB_DEBUG_GC || cGAB_LOG_GC
     if (GAB_OBJ_IS_FREED(obj)) {
-      printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, file, line);
+      printf("UAF\t%V\t%p\t%s:%i\n", value, obj, file, line);
       exit(1);
     }
 #endif
@@ -82,7 +82,7 @@ gab_value __gab_gcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 
 #if cGAB_DEBUG_GC || cGAB_LOG_GC
     if (GAB_OBJ_IS_FREED(obj)) {
-      printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, file, line);
+      printf("UAF\t%V\t%p\t%s:%i\n", value, obj, file, line);
       exit(1);
     }
 #endif
@@ -145,7 +145,7 @@ gab_value gab_gcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 
 #if cGAB_DEBUG_GC || cGAB_LOG_GC
     if (GAB_OBJ_IS_FREED(obj)) {
-      printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, file, line);
+      printf("UAF\t%V\t%p\t%s:%i\n", value, obj, file, line);
       exit(1);
     }
 #endif
@@ -172,7 +172,7 @@ gab_value gab_gciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 
 #if cGAB_DEBUG_GC || cGAB_LOG_GC
     if (GAB_OBJ_IS_FREED(obj)) {
-      printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, file, line);
+      printf("UAF\t%V\t%p\t%s:%i\n", value, obj, file, line);
       exit(1);
     }
 #endif

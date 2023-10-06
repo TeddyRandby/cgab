@@ -1,4 +1,4 @@
-'map':require
+:use 'map'
 
 def [][.Map](key)
   status, value = self:at(key) in

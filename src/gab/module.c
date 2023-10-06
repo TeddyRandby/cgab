@@ -30,7 +30,7 @@ void gab_moddestroy(struct gab_eg *gab, struct gab_gc *gc,
     gab_value v = v_gab_constant_val_at(&mod->constants, i);
     // The only kind of value owned by the modules
     // are their prototypes and the main closure
-    gab_kind kind = gab_valknd(v);
+    enum gab_kind kind = gab_valknd(v);
     if (kind == kGAB_BLOCK_PROTO || kind == kGAB_SUSPENSE_PROTO ||
         kind == kGAB_BLOCK) {
       gab_gcdref(gab, gc, NULL, v);

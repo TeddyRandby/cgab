@@ -1,5 +1,5 @@
-'std/Record':require
-'std/Number':require
+:use 'std/Record'
+:use 'std/Number'
 
 def Matrix { n data }
 

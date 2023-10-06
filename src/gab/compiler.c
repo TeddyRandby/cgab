@@ -242,6 +242,11 @@ gab_value prev_id(struct gab_eg *gab, bc *bc) {
   return gab_nstring(gab, s.len, s.data);
 }
 
+gab_value trim_prev_id(struct gab_eg *gab, bc *bc) {
+  s_char s = trim_prev_src(bc);
+  return gab_nstring(gab, s.len, s.data);
+}
+
 static inline int peek_ctx(bc *bc, context_k kind, uint8_t depth) {
   int idx = bc->ncontext - 1;
 
@@ -312,6 +317,30 @@ static inline uint16_t peek_slot(bc *bc) {
   return f->next_slot;
 }
 
+#if cGAB_DEBUG_BC
+
+#define push_slot(bc, n) _push_slot(bc, n, __PRETTY_FUNCTION__, __LINE__)
+
+static inline void _push_slot(bc *bc, uint16_t n, const char* file, int line) {
+  int ctx = peek_ctx(bc, kFRAME, 0);
+  frame *f = &bc->contexts[ctx].as.frame;
+
+  if (f->next_slot + n >= UINT16_MAX) {
+    compiler_error(bc, GAB_PANIC,
+                   "Too many slots. This is an internal compiler error.\n");
+    assert(0);
+  }
+
+  f->next_slot += n;
+
+  if (f->next_slot > f->nslots)
+    f->nslots = f->next_slot;
+  
+  printf("[PUSH] +%d -> %d |%s:%d\n", n, f->next_slot, file, line);
+}
+
+#else
+
 static inline void push_slot(bc *bc, uint16_t n) {
   int ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
@@ -328,6 +357,29 @@ static inline void push_slot(bc *bc, uint16_t n) {
     f->nslots = f->next_slot;
 }
 
+#endif
+
+#if cGAB_DEBUG_BC
+
+#define pop_slot(bc, n) _pop_slot(bc, n, __FUNCTION__, __LINE__)
+
+static inline void _pop_slot(bc *bc, uint16_t n, const char* file, int line) {
+  int ctx = peek_ctx(bc, kFRAME, 0);
+  frame *f = &bc->contexts[ctx].as.frame;
+
+  if (f->next_slot - n < 0) {
+    compiler_error(bc, GAB_PANIC,
+                   "Too few slots. This is an internal compiler error.\n");
+    assert(0);
+  }
+
+  f->next_slot -= n;
+  
+  printf("[POP] -%d -> %d |%s:%d\n", n, f->next_slot, file, line);
+}
+
+#else
+
 static inline void pop_slot(bc *bc, uint16_t n) {
   int ctx = peek_ctx(bc, kFRAME, 0);
   frame *f = &bc->contexts[ctx].as.frame;
@@ -340,6 +392,8 @@ static inline void pop_slot(bc *bc, uint16_t n) {
 
   f->next_slot -= n;
 }
+
+#endif
 
 static void initialize_local(bc *bc, uint8_t local) {
   int ctx = peek_ctx(bc, kFRAME, 0);
@@ -371,6 +425,8 @@ static int add_local(struct gab_eg *gab, bc *bc, gab_value name,
 
   if (++f->next_local > f->nlocals)
     f->nlocals = f->next_local;
+
+  push_slot(bc, 1);
 
   return local;
 }
@@ -530,8 +586,6 @@ static void pop_scope(bc *bc) {
     slots++;
   }
 
-  pop_slot(bc, slots);
-
   push_op(bc, OP_DROP);
   push_byte(bc, slots);
 }
@@ -583,8 +637,6 @@ static struct gab_mod *push_ctxframe(struct gab_eg *gab, bc *bc,
 
   struct gab_mod *mod = gab_mod(gab, name, bc->source);
   f->mod = mod;
-
-  push_slot(bc, 1);
 
   initialize_local(bc, add_local(gab, bc, gab_string(gab, "self"), 0));
 
@@ -1154,19 +1206,8 @@ int compile_assignment(struct gab_eg *gab, bc *bc, lvalue target) {
     switch (lval.kind) {
     case kNEW_REST_LOCAL:
     case kNEW_LOCAL:
-      if (new_local_needs_shift(lvalues, lval_index)) {
-        uint8_t shift_under = preceding_existing_lvalues(lvalues, lval_index);
-        push_shift(bc, peek_slot(bc) - lval.slot + shift_under);
-
-        // We've shifted a value underneath all the remaining lvalues.
-        for (uint8_t j = 0; j < i; j++)
-          v_lvalue_ref_at(lvalues, j)->slot++;
-      }
-
       initialize_local(bc, lval.as.local);
-
-      break;
-
+      [[fallthrough]];
     case kEXISTING_REST_LOCAL:
     case kEXISTING_LOCAL:
       push_store_local(bc, lval.as.local);
@@ -1386,9 +1427,7 @@ int compile_definition(struct gab_eg *gab, bc *bc, s_char name, s_char help) {
 
     push_op(bc, OP_TYPE);
 
-    push_op(bc, OP_DUP);
-
-    push_slot(bc, 1);
+    push_store_local(bc, local);
 
     initialize_local(bc, local);
 
@@ -1437,8 +1476,13 @@ int compile_definition(struct gab_eg *gab, bc *bc, s_char name, s_char help) {
       return COMP_ERR;
 
     // Initialize all the additional locals
-    for (int i = 1; i < n; i++)
+    for (int i = n - 1; i > 0; i--) {
+      push_store_local(bc, local + i);
+      
+      push_pop(bc, 1);
+      
       initialize_local(bc, local + i);
+    }
 
     goto fin;
   }
@@ -1454,11 +1498,9 @@ int compile_definition(struct gab_eg *gab, bc *bc, s_char name, s_char help) {
     return COMP_ERR;
 
 fin:
+  push_store_local(bc, local);
+
   initialize_local(bc, local);
-
-  push_op(bc, OP_DUP);
-
-  push_slot(bc, 1);
 
   return COMP_OK;
 }
@@ -2142,6 +2184,17 @@ int compile_exp_idn(struct gab_eg *gab, bc *bc, bool assignable) {
       switch (result) {
       case COMP_ID_NOT_FOUND:
         index = compile_local(gab, bc, id, fVAR_MUTABLE);
+        
+        int ctx = peek_ctx(bc, kASSIGNMENT_TARGET, 0);
+
+        if (ctx > 0) {
+          v_lvalue *lvalues = &bc->contexts[ctx].as.assignment_target;
+
+          // We're adding a new local, which means we retroactively need
+          // to add one to each other assignment target slot
+          for (size_t i = 0; i < lvalues->len; i++)
+            lvalues->data[i].slot++;
+        }
 
         return compile_assignment(gab, bc,
                                   (lvalue){
@@ -2371,7 +2424,7 @@ int compile_exp_emp(struct gab_eg *gab, bc *bc, bool assignable) {
 
 int compile_exp_amp(struct gab_eg *gab, bc *bc, bool assignable) {
   if (match_and_eat_token(bc, TOKEN_MESSAGE)) {
-    gab_value val_name = prev_id(gab, bc);
+    gab_value val_name = trim_prev_id(gab, bc);
 
     uint16_t f = add_message_constant(gab, mod(bc), val_name);
 
@@ -2690,8 +2743,6 @@ int compile_exp_for(struct gab_eg *gab, bc *bc, bool assignable) {
 
   initialize_local(bc, add_local(gab, bc, gab_string(gab, ""), 0));
 
-  push_slot(bc, nlooplocals + 1);
-
   if (expect_token(bc, TOKEN_IN) < 0)
     return COMP_ERR;
 
@@ -2783,7 +2834,7 @@ int compile_exp_sym(struct gab_eg *gab, bc *bc, bool assignable) {
   gab_value sym = gab_nstring(gab, name.len, name.data);
 
   push_op(bc, OP_CONSTANT);
-  push_short(bc, add_constant(mod(bc), __gab_obj(sym)));
+  push_short(bc, add_constant(mod(bc), sym));
 
   push_slot(bc, 1);
 
@@ -2953,8 +3004,6 @@ gab_value compile(struct gab_eg *gab, bc *bc, gab_value name,
   if (curr_tok(bc) == TOKEN_EOF)
     return gab_undefined;
 
-  push_slot(bc, narguments);
-
   for (uint8_t i = 0; i < narguments; i++) {
     initialize_local(bc, add_local(gab, bc, arguments[i], 0));
   }
@@ -2973,12 +3022,12 @@ gab_value compile(struct gab_eg *gab, bc *bc, gab_value name,
 
   gab_value main = gab_block(gab, proto);
 
-  add_constant(new_mod, __gab_obj(main));
+  add_constant(new_mod, main);
 
   if (fGAB_DUMP_BYTECODE & bc->flags)
     gab_fdis(stdout, new_mod);
 
-  return __gab_obj(main);
+  return main;
 }
 
 gab_value gab_bccompsend(struct gab_eg *gab, gab_value msg, gab_value receiver,

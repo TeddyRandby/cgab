@@ -1,11 +1,7 @@
-def test(arg)
-  'This is a test of {arg}':print
+def test(a, b, c)
+  a:print
+  b:print
+  c:print
 end
 
-
-test { arg = 'foo' }
-
-def a, b = 1, 2
-
-a:print
-b:print
+test(1)

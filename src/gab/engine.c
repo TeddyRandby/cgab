@@ -17,7 +17,7 @@
 
 struct primitive {
   const char *name;
-  gab_kind type;
+  enum gab_kind type;
   gab_value primitive;
 };
 
@@ -243,51 +243,57 @@ void gab_destroy(struct gab_eg *gab) {
 
   gab_gcdestroy(gc);
 
-  gab_impdestroy(gab, gc);
+  for (uint64_t i = 0; i < gab->imports.cap; i++) {
+    if (d_gab_imp_iexists(&gab->imports, i)) {
+      gab_impdestroy(gab, gc, d_gab_imp_ival(&gab->imports, i));
+    }
+  }
 
   d_strings_destroy(&gab->interned_strings);
   d_shapes_destroy(&gab->interned_shapes);
   d_messages_destroy(&gab->interned_messages);
   d_gab_imp_destroy(&gab->imports);
 
-  v_gab_value_destroy(&gab->argv_values);
-  v_gab_value_destroy(&gab->argv_names);
-
   v_gab_value_destroy(&gab->scratch);
   free(gc);
   free(gab);
 }
 
-uint64_t gab_argpush(struct gab_eg *gab, gab_value name) {
-  v_gab_value_push(&gab->argv_values, gab_undefined);
-  return v_gab_value_push(&gab->argv_names, name);
+gab_value gab_cmpl(struct gab_eg *gab, struct gab_cmpl_argt args) {
+  gab_value argv_names[args.len];
+
+  for (uint64_t i = 0; i < args.len; i++)
+    argv_names[i] = gab_string(gab, args.argv[i]);
+
+  return gab_bccomp(gab, gab_string(gab, args.name),
+                    s_char_create(args.source, strlen(args.source) + 1),
+                    args.flags, args.len, argv_names);
 }
 
-void gab_argput(struct gab_eg *gab, gab_value value, uint64_t index) {
-  v_gab_value_set(&gab->argv_values, index, value);
-}
-
-void gab_argpop(struct gab_eg *gab) {
-  if (gab->argv_names.len > 0) {
-    v_gab_value_pop(&gab->argv_names);
-    v_gab_value_pop(&gab->argv_values);
-  }
+a_gab_value *gab_run(struct gab_eg *gab, struct gab_run_argt args) {
+  return gab_vm_run(gab, args.main, args.flags, args.len, args.argv);
 };
 
-a_gab_value *gab_run(struct gab_eg *gab, gab_value main, size_t flags) {
-  return gab_vm_run(gab, main, flags, gab->argv_values.len,
-                    gab->argv_values.data);
-};
-
-a_gab_value *gab_execute(struct gab_eg *gab, const char *name,
-                         const char *source, size_t flags) {
-  gab_value main =
-      gab_compile(gab, (struct gab_compile_argt){name, source, flags});
+a_gab_value *gab_exec(struct gab_eg *gab, struct gab_exec_argt args) {
+  gab_value main = gab_cmpl(gab, (struct gab_cmpl_argt){
+                                     .name = args.name,
+                                     .source = args.source,
+                                     .flags = args.flags,
+                                     .len = args.len,
+                                     .argv = args.sargv,
+                                 });
 
   if (main == gab_undefined)
     return NULL;
+  
+  gab_egkeep(gab, main);
 
-  return gab_run(gab, main, flags);
+  return gab_run(gab, (struct gab_run_argt){
+                          .main = main,
+                          .flags = args.flags,
+                          .len = args.len,
+                          .argv = args.argv,
+                      });
 }
 
 gab_value gab_panic(struct gab_eg *gab, struct gab_vm *vm, const char *msg) {
@@ -304,45 +310,40 @@ gab_value gab_spec(struct gab_eg *gab, struct gab_spec_argt args) {
 
   gab_msgput(m, args.receiver, args.specialization);
 
-  return __gab_obj(m);
+  return m;
 }
 
-a_gab_value *send_msg(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                      gab_value msg, gab_value receiver, size_t argc,
-                      gab_value argv[argc]) {
+a_gab_value *send_msg(struct gab_eg *gab, gab_value msg, gab_value receiver,
+                      size_t argc, gab_value argv[argc]) {
   if (msg == gab_undefined)
     return a_gab_value_one(gab_undefined);
 
-  gab_egkeep(gab, gab_gciref(gab, gc, vm, msg));
-
-  gab_egkeep(gab, gab_gciref(gab, gc, vm, receiver));
-
-  gab_ngciref(gab, gc, vm, 1, argc, argv);
-  gab_negkeep(gab, argc, argv);
-
-  gab_value mod =
+  gab_value main =
       gab_bccompsend(gab, msg, receiver, fGAB_DUMP_ERROR, argc, argv);
 
-  if (mod == gab_undefined)
+  if (main == gab_undefined)
     return a_gab_value_one(gab_undefined);
 
-  gab_egkeep(gab, mod);
+  gab_egkeep(gab, main);
 
-  return gab_vm_run(gab, mod, fGAB_DUMP_ERROR, 0, NULL);
+  return gab_vm_run(gab, main, fGAB_DUMP_ERROR, 0, NULL);
 }
 
-a_gab_value *gab_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                      gab_value msg, gab_value receiver, size_t argc,
-                      gab_value argv[argc]) {
-  switch (gab_valknd(msg)) {
+a_gab_value *gab_send(struct gab_eg *gab, struct gab_send_argt args) {
+  if (args.smessage) {
+    gab_value msg = gab_message(gab, gab_string(gab, args.smessage));
+    return send_msg(gab, msg, args.receiver, args.len, args.argv);
+  }
+
+  switch (gab_valknd(args.vmessage)) {
   case kGAB_STRING: {
-    gab_value main = gab_message(gab, msg);
-    return send_msg(gab, gc, vm, main, receiver, argc, argv);
+    gab_value main = gab_message(gab, args.vmessage);
+    return send_msg(gab, main, args.receiver, args.len, args.argv);
   }
   case kGAB_MESSAGE:
-    return send_msg(gab, gc, vm, msg, receiver, argc, argv);
+    return send_msg(gab, args.vmessage, args.receiver, args.len, args.argv);
   default:
-    return a_gab_value_one(gab_nil);
+    return NULL;
   }
 }
 
@@ -435,7 +436,7 @@ struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *self, uint64_t size,
   }
 }
 
-gab_value gab_typ(struct gab_eg *gab, gab_kind k) { return gab->types[k]; }
+gab_value gab_typ(struct gab_eg *gab, enum gab_kind k) { return gab->types[k]; }
 
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
                            const void *const *args) {
@@ -525,7 +526,7 @@ gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value) {
   case kGAB_BLOCK: {
     struct gab_obj_block *self = GAB_VAL_TO_BLOCK(value);
 
-    gab_value p_copy = gab_valcpy(gab, vm, __gab_obj(self->p));
+    gab_value p_copy = gab_valcpy(gab, vm, self->p);
 
     gab_value copy = gab_block(gab, p_copy);
 
@@ -575,12 +576,12 @@ gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value) {
 
     gab_value frame[self->len];
 
-    gab_value p_copy = gab_valcpy(gab, vm, __gab_obj(self->p));
+    gab_value p_copy = gab_valcpy(gab, vm, self->p);
 
     for (uint64_t i = 0; i < self->len; i++)
       frame[i] = gab_valcpy(gab, vm, self->frame[i]);
 
-    gab_value b_copy = gab_valcpy(gab, vm, __gab_obj(self->b));
+    gab_value b_copy = gab_valcpy(gab, vm, self->b);
 
     return gab_suspense(gab, self->len, b_copy, p_copy, frame);
   }
@@ -589,12 +590,6 @@ gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value) {
 
 gab_value gab_string(struct gab_eg *gab, const char *data) {
   return gab_nstring(gab, strlen(data), data);
-}
-
-gab_value gab_compile(struct gab_eg *gab, struct gab_compile_argt args) {
-  return gab_bccomp(gab, gab_string(gab, args.name),
-                    s_char_create(args.source, strlen(args.source) + 1),
-                    args.flags, gab->argv_values.len, gab->argv_names.data);
 }
 
 gab_value gab_record(struct gab_eg *gab, uint64_t size, gab_value keys[size],

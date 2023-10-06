@@ -1,6 +1,6 @@
-'std/Test':require
-'std/Number':require
-'std/Map':require
+:use 'std/Test'
+:use 'std/Number'
+:use 'std/Map'
 
 :describe('Multiple Assignment') do
     :it('should declare new variables') do

@@ -1,4 +1,4 @@
-'string':require
+:use 'string'
 
 def string[](..args)
   return args:join('')

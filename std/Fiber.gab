@@ -1,0 +1,7 @@
+:use 'fiber'
+
+def ()[.Fiber](value)
+  self:send(value)
+  
+  self:await
+end
