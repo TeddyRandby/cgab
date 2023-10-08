@@ -5,11 +5,18 @@
 
 #include "alloc.h"
 #include "gc.h"
+#include <stdarg.h>
 
 static const char *gab_status_names[] = {
 #define STATUS(name, message) message,
 #include "include/status_code.h"
 #undef STATUS
+};
+
+static const char *gab_token_names[] = {
+#define TOKEN(message) #message,
+#include "include/token.h"
+#undef TOKEN
 };
 
 #define NAME strings
@@ -75,4 +82,15 @@ struct gab_obj_message *gab_eg_find_message(struct gab_eg *gab, gab_value name,
 struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *gab, uint64_t size,
                                         uint64_t stride, uint64_t hash,
                                         gab_value keys[size]);
+
+struct gab_err_argt {
+  enum gab_status status;
+  struct gab_mod *mod;
+  gab_value context;
+  size_t flags;
+  size_t tok;
+  const char *note_fmt;
+};
+
+void gab_verr(struct gab_err_argt args, va_list va);
 #endif

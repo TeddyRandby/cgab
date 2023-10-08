@@ -302,22 +302,19 @@ gab_value gab_strcat(struct gab_eg *gab, gab_value _a, gab_value _b) {
   return gab_nstring(gab, len, data);
 };
 
-gab_value gab_blkproto(struct gab_eg *gab, struct gab_mod *mod,
-                       uint8_t narguments, uint8_t nslots, uint8_t nlocals,
-                       uint8_t nupvalues, uint8_t flags[nupvalues],
-                       uint8_t indexes[nupvalues]) {
+gab_value gab_blkproto(struct gab_eg *gab, struct gab_blkproto_argt args) {
   struct gab_obj_block_proto *self = GAB_CREATE_FLEX_OBJ(
-      gab_obj_block_proto, uint8_t, nupvalues * 2, kGAB_BLOCK_PROTO);
+      gab_obj_block_proto, uint8_t, args.nupvalues * 2, kGAB_BLOCK_PROTO);
 
-  self->mod = mod;
-  self->narguments = narguments;
-  self->nslots = nslots;
-  self->nlocals = nlocals;
-  self->nupvalues = nupvalues;
+  self->mod = args.mod;
+  self->narguments = args.narguments;
+  self->nslots = args.nslots;
+  self->nlocals = args.nlocals;
+  self->nupvalues = args.nupvalues;
 
-  for (uint8_t i = 0; i < nupvalues; i++) {
-    self->upv_desc[i * 2] = flags[i];
-    self->upv_desc[i * 2 + 1] = indexes[i];
+  for (uint8_t i = 0; i < args.nupvalues; i++) {
+    self->upv_desc[i * 2] = args.flags[i];
+    self->upv_desc[i * 2 + 1] = args.indexes[i];
   }
 
   GAB_OBJ_GREEN((struct gab_obj *)self);

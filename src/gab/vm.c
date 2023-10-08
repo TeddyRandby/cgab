@@ -14,113 +14,32 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const char *gab_token_names[] = {
-#define TOKEN(name) #name,
-#include "include/token.h"
-#undef TOKEN
-};
-
 void gab_vm_container_cb(void *data) { DESTROY(data); }
 
 gab_value vm_error(struct gab_eg *gab, struct gab_vm *vm, uint8_t flags,
-                   gab_status e, const char *help_fmt, ...) {
-  uint64_t nframes = vm->fp - vm->fb;
-  uint64_t n = 1;
+                   enum gab_status e, const char *help_fmt, ...) {
 
-  if (flags & fGAB_DUMP_ERROR) {
-    for (;;) {
-      struct gab_vm_frame *frame = vm->fb + n;
+  va_list va;
+  va_start(va, help_fmt);
 
-      struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(frame->b->p);
+  struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(vm->fp->b->p);
 
-      s_char func_name = gab_valintocs(gab, proto->mod->name);
+  size_t offset = vm->fp->ip - p->mod->bytecode.data - 1;
 
-      struct gab_mod *mod = proto->mod;
+  gab_verr(
+      (struct gab_err_argt){
+          .tok = v_uint64_t_val_at(&p->mod->bytecode_toks, offset),
+          .context = p->mod->name,
+          .note_fmt = help_fmt,
+          .flags = flags,
+          .mod = p->mod,
+          .status = e,
+      },
+      va);
 
-      if (!mod->source)
-        break;
+  va_end(va);
 
-      uint64_t offset = frame->ip - mod->bytecode.data;
-
-      uint64_t curr_row = v_uint64_t_val_at(&mod->lines, offset);
-
-      s_char curr_src = v_s_char_val_at(&mod->source->lines, curr_row - 1);
-
-      const char *curr_src_start = curr_src.data;
-      int32_t curr_src_len = curr_src.len;
-
-      while (is_whitespace(*curr_src_start)) {
-        curr_src_start++;
-        curr_src_len--;
-        if (curr_src_len == 0)
-          break;
-      }
-
-      const char *tok = gab_token_names[v_uint8_t_val_at(&mod->tokens, offset)];
-
-      s_char curr_token = v_s_char_val_at(&mod->sources, offset);
-      a_char *curr_under = a_char_empty(curr_src_len);
-
-      const char *tok_start, *tok_end;
-      tok_start = curr_token.data;
-      tok_end = curr_token.data + curr_token.len;
-
-      for (uint8_t i = 0; i < curr_under->len; i++) {
-        if (curr_src_start + i >= tok_start && curr_src_start + i < tok_end)
-          curr_under->data[i] = '^';
-        else
-          curr_under->data[i] = ' ';
-      }
-
-      if (n >= nframes) {
-        fprintf(stderr,
-                "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET
-                "] Error near " ANSI_COLOR_BLUE "%s" ANSI_COLOR_RESET
-                ":\n\t\u256d " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
-                "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
-                "\n\t\u2570\u2500> ",
-                (int32_t)func_name.len, func_name.data, tok, curr_row,
-                curr_src_len, curr_src_start, (int32_t)curr_under->len,
-                curr_under->data);
-
-        a_char_destroy(curr_under);
-
-        fprintf(stderr,
-                ANSI_COLOR_YELLOW "%s.\n\n\t" ANSI_COLOR_RESET ANSI_COLOR_GREEN,
-                gab_status_names[e]);
-
-        va_list args;
-        va_start(args, help_fmt);
-
-        vfprintf(stderr, help_fmt, args);
-
-        va_end(args);
-
-        fprintf(stderr, "\n" ANSI_COLOR_RESET);
-
-        break;
-      }
-
-      fprintf(stderr,
-              "[" ANSI_COLOR_GREEN "%.*s" ANSI_COLOR_RESET "] Called at:"
-              "\n\t  " ANSI_COLOR_RED "%04lu " ANSI_COLOR_RESET "%.*s"
-              "\n\t       " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET "\n",
-              (int32_t)func_name.len, func_name.data, curr_row, curr_src_len,
-              curr_src_start, (int32_t)curr_under->len, curr_under->data);
-
-      n++;
-    }
-  }
-
-  if (flags & fGAB_EXIT_ON_PANIC) {
-    exit(0);
-  }
-
-  return gab_box(gab, (struct gab_box_argt){
-                          .type = gab_string(gab, "gab_vm"),
-                          .data = vm,
-                          .destructor = gab_vm_container_cb,
-                      });
+  return gab_nil;
 }
 
 gab_value gab_vm_panic(struct gab_eg *gab, struct gab_vm *vm, const char *msg) {
@@ -337,7 +256,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
   }                                                                            \
   if (!__gab_valisn(PEEK())) {                                                 \
     STORE_FRAME();                                                             \
-    return ERROR(GAB_NOT_NUMERIC, "Found '%V'", PEEK());                       \
+    return ERROR(GAB_NOT_NUMERIC, "Found %V %V", gab_valtyp(EG(), PEEK()),     \
+                 PEEK());                                                      \
   }                                                                            \
   operation_type b = gab_valton(POP());                                        \
   operation_type a = gab_valton(POP());                                        \
@@ -473,8 +393,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
         if (offset == UINT64_MAX) {
           STORE_FRAME();
-          return ERROR(GAB_IMPLEMENTATION_MISSING, "Could not send %V to '%V'",
-                       m, receiver);
+          return ERROR(GAB_IMPLEMENTATION_MISSING,
+                       "Message %V does not specialize on %V", m, receiver);
         }
       }
 
@@ -497,7 +417,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         break;
       default:
         STORE_FRAME();
-        return ERROR(GAB_NOT_CALLABLE, "Found '%V'", spec);
+        return ERROR(GAB_NOT_CALLABLE, "Found %V %V", type, spec);
       }
 
       IP() -= SEND_CACHE_DIST;
@@ -740,7 +660,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (gab_valknd(PEEK()) != kGAB_STRING) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_STRING, "Found '%V'", PEEK());
+        return ERROR(GAB_NOT_STRING, "Found %V %V", gab_valtyp(EG(), PEEK()),
+                     PEEK());
       }
 
       gab_value b = POP();
@@ -807,7 +728,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
+        return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
       }
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -993,7 +914,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (gab_valknd(index) != kGAB_RECORD) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found '%V'", index);
+        return ERROR(GAB_NOT_RECORD, "Found %V %V", gab_valtyp(EG(), index),
+                     index);
       }
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1019,7 +941,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (gab_valknd(index) != kGAB_RECORD) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found '%V'", index);
+        return ERROR(GAB_NOT_RECORD, "Found %V %V", gab_valtyp(EG(), index),
+                     index);
       }
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1032,7 +955,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "On '%V'", index);
+        return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
       }
 
       PEEK() = rec->data[prop_offset];
@@ -1049,7 +972,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (gab_valknd(index) != kGAB_RECORD) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found '%V'", index);
+        return ERROR(GAB_NOT_RECORD, "Found %V %V", gab_valtyp(EG(), index),
+                     index);
       }
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1060,7 +984,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "On '%V'", index);
+        return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
       }
 
       PEEK() = rec->data[prop_offset];
@@ -1075,7 +999,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (gab_valknd(index) != kGAB_RECORD) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found '%V'", index);
+        return ERROR(GAB_NOT_RECORD, "Found %V %V", gab_valtyp(EG(), index),
+                     index);
       }
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1084,7 +1009,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
+        return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
       }
 
       // Write to the cache and transition
@@ -1109,7 +1034,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (gab_valknd(index) != kGAB_RECORD) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found %V", index);
+        return ERROR(GAB_NOT_RECORD, "Found %V %V", gab_valtyp(EG(), index),
+                     index);
       }
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1119,7 +1045,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
         if (prop_offset == UINT64_MAX) {
           STORE_FRAME();
-          return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
+          return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
         }
 
         // Transition to polymorphic
@@ -1150,7 +1076,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (gab_valknd(index) != kGAB_RECORD) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found '%V'", index);
+        return ERROR(GAB_NOT_RECORD, "Found %V %V", gab_valtyp(EG(), index),
+                     index);
       }
 
       struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
@@ -1158,7 +1085,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (prop_offset == UINT64_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "Missing '%V'", key);
+        return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
       }
 
       gab_gcdref(EG(), GC(), VM(), rec->data[prop_offset]);
@@ -1289,7 +1216,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
     CASE_CODE(NEGATE) : {
       if (!__gab_valisn(PEEK())) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_NUMERIC, "Found '%V'", PEEK());
+        return ERROR(GAB_NOT_NUMERIC, "Found %V %V", gab_valtyp(EG(), PEEK()),
+                     PEEK());
       }
 
       gab_value new_value = gab_number(-gab_valton(POP()));

@@ -26,9 +26,9 @@ struct gab_src {
 
   v_gab_token tokens;
 
-  v_s_char tokens_src;
+  v_s_char token_srcs;
 
-  v_uint64_t tokens_line;
+  v_uint64_t token_lines;
 };
 
 struct gab_src *gab_lex(struct gab_eg* gab, const char* src, size_t len);

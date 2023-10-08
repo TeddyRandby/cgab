@@ -1,5 +1,7 @@
 #include "include/engine.h"
 #include "include/builtins.h"
+#include "include/char.h"
+#include "include/colors.h"
 #include "include/compiler.h"
 #include "include/core.h"
 #include "include/gab.h"
@@ -285,7 +287,7 @@ a_gab_value *gab_exec(struct gab_eg *gab, struct gab_exec_argt args) {
 
   if (main == gab_undefined)
     return NULL;
-  
+
   gab_egkeep(gab, main);
 
   return gab_run(gab, (struct gab_run_argt){
@@ -511,9 +513,13 @@ gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value) {
     struct gab_obj_block_proto *self = GAB_VAL_TO_BLOCK_PROTO(value);
     gab_modcpy(gab, self->mod);
 
-    gab_value copy = gab_blkproto(gab, gab->modules, self->narguments,
-                                  self->nslots, self->nlocals, self->nupvalues,
-                                  self->upv_desc, self->upv_desc);
+    gab_value copy = gab_blkproto(gab, (struct gab_blkproto_argt){
+                                           .nupvalues = self->nupvalues,
+                                           .nslots = self->nslots,
+                                           .narguments = self->narguments,
+                                           .nlocals = self->nlocals,
+                                           .mod = gab->modules,
+                                       });
 
     memcpy(GAB_VAL_TO_BLOCK_PROTO(copy)->upv_desc, self->upv_desc,
            self->nupvalues * 2);
@@ -617,4 +623,64 @@ gab_value gab_etuple(struct gab_eg *gab, size_t len) {
 gab_value gab_tuple(struct gab_eg *gab, uint64_t size, gab_value values[size]) {
   gab_value bundle_shape = gab_nshape(gab, size);
   return gab_recordof(gab, bundle_shape, 1, values);
+}
+
+void gab_verr(struct gab_err_argt args, va_list varargs) {
+  if (!(args.flags & fGAB_DUMP_ERROR))
+    return;
+
+  struct gab_src *src = args.mod->source;
+
+  uint64_t line = v_uint64_t_val_at(&src->token_lines, args.tok);
+
+  s_char tok_src = v_s_char_val_at(&src->token_srcs, args.tok);
+
+  s_char line_src = v_s_char_val_at(&src->lines, line - 1);
+
+  while (is_whitespace(*line_src.data)) {
+    line_src.data++;
+    line_src.len--;
+    if (line_src.len == 0)
+      break;
+  }
+
+  a_char *line_under = a_char_empty(line_src.len);
+
+  const char *tok_start, *tok_end;
+
+  tok_start = tok_src.data;
+  tok_end = tok_src.data + tok_src.len;
+
+  const char *tok_name =
+      gab_token_names[v_gab_token_val_at(&src->tokens, args.tok)];
+
+  for (uint8_t i = 0; i < line_under->len; i++) {
+    if (line_src.data + i >= tok_start && line_src.data + i < tok_end)
+      line_under->data[i] = '^';
+    else
+      line_under->data[i] = ' ';
+  }
+
+  const char *curr_color = ANSI_COLOR_RED;
+  const char *curr_box = "\u256d";
+
+  fprintf(stderr,
+          "[" ANSI_COLOR_GREEN "%V" ANSI_COLOR_RESET
+          "] Error near " ANSI_COLOR_MAGENTA "%s" ANSI_COLOR_RESET
+          ":\n\t%s%s %.4lu " ANSI_COLOR_RESET "%.*s"
+          "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
+          "\n\t\u2570\u2500> ",
+          args.context, tok_name, curr_box, curr_color, line,
+          (int)line_src.len, line_src.data, (int)line_under->len,
+          line_under->data);
+
+  a_char_destroy(line_under);
+
+  fprintf(stderr,
+          ANSI_COLOR_YELLOW "%s. \n\n" ANSI_COLOR_RESET "\t" ANSI_COLOR_GREEN,
+          gab_status_names[args.status]);
+
+  vfprintf(stderr, args.note_fmt, varargs);
+
+  fprintf(stderr, "\n" ANSI_COLOR_RESET);
 }

@@ -95,11 +95,11 @@
 #define VAR_EXP 255
 #define FLAG_VAR_EXP 1
 
-typedef enum gab_status {
+enum gab_status {
 #define STATUS(name, message) GAB_##name,
 #include "status_code.h"
 #undef STATUS
-} gab_status;
+};
 
 // GAB optional flags
 enum gab_flags {

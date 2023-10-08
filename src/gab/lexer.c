@@ -64,7 +64,7 @@ static inline int8_t peek(gab_lx *self) { return *self->cursor; }
 
 static inline int8_t peek_next(gab_lx *self) { return *(self->cursor + 1); }
 
-static inline gab_token error(gab_lx *self, gab_status s) {
+static inline gab_token error(gab_lx *self, enum gab_status s) {
   self->status = s;
   return TOKEN_ERROR;
 }
@@ -440,8 +440,8 @@ gab_token gab_lexnxt(gab_lx *self) {
 
 fin:
   v_gab_token_push(&self->source->tokens, tok);
-  v_s_char_push(&self->source->tokens_src, self->current_token_src);
-  v_uint64_t_push(&self->source->tokens_line, self->row);
+  v_s_char_push(&self->source->token_srcs, self->current_token_src);
+  v_uint64_t_push(&self->source->token_lines, self->row - (tok == TOKEN_NEWLINE));
 
   return tok;
 }
@@ -465,8 +465,8 @@ struct gab_src *gab_srccpy(struct gab_eg *gab, struct gab_src *self) {
   v_s_char_copy(&copy->line_comments, &self->line_comments);
 
   v_gab_token_copy(&copy->tokens, &self->tokens);
-  v_s_char_copy(&copy->tokens_src, &self->tokens_src);
-  v_uint64_t_copy(&copy->tokens_line, &self->tokens_line);
+  v_s_char_copy(&copy->token_srcs, &self->token_srcs);
+  v_uint64_t_copy(&copy->token_lines, &self->token_lines);
 
   // Reconcile the copied slices to point to the new source
   for (uint64_t i = 0; i < copy->lines.len; i++) {
@@ -489,17 +489,11 @@ void gab_srcdestroy(struct gab_src *self) {
   v_s_char_destroy(&self->line_comments);
 
   v_gab_token_destroy(&self->tokens);
-  v_s_char_destroy(&self->tokens_src);
-  v_uint64_t_destroy(&self->tokens_line);
+  v_s_char_destroy(&self->token_srcs);
+  v_uint64_t_destroy(&self->token_lines);
 
   DESTROY(self);
 }
-
-static const char *gab_token_names[] = {
-#define TOKEN(name) #name,
-#include "include/token.h"
-#undef TOKEN
-};
 
 struct gab_src *gab_lex(struct gab_eg *gab, const char *source, size_t len) {
   struct gab_src *src = gab_srccreate(gab, s_char_create(source, len));

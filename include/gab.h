@@ -61,9 +61,6 @@
 
 typedef uint64_t gab_value;
 
-#define T gab_value
-#include "array.h"
-
 enum gab_kind {
   kGAB_NAN = 0,
   kGAB_UNDEFINED = 1,
@@ -189,6 +186,25 @@ static inline gab_value __gab_dtoval(double value) {
   ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_PURPLE)
 
 #define GAB_OBJ_NOT_BUFFERED(obj) ((obj)->flags &= ~fGAB_OBJ_BUFFERED)
+
+#define T gab_value
+#include "array.h"
+
+#define NAME specs
+#define K gab_value
+#define V gab_value
+#define DEF_V gab_undefined
+#define HASH(a) (a)
+#define EQUAL(a, b) (a == b)
+#include "dict.h"
+
+#define NAME helps
+#define K gab_value
+#define V s_char
+#define DEF_V ((s_char){0})
+#define HASH(a) (a)
+#define EQUAL(a, b) (a == b)
+#include "dict.h"
 
 typedef enum gab_opcode {
 #define OP_CODE(name) OP_##name,
@@ -629,11 +645,8 @@ gab_value gab_string(struct gab_eg *gab, const char data[static 1]);
  * # Create a gab_value from a bounded c-string
  *
  * @param gab The engine.
- *
  * @param len The length of the string.
- *
  * @param data The data.
- *
  * @return The value.
  */
 gab_value gab_nstring(struct gab_eg *gab, size_t len,
@@ -643,11 +656,8 @@ gab_value gab_nstring(struct gab_eg *gab, size_t len,
  * # Concatenate two gab strings
  *
  * @param gab The engine.
- *
  * @param a The first string.
- *
  * @param b The second string.
- *
  * @return The value.
  */
 gab_value gab_strcat(struct gab_eg *gab, gab_value a, gab_value b);
@@ -655,6 +665,8 @@ gab_value gab_strcat(struct gab_eg *gab, gab_value a, gab_value b);
 /**
  * # Get the length of a string
  *
+ * @param str The string.
+ * @return The length of the string.
  */
 static inline size_t gab_strlen(gab_value str) {
   assert(gab_valknd(str) == kGAB_STRING);
@@ -693,31 +705,20 @@ struct gab_obj_block_proto {
 #define GAB_VAL_TO_BLOCK_PROTO(value)                                          \
   ((struct gab_obj_block_proto *)gab_valtoo(value))
 
+struct gab_blkproto_argt {
+  struct gab_mod *mod;
+  uint8_t narguments, nslots, nlocals, nupvalues, *flags, *indexes;
+};
+
 /**
  * Create a new prototype object.
  *
  * @param gab The gab engine.
- *
- * @param mod The bytecode module that the prototype should wrap.
- *
- * @param narguments The number of arguments the function takes.
- *
- * @param nslots The number of slots the function uses.
- *
- * @param nlocals The number of locals the function uses.
- *
- * @param nupvalues The number of upvalues the function uses.
- *
- * @param var Whether the function is variadic.
- *
- * @param flags The flags of the upvalues.
- *
- * @param indexes The indexes of the upvalues.
+ * @param args The arguments.
+ * @see struct gab_blkproto_argt
+ * @return The new block prototype object.
  */
-gab_value gab_blkproto(struct gab_eg *gab, struct gab_mod *mod,
-                       uint8_t narguments, uint8_t nslots, uint8_t nlocals,
-                       uint8_t nupvalues, uint8_t flags[nupvalues],
-                       uint8_t indexes[nupvalues]);
+gab_value gab_blkproto(struct gab_eg *gab, struct gab_blkproto_argt args);
 
 /**
  * A block - aka a prototype and it's captures.
@@ -736,34 +737,16 @@ struct gab_obj_block {
 #define GAB_VAL_TO_BLOCK(value) ((struct gab_obj_block *)gab_valtoo(value))
 
 /**
- * Create a new block object, setting all captures to gab_nil.
+ * # Create a new block object, setting all captures to gab_nil.
  *
  * @param gab The gab engine.
- *
  * @param prototype The prototype of the block.
- *
  * @return The new block object.
  */
 gab_value gab_block(struct gab_eg *gab, gab_value prototype);
 
-#define NAME specs
-#define K gab_value
-#define V gab_value
-#define DEF_V gab_undefined
-#define HASH(a) (a)
-#define EQUAL(a, b) (a == b)
-#include "dict.h"
-
-#define NAME helps
-#define K gab_value
-#define V s_char
-#define DEF_V ((s_char){0})
-#define HASH(a) (a)
-#define EQUAL(a, b) (a == b)
-#include "dict.h"
-
 /**
- * The message object, a collection of receivers and specializations, under a
+ * # The message object, a collection of receivers and specializations, under a
  * name.
  */
 struct gab_obj_message {
@@ -782,12 +765,10 @@ struct gab_obj_message {
 #define GAB_VAL_TO_MESSAGE(value) ((struct gab_obj_message *)gab_valtoo(value))
 
 /**
- * Create a new message object.
+ * # Create a new message object.
  *
  * @param gab The gab engine.
- *
  * @param name The name of the message.
- *
  * @return The new message object.
  */
 gab_value gab_message(struct gab_eg *gab, gab_value name);
@@ -796,9 +777,7 @@ gab_value gab_message(struct gab_eg *gab, gab_value name);
  * Find the index of a receiver's specializtion in the message.
  *
  * @param self The message object.
- *
  * @param receiver The receiver to look for.
- *
  * @return The index of the receiver's specialization, or UINT64_MAX if it
  * doesn't exist.
  */
@@ -817,11 +796,8 @@ static inline uint64_t gab_msgfind(gab_value msg, gab_value needle) {
  * This is to be used internally by the vm.
  *
  * @param obj The message object.
- *
  * @param offset The offset in the message.
- *
  * @param rec The receiver.
- *
  * @param spec The specialization.
  */
 static inline void gab_umsgput(gab_value msg, uint64_t offset,
