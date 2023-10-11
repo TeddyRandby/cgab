@@ -150,8 +150,9 @@ static inline gab_value __gab_dtoval(double value) {
 #define fGAB_OBJ_WHITE (1 << 3)
 #define fGAB_OBJ_PURPLE (1 << 4)
 #define fGAB_OBJ_GREEN (1 << 5)
-#define fGAB_OBJ_GARBAGE (1 << 6)
-#define fGAB_OBJ_FREED (1 << 7) // Used for debug purposes
+#define fGAB_OBJ_MODIFIED (1 << 6)
+#define fGAB_OBJ_NEW (1 << 7)
+#define fGAB_OBJ_FREED (1 << 8) // Used for debug purposes
 
 #define GAB_OBJ_IS_BUFFERED(obj) ((obj)->flags & fGAB_OBJ_BUFFERED)
 #define GAB_OBJ_IS_BLACK(obj) ((obj)->flags & fGAB_OBJ_BLACK)
@@ -159,16 +160,20 @@ static inline gab_value __gab_dtoval(double value) {
 #define GAB_OBJ_IS_WHITE(obj) ((obj)->flags & fGAB_OBJ_WHITE)
 #define GAB_OBJ_IS_PURPLE(obj) ((obj)->flags & fGAB_OBJ_PURPLE)
 #define GAB_OBJ_IS_GREEN(obj) ((obj)->flags & fGAB_OBJ_GREEN)
-#define GAB_OBJ_IS_GARBAGE(obj) ((obj)->flags & fGAB_OBJ_GARBAGE)
+#define GAB_OBJ_IS_MODIFIED(obj) ((obj)->flags & fGAB_OBJ_MODIFIED)
+#define GAB_OBJ_IS_NEW(obj) ((obj)->flags & fGAB_OBJ_NEW)
 #define GAB_OBJ_IS_FREED(obj) ((obj)->flags & fGAB_OBJ_FREED)
 
 #define GAB_OBJ_BUFFERED(obj) ((obj)->flags |= fGAB_OBJ_BUFFERED)
 
-#define GAB_OBJ_GARBAGE(obj) ((obj)->flags |= fGAB_OBJ_GARBAGE)
+#define GAB_OBJ_MODIFIED(obj) ((obj)->flags |= fGAB_OBJ_MODIFIED)
+
+#define GAB_OBJ_NEW(obj) ((obj)->flags |= fGAB_OBJ_NEW)
 
 #define GAB_OBJ_FREED(obj) ((obj)->flags |= fGAB_OBJ_FREED)
 
-#define __KEEP_FLAGS (fGAB_OBJ_BUFFERED | fGAB_OBJ_GARBAGE | fGAB_OBJ_FREED)
+#define __KEEP_FLAGS                                                           \
+  (fGAB_OBJ_BUFFERED | fGAB_OBJ_MODIFIED | fGAB_OBJ_NEW | fGAB_OBJ_FREED)
 
 #define GAB_OBJ_GREEN(obj)                                                     \
   ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_GREEN)
@@ -186,6 +191,8 @@ static inline gab_value __gab_dtoval(double value) {
   ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_PURPLE)
 
 #define GAB_OBJ_NOT_BUFFERED(obj) ((obj)->flags &= ~fGAB_OBJ_BUFFERED)
+#define GAB_OBJ_NOT_MODIFIED(obj) ((obj)->flags &= ~fGAB_OBJ_MODIFIED)
+#define GAB_OBJ_NOT_NEW(obj) ((obj)->flags &= ~fGAB_OBJ_NEW)
 
 #define T gab_value
 #include "array.h"
@@ -236,7 +243,8 @@ struct gab_obj_record;
 struct gab_obj_box;
 struct gab_obj_suspense;
 
-typedef void (*gab_gcvisit_f)(struct gab_gc *gc, struct gab_obj *obj);
+typedef void (*gab_gcvisit_f)(struct gab_eg *eg, struct gab_gc *gc,
+                              struct gab_vm *vm, struct gab_obj *obj);
 
 typedef void (*gab_builtin_f)(struct gab_eg *gab, struct gab_gc *gc,
                               struct gab_vm *vm, size_t argc,
@@ -244,7 +252,8 @@ typedef void (*gab_builtin_f)(struct gab_eg *gab, struct gab_gc *gc,
 
 typedef void (*gab_boxdestroy_f)(void *data);
 
-typedef void (*gab_boxvisit_f)(struct gab_gc *gc, gab_gcvisit_f visitor,
+typedef void (*gab_boxvisit_f)(struct gab_eg *eg, struct gab_gc *gc,
+                               struct gab_vm *vm, gab_gcvisit_f visitor,
                                void *data);
 
 /**
@@ -254,20 +263,10 @@ typedef void (*gab_boxvisit_f)(struct gab_gc *gc, gab_gcvisit_f visitor,
  * single interface.
  */
 struct gab_obj {
-  int32_t references;
+  int64_t references;
+  uint16_t flags;
   enum gab_kind kind;
-  uint8_t flags;
 };
-
-/**
- * An under-the-hood allocator for objects.
- *
- * @param gab The gab engine.
- * @param loc The object whose memory is being reallocated, or NULL.
- * @param size The size to allocate. When size is 0, the object is freed.
- * @return The allocated memory, or NULL.
- */
-void *gab_obj_alloc(struct gab_eg *gab, struct gab_obj *loc, uint64_t size);
 
 /**
  * Free any memory owned by the object, but not the object itself.
@@ -534,17 +533,6 @@ void __gab_ngcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 #define gab_ngcdref(gab, gc, vm, stride, len, values)                          \
   (__gab_ngcdref(gab, gc, vm, stride, len, values, __FILE__, __LINE__))
 
-/**
- * # Run the garbage collector.
- *
- * @param gab The engine.
- * @param gc The garbage collector.
- * @param vm The vm.
- */
-void __gab_gcrun(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                 const char *file, int line);
-#define gab_gcrun(gab, gc, vm) (__gab_gcrun(gab, gc, vm, __FILE__, __LINE__))
-
 #else
 
 /**
@@ -585,6 +573,8 @@ void gab_ngciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 void gab_ngcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
                  size_t stride, size_t len, gab_value values[len]);
 
+#endif
+
 /**
  * # Run the garbage collector.
  *
@@ -593,8 +583,6 @@ void gab_ngcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
  * @param vm The vm.
  */
 void gab_gcrun(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm);
-
-#endif
 
 /**
  * # Get the kind of a value.
@@ -746,119 +734,6 @@ struct gab_obj_block {
 gab_value gab_block(struct gab_eg *gab, gab_value prototype);
 
 /**
- * # The message object, a collection of receivers and specializations, under a
- * name.
- */
-struct gab_obj_message {
-  struct gab_obj header;
-
-  uint8_t version;
-
-  gab_value name;
-
-  uint64_t hash;
-
-  d_specs specs;
-};
-
-/* Cast a value to a (gab_obj_message*) */
-#define GAB_VAL_TO_MESSAGE(value) ((struct gab_obj_message *)gab_valtoo(value))
-
-/**
- * # Create a new message object.
- *
- * @param gab The gab engine.
- * @param name The name of the message.
- * @return The new message object.
- */
-gab_value gab_message(struct gab_eg *gab, gab_value name);
-
-/**
- * Find the index of a receiver's specializtion in the message.
- *
- * @param self The message object.
- * @param receiver The receiver to look for.
- * @return The index of the receiver's specialization, or UINT64_MAX if it
- * doesn't exist.
- */
-static inline uint64_t gab_msgfind(gab_value msg, gab_value needle) {
-  assert(gab_valknd(msg) == kGAB_MESSAGE);
-  struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
-
-  if (!d_specs_exists(&obj->specs, needle))
-    return UINT64_MAX;
-
-  return d_specs_index_of(&obj->specs, needle);
-}
-
-/**
- * Set the receiver and specialization at the given offset in the message.
- * This is to be used internally by the vm.
- *
- * @param obj The message object.
- * @param offset The offset in the message.
- * @param rec The receiver.
- * @param spec The specialization.
- */
-static inline void gab_umsgput(gab_value msg, uint64_t offset,
-                               gab_value receiver, gab_value specialization) {
-  assert(gab_valknd(msg) == kGAB_MESSAGE);
-  struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
-
-  d_specs_iset_key(&obj->specs, offset, receiver);
-  d_specs_iset_val(&obj->specs, offset, specialization);
-  obj->version++;
-}
-
-/**
- * Get the specialization at the given offset in the message.
- *
- * @param obj The message object.
- *
- * @param offset The offset in the message.
- */
-static inline gab_value gab_umsgat(gab_value msg, uint64_t offset) {
-  assert(gab_valknd(msg) == kGAB_MESSAGE);
-  struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
-
-  return d_specs_ival(&obj->specs, offset);
-}
-
-/**
- * Insert a specialization into the message for a given receiver.
- *
- * @param obj The message object.
- *
- * @param receiver The receiver.
- *
- * @param specialization The specialization.
- */
-static inline void gab_msgput(gab_value msg, gab_value receiver,
-                              gab_value specialization) {
-  assert(gab_valknd(msg) == kGAB_MESSAGE);
-  struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
-
-  d_specs_insert(&obj->specs, receiver, specialization);
-  obj->version++;
-}
-
-/**
- * Read the specialization for a given receiver.
- *
- * @param obj The message object.
- *
- * @param receiver The receiver.
- *
- * @return The specialization for the receiver, or gab_undefined if it did
- * not exist.
- */
-static inline gab_value gab_msgat(gab_value msg, gab_value receiver) {
-  assert(gab_valknd(msg) == kGAB_MESSAGE);
-  struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
-  return d_specs_read(&obj->specs, receiver);
-}
-
-/**
  * A shape object, used to define the layout of a record.
  */
 struct gab_obj_shape {
@@ -888,6 +763,18 @@ struct gab_obj_shape {
 gab_value gab_shape(struct gab_eg *gab, bool *internedOut, size_t stride,
                     size_t len, gab_value keys[static len]);
 
+static inline gab_value gab_shapewith(struct gab_eg *gab, bool *internedOut,
+                                      gab_value shape, gab_value key) {
+  assert(gab_valknd(shape) == kGAB_SHAPE);
+  struct gab_obj_shape *obj = GAB_VAL_TO_SHAPE(shape);
+  gab_value keys[obj->len + 1];
+
+  memcpy(keys, obj->data, obj->len * sizeof(gab_value));
+  keys[obj->len] = key;
+
+  return gab_shape(gab, internedOut, 1, obj->len + 1, keys);
+};
+
 /**
  * Create a new shape for a tuple. The keys are monotonic increasing integers,
  * starting from 0.
@@ -913,12 +800,10 @@ static inline uint64_t gab_shpfind(gab_value shp, gab_value key) {
   assert(gab_valknd(shp) == kGAB_SHAPE);
   struct gab_obj_shape *obj = GAB_VAL_TO_SHAPE(shp);
 
-  for (uint64_t i = 0; i < obj->len; i++) {
-    assert(i < UINT64_MAX);
-
+  // Linear search for the key in the shape
+  for (uint64_t i = 0; i < obj->len; i++)
     if (obj->data[i] == key)
       return i;
-  }
 
   return UINT64_MAX;
 };
@@ -1008,6 +893,26 @@ struct gab_obj_record {
 gab_value gab_recordof(struct gab_eg *gab, gab_value shp, size_t stride,
                        gab_value values[static GAB_VAL_TO_SHAPE(shp)->len]);
 
+static inline gab_value gab_recordwith(struct gab_eg *gab, bool *internedOut,
+                                       gab_value rec, gab_value key,
+                                       gab_value value) {
+  assert(gab_valknd(rec) == kGAB_RECORD);
+  struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
+
+  uint64_t len = obj->len;
+
+  gab_value keys[len + 1];
+  gab_value values[len + 1];
+
+  memcpy(keys, gab_shpdata(obj->shape), len * sizeof(gab_value));
+  memcpy(values, obj->data, len * sizeof(gab_value));
+  keys[obj->len] = key;
+  values[obj->len] = value;
+
+  gab_value shp = gab_shapewith(gab, internedOut, obj->shape, key);
+  return gab_recordof(gab, shp, 1, values);
+};
+
 /**
  * # Create a nil-initialized (empty) record of shape shape.
  *
@@ -1038,6 +943,24 @@ static inline void gab_urecput(gab_value rec, uint64_t offset,
 }
 
 /**
+ * Get a value in the record. This function is not bounds checked. It should be
+ * used only internally in the vm.
+ *
+ * @param gab The gab engine.
+ *
+ * @param vm The vm.
+ *
+ * @param obj The record object.
+ */
+static inline gab_value gab_urecat(gab_value rec, uint64_t offset) {
+  assert(gab_valknd(rec) == kGAB_RECORD);
+  struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
+
+  assert(offset < obj->len);
+  return obj->data[offset];
+}
+
+/**
  * Get the value corresponding to the given key.
  *
  * @param obj The record object.
@@ -1056,6 +979,21 @@ static inline gab_value gab_recat(gab_value rec, gab_value key) {
     return gab_nil;
 
   return obj->data[offset];
+}
+
+/**
+ * Get the offset of the given key in the record.
+ *
+ * @param obj The record object.
+ *
+ * @param key The key.
+ *
+ * @return The offset of the key, or UINT64_MAX if it doesn't exist.
+ */
+static inline uint64_t gab_recfind(gab_value rec, gab_value key) {
+  assert(gab_valknd(rec) == kGAB_RECORD);
+  struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
+  return gab_shpfind(obj->shape, key);
 }
 
 static inline gab_value gab_srecat(struct gab_eg *gab, gab_value value,
@@ -1148,6 +1086,86 @@ static inline gab_value *gab_recdata(gab_value value) {
   assert(gab_valknd(value) == kGAB_RECORD);
   return GAB_VAL_TO_RECORD(value)->data;
 };
+
+/**
+ * # The message object, a collection of receivers and specializations, under a
+ * name.
+ */
+struct gab_obj_message {
+  struct gab_obj header;
+
+  uint8_t version;
+
+  gab_value name;
+
+  gab_value specs;
+};
+
+/* Cast a value to a (gab_obj_message*) */
+#define GAB_VAL_TO_MESSAGE(value) ((struct gab_obj_message *)gab_valtoo(value))
+
+/**
+ * # Create a new message object.
+ *
+ * @param gab The gab engine.
+ * @param name The name of the message.
+ * @return The new message object.
+ */
+gab_value gab_message(struct gab_eg *gab, gab_value name);
+
+static inline gab_value gab_msgshp(gab_value msg) {
+  assert(gab_valknd(msg) == kGAB_MESSAGE);
+  return gab_recshp(GAB_VAL_TO_MESSAGE(msg)->specs);
+}
+
+static inline gab_value gab_msgrec(gab_value msg) {
+  assert(gab_valknd(msg) == kGAB_MESSAGE);
+  return GAB_VAL_TO_MESSAGE(msg)->specs;
+}
+
+/**
+ * Find the index of a receiver's specializtion in the message.
+ *
+ * @param self The message object.
+ * @param receiver The receiver to look for.
+ * @return The index of the receiver's specialization, or UINT64_MAX if it
+ * doesn't exist.
+ */
+static inline uint64_t gab_msgfind(gab_value msg, gab_value needle) {
+  assert(gab_valknd(msg) == kGAB_MESSAGE);
+  struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
+
+  return gab_recfind(obj->specs, needle);
+}
+
+/**
+ * Get the specialization at the given offset in the message.
+ *
+ * @param obj The message object.
+ *
+ * @param offset The offset in the message.
+ */
+static inline gab_value gab_umsgat(gab_value msg, uint64_t offset) {
+  assert(gab_valknd(msg) == kGAB_MESSAGE);
+  struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
+  return gab_urecat(obj->specs, offset);
+}
+
+/**
+ * Read the specialization for a given receiver.
+ *
+ * @param obj The message object.
+ *
+ * @param receiver The receiver.
+ *
+ * @return The specialization for the receiver, or gab_undefined if it did
+ * not exist.
+ */
+static inline gab_value gab_msgat(gab_value msg, gab_value receiver) {
+  assert(gab_valknd(msg) == kGAB_MESSAGE);
+  struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
+  return gab_recat(obj->specs, receiver);
+}
 
 /**
  * A container object, which holds arbitrary data.
@@ -1367,7 +1385,8 @@ struct gab_spec_argt {
  *
  * @return The message that was updated.
  */
-gab_value gab_spec(struct gab_eg *gab, struct gab_spec_argt args);
+gab_value gab_spec(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                   struct gab_spec_argt args);
 
 /**
  * # Deep-copy a value.

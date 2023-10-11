@@ -21,7 +21,7 @@ void gab_lib_new(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   }
 }
 
-a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc* gc, struct gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   const char *names[] = {
       "symbol",
   };
@@ -38,11 +38,12 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc* gc, struct gab_vm *vm) {
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
 
   for (int i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = names[i],
-                      .receiver = receivers[i],
-                      .specialization = specs[i],
-                  });
+    gab_spec(gab, gc, vm,
+             (struct gab_spec_argt){
+                 .name = names[i],
+                 .receiver = receivers[i],
+                 .specialization = specs[i],
+             });
   }
 
   return NULL;

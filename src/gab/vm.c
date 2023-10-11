@@ -667,6 +667,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       gab_value b = POP();
       gab_value a = POP();
       gab_value ab = gab_strcat(EG(), a, b);
+
       PUSH(ab);
 
       VAR() = 1;
@@ -730,12 +731,6 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         STORE_FRAME();
         return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
       }
-
-      struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-
-      gab_gcdref(EG(), GC(), VM(), rec->data[prop_offset]);
-
-      gab_gciref(EG(), GC(), VM(), value);
 
       gab_urecput(index, prop_offset, value);
 
@@ -853,14 +848,10 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
           assert(frame_len < UINT16_MAX);
 
-          gab_ngciref(EG(), GC(), VM(), 1, frame_len, SLOTS());
-
           gab_value sus = gab_suspense(EG(), frame_len, __gab_obj(CLOSURE()),
                                        proto, SLOTS());
 
           PUSH(sus);
-
-          gab_gcdref(EG(), GC(), VM(), sus);
 
           have++;
 
@@ -882,11 +873,9 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (--FRAME() == VM()->fb) {
         // Increment and pop the module.
-        a_gab_value *results = a_gab_value_create(to, have);
+        gab_ngciref(EG(), GC(), VM(), 1, have, to);
 
-        for (uint32_t i = 0; i < results->len; i++) {
-          gab_gciref(EG(), GC(), VM(), results->data[i]);
-        }
+        a_gab_value *results = a_gab_value_create(to, have);
 
         VM()->sp = VM()->sb;
 
@@ -1052,10 +1041,6 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         WRITE_BYTE(PROP_CACHE_DIST, OP_STORE_PROPERTY_POLY);
       }
 
-      gab_gcdref(EG(), GC(), VM(), rec->data[prop_offset]);
-
-      gab_gciref(EG(), GC(), VM(), value);
-
       gab_urecput(index, prop_offset, value);
 
       DROP_N(2);
@@ -1087,10 +1072,6 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         STORE_FRAME();
         return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
       }
-
-      gab_gcdref(EG(), GC(), VM(), rec->data[prop_offset]);
-
-      gab_gciref(EG(), GC(), VM(), value);
 
       gab_urecput(index, prop_offset, value);
 
@@ -1381,11 +1362,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         }
       }
 
-      gab_ngciref(EG(), GC(), VM(), 1, proto->nupvalues, b->upvalues);
-
       PUSH(blk);
-
-      gab_gcdref(EG(), GC(), VM(), blk);
 
       NEXT();
     }
@@ -1421,11 +1398,12 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         }
       }
 
-      gab_ngciref(EG(), GC(), VM(), 1, b->nupvalues, b->upvalues);
+      struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(m);
+      
+      gab_gcdref(EG(), GC(), VM(), msg->specs);
 
-      gab_gciref(EG(), GC(), VM(), r);
-
-      gab_msgput(m, r, blk);
+      bool interned;
+      msg->specs = gab_recordwith(EG(), &interned, msg->specs, r, blk);
 
       PEEK() = m;
 
@@ -1463,8 +1441,6 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       VAR() = want + 1;
 
-      gab_gcdref(EG(), GC(), VM(), rec);
-
       NEXT();
     }
 
@@ -1475,18 +1451,11 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       gab_value shape = gab_shape(EG(), &internedOut, 2, len, TOP() - len * 2);
 
-      if (!internedOut)
-        gab_ngciref(EG(), GC(), VM(), 2, len, TOP() - len * 2);
-
       gab_value rec = gab_recordof(EG(), shape, 2, TOP() + 1 - (len * 2));
-
-      gab_ngciref(EG(), GC(), VM(), 2, len, TOP() + 1 - (len * 2));
 
       DROP_N(len * 2);
 
       PUSH(rec);
-
-      gab_gcdref(EG(), GC(), VM(), rec);
 
       NEXT();
     }
@@ -1501,8 +1470,6 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       DROP_N(len);
 
       PUSH(rec);
-
-      gab_gcdref(EG(), GC(), VM(), rec);
 
       NEXT();
     }

@@ -96,23 +96,22 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
       "to_uri",
   };
 
-  gab_value types[] = {
+  gab_value receivers[] = {
       gab_typ(gab, kGAB_STRING),
   };
 
-  gab_value values[] = {
+  gab_value specs[] = {
       gab_sbuiltin(gab, "to_uri", gab_lib_stouri),
   };
 
-  for (int32_t i = 0; i < sizeof(values) / sizeof(gab_value); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = names[i],
-                      .receiver = types[i],
-                      .specialization = values[i],
-                  });
+  for (int32_t i = 0; i < sizeof(specs) / sizeof(gab_value); i++) {
+    gab_spec(gab, gc, vm,
+             (struct gab_spec_argt){
+                 .name = names[i],
+                 .receiver = receivers[i],
+                 .specialization = specs[i],
+             });
   }
-
-  gab_ngciref(gab, gc, vm, 1, sizeof(types) / sizeof(types[0]), types);
 
   return a_gab_value_one(gab_nil);
 }

@@ -80,8 +80,6 @@ void run_src(struct gab_eg *gab, s_char src, const char *module, char delim,
                                      .flags = flags,
                                  });
 
-  gab_egkeep(gab, main);
-
   if (main == gab_undefined)
     return;
 
@@ -136,6 +134,7 @@ void run_src(struct gab_eg *gab, s_char src, const char *module, char delim,
                                      });
 
   gab_negkeep(gab, result->len, result->data);
+  
   a_gab_value_destroy(result);
 }
 

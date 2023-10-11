@@ -36,7 +36,7 @@ void gab_lib_open(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
       gab_string(gab, "ok"),
       gab_box(gab,
               (struct gab_box_argt){
-                  .type = gab_gciref(gab, gc, vm, gab_string(gab, "File")),
+                  .type = gab_string(gab, "File"),
                   .data = file,
                   .destructor = file_cb,
                   .visitor = NULL,
@@ -122,21 +122,20 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
       type,
   };
 
-  gab_value values[] = {
+  gab_value specs[] = {
       gab_sbuiltin(gab, "open", gab_lib_open),
       gab_sbuiltin(gab, "read", gab_lib_read),
       gab_sbuiltin(gab, "write", gab_lib_write),
   };
 
-  for (uint8_t i = 0; i < LEN_CARRAY(values); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = names[i],
-                      .receiver = receivers[i],
-                      .specialization = values[i],
-                  });
+  for (uint8_t i = 0; i < LEN_CARRAY(specs); i++) {
+    gab_spec(gab, gc, vm,
+             (struct gab_spec_argt){
+                 .name = names[i],
+                 .receiver = receivers[i],
+                 .specialization = specs[i],
+             });
   }
-
-  gab_ngciref(gab, gc, vm, 1, LEN_CARRAY(receivers), receivers);
 
   return a_gab_value_one(type);
 }

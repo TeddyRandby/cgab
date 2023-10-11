@@ -69,8 +69,8 @@
 #error "cGAB_GC_DEC_BUFF_MAX must be less than or equal to STACK_MAX"
 #endif
 
-#ifndef cGAB_GC_INC_BUFF_MAX
-#define cGAB_GC_INC_BUFF_MAX (cGAB_STACK_MAX)
+#ifndef cGAB_GC_MOD_BUFF_MAX
+#define cGAB_GC_MOD_BUFF_MAX (cGAB_STACK_MAX)
 #endif
 
 #if cGAB_GC_DEC_BUFF_MAX < STACK_MAX

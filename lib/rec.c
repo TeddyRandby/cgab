@@ -210,7 +210,6 @@ void gab_lib_to_l(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   }
 }
 
-
 void gab_lib_to_m(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
                   size_t argc, gab_value argv[argc]) {
   gab_value rec = argv[0];
@@ -270,14 +269,13 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
 
   for (int i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = names[i],
-                      .receiver = receivers[i],
-                      .specialization = specs[i],
-                  });
+    gab_spec(gab, gc, vm,
+             (struct gab_spec_argt){
+                 .name = names[i],
+                 .receiver = receivers[i],
+                 .specialization = specs[i],
+             });
   }
-
-  gab_ngciref(gab, gc, vm, 1, LEN_CARRAY(receivers), receivers);
 
   return NULL;
 }

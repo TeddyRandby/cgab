@@ -34,8 +34,12 @@
 struct gab_obj *gab_obj_create(struct gab_eg *gab, struct gab_obj *self,
                                enum gab_kind k) {
   self->kind = k;
-  self->references = 1;
-  self->flags = 0;
+  self->references = 0;
+  self->flags = fGAB_OBJ_NEW;
+
+#if cGAB_LOG_GC
+  printf("CREATE\t%p\n", self);
+#endif
 
   return self;
 }
@@ -45,7 +49,7 @@ int32_t __dump_value(FILE *stream, gab_value self, uint8_t depth);
 int32_t shape_dump_properties(FILE *stream, struct gab_obj_shape *shape,
                               uint8_t depth) {
   if (shape->len == 0)
-    return 0;
+    return fprintf(stream, "~");
 
   if (shape->len > 8)
     return fprintf(stream, "...");
@@ -113,16 +117,6 @@ int32_t __dump_value(FILE *stream, gab_value self, uint8_t depth) {
     return fprintf(stream, "%g", gab_valton(self));
   case kGAB_UNDEFINED:
     return fprintf(stream, "%s", "undefined");
-  case kGAB_SHAPE: {
-    struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(self);
-    return fprintf(stream, "{") + shape_dump_properties(stream, shape, depth) +
-           fprintf(stream, "}");
-  }
-  case kGAB_RECORD: {
-    struct gab_obj_record *rec = GAB_VAL_TO_RECORD(self);
-    return fprintf(stream, "{") + rec_dump_properties(stream, rec, depth) +
-           fprintf(stream, "}");
-  }
   case kGAB_STRING: {
     struct gab_obj_string *str = GAB_VAL_TO_STRING(self);
     return fprintf(stream, "%.*s", (int32_t)str->len, (const char *)str->data);
@@ -131,28 +125,38 @@ int32_t __dump_value(FILE *stream, gab_value self, uint8_t depth) {
     struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(self);
     return fprintf(stream, "&%V", msg->name);
   }
+  case kGAB_SHAPE: {
+    struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(self);
+    return fprintf(stream, "<Shape ") +
+           shape_dump_properties(stream, shape, depth) + fprintf(stream, ">");
+  }
+  case kGAB_RECORD: {
+    struct gab_obj_record *rec = GAB_VAL_TO_RECORD(self);
+    return fprintf(stream, "{") + rec_dump_properties(stream, rec, depth) +
+           fprintf(stream, "}");
+  }
   case kGAB_BOX: {
     struct gab_obj_box *con = GAB_VAL_TO_BOX(self);
     return fprintf(stream, "<%V %p>", con->type, con->data);
   }
   case kGAB_BLOCK: {
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(self);
-    return fprintf(stream, "<block %V>", blk->p);
+    return fprintf(stream, "<Block %V>", blk->p);
   }
   case kGAB_SUSPENSE: {
     struct gab_obj_suspense *sus = GAB_VAL_TO_SUSPENSE(self);
-    return fprintf(stream, "<suspense %V>", sus->b);
+    return fprintf(stream, "<Suspense %V>", sus->b);
   }
   case kGAB_BUILTIN: {
     struct gab_obj_builtin *blt = GAB_VAL_TO_BUILTIN(self);
-    return fprintf(stream, "<builtin %V>", blt->name);
+    return fprintf(stream, "<Builtin %V>", blt->name);
   }
   case kGAB_BLOCK_PROTO: {
     struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(self);
     return fprintf(stream, "%V", proto->mod->name);
   }
   case kGAB_SUSPENSE_PROTO: {
-    return fprintf(stream, "<prototype>");
+    return fprintf(stream, "<Prototype>");
   }
   default: {
     fprintf(stderr, "%d is not an object.\n", gab_valtoo(self)->kind);
@@ -169,15 +173,14 @@ int32_t gab_fdump(FILE *stream, gab_value self) {
 
 void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
   switch (self->kind) {
-  case kGAB_MESSAGE: {
-    struct gab_obj_message *function = (struct gab_obj_message *)self;
-    d_specs_destroy(&function->specs);
-    break;
-  }
   case kGAB_BOX: {
     struct gab_obj_box *container = (struct gab_obj_box *)self;
     if (container->do_destroy)
       container->do_destroy(container->data);
+    break;
+  }
+  case kGAB_SHAPE: {
+    d_shapes_remove(&gab->interned_shapes, (struct gab_obj_shape *)self);
     break;
   }
   default:
@@ -322,9 +325,8 @@ gab_value gab_blkproto(struct gab_eg *gab, struct gab_blkproto_argt args) {
 }
 
 gab_value gab_message(struct gab_eg *gab, gab_value name) {
-  uint64_t hash = GAB_VAL_TO_STRING(name)->hash;
-
-  struct gab_obj_message *interned = gab_eg_find_message(gab, name, hash);
+  struct gab_obj_message *interned =
+      gab_eg_find_message(gab, name, GAB_VAL_TO_STRING(name)->hash);
 
   if (interned != NULL)
     return __gab_obj(interned);
@@ -332,10 +334,9 @@ gab_value gab_message(struct gab_eg *gab, gab_value name) {
   struct gab_obj_message *self = GAB_CREATE_OBJ(gab_obj_message, kGAB_MESSAGE);
 
   self->name = name;
-  self->hash = hash;
   self->version = 0;
 
-  self->specs = (d_specs){0};
+  self->specs = gab_erecordof(gab, gab_nshape(gab, 0));
 
   GAB_OBJ_GREEN((struct gab_obj *)self);
 

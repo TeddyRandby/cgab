@@ -179,13 +179,12 @@ struct gab_eg *gab_create() {
   for (int i = 0; i < LEN_CARRAY(primitives); i++) {
     gab_value receiver = gab_typ(gab, primitives[i].type);
 
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = primitives[i].name,
-                      .receiver = receiver,
-                      .specialization = primitives[i].primitive,
-                  });
-
-    gab_gciref(gab, gc, NULL, receiver);
+    gab_spec(gab, gc, NULL,
+             (struct gab_spec_argt){
+                 .name = primitives[i].name,
+                 .receiver = receiver,
+                 .specialization = primitives[i].primitive,
+             });
   }
 
   gab_setup_builtins(gab, gc);
@@ -220,23 +219,16 @@ void gab_destroy(struct gab_eg *gab) {
     gab_moddestroy(gab, gc, m);
   }
 
-  for (uint64_t i = 0; i < gab->interned_strings.cap; i++) {
-    if (d_strings_iexists(&gab->interned_strings, i)) {
-      struct gab_obj_string *v = d_strings_ikey(&gab->interned_strings, i);
-      gab_gcdref(gab, gc, NULL, __gab_obj(v));
-    }
-  }
-
-  for (uint64_t i = 0; i < gab->interned_shapes.cap; i++) {
-    if (d_shapes_iexists(&gab->interned_shapes, i)) {
-      struct gab_obj_shape *v = d_shapes_ikey(&gab->interned_shapes, i);
-      gab_gcdref(gab, gc, NULL, __gab_obj(v));
-    }
-  }
-
   for (uint64_t i = 0; i < gab->interned_messages.cap; i++) {
     if (d_messages_iexists(&gab->interned_messages, i)) {
       struct gab_obj_message *v = d_messages_ikey(&gab->interned_messages, i);
+      gab_gcdref(gab, gc, NULL, __gab_obj(v));
+    }
+  }
+
+  for (uint64_t i = 0; i < gab->interned_strings.cap; i++) {
+    if (d_strings_iexists(&gab->interned_strings, i)) {
+      struct gab_obj_string *v = d_strings_ikey(&gab->interned_strings, i);
       gab_gcdref(gab, gc, NULL, __gab_obj(v));
     }
   }
@@ -288,8 +280,6 @@ a_gab_value *gab_exec(struct gab_eg *gab, struct gab_exec_argt args) {
   if (main == gab_undefined)
     return NULL;
 
-  gab_egkeep(gab, main);
-
   return gab_run(gab, (struct gab_run_argt){
                           .main = main,
                           .flags = args.flags,
@@ -304,13 +294,19 @@ gab_value gab_panic(struct gab_eg *gab, struct gab_vm *vm, const char *msg) {
   return vm_container;
 }
 
-gab_value gab_spec(struct gab_eg *gab, struct gab_spec_argt args) {
+gab_value gab_spec(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                   struct gab_spec_argt args) {
   gab_value m = gab_message(gab, gab_string(gab, args.name));
 
   if (gab_msgfind(m, args.receiver) != UINT64_MAX)
     return gab_nil;
 
-  gab_msgput(m, args.receiver, args.specialization);
+  struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(m);
+
+  bool interned;
+  msg->specs = gab_recordwith(gab, &interned, msg->specs, args.receiver,
+                              args.specialization);
+
 
   return m;
 }
@@ -326,7 +322,7 @@ a_gab_value *send_msg(struct gab_eg *gab, gab_value msg, gab_value receiver,
   if (main == gab_undefined)
     return a_gab_value_one(gab_undefined);
 
-  gab_egkeep(gab, main);
+  // gab_egkeep(gab, main);
 
   return gab_vm_run(gab, main, fGAB_DUMP_ERROR, 0, NULL);
 }
@@ -364,7 +360,7 @@ struct gab_obj_message *gab_eg_find_message(struct gab_eg *self, gab_value name,
     if (status != D_FULL) {
       return NULL;
     } else {
-      if (key->hash == hash && name == key->name) {
+      if (GAB_VAL_TO_STRING(key->name)->hash == hash && name == key->name) {
         return key;
       }
     }
@@ -670,9 +666,8 @@ void gab_verr(struct gab_err_argt args, va_list varargs) {
           ":\n\t%s%s %.4lu " ANSI_COLOR_RESET "%.*s"
           "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
           "\n\t\u2570\u2500> ",
-          args.context, tok_name, curr_box, curr_color, line,
-          (int)line_src.len, line_src.data, (int)line_under->len,
-          line_under->data);
+          args.context, tok_name, curr_box, curr_color, line, (int)line_src.len,
+          line_src.data, (int)line_under->len, line_under->data);
 
   a_char_destroy(line_under);
 

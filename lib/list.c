@@ -64,8 +64,6 @@ void gab_lib_pop(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 
   gab_vmpush(vm, result);
 
-  gab_gcdref(gab, gc, vm, result);
-
   return;
 }
 
@@ -78,8 +76,6 @@ void gab_lib_push(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 
   for (uint8_t i = 1; i < argc; i++)
     v_gab_value_push(gab_boxdata(argv[0]), argv[i]);
-
-  gab_ngciref(gab, gc, vm, 1, argc - 1, argv + 1);
 
   gab_vmpush(vm, *argv);
 }
@@ -106,8 +102,6 @@ void gab_lib_del(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   }
 
   uint64_t index = gab_valton(argv[1]);
-
-  gab_gcdref(gab, gc, vm, v_gab_value_val_at(gab_boxdata(argv[0]), index));
 
   v_gab_value_del(gab_boxdata(argv[0]), index);
 
@@ -217,14 +211,13 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
 
   for (int i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = names[i],
-                      .specialization = specs[i],
-                      .receiver = receivers[i],
-                  });
+    gab_spec(gab, gc, vm,
+             (struct gab_spec_argt){
+                 .name = names[i],
+                 .receiver = receivers[i],
+                 .specialization = specs[i],
+             });
   }
-
-  gab_ngciref(gab, gc, vm, 1, LEN_CARRAY(receivers), receivers);
 
   return NULL;
 }

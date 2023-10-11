@@ -5,234 +5,69 @@
 #include "include/vm.h"
 #include <stdio.h>
 
-#if cGAB_DEBUG_GC
-bool debug_collect = true;
-#endif
-
 #if cGAB_LOG_GC
-
-void __gab_ngciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                   size_t stride, size_t len, gab_value values[len],
-                   const char *file, int line) {
-  if (gc->nincrements + len >= cGAB_GC_INC_BUFF_MAX)
-    gab_gcrun(gab, gc, vm);
-
-#if cGAB_DEBUG_GC
-  debug_collect = false;
-#endif
-
-  while (len--)
-    __gab_gciref(gab, gc, vm, values[len * stride], file, line);
-
-#if cGAB_DEBUG_GC
-  debug_collect = true;
-  __gab_gcrun(gab, gc, vm, file, line);
-#endif
-}
-
-void __gab_ngcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                   size_t stride, size_t len, gab_value values[len],
-                   const char *file, int line) {
-  if (gc->ndecrements + len >= cGAB_GC_DEC_BUFF_MAX) {
-    gab_gcrun(gab, gc, vm);
-#if cGAB_DEBUG_GC
+#define destroy(eg, obj) _destroy(eg, obj, __FILE__, __LINE__)
+static inline void _destroy(struct gab_eg *eg, struct gab_obj *obj,
+                            const char *file, int line) {
+  if (GAB_OBJ_IS_FREED(obj) || GAB_OBJ_IS_NEW(obj)) {
+    printf("DFREE\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, file, line);
+    exit(1);
   } else {
-    if (debug_collect)
-      gab_gcrun(gab, gc, vm);
-#endif
+    GAB_OBJ_FREED(obj);
+    printf("FREE\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, file, line);
   }
-
-  while (len--)
-    __gab_gcdref(gab, gc, vm, values[len * stride], file, line);
 }
-
-gab_value __gab_gciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                       gab_value value, const char *file, int32_t line) {
-  if (gab_valiso(value)) {
-    struct gab_obj *obj = gab_valtoo(value);
-
-#if cGAB_DEBUG_GC || cGAB_LOG_GC
-    if (GAB_OBJ_IS_FREED(obj)) {
-      printf("UAF\t%V\t%p\t%s:%i\n", value, obj, file, line);
-      exit(1);
-    }
-#endif
-
-    gc->increments[gc->nincrements++] = obj;
-
-    if (gc->nincrements + 1 >= cGAB_GC_INC_BUFF_MAX) {
-      gab_gcrun(gab, gc, vm);
-#if cGAB_DEBUG_GC
-    } else {
-      if (debug_collect)
-        gab_gcrun(gab, gc, vm);
-#endif
-    }
-
-    printf("INC\t%V\t%p\t%s:%i\n", value, obj, file, line);
-  }
-
-  return value;
-}
-
-gab_value __gab_gcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                       gab_value value, const char *file, int32_t line) {
-  if (gab_valiso(value)) {
-    struct gab_obj *obj = gab_valtoo(value);
-
-#if cGAB_DEBUG_GC || cGAB_LOG_GC
-    if (GAB_OBJ_IS_FREED(obj)) {
-      printf("UAF\t%V\t%p\t%s:%i\n", value, obj, file, line);
-      exit(1);
-    }
-#endif
-
-    if (gc->ndecrements + 1 >= cGAB_GC_DEC_BUFF_MAX) {
-      gab_gcrun(gab, gc, vm);
-#if cGAB_DEBUG_GC
-    } else {
-      if (debug_collect)
-        __gab_gcrun(gab, gc, vm, file, line);
-#endif
-    }
-
-    gc->decrements[gc->ndecrements++] = obj;
-    printf("DEC\t%V\t%p\t%s:%i\n", value, obj, file, line);
-  }
-
-  return value;
-}
-
 #else
-
-void gab_ngciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                 size_t stride, size_t len, gab_value values[len]) {
-  if (gc->nincrements + len >= cGAB_GC_INC_BUFF_MAX)
-    gab_gcrun(gab, gc, vm);
-
-#if cGAB_DEBUG_GC
-  debug_collect = false;
-#endif
-
-  while (len--)
-    gab_gciref(gab, gc, vm, values[len * stride]);
-
-#if cGAB_DEBUG_GC
-  debug_collect = true;
-  gab_gcrun(gab, gc, vm);
-#endif
+static inline void destroy(struct gab_eg *eg, struct gab_obj *obj) {
+  gab_obj_alloc(eg, obj, 0);
 }
-
-void gab_ngcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                 size_t stride, size_t len, gab_value values[len]) {
-  if (gc->ndecrements + len >= cGAB_GC_DEC_BUFF_MAX) {
-    gab_gcrun(gab, gc, vm);
-#if cGAB_DEBUG_GC
-  } else {
-    if (debug_collect)
-      gab_gcrun(gab, gc, vm);
-#endif
-  }
-
-  while (len--)
-    gab_gcdref(gab, gc, vm, values[len * stride]);
-}
-
-gab_value gab_gcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                     gab_value value) {
-  if (gab_valiso(value)) {
-    struct gab_obj *obj = gab_valtoo(value);
-
-#if cGAB_DEBUG_GC || cGAB_LOG_GC
-    if (GAB_OBJ_IS_FREED(obj)) {
-      printf("UAF\t%V\t%p\t%s:%i\n", value, obj, file, line);
-      exit(1);
-    }
 #endif
 
-    if (gc->ndecrements + 1 >= cGAB_GC_DEC_BUFF_MAX) {
-      gab_gcrun(gab, gc, vm);
-#if cGAB_DEBUG_GC
-    } else {
-      if (debug_collect)
-        __gab_gcrun(gab, gc, vm, file, line);
-#endif
-    }
+void collect_cycles(struct gab_eg *eg, struct gab_gc *gc);
 
-    gc->decrements[gc->ndecrements++] = obj;
-  }
-
-  return value;
-}
-
-gab_value gab_gciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                     gab_value value) {
-  if (gab_valiso(value)) {
-    struct gab_obj *obj = gab_valtoo(value);
-
-#if cGAB_DEBUG_GC || cGAB_LOG_GC
-    if (GAB_OBJ_IS_FREED(obj)) {
-      printf("UAF\t%V\t%p\t%s:%i\n", value, obj, file, line);
-      exit(1);
-    }
-#endif
-
-    gc->increments[gc->nincrements++] = obj;
-
-    if (gc->nincrements + 1 >= cGAB_GC_INC_BUFF_MAX) {
-      gab_gcrun(gab, gc, vm);
-#if cGAB_DEBUG_GC
-    } else {
-      if (debug_collect)
-        gab_gcrun(gab, gc, vm);
-#endif
-    }
-  }
-
-  return value;
-}
-
-#endif
-
-void gab_gccreate(struct gab_gc *gc) {
-  gc->nroots = 0;
-  gc->ndecrements = 0;
-  gc->nincrements = 0;
-  memset(&gc->garbage, 0, sizeof(v_gab_obj));
-};
-
-void gab_gcdestroy(struct gab_gc *gc) { v_gab_obj_destroy(&gc->garbage); }
-
-static inline void queue_destroy(struct gab_gc *gc, struct gab_obj *obj) {
-  if (GAB_OBJ_IS_GARBAGE(obj)) {
-    return;
-  }
-
-  GAB_OBJ_GARBAGE(obj);
-  v_gab_obj_push(&gc->garbage, obj);
-}
-
-void collect_cycles(struct gab_gc *gc);
-
-static inline void push_root(struct gab_gc *gc, struct gab_obj *obj) {
+static inline void push_root(struct gab_eg *eg, struct gab_gc *gc,
+                             struct gab_obj *obj) {
   if (gc->ndecrements + 1 >= cGAB_GC_ROOT_BUFF_MAX)
-    collect_cycles(gc);
+    collect_cycles(eg, gc);
 
   gc->roots[gc->nroots++] = obj;
 }
 
-static inline void obj_possible_root(struct gab_gc *gc, struct gab_obj *obj) {
+static inline void obj_possible_root(struct gab_eg *eg, struct gab_gc *gc,
+                                     struct gab_obj *obj) {
   if (!GAB_OBJ_IS_PURPLE(obj)) {
     GAB_OBJ_PURPLE(obj);
     if (!GAB_OBJ_IS_BUFFERED(obj)) {
+#if cGAB_LOG_GC
+      printf("ROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
+
       GAB_OBJ_BUFFERED(obj);
-      push_root(gc, obj);
+      push_root(eg, gc, obj);
     }
   }
 }
 
+static inline void dec_obj_ref(struct gab_eg *eg, struct gab_gc *gc,
+                               struct gab_vm *vm, struct gab_obj *obj) {
+#if cGAB_LOG_GC
+  printf("DEC\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references - 1);
+#endif
+  
+  if (--obj->references <= 0) {
+    GAB_OBJ_BLACK(obj);
+
+    if (!GAB_OBJ_IS_BUFFERED(obj))
+      destroy(eg, obj);
+
+  } else if (!GAB_OBJ_IS_GREEN(obj)) {
+    obj_possible_root(eg, gc, obj);
+  }
+}
+
 static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
-                                struct gab_gc *gc) {
+                                struct gab_gc *gc, struct gab_eg *eg,
+                                struct gab_vm *vm) {
   switch (obj->kind) {
   default:
     return;
@@ -241,10 +76,10 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
     struct gab_obj_box *container = (struct gab_obj_box *)obj;
 
     if (gab_valiso(container->type))
-      fnc(gc, gab_valtoo(container->type));
+      fnc(eg, gc, vm, gab_valtoo(container->type));
 
     if (container->do_visit)
-      container->do_visit(gc, fnc, container->data);
+      container->do_visit(eg, gc, vm, fnc, container->data);
 
     return;
   }
@@ -254,7 +89,7 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
 
     for (int i = 0; i < sus->len; i++) {
       if (gab_valiso(sus->frame[i]))
-        fnc(gc, gab_valtoo(sus->frame[i]));
+        fnc(eg, gc, vm, gab_valtoo(sus->frame[i]));
     }
 
     return;
@@ -265,7 +100,7 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
 
     for (int i = 0; i < b->nupvalues; i++) {
       if (gab_valiso(b->upvalues[i]))
-        fnc(gc, gab_valtoo(b->upvalues[i]));
+        fnc(eg, gc, vm, gab_valtoo(b->upvalues[i]));
     }
 
     return;
@@ -273,19 +108,7 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
 
   case (kGAB_MESSAGE): {
     struct gab_obj_message *msg = (struct gab_obj_message *)obj;
-
-    for (uint64_t i = 0; i < msg->specs.cap; i++) {
-      if (d_specs_iexists(&msg->specs, i)) {
-        gab_value r = d_specs_ikey(&msg->specs, i);
-        if (gab_valiso(r))
-          fnc(gc, gab_valtoo(r));
-
-        gab_value s = d_specs_ival(&msg->specs, i);
-        if (gab_valiso(s))
-          fnc(gc, gab_valtoo(s));
-      }
-    }
-
+    fnc(eg, gc, vm, gab_valtoo(msg->specs));
     return;
   }
 
@@ -294,7 +117,7 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
 
     for (uint64_t i = 0; i < shape->len; i++) {
       if (gab_valiso(shape->data[i])) {
-        fnc(gc, gab_valtoo(shape->data[i]));
+        fnc(eg, gc, vm, gab_valtoo(shape->data[i]));
       }
     }
 
@@ -304,9 +127,11 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
   case kGAB_RECORD: {
     struct gab_obj_record *rec = (struct gab_obj_record *)obj;
 
+    fnc(eg, gc, vm, gab_valtoo(rec->shape));
+
     for (uint64_t i = 0; i < rec->len; i++) {
       if (gab_valiso(rec->data[i]))
-        fnc(gc, gab_valtoo(rec->data[i]));
+        fnc(eg, gc, vm, gab_valtoo(rec->data[i]));
     }
 
     return;
@@ -316,45 +141,235 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
   }
 }
 
-static inline void dec_obj_ref(struct gab_gc *gc, struct gab_obj *obj) {
-  if (--obj->references <= 0) {
-    for_child_do(obj, dec_obj_ref, gc);
+void queue_decrement(struct gab_eg *eg, struct gab_gc *gc, struct gab_vm *vm,
+                     struct gab_obj *obj) {
+  // if (obj->references <= 0)
+  //   return;
 
-    GAB_OBJ_BLACK(obj);
+  if (gc->ndecrements + 1 >= cGAB_GC_DEC_BUFF_MAX)
+    gab_gcrun(eg, gc, vm);
 
-    if (!GAB_OBJ_IS_BUFFERED(obj))
-      queue_destroy(gc, obj);
+#if cGAB_LOG_GC
+  printf("QDEC\t%V\t%p\t%i\n", __gab_obj(obj), obj, obj->references);
+#endif
 
-  } else if (!GAB_OBJ_IS_GREEN(obj)) {
-    obj_possible_root(gc, obj);
-  }
+  gc->decrements[gc->ndecrements++] = obj;
 }
 
-static inline void inc_obj_ref(struct gab_gc *gc, struct gab_obj *obj) {
+static inline void inc_obj_ref(struct gab_eg *gab, struct gab_gc *gc,
+                               struct gab_vm *vm, struct gab_obj *obj) {
   obj->references++;
 
   if (!GAB_OBJ_IS_GREEN(obj))
     GAB_OBJ_BLACK(obj);
+  
+  if (GAB_OBJ_IS_NEW(obj)) {
+
+#if cGAB_LOG_GC
+    printf("NEW\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
+
+    gab_obj_old(gab, obj);
+  } else {
+    for_child_do(obj, queue_decrement, gc, gab, vm);
+  }
+  
+  GAB_OBJ_NOT_NEW(obj);
+
+#if cGAB_LOG_GC
+  printf("INC\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
 }
 
-static inline void inc_if_obj_ref(struct gab_gc *gc, gab_value val) {
+#if cGAB_DEBUG_GC
+bool debug_collect = true;
+#endif
+
+#if cGAB_LOG_GC
+void __gab_ngciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                   size_t stride, size_t len, gab_value values[len],
+                   const char *file, int line) {
+#else
+void gab_ngciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t stride, size_t len, gab_value values[len]) {
+#endif
+#if cGAB_DEBUG_GC
+  debug_collect = false;
+#endif
+
+  for (size_t i = 0; i < len; i++) {
+    gab_value value = values[i * stride];
+
+#if cGAB_LOG_GC
+    __gab_gciref(gab, gc, vm, value, file, line);
+#else
+    gab_gciref(gab, gc, vm, value);
+#endif
+  }
+
+#if cGAB_DEBUG_GC
+  debug_collect = true;
+  gab_gcrun(gab, gc, vm);
+#endif
+}
+
+#if cGAB_LOG_GC
+void __gab_ngcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                   size_t stride, size_t len, gab_value values[len],
+                   const char *file, int line) {
+#else
+void gab_ngcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                 size_t stride, size_t len, gab_value values[len]) {
+#endif
+
+#if cGAB_DEBUG_GC
+  debug_collect = false;
+#endif
+
+  for (size_t i = 0; i < len; i++) {
+    gab_value value = values[i * stride];
+
+#if cGAB_LOG_GC
+    __gab_gcdref(gab, gc, vm, value, file, line);
+#else
+    gab_gcdref(gab, gc, vm, value);
+#endif
+  }
+
+#if cGAB_DEBUG_GC
+  debug_collect = true;
+  gab_gcrun(gab, gc, vm);
+#endif
+}
+
+#if cGAB_LOG_GC
+gab_value __gab_gciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                       gab_value value, const char *file, int32_t line) {
+#else
+gab_value gab_gciref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                     gab_value value) {
+#endif
+  if (!gab_valiso(value))
+    return value;
+
+  struct gab_obj *obj = gab_valtoo(value);
+
+#if cGAB_LOG_GC
+  if (GAB_OBJ_IS_FREED(obj)) {
+    printf("UAF\t%V\t%p\t%s:%i\n", value, obj, file, line);
+    exit(1);
+  }
+#endif
+
+  if (GAB_OBJ_IS_MODIFIED(obj)) {
+    obj->references++;
+
+#if cGAB_LOG_GC
+    printf("ELIDE\t%V\t%p\t%d\t%s:%i\n", __gab_obj(obj), obj, obj->references,
+           file, line);
+#endif
+
+    return value;
+  }
+
+#if cGAB_DEBUG_GC
+  if (debug_collect)
+    gab_gcrun(gab, gc, vm);
+#endif
+
+  if (gc->nmodifications + 1 >= cGAB_GC_MOD_BUFF_MAX)
+    gab_gcrun(gab, gc, vm);
+
+  GAB_OBJ_MODIFIED(obj);
+
+  inc_obj_ref(gab, gc, vm, obj);
+
+#if cGAB_LOG_GC
+  printf("QMOD\t%V\t%p\t%i\t%s:%i\n", __gab_obj(obj), obj, obj->references,
+         file, line);
+#endif
+
+  gc->modifications[gc->nmodifications++] = obj;
+  
+  return value;
+}
+
+#if cGAB_LOG_GC
+gab_value __gab_gcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                       gab_value value, const char *file, int32_t line) {
+#else
+gab_value gab_gcdref(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                     gab_value value) {
+#endif
+  if (!gab_valiso(value))
+    return value;
+
+  struct gab_obj *obj = gab_valtoo(value);
+
+#if cGAB_LOG_GC
+  if (GAB_OBJ_IS_FREED(obj)) {
+    printf("UAF\t%V\t%p\t%s:%i\n", value, obj, file, line);
+    exit(1);
+  }
+#endif
+
+  if (GAB_OBJ_IS_MODIFIED(obj)) {
+    obj->references--;
+
+#if cGAB_LOG_GC
+    printf("ELIDE\t%V\t%p\t%d\t%s:%i\n", __gab_obj(obj), obj, obj->references,
+           file, line);
+#endif
+
+    return value;
+  }
+
+#if cGAB_DEBUG_GC
+  if (debug_collect)
+    gab_gcrun(gab, gc, vm);
+#endif
+
+  if (gc->nmodifications + 1 >= cGAB_GC_MOD_BUFF_MAX)
+    gab_gcrun(gab, gc, vm);
+
+  GAB_OBJ_MODIFIED(obj);
+
+  gc->modifications[gc->nmodifications++] = obj;
+
+#if cGAB_LOG_GC
+  printf("QMOD\t%V\t%p\t%i\t%s:%i\n", __gab_obj(obj), obj, obj->references,
+         file, line);
+#endif
+
+  for_child_do(obj, queue_decrement, gc, gab, vm);
+
+  // queue_decrement(gab, gc, vm, obj);
+  // dec_obj_ref(gab, gc, vm, obj);
+  obj->references--;
+
+  return value;
+}
+
+void gab_gccreate(struct gab_gc *gc) {
+  gc->nroots = 0;
+  gc->ndecrements = 0;
+  gc->nmodifications = 0;
+};
+
+void gab_gcdestroy(struct gab_gc *gc) {}
+
+static inline void inc_if_obj_ref(struct gab_eg *eg, struct gab_gc *gc,
+                                  struct gab_vm *vm, gab_value val) {
   if (gab_valiso(val))
-    inc_obj_ref(gc, gab_valtoo(val));
+    inc_obj_ref(eg, gc, vm, gab_valtoo(val));
 }
 
-static inline void increment_stack(struct gab_gc *gc, struct gab_vm *vm) {
+static inline void increment_stack(struct gab_eg *eg, struct gab_gc *gc,
+                                   struct gab_vm *vm) {
   gab_value *tracker = vm->sp - 1;
 
   while (tracker >= vm->sb) {
-
-#if cGAB_LOG_GC
-    if (gab_valiso(*tracker)) {
-      printf("INC\t%V\t%p\t%s:%i\n", *tracker, gab_valtoo(*tracker), __FILE__,
-             __LINE__);
-    }
-#endif
-
-    inc_if_obj_ref(gc, *tracker--);
+    inc_if_obj_ref(eg, gc, vm, *tracker--);
   }
 }
 
@@ -365,8 +380,12 @@ static inline void decrement_stack(struct gab_eg *gab, struct gab_gc *gc,
 #endif
 
   gab_value *tracker = vm->sp - 1;
+
   while (tracker >= vm->sb) {
-    gab_gcdref(gab, gc, vm, *tracker--);
+    if (gab_valiso(*tracker)) {
+      // gab_gcdref(gab, gc, vm, *tracker);
+      queue_decrement(gab, gc, vm, gab_valtoo(*tracker--));
+    }
   }
 
 #if cGAB_DEBUG_GC
@@ -374,19 +393,34 @@ static inline void decrement_stack(struct gab_eg *gab, struct gab_gc *gc,
 #endif
 }
 
-static inline void process_increments(struct gab_gc *gc) {
-  while (gc->nincrements)
-    inc_obj_ref(gc, gc->increments[--gc->nincrements]);
+static inline void process_modifications(struct gab_eg *eg, struct gab_gc *gc) {
+  while (gc->nmodifications) {
+    struct gab_obj *obj = gc->modifications[--gc->nmodifications];
+
+#if cGAB_LOG_GC
+    printf("MOD\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
+
+    if (obj->references > 0) {
+      for_child_do(obj, inc_obj_ref, gc, eg, NULL);
+
+      GAB_OBJ_NOT_MODIFIED(obj);
+    } else {
+      destroy(eg, obj);
+    }
+  }
 }
 
-static inline void process_decrements(struct gab_gc *gc) {
+static inline void process_decrements(struct gab_eg *eg, struct gab_gc *gc,
+                                      struct gab_vm *vm) {
   while (gc->ndecrements)
-    dec_obj_ref(gc, gc->decrements[--gc->ndecrements]);
+    dec_obj_ref(eg, gc, vm, gc->decrements[--gc->ndecrements]);
 }
 
 static inline void mark_gray(struct gab_obj *obj);
 
-static inline void dec_and_mark_gray(struct gab_gc *, struct gab_obj *child) {
+static inline void dec_and_mark_gray(struct gab_eg *eg, struct gab_gc *,
+                                     struct gab_vm *vm, struct gab_obj *child) {
   child->references -= 1;
   mark_gray(child);
 }
@@ -394,11 +428,11 @@ static inline void dec_and_mark_gray(struct gab_gc *, struct gab_obj *child) {
 static inline void mark_gray(struct gab_obj *obj) {
   if (!GAB_OBJ_IS_GRAY(obj)) {
     GAB_OBJ_GRAY(obj);
-    for_child_do(obj, &dec_and_mark_gray, NULL);
+    for_child_do(obj, &dec_and_mark_gray, NULL, NULL, NULL);
   }
 }
 
-static inline void mark_roots(struct gab_gc *gc) {
+static inline void mark_roots(struct gab_eg *eg, struct gab_gc *gc) {
   for (uint64_t i = 0; i < gc->nroots; i++) {
     struct gab_obj *obj = gc->roots[i];
 
@@ -409,13 +443,23 @@ static inline void mark_roots(struct gab_gc *gc) {
       gc->roots[i] = NULL;
 
       if (GAB_OBJ_IS_BLACK(obj) && obj->references < 1)
-        queue_destroy(gc, obj);
+        gab_obj_alloc(eg, obj, 0);
     }
   }
 }
 
 static inline void scan_root_black(struct gab_obj *obj);
-static inline void inc_and_scan_black(struct gab_gc *, struct gab_obj *child) {
+static inline void inc_and_scan_black(struct gab_eg *, struct gab_gc *,
+                                      struct gab_vm *, struct gab_obj *child) {
+#if cGAB_LOG_GC
+  if (GAB_OBJ_IS_FREED(child)) {
+    printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(child), child, __FILE__, __LINE__);
+    exit(1);
+  }
+
+  printf("INCBLK\t%V\t%p\t%d\n", __gab_obj(child), child, child->references);
+#endif
+
   child->references++;
   if (!GAB_OBJ_IS_BLACK(child))
     scan_root_black(child);
@@ -423,16 +467,22 @@ static inline void inc_and_scan_black(struct gab_gc *, struct gab_obj *child) {
 
 static inline void scan_root_black(struct gab_obj *obj) {
   GAB_OBJ_BLACK(obj);
-  for_child_do(obj, &inc_and_scan_black, NULL);
+  for_child_do(obj, &inc_and_scan_black, NULL, NULL, NULL);
 }
 
-static inline void scan_root(struct gab_gc *, struct gab_obj *obj) {
+static inline void scan_root(struct gab_eg *, struct gab_gc *, struct gab_vm *,
+                             struct gab_obj *obj) {
+
+#if cGAB_LOG_GC
+  printf("SCAN\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
+
   if (GAB_OBJ_IS_GRAY(obj)) {
     if (obj->references > 0) {
       scan_root_black(obj);
     } else {
       GAB_OBJ_WHITE(obj);
-      for_child_do(obj, &scan_root, NULL);
+      for_child_do(obj, scan_root, NULL, NULL, NULL);
     }
   }
 }
@@ -441,36 +491,37 @@ static inline void scan_roots(struct gab_gc *gc) {
   for (uint64_t i = 0; i < gc->nroots; i++) {
     struct gab_obj *obj = gc->roots[i];
     if (obj)
-      scan_root(NULL, obj);
+      scan_root(NULL, NULL, NULL, obj);
   }
 }
 
-static inline void collect_white(struct gab_gc *gc, struct gab_obj *obj) {
+static inline void collect_white(struct gab_eg *eg, struct gab_gc *gc,
+                                 struct gab_vm *, struct gab_obj *obj) {
   if (GAB_OBJ_IS_WHITE(obj) && !GAB_OBJ_IS_BUFFERED(obj)) {
     GAB_OBJ_BLACK(obj);
 
-    for_child_do(obj, collect_white, gc);
+    for_child_do(obj, collect_white, gc, eg, NULL);
 
-    queue_destroy(gc, obj);
+    gab_obj_alloc(eg, obj, 0);
   }
 }
 
 // Collecting roots is putting me in an infinte loop somehow
-static inline void collect_roots(struct gab_gc *gc) {
+static inline void collect_roots(struct gab_eg *eg, struct gab_gc *gc) {
   for (uint64_t i = 0; i < gc->nroots; i++) {
     struct gab_obj *obj = gc->roots[i];
     if (obj) {
       GAB_OBJ_NOT_BUFFERED(obj);
-      collect_white(gc, obj);
+      collect_white(eg, gc, NULL, obj);
       gc->roots[i] = NULL;
     }
   }
 }
 
-void collect_cycles(struct gab_gc *gc) {
-  mark_roots(gc);
+void collect_cycles(struct gab_eg *eg, struct gab_gc *gc) {
+  mark_roots(eg, gc);
   scan_roots(gc);
-  collect_roots(gc);
+  collect_roots(eg, gc);
   uint64_t n = gc->nroots;
   gc->nroots = 0;
   for (uint64_t i = 0; i < n; i++) {
@@ -480,51 +531,19 @@ void collect_cycles(struct gab_gc *gc) {
   }
 }
 
-#if cGAB_LOG_GC
-void __gab_gcrun(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                 const char *file, int line) {
-  if (vm != NULL)
-    increment_stack(gc, vm);
-
-  process_increments(gc);
-
-  process_decrements(gc);
-
-  collect_cycles(gc);
+void gab_gcrun(struct gab_eg *eg, struct gab_gc *gc, struct gab_vm *vm) {
 
   if (vm != NULL)
-    decrement_stack(gab, gc, vm);
+    increment_stack(eg, gc, vm);
 
-  for (size_t i = 0; i < gc->garbage.len; i++) {
-    struct gab_obj *obj = v_gab_obj_val_at(&gc->garbage, i);
-    if (GAB_OBJ_IS_FREED(obj)) {
-      printf("DFREE\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, file, line);
-      exit(1);
-    } else {
-      GAB_OBJ_FREED(obj);
-      printf("FREE\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, file, line);
-    }
-  }
+  process_modifications(eg, gc);
 
-  gc->garbage.len = 0;
+  process_decrements(eg, gc, vm);
+
+  collect_cycles(eg, gc);
+
+  if (vm != NULL)
+    decrement_stack(eg, gc, vm);
+
+  gab_mem_reset(eg);
 }
-#else
-void gab_gcrun(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
-  if (vm != NULL)
-    increment_stack(gc, vm);
-
-  process_increments(gc);
-
-  process_decrements(gc);
-
-  collect_cycles(gc);
-
-  if (vm != NULL)
-    decrement_stack(gab, gc, vm);
-
-  for (size_t i = 0; i < gc->garbage.len; i++)
-    gab_obj_destroy(gab, v_gab_obj_val_at(&gc->garbage, i));
-
-  gc->garbage.len = 0;
-}
-#endif

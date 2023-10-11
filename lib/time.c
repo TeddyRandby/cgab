@@ -17,24 +17,27 @@ void gab_lib_now(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
 };
 
 a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
-  const char *keys[] = {
+  const char *names[] = {
       "now",
   };
 
-  gab_value values[] = {
+  gab_value specs[] = {
       gab_sbuiltin(gab, "now", gab_lib_now),
   };
 
-  gab_value receiver = gab_nil;
+  gab_value receivers[] = {
+      gab_nil,
+  };
 
-  static_assert(LEN_CARRAY(keys) == LEN_CARRAY(values));
+  static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
 
-  for (int i = 0; i < LEN_CARRAY(keys); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .receiver = receiver,
-                      .name = keys[i],
-                      .specialization = values[i],
-                  });
+  for (int i = 0; i < LEN_CARRAY(names); i++) {
+    gab_spec(gab, gc, vm,
+             (struct gab_spec_argt){
+                 .name = names[i],
+                 .receiver = receivers[i],
+                 .specialization = specs[i],
+             });
   }
 
   return NULL;

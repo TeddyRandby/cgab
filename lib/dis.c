@@ -82,14 +82,13 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));
 
   for (uint8_t i = 0; i < LEN_CARRAY(values); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = "dis",
-                      .receiver = receivers[i],
-                      .specialization = values[i],
-                  });
+    gab_spec(gab, gc, vm,
+             (struct gab_spec_argt){
+                 .name = "dis",
+                 .receiver = receivers[i],
+                 .specialization = values[i],
+             });
   }
-
-  gab_ngciref(gab, gc, vm, 1, LEN_CARRAY(receivers), receivers);
 
   return a_gab_value_one(gab_nil);
 }

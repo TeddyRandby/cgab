@@ -112,29 +112,34 @@ void gab_lib_split(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   gab_gcdref(gab, gc, vm, result);
 }
 
-a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc* gc, struct gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   gab_value string_type = gab_typ(gab, kGAB_STRING);
 
-  const char *keys[] = {
+  gab_value receivers[] = {
+      string_type,
+      string_type,
+      string_type,
+  };
+
+  const char *names[] = {
       "slice",
       "split",
       "len",
   };
 
-  gab_value values[] = {
+  gab_value specs[] = {
       gab_sbuiltin(gab, "slice", gab_lib_slice),
       gab_sbuiltin(gab, "split", gab_lib_split),
       gab_sbuiltin(gab, "len", gab_lib_len),
   };
 
-  for (uint8_t i = 0; i < LEN_CARRAY(keys); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = keys[i],
-                      .receiver = string_type,
-                      .specialization = values[i],
-                  });
-
-    gab_gciref(gab, gc, vm, string_type);
+  for (uint8_t i = 0; i < LEN_CARRAY(names); i++) {
+    gab_spec(gab, gc, vm,
+             (struct gab_spec_argt){
+                 .name = names[i],
+                 .receiver = receivers[i],
+                 .specialization = specs[i],
+             });
   }
 
   return NULL;

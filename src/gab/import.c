@@ -15,9 +15,6 @@ void gab_impputmod(struct gab_eg *gab, const char *name, gab_value mod,
   i->cache = val;
   i->as.mod = mod;
 
-  if (val)
-    gab_negkeep(gab, val->len, val->data);
-
   d_gab_imp_insert(&gab->imports, hash, i);
 }
 

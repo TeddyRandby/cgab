@@ -11,13 +11,12 @@ void gab_lib_new(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   case 1: {
     initscr();
 
-    gab_value k = gab_box(
-        gab, (struct gab_box_argt){
-                 .data = NULL,
-                 .type = gab_gciref(gab, gc, vm, gab_string(gab, "Term")),
-                 .destructor = ncurses_cb,
-                 .visitor = NULL,
-             });
+    gab_value k = gab_box(gab, (struct gab_box_argt){
+                                   .data = NULL,
+                                   .type = gab_string(gab, "Term"),
+                                   .destructor = ncurses_cb,
+                                   .visitor = NULL,
+                               });
 
     gab_vmpush(vm, k);
 
@@ -43,13 +42,12 @@ void gab_lib_new(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
     if (gab_srechas(gab, argv[1], "keypad"))
       keypad(stdscr, true);
 
-    gab_value k = gab_box(
-        gab, (struct gab_box_argt){
-                 .data = NULL,
-                 .type = gab_gciref(gab, gc, vm, gab_string(gab, "Term")),
-                 .destructor = ncurses_cb,
-                 .visitor = NULL,
-             });
+    gab_value k = gab_box(gab, (struct gab_box_argt){
+                                   .data = NULL,
+                                   .type = gab_string(gab, "Term"),
+                                   .destructor = ncurses_cb,
+                                   .visitor = NULL,
+                               });
 
     gab_vmpush(vm, k);
 
@@ -127,7 +125,7 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
       "term", "refresh", "key", "print", "put", "dim",
   };
 
-  gab_value values[] = {
+  gab_value specs[] = {
       gab_sbuiltin(gab, "new", gab_lib_new),
       gab_sbuiltin(gab, "refresh", gab_lib_refresh),
       gab_sbuiltin(gab, "key", gab_lib_key),
@@ -136,18 +134,17 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
       gab_sbuiltin(gab, "dim", gab_lib_dim),
   };
 
-  static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));
-  static_assert(LEN_CARRAY(values) == LEN_CARRAY(names));
+  static_assert(LEN_CARRAY(specs) == LEN_CARRAY(receivers));
+  static_assert(LEN_CARRAY(specs) == LEN_CARRAY(names));
 
-  for (uint8_t i = 0; i < LEN_CARRAY(values); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .receiver = receivers[i],
-                      .name = names[i],
-                      .specialization = values[i],
-                  });
+  for (uint8_t i = 0; i < LEN_CARRAY(specs); i++) {
+    gab_spec(gab, gc, vm,
+             (struct gab_spec_argt){
+                 .name = names[i],
+                 .receiver = receivers[i],
+                 .specialization = specs[i],
+             });
   }
-
-  gab_ngciref(gab, gc, vm, 1, LEN_CARRAY(receivers), receivers);
 
   return NULL;
 }

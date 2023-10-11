@@ -33,7 +33,7 @@ void gab_moddestroy(struct gab_eg *gab, struct gab_gc *gc,
     enum gab_kind kind = gab_valknd(v);
     if (kind == kGAB_BLOCK_PROTO || kind == kGAB_SUSPENSE_PROTO ||
         kind == kGAB_BLOCK) {
-      gab_gcdref(gab, gc, NULL, v);
+      // gab_gcdref(gab, gc, NULL, v);
     }
   }
 

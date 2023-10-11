@@ -192,12 +192,11 @@ void gab_lib_fiber(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 
     thrd_detach(f->thrd); // The fiber will clean itself up
 
-    gab_value fiber = gab_box(
-        gab, (struct gab_box_argt){
-                 .data = f,
-                 .type = gab_gciref(gab, gc, vm, gab_string(gab, "Fiber")),
-                 .destructor = fiber_destructor_cb,
-             });
+    gab_value fiber = gab_box(gab, (struct gab_box_argt){
+                                       .data = f,
+                                       .type = gab_string(gab, "Fiber"),
+                                       .destructor = fiber_destructor_cb,
+                                   });
 
     gab_vmpush(vm, fiber);
 
@@ -293,14 +292,13 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
 
   for (int i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = names[i],
-                      .receiver = receivers[i],
-                      .specialization = specs[i],
-                  });
+    gab_spec(gab, gc, vm,
+             (struct gab_spec_argt){
+                 .name = names[i],
+                 .receiver = receivers[i],
+                 .specialization = specs[i],
+             });
   }
-
-  gab_ngciref(gab, gc, vm, 1, LEN_CARRAY(receivers), receivers);
 
   return NULL;
 }

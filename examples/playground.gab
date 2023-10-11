@@ -1,7 +1,1 @@
-def test(a, b, c)
-  a:print
-  b:print
-  c:print
-end
-
-test(1)
+{}

@@ -147,7 +147,7 @@ void gab_lib_use(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
     return;
   }
 
-  //skip first argument
+  // skip first argument
   for (size_t i = 1; i < argc; i++) {
     s_char name = gab_valintocs(gab, argv[i]);
 
@@ -211,24 +211,25 @@ void gab_lib_print(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 }
 
 void gab_setup_builtins(struct gab_eg *gab, struct gab_gc *gc) {
-  gab_spec(gab,
+  gab_spec(gab, gc, NULL,
            (struct gab_spec_argt){
                .name = "use",
                .receiver = gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_NIL)),
                .specialization = gab_sbuiltin(gab, "use", gab_lib_use),
            });
 
-  gab_spec(gab,
+  gab_spec(gab, gc, NULL,
            (struct gab_spec_argt){
                .name = "panic",
                .receiver = gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_STRING)),
                .specialization = gab_sbuiltin(gab, "panic", gab_lib_panic),
            });
 
-  gab_spec(gab, (struct gab_spec_argt){
-                    .name = "print",
-                    .receiver =
-                        gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_UNDEFINED)),
-                    .specialization = gab_sbuiltin(gab, "print", gab_lib_print),
-                });
+  gab_spec(
+      gab, gc, NULL,
+      (struct gab_spec_argt){
+          .name = "print",
+          .receiver = gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_UNDEFINED)),
+          .specialization = gab_sbuiltin(gab, "print", gab_lib_print),
+      });
 }
