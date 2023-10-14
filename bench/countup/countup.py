@@ -1,4 +1,4 @@
-a = 0
+sum = 0
 
-while (a < 1000000):
-    a = a + 1
+for i in range(1000000):
+    sum += i
