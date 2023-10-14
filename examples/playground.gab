@@ -1,1 +1,25 @@
-{}
+def person {
+  name
+  age
+}
+
+def family = [
+  { name = 'mom' age = 'old' } 
+  { name = 'dad' age = 'old' }
+]
+
+family:print
+
+def upto(limit)
+  i = 0
+
+  loop
+    yield i
+    i = i + 1
+  until i == limit end
+
+end
+
+for i in upto(10)
+  'hello {i} times':print
+end

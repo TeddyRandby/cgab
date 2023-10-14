@@ -219,20 +219,6 @@ void gab_destroy(struct gab_eg *gab) {
     gab_moddestroy(gab, gc, m);
   }
 
-  for (uint64_t i = 0; i < gab->interned_messages.cap; i++) {
-    if (d_messages_iexists(&gab->interned_messages, i)) {
-      struct gab_obj_message *v = d_messages_ikey(&gab->interned_messages, i);
-      gab_gcdref(gab, gc, NULL, __gab_obj(v));
-    }
-  }
-
-  for (uint64_t i = 0; i < gab->interned_strings.cap; i++) {
-    if (d_strings_iexists(&gab->interned_strings, i)) {
-      struct gab_obj_string *v = d_strings_ikey(&gab->interned_strings, i);
-      gab_gcdref(gab, gc, NULL, __gab_obj(v));
-    }
-  }
-
   gab_gcrun(gab, gc, NULL);
 
   gab_gcdestroy(gc);
@@ -253,15 +239,27 @@ void gab_destroy(struct gab_eg *gab) {
   free(gab);
 }
 
-gab_value gab_cmpl(struct gab_eg *gab, struct gab_cmpl_argt args) {
+gab_value gab_cmpl(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                   struct gab_cmpl_argt args) {
+  if (!gc) {
+    gc = malloc(sizeof(struct gab_gc));
+    gab_gccreate(gc);
+  }
+
   gab_value argv_names[args.len];
 
   for (uint64_t i = 0; i < args.len; i++)
     argv_names[i] = gab_string(gab, args.argv[i]);
 
-  return gab_bccomp(gab, gab_string(gab, args.name),
-                    s_char_create(args.source, strlen(args.source) + 1),
-                    args.flags, args.len, argv_names);
+  gab_value res =
+      gab_bccomp(gab, gc, vm, gab_string(gab, args.name),
+                 s_char_create(args.source, strlen(args.source) + 1),
+                 args.flags, args.len, argv_names);
+
+  gab_gcrun(gab, gc, vm);
+  free(gc);
+
+  return res;
 }
 
 a_gab_value *gab_run(struct gab_eg *gab, struct gab_run_argt args) {
@@ -269,13 +267,20 @@ a_gab_value *gab_run(struct gab_eg *gab, struct gab_run_argt args) {
 };
 
 a_gab_value *gab_exec(struct gab_eg *gab, struct gab_exec_argt args) {
-  gab_value main = gab_cmpl(gab, (struct gab_cmpl_argt){
-                                     .name = args.name,
-                                     .source = args.source,
-                                     .flags = args.flags,
-                                     .len = args.len,
-                                     .argv = args.sargv,
-                                 });
+  struct gab_gc *gc = malloc(sizeof(struct gab_gc));
+  gab_gccreate(gc);
+
+  gab_value main = gab_cmpl(gab, gc, NULL,
+                            (struct gab_cmpl_argt){
+                                .name = args.name,
+                                .source = args.source,
+                                .flags = args.flags,
+                                .len = args.len,
+                                .argv = args.sargv,
+                            });
+
+  gab_gcrun(gab, gc, NULL);
+  free(gc);
 
   if (main == gab_undefined)
     return NULL;
@@ -303,43 +308,43 @@ gab_value gab_spec(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 
   struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(m);
 
-  bool interned;
-  msg->specs = gab_recordwith(gab, &interned, msg->specs, args.receiver,
-                              args.specialization);
+  msg->specs =
+      gab_recordwith(gab, msg->specs, args.receiver, args.specialization);
 
+  gab_gciref(gab, gc, vm, m);
+  gab_egkeep(gab, m);
 
   return m;
 }
 
-a_gab_value *send_msg(struct gab_eg *gab, gab_value msg, gab_value receiver,
-                      size_t argc, gab_value argv[argc]) {
+a_gab_value *send_msg(struct gab_eg *gab, struct gab_gc *gc, gab_value msg,
+                      gab_value receiver, size_t argc, gab_value argv[argc]) {
   if (msg == gab_undefined)
     return a_gab_value_one(gab_undefined);
 
   gab_value main =
-      gab_bccompsend(gab, msg, receiver, fGAB_DUMP_ERROR, argc, argv);
+      gab_bccompsend(gab, gc, NULL, msg, receiver, fGAB_DUMP_ERROR, argc, argv);
 
   if (main == gab_undefined)
     return a_gab_value_one(gab_undefined);
 
-  // gab_egkeep(gab, main);
-
   return gab_vm_run(gab, main, fGAB_DUMP_ERROR, 0, NULL);
 }
 
-a_gab_value *gab_send(struct gab_eg *gab, struct gab_send_argt args) {
+a_gab_value *gab_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                      struct gab_send_argt args) {
   if (args.smessage) {
     gab_value msg = gab_message(gab, gab_string(gab, args.smessage));
-    return send_msg(gab, msg, args.receiver, args.len, args.argv);
+    return send_msg(gab, gc, msg, args.receiver, args.len, args.argv);
   }
 
   switch (gab_valknd(args.vmessage)) {
   case kGAB_STRING: {
     gab_value main = gab_message(gab, args.vmessage);
-    return send_msg(gab, main, args.receiver, args.len, args.argv);
+    return send_msg(gab, gc, main, args.receiver, args.len, args.argv);
   }
   case kGAB_MESSAGE:
-    return send_msg(gab, args.vmessage, args.receiver, args.len, args.argv);
+    return send_msg(gab, gc, args.vmessage, args.receiver, args.len, args.argv);
   default:
     return NULL;
   }
@@ -549,7 +554,7 @@ gab_value gab_valcpy(struct gab_eg *gab, struct gab_vm *vm, gab_value value) {
       keys[i] = gab_valcpy(gab, vm, self->data[i]);
     }
 
-    gab_value copy = gab_shape(gab, NULL, 1, self->len, keys);
+    gab_value copy = gab_shape(gab, 1, self->len, keys);
 
     return copy;
   }
@@ -596,7 +601,7 @@ gab_value gab_string(struct gab_eg *gab, const char *data) {
 
 gab_value gab_record(struct gab_eg *gab, uint64_t size, gab_value keys[size],
                      gab_value values[size]) {
-  gab_value bundle_shape = gab_shape(gab, NULL, 1, size, keys);
+  gab_value bundle_shape = gab_shape(gab, 1, size, keys);
   return gab_recordof(gab, bundle_shape, 1, values);
 }
 
@@ -607,7 +612,7 @@ gab_value gab_srecord(struct gab_eg *gab, uint64_t size, const char *keys[size],
   for (uint64_t i = 0; i < size; i++)
     value_keys[i] = gab_string(gab, keys[i]);
 
-  gab_value bundle_shape = gab_shape(gab, NULL, 1, size, value_keys);
+  gab_value bundle_shape = gab_shape(gab, 1, size, value_keys);
   return gab_recordof(gab, bundle_shape, 1, values);
 }
 

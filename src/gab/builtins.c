@@ -50,12 +50,15 @@ a_gab_value *gab_source_file_handler(struct gab_eg *gab, struct gab_gc *gc,
   if (src == NULL)
     return a_gab_value_one(gab_panic(gab, vm, "Failed to read module"));
 
-  gab_value pkg =
-      gab_cmpl(gab, (struct gab_cmpl_argt){
-                        .name = path,
-                        .source = (const char *)src->data,
-                        .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
-                    });
+  gab_value pkg = gab_cmpl(gab, NULL, NULL,
+                           (struct gab_cmpl_argt){
+                               .name = path,
+                               .source = (const char *)src->data,
+                               .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
+                           });
+
+  gab_gciref(gab, gc, vm, pkg);
+  gab_egkeep(gab, pkg);
 
   a_char_destroy(src);
 
@@ -66,6 +69,7 @@ a_gab_value *gab_source_file_handler(struct gab_eg *gab, struct gab_gc *gc,
                    });
 
   gab_impputmod(gab, path, pkg, res);
+  gab_ngciref(gab, gc, vm, 1, res->len, res->data);
 
   return res;
 }
@@ -214,14 +218,14 @@ void gab_setup_builtins(struct gab_eg *gab, struct gab_gc *gc) {
   gab_spec(gab, gc, NULL,
            (struct gab_spec_argt){
                .name = "use",
-               .receiver = gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_NIL)),
+               .receiver = gab_typ(gab, kGAB_NIL),
                .specialization = gab_sbuiltin(gab, "use", gab_lib_use),
            });
 
   gab_spec(gab, gc, NULL,
            (struct gab_spec_argt){
                .name = "panic",
-               .receiver = gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_STRING)),
+               .receiver = gab_typ(gab, kGAB_STRING),
                .specialization = gab_sbuiltin(gab, "panic", gab_lib_panic),
            });
 
@@ -229,7 +233,7 @@ void gab_setup_builtins(struct gab_eg *gab, struct gab_gc *gc) {
       gab, gc, NULL,
       (struct gab_spec_argt){
           .name = "print",
-          .receiver = gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_UNDEFINED)),
+          .receiver = gab_typ(gab, kGAB_UNDEFINED),
           .specialization = gab_sbuiltin(gab, "print", gab_lib_print),
       });
 }

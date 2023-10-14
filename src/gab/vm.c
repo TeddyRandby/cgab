@@ -1399,11 +1399,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       }
 
       struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(m);
-      
-      gab_gcdref(EG(), GC(), VM(), msg->specs);
 
-      bool interned;
-      msg->specs = gab_recordwith(EG(), &interned, msg->specs, r, blk);
+      msg->specs = gab_recordwith(EG(), msg->specs, r, blk);
 
       PEEK() = m;
 
@@ -1447,9 +1444,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
     CASE_CODE(RECORD) : {
       uint8_t len = READ_BYTE;
 
-      bool internedOut;
-
-      gab_value shape = gab_shape(EG(), &internedOut, 2, len, TOP() - len * 2);
+      gab_value shape = gab_shape(EG(), 2, len, TOP() - len * 2);
 
       gab_value rec = gab_recordof(EG(), shape, 2, TOP() + 1 - (len * 2));
 

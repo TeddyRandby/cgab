@@ -26,16 +26,7 @@ void gab_moddestroy(struct gab_eg *gab, struct gab_gc *gc,
   if (!mod)
     return;
 
-  for (uint64_t i = 0; i < mod->constants.len; i++) {
-    gab_value v = v_gab_constant_val_at(&mod->constants, i);
-    // The only kind of value owned by the modules
-    // are their prototypes and the main closure
-    enum gab_kind kind = gab_valknd(v);
-    if (kind == kGAB_BLOCK_PROTO || kind == kGAB_SUSPENSE_PROTO ||
-        kind == kGAB_BLOCK) {
-      // gab_gcdref(gab, gc, NULL, v);
-    }
-  }
+  gab_ngcdref(gab, gc, NULL, 1, mod->constants.len, mod->constants.data);
 
   v_uint8_t_destroy(&mod->bytecode);
   v_uint64_t_destroy(&mod->bytecode_toks);

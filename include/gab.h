@@ -409,7 +409,8 @@ struct gab_cmpl_argt {
  * @param argv The names of the arguments to the main block
  * @return The block.
  */
-gab_value gab_cmpl(struct gab_eg *gab, struct gab_cmpl_argt args);
+gab_value gab_cmpl(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                   struct gab_cmpl_argt args);
 
 struct gab_run_argt {
   /* The value to call */
@@ -425,6 +426,7 @@ struct gab_run_argt {
  * # Call main with the engine's arguments.
  *
  * @param  gab The engine.
+ * @param gc The garbage collector. May be nullptr.
  * @param args The arguments.
  * @see struct gab_run_argt
  * @param argv The values of the arguments passed to main.
@@ -453,6 +455,8 @@ struct gab_exec_argt {
  * result.
  *
  * @param gab The engine.
+ * @param gc The garbage collector. May be nullptr.
+ * @param vm The vm. May be nullptr.
  * @param args The arguments.
  * @see struct gab_exec_argt
  * @return A heap-allocated slice of values returned by the block.
@@ -477,11 +481,14 @@ struct gab_send_argt {
  * Args.vmessage is only used if args.smessage is NULL.
  *
  * @param gab The engine.
+ * @param gc The garbage collector. May be nullptr.
+ * @param vm The vm. May be nullptr.
  * @param args The arguments.
  * @see struct gab_send_argt
  * @return A heap-allocated slice of values returned by the message.
  */
-a_gab_value *gab_send(struct gab_eg *gab, struct gab_send_argt args);
+a_gab_value *gab_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
+                      struct gab_send_argt args);
 
 /**
  * # Panic the VM with an error message. Useful for builtin functions.
@@ -760,11 +767,11 @@ struct gab_obj_shape {
  *
  * @param keys The key array.
  */
-gab_value gab_shape(struct gab_eg *gab, bool *internedOut, size_t stride,
-                    size_t len, gab_value keys[static len]);
+gab_value gab_shape(struct gab_eg *gab, size_t stride, size_t len,
+                    gab_value keys[static len]);
 
-static inline gab_value gab_shapewith(struct gab_eg *gab, bool *internedOut,
-                                      gab_value shape, gab_value key) {
+static inline gab_value gab_shapewith(struct gab_eg *gab, gab_value shape,
+                                      gab_value key) {
   assert(gab_valknd(shape) == kGAB_SHAPE);
   struct gab_obj_shape *obj = GAB_VAL_TO_SHAPE(shape);
   gab_value keys[obj->len + 1];
@@ -772,7 +779,7 @@ static inline gab_value gab_shapewith(struct gab_eg *gab, bool *internedOut,
   memcpy(keys, obj->data, obj->len * sizeof(gab_value));
   keys[obj->len] = key;
 
-  return gab_shape(gab, internedOut, 1, obj->len + 1, keys);
+  return gab_shape(gab, 1, obj->len + 1, keys);
 };
 
 /**
@@ -893,9 +900,8 @@ struct gab_obj_record {
 gab_value gab_recordof(struct gab_eg *gab, gab_value shp, size_t stride,
                        gab_value values[static GAB_VAL_TO_SHAPE(shp)->len]);
 
-static inline gab_value gab_recordwith(struct gab_eg *gab, bool *internedOut,
-                                       gab_value rec, gab_value key,
-                                       gab_value value) {
+static inline gab_value gab_recordwith(struct gab_eg *gab, gab_value rec,
+                                       gab_value key, gab_value value) {
   assert(gab_valknd(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
 
@@ -909,7 +915,7 @@ static inline gab_value gab_recordwith(struct gab_eg *gab, bool *internedOut,
   keys[obj->len] = key;
   values[obj->len] = value;
 
-  gab_value shp = gab_shapewith(gab, internedOut, obj->shape, key);
+  gab_value shp = gab_shapewith(gab, obj->shape, key);
   return gab_recordof(gab, shp, 1, values);
 };
 

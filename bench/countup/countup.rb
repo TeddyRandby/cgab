@@ -1,5 +1,5 @@
-a = 0
+sum = 0
 
-until a > 1000000
-  a += 1
+for i in 1..1000000
+  sum += i
 end

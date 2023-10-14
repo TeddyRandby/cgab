@@ -31,14 +31,33 @@
                                          obj_type, flex_type, flex_count),     \
                                      kind))
 
+static const char *gab_kind_names[] = {
+    [kGAB_TRUE] = "true",
+    [kGAB_FALSE] = "false",
+    [kGAB_NIL] = "nil",
+    [kGAB_PRIMITIVE] = "primitive",
+    [kGAB_NUMBER] = "number",
+    [kGAB_UNDEFINED] = "undefined",
+    [kGAB_STRING] = "obj_string",
+    [kGAB_MESSAGE] = "obj_message",
+    [kGAB_SHAPE] = "obj_shape",
+    [kGAB_RECORD] = "obj_record",
+    [kGAB_BOX] = "obj_box",
+    [kGAB_BLOCK] = "obj_block",
+    [kGAB_SUSPENSE] = "obj_suspense",
+    [kGAB_BUILTIN] = "obj_builtin",
+    [kGAB_BLOCK_PROTO] = "obj_block_proto",
+    [kGAB_SUSPENSE_PROTO] = "obj_suspense_proto",
+};
+
 struct gab_obj *gab_obj_create(struct gab_eg *gab, struct gab_obj *self,
                                enum gab_kind k) {
   self->kind = k;
   self->references = 0;
-  self->flags = fGAB_OBJ_NEW;
+  self->flags = fGAB_OBJ_NEW | fGAB_OBJ_MODIFIED;
 
 #if cGAB_LOG_GC
-  printf("CREATE\t%p\n", self);
+  printf("CREATE\t%p\t%s\n", self, gab_kind_names[k]);
 #endif
 
   return self;
@@ -179,10 +198,15 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
       container->do_destroy(container->data);
     break;
   }
-  case kGAB_SHAPE: {
+  case kGAB_SHAPE:
     d_shapes_remove(&gab->interned_shapes, (struct gab_obj_shape *)self);
     break;
-  }
+  case kGAB_STRING:
+    d_strings_remove(&gab->interned_strings, (struct gab_obj_string *)self);
+    break;
+  case kGAB_MESSAGE:
+    d_messages_remove(&gab->interned_messages, (struct gab_obj_message *)self);
+    break;
   default:
     break;
   }
@@ -386,18 +410,15 @@ gab_value gab_nshape(struct gab_eg *gab, size_t len) {
     keys[i] = gab_number(i);
   }
 
-  return gab_shape(gab, NULL, 1, len, keys);
+  return gab_shape(gab, 1, len, keys);
 }
 
-gab_value gab_shape(struct gab_eg *gab, bool *internedOut, size_t stride,
-                    size_t len, gab_value keys[len]) {
+gab_value gab_shape(struct gab_eg *gab, size_t stride, size_t len,
+                    gab_value keys[len]) {
   uint64_t hash = hash_keys(gab->hash_seed, len, stride, keys);
 
   struct gab_obj_shape *interned =
       gab_eg_find_shape(gab, len, stride, hash, keys);
-
-  if (internedOut)
-    *internedOut = interned != NULL;
 
   if (interned)
     return __gab_obj(interned);

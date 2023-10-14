@@ -1,5 +1,15 @@
-a = 0
+def upto(limit)
+  i = 0
 
-loop
-    a = a + 1
-until a == 1000000 end
+  loop
+    yield i
+    i = i + 1
+  until i == limit end
+
+end
+
+sum = 0
+
+for i in upto(1000000)
+  sum = sum + i
+end

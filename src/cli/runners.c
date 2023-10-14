@@ -74,11 +74,12 @@ void run_src(struct gab_eg *gab, s_char src, const char *module, char delim,
   //   a_gab_value_destroy(res);
   // }
 
-  gab_value main = gab_cmpl(gab, (struct gab_cmpl_argt){
-                                     .name = MAIN_MODULE,
-                                     .source = (char *)src.data,
-                                     .flags = flags,
-                                 });
+  gab_value main = gab_cmpl(gab, NULL, NULL,
+                            (struct gab_cmpl_argt){
+                                .name = MAIN_MODULE,
+                                .source = (char *)src.data,
+                                .flags = flags,
+                            });
 
   if (main == gab_undefined)
     return;
@@ -134,7 +135,7 @@ void run_src(struct gab_eg *gab, s_char src, const char *module, char delim,
                                      });
 
   gab_negkeep(gab, result->len, result->data);
-  
+
   a_gab_value_destroy(result);
 }
 

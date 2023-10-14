@@ -99,7 +99,9 @@ static void *chunk_alloc(struct gab_allocator *s, uint64_t size) {
 
   chunk_setyng(chunk, index);
 
-  return chunk_at(chunk, index);
+  void* ptr = chunk_at(chunk, index);
+
+  return ptr;
 }
 
 struct gab_chunk *chunk_find(struct gab_allocator *s, uint64_t size,
@@ -136,10 +138,19 @@ void gab_obj_old(struct gab_eg *gab, struct gab_obj *obj) {
   chunk_setold(chunk, index);
 }
 
+//TODO Name this better
 void gab_mem_reset(struct gab_eg *gab) {
   for (int i = 0; i < CHUNK_MAX_SIZE; i++) {
     struct gab_chunk *chunk = gab->allocator.chunks[i], *old = NULL;
     while (chunk) {
+#if cGAB_LOG_GC
+      for (int j = 0; j < CHUNK_LEN; j++) {
+        uint64_t m = (uint64_t)1 << j;
+        if ((chunk->young & m) && !(chunk->old & m)) {
+          printf("FREE\tYOUNG\t%p\n", chunk_at(chunk, j));
+        }
+      }
+#endif
       chunk->young = 0;
       
       old = chunk;
