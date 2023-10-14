@@ -303,6 +303,8 @@ gab_value gab_spec(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
                    struct gab_spec_argt args) {
   gab_value m = gab_message(gab, gab_string(gab, args.name));
 
+  printf("m: %V\n", m);
+
   if (gab_msgfind(m, args.receiver) != UINT64_MAX)
     return gab_nil;
 

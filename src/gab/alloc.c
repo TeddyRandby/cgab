@@ -139,6 +139,7 @@ void gab_obj_old(struct gab_eg *gab, struct gab_obj *obj) {
 }
 
 //TODO Name this better
+//TODO Make sure this runs destructors
 void gab_mem_reset(struct gab_eg *gab) {
   for (int i = 0; i < CHUNK_MAX_SIZE; i++) {
     struct gab_chunk *chunk = gab->allocator.chunks[i], *old = NULL;

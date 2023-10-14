@@ -999,6 +999,7 @@ static inline gab_value gab_recat(gab_value rec, gab_value key) {
 static inline uint64_t gab_recfind(gab_value rec, gab_value key) {
   assert(gab_valknd(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
+  printf("RECFIND: %V\n", obj->shape);
   return gab_shpfind(obj->shape, key);
 }
 
@@ -1140,6 +1141,7 @@ static inline gab_value gab_msgrec(gab_value msg) {
 static inline uint64_t gab_msgfind(gab_value msg, gab_value needle) {
   assert(gab_valknd(msg) == kGAB_MESSAGE);
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
+  printf("MSGFIND %V\n", obj->specs);
 
   return gab_recfind(obj->specs, needle);
 }

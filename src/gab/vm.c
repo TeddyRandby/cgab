@@ -379,6 +379,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       gab_value type = gab_valtyp(EG(), receiver);
 
+      printf("SEND_ANA %V %V\n", type, m);
       uint64_t offset = gab_msgfind(m, type);
 
       if (offset == UINT64_MAX) {

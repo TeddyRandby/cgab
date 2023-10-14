@@ -76,8 +76,8 @@ void gab_lib_implements(struct gab_eg *gab, struct gab_gc *gc,
 
 a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   const char *names[] = {
-      "send",
       "implements?",
+      "send",
   };
 
   gab_value receivers[] = {
@@ -86,15 +86,14 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab, "send", gab_lib_send),
       gab_sbuiltin(gab, "implements?", gab_lib_implements),
+      gab_sbuiltin(gab, "send", gab_lib_send),
   };
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
 
   for (int i = 0; i < LEN_CARRAY(specs); i++) {
-
     gab_spec(gab, gc, vm,
              (struct gab_spec_argt){
                  .name = names[i],
