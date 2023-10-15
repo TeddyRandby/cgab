@@ -17,140 +17,6 @@
 #include <stdio.h>
 #include <time.h>
 
-struct primitive {
-  const char *name;
-  enum gab_kind type;
-  gab_value primitive;
-};
-
-struct primitive primitives[] = {
-    {
-        .name = mGAB_BOR,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_BOR),
-    },
-    {
-        .name = mGAB_BND,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_BND),
-    },
-    {
-        .name = mGAB_LSH,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LSH),
-    },
-    {
-        .name = mGAB_RSH,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_RSH),
-    },
-    {
-        .name = mGAB_ADD,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_ADD),
-    },
-    {
-        .name = mGAB_SUB,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_SUB),
-    },
-    {
-        .name = mGAB_MUL,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_MUL),
-    },
-    {
-        .name = mGAB_DIV,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_DIV),
-    },
-    {
-        .name = mGAB_MOD,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_MOD),
-    },
-    {
-        .name = mGAB_LT,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LT),
-    },
-    {
-        .name = mGAB_LTE,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LTE),
-    },
-    {
-        .name = mGAB_GT,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_GT),
-    },
-    {
-        .name = mGAB_GTE,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_GTE),
-    },
-    {
-        .name = mGAB_ADD,
-        .type = kGAB_STRING,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CONCAT),
-    },
-    {
-        .name = mGAB_EQ,
-        .type = kGAB_STRING,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
-    },
-    {
-        .name = mGAB_EQ,
-        .type = kGAB_NUMBER,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
-    },
-    {
-        .name = mGAB_EQ,
-        .type = kGAB_TRUE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
-    },
-    {
-        .name = mGAB_EQ,
-        .type = kGAB_SHAPE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
-    },
-    {
-        .name = mGAB_EQ,
-        .type = kGAB_MESSAGE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
-    },
-    {
-        .name = mGAB_EQ,
-        .type = kGAB_NIL,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
-    },
-    {
-        .name = mGAB_SET,
-        .type = kGAB_RECORD,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_STORE),
-    },
-    {
-        .name = mGAB_GET,
-        .type = kGAB_RECORD,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOAD),
-    },
-    {
-        .name = mGAB_CALL,
-        .type = kGAB_BUILTIN,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BUILTIN),
-    },
-    {
-        .name = mGAB_CALL,
-        .type = kGAB_BLOCK,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BLOCK),
-    },
-    {
-        .name = mGAB_CALL,
-        .type = kGAB_SUSPENSE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_SUSPENSE),
-    },
-};
-
 struct gab_eg *gab_create() {
   struct gab_eg *gab = NEW(struct gab_eg);
   memset(gab, 0, sizeof(struct gab_eg));
@@ -176,16 +42,7 @@ struct gab_eg *gab_create() {
   gab->types[kGAB_SUSPENSE] = gab_string(gab, "Suspsense");
   gab->types[kGAB_PRIMITIVE] = gab_string(gab, "Primitive");
 
-  for (int i = 0; i < LEN_CARRAY(primitives); i++) {
-    gab_value receiver = gab_typ(gab, primitives[i].type);
-
-    gab_spec(gab, gc, NULL,
-             (struct gab_spec_argt){
-                 .name = primitives[i].name,
-                 .receiver = receiver,
-                 .specialization = primitives[i].primitive,
-             });
-  }
+  gab_ngciref(gab, gc, NULL, 1, kGAB_NKINDS, gab->types);
 
   gab_setup_builtins(gab, gc);
 
@@ -206,6 +63,7 @@ void gab_destroy(struct gab_eg *gab) {
   gab_gccreate(gc);
 
   gab_ngcdref(gab, gc, NULL, 1, gab->scratch.len, gab->scratch.data);
+  gab_ngcdref(gab, gc, NULL, 1, kGAB_NKINDS, gab->types);
 
   while (gab->sources) {
     struct gab_src *s = gab->sources;
@@ -239,25 +97,16 @@ void gab_destroy(struct gab_eg *gab) {
   free(gab);
 }
 
-gab_value gab_cmpl(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                   struct gab_cmpl_argt args) {
-  if (!gc) {
-    gc = malloc(sizeof(struct gab_gc));
-    gab_gccreate(gc);
-  }
-
+gab_value gab_cmpl(struct gab_eg *gab, struct gab_cmpl_argt args) {
   gab_value argv_names[args.len];
 
   for (uint64_t i = 0; i < args.len; i++)
     argv_names[i] = gab_string(gab, args.argv[i]);
 
   gab_value res =
-      gab_bccomp(gab, gc, vm, gab_string(gab, args.name),
+      gab_bccomp(gab, gab_string(gab, args.name),
                  s_char_create(args.source, strlen(args.source) + 1),
                  args.flags, args.len, argv_names);
-
-  gab_gcrun(gab, gc, vm);
-  free(gc);
 
   return res;
 }
@@ -267,20 +116,13 @@ a_gab_value *gab_run(struct gab_eg *gab, struct gab_run_argt args) {
 };
 
 a_gab_value *gab_exec(struct gab_eg *gab, struct gab_exec_argt args) {
-  struct gab_gc *gc = malloc(sizeof(struct gab_gc));
-  gab_gccreate(gc);
-
-  gab_value main = gab_cmpl(gab, gc, NULL,
-                            (struct gab_cmpl_argt){
-                                .name = args.name,
-                                .source = args.source,
-                                .flags = args.flags,
-                                .len = args.len,
-                                .argv = args.sargv,
-                            });
-
-  gab_gcrun(gab, gc, NULL);
-  free(gc);
+  gab_value main = gab_cmpl(gab, (struct gab_cmpl_argt){
+                                     .name = args.name,
+                                     .source = args.source,
+                                     .flags = args.flags,
+                                     .len = args.len,
+                                     .argv = args.sargv,
+                                 });
 
   if (main == gab_undefined)
     return NULL;
@@ -299,11 +141,9 @@ gab_value gab_panic(struct gab_eg *gab, struct gab_vm *vm, const char *msg) {
   return vm_container;
 }
 
-gab_value gab_spec(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                   struct gab_spec_argt args) {
-  gab_value m = gab_message(gab, gab_string(gab, args.name));
-
-  printf("m: %V\n", m);
+gab_value gab_spec(struct gab_eg *gab, struct gab_spec_argt args) {
+  gab_value n = gab_string(gab, args.name);
+  gab_value m = gab_message(gab, n);
 
   if (gab_msgfind(m, args.receiver) != UINT64_MAX)
     return gab_nil;
@@ -313,19 +153,16 @@ gab_value gab_spec(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   msg->specs =
       gab_recordwith(gab, msg->specs, args.receiver, args.specialization);
 
-  gab_gciref(gab, gc, vm, m);
-  gab_egkeep(gab, m);
-
   return m;
 }
 
-a_gab_value *send_msg(struct gab_eg *gab, struct gab_gc *gc, gab_value msg,
-                      gab_value receiver, size_t argc, gab_value argv[argc]) {
+a_gab_value *send_msg(struct gab_eg *gab, gab_value msg, gab_value receiver,
+                      size_t argc, gab_value argv[argc]) {
   if (msg == gab_undefined)
     return a_gab_value_one(gab_undefined);
 
   gab_value main =
-      gab_bccompsend(gab, gc, NULL, msg, receiver, fGAB_DUMP_ERROR, argc, argv);
+      gab_bccompsend(gab, msg, receiver, fGAB_DUMP_ERROR, argc, argv);
 
   if (main == gab_undefined)
     return a_gab_value_one(gab_undefined);
@@ -333,20 +170,19 @@ a_gab_value *send_msg(struct gab_eg *gab, struct gab_gc *gc, gab_value msg,
   return gab_vm_run(gab, main, fGAB_DUMP_ERROR, 0, NULL);
 }
 
-a_gab_value *gab_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                      struct gab_send_argt args) {
+a_gab_value *gab_send(struct gab_eg *gab, struct gab_send_argt args) {
   if (args.smessage) {
     gab_value msg = gab_message(gab, gab_string(gab, args.smessage));
-    return send_msg(gab, gc, msg, args.receiver, args.len, args.argv);
+    return send_msg(gab, msg, args.receiver, args.len, args.argv);
   }
 
   switch (gab_valknd(args.vmessage)) {
   case kGAB_STRING: {
     gab_value main = gab_message(gab, args.vmessage);
-    return send_msg(gab, gc, main, args.receiver, args.len, args.argv);
+    return send_msg(gab, main, args.receiver, args.len, args.argv);
   }
   case kGAB_MESSAGE:
-    return send_msg(gab, gc, args.vmessage, args.receiver, args.len, args.argv);
+    return send_msg(gab, args.vmessage, args.receiver, args.len, args.argv);
   default:
     return NULL;
   }
@@ -360,16 +196,17 @@ struct gab_obj_message *gab_eg_find_message(struct gab_eg *self, gab_value name,
   uint64_t index = hash & (self->interned_messages.cap - 1);
 
   for (;;) {
-    struct gab_obj_message *key =
-        d_messages_ikey(&self->interned_messages, index);
     d_status status = d_messages_istatus(&self->interned_messages, index);
 
     if (status != D_FULL) {
       return NULL;
-    } else {
-      if (GAB_VAL_TO_STRING(key->name)->hash == hash && name == key->name) {
-        return key;
-      }
+    }
+
+    struct gab_obj_message *key =
+        d_messages_ikey(&self->interned_messages, index);
+
+    if (key->hash == hash && name == key->name) {
+      return key;
     }
 
     index = (index + 1) & (self->interned_messages.cap - 1);
@@ -384,18 +221,22 @@ struct gab_obj_string *gab_eg_find_string(struct gab_eg *self, s_char str,
   uint64_t index = hash & (self->interned_strings.cap - 1);
 
   for (;;) {
-    struct gab_obj_string *key = d_strings_ikey(&self->interned_strings, index);
     d_status status = d_strings_istatus(&self->interned_strings, index);
 
     if (status != D_FULL) {
       return NULL;
-    } else {
-      if (key->hash == hash && s_char_match(str, (s_char){
-                                                     .data = key->data,
-                                                     .len = key->len,
-                                                 })) {
-        return key;
-      }
+    }
+
+    struct gab_obj_string *key = d_strings_ikey(&self->interned_strings, index);
+    
+    printf("INTERN\t%.*s\t%V\t%lu\t%lu\n", str.len, str.data, __gab_obj(key),
+            hash, key->hash);
+
+    if (key->hash == hash && s_char_match(str, (s_char){
+                                                   .data = key->data,
+                                                   .len = key->len,
+                                               })) {
+      return key;
     }
 
     index = (index + 1) & (self->interned_strings.cap - 1);
@@ -418,6 +259,33 @@ static inline bool shape_matches_keys(struct gab_obj_shape *self,
   return true;
 }
 
+/*
+ *
+ * TODO: All these find_x functions need to change.
+ *
+ * Now that we can remove interned values, this chaining dict doesn't work as well.
+ *
+ * Imagine a hash-collision chain like this
+ *
+ * Looking for z, which hashes to 5
+ *
+ * [x] [y] [z]
+ *  5   6   7
+ *
+ * In this scenario, we hash to 5 and follow the chain to z. Works as planned.
+ *
+ * Now we remove y from the dict, as it is collected
+ *
+ * [x] [ ] [z]
+ *  5   6   7
+ *
+ * Next time we go looking for z, we hash to 5 and find the open spot at 6.
+ *
+ * This is where the tombstone values come into play I believe.
+ *
+ * We can reactive the tombstone slot somehow
+ */
+
 struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *self, uint64_t size,
                                         uint64_t stride, uint64_t hash,
                                         gab_value keys[size]) {
@@ -429,7 +297,7 @@ struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *self, uint64_t size,
   for (;;) {
     d_status status = d_shapes_istatus(&self->interned_shapes, index);
 
-    if (status != D_FULL)
+    if (status == D_EMPTY)
       return NULL;
 
     struct gab_obj_shape *key = d_shapes_ikey(&self->interned_shapes, index);

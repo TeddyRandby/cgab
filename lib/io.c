@@ -129,12 +129,11 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   };
 
   for (uint8_t i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_spec(gab, gc, vm,
-             (struct gab_spec_argt){
-                 .name = names[i],
-                 .receiver = receivers[i],
-                 .specialization = specs[i],
-             });
+    gab_spec(gab, (struct gab_spec_argt){
+                      .name = names[i],
+                      .receiver = receivers[i],
+                      .specialization = specs[i],
+                  });
   }
 
   return a_gab_value_one(type);

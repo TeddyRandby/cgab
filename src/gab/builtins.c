@@ -50,12 +50,12 @@ a_gab_value *gab_source_file_handler(struct gab_eg *gab, struct gab_gc *gc,
   if (src == NULL)
     return a_gab_value_one(gab_panic(gab, vm, "Failed to read module"));
 
-  gab_value pkg = gab_cmpl(gab, NULL, NULL,
-                           (struct gab_cmpl_argt){
-                               .name = path,
-                               .source = (const char *)src->data,
-                               .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
-                           });
+  gab_value pkg =
+      gab_cmpl(gab, (struct gab_cmpl_argt){
+                        .name = path,
+                        .source = (const char *)src->data,
+                        .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
+                    });
 
   gab_gciref(gab, gc, vm, pkg);
   gab_egkeep(gab, pkg);
@@ -215,25 +215,30 @@ void gab_lib_print(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 }
 
 void gab_setup_builtins(struct gab_eg *gab, struct gab_gc *gc) {
-  gab_spec(gab, gc, NULL,
-           (struct gab_spec_argt){
-               .name = "use",
-               .receiver = gab_typ(gab, kGAB_NIL),
-               .specialization = gab_sbuiltin(gab, "use", gab_lib_use),
-           });
+  gab_egkeep(gab,
+             gab_gciref(gab, gc, NULL,
+                        gab_spec(gab, (struct gab_spec_argt){
+                                          .name = "use",
+                                          .receiver = gab_typ(gab, kGAB_NIL),
+                                          .specialization = gab_sbuiltin(
+                                              gab, "use", gab_lib_use),
+                                      })));
 
-  gab_spec(gab, gc, NULL,
-           (struct gab_spec_argt){
-               .name = "panic",
-               .receiver = gab_typ(gab, kGAB_STRING),
-               .specialization = gab_sbuiltin(gab, "panic", gab_lib_panic),
-           });
+  gab_egkeep(gab,
+             gab_gciref(gab, gc, NULL,
+                        gab_spec(gab, (struct gab_spec_argt){
+                                          .name = "panic",
+                                          .receiver = gab_typ(gab, kGAB_STRING),
+                                          .specialization = gab_sbuiltin(
+                                              gab, "panic", gab_lib_panic),
+                                      })));
 
-  gab_spec(
-      gab, gc, NULL,
-      (struct gab_spec_argt){
-          .name = "print",
-          .receiver = gab_typ(gab, kGAB_UNDEFINED),
-          .specialization = gab_sbuiltin(gab, "print", gab_lib_print),
-      });
+  gab_egkeep(gab, gab_gciref(gab, gc, NULL,
+                             gab_spec(gab, (struct gab_spec_argt){
+                                               .name = "print",
+                                               .receiver =
+                                                   gab_typ(gab, kGAB_UNDEFINED),
+                                               .specialization = gab_sbuiltin(
+                                                   gab, "print", gab_lib_print),
+                                           })));
 }

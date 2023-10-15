@@ -409,8 +409,7 @@ struct gab_cmpl_argt {
  * @param argv The names of the arguments to the main block
  * @return The block.
  */
-gab_value gab_cmpl(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                   struct gab_cmpl_argt args);
+gab_value gab_cmpl(struct gab_eg *gab, struct gab_cmpl_argt args);
 
 struct gab_run_argt {
   /* The value to call */
@@ -481,14 +480,11 @@ struct gab_send_argt {
  * Args.vmessage is only used if args.smessage is NULL.
  *
  * @param gab The engine.
- * @param gc The garbage collector. May be nullptr.
- * @param vm The vm. May be nullptr.
  * @param args The arguments.
  * @see struct gab_send_argt
  * @return A heap-allocated slice of values returned by the message.
  */
-a_gab_value *gab_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                      struct gab_send_argt args);
+a_gab_value *gab_send(struct gab_eg *gab, struct gab_send_argt args);
 
 /**
  * # Panic the VM with an error message. Useful for builtin functions.
@@ -999,7 +995,6 @@ static inline gab_value gab_recat(gab_value rec, gab_value key) {
 static inline uint64_t gab_recfind(gab_value rec, gab_value key) {
   assert(gab_valknd(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
-  printf("RECFIND: %V\n", obj->shape);
   return gab_shpfind(obj->shape, key);
 }
 
@@ -1103,6 +1098,8 @@ struct gab_obj_message {
 
   uint8_t version;
 
+  uint64_t hash;
+
   gab_value name;
 
   gab_value specs;
@@ -1141,8 +1138,7 @@ static inline gab_value gab_msgrec(gab_value msg) {
 static inline uint64_t gab_msgfind(gab_value msg, gab_value needle) {
   assert(gab_valknd(msg) == kGAB_MESSAGE);
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
-  printf("MSGFIND %V\n", obj->specs);
-
+  printf("MSGFIND\t%V\t%p\t%V\t%p\n",msg, obj, obj->specs, gab_valtoo(obj->specs));
   return gab_recfind(obj->specs, needle);
 }
 
@@ -1393,8 +1389,7 @@ struct gab_spec_argt {
  *
  * @return The message that was updated.
  */
-gab_value gab_spec(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                   struct gab_spec_argt args);
+gab_value gab_spec(struct gab_eg *gab, struct gab_spec_argt args);
 
 /**
  * # Deep-copy a value.

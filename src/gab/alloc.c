@@ -1,5 +1,6 @@
 #include "include/alloc.h"
 #include "include/engine.h"
+#include "include/gab.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -99,7 +100,7 @@ static void *chunk_alloc(struct gab_allocator *s, uint64_t size) {
 
   chunk_setyng(chunk, index);
 
-  void* ptr = chunk_at(chunk, index);
+  void *ptr = chunk_at(chunk, index);
 
   return ptr;
 }
@@ -138,29 +139,56 @@ void gab_obj_old(struct gab_eg *gab, struct gab_obj *obj) {
   chunk_setold(chunk, index);
 }
 
-//TODO Name this better
-//TODO Make sure this runs destructors
 void gab_mem_reset(struct gab_eg *gab) {
   for (int i = 0; i < CHUNK_MAX_SIZE; i++) {
     struct gab_chunk *chunk = gab->allocator.chunks[i], *old = NULL;
     while (chunk) {
-#if cGAB_LOG_GC
       for (int j = 0; j < CHUNK_LEN; j++) {
         uint64_t m = (uint64_t)1 << j;
         if ((chunk->young & m) && !(chunk->old & m)) {
+          struct gab_obj* obj = chunk_at(chunk, j);
+          gab_obj_destroy(gab, obj);
+          
+#if cGAB_LOG_GC
+          GAB_OBJ_FREED(obj);
           printf("FREE\tYOUNG\t%p\n", chunk_at(chunk, j));
+#endif
         }
       }
-#endif
-      chunk->young = 0;
       
       old = chunk;
       chunk = chunk->next;
+      
+      old->young = 0;
 
       if (chunk_empty(old))
         chunk_destroy(&gab->allocator, old);
     }
   }
+  
+#if cGAB_LOG_GC
+  // Iterate through the size slots in the allocator
+  // And log any objects which are present in non-nil slots
+  for (int i = 0; i < CHUNK_MAX_SIZE; i++) {
+    struct gab_chunk *chunk = gab->allocator.chunks[i];
+    while (chunk) {
+      for (int j = 0; j < CHUNK_LEN; j++) {
+        uint64_t m = (uint64_t)1 << j;
+        if (chunk->young & m) {
+          struct gab_obj *obj = chunk_at(chunk, j);
+          if (!GAB_OBJ_IS_FREED(obj))
+            printf("YNGALIVE\t%V\t%p\n", __gab_obj(obj), obj);
+        } else if (chunk->old & m) {
+          struct gab_obj *obj = chunk_at(chunk, j);
+          if (!GAB_OBJ_IS_FREED(obj))
+            printf("OLDALIVE\t%V\t%p\n", __gab_obj(obj), obj);
+        }
+      }
+      chunk = chunk->next;
+    }
+  }
+#endif
+
 }
 
 void *gab_obj_alloc(struct gab_eg *gab, struct gab_obj *obj, uint64_t size) {

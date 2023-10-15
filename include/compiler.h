@@ -11,12 +11,11 @@ enum variable_flag {
   fVAR_LOCAL = 1 << 2,
 };
 
-gab_value gab_bccompsend(struct gab_eg *gab, struct gab_gc *gc,
-                         struct gab_vm *vm, gab_value msg, gab_value receiver,
+gab_value gab_bccompsend(struct gab_eg *gab, gab_value msg, gab_value receiver,
                          uint8_t flags, uint8_t narguments,
                          gab_value arguments[narguments]);
 
-gab_value gab_bccomp(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                     gab_value name, s_char source, uint8_t flags,
-                     uint8_t narguments, gab_value arguments[narguments]);
+gab_value gab_bccomp(struct gab_eg *gab, gab_value name, s_char source,
+                     uint8_t flags, uint8_t narguments,
+                     gab_value arguments[narguments]);
 #endif

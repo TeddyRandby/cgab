@@ -1,4 +1,7 @@
-'Beginning use':print
-:use 'any'
-'Done w use':print
-'test':implements?(&:print)
+:print
+
+'hello':print
+
+helloworld = 'hello' + 'world'
+
+helloworld:print

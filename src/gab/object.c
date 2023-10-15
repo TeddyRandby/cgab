@@ -210,8 +210,6 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
   default:
     break;
   }
-
-  gab_obj_alloc(gab, self, 0);
 }
 
 uint64_t gab_obj_size(struct gab_obj *self) {
@@ -348,19 +346,173 @@ gab_value gab_blkproto(struct gab_eg *gab, struct gab_blkproto_argt args) {
   return __gab_obj(self);
 }
 
+struct primitive {
+  const char *name;
+  enum gab_kind type;
+  gab_value primitive;
+};
+
+struct primitive primitives[] = {
+    {
+        .name = mGAB_BOR,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_BOR),
+    },
+    {
+        .name = mGAB_BND,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_BND),
+    },
+    {
+        .name = mGAB_LSH,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LSH),
+    },
+    {
+        .name = mGAB_RSH,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_RSH),
+    },
+    {
+        .name = mGAB_ADD,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_ADD),
+    },
+    {
+        .name = mGAB_SUB,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_SUB),
+    },
+    {
+        .name = mGAB_MUL,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_MUL),
+    },
+    {
+        .name = mGAB_DIV,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_DIV),
+    },
+    {
+        .name = mGAB_MOD,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_MOD),
+    },
+    {
+        .name = mGAB_LT,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LT),
+    },
+    {
+        .name = mGAB_LTE,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LTE),
+    },
+    {
+        .name = mGAB_GT,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_GT),
+    },
+    {
+        .name = mGAB_GTE,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_GTE),
+    },
+    {
+        .name = mGAB_ADD,
+        .type = kGAB_STRING,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CONCAT),
+    },
+    {
+        .name = mGAB_EQ,
+        .type = kGAB_STRING,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
+    },
+    {
+        .name = mGAB_EQ,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
+    },
+    {
+        .name = mGAB_EQ,
+        .type = kGAB_TRUE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
+    },
+    {
+        .name = mGAB_EQ,
+        .type = kGAB_SHAPE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
+    },
+    {
+        .name = mGAB_EQ,
+        .type = kGAB_MESSAGE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
+    },
+    {
+        .name = mGAB_EQ,
+        .type = kGAB_NIL,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
+    },
+    {
+        .name = mGAB_SET,
+        .type = kGAB_RECORD,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_STORE),
+    },
+    {
+        .name = mGAB_GET,
+        .type = kGAB_RECORD,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOAD),
+    },
+    {
+        .name = mGAB_CALL,
+        .type = kGAB_BUILTIN,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BUILTIN),
+    },
+    {
+        .name = mGAB_CALL,
+        .type = kGAB_BLOCK,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BLOCK),
+    },
+    {
+        .name = mGAB_CALL,
+        .type = kGAB_SUSPENSE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_SUSPENSE),
+    },
+};
+
 gab_value gab_message(struct gab_eg *gab, gab_value name) {
   struct gab_obj_message *interned =
       gab_eg_find_message(gab, name, GAB_VAL_TO_STRING(name)->hash);
 
-  if (interned != NULL)
+  if (interned)
     return __gab_obj(interned);
 
   struct gab_obj_message *self = GAB_CREATE_OBJ(gab_obj_message, kGAB_MESSAGE);
 
   self->name = name;
   self->version = 0;
+  self->hash = GAB_VAL_TO_STRING(name)->hash;
 
-  self->specs = gab_erecordof(gab, gab_nshape(gab, 0));
+  gab_value starting_specs[5] = {};
+  gab_value starting_types[5] = {};
+  int nspecs = 0;
+
+  for (int i = 0; i < LEN_CARRAY(primitives); i++) {
+    struct primitive *p = &primitives[i];
+    if (gab_string(gab, p->name) == name) {
+      assert(nspecs < 5);
+      starting_specs[nspecs] = p->primitive;
+      starting_types[nspecs] = gab_typ(gab, p->type);
+      nspecs++;
+    }
+  }
+
+  if (nspecs) {
+    gab_value shape = gab_shape(gab, 1, nspecs, starting_types);
+    self->specs = gab_recordof(gab, shape, 1, starting_specs);
+  } else {
+    self->specs = gab_erecordof(gab, gab_nshape(gab, 0));
+  }
 
   GAB_OBJ_GREEN((struct gab_obj *)self);
 
@@ -432,8 +584,6 @@ gab_value gab_shape(struct gab_eg *gab, size_t stride, size_t len,
   for (uint64_t i = 0; i < len; i++) {
     self->data[i] = keys[i * stride];
   }
-
-  GAB_OBJ_GREEN((struct gab_obj *)self);
 
   d_shapes_insert(&gab->interned_shapes, self, 0);
 

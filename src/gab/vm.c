@@ -38,6 +38,8 @@ gab_value vm_error(struct gab_eg *gab, struct gab_vm *vm, uint8_t flags,
       va);
 
   va_end(va);
+  
+  DESTROY(vm);
 
   return gab_nil;
 }
@@ -379,7 +381,6 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       gab_value type = gab_valtyp(EG(), receiver);
 
-      printf("SEND_ANA %V %V\n", type, m);
       uint64_t offset = gab_msgfind(m, type);
 
       if (offset == UINT64_MAX) {
@@ -1377,7 +1378,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (offset != UINT64_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_IMPLEMENTATION_EXISTS, " Tried to implement %V for %V",
+        return ERROR(GAB_IMPLEMENTATION_EXISTS, " Tried to specialize %V for %V",
                      m, r);
       }
 
@@ -1400,8 +1401,12 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       }
 
       struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(m);
+      
+      gab_gcdref(EG(), GC(), VM(), msg->specs);
 
       msg->specs = gab_recordwith(EG(), msg->specs, r, blk);
+
+      gab_gciref(EG(), GC(), VM(), msg->specs);
 
       PEEK() = m;
 

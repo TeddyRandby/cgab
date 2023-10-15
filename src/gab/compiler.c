@@ -132,16 +132,23 @@ struct compile_rule {
   bool multi_line;
 };
 
-void bc_create(struct bc *self, struct gab_eg *eg, struct gab_gc *gc,
-               struct gab_vm *vm, struct gab_src *source, uint8_t flags) {
+void bc_create(struct bc *self, struct gab_eg *eg, struct gab_src *source,
+               uint8_t flags) {
   memset(self, 0, sizeof(*self));
 
   self->flags = flags;
   self->source = source;
 
+  self->vm = NULL;
   self->eg = eg;
-  self->gc = gc;
-  self->vm = vm;
+  self->gc = malloc(sizeof(struct gab_gc));
+  gab_gccreate(self->gc);
+}
+
+void bc_destroy(struct bc *self) {
+  gab_gcrun(self->eg, self->gc, self->vm);
+  gab_gcdestroy(self->gc);
+  free(self->gc);
 }
 
 enum comp_status {
@@ -246,16 +253,6 @@ s_char trim_prev_src(struct bc *bc) {
   return message;
 }
 
-gab_value prev_id(struct bc *bc) {
-  s_char s = prev_src(bc);
-  return gab_nstring(eg(bc), s.len, s.data);
-}
-
-gab_value trim_prev_id(struct bc *bc) {
-  s_char s = trim_prev_src(bc);
-  return gab_nstring(eg(bc), s.len, s.data);
-}
-
 static inline int peek_ctx(struct bc *bc, enum context_k kind, uint8_t depth) {
   int idx = bc->ncontext - 1;
 
@@ -278,6 +275,20 @@ static inline struct gab_mod *mod(struct bc *bc) {
 static inline uint16_t add_constant(struct bc *bc, gab_value value) {
   gab_gciref(eg(bc), gc(bc), vm(bc), value);
   return gab_mod_add_constant(mod(bc), value);
+}
+
+gab_value prev_id(struct bc *bc) {
+  s_char s = prev_src(bc);
+  gab_value sv = gab_nstring(eg(bc), s.len, s.data);
+  add_constant(bc, sv);
+  return sv;
+}
+
+gab_value trim_prev_id(struct bc *bc) {
+  s_char s = trim_prev_src(bc);
+  gab_value sv = gab_nstring(eg(bc), s.len, s.data);
+  add_constant(bc, sv);
+  return sv;
 }
 
 static inline void push_op(struct bc *bc, gab_opcode op) {
@@ -2378,9 +2389,7 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
 int compile_exp_emp(struct bc *bc, bool assignable) {
   size_t t = bc->offset - 1;
 
-  s_char src = trim_prev_src(bc);
-
-  gab_value val_name = gab_nstring(eg(bc), src.len, src.data);
+  gab_value val_name = trim_prev_id(bc);
 
   uint16_t m = add_message_constant(bc, val_name);
 
@@ -2496,9 +2505,7 @@ int compile_exp_amp(struct bc *bc, bool assignable) {
 int compile_exp_snd(struct bc *bc, bool assignable) {
   size_t t = bc->offset - 1;
 
-  s_char message = trim_prev_src(bc);
-
-  gab_value val_name = gab_nstring(eg(bc), message.len, message.data);
+  gab_value val_name = trim_prev_id(bc);
 
   uint16_t m = add_message_constant(bc, val_name);
 
@@ -2794,9 +2801,7 @@ int compile_exp_lop(struct bc *bc, bool assignable) {
 }
 
 int compile_exp_sym(struct bc *bc, bool assignable) {
-  s_char name = trim_prev_src(bc);
-
-  gab_value sym = gab_nstring(eg(bc), name.len, name.data);
+  gab_value sym = trim_prev_id(bc);
 
   push_op(bc, OP_CONSTANT);
   push_short(bc, add_constant(bc, sym));
@@ -2953,8 +2958,8 @@ const struct compile_rule rules[] = {
 
 struct compile_rule get_rule(gab_token k) { return rules[k]; }
 
-gab_value compile(struct bc *bc, gab_value name,
-                  uint8_t narguments, gab_value arguments[narguments]) {
+gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
+                  gab_value arguments[narguments]) {
   struct gab_mod *new_mod = push_ctxframe(bc, name);
 
   int ctx = peek_ctx(bc, kFRAME, 0);
@@ -2989,12 +2994,11 @@ gab_value compile(struct bc *bc, gab_value name,
   return main;
 }
 
-gab_value gab_bccompsend(struct gab_eg *gab, struct gab_gc *gc,
-                         struct gab_vm *vm, gab_value msg, gab_value receiver,
+gab_value gab_bccompsend(struct gab_eg *gab, gab_value msg, gab_value receiver,
                          uint8_t flags, uint8_t narguments,
                          gab_value arguments[narguments]) {
   struct bc bc;
-  bc_create(&bc, gab, gc, vm, NULL, flags);
+  bc_create(&bc, gab, NULL, flags);
 
   push_ctxframe(&bc, gab_string(gab, "__send__"));
 
@@ -3028,19 +3032,23 @@ gab_value gab_bccompsend(struct gab_eg *gab, struct gab_gc *gc,
   add_constant(&bc, p);
 
   gab_value main = gab_block(gab, p);
+  
+  bc_destroy(&bc);
 
   return main;
 }
 
-gab_value gab_bccomp(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                     gab_value name, s_char source, uint8_t flags,
-                     uint8_t narguments, gab_value arguments[narguments]) {
+gab_value gab_bccomp(struct gab_eg *gab, gab_value name, s_char source,
+                     uint8_t flags, uint8_t narguments,
+                     gab_value arguments[narguments]) {
   struct gab_src *src = gab_lex(gab, (char *)source.data, source.len);
 
   struct bc bc;
-  bc_create(&bc, gab, gc, vm, src, flags);
+  bc_create(&bc, gab, src, flags);
 
   gab_value module = compile(&bc, name, narguments, arguments);
+
+  bc_destroy(&bc);
 
   return module;
 }
