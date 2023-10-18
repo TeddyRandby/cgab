@@ -3,7 +3,7 @@
 
 // Collect as frequently as possible (on every RC push) and collect debug info.
 #ifndef cGAB_DEBUG_GC
-#define cGAB_DEBUG_GC 0
+#define cGAB_DEBUG_GC 1
 #endif
 
 // Log what is happening during collection.
@@ -78,7 +78,7 @@
 #endif
 
 #ifndef cGAB_GC_ROOT_BUFF_MAX
-#define cGAB_GC_ROOT_BUFF_MAX (32)
+#define cGAB_GC_ROOT_BUFF_MAX (cGAB_GC_MOD_BUFF_MAX + 1)
 #endif
 
 // Not configurable, just constants

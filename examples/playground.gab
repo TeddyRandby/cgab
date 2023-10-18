@@ -1,7 +1,20 @@
-:print
+def get = do (obj, key)
+    obj[key]
+end
 
-'hello':print
+def Vector { x y }
 
-helloworld = 'hello' + 'world'
+z = get({ x = 1 y = 2}, 'x')
 
-helloworld:print
+def [] [Vector](key)
+    key == 'mag' then
+      return self.x * self.x + self.y * self.y
+    end
+end
+
+a = get({ x = 1 y = 1}, 'mag')
+b = get({ x = 3 y = 4}, 'mag')
+
+z:print
+a:print
+b:print

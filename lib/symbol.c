@@ -1,27 +1,24 @@
 #include "symbol.h"
 #include <curses.h>
 
-void gab_lib_new(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                 size_t argc, gab_value argv[argc]) {
+void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     gab_value name = argv[1];
 
-    gab_value sym = symbol_create(gab, gc, vm, name);
+    gab_value sym = symbol_create(gab, name);
 
-    gab_gcdref(gab, gc, vm, sym);
-
-    gab_vmpush(vm, sym);
+    gab_vmpush(gab.vm, sym);
 
     return;
   }
   default:
-    gab_panic(gab, vm, "&:new expects 2 arguments");
+    gab_panic(gab, "&:new expects 2 arguments");
     return;
   }
 }
 
-a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_triple gab) {
   const char *names[] = {
       "symbol",
   };
@@ -31,7 +28,7 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab, "new", gab_lib_new),
+      gab_sbuiltin(gab.eg, "new", gab_lib_new),
   };
 
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));

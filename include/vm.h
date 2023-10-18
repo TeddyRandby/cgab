@@ -37,11 +37,6 @@ struct gab_vm {
    */
   uint8_t flags;
 
-  /*
-   * The garbage collector used to cleanup the memory as the vm runs
-   */
-  struct gab_gc gc;
-
   struct gab_vm_frame *fp;
 
   gab_value *sp;
@@ -51,15 +46,15 @@ struct gab_vm {
   struct gab_vm_frame fb[cGAB_FRAMES_MAX];
 };
 
-void gab_vm_create(struct gab_vm *vm, uint8_t flags, size_t argc,
-                   gab_value argv[argc]);
+void gab_vmcreate(struct gab_vm *vm, uint8_t flags, size_t argc,
+                  gab_value argv[argc]);
 
-void gab_vm_destroy(struct gab_eg *gab, struct gab_vm *vm);
+void gab_vmdestroy(struct gab_eg *gab, struct gab_vm *vm);
 
-a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
-                        size_t argc, gab_value argv[argc]);
+a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
+                       size_t argc, gab_value argv[argc]);
 
-gab_value gab_vm_panic(struct gab_eg *gab, struct gab_vm *vm, const char *msg);
+gab_value gab_vm_panic(struct gab_triple gab, const char *msg);
 
 int32_t gab_vm_push(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]);
 

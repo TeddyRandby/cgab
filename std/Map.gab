@@ -9,7 +9,7 @@ end
 
 def [=][.Map](key, value); self:put!(key, value) end
 
-def has[.Map](key); not self:at(key) == .some end
+def has[.Map](key); self:at(key) == .some end
 
 def del[.Map](key); self:put!(key, nil) end
 

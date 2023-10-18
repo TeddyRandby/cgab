@@ -1,10 +1,10 @@
 #include "include/core.h"
 #include "include/gab.h"
 
-void gab_lib_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                  size_t argc, gab_value argv[static argc]) {
+void gab_lib_send(struct gab_triple gab, size_t argc,
+                  gab_value argv[static argc]) {
   if (argc < 2) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_send");
+    gab_panic(gab, "Invalid call to gab_lib_send");
     return;
   }
 
@@ -17,20 +17,18 @@ void gab_lib_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
                                       });
 
   if (!result) {
-    gab_panic(gab, vm, "Invalid send");
+    gab_panic(gab, "Invalid send");
     return;
   }
 
-  gab_nvmpush(vm, result->len, result->data);
-
-  gab_ngcdref(gab, gc, vm, 1, result->len, result->data);
+  gab_nvmpush(gab.vm, result->len, result->data);
 
   a_gab_value_destroy(result);
 }
 
-void gab_lib_implements(struct gab_eg *gab, struct gab_gc *gc,
-                        struct gab_vm *vm, size_t argc, gab_value argv[argc]) {
-  gab_value type = gab_valtyp(gab, argv[0]);
+void gab_lib_implements(struct gab_triple gab, size_t argc,
+                        gab_value argv[argc]) {
+  gab_value type = gab_valtyp(gab.eg, argv[0]);
 
   switch (argc) {
   case 2: {
@@ -38,7 +36,7 @@ void gab_lib_implements(struct gab_eg *gab, struct gab_gc *gc,
     case kGAB_MESSAGE: {
       bool implements = gab_msgat(argv[1], type) != gab_undefined;
 
-      gab_vmpush(vm, gab_bool(implements));
+      gab_vmpush(gab.vm, gab_bool(implements));
 
       return;
     }
@@ -47,17 +45,17 @@ void gab_lib_implements(struct gab_eg *gab, struct gab_gc *gc,
       size_t len = gab_shplen(argv[1]);
 
       for (size_t i = 0; i < len; i++) {
-        gab_value msgname = gab_valintos(gab, keys[i]);
+        gab_value msgname = gab_valintos(gab.eg, keys[i]);
 
-        gab_value msg = gab_message(gab, msgname);
+        gab_value msg = gab_message(gab.eg, msgname);
 
         if (gab_msgat(msg, type) == gab_undefined) {
-          gab_vmpush(vm, gab_bool(false));
+          gab_vmpush(gab.vm, gab_bool(false));
           return;
         }
       }
 
-      gab_vmpush(vm, gab_bool(true));
+      gab_vmpush(gab.vm, gab_bool(true));
       return;
     }
     default:
@@ -65,37 +63,26 @@ void gab_lib_implements(struct gab_eg *gab, struct gab_gc *gc,
     }
   }
   default:
-    gab_panic(gab, vm, "Invalid call to gab_lib_implements");
+    gab_panic(gab, "Invalid call to gab_lib_implements");
     return;
   }
 }
 
-a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
-  const char *names[] = {
-      "implements?",
-      "send",
+a_gab_value *gab_lib(struct gab_triple gab) {
+  struct gab_spec_argt specs[] = {
+      {
+          "implements?",
+          gab_typ(gab.eg, kGAB_UNDEFINED),
+          gab_sbuiltin(gab.eg, "implements?", gab_lib_implements),
+      },
+      {
+          "send",
+          gab_typ(gab.eg, kGAB_UNDEFINED),
+          gab_sbuiltin(gab.eg, "send", gab_lib_send),
+      },
   };
 
-  gab_value receivers[] = {
-      gab_typ(gab, kGAB_UNDEFINED),
-      gab_typ(gab, kGAB_UNDEFINED),
-  };
-
-  gab_value specs[] = {
-      gab_sbuiltin(gab, "implements?", gab_lib_implements),
-      gab_sbuiltin(gab, "send", gab_lib_send),
-  };
-
-  static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
-  static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
-
-  for (int i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = names[i],
-                      .receiver = receivers[i],
-                      .specialization = specs[i],
-                  });
-  }
+  gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
   return NULL;
 }

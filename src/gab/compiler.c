@@ -84,9 +84,7 @@ struct context {
 struct bc {
   struct gab_src *source;
 
-  struct gab_eg *eg;
-  struct gab_gc *gc;
-  struct gab_vm *vm;
+  struct gab_triple gab;
 
   size_t offset;
 
@@ -98,9 +96,10 @@ struct bc {
   struct context contexts[cGAB_FUNCTION_DEF_NESTING_MAX];
 };
 
-static inline struct gab_gc *gc(struct bc *bc) { return bc->gc; }
-static inline struct gab_eg *eg(struct bc *bc) { return bc->eg; }
-static inline struct gab_vm *vm(struct bc *bc) { return bc->vm; }
+static inline struct gab_gc *gc(struct bc *bc) { return bc->gab.gc; }
+static inline struct gab_eg *eg(struct bc *bc) { return bc->gab.eg; }
+static inline struct gab_vm *vm(struct bc *bc) { return bc->gab.vm; }
+static inline struct gab_triple gab(struct bc *bc) { return bc->gab; }
 
 /*
   Precedence rules for the parsing of expressions.
@@ -132,24 +131,16 @@ struct compile_rule {
   bool multi_line;
 };
 
-void bc_create(struct bc *self, struct gab_eg *eg, struct gab_src *source,
+void bc_create(struct bc *self, struct gab_triple gab, struct gab_src *source,
                uint8_t flags) {
   memset(self, 0, sizeof(*self));
 
   self->flags = flags;
   self->source = source;
-
-  self->vm = NULL;
-  self->eg = eg;
-  self->gc = malloc(sizeof(struct gab_gc));
-  gab_gccreate(self->gc);
+  self->gab = gab;
 }
 
-void bc_destroy(struct bc *self) {
-  gab_gcrun(self->eg, self->gc, self->vm);
-  gab_gcdestroy(self->gc);
-  free(self->gc);
-}
+void bc_destroy(struct bc *self) {}
 
 enum comp_status {
   COMP_OK = 1,
@@ -273,7 +264,7 @@ static inline struct gab_mod *mod(struct bc *bc) {
 }
 
 static inline uint16_t add_constant(struct bc *bc, gab_value value) {
-  gab_gciref(eg(bc), gc(bc), vm(bc), value);
+  gab_gciref(gab(bc), value);
   return gab_mod_add_constant(mod(bc), value);
 }
 
@@ -2982,11 +2973,11 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   gab_value p = pop_ctxframe(bc);
 
   gab_mod_add_constant(new_mod, p);
-  gab_gciref(eg(bc), gc(bc), vm(bc), p);
+  gab_gciref(gab(bc), p);
 
   gab_value main = gab_block(eg(bc), p);
   gab_mod_add_constant(new_mod, main);
-  gab_gciref(eg(bc), gc(bc), vm(bc), main);
+  gab_gciref(gab(bc), main);
 
   if (fGAB_DUMP_BYTECODE & bc->flags)
     gab_fdis(stdout, new_mod);
@@ -2994,13 +2985,13 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   return main;
 }
 
-gab_value gab_bccompsend(struct gab_eg *gab, gab_value msg, gab_value receiver,
+gab_value gab_bccompsend(struct gab_triple gab, gab_value msg, gab_value receiver,
                          uint8_t flags, uint8_t narguments,
                          gab_value arguments[narguments]) {
   struct bc bc;
   bc_create(&bc, gab, NULL, flags);
 
-  push_ctxframe(&bc, gab_string(gab, "__send__"));
+  push_ctxframe(&bc, gab_string(gab.eg, "__send__"));
 
   uint16_t message = add_constant(&bc, msg);
 
@@ -3022,7 +3013,7 @@ gab_value gab_bccompsend(struct gab_eg *gab, gab_value msg, gab_value receiver,
 
   uint8_t nlocals = narguments + 1;
 
-  gab_value p = gab_blkproto(gab, (struct gab_blkproto_argt){
+  gab_value p = gab_blkproto(gab.eg, (struct gab_blkproto_argt){
                                       .mod = mod(&bc),
                                       .narguments = narguments,
                                       .nlocals = nlocals,
@@ -3031,17 +3022,17 @@ gab_value gab_bccompsend(struct gab_eg *gab, gab_value msg, gab_value receiver,
 
   add_constant(&bc, p);
 
-  gab_value main = gab_block(gab, p);
-  
+  gab_value main = gab_block(gab.eg, p);
+
   bc_destroy(&bc);
 
   return main;
 }
 
-gab_value gab_bccomp(struct gab_eg *gab, gab_value name, s_char source,
+gab_value gab_bccomp(struct gab_triple gab, gab_value name, s_char source,
                      uint8_t flags, uint8_t narguments,
                      gab_value arguments[narguments]) {
-  struct gab_src *src = gab_lex(gab, (char *)source.data, source.len);
+  struct gab_src *src = gab_lex(gab.eg, (char *)source.data, source.len);
 
   struct bc bc;
   bc_create(&bc, gab, src, flags);

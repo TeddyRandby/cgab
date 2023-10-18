@@ -2,10 +2,9 @@
 #include <assert.h>
 #include <time.h>
 
-void gab_lib_now(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
-                 size_t argc, gab_value argv[argc]) {
+void gab_lib_now(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_clock");
+    gab_panic(gab, "Invalid call to gab_lib_clock");
     return;
   }
 
@@ -13,16 +12,16 @@ void gab_lib_now(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
 
   gab_value res = gab_number((double)t / CLOCKS_PER_SEC);
 
-  gab_vmpush(vm, res);
+  gab_vmpush(gab.vm, res);
 };
 
-a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_triple gab) {
   const char *names[] = {
       "now",
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab, "now", gab_lib_now),
+      gab_sbuiltin(gab.eg, "now", gab_lib_now),
   };
 
   gab_value receivers[] = {

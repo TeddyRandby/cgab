@@ -17,8 +17,7 @@ struct gab_gc {
   struct gab_obj *modifications[cGAB_GC_MOD_BUFF_MAX];
 };
 
-typedef void (*gab_gc_visitor)(struct gab_eg *gab, struct gab_gc *gc,
-                               struct gab_vm *vm, struct gab_obj *obj);
+typedef void (*gab_gc_visitor)(struct gab_triple gab, struct gab_obj *obj);
 
 void gab_gccreate(struct gab_gc *gc);
 

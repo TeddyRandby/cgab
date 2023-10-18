@@ -2,17 +2,16 @@
 #include <uriparser/Uri.h>
 #include <uriparser/UriBase.h>
 
-void gab_lib_stouri(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                    size_t argc, gab_value argv[argc]) {
+void gab_lib_stouri(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
-    gab_vmpush(vm, gab_string(gab, "invalid_arguments"));
+    gab_vmpush(gab.vm, gab_string(gab.eg, "invalid_arguments"));
     return;
   }
 
   struct gab_obj_string *uri = GAB_VAL_TO_STRING(argv[0]);
 
   gab_value r_values[] = {
-      gab_string(gab, "ok"),
+      gab_string(gab.eg, "ok"),
       gab_nil,
       gab_nil,
   };
@@ -26,7 +25,7 @@ void gab_lib_stouri(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   int result = uriParseSingleUriExA(&parsed_uri, start, after_end, &errorPos);
 
   if (result != URI_SUCCESS) {
-    gab_vmpush(vm, gab_string(gab, "parse_failed"));
+    gab_vmpush(gab.vm, gab_string(gab.eg, "parse_failed"));
     return;
   }
 
@@ -46,13 +45,13 @@ void gab_lib_stouri(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 
     uint64_t index = 0;
     while (index < path_count) {
-      values[index] = gab_nstring(gab, path->text.afterLast - path->text.first,
-                                  path->text.first);
+      values[index] = gab_nstring(
+          gab.eg, path->text.afterLast - path->text.first, path->text.first);
       path = path->next;
       index++;
     }
 
-    r_values[1] = gab_tuple(gab, path_count, values);
+    r_values[1] = gab_tuple(gab.eg, path_count, values);
   }
 
   UriQueryListA *query = NULL;
@@ -62,7 +61,7 @@ void gab_lib_stouri(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
                                   parsed_uri.query.afterLast);
 
   if (result != URI_SUCCESS) {
-    gab_vmpush(vm, gab_string(gab, "parse_failed"));
+    gab_vmpush(gab.vm, gab_string(gab.eg, "parse_failed"));
     return;
   }
 
@@ -73,7 +72,7 @@ void gab_lib_stouri(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 
   while (index < item_count) {
     const char *key = walker->key;
-    gab_value value = gab_string(gab, walker->value);
+    gab_value value = gab_string(gab.eg, walker->value);
 
     keys[index] = key;
     values[index] = value;
@@ -82,26 +81,26 @@ void gab_lib_stouri(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
     index++;
   }
 
-  r_values[2] = gab_srecord(gab, item_count, keys, values);
+  r_values[2] = gab_srecord(gab.eg, item_count, keys, values);
 
   uriFreeQueryListA(query);
 
   uriFreeUriMembersA(&parsed_uri);
 
-  gab_nvmpush(vm, sizeof(r_values) / sizeof(r_values[0]), r_values);
+  gab_nvmpush(gab.vm, sizeof(r_values) / sizeof(r_values[0]), r_values);
 }
 
-a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_triple gab) {
   const char *names[] = {
       "to_uri",
   };
 
   gab_value receivers[] = {
-      gab_typ(gab, kGAB_STRING),
+      gab_typ(gab.eg, kGAB_STRING),
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab, "to_uri", gab_lib_stouri),
+      gab_sbuiltin(gab.eg, "to_uri", gab_lib_stouri),
   };
 
   for (int32_t i = 0; i < sizeof(specs) / sizeof(gab_value); i++) {

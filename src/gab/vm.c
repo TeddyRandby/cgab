@@ -16,15 +16,15 @@
 
 void gab_vm_container_cb(void *data) { DESTROY(data); }
 
-gab_value vm_error(struct gab_eg *gab, struct gab_vm *vm, uint8_t flags,
-                   enum gab_status e, const char *help_fmt, ...) {
+gab_value vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
+                   const char *help_fmt, ...) {
 
   va_list va;
   va_start(va, help_fmt);
 
-  struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(vm->fp->b->p);
+  struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(gab.vm->fp->b->p);
 
-  size_t offset = vm->fp->ip - p->mod->bytecode.data - 1;
+  size_t offset = gab.vm->fp->ip - p->mod->bytecode.data - 1;
 
   gab_verr(
       (struct gab_err_argt){
@@ -38,31 +38,25 @@ gab_value vm_error(struct gab_eg *gab, struct gab_vm *vm, uint8_t flags,
       va);
 
   va_end(va);
-  
-  DESTROY(vm);
+
+  DESTROY(gab.vm);
 
   return gab_nil;
 }
 
-gab_value gab_vm_panic(struct gab_eg *gab, struct gab_vm *vm, const char *msg) {
-  return vm_error(gab, vm, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC, GAB_PANIC,
-                  msg);
+gab_value gab_vm_panic(struct gab_triple gab, const char *msg) {
+  return vm_error(gab, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC, GAB_PANIC, msg);
 }
 
-void gab_vm_create(struct gab_vm *self, uint8_t flags, size_t argc,
-                   gab_value argv[argc]) {
-  gab_gccreate(&self->gc);
-
+void gab_vmcreate(struct gab_vm *self, uint8_t flags, size_t argc,
+                  gab_value argv[argc]) {
   self->fp = self->fb;
   self->sp = self->sb;
   self->fp->slots = self->sp;
   self->flags = flags;
 }
 
-void gab_vm_destroy(struct gab_eg *gab, struct gab_vm *self) {
-  gab_gcrun(gab, &self->gc, self);
-  gab_gcdestroy(&self->gc);
-}
+void gab_vmdestroy(struct gab_eg *gab, struct gab_vm *self) {}
 
 void gab_fpry(FILE *stream, struct gab_vm *vm, uint64_t value) {
   uint64_t frame_count = vm->fp - vm->fb;
@@ -198,27 +192,26 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   return true;
 }
 
-static inline void call_builtin(struct gab_eg *gab, struct gab_vm *vm,
+static inline void call_builtin(struct gab_triple gab,
                                 struct gab_obj_builtin *b, uint8_t arity,
                                 uint8_t want, bool is_message) {
-  gab_value *to = vm->sp - arity - 1; // Is this -1 correct?
+  gab_value *to = gab.vm->sp - arity - 1; // Is this -1 correct?
 
-  gab_value *before = vm->sp;
+  gab_value *before = gab.vm->sp;
 
   // Only pass in the extra "self" argument
   // if this is a message.
-  (*b->function)(gab, &vm->gc, vm, arity + is_message,
-                 vm->sp - arity - is_message);
+  (*b->function)(gab, arity + is_message, gab.vm->sp - arity - is_message);
 
-  uint8_t have = vm->sp - before;
+  uint8_t have = gab.vm->sp - before;
 
   // There is always an extra to trim bc of
   // the receiver or callee.
-  vm->sp = trim_return(vm->sp - have, to, have, want);
+  gab.vm->sp = trim_return(gab.vm->sp - have, to, have, want);
 }
 
-a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
-                        size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
+                       size_t argc, gab_value argv[argc]) {
 #if cGAB_LOG_VM
 #define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
 #else
@@ -269,9 +262,10 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 /*
   Lots of helper macros.
 */
-#define EG() (gab)
-#define GC() (&VM()->gc)
-#define VM() (vm)
+#define GAB() (gab)
+#define EG() (GAB().eg)
+#define GC() (GAB().gc)
+#define VM() (GAB().vm)
 #define INSTR() (instr)
 #define FRAME() (VM()->fp)
 #define CLOSURE() (FRAME()->b)
@@ -334,20 +328,21 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 #define PROP_CACHE_DIST 19
 
 #define ERROR(status, help, ...)                                               \
-  (a_gab_value_one(vm_error(EG(), VM(), flags, status, help, __VA_ARGS__)))
+  (a_gab_value_one(vm_error(GAB(), flags, status, help, __VA_ARGS__)))
 
   /*
    ----------- BEGIN RUN BODY -----------
   */
-  struct gab_vm *vm = NEW(struct gab_vm);
-  gab_vm_create(vm, flags, argc, argv);
+  VM() = NEW(struct gab_vm);
+  gab_vmcreate(VM(), flags, argc, argv);
+  
 
   register uint8_t instr = OP_NOP;
   register uint8_t *ip = NULL;
 
-  *vm->sp++ = main;
+  *VM()->sp++ = main;
   for (uint8_t i = 0; i < argc; i++)
-    *vm->sp++ = argv[i];
+    *VM()->sp++ = argv[i];
 
   switch (gab_valknd(main)) {
   case kGAB_BLOCK: {
@@ -486,7 +481,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       STORE_FRAME();
 
-      call_builtin(EG(), VM(), GAB_VAL_TO_BUILTIN(spec), have, want, true);
+      call_builtin(GAB(), GAB_VAL_TO_BUILTIN(spec), have, want, true);
 
       LOAD_FRAME();
 
@@ -514,7 +509,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       STORE_FRAME();
 
-      call_builtin(EG(), VM(), GAB_VAL_TO_BUILTIN(receiver), have, want, false);
+      call_builtin(GAB(), GAB_VAL_TO_BUILTIN(receiver), have, want, false);
 
       LOAD_FRAME();
       NEXT();
@@ -874,16 +869,16 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       TOP() = trim_return(from, to, have, FRAME()->want);
 
       if (--FRAME() == VM()->fb) {
-        // Increment and pop the module.
-        gab_ngciref(EG(), GC(), VM(), 1, have, to);
+        gab_ngciref(GAB(), 1, have, to);
 
         a_gab_value *results = a_gab_value_create(to, have);
 
         VM()->sp = VM()->sb;
 
-        gab_vm_destroy(EG(), VM());
+        gab_vmdestroy(EG(), VM());
 
         DESTROY(VM());
+        GAB().vm = NULL;
 
         return results;
       }
@@ -1378,8 +1373,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (offset != UINT64_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_IMPLEMENTATION_EXISTS, " Tried to specialize %V for %V",
-                     m, r);
+        return ERROR(GAB_IMPLEMENTATION_EXISTS,
+                     " Tried to specialize %V for %V", m, r);
       }
 
       gab_value blk = gab_block(EG(), p);
@@ -1401,12 +1396,15 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       }
 
       struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(m);
+
+      gab_gcreserve(GAB(), 3);
       
-      gab_gcdref(EG(), GC(), VM(), msg->specs);
+      gab_gcdref(GAB(), msg->specs);
 
       msg->specs = gab_recordwith(EG(), msg->specs, r, blk);
-
-      gab_gciref(EG(), GC(), VM(), msg->specs);
+      msg->version++;
+      
+      gab_gciref(GAB(), msg->specs);
 
       PEEK() = m;
 

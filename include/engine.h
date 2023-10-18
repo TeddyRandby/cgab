@@ -35,7 +35,7 @@ static const char *gab_token_names[] = {
 
 #define NAME messages
 #define K struct gab_obj_message *
-#define HASH(a) (GAB_VAL_TO_STRING(a->name)->hash)
+#define HASH(a) (a->hash)
 #define EQUAL(a, b) (a == b)
 #define LOAD cGAB_DICT_MAX_LOAD
 #include "dict.h"

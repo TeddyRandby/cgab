@@ -20,6 +20,8 @@ end
 def *[Matrix](other)
   def N = self.n
 
+  other:print
+
   def data = :record(?self.data)
 
   for i in N:each
