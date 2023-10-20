@@ -146,7 +146,7 @@ void gab_lib_use(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   // skip first argument
   for (size_t i = 1; i < argc; i++) {
-    s_char name = gab_valintocs(gab.eg, argv[i]);
+    s_char name = gab_valintocs(gab, argv[i]);
 
     for (int j = 0; j < sizeof(resources) / sizeof(resource); j++) {
       resource *res = resources + j;
@@ -181,7 +181,7 @@ void gab_lib_use(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
 void gab_lib_panic(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc == 1) {
-    s_char str = gab_valintocs(gab.eg, argv[0]);
+    s_char str = gab_valintocs(gab, argv[0]);
 
     char *cstr = strndup((char *)str.data, str.len);
 
@@ -209,20 +209,20 @@ void gab_setup_builtins(struct gab_triple gab) {
   gab_spec(gab, (struct gab_spec_argt){
                     .name = "use",
                     .receiver = gab_typ(gab.eg, kGAB_NIL),
-                    .specialization = gab_sbuiltin(gab.eg, "use", gab_lib_use),
+                    .specialization = gab_sbuiltin(gab, "use", gab_lib_use),
                 });
 
   gab_spec(gab,
            (struct gab_spec_argt){
                .name = "panic",
                .receiver = gab_typ(gab.eg, kGAB_STRING),
-               .specialization = gab_sbuiltin(gab.eg, "panic", gab_lib_panic),
+               .specialization = gab_sbuiltin(gab, "panic", gab_lib_panic),
            });
 
   gab_spec(gab,
            (struct gab_spec_argt){
                .name = "print",
                .receiver = gab_typ(gab.eg, kGAB_UNDEFINED),
-               .specialization = gab_sbuiltin(gab.eg, "print", gab_lib_print),
+               .specialization = gab_sbuiltin(gab, "print", gab_lib_print),
            });
 }

@@ -55,12 +55,12 @@ static inline gab_value list_create_empty(struct gab_triple gab, uint64_t len) {
   v_gab_value *data = NEW(v_gab_value);
   v_gab_value_create(data, len);
 
-  return gab_box(gab.eg, (struct gab_box_argt){
-                             .type = gab_string(gab.eg, "List"),
-                             .destructor = list_destroy,
-                             .visitor = list_visit,
-                             .data = data,
-                         });
+  return gab_box(gab, (struct gab_box_argt){
+                          .type = gab_string(gab, "List"),
+                          .destructor = list_destroy,
+                          .visitor = list_visit,
+                          .data = data,
+                      });
 }
 
 static inline gab_value list_create(struct gab_triple gab, uint64_t len,

@@ -1,20 +1,21 @@
-def get = do (obj, key)
-    obj[key]
+def a = { b }
+
+a.b = a
+
+def test[a]
+  a
 end
 
-def Vector { x y }
+a.b = test
 
-z = get({ x = 1 y = 2}, 'x')
-
-def [] [Vector](key)
-    key == 'mag' then
-      return self.x * self.x + self.y * self.y
-    end
+def test[?a]
+  a
 end
 
-a = get({ x = 1 y = 1}, 'mag')
-b = get({ x = 3 y = 4}, 'mag')
+def test[]
+  a
+end
 
-z:print
-a:print
-b:print
+:test
+:test
+:test

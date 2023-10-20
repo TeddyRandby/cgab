@@ -11,8 +11,8 @@ void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  s_char path = gab_valintocs(gab.eg, argv[1]);
-  s_char perm = gab_valintocs(gab.eg, argv[2]);
+  s_char path = gab_valintocs(gab, argv[1]);
+  s_char perm = gab_valintocs(gab, argv[2]);
 
   char cpath[path.len + 1];
   memcpy(cpath, path.data, path.len);
@@ -25,17 +25,17 @@ void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   FILE *file = fopen(cpath, cperm);
 
   if (file == NULL) {
-    gab_value r = gab_string(gab.eg, "FILE_COULD_NOT_OPEN");
+    gab_value r = gab_string(gab, "FILE_COULD_NOT_OPEN");
     gab_vmpush(gab.vm, r);
     fclose(file);
     return;
   }
 
   gab_value result[2] = {
-      gab_string(gab.eg, "ok"),
-      gab_box(gab.eg,
+      gab_string(gab, "ok"),
+      gab_box(gab,
               (struct gab_box_argt){
-                  .type = gab_string(gab.eg, "File"),
+                  .type = gab_string(gab, "File"),
                   .data = file,
                   .destructor = file_cb,
                   .visitor = NULL,
@@ -63,13 +63,13 @@ void gab_lib_read(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
 
   if (bytesRead < fileSize) {
-    gab_vmpush(gab.vm, gab_string(gab.eg, "FILE_COULD_NOT_READ"));
+    gab_vmpush(gab.vm, gab_string(gab, "FILE_COULD_NOT_READ"));
     return;
   }
 
   gab_value res[2] = {
-      gab_string(gab.eg, "ok"),
-      gab_nstring(gab.eg, bytesRead, buffer),
+      gab_string(gab, "ok"),
+      gab_nstring(gab, bytesRead, buffer),
   };
 
   gab_nvmpush(gab.vm, 2, res);
@@ -83,7 +83,7 @@ void gab_lib_write(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   FILE *file = gab_boxdata(argv[0]);
 
-  s_char data = gab_valintocs(gab.eg, argv[1]);
+  s_char data = gab_valintocs(gab, argv[1]);
 
   char cdata[data.len + 1];
   memcpy(cdata, data.data, data.len);
@@ -92,11 +92,11 @@ void gab_lib_write(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   int32_t result = fputs(cdata, file);
 
   if (result > 0) {
-    gab_vmpush(gab.vm, gab_string(gab.eg, "ok"));
+    gab_vmpush(gab.vm, gab_string(gab, "ok"));
     return;
   }
 
-  gab_vmpush(gab.vm, gab_string(gab.eg, "FILE_COULD_NOT_WRITE"));
+  gab_vmpush(gab.vm, gab_string(gab, "FILE_COULD_NOT_WRITE"));
   return;
 }
 
@@ -107,7 +107,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       "write",
   };
 
-  gab_value type = gab_string(gab.eg, "File");
+  gab_value type = gab_string(gab, "File");
 
   gab_value receivers[] = {
       gab_nil,
@@ -116,9 +116,9 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab.eg, "open", gab_lib_open),
-      gab_sbuiltin(gab.eg, "read", gab_lib_read),
-      gab_sbuiltin(gab.eg, "write", gab_lib_write),
+      gab_sbuiltin(gab, "open", gab_lib_open),
+      gab_sbuiltin(gab, "read", gab_lib_read),
+      gab_sbuiltin(gab, "write", gab_lib_write),
   };
 
   for (uint8_t i = 0; i < LEN_CARRAY(specs); i++) {

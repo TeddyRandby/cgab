@@ -1,0 +1,553 @@
+swapping 0 and 0
+swapping 1 and 1
+swapping 2 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 2 and 2
+swapping 3 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 3 and 2
+ITER 1 5 1
+swapping back 1 and 1
+swapping 2 and 1
+swapping 2 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 2 and 2
+swapping 3 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 3 and 2
+ITER 1 5 1
+swapping back 2 and 1
+swapping 3 and 1
+swapping 2 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 2 and 2
+swapping 3 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 3 and 2
+ITER 1 5 1
+swapping back 3 and 1
+ITER 1 5 1
+swapping back 0 and 0
+swapping 1 and 0
+swapping 1 and 1
+swapping 2 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 2 and 2
+swapping 3 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 3 and 2
+ITER 1 5 1
+swapping back 1 and 1
+swapping 2 and 1
+swapping 2 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 2 and 2
+swapping 3 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 3 and 2
+ITER 1 5 1
+swapping back 2 and 1
+swapping 3 and 1
+swapping 2 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 2 and 2
+swapping 3 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 3 and 2
+ITER 1 5 1
+swapping back 3 and 1
+ITER 1 5 1
+swapping back 1 and 0
+swapping 2 and 0
+swapping 1 and 1
+swapping 2 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 2 and 2
+swapping 3 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 3 and 2
+ITER 1 5 1
+swapping back 1 and 1
+swapping 2 and 1
+swapping 2 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 2 and 2
+swapping 3 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 3 and 2
+ITER 1 5 1
+swapping back 2 and 1
+swapping 3 and 1
+swapping 2 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 2 and 2
+swapping 3 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 3 and 2
+ITER 1 5 1
+swapping back 3 and 1
+ITER 1 5 1
+swapping back 2 and 0
+swapping 3 and 0
+swapping 1 and 1
+swapping 2 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 2 and 2
+swapping 3 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 3 and 2
+ITER 1 5 1
+swapping back 1 and 1
+swapping 2 and 1
+swapping 2 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 2 and 2
+swapping 3 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 3 and 2
+ITER 1 5 1
+swapping back 2 and 1
+swapping 3 and 1
+swapping 2 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 2 and 2
+swapping 3 and 2
+swapping 3 and 3
+yielding self
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+yielding val
+ITER 1 5 2
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+NEXT 6
+ITER 1 5 1
+swapping back 3 and 3
+ITER 1 5 1
+swapping back 3 and 2
+ITER 1 5 1
+swapping back 3 and 1
+ITER 1 5 1
+swapping back 3 and 0
+ITER 1 5 1

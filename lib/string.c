@@ -18,7 +18,7 @@ void gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 #define CLAMP(a, b) (MAX(0, MIN(a, b)))
 
 void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  s_char str = gab_valintocs(gab.eg, argv[0]);
+  s_char str = gab_valintocs(gab, argv[0]);
 
   uint64_t len = gab_strlen(argv[0]);
   uint64_t start = 0, end = len;
@@ -62,7 +62,7 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   uint64_t size = end - start;
 
-  gab_value res = gab_nstring(gab.eg, size, str.data + start);
+  gab_value res = gab_nstring(gab, size, str.data + start);
 
   gab_vmpush(gab.vm, res);
 }
@@ -73,8 +73,8 @@ void gab_lib_split(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  s_char src = gab_valintocs(gab.eg, argv[0]);
-  s_char delim = gab_valintocs(gab.eg, argv[1]);
+  s_char src = gab_valintocs(gab, argv[0]);
+  s_char delim = gab_valintocs(gab, argv[1]);
 
   s_char window = s_char_create(src.data, delim.len);
 
@@ -88,8 +88,7 @@ void gab_lib_split(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     if (s_char_match(window, delim)) {
       s_char split = s_char_create(start, len);
 
-      v_uint64_t_push(&splits,
-                      gab_nstring(gab.eg, split.len, (char *)split.data));
+      v_uint64_t_push(&splits, gab_nstring(gab, split.len, (char *)split.data));
 
       window.data += window.len;
       start = window.data;
@@ -101,9 +100,9 @@ void gab_lib_split(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   }
 
   s_char split = s_char_create(start, len);
-  v_uint64_t_push(&splits, gab_nstring(gab.eg, split.len, (char *)split.data));
+  v_uint64_t_push(&splits, gab_nstring(gab, split.len, (char *)split.data));
 
-  gab_value result = gab_tuple(gab.eg, splits.len, splits.data);
+  gab_value result = gab_tuple(gab, splits.len, splits.data);
 
   gab_vmpush(gab.vm, result);
 }
@@ -124,9 +123,9 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab.eg, "slice", gab_lib_slice),
-      gab_sbuiltin(gab.eg, "split", gab_lib_split),
-      gab_sbuiltin(gab.eg, "len", gab_lib_len),
+      gab_sbuiltin(gab, "slice", gab_lib_slice),
+      gab_sbuiltin(gab, "split", gab_lib_split),
+      gab_sbuiltin(gab, "len", gab_lib_len),
   };
 
   for (uint8_t i = 0; i < LEN_CARRAY(names); i++) {

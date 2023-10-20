@@ -628,7 +628,7 @@ struct gab_obj_string {
  * @param data The data.
  * @return The value.
  */
-gab_value gab_string(struct gab_eg *eg, const char data[static 1]);
+gab_value gab_string(struct gab_triple gab, const char data[static 1]);
 
 /**
  * # Create a gab_value from a bounded c-string
@@ -638,7 +638,7 @@ gab_value gab_string(struct gab_eg *eg, const char data[static 1]);
  * @param data The data.
  * @return The value.
  */
-gab_value gab_nstring(struct gab_eg *eg, size_t len,
+gab_value gab_nstring(struct gab_triple gab, size_t len,
                       const char data[static len]);
 
 /**
@@ -649,7 +649,7 @@ gab_value gab_nstring(struct gab_eg *eg, size_t len,
  * @param b The second string.
  * @return The value.
  */
-gab_value gab_strcat(struct gab_eg *eg, gab_value a, gab_value b);
+gab_value gab_strcat(struct gab_triple gab, gab_value a, gab_value b);
 
 /**
  * # Get the length of a string
@@ -707,7 +707,7 @@ struct gab_blkproto_argt {
  * @see struct gab_blkproto_argt
  * @return The new block prototype object.
  */
-gab_value gab_blkproto(struct gab_eg *eg, struct gab_blkproto_argt args);
+gab_value gab_blkproto(struct gab_triple gab, struct gab_blkproto_argt args);
 
 /**
  * A block - aka a prototype and it's captures.
@@ -732,7 +732,7 @@ struct gab_obj_block {
  * @param prototype The prototype of the block.
  * @return The new block object.
  */
-gab_value gab_block(struct gab_eg *eg, gab_value prototype);
+gab_value gab_block(struct gab_triple gab, gab_value prototype);
 
 /**
  * A shape object, used to define the layout of a record.
@@ -761,10 +761,10 @@ struct gab_obj_shape {
  *
  * @param keys The key array.
  */
-gab_value gab_shape(struct gab_eg *eg, size_t stride, size_t len,
+gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
                     gab_value keys[static len]);
 
-static inline gab_value gab_shapewith(struct gab_eg *eg, gab_value shape,
+static inline gab_value gab_shapewith(struct gab_triple gab, gab_value shape,
                                       gab_value key) {
   assert(gab_valknd(shape) == kGAB_SHAPE);
   struct gab_obj_shape *obj = GAB_VAL_TO_SHAPE(shape);
@@ -773,7 +773,7 @@ static inline gab_value gab_shapewith(struct gab_eg *eg, gab_value shape,
   memcpy(keys, obj->data, obj->len * sizeof(gab_value));
   keys[obj->len] = key;
 
-  return gab_shape(eg, 1, obj->len + 1, keys);
+  return gab_shape(gab, 1, obj->len + 1, keys);
 };
 
 /**
@@ -786,7 +786,7 @@ static inline gab_value gab_shapewith(struct gab_eg *eg, gab_value shape,
  *
  * @param len The length of the tuple.
  */
-gab_value gab_nshape(struct gab_eg *eg, uint64_t len);
+gab_value gab_nshape(struct gab_triple gab, uint64_t len);
 
 /**
  * Find the offset of a key in the shape.
@@ -891,10 +891,10 @@ struct gab_obj_record {
  *
  * @return The new record object.
  */
-gab_value gab_recordof(struct gab_eg *eg, gab_value shp, size_t stride,
+gab_value gab_recordof(struct gab_triple gab, gab_value shp, size_t stride,
                        gab_value values[static GAB_VAL_TO_SHAPE(shp)->len]);
 
-static inline gab_value gab_recordwith(struct gab_eg *eg, gab_value rec,
+static inline gab_value gab_recordwith(struct gab_triple gab, gab_value rec,
                                        gab_value key, gab_value value) {
   assert(gab_valknd(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
@@ -909,8 +909,8 @@ static inline gab_value gab_recordwith(struct gab_eg *eg, gab_value rec,
   keys[obj->len] = key;
   values[obj->len] = value;
 
-  gab_value shp = gab_shapewith(eg, obj->shape, key);
-  return gab_recordof(eg, shp, 1, values);
+  gab_value shp = gab_shapewith(gab, obj->shape, key);
+  return gab_recordof(gab, shp, 1, values);
 };
 
 /**
@@ -920,7 +920,7 @@ static inline gab_value gab_recordwith(struct gab_eg *eg, gab_value rec,
  *
  * @param shape The shape of the record.
  */
-gab_value gab_erecordof(struct gab_eg *eg, gab_value shape);
+gab_value gab_erecordof(struct gab_triple gab, gab_value shape);
 
 /**
  * Set a value in the record. This function is not bounds checked. It should be
@@ -996,9 +996,9 @@ static inline uint64_t gab_recfind(gab_value rec, gab_value key) {
   return gab_shpfind(obj->shape, key);
 }
 
-static inline gab_value gab_srecat(struct gab_eg *eg, gab_value value,
+static inline gab_value gab_srecat(struct gab_triple gab, gab_value value,
                                    const char *key) {
-  return gab_recat(value, gab_string(eg, key));
+  return gab_recat(value, gab_string(gab, key));
 }
 
 /**
@@ -1028,9 +1028,9 @@ static inline bool gab_recput(gab_value rec, gab_value key, gab_value value) {
   return true;
 }
 
-static inline bool gab_srecput(struct gab_eg *eg, gab_value value,
+static inline bool gab_srecput(struct gab_triple gab, gab_value value,
                                const char *key, gab_value v) {
-  return gab_recput(value, gab_string(eg, key), v);
+  return gab_recput(value, gab_string(gab, key), v);
 }
 
 /**
@@ -1046,9 +1046,9 @@ static inline bool gab_rechas(gab_value obj, gab_value key) {
   return gab_recat(obj, key) != gab_nil;
 }
 
-static inline bool gab_srechas(struct gab_eg *eg, gab_value value,
+static inline bool gab_srechas(struct gab_triple gab, gab_value value,
                                const char *key) {
-  return gab_rechas(value, gab_string(eg, key));
+  return gab_rechas(value, gab_string(gab, key));
 }
 /**
  * # Get the shape of a record.
@@ -1113,7 +1113,7 @@ struct gab_obj_message {
  * @param name The name of the message.
  * @return The new message object.
  */
-gab_value gab_message(struct gab_eg *eg, gab_value name);
+gab_value gab_message(struct gab_triple gab, gab_value name);
 
 static inline gab_value gab_msgshp(gab_value msg) {
   assert(gab_valknd(msg) == kGAB_MESSAGE);
@@ -1213,7 +1213,7 @@ struct gab_obj_suspense_proto {
  *
  * @param want The number of values the block wants.
  */
-gab_value gab_susproto(struct gab_eg *eg, uint64_t offset, uint8_t want);
+gab_value gab_susproto(struct gab_triple gab, uint64_t offset, uint8_t want);
 
 /**
  * A suspense object, which holds the state of a suspended coroutine.
@@ -1244,7 +1244,7 @@ struct gab_obj_suspense {
  *
  * @param frame The frame.
  */
-gab_value gab_suspense(struct gab_eg *eg, uint16_t len, gab_value block,
+gab_value gab_suspense(struct gab_triple gab, uint16_t len, gab_value block,
                        gab_value proto, gab_value frame[static len]);
 
 /**
@@ -1258,7 +1258,7 @@ gab_value gab_suspense(struct gab_eg *eg, uint16_t len, gab_value block,
  *
  * @return The value.
  */
-gab_value gab_builtin(struct gab_eg *eg, gab_value name, gab_builtin_f f);
+gab_value gab_builtin(struct gab_triple gab, gab_value name, gab_builtin_f f);
 
 /**
  * # Create a builtin wrapper to a c function with a c-string name.
@@ -1271,7 +1271,7 @@ gab_value gab_builtin(struct gab_eg *eg, gab_value name, gab_builtin_f f);
  *
  * @return The value.
  */
-gab_value gab_sbuiltin(struct gab_eg *eg, const char *name, gab_builtin_f f);
+gab_value gab_sbuiltin(struct gab_triple gab, const char *name, gab_builtin_f f);
 
 struct gab_box_argt {
   gab_value type;
@@ -1290,7 +1290,7 @@ struct gab_box_argt {
  * @return The value.
 
  */
-gab_value gab_box(struct gab_eg *eg, struct gab_box_argt args);
+gab_value gab_box(struct gab_triple gab, struct gab_box_argt args);
 
 /**
  * # Get the user data from a boxed value.
@@ -1319,7 +1319,7 @@ static inline void *gab_boxdata(gab_value value) {
  *
  * @return The new record.
  */
-gab_value gab_record(struct gab_eg *eg, size_t len, gab_value keys[static len],
+gab_value gab_record(struct gab_triple gab, size_t len, gab_value keys[static len],
                      gab_value values[static len]);
 
 /**
@@ -1337,7 +1337,7 @@ gab_value gab_record(struct gab_eg *eg, size_t len, gab_value keys[static len],
  *
  * @return The new record.
  */
-gab_value gab_srecord(struct gab_eg *eg, size_t len,
+gab_value gab_srecord(struct gab_triple gab, size_t len,
                       const char *keys[static len],
                       gab_value values[static len]);
 
@@ -1354,7 +1354,7 @@ gab_value gab_srecord(struct gab_eg *eg, size_t len,
  *
  * @return The new record.
  */
-gab_value gab_tuple(struct gab_eg *eg, size_t len,
+gab_value gab_tuple(struct gab_triple gab, size_t len,
                     gab_value values[static len]);
 
 /**
@@ -1368,7 +1368,7 @@ gab_value gab_tuple(struct gab_eg *eg, size_t len,
  *
  * @return The new record.
  */
-gab_value gab_etuple(struct gab_eg *eg, size_t len);
+gab_value gab_etuple(struct gab_triple gab, size_t len);
 
 struct gab_spec_argt {
   const char *name;
@@ -1386,7 +1386,8 @@ struct gab_spec_argt {
  *
  * @return The message that was updated.
  */
-void gab_nspec(struct gab_triple gab, size_t len, struct gab_spec_argt args[static len]);
+void gab_nspec(struct gab_triple gab, size_t len,
+               struct gab_spec_argt args[static len]);
 
 /**
  * # Create a specialization on the given message for the given receiver
@@ -1413,7 +1414,7 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args);
  *
  * @return The copy.
  */
-gab_value gab_valcpy(struct gab_eg *eg, gab_value value);
+gab_value gab_valcpy(struct gab_triple eg, gab_value value);
 
 /**
  * # Get the runtime value that corresponds to the given kind.
@@ -1479,7 +1480,7 @@ static inline bool gab_valintob(gab_value self) {
  *
  * @return The string representation of the value.
  */
-static inline gab_value gab_valintos(struct gab_eg *gab, gab_value self) {
+static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
   switch (gab_valknd(self)) {
   case kGAB_STRING:
     return self;
@@ -1529,7 +1530,7 @@ static inline gab_value gab_valintos(struct gab_eg *gab, gab_value self) {
  *
  *  @return A view into the string
  */
-static inline s_char gab_valintocs(struct gab_eg *gab, gab_value value) {
+static inline s_char gab_valintocs(struct gab_triple gab, gab_value value) {
   gab_value str = gab_valintos(gab, value);
 
   struct gab_obj_string *obj = GAB_VAL_TO_STRING(str);

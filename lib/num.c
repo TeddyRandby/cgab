@@ -124,7 +124,7 @@ void gab_lib_to_n(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  s_char str = gab_valintocs(gab.eg, argv[0]);
+  s_char str = gab_valintocs(gab, argv[0]);
 
   gab_value res = gab_number(strtod(str.data, NULL));
 
@@ -137,17 +137,17 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "between",
           gab_typ(gab.eg, kGAB_NUMBER),
-          gab_sbuiltin(gab.eg, "between", gab_lib_between),
+          gab_sbuiltin(gab, "between", gab_lib_between),
       },
       {
           "floor",
           gab_typ(gab.eg, kGAB_NUMBER),
-          gab_sbuiltin(gab.eg, "floor", gab_lib_floor),
+          gab_sbuiltin(gab, "floor", gab_lib_floor),
       },
       {
           "to_n",
           gab_typ(gab.eg, kGAB_STRING),
-          gab_sbuiltin(gab.eg, "to_n", gab_lib_to_n),
+          gab_sbuiltin(gab, "to_n", gab_lib_to_n),
       },
   };
 

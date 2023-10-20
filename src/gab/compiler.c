@@ -270,14 +270,14 @@ static inline uint16_t add_constant(struct bc *bc, gab_value value) {
 
 gab_value prev_id(struct bc *bc) {
   s_char s = prev_src(bc);
-  gab_value sv = gab_nstring(eg(bc), s.len, s.data);
+  gab_value sv = gab_nstring(gab(bc), s.len, s.data);
   add_constant(bc, sv);
   return sv;
 }
 
 gab_value trim_prev_id(struct bc *bc) {
   s_char s = trim_prev_src(bc);
-  gab_value sv = gab_nstring(eg(bc), s.len, s.data);
+  gab_value sv = gab_nstring(gab(bc), s.len, s.data);
   add_constant(bc, sv);
   return sv;
 }
@@ -581,7 +581,6 @@ static void pop_scope(struct bc *bc) {
 
   f->scope_depth--;
 
-  uint8_t slots = 0;
   while (f->next_local > 1) {
     uint8_t local = f->next_local - 1;
 
@@ -589,11 +588,7 @@ static void pop_scope(struct bc *bc) {
       break;
 
     f->next_local--;
-    slots++;
   }
-
-  push_op(bc, OP_DROP);
-  push_byte(bc, slots);
 }
 
 static inline bool match_ctx(struct bc *bc, enum context_k kind) {
@@ -645,7 +640,7 @@ static struct gab_mod *push_ctxframe(struct bc *bc, gab_value name) {
 
   add_constant(bc, name);
 
-  initialize_local(bc, add_local(bc, gab_string(eg(bc), "self"), 0));
+  initialize_local(bc, add_local(bc, gab_string(gab(bc), "self"), 0));
 
   return mod;
 }
@@ -659,7 +654,7 @@ static gab_value pop_ctxframe(struct bc *bc) {
   uint8_t nargs = f->narguments;
   uint8_t nlocals = f->nlocals;
 
-  gab_value p = gab_blkproto(eg(bc), (struct gab_blkproto_argt){
+  gab_value p = gab_blkproto(gab(bc), (struct gab_blkproto_argt){
                                          .mod = f->mod,
                                          .nslots = nslots,
                                          .nlocals = nlocals,
@@ -749,7 +744,7 @@ int compile_parameters(struct bc *bc) {
 
       s_char name = prev_src(bc);
 
-      gab_value val_name = gab_nstring(eg(bc), name.len, name.data);
+      gab_value val_name = gab_nstring(gab(bc), name.len, name.data);
 
       int local = compile_local(bc, val_name, 0);
 
@@ -897,7 +892,7 @@ int compile_message_spec(struct bc *bc, gab_value name) {
 }
 
 int compile_block(struct bc *bc) {
-  push_ctxframe(bc, gab_string(eg(bc), "anonymous"));
+  push_ctxframe(bc, gab_string(gab(bc), "anonymous"));
 
   int narguments = compile_parameters(bc);
 
@@ -937,7 +932,7 @@ int compile_message(struct bc *bc, gab_value name) {
   push_op(bc, OP_MESSAGE);
   push_short(bc, add_constant(bc, p));
 
-  gab_value m = gab_message(eg(bc), name);
+  gab_value m = gab_message(gab(bc), name);
   uint16_t func_constant = add_constant(bc, m);
   push_short(bc, func_constant);
 
@@ -1021,11 +1016,11 @@ int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out) {
 }
 
 int add_message_constant(struct bc *bc, gab_value name) {
-  return add_constant(bc, gab_message(eg(bc), name));
+  return add_constant(bc, gab_message(gab(bc), name));
 }
 
 int add_string_constant(struct bc *bc, s_char str) {
-  return add_constant(bc, gab_nstring(eg(bc), str.len, str.data));
+  return add_constant(bc, gab_nstring(gab(bc), str.len, str.data));
 }
 
 int compile_rec_tup_internal_item(struct bc *bc, uint8_t index) {
@@ -1258,7 +1253,7 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
     }
 
     case kINDEX: {
-      uint16_t m = add_message_constant(bc, gab_string(eg(bc), mGAB_SET));
+      uint16_t m = add_message_constant(bc, gab_string(gab(bc), mGAB_SET));
       gab_mod_push_send(mod(bc), 2, m, false, t);
 
       if (!is_last_assignment)
@@ -1419,7 +1414,7 @@ int compile_record_tuple(struct bc *bc) {
 int compile_definition(struct bc *bc, s_char name, s_char help) {
   // A record definition
   if (match_and_eat_token(bc, TOKEN_LBRACK)) {
-    gab_value val_name = gab_nstring(eg(bc), name.len, name.data);
+    gab_value val_name = gab_nstring(gab(bc), name.len, name.data);
 
     uint8_t local = add_local(bc, val_name, 0);
 
@@ -1441,7 +1436,7 @@ int compile_definition(struct bc *bc, s_char name, s_char help) {
   else if (match_and_eat_token(bc, TOKEN_BANG))
     name.len++;
 
-  gab_value val_name = gab_nstring(eg(bc), name.len, name.data);
+  gab_value val_name = gab_nstring(gab(bc), name.len, name.data);
 
   // Create a local to store the new function in
   int local = add_local(bc, val_name, 0);
@@ -1518,7 +1513,7 @@ int compile_exp_then(struct bc *bc, bool assignable) {
 
   push_scope(bc);
 
-  int phantom = add_local(bc, gab_string(eg(bc), ""), 0);
+  int phantom = add_local(bc, gab_string(gab(bc), ""), 0);
 
   if (phantom < 0)
     return COMP_ERR;
@@ -1551,7 +1546,7 @@ int compile_exp_else(struct bc *bc, bool assignable) {
       gab_mod_push_jump(mod(bc), OP_JUMP_IF_TRUE, bc->offset - 1);
   push_scope(bc);
 
-  int phantom = add_local(bc, gab_string(eg(bc), ""), 0);
+  int phantom = add_local(bc, gab_string(gab(bc), ""), 0);
 
   if (phantom < 0)
     return COMP_ERR;
@@ -1659,59 +1654,59 @@ int compile_exp_bin(struct bc *bc, bool assignable) {
 
   switch (op) {
   case TOKEN_MINUS:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_SUB));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_SUB));
     break;
 
   case TOKEN_PLUS:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_ADD));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_ADD));
     break;
 
   case TOKEN_STAR:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_MUL));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_MUL));
     break;
 
   case TOKEN_SLASH:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_DIV));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_DIV));
     break;
 
   case TOKEN_PERCENT:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_MOD));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_MOD));
     break;
 
   case TOKEN_PIPE:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_BOR));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_BOR));
     break;
 
   case TOKEN_AMPERSAND:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_BND));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_BND));
     break;
 
   case TOKEN_EQUAL_EQUAL:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_EQ));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_EQ));
     break;
 
   case TOKEN_LESSER:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_LT));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_LT));
     break;
 
   case TOKEN_LESSER_EQUAL:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_LTE));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_LTE));
     break;
 
   case TOKEN_LESSER_LESSER:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_LSH));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_LSH));
     break;
 
   case TOKEN_GREATER:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_GT));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_GT));
     break;
 
   case TOKEN_GREATER_EQUAL:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_GTE));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_GTE));
     break;
 
   case TOKEN_GREATER_GREATER:
-    m = add_message_constant(bc, gab_string(eg(bc), mGAB_RSH));
+    m = add_message_constant(bc, gab_string(gab(bc), mGAB_RSH));
     break;
 
   default:
@@ -2268,7 +2263,7 @@ int compile_exp_idx(struct bc *bc, bool assignable) {
     }
   }
 
-  uint16_t m = add_message_constant(bc, gab_string(eg(bc), mGAB_GET));
+  uint16_t m = add_message_constant(bc, gab_string(gab(bc), mGAB_GET));
   gab_mod_push_send(mod(bc), 1, m, false, t);
 
   pop_slot(bc, 2);
@@ -2483,7 +2478,7 @@ int compile_exp_amp(struct bc *bc, bool assignable) {
     return COMP_ERR;
   }
 
-  uint16_t f = add_message_constant(bc, gab_string(eg(bc), msg));
+  uint16_t f = add_message_constant(bc, gab_string(gab(bc), msg));
 
   push_op(bc, OP_CONSTANT);
   push_short(bc, f);
@@ -2536,7 +2531,7 @@ int compile_exp_cal(struct bc *bc, bool assignable) {
 
   pop_slot(bc, result + 1);
 
-  uint16_t msg = add_message_constant(bc, gab_string(eg(bc), mGAB_CALL));
+  uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
 
   gab_mod_push_send(mod(bc), result, msg, mv, t);
 
@@ -2558,7 +2553,7 @@ int compile_exp_bcal(struct bc *bc, bool assignable) {
     return COMP_ERR;
   }
   pop_slot(bc, result);
-  uint16_t msg = add_message_constant(bc, gab_string(eg(bc), mGAB_CALL));
+  uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
   gab_mod_push_send(mod(bc), result, msg, mv, t);
   return VAR_EXP;
 }
@@ -2571,7 +2566,7 @@ int compile_exp_scal(struct bc *bc, bool assignable) {
 
   pop_slot(bc, 1);
 
-  uint16_t msg = add_message_constant(bc, gab_string(eg(bc), mGAB_CALL));
+  uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
 
   gab_mod_push_send(mod(bc), result, msg, mv, t);
 
@@ -2586,7 +2581,7 @@ int compile_exp_rcal(struct bc *bc, bool assignable) {
 
   pop_slot(bc, 1);
 
-  uint16_t msg = add_message_constant(bc, gab_string(eg(bc), mGAB_CALL));
+  uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
 
   gab_mod_push_send(mod(bc), result, msg, mv, t);
 
@@ -2710,7 +2705,7 @@ int compile_exp_for(struct bc *bc, bool assignable) {
   if (result == COMP_ERR)
     return COMP_ERR;
 
-  initialize_local(bc, add_local(bc, gab_string(eg(bc), ""), 0));
+  initialize_local(bc, add_local(bc, gab_string(gab(bc), ""), 0));
 
   if (expect_token(bc, TOKEN_IN) < 0)
     return COMP_ERR;
@@ -2804,7 +2799,7 @@ int compile_exp_sym(struct bc *bc, bool assignable) {
 
 int compile_exp_yld(struct bc *bc, bool assignable) {
   if (!get_rule(curr_tok(bc)).prefix) {
-    gab_value proto = gab_susproto(eg(bc), mod(bc)->bytecode.len + 4, 1);
+    gab_value proto = gab_susproto(gab(bc), mod(bc)->bytecode.len + 4, 1);
 
     uint16_t kproto = add_constant(bc, proto);
 
@@ -2826,7 +2821,7 @@ int compile_exp_yld(struct bc *bc, bool assignable) {
     return COMP_ERR;
   }
 
-  gab_value proto = gab_susproto(eg(bc), mod(bc)->bytecode.len + 4, 1);
+  gab_value proto = gab_susproto(gab(bc), mod(bc)->bytecode.len + 4, 1);
 
   uint16_t kproto = add_constant(bc, proto);
 
@@ -2975,7 +2970,7 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   gab_mod_add_constant(new_mod, p);
   gab_gciref(gab(bc), p);
 
-  gab_value main = gab_block(eg(bc), p);
+  gab_value main = gab_block(gab(bc), p);
   gab_mod_add_constant(new_mod, main);
   gab_gciref(gab(bc), main);
 
@@ -2991,7 +2986,9 @@ gab_value gab_bccompsend(struct gab_triple gab, gab_value msg, gab_value receive
   struct bc bc;
   bc_create(&bc, gab, NULL, flags);
 
-  push_ctxframe(&bc, gab_string(gab.eg, "__send__"));
+  push_ctxframe(&bc, gab_string(gab, "__send__"));
+
+  gab_gcreserve(gab, narguments + 3);
 
   uint16_t message = add_constant(&bc, msg);
 
@@ -3013,7 +3010,7 @@ gab_value gab_bccompsend(struct gab_triple gab, gab_value msg, gab_value receive
 
   uint8_t nlocals = narguments + 1;
 
-  gab_value p = gab_blkproto(gab.eg, (struct gab_blkproto_argt){
+  gab_value p = gab_blkproto(gab, (struct gab_blkproto_argt){
                                       .mod = mod(&bc),
                                       .narguments = narguments,
                                       .nlocals = nlocals,
@@ -3022,7 +3019,7 @@ gab_value gab_bccompsend(struct gab_triple gab, gab_value msg, gab_value receive
 
   add_constant(&bc, p);
 
-  gab_value main = gab_block(gab.eg, p);
+  gab_value main = gab_block(gab, p);
 
   bc_destroy(&bc);
 

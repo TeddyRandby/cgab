@@ -107,7 +107,7 @@ void run_src(struct gab_triple gab, s_char src, const char *module, char delim,
         if (arg.len == 0)
           break;
 
-        buf[nargs] = gab_nstring(gab.eg, arg.len, (const char *)arg.data);
+        buf[nargs] = gab_nstring(gab, arg.len, (const char *)arg.data);
 
         offset += arg.len + 1;
         nargs++;

@@ -10,12 +10,12 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   case 1: {
     initscr();
 
-    gab_value k = gab_box(gab.eg, (struct gab_box_argt){
-                                      .data = NULL,
-                                      .type = gab_string(gab.eg, "Term"),
-                                      .destructor = ncurses_cb,
-                                      .visitor = NULL,
-                                  });
+    gab_value k = gab_box(gab, (struct gab_box_argt){
+                                   .data = NULL,
+                                   .type = gab_string(gab, "Term"),
+                                   .destructor = ncurses_cb,
+                                   .visitor = NULL,
+                               });
 
     gab_vmpush(gab.vm, k);
 
@@ -30,21 +30,21 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
     initscr();
 
-    if (gab_srechas(gab.eg, argv[1], "noecho"))
+    if (gab_srechas(gab, argv[1], "noecho"))
       noecho();
 
-    if (gab_srechas(gab.eg, argv[1], "raw"))
+    if (gab_srechas(gab, argv[1], "raw"))
       raw();
 
-    if (gab_srechas(gab.eg, argv[1], "keypad"))
+    if (gab_srechas(gab, argv[1], "keypad"))
       keypad(stdscr, true);
 
-    gab_value k = gab_box(gab.eg, (struct gab_box_argt){
-                                      .data = NULL,
-                                      .type = gab_string(gab.eg, "Term"),
-                                      .destructor = ncurses_cb,
-                                      .visitor = NULL,
-                                  });
+    gab_value k = gab_box(gab, (struct gab_box_argt){
+                                   .data = NULL,
+                                   .type = gab_string(gab, "Term"),
+                                   .destructor = ncurses_cb,
+                                   .visitor = NULL,
+                               });
 
     gab_vmpush(gab.vm, k);
 
@@ -74,7 +74,7 @@ void gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  s_char str = gab_valintocs(gab.eg, argv[3]);
+  s_char str = gab_valintocs(gab, argv[3]);
 
   if (str.len != 1) {
     gab_panic(gab, "Invalid call to gab_lib_put");
@@ -96,7 +96,7 @@ void gab_lib_print(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 void gab_lib_key(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   int8_t c = getch();
 
-  gab_value res = gab_nstring(gab.eg, 1, (char *)&c);
+  gab_value res = gab_nstring(gab, 1, (char *)&c);
 
   gab_vmpush(gab.vm, res);
 }
@@ -104,11 +104,11 @@ void gab_lib_key(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value receivers[] = {
       gab_nil,
-      gab_string(gab.eg, "Term"),
-      gab_string(gab.eg, "Term"),
-      gab_string(gab.eg, "Term"),
-      gab_string(gab.eg, "Term"),
-      gab_string(gab.eg, "Term"),
+      gab_string(gab, "Term"),
+      gab_string(gab, "Term"),
+      gab_string(gab, "Term"),
+      gab_string(gab, "Term"),
+      gab_string(gab, "Term"),
   };
 
   const char *names[] = {
@@ -116,12 +116,12 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab.eg, "new", gab_lib_new),
-      gab_sbuiltin(gab.eg, "refresh", gab_lib_refresh),
-      gab_sbuiltin(gab.eg, "key", gab_lib_key),
-      gab_sbuiltin(gab.eg, "print", gab_lib_print),
-      gab_sbuiltin(gab.eg, "put", gab_lib_put),
-      gab_sbuiltin(gab.eg, "dim", gab_lib_dim),
+      gab_sbuiltin(gab, "new", gab_lib_new),
+      gab_sbuiltin(gab, "refresh", gab_lib_refresh),
+      gab_sbuiltin(gab, "key", gab_lib_key),
+      gab_sbuiltin(gab, "print", gab_lib_print),
+      gab_sbuiltin(gab, "put", gab_lib_put),
+      gab_sbuiltin(gab, "dim", gab_lib_dim),
   };
 
   static_assert(LEN_CARRAY(specs) == LEN_CARRAY(receivers));

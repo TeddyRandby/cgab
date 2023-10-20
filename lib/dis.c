@@ -18,7 +18,8 @@ void dis_message(struct gab_triple gab, gab_value msg, gab_value rec) {
     printf("%V\n", spec);
     break;
   default:
-    gab_panic(gab, "Invalid message");
+    printf("%V\n", gab_nil);
+    break;
   }
 }
 
@@ -29,7 +30,7 @@ void gab_lib_disstring(struct gab_triple gab, size_t argc,
     return;
   }
 
-  gab_value msg = gab_message(gab.eg, argv[0]);
+  gab_value msg = gab_message(gab, argv[0]);
 
   dis_message(gab, msg, argc == 1 ? gab_undefined : argv[1]);
 };
@@ -41,7 +42,7 @@ void gab_lib_dismessage(struct gab_triple gab, size_t argc,
     return;
   }
 
-  dis_message(gab, argv[0], gab_valtyp(gab.eg, argv[1]));
+  dis_message(gab, argv[0], argv[1]);
 }
 
 void gab_lib_disblock(struct gab_triple gab, size_t argc,
@@ -73,10 +74,10 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       gab_typ(gab.eg, kGAB_BUILTIN),
   };
 
-  gab_value values[] = {gab_sbuiltin(gab.eg, "disblock", gab_lib_disblock),
-                        gab_sbuiltin(gab.eg, "dismessage", gab_lib_dismessage),
-                        gab_sbuiltin(gab.eg, "disstring", gab_lib_disstring),
-                        gab_sbuiltin(gab.eg, "disbuiltin", gab_lib_disbuiltin)};
+  gab_value values[] = {gab_sbuiltin(gab, "disblock", gab_lib_disblock),
+                        gab_sbuiltin(gab, "dismessage", gab_lib_dismessage),
+                        gab_sbuiltin(gab, "disstring", gab_lib_disstring),
+                        gab_sbuiltin(gab, "disbuiltin", gab_lib_disbuiltin)};
 
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));
 

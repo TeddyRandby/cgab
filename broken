@@ -1,0 +1,209 @@
+CALL
+[32m 001[0m closure:[36m__main__            [0m 0 upvalues
+  [33m   8 [0m0
+  [33m   7 [0m0
+  [33m   6 [0m0
+->[33m   5 [0m0
+  [33m   4 [0mnil
+  [33m   3 [0mnil
+  [33m   2 [0mnil
+  [33m   1 [0mnil
+  [33m   0 [0m<Block __main__>
+CALL
+[32m 001[0m closure:[36m./std/Record.gab    [0m 0 upvalues
+  [33m  17 [0m0
+  [33m  16 [0m0
+  [33m  15 [0m0
+  [33m  14 [0m0
+  [33m  13 [0m0
+  [33m  12 [0m0
+  [33m  11 [0m0
+  [33m  10 [0m0
+->[33m   9 [0m0
+  [33m   8 [0mnil
+  [33m   7 [0mnil
+  [33m   6 [0mnil
+  [33m   5 [0mnil
+  [33m   4 [0mnil
+  [33m   3 [0mnil
+  [33m   2 [0mnil
+  [33m   1 [0mnil
+  [33m   0 [0m<Block ./std/Record.gab>
+CALL
+[32m 002[0m closure:[36mpermutations!       [0m 0 upvalues
+  [33m  14 [0m0
+  [33m  13 [0m0
+  [33m  12 [0m0
+  [33m  11 [0m0
+  [33m  10 [0m0
+  [33m   9 [0m0
+  [33m   8 [0m0
+->[33m   7 [0m0
+  [33m   6 [0mnil
+  [33m   5 [0mnil
+  [33m   4 [0mnil
+  [33m   3 [0mnil
+  [33m   2 [0mnil
+  [33m   1 [0mnil
+  [33m   0 [0m{0 = 0 1 = 1}
+CALL
+[32m 003[0m closure:[36mswap!               [0m 0 upvalues
+  [33m   9 [0m0
+  [33m   8 [0m0
+  [33m   7 [0m0
+  [33m   6 [0m0
+  [33m   5 [0m0
+  [33m   4 [0m0
+->[33m   3 [0m0
+  [33m   2 [0m0
+  [33m   1 [0m0
+  [33m   0 [0m{0 = 0 1 = 1}
+CALL
+[32m 003[0m closure:[36mpermutations!       [0m 0 upvalues
+  [33m  14 [0m0
+  [33m  13 [0m0
+  [33m  12 [0m0
+  [33m  11 [0m0
+  [33m  10 [0m0
+  [33m   9 [0m4.94066e-324
+  [33m   8 [0m0
+->[33m   7 [0m4.94066e-324
+  [33m   6 [0mnil
+  [33m   5 [0mnil
+  [33m   4 [0mnil
+  [33m   3 [0mnil
+  [33m   2 [0mnil
+  [33m   1 [0m1
+  [33m   0 [0m{0 = 0 1 = 1}
+CALL
+[32m 004[0m closure:[36mswap!               [0m 0 upvalues
+  [33m   9 [0m0
+  [33m   8 [0m0
+  [33m   7 [0m0
+  [33m   6 [0m0
+  [33m   5 [0m0
+  [33m   4 [0m0
+->[33m   3 [0m0
+  [33m   2 [0m1
+  [33m   1 [0m1
+  [33m   0 [0m{0 = 0 1 = 1}
+CALL
+[32m 004[0m closure:[36mpermutations!       [0m 0 upvalues
+  [33m  14 [0m0
+  [33m  13 [0m0
+  [33m  12 [0m0
+  [33m  11 [0m0
+  [33m  10 [0m0
+  [33m   9 [0m4.94066e-324
+  [33m   8 [0m1
+->[33m   7 [0m4.94066e-324
+  [33m   6 [0mnil
+  [33m   5 [0mnil
+  [33m   4 [0mnil
+  [33m   3 [0mnil
+  [33m   2 [0mnil
+  [33m   1 [0m2
+  [33m   0 [0m{0 = 0 1 = 1}
+ITER 1 5 1
+[32m 003[0m closure:[36mpermutations!       [0m 0 upvalues
+  [33m  14 [0mnil
+  [33m  13 [0mnil
+  [33m  12 [0mnil
+  [33m  11 [0mnil
+  [33m  10 [0m9.88131e-324
+  [33m   9 [0m<Suspense <Block permutations!>>
+->[33m   8 [0m{0 = 0 1 = 1}
+  [33m   7 [0mfalse
+  [33m   6 [0m<Suspense <Block permutations!>>
+  [33m   5 [0m{0 = 0 1 = 1}
+  [33m   4 [0m1
+  [33m   3 [0mnil
+  [33m   2 [0m1
+  [33m   1 [0m1
+  [33m   0 [0m{0 = 0 1 = 1}
+ITER 1 5 1
+[32m 002[0m closure:[36mpermutations!       [0m 0 upvalues
+  [33m  14 [0m<Suspense <Block permutations!>>
+  [33m  13 [0m{0 = 0 1 = 1}
+  [33m  12 [0m1
+  [33m  11 [0mnil
+  [33m  10 [0m9.88131e-324
+  [33m   9 [0m<Suspense <Block permutations!>>
+->[33m   8 [0m{0 = 0 1 = 1}
+  [33m   7 [0mfalse
+  [33m   6 [0m<Suspense <Block permutations!>>
+  [33m   5 [0m{0 = 0 1 = 1}
+  [33m   4 [0m0
+  [33m   3 [0mnil
+  [33m   2 [0m0
+  [33m   1 [0mnil
+  [33m   0 [0m{0 = 0 1 = 1}
+ITER 1 3 1
+[32m 001[0m closure:[36m__main__            [0m 0 upvalues
+  [33m   8 [0mnil
+  [33m   7 [0m9.88131e-324
+  [33m   6 [0m<Suspense <Block permutations!>>
+->[33m   5 [0m{0 = 0 1 = 1}
+  [33m   4 [0m<Suspense <Block permutations!>>
+  [33m   3 [0m{0 = 0 1 = 1}
+  [33m   2 [0m&permutations!
+  [33m   1 [0m&swap!
+  [33m   0 [0m<Block __main__>
+{0 = 0 1 = 1}
+NEXT 4
+[32m 001[0m closure:[36m__main__            [0m 0 upvalues
+  [33m   8 [0mnil
+  [33m   7 [0m9.88131e-324
+->[33m   6 [0m4.94066e-324
+  [33m   5 [0m<Suspense <Block permutations!>>
+  [33m   4 [0m<Suspense <Block permutations!>>
+  [33m   3 [0m{0 = 0 1 = 1}
+  [33m   2 [0m&permutations!
+  [33m   1 [0m&swap!
+  [33m   0 [0m<Block __main__>
+NEXT 6
+[32m 002[0m closure:[36mpermutations!       [0m 0 upvalues
+  [33m  14 [0m<Suspense <Block permutations!>>
+  [33m  13 [0m{0 = 0 1 = 1}
+  [33m  12 [0m1
+  [33m  11 [0mnil
+  [33m  10 [0m9.88131e-324
+->[33m   9 [0m4.94066e-324
+  [33m   8 [0m<Suspense <Block permutations!>>
+  [33m   7 [0mfalse
+  [33m   6 [0m<Suspense <Block permutations!>>
+  [33m   5 [0m{0 = 0 1 = 1}
+  [33m   4 [0m0
+  [33m   3 [0mnil
+  [33m   2 [0m0
+  [33m   1 [0mnil
+  [33m   0 [0m{0 = 0 1 = 1}
+NEXT 6
+[32m 003[0m closure:[36mpermutations!       [0m 0 upvalues
+  [33m  14 [0mnil
+  [33m  13 [0mnil
+  [33m  12 [0mnil
+  [33m  11 [0mnil
+  [33m  10 [0m9.88131e-324
+->[33m   9 [0m4.94066e-324
+  [33m   8 [0m<Suspense <Block permutations!>>
+  [33m   7 [0mfalse
+  [33m   6 [0m<Suspense <Block permutations!>>
+  [33m   5 [0m{0 = 0 1 = 1}
+  [33m   4 [0m1
+  [33m   3 [0mnil
+  [33m   2 [0m1
+  [33m   1 [0m1
+  [33m   0 [0m{0 = 0 1 = 1}
+CALL
+[32m 005[0m closure:[36mswap!               [0m 0 upvalues
+  [33m   9 [0m0
+  [33m   8 [0m0
+  [33m   7 [0m0
+  [33m   6 [0m0
+  [33m   5 [0m0
+  [33m   4 [0m0
+->[33m   3 [0m0
+  [33m   2 [0m2
+  [33m   1 [0m2
+  [33m   0 [0m{0 = 0 1 = 1}

@@ -60,11 +60,11 @@ void gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_value res = map_at(argv[0], argv[1]);
 
   if (res == gab_undefined) {
-    gab_vmpush(gab.vm, gab_string(gab.eg, "none"));
+    gab_vmpush(gab.vm, gab_string(gab, "none"));
     return;
   }
 
-  gab_vmpush(gab.vm, gab_string(gab.eg, "some"));
+  gab_vmpush(gab.vm, gab_string(gab, "some"));
   gab_vmpush(gab.vm, res);
   return;
 }
@@ -135,33 +135,33 @@ void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value type = gab_string(gab.eg, "Map");
+  gab_value type = gab_string(gab, "Map");
 
   struct gab_spec_argt specs[] = {
       {
           "map",
           gab_nil,
-          gab_sbuiltin(gab.eg, "new", gab_lib_new),
+          gab_sbuiltin(gab, "new", gab_lib_new),
       },
       {
           "len",
           type,
-          gab_sbuiltin(gab.eg, "len", gab_lib_len),
+          gab_sbuiltin(gab, "len", gab_lib_len),
       },
       {
           "put!",
           type,
-          gab_sbuiltin(gab.eg, "put", gab_lib_put),
+          gab_sbuiltin(gab, "put", gab_lib_put),
       },
       {
           "at",
           type,
-          gab_sbuiltin(gab.eg, "at", gab_lib_at),
+          gab_sbuiltin(gab, "at", gab_lib_at),
       },
       {
           "next",
           type,
-          gab_sbuiltin(gab.eg, "next", gab_lib_next),
+          gab_sbuiltin(gab, "next", gab_lib_next),
       },
   };
 

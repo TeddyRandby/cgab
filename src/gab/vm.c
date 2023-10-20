@@ -39,13 +39,12 @@ gab_value vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
 
   va_end(va);
 
-  DESTROY(gab.vm);
-
   return gab_nil;
 }
 
 gab_value gab_vm_panic(struct gab_triple gab, const char *msg) {
-  return vm_error(gab, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC, GAB_PANIC, msg);
+  vm_error(gab, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC, GAB_PANIC, msg);
+  exit(1);
 }
 
 void gab_vmcreate(struct gab_vm *self, uint8_t flags, size_t argc,
@@ -185,10 +184,10 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
 
-  vm->sp = trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, len);
-
-  vm->sp += (proto->nlocals - len - 1);
-
+  trim_values(vm->fp->slots + 1, vm->fp->slots + 1, have, len);
+  
+  vm->sp = vm->fp->slots + proto->nlocals;
+  
   return true;
 }
 
@@ -335,7 +334,6 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
   */
   VM() = NEW(struct gab_vm);
   gab_vmcreate(VM(), flags, argc, argv);
-  
 
   register uint8_t instr = OP_NOP;
   register uint8_t *ip = NULL;
@@ -391,7 +389,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
         if (offset == UINT64_MAX) {
           STORE_FRAME();
           return ERROR(GAB_IMPLEMENTATION_MISSING,
-                       "Message %V does not specialize on %V", m, receiver);
+                       "%V does not specialize on %V: %V", m, type, receiver);
         }
       }
 
@@ -663,7 +661,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value b = POP();
       gab_value a = POP();
-      gab_value ab = gab_strcat(EG(), a, b);
+      gab_value ab = gab_strcat(GAB(), a, b);
 
       PUSH(ab);
 
@@ -809,22 +807,25 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       gab_value sus = POP();
       have--;
 
-      TOP() = trim_return(TOP() - have, SLOTS() + start, have, want);
-
-      PUSH(sus);
-
       IP() += dist * (gab_valknd(sus) != kGAB_SUSPENSE);
 
+      trim_values(TOP() - have, SLOTS() + start, have, want);
+
+      DROP_N(have);
+
+      LOCAL(start + want) = sus;
+      
       NEXT();
     }
 
     CASE_CODE(NEXT) : {
       uint8_t iterator = READ_BYTE;
 
+      PUSH(LOCAL(iterator));
+
       STORE_FRAME();
 
-      if (!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(LOCAL(iterator)), 0,
-                         VAR_EXP))
+      if (!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(PEEK()), 0, VAR_EXP))
         return ERROR(GAB_OVERFLOW, "", "");
 
       LOAD_FRAME();
@@ -845,7 +846,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
           assert(frame_len < UINT16_MAX);
 
-          gab_value sus = gab_suspense(EG(), frame_len, __gab_obj(CLOSURE()),
+          gab_value sus = gab_suspense(GAB(), frame_len, __gab_obj(CLOSURE()),
                                        proto, SLOTS());
 
           PUSH(sus);
@@ -1098,16 +1099,6 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       NEXT();
     }
 
-    CASE_CODE(DROP) : {
-      gab_value tmp = POP();
-
-      DROP_N(READ_BYTE);
-
-      PUSH(tmp);
-
-      NEXT();
-    }
-
     CASE_CODE(POP) : {
       DROP();
       NEXT();
@@ -1133,11 +1124,11 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
     CASE_CODE(INTERPOLATE) : {
       uint8_t n = READ_BYTE;
-      gab_value acc = gab_valintos(EG(), PEEK_N(n));
+      gab_value acc = gab_valintos(GAB(), PEEK_N(n));
 
       for (uint8_t i = n - 1; i > 0; i--) {
-        gab_value curr = gab_valintos(EG(), PEEK_N(i));
-        acc = gab_strcat(EG(), acc, curr);
+        gab_value curr = gab_valintos(GAB(), PEEK_N(i));
+        acc = gab_strcat(GAB(), acc, curr);
       }
 
       POP_N(n);
@@ -1343,7 +1334,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     CASE_CODE(BLOCK) : {
       gab_value p = READ_CONSTANT;
 
-      gab_value blk = gab_block(EG(), p);
+      gab_value blk = gab_block(GAB(), p);
 
       struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
       struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(p);
@@ -1377,7 +1368,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
                      " Tried to specialize %V for %V", m, r);
       }
 
-      gab_value blk = gab_block(EG(), p);
+      gab_value blk = gab_block(GAB(), p);
 
       struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
       struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(p);
@@ -1397,11 +1388,9 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(m);
 
-      gab_gcreserve(GAB(), 3);
-      
       gab_gcdref(GAB(), msg->specs);
 
-      msg->specs = gab_recordwith(EG(), msg->specs, r, blk);
+      msg->specs = gab_recordwith(GAB(), msg->specs, r, blk);
       msg->version++;
       
       gab_gciref(GAB(), msg->specs);
@@ -1430,9 +1419,9 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value *ap = TOP() - above;
 
-      gab_value shape = gab_nshape(EG(), len);
+      gab_value shape = gab_nshape(GAB(), len);
 
-      gab_value rec = gab_recordof(EG(), shape, 1, ap - len);
+      gab_value rec = gab_recordof(GAB(), shape, 1, ap - len);
 
       DROP_N(len - 1);
 
@@ -1448,9 +1437,9 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     CASE_CODE(RECORD) : {
       uint8_t len = READ_BYTE;
 
-      gab_value shape = gab_shape(EG(), 2, len, TOP() - len * 2);
+      gab_value shape = gab_shape(GAB(), 2, len, TOP() - len * 2);
 
-      gab_value rec = gab_recordof(EG(), shape, 2, TOP() + 1 - (len * 2));
+      gab_value rec = gab_recordof(GAB(), shape, 2, TOP() + 1 - (len * 2));
 
       DROP_N(len * 2);
 
@@ -1462,9 +1451,9 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     CASE_CODE(TUPLE) : {
       uint8_t len = parse_have(VM(), READ_BYTE);
 
-      gab_value shape = gab_nshape(EG(), len);
+      gab_value shape = gab_nshape(GAB(), len);
 
-      gab_value rec = gab_recordof(EG(), shape, 1, TOP() - len);
+      gab_value rec = gab_recordof(GAB(), shape, 1, TOP() - len);
 
       DROP_N(len);
 

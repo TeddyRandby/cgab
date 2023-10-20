@@ -44,7 +44,7 @@ struct gab_mod *gab_mod(struct gab_eg *gab, gab_value name,
 
 void gab_moddestroy(struct gab_triple gab, struct gab_mod *mod);
 
-struct gab_mod *gab_modcpy(struct gab_eg *gab, struct gab_mod *self);
+struct gab_mod *gab_modcpy(struct gab_triple gab, struct gab_mod *self);
 
 /*
   Helpers for pushing ops into the module.

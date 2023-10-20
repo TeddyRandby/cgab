@@ -26,11 +26,11 @@ void gab_lib_pryframes(struct gab_triple gab, size_t argc,
 
 gab_value gab_lib(struct gab_triple gab) {
   gab_value recs[] = {
-      gab_string(gab.eg, "gab_vm"),
+      gab_string(gab, "gab_vm"),
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab.eg, "pry", gab_lib_pryframes),
+      gab_sbuiltin(gab, "pry", gab_lib_pryframes),
   };
 
   const char *names[] = {

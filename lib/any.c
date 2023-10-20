@@ -45,9 +45,9 @@ void gab_lib_implements(struct gab_triple gab, size_t argc,
       size_t len = gab_shplen(argv[1]);
 
       for (size_t i = 0; i < len; i++) {
-        gab_value msgname = gab_valintos(gab.eg, keys[i]);
+        gab_value msgname = gab_valintos(gab, keys[i]);
 
-        gab_value msg = gab_message(gab.eg, msgname);
+        gab_value msg = gab_message(gab, msgname);
 
         if (gab_msgat(msg, type) == gab_undefined) {
           gab_vmpush(gab.vm, gab_bool(false));
@@ -73,12 +73,12 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "implements?",
           gab_typ(gab.eg, kGAB_UNDEFINED),
-          gab_sbuiltin(gab.eg, "implements?", gab_lib_implements),
+          gab_sbuiltin(gab, "implements?", gab_lib_implements),
       },
       {
           "send",
           gab_typ(gab.eg, kGAB_UNDEFINED),
-          gab_sbuiltin(gab.eg, "send", gab_lib_send),
+          gab_sbuiltin(gab, "send", gab_lib_send),
       },
   };
 

@@ -34,15 +34,15 @@ void gab_moddestroy(struct gab_triple gab, struct gab_mod *mod) {
   DESTROY(mod);
 }
 
-struct gab_mod *gab_modcpy(struct gab_eg *gab, struct gab_mod *self) {
+struct gab_mod *gab_modcpy(struct gab_triple gab, struct gab_mod *self) {
   struct gab_mod *copy = NEW(struct gab_mod);
 
   copy->name = self->name;
-  copy->source = gab_srccpy(gab, self->source);
+  copy->source = gab_srccpy(gab.eg, self->source);
   copy->previous_compiled_op = OP_NOP;
 
-  copy->next = gab->modules;
-  gab->modules = copy;
+  copy->next = gab.eg->modules;
+  gab.eg->modules = copy;
 
   v_uint8_t_copy(&copy->bytecode, &self->bytecode);
   v_uint64_t_copy(&copy->bytecode_toks, &self->bytecode_toks);
@@ -484,7 +484,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_mod *self, uint64_t offset) {
   case OP_POP_STORE_LOCAL:
   case OP_LOAD_UPVALUE:
   case OP_INTERPOLATE:
-  case OP_DROP:
   case OP_SHIFT:
   case OP_NEXT:
   case OP_VAR:

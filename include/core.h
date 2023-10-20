@@ -3,12 +3,12 @@
 
 // Collect as frequently as possible (on every RC push) and collect debug info.
 #ifndef cGAB_DEBUG_GC
-#define cGAB_DEBUG_GC 1
+#define cGAB_DEBUG_GC 0
 #endif
 
 // Log what is happening during collection.
 #ifndef cGAB_LOG_GC
-#define cGAB_LOG_GC 1
+#define cGAB_LOG_GC 0
 #endif
 
 // Make sure functions don't break out of their frame
@@ -70,7 +70,7 @@
 #endif
 
 #ifndef cGAB_GC_MOD_BUFF_MAX
-#define cGAB_GC_MOD_BUFF_MAX (cGAB_STACK_MAX)
+#define cGAB_GC_MOD_BUFF_MAX (cGAB_STACK_MAX >> 1)
 #endif
 
 #if cGAB_GC_DEC_BUFF_MAX < STACK_MAX
@@ -79,6 +79,10 @@
 
 #ifndef cGAB_GC_ROOT_BUFF_MAX
 #define cGAB_GC_ROOT_BUFF_MAX (cGAB_GC_MOD_BUFF_MAX + 1)
+#endif
+
+#ifndef cGAB_EG_HEAP_BYTES_MAX
+#define cGAB_EG_HEAP_BYTES_MAX (1024 * 1024 * 1024)
 #endif
 
 // Not configurable, just constants

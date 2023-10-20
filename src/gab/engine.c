@@ -139,19 +139,19 @@ struct gab_triple gab_create() {
 
   eg->types[kGAB_UNDEFINED] = gab_undefined;
   eg->types[kGAB_NIL] = gab_nil;
-  eg->types[kGAB_NUMBER] = gab_string(eg, "Number");
-  eg->types[kGAB_TRUE] = gab_string(eg, "Boolean");
-  eg->types[kGAB_FALSE] = gab_string(eg, "Boolean");
-  eg->types[kGAB_STRING] = gab_string(eg, "String");
-  eg->types[kGAB_MESSAGE] = gab_string(eg, "Message");
-  eg->types[kGAB_BLOCK_PROTO] = gab_string(eg, "Prototype");
-  eg->types[kGAB_BUILTIN] = gab_string(eg, "Builtin");
-  eg->types[kGAB_BLOCK] = gab_string(eg, "Block");
-  eg->types[kGAB_RECORD] = gab_string(eg, "Record");
-  eg->types[kGAB_SHAPE] = gab_string(eg, "Shape");
-  eg->types[kGAB_BOX] = gab_string(eg, "Box");
-  eg->types[kGAB_SUSPENSE] = gab_string(eg, "Suspsense");
-  eg->types[kGAB_PRIMITIVE] = gab_string(eg, "Primitive");
+  eg->types[kGAB_NUMBER] = gab_string(gab, "Number");
+  eg->types[kGAB_TRUE] = gab_string(gab, "Boolean");
+  eg->types[kGAB_FALSE] = gab_string(gab, "Boolean");
+  eg->types[kGAB_STRING] = gab_string(gab, "String");
+  eg->types[kGAB_MESSAGE] = gab_string(gab, "Message");
+  eg->types[kGAB_BLOCK_PROTO] = gab_string(gab, "Prototype");
+  eg->types[kGAB_BUILTIN] = gab_string(gab, "Builtin");
+  eg->types[kGAB_BLOCK] = gab_string(gab, "Block");
+  eg->types[kGAB_RECORD] = gab_string(gab, "Record");
+  eg->types[kGAB_SHAPE] = gab_string(gab, "Shape");
+  eg->types[kGAB_BOX] = gab_string(gab, "Box");
+  eg->types[kGAB_SUSPENSE] = gab_string(gab, "Suspsense");
+  eg->types[kGAB_PRIMITIVE] = gab_string(gab, "Primitive");
 
   gab_ngciref(gab, 1, kGAB_NKINDS, eg->types);
 
@@ -208,10 +208,10 @@ gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
   gab_value argv_names[args.len];
 
   for (uint64_t i = 0; i < args.len; i++)
-    argv_names[i] = gab_string(gab.eg, args.argv[i]);
+    argv_names[i] = gab_string(gab, args.argv[i]);
 
   gab_value res =
-      gab_bccomp(gab, gab_string(gab.eg, args.name),
+      gab_bccomp(gab, gab_string(gab, args.name),
                  s_char_create(args.source, strlen(args.source) + 1),
                  args.flags, args.len, argv_names);
 
@@ -257,8 +257,8 @@ void gab_nspec(struct gab_triple gab, size_t len,
 }
 
 gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
-  gab_value n = gab_string(gab.eg, args.name);
-  gab_value m = gab_message(gab.eg, n);
+  gab_value n = gab_string(gab, args.name);
+  gab_value m = gab_message(gab, n);
 
   if (gab_msgfind(m, args.receiver) != UINT64_MAX)
     return gab_nil;
@@ -268,10 +268,10 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
   bool new = GAB_OBJ_IS_NEW(gab_valtoo(m));
 
   if (!new)
-  gab_gcdref(gab, msg->specs);
+    gab_gcdref(gab, msg->specs);
 
   msg->specs =
-      gab_recordwith(gab.eg, msg->specs, args.receiver, args.specialization);
+      gab_recordwith(gab, msg->specs, args.receiver, args.specialization);
   msg->version++;
 
   if (!new)
@@ -298,13 +298,13 @@ a_gab_value *send_msg(struct gab_triple gab, gab_value msg, gab_value receiver,
 
 a_gab_value *gab_send(struct gab_triple gab, struct gab_send_argt args) {
   if (args.smessage) {
-    gab_value msg = gab_message(gab.eg, gab_string(gab.eg, args.smessage));
+    gab_value msg = gab_message(gab, gab_string(gab, args.smessage));
     return send_msg(gab, msg, args.receiver, args.len, args.argv);
   }
 
   switch (gab_valknd(args.vmessage)) {
   case kGAB_STRING: {
-    gab_value main = gab_message(gab.eg, args.vmessage);
+    gab_value main = gab_message(gab, args.vmessage);
     return send_msg(gab, main, args.receiver, args.len, args.argv);
   }
   case kGAB_MESSAGE:
@@ -475,7 +475,7 @@ size_t gab_nvmpush(struct gab_vm *vm, size_t argc, gab_value argv[argc]) {
   return gab_vm_push(vm, argc, argv);
 }
 
-gab_value gab_valcpy(struct gab_eg *gab, gab_value value) {
+gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
   switch (gab_valknd(value)) {
 
   default:
@@ -518,13 +518,13 @@ gab_value gab_valcpy(struct gab_eg *gab, gab_value value) {
                                            .nslots = self->nslots,
                                            .narguments = self->narguments,
                                            .nlocals = self->nlocals,
-                                           .mod = gab->modules,
+                                           .mod = gab.eg->modules,
                                        });
 
     memcpy(GAB_VAL_TO_BLOCK_PROTO(copy)->upv_desc, self->upv_desc,
            self->nupvalues * 2);
 
-    gab_egkeep(gab, copy); // No module to own this prototype
+    gab_egkeep(gab.eg, copy); // No module to own this prototype
 
     return copy;
   }
@@ -593,18 +593,18 @@ gab_value gab_valcpy(struct gab_eg *gab, gab_value value) {
   }
 }
 
-gab_value gab_string(struct gab_eg *gab, const char *data) {
+gab_value gab_string(struct gab_triple gab, const char *data) {
   return gab_nstring(gab, strlen(data), data);
 }
 
-gab_value gab_record(struct gab_eg *gab, uint64_t size, gab_value keys[size],
+gab_value gab_record(struct gab_triple gab, uint64_t size, gab_value keys[size],
                      gab_value values[size]) {
   gab_value bundle_shape = gab_shape(gab, 1, size, keys);
   return gab_recordof(gab, bundle_shape, 1, values);
 }
 
-gab_value gab_srecord(struct gab_eg *gab, uint64_t size, const char *keys[size],
-                      gab_value values[size]) {
+gab_value gab_srecord(struct gab_triple gab, uint64_t size,
+                      const char *keys[size], gab_value values[size]) {
   gab_value value_keys[size];
 
   for (uint64_t i = 0; i < size; i++)
@@ -614,12 +614,13 @@ gab_value gab_srecord(struct gab_eg *gab, uint64_t size, const char *keys[size],
   return gab_recordof(gab, bundle_shape, 1, values);
 }
 
-gab_value gab_etuple(struct gab_eg *gab, size_t len) {
+gab_value gab_etuple(struct gab_triple gab, size_t len) {
   gab_value bundle_shape = gab_nshape(gab, len);
   return gab_erecordof(gab, bundle_shape);
 }
 
-gab_value gab_tuple(struct gab_eg *gab, uint64_t size, gab_value values[size]) {
+gab_value gab_tuple(struct gab_triple gab, uint64_t size,
+                    gab_value values[size]) {
   gab_value bundle_shape = gab_nshape(gab, size);
   return gab_recordof(gab, bundle_shape, 1, values);
 }
@@ -629,6 +630,19 @@ void gab_verr(struct gab_err_argt args, va_list varargs) {
     return;
 
   struct gab_src *src = args.mod->source;
+
+  if (!src) {
+    fprintf(stderr,
+            "\n[" ANSI_COLOR_GREEN "%V" ANSI_COLOR_RESET "]" ANSI_COLOR_YELLOW
+            " %s. " ANSI_COLOR_RESET " " ANSI_COLOR_GREEN,
+            args.context, gab_status_names[args.status]);
+
+    vfprintf(stderr, args.note_fmt, varargs);
+
+    fprintf(stderr, ANSI_COLOR_RESET "\n");
+
+    return;
+  }
 
   uint64_t line = v_uint64_t_val_at(&src->token_lines, args.tok);
 
@@ -664,7 +678,7 @@ void gab_verr(struct gab_err_argt args, va_list varargs) {
   const char *curr_box = "\u256d";
 
   fprintf(stderr,
-          "[" ANSI_COLOR_GREEN "%V" ANSI_COLOR_RESET
+          "\n[" ANSI_COLOR_GREEN "%V" ANSI_COLOR_RESET
           "] Error near " ANSI_COLOR_MAGENTA "%s" ANSI_COLOR_RESET
           ":\n\t%s%s %.4lu " ANSI_COLOR_RESET "%.*s"
           "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET

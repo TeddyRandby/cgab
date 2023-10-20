@@ -2,7 +2,7 @@
 
 valgrind --tool=callgrind --callgrind-out-file=callgrind.out --dump-line=yes gab prop.gab
 
-gprof2dot --format=callgrind callgrind.out > dot.out
+~/pyenv/bin/gprof2dot --format=callgrind callgrind.out > dot.out
 
 dot -Tpng dot.out -o graph.out.png
 

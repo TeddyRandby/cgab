@@ -163,7 +163,7 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   uint64_t result_len = end - start;
 
-  gab_value result = gab_tuple(gab.eg, result_len, data->data + start);
+  gab_value result = gab_tuple(gab, result_len, data->data + start);
 
   gab_vmpush(gab.vm, result);
 }
@@ -172,49 +172,49 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 #undef CLAMP
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value type = gab_string(gab.eg, "List");
+  gab_value type = gab_string(gab, "List");
   const char *names[] = {};
 
   struct gab_spec_argt specs[] = {
       {
           "list",
           gab_nil,
-          gab_sbuiltin(gab.eg, "list", gab_lib_new),
+          gab_sbuiltin(gab, "list", gab_lib_new),
       },
       {
           "new",
           type,
-          gab_sbuiltin(gab.eg, "new", gab_lib_new),
+          gab_sbuiltin(gab, "new", gab_lib_new),
       },
       {
           "len",
           type,
-          gab_sbuiltin(gab.eg, "len", gab_lib_len),
+          gab_sbuiltin(gab, "len", gab_lib_len),
       },
       {
           "slice",
           type,
-          gab_sbuiltin(gab.eg, "slice", gab_lib_slice),
+          gab_sbuiltin(gab, "slice", gab_lib_slice),
       },
       {
           "push!",
           type,
-          gab_sbuiltin(gab.eg, "push", gab_lib_push),
+          gab_sbuiltin(gab, "push", gab_lib_push),
       },
       {
           "pop!",
           type,
-          gab_sbuiltin(gab.eg, "pop", gab_lib_pop),
+          gab_sbuiltin(gab, "pop", gab_lib_pop),
       },
       {
           "put!",
           type,
-          gab_sbuiltin(gab.eg, "put", gab_lib_put),
+          gab_sbuiltin(gab, "put", gab_lib_put),
       },
       {
           "at",
           type,
-          gab_sbuiltin(gab.eg, "at", gab_lib_at),
+          gab_sbuiltin(gab, "at", gab_lib_at),
       },
   };
 

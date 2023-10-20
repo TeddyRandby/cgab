@@ -42,7 +42,7 @@ int handle_on_header_value(llhttp_t *parser, const char *data, size_t len) {
 
 void gab_lib_parse(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
-    gab_vmpush(gab.vm, gab_string(gab.eg, "invalid_arguments"));
+    gab_vmpush(gab.vm, gab_string(gab, "invalid_arguments"));
     return;
   }
 
@@ -74,25 +74,25 @@ void gab_lib_parse(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     gab_value header_values[header_count];
 
     for (size_t i = 0; i < header_count; i++) {
-      header_fields[i] = gab_nstring(gab.eg, ud.header_fields.data[i].len,
+      header_fields[i] = gab_nstring(gab, ud.header_fields.data[i].len,
                                      (char *)ud.header_fields.data[i].data);
 
-      header_values[i] = gab_nstring(gab.eg, ud.header_values.data[i].len,
+      header_values[i] = gab_nstring(gab, ud.header_values.data[i].len,
                                      (char *)ud.header_values.data[i].data);
     }
 
     gab_value result[] = {
-        gab_string(gab.eg, "ok"),
-        gab_string(gab.eg, llhttp_method_name(parser.method)),
-        gab_nstring(gab.eg, ud.url.len, (char *)ud.url.data),
-        gab_record(gab.eg, header_count, header_fields, header_values),
-        ud.body.len > 0 ? gab_nstring(gab.eg, ud.body.len, (char *)ud.body.data)
+        gab_string(gab, "ok"),
+        gab_string(gab, llhttp_method_name(parser.method)),
+        gab_nstring(gab, ud.url.len, (char *)ud.url.data),
+        gab_record(gab, header_count, header_fields, header_values),
+        ud.body.len > 0 ? gab_nstring(gab, ud.body.len, (char *)ud.body.data)
                         : gab_nil,
     };
 
     gab_nvmpush(gab.vm, sizeof(result) / sizeof(result[0]), result);
   } else {
-    gab_vmpush(gab.vm, gab_string(gab.eg, llhttp_errno_name(err)));
+    gab_vmpush(gab.vm, gab_string(gab, llhttp_errno_name(err)));
   }
 }
 
@@ -107,7 +107,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab.eg, "to_http", gab_lib_parse),
+      gab_sbuiltin(gab, "to_http", gab_lib_parse),
   };
 
   for (size_t i = 0; i < sizeof(specs) / sizeof(specs[0]); i++) {

@@ -1,4 +1,5 @@
 #include "include/alloc.h"
+#include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
 #include <stddef.h>
@@ -133,7 +134,7 @@ void chunk_dealloc(struct gab_allocator *s, uint64_t size, void *ptr) {
     chunk_destroy(s, chunk);
 }
 
-void gab_obj_old(struct gab_eg *gab, struct gab_obj *obj) {
+void gab_memold(struct gab_eg *gab, struct gab_obj *obj) {
   uint64_t size = gab_obj_size(obj);
 
   struct gab_chunk *chunk = chunk_find(&gab->allocator, size, obj);
@@ -144,7 +145,7 @@ void gab_obj_old(struct gab_eg *gab, struct gab_obj *obj) {
   chunk_unsetyng(chunk, index);
 }
 
-void gab_mem_reset(struct gab_eg *gab) {
+void gab_memclean(struct gab_eg *gab) {
   for (int i = 0; i < CHUNK_MAX_SIZE; i++) {
     struct gab_chunk *chunk = gab->allocator.chunks[i], *old = NULL;
     
@@ -200,24 +201,35 @@ void gab_mem_reset(struct gab_eg *gab) {
 #endif
 }
 
-void *gab_obj_alloc(struct gab_eg *gab, struct gab_obj *obj, uint64_t size) {
+void *gab_memalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size) {
   if (size == 0) {
     assert(obj);
 
     uint64_t old_size = gab_obj_size(obj);
 
     if (old_size < CHUNK_MAX_SIZE)
-      chunk_dealloc(&gab->allocator, old_size, obj);
+      chunk_dealloc(&gab.eg->allocator, old_size, obj);
     else
       free(obj);
+
+    gab.eg->allocator.heap_size -= old_size;
 
     return NULL;
   }
 
   assert(!obj);
+  
+// #if cGAB_DEBUG_GC
+//     gab_gcrun(gab);
+// #endif
+
+  // if (gab.eg->allocator.heap_size > cGAB_EG_HEAP_BYTES_MAX) {
+  //   gab_gcrun(gab);
+  // }
 
   if (size < CHUNK_MAX_SIZE) {
-    return chunk_alloc(&gab->allocator, size);
+    gab.eg->allocator.heap_size += size;
+    return chunk_alloc(&gab.eg->allocator, size);
   }
 
   fprintf(stderr, "Unsupported size %lu", size);

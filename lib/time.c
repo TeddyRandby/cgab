@@ -21,7 +21,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab.eg, "now", gab_lib_now),
+      gab_sbuiltin(gab, "now", gab_lib_now),
   };
 
   gab_value receivers[] = {
