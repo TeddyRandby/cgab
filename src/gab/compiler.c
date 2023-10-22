@@ -655,14 +655,14 @@ static gab_value pop_ctxframe(struct bc *bc) {
   uint8_t nlocals = f->nlocals;
 
   gab_value p = gab_blkproto(gab(bc), (struct gab_blkproto_argt){
-                                         .mod = f->mod,
-                                         .nslots = nslots,
-                                         .nlocals = nlocals,
-                                         .narguments = nargs,
-                                         .nupvalues = nupvalues,
-                                         .flags = f->upv_flags,
-                                         .indexes = f->upv_indexes,
-                                     });
+                                          .mod = f->mod,
+                                          .nslots = nslots,
+                                          .nlocals = nlocals,
+                                          .narguments = nargs,
+                                          .nupvalues = nupvalues,
+                                          .flags = f->upv_flags,
+                                          .indexes = f->upv_indexes,
+                                      });
 
   assert(match_ctx(bc, kFRAME));
 
@@ -2980,8 +2980,8 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   return main;
 }
 
-gab_value gab_bccompsend(struct gab_triple gab, gab_value msg, gab_value receiver,
-                         uint8_t flags, uint8_t narguments,
+gab_value gab_bccompsend(struct gab_triple gab, gab_value msg,
+                         gab_value receiver, uint8_t flags, uint8_t narguments,
                          gab_value arguments[narguments]) {
   struct bc bc;
   bc_create(&bc, gab, NULL, flags);

@@ -14,9 +14,8 @@ static inline struct gab_chunk *chunk_create(struct gab_allocator *s,
   struct gab_chunk *old_chunk = s->chunks[size];
   struct gab_chunk *self =
       malloc(sizeof(struct gab_chunk) + (CHUNK_LEN * size));
-  
-  self->old = 0;
-  self->young = 0;
+
+  self->mask = 0;
   self->size = size;
 
   self->prev = NULL;
@@ -58,24 +57,16 @@ static inline size_t chunk_indexof(struct gab_chunk *chunk, uint8_t *addr) {
   return (addr - chunk->bytes) / chunk->size;
 }
 
-static inline void chunk_setyng(struct gab_chunk *chunk, int32_t index) {
-  chunk->young |= (uint64_t)1 << index;
+static inline void chunk_set(struct gab_chunk *chunk, int32_t index) {
+  chunk->mask |= (uint64_t)1 << index;
 }
 
-static inline void chunk_unsetyng(struct gab_chunk *chunk, int32_t index) {
-  chunk->young &= ~((uint64_t)1 << index);
-}
-
-static inline void chunk_setold(struct gab_chunk *chunk, int32_t index) {
-  chunk->old |= (uint64_t)1 << index;
-}
-
-static inline void chunk_unsetold(struct gab_chunk *chunk, int32_t index) {
-  chunk->old &= ~((uint64_t)1 << index);
+static inline void chunk_unset(struct gab_chunk *chunk, int32_t index) {
+  chunk->mask &= ~((uint64_t)1 << index);
 }
 
 static inline int32_t chunk_next(struct gab_chunk *chunk) {
-  return ctz(~(chunk->old | chunk->young));
+  return ctz(~chunk->mask);
 }
 
 static inline void *chunk_at(struct gab_chunk *chunk, int32_t index) {
@@ -83,11 +74,11 @@ static inline void *chunk_at(struct gab_chunk *chunk, int32_t index) {
 }
 
 static inline bool chunk_empty(struct gab_chunk *chunk) {
-  return (chunk->old | chunk->young) == 0;
+  return chunk->mask == 0;
 }
 
 static inline bool chunk_full(struct gab_chunk *chunk) {
-  return (chunk->old | chunk->young) == UINT64_MAX;
+  return chunk->mask == UINT64_MAX;
 }
 
 static void *chunk_alloc(struct gab_allocator *s, uint64_t size) {
@@ -103,7 +94,7 @@ static void *chunk_alloc(struct gab_allocator *s, uint64_t size) {
 
   int32_t index = chunk_next(chunk);
 
-  chunk_setyng(chunk, index);
+  chunk_set(chunk, index);
 
   void *ptr = chunk_at(chunk, index);
 
@@ -128,77 +119,10 @@ void chunk_dealloc(struct gab_allocator *s, uint64_t size, void *ptr) {
 
   size_t index = chunk_indexof(chunk, ptr);
 
-  chunk_unsetold(chunk, index);
+  chunk_unset(chunk, index);
 
   if (chunk_empty(chunk))
     chunk_destroy(s, chunk);
-}
-
-void gab_memold(struct gab_eg *gab, struct gab_obj *obj) {
-  uint64_t size = gab_obj_size(obj);
-
-  struct gab_chunk *chunk = chunk_find(&gab->allocator, size, obj);
-
-  size_t index = chunk_indexof(chunk, (void *)obj);
-
-  chunk_setold(chunk, index);
-  chunk_unsetyng(chunk, index);
-}
-
-void gab_memclean(struct gab_eg *gab) {
-  for (int i = 0; i < CHUNK_MAX_SIZE; i++) {
-    struct gab_chunk *chunk = gab->allocator.chunks[i], *old = NULL;
-    
-    while (chunk) {
-      for (int j = 0; j < CHUNK_LEN; j++) {
-        uint64_t m = (uint64_t)1 << j;
-        if (chunk->young & m) {
-          struct gab_obj *obj = chunk_at(chunk, j);
-
-#if cGAB_LOG_GC
-          if (GAB_OBJ_IS_FREED(obj)) {
-            printf("DFREE\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, __FUNCTION__,
-                   __LINE__);
-            exit(1);
-          } else {
-            printf("FREE\t%V\t%p\t%i\t%s:%i\n", __gab_obj(obj), obj,
-                   obj->references, __FUNCTION__, __LINE__);
-          }
-#endif
-
-          gab_obj_destroy(gab, obj);
-        }
-      }
-
-      old = chunk;
-      chunk = chunk->next;
-
-      old->young = 0;
-      if (chunk_empty(old))
-        chunk_destroy(&gab->allocator, old);
-    }
-  }
-
-#if cGAB_LOG_GC
-  // Iterate through the size slots in the allocator
-  // And log any objects which are present in non-nil slots
-  for (int i = 0; i < CHUNK_MAX_SIZE; i++) {
-    struct gab_chunk *chunk = gab->allocator.chunks[i];
-    while (chunk) {
-      for (int j = 0; j < CHUNK_LEN; j++) {
-        uint64_t m = (uint64_t)1 << j;
-        
-        if (chunk->old & m) {
-          struct gab_obj *obj = chunk_at(chunk, j);
-          if (!GAB_OBJ_IS_FREED(obj))
-            printf("OLDALIVE\t%V\t%p\t%i\n", __gab_obj(obj), obj,
-                   obj->references);
-        }
-      }
-      chunk = chunk->next;
-    }
-  }
-#endif
 }
 
 void *gab_memalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size) {
@@ -218,14 +142,6 @@ void *gab_memalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size) {
   }
 
   assert(!obj);
-  
-// #if cGAB_DEBUG_GC
-//     gab_gcrun(gab);
-// #endif
-
-  // if (gab.eg->allocator.heap_size > cGAB_EG_HEAP_BYTES_MAX) {
-  //   gab_gcrun(gab);
-  // }
 
   if (size < CHUNK_MAX_SIZE) {
     gab.eg->allocator.heap_size += size;

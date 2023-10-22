@@ -11,7 +11,7 @@ struct gab_chunk;
 
 struct gab_chunk {
   struct gab_chunk *prev, *next;
-  uint64_t old, young;
+  uint64_t mask;
   uint8_t size;
   uint8_t bytes[FLEXIBLE_ARRAY];
 };
@@ -30,22 +30,5 @@ struct gab_allocator {
  * @return The allocated memory, or NULL.
  */
 void *gab_memalloc(struct gab_triple gab, struct gab_obj *loc, uint64_t size);
-
-/**
- * Mark a memory location as *old*. This assures that it will not be collected
- * by gab_memclean.
- *
- * @param gab The gab engine.
- * @param loc The object whose memory is being reallocated, or NULL.
- */
-void gab_memold(struct gab_eg *eg, struct gab_obj *loc);
-
-/**
- * Mark a memory location as *old*. This assures that it will not be collected
- * by gab_memclean.
- *
- * @param gab The gab engine.
- */
-void gab_memclean(struct gab_eg *eg);
 
 #endif

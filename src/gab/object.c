@@ -54,7 +54,7 @@ struct gab_obj *gab_obj_create(struct gab_triple gab, struct gab_obj *self,
                                enum gab_kind k) {
   self->kind = k;
   self->references = 0;
-  self->flags = fGAB_OBJ_NEW | fGAB_OBJ_MODIFIED;
+  self->flags = fGAB_OBJ_NEW;
 
 #if cGAB_LOG_GC
   printf("CREATE\t%p\t%s\n", self, gab_kind_names[k]);
@@ -284,7 +284,7 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
 
   d_strings_insert(&gab.eg->interned_strings, self, 0);
 
-  return __gab_obj(self);
+  return gab_gcdref(gab, __gab_obj(self));
 };
 
 /*
@@ -345,7 +345,7 @@ gab_value gab_blkproto(struct gab_triple gab, struct gab_blkproto_argt args) {
   }
 
   GAB_OBJ_GREEN((struct gab_obj *)self);
-  return __gab_obj(self);
+  return gab_gcdref(gab, __gab_obj(self));
 }
 
 gab_value gab_message(struct gab_triple gab, gab_value name) {
@@ -367,7 +367,7 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
 
   d_messages_insert(&gab.eg->interned_messages, self, 0);
 
-  return __gab_obj(self);
+  return gab_gcdref(gab, __gab_obj(self));
 }
 
 gab_value gab_builtin(struct gab_triple gab, gab_value name, gab_builtin_f f) {
@@ -380,7 +380,7 @@ gab_value gab_builtin(struct gab_triple gab, gab_value name, gab_builtin_f f) {
 
   // Builtins cannot reference other objects - mark them green.
   GAB_OBJ_GREEN((struct gab_obj *)self);
-  return __gab_obj(self);
+  return gab_gcdref(gab, __gab_obj(self));
 }
 
 gab_value gab_sbuiltin(struct gab_triple gab, const char *name,
@@ -402,7 +402,7 @@ gab_value gab_block(struct gab_triple gab, gab_value prototype) {
     self->upvalues[i] = gab_nil;
   }
 
-  return __gab_obj(self);
+  return gab_gcdref(gab, __gab_obj(self));
 }
 
 gab_value gab_nshape(struct gab_triple gab, size_t len) {
@@ -437,7 +437,7 @@ gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
 
   d_shapes_insert(&gab.eg->interned_shapes, self, 0);
 
-  return __gab_obj(self);
+  return gab_gcdref(gab, __gab_obj(self));
 }
 
 gab_value gab_recordof(struct gab_triple gab, gab_value shp, uint64_t stride,
@@ -454,7 +454,7 @@ gab_value gab_recordof(struct gab_triple gab, gab_value shp, uint64_t stride,
   for (uint64_t i = 0; i < shape->len; i++)
     self->data[i] = values[i * stride];
 
-  return __gab_obj(self);
+  return gab_gcdref(gab, __gab_obj(self));
 }
 
 gab_value gab_erecordof(struct gab_triple gab, gab_value shp) {
@@ -470,7 +470,7 @@ gab_value gab_erecordof(struct gab_triple gab, gab_value shp) {
   for (uint64_t i = 0; i < shape->len; i++)
     self->data[i] = gab_nil;
 
-  return __gab_obj(self);
+  return gab_gcdref(gab, __gab_obj(self));
 }
 
 gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
@@ -483,7 +483,7 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
 
   GAB_OBJ_GREEN((struct gab_obj *)self);
 
-  return __gab_obj(self);
+  return gab_gcdref(gab, __gab_obj(self));
 }
 
 gab_value gab_susproto(struct gab_triple gab, uint64_t offset, uint8_t want) {
@@ -495,7 +495,7 @@ gab_value gab_susproto(struct gab_triple gab, uint64_t offset, uint8_t want) {
 
   GAB_OBJ_GREEN((struct gab_obj *)self);
 
-  return __gab_obj(self);
+  return gab_gcdref(gab, __gab_obj(self));
 }
 
 gab_value gab_suspense(struct gab_triple gab, uint16_t len, gab_value b,
@@ -512,7 +512,7 @@ gab_value gab_suspense(struct gab_triple gab, uint16_t len, gab_value b,
 
   memcpy(self->frame, frame, len * sizeof(gab_value));
 
-  return __gab_obj(self);
+  return gab_gcdref(gab, __gab_obj(self));
 }
 
 #undef CREATE_GAB_FLEX_OBJ

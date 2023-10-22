@@ -183,11 +183,13 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   vm->fp->ip = proto->mod->bytecode.data;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
-
-  trim_values(vm->fp->slots + 1, vm->fp->slots + 1, have, len);
   
+  // Update the SP to point just past the locals section
   vm->sp = vm->fp->slots + proto->nlocals;
-  
+
+  // Trim arguments into the slots
+  *vm->sp = trim_values(vm->fp->slots + 1, vm->fp->slots + 1, have, len);
+
   return true;
 }
 
@@ -814,7 +816,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       DROP_N(have);
 
       LOCAL(start + want) = sus;
-      
+
       NEXT();
     }
 
@@ -1124,16 +1126,16 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
     CASE_CODE(INTERPOLATE) : {
       uint8_t n = READ_BYTE;
-      gab_value acc = gab_valintos(GAB(), PEEK_N(n));
+      gab_value str = gab_valintos(GAB(), PEEK_N(n));
 
       for (uint8_t i = n - 1; i > 0; i--) {
         gab_value curr = gab_valintos(GAB(), PEEK_N(i));
-        acc = gab_strcat(GAB(), acc, curr);
+        str = gab_strcat(GAB(), str, curr);
       }
 
       POP_N(n);
 
-      PUSH(acc);
+      PUSH(str);
 
       NEXT();
     }
@@ -1392,7 +1394,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       msg->specs = gab_recordwith(GAB(), msg->specs, r, blk);
       msg->version++;
-      
+
       gab_gciref(GAB(), msg->specs);
 
       PEEK() = m;

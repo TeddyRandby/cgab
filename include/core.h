@@ -3,12 +3,12 @@
 
 // Collect as frequently as possible (on every RC push) and collect debug info.
 #ifndef cGAB_DEBUG_GC
-#define cGAB_DEBUG_GC 0
+#define cGAB_DEBUG_GC 1
 #endif
 
 // Log what is happening during collection.
 #ifndef cGAB_LOG_GC
-#define cGAB_LOG_GC 0
+#define cGAB_LOG_GC 1
 #endif
 
 // Make sure functions don't break out of their frame
@@ -23,11 +23,6 @@
 // Log what is happening during execution.
 #ifndef cGAB_LOG_VM
 #define cGAB_LOG_VM 0
-#endif
-
-// Use the simple custom chunk allocator
-#ifndef cGAB_CHUNK_ALLOCATOR
-#define cGAB_CHUNK_ALLOCATOR 1
 #endif
 
 // Capacity at which point dictionaries are resized
@@ -70,7 +65,7 @@
 #endif
 
 #ifndef cGAB_GC_MOD_BUFF_MAX
-#define cGAB_GC_MOD_BUFF_MAX (cGAB_STACK_MAX >> 1)
+#define cGAB_GC_MOD_BUFF_MAX (cGAB_STACK_MAX)
 #endif
 
 #if cGAB_GC_DEC_BUFF_MAX < STACK_MAX
@@ -78,7 +73,7 @@
 #endif
 
 #ifndef cGAB_GC_ROOT_BUFF_MAX
-#define cGAB_GC_ROOT_BUFF_MAX (cGAB_GC_MOD_BUFF_MAX + 1)
+#define cGAB_GC_ROOT_BUFF_MAX (cGAB_GC_MOD_BUFF_MAX)
 #endif
 
 #ifndef cGAB_EG_HEAP_BYTES_MAX

@@ -155,6 +155,8 @@ struct gab_triple gab_create() {
 
   gab_ngciref(gab, 1, kGAB_NKINDS, eg->types);
 
+  gab_negkeep(gab.eg, kGAB_NKINDS, eg->types);
+
   gab_setup_builtins(gab);
 
   for (int i = 0; i < LEN_CARRAY(primitives); i++) {
@@ -170,7 +172,6 @@ struct gab_triple gab_create() {
 
 void gab_destroy(struct gab_triple gab) {
   gab_ngcdref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
-  gab_ngcdref(gab, 1, kGAB_NKINDS, gab.eg->types);
 
   while (gab.eg->sources) {
     struct gab_src *s = gab.eg->sources;
@@ -267,17 +268,17 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
 
   bool new = GAB_OBJ_IS_NEW(gab_valtoo(m));
 
-  if (!new)
-    gab_gcdref(gab, msg->specs);
+  // if (!new)
+  //   gab_gcdref(gab, msg->specs);
 
   msg->specs =
       gab_recordwith(gab, msg->specs, args.receiver, args.specialization);
   msg->version++;
 
-  if (!new)
-    gab_gciref(gab, msg->specs);
-  else
-    gab_egkeep(gab.eg, gab_gciref(gab, m));
+  // if (!new)
+  //   gab_gciref(gab, msg->specs);
+  // else
+  //   gab_egkeep(gab.eg, m), gab_gciref(gab, m);
 
   return m;
 }
