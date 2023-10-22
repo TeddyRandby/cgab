@@ -1390,12 +1390,8 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(m);
 
-      gab_gcdref(GAB(), msg->specs);
-
       msg->specs = gab_recordwith(GAB(), msg->specs, r, blk);
       msg->version++;
-
-      gab_gciref(GAB(), msg->specs);
 
       PEEK() = m;
 

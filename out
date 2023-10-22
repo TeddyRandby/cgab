@@ -1,643 +1,491 @@
-CREATE	0x557ef5e83c01	obj_string
-CREATE	0x557ef5e85651	obj_string
-CREATE	0x557ef5e83c27	obj_string
-CREATE	0x557ef5e85678	obj_string
-CREATE	0x557ef5e86041	obj_string
-CREATE	0x557ef5e8569f	obj_string
-CREATE	0x557ef5e86bc1	obj_string
-CREATE	0x557ef5e83c4d	obj_string
-CREATE	0x557ef5e86be6	obj_string
-CREATE	0x557ef5e87531	obj_string
-CREATE	0x557ef5e8606a	obj_string
-CREATE	0x557ef5e86093	obj_string
-NEW	Boolean	0x557ef5e85651	1
-QMOD	Boolean	0x557ef5e85651	1	inc_obj_ref:247
-EINC	Boolean	0x557ef5e85651	2	gab_create
-NEW	Primitive	0x557ef5e86093	1
-QMOD	Primitive	0x557ef5e86093	1	inc_obj_ref:247
-NEW	Number	0x557ef5e83c01	1
-QMOD	Number	0x557ef5e83c01	1	inc_obj_ref:247
-NEW	Suspsense	0x557ef5e8606a	1
-QMOD	Suspsense	0x557ef5e8606a	1	inc_obj_ref:247
-NEW	String	0x557ef5e83c27	1
-QMOD	String	0x557ef5e83c27	1	inc_obj_ref:247
-NEW	Message	0x557ef5e85678	1
-QMOD	Message	0x557ef5e85678	1	inc_obj_ref:247
-NEW	Prototype	0x557ef5e86041	1
-QMOD	Prototype	0x557ef5e86041	1	inc_obj_ref:247
-NEW	Builtin	0x557ef5e8569f	1
-QMOD	Builtin	0x557ef5e8569f	1	inc_obj_ref:247
-NEW	Block	0x557ef5e86bc1	1
-QMOD	Block	0x557ef5e86bc1	1	inc_obj_ref:247
-NEW	Box	0x557ef5e87531	1
-QMOD	Box	0x557ef5e87531	1	inc_obj_ref:247
-NEW	Record	0x557ef5e83c4d	1
-QMOD	Record	0x557ef5e83c4d	1	inc_obj_ref:247
-NEW	Shape	0x557ef5e86be6	1
-QMOD	Shape	0x557ef5e86be6	1	inc_obj_ref:247
-CREATE	0x557ef5e87554	obj_string
-CREATE	0x557ef5e88031	obj_builtin
-CREATE	0x557ef5e88861	obj_message
-CREATE	0x557ef5e88051	obj_shape
-CREATE	0x557ef5e88071	obj_record
-CREATE	0x557ef5e89521	obj_shape
-CREATE	0x557ef5e89549	obj_record
-NEW	&use	0x557ef5e88861	1
-QMOD	&use	0x557ef5e88861	1	inc_obj_ref:247
-CREATE	0x557ef5e86c0b	obj_string
-CREATE	0x557ef5e88091	obj_builtin
-CREATE	0x557ef5e88891	obj_message
-CREATE	0x557ef5e880b1	obj_record
-CREATE	0x557ef5e89571	obj_shape
-CREATE	0x557ef5e89599	obj_record
-NEW	&panic	0x557ef5e88891	1
-QMOD	&panic	0x557ef5e88891	1	inc_obj_ref:247
-CREATE	0x557ef5e86c30	obj_string
-CREATE	0x557ef5e880d1	obj_builtin
-CREATE	0x557ef5e888c1	obj_message
-CREATE	0x557ef5e880f1	obj_record
-CREATE	0x557ef5e895c1	obj_shape
-CREATE	0x557ef5e895e9	obj_record
-NEW	&print	0x557ef5e888c1	1
-QMOD	&print	0x557ef5e888c1	1	inc_obj_ref:247
-CREATE	0x557ef5e89fa1	obj_string
-CREATE	0x557ef5e888f1	obj_message
-CREATE	0x557ef5e88111	obj_record
-CREATE	0x557ef5e89611	obj_shape
-CREATE	0x557ef5e89639	obj_record
-NEW	&|	0x557ef5e888f1	1
-QMOD	&|	0x557ef5e888f1	1	inc_obj_ref:247
-CREATE	0x557ef5e89fc2	obj_string
-CREATE	0x557ef5e88921	obj_message
-CREATE	0x557ef5e88131	obj_record
-CREATE	0x557ef5e89661	obj_record
-NEW	&&	0x557ef5e88921	1
-QMOD	&&	0x557ef5e88921	1	inc_obj_ref:247
-CREATE	0x557ef5e8a811	obj_string
-CREATE	0x557ef5e88951	obj_message
-CREATE	0x557ef5e88151	obj_record
-CREATE	0x557ef5e89689	obj_record
-NEW	&<<	0x557ef5e88951	1
-QMOD	&<<	0x557ef5e88951	1	inc_obj_ref:247
-CREATE	0x557ef5e8a833	obj_string
-CREATE	0x557ef5e88981	obj_message
-CREATE	0x557ef5e88171	obj_record
-CREATE	0x557ef5e896b1	obj_record
-NEW	&>>	0x557ef5e88981	1
-QMOD	&>>	0x557ef5e88981	1	inc_obj_ref:247
-CREATE	0x557ef5e89fe3	obj_string
-CREATE	0x557ef5e889b1	obj_message
-CREATE	0x557ef5e88191	obj_record
-CREATE	0x557ef5e896d9	obj_record
-NEW	&+	0x557ef5e889b1	1
-QMOD	&+	0x557ef5e889b1	1	inc_obj_ref:247
-CREATE	0x557ef5e8a004	obj_string
-CREATE	0x557ef5e889e1	obj_message
-CREATE	0x557ef5e881b1	obj_record
-CREATE	0x557ef5e89701	obj_record
-NEW	&-	0x557ef5e889e1	1
-QMOD	&-	0x557ef5e889e1	1	inc_obj_ref:247
-CREATE	0x557ef5e8a025	obj_string
-CREATE	0x557ef5e88a11	obj_message
-CREATE	0x557ef5e881d1	obj_record
-CREATE	0x557ef5e89729	obj_record
-NEW	&*	0x557ef5e88a11	1
-QMOD	&*	0x557ef5e88a11	1	inc_obj_ref:247
-CREATE	0x557ef5e8a046	obj_string
-CREATE	0x557ef5e88a41	obj_message
-CREATE	0x557ef5e881f1	obj_record
-CREATE	0x557ef5e89751	obj_record
-NEW	&/	0x557ef5e88a41	1
-QMOD	&/	0x557ef5e88a41	1	inc_obj_ref:247
-CREATE	0x557ef5e8a067	obj_string
-CREATE	0x557ef5e88a71	obj_message
-CREATE	0x557ef5e88211	obj_record
-CREATE	0x557ef5e89779	obj_record
-NEW	&%	0x557ef5e88a71	1
-QMOD	&%	0x557ef5e88a71	1	inc_obj_ref:247
-CREATE	0x557ef5e8a088	obj_string
-CREATE	0x557ef5e88aa1	obj_message
-CREATE	0x557ef5e88231	obj_record
-CREATE	0x557ef5e897a1	obj_record
-NEW	&<	0x557ef5e88aa1	1
-QMOD	&<	0x557ef5e88aa1	1	inc_obj_ref:247
-CREATE	0x557ef5e8a855	obj_string
-CREATE	0x557ef5e88ad1	obj_message
-CREATE	0x557ef5e88251	obj_record
-CREATE	0x557ef5e897c9	obj_record
-NEW	&<=	0x557ef5e88ad1	1
-QMOD	&<=	0x557ef5e88ad1	1	inc_obj_ref:247
-CREATE	0x557ef5e8a0a9	obj_string
-CREATE	0x557ef5e88b01	obj_message
-CREATE	0x557ef5e88271	obj_record
-CREATE	0x557ef5e897f1	obj_record
-NEW	&>	0x557ef5e88b01	1
-QMOD	&>	0x557ef5e88b01	1	inc_obj_ref:247
-CREATE	0x557ef5e8a877	obj_string
-CREATE	0x557ef5e88b31	obj_message
-CREATE	0x557ef5e88291	obj_record
-CREATE	0x557ef5e89819	obj_record
-NEW	&>=	0x557ef5e88b31	1
-QMOD	&>=	0x557ef5e88b31	1	inc_obj_ref:247
-EDEC	{Number = SEND_PRIMITIVE_ADD}	0x557ef5e896d9	-1	gab_spec:271
-CREATE	0x557ef5e88b61	obj_shape
-CREATE	0x557ef5e88b91	obj_record
-NEW	{Number = SEND_PRIMITIVE_ADD String = SEND_PRIMITIVE_CONCAT}	0x557ef5e88b91	1
-QMOD	{Number = SEND_PRIMITIVE_ADD String = SEND_PRIMITIVE_CONCAT}	0x557ef5e88b91	1	inc_obj_ref:247
-CREATE	0x557ef5e8a899	obj_string
-CREATE	0x557ef5e88bc1	obj_message
-CREATE	0x557ef5e882b1	obj_record
-CREATE	0x557ef5e89841	obj_record
-NEW	&==	0x557ef5e88bc1	1
-QMOD	&==	0x557ef5e88bc1	1	inc_obj_ref:247
-CREATE	0x557ef5e87577	obj_string
-CREATE	0x557ef5e88bf1	obj_message
-CREATE	0x557ef5e882d1	obj_record
-CREATE	0x557ef5e89869	obj_shape
-CREATE	0x557ef5e89891	obj_record
-NEW	&[=]	0x557ef5e88bf1	1
-QMOD	&[=]	0x557ef5e88bf1	1	inc_obj_ref:247
-CREATE	0x557ef5e8a8bb	obj_string
-CREATE	0x557ef5e88c21	obj_message
-CREATE	0x557ef5e882f1	obj_record
-CREATE	0x557ef5e898b9	obj_record
-NEW	&[]	0x557ef5e88c21	1
-QMOD	&[]	0x557ef5e88c21	1	inc_obj_ref:247
-CREATE	0x557ef5e8a8dd	obj_string
-CREATE	0x557ef5e88c51	obj_message
-CREATE	0x557ef5e88311	obj_record
-CREATE	0x557ef5e898e1	obj_shape
-CREATE	0x557ef5e89909	obj_record
-NEW	&()	0x557ef5e88c51	1
-QMOD	&()	0x557ef5e88c51	1	inc_obj_ref:247
-EDEC	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN}	0x557ef5e89909	-1	gab_spec:271
-CREATE	0x557ef5e88c81	obj_shape
-CREATE	0x557ef5e88cb1	obj_record
-NEW	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK}	0x557ef5e88cb1	1
-QMOD	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK}	0x557ef5e88cb1	1	inc_obj_ref:247
-EDEC	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK}	0x557ef5e88cb1	0	gab_spec:271
-CREATE	0x557ef5e8b5e1	obj_shape
-CREATE	0x557ef5e8b619	obj_record
-NEW	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK Suspsense = SEND_PRIMITIVE_CALL_SUSPENSE}	0x557ef5e8b619	1
-QMOD	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK Suspsense = SEND_PRIMITIVE_CALL_SUSPENSE}	0x557ef5e8b619	1	inc_obj_ref:247
-CREATE	0x557ef5e89931	obj_string
-NEW	__main__	0x557ef5e89931	1
-QMOD	__main__	0x557ef5e89931	1	inc_obj_ref:247
-CREATE	0x557ef5e8dcc1	obj_string
-NEW	self	0x557ef5e8dcc1	1
-QMOD	self	0x557ef5e8dcc1	1	inc_obj_ref:247
-CREATE	0x557ef5e8a0ca	obj_string
-NEW	a	0x557ef5e8a0ca	1
-QMOD	a	0x557ef5e8a0ca	1	inc_obj_ref:247
-CREATE	0x557ef5e8a0eb	obj_string
-NEW	b	0x557ef5e8a0eb	1
-QMOD	b	0x557ef5e8a0eb	1	inc_obj_ref:247
-EINC	b	0x557ef5e8a0eb	2	add_constant
-EINC	a	0x557ef5e8a0ca	2	add_constant
-EINC	b	0x557ef5e8a0eb	3	add_constant
-EINC	a	0x557ef5e8a0ca	3	add_constant
-CREATE	0x557ef5e8dce5	obj_string
-NEW	test	0x557ef5e8dce5	1
-QMOD	test	0x557ef5e8dce5	1	inc_obj_ref:247
-EINC	a	0x557ef5e8a0ca	4	add_constant
-EINC	test	0x557ef5e8dce5	2	add_constant
-EINC	self	0x557ef5e8dcc1	2	add_constant
-EINC	a	0x557ef5e8a0ca	5	add_constant
-CREATE	0x557ef5e8a8ff	obj_block_proto
-NEW	test	0x557ef5e8a8ff	1
-QMOD	test	0x557ef5e8a8ff	1	inc_obj_ref:247
-CREATE	0x557ef5e88ce1	obj_message
-CREATE	0x557ef5e88331	obj_record
-NEW	&test	0x557ef5e88ce1	1
-QMOD	&test	0x557ef5e88ce1	1	inc_obj_ref:247
-EINC	a	0x557ef5e8a0ca	6	add_constant
-EINC	b	0x557ef5e8a0eb	4	add_constant
-EINC	test	0x557ef5e8dce5	3	add_constant
-EINC	test	0x557ef5e8dce5	4	add_constant
-EINC	a	0x557ef5e8a0ca	7	add_constant
-EINC	test	0x557ef5e8dce5	5	add_constant
-EINC	self	0x557ef5e8dcc1	3	add_constant
-EINC	a	0x557ef5e8a0ca	8	add_constant
-CREATE	0x557ef5e8a921	obj_block_proto
-NEW	test	0x557ef5e8a921	1
-QMOD	test	0x557ef5e8a921	1	inc_obj_ref:247
-EINC	&test	0x557ef5e88ce1	2	add_constant
-EINC	test	0x557ef5e8dce5	6	add_constant
-EINC	test	0x557ef5e8dce5	7	add_constant
-EINC	self	0x557ef5e8dcc1	4	add_constant
-EINC	a	0x557ef5e8a0ca	9	add_constant
-CREATE	0x557ef5e8a943	obj_block_proto
-NEW	test	0x557ef5e8a943	1
-QMOD	test	0x557ef5e8a943	1	inc_obj_ref:247
-EINC	&test	0x557ef5e88ce1	3	add_constant
-EINC	test	0x557ef5e8dce5	8	add_constant
-EINC	&test	0x557ef5e88ce1	4	add_constant
-EINC	test	0x557ef5e8dce5	9	add_constant
-EINC	&test	0x557ef5e88ce1	5	add_constant
-EINC	test	0x557ef5e8dce5	10	add_constant
-EINC	&test	0x557ef5e88ce1	6	add_constant
-CREATE	0x557ef5e88351	obj_block_proto
-NEW	__main__	0x557ef5e88351	1
-QMOD	__main__	0x557ef5e88351	1	inc_obj_ref:247
-CREATE	0x557ef5e88371	obj_block
-NEW	<Block __main__>	0x557ef5e88371	1
-QMOD	<Block __main__>	0x557ef5e88371	1	inc_obj_ref:247
-CREATE	0x557ef5e89959	obj_shape
-CREATE	0x557ef5e89981	obj_record
-CREATE	0x557ef5e899a9	obj_block
-EDEC	{}	0x557ef5e88331	-1	gab_vmrun:1391
-CREATE	0x557ef5e899d1	obj_shape
-CREATE	0x557ef5e899f9	obj_record
-NEW	{{b = { ... }} = <Block test>}	0x557ef5e899f9	1
-QMOD	{{b = { ... }} = <Block test>}	0x557ef5e899f9	1	inc_obj_ref:247
-CREATE	0x557ef5e89a21	obj_block
-EDEC	{{b = &test} = <Block test>}	0x557ef5e899f9	0	gab_vmrun:1391
-CREATE	0x557ef5e88d11	obj_shape
-CREATE	0x557ef5e88d41	obj_record
-NEW	{{b = &test} = <Block test> <Shape b> = <Block test>}	0x557ef5e88d41	1
-QMOD	{{b = &test} = <Block test> <Shape b> = <Block test>}	0x557ef5e88d41	1	inc_obj_ref:247
-CREATE	0x557ef5e89a49	obj_block
-EDEC	{{b = &test} = <Block test> <Shape b> = <Block test>}	0x557ef5e88d41	0	gab_vmrun:1391
-CREATE	0x557ef5e8b651	obj_shape
-CREATE	0x557ef5e8b689	obj_record
-NEW	{{b = &test} = <Block test> <Shape b> = <Block test> undefined = <Block test>}	0x557ef5e8b689	1
-QMOD	{{b = &test} = <Block test> <Shape b> = <Block test> undefined = <Block test>}	0x557ef5e8b689	1	inc_obj_ref:247
-NEW	{b = &test}	0x557ef5e89981	1
-QMOD	{b = &test}	0x557ef5e89981	1	inc_obj_ref:247
-EDEC	&use	0x557ef5e88861	0	gab_destroy:172
-EDEC	&panic	0x557ef5e88891	0	gab_destroy:172
-EDEC	&print	0x557ef5e888c1	0	gab_destroy:172
-EDEC	&|	0x557ef5e888f1	0	gab_destroy:172
-EDEC	&&	0x557ef5e88921	0	gab_destroy:172
-EDEC	&<<	0x557ef5e88951	0	gab_destroy:172
-EDEC	&>>	0x557ef5e88981	0	gab_destroy:172
-EDEC	&+	0x557ef5e889b1	0	gab_destroy:172
-EDEC	&-	0x557ef5e889e1	0	gab_destroy:172
-EDEC	&*	0x557ef5e88a11	0	gab_destroy:172
-EDEC	&/	0x557ef5e88a41	0	gab_destroy:172
-EDEC	&%	0x557ef5e88a71	0	gab_destroy:172
-EDEC	&<	0x557ef5e88aa1	0	gab_destroy:172
-EDEC	&<=	0x557ef5e88ad1	0	gab_destroy:172
-EDEC	&>	0x557ef5e88b01	0	gab_destroy:172
-EDEC	&>=	0x557ef5e88b31	0	gab_destroy:172
-EDEC	&==	0x557ef5e88bc1	0	gab_destroy:172
-EDEC	&[=]	0x557ef5e88bf1	0	gab_destroy:172
-EDEC	&[]	0x557ef5e88c21	0	gab_destroy:172
-EDEC	&()	0x557ef5e88c51	0	gab_destroy:172
-EDEC	{b = &test}	0x557ef5e89981	0	gab_destroy:172
-EDEC	Boolean	0x557ef5e85651	1	gab_destroy:173
-EDEC	Boolean	0x557ef5e85651	0	gab_destroy:173
-EDEC	Primitive	0x557ef5e86093	0	gab_destroy:173
-EDEC	Number	0x557ef5e83c01	0	gab_destroy:173
-EDEC	Suspsense	0x557ef5e8606a	0	gab_destroy:173
-EDEC	String	0x557ef5e83c27	0	gab_destroy:173
-EDEC	Message	0x557ef5e85678	0	gab_destroy:173
-EDEC	Prototype	0x557ef5e86041	0	gab_destroy:173
-EDEC	Builtin	0x557ef5e8569f	0	gab_destroy:173
-EDEC	Block	0x557ef5e86bc1	0	gab_destroy:173
-EDEC	Box	0x557ef5e87531	0	gab_destroy:173
-EDEC	Record	0x557ef5e83c4d	0	gab_destroy:173
-EDEC	Shape	0x557ef5e86be6	0	gab_destroy:173
-EDEC	test	0x557ef5e8dce5	9	gab_moddestroy:28
-EDEC	self	0x557ef5e8dcc1	3	gab_moddestroy:28
-EDEC	a	0x557ef5e8a0ca	8	gab_moddestroy:28
-EDEC	test	0x557ef5e8dce5	8	gab_moddestroy:28
-EDEC	self	0x557ef5e8dcc1	2	gab_moddestroy:28
-EDEC	a	0x557ef5e8a0ca	7	gab_moddestroy:28
-EDEC	test	0x557ef5e8dce5	7	gab_moddestroy:28
-EDEC	self	0x557ef5e8dcc1	1	gab_moddestroy:28
-EDEC	a	0x557ef5e8a0ca	6	gab_moddestroy:28
-EDEC	__main__	0x557ef5e89931	0	gab_moddestroy:28
-EDEC	self	0x557ef5e8dcc1	0	gab_moddestroy:28
-EDEC	a	0x557ef5e8a0ca	5	gab_moddestroy:28
-EDEC	b	0x557ef5e8a0eb	3	gab_moddestroy:28
-EDEC	b	0x557ef5e8a0eb	2	gab_moddestroy:28
-EDEC	a	0x557ef5e8a0ca	4	gab_moddestroy:28
-EDEC	b	0x557ef5e8a0eb	1	gab_moddestroy:28
-EDEC	a	0x557ef5e8a0ca	3	gab_moddestroy:28
-EDEC	test	0x557ef5e8dce5	6	gab_moddestroy:28
-EDEC	a	0x557ef5e8a0ca	2	gab_moddestroy:28
-EDEC	test	0x557ef5e8a8ff	0	gab_moddestroy:28
-EDEC	&test	0x557ef5e88ce1	5	gab_moddestroy:28
-EDEC	a	0x557ef5e8a0ca	1	gab_moddestroy:28
-EDEC	b	0x557ef5e8a0eb	0	gab_moddestroy:28
-EDEC	test	0x557ef5e8dce5	5	gab_moddestroy:28
-EDEC	test	0x557ef5e8dce5	4	gab_moddestroy:28
-EDEC	a	0x557ef5e8a0ca	0	gab_moddestroy:28
-EDEC	test	0x557ef5e8a921	0	gab_moddestroy:28
-EDEC	&test	0x557ef5e88ce1	4	gab_moddestroy:28
-EDEC	test	0x557ef5e8dce5	3	gab_moddestroy:28
-EDEC	test	0x557ef5e8a943	0	gab_moddestroy:28
-EDEC	&test	0x557ef5e88ce1	3	gab_moddestroy:28
-EDEC	test	0x557ef5e8dce5	2	gab_moddestroy:28
-EDEC	&test	0x557ef5e88ce1	2	gab_moddestroy:28
-EDEC	test	0x557ef5e8dce5	1	gab_moddestroy:28
-EDEC	&test	0x557ef5e88ce1	1	gab_moddestroy:28
-EDEC	test	0x557ef5e8dce5	0	gab_moddestroy:28
-EDEC	&test	0x557ef5e88ce1	0	gab_moddestroy:28
-EDEC	__main__	0x557ef5e88351	0	gab_moddestroy:28
-EDEC	<Block __main__>	0x557ef5e88371	0	gab_moddestroy:28
-MOD	Boolean	0x557ef5e85651	0
-MOD	Primitive	0x557ef5e86093	0
-MOD	Number	0x557ef5e83c01	0
-MOD	Suspsense	0x557ef5e8606a	0
-MOD	String	0x557ef5e83c27	0
-MOD	Message	0x557ef5e85678	0
-MOD	Prototype	0x557ef5e86041	0
-MOD	Builtin	0x557ef5e8569f	0
-MOD	Block	0x557ef5e86bc1	0
-MOD	Box	0x557ef5e87531	0
-MOD	Record	0x557ef5e83c4d	0
-MOD	Shape	0x557ef5e86be6	0
-MOD	&use	0x557ef5e88861	0
-MOD	&panic	0x557ef5e88891	0
-MOD	&print	0x557ef5e888c1	0
-MOD	&|	0x557ef5e888f1	0
-MOD	&&	0x557ef5e88921	0
-MOD	&<<	0x557ef5e88951	0
-MOD	&>>	0x557ef5e88981	0
-MOD	&+	0x557ef5e889b1	0
-MOD	&-	0x557ef5e889e1	0
-MOD	&*	0x557ef5e88a11	0
-MOD	&/	0x557ef5e88a41	0
-MOD	&%	0x557ef5e88a71	0
-MOD	&<	0x557ef5e88aa1	0
-MOD	&<=	0x557ef5e88ad1	0
-MOD	&>	0x557ef5e88b01	0
-MOD	&>=	0x557ef5e88b31	0
-MOD	{Number = SEND_PRIMITIVE_ADD String = SEND_PRIMITIVE_CONCAT}	0x557ef5e88b91	1
-NEW	<Shape Number String>	0x557ef5e88b61	1
-QMOD	<Shape Number String>	0x557ef5e88b61	1	inc_obj_ref:247
-ROOT	{Number = SEND_PRIMITIVE_ADD String = SEND_PRIMITIVE_CONCAT}	0x557ef5e88b91	1
-MOD	&==	0x557ef5e88bc1	0
-MOD	&[=]	0x557ef5e88bf1	0
-MOD	&[]	0x557ef5e88c21	0
-MOD	&()	0x557ef5e88c51	0
-MOD	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK}	0x557ef5e88cb1	0
-MOD	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK Suspsense = SEND_PRIMITIVE_CALL_SUSPENSE}	0x557ef5e8b619	1
-NEW	<Shape Builtin Block Suspsense>	0x557ef5e8b5e1	1
-QMOD	<Shape Builtin Block Suspsense>	0x557ef5e8b5e1	1	inc_obj_ref:247
-ROOT	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK Suspsense = SEND_PRIMITIVE_CALL_SUSPENSE}	0x557ef5e8b619	1
-MOD	__main__	0x557ef5e89931	0
-MOD	self	0x557ef5e8dcc1	0
-MOD	a	0x557ef5e8a0ca	0
-MOD	b	0x557ef5e8a0eb	0
-MOD	test	0x557ef5e8dce5	0
-MOD	test	0x557ef5e8a8ff	0
-MOD	&test	0x557ef5e88ce1	0
-MOD	test	0x557ef5e8a921	0
-MOD	test	0x557ef5e8a943	0
-MOD	__main__	0x557ef5e88351	0
-MOD	<Block __main__>	0x557ef5e88371	0
-MOD	{{b = &test} = <Block test>}	0x557ef5e899f9	0
-MOD	{{b = &test} = <Block test> <Shape b> = <Block test>}	0x557ef5e88d41	0
-MOD	{{b = &test} = <Block test> <Shape b> = <Block test> undefined = <Block test>}	0x557ef5e8b689	1
-NEW	<Shape {b = &test} <Shape b> undefined>	0x557ef5e8b651	1
-QMOD	<Shape {b = &test} <Shape b> undefined>	0x557ef5e8b651	1	inc_obj_ref:247
-NEW	<Block test>	0x557ef5e899a9	1
-QMOD	<Block test>	0x557ef5e899a9	1	inc_obj_ref:247
-NEW	<Block test>	0x557ef5e89a21	1
-QMOD	<Block test>	0x557ef5e89a21	1	inc_obj_ref:247
-NEW	<Block test>	0x557ef5e89a49	1
-QMOD	<Block test>	0x557ef5e89a49	1	inc_obj_ref:247
-ROOT	{{b = &test} = <Block test> <Shape b> = <Block test> undefined = <Block test>}	0x557ef5e8b689	1
-MOD	{b = &test}	0x557ef5e89981	0
-MOD	<Shape Number String>	0x557ef5e88b61	1
-EINC	Number	0x557ef5e83c01	1	inc_obj_ref
-EINC	String	0x557ef5e83c27	1	inc_obj_ref
-ROOT	<Shape Number String>	0x557ef5e88b61	1
-MOD	<Shape Builtin Block Suspsense>	0x557ef5e8b5e1	1
-EINC	Builtin	0x557ef5e8569f	1	inc_obj_ref
-EINC	Block	0x557ef5e86bc1	1	inc_obj_ref
-EINC	Suspsense	0x557ef5e8606a	1	inc_obj_ref
-ROOT	<Shape Builtin Block Suspsense>	0x557ef5e8b5e1	1
-MOD	<Shape {b = &test} <Shape b> undefined>	0x557ef5e8b651	1
-EINC	{b = &test}	0x557ef5e89981	1	inc_obj_ref
-NEW	<Shape b>	0x557ef5e89959	1
-QMOD	<Shape b>	0x557ef5e89959	1	inc_obj_ref:247
-ROOT	<Shape {b = &test} <Shape b> undefined>	0x557ef5e8b651	1
-MOD	<Block test>	0x557ef5e899a9	1
-EINC	{b = &test}	0x557ef5e89981	2	inc_obj_ref
-ROOT	<Block test>	0x557ef5e899a9	1
-MOD	<Block test>	0x557ef5e89a21	1
-EINC	{b = &test}	0x557ef5e89981	3	inc_obj_ref
-ROOT	<Block test>	0x557ef5e89a21	1
-MOD	<Block test>	0x557ef5e89a49	1
-EINC	{b = &test}	0x557ef5e89981	4	inc_obj_ref
-ROOT	<Block test>	0x557ef5e89a49	1
-MOD	<Shape b>	0x557ef5e89959	1
-EINC	b	0x557ef5e8a0eb	1	inc_obj_ref
-ROOT	<Shape b>	0x557ef5e89959	1
-MARKROOT	{Number = SEND_PRIMITIVE_ADD String = SEND_PRIMITIVE_CONCAT}	0x557ef5e88b91	1
-DECGRAY	<Shape Number String>	0x557ef5e88b61	1
-DECGRAY	Number	0x557ef5e83c01	1
-DECGRAY	String	0x557ef5e83c27	1
-MARKROOT	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK Suspsense = SEND_PRIMITIVE_CALL_SUSPENSE}	0x557ef5e8b619	1
-DECGRAY	<Shape Builtin Block Suspsense>	0x557ef5e8b5e1	1
-DECGRAY	Builtin	0x557ef5e8569f	1
-DECGRAY	Block	0x557ef5e86bc1	1
-DECGRAY	Suspsense	0x557ef5e8606a	1
-MARKROOT	{{b = &test} = <Block test> <Shape b> = <Block test> undefined = <Block test>}	0x557ef5e8b689	1
-DECGRAY	<Shape {b = &test} <Shape b> undefined>	0x557ef5e8b651	1
-DECGRAY	{b = &test}	0x557ef5e89981	4
-DECGRAY	<Shape b>	0x557ef5e89959	1
-DECGRAY	b	0x557ef5e8a0eb	1
-DECGRAY	&test	0x557ef5e88ce1	0
-DECGRAY	{{b = &test} = <Block test> <Shape b> = <Block test> undefined = <Block test>}	0x557ef5e8b689	1
-DECGRAY	test	0x557ef5e8dce5	0
-DECGRAY	<Shape b>	0x557ef5e89959	0
-DECGRAY	<Block test>	0x557ef5e899a9	1
-DECGRAY	{b = &test}	0x557ef5e89981	3
-DECGRAY	<Block test>	0x557ef5e89a21	1
-DECGRAY	{b = &test}	0x557ef5e89981	2
-DECGRAY	<Block test>	0x557ef5e89a49	1
-DECGRAY	{b = &test}	0x557ef5e89981	1
-MARKROOT	<Shape Number String>	0x557ef5e88b61	0
-MARKROOT	<Shape Builtin Block Suspsense>	0x557ef5e8b5e1	0
-MARKROOT	<Shape {b = &test} <Shape b> undefined>	0x557ef5e8b651	0
-MARKROOT	<Block test>	0x557ef5e899a9	0
-MARKROOT	<Block test>	0x557ef5e89a21	0
-MARKROOT	<Block test>	0x557ef5e89a49	0
-MARKROOT	<Shape b>	0x557ef5e89959	-1
-SCANROOT	{Number = SEND_PRIMITIVE_ADD String = SEND_PRIMITIVE_CONCAT}	0x557ef5e88b91	1
-SCAN	{Number = SEND_PRIMITIVE_ADD String = SEND_PRIMITIVE_CONCAT}	0x557ef5e88b91	1
-INCBLK	Number	0x557ef5e83c01	1
-INCBLK	String	0x557ef5e83c27	1
-INCBLK	<Shape Number String>	0x557ef5e88b61	1
-SCANROOT	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK Suspsense = SEND_PRIMITIVE_CALL_SUSPENSE}	0x557ef5e8b619	1
-SCAN	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK Suspsense = SEND_PRIMITIVE_CALL_SUSPENSE}	0x557ef5e8b619	1
-INCBLK	Builtin	0x557ef5e8569f	1
-INCBLK	Block	0x557ef5e86bc1	1
-INCBLK	Suspsense	0x557ef5e8606a	1
-INCBLK	<Shape Builtin Block Suspsense>	0x557ef5e8b5e1	1
-SCANROOT	{{b = &test} = <Block test> <Shape b> = <Block test> undefined = <Block test>}	0x557ef5e8b689	0
-SCAN	{{b = &test} = <Block test> <Shape b> = <Block test> undefined = <Block test>}	0x557ef5e8b689	0
-SCAN	<Shape {b = &test} <Shape b> undefined>	0x557ef5e8b651	0
-SCAN	{b = &test}	0x557ef5e89981	0
-SCAN	<Shape b>	0x557ef5e89959	-1
-SCAN	b	0x557ef5e8a0eb	0
-SCAN	&test	0x557ef5e88ce1	-1
-SCAN	{{b = &test} = <Block test> <Shape b> = <Block test> undefined = <Block test>}	0x557ef5e8b689	0
-SCAN	test	0x557ef5e8dce5	-1
-SCAN	<Shape b>	0x557ef5e89959	-1
-SCAN	<Block test>	0x557ef5e899a9	0
-SCAN	{b = &test}	0x557ef5e89981	0
-SCAN	<Block test>	0x557ef5e89a21	0
-SCAN	{b = &test}	0x557ef5e89981	0
-SCAN	<Block test>	0x557ef5e89a49	0
-SCAN	{b = &test}	0x557ef5e89981	0
-SCANROOT	<Shape Number String>	0x557ef5e88b61	1
-SCAN	<Shape Number String>	0x557ef5e88b61	1
-SCANROOT	<Shape Builtin Block Suspsense>	0x557ef5e8b5e1	1
-SCAN	<Shape Builtin Block Suspsense>	0x557ef5e8b5e1	1
-SCANROOT	<Shape {b = &test} <Shape b> undefined>	0x557ef5e8b651	0
-SCAN	<Shape {b = &test} <Shape b> undefined>	0x557ef5e8b651	0
-SCANROOT	<Block test>	0x557ef5e899a9	0
-SCAN	<Block test>	0x557ef5e899a9	0
-SCANROOT	<Block test>	0x557ef5e89a21	0
-SCAN	<Block test>	0x557ef5e89a21	0
-SCANROOT	<Block test>	0x557ef5e89a49	0
-SCAN	<Block test>	0x557ef5e89a49	0
-SCANROOT	<Shape b>	0x557ef5e89959	-1
-SCAN	<Shape b>	0x557ef5e89959	-1
-WHITE	{{b = &test} = <Block test> <Shape b> = <Block test> undefined = <Block test>}	0x557ef5e8b689	0
-WHITE	<Shape {b = &test} <Shape b> undefined>	0x557ef5e8b651	0
-WHITE	{b = &test}	0x557ef5e89981	0
-WHITE	&test	0x557ef5e88ce1	-1
-WHITE	test	0x557ef5e8dce5	-1
-WHITE	<Block test>	0x557ef5e899a9	0
-WHITE	<Block test>	0x557ef5e89a21	0
-WHITE	<Block test>	0x557ef5e89a49	0
-WHITE	<Shape b>	0x557ef5e89959	-1
-WHITE	b	0x557ef5e8a0eb	0
-FREE	Boolean	0x557ef5e85651	0	cleanup_modifications:522
-FREE	Primitive	0x557ef5e86093	0	cleanup_modifications:522
-FREE	Message	0x557ef5e85678	0	cleanup_modifications:522
-FREE	Prototype	0x557ef5e86041	0	cleanup_modifications:522
-FREE	Box	0x557ef5e87531	0	cleanup_modifications:522
-FREE	Record	0x557ef5e83c4d	0	cleanup_modifications:522
-FREE	Shape	0x557ef5e86be6	0	cleanup_modifications:522
-FREE	&use	0x557ef5e88861	0	cleanup_modifications:522
-FREE	&panic	0x557ef5e88891	0	cleanup_modifications:522
-FREE	&print	0x557ef5e888c1	0	cleanup_modifications:522
-FREE	&|	0x557ef5e888f1	0	cleanup_modifications:522
-FREE	&&	0x557ef5e88921	0	cleanup_modifications:522
-FREE	&<<	0x557ef5e88951	0	cleanup_modifications:522
-FREE	&>>	0x557ef5e88981	0	cleanup_modifications:522
-FREE	&+	0x557ef5e889b1	0	cleanup_modifications:522
-FREE	&-	0x557ef5e889e1	0	cleanup_modifications:522
-FREE	&*	0x557ef5e88a11	0	cleanup_modifications:522
-FREE	&/	0x557ef5e88a41	0	cleanup_modifications:522
-FREE	&%	0x557ef5e88a71	0	cleanup_modifications:522
-FREE	&<	0x557ef5e88aa1	0	cleanup_modifications:522
-FREE	&<=	0x557ef5e88ad1	0	cleanup_modifications:522
-FREE	&>	0x557ef5e88b01	0	cleanup_modifications:522
-FREE	&>=	0x557ef5e88b31	0	cleanup_modifications:522
-FREE	&==	0x557ef5e88bc1	0	cleanup_modifications:522
-FREE	&[=]	0x557ef5e88bf1	0	cleanup_modifications:522
-FREE	&[]	0x557ef5e88c21	0	cleanup_modifications:522
-FREE	&()	0x557ef5e88c51	0	cleanup_modifications:522
-FREE	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK}	0x557ef5e88cb1	0	cleanup_modifications:522
-FREE	__main__	0x557ef5e89931	0	cleanup_modifications:522
-FREE	self	0x557ef5e8dcc1	0	cleanup_modifications:522
-FREE	a	0x557ef5e8a0ca	0	cleanup_modifications:522
-FREE	b	0x557ef5e8a0eb	0	cleanup_modifications:522
-FREE	test	0x557ef5e8dce5	-1	cleanup_modifications:522
-FREE	test	0x557ef5e8a8ff	0	cleanup_modifications:522
-FREE	&test	0x557ef5e88ce1	-1	cleanup_modifications:522
-FREE	test	0x557ef5e8a921	0	cleanup_modifications:522
-FREE	test	0x557ef5e8a943	0	cleanup_modifications:522
-FREE	__main__	0x557ef5e88351	0	cleanup_modifications:522
-FREE	<Block __main__>	0x557ef5e88371	0	cleanup_modifications:522
-FREE	{{b = &test} = <Block test>}	0x557ef5e899f9	0	cleanup_modifications:522
-FREE	{{b = &test} = <Block test> <Shape b> = <Block test>}	0x557ef5e88d41	0	cleanup_modifications:522
-FREE	{{b = &test} = <Block test> <Shape b> = <Block test> undefined = <Block test>}	0x557ef5e8b689	0	cleanup_modifications:522
-FREE	{b = &test}	0x557ef5e89981	0	cleanup_modifications:522
-FREE	<Shape {b = &test} <Shape b> undefined>	0x557ef5e8b651	0	cleanup_modifications:522
-FREE	<Block test>	0x557ef5e899a9	0	cleanup_modifications:522
-FREE	<Block test>	0x557ef5e89a21	0	cleanup_modifications:522
-FREE	<Block test>	0x557ef5e89a49	0	cleanup_modifications:522
-FREE	<Shape b>	0x557ef5e89959	-1	cleanup_modifications:522
-FREE	<Builtin use>	0x557ef5e88031	0	gab_memclean:165
-FREE	<Shape ~>	0x557ef5e88051	0	gab_memclean:165
-FREE	{}	0x557ef5e88071	0	gab_memclean:165
-FREE	<Builtin panic>	0x557ef5e88091	0	gab_memclean:165
-FREE	{}	0x557ef5e880b1	0	gab_memclean:165
-FREE	<Builtin print>	0x557ef5e880d1	0	gab_memclean:165
-FREE	{}	0x557ef5e880f1	0	gab_memclean:165
-FREE	{}	0x557ef5e88111	0	gab_memclean:165
-FREE	{}	0x557ef5e88131	0	gab_memclean:165
-FREE	{}	0x557ef5e88151	0	gab_memclean:165
-FREE	{}	0x557ef5e88171	0	gab_memclean:165
-FREE	{}	0x557ef5e88191	0	gab_memclean:165
-FREE	{}	0x557ef5e881b1	0	gab_memclean:165
-FREE	{}	0x557ef5e881d1	0	gab_memclean:165
-FREE	{}	0x557ef5e881f1	0	gab_memclean:165
-FREE	{}	0x557ef5e88211	0	gab_memclean:165
-FREE	{}	0x557ef5e88231	0	gab_memclean:165
-FREE	{}	0x557ef5e88251	0	gab_memclean:165
-FREE	{}	0x557ef5e88271	0	gab_memclean:165
-FREE	{}	0x557ef5e88291	0	gab_memclean:165
-FREE	{}	0x557ef5e882b1	0	gab_memclean:165
-FREE	{}	0x557ef5e882d1	0	gab_memclean:165
-FREE	{}	0x557ef5e882f1	0	gab_memclean:165
-FREE	{}	0x557ef5e88311	0	gab_memclean:165
-FREE	{}	0x557ef5e88331	-1	gab_memclean:165
-FREE	|	0x557ef5e89fa1	0	gab_memclean:165
-FREE	&	0x557ef5e89fc2	0	gab_memclean:165
-FREE	+	0x557ef5e89fe3	0	gab_memclean:165
-FREE	-	0x557ef5e8a004	0	gab_memclean:165
-FREE	*	0x557ef5e8a025	0	gab_memclean:165
-FREE	/	0x557ef5e8a046	0	gab_memclean:165
-FREE	%	0x557ef5e8a067	0	gab_memclean:165
-FREE	<	0x557ef5e8a088	0	gab_memclean:165
-FREE	>	0x557ef5e8a0a9	0	gab_memclean:165
-FREE	<<	0x557ef5e8a811	0	gab_memclean:165
-FREE	>>	0x557ef5e8a833	0	gab_memclean:165
-FREE	<=	0x557ef5e8a855	0	gab_memclean:165
-FREE	>=	0x557ef5e8a877	0	gab_memclean:165
-FREE	==	0x557ef5e8a899	0	gab_memclean:165
-FREE	[]	0x557ef5e8a8bb	0	gab_memclean:165
-FREE	()	0x557ef5e8a8dd	0	gab_memclean:165
-FREE	use	0x557ef5e87554	0	gab_memclean:165
-FREE	[=]	0x557ef5e87577	0	gab_memclean:165
-FREE	panic	0x557ef5e86c0b	0	gab_memclean:165
-FREE	print	0x557ef5e86c30	0	gab_memclean:165
-FREE	<Shape nil>	0x557ef5e89521	0	gab_memclean:165
-FREE	{nil = <Builtin use>}	0x557ef5e89549	0	gab_memclean:165
-FREE	<Shape String>	0x557ef5e89571	0	gab_memclean:165
-FREE	{String = <Builtin panic>}	0x557ef5e89599	0	gab_memclean:165
-FREE	<Shape undefined>	0x557ef5e895c1	0	gab_memclean:165
-FREE	{undefined = <Builtin print>}	0x557ef5e895e9	0	gab_memclean:165
-FREE	<Shape Number>	0x557ef5e89611	0	gab_memclean:165
-FREE	{Number = SEND_PRIMITIVE_BOR}	0x557ef5e89639	0	gab_memclean:165
-FREE	{Number = SEND_PRIMITIVE_BND}	0x557ef5e89661	0	gab_memclean:165
-FREE	{Number = SEND_PRIMITIVE_LSH}	0x557ef5e89689	0	gab_memclean:165
-FREE	{Number = SEND_PRIMITIVE_RSH}	0x557ef5e896b1	0	gab_memclean:165
-FREE	{Number = SEND_PRIMITIVE_ADD}	0x557ef5e896d9	-1	gab_memclean:165
-FREE	{Number = SEND_PRIMITIVE_SUB}	0x557ef5e89701	0	gab_memclean:165
-FREE	{Number = SEND_PRIMITIVE_MUL}	0x557ef5e89729	0	gab_memclean:165
-FREE	{Number = SEND_PRIMITIVE_DIV}	0x557ef5e89751	0	gab_memclean:165
-FREE	{Number = SEND_PRIMITIVE_MOD}	0x557ef5e89779	0	gab_memclean:165
-FREE	{Number = SEND_PRIMITIVE_LT}	0x557ef5e897a1	0	gab_memclean:165
-FREE	{Number = SEND_PRIMITIVE_LTE}	0x557ef5e897c9	0	gab_memclean:165
-FREE	{Number = SEND_PRIMITIVE_GT}	0x557ef5e897f1	0	gab_memclean:165
-FREE	{Number = SEND_PRIMITIVE_GTE}	0x557ef5e89819	0	gab_memclean:165
-FREE	{undefined = SEND_PRIMITIVE_EQ}	0x557ef5e89841	0	gab_memclean:165
-FREE	<Shape Record>	0x557ef5e89869	0	gab_memclean:165
-FREE	{Record = SEND_PRIMITIVE_STORE}	0x557ef5e89891	0	gab_memclean:165
-FREE	{Record = SEND_PRIMITIVE_LOAD}	0x557ef5e898b9	0	gab_memclean:165
-FREE	<Shape Builtin>	0x557ef5e898e1	0	gab_memclean:165
-FREE	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN}	0x557ef5e89909	-1	gab_memclean:165
-FREE	<Shape {b = &test}>	0x557ef5e899d1	0	gab_memclean:165
-FREE	<Shape Builtin Block>	0x557ef5e88c81	0	gab_memclean:165
-FREE	<Shape {b = &test} <Shape b>>	0x557ef5e88d11	0	gab_memclean:165
-OLDALIVE	Block	0x557ef5e86bc1	1
-OLDALIVE	Number	0x557ef5e83c01	1
-OLDALIVE	String	0x557ef5e83c27	1
-OLDALIVE	Builtin	0x557ef5e8569f	1
-OLDALIVE	Suspsense	0x557ef5e8606a	1
-OLDALIVE	<Shape Number String>	0x557ef5e88b61	1
-OLDALIVE	{Number = SEND_PRIMITIVE_ADD String = SEND_PRIMITIVE_CONCAT}	0x557ef5e88b91	1
-OLDALIVE	<Shape Builtin Block Suspsense>	0x557ef5e8b5e1	1
-OLDALIVE	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK Suspsense = SEND_PRIMITIVE_CALL_SUSPENSE}	0x557ef5e8b619	1
+CREATE	0x564fb9c99bf9	obj_string
+QMOD	Number	0x564fb9c99bf9	0	gab_nstring:287
+CREATE	0x564fb9c9b649	obj_string
+QMOD	Boolean	0x564fb9c9b649	0	gab_nstring:287
+CREATE	0x564fb9c99c1f	obj_string
+QMOD	String	0x564fb9c99c1f	0	gab_nstring:287
+CREATE	0x564fb9c9b670	obj_string
+QMOD	Message	0x564fb9c9b670	0	gab_nstring:287
+CREATE	0x564fb9c9c039	obj_string
+QMOD	Prototype	0x564fb9c9c039	0	gab_nstring:287
+CREATE	0x564fb9c9b697	obj_string
+QMOD	Builtin	0x564fb9c9b697	0	gab_nstring:287
+CREATE	0x564fb9c9cbb9	obj_string
+QMOD	Block	0x564fb9c9cbb9	0	gab_nstring:287
+CREATE	0x564fb9c99c45	obj_string
+QMOD	Record	0x564fb9c99c45	0	gab_nstring:287
+CREATE	0x564fb9c9cbde	obj_string
+QMOD	Shape	0x564fb9c9cbde	0	gab_nstring:287
+CREATE	0x564fb9c9d529	obj_string
+QMOD	Box	0x564fb9c9d529	0	gab_nstring:287
+CREATE	0x564fb9c9c062	obj_string
+QMOD	Suspsense	0x564fb9c9c062	0	gab_nstring:287
+CREATE	0x564fb9c9c08b	obj_string
+QMOD	Primitive	0x564fb9c9c08b	0	gab_nstring:287
+NEW	Boolean	0x564fb9c9b649	1
+EINC	Boolean	0x564fb9c9b649	2	gab_create
+NEW	Primitive	0x564fb9c9c08b	1
+NEW	Number	0x564fb9c99bf9	1
+NEW	Suspsense	0x564fb9c9c062	1
+NEW	String	0x564fb9c99c1f	1
+NEW	Message	0x564fb9c9b670	1
+NEW	Prototype	0x564fb9c9c039	1
+NEW	Builtin	0x564fb9c9b697	1
+NEW	Block	0x564fb9c9cbb9	1
+NEW	Box	0x564fb9c9d529	1
+NEW	Record	0x564fb9c99c45	1
+NEW	Shape	0x564fb9c9cbde	1
+CREATE	0x564fb9c9d54c	obj_string
+QMOD	use	0x564fb9c9d54c	0	gab_nstring:287
+CREATE	0x564fb9c9e139	obj_builtin
+QMOD	<Builtin use>	0x564fb9c9e139	0	gab_builtin:383
+CREATE	0x564fb9c9e969	obj_message
+CREATE	0x564fb9c9e159	obj_shape
+QMOD	<Shape ~>	0x564fb9c9e159	0	gab_shape:440
+CREATE	0x564fb9c9e179	obj_record
+QMOD	{}	0x564fb9c9e179	0	gab_erecordof:473
+QMOD	&use	0x564fb9c9e969	0	gab_message:370
+CREATE	0x564fb9c9f629	obj_shape
+QMOD	<Shape nil>	0x564fb9c9f629	0	gab_shape:440
+CREATE	0x564fb9c9f651	obj_record
+QMOD	{nil = <Builtin use>}	0x564fb9c9f651	0	gab_recordof:457
+CREATE	0x564fb9c9cc03	obj_string
+QMOD	panic	0x564fb9c9cc03	0	gab_nstring:287
+CREATE	0x564fb9c9e199	obj_builtin
+QMOD	<Builtin panic>	0x564fb9c9e199	0	gab_builtin:383
+CREATE	0x564fb9c9e999	obj_message
+CREATE	0x564fb9c9e1b9	obj_record
+QMOD	{}	0x564fb9c9e1b9	0	gab_erecordof:473
+QMOD	&panic	0x564fb9c9e999	0	gab_message:370
+CREATE	0x564fb9c9f679	obj_shape
+QMOD	<Shape String>	0x564fb9c9f679	0	gab_shape:440
+CREATE	0x564fb9c9f6a1	obj_record
+QMOD	{String = <Builtin panic>}	0x564fb9c9f6a1	0	gab_recordof:457
+CREATE	0x564fb9c9cc28	obj_string
+QMOD	print	0x564fb9c9cc28	0	gab_nstring:287
+CREATE	0x564fb9c9e1d9	obj_builtin
+QMOD	<Builtin print>	0x564fb9c9e1d9	0	gab_builtin:383
+CREATE	0x564fb9c9e9c9	obj_message
+CREATE	0x564fb9c9e1f9	obj_record
+QMOD	{}	0x564fb9c9e1f9	0	gab_erecordof:473
+QMOD	&print	0x564fb9c9e9c9	0	gab_message:370
+CREATE	0x564fb9c9f6c9	obj_shape
+QMOD	<Shape undefined>	0x564fb9c9f6c9	0	gab_shape:440
+CREATE	0x564fb9c9f6f1	obj_record
+QMOD	{undefined = <Builtin print>}	0x564fb9c9f6f1	0	gab_recordof:457
+CREATE	0x564fb9ca0059	obj_string
+QMOD	|	0x564fb9ca0059	0	gab_nstring:287
+CREATE	0x564fb9c9e9f9	obj_message
+CREATE	0x564fb9c9e219	obj_record
+QMOD	{}	0x564fb9c9e219	0	gab_erecordof:473
+QMOD	&|	0x564fb9c9e9f9	0	gab_message:370
+CREATE	0x564fb9c9f719	obj_shape
+QMOD	<Shape Number>	0x564fb9c9f719	0	gab_shape:440
+CREATE	0x564fb9c9f741	obj_record
+QMOD	{Number = SEND_PRIMITIVE_BOR}	0x564fb9c9f741	0	gab_recordof:457
+CREATE	0x564fb9ca007a	obj_string
+QMOD	&	0x564fb9ca007a	0	gab_nstring:287
+CREATE	0x564fb9c9ea29	obj_message
+CREATE	0x564fb9c9e239	obj_record
+QMOD	{}	0x564fb9c9e239	0	gab_erecordof:473
+QMOD	&&	0x564fb9c9ea29	0	gab_message:370
+CREATE	0x564fb9c9f769	obj_record
+QMOD	{Number = SEND_PRIMITIVE_BND}	0x564fb9c9f769	0	gab_recordof:457
+CREATE	0x564fb9ca08c9	obj_string
+QMOD	<<	0x564fb9ca08c9	0	gab_nstring:287
+CREATE	0x564fb9c9ea59	obj_message
+CREATE	0x564fb9c9e259	obj_record
+QMOD	{}	0x564fb9c9e259	0	gab_erecordof:473
+QMOD	&<<	0x564fb9c9ea59	0	gab_message:370
+CREATE	0x564fb9c9f791	obj_record
+QMOD	{Number = SEND_PRIMITIVE_LSH}	0x564fb9c9f791	0	gab_recordof:457
+CREATE	0x564fb9ca08eb	obj_string
+QMOD	>>	0x564fb9ca08eb	0	gab_nstring:287
+CREATE	0x564fb9c9ea89	obj_message
+CREATE	0x564fb9c9e279	obj_record
+QMOD	{}	0x564fb9c9e279	0	gab_erecordof:473
+QMOD	&>>	0x564fb9c9ea89	0	gab_message:370
+CREATE	0x564fb9c9f7b9	obj_record
+QMOD	{Number = SEND_PRIMITIVE_RSH}	0x564fb9c9f7b9	0	gab_recordof:457
+CREATE	0x564fb9ca009b	obj_string
+QMOD	+	0x564fb9ca009b	0	gab_nstring:287
+CREATE	0x564fb9c9eab9	obj_message
+CREATE	0x564fb9c9e299	obj_record
+QMOD	{}	0x564fb9c9e299	0	gab_erecordof:473
+QMOD	&+	0x564fb9c9eab9	0	gab_message:370
+CREATE	0x564fb9c9f7e1	obj_record
+QMOD	{Number = SEND_PRIMITIVE_ADD}	0x564fb9c9f7e1	0	gab_recordof:457
+CREATE	0x564fb9ca00bc	obj_string
+QMOD	-	0x564fb9ca00bc	0	gab_nstring:287
+CREATE	0x564fb9c9eae9	obj_message
+CREATE	0x564fb9c9e2b9	obj_record
+QMOD	{}	0x564fb9c9e2b9	0	gab_erecordof:473
+QMOD	&-	0x564fb9c9eae9	0	gab_message:370
+CREATE	0x564fb9c9f809	obj_record
+QMOD	{Number = SEND_PRIMITIVE_SUB}	0x564fb9c9f809	0	gab_recordof:457
+CREATE	0x564fb9ca00dd	obj_string
+QMOD	*	0x564fb9ca00dd	0	gab_nstring:287
+CREATE	0x564fb9c9eb19	obj_message
+CREATE	0x564fb9c9e2d9	obj_record
+QMOD	{}	0x564fb9c9e2d9	0	gab_erecordof:473
+QMOD	&*	0x564fb9c9eb19	0	gab_message:370
+CREATE	0x564fb9c9f831	obj_record
+QMOD	{Number = SEND_PRIMITIVE_MUL}	0x564fb9c9f831	0	gab_recordof:457
+CREATE	0x564fb9ca00fe	obj_string
+QMOD	/	0x564fb9ca00fe	0	gab_nstring:287
+CREATE	0x564fb9c9eb49	obj_message
+CREATE	0x564fb9c9e2f9	obj_record
+QMOD	{}	0x564fb9c9e2f9	0	gab_erecordof:473
+QMOD	&/	0x564fb9c9eb49	0	gab_message:370
+CREATE	0x564fb9c9f859	obj_record
+QMOD	{Number = SEND_PRIMITIVE_DIV}	0x564fb9c9f859	0	gab_recordof:457
+CREATE	0x564fb9ca011f	obj_string
+QMOD	%	0x564fb9ca011f	0	gab_nstring:287
+CREATE	0x564fb9c9eb79	obj_message
+CREATE	0x564fb9c9e319	obj_record
+QMOD	{}	0x564fb9c9e319	0	gab_erecordof:473
+QMOD	&%	0x564fb9c9eb79	0	gab_message:370
+CREATE	0x564fb9c9f881	obj_record
+QMOD	{Number = SEND_PRIMITIVE_MOD}	0x564fb9c9f881	0	gab_recordof:457
+CREATE	0x564fb9ca0140	obj_string
+QMOD	<	0x564fb9ca0140	0	gab_nstring:287
+CREATE	0x564fb9c9eba9	obj_message
+CREATE	0x564fb9c9e339	obj_record
+QMOD	{}	0x564fb9c9e339	0	gab_erecordof:473
+QMOD	&<	0x564fb9c9eba9	0	gab_message:370
+CREATE	0x564fb9c9f8a9	obj_record
+QMOD	{Number = SEND_PRIMITIVE_LT}	0x564fb9c9f8a9	0	gab_recordof:457
+CREATE	0x564fb9ca090d	obj_string
+QMOD	<=	0x564fb9ca090d	0	gab_nstring:287
+CREATE	0x564fb9c9ebd9	obj_message
+CREATE	0x564fb9c9e359	obj_record
+QMOD	{}	0x564fb9c9e359	0	gab_erecordof:473
+QMOD	&<=	0x564fb9c9ebd9	0	gab_message:370
+CREATE	0x564fb9c9f8d1	obj_record
+QMOD	{Number = SEND_PRIMITIVE_LTE}	0x564fb9c9f8d1	0	gab_recordof:457
+CREATE	0x564fb9ca0161	obj_string
+QMOD	>	0x564fb9ca0161	0	gab_nstring:287
+CREATE	0x564fb9c9ec09	obj_message
+CREATE	0x564fb9c9e379	obj_record
+QMOD	{}	0x564fb9c9e379	0	gab_erecordof:473
+QMOD	&>	0x564fb9c9ec09	0	gab_message:370
+CREATE	0x564fb9c9f8f9	obj_record
+QMOD	{Number = SEND_PRIMITIVE_GT}	0x564fb9c9f8f9	0	gab_recordof:457
+CREATE	0x564fb9ca092f	obj_string
+QMOD	>=	0x564fb9ca092f	0	gab_nstring:287
+CREATE	0x564fb9c9ec39	obj_message
+CREATE	0x564fb9c9e399	obj_record
+QMOD	{}	0x564fb9c9e399	0	gab_erecordof:473
+QMOD	&>=	0x564fb9c9ec39	0	gab_message:370
+CREATE	0x564fb9c9f921	obj_record
+QMOD	{Number = SEND_PRIMITIVE_GTE}	0x564fb9c9f921	0	gab_recordof:457
+CREATE	0x564fb9c9ec69	obj_shape
+QMOD	<Shape Number String>	0x564fb9c9ec69	0	gab_shape:440
+CREATE	0x564fb9c9ec99	obj_record
+QMOD	{Number = SEND_PRIMITIVE_ADD String = SEND_PRIMITIVE_CONCAT}	0x564fb9c9ec99	0	gab_recordof:457
+CREATE	0x564fb9ca0951	obj_string
+QMOD	==	0x564fb9ca0951	0	gab_nstring:287
+CREATE	0x564fb9c9ecc9	obj_message
+CREATE	0x564fb9c9e3b9	obj_record
+QMOD	{}	0x564fb9c9e3b9	0	gab_erecordof:473
+QMOD	&==	0x564fb9c9ecc9	0	gab_message:370
+CREATE	0x564fb9c9f949	obj_record
+QMOD	{undefined = SEND_PRIMITIVE_EQ}	0x564fb9c9f949	0	gab_recordof:457
+CREATE	0x564fb9c9d56f	obj_string
+QMOD	[=]	0x564fb9c9d56f	0	gab_nstring:287
+CREATE	0x564fb9c9ecf9	obj_message
+CREATE	0x564fb9c9e3d9	obj_record
+QMOD	{}	0x564fb9c9e3d9	0	gab_erecordof:473
+QMOD	&[=]	0x564fb9c9ecf9	0	gab_message:370
+CREATE	0x564fb9c9f971	obj_shape
+QMOD	<Shape Record>	0x564fb9c9f971	0	gab_shape:440
+CREATE	0x564fb9c9f999	obj_record
+QMOD	{Record = SEND_PRIMITIVE_STORE}	0x564fb9c9f999	0	gab_recordof:457
+CREATE	0x564fb9ca0973	obj_string
+QMOD	[]	0x564fb9ca0973	0	gab_nstring:287
+CREATE	0x564fb9c9ed29	obj_message
+CREATE	0x564fb9c9e3f9	obj_record
+QMOD	{}	0x564fb9c9e3f9	0	gab_erecordof:473
+QMOD	&[]	0x564fb9c9ed29	0	gab_message:370
+CREATE	0x564fb9c9f9c1	obj_record
+QMOD	{Record = SEND_PRIMITIVE_LOAD}	0x564fb9c9f9c1	0	gab_recordof:457
+CREATE	0x564fb9ca0995	obj_string
+QMOD	()	0x564fb9ca0995	0	gab_nstring:287
+CREATE	0x564fb9c9ed59	obj_message
+CREATE	0x564fb9c9e419	obj_record
+QMOD	{}	0x564fb9c9e419	0	gab_erecordof:473
+QMOD	&()	0x564fb9c9ed59	0	gab_message:370
+CREATE	0x564fb9c9f9e9	obj_shape
+QMOD	<Shape Builtin>	0x564fb9c9f9e9	0	gab_shape:440
+CREATE	0x564fb9c9fa11	obj_record
+QMOD	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN}	0x564fb9c9fa11	0	gab_recordof:457
+CREATE	0x564fb9c9ed89	obj_shape
+QMOD	<Shape Builtin Block>	0x564fb9c9ed89	0	gab_shape:440
+CREATE	0x564fb9c9edb9	obj_record
+QMOD	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK}	0x564fb9c9edb9	0	gab_recordof:457
+CREATE	0x564fb9ca1589	obj_shape
+QMOD	<Shape Builtin Block Suspsense>	0x564fb9ca1589	0	gab_shape:440
+CREATE	0x564fb9ca15c1	obj_record
+QMOD	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK Suspsense = SEND_PRIMITIVE_CALL_SUSPENSE}	0x564fb9ca15c1	0	gab_recordof:457
+CREATE	0x564fb9c9fa39	obj_string
+QMOD	__main__	0x564fb9c9fa39	0	gab_nstring:287
+NEW	__main__	0x564fb9c9fa39	1
+CREATE	0x564fb9ca27f9	obj_string
+QMOD	self	0x564fb9ca27f9	0	gab_nstring:287
+NEW	self	0x564fb9ca27f9	1
+NEW	print	0x564fb9c9cc28	1
+NEW	&print	0x564fb9c9e9c9	1
+CREATE	0x564fb9c9e439	obj_block_proto
+QMOD	__main__	0x564fb9c9e439	0	gab_blkproto:348
+NEW	__main__	0x564fb9c9e439	1
+CREATE	0x564fb9c9e459	obj_block
+QMOD	<Block __main__>	0x564fb9c9e459	0	gab_block:405
+NEW	<Block __main__>	0x564fb9c9e459	1
+CREATE	0x564fb9c9e479	obj_record
+QMOD	{}	0x564fb9c9e479	0	gab_recordof:457
+{}
+EDEC	Boolean	0x564fb9c9b649	1	gab_destroy:174
+EDEC	Boolean	0x564fb9c9b649	0	gab_destroy:174
+EDEC	Primitive	0x564fb9c9c08b	0	gab_destroy:174
+EDEC	Number	0x564fb9c99bf9	0	gab_destroy:174
+EDEC	Suspsense	0x564fb9c9c062	0	gab_destroy:174
+EDEC	String	0x564fb9c99c1f	0	gab_destroy:174
+EDEC	Message	0x564fb9c9b670	0	gab_destroy:174
+EDEC	Prototype	0x564fb9c9c039	0	gab_destroy:174
+EDEC	Builtin	0x564fb9c9b697	0	gab_destroy:174
+EDEC	Block	0x564fb9c9cbb9	0	gab_destroy:174
+EDEC	Box	0x564fb9c9d529	0	gab_destroy:174
+EDEC	Record	0x564fb9c99c45	0	gab_destroy:174
+EDEC	Shape	0x564fb9c9cbde	0	gab_destroy:174
+EDEC	__main__	0x564fb9c9fa39	0	gab_moddestroy:28
+EDEC	self	0x564fb9ca27f9	0	gab_moddestroy:28
+EDEC	print	0x564fb9c9cc28	0	gab_moddestroy:28
+EDEC	&print	0x564fb9c9e9c9	0	gab_moddestroy:28
+EDEC	__main__	0x564fb9c9e439	0	gab_moddestroy:28
+EDEC	<Block __main__>	0x564fb9c9e459	0	gab_moddestroy:28
+MOD	Number	0x564fb9c99bf9	0
+MOD	Boolean	0x564fb9c9b649	0
+MOD	String	0x564fb9c99c1f	0
+MOD	Message	0x564fb9c9b670	0
+MOD	Prototype	0x564fb9c9c039	0
+MOD	Builtin	0x564fb9c9b697	0
+MOD	Block	0x564fb9c9cbb9	0
+MOD	Record	0x564fb9c99c45	0
+MOD	Shape	0x564fb9c9cbde	0
+MOD	Box	0x564fb9c9d529	0
+MOD	Suspsense	0x564fb9c9c062	0
+MOD	Primitive	0x564fb9c9c08b	0
+MOD	use	0x564fb9c9d54c	0
+MOD	<Builtin use>	0x564fb9c9e139	0
+MOD	<Shape ~>	0x564fb9c9e159	0
+MOD	{}	0x564fb9c9e179	0
+MOD	&use	0x564fb9c9e969	0
+MOD	<Shape nil>	0x564fb9c9f629	0
+MOD	{nil = <Builtin use>}	0x564fb9c9f651	0
+MOD	panic	0x564fb9c9cc03	0
+MOD	<Builtin panic>	0x564fb9c9e199	0
+MOD	{}	0x564fb9c9e1b9	0
+MOD	&panic	0x564fb9c9e999	0
+MOD	<Shape String>	0x564fb9c9f679	0
+MOD	{String = <Builtin panic>}	0x564fb9c9f6a1	0
+MOD	print	0x564fb9c9cc28	0
+MOD	<Builtin print>	0x564fb9c9e1d9	0
+MOD	{}	0x564fb9c9e1f9	0
+MOD	&print	0x564fb9c9e9c9	0
+MOD	<Shape undefined>	0x564fb9c9f6c9	0
+MOD	{undefined = <Builtin print>}	0x564fb9c9f6f1	0
+MOD	|	0x564fb9ca0059	0
+MOD	{}	0x564fb9c9e219	0
+MOD	&|	0x564fb9c9e9f9	0
+MOD	<Shape Number>	0x564fb9c9f719	0
+MOD	{Number = SEND_PRIMITIVE_BOR}	0x564fb9c9f741	0
+MOD	&	0x564fb9ca007a	0
+MOD	{}	0x564fb9c9e239	0
+MOD	&&	0x564fb9c9ea29	0
+MOD	{Number = SEND_PRIMITIVE_BND}	0x564fb9c9f769	0
+MOD	<<	0x564fb9ca08c9	0
+MOD	{}	0x564fb9c9e259	0
+MOD	&<<	0x564fb9c9ea59	0
+MOD	{Number = SEND_PRIMITIVE_LSH}	0x564fb9c9f791	0
+MOD	>>	0x564fb9ca08eb	0
+MOD	{}	0x564fb9c9e279	0
+MOD	&>>	0x564fb9c9ea89	0
+MOD	{Number = SEND_PRIMITIVE_RSH}	0x564fb9c9f7b9	0
+MOD	+	0x564fb9ca009b	0
+MOD	{}	0x564fb9c9e299	0
+MOD	&+	0x564fb9c9eab9	0
+MOD	{Number = SEND_PRIMITIVE_ADD}	0x564fb9c9f7e1	0
+MOD	-	0x564fb9ca00bc	0
+MOD	{}	0x564fb9c9e2b9	0
+MOD	&-	0x564fb9c9eae9	0
+MOD	{Number = SEND_PRIMITIVE_SUB}	0x564fb9c9f809	0
+MOD	*	0x564fb9ca00dd	0
+MOD	{}	0x564fb9c9e2d9	0
+MOD	&*	0x564fb9c9eb19	0
+MOD	{Number = SEND_PRIMITIVE_MUL}	0x564fb9c9f831	0
+MOD	/	0x564fb9ca00fe	0
+MOD	{}	0x564fb9c9e2f9	0
+MOD	&/	0x564fb9c9eb49	0
+MOD	{Number = SEND_PRIMITIVE_DIV}	0x564fb9c9f859	0
+MOD	%	0x564fb9ca011f	0
+MOD	{}	0x564fb9c9e319	0
+MOD	&%	0x564fb9c9eb79	0
+MOD	{Number = SEND_PRIMITIVE_MOD}	0x564fb9c9f881	0
+MOD	<	0x564fb9ca0140	0
+MOD	{}	0x564fb9c9e339	0
+MOD	&<	0x564fb9c9eba9	0
+MOD	{Number = SEND_PRIMITIVE_LT}	0x564fb9c9f8a9	0
+MOD	<=	0x564fb9ca090d	0
+MOD	{}	0x564fb9c9e359	0
+MOD	&<=	0x564fb9c9ebd9	0
+MOD	{Number = SEND_PRIMITIVE_LTE}	0x564fb9c9f8d1	0
+MOD	>	0x564fb9ca0161	0
+MOD	{}	0x564fb9c9e379	0
+MOD	&>	0x564fb9c9ec09	0
+MOD	{Number = SEND_PRIMITIVE_GT}	0x564fb9c9f8f9	0
+MOD	>=	0x564fb9ca092f	0
+MOD	{}	0x564fb9c9e399	0
+MOD	&>=	0x564fb9c9ec39	0
+MOD	{Number = SEND_PRIMITIVE_GTE}	0x564fb9c9f921	0
+MOD	<Shape Number String>	0x564fb9c9ec69	0
+MOD	{Number = SEND_PRIMITIVE_ADD String = SEND_PRIMITIVE_CONCAT}	0x564fb9c9ec99	0
+MOD	==	0x564fb9ca0951	0
+MOD	{}	0x564fb9c9e3b9	0
+MOD	&==	0x564fb9c9ecc9	0
+MOD	{undefined = SEND_PRIMITIVE_EQ}	0x564fb9c9f949	0
+MOD	[=]	0x564fb9c9d56f	0
+MOD	{}	0x564fb9c9e3d9	0
+MOD	&[=]	0x564fb9c9ecf9	0
+MOD	<Shape Record>	0x564fb9c9f971	0
+MOD	{Record = SEND_PRIMITIVE_STORE}	0x564fb9c9f999	0
+MOD	[]	0x564fb9ca0973	0
+MOD	{}	0x564fb9c9e3f9	0
+MOD	&[]	0x564fb9c9ed29	0
+MOD	{Record = SEND_PRIMITIVE_LOAD}	0x564fb9c9f9c1	0
+MOD	()	0x564fb9ca0995	0
+MOD	{}	0x564fb9c9e419	0
+MOD	&()	0x564fb9c9ed59	0
+MOD	<Shape Builtin>	0x564fb9c9f9e9	0
+MOD	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN}	0x564fb9c9fa11	0
+MOD	<Shape Builtin Block>	0x564fb9c9ed89	0
+MOD	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK}	0x564fb9c9edb9	0
+MOD	<Shape Builtin Block Suspsense>	0x564fb9ca1589	0
+MOD	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK Suspsense = SEND_PRIMITIVE_CALL_SUSPENSE}	0x564fb9ca15c1	0
+MOD	__main__	0x564fb9c9fa39	0
+MOD	self	0x564fb9ca27f9	0
+MOD	__main__	0x564fb9c9e439	0
+MOD	<Block __main__>	0x564fb9c9e459	0
+MOD	{}	0x564fb9c9e479	0
+FREE	Number	0x564fb9c99bf9	0	cleanup_modifications:547
+FREE	Boolean	0x564fb9c9b649	0	cleanup_modifications:547
+FREE	String	0x564fb9c99c1f	0	cleanup_modifications:547
+FREE	Message	0x564fb9c9b670	0	cleanup_modifications:547
+FREE	Prototype	0x564fb9c9c039	0	cleanup_modifications:547
+FREE	Builtin	0x564fb9c9b697	0	cleanup_modifications:547
+FREE	Block	0x564fb9c9cbb9	0	cleanup_modifications:547
+FREE	Record	0x564fb9c99c45	0	cleanup_modifications:547
+FREE	Shape	0x564fb9c9cbde	0	cleanup_modifications:547
+FREE	Box	0x564fb9c9d529	0	cleanup_modifications:547
+FREE	Suspsense	0x564fb9c9c062	0	cleanup_modifications:547
+FREE	Primitive	0x564fb9c9c08b	0	cleanup_modifications:547
+FREE	use	0x564fb9c9d54c	0	cleanup_modifications:547
+FREE	<Builtin use>	0x564fb9c9e139	0	cleanup_modifications:547
+FREE	<Shape ~>	0x564fb9c9e159	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e179	0	cleanup_modifications:547
+FREE	&use	0x564fb9c9e969	0	cleanup_modifications:547
+FREE	<Shape nil>	0x564fb9c9f629	0	cleanup_modifications:547
+FREE	{nil = <Builtin use>}	0x564fb9c9f651	0	cleanup_modifications:547
+FREE	panic	0x564fb9c9cc03	0	cleanup_modifications:547
+FREE	<Builtin panic>	0x564fb9c9e199	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e1b9	0	cleanup_modifications:547
+FREE	&panic	0x564fb9c9e999	0	cleanup_modifications:547
+FREE	<Shape String>	0x564fb9c9f679	0	cleanup_modifications:547
+FREE	{String = <Builtin panic>}	0x564fb9c9f6a1	0	cleanup_modifications:547
+FREE	print	0x564fb9c9cc28	0	cleanup_modifications:547
+FREE	<Builtin print>	0x564fb9c9e1d9	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e1f9	0	cleanup_modifications:547
+FREE	&print	0x564fb9c9e9c9	0	cleanup_modifications:547
+FREE	<Shape undefined>	0x564fb9c9f6c9	0	cleanup_modifications:547
+FREE	{undefined = <Builtin print>}	0x564fb9c9f6f1	0	cleanup_modifications:547
+FREE	|	0x564fb9ca0059	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e219	0	cleanup_modifications:547
+FREE	&|	0x564fb9c9e9f9	0	cleanup_modifications:547
+FREE	<Shape Number>	0x564fb9c9f719	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_BOR}	0x564fb9c9f741	0	cleanup_modifications:547
+FREE	&	0x564fb9ca007a	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e239	0	cleanup_modifications:547
+FREE	&&	0x564fb9c9ea29	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_BND}	0x564fb9c9f769	0	cleanup_modifications:547
+FREE	<<	0x564fb9ca08c9	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e259	0	cleanup_modifications:547
+FREE	&<<	0x564fb9c9ea59	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_LSH}	0x564fb9c9f791	0	cleanup_modifications:547
+FREE	>>	0x564fb9ca08eb	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e279	0	cleanup_modifications:547
+FREE	&>>	0x564fb9c9ea89	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_RSH}	0x564fb9c9f7b9	0	cleanup_modifications:547
+FREE	+	0x564fb9ca009b	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e299	0	cleanup_modifications:547
+FREE	&+	0x564fb9c9eab9	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_ADD}	0x564fb9c9f7e1	0	cleanup_modifications:547
+FREE	-	0x564fb9ca00bc	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e2b9	0	cleanup_modifications:547
+FREE	&-	0x564fb9c9eae9	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_SUB}	0x564fb9c9f809	0	cleanup_modifications:547
+FREE	*	0x564fb9ca00dd	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e2d9	0	cleanup_modifications:547
+FREE	&*	0x564fb9c9eb19	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_MUL}	0x564fb9c9f831	0	cleanup_modifications:547
+FREE	/	0x564fb9ca00fe	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e2f9	0	cleanup_modifications:547
+FREE	&/	0x564fb9c9eb49	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_DIV}	0x564fb9c9f859	0	cleanup_modifications:547
+FREE	%	0x564fb9ca011f	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e319	0	cleanup_modifications:547
+FREE	&%	0x564fb9c9eb79	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_MOD}	0x564fb9c9f881	0	cleanup_modifications:547
+FREE	<	0x564fb9ca0140	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e339	0	cleanup_modifications:547
+FREE	&<	0x564fb9c9eba9	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_LT}	0x564fb9c9f8a9	0	cleanup_modifications:547
+FREE	<=	0x564fb9ca090d	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e359	0	cleanup_modifications:547
+FREE	&<=	0x564fb9c9ebd9	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_LTE}	0x564fb9c9f8d1	0	cleanup_modifications:547
+FREE	>	0x564fb9ca0161	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e379	0	cleanup_modifications:547
+FREE	&>	0x564fb9c9ec09	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_GT}	0x564fb9c9f8f9	0	cleanup_modifications:547
+FREE	>=	0x564fb9ca092f	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e399	0	cleanup_modifications:547
+FREE	&>=	0x564fb9c9ec39	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_GTE}	0x564fb9c9f921	0	cleanup_modifications:547
+FREE	<Shape Number String>	0x564fb9c9ec69	0	cleanup_modifications:547
+FREE	{Number = SEND_PRIMITIVE_ADD String = SEND_PRIMITIVE_CONCAT}	0x564fb9c9ec99	0	cleanup_modifications:547
+FREE	==	0x564fb9ca0951	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e3b9	0	cleanup_modifications:547
+FREE	&==	0x564fb9c9ecc9	0	cleanup_modifications:547
+FREE	{undefined = SEND_PRIMITIVE_EQ}	0x564fb9c9f949	0	cleanup_modifications:547
+FREE	[=]	0x564fb9c9d56f	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e3d9	0	cleanup_modifications:547
+FREE	&[=]	0x564fb9c9ecf9	0	cleanup_modifications:547
+FREE	<Shape Record>	0x564fb9c9f971	0	cleanup_modifications:547
+FREE	{Record = SEND_PRIMITIVE_STORE}	0x564fb9c9f999	0	cleanup_modifications:547
+FREE	[]	0x564fb9ca0973	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e3f9	0	cleanup_modifications:547
+FREE	&[]	0x564fb9c9ed29	0	cleanup_modifications:547
+FREE	{Record = SEND_PRIMITIVE_LOAD}	0x564fb9c9f9c1	0	cleanup_modifications:547
+FREE	()	0x564fb9ca0995	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e419	0	cleanup_modifications:547
+FREE	&()	0x564fb9c9ed59	0	cleanup_modifications:547
+FREE	<Shape Builtin>	0x564fb9c9f9e9	0	cleanup_modifications:547
+FREE	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN}	0x564fb9c9fa11	0	cleanup_modifications:547
+FREE	<Shape Builtin Block>	0x564fb9c9ed89	0	cleanup_modifications:547
+FREE	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK}	0x564fb9c9edb9	0	cleanup_modifications:547
+FREE	<Shape Builtin Block Suspsense>	0x564fb9ca1589	0	cleanup_modifications:547
+FREE	{Builtin = SEND_PRIMITIVE_CALL_BUILTIN Block = SEND_PRIMITIVE_CALL_BLOCK Suspsense = SEND_PRIMITIVE_CALL_SUSPENSE}	0x564fb9ca15c1	0	cleanup_modifications:547
+FREE	__main__	0x564fb9c9fa39	0	cleanup_modifications:547
+FREE	self	0x564fb9ca27f9	0	cleanup_modifications:547
+FREE	__main__	0x564fb9c9e439	0	cleanup_modifications:547
+FREE	<Block __main__>	0x564fb9c9e459	0	cleanup_modifications:547
+FREE	{}	0x564fb9c9e479	0	cleanup_modifications:547

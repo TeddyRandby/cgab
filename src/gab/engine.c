@@ -185,6 +185,13 @@ void gab_destroy(struct gab_triple gab) {
     gab_moddestroy(gab, m);
   }
 
+  for (size_t i = 0; i < gab.eg->interned_messages.cap; i++) {
+    if (d_messages_iexists(&gab.eg->interned_messages, i)) {
+      gab_gcdref(gab,
+                 __gab_obj(d_messages_ikey(&gab.eg->interned_messages, i)));
+    };
+  }
+
   gab_gcrun(gab);
 
   gab_gcdestroy(gab.gc);
@@ -266,19 +273,9 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
 
   struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(m);
 
-  bool new = GAB_OBJ_IS_NEW(gab_valtoo(m));
-
-  // if (!new)
-  //   gab_gcdref(gab, msg->specs);
-
   msg->specs =
       gab_recordwith(gab, msg->specs, args.receiver, args.specialization);
   msg->version++;
-
-  // if (!new)
-  //   gab_gciref(gab, msg->specs);
-  // else
-  //   gab_egkeep(gab.eg, m), gab_gciref(gab, m);
 
   return m;
 }

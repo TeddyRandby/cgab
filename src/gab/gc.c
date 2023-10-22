@@ -121,7 +121,7 @@ void collect_cycles(struct gab_triple gab);
 static inline void queue_root(struct gab_triple gab, struct gab_obj *obj) {
   if (gab.gc->nroots + 1 >= cGAB_GC_ROOT_BUFF_MAX)
     gab_gcrun(gab);
-  
+
 #if cGAB_DEBUG_GC
   if (debug_collect)
     gab_gcrun(gab);
@@ -201,12 +201,12 @@ static inline void queue_modification(struct gab_triple gab,
 #endif
   if (gab.gc->nmodifications + 1 >= cGAB_GC_MOD_BUFF_MAX)
     gab_gcrun(gab);
-  
+
 #if cGAB_DEBUG_GC
   if (debug_collect)
     gab_gcrun(gab);
 #endif
-  
+
   gab.gc->modifications[gab.gc->nmodifications++] = obj;
 
 #if cGAB_LOG_GC
@@ -223,7 +223,7 @@ void queue_decrement(struct gab_triple gab, struct gab_obj *obj) {
   if (debug_collect)
     gab_gcrun(gab);
 #endif
-  
+
   gab.gc->decrements[gab.gc->ndecrements++] = obj;
 
 #if cGAB_LOG_GC
@@ -488,28 +488,35 @@ static inline void inc_if_obj_ref(struct gab_triple gab, gab_value val) {
     inc_obj_ref(gab, gab_valtoo(val));
 }
 
-static inline void increment_stack(struct gab_triple gab) {
+static inline void increment_reachable(struct gab_triple gab) {
 #if cGAB_DEBUG_GC
   debug_collect = false;
 #endif
-  
+
   gab_value *tracker = gab.vm->sp - 1;
 
   while (tracker >= gab.vm->sb) {
     inc_if_obj_ref(gab, *tracker);
     tracker--;
   }
-  
+
+  for (size_t i = 0; i < gab.eg->interned_messages.cap; i++) {
+    if (d_messages_iexists(&gab.eg->interned_messages, i)) {
+      inc_obj_ref(gab, (struct gab_obj *)d_messages_ikey(
+                           &gab.eg->interned_messages, i));
+    };
+  }
+
 #if cGAB_DEBUG_GC
   debug_collect = true;
 #endif
 }
 
-static inline void decrement_stack(struct gab_triple gab) {
+static inline void decrement_reachable(struct gab_triple gab) {
 #if cGAB_DEBUG_GC
   debug_collect = false;
 #endif
-  
+
   gab_value *tracker = gab.vm->sp - 1;
 
   while (tracker >= gab.vm->sb) {
@@ -518,7 +525,14 @@ static inline void decrement_stack(struct gab_triple gab) {
     }
     tracker--;
   }
-  
+
+  for (size_t i = 0; i < gab.eg->interned_messages.cap; i++) {
+    if (d_messages_iexists(&gab.eg->interned_messages, i)) {
+      queue_decrement(gab, (struct gab_obj *)d_messages_ikey(
+                               &gab.eg->interned_messages, i));
+    };
+  }
+
 #if cGAB_DEBUG_GC
   debug_collect = true;
 #endif
@@ -777,7 +791,7 @@ void gab_gcreserve(struct gab_triple gab, size_t n) {
 
 void gab_gcrun(struct gab_triple gab) {
   if (gab.vm != NULL)
-    increment_stack(gab);
+    increment_reachable(gab);
 
   process_modifications(gab);
 
@@ -786,7 +800,7 @@ void gab_gcrun(struct gab_triple gab) {
   collect_cycles(gab);
 
   if (gab.vm != NULL)
-    decrement_stack(gab);
+    decrement_reachable(gab);
 
   cleanup_modifications(gab);
 }
