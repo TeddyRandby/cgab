@@ -114,6 +114,8 @@ struct gab_chunk *chunk_find(struct gab_allocator *s, uint64_t size,
   return chunk;
 }
 
+//TODO Seriously optimize this, and how our heap is structured.
+// Linked List is way too slow.
 void chunk_dealloc(struct gab_allocator *s, uint64_t size, void *ptr) {
   struct gab_chunk *chunk = chunk_find(s, size, ptr);
 
@@ -129,25 +131,27 @@ void *gab_memalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size) {
   if (size == 0) {
     assert(obj);
 
+#if cGAB_CHUNK_ALLOCATOR
     uint64_t old_size = gab_obj_size(obj);
 
     if (old_size < CHUNK_MAX_SIZE)
       chunk_dealloc(&gab.eg->allocator, old_size, obj);
     else
       free(obj);
-
-    gab.eg->allocator.heap_size -= old_size;
+#else
+    free(obj);
+#endif
 
     return NULL;
   }
 
   assert(!obj);
 
+#if cGAB_CHUNK_ALLOCATOR
   if (size < CHUNK_MAX_SIZE) {
-    gab.eg->allocator.heap_size += size;
     return chunk_alloc(&gab.eg->allocator, size);
   }
+#endif
 
-  fprintf(stderr, "Unsupported size %lu", size);
-  exit(1);
+  return malloc(size);
 }

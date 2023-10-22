@@ -25,6 +25,10 @@
 #define cGAB_LOG_VM 0
 #endif
 
+#ifndef cGAB_CHUNK_ALLOCATOR
+#define cGAB_CHUNK_ALLOCATOR 0
+#endif
+
 // Capacity at which point dictionaries are resized
 #ifndef cGAB_DICT_MAX_LOAD
 #define cGAB_DICT_MAX_LOAD 0.6

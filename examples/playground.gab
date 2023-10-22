@@ -1,15 +1,5 @@
-def upto(limit)
-  i = 0
+def a = { b c }
 
-  loop
-    yield i
-    i = i + 1
-  until i == limit end
+a.b = a
 
-end
-
-sum = 0
-
-for i in upto(10000)
-  sum = sum + i
-end
+def msg[?a]; a end

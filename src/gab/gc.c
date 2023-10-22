@@ -292,26 +292,21 @@ gab_value gab_gciref(struct gab_triple gab, gab_value value) {
   }
 #endif
 
-  /*
-   * If the object is new, pass off to inc_obj_ref
-   * in order to handle that case.
-   */
   if (GAB_OBJ_IS_NEW(obj)) {
     inc_obj_ref(gab, obj);
-    
+
+    if (!GAB_OBJ_IS_MODIFIED(obj)) {
 #if cGAB_LOG_GC
-    queue_modification(gab, obj, func, line);
+      queue_modification(gab, obj, func, line);
 #else
-    queue_modification(gab, obj);
+      queue_modification(gab, obj);
 #endif
-    GAB_OBJ_MODIFIED(obj);
+      GAB_OBJ_MODIFIED(obj);
+    }
     
     return value;
   }
 
-  /*
-   * If the object is already modified, then it can simply be incremented.
-   */
   if (GAB_OBJ_IS_MODIFIED(obj)) {
     obj->references++;
 
@@ -459,13 +454,6 @@ static inline void increment_reachable(struct gab_triple gab) {
     tracker--;
   }
 
-  for (size_t i = 0; i < gab.eg->interned_messages.cap; i++) {
-    if (d_messages_iexists(&gab.eg->interned_messages, i)) {
-      inc_obj_ref(gab, (struct gab_obj *)d_messages_ikey(
-                           &gab.eg->interned_messages, i));
-    };
-  }
-
 #if cGAB_DEBUG_GC
   debug_collect = true;
 #endif
@@ -483,13 +471,6 @@ static inline void decrement_reachable(struct gab_triple gab) {
       queue_decrement(gab, gab_valtoo(*tracker));
     }
     tracker--;
-  }
-
-  for (size_t i = 0; i < gab.eg->interned_messages.cap; i++) {
-    if (d_messages_iexists(&gab.eg->interned_messages, i)) {
-      queue_decrement(gab, (struct gab_obj *)d_messages_ikey(
-                               &gab.eg->interned_messages, i));
-    };
   }
 
 #if cGAB_DEBUG_GC
@@ -510,6 +491,8 @@ static inline void process_modifications(struct gab_triple gab) {
 }
 
 static inline void cleanup_modifications(struct gab_triple gab) {
+  size_t roots = 0;
+  
   for (size_t i = 0; i < gab.gc->nmodifications; i++) {
     struct gab_obj *obj = gab.gc->modifications[i];
 
@@ -525,13 +508,17 @@ static inline void cleanup_modifications(struct gab_triple gab) {
       for_child_do(obj, dec_obj_ref, gab);
       destroy(gab, obj);
 
-      gab.gc->modifications[i] = NULL;
-
       continue;
     }
+
+#if cGAB_LOG_GC
+    printf("ROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
+    GAB_OBJ_MODIFIED(obj);
+    gab.gc->modifications[roots++] = obj;
   }
 
-  gab.gc->nmodifications = 0;
+  gab.gc->nmodifications = roots;
 }
 
 static inline void process_decrements(struct gab_triple gab) {
@@ -709,6 +696,8 @@ void gab_gcrun(struct gab_triple gab) {
   cleanup_modifications(gab);
 
   collect_cycles(gab);
+
+  gab.gc->nmodifications = 0;
 
   if (gab.vm != NULL)
     decrement_reachable(gab);

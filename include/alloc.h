@@ -17,7 +17,6 @@ struct gab_chunk {
 };
 
 struct gab_allocator {
-  size_t heap_size;
   struct gab_chunk *chunks[CHUNK_MAX_SIZE];
 };
 
