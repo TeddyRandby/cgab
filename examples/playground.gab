@@ -1,1 +1,15 @@
-{}:print
+def upto(limit)
+  i = 0
+
+  loop
+    yield i
+    i = i + 1
+  until i == limit end
+
+end
+
+sum = 0
+
+for i in upto(10000)
+  sum = sum + i
+end

@@ -118,44 +118,6 @@ static inline void destroy(struct gab_triple gab, struct gab_obj *obj) {
 
 void collect_cycles(struct gab_triple gab);
 
-static inline void queue_root(struct gab_triple gab, struct gab_obj *obj) {
-  if (gab.gc->nroots + 1 >= cGAB_GC_ROOT_BUFF_MAX)
-    gab_gcrun(gab);
-
-#if cGAB_DEBUG_GC
-  if (debug_collect)
-    gab_gcrun(gab);
-#endif
-
-  gab.gc->roots[gab.gc->nroots++] = obj;
-}
-
-static inline void obj_possible_root(struct gab_triple gab,
-                                     struct gab_obj *obj) {
-  /*
-   * Green objects can't reference themselves (like strings)
-   * Therefore they cannot be the root of a cycle.
-   */
-  if (GAB_OBJ_IS_GREEN(obj))
-    return;
-
-  /*
-   * Mark potential roots of cycles as purple and add them to the root buffer.
-   */
-  if (!GAB_OBJ_IS_PURPLE(obj)) {
-    GAB_OBJ_PURPLE(obj);
-
-    if (!GAB_OBJ_IS_BUFFERED(obj)) {
-      GAB_OBJ_BUFFERED(obj);
-      queue_root(gab, obj);
-
-#if cGAB_LOG_GC
-      printf("ROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
-    }
-  }
-}
-
 static inline void dec_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
 #if cGAB_LOG_GC
   if (GAB_OBJ_IS_FREED(obj)) {
@@ -165,9 +127,6 @@ static inline void dec_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
   printf("DEC\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references - 1);
 #endif
 
-  if (GAB_OBJ_IS_NEW(obj))
-    return;
-
   /*
    * If the object has no references after the decrement,
    * then it can be freed as longas it isn't in the root buffer.
@@ -175,20 +134,12 @@ static inline void dec_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
   if (--obj->references <= 0) {
     GAB_OBJ_BLACK(obj);
 
-    if (GAB_OBJ_IS_BUFFERED(obj) || GAB_OBJ_IS_MODIFIED(obj))
+    if (GAB_OBJ_IS_MODIFIED(obj))
       return;
 
     for_child_do(obj, dec_obj_ref, gab);
     destroy(gab, obj);
-
-    return;
   }
-
-  /*
-   * If the object survives its decrement, then it is
-   * considered to possibly be the root of a cycle.
-   */
-  obj_possible_root(gab, obj);
 }
 
 #if cGAB_LOG_GC
@@ -216,6 +167,9 @@ static inline void queue_modification(struct gab_triple gab,
 }
 
 void queue_decrement(struct gab_triple gab, struct gab_obj *obj) {
+  if (GAB_OBJ_IS_NEW(obj))
+    return;
+
   if (gab.gc->ndecrements + 1 >= cGAB_GC_DEC_BUFF_MAX)
     gab_gcrun(gab);
 
@@ -245,7 +199,6 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
 #if cGAB_LOG_GC
     printf("NEW\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
-
     GAB_OBJ_NOT_NEW(obj);
     return;
   }
@@ -271,8 +224,6 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
    */
   if (!GAB_OBJ_IS_GREEN(obj))
     GAB_OBJ_BLACK(obj);
-
-  GAB_OBJ_MODIFIED(obj);
 
 #if cGAB_LOG_GC
   printf("INC\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
@@ -347,6 +298,14 @@ gab_value gab_gciref(struct gab_triple gab, gab_value value) {
    */
   if (GAB_OBJ_IS_NEW(obj)) {
     inc_obj_ref(gab, obj);
+    
+#if cGAB_LOG_GC
+    queue_modification(gab, obj, func, line);
+#else
+    queue_modification(gab, obj);
+#endif
+    GAB_OBJ_MODIFIED(obj);
+    
     return value;
   }
 
@@ -374,6 +333,7 @@ gab_value gab_gciref(struct gab_triple gab, gab_value value) {
 #else
   queue_modification(gab, obj);
 #endif
+  GAB_OBJ_MODIFIED(obj);
 
   /*
    * See gc_dref for an explanation of this.
@@ -476,7 +436,6 @@ gab_value gab_gcdref(struct gab_triple gab, gab_value value) {
 }
 
 void gab_gccreate(struct gab_gc *gc) {
-  gc->nroots = 0;
   gc->ndecrements = 0;
   gc->nmodifications = 0;
 };
@@ -538,33 +497,6 @@ static inline void decrement_reachable(struct gab_triple gab) {
 #endif
 }
 
-static inline void cleanup_modifications(struct gab_triple gab) {
-  for (size_t i = 0; i < gab.gc->nmodifications; i++) {
-    struct gab_obj *obj = gab.gc->modifications[i];
-
-    GAB_OBJ_NOT_MODIFIED(obj);
-
-    if (obj->references <= 0) {
-      /*
-       * After modification is complete, this object has no references.
-       *
-       * It is safe to mark it black and then if
-       * it isn't buffered as a root, to free it.
-       *
-       * No need to to decrement children here.
-       * There is already a decrement queued for them from
-       * when this objec was modified, and we skipped on
-       * incrementing them just now.
-       */
-      GAB_OBJ_BLACK(obj);
-      // for_child_do(obj, dec_obj_ref, gab);
-      destroy(gab, obj);
-    }
-  }
-
-  gab.gc->nmodifications = 0;
-}
-
 static inline void process_modifications(struct gab_triple gab) {
   for (size_t i = 0; i < gab.gc->nmodifications; i++) {
     struct gab_obj *obj = gab.gc->modifications[i];
@@ -573,26 +505,33 @@ static inline void process_modifications(struct gab_triple gab) {
     printf("MOD\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
 
-    if (obj->references > 0) {
-      /*
-       * In the common case, the object that was modified
-       * still has references.
-       *
-       * We increment all of its current children (see gcdref)
-       *
-       * Since this object survived modification, it is possible that
-       * it is the root of cycle.
-       *
-       * If it has, we defer all the child-handling to the cycle collector.
-       * Otherwise, we increment all the children.
-       *
-       * Mark the object as not-modified and continue.
-       */
-      for_child_do(obj, inc_obj_ref, gab);
+    for_child_do(obj, inc_obj_ref, gab);
+  }
+}
 
-      obj_possible_root(gab, obj);
+static inline void cleanup_modifications(struct gab_triple gab) {
+  for (size_t i = 0; i < gab.gc->nmodifications; i++) {
+    struct gab_obj *obj = gab.gc->modifications[i];
+
+    GAB_OBJ_NOT_MODIFIED(obj);
+
+#if cGAB_LOG_GC
+    printf("CLEANUP\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
+
+    if (obj->references <= 0) {
+      GAB_OBJ_BLACK(obj);
+
+      for_child_do(obj, dec_obj_ref, gab);
+      destroy(gab, obj);
+
+      gab.gc->modifications[i] = NULL;
+
+      continue;
     }
   }
+
+  gab.gc->nmodifications = 0;
 }
 
 static inline void process_decrements(struct gab_triple gab) {
@@ -623,17 +562,19 @@ static inline void mark_gray(struct gab_triple gab, struct gab_obj *obj) {
   if (!GAB_OBJ_IS_GRAY(obj)) {
     GAB_OBJ_GRAY(obj);
 
-    // if (GAB_OBJ_IS_NEW(obj)) {
-    //   inc_obj_ref(gab, obj);
-    // }
-
     for_child_do(obj, &dec_and_mark_gray, gab);
   }
 }
 
 static inline void mark_roots(struct gab_triple gab) {
-  for (uint64_t i = 0; i < gab.gc->nroots; i++) {
-    struct gab_obj *obj = gab.gc->roots[i];
+  for (uint64_t i = 0; i < gab.gc->nmodifications; i++) {
+    struct gab_obj *obj = gab.gc->modifications[i];
+
+    /*
+     * Ignore dead objects
+     */
+    if (obj == NULL)
+      continue;
 
 #if cGAB_LOG_GC
     if (GAB_OBJ_IS_FREED(obj)) {
@@ -650,15 +591,7 @@ static inline void mark_roots(struct gab_triple gab) {
     if (GAB_OBJ_IS_GREEN(obj))
       continue;
 
-    /*
-     * Any objects which were buffered as roots may have had their
-     * color changed since they were queued. If they are still purple
-     * and have references, then they may still be potential roots.
-     */
-    if (GAB_OBJ_IS_PURPLE(obj)) {
-      mark_gray(gab, obj);
-      continue;
-    }
+    mark_gray(gab, obj);
   }
 }
 
@@ -709,83 +642,59 @@ static inline void scan_root(struct gab_triple gab, struct gab_obj *obj) {
 }
 
 static inline void scan_roots(struct gab_triple gab) {
-  for (uint64_t i = 0; i < gab.gc->nroots; i++) {
-    struct gab_obj *obj = gab.gc->roots[i];
-    if (obj) {
+  for (uint64_t i = 0; i < gab.gc->nmodifications; i++) {
+    struct gab_obj *obj = gab.gc->modifications[i];
+    if (obj == NULL)
+      continue;
+
 #if cGAB_LOG_GC
-      if (GAB_OBJ_IS_FREED(obj)) {
-        printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, __FUNCTION__,
-               __LINE__);
-        exit(1);
-      }
-      printf("SCANROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
-      scan_root(gab, obj);
+    if (GAB_OBJ_IS_FREED(obj)) {
+      printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, __FUNCTION__,
+             __LINE__);
+      exit(1);
     }
+    printf("SCANROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
+
+    scan_root(gab, obj);
   }
 }
 
 static inline void collect_white(struct gab_triple gab, struct gab_obj *obj) {
-  if (GAB_OBJ_IS_WHITE(obj) && !GAB_OBJ_IS_BUFFERED(obj)) {
+  if (GAB_OBJ_IS_WHITE(obj)) {
     GAB_OBJ_BLACK(obj);
 
 #if cGAB_LOG_GC
     printf("WHITE\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
     for_child_do(obj, collect_white, gab);
-    if (!GAB_OBJ_IS_MODIFIED(obj))
-      destroy(gab, obj);
+    destroy(gab, obj);
   }
 }
 
 static inline void collect_roots(struct gab_triple gab) {
-  for (uint64_t i = 0; i < gab.gc->nroots; i++) {
-    struct gab_obj *obj = gab.gc->roots[i];
-    if (obj) {
-      GAB_OBJ_NOT_BUFFERED(obj);
-      collect_white(gab, obj);
-      gab.gc->roots[i] = NULL;
-    }
+  for (uint64_t i = 0; i < gab.gc->nmodifications; i++) {
+    struct gab_obj *obj = gab.gc->modifications[i];
+
+    if (obj == NULL)
+      continue;
+
+    collect_white(gab, obj);
+
+    gab.gc->modifications[i] = NULL;
   }
 }
 
 void collect_cycles(struct gab_triple gab) {
-  if (gab.gc->nroots == 0)
-    return;
-
-  /*
-   * TODO: Sometimes these functions encounter NEW objects
-   *
-   * (ie. A root may have a child which is NEW)
-   *
-   * MAYBE: the root buffer should be filled with objects
-   * that survive modification! Then I can drop the buffered
-   * flag too
-   */
-
   mark_roots(gab);
   scan_roots(gab);
   collect_roots(gab);
-
-  uint64_t n = gab.gc->nroots;
-  gab.gc->nroots = 0;
-
-  // For surviving roots, increment the children like
-  // we would have done if they had not been buffered.
-  for (uint64_t i = 0; i < n; i++) {
-    if (gab.gc->roots[i]) {
-      gab.gc->roots[gab.gc->nroots++] = gab.gc->roots[i];
-      // for_child_do(gab.gc->roots[i], inc_obj_ref, gab);
-    }
-  }
 }
 
 void gab_gcreserve(struct gab_triple gab, size_t n) {
   if (gab.gc->nmodifications + n >= cGAB_GC_MOD_BUFF_MAX)
     gab_gcrun(gab);
   else if (gab.gc->ndecrements + n >= cGAB_GC_DEC_BUFF_MAX)
-    gab_gcrun(gab);
-  else if (gab.gc->nroots + n >= cGAB_GC_ROOT_BUFF_MAX)
     gab_gcrun(gab);
 }
 
@@ -797,10 +706,10 @@ void gab_gcrun(struct gab_triple gab) {
 
   process_decrements(gab);
 
+  cleanup_modifications(gab);
+
   collect_cycles(gab);
 
   if (gab.vm != NULL)
     decrement_reachable(gab);
-
-  cleanup_modifications(gab);
 }

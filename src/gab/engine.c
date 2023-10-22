@@ -139,21 +139,45 @@ struct gab_triple gab_create() {
 
   eg->types[kGAB_UNDEFINED] = gab_undefined;
   eg->types[kGAB_NIL] = gab_nil;
-  eg->types[kGAB_NUMBER] = gab_string(gab, "Number");
-  eg->types[kGAB_TRUE] = gab_string(gab, "Boolean");
-  eg->types[kGAB_FALSE] = gab_string(gab, "Boolean");
-  eg->types[kGAB_STRING] = gab_string(gab, "String");
-  eg->types[kGAB_MESSAGE] = gab_string(gab, "Message");
-  eg->types[kGAB_BLOCK_PROTO] = gab_string(gab, "Prototype");
-  eg->types[kGAB_BUILTIN] = gab_string(gab, "Builtin");
-  eg->types[kGAB_BLOCK] = gab_string(gab, "Block");
-  eg->types[kGAB_RECORD] = gab_string(gab, "Record");
-  eg->types[kGAB_SHAPE] = gab_string(gab, "Shape");
-  eg->types[kGAB_BOX] = gab_string(gab, "Box");
-  eg->types[kGAB_SUSPENSE] = gab_string(gab, "Suspsense");
-  eg->types[kGAB_PRIMITIVE] = gab_string(gab, "Primitive");
 
-  gab_ngciref(gab, 1, kGAB_NKINDS, eg->types);
+  eg->types[kGAB_NUMBER] = gab_string(gab, "Number");
+  gab_gciref(gab, eg->types[kGAB_NUMBER]);
+
+  eg->types[kGAB_TRUE] = gab_string(gab, "Boolean");
+  gab_gciref(gab, eg->types[kGAB_TRUE]);
+
+  eg->types[kGAB_FALSE] = gab_string(gab, "Boolean");
+  gab_gciref(gab, eg->types[kGAB_FALSE]);
+
+  eg->types[kGAB_STRING] = gab_string(gab, "String");
+  gab_gciref(gab, eg->types[kGAB_STRING]);
+
+  eg->types[kGAB_MESSAGE] = gab_string(gab, "Message");
+  gab_gciref(gab, eg->types[kGAB_MESSAGE]);
+
+  eg->types[kGAB_BLOCK_PROTO] = gab_string(gab, "Prototype");
+  gab_gciref(gab, eg->types[kGAB_BLOCK_PROTO]);
+
+  eg->types[kGAB_BUILTIN] = gab_string(gab, "Builtin");
+  gab_gciref(gab, eg->types[kGAB_BUILTIN]);
+
+  eg->types[kGAB_BLOCK] = gab_string(gab, "Block");
+  gab_gciref(gab, eg->types[kGAB_BLOCK]);
+
+  eg->types[kGAB_RECORD] = gab_string(gab, "Record");
+  gab_gciref(gab, eg->types[kGAB_RECORD]);
+
+  eg->types[kGAB_SHAPE] = gab_string(gab, "Shape");
+  gab_gciref(gab, eg->types[kGAB_SHAPE]);
+
+  eg->types[kGAB_BOX] = gab_string(gab, "Box");
+  gab_gciref(gab, eg->types[kGAB_BOX]);
+
+  eg->types[kGAB_SUSPENSE] = gab_string(gab, "Suspsense");
+  gab_gciref(gab, eg->types[kGAB_SUSPENSE]);
+
+  eg->types[kGAB_PRIMITIVE] = gab_string(gab, "Primitive");
+  gab_gciref(gab, eg->types[kGAB_PRIMITIVE]);
 
   gab_negkeep(gab.eg, kGAB_NKINDS, eg->types);
 

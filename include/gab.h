@@ -144,27 +144,21 @@ static inline gab_value __gab_dtoval(double value) {
  * The algorithm is described in this paper:
  * https://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon03Pure.pdf
  */
-#define fGAB_OBJ_BUFFERED (1 << 0)
 #define fGAB_OBJ_BLACK (1 << 1)
 #define fGAB_OBJ_GRAY (1 << 2)
 #define fGAB_OBJ_WHITE (1 << 3)
-#define fGAB_OBJ_PURPLE (1 << 4)
 #define fGAB_OBJ_GREEN (1 << 5)
 #define fGAB_OBJ_MODIFIED (1 << 6)
 #define fGAB_OBJ_NEW (1 << 7)
 #define fGAB_OBJ_FREED (1 << 8) // Used for debug purposes
 
-#define GAB_OBJ_IS_BUFFERED(obj) ((obj)->flags & fGAB_OBJ_BUFFERED)
 #define GAB_OBJ_IS_BLACK(obj) ((obj)->flags & fGAB_OBJ_BLACK)
 #define GAB_OBJ_IS_GRAY(obj) ((obj)->flags & fGAB_OBJ_GRAY)
 #define GAB_OBJ_IS_WHITE(obj) ((obj)->flags & fGAB_OBJ_WHITE)
-#define GAB_OBJ_IS_PURPLE(obj) ((obj)->flags & fGAB_OBJ_PURPLE)
 #define GAB_OBJ_IS_GREEN(obj) ((obj)->flags & fGAB_OBJ_GREEN)
 #define GAB_OBJ_IS_MODIFIED(obj) ((obj)->flags & fGAB_OBJ_MODIFIED)
 #define GAB_OBJ_IS_NEW(obj) ((obj)->flags & fGAB_OBJ_NEW)
 #define GAB_OBJ_IS_FREED(obj) ((obj)->flags & fGAB_OBJ_FREED)
-
-#define GAB_OBJ_BUFFERED(obj) ((obj)->flags |= fGAB_OBJ_BUFFERED)
 
 #define GAB_OBJ_MODIFIED(obj) ((obj)->flags |= fGAB_OBJ_MODIFIED)
 
@@ -172,8 +166,7 @@ static inline gab_value __gab_dtoval(double value) {
 
 #define GAB_OBJ_FREED(obj) ((obj)->flags |= fGAB_OBJ_FREED)
 
-#define __KEEP_FLAGS                                                           \
-  (fGAB_OBJ_BUFFERED | fGAB_OBJ_MODIFIED | fGAB_OBJ_NEW | fGAB_OBJ_FREED)
+#define __KEEP_FLAGS (fGAB_OBJ_MODIFIED | fGAB_OBJ_NEW | fGAB_OBJ_FREED)
 
 #define GAB_OBJ_GREEN(obj)                                                     \
   ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_GREEN)
@@ -187,10 +180,6 @@ static inline gab_value __gab_dtoval(double value) {
 #define GAB_OBJ_WHITE(obj)                                                     \
   ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_WHITE)
 
-#define GAB_OBJ_PURPLE(obj)                                                    \
-  ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_PURPLE)
-
-#define GAB_OBJ_NOT_BUFFERED(obj) ((obj)->flags &= ~fGAB_OBJ_BUFFERED)
 #define GAB_OBJ_NOT_MODIFIED(obj) ((obj)->flags &= ~fGAB_OBJ_MODIFIED)
 #define GAB_OBJ_NOT_NEW(obj) ((obj)->flags &= ~fGAB_OBJ_NEW)
 
@@ -1271,7 +1260,8 @@ gab_value gab_builtin(struct gab_triple gab, gab_value name, gab_builtin_f f);
  *
  * @return The value.
  */
-gab_value gab_sbuiltin(struct gab_triple gab, const char *name, gab_builtin_f f);
+gab_value gab_sbuiltin(struct gab_triple gab, const char *name,
+                       gab_builtin_f f);
 
 struct gab_box_argt {
   gab_value type;
@@ -1319,8 +1309,8 @@ static inline void *gab_boxdata(gab_value value) {
  *
  * @return The new record.
  */
-gab_value gab_record(struct gab_triple gab, size_t len, gab_value keys[static len],
-                     gab_value values[static len]);
+gab_value gab_record(struct gab_triple gab, size_t len,
+                     gab_value keys[static len], gab_value values[static len]);
 
 /**
  * # Bundle a list of keys and values into a record.
