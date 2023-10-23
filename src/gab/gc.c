@@ -138,6 +138,7 @@ static inline void dec_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
       return;
 
     for_child_do(obj, dec_obj_ref, gab);
+    
     destroy(gab, obj);
   }
 }
@@ -667,7 +668,7 @@ static inline void collect_white(struct gab_triple gab, struct gab_obj *obj) {
     }
 #endif
 
-  if (GAB_OBJ_IS_WHITE(obj)) {
+  if (GAB_OBJ_IS_WHITE(obj) && !GAB_OBJ_IS_MODIFIED(obj)) {
     GAB_OBJ_BLACK(obj);
     for_child_do(obj, collect_white, gab);
     destroy(gab, obj);
@@ -678,12 +679,8 @@ static inline void collect_roots(struct gab_triple gab) {
   for (uint64_t i = 0; i < gab.gc->nmodifications; i++) {
     struct gab_obj *obj = gab.gc->modifications[i];
 
-    // if (GAB_OBJ_IS_BLACK(obj) && obj->references <= 0) {
-    //   for_child_do(obj, dec_obj_ref, gab);
-    //   destroy(gab, obj);
-    //   continue;
-    // }
-
+    GAB_OBJ_NOT_MODIFIED(obj);
+    
     collect_white(gab, obj);
   }
 }
