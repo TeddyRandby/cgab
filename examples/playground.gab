@@ -1,5 +1,5 @@
 def a = { b c }
 
-a.b = a
-
 def msg[?a]; a end
+
+a.b = a

@@ -110,10 +110,10 @@ static inline void destroy(struct gab_triple gab, struct gab_obj *obj) {
     printf("FREE\t%V\t%p\t%i\t%s:%i\n", __gab_obj(obj), obj, obj->references,
            file, line);
   }
-#endif
-
+#else
   gab_obj_destroy(gab.eg, obj);
   gab_memalloc(gab, obj, 0);
+#endif
 }
 
 void collect_cycles(struct gab_triple gab);
@@ -303,7 +303,7 @@ gab_value gab_gciref(struct gab_triple gab, gab_value value) {
 #endif
       GAB_OBJ_MODIFIED(obj);
     }
-    
+
     return value;
   }
 
@@ -490,9 +490,9 @@ static inline void process_modifications(struct gab_triple gab) {
   }
 }
 
-static inline void cleanup_modifications(struct gab_triple gab) {
+static inline void collect_modifications(struct gab_triple gab) {
   size_t roots = 0;
-  
+
   for (size_t i = 0; i < gab.gc->nmodifications; i++) {
     struct gab_obj *obj = gab.gc->modifications[i];
 
@@ -506,15 +506,21 @@ static inline void cleanup_modifications(struct gab_triple gab) {
       GAB_OBJ_BLACK(obj);
 
       for_child_do(obj, dec_obj_ref, gab);
+
       destroy(gab, obj);
 
       continue;
     }
 
+    if (GAB_OBJ_IS_GREEN(obj))
+      continue;
+
 #if cGAB_LOG_GC
     printf("ROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
+
     GAB_OBJ_MODIFIED(obj);
+    GAB_OBJ_WHITE(obj);
     gab.gc->modifications[roots++] = obj;
   }
 
@@ -549,19 +555,19 @@ static inline void mark_gray(struct gab_triple gab, struct gab_obj *obj) {
   if (!GAB_OBJ_IS_GRAY(obj)) {
     GAB_OBJ_GRAY(obj);
 
+#if cGAB_LOG_GC
+    printf("GRAY\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
+
     for_child_do(obj, &dec_and_mark_gray, gab);
   }
 }
 
 static inline void mark_roots(struct gab_triple gab) {
+  size_t roots = 0;
+  
   for (uint64_t i = 0; i < gab.gc->nmodifications; i++) {
     struct gab_obj *obj = gab.gc->modifications[i];
-
-    /*
-     * Ignore dead objects
-     */
-    if (obj == NULL)
-      continue;
 
 #if cGAB_LOG_GC
     if (GAB_OBJ_IS_FREED(obj)) {
@@ -578,8 +584,19 @@ static inline void mark_roots(struct gab_triple gab) {
     if (GAB_OBJ_IS_GREEN(obj))
       continue;
 
-    mark_gray(gab, obj);
+    if (GAB_OBJ_IS_WHITE(obj)) {
+      mark_gray(gab, obj);
+      gab.gc->modifications[roots++] = obj;
+      continue;
+    }
+
+    if (GAB_OBJ_IS_BLACK(obj) && obj->references <= 0) {
+      for_child_do(obj, dec_obj_ref, gab);
+      destroy(gab, obj);
+    }
   }
+
+  gab.gc->nmodifications = roots;
 }
 
 static inline void scan_root_black(struct gab_triple gab, struct gab_obj *obj);
@@ -624,6 +641,10 @@ static inline void scan_root(struct gab_triple gab, struct gab_obj *obj) {
     return;
   }
 
+#if cGAB_LOG_GC
+  printf("WHITE\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
+
   GAB_OBJ_WHITE(obj);
   for_child_do(obj, scan_root, gab);
 }
@@ -631,6 +652,7 @@ static inline void scan_root(struct gab_triple gab, struct gab_obj *obj) {
 static inline void scan_roots(struct gab_triple gab) {
   for (uint64_t i = 0; i < gab.gc->nmodifications; i++) {
     struct gab_obj *obj = gab.gc->modifications[i];
+
     if (obj == NULL)
       continue;
 
@@ -643,6 +665,12 @@ static inline void scan_roots(struct gab_triple gab) {
     printf("SCANROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
 
+    if (GAB_OBJ_IS_BLACK(obj) && obj->references <= 0) {
+      GAB_OBJ_WHITE(obj);
+      for_child_do(obj, scan_root, gab);
+      continue;
+    }
+
     scan_root(gab, obj);
   }
 }
@@ -650,10 +678,8 @@ static inline void scan_roots(struct gab_triple gab) {
 static inline void collect_white(struct gab_triple gab, struct gab_obj *obj) {
   if (GAB_OBJ_IS_WHITE(obj)) {
     GAB_OBJ_BLACK(obj);
+    GAB_OBJ_NOT_MODIFIED(obj);
 
-#if cGAB_LOG_GC
-    printf("WHITE\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
     for_child_do(obj, collect_white, gab);
     destroy(gab, obj);
   }
@@ -693,7 +719,7 @@ void gab_gcrun(struct gab_triple gab) {
 
   process_decrements(gab);
 
-  cleanup_modifications(gab);
+  collect_modifications(gab);
 
   collect_cycles(gab);
 
