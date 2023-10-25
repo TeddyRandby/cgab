@@ -97,19 +97,19 @@ static inline void dec_obj_ref(struct gab_triple gab, struct gab_obj *obj);
 #if cGAB_LOG_GC
 #define destroy(gab, obj) _destroy(gab, obj, __FUNCTION__, __LINE__)
 static inline void _destroy(struct gab_triple gab, struct gab_obj *obj,
-                            const char *file, int line) {
+                            const char *func, int line) {
 #else
 static inline void destroy(struct gab_triple gab, struct gab_obj *obj) {
 #endif
-
 #if cGAB_LOG_GC
   if (GAB_OBJ_IS_FREED(obj)) {
-    printf("DFREE\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, file, line);
+    printf("DFREE\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, func, line);
     exit(1);
   } else {
     printf("FREE\t%V\t%p\t%i\t%s:%i\n", __gab_obj(obj), obj, obj->references,
-           file, line);
+           func, line);
   }
+  GAB_OBJ_FREED(obj);
 #else
   gab_obj_destroy(gab.eg, obj);
   gab_memalloc(gab, obj, 0);
@@ -131,14 +131,14 @@ static inline void dec_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
    * If the object has no references after the decrement,
    * then it can be freed as long as it isn't in the root buffer.
    */
-  if (--obj->references <= 0) {
+  if (--obj->references == 0) {
     GAB_OBJ_BLACK(obj);
-    
+
+    for_child_do(obj, dec_obj_ref, gab);
+
     if (GAB_OBJ_IS_MODIFIED(obj))
       return;
 
-    for_child_do(obj, dec_obj_ref, gab);
-    
     destroy(gab, obj);
   }
 }
@@ -216,15 +216,6 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
 
     return;
   }
-
-  /*
-   * Otherwise, we mark it as black. An incremented object is no
-   * longer a candidate for collection or the root of a cycle.
-   * If the object was previously purple (a potential root),
-   * it no longer needs to be.
-   */
-  if (!GAB_OBJ_IS_GREEN(obj))
-    GAB_OBJ_BLACK(obj);
 
 #if cGAB_LOG_GC
   printf("INC\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
@@ -377,7 +368,7 @@ gab_value gab_gcdref(struct gab_triple gab, gab_value value) {
    * if it was previously pushed into the root buffer,
    * it will be skipped.
    */
-  if (obj->references <= 0)
+  if (!GAB_OBJ_IS_GREEN(obj) && obj->references <= 0)
     GAB_OBJ_BLACK(obj);
 
   /*
@@ -483,11 +474,14 @@ static inline void process_modifications(struct gab_triple gab) {
   for (size_t i = 0; i < gab.gc->nmodifications; i++) {
     struct gab_obj *obj = gab.gc->modifications[i];
 
+    if (!GAB_OBJ_IS_GREEN(obj))
+      GAB_OBJ_WHITE(obj);
+
+    for_child_do(obj, inc_obj_ref, gab);
+
 #if cGAB_LOG_GC
     printf("MOD\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
-
-    for_child_do(obj, inc_obj_ref, gab);
   }
 }
 
@@ -497,14 +491,16 @@ static inline void collect_modifications(struct gab_triple gab) {
   for (size_t i = 0; i < gab.gc->nmodifications; i++) {
     struct gab_obj *obj = gab.gc->modifications[i];
 
-    GAB_OBJ_NOT_MODIFIED(obj);
-
 #if cGAB_LOG_GC
     printf("CLEANUP\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
 
-    if (obj->references <= 0) {
-      for_child_do(obj, dec_obj_ref, gab);
+    if (obj->references == 0) {
+      // If the object is black, it has already
+      // had its children decremented here.
+      // But it was not cleaned up, because it was marked as modified.
+      if (GAB_OBJ_IS_WHITE(obj))
+        for_child_do(obj, dec_obj_ref, gab);
 
       destroy(gab, obj);
 
@@ -519,7 +515,6 @@ static inline void collect_modifications(struct gab_triple gab) {
 #endif
 
     GAB_OBJ_MODIFIED(obj);
-    GAB_OBJ_WHITE(obj);
     gab.gc->modifications[roots++] = obj;
   }
 
@@ -530,17 +525,16 @@ static inline void process_decrements(struct gab_triple gab) {
   while (gab.gc->ndecrements)
     dec_obj_ref(gab, gab.gc->decrements[--gab.gc->ndecrements]);
 }
-
 static inline void mark_gray(struct gab_triple gab, struct gab_obj *obj);
 
 static inline void dec_and_mark_gray(struct gab_triple gab,
                                      struct gab_obj *child) {
+  child->references -= 1;
+  mark_gray(gab, child);
+
 #if cGAB_LOG_GC
   printf("DECGRAY\t%V\t%p\t%d\n", __gab_obj(child), child, child->references);
 #endif
-
-  child->references -= 1;
-  mark_gray(gab, child);
 }
 
 static inline void mark_gray(struct gab_triple gab, struct gab_obj *obj) {
@@ -564,7 +558,7 @@ static inline void mark_gray(struct gab_triple gab, struct gab_obj *obj) {
 
 static inline void mark_roots(struct gab_triple gab) {
   size_t roots = 0;
-  
+
   for (uint64_t i = 0; i < gab.gc->nmodifications; i++) {
     struct gab_obj *obj = gab.gc->modifications[i];
 
@@ -576,12 +570,19 @@ static inline void mark_roots(struct gab_triple gab) {
     }
 #endif
 
-    if (GAB_OBJ_IS_WHITE(obj)) {
+    if (GAB_OBJ_IS_WHITE(obj) && obj->references > 0) {
 #if cGAB_LOG_GC
       printf("MARKROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
       mark_gray(gab, obj);
       gab.gc->modifications[roots++] = obj;
+      continue;
+    }
+
+    GAB_OBJ_NOT_MODIFIED(obj);
+
+    if (GAB_OBJ_IS_BLACK(obj) && obj->references <= 0) {
+      destroy(gab, obj);
       continue;
     }
   }
@@ -627,6 +628,9 @@ static inline void scan_root(struct gab_triple gab, struct gab_obj *obj) {
     return;
 
   if (obj->references > 0) {
+#if cGAB_LOG_GC
+    printf("LIVEROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
     scan_root_black(gab, obj);
     return;
   }
@@ -643,9 +647,6 @@ static inline void scan_roots(struct gab_triple gab) {
   for (uint64_t i = 0; i < gab.gc->nmodifications; i++) {
     struct gab_obj *obj = gab.gc->modifications[i];
 
-    if (obj == NULL)
-      continue;
-
 #if cGAB_LOG_GC
     if (GAB_OBJ_IS_FREED(obj)) {
       printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, __FUNCTION__,
@@ -661,11 +662,10 @@ static inline void scan_roots(struct gab_triple gab) {
 
 static inline void collect_white(struct gab_triple gab, struct gab_obj *obj) {
 #if cGAB_LOG_GC
-    if (GAB_OBJ_IS_FREED(obj)) {
-      printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, __FUNCTION__,
-             __LINE__);
-      exit(1);
-    }
+  if (GAB_OBJ_IS_FREED(obj)) {
+    printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, __FUNCTION__, __LINE__);
+    exit(1);
+  }
 #endif
 
   if (GAB_OBJ_IS_WHITE(obj) && !GAB_OBJ_IS_MODIFIED(obj)) {
@@ -680,7 +680,10 @@ static inline void collect_roots(struct gab_triple gab) {
     struct gab_obj *obj = gab.gc->modifications[i];
 
     GAB_OBJ_NOT_MODIFIED(obj);
-    
+
+#if cGAB_LOG_GC
+    printf("COLLECTWHITE\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
     collect_white(gab, obj);
   }
 }

@@ -76,14 +76,6 @@
 #error "cGAB_GC_DEC_BUFF_MAX must be less than or equal to STACK_MAX"
 #endif
 
-#ifndef cGAB_GC_ROOT_BUFF_MAX
-#define cGAB_GC_ROOT_BUFF_MAX (cGAB_GC_MOD_BUFF_MAX)
-#endif
-
-#ifndef cGAB_EG_HEAP_BYTES_MAX
-#define cGAB_EG_HEAP_BYTES_MAX (1024 * 1024 * 1024)
-#endif
-
 // Not configurable, just constants
 #define GAB_CONSTANTS_MAX (UINT16_MAX + 1)
 // Maximum value of a local.

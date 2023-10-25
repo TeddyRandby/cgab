@@ -363,8 +363,6 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
 
   self->specs = gab_erecordof(gab, gab_nshape(gab, 0));
 
-  GAB_OBJ_GREEN((struct gab_obj *)self);
-
   d_messages_insert(&gab.eg->interned_messages, self, 0);
 
   /* The message is owned by the engine. */
@@ -481,8 +479,6 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
   self->do_visit = args.visitor;
   self->data = args.data;
   self->type = args.type;
-
-  GAB_OBJ_GREEN((struct gab_obj *)self);
 
   return gab_gcdref(gab, __gab_obj(self));
 }
