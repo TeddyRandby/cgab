@@ -196,6 +196,9 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
 
   obj->references++;
 
+  if (!GAB_OBJ_IS_GREEN(obj))
+    GAB_OBJ_BLACK(obj);
+
   if (GAB_OBJ_IS_NEW(obj)) {
 #if cGAB_LOG_GC
     printf("NEW\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
@@ -474,10 +477,10 @@ static inline void process_modifications(struct gab_triple gab) {
   for (size_t i = 0; i < gab.gc->nmodifications; i++) {
     struct gab_obj *obj = gab.gc->modifications[i];
 
+    for_child_do(obj, inc_obj_ref, gab);
+
     if (!GAB_OBJ_IS_GREEN(obj))
       GAB_OBJ_WHITE(obj);
-
-    for_child_do(obj, inc_obj_ref, gab);
 
 #if cGAB_LOG_GC
     printf("MOD\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
@@ -507,14 +510,15 @@ static inline void collect_modifications(struct gab_triple gab) {
       continue;
     }
 
-    if (GAB_OBJ_IS_GREEN(obj))
+    if (GAB_OBJ_IS_GREEN(obj)) {
+      GAB_OBJ_NOT_MODIFIED(obj);
       continue;
+    }
 
 #if cGAB_LOG_GC
     printf("ROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
 
-    GAB_OBJ_MODIFIED(obj);
     gab.gc->modifications[roots++] = obj;
   }
 
@@ -578,6 +582,10 @@ static inline void mark_roots(struct gab_triple gab) {
       gab.gc->modifications[roots++] = obj;
       continue;
     }
+
+#if cGAB_LOG_GC
+    printf("SKIPROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
 
     GAB_OBJ_NOT_MODIFIED(obj);
 
@@ -671,12 +679,15 @@ static inline void collect_white(struct gab_triple gab, struct gab_obj *obj) {
   if (GAB_OBJ_IS_WHITE(obj) && !GAB_OBJ_IS_MODIFIED(obj)) {
     GAB_OBJ_BLACK(obj);
     for_child_do(obj, collect_white, gab);
-    destroy(gab, obj);
+    gab.gc->modifications[gab.gc->nmodifications++] = obj;
   }
 }
 
 static inline void collect_roots(struct gab_triple gab) {
-  for (uint64_t i = 0; i < gab.gc->nmodifications; i++) {
+  const size_t nroots = gab.gc->nmodifications;
+  gab.gc->nmodifications = 0;
+
+  for (uint64_t i = 0; i < nroots; i++) {
     struct gab_obj *obj = gab.gc->modifications[i];
 
     GAB_OBJ_NOT_MODIFIED(obj);
@@ -686,6 +697,13 @@ static inline void collect_roots(struct gab_triple gab) {
 #endif
     collect_white(gab, obj);
   }
+
+  for (uint64_t i = 0; i < gab.gc->nmodifications; i++) {
+    struct gab_obj *obj = gab.gc->modifications[i];
+    destroy(gab, obj);
+  }
+
+  gab.gc->nmodifications = 0;
 }
 
 void collect_cycles(struct gab_triple gab) {
@@ -712,8 +730,6 @@ void gab_gcrun(struct gab_triple gab) {
   collect_modifications(gab);
 
   collect_cycles(gab);
-
-  gab.gc->nmodifications = 0;
 
   if (gab.vm != NULL)
     decrement_reachable(gab);

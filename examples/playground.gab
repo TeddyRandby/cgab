@@ -3,3 +3,5 @@ def a = { b c }
 def msg[?a]; a end
 
 a.b = a
+
+a.c = msg
