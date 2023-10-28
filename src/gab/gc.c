@@ -134,7 +134,8 @@ static inline void dec_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
   if (--obj->references == 0) {
     GAB_OBJ_BLACK(obj);
 
-    for_child_do(obj, dec_obj_ref, gab);
+    if (!GAB_OBJ_IS_NEW(obj))
+      for_child_do(obj, dec_obj_ref, gab);
 
     if (GAB_OBJ_IS_MODIFIED(obj))
       return;
@@ -168,8 +169,8 @@ static inline void queue_modification(struct gab_triple gab,
 }
 
 void queue_decrement(struct gab_triple gab, struct gab_obj *obj) {
-  if (GAB_OBJ_IS_NEW(obj))
-    return;
+  // if (GAB_OBJ_IS_NEW(obj) && obj->references > 1)
+  //   return;
 
   if (gab.gc->ndecrements + 1 >= cGAB_GC_DEC_BUFF_MAX)
     gab_gcrun(gab);
@@ -203,7 +204,16 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
 #if cGAB_LOG_GC
     printf("NEW\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
+
+#if cGAB_LOG_GC
+    queue_modification(gab, obj, __FUNCTION__, __LINE__);
+#else
+    queue_modification(gab, obj);
+#endif
+    
+    GAB_OBJ_MODIFIED(obj);
     GAB_OBJ_NOT_NEW(obj);
+
     return;
   }
 
@@ -355,11 +365,11 @@ gab_value gab_gcdref(struct gab_triple gab, gab_value value) {
 #endif
 
   if (GAB_OBJ_IS_NEW(obj) && !GAB_OBJ_IS_MODIFIED(obj)) {
-    GAB_OBJ_MODIFIED(obj);
+    // GAB_OBJ_MODIFIED(obj);
 #if cGAB_LOG_GC
-    queue_modification(gab, obj, func, line);
+    queue_decrement(gab, obj);
 #else
-    queue_modification(gab, obj);
+    queue_decrement(gab, obj);
 #endif
     return value;
   }

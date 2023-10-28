@@ -53,7 +53,7 @@ static const char *gab_kind_names[] = {
 struct gab_obj *gab_obj_create(struct gab_triple gab, struct gab_obj *self,
                                enum gab_kind k) {
   self->kind = k;
-  self->references = 0;
+  self->references = 1;
   self->flags = fGAB_OBJ_NEW;
 
 #if cGAB_LOG_GC
@@ -366,7 +366,7 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
   d_messages_insert(&gab.eg->interned_messages, self, 0);
 
   /* The message is owned by the engine. */
-  return gab_gciref(gab, __gab_obj(self));
+  return gab_gciref(gab, gab_gcdref(gab, __gab_obj(self)));
 }
 
 gab_value gab_builtin(struct gab_triple gab, gab_value name, gab_builtin_f f) {
