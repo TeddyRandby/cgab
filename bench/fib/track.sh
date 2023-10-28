@@ -1,6 +1,6 @@
-#! /usr/bin/fish
+#! /usr/bin/bash
 
-valgrind --tool=callgrind --callgrind-out-file=callgrind.out --dump-line=yes gab prop.gab
+valgrind --tool=callgrind --callgrind-out-file=callgrind.out --dump-line=yes gab fib.gab
 
 ~/pyenv/bin/gprof2dot --format=callgrind callgrind.out > dot.out
 
