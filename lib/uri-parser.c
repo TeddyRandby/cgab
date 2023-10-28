@@ -2,10 +2,9 @@
 #include <uriparser/Uri.h>
 #include <uriparser/UriBase.h>
 
-void gab_lib_stouri(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                    size_t argc, gab_value argv[argc]) {
+void gab_lib_stouri(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
-    gab_vmpush(vm, gab_string(gab, "invalid_arguments"));
+    gab_vmpush(gab.vm, gab_string(gab, "invalid_arguments"));
     return;
   }
 
@@ -26,7 +25,7 @@ void gab_lib_stouri(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   int result = uriParseSingleUriExA(&parsed_uri, start, after_end, &errorPos);
 
   if (result != URI_SUCCESS) {
-    gab_vmpush(vm, gab_string(gab, "parse_failed"));
+    gab_vmpush(gab.vm, gab_string(gab, "parse_failed"));
     return;
   }
 
@@ -46,8 +45,8 @@ void gab_lib_stouri(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 
     uint64_t index = 0;
     while (index < path_count) {
-      values[index] = gab_nstring(gab, path->text.afterLast - path->text.first,
-                                  path->text.first);
+      values[index] = gab_nstring(
+          gab, path->text.afterLast - path->text.first, path->text.first);
       path = path->next;
       index++;
     }
@@ -62,7 +61,7 @@ void gab_lib_stouri(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
                                   parsed_uri.query.afterLast);
 
   if (result != URI_SUCCESS) {
-    gab_vmpush(vm, gab_string(gab, "parse_failed"));
+    gab_vmpush(gab.vm, gab_string(gab, "parse_failed"));
     return;
   }
 
@@ -88,31 +87,29 @@ void gab_lib_stouri(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
 
   uriFreeUriMembersA(&parsed_uri);
 
-  gab_nvmpush(vm, sizeof(r_values) / sizeof(r_values[0]), r_values);
+  gab_nvmpush(gab.vm, sizeof(r_values) / sizeof(r_values[0]), r_values);
 }
 
-a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_triple gab) {
   const char *names[] = {
       "to_uri",
   };
 
-  gab_value types[] = {
-      gab_typ(gab, kGAB_STRING),
+  gab_value receivers[] = {
+      gab_typ(gab.eg, kGAB_STRING),
   };
 
-  gab_value values[] = {
+  gab_value specs[] = {
       gab_sbuiltin(gab, "to_uri", gab_lib_stouri),
   };
 
-  for (int32_t i = 0; i < sizeof(values) / sizeof(gab_value); i++) {
+  for (int32_t i = 0; i < sizeof(specs) / sizeof(gab_value); i++) {
     gab_spec(gab, (struct gab_spec_argt){
                       .name = names[i],
-                      .receiver = types[i],
-                      .specialization = values[i],
+                      .receiver = receivers[i],
+                      .specialization = specs[i],
                   });
   }
-
-  gab_ngciref(gab, gc, vm, 1, sizeof(types) / sizeof(types[0]), types);
 
   return a_gab_value_one(gab_nil);
 }

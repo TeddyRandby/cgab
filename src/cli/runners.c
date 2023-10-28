@@ -6,7 +6,7 @@
 #define MAIN_MODULE "__main__"
 
 void repl(const char *module, int flags) {
-  struct gab_eg *gab = gab_create();
+  struct gab_triple gab = gab_create();
 
   a_gab_value *result = NULL;
 
@@ -53,7 +53,7 @@ void repl(const char *module, int flags) {
       else
         printf("%V, ", arg);
 
-      gab_egkeep(gab, arg);
+      gab_egkeep(gab.eg, arg);
     }
 
     prev = result->data[0];
@@ -66,7 +66,7 @@ fin:
   return;
 }
 
-void run_src(struct gab_eg *gab, s_char src, const char *module, char delim,
+void run_src(struct gab_triple gab, s_char src, const char *module, char delim,
              uint8_t flags) {
   // if (module != NULL) {
   //   a_gab_value *res = gab_send(gab, NULL, gab_string(gab, "require"),
@@ -79,8 +79,6 @@ void run_src(struct gab_eg *gab, s_char src, const char *module, char delim,
                                      .source = (char *)src.data,
                                      .flags = flags,
                                  });
-
-  gab_egkeep(gab, main);
 
   if (main == gab_undefined)
     return;
@@ -122,7 +120,7 @@ void run_src(struct gab_eg *gab, s_char src, const char *module, char delim,
                                              .argv = buf,
                                          });
 
-      gab_negkeep(gab, result->len, result->data);
+      gab_negkeep(gab.eg, result->len, result->data);
 
       a_gab_value_destroy(result);
     }
@@ -135,13 +133,14 @@ void run_src(struct gab_eg *gab, s_char src, const char *module, char delim,
                                          .flags = flags,
                                      });
 
-  gab_negkeep(gab, result->len, result->data);
+  gab_negkeep(gab.eg, result->len, result->data);
+
   a_gab_value_destroy(result);
 }
 
 void run_string(const char *string, const char *module, char delim,
                 uint8_t flags) {
-  struct gab_eg *gab = gab_create();
+  struct gab_triple gab = gab_create();
 
   // This is a weird case where we actually want to include the null terminator
   s_char src = s_char_create(string, strlen(string) + 1);
@@ -153,7 +152,7 @@ void run_string(const char *string, const char *module, char delim,
 }
 
 void run_file(const char *path, const char *module, char delim, uint8_t flags) {
-  struct gab_eg *gab = gab_create();
+  struct gab_triple gab = gab_create();
 
   a_char *src = os_read_file(path);
 

@@ -1,5 +1,3 @@
-sum = 0
-
 def upto(limit)
   i = 0
 
@@ -7,7 +5,10 @@ def upto(limit)
     yield i
     i = i + 1
   until i == limit end
+
 end
+
+sum = 0
 
 for i in upto(1000000)
   sum = sum + i

@@ -1,6 +1,7 @@
 #include "hash.h"
 #include "string.h"
 #include "types.h"
+#include <stdint.h>
 
 #ifndef T
 #error "Define a type T before including this header"
@@ -31,7 +32,7 @@ LINKAGE bool METHOD(match)(TYPENAME self, TYPENAME other) {
 }
 
 LINKAGE size_t METHOD(hash)(TYPENAME self, uint64_t seed) {
-  return hash_bytes(seed, self.len * sizeof(T), (size_t *)self.data);
+  return hash_bytes(seed, self.len * sizeof(T), (uint8_t *)self.data);
 }
 
 #undef T

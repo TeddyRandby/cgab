@@ -58,6 +58,8 @@ struct gab_eg {
 
   struct gab_src *sources;
 
+  struct gab_allocator allocator;
+
   d_gab_imp imports;
 
   d_strings interned_strings;
@@ -65,8 +67,6 @@ struct gab_eg {
   d_shapes interned_shapes;
 
   d_messages interned_messages;
-
-  gab_allocator allocator;
 
   gab_value types[kGAB_NKINDS];
 

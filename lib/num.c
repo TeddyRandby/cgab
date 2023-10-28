@@ -58,8 +58,7 @@ static double random_float() {
   return result;
 }
 
-void gab_lib_between(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
-                     size_t argc, gab_value argv[argc]) {
+void gab_lib_between(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   double min = 0, max = 1;
 
@@ -69,7 +68,7 @@ void gab_lib_between(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
 
   case 2: {
     if (gab_valknd(argv[1]) != kGAB_NUMBER) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_random");
+      gab_panic(gab, "Invalid call to gab_lib_random");
 
       return;
     }
@@ -82,7 +81,7 @@ void gab_lib_between(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
   case 3: {
     if (gab_valknd(argv[1]) != kGAB_NUMBER ||
         gab_valknd(argv[2]) != kGAB_NUMBER) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_random");
+      gab_panic(gab, "Invalid call to gab_lib_random");
 
       return;
     }
@@ -93,21 +92,20 @@ void gab_lib_between(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
   }
 
   default:
-    gab_panic(gab, vm, "Invalid call to gab_lib_random");
+    gab_panic(gab, "Invalid call to gab_lib_random");
   }
 
   double num = min + (random_float() * max);
 
   gab_value res = gab_number(num);
 
-  gab_vmpush(vm, res);
+  gab_vmpush(gab.vm, res);
 }
 
-void gab_lib_floor(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
-                   size_t argc, gab_value argv[argc]) {
+void gab_lib_floor(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   if (argc != 1 || gab_valknd(argv[0]) != kGAB_NUMBER) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_floor");
+    gab_panic(gab, "Invalid call to gab_lib_floor");
 
     return;
   }
@@ -117,13 +115,12 @@ void gab_lib_floor(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
 
   gab_value res = gab_number(int_num + (float_num < 0));
 
-  gab_vmpush(vm, res);
+  gab_vmpush(gab.vm, res);
 }
 
-void gab_lib_to_n(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
-                  size_t argc, gab_value argv[argc]) {
+void gab_lib_to_n(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_from");
+    gab_panic(gab, "Invalid call to gab_lib_from");
     return;
   }
 
@@ -131,40 +128,30 @@ void gab_lib_to_n(struct gab_eg *gab, struct gab_gc *, struct gab_vm *vm,
 
   gab_value res = gab_number(strtod(str.data, NULL));
 
-  gab_vmpush(vm, res);
+  gab_vmpush(gab.vm, res);
 };
 
-a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
-  const char *names[] = {
-      "between",
-      "floor",
-      "to_n",
+a_gab_value *gab_lib(struct gab_triple gab) {
+
+  struct gab_spec_argt specs[] = {
+      {
+          "between",
+          gab_typ(gab.eg, kGAB_NUMBER),
+          gab_sbuiltin(gab, "between", gab_lib_between),
+      },
+      {
+          "floor",
+          gab_typ(gab.eg, kGAB_NUMBER),
+          gab_sbuiltin(gab, "floor", gab_lib_floor),
+      },
+      {
+          "to_n",
+          gab_typ(gab.eg, kGAB_STRING),
+          gab_sbuiltin(gab, "to_n", gab_lib_to_n),
+      },
   };
 
-  gab_value receivers[] = {
-      gab_typ(gab, kGAB_NUMBER),
-      gab_typ(gab, kGAB_NUMBER),
-      gab_typ(gab, kGAB_STRING),
-  };
-
-  gab_value values[] = {
-      gab_sbuiltin(gab, "between", gab_lib_between),
-      gab_sbuiltin(gab, "floor", gab_lib_floor),
-      gab_sbuiltin(gab, "to_n", gab_lib_to_n),
-  };
-
-  static_assert(LEN_CARRAY(names) == LEN_CARRAY(values));
-  static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
-
-  for (int i = 0; i < LEN_CARRAY(names); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = names[i],
-                      .receiver = receivers[i],
-                      .specialization = values[i],
-                  });
-  }
-
-  gab_ngciref(gab, gc, vm, 1, LEN_CARRAY(receivers), receivers);
+  gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
   return NULL;
 }

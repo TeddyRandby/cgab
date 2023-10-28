@@ -20,7 +20,7 @@ typedef struct {
   thrd_t parent;
 
   gab_value init;
-  struct gab_eg *gab;
+  struct gab_triple gab;
 } fiber;
 
 fiber *fiber_create(gab_value init) {
@@ -30,14 +30,13 @@ fiber *fiber_create(gab_value init) {
   v_a_char_create(&self->in_queue, 8);
   v_a_char_create(&self->out_queue, 8);
 
-  struct gab_eg *gab = gab_create();
+  self->gab = gab_create();
 
   self->rc = 1;
-  self->gab = gab;
-  self->init = gab_valcpy(gab, NULL, init);
+  self->init = gab_valcpy(self->gab, init);
   self->parent = thrd_current();
 
-  gab_egkeep(self->gab, self->init);
+  gab_egkeep(self->gab.eg, self->init);
 
   self->status = fRUNNING;
 
@@ -67,7 +66,7 @@ bool callable(gab_value v) {
   return gab_valknd(v) == kGAB_BLOCK || gab_valknd(v) == kGAB_SUSPENSE;
 }
 
-gab_value out_queue_pop(struct gab_eg *gab, fiber *f) {
+gab_value out_queue_pop(struct gab_triple gab, fiber *f) {
   if (f->out_queue.len < 1)
     return gab_nil;
 
@@ -81,7 +80,7 @@ gab_value out_queue_pop(struct gab_eg *gab, fiber *f) {
 }
 
 void out_queue_push(fiber *f, gab_value v) {
-  gab_egkeep(f->gab, v);
+  gab_egkeep(f->gab.eg, v);
 
   s_char ref = gab_valintocs(f->gab, v);
 
@@ -161,7 +160,7 @@ int fiber_launch(void *d) {
     if (runner == gab_undefined)
       break;
 
-    gab_egkeep(self->gab, runner);
+    gab_egkeep(self->gab.eg, runner);
   }
 
 fin:
@@ -174,53 +173,48 @@ fin:
   return 0;
 }
 
-void gab_lib_fiber(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                   size_t argc, gab_value argv[argc]) {
+void gab_lib_fiber(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     if (!callable(argv[1])) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_go");
+      gab_panic(gab, "Invalid call to gab_lib_go");
       return;
     }
 
     fiber *f = fiber_create(argv[1]);
 
     if (thrd_create(&f->thrd, fiber_launch, f) != thrd_success) {
-      gab_panic(gab, vm, "Invalid call to gab_lib_go");
+      gab_panic(gab, "Invalid call to gab_lib_go");
       return;
     }
 
     thrd_detach(f->thrd); // The fiber will clean itself up
 
-    gab_value fiber = gab_box(
-        gab, (struct gab_box_argt){
-                 .data = f,
-                 .type = gab_gciref(gab, gc, vm, gab_string(gab, "Fiber")),
-                 .destructor = fiber_destructor_cb,
-             });
+    gab_value fiber = gab_box(gab, (struct gab_box_argt){
+                                          .data = f,
+                                          .type = gab_string(gab, "Fiber"),
+                                          .destructor = fiber_destructor_cb,
+                                      });
 
-    gab_vmpush(vm, fiber);
-
-    gab_gcdref(gab, gc, vm, fiber);
+    gab_vmpush(gab.vm, fiber);
     break;
   }
   default:
-    gab_panic(gab, vm, "Invalid call to gab_lib_go");
+    gab_panic(gab, "Invalid call to gab_lib_go");
     return;
   }
 }
 
-void gab_lib_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                  size_t argc, gab_value argv[argc]) {
+void gab_lib_send(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc < 2) {
-    gab_panic(gab, vm, "invalid_arguments");
+    gab_panic(gab, "invalid_arguments");
     return;
   }
 
   fiber *f = (fiber *)gab_boxdata(argv[0]);
 
   if (f->status == fDONE) {
-    gab_panic(gab, vm, "fiber_done");
+    gab_panic(gab, "fiber_done");
     return;
   }
 
@@ -234,18 +228,17 @@ void gab_lib_send(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   }
   mtx_unlock(&f->mutex);
 
-  gab_vmpush(vm, gab_nil);
+  gab_vmpush(gab.vm, gab_nil);
 }
 
-void gab_lib_await(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                   size_t argc, gab_value argv[argc]) {
+void gab_lib_await(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   fiber *f = gab_boxdata(argv[0]);
 
   for (;;) {
     mtx_lock(&f->mutex);
 
     if (f->status == fDONE) {
-      gab_vmpush(vm, out_queue_pop(gab, f));
+      gab_vmpush(gab.vm, out_queue_pop(gab, f));
       mtx_unlock(&f->mutex);
       return;
     }
@@ -267,10 +260,10 @@ void gab_lib_await(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   gab_value result = out_queue_pop(gab, f);
   mtx_unlock(&f->mutex);
 
-  gab_vmpush(vm, result);
+  gab_vmpush(gab.vm, result);
 }
 
-a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_triple gab) {
   const char *names[] = {
       "fiber",
       "send",
@@ -299,8 +292,6 @@ a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
                       .specialization = specs[i],
                   });
   }
-
-  gab_ngciref(gab, gc, vm, 1, LEN_CARRAY(receivers), receivers);
 
   return NULL;
 }

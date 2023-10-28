@@ -3,7 +3,9 @@
 
 def Matrix { n data }
 
-def matrix[](n, data); { n data } end
+def matrix[](n, data)
+  { n data }
+end
 
 def +[Matrix](other)
   def N = self.n
@@ -53,9 +55,11 @@ N, sum, i = 2, 0, 0
 
 loop
   a = :matrix(N, :tuple(N * N):map! do; @2 end)
+  
   b = :matrix(N, :tuple(N * N):map! do; @2 end)
 
   c = a + b
+
   d = c * a * b
 
   sum = d:diag_sum

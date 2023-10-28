@@ -7,11 +7,9 @@
 
 #define MODULE_SYMBOL "gab_lib"
 
-typedef a_gab_value *(*handler_f)(struct gab_eg *, struct gab_gc *,
-                                  struct gab_vm *, const char *);
+typedef a_gab_value *(*handler_f)(struct gab_triple, const char *);
 
-typedef a_gab_value *(*module_f)(struct gab_eg *, struct gab_gc *,
-                                 struct gab_vm *);
+typedef a_gab_value *(*module_f)(struct gab_triple);
 
 typedef struct {
   handler_f handler;
@@ -19,12 +17,12 @@ typedef struct {
   const char *suffix;
 } resource;
 
-a_gab_value *gab_shared_object_handler(struct gab_eg *gab, struct gab_gc *gc,
-                                       struct gab_vm *vm, const char *path) {
+a_gab_value *gab_shared_object_handler(struct gab_triple gab,
+                                       const char *path) {
   void *handle = dlopen(path, RTLD_LAZY);
 
   if (!handle) {
-    gab_panic(gab, vm, "Couldn't open module");
+    gab_panic(gab, "Couldn't open module");
     return NULL;
   }
 
@@ -32,23 +30,22 @@ a_gab_value *gab_shared_object_handler(struct gab_eg *gab, struct gab_gc *gc,
 
   if (!symbol) {
     dlclose(handle);
-    gab_panic(gab, vm, "Missing symbol " MODULE_SYMBOL);
+    gab_panic(gab, "Missing symbol " MODULE_SYMBOL);
     return NULL;
   }
 
-  a_gab_value *res = symbol(gab, gc, vm);
+  a_gab_value *res = symbol(gab);
 
-  gab_impputshd(gab, path, handle, res);
+  gab_impputshd(gab.eg, path, handle, res);
 
   return res;
 }
 
-a_gab_value *gab_source_file_handler(struct gab_eg *gab, struct gab_gc *gc,
-                                     struct gab_vm *vm, const char *path) {
+a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   a_char *src = os_read_file(path);
 
   if (src == NULL)
-    return a_gab_value_one(gab_panic(gab, vm, "Failed to read module"));
+    return a_gab_value_one(gab_panic(gab, "Failed to read module"));
 
   gab_value pkg =
       gab_cmpl(gab, (struct gab_cmpl_argt){
@@ -65,7 +62,8 @@ a_gab_value *gab_source_file_handler(struct gab_eg *gab, struct gab_gc *gc,
                        .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
                    });
 
-  gab_impputmod(gab, path, pkg, res);
+  gab_impputmod(gab.eg, path, pkg, res);
+  gab_negkeep(gab.eg, res->len, res->data);
 
   return res;
 }
@@ -140,14 +138,13 @@ a_char *match_resource(resource *res, const char *name, uint64_t len) {
   return a_char_create(buffer, total_len);
 }
 
-void gab_lib_use(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                 size_t argc, gab_value argv[argc]) {
+void gab_lib_use(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc == 1) {
-    gab_panic(gab, vm, "Invalid call to gab_lib_require");
+    gab_panic(gab, "Invalid call to gab_lib_require");
     return;
   }
 
-  //skip first argument
+  // skip first argument
   for (size_t i = 1; i < argc; i++) {
     s_char name = gab_valintocs(gab, argv[i]);
 
@@ -156,19 +153,19 @@ void gab_lib_use(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
       a_char *path = match_resource(res, name.data, name.len);
 
       if (path) {
-        struct gab_imp *cached = gab_impat(gab, (char *)path->data);
+        struct gab_imp *cached = gab_impat(gab.eg, (char *)path->data);
 
         if (cached != NULL) {
           a_gab_value *v = gab_impval(cached);
           if (v != NULL)
-            gab_nvmpush(vm, v->len, v->data);
+            gab_nvmpush(gab.vm, v->len, v->data);
           goto fin;
         }
 
-        a_gab_value *result = res->handler(gab, gc, vm, (char *)path->data);
+        a_gab_value *result = res->handler(gab, (char *)path->data);
 
         if (result != NULL) {
-          gab_nvmpush(vm, result->len, result->data);
+          gab_nvmpush(gab.vm, result->len, result->data);
           goto fin;
         }
 
@@ -179,28 +176,26 @@ void gab_lib_use(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
     }
   }
 
-  gab_panic(gab, vm, "Could not locate module");
+  gab_panic(gab, "Could not locate module");
 }
 
-void gab_lib_panic(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                   size_t argc, gab_value argv[argc]) {
+void gab_lib_panic(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc == 1) {
     s_char str = gab_valintocs(gab, argv[0]);
 
     char *cstr = strndup((char *)str.data, str.len);
 
-    gab_panic(gab, vm, cstr);
+    gab_panic(gab, cstr);
 
     free(cstr);
 
     return;
   }
 
-  gab_panic(gab, vm, "Error");
+  gab_panic(gab, "Error");
 }
 
-void gab_lib_print(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                   size_t argc, gab_value argv[argc]) {
+void gab_lib_print(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   for (uint8_t i = 0; i < argc; i++) {
     if (i > 0)
       putc(' ', stdout);
@@ -210,25 +205,24 @@ void gab_lib_print(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
   printf("\n");
 }
 
-void gab_setup_builtins(struct gab_eg *gab, struct gab_gc *gc) {
-  gab_spec(gab,
-           (struct gab_spec_argt){
-               .name = "use",
-               .receiver = gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_NIL)),
-               .specialization = gab_sbuiltin(gab, "use", gab_lib_use),
-           });
+void gab_setup_builtins(struct gab_triple gab) {
+  gab_spec(gab, (struct gab_spec_argt){
+                    .name = "use",
+                    .receiver = gab_typ(gab.eg, kGAB_NIL),
+                    .specialization = gab_sbuiltin(gab, "use", gab_lib_use),
+                });
 
   gab_spec(gab,
            (struct gab_spec_argt){
                .name = "panic",
-               .receiver = gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_STRING)),
+               .receiver = gab_typ(gab.eg, kGAB_STRING),
                .specialization = gab_sbuiltin(gab, "panic", gab_lib_panic),
            });
 
-  gab_spec(gab, (struct gab_spec_argt){
-                    .name = "print",
-                    .receiver =
-                        gab_gciref(gab, gc, NULL, gab_typ(gab, kGAB_UNDEFINED)),
-                    .specialization = gab_sbuiltin(gab, "print", gab_lib_print),
-                });
+  gab_spec(gab,
+           (struct gab_spec_argt){
+               .name = "print",
+               .receiver = gab_typ(gab.eg, kGAB_UNDEFINED),
+               .specialization = gab_sbuiltin(gab, "print", gab_lib_print),
+           });
 }

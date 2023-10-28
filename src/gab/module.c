@@ -8,34 +8,24 @@
 #include <stdint.h>
 #include <stdio.h>
 
-struct gab_mod *gab_mod(struct gab_eg *gab, gab_value name,
+struct gab_mod *gab_mod(struct gab_eg *eg, gab_value name,
                         struct gab_src *source) {
   struct gab_mod *self = NEW(struct gab_mod);
   memset(self, 0, sizeof(struct gab_mod));
 
   self->name = name;
   self->source = source;
-  self->next = gab->modules;
-  gab->modules = self;
+  self->next = eg->modules;
+  eg->modules = self;
 
   return self;
 }
 
-void gab_moddestroy(struct gab_eg *gab, struct gab_gc *gc,
-                    struct gab_mod *mod) {
+void gab_moddestroy(struct gab_triple gab, struct gab_mod *mod) {
   if (!mod)
     return;
 
-  for (uint64_t i = 0; i < mod->constants.len; i++) {
-    gab_value v = v_gab_constant_val_at(&mod->constants, i);
-    // The only kind of value owned by the modules
-    // are their prototypes and the main closure
-    enum gab_kind kind = gab_valknd(v);
-    if (kind == kGAB_BLOCK_PROTO || kind == kGAB_SUSPENSE_PROTO ||
-        kind == kGAB_BLOCK) {
-      gab_gcdref(gab, gc, NULL, v);
-    }
-  }
+  gab_ngcdref(gab, 1, mod->constants.len, mod->constants.data);
 
   v_uint8_t_destroy(&mod->bytecode);
   v_uint64_t_destroy(&mod->bytecode_toks);
@@ -44,15 +34,15 @@ void gab_moddestroy(struct gab_eg *gab, struct gab_gc *gc,
   DESTROY(mod);
 }
 
-struct gab_mod *gab_modcpy(struct gab_eg *gab, struct gab_mod *self) {
+struct gab_mod *gab_modcpy(struct gab_triple gab, struct gab_mod *self) {
   struct gab_mod *copy = NEW(struct gab_mod);
 
   copy->name = self->name;
-  copy->source = gab_srccpy(gab, self->source);
+  copy->source = gab_srccpy(gab.eg, self->source);
   copy->previous_compiled_op = OP_NOP;
 
-  copy->next = gab->modules;
-  gab->modules = copy;
+  copy->next = gab.eg->modules;
+  gab.eg->modules = copy;
 
   v_uint8_t_copy(&copy->bytecode, &self->bytecode);
   v_uint64_t_copy(&copy->bytecode_toks, &self->bytecode_toks);
@@ -62,7 +52,7 @@ struct gab_mod *gab_modcpy(struct gab_eg *gab, struct gab_mod *self) {
   for (size_t i = 0; i < copy->constants.len; i++) {
     gab_value v = v_gab_constant_val_at(&self->constants, i);
     if (gab_valiso(v)) {
-      v_gab_constant_set(&copy->constants, i, gab_valcpy(gab, NULL, v));
+      v_gab_constant_set(&copy->constants, i, gab_valcpy(gab, v));
     }
   }
 
@@ -494,7 +484,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_mod *self, uint64_t offset) {
   case OP_POP_STORE_LOCAL:
   case OP_LOAD_UPVALUE:
   case OP_INTERPOLATE:
-  case OP_DROP:
   case OP_SHIFT:
   case OP_NEXT:
   case OP_VAR:

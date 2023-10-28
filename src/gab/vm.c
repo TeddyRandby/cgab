@@ -16,15 +16,15 @@
 
 void gab_vm_container_cb(void *data) { DESTROY(data); }
 
-gab_value vm_error(struct gab_eg *gab, struct gab_vm *vm, uint8_t flags,
-                   enum gab_status e, const char *help_fmt, ...) {
+gab_value vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
+                   const char *help_fmt, ...) {
 
   va_list va;
   va_start(va, help_fmt);
 
-  struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(vm->fp->b->p);
+  struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(gab.vm->fp->b->p);
 
-  size_t offset = vm->fp->ip - p->mod->bytecode.data - 1;
+  size_t offset = gab.vm->fp->ip - p->mod->bytecode.data - 1;
 
   gab_verr(
       (struct gab_err_argt){
@@ -42,25 +42,20 @@ gab_value vm_error(struct gab_eg *gab, struct gab_vm *vm, uint8_t flags,
   return gab_nil;
 }
 
-gab_value gab_vm_panic(struct gab_eg *gab, struct gab_vm *vm, const char *msg) {
-  return vm_error(gab, vm, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC, GAB_PANIC,
-                  msg);
+gab_value gab_vm_panic(struct gab_triple gab, const char *msg) {
+  vm_error(gab, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC, GAB_PANIC, msg);
+  exit(1);
 }
 
-void gab_vm_create(struct gab_vm *self, uint8_t flags, size_t argc,
-                   gab_value argv[argc]) {
-  gab_gccreate(&self->gc);
-
+void gab_vmcreate(struct gab_vm *self, uint8_t flags, size_t argc,
+                  gab_value argv[argc]) {
   self->fp = self->fb;
   self->sp = self->sb;
   self->fp->slots = self->sp;
   self->flags = flags;
 }
 
-void gab_vm_destroy(struct gab_eg *gab, struct gab_vm *self) {
-  gab_gcrun(gab, &self->gc, self);
-  gab_gcdestroy(&self->gc);
-}
+void gab_vmdestroy(struct gab_eg *gab, struct gab_vm *self) {}
 
 void gab_fpry(FILE *stream, struct gab_vm *vm, uint64_t value) {
   uint64_t frame_count = vm->fp - vm->fb;
@@ -188,35 +183,36 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   vm->fp->ip = proto->mod->bytecode.data;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
+  
+  // Update the SP to point just past the locals section
+  vm->sp = vm->fp->slots + proto->nlocals;
 
-  vm->sp = trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, len);
-
-  vm->sp += (proto->nlocals - len - 1);
+  // Trim arguments into the slots
+  *vm->sp = trim_values(vm->fp->slots + 1, vm->fp->slots + 1, have, len);
 
   return true;
 }
 
-static inline void call_builtin(struct gab_eg *gab, struct gab_vm *vm,
+static inline void call_builtin(struct gab_triple gab,
                                 struct gab_obj_builtin *b, uint8_t arity,
                                 uint8_t want, bool is_message) {
-  gab_value *to = vm->sp - arity - 1; // Is this -1 correct?
+  gab_value *to = gab.vm->sp - arity - 1; // Is this -1 correct?
 
-  gab_value *before = vm->sp;
+  gab_value *before = gab.vm->sp;
 
   // Only pass in the extra "self" argument
   // if this is a message.
-  (*b->function)(gab, &vm->gc, vm, arity + is_message,
-                 vm->sp - arity - is_message);
+  (*b->function)(gab, arity + is_message, gab.vm->sp - arity - is_message);
 
-  uint8_t have = vm->sp - before;
+  uint8_t have = gab.vm->sp - before;
 
   // There is always an extra to trim bc of
   // the receiver or callee.
-  vm->sp = trim_return(vm->sp - have, to, have, want);
+  gab.vm->sp = trim_return(gab.vm->sp - have, to, have, want);
 }
 
-a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
-                        size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
+                       size_t argc, gab_value argv[argc]) {
 #if cGAB_LOG_VM
 #define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
 #else
@@ -267,9 +263,10 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 /*
   Lots of helper macros.
 */
-#define EG() (gab)
-#define GC() (&VM()->gc)
-#define VM() (vm)
+#define GAB() (gab)
+#define EG() (GAB().eg)
+#define GC() (GAB().gc)
+#define VM() (GAB().vm)
 #define INSTR() (instr)
 #define FRAME() (VM()->fp)
 #define CLOSURE() (FRAME()->b)
@@ -332,20 +329,20 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 #define PROP_CACHE_DIST 19
 
 #define ERROR(status, help, ...)                                               \
-  (a_gab_value_one(vm_error(EG(), VM(), flags, status, help, __VA_ARGS__)))
+  (a_gab_value_one(vm_error(GAB(), flags, status, help, __VA_ARGS__)))
 
   /*
    ----------- BEGIN RUN BODY -----------
   */
-  struct gab_vm *vm = NEW(struct gab_vm);
-  gab_vm_create(vm, flags, argc, argv);
+  VM() = NEW(struct gab_vm);
+  gab_vmcreate(VM(), flags, argc, argv);
 
   register uint8_t instr = OP_NOP;
   register uint8_t *ip = NULL;
 
-  *vm->sp++ = main;
+  *VM()->sp++ = main;
   for (uint8_t i = 0; i < argc; i++)
-    *vm->sp++ = argv[i];
+    *VM()->sp++ = argv[i];
 
   switch (gab_valknd(main)) {
   case kGAB_BLOCK: {
@@ -394,7 +391,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         if (offset == UINT64_MAX) {
           STORE_FRAME();
           return ERROR(GAB_IMPLEMENTATION_MISSING,
-                       "Message %V does not specialize on %V", m, receiver);
+                       "%V does not specialize on %V: %V", m, type, receiver);
         }
       }
 
@@ -484,7 +481,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       STORE_FRAME();
 
-      call_builtin(EG(), VM(), GAB_VAL_TO_BUILTIN(spec), have, want, true);
+      call_builtin(GAB(), GAB_VAL_TO_BUILTIN(spec), have, want, true);
 
       LOAD_FRAME();
 
@@ -512,7 +509,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       STORE_FRAME();
 
-      call_builtin(EG(), VM(), GAB_VAL_TO_BUILTIN(receiver), have, want, false);
+      call_builtin(GAB(), GAB_VAL_TO_BUILTIN(receiver), have, want, false);
 
       LOAD_FRAME();
       NEXT();
@@ -666,7 +663,8 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       gab_value b = POP();
       gab_value a = POP();
-      gab_value ab = gab_strcat(EG(), a, b);
+      gab_value ab = gab_strcat(GAB(), a, b);
+
       PUSH(ab);
 
       VAR() = 1;
@@ -730,12 +728,6 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         STORE_FRAME();
         return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
       }
-
-      struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-
-      gab_gcdref(EG(), GC(), VM(), rec->data[prop_offset]);
-
-      gab_gciref(EG(), GC(), VM(), value);
 
       gab_urecput(index, prop_offset, value);
 
@@ -817,11 +809,13 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       gab_value sus = POP();
       have--;
 
-      TOP() = trim_return(TOP() - have, SLOTS() + start, have, want);
-
-      PUSH(sus);
-
       IP() += dist * (gab_valknd(sus) != kGAB_SUSPENSE);
+
+      trim_values(TOP() - have, SLOTS() + start, have, want);
+
+      DROP_N(have);
+
+      LOCAL(start + want) = sus;
 
       NEXT();
     }
@@ -829,10 +823,11 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
     CASE_CODE(NEXT) : {
       uint8_t iterator = READ_BYTE;
 
+      PUSH(LOCAL(iterator));
+
       STORE_FRAME();
 
-      if (!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(LOCAL(iterator)), 0,
-                         VAR_EXP))
+      if (!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(PEEK()), 0, VAR_EXP))
         return ERROR(GAB_OVERFLOW, "", "");
 
       LOAD_FRAME();
@@ -853,14 +848,10 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
           assert(frame_len < UINT16_MAX);
 
-          gab_ngciref(EG(), GC(), VM(), 1, frame_len, SLOTS());
-
-          gab_value sus = gab_suspense(EG(), frame_len, __gab_obj(CLOSURE()),
+          gab_value sus = gab_suspense(GAB(), frame_len, __gab_obj(CLOSURE()),
                                        proto, SLOTS());
 
           PUSH(sus);
-
-          gab_gcdref(EG(), GC(), VM(), sus);
 
           have++;
 
@@ -881,18 +872,16 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       TOP() = trim_return(from, to, have, FRAME()->want);
 
       if (--FRAME() == VM()->fb) {
-        // Increment and pop the module.
-        a_gab_value *results = a_gab_value_create(to, have);
+        gab_ngciref(GAB(), 1, have, to);
 
-        for (uint32_t i = 0; i < results->len; i++) {
-          gab_gciref(EG(), GC(), VM(), results->data[i]);
-        }
+        a_gab_value *results = a_gab_value_create(to, have);
 
         VM()->sp = VM()->sb;
 
-        gab_vm_destroy(EG(), VM());
+        gab_vmdestroy(EG(), VM());
 
         DESTROY(VM());
+        GAB().vm = NULL;
 
         return results;
       }
@@ -1052,10 +1041,6 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         WRITE_BYTE(PROP_CACHE_DIST, OP_STORE_PROPERTY_POLY);
       }
 
-      gab_gcdref(EG(), GC(), VM(), rec->data[prop_offset]);
-
-      gab_gciref(EG(), GC(), VM(), value);
-
       gab_urecput(index, prop_offset, value);
 
       DROP_N(2);
@@ -1088,10 +1073,6 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
       }
 
-      gab_gcdref(EG(), GC(), VM(), rec->data[prop_offset]);
-
-      gab_gciref(EG(), GC(), VM(), value);
-
       gab_urecput(index, prop_offset, value);
 
       DROP_N(2);
@@ -1116,16 +1097,6 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
       memcpy(TOP() - (n - 1), TOP() - n, (n - 1) * sizeof(gab_value));
 
       PEEK_N(n) = tmp;
-
-      NEXT();
-    }
-
-    CASE_CODE(DROP) : {
-      gab_value tmp = POP();
-
-      DROP_N(READ_BYTE);
-
-      PUSH(tmp);
 
       NEXT();
     }
@@ -1155,16 +1126,16 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
     CASE_CODE(INTERPOLATE) : {
       uint8_t n = READ_BYTE;
-      gab_value acc = gab_valintos(EG(), PEEK_N(n));
+      gab_value str = gab_valintos(GAB(), PEEK_N(n));
 
       for (uint8_t i = n - 1; i > 0; i--) {
-        gab_value curr = gab_valintos(EG(), PEEK_N(i));
-        acc = gab_strcat(EG(), acc, curr);
+        gab_value curr = gab_valintos(GAB(), PEEK_N(i));
+        str = gab_strcat(GAB(), str, curr);
       }
 
       POP_N(n);
 
-      PUSH(acc);
+      PUSH(str);
 
       NEXT();
     }
@@ -1365,7 +1336,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
     CASE_CODE(BLOCK) : {
       gab_value p = READ_CONSTANT;
 
-      gab_value blk = gab_block(EG(), p);
+      gab_value blk = gab_block(GAB(), p);
 
       struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
       struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(p);
@@ -1381,11 +1352,7 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         }
       }
 
-      gab_ngciref(EG(), GC(), VM(), 1, proto->nupvalues, b->upvalues);
-
       PUSH(blk);
-
-      gab_gcdref(EG(), GC(), VM(), blk);
 
       NEXT();
     }
@@ -1399,11 +1366,11 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       if (offset != UINT64_MAX) {
         STORE_FRAME();
-        return ERROR(GAB_IMPLEMENTATION_EXISTS, " Tried to implement %V for %V",
-                     m, r);
+        return ERROR(GAB_IMPLEMENTATION_EXISTS,
+                     " Tried to specialize %V for %V", m, r);
       }
 
-      gab_value blk = gab_block(EG(), p);
+      gab_value blk = gab_block(GAB(), p);
 
       struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
       struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(p);
@@ -1421,11 +1388,10 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
         }
       }
 
-      gab_ngciref(EG(), GC(), VM(), 1, b->nupvalues, b->upvalues);
+      struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(m);
 
-      gab_gciref(EG(), GC(), VM(), r);
-
-      gab_msgput(m, r, blk);
+      msg->specs = gab_recordwith(GAB(), msg->specs, r, blk);
+      msg->version++;
 
       PEEK() = m;
 
@@ -1451,9 +1417,9 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       gab_value *ap = TOP() - above;
 
-      gab_value shape = gab_nshape(EG(), len);
+      gab_value shape = gab_nshape(GAB(), len);
 
-      gab_value rec = gab_recordof(EG(), shape, 1, ap - len);
+      gab_value rec = gab_recordof(GAB(), shape, 1, ap - len);
 
       DROP_N(len - 1);
 
@@ -1463,30 +1429,19 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
 
       VAR() = want + 1;
 
-      gab_gcdref(EG(), GC(), VM(), rec);
-
       NEXT();
     }
 
     CASE_CODE(RECORD) : {
       uint8_t len = READ_BYTE;
 
-      bool internedOut;
+      gab_value shape = gab_shape(GAB(), 2, len, TOP() - len * 2);
 
-      gab_value shape = gab_shape(EG(), &internedOut, 2, len, TOP() - len * 2);
-
-      if (!internedOut)
-        gab_ngciref(EG(), GC(), VM(), 2, len, TOP() - len * 2);
-
-      gab_value rec = gab_recordof(EG(), shape, 2, TOP() + 1 - (len * 2));
-
-      gab_ngciref(EG(), GC(), VM(), 2, len, TOP() + 1 - (len * 2));
+      gab_value rec = gab_recordof(GAB(), shape, 2, TOP() + 1 - (len * 2));
 
       DROP_N(len * 2);
 
       PUSH(rec);
-
-      gab_gcdref(EG(), GC(), VM(), rec);
 
       NEXT();
     }
@@ -1494,15 +1449,13 @@ a_gab_value *gab_vm_run(struct gab_eg *gab, gab_value main, uint8_t flags,
     CASE_CODE(TUPLE) : {
       uint8_t len = parse_have(VM(), READ_BYTE);
 
-      gab_value shape = gab_nshape(EG(), len);
+      gab_value shape = gab_nshape(GAB(), len);
 
-      gab_value rec = gab_recordof(EG(), shape, 1, TOP() - len);
+      gab_value rec = gab_recordof(GAB(), shape, 1, TOP() - len);
 
       DROP_N(len);
 
       PUSH(rec);
-
-      gab_gcdref(EG(), GC(), VM(), rec);
 
       NEXT();
     }

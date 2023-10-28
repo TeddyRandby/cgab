@@ -40,10 +40,9 @@ int handle_on_header_value(llhttp_t *parser, const char *data, size_t len) {
   return HPE_OK;
 }
 
-void gab_lib_parse(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
-                   size_t argc, gab_value argv[argc]) {
+void gab_lib_parse(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
-    gab_vmpush(vm, gab_string(gab, "invalid_arguments"));
+    gab_vmpush(gab.vm, gab_string(gab, "invalid_arguments"));
     return;
   }
 
@@ -91,35 +90,33 @@ void gab_lib_parse(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm,
                         : gab_nil,
     };
 
-    gab_nvmpush(vm, sizeof(result) / sizeof(result[0]), result);
+    gab_nvmpush(gab.vm, sizeof(result) / sizeof(result[0]), result);
   } else {
-    gab_vmpush(vm, gab_string(gab, llhttp_errno_name(err)));
+    gab_vmpush(gab.vm, gab_string(gab, llhttp_errno_name(err)));
   }
 }
 
-a_gab_value *gab_lib(struct gab_eg *gab, struct gab_gc *gc, struct gab_vm *vm) {
+a_gab_value *gab_lib(struct gab_triple gab) {
 
   const char *names[] = {
       "to_http",
   };
 
-  gab_value types[] = {
-      gab_typ(gab, kGAB_STRING),
+  gab_value receivers[] = {
+      gab_typ(gab.eg, kGAB_STRING),
   };
 
-  gab_value values[] = {
+  gab_value specs[] = {
       gab_sbuiltin(gab, "to_http", gab_lib_parse),
   };
 
-  for (size_t i = 0; i < sizeof(values) / sizeof(values[0]); i++) {
+  for (size_t i = 0; i < sizeof(specs) / sizeof(specs[0]); i++) {
     gab_spec(gab, (struct gab_spec_argt){
                       .name = names[i],
-                      .receiver = types[i],
-                      .specialization = values[i],
+                      .receiver = receivers[i],
+                      .specialization = specs[i],
                   });
   }
-
-  gab_ngciref(gab, gc, vm, 1, sizeof(types) / sizeof(types[0]), types);
 
   return a_gab_value_one(gab_nil);
 }

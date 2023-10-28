@@ -1,7 +1,7 @@
 #ifndef GAB_COMMON_H
 #define GAB_COMMON_H
 
-// Collect as frequently as possible (on every RC push) and collect debug info.
+// Collect as frequently as possible (on every RC push)
 #ifndef cGAB_DEBUG_GC
 #define cGAB_DEBUG_GC 0
 #endif
@@ -25,9 +25,8 @@
 #define cGAB_LOG_VM 0
 #endif
 
-// Use the simple custom chunk allocator
 #ifndef cGAB_CHUNK_ALLOCATOR
-#define cGAB_CHUNK_ALLOCATOR 1
+#define cGAB_CHUNK_ALLOCATOR 0
 #endif
 
 // Capacity at which point dictionaries are resized
@@ -69,16 +68,12 @@
 #error "cGAB_GC_DEC_BUFF_MAX must be less than or equal to STACK_MAX"
 #endif
 
-#ifndef cGAB_GC_INC_BUFF_MAX
-#define cGAB_GC_INC_BUFF_MAX (cGAB_STACK_MAX)
+#ifndef cGAB_GC_MOD_BUFF_MAX
+#define cGAB_GC_MOD_BUFF_MAX (cGAB_STACK_MAX)
 #endif
 
 #if cGAB_GC_DEC_BUFF_MAX < STACK_MAX
 #error "cGAB_GC_DEC_BUFF_MAX must be less than or equal to STACK_MAX"
-#endif
-
-#ifndef cGAB_GC_ROOT_BUFF_MAX
-#define cGAB_GC_ROOT_BUFF_MAX (32)
 #endif
 
 // Not configurable, just constants

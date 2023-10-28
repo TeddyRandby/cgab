@@ -2,9 +2,10 @@
 #  combinations of operators that add up 20
 #
 # Yes, its not actually blackjack
-:use 'std/Record'
+:use 'any'
 :use 'std/List'
 :use 'std/Number'
+:use 'std/Record'
 
 def swap![.Record](i, j)
     self[i], self[j] = self[j], self[i]
@@ -33,7 +34,7 @@ end
 def ops = :list
 def hands = :list
 
-for seq in [ &+, &-, &*, &/ ]:permutations!
+for seq in [ &+, &-, &/, &* ]:permutations!
     ops:push!(seq:slice)
 end
 
@@ -41,14 +42,14 @@ for hand in [ 8 5 3 10 11 ]:permutations!
     hands:push!(hand:slice)
 end
 
-for hand in [ 8 5 3 10 1]:permutations!
+for hand in [ 8 5 3 10 1 ]:permutations!
     hands:push!(hand:slice)
 end
 
 for seq in ops:each
     for hand in hands:each
         total = hand[0]
-
+        
         for i, op in seq:each
             total = total:send(op, hand[i + 1])
         end

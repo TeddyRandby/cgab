@@ -1,7 +1,7 @@
-def test(a, b, c)
-  a:print
-  b:print
-  c:print
-end
+def a = { b c }
 
-test(1)
+def msg[?a]; a end
+
+a.b = a
+
+a.c = msg
