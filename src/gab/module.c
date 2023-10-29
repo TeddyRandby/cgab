@@ -451,16 +451,10 @@ uint64_t dumpInstruction(FILE *stream, struct gab_mod *self, uint64_t offset) {
     return dumpConstantInstruction(stream, self, offset);
   case OP_ITER:
     return dumpIter(stream, self, offset);
-  case OP_STORE_PROPERTY_ANA:
-  case OP_STORE_PROPERTY_MONO:
-  case OP_STORE_PROPERTY_POLY:
-  case OP_LOAD_PROPERTY_ANA:
-  case OP_LOAD_PROPERTY_MONO:
-  case OP_LOAD_PROPERTY_POLY:
-    return dumpConstantInstruction(stream, self, offset) + 16;
   case OP_SEND_ANA:
   case OP_SEND_MONO_CLOSURE:
   case OP_SEND_MONO_BUILTIN:
+  case OP_SEND_PROPERTY:
   case OP_SEND_PRIMITIVE_STORE:
   case OP_SEND_PRIMITIVE_LOAD:
   case OP_SEND_PRIMITIVE_CONCAT:

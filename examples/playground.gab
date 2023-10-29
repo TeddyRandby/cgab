@@ -1,7 +1,23 @@
-def a = { b c }
+:use 'std/Any'
+:use 'std/Pry'
+:use 'dis'
 
-def msg[?a]; a end
+def Vector { x y }
 
-a.b = a
+def + [Vector](other)
+    other:is(Vector) or .INVALID_ARGUMENTS:panic
 
-a.c = msg
+    {
+        x = self.x + other.x
+        y = self.y + other.y
+    }
+end
+
+
+def print(..args)
+  args:print
+end
+
+print:dis
+
+print(1,2,3)

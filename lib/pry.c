@@ -24,16 +24,29 @@ void gab_lib_pryframes(struct gab_triple gab, size_t argc,
   return;
 }
 
-gab_value gab_lib(struct gab_triple gab) {
+void gab_lib_pryself(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  size_t depth = 0;
+  
+  if (argc == 1 && gab_valknd(argv[0]) == kGAB_NUMBER) {
+    depth = gab_valton(argv[0]);
+  }
+
+  gab_fpry(stdout, gab.vm, depth);
+}
+
+a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value recs[] = {
       gab_string(gab, "gab_vm"),
+      gab_nil,
   };
 
   gab_value specs[] = {
       gab_sbuiltin(gab, "pry", gab_lib_pryframes),
+      gab_sbuiltin(gab, "pry", gab_lib_pryself),
   };
 
   const char *names[] = {
+      "pry",
       "pry",
   };
 
@@ -48,5 +61,5 @@ gab_value gab_lib(struct gab_triple gab) {
                   });
   }
 
-  return gab_nil;
+  return a_gab_value_one(gab_nil);
 }

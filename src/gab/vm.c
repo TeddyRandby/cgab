@@ -81,7 +81,7 @@ void gab_fpry(FILE *stream, struct gab_vm *vm, uint64_t value) {
   }
 }
 
-static inline int32_t parse_have(struct gab_vm *vm, uint8_t have) {
+static inline int32_t compute_arity(struct gab_vm *vm, uint8_t have) {
   if (have & FLAG_VAR_EXP)
     return *vm->sp + (have >> 1);
   else
@@ -183,7 +183,7 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   vm->fp->ip = proto->mod->bytecode.data;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
-  
+
   // Update the SP to point just past the locals section
   vm->sp = vm->fp->slots + proto->nlocals;
 
@@ -204,7 +204,7 @@ static inline void call_builtin(struct gab_triple gab,
   // if this is a message.
   (*b->function)(gab, arity + is_message, gab.vm->sp - arity - is_message);
 
-  uint8_t have = gab.vm->sp - before;
+  uint64_t have = gab.vm->sp - before;
 
   // There is always an extra to trim bc of
   // the receiver or callee.
@@ -368,8 +368,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
   LOOP() {
     CASE_CODE(SEND_ANA) : {
       gab_value m = READ_CONSTANT;
-
-      uint8_t have = parse_have(VM(), READ_BYTE);
+      uint8_t have = compute_arity(VM(), READ_BYTE);
       SKIP_BYTE;
 
       gab_value receiver = PEEK_N(have + 1);
@@ -378,20 +377,35 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       uint64_t offset = gab_msgfind(m, type);
 
-      if (offset == UINT64_MAX) {
+      if (offset == GAB_PROPERTY_NOT_FOUND) {
         if (gab_valknd(receiver) == kGAB_RECORD) {
-          offset = gab_msgfind(m, gab_typ(EG(), kGAB_RECORD));
+          /* Try sending as a property */
+          offset = gab_shpfind(gab_recshp(receiver), gab_msgname(m));
+          if (offset != GAB_PROPERTY_NOT_FOUND) {
+            /* Write into the cache the dispatch to specialized opcode */
+            WRITE_INLINEBYTE(GAB_VAL_TO_MESSAGE(m)->version);
+            WRITE_INLINEQWORD(type);
+            WRITE_INLINEQWORD(offset);
+            WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PROPERTY);
 
-          if (offset != UINT64_MAX)
+            IP() -= SEND_CACHE_DIST;
+
+            NEXT();
+          }
+
+          /* Try sending on the general type .Record */
+          offset = gab_msgfind(m, gab_typ(EG(), kGAB_RECORD));
+          if (offset != GAB_PROPERTY_NOT_FOUND)
             goto fin;
         }
 
+        /* Try sending on the universal 'undefined' */
         offset = gab_msgfind(m, gab_undefined);
 
-        if (offset == UINT64_MAX) {
+        if (offset == GAB_PROPERTY_NOT_FOUND) {
           STORE_FRAME();
           return ERROR(GAB_IMPLEMENTATION_MISSING,
-                       "%V does not specialize on %V: %V", m, type, receiver);
+                       "%V does not specialize for %V (%V)", m, receiver, type);
         }
       }
 
@@ -426,7 +440,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     CASE_CODE(SEND_MONO_CLOSURE) : {
       gab_value m = READ_CONSTANT;
 
-      uint8_t have = parse_have(VM(), READ_BYTE);
+      uint8_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
       uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -460,7 +474,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     CASE_CODE(SEND_MONO_BUILTIN) : {
       gab_value m = READ_CONSTANT;
 
-      uint8_t have = parse_have(VM(), READ_BYTE);
+      uint8_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
       uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -490,7 +504,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
     CASE_CODE(SEND_PRIMITIVE_CALL_BUILTIN) : {
       gab_value m = READ_CONSTANT;
-      uint8_t have = parse_have(VM(), READ_BYTE);
+      uint8_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
       uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -517,7 +531,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
     CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) : {
       gab_value msg = READ_CONSTANT;
-      uint8_t have = parse_have(VM(), READ_BYTE);
+      uint8_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
       uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -549,7 +563,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
     CASE_CODE(SEND_PRIMITIVE_CALL_SUSPENSE) : {
       gab_value m = READ_CONSTANT;
-      uint8_t have = parse_have(VM(), READ_BYTE);
+      uint8_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
       uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -799,6 +813,50 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       NEXT();
     }
+    
+    CASE_CODE(SEND_PROPERTY) : {
+      gab_value msg = READ_CONSTANT;
+      uint64_t have = compute_arity(VM(), READ_BYTE);
+      SKIP_BYTE;
+      uint8_t version = READ_BYTE;
+      gab_value cached_shape = *READ_QWORD;
+      uint64_t prop_offset = *READ_QWORD;
+
+      gab_value index = PEEK_N(have + 1);
+
+      gab_value type = gab_valtyp(EG(), index);
+
+      if ((cached_shape != type) |
+          (version != GAB_VAL_TO_MESSAGE(msg)->version)) {
+        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+        IP() -= SEND_CACHE_DIST;
+        NEXT();
+      }
+
+      switch (have) {
+      case 0:
+        /* Simply load the value into the top of the stack */
+        PEEK() = gab_urecat(index, prop_offset);
+        break;
+
+      default:
+        /* Drop all the values we don't need, then fallthrough */
+        DROP_N(have - 1);
+
+      case 1: {
+        /* Pop the top value */
+        gab_value value = POP();
+        gab_urecput(index, prop_offset, value);
+        PEEK() = value;
+        break;
+      }
+      }
+
+      VAR() = 1;
+
+      NEXT();
+    }
+
 
     CASE_CODE(ITER) : {
       uint8_t want = READ_BYTE;
@@ -842,7 +900,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       {
         CASE_CODE(YIELD) : {
           gab_value proto = READ_CONSTANT;
-          have = parse_have(VM(), READ_BYTE);
+          have = compute_arity(VM(), READ_BYTE);
 
           uint64_t frame_len = TOP() - SLOTS() - have;
 
@@ -860,7 +918,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       }
 
       CASE_CODE(RETURN) : {
-        have = parse_have(VM(), READ_BYTE);
+        have = compute_arity(VM(), READ_BYTE);
 
         goto complete_return;
       }
@@ -890,196 +948,6 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       NEXT();
     }
-    }
-
-    /*
-     * We haven't seen any shapes yet.
-     *
-     * Prime the cache and dispatch to mono
-     */
-    CASE_CODE(LOAD_PROPERTY_ANA) : {
-      gab_value key = READ_CONSTANT;
-      gab_value index = PEEK();
-
-      if (gab_valknd(index) != kGAB_RECORD) {
-        STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found %V %V", gab_valtyp(EG(), index),
-                     index);
-      }
-
-      struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-      uint64_t prop_offset = gab_shpfind(rec->shape, key);
-
-      // Transition state and store in the
-      // ache
-      WRITE_INLINEQWORD(prop_offset);
-      WRITE_INLINEQWORD(rec->shape);
-      WRITE_BYTE(PROP_CACHE_DIST, OP_LOAD_PROPERTY_MONO);
-
-      IP() -= PROP_CACHE_DIST;
-
-      NEXT();
-    }
-
-    CASE_CODE(LOAD_PROPERTY_MONO) : {
-      SKIP_SHORT;
-      uint64_t prop_offset = *READ_QWORD;
-      gab_value cached_shape = *READ_QWORD;
-
-      gab_value index = PEEK();
-
-      if (gab_valknd(index) != kGAB_RECORD) {
-        STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found %V %V", gab_valtyp(EG(), index),
-                     index);
-      }
-
-      struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-
-      if (cached_shape != rec->shape) {
-        WRITE_BYTE(PROP_CACHE_DIST, OP_LOAD_PROPERTY_POLY);
-        IP() -= PROP_CACHE_DIST;
-        NEXT();
-      }
-
-      if (prop_offset == UINT64_MAX) {
-        STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
-      }
-
-      PEEK() = rec->data[prop_offset];
-
-      NEXT();
-    }
-
-    CASE_CODE(LOAD_PROPERTY_POLY) : {
-      gab_value key = READ_CONSTANT;
-      SKIP_QWORD;
-      SKIP_QWORD;
-
-      gab_value index = PEEK();
-
-      if (gab_valknd(index) != kGAB_RECORD) {
-        STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found %V %V", gab_valtyp(EG(), index),
-                     index);
-      }
-
-      struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-
-      uint64_t prop_offset = gab_shpfind(rec->shape, key);
-
-      DROP();
-
-      if (prop_offset == UINT64_MAX) {
-        STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
-      }
-
-      PEEK() = rec->data[prop_offset];
-
-      NEXT();
-    }
-
-    CASE_CODE(STORE_PROPERTY_ANA) : {
-      gab_value key = READ_CONSTANT;
-
-      gab_value index = PEEK2();
-
-      if (gab_valknd(index) != kGAB_RECORD) {
-        STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found %V %V", gab_valtyp(EG(), index),
-                     index);
-      }
-
-      struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-
-      uint64_t prop_offset = gab_shpfind(rec->shape, key);
-
-      if (prop_offset == UINT64_MAX) {
-        STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
-      }
-
-      // Write to the cache and transition
-      // to monomorphic
-      WRITE_INLINEQWORD(prop_offset);
-      WRITE_INLINEQWORD((uint64_t)rec->shape);
-      WRITE_BYTE(PROP_CACHE_DIST, OP_STORE_PROPERTY_MONO);
-
-      IP() -= PROP_CACHE_DIST;
-
-      NEXT();
-    }
-
-    CASE_CODE(STORE_PROPERTY_MONO) : {
-      gab_value key = READ_CONSTANT;
-      // Use the cache
-      uint64_t prop_offset = *READ_QWORD;
-      gab_value cached_shape = *READ_QWORD;
-
-      gab_value value = PEEK();
-      gab_value index = PEEK2();
-
-      if (gab_valknd(index) != kGAB_RECORD) {
-        STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found %V %V", gab_valtyp(EG(), index),
-                     index);
-      }
-
-      struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-
-      if (rec->shape != cached_shape) {
-        prop_offset = gab_shpfind(rec->shape, key);
-
-        if (prop_offset == UINT64_MAX) {
-          STORE_FRAME();
-          return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
-        }
-
-        // Transition to polymorphic
-        WRITE_BYTE(PROP_CACHE_DIST, OP_STORE_PROPERTY_POLY);
-      }
-
-      gab_urecput(index, prop_offset, value);
-
-      DROP_N(2);
-
-      PUSH(value);
-
-      NEXT();
-    }
-
-    CASE_CODE(STORE_PROPERTY_POLY) : {
-      gab_value key = READ_CONSTANT;
-      // Skip the cache
-      SKIP_SHORT;
-      SKIP_QWORD;
-
-      gab_value value = PEEK();
-      gab_value index = PEEK2();
-
-      if (gab_valknd(index) != kGAB_RECORD) {
-        STORE_FRAME();
-        return ERROR(GAB_NOT_RECORD, "Found %V %V", gab_valtyp(EG(), index),
-                     index);
-      }
-
-      struct gab_obj_record *rec = GAB_VAL_TO_RECORD(index);
-      uint64_t prop_offset = gab_shpfind(rec->shape, key);
-
-      if (prop_offset == UINT64_MAX) {
-        STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
-      }
-
-      gab_urecput(index, prop_offset, value);
-
-      DROP_N(2);
-
-      PUSH(value);
-
-      NEXT();
     }
 
     CASE_CODE(NOP) : { NEXT(); }
@@ -1410,8 +1278,13 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       uint64_t want = below + above;
       uint64_t have = VAR();
 
+      printf("PACK: want: %lu, have: %lu\n", want, have);
+      gab_fpry(stdout, VM(), 0);
+
       while (have < want)
         PUSH(gab_nil), have++;
+      
+      gab_fpry(stdout, VM(), 0);
 
       uint64_t len = have - want;
 
@@ -1422,12 +1295,20 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       gab_value rec = gab_recordof(GAB(), shape, 1, ap - len);
 
       DROP_N(len - 1);
+      
+      gab_fpry(stdout, VM(), 0);
 
       memcpy(ap - len + 1, ap, above * sizeof(gab_value));
+      
+      gab_fpry(stdout, VM(), 0);
 
       PEEK_N(above + 1) = rec;
+      
+      gab_fpry(stdout, VM(), 0);
 
       VAR() = want + 1;
+      
+      gab_fpry(stdout, VM(), 0);
 
       NEXT();
     }
@@ -1447,7 +1328,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     }
 
     CASE_CODE(TUPLE) : {
-      uint8_t len = parse_have(VM(), READ_BYTE);
+      uint8_t len = compute_arity(VM(), READ_BYTE);
 
       gab_value shape = gab_nshape(GAB(), len);
 

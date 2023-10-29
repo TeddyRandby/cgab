@@ -1,6 +1,6 @@
 :use 'std/Record'
 :use 'std/List'
-:use 'any'
+:use 'std/Any'
 
 def TestState  { fails errs }
 

@@ -1,7 +1,5 @@
 :use 'record'
 
-def is[](other); ?self == other end
-
 def first[.Record]; self:at(0) end
 
 def last[.Record]; self:at(self:len - 1) end

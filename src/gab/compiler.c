@@ -51,7 +51,7 @@ struct lvalue {
 
   union {
     uint16_t local;
-    uint16_t property;
+    gab_value property;
   } as;
 };
 
@@ -1239,11 +1239,8 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
       break;
 
     case kPROP: {
-      gab_mod_push_op(mod(bc), OP_STORE_PROPERTY_ANA, t);
-
-      gab_mod_push_short(mod(bc), lval.as.property, t);
-
-      gab_mod_push_inline_cache(mod(bc), t);
+      uint16_t m = add_message_constant(bc, lval.as.property);
+      gab_mod_push_send(mod(bc), 1, m, false, t);
 
       if (!is_last_assignment)
         push_pop(bc, 1);
@@ -2275,28 +2272,24 @@ int compile_exp_idx(struct bc *bc, bool assignable) {
 int compile_exp_dot(struct bc *bc, bool assignable) {
   s_char prop_name = trim_prev_src(bc);
 
-  int prop = add_string_constant(bc, prop_name);
-
-  if (prop < 0)
-    return COMP_ERR;
-
   size_t t = bc->offset - 1;
 
   if (assignable && !match_ctx(bc, kTUPLE)) {
     if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
-      return compile_assignment(bc, (struct lvalue){
-                                        .kind = kPROP,
-                                        .slot = peek_slot(bc),
-                                        .as.property = prop,
-                                    });
+      return compile_assignment(
+          bc, (struct lvalue){
+                  .kind = kPROP,
+                  .slot = peek_slot(bc),
+                  .as.property =
+                      gab_nstring(gab(bc), prop_name.len, prop_name.data),
+              });
     }
   }
 
-  gab_mod_push_op(mod(bc), OP_LOAD_PROPERTY_ANA, t);
+  gab_value m = add_message_constant(
+      bc, gab_nstring(gab(bc), prop_name.len, prop_name.data));
 
-  gab_mod_push_short(mod(bc), prop, t);
-
-  gab_mod_push_inline_cache(mod(bc), t);
+  gab_mod_push_send(mod(bc), 0, m, false, t);
 
   pop_slot(bc, 1);
 

@@ -1,0 +1,3 @@
+:use 'any'
+
+def is[](other); ?self == other end

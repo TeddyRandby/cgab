@@ -777,6 +777,7 @@ static inline gab_value gab_shapewith(struct gab_triple gab, gab_value shape,
  */
 gab_value gab_nshape(struct gab_triple gab, uint64_t len);
 
+#define GAB_PROPERTY_NOT_FOUND (UINT64_MAX)
 /**
  * Find the offset of a key in the shape.
  *
@@ -784,7 +785,7 @@ gab_value gab_nshape(struct gab_triple gab, uint64_t len);
  *
  * @param key The key to look for.
  *
- * @return The offset of the key, or UINT64_MAX if it doesn't exist.
+ * @return The offset of the key, or GAB_PROPERTY_NOT_FOUND if it doesn't exist.
  */
 static inline uint64_t gab_shpfind(gab_value shp, gab_value key) {
   assert(gab_valknd(shp) == kGAB_SHAPE);
@@ -795,7 +796,7 @@ static inline uint64_t gab_shpfind(gab_value shp, gab_value key) {
     if (obj->data[i] == key)
       return i;
 
-  return UINT64_MAX;
+  return GAB_PROPERTY_NOT_FOUND;
 };
 
 /**
@@ -843,8 +844,8 @@ static inline uint64_t gab_shpnext(gab_value shp, gab_value key) {
 
   uint64_t offset = gab_shpfind(shp, key);
 
-  if (offset == UINT64_MAX)
-    return UINT64_MAX;
+  if (offset == GAB_PROPERTY_NOT_FOUND)
+    return GAB_PROPERTY_NOT_FOUND;
 
   return offset + 1;
 };
@@ -1009,7 +1010,7 @@ static inline bool gab_recput(gab_value rec, gab_value key, gab_value value) {
 
   uint64_t prop_offset = gab_shpfind(obj->shape, key);
 
-  if (prop_offset == UINT64_MAX)
+  if (prop_offset == GAB_PROPERTY_NOT_FOUND)
     return false;
 
   gab_urecput(rec, prop_offset, value);
@@ -1112,6 +1113,11 @@ static inline gab_value gab_msgshp(gab_value msg) {
 static inline gab_value gab_msgrec(gab_value msg) {
   assert(gab_valknd(msg) == kGAB_MESSAGE);
   return GAB_VAL_TO_MESSAGE(msg)->specs;
+}
+
+static inline gab_value gab_msgname(gab_value msg) {
+  assert(gab_valknd(msg) == kGAB_MESSAGE);
+  return GAB_VAL_TO_MESSAGE(msg)->name;
 }
 
 /**
