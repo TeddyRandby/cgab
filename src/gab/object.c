@@ -142,7 +142,7 @@ int32_t __dump_value(FILE *stream, gab_value self, uint8_t depth) {
   }
   case kGAB_MESSAGE: {
     struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(self);
-    return fprintf(stream, "&%V", msg->name);
+    return fprintf(stream, "&:%V", msg->name);
   }
   case kGAB_SHAPE: {
     struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(self);

@@ -455,8 +455,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_mod *self, uint64_t offset) {
   case OP_SEND_MONO_CLOSURE:
   case OP_SEND_MONO_BUILTIN:
   case OP_SEND_PROPERTY:
-  case OP_SEND_PRIMITIVE_STORE:
-  case OP_SEND_PRIMITIVE_LOAD:
   case OP_SEND_PRIMITIVE_CONCAT:
   case OP_SEND_PRIMITIVE_ADD:
   case OP_SEND_PRIMITIVE_SUB:

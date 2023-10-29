@@ -173,7 +173,7 @@ int32_t gab_vm_push(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
 static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
                               uint64_t have, uint8_t want) {
   struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(b->p);
-  uint64_t len = proto->narguments == VAR_EXP ? have : proto->narguments;
+  size_t len = proto->narguments == VAR_EXP ? have : proto->narguments;
 
   if (!has_callspace(vm, proto->nslots - len - 1))
     return false;
@@ -185,7 +185,10 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   vm->fp->slots = vm->sp - have - 1;
 
   // Update the SP to point just past the locals section
-  vm->sp = vm->fp->slots + proto->nlocals;
+  if (proto->nlocals > len)
+    vm->sp = vm->fp->slots + proto->nlocals;
+  else
+    vm->sp = vm->fp->slots + len + 1;
 
   // Trim arguments into the slots
   *vm->sp = trim_values(vm->fp->slots + 1, vm->fp->slots + 1, have, len);
@@ -237,6 +240,13 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     LOG();                                                                     \
     goto *dispatch_table[(INSTR() = *IP()++)];                                 \
   })
+
+#define SEND_CACHE_GUARD(cached_type, type, version, m)                        \
+  if ((cached_type != type) | (version != GAB_VAL_TO_MESSAGE(m)->version)) {   \
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);                                  \
+    IP() -= SEND_CACHE_DIST;                                                   \
+    NEXT();                                                                    \
+  }
 
 #define BINARY_PRIMITIVE(value_type, operation_type, operation)                \
   SKIP_SHORT;                                                                  \
@@ -450,12 +460,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value type = gab_valtyp(EG(), receiver);
 
-      if ((cached_type != type) | (version != GAB_VAL_TO_MESSAGE(m)->version)) {
-        // Revert to anamorphic
-        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
-        IP() -= SEND_CACHE_DIST;
-        NEXT();
-      }
+      SEND_CACHE_GUARD(cached_type, type, version, m)
 
       gab_value spec = gab_umsgat(m, offset);
 
@@ -484,12 +489,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value type = gab_valtyp(EG(), receiver);
 
-      if ((cached_type != type) | (version != GAB_VAL_TO_MESSAGE(m)->version)) {
-        // Revert to anamorphic
-        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
-        IP() -= SEND_CACHE_DIST;
-        NEXT();
-      }
+      SEND_CACHE_GUARD(cached_type, type, version, m)
 
       gab_value spec = gab_umsgat(m, offset);
 
@@ -514,12 +514,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value type = gab_valtyp(EG(), receiver);
 
-      if ((cached_type != type) | (version != GAB_VAL_TO_MESSAGE(m)->version)) {
-        // Revert to anamorphic
-        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
-        IP() -= SEND_CACHE_DIST;
-        NEXT();
-      }
+      SEND_CACHE_GUARD(cached_type, type, version, m)
 
       STORE_FRAME();
 
@@ -530,7 +525,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     }
 
     CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) : {
-      gab_value msg = READ_CONSTANT;
+      gab_value m = READ_CONSTANT;
       uint8_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
       uint8_t version = READ_BYTE;
@@ -541,13 +536,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value type = gab_valtyp(EG(), receiver);
 
-      if ((cached_type != type) |
-          (version != GAB_VAL_TO_MESSAGE(msg)->version)) {
-        // Revert to anamorphic
-        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
-        IP() -= SEND_CACHE_DIST;
-        NEXT();
-      }
+      SEND_CACHE_GUARD(cached_type, type, version, m)
 
       STORE_FRAME();
 
@@ -573,12 +562,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value type = gab_valtyp(EG(), receiver);
 
-      if ((cached_type != type) | (version != GAB_VAL_TO_MESSAGE(m)->version)) {
-        // Revert to anamorphic
-        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
-        IP() -= SEND_CACHE_DIST;
-        NEXT();
-      }
+      SEND_CACHE_GUARD(cached_type, type, version, m)
 
       STORE_FRAME();
 
@@ -687,7 +671,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     }
 
     CASE_CODE(SEND_PRIMITIVE_EQ) : {
-      gab_value msg = READ_CONSTANT;
+      gab_value m = READ_CONSTANT;
       SKIP_BYTE;
       SKIP_BYTE;
       uint8_t version = READ_BYTE;
@@ -698,12 +682,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value type = gab_valtyp(EG(), receiver);
 
-      if ((cached_type != type) |
-          (version != GAB_VAL_TO_MESSAGE(msg)->version)) {
-        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
-        IP() -= SEND_CACHE_DIST;
-        NEXT();
-      }
+      SEND_CACHE_GUARD(cached_type, type, version, m)
 
       gab_value b = POP();
       gab_value a = POP();
@@ -715,105 +694,6 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       NEXT();
     }
 
-    CASE_CODE(SEND_PRIMITIVE_STORE) : {
-      gab_value msg = READ_CONSTANT;
-      SKIP_BYTE;
-      SKIP_BYTE;
-      uint8_t version = READ_BYTE;
-      gab_value cached_type = *READ_QWORD;
-      SKIP_QWORD;
-
-      gab_value value = PEEK();
-      gab_value key = PEEK2();
-      gab_value index = PEEK_N(3);
-
-      gab_value type = gab_valtyp(EG(), index);
-
-      if ((cached_type != type) |
-          (version != GAB_VAL_TO_MESSAGE(msg)->version)) {
-        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
-        IP() -= SEND_CACHE_DIST;
-        NEXT();
-      }
-
-      uint64_t prop_offset = gab_shpfind(type, key);
-
-      if (prop_offset == UINT64_MAX) {
-        STORE_FRAME();
-        return ERROR(GAB_MISSING_PROPERTY, "On %V", index);
-      }
-
-      gab_urecput(index, prop_offset, value);
-
-      DROP_N(3);
-
-      PUSH(value);
-
-      VAR() = 1;
-
-      NEXT();
-    }
-
-    CASE_CODE(SEND_PRIMITIVE_LOAD) : {
-      gab_value msg = READ_CONSTANT;
-      SKIP_BYTE;
-      SKIP_BYTE;
-      uint8_t version = READ_BYTE;
-      gab_value cached_type = *READ_QWORD;
-      SKIP_QWORD;
-
-      gab_value key = PEEK();
-      gab_value index = PEEK2();
-
-      gab_value type = gab_valtyp(EG(), index);
-
-      /*
-       * This opcode is optimized for
-       * loading properties from records.
-       *
-       * We enter this opcode because we
-       * have seen a record as the receiver
-       * before.
-       *
-       * In this case, the type of the
-       * receiver and the shape of the
-       * record are the SAME, and it is the
-       * cached_type.
-       *
-       * Therefore, if we have the cached
-       * type that we expect, then our
-       * record also has the shape that we
-       * expect.
-       *
-       * However, we don't cache the offset
-       * because the key can change at every
-       * invocation and we don't have space
-       * to cache that.
-       */
-
-      if ((cached_type != type) |
-          (version != GAB_VAL_TO_MESSAGE(msg)->version)) {
-        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
-        IP() -= SEND_CACHE_DIST;
-        NEXT();
-      }
-
-      uint16_t prop_offset = gab_shpfind(type, key);
-
-      struct gab_obj_record *obj = GAB_VAL_TO_RECORD(index);
-
-      DROP_N(2);
-
-      gab_value val =
-          prop_offset == UINT16_MAX ? gab_nil : obj->data[prop_offset];
-
-      PUSH(val);
-
-      VAR() = 1;
-
-      NEXT();
-    }
-    
     CASE_CODE(SEND_PROPERTY) : {
       gab_value msg = READ_CONSTANT;
       uint64_t have = compute_arity(VM(), READ_BYTE);
@@ -856,7 +736,6 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       NEXT();
     }
-
 
     CASE_CODE(ITER) : {
       uint8_t want = READ_BYTE;
@@ -1278,13 +1157,8 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       uint64_t want = below + above;
       uint64_t have = VAR();
 
-      printf("PACK: want: %lu, have: %lu\n", want, have);
-      gab_fpry(stdout, VM(), 0);
-
       while (have < want)
         PUSH(gab_nil), have++;
-      
-      gab_fpry(stdout, VM(), 0);
 
       uint64_t len = have - want;
 
@@ -1295,20 +1169,12 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       gab_value rec = gab_recordof(GAB(), shape, 1, ap - len);
 
       DROP_N(len - 1);
-      
-      gab_fpry(stdout, VM(), 0);
 
       memcpy(ap - len + 1, ap, above * sizeof(gab_value));
-      
-      gab_fpry(stdout, VM(), 0);
 
       PEEK_N(above + 1) = rec;
-      
-      gab_fpry(stdout, VM(), 0);
 
       VAR() = want + 1;
-      
-      gab_fpry(stdout, VM(), 0);
 
       NEXT();
     }

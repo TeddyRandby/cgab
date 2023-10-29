@@ -1,23 +1,11 @@
-:use 'std/Any'
+:use 'std/List'
+:use 'std/Number'
 :use 'std/Pry'
+
 :use 'dis'
 
-def Vector { x y }
+list = :list(5):map! do (x, i); i + 1 end
 
-def + [Vector](other)
-    other:is(Vector) or .INVALID_ARGUMENTS:panic
+slice = list[3:to]
 
-    {
-        x = self.x + other.x
-        y = self.y + other.y
-    }
-end
-
-
-def print(..args)
-  args:print
-end
-
-print:dis
-
-print(1,2,3)
+slice:print

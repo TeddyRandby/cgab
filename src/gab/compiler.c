@@ -2295,7 +2295,7 @@ int compile_exp_dot(struct bc *bc, bool assignable) {
 
   push_slot(bc, 1);
 
-  return COMP_OK;
+  return VAR_EXP;
 }
 
 int compile_arg_list(struct bc *bc, bool *mv_out) {

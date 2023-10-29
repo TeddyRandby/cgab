@@ -1,9 +1,6 @@
 #include "include/gab.h"
 #include "list.h"
 #include "map.h"
-#include <assert.h>
-#include <stdint.h>
-#include <stdio.h>
 
 void gab_lib_splat(struct gab_triple gab, size_t argc,
                    gab_value argv[static argc]) {
@@ -243,7 +240,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_sbuiltin(gab, "to_m", gab_lib_to_m),
       },
       {
-          "put",
+          "put!",
           gab_typ(gab.eg, kGAB_RECORD),
           gab_sbuiltin(gab, "put", gab_lib_put),
       },
