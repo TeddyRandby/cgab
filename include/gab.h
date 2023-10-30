@@ -1008,12 +1008,12 @@ static inline bool gab_recput(gab_value rec, gab_value key, gab_value value) {
   assert(gab_valknd(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
 
-  uint64_t prop_offset = gab_shpfind(obj->shape, key);
+  uint64_t offset = gab_shpfind(obj->shape, key);
 
-  if (prop_offset == GAB_PROPERTY_NOT_FOUND)
+  if (offset == GAB_PROPERTY_NOT_FOUND)
     return false;
 
-  gab_urecput(rec, prop_offset, value);
+  gab_urecput(rec, offset, value);
 
   return true;
 }

@@ -79,9 +79,10 @@ void gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  gab_recput(argv[0], argv[1], argv[2]);
-
-  gab_vmpush(gab.vm, argv[1]);
+  if (!gab_recput(argv[0], argv[1], argv[2]))
+    gab_vmpush(gab.vm, gab_nil);
+  else
+    gab_vmpush(gab.vm, argv[2]);
 }
 
 void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {

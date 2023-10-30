@@ -1,5 +1,24 @@
-:use 'std/strings'
+:use 'std/records' 
+:use 'dis'
 
-for str in 'hello world':split ' '
-  str:print
+def main
+  a = { b c }
+
+  (a['b'], d, a['c'] = 1, 2, 3)
+
+  a:b:print
+  a:c:print
+  d:print
+
+  (e, a['b'], a['c'] = 1, 2, 3)
+
+  a:b:print
+  a:c:print
+  e:print
+
+  (a['c'], a['b'], e = 1, 2, 3)
 end
+
+main:dis
+
+main()

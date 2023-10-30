@@ -1,5 +1,4 @@
 :use 'list'
-def Collection = :use 'std/Collection'
 
 def each[.List]
   self:len == 0 and return
@@ -10,5 +9,3 @@ def each[.List]
     v = v + 1
   until v >= self:len end
 end
-
-Collection(.List)
