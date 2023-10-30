@@ -22,8 +22,6 @@ struct gab_src {
 
   v_s_char lines;
 
-  v_s_char line_comments;
-
   v_gab_token tokens;
 
   v_s_char token_srcs;

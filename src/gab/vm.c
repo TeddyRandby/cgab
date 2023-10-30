@@ -378,7 +378,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
   LOOP() {
     CASE_CODE(SEND_ANA) : {
       gab_value m = READ_CONSTANT;
-      uint8_t have = compute_arity(VM(), READ_BYTE);
+      uint64_t have = compute_arity(VM(), READ_BYTE);
       SKIP_BYTE;
 
       gab_value receiver = PEEK_N(have + 1);
@@ -450,7 +450,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     CASE_CODE(SEND_MONO_CLOSURE) : {
       gab_value m = READ_CONSTANT;
 
-      uint8_t have = compute_arity(VM(), READ_BYTE);
+      uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
       uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -479,7 +479,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     CASE_CODE(SEND_MONO_BUILTIN) : {
       gab_value m = READ_CONSTANT;
 
-      uint8_t have = compute_arity(VM(), READ_BYTE);
+      uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
       uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -504,7 +504,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
     CASE_CODE(SEND_PRIMITIVE_CALL_BUILTIN) : {
       gab_value m = READ_CONSTANT;
-      uint8_t have = compute_arity(VM(), READ_BYTE);
+      uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
       uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -526,7 +526,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
     CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) : {
       gab_value m = READ_CONSTANT;
-      uint8_t have = compute_arity(VM(), READ_BYTE);
+      uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
       uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -552,7 +552,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
     CASE_CODE(SEND_PRIMITIVE_CALL_SUSPENSE) : {
       gab_value m = READ_CONSTANT;
-      uint8_t have = compute_arity(VM(), READ_BYTE);
+      uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
       uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
@@ -695,23 +695,18 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     }
 
     CASE_CODE(SEND_PROPERTY) : {
-      gab_value msg = READ_CONSTANT;
+      gab_value m = READ_CONSTANT;
       uint64_t have = compute_arity(VM(), READ_BYTE);
       SKIP_BYTE;
       uint8_t version = READ_BYTE;
-      gab_value cached_shape = *READ_QWORD;
+      gab_value cached_type = *READ_QWORD;
       uint64_t prop_offset = *READ_QWORD;
 
       gab_value index = PEEK_N(have + 1);
 
       gab_value type = gab_valtyp(EG(), index);
 
-      if ((cached_shape != type) |
-          (version != GAB_VAL_TO_MESSAGE(msg)->version)) {
-        WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
-        IP() -= SEND_CACHE_DIST;
-        NEXT();
-      }
+      SEND_CACHE_GUARD(cached_type, type, version, m)
 
       switch (have) {
       case 0:
@@ -774,7 +769,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
     {
 
-      uint8_t have;
+      uint64_t have;
 
       {
         CASE_CODE(YIELD) : {
@@ -1194,7 +1189,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     }
 
     CASE_CODE(TUPLE) : {
-      uint8_t len = compute_arity(VM(), READ_BYTE);
+      uint64_t len = compute_arity(VM(), READ_BYTE);
 
       gab_value shape = gab_nshape(GAB(), len);
 

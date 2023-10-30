@@ -1,11 +1,5 @@
-:use 'std/List'
-:use 'std/Number'
-:use 'std/Pry'
+:use 'std/strings'
 
-:use 'dis'
-
-list = :list(5):map! do (x, i); i + 1 end
-
-slice = list[3:to]
-
-slice:print
+for str in 'hello world':split ' '
+  str:print
+end

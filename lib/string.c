@@ -55,7 +55,7 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  if (start < end) {
+  if (start >= end) {
     gab_panic(gab, "&:slice expects the start to be before the end");
     return;
   }
@@ -67,64 +67,21 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_vmpush(gab.vm, res);
 }
 
-void gab_lib_split(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (argc != 2 || gab_valknd(argv[1]) != kGAB_STRING) {
-    gab_panic(gab, "&:split expects 2 arguments");
-    return;
-  }
-
-  s_char src = gab_valintocs(gab, argv[0]);
-  s_char delim = gab_valintocs(gab, argv[1]);
-
-  s_char window = s_char_create(src.data, delim.len);
-
-  const char *start = window.data;
-  uint64_t len = 0;
-
-  v_uint64_t splits;
-  v_uint64_t_create(&splits, 8);
-
-  while (window.data + window.len <= src.data + src.len) {
-    if (s_char_match(window, delim)) {
-      s_char split = s_char_create(start, len);
-
-      v_uint64_t_push(&splits, gab_nstring(gab, split.len, (char *)split.data));
-
-      window.data += window.len;
-      start = window.data;
-      len = 0;
-    } else {
-      len++;
-      window.data++;
-    }
-  }
-
-  s_char split = s_char_create(start, len);
-  v_uint64_t_push(&splits, gab_nstring(gab, split.len, (char *)split.data));
-
-  gab_value result = gab_tuple(gab, splits.len, splits.data);
-
-  gab_vmpush(gab.vm, result);
-}
-
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value string_type = gab_typ(gab.eg, kGAB_STRING);
 
   gab_value receivers[] = {
       string_type,
       string_type,
-      string_type,
   };
 
   const char *names[] = {
       "slice",
-      "split",
       "len",
   };
 
   gab_value specs[] = {
       gab_sbuiltin(gab, "slice", gab_lib_slice),
-      gab_sbuiltin(gab, "split", gab_lib_split),
       gab_sbuiltin(gab, "len", gab_lib_len),
   };
 

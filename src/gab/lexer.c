@@ -45,7 +45,6 @@ static void finish_row(gab_lx *self) {
     self->current_row_src.len--;
 
   v_s_char_push(&self->source->lines, self->current_row_src);
-  v_s_char_push(&self->source->line_comments, self->current_row_comment);
 
   start_row(self);
 }
@@ -171,7 +170,8 @@ gab_token string(gab_lx *self) {
       if (peek(self) == '{') {
         advance(self);
         self->nested_curly++;
-        return start == '}' ? TOKEN_INTERPOLATION_MIDDLE : TOKEN_INTERPOLATION_BEGIN;
+        return start == '}' ? TOKEN_INTERPOLATION_MIDDLE
+                            : TOKEN_INTERPOLATION_BEGIN;
       }
     }
   } while (peek(self) != stop);
@@ -283,7 +283,7 @@ gab_token other(gab_lx *self) {
     if (is_alpha(peek(self))) {
       // If we didn't get a keyword, return a token property
       if (identifier(self) == TOKEN_IDENTIFIER)
-        return TOKEN_PROPERTY;
+        return TOKEN_SYMBOL;
 
       // Otherwise, we got a keyword and this was an error
       return error(self, GAB_MALFORMED_TOKEN);
@@ -291,9 +291,8 @@ gab_token other(gab_lx *self) {
 
     switch (peek(self)) {
       CHAR_CASE('.', DOT_DOT);
-    default: {
+    default:
       return TOKEN_DOT;
-    }
     }
   }
   case '-': {
@@ -370,16 +369,12 @@ gab_token other(gab_lx *self) {
 }
 
 static inline void parse_comment(gab_lx *self) {
-  char *start = self->cursor;
-
   while (is_comment(peek(self))) {
     while (peek(self) != '\n')
       advance(self);
 
     advance(self);
   }
-
-  self->current_row_comment = s_char_create(start, self->cursor - start);
 }
 
 gab_token gab_lexnxt(gab_lx *self) {
@@ -441,7 +436,8 @@ gab_token gab_lexnxt(gab_lx *self) {
 fin:
   v_gab_token_push(&self->source->tokens, tok);
   v_s_char_push(&self->source->token_srcs, self->current_token_src);
-  v_uint64_t_push(&self->source->token_lines, self->row - (tok == TOKEN_NEWLINE));
+  v_uint64_t_push(&self->source->token_lines,
+                  self->row - (tok == TOKEN_NEWLINE));
 
   return tok;
 }
@@ -462,7 +458,6 @@ struct gab_src *gab_srccpy(struct gab_eg *gab, struct gab_src *self) {
   copy->source = a_char_create(self->source->data, self->source->len);
 
   v_s_char_copy(&copy->lines, &self->lines);
-  v_s_char_copy(&copy->line_comments, &self->line_comments);
 
   v_gab_token_copy(&copy->tokens, &self->tokens);
   v_s_char_copy(&copy->token_srcs, &self->token_srcs);
@@ -486,7 +481,6 @@ void gab_srcdestroy(struct gab_src *self) {
   a_char_destroy(self->source);
 
   v_s_char_destroy(&self->lines);
-  v_s_char_destroy(&self->line_comments);
 
   v_gab_token_destroy(&self->tokens);
   v_s_char_destroy(&self->token_srcs);

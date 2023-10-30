@@ -1270,8 +1270,7 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
   return COMP_OK;
 }
 
-// Forward decl
-int compile_definition(struct bc *bc, s_char name, s_char help);
+int compile_definition(struct bc *bc, s_char name);
 
 int compile_rec_internal_item(struct bc *bc) {
   if (match_and_eat_token(bc, TOKEN_IDENTIFIER)) {
@@ -1408,7 +1407,7 @@ int compile_record_tuple(struct bc *bc) {
   return COMP_OK;
 }
 
-int compile_definition(struct bc *bc, s_char name, s_char help) {
+int compile_definition(struct bc *bc, s_char name) {
   // A record definition
   if (match_and_eat_token(bc, TOKEN_LBRACK)) {
     gab_value val_name = gab_nstring(gab(bc), name.len, name.data);
@@ -1981,8 +1980,6 @@ int compile_exp_def(struct bc *bc, bool assignable) {
   if (help_cmt_line > 0)
     help_cmt_line--;
 
-  s_char help = v_s_char_val_at(&bc->source->line_comments, help_cmt_line);
-
   eat_token(bc);
 
   s_char name = {0};
@@ -2031,7 +2028,7 @@ int compile_exp_def(struct bc *bc, bool assignable) {
     return COMP_ERR;
   }
 
-  if (compile_definition(bc, name, help) < 0)
+  if (compile_definition(bc, name) < 0)
     return COMP_ERR;
 
   return COMP_OK;
@@ -2269,35 +2266,6 @@ int compile_exp_idx(struct bc *bc, bool assignable) {
   return VAR_EXP;
 }
 
-int compile_exp_dot(struct bc *bc, bool assignable) {
-  s_char prop_name = trim_prev_src(bc);
-
-  size_t t = bc->offset - 1;
-
-  if (assignable && !match_ctx(bc, kTUPLE)) {
-    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
-      return compile_assignment(
-          bc, (struct lvalue){
-                  .kind = kPROP,
-                  .slot = peek_slot(bc),
-                  .as.property =
-                      gab_nstring(gab(bc), prop_name.len, prop_name.data),
-              });
-    }
-  }
-
-  gab_value m = add_message_constant(
-      bc, gab_nstring(gab(bc), prop_name.len, prop_name.data));
-
-  gab_mod_push_send(mod(bc), 0, m, false, t);
-
-  pop_slot(bc, 1);
-
-  push_slot(bc, 1);
-
-  return VAR_EXP;
-}
-
 int compile_arg_list(struct bc *bc, bool *mv_out) {
   int nargs = 0;
 
@@ -2484,9 +2452,22 @@ int compile_exp_amp(struct bc *bc, bool assignable) {
 int compile_exp_snd(struct bc *bc, bool assignable) {
   size_t t = bc->offset - 1;
 
-  gab_value val_name = trim_prev_id(bc);
+  gab_value name = trim_prev_id(bc);
 
-  uint16_t m = add_message_constant(bc, val_name);
+  if (assignable && !match_ctx(bc, kTUPLE)) {
+    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
+      return compile_assignment(bc, (struct lvalue){
+                                        .kind = kPROP,
+                                        .slot = peek_slot(bc),
+                                        .as.property = name,
+                                    });
+    } else if (match_ctx(bc, kASSIGNMENT_TARGET)) {
+      eat_token(bc);
+      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
+    }
+  }
+
+  uint16_t m = add_message_constant(bc, name);
 
   bool mv = false;
   int result = compile_arguments(bc, &mv, 0);
@@ -2673,7 +2654,7 @@ int compile_exp_for(struct bc *bc, bool assignable) {
     switch (match_and_eat_token(bc, TOKEN_DOT_DOT)) {
     case COMP_OK:
       mv = nlooplocals;
-      // Fallthrough
+      [[fallthrough]];
     case COMP_TOKEN_NO_MATCH: {
       if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
         return COMP_ERR;
@@ -2706,9 +2687,15 @@ int compile_exp_for(struct bc *bc, bool assignable) {
   if (compile_expression(bc) < 0)
     return COMP_ERR;
 
+  if (expect_token(bc, TOKEN_NEWLINE) < 0)
+    return COMP_ERR;
+
   pop_slot(bc, 1);
 
-  gab_mod_try_patch_mv(mod(bc), VAR_EXP);
+  if (!gab_mod_try_patch_mv(mod(bc), VAR_EXP)) {
+    gab_mod_push_op(mod(bc), OP_VAR, t);
+    gab_mod_push_byte(mod(bc), 1, t);
+  }
 
   uint64_t loop = gab_mod_push_loop(mod(bc));
 
@@ -2892,7 +2879,7 @@ const struct compile_rule rules[] = {
     NONE(),       // COLON
     PREFIX_INFIX(amp, bin, BITWISE_AND, false),           // AMPERSAND
     NONE(),           // DOLLAR
-    PREFIX_INFIX(sym, dot, PROPERTY, true), // PROPERTY
+    PREFIX(sym), // SYMBOL
     PREFIX_INFIX(emp, snd, SEND, true), // MESSAGE
     NONE(),              // DOT
     PREFIX(spd),                  // DOT_DOT

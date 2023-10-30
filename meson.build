@@ -67,8 +67,8 @@ shared_library('cgabtime',
   install: true,
 )
 
-shared_library('cgabmap',
-  'lib/map.c',
+shared_library('cgabdict',
+  'lib/dict.c',
   link_with: [cgab],
   install_dir: '/usr/local/lib/gab',
   install: true,
@@ -97,7 +97,7 @@ shared_library('cgabstring',
 
 shared_library('cgabrecord',
   'lib/rec.c',
-  'lib/map.h',
+  'lib/dict.h',
   'lib/list.h',
   link_with: [cgab],
   install_dir: '/usr/local/lib/gab',
@@ -155,17 +155,16 @@ install_headers(
   )
 
 install_data(
-  'std/String.gab',
-  'std/Number.gab',
-  'std/Time.gab',
-  'std/List.gab',
-  'std/Collection.gab',
-  'std/Map.gab',
-  'std/Pry.gab',
-  'std/Test.gab',
-  'std/Record.gab',
-  'std/HTTP.gab',
-  'std/Any.gab',
+  'std/strings.gab',
+  'std/numbers.gab',
+  'std/time.gab',
+  'std/lists.gab',
+  'std/dictionaries.gab',
+  'std/pry.gab',
+  'std/test.gab',
+  'std/records.gab',
+  'std/http.gab',
+  'std/any.gab',
   install_dir: '/usr/local/share/gab/std/'
 )
 

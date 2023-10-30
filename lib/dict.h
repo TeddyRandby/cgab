@@ -7,18 +7,18 @@
 #define EQUAL(a, b) (a == b)
 #include "include/dict.h"
 
-void map_destroy(void *data) {
+void dict_destroy(void *data) {
   d_gab_value *self = data;
   d_gab_value_destroy(self);
   DESTROY(self);
 }
 
-void map_visit(struct gab_triple gab, gab_gcvisit_f v, void *data) {
-  d_gab_value *map = data;
-  for (uint64_t i = 0; i < map->cap; i++) {
-    if (d_gab_value_iexists(map, i)) {
-      gab_value key = d_gab_value_ikey(map, i);
-      gab_value val = d_gab_value_ival(map, i);
+void dict_visit(struct gab_triple gab, gab_gcvisit_f v, void *data) {
+  d_gab_value *dict = data;
+  for (uint64_t i = 0; i < dict->cap; i++) {
+    if (d_gab_value_iexists(dict, i)) {
+      gab_value key = d_gab_value_ikey(dict, i);
+      gab_value val = d_gab_value_ival(dict, i);
       if (gab_valiso(key))
         v(gab, gab_valtoo(key));
       if (gab_valiso(val))
@@ -27,28 +27,28 @@ void map_visit(struct gab_triple gab, gab_gcvisit_f v, void *data) {
   }
 }
 
-gab_value map_at(gab_value self, gab_value key) {
+gab_value dict_at(gab_value self, gab_value key) {
   return d_gab_value_read(gab_boxdata(self), key);
 }
 
-bool map_has(gab_value self, gab_value key) {
+bool dict_has(gab_value self, gab_value key) {
   return d_gab_value_exists(gab_boxdata(self), key);
 }
 
-gab_value map_put(gab_value self, gab_value key, gab_value value) {
+gab_value dict_put(gab_value self, gab_value key, gab_value value) {
   d_gab_value_insert(gab_boxdata(self), key, value);
   return value;
 }
 
-gab_value map_create(struct gab_triple gab, size_t len, size_t stride,
+gab_value dict_create(struct gab_triple gab, size_t len, size_t stride,
                      gab_value keys[len], gab_value values[len]) {
   d_gab_value *data = NEW(d_gab_value);
   d_gab_value_create(data, 8);
 
   gab_value self = gab_box(gab, (struct gab_box_argt){
-                                       .type = gab_string(gab, "Map"),
-                                       .destructor = map_destroy,
-                                       .visitor = map_visit,
+                                       .type = gab_string(gab, "dict"),
+                                       .destructor = dict_destroy,
+                                       .visitor = dict_visit,
                                        .data = data,
                                    });
 

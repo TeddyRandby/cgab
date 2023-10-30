@@ -1,6 +1,6 @@
-:use 'std/Test'
-:use 'std/Number'
-:use 'std/Map'
+:use 'std/test'
+:use 'std/numbers'
+:use 'std/dictionaries'
 
 :describe('Multiple Assignment') do
     :it('should declare new variables') do
@@ -81,19 +81,19 @@
     :it('should mix locals and properties') do
         a = { b c }
 
-        (a.b, d, a.c = 1, 2, 3):expect(1)
-        a.b:expect(1)
+        (a:b, d, a:c = 1, 2, 3):expect(1)
+        a:b:expect(1)
         d:expect(2)
-        a.c:expect(3)
+        a:c:expect(3)
 
-        (e, a.b, a.c = 1, 2, 3):expect(1)
+        (e, a:b, a:c = 1, 2, 3):expect(1)
         e:expect(1)
-        a.b:expect(2)
-        a.c:expect(3)
+        a:b:expect(2)
+        a:c:expect(3)
 
-        (a.c, a.b, e = 1, 2, 3):expect(1)
-        a.c:expect(1)
-        a.b:expect(2)
+        (a:c, a:b, e = 1, 2, 3):expect(1)
+        a:c:expect(1)
+        a:b:expect(2)
         e:expect(3)
     end
 
@@ -101,18 +101,18 @@
         a = { b c }
 
         (a['b'], d, a['c'] = 1, 2, 3):expect(1)
-        a.b:expect(1)
+        a:b:expect(1)
         d:expect(2)
-        a.c:expect(3)
+        a:c:expect(3)
 
         (e, a['b'], a['c'] = 1, 2, 3):expect(1)
         e:expect(1)
-        a.b:expect(2)
-        a.c:expect(3)
+        a:b:expect(2)
+        a:c:expect(3)
 
         (a['c'], a['b'], e = 1, 2, 3):expect(1)
-        a.c:expect(1)
-        a.b:expect(2)
+        a:c:expect(1)
+        a:b:expect(2)
         e:expect(3)
     end
 end
@@ -217,8 +217,8 @@ end
       y = 2
     }
 
-    point.x:expect(1)
-    point.y:expect(2)
+    point:x:expect(1)
+    point:y:expect(2)
   end
 
   :it('should be structurally shaped') do
@@ -244,15 +244,15 @@ end
     abc = { a = 'hi' b c}
 
     def get_a[?{ a }]
-        self.a
+        self:a
     end
 
     def get_a[?{ a b }]
-        self.a
+        self:a
     end
     
     def get_a[?{ a b c }]
-        self.a
+        self:a
     end
 
     def test_get_a = do (obj, v)
@@ -269,7 +269,7 @@ end
     test_get_a(ab, 3)
     test_get_a(ab, 3)
 
-    ab.a = 5
+    ab:a = 5
 
     test_get_a(abc, 'hi')
 
@@ -291,32 +291,32 @@ end
     def Vector { x y }
 
     def + [Vector](other)
-        other:is(Vector) or .INVALID_ARGUMENTS:panic
+        other:is(Vector) or :INVALID_ARGUMENTS:panic
 
         {
-            x = self.x + other.x
-            y = self.y + other.y
+            x = self:x + other:x
+            y = self:y + other:y
         }
     end
 
     :it('should overload binary') do
         test = { x=1 y=2 } + { x=2 y=1 }
 
-        3:expect(test.x)
-        3:expect(test.y)
+        3:expect(test:x)
+        3:expect(test:y)
     end
 
     def < [Vector](other)
-        other:is(Vector) or .INVALID_ARGUMENTS:panic
+        other:is(Vector) or :INVALID_ARGUMENTS:panic
 
-        mag = self.x * self.x + self.y * self.y
-        other_mag = other.x * other.x + other.y * other.y
+        mag = self:x * self:x + self:y * self:y
+        other_mag = other:x * other:x + other:y * other:y
 
         mag < other_mag
     end
 
     def == [Vector](other)
-        (self.x == other.x) and (self.y == other.y)
+        (self:x == other:x) and (self:y == other:y)
     end
 
     :it('should overload comparison') do
@@ -335,7 +335,7 @@ end
 
     def [] [Vector](key)
        key == 'mag' then
-        return self.x * self.x + self.y * self.y
+        return self:x * self:x + self:y * self:y
        end
     end
 

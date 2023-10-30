@@ -1,4 +1,5 @@
 :use 'string'
+:use 'std/numbers'
 
 def string[](..args)
   return args:join('')
@@ -12,3 +13,25 @@ def [][.String](opts)
         .Number      => self:slice(opts)               end
         else         => .INVALID_ARGUMENTS:panic       end
 end
+
+def split[.String](sep)
+  s, slen, w, wlen = 0, 1, 0, 1
+
+  loop
+    self[s:to(s + slen)] match
+      sep  =>
+          yield self[w:to(w + wlen)]
+
+          w = wlen + 1
+          s, slen = w, 0
+        end 
+      else =>
+          slen = slen + 1
+          wlen = wlen + 1
+        end
+  until w + wlen > self:len end 
+  
+  self[s:to(slen)]
+end
+
+nil

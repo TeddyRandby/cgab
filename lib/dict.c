@@ -1,13 +1,13 @@
-#include "map.h"
+#include "dict.h"
 #include <assert.h>
 #include <stdio.h>
 
 void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 1: {
-    gab_value map = map_create(gab, 0, 0, NULL, NULL);
+    gab_value dict = dict_create(gab, 0, 0, NULL, NULL);
 
-    gab_vmpush(gab.vm, map);
+    gab_vmpush(gab.vm, dict);
 
     return;
   }
@@ -22,10 +22,10 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
     size_t len = gab_reclen(argv[1]);
 
-    gab_value map =
-        map_create(gab, len, 1, gab_shpdata(shp), gab_recdata(argv[1]));
+    gab_value dict =
+        dict_create(gab, len, 1, gab_shpdata(shp), gab_recdata(argv[1]));
 
-    gab_vmpush(gab.vm, map);
+    gab_vmpush(gab.vm, dict);
 
     return;
   }
@@ -57,7 +57,7 @@ void gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  gab_value res = map_at(argv[0], argv[1]);
+  gab_value res = dict_at(argv[0], argv[1]);
 
   if (res == gab_undefined) {
     gab_vmpush(gab.vm, gab_string(gab, "none"));
@@ -75,7 +75,7 @@ void gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  map_put(argv[0], argv[1], argv[2]);
+  dict_put(argv[0], argv[1], argv[2]);
 
   gab_vmpush(gab.vm, *argv);
 
@@ -83,12 +83,12 @@ void gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  d_gab_value *map = gab_boxdata(argv[0]);
+  d_gab_value *dict = gab_boxdata(argv[0]);
 
   switch (argc) {
 
   case 1: {
-    uint64_t next_index = d_gab_value_inext(map, 0);
+    uint64_t next_index = d_gab_value_inext(dict, 0);
 
     if (next_index == -1) {
       gab_value res = gab_nil;
@@ -98,7 +98,7 @@ void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
       return;
     }
 
-    gab_value res = d_gab_value_ikey(map, next_index);
+    gab_value res = d_gab_value_ikey(dict, next_index);
 
     gab_vmpush(gab.vm, res);
 
@@ -109,9 +109,9 @@ void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
     gab_value key = argv[1];
 
-    uint64_t index = d_gab_value_index_of(map, key);
+    uint64_t index = d_gab_value_index_of(dict, key);
 
-    uint64_t next_index = d_gab_value_inext(map, index + 1);
+    uint64_t next_index = d_gab_value_inext(dict, index + 1);
 
     if (next_index == -1) {
       gab_value res = gab_nil;
@@ -121,7 +121,7 @@ void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
       return;
     }
 
-    gab_value res = d_gab_value_ikey(map, next_index);
+    gab_value res = d_gab_value_ikey(dict, next_index);
 
     gab_vmpush(gab.vm, res);
 
@@ -135,11 +135,11 @@ void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value type = gab_string(gab, "Map");
+  gab_value type = gab_string(gab, "dict");
 
   struct gab_spec_argt specs[] = {
       {
-          "map",
+          "dict",
           gab_nil,
           gab_sbuiltin(gab, "new", gab_lib_new),
       },

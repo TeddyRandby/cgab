@@ -35,8 +35,8 @@ end
 def clamp[.Number](arg)
   ?arg match
       ?{ from to } =>
-        self < arg.from and arg.from or
-        self > arg.to   and arg.to   or
+        self < arg:from and arg:from or
+        self > arg:to   and arg:to   or
         self
       end
       else => .INVALID_ARGUMENTS:panic end

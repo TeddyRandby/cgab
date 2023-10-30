@@ -1,6 +1,6 @@
-:use 'std/Record'
-:use 'std/List'
-:use 'std/Any'
+:use 'std/records'
+:use 'std/lists'
+:use 'std/any'
 
 def TestState  { fails errs }
 
@@ -9,23 +9,23 @@ def testState[nil]
 end
 
 def reset[TestState]
-    self.fails = 0
-    self.errs = :list
+    self:fails = 0
+    self:errs = :list
 
     self
 end
 
 def fail[TestState](got, expected)
-    self.fails = self.fails + 1
-    self.errs:push!([got, expected])
+    self:fails = self:fails + 1
+    self:errs:push!([got, expected])
 end
 
 def passed?[TestState]
-    self.fails == 0
+    self:fails == 0
 end
 
 def show_errs[TestState]
-    for mismatch in self.errs:each
+    for mismatch in self:errs:each
         '     - got {mismatch[0]}, expecting {mismatch[1]}':print
     end
 end

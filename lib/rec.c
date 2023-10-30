@@ -1,6 +1,6 @@
+#include "dict.h"
 #include "include/gab.h"
 #include "list.h"
-#include "map.h"
 
 void gab_lib_splat(struct gab_triple gab, size_t argc,
                    gab_value argv[static argc]) {
@@ -198,8 +198,8 @@ void gab_lib_to_m(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   switch (argc) {
   case 1: {
-    gab_value map =
-        map_create(gab, gab_reclen(rec), 1, gab_shpdata(shp), gab_recdata(rec));
+    gab_value map = dict_create(gab, gab_reclen(rec), 1, gab_shpdata(shp),
+                                gab_recdata(rec));
 
     gab_vmpush(gab.vm, map);
 
