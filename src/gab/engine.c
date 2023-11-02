@@ -455,7 +455,7 @@ gab_value gab_typ(struct gab_eg *gab, enum gab_kind k) { return gab->types[k]; }
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
                            const void *const *args) {
   const gab_value value = *(const gab_value *const)args[0];
-  return gab_fdump(stream, value);
+  return gab_fvaldump(stream, value);
 }
 int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
                            int *sizes) {

@@ -95,24 +95,29 @@ resource resources[] = {
         .suffix = ".so",
         .handler = gab_shared_object_handler,
     },
+    {
+        .prefix = "./build/libcgab",
+        .suffix = ".so",
+        .handler = gab_shared_object_handler,
+    },
     // Installed resources
     {
-        .prefix = "/usr/local/share/gab/",
+        .prefix = "~/gab/",
         .suffix = ".gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = "/usr/local/share/gab/",
+        .prefix = "~/gab/",
         .suffix = "/mod.gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = "/usr/local/share/gab/",
+        .prefix = "~/gab/",
         .suffix = "mod/mod.gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = "/usr/local/lib/gab/libcgab",
+        .prefix = "~/gab/lib/libcgab",
         .suffix = ".so",
         .handler = gab_shared_object_handler,
     },
@@ -199,7 +204,7 @@ void gab_lib_print(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   for (uint8_t i = 0; i < argc; i++) {
     if (i > 0)
       putc(' ', stdout);
-    gab_fdump(stdout, argv[i]);
+    gab_fvaldump(stdout, argv[i]);
   }
 
   printf("\n");

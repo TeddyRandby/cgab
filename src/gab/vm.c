@@ -57,7 +57,7 @@ void gab_vmcreate(struct gab_vm *self, uint8_t flags, size_t argc,
 
 void gab_vmdestroy(struct gab_eg *gab, struct gab_vm *self) {}
 
-void gab_fpry(FILE *stream, struct gab_vm *vm, uint64_t value) {
+void gab_fvmdump(FILE *stream, struct gab_vm *vm, uint64_t value) {
   uint64_t frame_count = vm->fp - vm->fb;
 
   if (value >= frame_count)

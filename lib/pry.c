@@ -8,7 +8,7 @@ void gab_lib_pryframes(struct gab_triple gab, size_t argc,
   }
 
   if (argc == 1) {
-    gab_fpry(stdout, gab.vm, 0);
+    gab_fvmdump(stdout, gab.vm, 0);
 
     return;
   }
@@ -16,7 +16,7 @@ void gab_lib_pryframes(struct gab_triple gab, size_t argc,
   if (argc == 2 && gab_valknd(argv[1]) == kGAB_NUMBER) {
     uint64_t depth = gab_valton(argv[1]);
 
-    gab_fpry(stdout, gab.vm, depth);
+    gab_fvmdump(stdout, gab.vm, depth);
 
     return;
   }
@@ -31,7 +31,7 @@ void gab_lib_pryself(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     depth = gab_valton(argv[0]);
   }
 
-  gab_fpry(stdout, gab.vm, depth);
+  gab_fvmdump(stdout, gab.vm, depth);
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {

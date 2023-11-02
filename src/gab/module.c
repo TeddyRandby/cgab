@@ -344,7 +344,7 @@ uint64_t dumpConstantInstruction(FILE *stream, struct gab_mod *self,
   const char *name =
       gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
   fprintf(stream, "%-25s", name);
-  gab_fdump(stdout, v_gab_constant_val_at(&self->constants, constant));
+  gab_fvaldump(stdout, v_gab_constant_val_at(&self->constants, constant));
   fprintf(stream, "\n");
   return offset + 3;
 }
@@ -545,7 +545,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_mod *self, uint64_t offset) {
   }
 }
 
-void gab_fdis(FILE *stream, struct gab_mod *mod) {
+void gab_fmoddump(FILE *stream, struct gab_mod *mod) {
   uint64_t offset = 0;
   while (offset < mod->bytecode.len) {
     fprintf(stream, ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);
@@ -555,5 +555,5 @@ void gab_fdis(FILE *stream, struct gab_mod *mod) {
 
 void gab_mod_dump(struct gab_mod *self, s_char name) {
   printf("     %.*s\n", (int)name.len, name.data);
-  gab_fdis(stdout, self);
+  gab_fmoddump(stdout, self);
 }

@@ -1,6 +1,10 @@
-# GAB
-Gab is a dynamic scripting language.
+# Gab
+Gab is a dynamic scripting language. It's goals are:
+- be *simple* - in design and implementation. 
+- be *fast*. Performance is a first-class concern.
+- be *embeddable*. The c-api should be stable, simple, and productive.
 
+## At a glance
 ```
 def Person {
   first_name
@@ -10,18 +14,20 @@ def Person {
 
 def birthday[Person]()
   'Happy Birthday {self.first_name}!':print
-  self.age = self.age + 1
+  self:age = self:age + 1
 end
 
 Bob = { first_name = 'Bob', last_name = 'Smith', age  = 22 }
 
-Bob:birthday # Happy Birthday Bob
+Bob:birthday # prints 'Happy Birthday Bob'
 ```
-# Goals
- - Be *fast*
- - Be *small*
- - Be *extensible*
- - Be *embeddable*
+# TOC
+- Features
+    - Syntax
+    - Expressions
+    - Shapes
+    - Messages
+    - Suspense
 # Features
 Gab's more defining features include:
 ### Syntax
@@ -32,66 +38,69 @@ anonymous_function = do (argument)
 end
 
 do_work(anonymous_function, { config = true })
-
 # is the same as:
-
 do_work(anonymous_function) { config = true }
 
 # you can also:
-
 do_work { config = true }
 
 # and with callbacks:
-
 do_work do (argument)
     'Here is my argument: {argument}':print
 end
 
 # Thus, spawning a thread to do some work with some configuration looks like:
-
 :fiber { mod = 'my_module' } do
     :some_other_work()
-end
-
-# There is no 'if'
-
-condition then
-    '{condition} was true':print
-end
-
-condition else
-    '{condition} was false':print
-end
-
-# 'then' and 'else' aren't statements, they're actually expressions.
-# They evaluate to their condition. The following works like a conventional if-else
-
-condition then
-    do_something()
-end else
-    do_something_else()
 end
 ```
 ### Expression focused
 In Gab, everything is an expression. 
 ```
 a = cond and 1 or 2
+
+# There is no 'if'
+some_condition then
+    '{some_condition} was true':print
+end
+
+some_condition else
+    '{condition} was false':print
+end
+
+# 'then' and 'else' aren't statements, they're also expressions.
+# They evaluate to their condition. The following works like a conventional if-else
+
+some_condition then
+    do_something()
+end else
+    do_something_else()
+end
 ```
 ### Shapes
 Although Gab is dynamically typed, types are treated as first class.
-Many dynamic languages implement their objects/tables/hashes using hidden classes (V8), or shapes (cruby). Gab takes this idea and makes it a first class language feature!
 ```
-def Point { x y }
+# Get the type of a value with the ? operator
+a = 2
+?a # Number
 ```
-Records in Gab are structurally typed. This means that two records are the same type iff they share the same set of keys (order matters). This principle is used to define 'methods' for our types.
-```
-pos = { x = 10, y = 20 }
 
-pos:is(Point):print # true
+Aside from the normal primitive types, Gab has an aggregate type called a `Record`.
+```
+example_record = { some_key = 1, other_key = 2 }
+```
+The type of a record is a special value called a `Shape`. This is the unique list of keys of the record, in order.
+```
+?example_record # <Shape some_key other_key>
+```
+These shapes are structurally typed. This means that any two records with the same keys in the same order are of the same type.
+```
+other_record = { some_key = 'hello', other_key = 'world' }
+
+?example_record == ?other_record # true
 ```
 ### Message Passing
-Gab provides an abstraction for polymorphism through *message passing*.
-A message is defined as follows:
+There are no traditional classes or methods in Gab. Polymorphic code is written by `sending messages`.
 ```
 def Dog { ... }
 
@@ -105,8 +114,8 @@ def speak[Person]
     'hello!':print
 end
 ```
-The expression in brackets is used to create a specialization for the message on that type.
-In this example, the values of the Dog and Person shapes are used to instantiate a specific handler. Now we can write polymorphic code like this:
+The expression in `[]` is used to create a specialized implementation of the message for that type.
+In this example, the values of the Dog and Person shapes are used to specialize the message `:speak`. Now we can write polymorphic code like this:
 ```
 animal = getMammal() # This could be a person or a dog
 
@@ -114,9 +123,7 @@ animal:speak
 # prints 'woof!'  if the animal is a dog
 # prints 'hello!' if the animal is a person
 ```
-### Globals
-Gab has no notion of global variables. To export code from your modules, either return from the top-level or define messages.
-### Suspensions
+### Suspene
 The last major feature of Gab is suspensions. From any block, instead of returning you may `yield`
 ```
 def do_twice = do (cb)
@@ -158,6 +165,14 @@ end
 
 first, last = Bob:full_name
 ```
+Gab lacks exceptions, and prefers returning errors as values using multi values. By convention, the status is return as the first value.
+```
+status, content = io:open('hello.txt')
+
+status == .ok else
+    'Encountered error {status}':print
+end
+```
 ### What about imports?
 Gab defines several builtin messages. `:print` is one you should be familiar with by now - `:use` is another!
 It is used like this:
@@ -168,15 +183,15 @@ The implementation searches for the following, in order:
  - `./(name).gab`
  - `./(name)/mod.gab`
  - `./lib(name).so`
- - `/usr/local/share/gab/(name)/.gab`
- - `/usr/local/share/gab/(name)/.gab`
- - `/usr/local/share/gab/(name)/mod.gab`
- - `/usr/local/share/gab/std/(name)/.gab`
- - `/usr/local/lib/gab/lib(name).so`
- Files ending in the `.gab` extension are evaluated, and the result of the last top-level expression is returned to the caller of `require`. Files ending in the `.so` extension are opened dynamically, and searched for the symbol `gab_mod`. The result of this function is returned to the caller.
+ - `~/gab/(name)/.gab`
+ - `~/gab/(name)/.gab`
+ - `~/gab/(name)/mod.gab`
+ - `~/gab/std/(name)/.gab`
+ - `~/gab/lib//libcgab(name).so`
+ Files ending in the `.gab` extension are evaluated, and the result of the last top-level expression is returned to the caller of `:use`. Files ending in the `.so` extension are opened dynamically, and searched for the symbol `gab_lib`. The result of this function is returned to the caller.
 
 Most of the time, the return value of the `:use` call can be ignored. It is just called once to define the messages in the module. For example, the `io` module defines three messages:
- - `<String>:open`, which returns a `<File>` handle
+ - `:open`, which returns a `<File>` handle
  - `<File>:read`
  - `<File>:write`
 And thats it!
@@ -196,12 +211,13 @@ There are some modules bundled with the main cli.
   - *dis*: Disassemble your blocks into bytecode for debugging purposes
   - *pry*: Pry into the callstack for debugging purposes
 ### Dependencies
-libc is the only dependency for the interpreter.
+libc is the only dependency for the interpreter. However, some libraries (such as http and term) depend on some c libraries. 
 ### Installation
 This project is built with Meson. To install it:
   - Clone this repo.
-  - run `meson setup build`
+  - run `meson setup -Dbuildtype=release -Dprefix=<your install prefix> build`
   - run `meson install`
-### Whats coming up (in no particular order):
- - [ ] Finalize c api and documentation
- - [ ] Windows support
+#### Alternative - `c l i d e`
+[Clide](https://github.com/TeddyRandby/clide) is a tool for managing shell scripts for projects. To build this project with Clide, run:
+    - `clide configure`, and complete the prompts
+    - `clide install`

@@ -122,7 +122,7 @@ int32_t rec_dump_properties(FILE *stream, struct gab_obj_record *rec,
   return bytes;
 }
 
-int32_t __dump_value(FILE *stream, gab_value self, uint8_t depth) {
+int __dump_value(FILE *stream, gab_value self, uint8_t depth) {
   switch (gab_valknd(self)) {
   case kGAB_TRUE:
     return fprintf(stream, "%s", "true");
@@ -186,7 +186,7 @@ int32_t __dump_value(FILE *stream, gab_value self, uint8_t depth) {
   assert(false && "Unknown value type.");
 }
 
-int32_t gab_fdump(FILE *stream, gab_value self) {
+int gab_fvaldump(FILE *stream, gab_value self) {
   return __dump_value(stream, self, 2);
 }
 

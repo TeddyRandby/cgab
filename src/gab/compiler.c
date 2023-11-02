@@ -2955,7 +2955,7 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   gab_gciref(gab(bc), main);
 
   if (fGAB_DUMP_BYTECODE & bc->flags)
-    gab_fdis(stdout, new_mod);
+    gab_fmoddump(stdout, new_mod);
 
   return main;
 }

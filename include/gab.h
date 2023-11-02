@@ -1549,7 +1549,7 @@ int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
  *
  * @return The number of bytes written.
  */
-int32_t gab_fdump(FILE *stream, gab_value self);
+int gab_fvaldump(FILE *stream, gab_value self);
 
 /**
  * # Disassemble a module.
@@ -1558,7 +1558,7 @@ int32_t gab_fdump(FILE *stream, gab_value self);
  *
  * @param mod The module.
  */
-void gab_fdis(FILE *stream, struct gab_mod *mod);
+void gab_fmoddump(FILE *stream, struct gab_mod *mod);
 
 /**
  * # Pry into the frame at the given depth in the callstack.
@@ -1569,5 +1569,5 @@ void gab_fdis(FILE *stream, struct gab_mod *mod);
  *
  * @param depth The depth.
  */
-void gab_fpry(FILE *stream, struct gab_vm *vm, uint64_t depth);
+void gab_fvmdump(FILE *stream, struct gab_vm *vm, uint64_t depth);
 #endif
