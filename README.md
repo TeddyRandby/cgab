@@ -28,6 +28,11 @@ Bob:birthday # prints 'Happy Birthday Bob'
     - Shapes
     - Messages
     - Suspense
+    - Multi Values
+- Imports
+- Modules
+- Dependencies
+- Installation
 # Features
 Gab's more defining features include:
 ### Syntax
@@ -173,7 +178,7 @@ status == .ok else
     'Encountered error {status}':print
 end
 ```
-### What about imports?
+# What about imports?
 Gab defines several builtin messages. `:print` is one you should be familiar with by now - `:use` is another!
 It is used like this:
 ```
@@ -196,7 +201,7 @@ Most of the time, the return value of the `:use` call can be ignored. It is just
  - `<File>:write`
 And thats it!
 
-### Modules
+# Modules
 There are some modules bundled with the main cli.
   - *list*: A growing container of contiguous elements
   - *map*: A growing container of sparse elements, indexed by keys
@@ -210,9 +215,9 @@ There are some modules bundled with the main cli.
   - *socket*: Basically a wrapper for posix sockets
   - *dis*: Disassemble your blocks into bytecode for debugging purposes
   - *pry*: Pry into the callstack for debugging purposes
-### Dependencies
+# Dependencies
 libc is the only dependency for the interpreter. However, some libraries (such as http and term) depend on some c libraries. 
-### Installation
+# Installation
 This project is built with Meson. To install it:
   - Clone this repo.
   - run `meson setup -Dbuildtype=release -Dprefix=<your install prefix> build`
