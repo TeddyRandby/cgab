@@ -224,5 +224,5 @@ This project is built with Meson. To install it:
   - run `meson install`
 #### Alternative - `c l i d e`
 [Clide](https://github.com/TeddyRandby/clide) is a tool for managing shell scripts for projects. To build this project with Clide, run:
-    - `clide configure`, and complete the prompts
-    - `clide install`
+  - `clide configure`, and complete the prompts
+  - `clide install`
