@@ -265,7 +265,7 @@ void gab_lib_await(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
 a_gab_value *gab_lib(struct gab_triple gab) {
   const char *names[] = {
-      "fiber",
+      "fiber.new",
       "send",
       "await",
   };
@@ -277,7 +277,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab, "fiber", gab_lib_fiber),
+      gab_sbuiltin(gab, "fiber.new", gab_lib_fiber),
       gab_sbuiltin(gab, "send", gab_lib_send),
       gab_sbuiltin(gab, "await", gab_lib_await),
   };

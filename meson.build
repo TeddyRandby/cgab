@@ -57,8 +57,8 @@ shared_library('cgabtime',
   install: true,
 )
 
-shared_library('cgabdict',
-  'lib/dict.c',
+shared_library('cgabmap',
+  'lib/map.c',
   link_with: [cgab],
   install: true,
 )
@@ -83,7 +83,7 @@ shared_library('cgabstring',
 
 shared_library('cgabrecord',
   'lib/rec.c',
-  'lib/dict.h',
+  'lib/map.h',
   'lib/list.h',
   link_with: [cgab],
   install: true,
@@ -138,7 +138,7 @@ install_data(
   'std/numbers.gab',
   'std/time.gab',
   'std/lists.gab',
-  'std/dictionaries.gab',
+  'std/maps.gab',
   'std/pry.gab',
   'std/test.gab',
   'std/records.gab',

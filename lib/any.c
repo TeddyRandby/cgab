@@ -26,6 +26,19 @@ void gab_lib_send(struct gab_triple gab, size_t argc,
   a_gab_value_destroy(result);
 }
 
+void gab_lib_is_n(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  gab_vmpush(gab.vm, gab_bool(gab_valknd(argv[0]) == kGAB_NUMBER));
+}
+
+void gab_lib_is_s(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  gab_vmpush(gab.vm, gab_bool(gab_valknd(argv[0]) == kGAB_STRING));
+}
+
+void gab_lib_is_b(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  gab_vmpush(gab.vm, gab_bool(gab_valknd(argv[0]) == kGAB_FALSE ||
+                              gab_valknd(argv[0]) == kGAB_TRUE));
+}
+
 void gab_lib_implements(struct gab_triple gab, size_t argc,
                         gab_value argv[argc]) {
   gab_value type = gab_valtyp(gab.eg, argv[0]);
@@ -80,6 +93,22 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_typ(gab.eg, kGAB_UNDEFINED),
           gab_sbuiltin(gab, "send", gab_lib_send),
       },
+      {
+          "is_n",
+          gab_typ(gab.eg, kGAB_UNDEFINED),
+          gab_sbuiltin(gab, "is_n", gab_lib_is_n),
+      },
+      {
+          "is_s",
+          gab_typ(gab.eg, kGAB_UNDEFINED),
+          gab_sbuiltin(gab, "is_s", gab_lib_is_s),
+      },
+      {
+          "is_b",
+          gab_typ(gab.eg, kGAB_UNDEFINED),
+          gab_sbuiltin(gab, "is_b", gab_lib_is_b),
+      },
+
   };
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);

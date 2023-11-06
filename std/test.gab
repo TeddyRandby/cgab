@@ -5,12 +5,12 @@
 def TestState  { fails errs }
 
 def testState[nil]
-    :record(TestState):reset
+    :record.new(TestState):reset
 end
 
 def reset[TestState]
     self:fails = 0
-    self:errs = :list
+    self:errs = :list.new
 
     self
 end

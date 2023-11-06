@@ -1,26 +1,23 @@
-:use 'std/HTTP'
-:use 'fiber'
+:use 'dis' 
 
-:use 'std/HTTP'
-
-status, server = :http(8001) in match
-  .ok => 
-    for client in server:serve
-      :fiber do
-        :use 'std/HTTP'
-        :use 'socket'
-
-        s, buf = client:recv
-          
-        s == .ok or return
-
-        def res = :res:status(200):html '<div>Hello, World!</div>'
-          
-        s = client:send(res)
-          
-        s == .ok or return
-      end
+ do (..specs) 
+  specs:len > 0 or .INVALID_ARGUMENTS:panic
+  # Return a predicate which returns true if the given value
+  # fits any of the given specs
+  def predicate (value)
+    for k, spec in specs:each
+      spec:spec.fits?(value) and return true, spec, value, k
     end
+    
+    return false, nil, value
   end
-  
-  else => status:print end
+
+  # TODO: randomize generation
+  def spec.gen[predicate]
+    specs:at(1):spec.gen
+  end
+
+  predicate:print
+
+  return predicate
+end :dis

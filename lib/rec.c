@@ -1,6 +1,6 @@
-#include "dict.h"
 #include "include/gab.h"
 #include "list.h"
+#include "map.h"
 
 void gab_lib_splat(struct gab_triple gab, size_t argc,
                    gab_value argv[static argc]) {
@@ -142,7 +142,7 @@ void gab_lib_record(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     if (gab_valknd(argv[1]) != kGAB_SHAPE) {
-      gab_panic(gab, "Expected shape as second argument to :record");
+      gab_panic(gab, "Expected shape as second argument to :record.new");
       return;
     }
 
@@ -156,7 +156,7 @@ void gab_lib_record(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     for (int i = 0; i < argc; i++) {
       printf("%V\n", argv[i]);
     }
-    gab_panic(gab, "Expected 1 argument to :record");
+    gab_panic(gab, "Expected 1 argument to :record.new");
     return;
   }
 };
@@ -199,8 +199,8 @@ void gab_lib_to_m(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   switch (argc) {
   case 1: {
-    gab_value map = dict_create(gab, gab_reclen(rec), 1, gab_shpdata(shp),
-                                gab_recdata(rec));
+    gab_value map =
+        map_create(gab, gab_reclen(rec), 1, gab_shpdata(shp), gab_recdata(rec));
 
     gab_vmpush(gab.vm, map);
 
@@ -216,14 +216,14 @@ void gab_lib_to_m(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 a_gab_value *gab_lib(struct gab_triple gab) {
   struct gab_spec_argt specs[] = {
       {
-          "tuple",
+          "tuple.new",
           gab_nil,
-          gab_sbuiltin(gab, "tuple", gab_lib_tuple),
+          gab_sbuiltin(gab, "tuple.new", gab_lib_tuple),
       },
       {
-          "record",
+          "record.new",
           gab_nil,
-          gab_sbuiltin(gab, "record", gab_lib_record),
+          gab_sbuiltin(gab, "record.new", gab_lib_record),
       },
       {
           "len",

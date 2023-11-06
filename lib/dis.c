@@ -37,12 +37,21 @@ void gab_lib_disstring(struct gab_triple gab, size_t argc,
 
 void gab_lib_dismessage(struct gab_triple gab, size_t argc,
                         gab_value argv[argc]) {
-  if (argc != 2 || gab_valknd(argv[0]) != kGAB_MESSAGE) {
+  if (gab_valknd(argv[0]) != kGAB_MESSAGE) {
     gab_panic(gab, "Invalid call to gab_lib_dis");
     return;
   }
 
-  dis_message(gab, argv[0], argv[1]);
+  switch (argc) {
+  case 1:
+    printf("%V\n", gab_msgrec(argv[0]));
+    break;
+  case 2:
+    dis_message(gab, argv[0], argv[1]);
+    break;
+  default:
+    gab_panic(gab, "Invalid call to gab_lib_dis");
+  }
 }
 
 void gab_lib_disblock(struct gab_triple gab, size_t argc,

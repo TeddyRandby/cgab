@@ -128,7 +128,7 @@ animal:speak
 # prints 'woof!'  if the animal is a dog
 # prints 'hello!' if the animal is a person
 ```
-### Suspene
+### Suspense
 The last major feature of Gab is suspensions. From any block, instead of returning you may `yield`
 ```
 def do_twice = do (cb)

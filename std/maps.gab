@@ -1,0 +1,23 @@
+:use 'map'
+
+def [][.Map](key)
+  status, value = self:at(key) in
+    match
+      .some => value end
+      else => nil end
+end
+
+def [=][.Map](key, value); self:put!(key, value); end
+
+def has[.Map](key); self:at(key) == .some; end
+
+def del[.Map](key); self:put!(key, nil); end
+
+def each[.Map]
+  key = self:next
+
+  loop
+    yield key, self:at(key)
+    key = self:next(key)
+  until key == nil end
+end

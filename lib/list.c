@@ -173,13 +173,12 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value type = gab_string(gab, "List");
-  const char *names[] = {};
 
   struct gab_spec_argt specs[] = {
       {
-          "list",
+          "list.new",
           gab_nil,
-          gab_sbuiltin(gab, "list", gab_lib_new),
+          gab_sbuiltin(gab, "list.new", gab_lib_new),
       },
       {
           "new",

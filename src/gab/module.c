@@ -71,6 +71,7 @@ struct gab_mod *gab_modcpy(struct gab_triple gab, struct gab_mod *self) {
   Helpers for pushing ops into the module.
 */
 void gab_mod_push_op(struct gab_mod *self, gab_opcode op, size_t t) {
+  self->previous_basic_block = self->basic_block;
   self->previous_compiled_op = op;
   v_uint8_t_push(&self->bytecode, op);
   v_uint64_t_push(&self->bytecode_toks, t);
@@ -217,7 +218,13 @@ uint64_t gab_mod_push_jump(struct gab_mod *self, uint8_t op, size_t t) {
   return self->bytecode.len - 2;
 }
 
+void push_bb(struct gab_mod* self) {
+  self->basic_block++;
+}
+
 void gab_mod_patch_jump(struct gab_mod *self, uint64_t jump) {
+  push_bb(self);
+  
   uint64_t dist = self->bytecode.len - jump - 2;
 
   assert(dist < UINT16_MAX);
@@ -229,6 +236,8 @@ void gab_mod_patch_jump(struct gab_mod *self, uint64_t jump) {
 uint64_t gab_mod_push_loop(struct gab_mod *self) { return self->bytecode.len; }
 
 void gab_mod_patch_loop(struct gab_mod *self, uint64_t start, size_t t) {
+  push_bb(self);
+  
   uint64_t diff = self->bytecode.len - start + 3;
   assert(diff < UINT16_MAX);
 
@@ -237,6 +246,9 @@ void gab_mod_patch_loop(struct gab_mod *self, uint64_t start, size_t t) {
 }
 
 bool gab_mod_try_patch_mv(struct gab_mod *self, uint8_t want) {
+  if (self->previous_basic_block != self->basic_block)
+    return false;
+      
   switch (self->previous_compiled_op) {
   case OP_SEND_ANA:
     v_uint8_t_set(&self->bytecode, self->bytecode.len - 18, want);
@@ -293,12 +305,11 @@ uint64_t dumpSendInstruction(FILE *stream, struct gab_mod *self,
   uint8_t want = v_uint8_t_val_at(&self->bytecode, offset + 4);
 
   uint8_t var = have & FLAG_VAR_EXP;
-  ;
   have = have >> 1;
 
   fprintf(stream,
-          "%-25s" ANSI_COLOR_BLUE "%-17V" ANSI_COLOR_RESET " (%s%d) -> %d\n",
-          name, msg, var ? "VAR" : "", have, want);
+          "%-25s" ANSI_COLOR_BLUE "%10V" ANSI_COLOR_RESET " (%s%d) -> %d\n",
+          name, msg, var ? "& more" : "", have, want);
   return offset + 22;
 }
 
@@ -310,11 +321,19 @@ uint64_t dumpByteInstruction(FILE *stream, struct gab_mod *self,
   fprintf(stream, "%-25s%hhx\n", name, operand);
   return offset + 2;
 }
+uint64_t dumpReturnInstruction(FILE *stream, struct gab_mod *self,
+                              uint64_t offset) {
+  uint8_t havebyte = v_uint8_t_val_at(&self->bytecode, offset + 1);
+  uint8_t have = havebyte >> 1;
+  fprintf(stream, "%-25s%hhx%s\n", "RETURN", have, havebyte & FLAG_VAR_EXP ? " & more" : "");
+  return offset + 2;
+}
 
 uint64_t dumpYieldInstruction(FILE *stream, struct gab_mod *self,
                               uint64_t offset) {
-  uint8_t have = v_uint8_t_val_at(&self->bytecode, offset + 3);
-  fprintf(stream, "%-25s%hhx\n", "YIELD", have);
+  uint8_t havebyte = v_uint8_t_val_at(&self->bytecode, offset + 3);
+  uint8_t have = havebyte >> 1;
+  fprintf(stream, "%-25s%hhx%s\n", "YIELD", have, havebyte & FLAG_VAR_EXP ? " & more" : "");
   return offset + 4;
 }
 
@@ -426,7 +445,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_mod *self, uint64_t offset) {
   case OP_PUSH_FALSE:
   case OP_PUSH_NIL:
   case OP_PUSH_TRUE:
-  case OP_PUSH_UNDEFINED:
   case OP_SWAP:
   case OP_DUP:
   case OP_NOT:
@@ -470,7 +488,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_mod *self, uint64_t offset) {
   case OP_SEND_PRIMITIVE_CALL_BUILTIN:
   case OP_SEND_PRIMITIVE_CALL_SUSPENSE:
     return dumpSendInstruction(stream, self, offset);
-  case OP_RETURN:
   case OP_POP_N:
   case OP_STORE_LOCAL:
   case OP_POP_STORE_LOCAL:
@@ -482,6 +499,8 @@ uint64_t dumpInstruction(FILE *stream, struct gab_mod *self, uint64_t offset) {
   case OP_LOAD_LOCAL: {
     return dumpByteInstruction(stream, self, offset);
   }
+  case OP_RETURN:
+    return dumpReturnInstruction(stream, self, offset);
   case OP_YIELD: {
     return dumpYieldInstruction(stream, self, offset);
   }

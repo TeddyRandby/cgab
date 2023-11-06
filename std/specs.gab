@@ -1,0 +1,187 @@
+:use 'std/maps'
+:use 'std/records'
+:use 'std/any'
+:use 'symbol'
+
+def spec.invalid = :symbol.new('spec.invalid')
+
+## Registry of qualified name -> spec
+def registry.spec = :map.new
+
+## Registry of qualified name -> help text
+def registry.help = :map.new
+
+def register(registry, name, value)
+  # Add a new specification to the registry.
+  # If this key already existed, panic.
+  result = registry:add!(name, value) in match
+     .ok  => .pass                  end
+     else => .SPEC_NAME_TAKEN:panic end
+end
+
+## Add a spec to the global registry under the given name.
+def spec.def[](name, spec)
+  ?spec match
+    ?{ spec } => 
+      register(registry.spec, name, spec:spec)
+    end
+    ?{ spec help } => 
+      register(registry.spec, name, spec:spec)
+      register(registry.help, name, spec:help)
+    end
+    else => register(registry.spec, name, spec) end
+end
+
+## PREDICATES
+# A spec predicate is a function which:
+#   - Takes a value as input
+#   - returns (true, spec, value, path) if the value fits the spec,
+#      where spec is the spec that accepted the value
+#      where value is the accepted value
+#      where path is the 'path' taken to the accepted value ( or nil, if no path )
+#   - returns (false, spec, value, path) if the value does not fit the spec,
+#      where spec is the predicate that rejected the value ( or nil, if no spec was found )
+#      where value is the rejected value
+#      where path is the 'path' taken to the rejected value ( or nil, if no path )
+
+
+## predicate for a map of key type -> value type
+def spec.map[](k_spec, v_spec)
+  def predicate (value)
+    ?value == .Map or return false, self, value 
+    
+    for k, v in value:each
+      k_spec:spec.fits?(k) or return false, k_spec, k, k
+      v_spec:spec.fits?(v) or return false, v_spec, v, k
+    end
+
+    return true, self, value
+  end
+
+  def spec.gen[predicate]
+    :map.new {
+      [k_spec:spec.gen] = v_spec:spec.gen
+    }
+  end
+
+  return predicate
+end
+
+## predicate for a list of values
+def spec.list[](spec)
+  def predicate (value)
+    ?value == .List or return false, self, value
+
+    for v, i in value:each
+      spec:spec.fits?(v) or return false, self, value, i
+    end
+
+    return true, self, value
+  end
+
+  def spec.gen[predicate]
+    :list.new:push!(spec:spec.gen)
+  end
+
+  return predicate
+end
+
+## predicate for a list of keys
+def spec.record[](record)
+  # Return a predicate which returns true if the given value
+  # has all the keys of the record
+  def predicate (value)
+    ## TODO: Update this such that the value is AT LEAST the record
+    ?value == ?record or return false, self, value
+
+    for k in record:each
+      # If the value has the shape we expect,
+      # then we can continue on and check each
+      # of its keys against a possible spec
+      # in the registry.
+      _, spec = registry.spec:at(k) in match
+         .some => spec:spec.fits?(value:at(k)) else
+              return false, spec, value, k
+            end
+         end
+         else  => .MISSING_SPEC:panic end
+    end
+
+    return true, self, value
+  end
+
+  def spec.gen[predicate]
+    gen = :record.new(?record)
+
+    for k in record:each
+      _, spec = registry.spec:at(k) in match
+        .some =>
+          gen[k] = spec:spec.gen
+        end
+        else  => .MISSING_SPEC:panic        end
+    end
+
+    return gen
+  end
+
+  return predicate
+end
+
+:use 'std/pry'
+:use 'dis'
+
+def spec.or[](..specs)
+  specs:len > 0 or .INVALID_ARGUMENTS:panic
+  
+  # Return a predicate which returns true if the given value
+  # fits any of the given specs
+  def predicate (value)
+    for k, spec in specs:each
+      spec:spec.fits?(value) and return true, spec, value, k
+    end
+    
+    return false, nil, value
+  end
+
+  # TODO: randomize generation
+  def spec.gen[predicate]
+    specs:at(1):spec.gen
+  end
+
+  predicate:print
+
+  return predicate
+end
+
+def spec.and[](..specs)
+  specs:len > 0 or .INVALID_ARGUMENTS:panic
+  # Return a predicate which returns true iff the given value
+  # fits all of the given specs
+  def predicate (value)
+    for k, spec in specs:each
+      spec:spec.fits?(value) or return false, spec, value, k
+    end
+    
+    return true, self, value
+  end
+  # NO GEN FOR AND YET
+  # def spec.gen[predicate]; end
+end
+
+## GENERATORS
+# A spec predicate should implement the &:spec.gen message.
+# This allows spec to dynamically generate values which satisfy predicates.
+# TODO: Add randomization to these generators
+def spec.gen[&:is_n]; 1    end
+def spec.gen[&:is_s]; ''   end
+def spec.gen[&:is_b]; true end
+def spec.gen[]; self end
+
+## FITS
+# Implement spec.fits? for all valid types that can serve as specs
+# Since a spec is just a predicate, we can simply call it and return the result
+def spec.fits?        [](value); self == value    end
+def spec.fits?  [.Block](value); self(value)      end
+def spec.fits?[.Message](value); value:send(self) end
+
+return nil

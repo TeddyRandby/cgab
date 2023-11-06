@@ -1,24 +1,15 @@
-:use 'std/records' 
-:use 'dis'
+:use 'std/specs'
 
-def main
-  a = { b c }
+def car.spec      = :spec.record { car.make car.model car.year car.color }
+def car.make.spec = :spec.or('Ford', 'Chevy', 'Toyota', 'Honda')
 
-  (a['b'], d, a['c'] = 1, 2, 3)
+:spec.def 'car.year'  { spec = &:is_n }
+:spec.def 'car.color' { spec = &:is_s }
+:spec.def 'car.model' { spec = &:is_s }
+:spec.def 'car.make'  { spec = car.make.spec }
 
-  a:b:print
-  a:c:print
-  d:print
+..result = car.spec:spec.fits? { car.make = '' car.model = 'F150' car.year = 2012 car.color = 'red' }
 
-  (e, a['b'], a['c'] = 1, 2, 3)
+generated = car.spec:spec.gen
 
-  a:b:print
-  a:c:print
-  e:print
-
-  (a['c'], a['b'], e = 1, 2, 3)
-end
-
-main:dis
-
-main()
+generated:print

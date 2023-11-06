@@ -27,7 +27,6 @@ void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (file == NULL) {
     gab_value r = gab_string(gab, "FILE_COULD_NOT_OPEN");
     gab_vmpush(gab.vm, r);
-    fclose(file);
     return;
   }
 
@@ -43,7 +42,6 @@ void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   };
 
   gab_nvmpush(gab.vm, 2, result);
-  fclose(file);
 }
 
 void gab_lib_read(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
@@ -102,7 +100,7 @@ void gab_lib_write(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
 a_gab_value *gab_lib(struct gab_triple gab) {
   const char *names[] = {
-      "open",
+      "io.open",
       "read",
       "write",
   };
@@ -116,7 +114,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab, "open", gab_lib_open),
+      gab_sbuiltin(gab, "io.open", gab_lib_open),
       gab_sbuiltin(gab, "read", gab_lib_read),
       gab_sbuiltin(gab, "write", gab_lib_write),
   };

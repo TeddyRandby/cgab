@@ -82,6 +82,23 @@ void gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   return;
 }
 
+void gab_lib_add(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  if (argc != 3) {
+    gab_panic(gab, "&:add! expects 3 arguments");
+    return;
+  }
+
+  if (map_has(argv[0], argv[1])) {
+    gab_vmpush(gab.vm, gab_string(gab, "KEY_ALREADY_EXISTS"));
+    return;
+  }
+
+  map_put(argv[0], argv[1], argv[2]);
+  gab_vmpush(gab.vm, gab_string(gab, "ok"));
+
+  return;
+}
+
 void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   d_gab_value *map = gab_boxdata(argv[0]);
 
@@ -139,9 +156,9 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   struct gab_spec_argt specs[] = {
       {
-          "map",
+          "map.new",
           gab_nil,
-          gab_sbuiltin(gab, "new", gab_lib_new),
+          gab_sbuiltin(gab, "map.new", gab_lib_new),
       },
       {
           "len",
@@ -152,6 +169,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "put!",
           type,
           gab_sbuiltin(gab, "put", gab_lib_put),
+      },
+      {
+          "add!",
+          type,
+          gab_sbuiltin(gab, "add", gab_lib_add),
       },
       {
           "at",

@@ -186,7 +186,7 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
 
   // Update the SP to point just past the locals section
   if (proto->nlocals > len)
-    vm->sp = vm->fp->slots + proto->nlocals;
+    vm->sp = vm->fp->slots + proto->nlocals + 1;
   else
     vm->sp = vm->fp->slots + len + 1;
 
@@ -409,7 +409,21 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
             goto fin;
         }
 
-        /* Try sending on the universal 'undefined' */
+        if (gab_valknd(receiver) == kGAB_BLOCK) {
+          /* Try sending on the general type .Block */
+          offset = gab_msgfind(m, gab_typ(EG(), kGAB_BLOCK));
+          if (offset != GAB_PROPERTY_NOT_FOUND)
+            goto fin;
+        }
+        
+        if (gab_valknd(receiver) == kGAB_MESSAGE) {
+          /* Try sending on the general type .Block */
+          offset = gab_msgfind(m, gab_typ(EG(), kGAB_MESSAGE));
+          if (offset != GAB_PROPERTY_NOT_FOUND)
+            goto fin;
+        }
+
+        /* Try sending on the universal undefined */
         offset = gab_msgfind(m, gab_undefined);
 
         if (offset == GAB_PROPERTY_NOT_FOUND) {
@@ -906,13 +920,13 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       NEXT();
     }
 
-    CASE_CODE(PUSH_NIL) : {
-      PUSH(gab_nil);
+    CASE_CODE(PUSH_UNDEFINED) : {
+      PUSH(gab_undefined);
       NEXT();
     }
 
-    CASE_CODE(PUSH_UNDEFINED) : {
-      PUSH(gab_undefined);
+    CASE_CODE(PUSH_NIL) : {
+      PUSH(gab_nil);
       NEXT();
     }
 
@@ -1168,6 +1182,14 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       memcpy(ap - len + 1, ap, above * sizeof(gab_value));
 
       PEEK_N(above + 1) = rec;
+
+      /*
+       * When packing at the entrypoint of a function
+       * It is possible that we pack TOP() to actually be lower than the number
+       * of locals the function is expected to have.
+       */
+      while (TOP() < SLOTS() + BLOCK_PROTO()->nlocals - 1)
+        PUSH(gab_nil);
 
       VAR() = want + 1;
 

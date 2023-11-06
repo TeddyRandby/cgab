@@ -1440,6 +1440,8 @@ static inline gab_value gab_valtyp(struct gab_eg *gab, gab_value value) {
   switch (k) {
   case kGAB_NIL:
   case kGAB_UNDEFINED:
+  case kGAB_BLOCK:
+  case kGAB_MESSAGE:
     return value;
 
   case kGAB_RECORD: {

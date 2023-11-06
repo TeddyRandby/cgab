@@ -183,13 +183,13 @@ gab_token string(gab_lx *self) {
 }
 
 gab_token identifier(gab_lx *self) {
-  while (is_alpha(peek(self)) || is_digit(peek(self)))
+  while (can_continue_identifier(peek(self)))
     advance(self);
 
   if (peek(self) == '?' || peek(self) == '!')
     advance(self);
 
-  for (int32_t i = 0; i < sizeof(keywords) / sizeof(keyword); i++) {
+  for (int i = 0; i < sizeof(keywords) / sizeof(keyword); i++) {
     keyword k = keywords[i];
     s_char lit = s_char_create(k.literal, strlen(k.literal));
     if (s_char_match(self->current_token_src, lit)) {
@@ -308,7 +308,7 @@ gab_token other(gab_lx *self) {
   case ':': {
     advance(self);
 
-    if (is_alpha(peek(self))) {
+    if (can_start_identifier(peek(self))) {
       // If we didn't get a keyword, return a token message
       if (identifier(self) == TOKEN_IDENTIFIER) {
         // Messages can end in ? or !

@@ -777,8 +777,12 @@ fin:
   if (pop_ctx(bc, kTUPLE) < 0)
     return COMP_ERR;
 
-  if (mv >= 0)
-    gab_mod_push_pack(mod(bc), mv, narguments - mv, bc->offset - 1);
+  if (mv >= 0) {
+    uint8_t below = mv, above = narguments - mv; 
+    gab_mod_push_pack(mod(bc), below, above, bc->offset - 1);
+    for (int i = 0; i < narguments - above; i++)
+      push_op(bc, OP_PUSH_NIL);
+  }
 
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;
@@ -867,7 +871,9 @@ int compile_block_body(struct bc *bc) {
   if (expect_token(bc, TOKEN_END) < 0)
     return COMP_ERR;
 
-  gab_mod_push_return(mod(bc), result, false, bc->offset - 1);
+  bool mv = gab_mod_try_patch_mv(mod(bc), VAR_EXP);
+
+  gab_mod_push_return(mod(bc), !mv, mv, bc->offset - 1);
 
   return COMP_OK;
 }
@@ -891,8 +897,8 @@ int compile_message_spec(struct bc *bc, gab_value name) {
   return COMP_OK;
 }
 
-int compile_block(struct bc *bc) {
-  push_ctxframe(bc, gab_string(gab(bc), "anonymous"));
+int compile_block(struct bc *bc, gab_value name) {
+  push_ctxframe(bc, name);
 
   int narguments = compile_parameters(bc);
 
@@ -1363,8 +1369,6 @@ int compile_rec_internals(struct bc *bc) {
       return COMP_ERR;
     }
 
-    match_and_eat_token(bc, TOKEN_COMMA);
-
     if (skip_newlines(bc) < 0)
       return COMP_ERR;
 
@@ -1408,23 +1412,6 @@ int compile_record_tuple(struct bc *bc) {
 }
 
 int compile_definition(struct bc *bc, s_char name) {
-  // A record definition
-  if (match_and_eat_token(bc, TOKEN_LBRACK)) {
-    gab_value val_name = gab_nstring(gab(bc), name.len, name.data);
-
-    uint8_t local = add_local(bc, val_name, 0);
-
-    if (compile_record(bc) < 0)
-      return COMP_ERR;
-
-    push_op(bc, OP_TYPE);
-
-    push_store_local(bc, local);
-
-    initialize_local(bc, local);
-
-    return COMP_OK;
-  }
 
   if (match_and_eat_token(bc, TOKEN_QUESTION))
     name.len++;
@@ -1439,6 +1426,16 @@ int compile_definition(struct bc *bc, s_char name) {
 
   if (local < 0)
     return COMP_ERR;
+  
+  // A record definition
+  if (match_and_eat_token(bc, TOKEN_LBRACK)) {
+    if (compile_record(bc) < 0)
+      return COMP_ERR;
+
+    push_op(bc, OP_TYPE);
+
+    goto fin;
+  }
 
   if (match_and_eat_token(bc, TOKEN_EQUAL)) {
     if (compile_expression(bc) < 0)
@@ -1486,7 +1483,7 @@ int compile_definition(struct bc *bc, s_char name) {
     goto fin;
   }
 
-  if (compile_block(bc) < 0)
+  if (compile_block(bc, val_name) < 0)
     return COMP_ERR;
 
 fin:
@@ -1500,7 +1497,7 @@ fin:
 //---------------- Compiling Expressions ------------------
 
 int compile_exp_blk(struct bc *bc, bool assignable) {
-  return compile_block(bc);
+  return compile_block(bc, gab_string(gab(bc), "anonymous"));
 }
 
 int compile_exp_then(struct bc *bc, bool assignable) {
@@ -1581,13 +1578,23 @@ int compile_exp_mch(struct bc *bc, bool assignable) {
     if (next != 0)
       gab_mod_patch_jump(mod(bc), next);
 
+    // Duplicate the pattern
+    push_op(bc, OP_DUP);
+    push_slot(bc, 1);
+
+    // Compile a test expression
     if (compile_expression(bc) < 0)
       return COMP_ERR;
 
-    push_op(bc, OP_MATCH);
+    size_t t = bc->offset - 1;
+
+    int m = add_message_constant(bc, gab_string(gab(bc), mGAB_EQ));
+
+    // Test for equality
+    gab_mod_push_send(mod(bc), 1, m, false, t);
+    pop_slot(bc, 1);
 
     next = gab_mod_push_jump(mod(bc), OP_POP_JUMP_IF_FALSE, bc->offset - 1);
-
     pop_slot(bc, 1);
 
     if (expect_token(bc, TOKEN_FAT_ARROW) < 0)
@@ -1599,17 +1606,19 @@ int compile_exp_mch(struct bc *bc, bool assignable) {
     if (compile_expressions(bc) < 0)
       return COMP_ERR;
 
+    // We need to pretend to pop the slot 
+    // In all of the branches, because in reality
+    // we only ever keep one.
+    pop_slot(bc, 1);
+
     if (expect_token(bc, TOKEN_END) < 0)
       return COMP_ERR;
 
     if (skip_newlines(bc) < 0)
       return COMP_ERR;
 
-    pop_slot(bc, 1);
-
     // Push a jump out of the match statement at the end of every case.
-    v_uint64_t_push(&done_jumps,
-                    gab_mod_push_jump(mod(bc), OP_JUMP, bc->offset - 1));
+    v_uint64_t_push(&done_jumps, gab_mod_push_jump(mod(bc), OP_JUMP, t));
   }
 
   // If none of the cases match, the last jump should end up here.
@@ -1628,16 +1637,12 @@ int compile_exp_mch(struct bc *bc, bool assignable) {
   if (expect_token(bc, TOKEN_END) < 0)
     return COMP_ERR;
 
-  pop_slot(bc, 1);
-
   for (int i = 0; i < done_jumps.len; i++) {
     // Patch all the jumps to the end of the match expression.
     gab_mod_patch_jump(mod(bc), v_uint64_t_val_at(&done_jumps, i));
   }
 
   v_uint64_t_destroy(&done_jumps);
-
-  push_slot(bc, 1);
 
   return COMP_OK;
 }
@@ -2323,7 +2328,7 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
 
   if (flags & fHAS_DO || match_and_eat_token(bc, TOKEN_DO)) {
     // We are an anonyumous function
-    if (compile_block(bc) < 0)
+    if (compile_block(bc, gab_string(gab(bc), "anonymous")) < 0)
       return COMP_ERR;
 
     result += 1 + *mv_out;
@@ -2943,7 +2948,9 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   if (compile_expressions_body(bc) < 0)
     return gab_undefined;
 
-  gab_mod_push_return(mod(bc), 1, false, bc->offset - 1);
+  bool mv = gab_mod_try_patch_mv(mod(bc), VAR_EXP);
+
+  gab_mod_push_return(mod(bc), !mv, mv, bc->offset - 1);
 
   gab_value p = pop_ctxframe(bc);
 

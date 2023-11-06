@@ -13,14 +13,14 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
   default:
-    gab_panic(gab, "&:new expects 2 arguments");
+    gab_panic(gab, "&:symbol.new expects 2 arguments");
     return;
   }
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
   const char *names[] = {
-      "symbol",
+      "symbol.new",
   };
 
   gab_value receivers[] = {

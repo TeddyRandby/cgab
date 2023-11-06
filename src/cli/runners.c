@@ -44,6 +44,9 @@ void repl(const char *module, int flags) {
     if (result == NULL)
       continue;
 
+    gab_ngciref(gab, 1, result->len, result->data);
+    gab_negkeep(gab.eg, result->len, result->data);
+
     printf("=> ");
     for (int32_t i = 0; i < result->len; i++) {
       gab_value arg = result->data[i];
@@ -53,7 +56,6 @@ void repl(const char *module, int flags) {
       else
         printf("%V, ", arg);
 
-      gab_egkeep(gab.eg, arg);
     }
 
     prev = result->data[0];
@@ -120,6 +122,7 @@ void run_src(struct gab_triple gab, s_char src, const char *module, char delim,
                                              .argv = buf,
                                          });
 
+      gab_ngciref(gab, 1, result->len, result->data);
       gab_negkeep(gab.eg, result->len, result->data);
 
       a_gab_value_destroy(result);

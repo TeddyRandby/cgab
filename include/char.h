@@ -15,4 +15,8 @@ bool is_digit(uint8_t c);
 
 bool is_comment(uint8_t c);
 
+bool can_start_identifier(uint8_t c);
+
+bool can_continue_identifier(uint8_t c);
+
 #endif

@@ -89,10 +89,10 @@ int32_t shape_dump_properties(FILE *stream, struct gab_obj_shape *shape,
 int32_t rec_dump_properties(FILE *stream, struct gab_obj_record *rec,
                             uint8_t depth) {
   if (rec->len == 0)
-    return fprintf(stream, "");
+    return fprintf(stream, " ~ ");
 
   if (rec->len > 8)
-    return fprintf(stream, "...");
+    return fprintf(stream, " ... ");
 
   int32_t bytes = 0;
 
