@@ -777,12 +777,8 @@ fin:
   if (pop_ctx(bc, kTUPLE) < 0)
     return COMP_ERR;
 
-  if (mv >= 0) {
-    uint8_t below = mv, above = narguments - mv; 
-    gab_mod_push_pack(mod(bc), below, above, bc->offset - 1);
-    for (int i = 0; i < narguments - above; i++)
-      push_op(bc, OP_PUSH_NIL);
-  }
+  if (mv >= 0)
+    gab_mod_push_pack(mod(bc), mv, narguments - mv, bc->offset - 1);
 
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;

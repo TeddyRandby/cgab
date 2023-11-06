@@ -34,6 +34,36 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   }
 }
 
+void gab_lib_to_bytes(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  if (argc != 1) {
+    gab_panic(gab, "Invalid call to gab_lib_to_bytes");
+    return;
+  }
+
+  v_gab_value* bytes = gab_boxdata(argv[0]);
+
+  char buffer[bytes->len];
+
+  for (uint64_t i = 0; i < bytes->len; i++) {
+    if (gab_valknd(bytes->data[i]) != kGAB_NUMBER) {
+      gab_panic(gab, "Invalid call to gab_lib_to_bytes");
+      return;
+    }
+
+    double val = gab_valton(bytes->data[i]);
+
+    if (val > 255 || val < 0) {
+      gab_panic(gab, "Invalid call to gab_lib_to_bytes");
+      return;
+    }
+    
+    buffer[i] = val;
+  }
+
+  gab_value result = gab_nstring(gab, bytes->len, buffer);
+  gab_vmpush(gab.vm, result);
+}
+
 void gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, "Invalid call to gab_lib_len");
@@ -214,6 +244,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "at",
           type,
           gab_sbuiltin(gab, "at", gab_lib_at),
+      },
+      {
+          "to_bytes",
+          type,
+          gab_sbuiltin(gab, "to_bytes", gab_lib_to_bytes),
       },
   };
 

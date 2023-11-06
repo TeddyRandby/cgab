@@ -1,5 +1,7 @@
 :use 'std/maps'
 :use 'std/records'
+:use 'std/lists'
+:use 'std/numbers'
 :use 'std/any'
 :use 'symbol'
 
@@ -127,9 +129,6 @@ def spec.record[](record)
   return predicate
 end
 
-:use 'std/pry'
-:use 'dis'
-
 def spec.or[](..specs)
   specs:len > 0 or .INVALID_ARGUMENTS:panic
   
@@ -148,8 +147,6 @@ def spec.or[](..specs)
     specs:at(1):spec.gen
   end
 
-  predicate:print
-
   return predicate
 end
 
@@ -165,17 +162,30 @@ def spec.and[](..specs)
     return true, self, value
   end
   # NO GEN FOR AND YET
+  # Do this by generating for the first spec until it fits *all* specs
   # def spec.gen[predicate]; end
 end
 
-## GENERATORS
+ # GENERATORS
 # A spec predicate should implement the &:spec.gen message.
 # This allows spec to dynamically generate values which satisfy predicates.
 # TODO: Add randomization to these generators
-def spec.gen[&:is_n]; 1    end
-def spec.gen[&:is_s]; ''   end
-def spec.gen[&:is_b]; true end
-def spec.gen[]; self end
+def spec.gen      [];                       self end
+def spec.gen[&:is_n]; :float.between(-100, 100) end
+def spec.gen[&:is_b]; :float.between > 0.5      end
+def spec.gen[&:is_s]
+  def len = :int.between(1, 100)
+  def list = :list.new
+  
+  i = 0
+  
+  loop
+    list:push!(:int.between(0, 127))
+    i = i + 1
+  until i == len end
+  
+  list:to_bytes
+end
 
 ## FITS
 # Implement spec.fits? for all valid types that can serve as specs

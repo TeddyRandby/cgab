@@ -13,6 +13,14 @@ void gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_vmpush(gab.vm, result);
 };
 
+void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  switch (argc) {
+    default:
+      gab_panic(gab, "&:string.new expects 1 argument");
+      return;
+  }
+}
+
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (MAX(0, MIN(a, b)))
@@ -73,16 +81,19 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value receivers[] = {
       string_type,
       string_type,
+      string_type,
   };
 
   const char *names[] = {
       "slice",
       "len",
+      "string.new",
   };
 
   gab_value specs[] = {
       gab_sbuiltin(gab, "slice", gab_lib_slice),
       gab_sbuiltin(gab, "len", gab_lib_len),
+      gab_sbuiltin(gab, "string.new", gab_lib_new),
   };
 
   for (uint8_t i = 0; i < LEN_CARRAY(names); i++) {

@@ -173,7 +173,8 @@ int32_t gab_vm_push(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
 static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
                               uint64_t have, uint8_t want) {
   struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(b->p);
-  size_t len = proto->narguments == VAR_EXP ? have : proto->narguments;
+  bool wants_var = proto->narguments == VAR_EXP;
+  size_t len = wants_var ? have : proto->narguments;
 
   if (!has_callspace(vm, proto->nslots - len - 1))
     return false;
@@ -185,12 +186,10 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   vm->fp->slots = vm->sp - have - 1;
 
   // Update the SP to point just past the locals section
-  if (proto->nlocals > len)
-    vm->sp = vm->fp->slots + proto->nlocals + 1;
-  else
-    vm->sp = vm->fp->slots + len + 1;
+  size_t offset = wants_var ? len + 1 : proto->nlocals + 1;
+  vm->sp = vm->fp->slots + offset;
 
-  // Trim arguments into the slots
+  // Trim arguments into the slots, and update VAR()
   *vm->sp = trim_values(vm->fp->slots + 1, vm->fp->slots + 1, have, len);
 
   return true;
@@ -388,6 +387,11 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       uint64_t offset = gab_msgfind(m, type);
 
       if (offset == GAB_PROPERTY_NOT_FOUND) {
+        /*
+         * TODO: Make this lookup more consistent. For referential types which aren't interned,
+         * We should lookup on the object itself, then its type, then undefined. Records have the
+         * special case of looking up on their properties.
+         */
         if (gab_valknd(receiver) == kGAB_RECORD) {
           /* Try sending as a property */
           offset = gab_shpfind(gab_recshp(receiver), gab_msgname(m));
@@ -416,13 +420,6 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
             goto fin;
         }
         
-        if (gab_valknd(receiver) == kGAB_MESSAGE) {
-          /* Try sending on the general type .Block */
-          offset = gab_msgfind(m, gab_typ(EG(), kGAB_MESSAGE));
-          if (offset != GAB_PROPERTY_NOT_FOUND)
-            goto fin;
-        }
-
         /* Try sending on the universal undefined */
         offset = gab_msgfind(m, gab_undefined);
 
@@ -1187,9 +1184,10 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
        * When packing at the entrypoint of a function
        * It is possible that we pack TOP() to actually be lower than the number
        * of locals the function is expected to have.
+       * Move TOP() to past the locals section in this case.
        */
-      while (TOP() < SLOTS() + BLOCK_PROTO()->nlocals - 1)
-        PUSH(gab_nil);
+      if (TOP() - SLOTS() < BLOCK_PROTO()->nlocals - 1)
+        TOP() = SLOTS() + BLOCK_PROTO()->nlocals - 1;
 
       VAR() = want + 1;
 

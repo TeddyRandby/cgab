@@ -3,9 +3,9 @@
 #
 # Yes, its not actually blackjack
 :use 'any'
-:use 'std/List'
-:use 'std/Number'
-:use 'std/Record'
+:use 'std/lists'
+:use 'std/numbers'
+:use 'std/records'
 
 def swap![.Record](i, j)
     self[i], self[j] = self[j], self[i]
@@ -31,8 +31,8 @@ def permutations![.Record](opt_k)
     end
 end
 
-def ops = :list
-def hands = :list
+def ops = :list.new
+def hands = :list.new
 
 for seq in [ &+, &-, &/, &* ]:permutations!
     ops:push!(seq:slice)

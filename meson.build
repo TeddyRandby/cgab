@@ -18,6 +18,9 @@ cgab = shared_library('cgab',
   install: true,
 )
 
+libdir = join_paths(get_option('prefix'), 'lib/gab')
+
+
 shared_library('cgaburi-parser',
   'lib/uri-parser.c',
   dependencies: [uri],

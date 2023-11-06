@@ -10,6 +10,8 @@ def car.make.spec = :spec.or('Ford', 'Chevy', 'Toyota', 'Honda')
 
 ..result = car.spec:spec.fits? { car.make = '' car.model = 'F150' car.year = 2012 car.color = 'red' }
 
+result:print
+
 generated = car.spec:spec.gen
 
 generated:print

@@ -1,6 +1,5 @@
 :use 'std/test'
 :use 'std/numbers'
-:use 'std/dictionaries'
 
 :describe('Multiple Assignment') do
     :it('should declare new variables') do

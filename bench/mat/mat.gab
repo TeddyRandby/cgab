@@ -1,5 +1,5 @@
-:use 'std/Record'
-:use 'std/Number'
+:use 'std/records'
+:use 'std/numbers'
 
 def Matrix { n data }
 
@@ -8,28 +8,28 @@ def matrix[](n, data)
 end
 
 def +[Matrix](other)
-  def N = self.n
+  def N = self:n
 
-  data = :record(?self.data)
+  data = :record(?self:data)
 
   for i in (N * N):each
-    data[i] = self.data[i] + other.data[i]
+    data[i] = self:data[i] + other:data[i]
   end
 
   :matrix(N, data)
 end
 
 def *[Matrix](other)
-  def N = self.n
+  def N = self:n
 
-  def data = :record(?self.data)
+  def data = :record(?self:data)
 
   for i in N:each
     for j in N:each
       sum = 0
 
       for k in N:each
-        sum = sum + self.data[i*N+k] * other.data[k*N+j]
+        sum = sum + self:data[i*N+k] * other:data[k*N+j]
       end
 
       data[i*N+j] = sum
@@ -42,10 +42,10 @@ end
 def diag_sum[Matrix]
   sum = 0
 
-  def N = self.n
+  def N = self:n
 
   for i in N:each
-    sum = sum + self.data[i*(N + 1)]
+    sum = sum + self:data[i*(N + 1)]
   end
 
   sum

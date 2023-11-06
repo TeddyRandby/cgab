@@ -1,5 +1,7 @@
 :use 'num'
 
+def int.between[](a, b); :float.between(a, b) :floor end
+
 def each[.Number]
   v = 0
 
