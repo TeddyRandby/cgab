@@ -1,5 +1,5 @@
-:use 'std/test'
-:use 'std/numbers'
+:use 'tests'
+:use 'numbers'
 
 :describe('Multiple Assignment') do
     :it('should declare new variables') do
@@ -165,6 +165,7 @@ end
    :it 'should work with varargs'  do
       def varfunc = do (first, ..args)
         first:expect(1)
+        args:print
         args[0]:expect(2)
       end
 

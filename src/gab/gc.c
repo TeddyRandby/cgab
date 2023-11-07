@@ -454,7 +454,7 @@ static inline void increment_reachable(struct gab_triple gab) {
 
   gab_value *tracker = gab.vm->sp - 1;
 
-  while (tracker >= gab.vm->sb) {
+  while (tracker != gab.vm->sb) {
     inc_if_obj_ref(gab, *tracker);
     tracker--;
   }
@@ -471,7 +471,7 @@ static inline void decrement_reachable(struct gab_triple gab) {
 
   gab_value *tracker = gab.vm->sp - 1;
 
-  while (tracker >= gab.vm->sb) {
+  while (tracker != gab.vm->sb) {
     if (gab_valiso(*tracker)) {
       queue_decrement(gab, gab_valtoo(*tracker));
     }

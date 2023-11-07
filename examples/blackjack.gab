@@ -3,9 +3,9 @@
 #
 # Yes, its not actually blackjack
 :use 'any'
-:use 'std/lists'
-:use 'std/numbers'
-:use 'std/records'
+:use 'lists'
+:use 'numbers'
+:use 'records'
 
 def swap![.Record](i, j)
     self[i], self[j] = self[j], self[i]

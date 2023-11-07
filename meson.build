@@ -92,7 +92,7 @@ shared_library('cgabrecord',
   install: true,
 )
 
-shared_library('cgabany',
+shared_library('cgabcany',
   'lib/any.c',
   link_with: [cgab],
   install: true,
@@ -116,7 +116,7 @@ shared_library('cgabdis',
   install: true,
 )
 
-shared_library('cgabpry',
+shared_library('cgabcpry',
   'lib/pry.c',
   link_with: [cgab],
   install: true,
@@ -143,7 +143,7 @@ install_data(
   'std/lists.gab',
   'std/maps.gab',
   'std/pry.gab',
-  'std/test.gab',
+  'std/tests.gab',
   'std/records.gab',
   'std/http.gab',
   'std/any.gab',

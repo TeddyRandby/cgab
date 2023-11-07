@@ -1528,6 +1528,8 @@ int compile_exp_then(struct bc *bc, bool assignable) {
 
   initialize_local(bc, phantom);
 
+  push_store_local(bc, phantom);
+
   if (compile_expressions(bc) < 0)
     return COMP_ERR;
 
@@ -1560,6 +1562,8 @@ int compile_exp_else(struct bc *bc, bool assignable) {
     return COMP_ERR;
 
   initialize_local(bc, phantom);
+
+  push_store_local(bc, phantom);
 
   if (compile_expressions(bc) < 0)
     return COMP_ERR;

@@ -120,7 +120,7 @@ static inline gab_value *trim_return(gab_value *from, gab_value *to,
   return sp;
 }
 
-static inline bool has_callspace(struct gab_vm *vm, uint64_t space_needed) {
+static inline bool has_callspace(struct gab_vm *vm, size_t space_needed) {
   if (vm->fp - vm->fb + 1 >= cGAB_FRAMES_MAX) {
     return false;
   }
@@ -174,7 +174,9 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
                               uint64_t have, uint8_t want) {
   struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(b->p);
   bool wants_var = proto->narguments == VAR_EXP;
-  size_t len = wants_var ? have : proto->narguments;
+  size_t len = (wants_var ? have : proto->narguments) + 1;
+
+  assert(proto->nslots >= len);
 
   if (!has_callspace(vm, proto->nslots - len - 1))
     return false;
@@ -186,11 +188,10 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   vm->fp->slots = vm->sp - have - 1;
 
   // Update the SP to point just past the locals section
-  size_t offset = wants_var ? len + 1 : proto->nlocals + 1;
-  vm->sp = vm->fp->slots + offset;
+  size_t offset = (wants_var ? len : proto->nlocals);
 
   // Trim arguments into the slots, and update VAR()
-  *vm->sp = trim_values(vm->fp->slots + 1, vm->fp->slots + 1, have, len);
+  vm->sp = trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, offset - 1);
 
   return true;
 }
@@ -387,12 +388,12 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       /* Do the expensive lookup */
       int status = gab_egimpl(EG(), (struct gab_egimpl_argt){
-                                         .receiver = receiver,
-                                         .msg = m,
-                                         .type = &type,
-                                         .offset = &offset,
-                                     });
-      
+                                        .receiver = receiver,
+                                        .msg = m,
+                                        .type = &type,
+                                        .offset = &offset,
+                                    });
+
       if (!status) {
         STORE_FRAME();
         return ERROR(GAB_IMPLEMENTATION_MISSING,
@@ -752,24 +753,22 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       uint64_t have;
 
-      {
-        CASE_CODE(YIELD) : {
-          gab_value proto = READ_CONSTANT;
-          have = compute_arity(VM(), READ_BYTE);
+      CASE_CODE(YIELD) : {
+        gab_value proto = READ_CONSTANT;
+        have = compute_arity(VM(), READ_BYTE);
 
-          uint64_t frame_len = TOP() - SLOTS() - have;
+        uint64_t frame_len = TOP() - SLOTS() - have;
 
-          assert(frame_len < UINT16_MAX);
+        assert(frame_len < UINT16_MAX);
 
-          gab_value sus = gab_suspense(GAB(), frame_len, __gab_obj(CLOSURE()),
-                                       proto, SLOTS());
+        gab_value sus = gab_suspense(GAB(), frame_len, __gab_obj(CLOSURE()),
+                                     proto, SLOTS());
 
-          PUSH(sus);
+        PUSH(sus);
 
-          have++;
+        have++;
 
-          goto complete_return;
-        }
+        goto complete_return;
       }
 
       CASE_CODE(RETURN) : {

@@ -1,5 +1,5 @@
-:use 'std/records'
-:use 'std/numbers'
+:use 'records'
+:use 'numbers'
 
 def Matrix { n data }
 
@@ -10,7 +10,7 @@ end
 def +[Matrix](other)
   def N = self:n
 
-  data = :record(?self:data)
+  data = :record.new(?self:data)
 
   for i in (N * N):each
     data[i] = self:data[i] + other:data[i]
@@ -22,7 +22,7 @@ end
 def *[Matrix](other)
   def N = self:n
 
-  def data = :record(?self:data)
+  def data = :record.new(?self:data)
 
   for i in N:each
     for j in N:each
@@ -54,9 +54,9 @@ end
 N, sum, i = 2, 0, 0 
 
 loop
-  a = :matrix(N, :tuple(N * N):map! do; @2 end)
+  a = :matrix(N, :tuple.new(N * N):map! do; @2 end)
   
-  b = :matrix(N, :tuple(N * N):map! do; @2 end)
+  b = :matrix(N, :tuple.new(N * N):map! do; @2 end)
 
   c = a + b
 
