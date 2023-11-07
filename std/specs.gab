@@ -161,20 +161,21 @@ def spec.and[](..specs)
     
     return true, self, value
   end
-  # NO GEN FOR AND YET
-  # Do this by generating for the first spec until it fits *all* specs
+  
+  # FIXME: This is broken
   # def spec.gen[predicate]; end
+
+  return predicate
 end
 
- # GENERATORS
+## GENERATORS
 # A spec predicate should implement the &:spec.gen message.
 # This allows spec to dynamically generate values which satisfy predicates.
-# TODO: Add randomization to these generators
-def spec.gen      [];                       self end
+def spec.gen      [];                      self end
 def spec.gen[&:is_n]; :float.between(-100, 100) end
 def spec.gen[&:is_b]; :float.between > 0.5      end
 def spec.gen[&:is_s]
-  def len = :int.between(1, 100)
+  def len  = :int.between(1, 100)
   def list = :list.new
   
   i = 0

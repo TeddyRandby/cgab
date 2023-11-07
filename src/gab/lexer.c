@@ -149,6 +149,10 @@ const keyword keywords[] = {
         "until",
         TOKEN_UNTIL,
     },
+    {
+        "break",
+        TOKEN_BREAK,
+    },
 };
 
 gab_token string(gab_lx *self) {

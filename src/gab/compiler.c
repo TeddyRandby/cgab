@@ -76,7 +76,7 @@ struct context {
 
   union {
     v_lvalue assignment_target;
-
+    v_uint64_t break_list;
     struct frame frame;
   } as;
 };
@@ -645,6 +645,21 @@ static struct gab_mod *push_ctxframe(struct bc *bc, gab_value name) {
   return mod;
 }
 
+static int pop_ctxloop(struct bc *bc) {
+  int ctx = peek_ctx(bc, kLOOP, 0);
+
+  v_uint64_t *breaks = &bc->contexts[ctx].as.break_list;
+
+  for (int i = 0; i < breaks->len; i++) {
+    uint64_t jump = breaks->data[i];
+    gab_mod_patch_jump(mod(bc), jump);
+  }
+
+  v_uint64_t_destroy(breaks);
+
+  return pop_ctx(bc, kLOOP);
+}
+
 static gab_value pop_ctxframe(struct bc *bc) {
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;
@@ -676,6 +691,10 @@ struct compile_rule get_rule(gab_token k);
 int compile_exp_prec(struct bc *bc, enum prec_k prec);
 int compile_expression(struct bc *bc);
 int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out);
+
+bool curr_prefix(struct bc *bc) {
+  return get_rule(curr_tok(bc)).prefix != NULL;
+}
 
 //---------------- Compiling Helpers -------------------
 /*
@@ -1422,7 +1441,7 @@ int compile_definition(struct bc *bc, s_char name) {
 
   if (local < 0)
     return COMP_ERR;
-  
+
   // A record definition
   if (match_and_eat_token(bc, TOKEN_LBRACK)) {
     if (compile_record(bc) < 0)
@@ -1602,7 +1621,7 @@ int compile_exp_mch(struct bc *bc, bool assignable) {
     if (compile_expressions(bc) < 0)
       return COMP_ERR;
 
-    // We need to pretend to pop the slot 
+    // We need to pretend to pop the slot
     // In all of the branches, because in reality
     // we only ever keep one.
     pop_slot(bc, 1);
@@ -2640,6 +2659,8 @@ int compile_exp_prec(struct bc *bc, enum prec_k prec) {
 int compile_exp_for(struct bc *bc, bool assignable) {
   push_scope(bc);
 
+  push_ctx(bc, kLOOP);
+
   size_t t = bc->offset - 1;
 
   int ctx = peek_ctx(bc, kFRAME, 0);
@@ -2720,6 +2741,9 @@ int compile_exp_for(struct bc *bc, bool assignable) {
 
   pop_scope(bc); /* Pop the scope once, after we exit the loop. */
 
+  if (pop_ctxloop(bc) < 0)
+    return COMP_ERR;
+
   gab_mod_patch_jump(mod(bc), jump_start);
 
   push_op(bc, OP_PUSH_NIL);
@@ -2728,12 +2752,39 @@ int compile_exp_for(struct bc *bc, bool assignable) {
   return COMP_OK;
 }
 
+int compile_exp_brk(struct bc *bc, bool assignable) {
+  size_t t = bc->offset - 1;
+
+  int ctx = peek_ctx(bc, kLOOP, 0);
+
+  if (ctx < 0) {
+    compiler_error(bc, GAB_BREAK_OUTSIDE_LOOP, "");
+    return COMP_ERR;
+  }
+
+  if (!curr_prefix(bc)) {
+    push_op(bc, OP_PUSH_NIL);
+    goto fin;
+  }
+
+  if (compile_expression(bc) < 0)
+    return COMP_OK;
+
+fin : {
+  size_t jump = gab_mod_push_jump(mod(bc), OP_JUMP, t);
+  v_uint64_t_push(&bc->contexts[ctx].as.break_list, jump);
+  return COMP_OK;
+}
+}
+
 int compile_exp_lop(struct bc *bc, bool assignable) {
   push_scope(bc);
 
   size_t t = bc->offset - 1;
 
   uint64_t loop = gab_mod_push_loop(mod(bc));
+
+  push_ctx(bc, kLOOP);
 
   if (compile_expressions(bc) < 0)
     return COMP_ERR;
@@ -2762,6 +2813,9 @@ int compile_exp_lop(struct bc *bc, bool assignable) {
   }
 
   push_op(bc, OP_PUSH_NIL);
+
+  if (pop_ctxloop(bc) < 0)
+    return COMP_ERR;
 
   pop_scope(bc);
   return COMP_OK;
@@ -2871,6 +2925,7 @@ const struct compile_rule rules[] = {
     PREFIX(yld),// YIELD
     PREFIX(lop),                       // LOOP
     NONE(),                       // UNTIL
+    PREFIX(brk),                       // BREAK
     INFIX(bin, TERM, false),                  // PLUS
     PREFIX_INFIX(una, bin, TERM, false),      // MINUS
     INFIX(bin, FACTOR, false),                // STAR

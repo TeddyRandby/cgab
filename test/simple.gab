@@ -1,23 +1,6 @@
-:use 'dis' 
+:use 'std/records'
 
- do (..specs) 
-  specs:len > 0 or .INVALID_ARGUMENTS:panic
-  # Return a predicate which returns true if the given value
-  # fits any of the given specs
-  def predicate (value)
-    for k, spec in specs:each
-      spec:spec.fits?(value) and return true, spec, value, k
-    end
-    
-    return false, nil, value
-  end
-
-  # TODO: randomize generation
-  def spec.gen[predicate]
-    specs:at(1):spec.gen
-  end
-
-  predicate:print
-
-  return predicate
-end :dis
+for i in [1 2 3 4 5]:each
+  i:print
+  i - 2 == 0 and break
+end
