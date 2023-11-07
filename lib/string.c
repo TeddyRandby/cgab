@@ -33,7 +33,7 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   switch (argc) {
   case 2:
-    if (gab_valknd(argv[1]) != kGAB_NUMBER) {
+    if (gab_valkind(argv[1]) != kGAB_NUMBER) {
       gab_panic(gab, "&:slice expects a number as the second argument");
       return;
     }
@@ -43,14 +43,14 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     break;
 
   case 3:
-    if (gab_valknd(argv[1]) == kGAB_NUMBER) {
+    if (gab_valkind(argv[1]) == kGAB_NUMBER) {
       start = MIN(gab_valton(argv[1]), len);
     } else if (argv[1] == gab_nil) {
       gab_panic(gab, "&:slice expects a number as the second argument");
       return;
     }
 
-    if (gab_valknd(argv[2]) == kGAB_NUMBER) {
+    if (gab_valkind(argv[2]) == kGAB_NUMBER) {
       end = MIN(gab_valton(argv[2]), len);
     } else if (argv[2] == gab_nil) {
       gab_panic(gab, "&:slice expects a number as the third argument");
@@ -76,7 +76,7 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value string_type = gab_typ(gab.eg, kGAB_STRING);
+  gab_value string_type = gab_type(gab.eg, kGAB_STRING);
 
   gab_value receivers[] = {
       string_type,

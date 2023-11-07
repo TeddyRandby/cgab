@@ -261,7 +261,7 @@ bool gab_mod_try_patch_mv(struct gab_mod *self, uint8_t want) {
 
     gab_value value = v_gab_constant_val_at(&self->constants, offset);
 
-    assert(gab_valknd(value) == kGAB_SUSPENSE_PROTO);
+    assert(gab_valkind(value) == kGAB_SUSPENSE_PROTO);
 
     struct gab_obj_suspense_proto *proto = GAB_VAL_TO_SUSPENSE_PROTO(value);
 

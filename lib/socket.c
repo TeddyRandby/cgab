@@ -32,7 +32,7 @@ void gab_lib_poll(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     break;
 
   case 2:
-    if (gab_valknd(argv[1]) != kGAB_NUMBER) {
+    if (gab_valkind(argv[1]) != kGAB_NUMBER) {
       gab_panic(gab, "invalid_arguments");
       return;
     }
@@ -65,7 +65,7 @@ void gab_lib_sock(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     break;
   }
   case 2: {
-    if (gab_valknd(argv[1]) != kGAB_RECORD) {
+    if (gab_valkind(argv[1]) != kGAB_RECORD) {
       gab_panic(gab, "invalid_arguments");
       return;
     }
@@ -73,12 +73,12 @@ void gab_lib_sock(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     gab_value domain_val = gab_srecat(gab, argv[1], SOCKET_FAMILY);
     gab_value type_val = gab_srecat(gab, argv[1], SOCKET_TYPE);
 
-    if (gab_valknd(domain_val) != kGAB_NUMBER) {
+    if (gab_valkind(domain_val) != kGAB_NUMBER) {
       gab_panic(gab, "invalid_arguments");
       return;
     }
 
-    if (gab_valknd(type_val) != kGAB_NUMBER) {
+    if (gab_valkind(type_val) != kGAB_NUMBER) {
       gab_panic(gab, "invalid_arguments");
       return;
     }
@@ -132,7 +132,7 @@ void gab_lib_bind(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   case 2: {
     gab_value config = argv[1];
 
-    switch (gab_valknd(config)) {
+    switch (gab_valkind(config)) {
     case kGAB_NUMBER:
       family = AF_INET;
       port = htons(gab_valton(config));
@@ -140,14 +140,14 @@ void gab_lib_bind(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     case kGAB_RECORD: {
       gab_value family_value = gab_srecat(gab, config, SOCKET_FAMILY);
 
-      if (gab_valknd(family_value) != kGAB_NUMBER) {
+      if (gab_valkind(family_value) != kGAB_NUMBER) {
         gab_panic(gab, "invalid_arguments");
         return;
       }
 
       gab_value port_value = gab_srecat(gab, config, "port");
 
-      if (gab_valknd(port_value) != kGAB_NUMBER) {
+      if (gab_valkind(port_value) != kGAB_NUMBER) {
         gab_panic(gab, "invalid_arguments");
         return;
       }
@@ -186,8 +186,8 @@ fin : {
 }
 
 void gab_lib_listen(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (argc != 2 || gab_valknd(argv[0]) != kGAB_BOX ||
-      gab_valknd(argv[1]) != kGAB_NUMBER) {
+  if (argc != 2 || gab_valkind(argv[0]) != kGAB_BOX ||
+      gab_valkind(argv[1]) != kGAB_NUMBER) {
     gab_panic(gab, "invalid_arguments");
     return;
   }
@@ -236,7 +236,7 @@ void gab_lib_accept(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 void gab_lib_connect(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 3: {
-    if (gab_valknd(argv[2]) != kGAB_NUMBER) {
+    if (gab_valkind(argv[2]) != kGAB_NUMBER) {
       gab_panic(gab, "invalid_arguments");
       return;
     }
@@ -299,7 +299,7 @@ void gab_lib_receive(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_send(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (argc != 2 || gab_valknd(argv[1]) != kGAB_STRING) {
+  if (argc != 2 || gab_valkind(argv[1]) != kGAB_STRING) {
     gab_panic(gab, "Invalid call to gab_lib_receive");
     return;
   }

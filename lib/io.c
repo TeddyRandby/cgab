@@ -5,8 +5,8 @@
 void file_cb(void *data) { fclose(data); }
 
 void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (argc != 3 || gab_valknd(argv[1]) != kGAB_STRING ||
-      gab_valknd(argv[2]) != kGAB_STRING) {
+  if (argc != 3 || gab_valkind(argv[1]) != kGAB_STRING ||
+      gab_valkind(argv[2]) != kGAB_STRING) {
     gab_panic(gab, "&:open expects a path and permissions string");
     return;
   }
@@ -45,7 +45,7 @@ void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_read(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (argc != 1 || gab_valknd(argv[0]) != kGAB_BOX) {
+  if (argc != 1 || gab_valkind(argv[0]) != kGAB_BOX) {
     gab_panic(gab, "&:read expects a file handle");
     return;
   }
@@ -74,7 +74,7 @@ void gab_lib_read(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_write(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (argc != 2 || gab_valknd(argv[0]) != kGAB_BOX) {
+  if (argc != 2 || gab_valkind(argv[0]) != kGAB_BOX) {
     gab_panic(gab, "&:write expects a file handle and data string");
     return;
   }

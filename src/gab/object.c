@@ -123,7 +123,7 @@ int32_t rec_dump_properties(FILE *stream, struct gab_obj_record *rec,
 }
 
 int __dump_value(FILE *stream, gab_value self, uint8_t depth) {
-  switch (gab_valknd(self)) {
+  switch (gab_valkind(self)) {
   case kGAB_TRUE:
     return fprintf(stream, "%s", "true");
   case kGAB_FALSE:
@@ -291,8 +291,8 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
   Given two strings, create a third which is the concatenation a+b
 */
 gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
-  assert(gab_valknd(_a) == kGAB_STRING);
-  assert(gab_valknd(_b) == kGAB_STRING);
+  assert(gab_valkind(_a) == kGAB_STRING);
+  assert(gab_valkind(_b) == kGAB_STRING);
 
   struct gab_obj_string *a = GAB_VAL_TO_STRING(_a);
   struct gab_obj_string *b = GAB_VAL_TO_STRING(_b);
@@ -370,7 +370,7 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
 }
 
 gab_value gab_builtin(struct gab_triple gab, gab_value name, gab_builtin_f f) {
-  assert(gab_valknd(name) == kGAB_STRING);
+  assert(gab_valkind(name) == kGAB_STRING);
 
   struct gab_obj_builtin *self = GAB_CREATE_OBJ(gab_obj_builtin, kGAB_BUILTIN);
 
@@ -388,7 +388,7 @@ gab_value gab_sbuiltin(struct gab_triple gab, const char *name,
 }
 
 gab_value gab_block(struct gab_triple gab, gab_value prototype) {
-  assert(gab_valknd(prototype) == kGAB_BLOCK_PROTO);
+  assert(gab_valkind(prototype) == kGAB_BLOCK_PROTO);
   struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(prototype);
 
   struct gab_obj_block *self =
@@ -441,7 +441,7 @@ gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
 
 gab_value gab_recordof(struct gab_triple gab, gab_value shp, uint64_t stride,
                        gab_value values[static GAB_VAL_TO_SHAPE(shp)->len]) {
-  assert(gab_valknd(shp) == kGAB_SHAPE);
+  assert(gab_valkind(shp) == kGAB_SHAPE);
   struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(shp);
 
   struct gab_obj_record *self =
@@ -457,7 +457,7 @@ gab_value gab_recordof(struct gab_triple gab, gab_value shp, uint64_t stride,
 }
 
 gab_value gab_erecordof(struct gab_triple gab, gab_value shp) {
-  assert(gab_valknd(shp) == kGAB_SHAPE);
+  assert(gab_valkind(shp) == kGAB_SHAPE);
   struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(shp);
 
   struct gab_obj_record *self =
@@ -497,8 +497,8 @@ gab_value gab_susproto(struct gab_triple gab, uint64_t offset, uint8_t want) {
 
 gab_value gab_suspense(struct gab_triple gab, uint16_t len, gab_value b,
                        gab_value p, gab_value frame[static len]) {
-  assert(gab_valknd(b) == kGAB_BLOCK);
-  assert(gab_valknd(p) == kGAB_SUSPENSE_PROTO);
+  assert(gab_valkind(b) == kGAB_BLOCK);
+  assert(gab_valkind(p) == kGAB_SUSPENSE_PROTO);
 
   struct gab_obj_suspense *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_suspense, gab_value, len, kGAB_SUSPENSE);

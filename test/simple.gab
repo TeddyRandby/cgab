@@ -1,6 +1,11 @@
-:use 'std/records'
+specs, spec,tries = 1, 1, 1
 
-for i in [1 2 3 4 5]:each
-  i:print
-  i - 2 == 0 and break
-end
+loop
+  value, valid, tries = spec:spec.gen, false, tries + 1
+
+  for _, spec in specs:each
+    (valid = spec:spec.fits?(value)) or break
+  end
+
+  valid and break value
+until tries == 100 end

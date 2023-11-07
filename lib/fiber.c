@@ -63,7 +63,7 @@ void fiber_destructor_cb(void *d) {
 }
 
 bool callable(gab_value v) {
-  return gab_valknd(v) == kGAB_BLOCK || gab_valknd(v) == kGAB_SUSPENSE;
+  return gab_valkind(v) == kGAB_BLOCK || gab_valkind(v) == kGAB_SUSPENSE;
 }
 
 gab_value out_queue_pop(struct gab_triple gab, fiber *f) {

@@ -67,7 +67,7 @@ void gab_lib_between(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     break;
 
   case 2: {
-    if (gab_valknd(argv[1]) != kGAB_NUMBER) {
+    if (gab_valkind(argv[1]) != kGAB_NUMBER) {
       gab_panic(gab, "Invalid call to gab_lib_random");
 
       return;
@@ -79,8 +79,8 @@ void gab_lib_between(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   }
 
   case 3: {
-    if (gab_valknd(argv[1]) != kGAB_NUMBER ||
-        gab_valknd(argv[2]) != kGAB_NUMBER) {
+    if (gab_valkind(argv[1]) != kGAB_NUMBER ||
+        gab_valkind(argv[2]) != kGAB_NUMBER) {
       gab_panic(gab, "Invalid call to gab_lib_random");
 
       return;
@@ -104,7 +104,7 @@ void gab_lib_between(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
 void gab_lib_floor(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
-  if (argc != 1 || gab_valknd(argv[0]) != kGAB_NUMBER) {
+  if (argc != 1 || gab_valkind(argv[0]) != kGAB_NUMBER) {
     gab_panic(gab, "Invalid call to gab_lib_floor");
 
     return;
@@ -136,17 +136,17 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   struct gab_spec_argt specs[] = {
       {
           "float.between",
-          gab_typ(gab.eg, kGAB_NIL),
+          gab_type(gab.eg, kGAB_NIL),
           gab_sbuiltin(gab, "float.between", gab_lib_between),
       },
       {
           "floor",
-          gab_typ(gab.eg, kGAB_NUMBER),
+          gab_type(gab.eg, kGAB_NUMBER),
           gab_sbuiltin(gab, "floor", gab_lib_floor),
       },
       {
           "to_n",
-          gab_typ(gab.eg, kGAB_STRING),
+          gab_type(gab.eg, kGAB_STRING),
           gab_sbuiltin(gab, "to_n", gab_lib_to_n),
       },
   };

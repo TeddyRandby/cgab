@@ -23,7 +23,7 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   }
 
   case 2: {
-    if (gab_valknd(argv[1]) != kGAB_RECORD) {
+    if (gab_valkind(argv[1]) != kGAB_RECORD) {
       gab_panic(gab, "Invalid call to gab_lib_new");
       return;
     }
@@ -68,8 +68,8 @@ void gab_lib_dim(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (gab_valknd(argv[1]) != kGAB_NUMBER ||
-      gab_valknd(argv[2]) != kGAB_NUMBER) {
+  if (gab_valkind(argv[1]) != kGAB_NUMBER ||
+      gab_valkind(argv[2]) != kGAB_NUMBER) {
     gab_panic(gab, "Invalid call to gab_lib_put");
     return;
   }

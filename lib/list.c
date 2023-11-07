@@ -12,7 +12,7 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
   case 2: {
-    if (gab_valknd(argv[1]) != kGAB_NUMBER) {
+    if (gab_valkind(argv[1]) != kGAB_NUMBER) {
       gab_panic(gab, "Invalid call to gab_lib_new");
       return;
     }
@@ -45,7 +45,7 @@ void gab_lib_to_bytes(struct gab_triple gab, size_t argc, gab_value argv[argc]) 
   char buffer[bytes->len];
 
   for (uint64_t i = 0; i < bytes->len; i++) {
-    if (gab_valknd(bytes->data[i]) != kGAB_NUMBER) {
+    if (gab_valkind(bytes->data[i]) != kGAB_NUMBER) {
       gab_panic(gab, "Invalid call to gab_lib_to_bytes");
       return;
     }
@@ -103,7 +103,7 @@ void gab_lib_push(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (argc != 2 || gab_valknd(argv[1]) != kGAB_NUMBER) {
+  if (argc != 2 || gab_valkind(argv[1]) != kGAB_NUMBER) {
     gab_panic(gab, "Invalid call to gab_lib_put");
     return;
   }
@@ -116,7 +116,7 @@ void gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_del(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (argc != 2 || gab_valknd(argv[1]) != kGAB_NUMBER) {
+  if (argc != 2 || gab_valkind(argv[1]) != kGAB_NUMBER) {
     gab_panic(gab, "Invalid call to gab_lib_del");
     return;
   }
@@ -132,7 +132,7 @@ void gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 3:
     // A put
-    if (gab_valknd(argv[1]) != kGAB_NUMBER) {
+    if (gab_valkind(argv[1]) != kGAB_NUMBER) {
       gab_panic(gab, "Invalid call to gab_lib_put");
       return;
     }
@@ -164,7 +164,7 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     break;
 
   case 2: {
-    if (gab_valknd(argv[1]) != kGAB_NUMBER) {
+    if (gab_valkind(argv[1]) != kGAB_NUMBER) {
       gab_panic(gab, "Invalid call to gab_lib_slice");
       return;
     }
@@ -174,8 +174,8 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     break;
   }
   case 3: {
-    if (gab_valknd(argv[1]) != kGAB_NUMBER ||
-        gab_valknd(argv[2]) != kGAB_NUMBER) {
+    if (gab_valkind(argv[1]) != kGAB_NUMBER ||
+        gab_valkind(argv[2]) != kGAB_NUMBER) {
       gab_panic(gab, "Invalid call to gab_lib_slice");
       return;
     }

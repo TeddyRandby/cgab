@@ -13,7 +13,7 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   }
 
   case 2: {
-    if (gab_valknd(argv[1]) != kGAB_RECORD) {
+    if (gab_valkind(argv[1]) != kGAB_RECORD) {
       gab_panic(gab, "&:new expects a record as second argument");
       return;
     }

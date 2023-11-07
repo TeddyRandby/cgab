@@ -103,7 +103,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   };
 
   gab_value receivers[] = {
-      gab_typ(gab.eg, kGAB_STRING),
+      gab_type(gab.eg, kGAB_STRING),
   };
 
   gab_value specs[] = {

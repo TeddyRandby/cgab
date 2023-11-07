@@ -176,7 +176,7 @@ struct gab_triple gab_create() {
   for (int i = 0; i < LEN_CARRAY(primitives); i++) {
     gab_spec(gab, (struct gab_spec_argt){
                       .name = primitives[i].name,
-                      .receiver = gab_typ(eg, primitives[i].type),
+                      .receiver = gab_type(eg, primitives[i].type),
                       .specialization = primitives[i].primitive,
                   });
   }
@@ -314,7 +314,7 @@ a_gab_value *gab_send(struct gab_triple gab, struct gab_send_argt args) {
     return send_msg(gab, msg, args.receiver, args.len, args.argv);
   }
 
-  switch (gab_valknd(args.vmessage)) {
+  switch (gab_valkind(args.vmessage)) {
   case kGAB_STRING: {
     gab_value main = gab_message(gab, args.vmessage);
     return send_msg(gab, main, args.receiver, args.len, args.argv);
@@ -450,7 +450,7 @@ struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *self, uint64_t size,
   }
 }
 
-gab_value gab_typ(struct gab_eg *gab, enum gab_kind k) { return gab->types[k]; }
+gab_value gab_type(struct gab_eg *gab, enum gab_kind k) { return gab->types[k]; }
 
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
                            const void *const *args) {
@@ -488,7 +488,7 @@ size_t gab_nvmpush(struct gab_vm *vm, size_t argc, gab_value argv[argc]) {
 }
 
 gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
-  switch (gab_valknd(value)) {
+  switch (gab_valkind(value)) {
 
   default:
     return value;

@@ -10,7 +10,7 @@ void dis_block(gab_value blk) {
 void dis_message(struct gab_triple gab, gab_value msg, gab_value rec) {
   gab_value spec = gab_msgat(msg, rec);
 
-  switch (gab_valknd(spec)) {
+  switch (gab_valkind(spec)) {
   case kGAB_BLOCK:
     dis_block(spec);
     break;
@@ -37,7 +37,7 @@ void gab_lib_disstring(struct gab_triple gab, size_t argc,
 
 void gab_lib_dismessage(struct gab_triple gab, size_t argc,
                         gab_value argv[argc]) {
-  if (gab_valknd(argv[0]) != kGAB_MESSAGE) {
+  if (gab_valkind(argv[0]) != kGAB_MESSAGE) {
     gab_panic(gab, "Invalid call to gab_lib_dis");
     return;
   }
@@ -77,10 +77,10 @@ void gab_lib_disbuiltin(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value receivers[] = {
-      gab_typ(gab.eg, kGAB_BLOCK),
-      gab_typ(gab.eg, kGAB_MESSAGE),
-      gab_typ(gab.eg, kGAB_STRING),
-      gab_typ(gab.eg, kGAB_BUILTIN),
+      gab_type(gab.eg, kGAB_BLOCK),
+      gab_type(gab.eg, kGAB_MESSAGE),
+      gab_type(gab.eg, kGAB_STRING),
+      gab_type(gab.eg, kGAB_BUILTIN),
   };
 
   gab_value values[] = {gab_sbuiltin(gab, "disblock", gab_lib_disblock),

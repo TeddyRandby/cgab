@@ -261,8 +261,8 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
   }                                                                            \
   if (!__gab_valisn(PEEK())) {                                                 \
     STORE_FRAME();                                                             \
-    return ERROR(GAB_NOT_NUMERIC, "Found %V %V", gab_valtyp(EG(), PEEK()),     \
-                 PEEK());                                                      \
+    return ERROR(GAB_NOT_NUMERIC, "Found %V (%V)", PEEK(),                     \
+                 gab_valtype(EG(), PEEK()), PEEK());                           \
   }                                                                            \
   operation_type b = gab_valton(POP());                                        \
   operation_type a = gab_valton(POP());                                        \
@@ -353,7 +353,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
   for (uint8_t i = 0; i < argc; i++)
     *VM()->sp++ = argv[i];
 
-  switch (gab_valknd(main)) {
+  switch (gab_valkind(main)) {
   case kGAB_BLOCK: {
     struct gab_obj_block *b = GAB_VAL_TO_BLOCK(main);
     if (!call_block(VM(), b, argc, VAR_EXP))
@@ -382,62 +382,33 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value receiver = PEEK_N(have + 1);
 
-      gab_value type = gab_valtyp(EG(), receiver);
+      gab_value type;
+      uint64_t offset;
 
-      uint64_t offset = gab_msgfind(m, type);
-
-      if (offset == GAB_PROPERTY_NOT_FOUND) {
-        /*
-         * TODO: Make this lookup more consistent. For referential types which aren't interned,
-         * We should lookup on the object itself, then its type, then undefined. Records have the
-         * special case of looking up on their properties.
-         */
-        if (gab_valknd(receiver) == kGAB_RECORD) {
-          /* Try sending as a property */
-          offset = gab_shpfind(gab_recshp(receiver), gab_msgname(m));
-          if (offset != GAB_PROPERTY_NOT_FOUND) {
-            /* Write into the cache the dispatch to specialized opcode */
-            WRITE_INLINEBYTE(GAB_VAL_TO_MESSAGE(m)->version);
-            WRITE_INLINEQWORD(type);
-            WRITE_INLINEQWORD(offset);
-            WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PROPERTY);
-
-            IP() -= SEND_CACHE_DIST;
-
-            NEXT();
-          }
-
-          /* Try sending on the general type .Record */
-          offset = gab_msgfind(m, gab_typ(EG(), kGAB_RECORD));
-          if (offset != GAB_PROPERTY_NOT_FOUND)
-            goto fin;
-        }
-
-        if (gab_valknd(receiver) == kGAB_BLOCK) {
-          /* Try sending on the general type .Block */
-          offset = gab_msgfind(m, gab_typ(EG(), kGAB_BLOCK));
-          if (offset != GAB_PROPERTY_NOT_FOUND)
-            goto fin;
-        }
-        
-        /* Try sending on the universal undefined */
-        offset = gab_msgfind(m, gab_undefined);
-
-        if (offset == GAB_PROPERTY_NOT_FOUND) {
-          STORE_FRAME();
-          return ERROR(GAB_IMPLEMENTATION_MISSING,
-                       "%V does not specialize for %V (%V)", m, receiver, type);
-        }
+      /* Do the expensive lookup */
+      int status = gab_egimpl(EG(), (struct gab_egimpl_argt){
+                                         .receiver = receiver,
+                                         .msg = m,
+                                         .type = &type,
+                                         .offset = &offset,
+                                     });
+      
+      if (!status) {
+        STORE_FRAME();
+        return ERROR(GAB_IMPLEMENTATION_MISSING,
+                     "%V does not specialize for %V (%V)", m, receiver,
+                     gab_valtype(EG(), receiver));
       }
 
-    fin : {
-      gab_value spec = gab_umsgat(m, offset);
+      gab_value spec = status == sGAB_IMPL_PROPERTY
+                           ? gab_primitive(OP_SEND_PROPERTY)
+                           : gab_umsgat(m, offset);
 
       WRITE_INLINEBYTE(GAB_VAL_TO_MESSAGE(m)->version);
       WRITE_INLINEQWORD(type);
       WRITE_INLINEQWORD(offset);
 
-      switch (gab_valknd(spec)) {
+      switch (gab_valkind(spec)) {
       case kGAB_PRIMITIVE:
         WRITE_BYTE(SEND_CACHE_DIST, gab_valtop(spec));
         break;
@@ -456,7 +427,6 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       NEXT();
     }
-    }
 
     CASE_CODE(SEND_MONO_CLOSURE) : {
       gab_value m = READ_CONSTANT;
@@ -469,7 +439,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value receiver = PEEK_N(have + 1);
 
-      gab_value type = gab_valtyp(EG(), receiver);
+      gab_value type = gab_pvaltype(EG(), receiver);
 
       SEND_CACHE_GUARD(cached_type, type, version, m)
 
@@ -498,7 +468,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value receiver = PEEK_N(have + 1);
 
-      gab_value type = gab_valtyp(EG(), receiver);
+      gab_value type = gab_pvaltype(EG(), receiver);
 
       SEND_CACHE_GUARD(cached_type, type, version, m)
 
@@ -523,7 +493,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value receiver = PEEK_N(have + 1);
 
-      gab_value type = gab_valtyp(EG(), receiver);
+      gab_value type = gab_pvaltype(EG(), receiver);
 
       SEND_CACHE_GUARD(cached_type, type, version, m)
 
@@ -545,7 +515,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value receiver = PEEK_N(have + 1);
 
-      gab_value type = gab_valtyp(EG(), receiver);
+      gab_value type = gab_pvaltype(EG(), receiver);
 
       SEND_CACHE_GUARD(cached_type, type, version, m)
 
@@ -571,7 +541,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value receiver = PEEK_N(have + 1);
 
-      gab_value type = gab_valtyp(EG(), receiver);
+      gab_value type = gab_pvaltype(EG(), receiver);
 
       SEND_CACHE_GUARD(cached_type, type, version, m)
 
@@ -658,15 +628,15 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       SKIP_QWORD;
       SKIP_QWORD;
 
-      if (gab_valknd(PEEK2()) != kGAB_STRING) {
+      if (gab_valkind(PEEK2()) != kGAB_STRING) {
         WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
         IP() -= SEND_CACHE_DIST;
         NEXT();
       }
 
-      if (gab_valknd(PEEK()) != kGAB_STRING) {
+      if (gab_valkind(PEEK()) != kGAB_STRING) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_STRING, "Found %V %V", gab_valtyp(EG(), PEEK()),
+        return ERROR(GAB_NOT_STRING, "Found %V %V", gab_pvaltype(EG(), PEEK()),
                      PEEK());
       }
 
@@ -691,7 +661,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value receiver = PEEK2();
 
-      gab_value type = gab_valtyp(EG(), receiver);
+      gab_value type = gab_pvaltype(EG(), receiver);
 
       SEND_CACHE_GUARD(cached_type, type, version, m)
 
@@ -715,7 +685,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value index = PEEK_N(have + 1);
 
-      gab_value type = gab_valtyp(EG(), index);
+      gab_value type = gab_pvaltype(EG(), index);
 
       SEND_CACHE_GUARD(cached_type, type, version, m)
 
@@ -752,7 +722,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       gab_value sus = POP();
       have--;
 
-      IP() += dist * (gab_valknd(sus) != kGAB_SUSPENSE);
+      IP() += dist * (gab_valkind(sus) != kGAB_SUSPENSE);
 
       trim_values(TOP() - have, SLOTS() + start, have, want);
 
@@ -940,7 +910,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     CASE_CODE(NEGATE) : {
       if (!__gab_valisn(PEEK())) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_NUMERIC, "Found %V %V", gab_valtyp(EG(), PEEK()),
+        return ERROR(GAB_NOT_NUMERIC, "Found %V %V", gab_pvaltype(EG(), PEEK()),
                      PEEK());
       }
 
@@ -958,7 +928,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     }
 
     CASE_CODE(TYPE) : {
-      PEEK() = gab_valtyp(EG(), PEEK());
+      PEEK() = gab_valtype(EG(), PEEK());
       NEXT();
     }
 

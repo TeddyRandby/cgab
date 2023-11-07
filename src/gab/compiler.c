@@ -2741,13 +2741,13 @@ int compile_exp_for(struct bc *bc, bool assignable) {
 
   pop_scope(bc); /* Pop the scope once, after we exit the loop. */
 
-  if (pop_ctxloop(bc) < 0)
-    return COMP_ERR;
-
   gab_mod_patch_jump(mod(bc), jump_start);
 
   push_op(bc, OP_PUSH_NIL);
   push_slot(bc, 1);
+
+  if (pop_ctxloop(bc) < 0)
+    return COMP_ERR;
 
   return COMP_OK;
 }

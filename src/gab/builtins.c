@@ -213,21 +213,21 @@ void gab_lib_print(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 void gab_setup_builtins(struct gab_triple gab) {
   gab_spec(gab, (struct gab_spec_argt){
                     .name = "use",
-                    .receiver = gab_typ(gab.eg, kGAB_NIL),
+                    .receiver = gab_type(gab.eg, kGAB_NIL),
                     .specialization = gab_sbuiltin(gab, "use", gab_lib_use),
                 });
 
   gab_spec(gab,
            (struct gab_spec_argt){
                .name = "panic",
-               .receiver = gab_typ(gab.eg, kGAB_STRING),
+               .receiver = gab_type(gab.eg, kGAB_STRING),
                .specialization = gab_sbuiltin(gab, "panic", gab_lib_panic),
            });
 
   gab_spec(gab,
            (struct gab_spec_argt){
                .name = "print",
-               .receiver = gab_typ(gab.eg, kGAB_UNDEFINED),
+               .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
                .specialization = gab_sbuiltin(gab, "print", gab_lib_print),
            });
 }

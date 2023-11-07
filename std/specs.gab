@@ -61,9 +61,7 @@ def spec.map[](k_spec, v_spec)
   end
 
   def spec.gen[predicate]
-    :map.new {
-      [k_spec:spec.gen] = v_spec:spec.gen
-    }
+    :map.new { [k_spec:spec.gen] = v_spec:spec.gen }
   end
 
   return predicate
@@ -162,8 +160,30 @@ def spec.and[](..specs)
     return true, self, value
   end
   
-  # FIXME: This is broken
-  # def spec.gen[predicate]; end
+  def spec.gen[predicate]
+    tries = 0
+    
+    loop
+      value, valid, tries = specs:at(0):spec.gen, false, tries + 1
+
+      { spec = specs:at(0) value } :print
+
+      results = (specs:at(0)):spec.fits?(value)
+
+      results:print
+
+      for _, spec in specs:each
+        valid = spec:spec.fits?(value)
+        { valid spec value }:print
+        valid or break
+      end
+
+    valid and return value
+
+    until tries == 100 end
+
+    .COULD_NOT_SPEC:panic
+  end
 
   return predicate
 end
@@ -172,7 +192,11 @@ end
 # A spec predicate should implement the &:spec.gen message.
 # This allows spec to dynamically generate values which satisfy predicates.
 def spec.gen      [];                      self end
+#
+# Should you be able to specialize messages on messages?
+# TODO: Think a little bit finer about what we should be able to specialize on and how.
 def spec.gen[&:is_n]; :float.between(-100, 100) end
+def spec.gen[&:is_int]; :int.between(-100, 100) end
 def spec.gen[&:is_b]; :float.between > 0.5      end
 def spec.gen[&:is_s]
   def len  = :int.between(1, 100)

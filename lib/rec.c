@@ -11,7 +11,7 @@ void gab_lib_splat(struct gab_triple gab, size_t argc,
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (a < 0 ? 0 : MIN(a, b))
 void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (gab_valknd(argv[0]) != kGAB_RECORD) {
+  if (gab_valkind(argv[0]) != kGAB_RECORD) {
     gab_panic(gab, "Invalid call to gab_lib_slice");
     return;
   }
@@ -26,8 +26,8 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     break;
 
   case 3: {
-    if (gab_valknd(argv[1]) != kGAB_NUMBER ||
-        gab_valknd(argv[2]) != kGAB_NUMBER) {
+    if (gab_valkind(argv[1]) != kGAB_NUMBER ||
+        gab_valkind(argv[2]) != kGAB_NUMBER) {
       gab_panic(gab, "Invalid call to gab_lib_slice");
       return;
     }
@@ -41,7 +41,7 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   }
 
   case 2:
-    if (gab_valknd(argv[1]) == kGAB_NUMBER) {
+    if (gab_valkind(argv[1]) == kGAB_NUMBER) {
       uint64_t a = gab_valton(argv[1]);
       end = MIN(a, len);
       break;
@@ -121,7 +121,7 @@ fin:
 void gab_lib_tuple(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 2: {
-    if (gab_valknd(argv[1]) != kGAB_NUMBER) {
+    if (gab_valkind(argv[1]) != kGAB_NUMBER) {
       gab_panic(gab, "Invalid call to :tuple");
       return;
     }
@@ -141,7 +141,7 @@ void gab_lib_tuple(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 void gab_lib_record(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 2: {
-    if (gab_valknd(argv[1]) != kGAB_SHAPE) {
+    if (gab_valkind(argv[1]) != kGAB_SHAPE) {
       gab_panic(gab, "Expected shape as second argument to :record.new");
       return;
     }
@@ -227,42 +227,42 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       },
       {
           "len",
-          gab_typ(gab.eg, kGAB_RECORD),
+          gab_type(gab.eg, kGAB_RECORD),
           gab_sbuiltin(gab, "len", gab_lib_len),
       },
       {
           "to_l",
-          gab_typ(gab.eg, kGAB_RECORD),
+          gab_type(gab.eg, kGAB_RECORD),
           gab_sbuiltin(gab, "to_l", gab_lib_to_l),
       },
       {
           "to_m",
-          gab_typ(gab.eg, kGAB_RECORD),
+          gab_type(gab.eg, kGAB_RECORD),
           gab_sbuiltin(gab, "to_m", gab_lib_to_m),
       },
       {
           "put!",
-          gab_typ(gab.eg, kGAB_RECORD),
+          gab_type(gab.eg, kGAB_RECORD),
           gab_sbuiltin(gab, "put", gab_lib_put),
       },
       {
           "at",
-          gab_typ(gab.eg, kGAB_RECORD),
+          gab_type(gab.eg, kGAB_RECORD),
           gab_sbuiltin(gab, "at", gab_lib_at),
       },
       {
           "next",
-          gab_typ(gab.eg, kGAB_RECORD),
+          gab_type(gab.eg, kGAB_RECORD),
           gab_sbuiltin(gab, "next", gab_lib_next),
       },
       {
           "slice",
-          gab_typ(gab.eg, kGAB_RECORD),
+          gab_type(gab.eg, kGAB_RECORD),
           gab_sbuiltin(gab, "slice", gab_lib_slice),
       },
       {
           "splat",
-          gab_typ(gab.eg, kGAB_RECORD),
+          gab_type(gab.eg, kGAB_RECORD),
           gab_sbuiltin(gab, "splat", gab_lib_splat),
       },
   };
