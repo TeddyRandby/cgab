@@ -1,11 +1,6 @@
-specs, spec,tries = 1, 1, 1
+a = { b c }
 
-loop
-  value, valid, tries = spec:spec.gen, false, tries + 1
-
-  for _, spec in specs:each
-    (valid = spec:spec.fits?(value)) or break
-  end
-
-  valid and break value
-until tries == 100 end
+(a:b, d, a:c = 1, 2, 3):expect(1)
+a:b:expect(1)
+d:expect(2)
+a:c:expect(3)

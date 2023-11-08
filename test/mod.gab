@@ -165,7 +165,6 @@ end
    :it 'should work with varargs'  do
       def varfunc = do (first, ..args)
         first:expect(1)
-        args:print
         args[0]:expect(2)
       end
 

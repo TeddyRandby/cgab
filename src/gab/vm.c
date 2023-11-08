@@ -188,9 +188,10 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   vm->fp->slots = vm->sp - have - 1;
 
   // Update the SP to point just past the locals section
+  // Or past the arguments if we're using VAR_EXP
   size_t offset = (wants_var ? len : proto->nlocals);
 
-  // Trim arguments into the slots, and update VAR()
+  // Trim arguments into the slots
   vm->sp = trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, offset - 1);
 
   return true;

@@ -32,7 +32,7 @@ struct gab_mod {
     This vector relates each instruction to a token offset.
   */
   v_uint64_t bytecode_toks;
-  
+
   size_t previous_basic_block;
   size_t basic_block;
   uint8_t previous_compiled_op;
@@ -46,89 +46,75 @@ struct gab_mod *gab_mod(struct gab_eg *gab, gab_value name,
 
 void gab_moddestroy(struct gab_triple gab, struct gab_mod *mod);
 
-struct gab_mod *gab_modcpy(struct gab_triple gab, struct gab_mod *self);
+struct gab_mod *gab_modcpy(struct gab_triple gab, struct gab_mod *mod);
 
-/*
-  Helpers for pushing ops into the module.
-*/
-void gab_mod_push_op(struct gab_mod *, gab_opcode, size_t);
+/* Push an op into the module's bytecode */
+void gab_modop(struct gab_mod *mod, gab_opcode o, size_t t);
 
-void gab_mod_push_byte(struct gab_mod *, uint8_t, size_t);
+/* Push a byte into the module's bytecode */
+void gab_modbyte(struct gab_mod *mod, uint8_t b, size_t t);
 
-void gab_mod_push_short(struct gab_mod *, uint16_t, size_t);
+/* Push a short into the module's bytecode */
+void gab_modshort(struct gab_mod *mod, uint16_t h, size_t t);
 
-void gab_mod_push_load_local(struct gab_mod *, uint8_t, size_t);
+/* Push a load_constant op into the module's bytecode */
+void gab_modloadk(struct gab_mod *mod, gab_value k, size_t t);
 
-void gab_mod_push_store_local(struct gab_mod *, uint8_t, size_t);
+/* Push a load_local op into the module's bytecode */
+void gab_modloadl(struct gab_mod *mod, uint8_t local, size_t t);
 
-void gab_mod_push_load_upvalue(struct gab_mod *, uint8_t, size_t);
+/* Push a store_local op into the module's bytecode */
+void gab_modstorel(struct gab_mod *mod, uint8_t local, size_t t);
 
-void gab_mod_push_return(struct gab_mod *, uint8_t, bool mv, size_t);
+/* Push a load_upvalue op into the module's bytecode */
+void gab_modloadu(struct gab_mod *mod, uint8_t upvalue, size_t t);
 
-void gab_mod_push_tuple(struct gab_mod *, uint8_t, bool mv, size_t);
+/* Push a return op into the module's bytecode */
+void gab_modret(struct gab_mod *mod, uint8_t have, bool mv, size_t t);
 
-void gab_mod_push_yield(struct gab_mod *, uint16_t proto, uint8_t have, bool mv,
-                        size_t);
+/* Push a tuple op into the module's bytecode */
+void gab_modtup(struct gab_mod *mod, uint8_t have, bool mv, size_t t);
 
-void gab_mod_push_pack(struct gab_mod *self, uint8_t below, uint8_t above,
-                       size_t);
+/* Push a yield op into the module's bytecode */
+void gab_modyield(struct gab_mod *mod, uint16_t proto, uint8_t have, bool mv,
+                  size_t t);
 
-void gab_mod_push_send(struct gab_mod *mod, uint8_t have, uint16_t message,
-                       bool mv, size_t);
+/* Push a pack op into the module's bytecode */
+void gab_modpack(struct gab_mod *mod, uint8_t below, uint8_t above, size_t t);
 
-void gab_mod_push_pop(struct gab_mod *, uint8_t, size_t);
+/* Push a send op into the module's bytecode */
+void gab_modsend(struct gab_mod *mod, uint8_t have, uint16_t message, bool mv,
+                  size_t t);
 
-void gab_mod_push_inline_cache(struct gab_mod *, size_t);
+/* Push a shift op into the module's bytecode */
+void gab_modshift(struct gab_mod *mod, uint8_t n, size_t t);
 
-uint64_t gab_mod_push_iter(struct gab_mod *self, uint8_t start, uint8_t want,
-                           size_t);
+/* Push a pop op into the module's bytecode */
+void gab_modpop(struct gab_mod *mod, uint8_t n, size_t t);
 
-void gab_mod_push_next(struct gab_mod *self, uint8_t local, size_t);
+/* Push an inter instruction */
+uint64_t gab_moditer(struct gab_mod *mod, uint8_t start, uint8_t want,
+                           size_t t);
 
-uint64_t gab_mod_push_loop(struct gab_mod *gab);
+/* Push a next instruction */
+void gab_modnext(struct gab_mod *mod, uint8_t local, size_t t);
 
-uint64_t gab_mod_push_jump(struct gab_mod *gab, uint8_t, size_t);
+/* Push a loop instruction */
+uint64_t gab_modloop(struct gab_mod *mod);
 
-void gab_mod_patch_jump(struct gab_mod *, uint64_t);
+/* Push a jump instruction */
+uint64_t gab_modjump(struct gab_mod *mod, uint8_t jump_op, size_t t);
 
-void gab_mod_patch_loop(struct gab_mod *, uint64_t, size_t);
+/* Push a loop instruction */
+void gab_modloopp(struct gab_mod *mod, uint64_t label, size_t t);
 
-/*
- * TODO: Fix this patching. There needs to be some notion of basic blocks in the compiler.
- * We can only patch code if we know that we are in the same basic block as we were - when there
- * is no possible way for other code to jump right to where we are now.
- *
- * For example, in a match expression like this:
- *
- * something match 
- *  .ok  => 1         end
- *  else => err:panic end
- *
- * Or in a traditional if/else:
- *
- * condition then
- *    something
- * end else
- *    something
- * end
- *
- * Here, a patch will succeed, because the last branch
- * gives us the impression that this expression will *always* end in a send.
- *
- * But this isn't the case - we can jump out of the match from any of the case statements,
- * and if we jump out from the .ok branch, our expression *wasn't* patchable.
- *
- * We shoud pick a behavior, and require that eitehr:
- *   - All branches must patch, or at least end with an OP_VAR instruction
- *   - No branches may patch
- *  
- * Working out some sort of basic-block implementation will allow us to also make in-place bytecode optimizations,
- * as long as they are all along the same basic block.
- *
+/* Push a jump instruction */
+void gab_modjumpp(struct gab_mod *mod, uint64_t label);
+
+/* Try to patch the last emitted instruction to want a different amt of values
  */
-bool gab_mod_try_patch_mv(struct gab_mod *, uint8_t);
+bool gab_modmvp(struct gab_mod *mod, uint8_t want);
 
-uint16_t gab_mod_add_constant(struct gab_mod *, gab_value);
-
-void gab_mod_dump(struct gab_mod *, s_char);
+/* Add a constant to the module's constant table */
+uint16_t gab_mod_add_constant(struct gab_mod *mod, gab_value k);
 #endif

@@ -70,161 +70,218 @@ struct gab_mod *gab_modcpy(struct gab_triple gab, struct gab_mod *self) {
 /*
   Helpers for pushing ops into the module.
 */
-void gab_mod_push_op(struct gab_mod *self, gab_opcode op, size_t t) {
+void gab_modop(struct gab_mod *self, gab_opcode op, size_t t) {
   self->previous_basic_block = self->basic_block;
   self->previous_compiled_op = op;
   v_uint8_t_push(&self->bytecode, op);
   v_uint64_t_push(&self->bytecode_toks, t);
 };
 
-void gab_mod_push_byte(struct gab_mod *self, uint8_t data, size_t t) {
+void gab_modbyte(struct gab_mod *self, uint8_t data, size_t t) {
   v_uint8_t_push(&self->bytecode, data);
   v_uint64_t_push(&self->bytecode_toks, t);
 }
 
-void gab_mod_push_short(struct gab_mod *self, uint16_t data, size_t t) {
-  gab_mod_push_byte(self, (data >> 8) & 0xff, t);
-  gab_mod_push_byte(self, data & 0xff, t);
+void gab_modshort(struct gab_mod *self, uint16_t data, size_t t) {
+  gab_modbyte(self, (data >> 8) & 0xff, t);
+  gab_modbyte(self, data & 0xff, t);
 };
+
+void gab_modloadk(struct gab_mod *mod, gab_value k, size_t t) {
+  uint16_t constant = gab_mod_add_constant(mod, k);
+  gab_modop(mod, OP_CONSTANT, t);
+  gab_modshort(mod, constant, t);
+}
+
+void gab_modshift(struct gab_mod *mod, uint8_t n, size_t t) {
+  if (n <= 1)
+    return;
+
+  gab_modop(mod, OP_SHIFT, t);
+  gab_modbyte(mod, n, t);
+}
 
 /* These helpers return the instruction they push. */
-void gab_mod_push_load_local(struct gab_mod *self, uint8_t local, size_t t) {
-  if (local < 9) {
-    uint8_t op = MAKE_LOAD_LOCAL(local);
-    gab_mod_push_op(self, op, t);
+void gab_modloadl(struct gab_mod *self, uint8_t local, size_t t) {
+  if (local > 8) {
+    gab_modop(self, OP_LOAD_LOCAL, t);
+    gab_modbyte(self, local, t);
     return;
   }
 
-  gab_mod_push_op(self, OP_LOAD_LOCAL, t);
-  gab_mod_push_byte(self, local, t);
+  uint8_t op = MAKE_LOAD_LOCAL(local);
+  gab_modop(self, op, t);
+  return;
 }
 
-void gab_mod_push_load_upvalue(struct gab_mod *self, uint8_t upvalue,
-                               size_t t) {
+void gab_modloadu(struct gab_mod *self, uint8_t upvalue, size_t t) {
   if (upvalue < 9) {
     uint8_t op = MAKE_LOAD_UPVALUE(upvalue);
-    gab_mod_push_op(self, op, t);
+    gab_modop(self, op, t);
     return;
   }
 
-  gab_mod_push_op(self, OP_LOAD_UPVALUE, t);
-  gab_mod_push_byte(self, upvalue, t);
+  gab_modop(self, OP_LOAD_UPVALUE, t);
+  gab_modbyte(self, upvalue, t);
 };
 
-void gab_mod_push_store_local(struct gab_mod *self, uint8_t local, size_t t) {
+void gab_modstorel(struct gab_mod *self, uint8_t local, size_t t) {
   if (local < 9) {
     uint8_t op = MAKE_STORE_LOCAL(local);
-    gab_mod_push_op(self, op, t);
+    gab_modop(self, op, t);
     return;
   }
 
-  gab_mod_push_op(self, OP_STORE_LOCAL, t);
-  gab_mod_push_byte(self, local, t);
+  gab_modop(self, OP_STORE_LOCAL, t);
+  gab_modbyte(self, local, t);
 };
 
-void gab_mod_push_return(struct gab_mod *self, uint8_t have, bool mv,
-                         size_t t) {
+void gab_modret(struct gab_mod *self, uint8_t have, bool mv, size_t t) {
   assert(have < 16);
 
-  gab_mod_push_op(self, OP_RETURN, t);
-  gab_mod_push_byte(self, (have << 1) | mv, t);
+  gab_modop(self, OP_RETURN, t);
+  gab_modbyte(self, (have << 1) | mv, t);
 }
 
-void gab_mod_push_tuple(struct gab_mod *self, uint8_t have, bool mv, size_t t) {
+void gab_modtup(struct gab_mod *self, uint8_t have, bool mv, size_t t) {
   assert(have < 128);
 
-  gab_mod_push_op(self, OP_TUPLE, t);
-  gab_mod_push_byte(self, (have << 1) | mv, t);
+  gab_modop(self, OP_TUPLE, t);
+  gab_modbyte(self, (have << 1) | mv, t);
 }
 
-void gab_mod_push_yield(struct gab_mod *self, uint16_t proto, uint8_t have,
-                        bool mv, size_t t) {
+void gab_modyield(struct gab_mod *self, uint16_t proto, uint8_t have, bool mv,
+                  size_t t) {
   assert(have < 16);
 
-  gab_mod_push_op(self, OP_YIELD, t);
-  gab_mod_push_short(self, proto, t);
-  gab_mod_push_byte(self, (have << 1) | mv, t);
+  gab_modop(self, OP_YIELD, t);
+  gab_modshort(self, proto, t);
+  gab_modbyte(self, (have << 1) | mv, t);
 }
 
-void gab_mod_push_send(struct gab_mod *self, uint8_t have, uint16_t message,
-                       bool mv, size_t t) {
+/* push space for the inline-cache for a send */
+void gab_modicpush(struct gab_mod *self, size_t t) {
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
+}
+
+void gab_modsend(struct gab_mod *self, uint8_t have, uint16_t message, bool mv,
+                 size_t t) {
   assert(have < 16);
 
-  gab_mod_push_op(self, OP_SEND_ANA, t);
-  gab_mod_push_short(self, message, t);
-  gab_mod_push_byte(self, (have << 1) | mv, t);
-  gab_mod_push_byte(self, 1, t);
+  gab_modop(self, OP_SEND_ANA, t);
+  gab_modshort(self, message, t);
+  gab_modbyte(self, (have << 1) | mv, t);
+  gab_modbyte(self, 1, t);
 
-  gab_mod_push_byte(self, OP_NOP, t); // Version
-  gab_mod_push_inline_cache(self, t);
+  gab_modbyte(self, OP_NOP, t); // Version
+  gab_modicpush(self, t);
 }
 
-void gab_mod_push_pop(struct gab_mod *self, uint8_t n, size_t t) {
-  if (n == 1) {
-    gab_mod_push_op(self, OP_POP, t);
-  } else {
-    gab_mod_push_op(self, OP_POP_N, t);
-    gab_mod_push_byte(self, n, t);
+void gab_modpop(struct gab_mod *self, uint8_t n, size_t t) {
+  // TODO: Add optimizations here when we are in the same basic block
+  // and the previous actioun pushed
+  if (n > 1) {
+    gab_modop(self, OP_POP_N, t);
+    gab_modbyte(self, n, t);
+    return;
   }
+
+  if (self->basic_block == self->previous_basic_block) {
+    switch (self->previous_compiled_op) {
+    // case OP_SEND_ANA:
+    //   gab_modmvp(self, 0);
+    //   return;
+    case OP_PUSH_NIL:
+    case OP_PUSH_UNDEFINED:
+    case OP_PUSH_TRUE:
+    case OP_PUSH_FALSE:
+      self->bytecode.len -= 1;
+      self->previous_compiled_op = self->bytecode.data[self->bytecode.len - 1];
+      return;
+    case OP_CONSTANT:
+      self->bytecode.len -= 3;
+      self->previous_compiled_op = self->bytecode.data[self->bytecode.len - 1];
+      return;
+    case OP_STORE_LOCAL_0:
+    case OP_STORE_LOCAL_1:
+    case OP_STORE_LOCAL_2:
+    case OP_STORE_LOCAL_3:
+    case OP_STORE_LOCAL_4:
+    case OP_STORE_LOCAL_5:
+    case OP_STORE_LOCAL_6:
+    case OP_STORE_LOCAL_7:
+    case OP_STORE_LOCAL_8:
+    case OP_LOAD_LOCAL_0:
+    case OP_LOAD_LOCAL_1:
+    case OP_LOAD_LOCAL_2:
+    case OP_LOAD_LOCAL_3:
+    case OP_LOAD_LOCAL_4:
+    case OP_LOAD_LOCAL_5:
+    case OP_LOAD_LOCAL_6:
+    case OP_LOAD_LOCAL_7:
+    case OP_LOAD_LOCAL_8:
+      self->bytecode.data[self->bytecode.len - 1] += 9;
+      self->previous_compiled_op = self->bytecode.data[self->bytecode.len - 1];
+      return;
+
+    default:
+      break;
+    }
+  }
+
+  gab_modop(self, OP_POP, t);
 }
 
-void gab_mod_push_inline_cache(struct gab_mod *self, size_t t) {
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
+void gab_modnext(struct gab_mod *self, uint8_t next, size_t t) {
+  gab_modop(self, OP_NEXT, t);
+  gab_modbyte(self, next, t);
 }
 
-void gab_mod_push_next(struct gab_mod *self, uint8_t next, size_t t) {
-  gab_mod_push_op(self, OP_NEXT, t);
-  gab_mod_push_byte(self, next, t);
+void gab_modpack(struct gab_mod *self, uint8_t below, uint8_t above, size_t t) {
+  gab_modop(self, OP_PACK, t);
+  gab_modbyte(self, below, t);
+  gab_modbyte(self, above, t);
 }
 
-void gab_mod_push_pack(struct gab_mod *self, uint8_t below, uint8_t above,
-                       size_t t) {
-  gab_mod_push_op(self, OP_PACK, t);
-  gab_mod_push_byte(self, below, t);
-  gab_mod_push_byte(self, above, t);
-}
-
-uint64_t gab_mod_push_iter(struct gab_mod *self, uint8_t start, uint8_t want,
-                           size_t t) {
-  gab_mod_push_op(self, OP_ITER, t);
-  gab_mod_push_byte(self, want, t);
-  gab_mod_push_byte(self, start, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
+uint64_t gab_moditer(struct gab_mod *self, uint8_t start, uint8_t want,
+                     size_t t) {
+  gab_modop(self, OP_ITER, t);
+  gab_modbyte(self, want, t);
+  gab_modbyte(self, start, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
 
   return self->bytecode.len - 2;
 }
 
-uint64_t gab_mod_push_jump(struct gab_mod *self, uint8_t op, size_t t) {
-  gab_mod_push_op(self, op, t);
-  gab_mod_push_byte(self, OP_NOP, t);
-  gab_mod_push_byte(self, OP_NOP, t);
+uint64_t gab_modjump(struct gab_mod *self, uint8_t op, size_t t) {
+  gab_modop(self, op, t);
+  gab_modbyte(self, OP_NOP, t);
+  gab_modbyte(self, OP_NOP, t);
   return self->bytecode.len - 2;
 }
 
-void push_bb(struct gab_mod* self) {
-  self->basic_block++;
-}
+void push_bb(struct gab_mod *self) { self->basic_block++; }
 
-void gab_mod_patch_jump(struct gab_mod *self, uint64_t jump) {
+void gab_modjumpp(struct gab_mod *self, uint64_t jump) {
   push_bb(self);
-  
+
   uint64_t dist = self->bytecode.len - jump - 2;
 
   assert(dist < UINT16_MAX);
@@ -233,22 +290,22 @@ void gab_mod_patch_jump(struct gab_mod *self, uint64_t jump) {
   v_uint8_t_set(&self->bytecode, jump + 1, dist & 0xff);
 }
 
-uint64_t gab_mod_push_loop(struct gab_mod *self) { return self->bytecode.len; }
+uint64_t gab_modloop(struct gab_mod *self) { return self->bytecode.len; }
 
-void gab_mod_patch_loop(struct gab_mod *self, uint64_t start, size_t t) {
+void gab_modloopp(struct gab_mod *self, uint64_t start, size_t t) {
   push_bb(self);
-  
+
   uint64_t diff = self->bytecode.len - start + 3;
   assert(diff < UINT16_MAX);
 
-  gab_mod_push_op(self, OP_LOOP, t);
-  gab_mod_push_short(self, diff, t);
+  gab_modop(self, OP_LOOP, t);
+  gab_modshort(self, diff, t);
 }
 
-bool gab_mod_try_patch_mv(struct gab_mod *self, uint8_t want) {
+bool gab_modmvp(struct gab_mod *self, uint8_t want) {
   if (self->previous_basic_block != self->basic_block)
     return false;
-      
+
   switch (self->previous_compiled_op) {
   case OP_SEND_ANA:
     v_uint8_t_set(&self->bytecode, self->bytecode.len - 18, want);
@@ -322,10 +379,11 @@ uint64_t dumpByteInstruction(FILE *stream, struct gab_mod *self,
   return offset + 2;
 }
 uint64_t dumpReturnInstruction(FILE *stream, struct gab_mod *self,
-                              uint64_t offset) {
+                               uint64_t offset) {
   uint8_t havebyte = v_uint8_t_val_at(&self->bytecode, offset + 1);
   uint8_t have = havebyte >> 1;
-  fprintf(stream, "%-25s%hhx%s\n", "RETURN", have, havebyte & FLAG_VAR_EXP ? " & more" : "");
+  fprintf(stream, "%-25s%hhx%s\n", "RETURN", have,
+          havebyte & FLAG_VAR_EXP ? " & more" : "");
   return offset + 2;
 }
 
@@ -333,7 +391,8 @@ uint64_t dumpYieldInstruction(FILE *stream, struct gab_mod *self,
                               uint64_t offset) {
   uint8_t havebyte = v_uint8_t_val_at(&self->bytecode, offset + 3);
   uint8_t have = havebyte >> 1;
-  fprintf(stream, "%-25s%hhx%s\n", "YIELD", have, havebyte & FLAG_VAR_EXP ? " & more" : "");
+  fprintf(stream, "%-25s%hhx%s\n", "YIELD", have,
+          havebyte & FLAG_VAR_EXP ? " & more" : "");
   return offset + 4;
 }
 
@@ -444,6 +503,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_mod *self, uint64_t offset) {
   case OP_LOAD_UPVALUE_8:
   case OP_PUSH_FALSE:
   case OP_PUSH_NIL:
+  case OP_PUSH_UNDEFINED:
   case OP_PUSH_TRUE:
   case OP_SWAP:
   case OP_DUP:
@@ -570,9 +630,4 @@ void gab_fmoddump(FILE *stream, struct gab_mod *mod) {
     fprintf(stream, ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);
     offset = dumpInstruction(stream, mod, offset);
   }
-}
-
-void gab_mod_dump(struct gab_mod *self, s_char name) {
-  printf("     %.*s\n", (int)name.len, name.data);
-  gab_fmoddump(stdout, self);
 }
