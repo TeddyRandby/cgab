@@ -1,28 +1,27 @@
 #ifndef GAB_VM_H
 #define GAB_VM_H
 
-#include "gc.h"
+#include "include/gab.h"
 
-/*
- * A run-time representation of a callframe.
+/**
+ * The run-time representation of a callframe.
  */
 struct gab_vm_frame {
   struct gab_obj_block *b;
 
-  /*
+  /**
    *The instruction pointer.
-   *This is stored and loaded by the macros STORE_FRAME and LOAD_FRAME.
    */
   uint8_t *ip;
 
-  /*
+  /**
    * The value on the stack where this callframe begins.
-   * Locals are offset from this.
    */
   gab_value *slots;
-  /*
-   * Every call expects a certain number of results.
-   * This is set during when the values are called.
+
+  /**
+   * Every call wants a different number of results.
+   * This is set at the call site.
    */
   uint8_t want;
 };

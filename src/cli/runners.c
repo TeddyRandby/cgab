@@ -8,62 +8,13 @@
 void repl(const char *module, int flags) {
   struct gab_triple gab = gab_create();
 
-  a_gab_value *result = NULL;
+  gab_repl(gab, (struct gab_repl_argt){
+                    .name = "repl",
+                    .prompt_prefix = "gab:"GAB_VERSION_MAJOR"."GAB_VERSION_MINOR"> ",
+                    .result_prefix = "=> ",
+                    .flags = flags,
+                });
 
-  // if (module != NULL)
-  //   result = gab_send(gab, NULL, gab_string(gab, "require"),
-  //                     gab_string(gab, module), 0, NULL);
-
-  a_gab_value_destroy(result);
-
-  gab_value prev = gab_nil;
-
-  for (;;) {
-    printf("grepl: ");
-    a_char *src = os_read_fd_line(stdin);
-
-    if (src->data[0] == EOF) {
-      a_char_destroy(src);
-      goto fin;
-    }
-
-    if (src->data[1] == '\0') {
-      a_char_destroy(src);
-      continue;
-    }
-
-    a_gab_value *result = gab_exec(gab, (struct gab_exec_argt){
-                                            .name = MAIN_MODULE,
-                                            .source = (char *)src->data,
-                                            .flags = flags,
-                                            .len = 1,
-                                            .sargv = (const char *[]){"_"},
-                                            .argv = &prev,
-                                        });
-
-    if (result == NULL)
-      continue;
-
-    gab_ngciref(gab, 1, result->len, result->data);
-    gab_negkeep(gab.eg, result->len, result->data);
-
-    printf("=> ");
-    for (int32_t i = 0; i < result->len; i++) {
-      gab_value arg = result->data[i];
-
-      if (i == result->len - 1)
-        printf("%V\n", arg);
-      else
-        printf("%V, ", arg);
-
-    }
-
-    prev = result->data[0];
-
-    a_gab_value_destroy(result);
-  }
-
-fin:
   gab_destroy(gab);
   return;
 }

@@ -4,9 +4,9 @@
 #include "include/compiler.h"
 #include "include/core.h"
 #include "include/engine.h"
+#include "include/lexer.h"
 #include "include/gab.h"
 #include "include/gc.h"
-#include "include/module.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -16,6 +16,14 @@
 
 void gab_vm_container_cb(void *data) { DESTROY(data); }
 
+static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
+  struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(f->b->p);
+
+  size_t offset = f->ip - p->bytecode.data - 1;
+
+  return v_uint64_t_val_at(&p->bytecode_toks, offset);
+}
+
 gab_value vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
                    const char *help_fmt, ...) {
 
@@ -24,15 +32,15 @@ gab_value vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
 
   struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(gab.vm->fp->b->p);
 
-  size_t offset = gab.vm->fp->ip - p->mod->bytecode.data - 1;
+  size_t tok = compute_token_from_ip(gab.vm->fp);
 
   gab_verr(
       (struct gab_err_argt){
-          .tok = v_uint64_t_val_at(&p->mod->bytecode_toks, offset),
-          .context = p->mod->name,
+          .tok = tok,
+          .context = p->name,
           .note_fmt = help_fmt,
           .flags = flags,
-          .mod = p->mod,
+          .src = p->src,
           .status = e,
       },
       va);
@@ -57,6 +65,33 @@ void gab_vmcreate(struct gab_vm *self, uint8_t flags, size_t argc,
 
 void gab_vmdestroy(struct gab_eg *gab, struct gab_vm *self) {}
 
+gab_value gab_vmframe(struct gab_triple gab, uint64_t depth) {
+  uint64_t frame_count = gab.vm->fp - gab.vm->fb;
+
+  if (depth >= frame_count)
+    return gab_undefined;
+
+  struct gab_vm_frame *f = gab.vm->fp - depth;
+
+  const char *keys[] = {
+      "block",
+      "line",
+  };
+
+  struct gab_src *src = GAB_VAL_TO_BLOCK_PROTO(f->b->p)->src;
+
+  size_t tok = compute_token_from_ip(f);
+
+  gab_value values[] = {
+      __gab_obj(f->b),
+      gab_number(v_uint64_t_val_at(&src->token_lines, tok)),
+  };
+
+  size_t len = sizeof(keys) / sizeof(keys[0]);
+
+  return gab_srecord(gab, len, keys, values);
+}
+
 void gab_fvmdump(FILE *stream, struct gab_vm *vm, uint64_t value) {
   uint64_t frame_count = vm->fp - vm->fb;
 
@@ -67,7 +102,7 @@ void gab_fvmdump(FILE *stream, struct gab_vm *vm, uint64_t value) {
 
   struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(f->b->p);
 
-  struct gab_obj_string *func_name = GAB_VAL_TO_STRING(proto->mod->name);
+  struct gab_obj_string *func_name = GAB_VAL_TO_STRING(proto->name);
 
   fprintf(stream,
           ANSI_COLOR_GREEN " %03lu" ANSI_COLOR_RESET " closure:" ANSI_COLOR_CYAN
@@ -145,7 +180,7 @@ static inline bool call_suspense(struct gab_vm *vm,
   vm->fp++;
   vm->fp->b = GAB_VAL_TO_BLOCK(sus->b);
   vm->fp->ip =
-      GAB_VAL_TO_BLOCK_PROTO(vm->fp->b->p)->mod->bytecode.data + proto->offset;
+      GAB_VAL_TO_BLOCK_PROTO(vm->fp->b->p)->bytecode.data + proto->offset;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
 
@@ -158,7 +193,11 @@ static inline bool call_suspense(struct gab_vm *vm,
   return true;
 }
 
-int32_t gab_vm_push(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
+size_t gab_vmpush(struct gab_vm *vm, gab_value value) {
+  return gab_nvmpush(vm, 1, &value);
+}
+
+size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
   if (!has_callspace(vm, argc)) {
     return -1;
   }
@@ -183,7 +222,7 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
 
   vm->fp++;
   vm->fp->b = b;
-  vm->fp->ip = proto->mod->bytecode.data;
+  vm->fp->ip = proto->bytecode.data;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
 
@@ -282,14 +321,13 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 #define FRAME() (VM()->fp)
 #define CLOSURE() (FRAME()->b)
 #define BLOCK_PROTO() (GAB_VAL_TO_BLOCK_PROTO(CLOSURE()->p))
-#define MODULE() (BLOCK_PROTO()->mod)
 #define IP() (ip)
 #define TOP() (VM()->sp)
 #define VAR() (*TOP())
 #define SLOTS() (FRAME()->slots)
 #define LOCAL(i) (SLOTS()[i])
 #define UPVALUE(i) (CLOSURE()->upvalues[i])
-#define MOD_CONSTANT(k) (v_gab_constant_val_at(&MODULE()->constants, k))
+#define MOD_CONSTANT(k) (v_gab_value_val_at(&BLOCK_PROTO()->constants, k))
 
 #if cGAB_DEBUG_VM
 #define PUSH(value)                                                            \
@@ -337,7 +375,6 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 #define LOAD_FRAME() ({ IP() = FRAME()->ip; })
 
 #define SEND_CACHE_DIST 22
-#define PROP_CACHE_DIST 19
 
 #define ERROR(status, help, ...)                                               \
   (a_gab_value_one(vm_error(GAB(), flags, status, help, __VA_ARGS__)))

@@ -106,8 +106,8 @@ enum gab_flags {
 };
 
 // VERSION
-#define GAB_VERSION_MAJOR 0
-#define GAB_VERSION_MINOR 1
+#define GAB_VERSION_MAJOR "0"
+#define GAB_VERSION_MINOR "1"
 
 // Message constants
 #define mGAB_ADD "+"
@@ -135,6 +135,9 @@ enum gab_flags {
 
 #define T char
 #include "array.h"
+
+#define T char
+#include "vector.h"
 
 #define T uint8_t
 #include "vector.h"

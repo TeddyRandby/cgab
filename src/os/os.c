@@ -8,7 +8,7 @@
 #endif
 
 a_char *os_read_fd(FILE *fd) {
-  v_int8_t buffer = {0};
+  v_char buffer = {0};
 
   while (1) {
     char c = fgetc(fd);
@@ -16,14 +16,14 @@ a_char *os_read_fd(FILE *fd) {
     if (c == EOF)
       break;
 
-    v_int8_t_push(&buffer, c);
+    v_char_push(&buffer, c);
   }
 
-  v_int8_t_push(&buffer, '\0');
+  v_char_push(&buffer, '\0');
 
   a_char *data = a_char_create(buffer.data, buffer.len);
 
-  v_int8_t_destroy(&buffer);
+  v_char_destroy(&buffer);
 
   return data;
 }

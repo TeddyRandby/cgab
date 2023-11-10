@@ -8,7 +8,7 @@
 #include "include/gc.h"
 #include "include/import.h"
 #include "include/lexer.h"
-#include "include/module.h"
+#include "include/os.h"
 #include "include/types.h"
 #include "include/vm.h"
 
@@ -193,12 +193,6 @@ void gab_destroy(struct gab_triple gab) {
     gab_srcdestroy(s);
   }
 
-  while (gab.eg->modules) {
-    struct gab_mod *m = gab.eg->modules;
-    gab.eg->modules = m->next;
-    gab_moddestroy(gab, m);
-  }
-
   for (size_t i = 0; i < gab.eg->interned_messages.cap; i++) {
     if (d_messages_iexists(&gab.eg->interned_messages, i)) {
       gab_gcdref(gab,
@@ -238,6 +232,63 @@ gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
                  args.flags, args.len, argv_names);
 
   return res;
+}
+
+void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
+  gab_value prev = gab_nil;
+
+  for (;;) {
+    printf("%s", args.prompt_prefix);
+    a_char *src = os_read_fd_line(stdin);
+
+    if (src->data[0] == EOF) {
+      a_char_destroy(src);
+      return;
+    }
+
+    if (src->data[1] == '\0') {
+      a_char_destroy(src);
+      continue;
+    }
+
+    const char *sargv[args.len + 1];
+    memcpy(sargv, args.sargv, args.len * sizeof(char *));
+    sargv[args.len] = "";
+
+    gab_value argv[args.len + 1];
+    memcpy(argv, args.argv, args.len * sizeof(gab_value));
+    argv[args.len] = prev;
+
+    a_gab_value *result = gab_exec(gab, (struct gab_exec_argt){
+                                            .name = args.name,
+                                            .source = (char *)src->data,
+                                            .flags = args.flags,
+                                            .len = args.len + 1,
+                                            .sargv = sargv,
+                                            .argv = argv,
+                                        });
+
+    if (result == NULL)
+      continue;
+
+    gab_ngciref(gab, 1, result->len, result->data);
+    gab_negkeep(gab.eg, result->len, result->data);
+
+    printf("%s", args.result_prefix);
+    for (int32_t i = 0; i < result->len; i++) {
+      gab_value arg = result->data[i];
+
+      if (i == result->len - 1)
+        printf("%V", arg);
+      else
+        printf("%V, ", arg);
+    }
+
+    prev = result->data[0];
+
+    a_gab_value_destroy(result);
+    printf("\n");
+  }
 }
 
 a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
@@ -297,13 +348,13 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
 a_gab_value *send_msg(struct gab_triple gab, gab_value msg, gab_value receiver,
                       size_t argc, gab_value argv[argc]) {
   if (msg == gab_undefined)
-    return a_gab_value_one(gab_undefined);
+    return NULL;
 
   gab_value main =
       gab_bccompsend(gab, msg, receiver, fGAB_DUMP_ERROR, argc, argv);
 
   if (main == gab_undefined)
-    return a_gab_value_one(gab_undefined);
+    return NULL;
 
   return gab_vmrun(gab, main, fGAB_DUMP_ERROR, 0, NULL);
 }
@@ -450,7 +501,9 @@ struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *self, uint64_t size,
   }
 }
 
-gab_value gab_type(struct gab_eg *gab, enum gab_kind k) { return gab->types[k]; }
+gab_value gab_type(struct gab_eg *gab, enum gab_kind k) {
+  return gab->types[k];
+}
 
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
                            const void *const *args) {
@@ -477,14 +530,6 @@ size_t gab_negkeep(struct gab_eg *gab, size_t len, gab_value *values) {
     v_gab_value_push(&gab->scratch, values[i]);
 
   return gab->scratch.len;
-}
-
-size_t gab_vmpush(struct gab_vm *vm, gab_value value) {
-  return gab_vm_push(vm, 1, &value);
-}
-
-size_t gab_nvmpush(struct gab_vm *vm, size_t argc, gab_value argv[argc]) {
-  return gab_vm_push(vm, argc, argv);
 }
 
 gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
@@ -523,20 +568,31 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
 
   case kGAB_BLOCK_PROTO: {
     struct gab_obj_block_proto *self = GAB_VAL_TO_BLOCK_PROTO(value);
-    gab_modcpy(gab, self->mod);
 
     gab_value copy = gab_blkproto(gab, (struct gab_blkproto_argt){
+                                           .name = gab_valcpy(gab, self->name),
+                                           .src = gab_srccpy(gab.eg, self->src),
                                            .nupvalues = self->nupvalues,
                                            .nslots = self->nslots,
                                            .narguments = self->narguments,
                                            .nlocals = self->nlocals,
-                                           .mod = gab.eg->modules,
                                        });
+    struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(copy);
 
-    memcpy(GAB_VAL_TO_BLOCK_PROTO(copy)->upv_desc, self->upv_desc,
-           self->nupvalues * 2);
+    memcpy(p, self->upv_desc, self->nupvalues * 2);
+    v_uint8_t_copy(&p->bytecode, &self->bytecode);
+    v_uint64_t_copy(&p->bytecode_toks, &self->bytecode_toks);
+    v_gab_value_copy(&p->constants, &self->constants);
 
-    gab_egkeep(gab.eg, copy); // No module to own this prototype
+    // Reconcile the constant array by copying the non trivial values
+    for (size_t i = 0; i < p->constants.len; i++) {
+      gab_value v = v_gab_value_val_at(&self->constants, i);
+      if (gab_valiso(v)) {
+        v_gab_value_set(&p->constants, i, gab_valcpy(gab, v));
+      }
+    }
+
+    gab_egkeep(gab.eg, copy);
 
     return copy;
   }
@@ -641,9 +697,7 @@ void gab_verr(struct gab_err_argt args, va_list varargs) {
   if (!(args.flags & fGAB_DUMP_ERROR))
     return;
 
-  struct gab_src *src = args.mod->source;
-
-  if (!src) {
+  if (!args.src) {
     fprintf(stderr,
             "\n[" ANSI_COLOR_GREEN "%V" ANSI_COLOR_RESET "]" ANSI_COLOR_YELLOW
             " %s. " ANSI_COLOR_RESET " " ANSI_COLOR_GREEN,
@@ -656,11 +710,11 @@ void gab_verr(struct gab_err_argt args, va_list varargs) {
     return;
   }
 
-  uint64_t line = v_uint64_t_val_at(&src->token_lines, args.tok);
+  uint64_t line = v_uint64_t_val_at(&args.src->token_lines, args.tok);
 
-  s_char tok_src = v_s_char_val_at(&src->token_srcs, args.tok);
+  s_char tok_src = v_s_char_val_at(&args.src->token_srcs, args.tok);
 
-  s_char line_src = v_s_char_val_at(&src->lines, line - 1);
+  s_char line_src = v_s_char_val_at(&args.src->lines, line - 1);
 
   while (is_whitespace(*line_src.data)) {
     line_src.data++;
@@ -677,7 +731,7 @@ void gab_verr(struct gab_err_argt args, va_list varargs) {
   tok_end = tok_src.data + tok_src.len;
 
   const char *tok_name =
-      gab_token_names[v_gab_token_val_at(&src->tokens, args.tok)];
+      gab_token_names[v_gab_token_val_at(&args.src->tokens, args.tok)];
 
   for (uint8_t i = 0; i < line_under->len; i++) {
     if (line_src.data + i >= tok_start && line_src.data + i < tok_end)

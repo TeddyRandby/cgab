@@ -1,9 +1,6 @@
 #include "include/gab.h"
 #include <stdio.h>
 
-#define T gab_value
-#include "include/vector.h"
-
 static inline void list_destroy(void *data) {
   v_gab_value *self = data;
   v_gab_value_destroy(self);

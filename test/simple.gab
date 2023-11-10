@@ -1,6 +1,10 @@
-a = { b c }
+:use 'records'
+:use 'dis'
 
-(a:b, d, a:c = 1, 2, 3):expect(1)
-a:b:expect(1)
-d:expect(2)
-a:c:expect(3)
+a = do;
+  for i in [ 1 2 3 4 ]:each
+    i:print
+  end
+end
+
+a:dis

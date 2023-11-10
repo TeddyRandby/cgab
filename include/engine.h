@@ -40,9 +40,6 @@ static const char *gab_token_names[] = {
 #define LOAD cGAB_DICT_MAX_LOAD
 #include "dict.h"
 
-#define T gab_value
-#include "vector.h"
-
 #define NAME gab_imp
 #define K uint64_t
 #define V struct gab_imp *
@@ -53,8 +50,6 @@ static const char *gab_token_names[] = {
 
 struct gab_eg {
   size_t hash_seed;
-
-  struct gab_mod *modules;
 
   struct gab_src *sources;
 
@@ -85,11 +80,11 @@ struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *gab, uint64_t size,
 
 struct gab_err_argt {
   enum gab_status status;
-  struct gab_mod *mod;
+  const char *note_fmt;
+  struct gab_src* src;
   gab_value context;
   size_t flags;
   size_t tok;
-  const char *note_fmt;
 };
 
 void gab_verr(struct gab_err_argt args, va_list va);

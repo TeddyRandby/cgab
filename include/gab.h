@@ -186,6 +186,9 @@ static inline gab_value __gab_dtoval(double value) {
 #define T gab_value
 #include "array.h"
 
+#define T gab_value
+#include "vector.h"
+
 #define NAME specs
 #define K gab_value
 #define V gab_value
@@ -214,7 +217,6 @@ static const char *gab_opcode_names[] = {
 #undef OP_CODE
 };
 
-struct gab_mod;
 struct gab_gc;
 struct gab_vm;
 struct gab_eg;
@@ -331,6 +333,16 @@ size_t gab_negkeep(struct gab_eg *eg, size_t len, gab_value argv[static len]);
 size_t gab_vmpush(struct gab_vm *vm, gab_value v);
 
 /**
+ * # Build a record which contains the data relevant to the callframe
+ * at depth N in the vm's callstack.
+ *
+* @param gab The engine.
+* @param depth The depth of the callframe.
+* @return The record.
+ */
+gab_value gab_vmframe(struct gab_triple gab, uint64_t depth);
+
+/**
  * # Push values onto the vm's internal stack
  * Used to return values from c-builtins.
  *
@@ -428,6 +440,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args);
 struct gab_exec_argt {
   /* The name of the module */
   const char *name;
+  /* Defaults to (main) */
   /* The source code */
   const char *source;
   /* Options for the compiler & vm */
@@ -446,13 +459,43 @@ struct gab_exec_argt {
  * result.
  *
  * @param gab The engine.
- * @param gc The garbage collector. May be nullptr.
- * @param vm The vm. May be nullptr.
  * @param args The arguments.
  * @see struct gab_exec_argt
  * @return A heap-allocated slice of values returned by the block.
  */
 a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args);
+
+struct gab_repl_argt {
+  /* The prompt to display */
+  const char* prompt_prefix;
+  /* The prompt to display */
+  const char* result_prefix;
+
+  /* The following are passed to gab_exec */
+  
+  /* Name for the modules compiled in the repl */
+  const char* name;
+  /* Options for the vm */
+  int flags;
+  /* The number of arguments */
+  size_t len;
+  /* The names of the arguments to the main block */
+  const char **sargv;
+  /* The values of the arguments to the main block */
+  gab_value *argv;
+};
+
+/**
+ * # Compile a source string to a block and run it.
+ * This is equivalent to calling `gab_compile` and then `gab_run` on the
+ * result.
+ *
+ * @param gab The engine.
+ * @param args The arguments.
+ * @see struct gab_repl_argt
+ * @return A heap-allocated slice of values returned by the block.
+ */
+void gab_repl(struct gab_triple gab, struct gab_repl_argt args);
 
 struct gab_send_argt {
   /* The message to send. */
@@ -467,6 +510,7 @@ struct gab_send_argt {
   /* The arguments to the message */
   gab_value *argv;
 };
+
 /**
  * # Send the message to the receiver.
  * Args.vmessage is only used if args.smessage is NULL.
@@ -674,7 +718,13 @@ struct gab_obj_block_proto {
 
   uint8_t narguments, nupvalues, nslots, nlocals;
 
-  struct gab_mod *mod;
+  struct gab_src *src;
+
+  gab_value name;
+
+  v_gab_value constants;
+  v_uint8_t bytecode;
+  v_uint64_t bytecode_toks;
 
   uint8_t upv_desc[FLEXIBLE_ARRAY];
 };
@@ -684,8 +734,12 @@ struct gab_obj_block_proto {
   ((struct gab_obj_block_proto *)gab_valtoo(value))
 
 struct gab_blkproto_argt {
-  struct gab_mod *mod;
   uint8_t narguments, nslots, nlocals, nupvalues, *flags, *indexes;
+  struct gab_src *src;
+  gab_value name;
+  v_gab_value constants;
+  v_uint8_t bytecode;
+  v_uint64_t bytecode_toks;
 };
 
 /**
@@ -1699,6 +1753,8 @@ int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
 int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
                            int *sizes);
 
+void gab_fbcdump(FILE *stream, struct gab_obj_block_proto *mod);
+  
 /**
  * # Dump a gab value to a file stream.
  *
@@ -1709,15 +1765,6 @@ int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
  * @return The number of bytes written.
  */
 int gab_fvaldump(FILE *stream, gab_value self);
-
-/**
- * # Disassemble a module.
- *
- * This is useful for debugging bytecode.
- *
- * @param mod The module.
- */
-void gab_fmoddump(FILE *stream, struct gab_mod *mod);
 
 /**
  * # Pry into the frame at the given depth in the callstack.

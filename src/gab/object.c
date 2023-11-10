@@ -1,15 +1,12 @@
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
-#include "include/module.h"
 #include "include/types.h"
 #include "include/vm.h"
 #include <assert.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <threads.h>
+#include "include/colors.h"
 
 #define GAB_CREATE_ARRAY(type, count)                                          \
   ((type *)gab_memalloc(gab, NULL, sizeof(type) * count))
@@ -172,7 +169,7 @@ int __dump_value(FILE *stream, gab_value self, uint8_t depth) {
   }
   case kGAB_BLOCK_PROTO: {
     struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(self);
-    return fprintf(stream, "%V", proto->mod->name);
+    return fprintf(stream, "%V", proto->name);
   }
   case kGAB_SUSPENSE_PROTO: {
     return fprintf(stream, "<Prototype>");
@@ -333,11 +330,15 @@ gab_value gab_blkproto(struct gab_triple gab, struct gab_blkproto_argt args) {
   struct gab_obj_block_proto *self = GAB_CREATE_FLEX_OBJ(
       gab_obj_block_proto, uint8_t, args.nupvalues * 2, kGAB_BLOCK_PROTO);
 
-  self->mod = args.mod;
-  self->narguments = args.narguments;
+  self->src = args.src;
+  self->name = args.name;
   self->nslots = args.nslots;
   self->nlocals = args.nlocals;
+  self->bytecode = args.bytecode;
+  self->constants = args.constants;
   self->nupvalues = args.nupvalues;
+  self->narguments = args.narguments;
+  self->bytecode_toks = args.bytecode_toks;
 
   for (uint8_t i = 0; i < args.nupvalues; i++) {
     self->upv_desc[i * 2] = args.flags[i];
@@ -511,6 +512,7 @@ gab_value gab_suspense(struct gab_triple gab, uint16_t len, gab_value b,
 
   return gab_gcdref(gab, __gab_obj(self));
 }
+
 
 #undef CREATE_GAB_FLEX_OBJ
 #undef CREATE_GAB_OBJ
