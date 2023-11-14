@@ -376,8 +376,9 @@ static inline void parse_comment(gab_lx *self) {
   while (is_comment(peek(self))) {
     while (peek(self) != '\n')
       advance(self);
-
+    
     advance(self);
+    finish_row(self);
   }
 }
 

@@ -1,20 +1,19 @@
 :use 'std/specs'
-:use 'pry'
-
-def is_int[.Number]; self:is_n end
-def is_even[.Number]; self % 2 == 0 end
+:use 'std/numbers'
 
 def car.spec      = :spec.record { car.make car.model car.year car.color }
 def car.make.spec = :spec.or('Ford', 'Chevy', 'Toyota', 'Honda')
 
-:pry.break
-
-:spec.def 'car.year'  { spec = :spec.and(&:is_int, &:is_even) }
-:spec.def 'car.color' { spec = &:is_s }
-:spec.def 'car.model' { spec = &:is_s }
+:spec.def 'car.year'  { spec = :spec.and(:spec.int, :spec.gt(2000)) }
+:spec.def 'car.color' { spec = :spec.string }
+:spec.def 'car.model' { spec = :spec.string }
 :spec.def 'car.make'  { spec = car.make.spec }
 
 ..result = car.spec:spec.fits? { car.make = '' car.model = 'F150' car.year = 2012 car.color = 'red' }
+
+result:print
+
+..result = car.spec:spec.fits? { car.make = 'Ford' car.model = 'F150' car.year = 1800 car.color = 'red' }
 
 result:print
 

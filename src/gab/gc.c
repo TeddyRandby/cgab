@@ -39,6 +39,8 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
         fnc(gab, gab_valtoo(sus->frame[i]));
     }
 
+    fnc(gab, gab_valtoo(sus->b));
+
     break;
   }
 

@@ -95,7 +95,9 @@ void gab_lib_between(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     gab_panic(gab, "Invalid call to gab_lib_random");
   }
 
-  double num = min + (random_float() * max);
+  double range = max - min;
+
+  double num = min + (random_float() * range);
 
   gab_value res = gab_number(num);
 

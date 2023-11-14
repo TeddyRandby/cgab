@@ -1,7 +1,6 @@
 :use 'std/maps'
 :use 'std/records'
 :use 'std/lists'
-:use 'std/numbers'
 :use 'std/any'
 :use 'symbol'
 
@@ -46,6 +45,59 @@ end
 #      where value is the rejected value
 #      where path is the 'path' taken to the rejected value ( or nil, if no path )
 
+def spec.int[]
+  def predicate(value)
+    return value:is_n, &:spec.int, value
+  end
+
+  def spec.gen[predicate]; :int.between(-10000, 10000) end
+
+  return predicate
+end
+
+def spec.float[]
+  def predicate(value)
+    return value:is_n, &:spec.float, value
+  end
+  
+  def spec.gen[predicate]; :float.between(-10000, 10000) end
+
+  return predicate
+end
+
+def spec.string[]
+  def predicate(value)
+    return value:is_s, &:spec.string, value
+  end
+
+  def spec.gen[predicate]
+    def len  = :int.between(1, 100)
+    def list = :list.new
+    
+    i = 0
+    
+    loop
+      list:push!(:int.between(0, 127))
+      i = i + 1
+    until i == len end
+    
+    list:to_bytes
+  end
+
+  return predicate
+end
+
+def spec.gt[](min)
+  def predicate(value)
+    return value > min, &:spec.gt, value
+  end
+end
+
+def spec.lt[](min)
+  def predicate(value)
+    return value < min, &:spec.gt, value
+  end
+end
 
 ## predicate for a map of key type -> value type
 def spec.map[](k_spec, v_spec)
@@ -166,15 +218,10 @@ def spec.and[](..specs)
     loop
       value, valid, tries = specs:at(0):spec.gen, false, tries + 1
 
-      { spec = specs:at(0) value } :print
-
       results = (specs:at(0)):spec.fits?(value)
-
-      results:print
 
       for _, spec in specs:each
         valid = spec:spec.fits?(value)
-        { valid spec value }:print
         valid or break
       end
 
@@ -182,41 +229,19 @@ def spec.and[](..specs)
 
     until tries == 100 end
 
-    .COULD_NOT_SPEC:panic
+    .SPEC_COULD_NOT_GEN:panic
   end
 
   return predicate
 end
 
-## GENERATORS
-# A spec predicate should implement the &:spec.gen message.
-# This allows spec to dynamically generate values which satisfy predicates.
-def spec.gen      [];                      self end
-#
-# Should you be able to specialize messages on messages?
-# TODO: Think a little bit finer about what we should be able to specialize on and how.
-def spec.gen[&:is_n]; :float.between(-100, 100) end
-def spec.gen[&:is_int]; :int.between(-100, 100) end
-def spec.gen[&:is_b]; :float.between > 0.5      end
-def spec.gen[&:is_s]
-  def len  = :int.between(1, 100)
-  def list = :list.new
-  
-  i = 0
-  
-  loop
-    list:push!(:int.between(0, 127))
-    i = i + 1
-  until i == len end
-  
-  list:to_bytes
-end
+# A default gen implementation is the identity function
+def spec.gen []; self end
 
 ## FITS
-# Implement spec.fits? for all valid types that can serve as specs
+# Default fits? specializfation is just good ol' equality
+def spec.fits?      [](value); self == value    end
 # Since a spec is just a predicate, we can simply call it and return the result
-def spec.fits?        [](value); self == value    end
-def spec.fits?  [.Block](value); self(value)      end
-def spec.fits?[.Message](value); value:send(self) end
+def spec.fits?[.Block](value); self(value)      end
 
 return nil

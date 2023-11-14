@@ -718,7 +718,7 @@ struct gab_obj_block_proto {
 
   struct gab_src *src;
 
-  struct gab_obj_block_proto* next;
+  struct gab_obj_block_proto *next;
 
   gab_value name;
 
@@ -832,7 +832,7 @@ static inline gab_value gab_shapewith(struct gab_triple gab, gab_value shape,
  */
 gab_value gab_nshape(struct gab_triple gab, uint64_t len);
 
-#define GAB_PROPERTY_NOT_FOUND (UINT64_MAX)
+#define GAB_PROPERTY_NOT_FOUND ((size_t) -1)
 /**
  * Find the offset of a key in the shape.
  *
@@ -842,12 +842,12 @@ gab_value gab_nshape(struct gab_triple gab, uint64_t len);
  *
  * @return The offset of the key, or GAB_PROPERTY_NOT_FOUND if it doesn't exist.
  */
-static inline uint64_t gab_shpfind(gab_value shp, gab_value key) {
+static inline size_t gab_shpfind(gab_value shp, gab_value key) {
   assert(gab_valkind(shp) == kGAB_SHAPE);
   struct gab_obj_shape *obj = GAB_VAL_TO_SHAPE(shp);
 
   // Linear search for the key in the shape
-  for (uint64_t i = 0; i < obj->len; i++)
+  for (size_t i = 0; i < obj->len; i++)
     if (obj->data[i] == key)
       return i;
 
@@ -892,12 +892,12 @@ static inline gab_value *gab_shpdata(gab_value shp) {
  * @return The offset of the next key, 0 if the key is gab_undefined, or
  * UINT64_MAX if it doesn't exist.
  */
-static inline uint64_t gab_shpnext(gab_value shp, gab_value key) {
+static inline size_t gab_shpnext(gab_value shp, gab_value key) {
   assert(gab_valkind(shp) == kGAB_SHAPE);
   if (key == gab_undefined)
     return 0;
 
-  uint64_t offset = gab_shpfind(shp, key);
+  size_t offset = gab_shpfind(shp, key);
 
   if (offset == GAB_PROPERTY_NOT_FOUND)
     return GAB_PROPERTY_NOT_FOUND;
@@ -1063,7 +1063,7 @@ static inline bool gab_recput(gab_value rec, gab_value key, gab_value value) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
 
-  uint64_t offset = gab_shpfind(obj->shape, key);
+  size_t offset = gab_shpfind(obj->shape, key);
 
   if (offset == GAB_PROPERTY_NOT_FOUND)
     return false;
@@ -1183,7 +1183,7 @@ static inline gab_value gab_msgname(gab_value msg) {
  * @return The index of the receiver's specialization, or UINT64_MAX if it
  * doesn't exist.
  */
-static inline uint64_t gab_msgfind(gab_value msg, gab_value needle) {
+static inline size_t gab_msgfind(gab_value msg, gab_value needle) {
   assert(gab_valkind(msg) == kGAB_MESSAGE);
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
   return gab_recfind(obj->specs, needle);
@@ -1196,7 +1196,7 @@ static inline uint64_t gab_msgfind(gab_value msg, gab_value needle) {
  *
  * @param offset The offset in the message.
  */
-static inline gab_value gab_umsgat(gab_value msg, uint64_t offset) {
+static inline gab_value gab_umsgat(gab_value msg, size_t offset) {
   assert(gab_valkind(msg) == kGAB_MESSAGE);
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
   return gab_urecat(obj->specs, offset);

@@ -1132,7 +1132,7 @@ int compile_block_body(struct bc *bc) {
   return COMP_OK;
 }
 
-int compile_message_spec(struct bc *bc, gab_value name) {
+int compile_message_spec(struct bc *bc) {
   if (expect_token(bc, TOKEN_LBRACE) < 0)
     return COMP_ERR;
 
@@ -1173,7 +1173,7 @@ int compile_block(struct bc *bc, gab_value name) {
 }
 
 int compile_message(struct bc *bc, gab_value name) {
-  if (compile_message_spec(bc, name) < 0)
+  if (compile_message_spec(bc) < 0)
     return COMP_ERR;
 
   push_ctxframe(bc, name);
