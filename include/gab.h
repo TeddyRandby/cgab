@@ -336,9 +336,9 @@ size_t gab_vmpush(struct gab_vm *vm, gab_value v);
  * # Build a record which contains the data relevant to the callframe
  * at depth N in the vm's callstack.
  *
-* @param gab The engine.
-* @param depth The depth of the callframe.
-* @return The record.
+ * @param gab The engine.
+ * @param depth The depth of the callframe.
+ * @return The record.
  */
 gab_value gab_vmframe(struct gab_triple gab, uint64_t depth);
 
@@ -467,14 +467,14 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args);
 
 struct gab_repl_argt {
   /* The prompt to display */
-  const char* prompt_prefix;
+  const char *prompt_prefix;
   /* The prompt to display */
-  const char* result_prefix;
+  const char *result_prefix;
 
   /* The following are passed to gab_exec */
-  
+
   /* Name for the modules compiled in the repl */
-  const char* name;
+  const char *name;
   /* Options for the vm */
   int flags;
   /* The number of arguments */
@@ -716,11 +716,13 @@ struct gab_obj_builtin {
 struct gab_obj_block_proto {
   struct gab_obj header;
 
-  uint8_t narguments, nupvalues, nslots, nlocals;
-
   struct gab_src *src;
 
+  struct gab_obj_block_proto* next;
+
   gab_value name;
+
+  uint8_t narguments, nupvalues, nslots, nlocals;
 
   v_gab_value constants;
   v_uint8_t bytecode;
@@ -735,8 +737,6 @@ struct gab_obj_block_proto {
 
 struct gab_blkproto_argt {
   uint8_t narguments, nslots, nlocals, nupvalues, *flags, *indexes;
-  struct gab_src *src;
-  gab_value name;
   v_gab_value constants;
   v_uint8_t bytecode;
   v_uint64_t bytecode_toks;
@@ -750,7 +750,8 @@ struct gab_blkproto_argt {
  * @see struct gab_blkproto_argt
  * @return The new block prototype object.
  */
-gab_value gab_blkproto(struct gab_triple gab, struct gab_blkproto_argt args);
+gab_value gab_blkproto(struct gab_triple gab, struct gab_src *src,
+                       gab_value name, struct gab_blkproto_argt args);
 
 /**
  * A block - aka a prototype and it's captures.
@@ -1245,6 +1246,10 @@ struct gab_obj_box {
 struct gab_obj_suspense_proto {
   struct gab_obj header;
 
+  struct gab_src *src;
+
+  gab_value name;
+
   uint8_t want;
 
   uint64_t offset;
@@ -1262,7 +1267,8 @@ struct gab_obj_suspense_proto {
  *
  * @param want The number of values the block wants.
  */
-gab_value gab_susproto(struct gab_triple gab, uint64_t offset, uint8_t want);
+gab_value gab_susproto(struct gab_triple gab, struct gab_src *src,
+                       gab_value name, uint64_t offset, uint8_t want);
 
 /**
  * A suspense object, which holds the state of a suspended coroutine.
@@ -1754,7 +1760,7 @@ int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
                            int *sizes);
 
 void gab_fbcdump(FILE *stream, struct gab_obj_block_proto *mod);
-  
+
 /**
  * # Dump a gab value to a file stream.
  *

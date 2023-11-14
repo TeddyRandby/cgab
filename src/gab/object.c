@@ -1,3 +1,4 @@
+#include "include/colors.h"
 #include "include/core.h"
 #include "include/engine.h"
 #include "include/gab.h"
@@ -6,7 +7,6 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include "include/colors.h"
 
 #define GAB_CREATE_ARRAY(type, count)                                          \
   ((type *)gab_memalloc(gab, NULL, sizeof(type) * count))
@@ -172,7 +172,8 @@ int __dump_value(FILE *stream, gab_value self, uint8_t depth) {
     return fprintf(stream, "%V", proto->name);
   }
   case kGAB_SUSPENSE_PROTO: {
-    return fprintf(stream, "<Prototype>");
+    struct gab_obj_suspense_proto *proto = GAB_VAL_TO_SUSPENSE_PROTO(self);
+    return fprintf(stream, "%V", proto->name);
   }
   default: {
     fprintf(stderr, "%d is not an object.\n", gab_valtoo(self)->kind);
@@ -195,6 +196,13 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
     struct gab_obj_box *container = (struct gab_obj_box *)self;
     if (container->do_destroy)
       container->do_destroy(container->data);
+    break;
+  }
+  case kGAB_BLOCK_PROTO: {
+    struct gab_obj_block_proto *p = (struct gab_obj_block_proto *)self;
+    v_uint8_t_destroy(&p->bytecode);
+    v_gab_value_destroy(&p->constants);
+    v_uint64_t_destroy(&p->bytecode_toks);
     break;
   }
   case kGAB_SHAPE:
@@ -326,12 +334,16 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
   return gab_nstring(gab, len, data);
 };
 
-gab_value gab_blkproto(struct gab_triple gab, struct gab_blkproto_argt args) {
+gab_value gab_blkproto(struct gab_triple gab, struct gab_src *src,
+                       gab_value name, struct gab_blkproto_argt args) {
   struct gab_obj_block_proto *self = GAB_CREATE_FLEX_OBJ(
       gab_obj_block_proto, uint8_t, args.nupvalues * 2, kGAB_BLOCK_PROTO);
 
-  self->src = args.src;
-  self->name = args.name;
+  self->next = gab.eg->prototypes;
+  gab.eg->prototypes = self;
+
+  self->src = src;
+  self->name = name;
   self->nslots = args.nslots;
   self->nlocals = args.nlocals;
   self->bytecode = args.bytecode;
@@ -484,10 +496,13 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
   return gab_gcdref(gab, __gab_obj(self));
 }
 
-gab_value gab_susproto(struct gab_triple gab, uint64_t offset, uint8_t want) {
+gab_value gab_susproto(struct gab_triple gab, struct gab_src *src,
+                       gab_value name, uint64_t offset, uint8_t want) {
   struct gab_obj_suspense_proto *self =
       GAB_CREATE_OBJ(gab_obj_suspense_proto, kGAB_SUSPENSE_PROTO);
 
+  self->src = src;
+  self->name = name;
   self->offset = offset;
   self->want = want;
 
@@ -512,7 +527,6 @@ gab_value gab_suspense(struct gab_triple gab, uint16_t len, gab_value b,
 
   return gab_gcdref(gab, __gab_obj(self));
 }
-
 
 #undef CREATE_GAB_FLEX_OBJ
 #undef CREATE_GAB_OBJ

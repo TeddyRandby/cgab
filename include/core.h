@@ -26,7 +26,7 @@
 #endif
 
 #ifndef cGAB_CHUNK_ALLOCATOR
-#define cGAB_CHUNK_ALLOCATOR 1
+#define cGAB_CHUNK_ALLOCATOR 0
 #endif
 
 // Capacity at which point dictionaries are resized

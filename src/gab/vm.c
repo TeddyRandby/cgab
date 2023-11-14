@@ -1031,6 +1031,8 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     CASE_CODE(LOAD_UPVALUE_6) :
     CASE_CODE(LOAD_UPVALUE_7) :
     CASE_CODE(LOAD_UPVALUE_8) : {
+      // printf("LOAD_UPVALUE %V", __gab_obj(CLOSURE()));
+      // printf("% d of %d\n", INSTR() - OP_LOAD_UPVALUE_0, CLOSURE()->nupvalues);
       PUSH(UPVALUE(INSTR() - OP_LOAD_UPVALUE_0));
       NEXT();
     }

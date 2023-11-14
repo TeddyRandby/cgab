@@ -53,6 +53,8 @@ struct gab_eg {
 
   struct gab_src *sources;
 
+  struct gab_obj_block_proto *prototypes;
+
   struct gab_allocator allocator;
 
   d_gab_imp imports;

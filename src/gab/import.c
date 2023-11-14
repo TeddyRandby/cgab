@@ -11,7 +11,7 @@ void gab_impputmod(struct gab_eg *gab, const char *name, gab_value mod,
 
   struct gab_imp *i = NEW(struct gab_imp);
 
-  i->k = IMPORT_SOURCE;
+  i->k = kGAB_IMPORT_SOURCE;
   i->cache = val;
   i->as.mod = mod;
 
@@ -24,7 +24,7 @@ void gab_impputshd(struct gab_eg *gab, const char *name, void *obj,
 
   struct gab_imp *i = NEW(struct gab_imp);
 
-  i->k = IMPORT_SHARED;
+  i->k = kGAB_IMPORT_SHARED;
   i->cache = val;
   i->as.shared = obj;
 
@@ -46,7 +46,7 @@ a_gab_value *gab_impval(struct gab_imp *imp) { return imp->cache; }
 
 void gab_impdestroy(struct gab_eg *gab, struct gab_gc *gc, struct gab_imp *i) {
   switch (i->k) {
-  case IMPORT_SHARED:
+  case kGAB_IMPORT_SHARED:
     dlclose(i->as.shared);
     break;
   default:

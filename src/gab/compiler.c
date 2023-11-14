@@ -299,6 +299,7 @@ static inline uint16_t addk(struct bc *bc, gab_value value) {
   struct frame *f = &bc->contexts[ctx].as.frame;
 
   gab_gciref(gab(bc), value);
+  gab_egkeep(eg(bc), value);
 
   assert(f->constants.len < UINT16_MAX &&
          "Frames must have fewer than UINT16MAX constants");
@@ -428,15 +429,6 @@ static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
     case OP_STORE_LOCAL_6:
     case OP_STORE_LOCAL_7:
     case OP_STORE_LOCAL_8:
-    case OP_LOAD_LOCAL_0:
-    case OP_LOAD_LOCAL_1:
-    case OP_LOAD_LOCAL_2:
-    case OP_LOAD_LOCAL_3:
-    case OP_LOAD_LOCAL_4:
-    case OP_LOAD_LOCAL_5:
-    case OP_LOAD_LOCAL_6:
-    case OP_LOAD_LOCAL_7:
-    case OP_LOAD_LOCAL_8:
       f->bytecode.data[f->bytecode.len - 1] += 9;
       f->prev_op = f->bytecode.data[f->bytecode.len - 1];
       return;
@@ -910,19 +902,18 @@ static gab_value pop_ctxframe(struct bc *bc) {
   uint8_t nargs = f->narguments;
   uint8_t nlocals = f->nlocals;
 
-  gab_value p = gab_blkproto(gab(bc), (struct gab_blkproto_argt){
-                                          .src = bc->src,
-                                          .constants = f->constants,
-                                          .bytecode = f->bytecode,
-                                          .bytecode_toks = f->bytecode_toks,
-                                          .name = f->name,
-                                          .nslots = nslots,
-                                          .nlocals = nlocals,
-                                          .narguments = nargs,
-                                          .nupvalues = nupvalues,
-                                          .flags = f->upv_flags,
-                                          .indexes = f->upv_indexes,
-                                      });
+  gab_value p = gab_blkproto(gab(bc), bc->src, f->name,
+                             (struct gab_blkproto_argt){
+                                 .constants = f->constants,
+                                 .bytecode = f->bytecode,
+                                 .bytecode_toks = f->bytecode_toks,
+                                 .nslots = nslots,
+                                 .nlocals = nlocals,
+                                 .narguments = nargs,
+                                 .nupvalues = nupvalues,
+                                 .flags = f->upv_flags,
+                                 .indexes = f->upv_indexes,
+                             });
 
   gab_gciref(gab(bc), p);
   gab_egkeep(eg(bc), p);
@@ -2944,7 +2935,7 @@ int compile_exp_for(struct bc *bc, bool assignable) {
   if (mv >= 0)
     push_pack(bc, mv, nlooplocals - mv, t);
 
-  uint64_t jump_start = push_iter(bc, local_start, nlooplocals, t);
+  uint64_t jump_start = push_iter(bc, nlooplocals, local_start, t);
 
   if (compile_expressions(bc) < 0)
     return COMP_ERR;
@@ -3057,7 +3048,8 @@ int compile_exp_yld(struct bc *bc, bool assignable) {
   struct frame *f = &bc->contexts[ctx].as.frame;
 
   if (!get_rule(curr_tok(bc)).prefix) {
-    gab_value proto = gab_susproto(gab(bc), f->bytecode.len + 4, 1);
+    gab_value proto =
+        gab_susproto(gab(bc), bc->src, f->name, f->bytecode.len + 4, 1);
 
     uint16_t kproto = addk(bc, proto);
 
@@ -3079,7 +3071,8 @@ int compile_exp_yld(struct bc *bc, bool assignable) {
     return COMP_ERR;
   }
 
-  gab_value proto = gab_susproto(gab(bc), f->bytecode.len + 4, 1);
+  gab_value proto =
+      gab_susproto(gab(bc), bc->src, f->name, f->bytecode.len + 4, 1);
 
   uint16_t kproto = addk(bc, proto);
 
@@ -3233,8 +3226,8 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   gab_gciref(gab(bc), main);
   gab_egkeep(eg(bc), main);
 
-  // if (fGAB_DUMP_BYTECODE & bc->flags)
-  //   gab_fmoddump(stdout, new_mod);
+  if (fGAB_DUMP_BYTECODE & bc->flags)
+    gab_fbcdump(stdout, GAB_VAL_TO_BLOCK_PROTO(p));
 
   return main;
 }
@@ -3273,16 +3266,15 @@ gab_value gab_bccompsend(struct gab_triple gab, gab_value msg,
   assert(ctx >= 0 && "Internal compiler error: no frame context");
   struct frame *f = &bc.contexts[ctx].as.frame;
 
-  gab_value p = gab_blkproto(gab, (struct gab_blkproto_argt){
-                                      .src = bc.src,
-                                      .constants = f->constants,
-                                      .bytecode = f->bytecode,
-                                      .bytecode_toks = f->bytecode_toks,
-                                      .name = f->name,
-                                      .narguments = narguments,
-                                      .nlocals = nlocals,
-                                      .nslots = nlocals,
-                                  });
+  gab_value p = gab_blkproto(gab, bc.src, f->name,
+                             (struct gab_blkproto_argt){
+                                 .constants = f->constants,
+                                 .bytecode = f->bytecode,
+                                 .bytecode_toks = f->bytecode_toks,
+                                 .narguments = narguments,
+                                 .nlocals = nlocals,
+                                 .nslots = nlocals,
+                             });
 
   addk(&bc, p);
 
@@ -3350,6 +3342,7 @@ uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_block_proto *self,
                              uint64_t offset) {
   const char *name =
       gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
+
   uint16_t constant = ((uint16_t)v_uint8_t_val_at(&self->bytecode, offset + 1))
                           << 8 |
                       v_uint8_t_val_at(&self->bytecode, offset + 2);
@@ -3444,14 +3437,14 @@ uint64_t dumpIter(FILE *stream, struct gab_obj_block_proto *self,
   uint16_t dist = (uint16_t)v_uint8_t_val_at(&self->bytecode, offset + 3) << 8;
   dist |= v_uint8_t_val_at(&self->bytecode, offset + 4);
 
-  uint8_t nlocals = v_uint8_t_val_at(&self->bytecode, offset + 1);
+  uint8_t want = v_uint8_t_val_at(&self->bytecode, offset + 1);
   uint8_t start = v_uint8_t_val_at(&self->bytecode, offset + 2);
 
   fprintf(stream,
           "%-25s" ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
           " -> " ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
           " %03d locals from %03d\n",
-          "ITER", offset, offset + 5 + dist, nlocals, start);
+          "ITER", offset, offset + 5 + dist, want, start);
 
   return offset + 5;
 }

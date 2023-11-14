@@ -2,14 +2,15 @@
 #define GAB_IMPORT_H
 
 #include "gab.h"
+#include <stdint.h>
 
-enum gab_import_k {
-  IMPORT_SHARED,
-  IMPORT_SOURCE,
+enum {
+  kGAB_IMPORT_SHARED,
+  kGAB_IMPORT_SOURCE,
 };
 
 struct gab_imp {
-  enum gab_import_k k;
+  uint8_t  k;
 
   union {
     gab_value mod;

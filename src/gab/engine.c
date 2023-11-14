@@ -193,6 +193,13 @@ void gab_destroy(struct gab_triple gab) {
     gab_srcdestroy(s);
   }
 
+  // while (gab.eg->prototypes) {
+  //   gab_ngcdref(gab, 1, gab.eg->prototypes->constants.len,
+  //               gab.eg->prototypes->constants.data);
+  //
+  //   gab.eg->prototypes = gab.eg->prototypes->next;
+  // }
+
   for (size_t i = 0; i < gab.eg->interned_messages.cap; i++) {
     if (d_messages_iexists(&gab.eg->interned_messages, i)) {
       gab_gcdref(gab,
@@ -569,14 +576,14 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
   case kGAB_BLOCK_PROTO: {
     struct gab_obj_block_proto *self = GAB_VAL_TO_BLOCK_PROTO(value);
 
-    gab_value copy = gab_blkproto(gab, (struct gab_blkproto_argt){
-                                           .name = gab_valcpy(gab, self->name),
-                                           .src = gab_srccpy(gab.eg, self->src),
-                                           .nupvalues = self->nupvalues,
-                                           .nslots = self->nslots,
-                                           .narguments = self->narguments,
-                                           .nlocals = self->nlocals,
-                                       });
+    gab_value copy = gab_blkproto(gab, gab_srccpy(gab.eg, self->src),
+                                  gab_valcpy(gab, self->name),
+                                  (struct gab_blkproto_argt){
+                                      .nupvalues = self->nupvalues,
+                                      .nslots = self->nslots,
+                                      .narguments = self->narguments,
+                                      .nlocals = self->nlocals,
+                                  });
     struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(copy);
 
     memcpy(p, self->upv_desc, self->nupvalues * 2);
@@ -641,7 +648,8 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
   case kGAB_SUSPENSE_PROTO: {
     struct gab_obj_suspense_proto *self = GAB_VAL_TO_SUSPENSE_PROTO(value);
 
-    return gab_susproto(gab, self->offset, self->want);
+    return gab_susproto(gab, gab_srccpy(gab.eg, self->src),
+                        gab_valcpy(gab, self->name), self->offset, self->want);
   }
 
   case kGAB_SUSPENSE: {
