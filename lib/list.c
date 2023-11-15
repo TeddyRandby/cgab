@@ -207,7 +207,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   struct gab_spec_argt specs[] = {
       {
           "list.new",
-          gab_nil,
+          gab_undefined,
           gab_sbuiltin(gab, "list.new", gab_lib_new),
       },
       {

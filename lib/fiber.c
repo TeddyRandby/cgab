@@ -271,7 +271,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   };
 
   gab_value receivers[] = {
-      gab_nil,
+      gab_undefined,
       gab_string(gab, "Fiber"),
       gab_string(gab, "Fiber"),
   };

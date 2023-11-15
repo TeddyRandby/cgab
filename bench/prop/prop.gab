@@ -8,10 +8,10 @@ obj = {
 i = 0
 
 loop
-    obj.zebra = i
-    obj.camel = obj.zebra - 1
-    obj.cow = obj.camel + 1
-    obj.rooster = obj.cow - obj.zebra
+    obj:zebra = i
+    obj:camel = obj:zebra - 1
+    obj:cow = obj:camel + 1
+    obj:rooster = obj:cow - obj:zebra
 
     i = i + 1
 until i == 500000 end

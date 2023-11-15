@@ -1,10 +1,9 @@
-:use 'records'
-:use 'dis'
+:use 'std/transducers'
 
-a = do;
-  for i in [ 1 2 3 4 ]:each
-    i:print
-  end
-end
+items = [ 1 2 3 4 5 ]
 
-a:dis
+def add_one = :td.map do; @1 + 1 end
+
+def is_even = :td.filter do; @1 % 2 == 0 end
+
+def sum = :td.reduce(0) do(a, c); a + c end

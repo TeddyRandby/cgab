@@ -76,6 +76,7 @@ gab_value gab_vmframe(struct gab_triple gab, uint64_t depth) {
   const char *keys[] = {
       "block",
       "line",
+      "locals",
   };
 
   struct gab_src *src = GAB_VAL_TO_BLOCK_PROTO(f->b->p)->src;
@@ -85,6 +86,7 @@ gab_value gab_vmframe(struct gab_triple gab, uint64_t depth) {
   gab_value values[] = {
       __gab_obj(f->b),
       gab_number(v_uint64_t_val_at(&src->token_lines, tok)),
+      gab_tuple(gab, GAB_VAL_TO_BLOCK_PROTO(f->b->p)->nlocals, f->slots),
   };
 
   size_t len = sizeof(keys) / sizeof(keys[0]);
@@ -757,7 +759,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       uint8_t start = READ_BYTE;
       uint16_t dist = READ_SHORT;
       uint64_t have = VAR();
-
+      
       gab_value sus = POP();
       have--;
 
@@ -1195,8 +1197,8 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
        * of locals the function is expected to have.
        * Move TOP() to past the locals section in this case.
        */
-      if (TOP() - SLOTS() < BLOCK_PROTO()->nlocals - 1)
-        TOP() = SLOTS() + BLOCK_PROTO()->nlocals - 1;
+      if (TOP() - SLOTS() < BLOCK_PROTO()->nlocals)
+        TOP() = SLOTS() + BLOCK_PROTO()->nlocals;
 
       VAR() = want + 1;
 

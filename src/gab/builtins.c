@@ -213,7 +213,7 @@ void gab_lib_print(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 void gab_setup_builtins(struct gab_triple gab) {
   gab_spec(gab, (struct gab_spec_argt){
                     .name = "use",
-                    .receiver = gab_type(gab.eg, kGAB_NIL),
+                    .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
                     .specialization = gab_sbuiltin(gab, "use", gab_lib_use),
                 });
 

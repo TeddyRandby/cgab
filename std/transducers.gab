@@ -1,0 +1,46 @@
+# Transducers perform transformations on streams of data.
+# This is heavily inspired by Clojure's transducers, and is also similar to RXjs.
+:use 'records'
+
+# The map transducer takes a callback, and returns a function
+# which does the transformation
+def td.map[](cb)
+  def map.transducer(..stream)
+    for val in stream:splat
+      yield cb(val)
+    end
+  end
+end
+
+def td.filter[](cb)
+  def filter.transducer(..stream)
+    for val in stream:splat
+      cb(val) and yield val
+    end
+  end
+end
+
+def td.reduce[](init, cb)
+  def reduce.transducer(..stream)
+    accumulator = init
+    
+    for val in stream:splat
+      accumulator = cb(accumulator, val)
+    end
+
+    return accumulator
+  end
+end
+
+def td.take[](n)
+  def take.transducer(..stream)
+    i = 0
+
+    for val in stream:splat
+      i == n and return
+      i = i + 1
+      
+      yield val
+    end
+  end
+end

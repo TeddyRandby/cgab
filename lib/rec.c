@@ -217,12 +217,12 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   struct gab_spec_argt specs[] = {
       {
           "tuple.new",
-          gab_nil,
+          gab_undefined,
           gab_sbuiltin(gab, "tuple.new", gab_lib_tuple),
       },
       {
           "record.new",
-          gab_nil,
+          gab_undefined,
           gab_sbuiltin(gab, "record.new", gab_lib_record),
       },
       {

@@ -45,13 +45,35 @@ void gab_lib_pryframes(struct gab_triple gab, size_t argc,
   if (argc == 2 && gab_valkind(argv[1]) == kGAB_NUMBER) {
     uint64_t depth = gab_valton(argv[1]);
 
-    gab_value frame = gab_vmframe((struct gab_triple){.vm = gab_boxdata(argv[0]),
-                                    .eg = gab.eg,
-                                    .gc = gab.gc},
-                depth);
-    
+    gab_value frame = gab_vmframe(
+        (struct gab_triple){
+            .vm = gab_boxdata(argv[0]), .eg = gab.eg, .gc = gab.gc},
+        depth);
+
     gab_vmpush(gab.vm, frame);
     return;
+  }
+}
+
+void gab_lib_prydumpframe(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
+  {
+    if (argc < 1) {
+      gab_panic(gab, "Invalid call to gab_lib_pryframes");
+      return;
+    }
+
+    if (argc == 1) {
+      gab_fvmdump(stdout, gab_boxdata(argv[0]), 0);
+      return;
+    }
+
+    if (argc == 2 && gab_valkind(argv[1]) == kGAB_NUMBER) {
+      uint64_t depth = gab_valton(argv[1]);
+
+      gab_fvmdump(stdout, gab_boxdata(argv[0]), depth);
+      return;
+    }
   }
 }
 
@@ -59,13 +81,18 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   struct gab_spec_argt specs[] = {
       {
           "pry.break",
-          gab_nil,
+          gab_undefined,
           gab_sbuiltin(gab, "pry.break", gab_lib_prybreak),
       },
       {
           "pry.frame",
           gab_string(gab, "pry.vm"),
           gab_sbuiltin(gab, "pry.frame", gab_lib_pryframes),
+      },
+      {
+          "pry.dump",
+          gab_string(gab, "pry.vm"),
+          gab_sbuiltin(gab, "pry.dump", gab_lib_prydumpframe),
       },
   };
 

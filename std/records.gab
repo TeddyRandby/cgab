@@ -17,6 +17,24 @@ def each[.Record]
     until key == nil end
 end
 
+def keys[.Record]
+    key = self:next
+
+    loop
+      yield key
+      key = self:next(key)
+    until key == nil end
+end
+
+def values[.Record]
+    key = self:next
+
+    loop
+      yield self:at(key)
+      key = self:next(key)
+    until key == nil end
+end
+
 def map[.Record](mapper)
     other = :record(?self)
 

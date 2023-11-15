@@ -413,7 +413,30 @@ static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
     case OP_PUSH_UNDEFINED:
     case OP_PUSH_TRUE:
     case OP_PUSH_FALSE:
+    case OP_LOAD_UPVALUE_0:
+    case OP_LOAD_UPVALUE_1:
+    case OP_LOAD_UPVALUE_2:
+    case OP_LOAD_UPVALUE_3:
+    case OP_LOAD_UPVALUE_4:
+    case OP_LOAD_UPVALUE_5:
+    case OP_LOAD_UPVALUE_6:
+    case OP_LOAD_UPVALUE_7:
+    case OP_LOAD_UPVALUE_8:
+    case OP_LOAD_LOCAL_0:
+    case OP_LOAD_LOCAL_1:
+    case OP_LOAD_LOCAL_2:
+    case OP_LOAD_LOCAL_3:
+    case OP_LOAD_LOCAL_4:
+    case OP_LOAD_LOCAL_5:
+    case OP_LOAD_LOCAL_6:
+    case OP_LOAD_LOCAL_7:
+    case OP_LOAD_LOCAL_8:
       f->bytecode.len -= 1;
+      f->prev_op = f->bytecode.data[f->bytecode.len - 1];
+      return;
+    case OP_LOAD_UPVALUE:
+    case OP_LOAD_LOCAL:
+      f->bytecode.len -= 2;
       f->prev_op = f->bytecode.data[f->bytecode.len - 1];
       return;
     case OP_CONSTANT:
@@ -1766,7 +1789,9 @@ int compile_condexp(struct bc *bc, bool assignable, uint8_t jump_op) {
 
   init_local(bc, phantom);
 
-  push_storel((bc), phantom, t);
+  push_storel(bc, phantom, t);
+
+  push_pop(bc, 1, t);
 
   if (compile_expressions(bc) < 0)
     return COMP_ERR;
@@ -2576,7 +2601,7 @@ int compile_exp_emp(struct bc *bc, bool assignable) {
 
   uint16_t m = add_message_constant(bc, val_name);
 
-  push_op((bc), OP_PUSH_NIL, t);
+  push_op((bc), OP_PUSH_UNDEFINED, t);
 
   push_slot(bc, 1);
 
