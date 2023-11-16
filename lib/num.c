@@ -138,7 +138,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   struct gab_spec_argt specs[] = {
       {
           "float.between",
-          gab_type(gab.eg, kGAB_NIL),
+          gab_undefined,
           gab_snative(gab, "float.between", gab_lib_between),
       },
       {

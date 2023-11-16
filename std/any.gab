@@ -1,12 +1,12 @@
 :use 'cany'
 
-def is[](other); ?self == other end
+def is?[](other); ?self == other end
 
-def is_b[]        ; false end
-def is_b[.Boolean]; true end
+def is_b?[]        ; false end
+def is_b?[.Boolean]; true end
 
-def is_n[]       ; false end
-def is_n[.Number]; true end
+def is_n?[]       ; false end
+def is_n?[.Number]; true end
 
-def is_s[]       ; false end
-def is_s[.String]; true end
+def is_s?[]       ; false end
+def is_s?[.String]; true end

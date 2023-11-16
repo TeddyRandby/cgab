@@ -1,7 +1,7 @@
-:use 'std/maps'
-:use 'std/records'
-:use 'std/lists'
-:use 'std/any'
+:use 'maps'
+:use 'records'
+:use 'lists'
+:use 'any'
 :use 'symbol'
 
 def spec.invalid = :symbol.new('spec.invalid')
@@ -46,31 +46,31 @@ end
 #      where path is the 'path' taken to the rejected value ( or nil, if no path )
 
 def spec.int[]
-  def predicate(value)
-    return value:is_n, &:spec.int, value
+  def int.predicate(value)
+    return value:is_n?, self, value
   end
 
-  def spec.gen[predicate]; :int.between(-10000, 10000) end
+  def spec.gen[int.predicate]; :int.between(-10000, 10000) end
 
-  return predicate
+  return int.predicate
 end
 
 def spec.float[]
-  def predicate(value)
-    return value:is_n, &:spec.float, value
+  def float.predicate(value)
+    return value:is_n?, self, value
   end
   
-  def spec.gen[predicate]; :float.between(-10000, 10000) end
+  def spec.gen[float.predicate]; :float.between(-10000, 10000) end
 
-  return predicate
+  return float.predicate
 end
 
 def spec.string[]
-  def predicate(value)
-    return value:is_s, &:spec.string, value
+  def string.predicate(value)
+    return value:is_s?, self, value
   end
 
-  def spec.gen[predicate]
+  def spec.gen[string.predicate]
     def len  = :int.between(1, 100)
     def list = :list.new
     
@@ -84,24 +84,24 @@ def spec.string[]
     list:to_bytes
   end
 
-  return predicate
+  return string.predicate
 end
 
 def spec.gt[](min)
-  def predicate(value)
-    return value > min, &:spec.gt, value
+  def gt.predicate(value)
+    return value > min, self, value
   end
 end
 
 def spec.lt[](min)
-  def predicate(value)
-    return value < min, &:spec.gt, value
+  def lt.predicate(value)
+    return value < min, self, value
   end
 end
 
 ## predicate for a map of key type -> value type
 def spec.map[](k_spec, v_spec)
-  def predicate (value)
+  def map.predicate (value)
     ?value == .Map or return false, self, value 
     
     for k, v in value:each
@@ -112,16 +112,16 @@ def spec.map[](k_spec, v_spec)
     return true, self, value
   end
 
-  def spec.gen[predicate]
+  def spec.gen[map.predicate]
     :map.new { [k_spec:spec.gen] = v_spec:spec.gen }
   end
 
-  return predicate
+  return map.predicate
 end
 
 ## predicate for a list of values
 def spec.list[](spec)
-  def predicate (value)
+  def list.predicate (value)
     ?value == .List or return false, self, value
 
     for v, i in value:each
@@ -131,22 +131,22 @@ def spec.list[](spec)
     return true, self, value
   end
 
-  def spec.gen[predicate]
+  def spec.gen[list.predicate]
     :list.new:push!(spec:spec.gen)
   end
 
-  return predicate
+  return list.predicate
 end
 
 ## predicate for a list of keys
 def spec.record[](record)
   # Return a predicate which returns true if the given value
   # has all the keys of the record
-  def predicate (value)
+  def record.predicate (value)
     ## TODO: Update this such that the value is AT LEAST the record
-    ?value == ?record or return false, self, value
+    value:is?(record) or return false, self, value
 
-    for k in record:each
+    for k in :record.new(record):each
       # If the value has the shape we expect,
       # then we can continue on and check each
       # of its keys against a possible spec
@@ -162,10 +162,10 @@ def spec.record[](record)
     return true, self, value
   end
 
-  def spec.gen[predicate]
-    gen = :record.new(?record)
+  def spec.gen[record.predicate]
+    gen = :record.new(record)
 
-    for k in record:each
+    for k in :record.new(record):each
       _, spec = registry.spec:at(k) in match
         .some =>
           gen[k] = spec:spec.gen
@@ -176,7 +176,7 @@ def spec.record[](record)
     return gen
   end
 
-  return predicate
+  return record.predicate
 end
 
 def spec.or[](..specs)
@@ -184,7 +184,7 @@ def spec.or[](..specs)
   
   # Return a predicate which returns true if the given value
   # fits any of the given specs
-  def predicate (value)
+  def or.predicate (value)
     for k, spec in specs:each
       spec:spec.fits?(value) and return true, spec, value, k
     end
@@ -192,19 +192,18 @@ def spec.or[](..specs)
     return false, nil, value
   end
 
-  # TODO: randomize generation
-  def spec.gen[predicate]
-    specs:at(1):spec.gen
+  def spec.gen[or.predicate]
+    specs:at(:int.between(0, specs:len - 1)):spec.gen
   end
 
-  return predicate
+  return or.predicate
 end
 
 def spec.and[](..specs)
   specs:len > 0 or .INVALID_ARGUMENTS:panic
   # Return a predicate which returns true iff the given value
   # fits all of the given specs
-  def predicate (value)
+  def and.predicate (value)
     for k, spec in specs:each
       spec:spec.fits?(value) or return false, spec, value, k
     end
@@ -212,7 +211,7 @@ def spec.and[](..specs)
     return true, self, value
   end
   
-  def spec.gen[predicate]
+  def spec.gen[and.predicate]
     tries = 0
     
     loop
@@ -232,7 +231,54 @@ def spec.and[](..specs)
     .SPEC_COULD_NOT_GEN:panic
   end
 
-  return predicate
+  return and.predicate
+end
+
+def spec.fn.Args { message input output }
+
+def spec.fn.predicate(args, semantics)
+  def fn.predicate(before)
+    generated_input = args:input:spec.gen
+    
+    success, pred, after, path = args:output:spec.fits?(before:send(args:message, generated_input))
+
+    # If we don't have a semantic checker, just return the results of the output spec
+    # If we didn't succeed in parsing the result, no point in checking semantics
+    semantics and success or return success, self, generated_input, path
+
+    return semantics(before, after, generated_input), self, generated_input
+    
+  end
+end
+
+def spec.block[](args, semantics)
+  args:is?(spec.fn.Args) or .INVALID_ARGUMENTS:panic
+
+  def pred = spec.fn.predicate(args, semantics)
+  
+  return pred
+end
+
+def spec.message[](args, semantics)
+  args:is?(spec.fn.Args) or .INVALID_ARGUMENTS:panic
+
+  def pred = spec.fn.predicate(args, semantics)
+
+  def spec.check[pred](receiver_spec, i)
+    iterations = i or 100
+
+    iterations:times do
+      receiver = receiver_spec:spec.gen
+
+      receiver_spec:spec.fits?(receiver) then
+        success = pred(receiver)
+
+        success or 'SPEC_CHECK_FAILED':panic
+      end
+    end
+  end
+
+  return pred
 end
 
 # A default gen implementation is the identity function

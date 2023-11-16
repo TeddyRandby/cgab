@@ -1,13 +1,25 @@
-:use 'std/specs'
-:use 'std/numbers'
+:use 'specs'
+:use 'numbers'
 
-def car.spec      = :spec.record { car.make car.model car.year car.color }
-def car.make.spec = :spec.or('Ford', 'Chevy', 'Toyota', 'Honda')
+## cars.gab
+def Car { car.make car.model car.year car.color }
 
+def car.paint[Car](new_color)
+  self:car.color = new_color
+end
+
+##cars.spec.gab
+def car.spec       = :spec.record(Car)
+def car.paint.spec = :spec.message {
+  message = car.paint
+  input   = :spec.string
+  output  = :spec.string
+}
+
+:spec.def 'car.make'  { spec = :spec.or('Ford', 'Chevy', 'Toyota', 'Honda') }
 :spec.def 'car.year'  { spec = :spec.and(:spec.int, :spec.gt(2000)) }
 :spec.def 'car.color' { spec = :spec.string }
 :spec.def 'car.model' { spec = :spec.string }
-:spec.def 'car.make'  { spec = car.make.spec }
 
 ..result = car.spec:spec.fits? { car.make = '' car.model = 'F150' car.year = 2012 car.color = 'red' }
 
@@ -20,3 +32,9 @@ result:print
 generated = car.spec:spec.gen
 
 generated:print
+
+..result = car.paint.spec(generated)
+
+result:print
+
+car.paint.spec :spec.check(car.spec)

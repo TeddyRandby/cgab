@@ -119,6 +119,8 @@ install_data(
   'std/records.gab',
   'std/http.gab',
   'std/any.gab',
+  'std/specs.gab',
+  'std/transducers.gab',
 )
 
 executable('gab',
