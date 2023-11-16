@@ -42,7 +42,7 @@ static const char *gab_kind_names[] = {
     [kGAB_BOX] = "obj_box",
     [kGAB_BLOCK] = "obj_block",
     [kGAB_SUSPENSE] = "obj_suspense",
-    [kGAB_BUILTIN] = "obj_builtin",
+    [kGAB_BUILTIN] = "obj_native",
     [kGAB_BLOCK_PROTO] = "obj_block_proto",
     [kGAB_SUSPENSE_PROTO] = "obj_suspense_proto",
 };
@@ -164,7 +164,7 @@ int __dump_value(FILE *stream, gab_value self, uint8_t depth) {
     return fprintf(stream, "<Suspense %V>", sus->b);
   }
   case kGAB_BUILTIN: {
-    struct gab_obj_builtin *blt = GAB_VAL_TO_BUILTIN(self);
+    struct gab_obj_native *blt = GAB_VAL_TO_BUILTIN(self);
     return fprintf(stream, "<Builtin %V>", blt->name);
   }
   case kGAB_BLOCK_PROTO: {
@@ -224,7 +224,7 @@ uint64_t gab_obj_size(struct gab_obj *self) {
   case kGAB_MESSAGE:
     return sizeof(struct gab_obj_message);
   case kGAB_BUILTIN:
-    return sizeof(struct gab_obj_builtin);
+    return sizeof(struct gab_obj_native);
   case kGAB_BOX:
     return sizeof(struct gab_obj_box);
   case kGAB_SUSPENSE_PROTO:
@@ -382,10 +382,10 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
   return gab_gciref(gab, gab_gcdref(gab, __gab_obj(self)));
 }
 
-gab_value gab_builtin(struct gab_triple gab, gab_value name, gab_builtin_f f) {
+gab_value gab_native(struct gab_triple gab, gab_value name, gab_native_f f) {
   assert(gab_valkind(name) == kGAB_STRING);
 
-  struct gab_obj_builtin *self = GAB_CREATE_OBJ(gab_obj_builtin, kGAB_BUILTIN);
+  struct gab_obj_native *self = GAB_CREATE_OBJ(gab_obj_native, kGAB_BUILTIN);
 
   self->name = name;
   self->function = f;
@@ -395,9 +395,9 @@ gab_value gab_builtin(struct gab_triple gab, gab_value name, gab_builtin_f f) {
   return gab_gcdref(gab, __gab_obj(self));
 }
 
-gab_value gab_sbuiltin(struct gab_triple gab, const char *name,
-                       gab_builtin_f f) {
-  return gab_builtin(gab, gab_string(gab, name), f);
+gab_value gab_snative(struct gab_triple gab, const char *name,
+                       gab_native_f f) {
+  return gab_native(gab, gab_string(gab, name), f);
 }
 
 gab_value gab_block(struct gab_triple gab, gab_value prototype) {

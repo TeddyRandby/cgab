@@ -114,9 +114,9 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab, "io.open", gab_lib_open),
-      gab_sbuiltin(gab, "read", gab_lib_read),
-      gab_sbuiltin(gab, "write", gab_lib_write),
+      gab_snative(gab, "io.open", gab_lib_open),
+      gab_snative(gab, "read", gab_lib_read),
+      gab_snative(gab, "write", gab_lib_write),
   };
 
   for (uint8_t i = 0; i < LEN_CARRAY(specs); i++) {

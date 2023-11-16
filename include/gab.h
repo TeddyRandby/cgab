@@ -232,7 +232,7 @@ struct gab_obj;
 struct gab_obj_string;
 struct gab_obj_block_proto;
 struct gab_obj_suspense_proto;
-struct gab_obj_builtin;
+struct gab_obj_native;
 struct gab_obj_block;
 struct gab_obj_message;
 struct gab_obj_shape;
@@ -242,7 +242,7 @@ struct gab_obj_suspense;
 
 typedef void (*gab_gcvisit_f)(struct gab_triple, struct gab_obj *obj);
 
-typedef void (*gab_builtin_f)(struct gab_triple, size_t argc,
+typedef void (*gab_native_f)(struct gab_triple, size_t argc,
                               gab_value argv[argc]);
 
 typedef void (*gab_boxdestroy_f)(void *data);
@@ -325,7 +325,7 @@ size_t gab_negkeep(struct gab_eg *eg, size_t len, gab_value argv[static len]);
 /**
  * # Push a value(s) onto the vm's internal stack
  *
- * This is used to return values from c-builtins.
+ * This is used to return values from c-natives.
  *
  * @param vm The vm that will receive the values.
  * @return The number of values pushed.
@@ -344,7 +344,7 @@ gab_value gab_vmframe(struct gab_triple gab, uint64_t depth);
 
 /**
  * # Push values onto the vm's internal stack
- * Used to return values from c-builtins.
+ * Used to return values from c-natives.
  *
  * @param vm The vm that will receive the values.
  * @param argc The number of values.
@@ -523,9 +523,9 @@ struct gab_send_argt {
 a_gab_value *gab_send(struct gab_triple gab, struct gab_send_argt args);
 
 /**
- * # Panic the VM with an error message. Useful for builtin functions.
+ * # Panic the VM with an error message. Useful for native functions.
  *
- * This is useful in builtins when an unrecoverable error occurs.
+ * This is useful in natives when an unrecoverable error occurs.
  *
  * @param  gab The engine.
  * @param   vm The vm.
@@ -698,16 +698,16 @@ static inline size_t gab_strlen(gab_value str) {
 /**
  * A wrapper for a native c function.
  */
-struct gab_obj_builtin {
+struct gab_obj_native {
   struct gab_obj header;
 
-  gab_builtin_f function;
+  gab_native_f function;
 
   gab_value name;
 };
 
-/* Cast a value to a (gab_obj_builtin*) */
-#define GAB_VAL_TO_BUILTIN(value) ((struct gab_obj_builtin *)gab_valtoo(value))
+/* Cast a value to a (gab_obj_native*) */
+#define GAB_VAL_TO_BUILTIN(value) ((struct gab_obj_native *)gab_valtoo(value))
 
 /**
  * The prototype of a block. Encapsulates everything known about a block
@@ -1303,31 +1303,31 @@ gab_value gab_suspense(struct gab_triple gab, uint16_t len, gab_value block,
                        gab_value proto, gab_value frame[static len]);
 
 /**
- * # Create a builtin wrapper to a c function with a gab_string name.
+ * # Create a native wrapper to a c function with a gab_string name.
  *
  * @param gab The engine.
  *
- * @param name The name of the builtin.
+ * @param name The name of the native.
  *
  * @param f The c function.
  *
  * @return The value.
  */
-gab_value gab_builtin(struct gab_triple gab, gab_value name, gab_builtin_f f);
+gab_value gab_native(struct gab_triple gab, gab_value name, gab_native_f f);
 
 /**
- * # Create a builtin wrapper to a c function with a c-string name.
+ * # Create a native wrapper to a c function with a c-string name.
  *
  * @param gab The engine.
  *
- * @param name The name of the builtin.
+ * @param name The name of the native.
  *
  * @param f The c function.
  *
  * @return The value.
  */
-gab_value gab_sbuiltin(struct gab_triple gab, const char *name,
-                       gab_builtin_f f);
+gab_value gab_snative(struct gab_triple gab, const char *name,
+                       gab_native_f f);
 
 struct gab_box_argt {
   gab_value type;
@@ -1710,7 +1710,7 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
   case kGAB_BLOCK_PROTO:
     return gab_string(gab, "<prototype>");
   case kGAB_BUILTIN:
-    return gab_string(gab, "<builtin>");
+    return gab_string(gab, "<native>");
   case kGAB_BOX:
     return gab_string(gab, "<container>");
   case kGAB_SUSPENSE:

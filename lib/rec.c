@@ -218,52 +218,52 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "tuple.new",
           gab_undefined,
-          gab_sbuiltin(gab, "tuple.new", gab_lib_tuple),
+          gab_snative(gab, "tuple.new", gab_lib_tuple),
       },
       {
           "record.new",
           gab_undefined,
-          gab_sbuiltin(gab, "record.new", gab_lib_record),
+          gab_snative(gab, "record.new", gab_lib_record),
       },
       {
           "len",
           gab_type(gab.eg, kGAB_RECORD),
-          gab_sbuiltin(gab, "len", gab_lib_len),
+          gab_snative(gab, "len", gab_lib_len),
       },
       {
           "to_l",
           gab_type(gab.eg, kGAB_RECORD),
-          gab_sbuiltin(gab, "to_l", gab_lib_to_l),
+          gab_snative(gab, "to_l", gab_lib_to_l),
       },
       {
           "to_m",
           gab_type(gab.eg, kGAB_RECORD),
-          gab_sbuiltin(gab, "to_m", gab_lib_to_m),
+          gab_snative(gab, "to_m", gab_lib_to_m),
       },
       {
           "put!",
           gab_type(gab.eg, kGAB_RECORD),
-          gab_sbuiltin(gab, "put", gab_lib_put),
+          gab_snative(gab, "put", gab_lib_put),
       },
       {
           "at",
           gab_type(gab.eg, kGAB_RECORD),
-          gab_sbuiltin(gab, "at", gab_lib_at),
+          gab_snative(gab, "at", gab_lib_at),
       },
       {
           "next",
           gab_type(gab.eg, kGAB_RECORD),
-          gab_sbuiltin(gab, "next", gab_lib_next),
+          gab_snative(gab, "next", gab_lib_next),
       },
       {
           "slice",
           gab_type(gab.eg, kGAB_RECORD),
-          gab_sbuiltin(gab, "slice", gab_lib_slice),
+          gab_snative(gab, "slice", gab_lib_slice),
       },
       {
           "splat",
           gab_type(gab.eg, kGAB_RECORD),
-          gab_sbuiltin(gab, "splat", gab_lib_splat),
+          gab_snative(gab, "splat", gab_lib_splat),
       },
   };
 

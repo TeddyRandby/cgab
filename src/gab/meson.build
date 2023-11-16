@@ -7,5 +7,5 @@ sources += files(
   'object.c',
   'vm.c',
   'import.c',
-  'builtins.c',
+  'natives.c',
 )

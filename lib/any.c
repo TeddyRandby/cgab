@@ -50,12 +50,12 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "specializes?",
           gab_type(gab.eg, kGAB_MESSAGE),
-          gab_sbuiltin(gab, "specializes?", gab_lib_specializes),
+          gab_snative(gab, "specializes?", gab_lib_specializes),
       },
       {
           "send",
           gab_type(gab.eg, kGAB_UNDEFINED),
-          gab_sbuiltin(gab, "send", gab_lib_send),
+          gab_snative(gab, "send", gab_lib_send),
       },
   };
 

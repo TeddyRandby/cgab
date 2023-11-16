@@ -238,8 +238,8 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   return true;
 }
 
-static inline void call_builtin(struct gab_triple gab,
-                                struct gab_obj_builtin *b, uint8_t arity,
+static inline void call_native(struct gab_triple gab,
+                                struct gab_obj_native *b, uint8_t arity,
                                 uint8_t want, bool is_message) {
   gab_value *to = gab.vm->sp - arity - 1; // Is this -1 correct?
 
@@ -517,7 +517,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       STORE_FRAME();
 
-      call_builtin(GAB(), GAB_VAL_TO_BUILTIN(spec), have, want, true);
+      call_native(GAB(), GAB_VAL_TO_BUILTIN(spec), have, want, true);
 
       LOAD_FRAME();
 
@@ -540,7 +540,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       STORE_FRAME();
 
-      call_builtin(GAB(), GAB_VAL_TO_BUILTIN(receiver), have, want, false);
+      call_native(GAB(), GAB_VAL_TO_BUILTIN(receiver), have, want, false);
 
       LOAD_FRAME();
       NEXT();

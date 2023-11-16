@@ -108,9 +108,9 @@ gab_value gab_mod(gab_eg *gab, gab_vm* vm) {
   };
 
   gab_value values[] = {
-      GAB_BUILTIN(find),
-      GAB_BUILTIN(comp),
-      GAB_BUILTIN(exec),
+      GAB_NATIVE(find),
+      GAB_NATIVE(comp),
+      GAB_NATIVE(exec),
   };
 
   return gab_bundle_record(gab, vm, LEN_CARRAY(values), keys, values);

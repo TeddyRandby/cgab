@@ -91,9 +91,9 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   };
 
   gab_value specs[] = {
-      gab_sbuiltin(gab, "slice", gab_lib_slice),
-      gab_sbuiltin(gab, "len", gab_lib_len),
-      gab_sbuiltin(gab, "string.new", gab_lib_new),
+      gab_snative(gab, "slice", gab_lib_slice),
+      gab_snative(gab, "len", gab_lib_len),
+      gab_snative(gab, "string.new", gab_lib_new),
   };
 
   for (uint8_t i = 0; i < LEN_CARRAY(names); i++) {

@@ -158,32 +158,32 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "map.new",
           gab_undefined,
-          gab_sbuiltin(gab, "map.new", gab_lib_new),
+          gab_snative(gab, "map.new", gab_lib_new),
       },
       {
           "len",
           type,
-          gab_sbuiltin(gab, "len", gab_lib_len),
+          gab_snative(gab, "len", gab_lib_len),
       },
       {
           "put!",
           type,
-          gab_sbuiltin(gab, "put", gab_lib_put),
+          gab_snative(gab, "put", gab_lib_put),
       },
       {
           "add!",
           type,
-          gab_sbuiltin(gab, "add", gab_lib_add),
+          gab_snative(gab, "add", gab_lib_add),
       },
       {
           "at",
           type,
-          gab_sbuiltin(gab, "at", gab_lib_at),
+          gab_snative(gab, "at", gab_lib_at),
       },
       {
           "next",
           type,
-          gab_sbuiltin(gab, "next", gab_lib_next),
+          gab_snative(gab, "next", gab_lib_next),
       },
   };
 

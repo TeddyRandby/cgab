@@ -179,7 +179,7 @@ status == .ok else
 end
 ```
 # What about imports?
-Gab defines several builtin messages. `:print` is one you should be familiar with by now - `:use` is another!
+Gab defines several native messages. `:print` is one you should be familiar with by now - `:use` is another!
 It is used like this:
 ```
 :use 'io'

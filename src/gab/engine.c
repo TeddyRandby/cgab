@@ -1,5 +1,5 @@
 #include "include/engine.h"
-#include "include/builtins.h"
+#include "include/natives.h"
 #include "include/char.h"
 #include "include/colors.h"
 #include "include/compiler.h"
@@ -171,7 +171,7 @@ struct gab_triple gab_create() {
 
   gab_negkeep(gab.eg, kGAB_NKINDS, eg->types);
 
-  gab_setup_builtins(gab);
+  gab_setup_natives(gab);
 
   for (int i = 0; i < LEN_CARRAY(primitives); i++) {
     gab_spec(gab, (struct gab_spec_argt){
@@ -569,8 +569,8 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
   }
 
   case kGAB_BUILTIN: {
-    struct gab_obj_builtin *self = GAB_VAL_TO_BUILTIN(value);
-    return gab_builtin(gab, gab_valcpy(gab, self->name), self->function);
+    struct gab_obj_native *self = GAB_VAL_TO_BUILTIN(value);
+    return gab_native(gab, gab_valcpy(gab, self->name), self->function);
   }
 
   case kGAB_BLOCK_PROTO: {

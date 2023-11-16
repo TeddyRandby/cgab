@@ -264,34 +264,26 @@ void gab_lib_await(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  const char *names[] = {
+
+  struct gab_spec_argt specs[] = {
+    {
       "fiber.new",
-      "send",
-      "await",
-  };
-
-  gab_value receivers[] = {
       gab_undefined,
+      gab_snative(gab, "fiber.new", gab_lib_fiber),
+    },
+    {
+      "send",
       gab_string(gab, "Fiber"),
+      gab_snative(gab, "send", gab_lib_send),
+    },
+    {
+      "await",
       gab_string(gab, "Fiber"),
+      gab_snative(gab, "await", gab_lib_await),
+    },
   };
 
-  gab_value specs[] = {
-      gab_sbuiltin(gab, "fiber.new", gab_lib_fiber),
-      gab_sbuiltin(gab, "send", gab_lib_send),
-      gab_sbuiltin(gab, "await", gab_lib_await),
-  };
-
-  static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
-  static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
-
-  for (int i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = names[i],
-                      .receiver = receivers[i],
-                      .specialization = specs[i],
-                  });
-  }
+  gab_nspec(gab, sizeof(specs) / sizeof(specs[0]), specs);
 
   return NULL;
 }

@@ -9,41 +9,13 @@ subdir('src/gab')
 subdir('src/os')
 subdir('src/cli')
 
-nc = dependency('ncursesw')
-http = dependency('libllhttp')
-uri = dependency('liburiparser')
-
 cgab = shared_library('cgab',
   sources,
   install: true,
 )
 
-libdir = join_paths(get_option('prefix'), 'lib/gab')
-
-
-shared_library('cgaburi-parser',
-  'lib/uri-parser.c',
-  dependencies: [uri],
-  link_with: [cgab],
-  install: true,
-)
-
-shared_library('cgabhttp-parser',
-  'lib/http-parser.c',
-  dependencies: [http],
-  link_with: [cgab],
-  install: true,
-)
-
 shared_library('cgabfiber',
   'lib/fiber.c',
-  link_with: [cgab],
-  install: true,
-)
-
-shared_library('cgabterm',
-  'lib/term.c',
-  dependencies: [nc],
   link_with: [cgab],
   install: true,
 )

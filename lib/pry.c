@@ -82,17 +82,17 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "pry.break",
           gab_undefined,
-          gab_sbuiltin(gab, "pry.break", gab_lib_prybreak),
+          gab_snative(gab, "pry.break", gab_lib_prybreak),
       },
       {
           "pry.frame",
           gab_string(gab, "pry.vm"),
-          gab_sbuiltin(gab, "pry.frame", gab_lib_pryframes),
+          gab_snative(gab, "pry.frame", gab_lib_pryframes),
       },
       {
           "pry.dump",
           gab_string(gab, "pry.vm"),
-          gab_sbuiltin(gab, "pry.dump", gab_lib_prydumpframe),
+          gab_snative(gab, "pry.dump", gab_lib_prydumpframe),
       },
   };
 

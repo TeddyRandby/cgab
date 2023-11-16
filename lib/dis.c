@@ -65,7 +65,7 @@ void gab_lib_disblock(struct gab_triple gab, size_t argc,
   dis_block(argv[0]);
 }
 
-void gab_lib_disbuiltin(struct gab_triple gab, size_t argc,
+void gab_lib_disnative(struct gab_triple gab, size_t argc,
                         gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, "Invalid call to gab_lib_dis");
@@ -83,10 +83,10 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       gab_type(gab.eg, kGAB_BUILTIN),
   };
 
-  gab_value values[] = {gab_sbuiltin(gab, "disblock", gab_lib_disblock),
-                        gab_sbuiltin(gab, "dismessage", gab_lib_dismessage),
-                        gab_sbuiltin(gab, "disstring", gab_lib_disstring),
-                        gab_sbuiltin(gab, "disbuiltin", gab_lib_disbuiltin)};
+  gab_value values[] = {gab_snative(gab, "disblock", gab_lib_disblock),
+                        gab_snative(gab, "dismessage", gab_lib_dismessage),
+                        gab_snative(gab, "disstring", gab_lib_disstring),
+                        gab_snative(gab, "disnative", gab_lib_disnative)};
 
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));
 

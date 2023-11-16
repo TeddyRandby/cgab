@@ -1,4 +1,4 @@
-#include "include/builtins.h"
+#include "include/natives.h"
 #include "include/core.h"
 #include "include/gab.h"
 #include "include/os.h"
@@ -210,24 +210,24 @@ void gab_lib_print(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   printf("\n");
 }
 
-void gab_setup_builtins(struct gab_triple gab) {
+void gab_setup_natives(struct gab_triple gab) {
   gab_spec(gab, (struct gab_spec_argt){
                     .name = "use",
                     .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
-                    .specialization = gab_sbuiltin(gab, "use", gab_lib_use),
+                    .specialization = gab_snative(gab, "use", gab_lib_use),
                 });
 
   gab_spec(gab,
            (struct gab_spec_argt){
                .name = "panic",
                .receiver = gab_type(gab.eg, kGAB_STRING),
-               .specialization = gab_sbuiltin(gab, "panic", gab_lib_panic),
+               .specialization = gab_snative(gab, "panic", gab_lib_panic),
            });
 
   gab_spec(gab,
            (struct gab_spec_argt){
                .name = "print",
                .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
-               .specialization = gab_sbuiltin(gab, "print", gab_lib_print),
+               .specialization = gab_snative(gab, "print", gab_lib_print),
            });
 }
