@@ -290,7 +290,7 @@ end
     def Vector { x y }
 
     def + [Vector](other)
-        other:is(Vector) or :INVALID_ARGUMENTS:panic
+        other:is?(Vector) or .INVALID_ARGUMENTS:panic
 
         {
             x = self:x + other:x
@@ -306,7 +306,7 @@ end
     end
 
     def < [Vector](other)
-        other:is(Vector) or :INVALID_ARGUMENTS:panic
+        other:is?(Vector) or .INVALID_ARGUMENTS:panic
 
         mag = self:x * self:x + self:y * self:y
         other_mag = other:x * other:x + other:y * other:y

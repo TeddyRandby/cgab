@@ -74,7 +74,7 @@ enum gab_kind {
   kGAB_MESSAGE,
   kGAB_BLOCK_PROTO,
   kGAB_SUSPENSE_PROTO,
-  kGAB_BUILTIN,
+  kGAB_NATIVE,
   kGAB_BLOCK,
   kGAB_BOX,
   kGAB_RECORD,
@@ -1021,7 +1021,7 @@ static inline gab_value gab_recat(gab_value rec, gab_value key) {
   uint64_t offset = gab_shpfind(obj->shape, key);
 
   if (offset >= obj->len)
-    return gab_nil;
+    return gab_undefined;
 
   return obj->data[offset];
 }
@@ -1216,6 +1216,20 @@ static inline gab_value gab_msgat(gab_value msg, gab_value receiver) {
   assert(gab_valkind(msg) == kGAB_MESSAGE);
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
   return gab_recat(obj->specs, receiver);
+}
+
+static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg, gab_value receiver, gab_value spec) {
+  assert(gab_valkind(msg) == kGAB_MESSAGE);
+  assert(gab_valkind(spec) == kGAB_BLOCK || gab_valkind(spec) == kGAB_NATIVE);
+  struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
+
+  if (gab_msgfind(msg, receiver) != GAB_PROPERTY_NOT_FOUND)
+    return gab_undefined;
+  
+  obj->specs = gab_recordwith(gab, obj->specs, receiver, spec);
+  obj->version++;
+  
+  return msg;
 }
 
 /**
@@ -1545,7 +1559,7 @@ static inline gab_value gab_pvaltype(struct gab_eg *gab, gab_value value) {
   case kGAB_UNDEFINED:
   /* These are referential/instance types which can have specializations */
   case kGAB_SUSPENSE:
-  case kGAB_BUILTIN:
+  case kGAB_NATIVE:
   case kGAB_RECORD:
   case kGAB_BLOCK:
   case kGAB_BOX:
@@ -1578,7 +1592,7 @@ static inline gab_value gab_svaltype(struct gab_eg *gab, gab_value value) {
     return gab_boxtype(value);
   case kGAB_SUSPENSE:
   case kGAB_BLOCK:
-  case kGAB_BUILTIN:
+  case kGAB_NATIVE:
     return gab_type(gab, k);
   /* These types have no secondary types*/
   default:
@@ -1709,7 +1723,7 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
     return gab_string(gab, "<message>");
   case kGAB_BLOCK_PROTO:
     return gab_string(gab, "<prototype>");
-  case kGAB_BUILTIN:
+  case kGAB_NATIVE:
     return gab_string(gab, "<native>");
   case kGAB_BOX:
     return gab_string(gab, "<container>");

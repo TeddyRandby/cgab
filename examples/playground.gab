@@ -4,37 +4,47 @@
 ## cars.gab
 def Car { car.make car.model car.year car.color }
 
-def car.paint[Car](new_color)
-  self:car.color = new_color
-end
+:spec.def! 'car.make'  { spec = :spec.or('Ford', 'Chevy', 'Toyota', 'Honda') }
+:spec.def! 'car.year'  { spec = :spec.and(:spec.int, :spec.gt(2000)) }
+:spec.def! 'car.color' { spec = :spec.or('RED', 'BLUE', 'WHITE', 'BLACK') }
+:spec.def! 'car.model' { spec = :spec.or('Mustang', 'Civic', 'Camry', 'Prius') }
 
-##cars.spec.gab
+## cars.spec.gab
 def car.spec       = :spec.record(Car)
 def car.paint.spec = :spec.message {
-  message = car.paint
-  input   = :spec.string
-  output  = :spec.string
-}
+    # The message we spec over
+    message = &:car.paint
+    # The receiver's spec
+    receiver = car.spec
+    # Fetch the spec 'car.color' for the input
+    input   = :spec 'car.color'
+    # Fetch the spec 'car.color' for the output
+    output  = :spec 'car.color'
+  } do (receiver, input, output)
+    input[0] == receiver:car.color and input[0] == output[0]
+  end
 
-:spec.def 'car.make'  { spec = :spec.or('Ford', 'Chevy', 'Toyota', 'Honda') }
-:spec.def 'car.year'  { spec = :spec.and(:spec.int, :spec.gt(2000)) }
-:spec.def 'car.color' { spec = :spec.string }
-:spec.def 'car.model' { spec = :spec.string }
+# Generate a mock car
+# test_car = car.spec:spec.gen
 
-..result = car.spec:spec.fits? { car.make = '' car.model = 'F150' car.year = 2012 car.color = 'red' }
+# Test the mock coar with the mock implementation of car.paint
+# test_car:car.paint('BLUE') :print # => 'BLUE'
 
-result:print
+# Generate a mock implementation of car.paint for Car
+car.paint.spec:spec.gen(Car)
 
-..result = car.spec:spec.fits? { car.make = 'Ford' car.model = 'F150' car.year = 1800 car.color = 'red' }
+# Define a faulty car.paint specialization
+# def car.paint[Car](color)
+#   self:car.color = 10
+# end
 
-result:print
+# Check our faulty implementation
+# &:spec.check yields a stream of predicate results.
+# It generates receivers and inputs, sends the message,
+# And checks the output against the spec and semantics.
+# This code will run forever if the spec is always satisfied
+first_fail = for ok, spec, value, path in car.paint.spec:spec.check
+  ok or break { spec value path }
+end
 
-generated = car.spec:spec.gen
-
-generated:print
-
-..result = car.paint.spec(generated)
-
-result:print
-
-car.paint.spec :spec.check(car.spec)
+first_fail:print

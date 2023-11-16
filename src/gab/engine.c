@@ -101,7 +101,7 @@ struct primitive primitives[] = {
     },
     {
         .name = mGAB_CALL,
-        .type = kGAB_BUILTIN,
+        .type = kGAB_NATIVE,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BUILTIN),
     },
     {
@@ -148,8 +148,8 @@ struct gab_triple gab_create() {
   eg->types[kGAB_BLOCK_PROTO] = gab_string(gab, "Prototype");
   gab_gciref(gab, eg->types[kGAB_BLOCK_PROTO]);
 
-  eg->types[kGAB_BUILTIN] = gab_string(gab, "Builtin");
-  gab_gciref(gab, eg->types[kGAB_BUILTIN]);
+  eg->types[kGAB_NATIVE] = gab_string(gab, "Builtin");
+  gab_gciref(gab, eg->types[kGAB_NATIVE]);
 
   eg->types[kGAB_BLOCK] = gab_string(gab, "Block");
   gab_gciref(gab, eg->types[kGAB_BLOCK]);
@@ -568,7 +568,7 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
     return gab_nstring(gab, self->len, self->data);
   }
 
-  case kGAB_BUILTIN: {
+  case kGAB_NATIVE: {
     struct gab_obj_native *self = GAB_VAL_TO_BUILTIN(value);
     return gab_native(gab, gab_valcpy(gab, self->name), self->function);
   }

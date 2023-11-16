@@ -69,7 +69,13 @@ void gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   }
 
   gab_value result = gab_recat(argv[0], argv[1]);
-
+  
+  if (result == gab_undefined) {
+    gab_vmpush(gab.vm, gab_string(gab, "none"));
+    return;
+  }
+  
+  gab_vmpush(gab.vm, gab_string(gab, "some"));
   gab_vmpush(gab.vm, result);
 }
 

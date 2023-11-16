@@ -44,6 +44,12 @@ shared_library('cgablist',
   install: true,
 )
 
+shared_library('cgabmessage',
+  'lib/msg.c',
+  link_with: [cgab],
+  install: true,
+)
+
 shared_library('cgabsymbol',
   'lib/symbol.c',
   link_with: [cgab],

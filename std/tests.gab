@@ -4,7 +4,7 @@
 
 def TestState  { fails errs }
 
-def testState[nil]
+def testState[]
     :record.new(TestState):reset
 end
 

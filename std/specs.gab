@@ -1,6 +1,7 @@
 :use 'maps'
 :use 'records'
 :use 'lists'
+:use 'message'
 :use 'any'
 :use 'symbol'
 
@@ -21,7 +22,7 @@ def register(registry, name, value)
 end
 
 ## Add a spec to the global registry under the given name.
-def spec.def[](name, spec)
+def spec.def![](name, spec)
   ?spec match
     ?{ spec } => 
       register(registry.spec, name, spec:spec)
@@ -31,6 +32,12 @@ def spec.def[](name, spec)
       register(registry.help, name, spec:help)
     end
     else => register(registry.spec, name, spec) end
+end
+
+def spec[](name)
+  _, s = registry.spec:at(name) in match
+    .some => return s            end
+    else  => .MISSING_SPEC:panic end
 end
 
 ## PREDICATES
@@ -151,9 +158,9 @@ def spec.record[](record)
       # then we can continue on and check each
       # of its keys against a possible spec
       # in the registry.
-      _, spec = registry.spec:at(k) in match
-         .some => spec:spec.fits?(value:at(k)) else
-              return false, spec, value, k
+      _, s = registry.spec:at(k) in match
+         .some => s:spec.fits?(value[k]) else
+              return false, s, value, k
             end
          end
          else  => .MISSING_SPEC:panic end
@@ -166,11 +173,9 @@ def spec.record[](record)
     gen = :record.new(record)
 
     for k in :record.new(record):each
-      _, spec = registry.spec:at(k) in match
-        .some =>
-          gen[k] = spec:spec.gen
-        end
-        else  => .MISSING_SPEC:panic        end
+      _, s = registry.spec:at(k) in match
+        .some => gen[k] = s:spec.gen end
+        else  => .MISSING_SPEC:panic end
     end
 
     return gen
@@ -189,11 +194,11 @@ def spec.or[](..specs)
       spec:spec.fits?(value) and return true, spec, value, k
     end
     
-    return false, nil, value
+    return false, self, value
   end
 
   def spec.gen[or.predicate]
-    specs:at(:int.between(0, specs:len - 1)):spec.gen
+    specs[(:int.between(0, specs:len - 1))] :spec.gen
   end
 
   return or.predicate
@@ -214,17 +219,16 @@ def spec.and[](..specs)
   def spec.gen[and.predicate]
     tries = 0
     
+    start = specs[0]
     loop
-      value, valid, tries = specs:at(0):spec.gen, false, tries + 1
+      value, valid, tries = start:spec.gen, false, tries + 1
 
-      results = (specs:at(0)):spec.fits?(value)
-
-      for _, spec in specs:each
-        valid = spec:spec.fits?(value)
+      for s in specs:values
+        valid = s:spec.fits?(value)
         valid or break
       end
 
-    valid and return value
+      valid and return value
 
     until tries == 100 end
 
@@ -234,51 +238,99 @@ def spec.and[](..specs)
   return and.predicate
 end
 
-def spec.fn.Args { message input output }
-
-def spec.fn.predicate(args, semantics)
-  def fn.predicate(before)
-    generated_input = args:input:spec.gen
-    
-    success, pred, after, path = args:output:spec.fits?(before:send(args:message, generated_input))
-
-    # If we don't have a semantic checker, just return the results of the output spec
-    # If we didn't succeed in parsing the result, no point in checking semantics
-    semantics and success or return success, self, generated_input, path
-
-    return semantics(before, after, generated_input), self, generated_input
-    
-  end
-end
+def spec.block.Args { input output }
 
 def spec.block[](args, semantics)
-  args:is?(spec.fn.Args) or .INVALID_ARGUMENTS:panic
+  args:is?(spec.block.Args) or .INVALID_ARGUMENTS:panic
 
-  def pred = spec.fn.predicate(args, semantics)
+  def block.predicate(value)
+    ..before = args:input:spec.gen
+
+    ..after = value(before:splat)
+
+    success, pred, val, path = args:output:spec.fits?(after:splat)
+
+    semantics and success or return success, self, before, path
+
+    return semantics(before, after), self, before
+  end
+
+  def spec.gen[block.predicate]
+    def block.gen(..input)
+      args:input:spec.fits?(input:splat) or .INVALID_ARGUMENTS:panic
+
+      return args:output:spec.gen
+    end
+  end
   
-  return pred
+  return block.predicate
 end
 
+def spec.message.Args { message receiver input output }
+
 def spec.message[](args, semantics)
-  args:is?(spec.fn.Args) or .INVALID_ARGUMENTS:panic
+  args:is?(spec.message.Args) or .INVALID_ARGUMENTS:panic
 
-  def pred = spec.fn.predicate(args, semantics)
+  def message.predicate(rec, input, output)
+    success, pred, val, path = args:input:spec.fits?(input:splat)
+    success or return success, pred, val, .input
+    
+    success, pred, val, path = args:output:spec.fits?(output:splat)
+    success or return success, pred, val, .output
+    
+    success, pred, val, path = args:receiver:spec.fits?(rec)
+    success or return success, pred, val, .receiver
+    
+    semantics or return success, self, [rec, input, output]
 
-  def spec.check[pred](receiver_spec, i)
-    iterations = i or 100
+    return semantics(rec, input, output), self, [rec, input, output], .semantics
+  end
 
-    iterations:times do
-      receiver = receiver_spec:spec.gen
+  def spec.gen[message.predicate](receiver)
+    def message.gen(..input)
+      args:input:spec.fits?(input:splat) or .INVALID_ARGUMENTS:panic
 
-      receiver_spec:spec.fits?(receiver) then
-        success = pred(receiver)
+      loop
+        # Generate an output
+        ..output = args:output:spec.gen
 
-        success or 'SPEC_CHECK_FAILED':panic
+        args:output:spec.fits?(output:splat) then
+          # If there are no semantics to satisfy, just return this output
+          semantics or return output:splat
+          
+          rec = args:receiver:spec.gen
+
+          args:receiver:spec.fits?(rec) then 
+            # Otherwise, we need to continue generating until we
+            # find a receiver and output which satisfy the semantics.
+            semantics(rec, input, output) then
+              # Woohoo! modify self to reflect the generated receiver
+              self:spec.modify!(rec)
+
+              # Return the generated output
+              return output:splat
+            end
+          end
+        end
       end
+    end
+
+    args:message:put!(receiver, message.gen)
+
+    return args:message
+  end
+
+  def spec.check[message.predicate]
+    loop
+      receiver = args:receiver:spec.gen
+      ..input  = args:input:spec.gen
+      ..output = receiver:send(args:message, input:splat)
+
+      yield message.predicate(receiver, input, output)
     end
   end
 
-  return pred
+  return message.predicate
 end
 
 # A default gen implementation is the identity function
@@ -289,5 +341,17 @@ def spec.gen []; self end
 def spec.fits?      [](value); self == value    end
 # Since a spec is just a predicate, we can simply call it and return the result
 def spec.fits?[.Block](value); self(value)      end
+
+## MODIFY
+# Because it is common for gab messages to modify `self`, spec
+# needs a way to emulate this in generated methods.
+def spec.modify![.Record](new_value)
+  for k in self:keys
+    # If new_value has a corresponding value, modify self. Else, pass
+    _, v = new_value:at(k) in match
+      .some => self[k] = v end
+      else  => .pass       end
+  end
+end
 
 return nil

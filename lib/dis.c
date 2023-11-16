@@ -14,7 +14,7 @@ void dis_message(struct gab_triple gab, gab_value msg, gab_value rec) {
   case kGAB_BLOCK:
     dis_block(spec);
     break;
-  case kGAB_BUILTIN:
+  case kGAB_NATIVE:
     printf("%V\n", spec);
     break;
   default:
@@ -80,7 +80,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       gab_type(gab.eg, kGAB_BLOCK),
       gab_type(gab.eg, kGAB_MESSAGE),
       gab_type(gab.eg, kGAB_STRING),
-      gab_type(gab.eg, kGAB_BUILTIN),
+      gab_type(gab.eg, kGAB_NATIVE),
   };
 
   gab_value values[] = {gab_snative(gab, "disblock", gab_lib_disblock),

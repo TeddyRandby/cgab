@@ -42,7 +42,7 @@ static const char *gab_kind_names[] = {
     [kGAB_BOX] = "obj_box",
     [kGAB_BLOCK] = "obj_block",
     [kGAB_SUSPENSE] = "obj_suspense",
-    [kGAB_BUILTIN] = "obj_native",
+    [kGAB_NATIVE] = "obj_native",
     [kGAB_BLOCK_PROTO] = "obj_block_proto",
     [kGAB_SUSPENSE_PROTO] = "obj_suspense_proto",
 };
@@ -163,7 +163,7 @@ int __dump_value(FILE *stream, gab_value self, uint8_t depth) {
     struct gab_obj_suspense *sus = GAB_VAL_TO_SUSPENSE(self);
     return fprintf(stream, "<Suspense %V>", sus->b);
   }
-  case kGAB_BUILTIN: {
+  case kGAB_NATIVE: {
     struct gab_obj_native *blt = GAB_VAL_TO_BUILTIN(self);
     return fprintf(stream, "<Builtin %V>", blt->name);
   }
@@ -223,7 +223,7 @@ uint64_t gab_obj_size(struct gab_obj *self) {
   switch (self->kind) {
   case kGAB_MESSAGE:
     return sizeof(struct gab_obj_message);
-  case kGAB_BUILTIN:
+  case kGAB_NATIVE:
     return sizeof(struct gab_obj_native);
   case kGAB_BOX:
     return sizeof(struct gab_obj_box);
@@ -385,7 +385,7 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
 gab_value gab_native(struct gab_triple gab, gab_value name, gab_native_f f) {
   assert(gab_valkind(name) == kGAB_STRING);
 
-  struct gab_obj_native *self = GAB_CREATE_OBJ(gab_obj_native, kGAB_BUILTIN);
+  struct gab_obj_native *self = GAB_CREATE_OBJ(gab_obj_native, kGAB_NATIVE);
 
   self->name = name;
   self->function = f;

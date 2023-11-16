@@ -1,6 +1,10 @@
 :use 'record'
 
-def [][.Record](key); self:at(key) end
+def [][.Record](key)
+  _, v = self:at(key) in match
+    .some => return v end
+    else => return nil end
+end
 
 def [=][.Record](key, value); self:put!(key, value) end
 
@@ -12,7 +16,7 @@ def each[.Record]
     key = self:next
 
     loop
-      yield key, self:at(key)
+      yield key, self[key]
       key = self:next(key)
     until key == nil end
 end
@@ -30,7 +34,7 @@ def values[.Record]
     key = self:next
 
     loop
-      yield self:at(key)
+      yield self[key]
       key = self:next(key)
     until key == nil end
 end

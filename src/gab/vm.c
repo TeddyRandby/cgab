@@ -456,7 +456,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       case kGAB_BLOCK:
         WRITE_BYTE(SEND_CACHE_DIST, instr + 1);
         break;
-      case kGAB_BUILTIN:
+      case kGAB_NATIVE:
         WRITE_BYTE(SEND_CACHE_DIST, instr + 2);
         break;
       default:
@@ -1126,14 +1126,6 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       gab_value m = READ_CONSTANT;
       gab_value r = PEEK();
 
-      uint64_t offset = gab_msgfind(m, r);
-
-      if (offset != UINT64_MAX) {
-        STORE_FRAME();
-        return ERROR(GAB_IMPLEMENTATION_EXISTS,
-                     " Tried to specialize %V for %V", m, r);
-      }
-
       gab_value blk = gab_block(GAB(), p);
 
       struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
@@ -1152,10 +1144,10 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
         }
       }
 
-      struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(m);
-
-      msg->specs = gab_recordwith(GAB(), msg->specs, r, blk);
-      msg->version++;
+      if (gab_msgput(GAB(), m, r, blk) == gab_undefined) {
+        STORE_FRAME();
+        return ERROR(GAB_IMPLEMENTATION_EXISTS, "%V already specializes for %V", m, r);
+      }
 
       PEEK() = m;
 
