@@ -1,7 +1,7 @@
 :use 'string'
 :use 'std/numbers'
 
-def string[](..args)
+def string[](*args)
   return args:join('')
 end
 
@@ -33,5 +33,3 @@ def split[.String](sep)
   
   self[s:to(slen)]
 end
-
-nil

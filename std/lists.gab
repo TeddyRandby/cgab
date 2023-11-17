@@ -10,7 +10,7 @@ def each[.List]
   until v >= self:len end
 end
 
-def list.collect[](..stream)
+def list.collect[](*stream)
   def list = :list.new
   
   for val in stream:splat

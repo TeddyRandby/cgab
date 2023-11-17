@@ -34,7 +34,7 @@
     end
 
     :it('should rest assign a constant multi value') do
-        (a, b, ..c = 1, 2, 3, 4, 5):expect(1)
+        (a, b, *c = 1, 2, 3, 4, 5):expect(1)
         a:expect(1)
         b:expect(2)
         c[0]:expect(3)
@@ -43,7 +43,7 @@
     end
 
     :it('should rest assign a constant multi value in middle') do
-        (a, ..b, c = 1,2,3,4,5):expect(1)
+        (a, *b, c = 1,2,3,4,5):expect(1)
         a:expect(1)
         c:expect(5)
         b[0]:expect(2)
@@ -54,7 +54,7 @@
     :it('should rest assign a runtime multi value') do
         one_through_five = do; return 1,2,3,4,5 end
 
-        (..a, b, c = one_through_five())
+        (*a, b, c = one_through_five())
 
         b:expect(4)
         c:expect(5)
@@ -68,7 +68,7 @@
 
         b = 1
 
-        (a, ..b, c = one_through_five()):expect(1)
+        (a, *b, c = one_through_five()):expect(1)
 
         a:expect(1)
         c:expect(5)
@@ -163,7 +163,7 @@ end
     end
 
    :it 'should work with varargs'  do
-      def varfunc = do (first, ..args)
+      def varfunc = do (first, *args)
         first:expect(1)
         args[0]:expect(2)
       end
@@ -176,7 +176,7 @@ end
    end
 
    :it 'should work more with varargs'  do
-      def varfunc = do (first, ..args, last)
+      def varfunc = do (first, *args, last)
         first:expect(1)
         args[0]:expect(2)
         last:expect(3)

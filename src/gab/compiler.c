@@ -1006,7 +1006,7 @@ int compile_parameters(struct bc *bc) {
 
     narguments++;
 
-    switch (match_and_eat_token(bc, TOKEN_DOT_DOT)) {
+    switch (match_and_eat_token(bc, TOKEN_STAR)) {
     case COMP_OK:
       if (mv >= 0) {
         compiler_error(bc, GAB_UNEXPECTED_TOKEN,
@@ -1235,6 +1235,9 @@ int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out) {
   do {
     if (optional_newline(bc) < 0)
       return COMP_ERR;
+
+    if (!curr_prefix(bc))
+      break;
 
     mv = false;
     result = compile_exp_prec(bc, kASSIGNMENT);
@@ -2145,7 +2148,20 @@ int compile_strlit(struct bc *bc) {
   return COMP_OK;
 }
 
+int compile_symbol(struct bc *bc) {
+  gab_value sym = trim_prev_id(bc);
+
+  push_loadk(bc, sym, bc->offset - 1);
+  
+  push_slot(bc, 1);
+
+  return COMP_OK;
+}
+
 int compile_string(struct bc *bc) {
+  if (prev_tok(bc) == TOKEN_SYMBOL)
+    return compile_symbol(bc);
+  
   if (prev_tok(bc) == TOKEN_STRING)
     return compile_strlit(bc);
 
@@ -2369,7 +2385,7 @@ int compile_exp_ipm(struct bc *bc, bool assignable) {
   return COMP_OK;
 }
 
-int compile_exp_spd(struct bc *bc, bool assignable) {
+int compile_exp_splt(struct bc *bc, bool assignable) {
   if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
     return COMP_ERR;
 
@@ -2564,8 +2580,9 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
       return COMP_ERR;
   }
 
-  if (flags & fHAS_STRING ||
-      match_and_eat_tokoneof(bc, TOKEN_STRING, TOKEN_INTERPOLATION_BEGIN)) {
+  if (flags & fHAS_STRING || match_and_eat_token(bc, TOKEN_SYMBOL) ||
+      match_and_eat_token(bc, TOKEN_STRING) ||
+      match_and_eat_token(bc, TOKEN_INTERPOLATION_BEGIN)) {
     if (compile_string(bc) < 0)
       return COMP_ERR;
 
@@ -2788,6 +2805,21 @@ int compile_exp_bcal(struct bc *bc, bool assignable) {
   return VAR_EXP;
 }
 
+int compile_exp_symcal(struct bc *bc, bool assignable) {
+  size_t t = bc->offset - 1;
+
+  bool mv = false;
+  int result = compile_arguments(bc, &mv, 0);
+
+  pop_slot(bc, 1);
+
+  uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
+
+  push_send(bc, msg, result, mv, t);
+
+  return VAR_EXP;
+}
+
 int compile_exp_scal(struct bc *bc, bool assignable) {
   size_t t = bc->offset - 1;
 
@@ -2909,7 +2941,7 @@ int compile_exp_for(struct bc *bc, bool assignable) {
   int mv = -1;
 
   do {
-    switch (match_and_eat_token(bc, TOKEN_DOT_DOT)) {
+    switch (match_and_eat_token(bc, TOKEN_STAR)) {
     case COMP_OK:
       mv = nlooplocals;
       [[fallthrough]];
@@ -3058,13 +3090,7 @@ int compile_exp_lop(struct bc *bc, bool assignable) {
 }
 
 int compile_exp_sym(struct bc *bc, bool assignable) {
-  gab_value sym = trim_prev_id(bc);
-
-  push_loadk(bc, sym, bc->offset - 1);
-
-  push_slot(bc, 1);
-
-  return COMP_OK;
+  return compile_symbol(bc);
 }
 
 int compile_exp_yld(struct bc *bc, bool assignable) {
@@ -3169,17 +3195,16 @@ const struct compile_rule rules[] = {
     PREFIX(brk),                       // BREAK
     INFIX(bin, TERM, false),                  // PLUS
     PREFIX_INFIX(una, bin, TERM, false),      // MINUS
-    INFIX(bin, FACTOR, false),                // STAR
+    PREFIX_INFIX(splt, bin, FACTOR, false),                // STAR
     INFIX(bin, FACTOR, false),                // SLASH
     INFIX(bin, FACTOR, false),                // PERCENT
     NONE(),                            // COMMA
     NONE(),       // COLON
     PREFIX_INFIX(amp, bin, BITWISE_AND, false),           // AMPERSAND
     NONE(),           // DOLLAR
-    PREFIX(sym), // SYMBOL
+    PREFIX_INFIX(sym, symcal, SEND, false), // SYMBOL
     PREFIX_INFIX(emp, snd, SEND, true), // MESSAGE
     NONE(),              // DOT
-    PREFIX(spd),                  // DOT_DOT
     NONE(),                            // EQUAL
     INFIX(bin, EQUALITY, false),              // EQUALEQUAL
     PREFIX(una),                            // QUESTION

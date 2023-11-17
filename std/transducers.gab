@@ -5,7 +5,7 @@
 # The map transducer takes a callback, and returns a function
 # which does the transformation
 def td.map[](cb)
-  def map.transducer(..stream)
+  def map.transducer(*stream)
     for val in stream:splat
       yield cb(val)
     end
@@ -13,7 +13,7 @@ def td.map[](cb)
 end
 
 def td.filter[](cb)
-  def filter.transducer(..stream)
+  def filter.transducer(*stream)
     for val in stream:splat
       cb(val) and yield val
     end
@@ -21,7 +21,7 @@ def td.filter[](cb)
 end
 
 def td.reduce[](init, cb)
-  def reduce.transducer(..stream)
+  def reduce.transducer(*stream)
     accumulator = init
     
     for val in stream:splat
@@ -33,7 +33,7 @@ def td.reduce[](init, cb)
 end
 
 def td.take[](n)
-  def take.transducer(..stream)
+  def take.transducer(*stream)
     i = 0
 
     for val in stream:splat

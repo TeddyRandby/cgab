@@ -607,7 +607,20 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
         // We're set up to dispatch to the primitive. Don't do any code
         // modification, though. We don't actually want to change the
         // state this instruction is in.
+        gab_fvmdump(stdout, VM(), 0);
+
         IP() -= SEND_CACHE_DIST;
+
+        IP()++;
+
+        // Most primitives don't need to do any cached-type checking
+        // becuase they are the *only* spec that will resolve for the message
+        // on that type. (:+ on numbers would ALWAYS resolve to PRIMITIVE_ADD)
+        // PRIMITIVE_EQ is an exception to this rule.
+        // It is an implementation for the general case, so can be overridden with
+        // a more specific implementation. 
+        // The receiver cached-type here is actually the messages type (.Message)
+        // So there will always be a cache miss, leading to a weird loop.
         DISPATCH(gab_valtop(spec));
       }
       default:

@@ -1,9 +1,4 @@
-:use 'std/transducers'
-
-items = [ 1 2 3 4 5 ]
-
-def add_one = :td.map do; @1 + 1 end
-
-def is_even = :td.filter do; @1 % 2 == 0 end
-
-def sum = :td.reduce(0) do(a, c); a + c end
+:spec.or(
+  :spec.string,
+  :spec.tuple,
+)

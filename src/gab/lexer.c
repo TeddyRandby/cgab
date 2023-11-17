@@ -284,7 +284,7 @@ gab_token other(gab_lx *self) {
   case '.': {
     advance(self);
 
-    if (is_alpha(peek(self))) {
+    if (can_continue_identifier(peek(self))) {
       // If we didn't get a keyword, return a token property
       if (identifier(self) == TOKEN_IDENTIFIER)
         return TOKEN_SYMBOL;
@@ -293,11 +293,7 @@ gab_token other(gab_lx *self) {
       return error(self, GAB_MALFORMED_TOKEN);
     }
 
-    switch (peek(self)) {
-      CHAR_CASE('.', DOT_DOT);
-    default:
-      return TOKEN_DOT;
-    }
+    return TOKEN_DOT;
   }
   case '-': {
     advance(self);
@@ -376,7 +372,7 @@ static inline void parse_comment(gab_lx *self) {
   while (is_comment(peek(self))) {
     while (peek(self) != '\n')
       advance(self);
-    
+
     advance(self);
     finish_row(self);
   }
