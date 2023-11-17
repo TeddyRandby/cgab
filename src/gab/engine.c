@@ -102,7 +102,12 @@ struct primitive primitives[] = {
     {
         .name = mGAB_CALL,
         .type = kGAB_NATIVE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BUILTIN),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_NATIVE),
+    },
+    {
+        .name = mGAB_CALL,
+        .type = kGAB_MESSAGE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_MESSAGE),
     },
     {
         .name = mGAB_CALL,
@@ -352,38 +357,6 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
   return m;
 }
 
-a_gab_value *send_msg(struct gab_triple gab, gab_value msg, gab_value receiver,
-                      size_t argc, gab_value argv[argc]) {
-  if (msg == gab_undefined)
-    return NULL;
-
-  gab_value main =
-      gab_bccompsend(gab, msg, receiver, fGAB_DUMP_ERROR, argc, argv);
-
-  if (main == gab_undefined)
-    return NULL;
-
-  return gab_vmrun(gab, main, fGAB_DUMP_ERROR, 0, NULL);
-}
-
-a_gab_value *gab_send(struct gab_triple gab, struct gab_send_argt args) {
-  if (args.smessage) {
-    gab_value msg = gab_message(gab, gab_string(gab, args.smessage));
-    return send_msg(gab, msg, args.receiver, args.len, args.argv);
-  }
-
-  switch (gab_valkind(args.vmessage)) {
-  case kGAB_STRING: {
-    gab_value main = gab_message(gab, args.vmessage);
-    return send_msg(gab, main, args.receiver, args.len, args.argv);
-  }
-  case kGAB_MESSAGE:
-    return send_msg(gab, args.vmessage, args.receiver, args.len, args.argv);
-  default:
-    return NULL;
-  }
-}
-
 struct gab_obj_message *gab_eg_find_message(struct gab_eg *self, gab_value name,
                                             uint64_t hash) {
   if (self->interned_messages.len == 0)
@@ -569,7 +542,7 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
   }
 
   case kGAB_NATIVE: {
-    struct gab_obj_native *self = GAB_VAL_TO_BUILTIN(value);
+    struct gab_obj_native *self = GAB_VAL_TO_NATIVE(value);
     return gab_native(gab, gab_valcpy(gab, self->name), self->function);
   }
 

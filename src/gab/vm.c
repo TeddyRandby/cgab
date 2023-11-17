@@ -4,9 +4,9 @@
 #include "include/compiler.h"
 #include "include/core.h"
 #include "include/engine.h"
-#include "include/lexer.h"
 #include "include/gab.h"
 #include "include/gc.h"
+#include "include/lexer.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -238,9 +238,29 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   return true;
 }
 
-static inline void call_native(struct gab_triple gab,
-                                struct gab_obj_native *b, uint8_t arity,
-                                uint8_t want, bool is_message) {
+static inline bool find_implementation(struct gab_triple gab, gab_value msg,
+                                       gab_value rec, gab_value *spec,
+                                       gab_value *type, size_t *offset) {
+
+  int status = gab_egimpl(gab.eg, (struct gab_egimpl_argt){
+                                      .receiver = rec,
+                                      .msg = msg,
+                                      .type = type,
+                                      .offset = offset,
+                                  });
+
+  if (!status) {
+    return false;
+  }
+
+  *spec = status == sGAB_IMPL_PROPERTY ? gab_primitive(OP_SEND_PROPERTY)
+                                       : gab_umsgat(msg, *offset);
+
+  return true;
+}
+
+static inline void call_native(struct gab_triple gab, struct gab_obj_native *b,
+                               uint8_t arity, uint8_t want, bool is_message) {
   gab_value *to = gab.vm->sp - arity - 1; // Is this -1 correct?
 
   gab_value *before = gab.vm->sp;
@@ -259,16 +279,11 @@ static inline void call_native(struct gab_triple gab,
 a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
                        size_t argc, gab_value argv[argc]) {
 #if cGAB_LOG_VM
-#define LOG() printf("OP_%s\n", gab_opcode_names[*(ip)])
+#define LOG(op) printf("OP_%s\n", gab_opcode_names[op])
 #else
-#define LOG()
+#define LOG(op)
 #endif
 
-  /*
-    If we're using computed gotos, create
-    the jump table and the dispatch
-    instructions.
-  */
   static const void *dispatch_table[256] = {
 #define OP_CODE(name) &&code_##name,
 #include "include/bytecode.h"
@@ -277,11 +292,14 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
 #define CASE_CODE(name) code_##name
 #define LOOP()
-#define NEXT()                                                                 \
+#define DISPATCH(op)                                                           \
   ({                                                                           \
-    LOG();                                                                     \
-    goto *dispatch_table[(INSTR() = *IP()++)];                                 \
+    uint8_t o = (op);                                                          \
+    LOG(o);                                                                    \
+    goto *dispatch_table[(INSTR() = o)];                                       \
   })
+
+#define NEXT() DISPATCH(*IP()++);
 
 #define SEND_CACHE_GUARD(cached_type, type, version, m)                        \
   if ((cached_type != type) | (version != GAB_VAL_TO_MESSAGE(m)->version)) {   \
@@ -423,27 +441,16 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       gab_value receiver = PEEK_N(have + 1);
 
-      gab_value type;
+      gab_value spec, type;
       uint64_t offset;
 
       /* Do the expensive lookup */
-      int status = gab_egimpl(EG(), (struct gab_egimpl_argt){
-                                        .receiver = receiver,
-                                        .msg = m,
-                                        .type = &type,
-                                        .offset = &offset,
-                                    });
-
-      if (!status) {
+      if (!find_implementation(gab, m, receiver, &spec, &type, &offset)) {
         STORE_FRAME();
         return ERROR(GAB_IMPLEMENTATION_MISSING,
                      "%V does not specialize for %V (%V)", m, receiver,
                      gab_valtype(EG(), receiver));
       }
-
-      gab_value spec = status == sGAB_IMPL_PROPERTY
-                           ? gab_primitive(OP_SEND_PROPERTY)
-                           : gab_umsgat(m, offset);
 
       WRITE_INLINEBYTE(GAB_VAL_TO_MESSAGE(m)->version);
       WRITE_INLINEQWORD(type);
@@ -469,7 +476,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       NEXT();
     }
 
-    CASE_CODE(SEND_MONO_CLOSURE) : {
+    CASE_CODE(SEND_MONO_BLOCK) : {
       gab_value m = READ_CONSTANT;
 
       uint64_t have = compute_arity(VM(), READ_BYTE);
@@ -498,7 +505,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       NEXT();
     }
 
-    CASE_CODE(SEND_MONO_BUILTIN) : {
+    CASE_CODE(SEND_MONO_NATIVE) : {
       gab_value m = READ_CONSTANT;
 
       uint64_t have = compute_arity(VM(), READ_BYTE);
@@ -517,14 +524,14 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       STORE_FRAME();
 
-      call_native(GAB(), GAB_VAL_TO_BUILTIN(spec), have, want, true);
+      call_native(GAB(), GAB_VAL_TO_NATIVE(spec), have, want, true);
 
       LOAD_FRAME();
 
       NEXT();
     }
 
-    CASE_CODE(SEND_PRIMITIVE_CALL_BUILTIN) : {
+    CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) : {
       gab_value m = READ_CONSTANT;
       uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
@@ -540,10 +547,72 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       STORE_FRAME();
 
-      call_native(GAB(), GAB_VAL_TO_BUILTIN(receiver), have, want, false);
+      call_native(GAB(), GAB_VAL_TO_NATIVE(receiver), have, want, false);
 
       LOAD_FRAME();
       NEXT();
+    }
+
+    CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) : {
+      gab_value m = READ_CONSTANT;
+
+      uint64_t have = compute_arity(VM(), READ_BYTE);
+      uint8_t want = READ_BYTE;
+      uint8_t version = READ_BYTE;
+      gab_value cached_type = *READ_QWORD;
+      SKIP_QWORD;
+
+      gab_value message = PEEK_N(have + 1);
+      gab_value receiver = PEEK_N(have);
+
+      gab_value type = gab_pvaltype(EG(), message);
+
+      SEND_CACHE_GUARD(cached_type, type, version, m)
+
+      // Shift our args down and forget about the message being called
+      TOP() = trim_return(TOP() - have, TOP() - have - 1, have, have);
+      have--;
+
+      size_t offset;
+      gab_value spec;
+
+      if (!find_implementation(gab, message, receiver, &spec, &type, &offset)) {
+        STORE_FRAME();
+        return ERROR(GAB_IMPLEMENTATION_MISSING,
+                     "%V does not specialize for %V (%V)", message, receiver,
+                     gab_valtype(EG(), receiver));
+      }
+
+      switch (gab_valkind(spec)) {
+      case kGAB_BLOCK: {
+        struct gab_obj_block *b = GAB_VAL_TO_BLOCK(spec);
+
+        STORE_FRAME();
+
+        if (!call_block(VM(), b, have, want))
+          return ERROR(GAB_OVERFLOW, "", "");
+
+        LOAD_FRAME();
+
+        NEXT();
+      }
+      case kGAB_NATIVE: {
+        struct gab_obj_native *n = GAB_VAL_TO_NATIVE(spec);
+
+        call_native(GAB(), n, have, want, true);
+
+        NEXT();
+      }
+      case kGAB_PRIMITIVE: {
+        // We're set up to dispatch to the primitive. Don't do any code
+        // modification, though. We don't actually want to change the
+        // state this instruction is in.
+        IP() -= SEND_CACHE_DIST;
+        DISPATCH(gab_valtop(spec));
+      }
+      default:
+        return ERROR(GAB_NOT_CALLABLE, "Found %V %V", type, spec);
+      }
     }
 
     CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) : {
@@ -759,7 +828,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       uint8_t start = READ_BYTE;
       uint16_t dist = READ_SHORT;
       uint64_t have = VAR();
-      
+
       gab_value sus = POP();
       have--;
 
@@ -1146,7 +1215,8 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
       if (gab_msgput(GAB(), m, r, blk) == gab_undefined) {
         STORE_FRAME();
-        return ERROR(GAB_IMPLEMENTATION_EXISTS, "%V already specializes for %V", m, r);
+        return ERROR(GAB_IMPLEMENTATION_EXISTS, "%V already specializes for %V",
+                     m, r);
       }
 
       PEEK() = m;

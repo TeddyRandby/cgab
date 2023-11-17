@@ -273,13 +273,13 @@ def spec.message[](args, semantics)
 
   def message.predicate(rec, input, output)
     success, pred, val, path = args:input:spec.fits?(input:splat)
-    success or return success, pred, val, .input
+    success or return false, pred, input, .input
     
     success, pred, val, path = args:output:spec.fits?(output:splat)
-    success or return success, pred, val, .output
+    success or return false, pred, output, .output
     
     success, pred, val, path = args:receiver:spec.fits?(rec)
-    success or return success, pred, val, .receiver
+    success or return false, pred, rec, .receiver
     
     semantics or return success, self, [rec, input, output]
 
@@ -314,7 +314,7 @@ def spec.message[](args, semantics)
         end
       end
     end
-
+    
     args:message:put!(receiver, message.gen)
 
     return args:message
@@ -322,9 +322,10 @@ def spec.message[](args, semantics)
 
   def spec.check[message.predicate]
     loop
+      
       receiver = args:receiver:spec.gen
       ..input  = args:input:spec.gen
-      ..output = receiver:send(args:message, input:splat)
+      ..output = (args:message)(receiver, input:splat)
 
       yield message.predicate(receiver, input, output)
     end

@@ -9,10 +9,6 @@ enum variable_flag {
   fVAR_LOCAL = 1 << 2,
 };
 
-gab_value gab_bccompsend(struct gab_triple gab, gab_value msg,
-                         gab_value receiver, uint8_t flags, uint8_t narguments,
-                         gab_value arguments[narguments]);
-
 gab_value gab_bccomp(struct gab_triple gab, gab_value name, s_char source,
                      uint8_t flags, uint8_t narguments,
                      gab_value arguments[narguments]);

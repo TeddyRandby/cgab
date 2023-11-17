@@ -164,7 +164,7 @@ int __dump_value(FILE *stream, gab_value self, uint8_t depth) {
     return fprintf(stream, "<Suspense %V>", sus->b);
   }
   case kGAB_NATIVE: {
-    struct gab_obj_native *blt = GAB_VAL_TO_BUILTIN(self);
+    struct gab_obj_native *blt = GAB_VAL_TO_NATIVE(self);
     return fprintf(stream, "<Builtin %V>", blt->name);
   }
   case kGAB_BLOCK_PROTO: {

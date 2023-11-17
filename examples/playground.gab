@@ -13,13 +13,13 @@ def Car { car.make car.model car.year car.color }
 def car.spec       = :spec.record(Car)
 def car.paint.spec = :spec.message {
     # The message we spec over
-    message = &:car.paint
+    message  = &:car.paint
     # The receiver's spec
     receiver = car.spec
     # Fetch the spec 'car.color' for the input
-    input   = :spec 'car.color'
+    input    = :spec 'car.color'
     # Fetch the spec 'car.color' for the output
-    output  = :spec 'car.color'
+    output   = :spec 'car.color'
   } do (receiver, input, output)
     input[0] == receiver:car.color and input[0] == output[0]
   end
@@ -31,12 +31,12 @@ def car.paint.spec = :spec.message {
 # test_car:car.paint('BLUE') :print # => 'BLUE'
 
 # Generate a mock implementation of car.paint for Car
-car.paint.spec:spec.gen(Car)
+# car.paint.spec:spec.gen(Car)
 
 # Define a faulty car.paint specialization
-# def car.paint[Car](color)
-#   self:car.color = 10
-# end
+def car.paint[Car](color)
+  self:car.color = 10
+end
 
 # Check our faulty implementation
 # &:spec.check yields a stream of predicate results.

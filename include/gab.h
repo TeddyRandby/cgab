@@ -497,31 +497,6 @@ struct gab_repl_argt {
  */
 void gab_repl(struct gab_triple gab, struct gab_repl_argt args);
 
-struct gab_send_argt {
-  /* The message to send. */
-  const char *smessage;
-  gab_value vmessage;
-  /* The receiver of the message */
-  gab_value receiver;
-  /* Options for the vm */
-  int flags;
-  /* The number of arguments */
-  size_t len;
-  /* The arguments to the message */
-  gab_value *argv;
-};
-
-/**
- * # Send the message to the receiver.
- * Args.vmessage is only used if args.smessage is NULL.
- *
- * @param gab The engine.
- * @param args The arguments.
- * @see struct gab_send_argt
- * @return A heap-allocated slice of values returned by the message.
- */
-a_gab_value *gab_send(struct gab_triple gab, struct gab_send_argt args);
-
 /**
  * # Panic the VM with an error message. Useful for native functions.
  *
@@ -707,7 +682,7 @@ struct gab_obj_native {
 };
 
 /* Cast a value to a (gab_obj_native*) */
-#define GAB_VAL_TO_BUILTIN(value) ((struct gab_obj_native *)gab_valtoo(value))
+#define GAB_VAL_TO_NATIVE(value) ((struct gab_obj_native *)gab_valtoo(value))
 
 /**
  * The prototype of a block. Encapsulates everything known about a block

@@ -51,7 +51,7 @@ for seq in ops:each
         total = hand[0]
         
         for i, op in seq:each
-            total = total:send(op, hand[i + 1])
+            total = op(total, hand[i + 1])
         end
 
         total == 20 then

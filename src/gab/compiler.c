@@ -3257,59 +3257,6 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   return main;
 }
 
-gab_value gab_bccompsend(struct gab_triple gab, gab_value msg,
-                         gab_value receiver, uint8_t flags, uint8_t narguments,
-                         gab_value arguments[narguments]) {
-  struct bc bc;
-  bc_create(&bc, gab, NULL, flags);
-
-  push_ctxframe(&bc, gab_string(gab, "__send__"));
-
-  gab_gcreserve(gab, narguments + 3);
-
-  uint16_t message = addk(&bc, msg);
-
-  uint16_t constant = addk(&bc, receiver);
-
-  push_op(&bc, OP_CONSTANT, 0);
-  push_short(&bc, constant, 0);
-
-  for (uint8_t i = 0; i < narguments; i++) {
-    uint16_t constant = addk(&bc, arguments[i]);
-
-    push_op(&bc, OP_CONSTANT, 0);
-    push_short(&bc, constant, 0);
-  }
-
-  push_send(&bc, message, narguments, false, 0);
-
-  push_ret(&bc, 0, true, 0);
-
-  uint8_t nlocals = narguments + 1;
-
-  int ctx = peek_ctx(&bc, kFRAME, 0);
-  assert(ctx >= 0 && "Internal compiler error: no frame context");
-  struct frame *f = &bc.contexts[ctx].as.frame;
-
-  gab_value p = gab_blkproto(gab, bc.src, f->name,
-                             (struct gab_blkproto_argt){
-                                 .constants = f->constants,
-                                 .bytecode = f->bytecode,
-                                 .bytecode_toks = f->bytecode_toks,
-                                 .narguments = narguments,
-                                 .nlocals = nlocals,
-                                 .nslots = nlocals,
-                             });
-
-  addk(&bc, p);
-
-  gab_value main = gab_block(gab, p);
-
-  bc_destroy(&bc);
-
-  return main;
-}
-
 gab_value gab_bccomp(struct gab_triple gab, gab_value name, s_char source,
                      uint8_t flags, uint8_t narguments,
                      gab_value arguments[narguments]) {
@@ -3548,8 +3495,8 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
   case OP_ITER:
     return dumpIter(stream, self, offset);
   case OP_SEND_ANA:
-  case OP_SEND_MONO_CLOSURE:
-  case OP_SEND_MONO_BUILTIN:
+  case OP_SEND_MONO_BLOCK:
+  case OP_SEND_MONO_NATIVE:
   case OP_SEND_PROPERTY:
   case OP_SEND_PRIMITIVE_CONCAT:
   case OP_SEND_PRIMITIVE_ADD:
@@ -3563,7 +3510,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
   case OP_SEND_PRIMITIVE_GT:
   case OP_SEND_PRIMITIVE_GTE:
   case OP_SEND_PRIMITIVE_CALL_BLOCK:
-  case OP_SEND_PRIMITIVE_CALL_BUILTIN:
+  case OP_SEND_PRIMITIVE_CALL_NATIVE:
   case OP_SEND_PRIMITIVE_CALL_SUSPENSE:
     return dumpSendInstruction(stream, self, offset);
   case OP_POP_N:
