@@ -1,4 +1,2 @@
-:spec.or(
-  :spec.string,
-  :spec.tuple,
-)
+
+lhs:(dynamic_message)(*rhs)

@@ -1,6 +1,6 @@
 :use 'specs'
 
-:spec.def! .Record.to_l {
+:spec.def! .Record.len {
   help = "Get the number of key-value pairs in the record."
   spec = :spec.message {
     message  = &:len

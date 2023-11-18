@@ -384,6 +384,19 @@ static inline void push_nnop(struct bc *bc, uint8_t n, size_t t) {
     push_byte(bc, OP_NOP, t); // Don't count this as an op
 }
 
+static inline void push_dynsend(struct bc *bc, uint8_t have, bool mv,
+                                size_t t) {
+  assert(have < 16);
+
+  push_op(bc, OP_DYNAMIC_SEND, t);
+  push_nnop(bc, 2, t);
+  push_byte(bc, encode_arity(have, mv), t);
+  push_byte(bc, 1, t); // Default to wnating one
+
+  push_byte(bc, 255, t); // Push the sentinel version value
+  push_nnop(bc, 16, t); // Push space for the inline cache (will be unused, but necessary to mimic sends)
+}
+
 static inline void push_send(struct bc *bc, uint16_t m, uint8_t have, bool mv,
                              size_t t) {
   assert(have < 16);
@@ -2152,7 +2165,7 @@ int compile_symbol(struct bc *bc) {
   gab_value sym = trim_prev_id(bc);
 
   push_loadk(bc, sym, bc->offset - 1);
-  
+
   push_slot(bc, 1);
 
   return COMP_OK;
@@ -2161,7 +2174,7 @@ int compile_symbol(struct bc *bc) {
 int compile_string(struct bc *bc) {
   if (prev_tok(bc) == TOKEN_SYMBOL)
     return compile_symbol(bc);
-  
+
   if (prev_tok(bc) == TOKEN_STRING)
     return compile_strlit(bc);
 
@@ -2722,6 +2735,38 @@ int compile_exp_amp(struct bc *bc, bool assignable) {
   return COMP_OK;
 }
 
+int compile_exp_dyn(struct bc *bc, bool assignable) {
+  if (expect_token(bc, TOKEN_LPAREN) < 0)
+    return COMP_ERR;
+  
+  if (compile_expression(bc) < 0)
+    return COMP_ERR;
+
+  if (expect_token(bc, TOKEN_RPAREN) < 0)
+    return COMP_ERR;
+  
+  size_t t = bc->offset - 1;
+
+  bool mv = false;
+  int result = compile_arguments(bc, &mv, 0);
+
+  if (result < 0)
+    return COMP_ERR;
+
+  if (result > GAB_ARG_MAX) {
+    compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
+    return COMP_ERR;
+  }
+
+  pop_slot(bc, result + 1);
+
+  push_dynsend(bc, result, mv, t);
+
+  push_slot(bc, 1);
+
+  return VAR_EXP;
+}
+
 int compile_exp_snd(struct bc *bc, bool assignable) {
   size_t t = bc->offset - 1;
 
@@ -2809,7 +2854,7 @@ int compile_exp_symcal(struct bc *bc, bool assignable) {
   size_t t = bc->offset - 1;
 
   bool mv = false;
-  int result = compile_arguments(bc, &mv, 0);
+  int result = compile_arguments(bc, &mv, fHAS_STRING);
 
   pop_slot(bc, 1);
 
@@ -2824,7 +2869,7 @@ int compile_exp_scal(struct bc *bc, bool assignable) {
   size_t t = bc->offset - 1;
 
   bool mv = false;
-  int result = compile_arguments(bc, &mv, 0);
+  int result = compile_arguments(bc, &mv, fHAS_STRING);
 
   pop_slot(bc, 1);
 
@@ -3199,7 +3244,7 @@ const struct compile_rule rules[] = {
     INFIX(bin, FACTOR, false),                // SLASH
     INFIX(bin, FACTOR, false),                // PERCENT
     NONE(),                            // COMMA
-    NONE(),       // COLON
+    INFIX(dyn, SEND, false),       // COLON
     PREFIX_INFIX(amp, bin, BITWISE_AND, false),           // AMPERSAND
     NONE(),           // DOLLAR
     PREFIX_INFIX(sym, symcal, SEND, false), // SYMBOL
@@ -3333,6 +3378,23 @@ uint64_t dumpSimpleInstruction(FILE *stream, struct gab_obj_block_proto *self,
       gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
   fprintf(stream, "%-25s\n", name);
   return offset + 1;
+}
+
+uint64_t dumpDynSendInstruction(FILE *stream, struct gab_obj_block_proto *self,
+                             uint64_t offset) {
+  const char *name =
+      gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
+
+  uint8_t have = v_uint8_t_val_at(&self->bytecode, offset + 3);
+  uint8_t want = v_uint8_t_val_at(&self->bytecode, offset + 4);
+
+  uint8_t var = have & FLAG_VAR_EXP;
+  have = have >> 1;
+
+  fprintf(stream,
+          "%-25s" "(%s%d) -> %d\n",
+          name, var ? "& more" : "", have, want);
+  return offset + 22;
 }
 
 uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_block_proto *self,
@@ -3522,7 +3584,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
   case OP_SEND_ANA:
   case OP_SEND_MONO_BLOCK:
   case OP_SEND_MONO_NATIVE:
-  case OP_SEND_PROPERTY:
+  case OP_SEND_MONO_PROPERTY:
   case OP_SEND_PRIMITIVE_CONCAT:
   case OP_SEND_PRIMITIVE_ADD:
   case OP_SEND_PRIMITIVE_SUB:
@@ -3538,6 +3600,8 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
   case OP_SEND_PRIMITIVE_CALL_NATIVE:
   case OP_SEND_PRIMITIVE_CALL_SUSPENSE:
     return dumpSendInstruction(stream, self, offset);
+  case OP_DYNAMIC_SEND:
+    return dumpDynSendInstruction(stream, self, offset);
   case OP_POP_N:
   case OP_STORE_LOCAL:
   case OP_POP_STORE_LOCAL:

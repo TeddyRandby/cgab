@@ -253,7 +253,7 @@ static inline bool find_implementation(struct gab_triple gab, gab_value msg,
     return false;
   }
 
-  *spec = status == sGAB_IMPL_PROPERTY ? gab_primitive(OP_SEND_PROPERTY)
+  *spec = status == sGAB_IMPL_PROPERTY ? gab_primitive(OP_SEND_MONO_PROPERTY)
                                        : gab_umsgat(msg, *offset);
 
   return true;
@@ -302,7 +302,8 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 #define NEXT() DISPATCH(*IP()++);
 
 #define SEND_CACHE_GUARD(cached_type, type, version, m)                        \
-  if ((cached_type != type) | (version != GAB_VAL_TO_MESSAGE(m)->version)) {   \
+  if (version != 255 && ((cached_type != type) ||                              \
+                         (version != GAB_VAL_TO_MESSAGE(m)->version))) {       \
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);                                  \
     IP() -= SEND_CACHE_DIST;                                                   \
     NEXT();                                                                    \
@@ -322,7 +323,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
   }                                                                            \
   if (!__gab_valisn(PEEK())) {                                                 \
     STORE_FRAME();                                                             \
-    return ERROR(GAB_NOT_NUMERIC, "Found %V (%V)", PEEK(),                     \
+    return ERROR(GAB_NOT_NUMBER, "Found %V (%V)", PEEK(),                      \
                  gab_valtype(EG(), PEEK()), PEEK());                           \
   }                                                                            \
   operation_type b = gab_valton(POP());                                        \
@@ -553,38 +554,41 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       NEXT();
     }
 
-    CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) : {
-      gab_value m = READ_CONSTANT;
-
+    CASE_CODE(DYNAMIC_SEND) : {
+      SKIP_SHORT;
       uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
-      uint8_t version = READ_BYTE;
-      gab_value cached_type = *READ_QWORD;
+      SKIP_BYTE;
+      SKIP_QWORD;
       SKIP_QWORD;
 
-      gab_value message = PEEK_N(have + 1);
-      gab_value receiver = PEEK_N(have);
+      gab_value receiver = PEEK_N(have + 2);
+      gab_value m = PEEK_N(have + 1);
 
-      gab_value type = gab_pvaltype(EG(), message);
+      if (gab_valkind(m) != kGAB_MESSAGE) {
+        STORE_FRAME();
+        return ERROR(GAB_NOT_MESSAGE, "Found %V (%V)", m, gab_valtype(EG(), m));
+      }
 
-      SEND_CACHE_GUARD(cached_type, type, version, m)
-
-      // Shift our args down and forget about the message being called
-      TOP() = trim_return(TOP() - have, TOP() - have - 1, have, have);
-      have--;
+      gab_value type = gab_pvaltype(EG(), m);
 
       size_t offset;
       gab_value spec;
 
-      if (!find_implementation(gab, message, receiver, &spec, &type, &offset)) {
+      if (!find_implementation(gab, m, receiver, &spec, &type, &offset)) {
         STORE_FRAME();
         return ERROR(GAB_IMPLEMENTATION_MISSING,
-                     "%V does not specialize for %V (%V)", message, receiver,
+                     "%V does not specialize for %V (%V)", m, receiver,
                      gab_valtype(EG(), receiver));
       }
 
+      /* Write our found type and offset to the cache */
+
       switch (gab_valkind(spec)) {
       case kGAB_BLOCK: {
+        // Shift our args down and forget about the message being called
+        TOP() = trim_return(TOP() - have, TOP() - (have + 1), have, have);
+
         struct gab_obj_block *b = GAB_VAL_TO_BLOCK(spec);
 
         STORE_FRAME();
@@ -597,6 +601,9 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
         NEXT();
       }
       case kGAB_NATIVE: {
+        // Shift our args down and forget about the message being called
+        TOP() = trim_return(TOP() - have, TOP() - (have + 1), have, have);
+
         struct gab_obj_native *n = GAB_VAL_TO_NATIVE(spec);
 
         call_native(GAB(), n, have, want, true);
@@ -607,21 +614,17 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
         // We're set up to dispatch to the primitive. Don't do any code
         // modification, though. We don't actually want to change the
         // state this instruction is in.
-        gab_fvmdump(stdout, VM(), 0);
+        // Dispatch to one-past the beginning of this instruction
+        // we want to pretend we already read the op-code.
+        // TODO: Handle primitive calls with the wrong number of arguments
+        uint8_t op = gab_valtop(spec);
 
-        IP() -= SEND_CACHE_DIST;
+        IP() -= SEND_CACHE_DIST - 1;
+        want = op >= OP_SEND_PRIMITIVE_CALL_NATIVE ? VAR_EXP : 1;
+        // Shift our args down and forget about the message being called
+        TOP() = trim_return(TOP() - have, TOP() - (have + 1), have, want);
 
-        IP()++;
-
-        // Most primitives don't need to do any cached-type checking
-        // becuase they are the *only* spec that will resolve for the message
-        // on that type. (:+ on numbers would ALWAYS resolve to PRIMITIVE_ADD)
-        // PRIMITIVE_EQ is an exception to this rule.
-        // It is an implementation for the general case, so can be overridden with
-        // a more specific implementation. 
-        // The receiver cached-type here is actually the messages type (.Message)
-        // So there will always be a cache miss, leading to a weird loop.
-        DISPATCH(gab_valtop(spec));
+        DISPATCH(op);
       }
       default:
         return ERROR(GAB_NOT_CALLABLE, "Found %V %V", type, spec);
@@ -776,15 +779,15 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
     CASE_CODE(SEND_PRIMITIVE_EQ) : {
       gab_value m = READ_CONSTANT;
-      SKIP_BYTE;
+      uint64_t have = compute_arity(VM(), READ_BYTE);
       SKIP_BYTE;
       uint8_t version = READ_BYTE;
       gab_value cached_type = *READ_QWORD;
       SKIP_QWORD;
 
-      gab_value receiver = PEEK2();
+      gab_value index = PEEK_N(have + 1);
 
-      gab_value type = gab_pvaltype(EG(), receiver);
+      gab_value type = gab_pvaltype(EG(), index);
 
       SEND_CACHE_GUARD(cached_type, type, version, m)
 
@@ -798,7 +801,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       NEXT();
     }
 
-    CASE_CODE(SEND_PROPERTY) : {
+    CASE_CODE(SEND_MONO_PROPERTY) : {
       gab_value m = READ_CONSTANT;
       uint64_t have = compute_arity(VM(), READ_BYTE);
       SKIP_BYTE;
@@ -1031,7 +1034,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
     CASE_CODE(NEGATE) : {
       if (!__gab_valisn(PEEK())) {
         STORE_FRAME();
-        return ERROR(GAB_NOT_NUMERIC, "Found %V %V", gab_pvaltype(EG(), PEEK()),
+        return ERROR(GAB_NOT_NUMBER, "Found %V %V", gab_pvaltype(EG(), PEEK()),
                      PEEK());
       }
 

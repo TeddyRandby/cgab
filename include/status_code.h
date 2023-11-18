@@ -19,16 +19,18 @@ STATUS(TOO_MANY_EXPRESSIONS_IN_INITIALIZER,
 STATUS(REFERENCE_BEFORE_INITIALIZE,
        "Variables cannot be referenced before they are initialized")
 STATUS(LOCAL_ALREADY_EXISTS, "A local with this name already exists")
-STATUS(EXPRESSION_NOT_ASSIGNABLE, "The expression on the left is not assignable")
+STATUS(EXPRESSION_NOT_ASSIGNABLE,
+       "The expression on the left is not assignable")
 STATUS(MISSING_END, "Block need a corresponding 'end'")
 STATUS(MISSING_INITIALIZER, "Variables must be initialized")
 STATUS(MISSING_IDENTIFIER, "Identifier could not be resolved")
 STATUS(MISSING_RECEIVER, "A message definition should specify a receiver")
 
 // Run-time errors
-STATUS(NOT_NUMERIC, "Expected a number")
+STATUS(NOT_NUMBER, "Expected a number")
 STATUS(NOT_RECORD, "Expected a record")
 STATUS(NOT_STRING, "Expected a string")
+STATUS(NOT_MESSAGE, "Expected a message")
 STATUS(NOT_CALLABLE, "Expected a callable value")
 STATUS(WRONG_ARITY,
        "Could not call a function with the wrong number of arguments")

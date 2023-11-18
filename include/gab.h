@@ -1203,6 +1203,10 @@ static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg, gab_val
   
   obj->specs = gab_recordwith(gab, obj->specs, receiver, spec);
   obj->version++;
+
+  // 255 is a sentinel value, so we can't use it
+  if (obj->version == 255)
+    obj->version = 0;
   
   return msg;
 }

@@ -23,6 +23,12 @@ struct primitive {
   gab_value primitive;
 };
 
+/*
+ * It is important that all primitives be FINAL - 
+ * as in, it is not possible for a gab program to define some
+ * specialization which would take precedence OVER the primitive.
+ * This is becayse of how dynamic message sends handle primitives
+ */
 struct primitive primitives[] = {
     {
         .name = mGAB_BOR,
@@ -103,11 +109,6 @@ struct primitive primitives[] = {
         .name = mGAB_CALL,
         .type = kGAB_NATIVE,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_NATIVE),
-    },
-    {
-        .name = mGAB_CALL,
-        .type = kGAB_MESSAGE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_MESSAGE),
     },
     {
         .name = mGAB_CALL,

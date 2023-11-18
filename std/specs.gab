@@ -396,7 +396,7 @@ def spec.message[](args, semantics)
         *input  = args:input:spec.gen
 
         args:input:spec.fits?(input:splat) then
-          *output = (args:message)(receiver, input:splat)
+          *output = receiver:(args:message)(input:splat)
           
           yield message.predicate(receiver, input, output)
         end

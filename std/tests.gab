@@ -34,12 +34,12 @@ def T = :testState
 
 def expect[](other, opt_msg)
     def msg = opt_msg or &==
-    msg(self, other) or T:fail(self, other)
+    self:(msg)(other) or T:fail(self, other)
 end
 
 def expect_not[](other, opt_msg)
     def msg = opt_msg or &==
-    msg(self, other) and T:fail(self, other)
+    self:(msg)(other) and T:fail(self, other)
 end
 
 def describe[](name, cb)
