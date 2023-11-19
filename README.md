@@ -222,4 +222,5 @@ This project is built with `Make`. The `Makefile` expects some environment varia
   - `GAB_INSTALLPREFIX`: Where gab should install itself - the executable, header files, libcgab, etc. Something like `/usr/local`
   - `GAB_CFLAGS`: Additional flags ot pass to the c compiler.
 
-[Clide](https://github.com/TeddyRandby/clide) is a tool for managing shell scripts for projects. This project uses it to manage useful scripts and build configuration. To configure and build with clide, run `clide build` and complete the prompts. 
+[Clide](https://github.com/TeddyRandby/clide) is a tool for managing shell scripts for projects. This project uses it to manage useful scripts and build configuration. To configure and install with clide,
+run `clide configure` and then `sudo clide install`. Alternatively, you can run just run `sudo clide install`, and you will be prompted to create your configuration.

@@ -17,7 +17,7 @@ export cflags
 case "$buildtype" in
   debug)          cflags="-g -O0" ;;
   debugoptimized) cflags="-g -O2" ;;
-  release)        cflags="-o3"    ;;
+  release)        cflags="-O3"    ;;
 esac
 
 echo "#!/usr/bin/env bash" >> build/configuration

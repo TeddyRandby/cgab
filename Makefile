@@ -38,14 +38,14 @@ $(BUILD_PREFIX)/libcgab%.o: $(SRC_PREFIX)/%.c
 	$(CC) $(CFLAGS) $(INCLUDE) $(LD_CGAB)  $< -c -o $@
 
 INSTALL_PREFIX 	= ${GAB_INSTALLPREFIX}
-GAB_PREFIX 			= ${GAB_PREFIX}/gab
+GAB_PATH 			= ${GAB_PREFIX}/gab
 
 install_dev:
 	install -vCDt $(INSTALL_PREFIX)/include/gab $(INCLUDE_PREFIX)/*
 	install -vC $(BUILD_PREFIX)/libcgab.so $(INSTALL_PREFIX)/lib
 
 install_modules: modules
-	install -vCDt $(GAB_PREFIX)/modules $(MOD_OBJ)
+	install -vCDt $(GAB_PATH)/modules $(MOD_OBJ)
 
 install_gab: $(BUILD_PREFIX)/gab
 	install -vC $(BUILD_PREFIX)/gab $(INSTALL_PREFIX)/bin
