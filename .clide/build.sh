@@ -1,8 +1,18 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
-if ! cd "$CLIDE_PATH/../build"; then
-  echo "Run 'clide configure' first"
-  exit 1
+cd "$CLIDE_PATH/../" || exit 1
+
+echo "Beginning compilation."
+
+if ! test -e "build/configuration"; then
+  clide configure || exit 1
 fi
 
-ninja
+export GAB_PREFIX=
+export GAB_INSTALLPREFIX=
+export GAB_BUILDTYPE=
+source build/configuration || exit 1
+
+make || exit 1
+
+echo "Success! "

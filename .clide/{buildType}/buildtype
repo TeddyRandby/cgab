@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
 echo "Debug:Include debug symbols, etc:debug"
 echo "Release:Optimize for speed:release"

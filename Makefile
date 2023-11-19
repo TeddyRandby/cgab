@@ -1,4 +1,4 @@
-CFLAGS 			 = -g -std=c2x -fPIC -MMD
+CFLAGS 			 = -std=c2x -fPIC -MMD ${GAB_CCFLAGS}
 
 SRC_PREFIX 	 	 	= src/**
 BUILD_PREFIX 	 	= build
@@ -37,16 +37,15 @@ $(BUILD_PREFIX)/%.o: $(SRC_PREFIX)/%.c
 $(BUILD_PREFIX)/libcgab%.o: $(SRC_PREFIX)/%.c
 	$(CC) $(CFLAGS) $(INCLUDE) $(LD_CGAB)  $< -c -o $@
 
-INSTALL_PREFIX = /usr/local
-GAB_PATH 			 = $${HOME}/gab
-# CUrrent gotcha with running this as root
+INSTALL_PREFIX 	= ${GAB_INSTALLPREFIX}
+GAB_PREFIX 			= ${GAB_PREFIX}/gab
 
 install_dev:
 	install -vCDt $(INSTALL_PREFIX)/include/gab $(INCLUDE_PREFIX)/*
 	install -vC $(BUILD_PREFIX)/libcgab.so $(INSTALL_PREFIX)/lib
 
 install_modules: modules
-	install -vCDt $(GAB_PATH)/modules $(MOD_OBJ)
+	install -vCDt $(GAB_PREFIX)/modules $(MOD_OBJ)
 
 install_gab: $(BUILD_PREFIX)/gab
 	install -vC $(BUILD_PREFIX)/gab $(INSTALL_PREFIX)/bin

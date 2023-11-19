@@ -1,8 +1,21 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
 
-if ! cd "$CLIDE_PATH/../build"; then
-  echo "Run 'clide configure' first"
-  exit 1
+cd "$CLIDE_PATH/../" || exit 1
+
+if ! test -e "build/configuration"; then
+  clide configure || exit 1
 fi
 
-meson install
+
+export GAB_PREFIX=
+export GAB_INSTALLPREFIX=
+export GAB_BUILDTYPE=
+source build/configuration || exit 1
+
+clide build || exit 1
+
+echo "Beginning installation."
+
+make install || exit 1
+
+echo "Success!"
