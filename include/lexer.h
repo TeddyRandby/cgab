@@ -5,12 +5,12 @@
 
 typedef enum gab_token {
 #define TOKEN(name) TOKEN##_##name,
-#include "include/token.h"
+#include "token.h"
 #undef TOKEN
 } gab_token;
 
 #define T gab_token
-#include "include/vector.h"
+#include "vector.h"
 
 struct gab_eg;
 struct gab_src;

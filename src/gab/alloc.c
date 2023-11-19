@@ -1,7 +1,7 @@
-#include "include/alloc.h"
-#include "include/core.h"
-#include "include/engine.h"
-#include "include/gab.h"
+#include "alloc.h"
+#include "core.h"
+#include "engine.h"
+#include "gab.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>

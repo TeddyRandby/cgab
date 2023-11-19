@@ -9,13 +9,13 @@
 
 static const char *gab_status_names[] = {
 #define STATUS(name, message) message,
-#include "include/status_code.h"
+#include "status_code.h"
 #undef STATUS
 };
 
 static const char *gab_token_names[] = {
 #define TOKEN(message) #message,
-#include "include/token.h"
+#include "token.h"
 #undef TOKEN
 };
 

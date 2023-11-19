@@ -1,6 +1,6 @@
 #include "../include/gab.h"
 #include "../include/os.h"
-#include "include/core.h"
+#include "core.h"
 #include <stdio.h>
 
 void gab_lib_prybreak(struct gab_triple gab, size_t argc,

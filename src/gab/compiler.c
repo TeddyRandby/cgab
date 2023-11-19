@@ -1,10 +1,9 @@
-#include "include/compiler.h"
-#include "include/char.h"
-#include "include/colors.h"
-#include "include/engine.h"
-#include "include/gab.h"
-#include "include/gc.h"
-#include "include/lexer.h"
+#include "compiler.h"
+#include "colors.h"
+#include "engine.h"
+#include "gab.h"
+#include "gc.h"
+#include "lexer.h"
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -65,10 +64,10 @@ struct lvalue {
 
 #define T struct lvalue
 #define NAME lvalue
-#include "include/vector.h"
+#include "vector.h"
 
 #define T uint16_t
-#include "include/vector.h"
+#include "vector.h"
 
 enum context_k {
   kIMPL,

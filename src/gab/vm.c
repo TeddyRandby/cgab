@@ -1,12 +1,11 @@
-#include "include/vm.h"
-#include "include/char.h"
-#include "include/colors.h"
-#include "include/compiler.h"
-#include "include/core.h"
-#include "include/engine.h"
-#include "include/gab.h"
-#include "include/gc.h"
-#include "include/lexer.h"
+#include "vm.h"
+#include "colors.h"
+#include "compiler.h"
+#include "core.h"
+#include "engine.h"
+#include "gab.h"
+#include "gc.h"
+#include "lexer.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -286,7 +285,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 
   static const void *dispatch_table[256] = {
 #define OP_CODE(name) &&code_##name,
-#include "include/bytecode.h"
+#include "bytecode.h"
 #undef OP_CODE
   };
 

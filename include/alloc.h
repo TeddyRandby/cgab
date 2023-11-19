@@ -1,7 +1,7 @@
 #ifndef GAB_ALLOC_H
 #define GAB_ALLOC_H
 
-#include "include/gab.h"
+#include "gab.h"
 
 #define CHUNK_MAX_SIZE 256
 

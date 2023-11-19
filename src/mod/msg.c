@@ -1,4 +1,4 @@
-#include "include/gab.h"
+#include "gab.h"
 
 void gab_lib_message(struct gab_triple gab, size_t argc,
                      gab_value argv[static argc]) {

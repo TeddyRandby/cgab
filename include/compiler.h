@@ -1,7 +1,7 @@
 #ifndef GAB_COMPILER_H
 #define GAB_COMPILER_H
 
-#include "include/gab.h"
+#include "gab.h"
 
 enum variable_flag {
   fVAR_CAPTURED = 1 << 0,

@@ -1,5 +1,5 @@
-#include "include/core.h"
-#include "include/gab.h"
+#include "core.h"
+#include "gab.h"
 #include <stdint.h>
 
 void gab_lib_specializes(struct gab_triple gab, size_t argc,

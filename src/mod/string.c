@@ -1,4 +1,4 @@
-#include "include/gab.h"
+#include "gab.h"
 #include <stdio.h>
 #include <string.h>
 

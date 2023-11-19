@@ -88,7 +88,7 @@ enum gab_kind {
 
 #define __GAB_TAGMASK (7)
 
-#define __GAB_VAL_TAG(val) ((uint64_t)((val)&__GAB_TAGMASK))
+#define __GAB_VAL_TAG(val) ((enum gab_kind)((val)&__GAB_TAGMASK))
 
 static inline double __gab_valtod(gab_value value) {
   return *(double *)(&value);

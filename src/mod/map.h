@@ -1,11 +1,11 @@
-#include "include/gab.h"
+#include "gab.h"
 
 #define K gab_value
 #define V gab_value
 #define DEF_V gab_undefined
 #define HASH(a) a
 #define EQUAL(a, b) (a == b)
-#include "include/dict.h"
+#include "dict.h"
 
 void map_destroy(void *data) {
   d_gab_value *self = data;

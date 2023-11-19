@@ -1,5 +1,5 @@
-#include "include/core.h"
-#include "include/gab.h"
+#include "core.h"
+#include "gab.h"
 #include <stdio.h>
 
 void file_cb(void *data) { fclose(data); }

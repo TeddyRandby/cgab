@@ -1,7 +1,7 @@
 #ifndef GAB_VM_H
 #define GAB_VM_H
 
-#include "include/gab.h"
+#include "gab.h"
 
 /**
  * The run-time representation of a callframe.

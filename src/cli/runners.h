@@ -1,4 +1,4 @@
-#include "include/gab.h"
+#include "gab.h"
 
 void repl(const char *module, uint8_t flags);
 

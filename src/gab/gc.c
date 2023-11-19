@@ -1,8 +1,8 @@
-#include "include/gc.h"
-#include "include/core.h"
-#include "include/engine.h"
-#include "include/gab.h"
-#include "include/vm.h"
+#include "gc.h"
+#include "core.h"
+#include "engine.h"
+#include "gab.h"
+#include "vm.h"
 #include <stdio.h>
 
 #if cGAB_DEBUG_GC

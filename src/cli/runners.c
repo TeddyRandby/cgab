@@ -1,6 +1,6 @@
-#include "include/natives.h"
-#include "include/gab.h"
-#include "include/os.h"
+#include "natives.h"
+#include "gab.h"
+#include "os.h"
 #include <stdio.h>
 
 #define MAIN_MODULE "__main__"

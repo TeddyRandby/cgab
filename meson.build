@@ -4,13 +4,16 @@ project('cgab',
   version: '0.1.0'
 )
 
-sources = files()
-subdir('src/gab')
 subdir('src/os')
+
+subdir('src/gab')
+
 subdir('src/cli')
 
+subdir('src/mod')
+
 cgab = shared_library('cgab',
-  sources,
+  [gab_src, os_src],
   install: true,
 )
 

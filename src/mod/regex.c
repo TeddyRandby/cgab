@@ -1,7 +1,7 @@
-#include "include/core.h"
-#include "include/gab.h"
-#include "include/object.h"
-#include "include/types.h"
+#include "core.h"
+#include "gab.h"
+#include "object.h"
+#include "types.h"
 #include <regex.h>
 #include <stdio.h>
 

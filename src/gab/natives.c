@@ -1,7 +1,7 @@
-#include "include/natives.h"
-#include "include/core.h"
-#include "include/gab.h"
-#include "include/os.h"
+#include "natives.h"
+#include "core.h"
+#include "gab.h"
+#include "os.h"
 #include <dlfcn.h>
 #include <stdio.h>
 

@@ -1,6 +1,6 @@
-#include "include/os.h"
-#include "include/core.h"
-#include "include/types.h"
+#include "os.h"
+#include "core.h"
+#include "types.h"
 #include "stdio.h"
 
 #if OS_UNIX

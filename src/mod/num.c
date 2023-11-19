@@ -1,5 +1,5 @@
 
-#include "include/gab.h"
+#include "gab.h"
 #include <assert.h>
 #include <stdio.h>
 #include <time.h>

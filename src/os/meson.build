@@ -1,4 +1,1 @@
-sources += files(
-  'char.c',
-  'os.c',
-)
+os_src = files('os.c',)

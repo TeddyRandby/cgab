@@ -1,5 +1,5 @@
 #include "list.h"
-#include "include/gab.h"
+#include "gab.h"
 #include <assert.h>
 
 void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {

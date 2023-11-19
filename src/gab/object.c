@@ -1,9 +1,9 @@
-#include "include/colors.h"
-#include "include/core.h"
-#include "include/engine.h"
-#include "include/gab.h"
-#include "include/types.h"
-#include "include/vm.h"
+#include "colors.h"
+#include "core.h"
+#include "engine.h"
+#include "gab.h"
+#include "types.h"
+#include "vm.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>

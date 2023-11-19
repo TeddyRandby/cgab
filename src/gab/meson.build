@@ -1,4 +1,4 @@
-sources += files(
+gab_src = files(
   'compiler.c',
   'engine.c',
   'gc.c',
