@@ -102,22 +102,22 @@ resource resources[] = {
     },
     // Installed resources
     {
-        .prefix = "/usr/local/share/cgab/",
+        .prefix = "/home/tr/gab/modules",
         .suffix = ".gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = "/usr/local/share/cgab/",
+        .prefix = "/home/tr/gab/modules",
         .suffix = "/mod.gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = "/usr/local/share/cgab/",
+        .prefix = "/home/tr/gab/modules",
         .suffix = "mod/mod.gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = "/usr/local/lib/libcgab",
+        .prefix = "/home/tr/gab/modules/libcgab",
         .suffix = ".so",
         .handler = gab_shared_object_handler,
     },

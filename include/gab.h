@@ -243,7 +243,7 @@ struct gab_obj_suspense;
 typedef void (*gab_gcvisit_f)(struct gab_triple, struct gab_obj *obj);
 
 typedef void (*gab_native_f)(struct gab_triple, size_t argc,
-                              gab_value argv[argc]);
+                             gab_value argv[argc]);
 
 typedef void (*gab_boxdestroy_f)(void *data);
 
@@ -807,7 +807,7 @@ static inline gab_value gab_shapewith(struct gab_triple gab, gab_value shape,
  */
 gab_value gab_nshape(struct gab_triple gab, uint64_t len);
 
-#define GAB_PROPERTY_NOT_FOUND ((size_t) -1)
+#define GAB_PROPERTY_NOT_FOUND ((size_t)-1)
 /**
  * Find the offset of a key in the shape.
  *
@@ -1193,21 +1193,22 @@ static inline gab_value gab_msgat(gab_value msg, gab_value receiver) {
   return gab_recat(obj->specs, receiver);
 }
 
-static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg, gab_value receiver, gab_value spec) {
+static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg,
+                                   gab_value receiver, gab_value spec) {
   assert(gab_valkind(msg) == kGAB_MESSAGE);
   assert(gab_valkind(spec) == kGAB_BLOCK || gab_valkind(spec) == kGAB_NATIVE);
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
 
   if (gab_msgfind(msg, receiver) != GAB_PROPERTY_NOT_FOUND)
     return gab_undefined;
-  
+
   obj->specs = gab_recordwith(gab, obj->specs, receiver, spec);
   obj->version++;
 
   // 255 is a sentinel value, so we can't use it
   if (obj->version == 255)
     obj->version = 0;
-  
+
   return msg;
 }
 
@@ -1319,8 +1320,7 @@ gab_value gab_native(struct gab_triple gab, gab_value name, gab_native_f f);
  *
  * @return The value.
  */
-gab_value gab_snative(struct gab_triple gab, const char *name,
-                       gab_native_f f);
+gab_value gab_snative(struct gab_triple gab, const char *name, gab_native_f f);
 
 struct gab_box_argt {
   gab_value type;

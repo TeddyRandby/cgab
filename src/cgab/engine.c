@@ -1,5 +1,4 @@
 #include "engine.h"
-#include "natives.h"
 #include "colors.h"
 #include "compiler.h"
 #include "core.h"
@@ -7,6 +6,7 @@
 #include "gc.h"
 #include "import.h"
 #include "lexer.h"
+#include "natives.h"
 #include "os.h"
 #include "types.h"
 #include "vm.h"
@@ -23,7 +23,7 @@ struct primitive {
 };
 
 /*
- * It is important that all primitives be FINAL - 
+ * It is important that all primitives be FINAL -
  * as in, it is not possible for a gab program to define some
  * specialization which would take precedence OVER the primitive.
  * This is becayse of how dynamic message sends handle primitives
@@ -247,7 +247,7 @@ gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
 }
 
 void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
-  gab_value prev = gab_nil;
+  a_gab_value *prev = NULL;
 
   for (;;) {
     printf("%s", args.prompt_prefix);
@@ -263,19 +263,33 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
       continue;
     }
 
-    const char *sargv[args.len + 1];
-    memcpy(sargv, args.sargv, args.len * sizeof(char *));
-    sargv[args.len] = "";
+    size_t prev_len = prev == NULL ? 0 : prev->len;
 
-    gab_value argv[args.len + 1];
-    memcpy(argv, args.argv, args.len * sizeof(gab_value));
-    argv[args.len] = prev;
+    /*
+     * Build a buffer holding the argument names.
+     * Arguments from the previous iteration should be empty strings.
+     */
+    const char *sargv[args.len + prev_len];
+
+    for (int i = 0; i < prev_len; i++) {
+      sargv[i] = "";
+    }
+
+    memcpy(sargv + prev_len, args.sargv, args.len * sizeof(char *));
+
+    gab_value argv[args.len + prev_len];
+
+    for (int i = 0; i < prev_len; i++) {
+      argv[i] = prev ? prev->data[i] : gab_nil;
+    }
+
+    memcpy(argv + prev_len, args.argv, args.len * sizeof(gab_value));
 
     a_gab_value *result = gab_exec(gab, (struct gab_exec_argt){
                                             .name = args.name,
                                             .source = (char *)src->data,
                                             .flags = args.flags,
-                                            .len = args.len + 1,
+                                            .len = args.len + prev_len,
                                             .sargv = sargv,
                                             .argv = argv,
                                         });
@@ -296,10 +310,12 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
         printf("%V, ", arg);
     }
 
-    prev = result->data[0];
-
-    a_gab_value_destroy(result);
     printf("\n");
+
+    if (prev)
+      a_gab_value_destroy(prev);
+
+    prev = result;
   }
 }
 

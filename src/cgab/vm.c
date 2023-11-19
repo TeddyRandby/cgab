@@ -13,8 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-void gab_vm_container_cb(void *data) { DESTROY(data); }
-
 static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
   struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(f->b->p);
 
@@ -23,8 +21,23 @@ static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
   return v_uint64_t_val_at(&p->bytecode_toks, offset);
 }
 
-gab_value vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
-                   const char *help_fmt, ...) {
+void boxed_vm_destructor(void *data) { DESTROY(data); }
+
+void boxed_vm_visitor(struct gab_triple gab, gab_gcvisit_f f, void *data) {
+  struct gab_vm *vm = data;
+
+  gab_value *tracker = vm->sp - 1;
+
+  while (tracker != vm->sb) {
+    if (gab_valiso(*tracker))
+      f(gab, gab_valtoo(*tracker));
+
+    tracker--;
+  }
+}
+
+a_gab_value *vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
+                      const char *help_fmt, ...) {
 
   va_list va;
   va_start(va, help_fmt);
@@ -46,7 +59,18 @@ gab_value vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
 
   va_end(va);
 
-  return gab_nil;
+  gab_value results[] = {
+      gab_string(gab, gab_status_names[e]),
+      gab_box(gab,
+              (struct gab_box_argt){
+                  .data = gab.vm,
+                  .type = gab_string(gab, "gab.vm"),
+                  .destructor = boxed_vm_destructor,
+                  .visitor = boxed_vm_visitor,
+              }),
+  };
+
+  return a_gab_value_create(results, sizeof(results) / sizeof(gab_value));
 }
 
 gab_value gab_vm_panic(struct gab_triple gab, const char *msg) {
@@ -397,7 +421,7 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 #define SEND_CACHE_DIST 22
 
 #define ERROR(status, help, ...)                                               \
-  (a_gab_value_one(vm_error(GAB(), flags, status, help, __VA_ARGS__)))
+  (vm_error(GAB(), flags, status, help, __VA_ARGS__))
 
   /*
    ----------- BEGIN RUN BODY -----------
@@ -910,12 +934,13 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       if (--FRAME() == VM()->fb) {
         gab_ngciref(GAB(), 1, have, to);
 
-        a_gab_value *results = a_gab_value_create(to, have);
+        a_gab_value *results = a_gab_value_empty(have + 1);
+        results->data[0] = gab_string(gab, "ok");
+        memcpy(results->data + 1, to, have * sizeof(gab_value));
 
         VM()->sp = VM()->sb;
 
         gab_vmdestroy(EG(), VM());
-
         DESTROY(VM());
         GAB().vm = NULL;
 
