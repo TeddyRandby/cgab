@@ -85,7 +85,6 @@ struct gab_err_argt {
   const char *note_fmt;
   struct gab_src* src;
   gab_value context;
-  size_t flags;
   size_t tok;
 };
 

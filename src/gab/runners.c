@@ -42,7 +42,7 @@ void run_src(struct gab_triple gab, s_char src, const char *module, char delim,
       delim = ' ';
 
     for (;;) {
-      a_char *line = os_read_fd_line(stdin);
+      a_char *line = gab_fosreadl(stdin);
 
       if (line->data[0] == EOF || line->data[0] == '\0')
         break;
@@ -108,7 +108,7 @@ void run_string(const char *string, const char *module, char delim,
 void run_file(const char *path, const char *module, char delim, uint8_t flags) {
   struct gab_triple gab = gab_create();
 
-  a_char *src = os_read_file(path);
+  a_char *src = gab_osread(path);
 
   run_src(gab, s_char_create(src->data, src->len), module, delim, flags);
 

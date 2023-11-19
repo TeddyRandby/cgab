@@ -39,25 +39,26 @@ void boxed_vm_visitor(struct gab_triple gab, gab_gcvisit_f f, void *data) {
 a_gab_value *vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
                       const char *help_fmt, ...) {
 
-  va_list va;
-  va_start(va, help_fmt);
-
   struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(gab.vm->fp->b->p);
 
   size_t tok = compute_token_from_ip(gab.vm->fp);
 
-  gab_verr(
-      (struct gab_err_argt){
-          .tok = tok,
-          .context = p->name,
-          .note_fmt = help_fmt,
-          .flags = flags,
-          .src = p->src,
-          .status = e,
-      },
-      va);
+  if (flags & fGAB_DUMP_ERROR) {
+    va_list va;
+    va_start(va, help_fmt);
 
-  va_end(va);
+    gab_verr(
+        (struct gab_err_argt){
+            .tok = tok,
+            .context = p->name,
+            .note_fmt = help_fmt,
+            .src = p->src,
+            .status = e,
+        },
+        va);
+
+    va_end(va);
+  }
 
   gab_value results[] = {
       gab_string(gab, gab_status_names[e]),

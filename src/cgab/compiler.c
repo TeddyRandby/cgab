@@ -1,5 +1,6 @@
 #include "compiler.h"
 #include "colors.h"
+#include "core.h"
 #include "engine.h"
 #include "gab.h"
 #include "gc.h"
@@ -393,7 +394,8 @@ static inline void push_dynsend(struct bc *bc, uint8_t have, bool mv,
   push_byte(bc, 1, t); // Default to wnating one
 
   push_byte(bc, 255, t); // Push the sentinel version value
-  push_nnop(bc, 16, t); // Push space for the inline cache (will be unused, but necessary to mimic sends)
+  push_nnop(bc, 16, t);  // Push space for the inline cache (will be unused, but
+                         // necessary to mimic sends)
 }
 
 static inline void push_send(struct bc *bc, uint16_t m, uint8_t have, bool mv,
@@ -607,7 +609,8 @@ static inline uint16_t peek_slot(struct bc *bc) {
 
 #define push_slot(bc, n) _push_slot(bc, n, __PRETTY_FUNCTION__, __LINE__)
 
-static inline void _push_slot(struct bc *bc, uint16_t n, const char *file, int line) {
+static inline void _push_slot(struct bc *bc, uint16_t n, const char *file,
+                              int line) {
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;
 
@@ -649,7 +652,8 @@ static inline void push_slot(struct bc *bc, uint16_t n) {
 
 #define pop_slot(bc, n) _pop_slot(bc, n, __FUNCTION__, __LINE__)
 
-static inline void _pop_slot(struct bc *bc, uint16_t n, const char *file, int line) {
+static inline void _pop_slot(struct bc *bc, uint16_t n, const char *file,
+                             int line) {
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;
 
@@ -2741,13 +2745,13 @@ int compile_exp_amp(struct bc *bc, bool assignable) {
 int compile_exp_dyn(struct bc *bc, bool assignable) {
   if (expect_token(bc, TOKEN_LPAREN) < 0)
     return COMP_ERR;
-  
+
   if (compile_expression(bc) < 0)
     return COMP_ERR;
 
   if (expect_token(bc, TOKEN_RPAREN) < 0)
     return COMP_ERR;
-  
+
   size_t t = bc->offset - 1;
 
   bool mv = false;
@@ -3354,24 +3358,25 @@ static void compiler_error(struct bc *bc, enum gab_status e,
 
   bc->panic = true;
 
-  va_list va;
-  va_start(va, note_fmt);
-
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;
 
-  gab_verr(
-      (struct gab_err_argt){
-          .src = bc->src,
-          .context = f->name,
-          .status = e,
-          .tok = bc->offset - 1,
-          .flags = bc->flags,
-          .note_fmt = note_fmt,
-      },
-      va);
+  if (bc->flags & fGAB_DUMP_ERROR) {
+    va_list va;
+    va_start(va, note_fmt);
 
-  va_end(va);
+    gab_verr(
+        (struct gab_err_argt){
+            .src = bc->src,
+            .context = f->name,
+            .status = e,
+            .tok = bc->offset - 1,
+            .note_fmt = note_fmt,
+        },
+        va);
+
+    va_end(va);
+  }
 }
 
 uint64_t dumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
@@ -3386,7 +3391,7 @@ uint64_t dumpSimpleInstruction(FILE *stream, struct gab_obj_block_proto *self,
 }
 
 uint64_t dumpDynSendInstruction(FILE *stream, struct gab_obj_block_proto *self,
-                             uint64_t offset) {
+                                uint64_t offset) {
   const char *name =
       gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
 
@@ -3397,7 +3402,8 @@ uint64_t dumpDynSendInstruction(FILE *stream, struct gab_obj_block_proto *self,
   have = have >> 1;
 
   fprintf(stream,
-          "%-25s" "(%s%d) -> %d\n",
+          "%-25s"
+          "(%s%d) -> %d\n",
           name, var ? "& more" : "", have, want);
   return offset + 22;
 }

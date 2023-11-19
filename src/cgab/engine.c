@@ -251,7 +251,7 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
 
   for (;;) {
     printf("%s", args.prompt_prefix);
-    a_char *src = os_read_fd_line(stdin);
+    a_char *src = gab_fosreadl(stdin);
 
     if (src->data[0] == EOF) {
       a_char_destroy(src);
@@ -691,12 +691,9 @@ gab_value gab_tuple(struct gab_triple gab, uint64_t size,
 }
 
 void gab_verr(struct gab_err_argt args, va_list varargs) {
-  if (!(args.flags & fGAB_DUMP_ERROR))
-    return;
-
   if (!args.src) {
     fprintf(stderr,
-            "\n[" ANSI_COLOR_GREEN "%V" ANSI_COLOR_RESET "]" ANSI_COLOR_YELLOW
+            "[" ANSI_COLOR_GREEN "%V" ANSI_COLOR_RESET "]" ANSI_COLOR_YELLOW
             " %s. " ANSI_COLOR_RESET " " ANSI_COLOR_GREEN,
             args.context, gab_status_names[args.status]);
 

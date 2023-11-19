@@ -2,7 +2,6 @@
 #include "core.h"
 #include "gab.h"
 #include "os.h"
-#include <dlfcn.h>
 #include <stdio.h>
 
 #define MODULE_SYMBOL "gab_lib"
@@ -19,17 +18,17 @@ typedef struct {
 
 a_gab_value *gab_shared_object_handler(struct gab_triple gab,
                                        const char *path) {
-  void *handle = dlopen(path, RTLD_LAZY);
+  void *handle = gab_osdlopen(path);
 
   if (!handle) {
     gab_panic(gab, "Couldn't open module");
     return NULL;
   }
 
-  module_f symbol = dlsym(handle, MODULE_SYMBOL);
+  module_f symbol = gab_osdlsym(handle, MODULE_SYMBOL);
 
   if (!symbol) {
-    dlclose(handle);
+    gab_osdlclose(handle);
     gab_panic(gab, "Missing symbol " MODULE_SYMBOL);
     return NULL;
   }
@@ -42,7 +41,7 @@ a_gab_value *gab_shared_object_handler(struct gab_triple gab,
 }
 
 a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
-  a_char *src = os_read_file(path);
+  a_char *src = gab_osread(path);
 
   if (src == NULL)
     return a_gab_value_one(gab_panic(gab, "Failed to read module"));
@@ -217,17 +216,15 @@ void gab_setup_natives(struct gab_triple gab) {
                     .specialization = gab_snative(gab, "use", gab_lib_use),
                 });
 
-  gab_spec(gab,
-           (struct gab_spec_argt){
-               .name = "panic",
-               .receiver = gab_type(gab.eg, kGAB_STRING),
-               .specialization = gab_snative(gab, "panic", gab_lib_panic),
-           });
+  gab_spec(gab, (struct gab_spec_argt){
+                    .name = "panic",
+                    .receiver = gab_type(gab.eg, kGAB_STRING),
+                    .specialization = gab_snative(gab, "panic", gab_lib_panic),
+                });
 
-  gab_spec(gab,
-           (struct gab_spec_argt){
-               .name = "print",
-               .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
-               .specialization = gab_snative(gab, "print", gab_lib_print),
-           });
+  gab_spec(gab, (struct gab_spec_argt){
+                    .name = "print",
+                    .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
+                    .specialization = gab_snative(gab, "print", gab_lib_print),
+                });
 }
