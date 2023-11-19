@@ -607,9 +607,9 @@ static inline uint16_t peek_slot(struct bc *bc) {
 
 #define push_slot(bc, n) _push_slot(bc, n, __PRETTY_FUNCTION__, __LINE__)
 
-static inline void _push_slot(bc *bc, uint16_t n, const char *file, int line) {
+static inline void _push_slot(struct bc *bc, uint16_t n, const char *file, int line) {
   int ctx = peek_ctx(bc, kFRAME, 0);
-  frame *f = &bc->contexts[ctx].as.frame;
+  struct frame *f = &bc->contexts[ctx].as.frame;
 
   if (f->next_slot + n >= UINT16_MAX) {
     compiler_error(bc, GAB_PANIC,
@@ -649,9 +649,9 @@ static inline void push_slot(struct bc *bc, uint16_t n) {
 
 #define pop_slot(bc, n) _pop_slot(bc, n, __FUNCTION__, __LINE__)
 
-static inline void _pop_slot(bc *bc, uint16_t n, const char *file, int line) {
+static inline void _pop_slot(struct bc *bc, uint16_t n, const char *file, int line) {
   int ctx = peek_ctx(bc, kFRAME, 0);
-  frame *f = &bc->contexts[ctx].as.frame;
+  struct frame *f = &bc->contexts[ctx].as.frame;
 
   if (f->next_slot - n < 0) {
     compiler_error(bc, GAB_PANIC,
@@ -956,7 +956,7 @@ static gab_value pop_ctxframe(struct bc *bc) {
   assert(match_ctx(bc, kFRAME));
 
   if (pop_ctx(bc, kFRAME) < 0)
-    return NULL;
+    return gab_undefined;
 
   return p;
 }
@@ -1198,6 +1198,8 @@ int compile_block(struct bc *bc, gab_value name) {
     return COMP_ERR;
 
   gab_value p = pop_ctxframe(bc);
+  if (p == gab_undefined)
+    return COMP_ERR;
 
   push_op(bc, OP_BLOCK, bc->offset - 1);
   push_short(bc, addk(bc, p), bc->offset - 1);
@@ -1222,6 +1224,8 @@ int compile_message(struct bc *bc, gab_value name) {
     return COMP_ERR;
 
   gab_value p = pop_ctxframe(bc);
+  if (p == gab_undefined)
+    return COMP_ERR;
 
   // Create the closure, adding a specialization to the pushed function.
   push_op(bc, OP_MESSAGE, bc->offset - 1);
@@ -3314,6 +3318,8 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   push_ret(bc, !mv, mv, bc->offset - 1);
 
   gab_value p = pop_ctxframe(bc);
+  if (p == gab_undefined)
+    return COMP_ERR;
 
   gab_value main = gab_block(gab(bc), p);
 

@@ -1,31 +1,67 @@
-CFLAGS 			 = -g -Wall -std=c2x -fPIC
-BUILD_PREFIX = build
-SRC_PREFIX 	 = src/**
-INCLUDE			 = -Iinclude
-LD_CGAB			 = -L$(BUILD_PREFIX) -lcgab
+CFLAGS 			 = -g -std=c2x -fPIC -MMD
+
+SRC_PREFIX 	 	 	= src/**
+BUILD_PREFIX 	 	= build
+INCLUDE_PREFIX 	= include
+
+INCLUDE	= -I$(INCLUDE_PREFIX)
+LD_CGAB	= -L$(BUILD_PREFIX) -lcgab
 
 OS_SRC = $(wildcard src/os/*.c)
 OS_OBJ = $(OS_SRC:src/os/%.c=$(BUILD_PREFIX)/%.o)
 
-CGAB_SRC = $(wildcard src/gab/*.c)
-CGAB_OBJ = $(CGAB_SRC:src/gab/%.c=$(BUILD_PREFIX)/%.o)
+CGAB_SRC = $(wildcard src/cgab/*.c)
+CGAB_OBJ = $(CGAB_SRC:src/cgab/%.c=$(BUILD_PREFIX)/%.o)
 
-CLI_SRC = $(wildcard src/cli/*.c)
-CLI_OBJ = $(CLI_SRC:src/cli/%.c=$(BUILD_PREFIX)/%.o)
+GAB_SRC = $(wildcard src/gab/*.c)
+GAB_OBJ = $(GAB_SRC:src/gab/%.c=$(BUILD_PREFIX)/%.o)
 
-$(echo $(CLI_SRC))
+MOD_SRC = $(wildcard src/mod/*.c)
+MOD_OBJ = $(MOD_SRC:src/mod/%.c=$(BUILD_PREFIX)/libcgab%.o)
 
-all: $(BUILD_PREFIX)/cli
+all: $(BUILD_PREFIX)/gab modules
 
-$(BUILD_PREFIX)/cli: $(CLI_OBJ) $(BUILD_PREFIX)/libcgab
-	$(CC) $(CFLAGS) $(INCLUDE) $(LD_CGAB) $(CLI_OBJ) -o $@
+-include $(OS_OBJ:.o=.d) $(CGAB_OBJ:.o=.d) $(GAB_OBJ:.o=.d) $(MOD_OBJ:.o=.d)
 
-$(BUILD_PREFIX)/libcgab: $(OS_OBJ) $(CGAB_OBJ)
+modules: $(MOD_OBJ)
+
+$(BUILD_PREFIX)/gab: $(GAB_OBJ) $(BUILD_PREFIX)/libcgab.so
+	$(CC) $(CFLAGS) $(INCLUDE) $(LD_CGAB) $(GAB_OBJ) -o $@
+
+$(BUILD_PREFIX)/libcgab.so: $(OS_OBJ) $(CGAB_OBJ)
 	$(CC) $(CFLAGS) $(INCLUDE) $(CGAB_OBJ) $(OS_OBJ) --shared -o $@
 
 $(BUILD_PREFIX)/%.o: $(SRC_PREFIX)/%.c
-	$(CC) $(CFLAGS) $(INCLUDE) -MMD $< -c -o $@
+	$(CC) $(CFLAGS) $(INCLUDE) $< -c -o $@
+
+$(BUILD_PREFIX)/libcgab%.o: $(SRC_PREFIX)/%.c
+	$(CC) $(CFLAGS) $(INCLUDE) $(LD_CGAB)  $< -c -o $@
+
+INSTALL_PREFIX = /usr/local
+GAB_PATH 			 = $${HOME}/gab
+# CUrrent gotcha with running this as root
+
+install_dev:
+	install -vCDt $(INSTALL_PREFIX)/include/gab $(INCLUDE_PREFIX)/*
+	install -vC $(BUILD_PREFIX)/libcgab.so $(INSTALL_PREFIX)/lib
+
+install_modules: modules
+	install -vCDt $(GAB_PATH)/modules $(MOD_OBJ)
+
+install_gab: $(BUILD_PREFIX)/gab
+	install -vC $(BUILD_PREFIX)/gab $(INSTALL_PREFIX)/bin
+
+install: install_gab
+
+uninstall:
+	rm -rf $(INSTALL_PREFIX)/include/gab
+	rm $(INSTALL_PREFIX)/lib/libcgab.so
+	rm $(INSTALL_PREFIX)/bin/gab
+
+compile_commands:
+	make clean
+	bear -- make
 
 .PHONY: clean
 clean:
-	rm $(BUILD_PREFIX)/*
+	rm -v $(BUILD_PREFIX)/*

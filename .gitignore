@@ -3,3 +3,4 @@ bin/
 .cache/
 .vscode/
 .lute
+compile_commands.json

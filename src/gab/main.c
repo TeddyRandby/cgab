@@ -21,7 +21,7 @@ void print_help(FILE *stream) {
                   "\t-v\tPrint version\n");
 }
 
-[[noreturn]] void throw_err(const char *msg) {
+void throw_err(const char *msg) {
   fprintf(stderr, "Error: %s\n", msg);
   print_help(stderr);
   exit(1);
@@ -80,7 +80,7 @@ int32_t run_3_args(const char *arg_flags, const char *arg1) {
     if (module_arg(arg_flags))
       throw_err("Too few arguments for e and d flags");
 
-    run_string(arg1, NULL, NULL, flags);
+    run_string(arg1, NULL, 0, flags);
     return 0;
   }
 
@@ -89,7 +89,7 @@ int32_t run_3_args(const char *arg_flags, const char *arg1) {
     return 0;
   }
 
-  run_file(arg1, NULL, NULL, flags);
+  run_file(arg1, NULL, 0, flags);
   return 0;
 }
 
@@ -102,7 +102,7 @@ int32_t run_4_args(const char *arg_flags, const char *arg1, const char *arg2) {
       if (delimit_arg(arg_flags))
         throw_err("Too few arguments for e, r, and d flags");
 
-      run_string(arg2, arg1, NULL, flags);
+      run_string(arg2, arg1, 0, flags);
       return 0;
     }
 
@@ -118,7 +118,7 @@ int32_t run_4_args(const char *arg_flags, const char *arg1, const char *arg2) {
   }
 
   if (module_arg(arg_flags)) {
-    run_file(arg2, arg1, NULL, flags);
+    run_file(arg2, arg1, 0, flags);
     return 0;
   }
 
@@ -150,7 +150,7 @@ int32_t main(int32_t argc, const char **argv) {
       return 0;
     }
 
-    run_file(argv[1], NULL, NULL, fGAB_DUMP_ERROR);
+    run_file(argv[1], NULL, 0, fGAB_DUMP_ERROR);
     return 0;
 
   case 3:

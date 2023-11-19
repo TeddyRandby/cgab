@@ -697,7 +697,7 @@ void gab_verr(struct gab_err_argt args, va_list varargs) {
 
   s_char line_src = v_s_char_val_at(&args.src->lines, line - 1);
 
-  while (is_whitespace(*line_src.data)) {
+  while (*line_src.data == ' ' || *line_src.data == '\t') {
     line_src.data++;
     line_src.len--;
     if (line_src.len == 0)
