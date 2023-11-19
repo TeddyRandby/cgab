@@ -196,7 +196,7 @@ The implementation searches for the following, in order:
  Files ending in the `.gab` extension are evaluated, and the result of the last top-level expression is returned to the caller of `:use`. Files ending in the `.so` extension are opened dynamically, and searched for the symbol `gab_lib`. The result of this function is returned to the caller.
 
 Most of the time, the return value of the `:use` call can be ignored. It is just called once to define the messages in the module. For example, the `io` module defines three messages:
- - `:open`, which returns a `<File>` handle
+ - `:io.open`, which returns a `<File>` handle
  - `<File>:read`
  - `<File>:write`
 And thats it!
@@ -211,18 +211,15 @@ There are some modules bundled with the main cli.
   - *symbol*: The `:symbol` constructor (Useful for libraries and namespacing)
   - *fiber*: The `:fiber` constructor (Multi-threading)
   - *io*: See above
-  - *regex*: Basically a wrapper for posix regex
   - *socket*: Basically a wrapper for posix sockets
   - *dis*: Disassemble your blocks into bytecode for debugging purposes
   - *pry*: Pry into the callstack for debugging purposes
 # Dependencies
 libc is the only dependency for the interpreter. However, some libraries (such as http and term) depend on some c libraries. 
 # Installation
-This project is built with Meson. To install it:
-  - Clone this repo.
-  - run `meson setup -Dbuildtype=release -Dprefix=<your install prefix> build`
-  - run `meson install`
-#### Alternative - `c l i d e`
-[Clide](https://github.com/TeddyRandby/clide) is a tool for managing shell scripts for projects. To build this project with Clide, run:
-  - `clide configure`, and complete the prompts
-  - `clide install`
+This project is built with `Make`. The `Makefile` expects some environment variables to be present. Specifically:
+  - `GAB_PREFIX`: A place for gab to install data without root. This is for packages and other kinds of things.
+  - `GAB_INSTALLPREFIX`: Where gab should install itself - the executable, header files, libcgab, etc.
+  - `GAB_CFLAGS`: Additional flags ot pass to the c compiler.
+
+[Clide](https://github.com/TeddyRandby/clide) is a tool for managing shell scripts for projects. This project uses it to manage useful scripts and build configuration. To configure and build with clide, run `clide build` and complete the prompts. 
