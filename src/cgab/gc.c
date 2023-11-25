@@ -163,6 +163,7 @@ static inline void queue_modification(struct gab_triple gab,
 #endif
 
   gab.gc->modifications[gab.gc->nmodifications++] = obj;
+  GAB_OBJ_MODIFIED(obj);
 
 #if cGAB_LOG_GC
   printf("QMOD\t%V\t%p\t%i\t%s:%i\n", __gab_obj(obj), obj, obj->references,
@@ -171,9 +172,6 @@ static inline void queue_modification(struct gab_triple gab,
 }
 
 void queue_decrement(struct gab_triple gab, struct gab_obj *obj) {
-  // if (GAB_OBJ_IS_NEW(obj) && obj->references > 1)
-  //   return;
-
   if (gab.gc->ndecrements + 1 >= cGAB_GC_DEC_BUFF_MAX)
     gab_gcrun(gab);
 
@@ -202,6 +200,16 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
   if (!GAB_OBJ_IS_GREEN(obj))
     GAB_OBJ_BLACK(obj);
 
+  if (GAB_OBJ_IS_MODIFIED(obj)) {
+
+#if cGAB_LOG_GC
+    printf("EINC\t%V\t%p\t%d\t%s\n", __gab_obj(obj), obj, obj->references,
+           __FUNCTION__);
+#endif
+
+    return;
+  }
+
   if (GAB_OBJ_IS_NEW(obj)) {
 #if cGAB_LOG_GC
     printf("NEW\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
@@ -212,22 +220,8 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
 #else
     queue_modification(gab, obj);
 #endif
-    
-    GAB_OBJ_MODIFIED(obj);
+
     GAB_OBJ_NOT_NEW(obj);
-
-    return;
-  }
-
-  /*
-   * If the object is already modified, we leave its color unchanged
-   */
-  if (GAB_OBJ_IS_MODIFIED(obj)) {
-
-#if cGAB_LOG_GC
-    printf("EINC\t%V\t%p\t%d\t%s\n", __gab_obj(obj), obj, obj->references,
-           __FUNCTION__);
-#endif
 
     return;
   }
@@ -299,21 +293,6 @@ gab_value gab_gciref(struct gab_triple gab, gab_value value) {
   }
 #endif
 
-  if (GAB_OBJ_IS_NEW(obj)) {
-    inc_obj_ref(gab, obj);
-
-    if (!GAB_OBJ_IS_MODIFIED(obj)) {
-#if cGAB_LOG_GC
-      queue_modification(gab, obj, func, line);
-#else
-      queue_modification(gab, obj);
-#endif
-      GAB_OBJ_MODIFIED(obj);
-    }
-
-    return value;
-  }
-
   if (GAB_OBJ_IS_MODIFIED(obj)) {
     obj->references++;
 
@@ -325,22 +304,17 @@ gab_value gab_gciref(struct gab_triple gab, gab_value value) {
     return value;
   }
 
-  /*
-   * Pass off to inc_obj_ref
-   */
-  inc_obj_ref(gab, obj);
+  if (!GAB_OBJ_IS_NEW(obj)) {
+    for_child_do(obj, queue_decrement, gab);
 
 #if cGAB_LOG_GC
-  queue_modification(gab, obj, func, line);
+    queue_modification(gab, obj, func, line);
 #else
-  queue_modification(gab, obj);
+    queue_modification(gab, obj);
 #endif
-  GAB_OBJ_MODIFIED(obj);
+  }
 
-  /*
-   * See gc_dref for an explanation of this.
-   */
-  for_child_do(obj, queue_decrement, gab);
+  inc_obj_ref(gab, obj);
 
   return value;
 }
@@ -366,8 +340,7 @@ gab_value gab_gcdref(struct gab_triple gab, gab_value value) {
   }
 #endif
 
-  if (GAB_OBJ_IS_NEW(obj) && !GAB_OBJ_IS_MODIFIED(obj)) {
-    // GAB_OBJ_MODIFIED(obj);
+  if (GAB_OBJ_IS_NEW(obj)) {
 #if cGAB_LOG_GC
     queue_decrement(gab, obj);
 #else
@@ -378,21 +351,9 @@ gab_value gab_gcdref(struct gab_triple gab, gab_value value) {
 
   obj->references--;
 
-  /*
-   * If the object doesn't survive, mark it black. This way
-   * if it was previously pushed into the root buffer,
-   * it will be skipped.
-   */
   if (!GAB_OBJ_IS_GREEN(obj) && obj->references <= 0)
     GAB_OBJ_BLACK(obj);
 
-  /*
-   * Objects are only pushed into the modification buffer
-   * at their first modification since the last collection.
-   *
-   * This is because it is only necessary to know the state of
-   * the object at its initial RC, and at its final (during collection).
-   */
   if (GAB_OBJ_IS_MODIFIED(obj)) {
 
 #if cGAB_LOG_GC
@@ -403,36 +364,13 @@ gab_value gab_gcdref(struct gab_triple gab, gab_value value) {
     return value;
   }
 
-  /*
-   * This is the objects first modification since the last collection.
-   * Queue it into the modification buffer and mark it modified.
-   */
+  for_child_do(obj, queue_decrement, gab);
+
 #if cGAB_LOG_GC
   queue_modification(gab, obj, func, line);
 #else
   queue_modification(gab, obj);
 #endif
-  GAB_OBJ_MODIFIED(obj);
-
-  /*
-   * This is how we *remember* the state of the the object at its
-   * initial modification event. Here, we decrement all of its current
-   * children.
-   *
-   * Then, during collection, we increment all the children of each modified
-   * object.
-   *
-   * This way:
-   *  - each child that was present at event-time and not at collection-time
-   *    receives only this decrement.
-   *  - each child that was present at collection-time and not at event-time
-   *     receives only the collection-time increment.
-   *  - any children present at both event-time and collection-time receive
-   *     this decrement *and* the collection-time increment, which cancel out.
-   *  - if this object is freed during collection time (while processing
-   * modification), the collection time-increment is skipped.
-   */
-  for_child_do(obj, queue_decrement, gab);
 
   return value;
 }
