@@ -205,12 +205,12 @@ void gab_destroy(struct gab_triple gab) {
   //   gab.eg->prototypes = gab.eg->prototypes->next;
   // }
 
-  for (size_t i = 0; i < gab.eg->interned_messages.cap; i++) {
-    if (d_messages_iexists(&gab.eg->interned_messages, i)) {
-      gab_gcdref(gab,
-                 __gab_obj(d_messages_ikey(&gab.eg->interned_messages, i)));
-    };
-  }
+  // for (size_t i = 0; i < gab.eg->interned_messages.cap; i++) {
+  //   if (d_messages_iexists(&gab.eg->interned_messages, i)) {
+  //     gab_gcdref(gab,
+  //                __gab_obj(d_messages_ikey(&gab.eg->interned_messages, i)));
+  //   };
+  // }
 
   gab_gcrun(gab);
 

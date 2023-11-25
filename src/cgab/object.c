@@ -370,7 +370,7 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
   d_messages_insert(&gab.eg->interned_messages, self, 0);
 
   /* The message is owned by the engine. */
-  return gab_gciref(gab, __gab_obj(self));
+  return __gab_obj(self);
 }
 
 gab_value gab_native(struct gab_triple gab, gab_value name, gab_native_f f) {
