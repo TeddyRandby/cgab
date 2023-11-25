@@ -933,11 +933,11 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
       TOP() = trim_return(from, to, have, FRAME()->want);
 
       if (--FRAME() == VM()->fb) {
-        gab_ngciref(GAB(), 1, have, to);
-
         a_gab_value *results = a_gab_value_empty(have + 1);
         results->data[0] = gab_string(gab, "ok");
         memcpy(results->data + 1, to, have * sizeof(gab_value));
+
+        gab_ngciref(GAB(), 1, results->len, results->data);
 
         VM()->sp = VM()->sb;
 

@@ -101,17 +101,17 @@ resource resources[] = {
     },
     // Installed resources
     {
-        .prefix = "/home/tr/gab/modules",
+        .prefix = "/home/tr/gab/modules/",
         .suffix = ".gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = "/home/tr/gab/modules",
+        .prefix = "/home/tr/gab/modules/",
         .suffix = "/mod.gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = "/home/tr/gab/modules",
+        .prefix = "/home/tr/gab/modules/",
         .suffix = "mod/mod.gab",
         .handler = gab_source_file_handler,
     },
