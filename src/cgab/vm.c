@@ -195,7 +195,8 @@ static inline bool has_callspace(struct gab_vm *vm, size_t space_needed) {
 static inline bool call_suspense(struct gab_vm *vm,
                                  struct gab_obj_suspense *sus, uint8_t have,
                                  uint8_t want) {
-  int32_t space_needed = sus->len;
+  struct gab_obj_record *frame = GAB_VAL_TO_RECORD(sus->f);
+  int32_t space_needed = frame->len;
 
   if (space_needed > 0 && !has_callspace(vm, space_needed))
     return false;
@@ -210,10 +211,10 @@ static inline bool call_suspense(struct gab_vm *vm,
   vm->fp->slots = vm->sp - have - 1;
 
   gab_value *from = vm->sp - have;
-  gab_value *to = vm->fp->slots + sus->len;
+  gab_value *to = vm->fp->slots + frame->len;
 
   vm->sp = trim_return(from, to, have, proto->want);
-  memcpy(vm->fp->slots, sus->frame, sus->len * sizeof(gab_value));
+  memcpy(vm->fp->slots, frame->data, frame->len * sizeof(gab_value));
 
   return true;
 }

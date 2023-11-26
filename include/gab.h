@@ -1196,7 +1196,8 @@ static inline gab_value gab_msgat(gab_value msg, gab_value receiver) {
 static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg,
                                    gab_value receiver, gab_value spec) {
   assert(gab_valkind(msg) == kGAB_MESSAGE);
-  assert(gab_valkind(spec) == kGAB_BLOCK || gab_valkind(spec) == kGAB_NATIVE);
+  assert(gab_valkind(spec) == kGAB_PRIMITIVE ||
+         gab_valkind(spec) == kGAB_BLOCK || gab_valkind(spec) == kGAB_NATIVE);
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
 
   if (gab_msgfind(msg, receiver) != GAB_PROPERTY_NOT_FOUND)
@@ -1270,11 +1271,7 @@ gab_value gab_susproto(struct gab_triple gab, struct gab_src *src,
 struct gab_obj_suspense {
   struct gab_obj header;
 
-  uint16_t len;
-
-  gab_value p, b;
-
-  gab_value frame[FLEXIBLE_ARRAY];
+  gab_value p, b, f;
 };
 
 #define GAB_VAL_TO_SUSPENSE(value)                                             \

@@ -332,17 +332,7 @@ void gab_nspec(struct gab_triple gab, size_t len,
 gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
   gab_value n = gab_string(gab, args.name);
   gab_value m = gab_message(gab, n);
-
-  if (gab_msgfind(m, args.receiver) != UINT64_MAX)
-    return gab_nil;
-
-  struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(m);
-
-  msg->specs =
-      gab_recordwith(gab, msg->specs, args.receiver, args.specialization);
-  msg->version++;
-
-  return m;
+  return gab_msgput(gab, m, args.receiver, args.specialization);
 }
 
 struct gab_obj_message *gab_eg_find_message(struct gab_eg *self, gab_value name,
@@ -615,17 +605,12 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
 
   case kGAB_SUSPENSE: {
     struct gab_obj_suspense *self = GAB_VAL_TO_SUSPENSE(value);
-
-    gab_value frame[self->len];
+    struct gab_obj_record *data = GAB_VAL_TO_RECORD(self->f);
 
     gab_value p_copy = gab_valcpy(gab, self->p);
-
-    for (uint64_t i = 0; i < self->len; i++)
-      frame[i] = gab_valcpy(gab, self->frame[i]);
-
     gab_value b_copy = gab_valcpy(gab, self->b);
 
-    return gab_suspense(gab, self->len, b_copy, p_copy, frame);
+    return gab_suspense(gab, data->len, b_copy, p_copy, data->data);
   }
   }
 }
