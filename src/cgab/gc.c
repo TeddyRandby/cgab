@@ -1,8 +1,6 @@
-#include "gc.h"
 #include "core.h"
 #include "engine.h"
 #include "gab.h"
-#include "vm.h"
 #include <stdio.h>
 
 #if cGAB_DEBUG_GC
@@ -379,8 +377,6 @@ void gab_gccreate(struct gab_gc *gc) {
   gc->ndecrements = 0;
   gc->nmodifications = 0;
 };
-
-void gab_gcdestroy(struct gab_gc *gc) {}
 
 static inline void inc_if_obj_ref(struct gab_triple gab, gab_value val) {
   if (gab_valiso(val))

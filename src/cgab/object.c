@@ -3,10 +3,6 @@
 #include "engine.h"
 #include "gab.h"
 #include "types.h"
-#include "vm.h"
-#include <assert.h>
-#include <stdio.h>
-#include <string.h>
 
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \
   ((struct obj_type *)gab_obj_create(gab, sizeof(struct obj_type), kind))
@@ -18,7 +14,6 @@
 static const char *gab_kind_names[] = {
     [kGAB_TRUE] = "true",
     [kGAB_FALSE] = "false",
-    [kGAB_NIL] = "nil",
     [kGAB_PRIMITIVE] = "primitive",
     [kGAB_NUMBER] = "number",
     [kGAB_UNDEFINED] = "undefined",
@@ -116,8 +111,6 @@ int __dump_value(FILE *stream, gab_value self, uint8_t depth) {
     return fprintf(stream, "%s", "true");
   case kGAB_FALSE:
     return fprintf(stream, "%s", "false");
-  case kGAB_NIL:
-    return fprintf(stream, "%s", "nil");
   case kGAB_PRIMITIVE:
     return fprintf(stream, "%s", gab_opcode_names[gab_valtop(self)]);
   case kGAB_NUMBER:
@@ -401,7 +394,7 @@ gab_value gab_block(struct gab_triple gab, gab_value prototype) {
   self->nupvalues = p->nupvalues;
 
   for (uint8_t i = 0; i < self->nupvalues; i++) {
-    self->upvalues[i] = gab_nil;
+    self->upvalues[i] = gab_undefined;
   }
 
   return __gab_obj(self);
@@ -470,7 +463,7 @@ gab_value gab_erecordof(struct gab_triple gab, gab_value shp) {
   self->len = shape->len;
 
   for (uint64_t i = 0; i < shape->len; i++)
-    self->data[i] = gab_nil;
+    self->data[i] = gab_undefined;
 
   return __gab_obj(self);
 }

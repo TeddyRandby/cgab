@@ -507,7 +507,7 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args);
  * @param  msg The message to display.
  * @return A gab value wrapping the error.
  */
-gab_value gab_panic(struct gab_triple gab, const char *msg);
+void gab_panic(struct gab_triple gab, const char *msg);
 
 #if cGAB_LOG_GC
 

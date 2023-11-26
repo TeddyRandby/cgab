@@ -509,7 +509,7 @@ void gab_srcdestroy(struct gab_src *self) {
   DESTROY(self);
 }
 
-struct gab_src *gab_lex(struct gab_eg *gab, const char *source, size_t len) {
+struct gab_src *gab_src(struct gab_eg *gab, const char *source, size_t len) {
   struct gab_src *src = gab_srccreate(gab, s_char_create(source, len));
 
   gab_lx lex;

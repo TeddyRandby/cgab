@@ -1,9 +1,7 @@
-#include "compiler.h"
 #include "colors.h"
 #include "core.h"
 #include "engine.h"
 #include "gab.h"
-#include "gc.h"
 #include "lexer.h"
 #include <stdarg.h>
 #include <stdint.h>
@@ -3336,15 +3334,20 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   return main;
 }
 
-gab_value gab_bccomp(struct gab_triple gab, gab_value name, s_char source,
-                     uint8_t flags, uint8_t narguments,
-                     gab_value arguments[narguments]) {
-  struct gab_src *src = gab_lex(gab.eg, (char *)source.data, source.len);
+gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
+  struct gab_src *src =
+      gab_src(gab.eg, (char *)args.source, strlen(args.source) + 1);
 
   struct bc bc;
-  bc_create(&bc, gab, src, flags);
+  bc_create(&bc, gab, src, args.flags);
 
-  gab_value module = compile(&bc, name, narguments, arguments);
+  gab_value vargv[args.len];
+
+  for (int i = 0; i < args.len; i++) {
+    vargv[i] = gab_string(gab, args.argv[i]);
+  }
+
+  gab_value module = compile(&bc, gab_string(gab, args.name), args.len, vargv);
 
   bc_destroy(&bc);
 

@@ -1,7 +1,6 @@
 #include "import.h"
 #include "engine.h"
 #include "gab.h"
-#include "gc.h"
 #include <dlfcn.h>
 #include <stdio.h>
 

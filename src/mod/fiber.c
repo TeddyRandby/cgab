@@ -68,7 +68,7 @@ bool callable(gab_value v) {
 
 gab_value out_queue_pop(struct gab_triple gab, fiber *f) {
   if (f->out_queue.len < 1)
-    return gab_nil;
+    return gab_string(gab, "none");
 
   a_char *ref = v_a_char_pop(&f->out_queue);
 

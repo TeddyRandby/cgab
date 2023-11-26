@@ -4,7 +4,6 @@
 #include "gab.h"
 
 #include "alloc.h"
-#include "gc.h"
 #include <stdarg.h>
 
 static const char *gab_status_names[] = {
@@ -47,6 +46,71 @@ static const char *gab_token_names[] = {
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
 #include "dict.h"
+
+#define T struct gab_obj *
+#define NAME gab_obj
+#include "vector.h"
+
+struct gab_gc {
+  size_t nmodifications;
+  size_t ndecrements;
+
+  struct gab_obj *decrements[cGAB_GC_DEC_BUFF_MAX * 2];
+  struct gab_obj *modifications[cGAB_GC_MOD_BUFF_MAX * 2];
+};
+
+void gab_gccreate(struct gab_gc *gc);
+
+typedef void (*gab_gc_visitor)(struct gab_triple gab, struct gab_obj *obj);
+
+enum variable_flag {
+  fVAR_CAPTURED = 1 << 0,
+  fVAR_MUTABLE = 1 << 1,
+  fVAR_LOCAL = 1 << 2,
+};
+
+
+/**
+ * The run-time representation of a callframe.
+ */
+struct gab_vm_frame {
+  struct gab_obj_block *b;
+
+  /**
+   *The instruction pointer.
+   */
+  uint8_t *ip;
+
+  /**
+   * The value on the stack where this callframe begins.
+   */
+  gab_value *slots;
+
+  /**
+   * Every call wants a different number of results.
+   * This is set at the call site.
+   */
+  uint8_t want;
+};
+
+/*
+ * The gab virtual machine. This has all the state needed for executing
+ * bytecode.
+ */
+struct gab_vm {
+  /*
+   * The flags passed in to the vm
+   */
+  uint8_t flags;
+
+  struct gab_vm_frame *fp;
+
+  gab_value *sp;
+
+  gab_value sb[cGAB_STACK_MAX];
+
+  struct gab_vm_frame fb[cGAB_FRAMES_MAX];
+};
 
 struct gab_eg {
   size_t hash_seed;

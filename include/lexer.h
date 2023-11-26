@@ -29,7 +29,7 @@ struct gab_src {
   v_uint64_t token_lines;
 };
 
-struct gab_src *gab_lex(struct gab_eg* gab, const char* src, size_t len);
+struct gab_src *gab_src(struct gab_eg* gab, const char* src, size_t len);
 
 struct gab_src *gab_srccpy(struct gab_eg * gab, struct gab_src *src);
 

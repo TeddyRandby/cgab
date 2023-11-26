@@ -1,15 +1,12 @@
 #include "engine.h"
 #include "colors.h"
-#include "compiler.h"
 #include "core.h"
 #include "gab.h"
-#include "gc.h"
 #include "import.h"
 #include "lexer.h"
 #include "natives.h"
 #include "os.h"
 #include "types.h"
-#include "vm.h"
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -214,8 +211,6 @@ void gab_destroy(struct gab_triple gab) {
 
   gab_gcrun(gab);
 
-  gab_gcdestroy(gab.gc);
-
   for (uint64_t i = 0; i < gab.eg->imports.cap; i++) {
     if (d_gab_imp_iexists(&gab.eg->imports, i)) {
       gab_impdestroy(gab.eg, gab.gc, d_gab_imp_ival(&gab.eg->imports, i));
@@ -230,20 +225,6 @@ void gab_destroy(struct gab_triple gab) {
   v_gab_value_destroy(&gab.eg->scratch);
   free(gab.gc);
   free(gab.eg);
-}
-
-gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
-  gab_value argv_names[args.len];
-
-  for (uint64_t i = 0; i < args.len; i++)
-    argv_names[i] = gab_string(gab, args.argv[i]);
-
-  gab_value res =
-      gab_bccomp(gab, gab_string(gab, args.name),
-                 s_char_create(args.source, strlen(args.source) + 1),
-                 args.flags, args.len, argv_names);
-
-  return res;
 }
 
 void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
@@ -319,10 +300,6 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
   }
 }
 
-a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
-  return gab_vmrun(gab, args.main, args.flags, args.len, args.argv);
-};
-
 a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
   gab_value main = gab_cmpl(gab, (struct gab_cmpl_argt){
                                      .name = args.name,
@@ -341,11 +318,6 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
                           .len = args.len,
                           .argv = args.argv,
                       });
-}
-
-gab_value gab_panic(struct gab_triple gab, const char *msg) {
-  gab_value vm_container = gab_vm_panic(gab, msg);
-  return vm_container;
 }
 
 void gab_nspec(struct gab_triple gab, size_t len,

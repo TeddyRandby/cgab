@@ -43,8 +43,10 @@ a_gab_value *gab_shared_object_handler(struct gab_triple gab,
 a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   a_char *src = gab_osread(path);
 
-  if (src == NULL)
-    return a_gab_value_one(gab_panic(gab, "Failed to read module"));
+  if (src == NULL) {
+    gab_panic(gab, "Failed to read module");
+    return NULL;
+  }
 
   gab_value pkg =
       gab_cmpl(gab, (struct gab_cmpl_argt){

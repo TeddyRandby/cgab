@@ -1,10 +1,7 @@
-#include "vm.h"
 #include "colors.h"
-#include "compiler.h"
 #include "core.h"
 #include "engine.h"
 #include "gab.h"
-#include "gc.h"
 #include "lexer.h"
 
 #include <stdarg.h>
@@ -74,9 +71,11 @@ a_gab_value *vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
   return a_gab_value_create(results, sizeof(results) / sizeof(gab_value));
 }
 
-gab_value gab_vm_panic(struct gab_triple gab, const char *msg) {
-  vm_error(gab, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC, GAB_PANIC, msg);
-  exit(1);
+void gab_panic(struct gab_triple gab, const char *msg) {
+  a_gab_value *res =
+      vm_error(gab, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC, GAB_PANIC, msg);
+
+  gab_nvmpush(gab.vm, res->len, res->data);
 }
 
 void gab_vmcreate(struct gab_vm *self, uint8_t flags, size_t argc,
@@ -300,8 +299,7 @@ static inline void call_native(struct gab_triple gab, struct gab_obj_native *b,
   gab.vm->sp = trim_return(gab.vm->sp - have, to, have, want);
 }
 
-a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
-                       size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 #if cGAB_LOG_VM
 #define LOG(op) printf("OP_%s\n", gab_opcode_names[op])
 #else
@@ -422,31 +420,31 @@ a_gab_value *gab_vmrun(struct gab_triple gab, gab_value main, uint8_t flags,
 #define SEND_CACHE_DIST 22
 
 #define ERROR(status, help, ...)                                               \
-  (vm_error(GAB(), flags, status, help, __VA_ARGS__))
+  (vm_error(GAB(), args.flags, status, help, __VA_ARGS__))
 
   /*
    ----------- BEGIN RUN BODY -----------
   */
   VM() = NEW(struct gab_vm);
-  gab_vmcreate(VM(), flags, argc, argv);
+  gab_vmcreate(VM(), args.flags, args.len, args.argv);
 
   register uint8_t instr = OP_NOP;
   register uint8_t *ip = NULL;
 
-  *VM()->sp++ = main;
-  for (uint8_t i = 0; i < argc; i++)
-    *VM()->sp++ = argv[i];
+  *VM()->sp++ = args.main;
+  for (uint8_t i = 0; i < args.len; i++)
+    *VM()->sp++ = args.argv[i];
 
-  switch (gab_valkind(main)) {
+  switch (gab_valkind(args.main)) {
   case kGAB_BLOCK: {
-    struct gab_obj_block *b = GAB_VAL_TO_BLOCK(main);
-    if (!call_block(VM(), b, argc, VAR_EXP))
+    struct gab_obj_block *b = GAB_VAL_TO_BLOCK(args.main);
+    if (!call_block(VM(), b, args.len, VAR_EXP))
       return ERROR(GAB_OVERFLOW, "", "");
     break;
   }
   case kGAB_SUSPENSE: {
-    struct gab_obj_suspense *s = GAB_VAL_TO_SUSPENSE(main);
-    if (!call_suspense(VM(), s, argc, VAR_EXP))
+    struct gab_obj_suspense *s = GAB_VAL_TO_SUSPENSE(args.main);
+    if (!call_suspense(VM(), s, args.len, VAR_EXP))
       return ERROR(GAB_OVERFLOW, "", "");
     break;
   }
