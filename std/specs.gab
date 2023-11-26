@@ -1,9 +1,9 @@
 :use 'maps'
 :use 'records'
 :use 'lists'
-:use 'message'
-:use 'any'
 :use 'symbol'
+:use 'msg'
+:use 'any'
 
 ## TODO: Optimize for memory by caching generated specs based on input
 

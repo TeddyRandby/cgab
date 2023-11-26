@@ -96,11 +96,6 @@ resource resources[] = {
         .suffix = ".so",
         .handler = gab_shared_object_handler,
     },
-    {
-        .prefix = "./build/libcgab",
-        .suffix = ".so",
-        .handler = gab_shared_object_handler,
-    },
     // Installed resources
     {
         .prefix = "/home/tr/gab/modules/",
@@ -114,7 +109,7 @@ resource resources[] = {
     },
     {
         .prefix = "/home/tr/gab/modules/",
-        .suffix = "mod/mod.gab",
+        .suffix = "/mod/mod.gab",
         .handler = gab_source_file_handler,
     },
     {

@@ -1,4 +1,4 @@
-:use 'record'
+:use 'rec'
 
 def [][.Record](key)
   _, v = self:at(key) in match

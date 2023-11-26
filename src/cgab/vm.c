@@ -18,19 +18,20 @@ static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
   return v_uint64_t_val_at(&p->bytecode_toks, offset);
 }
 
-void boxed_vm_destructor(void *data) { DESTROY(data); }
+void boxed_vm_destructor(void *data) { /* DESTROY(data);  */
+}
 
 void boxed_vm_visitor(struct gab_triple gab, gab_gcvisit_f f, void *data) {
-  struct gab_vm *vm = data;
-
-  gab_value *tracker = vm->sp - 1;
-
-  while (tracker != vm->sb) {
-    if (gab_valiso(*tracker))
-      f(gab, gab_valtoo(*tracker));
-
-    tracker--;
-  }
+  // struct gab_vm *vm = data;
+  //
+  // gab_value *tracker = vm->sp - 1;
+  //
+  // while (tracker != vm->sb) {
+  //   if (gab_valiso(*tracker))
+  //     f(gab, gab_valtoo(*tracker));
+  //
+  //   tracker--;
+  // }
 }
 
 a_gab_value *vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
@@ -67,6 +68,8 @@ a_gab_value *vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
                   .visitor = boxed_vm_visitor,
               }),
   };
+
+  gab_ngciref(gab, 1, 2, results);
 
   return a_gab_value_create(results, sizeof(results) / sizeof(gab_value));
 }

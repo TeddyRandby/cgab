@@ -16,7 +16,7 @@ void gab_lib_put(struct gab_triple gab, size_t argc,
   switch (argc) {
   case 3:
     rec = argv[1];
-    [[fallthrough]];
+    /* FALLTHROUGH */
   case 2: {
     gab_value result = gab_msgput(gab, argv[0], rec, argv[argc - 1]);
 

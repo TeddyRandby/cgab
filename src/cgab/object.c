@@ -107,6 +107,8 @@ int32_t rec_dump_properties(FILE *stream, struct gab_obj_record *rec,
 
 int __dump_value(FILE *stream, gab_value self, uint8_t depth) {
   switch (gab_valkind(self)) {
+  case kGAB_NIL:
+    return fprintf(stream, "%s", "nil");
   case kGAB_TRUE:
     return fprintf(stream, "%s", "true");
   case kGAB_FALSE:

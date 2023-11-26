@@ -1,8 +1,6 @@
 #ifndef GAB_H
 #define GAB_H
 
-#include <printf.h>
-#include <stdint.h>
 #include <stdio.h>
 
 #include "core.h"
@@ -1659,10 +1657,10 @@ fin:
    * If there is an implentation for the undefined case, use that.
    * Otherwise fail.
    */
-  return ((*args.offset = gab_msgfind(args.msg, gab_undefined)) !=
-          GAB_PROPERTY_NOT_FOUND)
-             ? sGAB_IMPL_GENERAL
-             : sGAB_IMPL_NONE;
+  *args.offset = gab_msgfind(args.msg, gab_undefined);
+
+  return *args.offset == GAB_PROPERTY_NOT_FOUND ? sGAB_IMPL_NONE
+                                                : sGAB_IMPL_GENERAL;
 }
 
 /**

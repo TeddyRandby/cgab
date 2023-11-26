@@ -1,5 +1,3 @@
-:use 'cany'
-
 def is?[](other); ?self == other end
 
 def is_b?[]        ; false end
