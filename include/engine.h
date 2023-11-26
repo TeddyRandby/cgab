@@ -69,12 +69,12 @@ enum variable_flag {
   fVAR_LOCAL = 1 << 2,
 };
 
-
 /**
  * The run-time representation of a callframe.
  */
 struct gab_vm_frame {
   struct gab_obj_block *b;
+  struct gab_obj_suspense *s;
 
   /**
    *The instruction pointer.
@@ -147,7 +147,7 @@ struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *gab, uint64_t size,
 struct gab_err_argt {
   enum gab_status status;
   const char *note_fmt;
-  struct gab_src* src;
+  struct gab_src *src;
   gab_value context;
   size_t tok;
 };

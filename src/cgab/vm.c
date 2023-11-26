@@ -209,6 +209,7 @@ static inline bool call_suspense(struct gab_vm *vm,
       GAB_VAL_TO_BLOCK_PROTO(vm->fp->b->p)->bytecode.data + proto->offset;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
+  vm->fp->s = sus;
 
   gab_value *from = vm->sp - have;
   gab_value *to = vm->fp->slots + frame->len;
@@ -251,6 +252,7 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   vm->fp->ip = proto->bytecode.data;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
+  vm->fp->s = NULL;
 
   // Update the SP to point just past the locals section
   // Or past the arguments if we're using VAR_EXP
@@ -363,24 +365,25 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 #define VM() (GAB().vm)
 #define INSTR() (instr)
 #define FRAME() (VM()->fp)
-#define CLOSURE() (FRAME()->b)
-#define BLOCK_PROTO() (GAB_VAL_TO_BLOCK_PROTO(CLOSURE()->p))
+#define BLOCK() (FRAME()->b)
+#define SUSPENSE() (FRAME()->s)
+#define BLOCK_PROTO() (GAB_VAL_TO_BLOCK_PROTO(BLOCK()->p))
 #define IP() (ip)
 #define TOP() (VM()->sp)
 #define VAR() (*TOP())
 #define SLOTS() (FRAME()->slots)
 #define LOCAL(i) (SLOTS()[i])
-#define UPVALUE(i) (CLOSURE()->upvalues[i])
+#define UPVALUE(i) (BLOCK()->upvalues[i])
 #define MOD_CONSTANT(k) (v_gab_value_val_at(&BLOCK_PROTO()->constants, k))
 
 #if cGAB_DEBUG_VM
 #define PUSH(value)                                                            \
   ({                                                                           \
-    if (TOP() > (SLOTS() + CLOSURE()->p->nslots + 1)) {                        \
+    if (TOP() > (SLOTS() + BLOCK()->p->nslots + 1)) {                          \
       fprintf(stderr,                                                          \
               "Stack exceeded frame "                                          \
               "(%d). %lu passed\n",                                            \
-              CLOSURE()->p->nslots, TOP() - SLOTS() - CLOSURE()->p->nslots);   \
+              BLOCK()->p->nslots, TOP() - SLOTS() - CLOSURE()->p->nslots);     \
       gab_pry(VM(), 0);                                                        \
       exit(1);                                                                 \
     }                                                                          \
@@ -909,10 +912,22 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
         assert(frame_len < UINT16_MAX);
 
-        gab_value sus = gab_suspense(GAB(), frame_len, __gab_obj(CLOSURE()),
-                                     proto, SLOTS());
+        if (SUSPENSE()) {
+          struct gab_obj_suspense *sus = SUSPENSE();
+          struct gab_obj_record *f = GAB_VAL_TO_RECORD(sus->f);
 
-        PUSH(sus);
+          if (f->len == frame_len)
+            memcpy(f->data, SLOTS(), frame_len * sizeof(gab_value));
+          else
+            sus->f = gab_tuple(gab, frame_len, SLOTS());
+
+          PUSH(__gab_obj(sus));
+        } else {
+          gab_value sus = gab_suspense(GAB(), frame_len, __gab_obj(BLOCK()),
+                                       proto, SLOTS());
+
+          PUSH(sus);
+        }
 
         have++;
 
@@ -1142,8 +1157,8 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
     CASE_CODE(LOAD_UPVALUE_6) :
     CASE_CODE(LOAD_UPVALUE_7) :
     CASE_CODE(LOAD_UPVALUE_8) : {
-      // printf("LOAD_UPVALUE %V", __gab_obj(CLOSURE()));
-      // printf("% d of %d\n", INSTR() - OP_LOAD_UPVALUE_0, CLOSURE()->nupvalues);
+      // printf("LOAD_UPVALUE %V", __gab_obj(BLOCK()));
+      // printf("% d of %d\n", INSTR() - OP_LOAD_UPVALUE_0, BLOCK()->nupvalues);
       PUSH(UPVALUE(INSTR() - OP_LOAD_UPVALUE_0));
       NEXT();
     }
@@ -1221,7 +1236,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
         if (flags & fVAR_LOCAL) {
           b->upvalues[i] = LOCAL(index);
         } else {
-          b->upvalues[i] = CLOSURE()->upvalues[index];
+          b->upvalues[i] = BLOCK()->upvalues[index];
         }
       }
 
@@ -1248,8 +1263,8 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
           assert(index < BLOCK_PROTO()->nlocals);
           b->upvalues[i] = LOCAL(index);
         } else {
-          assert(index < CLOSURE()->nupvalues);
-          b->upvalues[i] = CLOSURE()->upvalues[index];
+          assert(index < BLOCK()->nupvalues);
+          b->upvalues[i] = BLOCK()->upvalues[index];
         }
       }
 
