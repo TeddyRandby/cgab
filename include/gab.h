@@ -331,16 +331,6 @@ size_t gab_negkeep(struct gab_eg *eg, size_t len, gab_value argv[static len]);
 size_t gab_vmpush(struct gab_vm *vm, gab_value v);
 
 /**
- * # Build a record which contains the data relevant to the callframe
- * at depth N in the vm's callstack.
- *
- * @param gab The engine.
- * @param depth The depth of the callframe.
- * @return The record.
- */
-gab_value gab_vmframe(struct gab_triple gab, uint64_t depth);
-
-/**
  * # Push values onto the vm's internal stack
  * Used to return values from c-natives.
  *
@@ -349,6 +339,27 @@ gab_value gab_vmframe(struct gab_triple gab, uint64_t depth);
  * @param argv The array of values.
  */
 size_t gab_nvmpush(struct gab_vm *vm, size_t len, gab_value argv[static len]);
+
+/**
+ * # Pry into the frame at the given depth in the callstack.
+ *
+ * @param gab The engine.
+ *
+ * @param vm The vm.
+ *
+ * @param depth The depth.
+ */
+void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t depth);
+
+/**
+ * # Build a record which contains the data relevant to the callframe
+ * at depth N in the vm's callstack.
+ *
+ * @param gab The engine.
+ * @param depth The depth of the callframe.
+ * @return The record.
+ */
+gab_value gab_vmframe(struct gab_triple gab, uint64_t depth);
 
 /**
  * # Store a module in the engine's import table.
@@ -768,9 +779,7 @@ struct gab_obj_shape {
 /**
  * Create a new shape object.
  *
- * @param gab The gab engine.
- *
- * @param vm The vm.
+ * @param gab The gab triple.
  *
  * @param stride The stride of the keys in they key array.
  *
@@ -1288,7 +1297,7 @@ struct gab_obj_suspense {
  *
  * @param frame The frame.
  */
-gab_value gab_suspense(struct gab_triple gab, uint16_t len, gab_value block,
+gab_value gab_suspense(struct gab_triple gab, uint64_t len, gab_value block,
                        gab_value proto, gab_value frame[static len]);
 
 /**
@@ -1688,21 +1697,22 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
   case kGAB_STRING:
     return self;
   case kGAB_BLOCK:
-    return gab_string(gab, "<block>");
+    return gab_string(gab, "<Block>");
   case kGAB_RECORD:
-    return gab_string(gab, "<record>");
+    return gab_string(gab, "<Record>");
   case kGAB_SHAPE:
-    return gab_string(gab, "<shape>");
+    return gab_string(gab, "<Shape>");
   case kGAB_MESSAGE:
-    return gab_string(gab, "<message>");
+    return gab_string(gab, "<Message>");
+  case kGAB_SUSPENSE_PROTO:
   case kGAB_BLOCK_PROTO:
-    return gab_string(gab, "<prototype>");
+    return gab_string(gab, "<Prototype>");
   case kGAB_NATIVE:
-    return gab_string(gab, "<native>");
+    return gab_string(gab, "<Native>");
   case kGAB_BOX:
-    return gab_string(gab, "<container>");
+    return gab_string(gab, "<Box>");
   case kGAB_SUSPENSE:
-    return gab_string(gab, "<suspense>");
+    return gab_string(gab, "<Suspense>");
   case kGAB_TRUE:
     return gab_string(gab, "true");
   case kGAB_FALSE:
@@ -1733,41 +1743,36 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
  *
  *  @return A view into the string
  */
-static inline s_char gab_valintocs(struct gab_triple gab, gab_value value) {
+static inline const char *gab_valintocs(struct gab_triple gab,
+                                        gab_value value) {
   gab_value str = gab_valintos(gab, value);
 
   struct gab_obj_string *obj = GAB_VAL_TO_STRING(str);
 
-  return (s_char){.len = obj->len, .data = obj->data};
+  return obj->data;
 }
 
+int gab_fmodinspect(FILE *stream, struct gab_obj_block_proto *mod);
+
+/**
+ * # Print a gab value to a file stream.
+ *
+ * @param stream The file stream to dump to.
+ *
+ * @param self The value to dump
+ *
+ * @param depth How far to recursively inspect. A value less than zero will use
+ * the default depth.
+ *
+ * @return The number of bytes written.
+ */
+int gab_fvalinspect(FILE *stream, gab_value self, int depth);
+
+#include <printf.h>
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
                            const void *const *args);
 
 int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
                            int *sizes);
 
-void gab_fbcdump(FILE *stream, struct gab_obj_block_proto *mod);
-
-/**
- * # Dump a gab value to a file stream.
- *
- * @param stream The file stream to dump to.
- *
- * @param self The value to dump
- *
- * @return The number of bytes written.
- */
-int gab_fvaldump(FILE *stream, gab_value self);
-
-/**
- * # Pry into the frame at the given depth in the callstack.
- *
- * @param gab The engine.
- *
- * @param vm The vm.
- *
- * @param depth The depth.
- */
-void gab_fvmdump(FILE *stream, struct gab_vm *vm, uint64_t depth);
 #endif

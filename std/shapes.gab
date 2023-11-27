@@ -1,0 +1,10 @@
+:use 'shp'
+
+def each[.Shape]
+    key = self:next
+
+    loop
+      yield key
+      key = self:next(key)
+    until key == nil end
+end

@@ -64,14 +64,14 @@ void gab_lib_prydumpframe(struct gab_triple gab, size_t argc,
     }
 
     if (argc == 1) {
-      gab_fvmdump(stdout, gab_boxdata(argv[0]), 0);
+      gab_fvminspect(stdout, gab_boxdata(argv[0]), 0);
       return;
     }
 
     if (argc == 2 && gab_valkind(argv[1]) == kGAB_NUMBER) {
       uint64_t depth = gab_valton(argv[1]);
 
-      gab_fvmdump(stdout, gab_boxdata(argv[0]), depth);
+      gab_fvminspect(stdout, gab_boxdata(argv[0]), depth);
       return;
     }
   }
@@ -98,5 +98,5 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
-  return a_gab_value_one(gab_nil);
+  return NULL;
 }

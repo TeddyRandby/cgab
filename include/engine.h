@@ -3,20 +3,25 @@
 
 #include "gab.h"
 
-#include "alloc.h"
 #include <stdarg.h>
 
+#ifdef STATUS_NAMES
 static const char *gab_status_names[] = {
 #define STATUS(name, message) message,
 #include "status_code.h"
 #undef STATUS
 };
+#undef STATUS_NAMES
+#endif
 
+#ifdef TOKEN_NAMES
 static const char *gab_token_names[] = {
 #define TOKEN(message) #message,
 #include "token.h"
 #undef TOKEN
 };
+#undef TOKEN_NAMES
+#endif
 
 #define NAME strings
 #define K struct gab_obj_string *
@@ -52,14 +57,14 @@ static const char *gab_token_names[] = {
 #include "vector.h"
 
 struct gab_gc {
-  size_t nmodifications;
-  size_t ndecrements;
-
-  struct gab_obj *decrements[cGAB_GC_DEC_BUFF_MAX * 2];
-  struct gab_obj *modifications[cGAB_GC_MOD_BUFF_MAX * 2];
+  v_gab_obj decrements;
+  v_gab_obj modifications;
+  size_t nreserve;
+  bool running;
 };
 
 void gab_gccreate(struct gab_gc *gc);
+void gab_gcdestroy(struct gab_gc *gc);
 
 typedef void (*gab_gc_visitor)(struct gab_triple gab, struct gab_obj *obj);
 
@@ -74,7 +79,6 @@ enum variable_flag {
  */
 struct gab_vm_frame {
   struct gab_obj_block *b;
-  struct gab_obj_suspense *s;
 
   /**
    *The instruction pointer.
@@ -119,8 +123,6 @@ struct gab_eg {
 
   struct gab_obj_block_proto *prototypes;
 
-  struct gab_allocator allocator;
-
   d_gab_imp imports;
 
   d_strings interned_strings;
@@ -133,6 +135,8 @@ struct gab_eg {
 
   v_gab_value scratch;
 };
+
+void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size);
 
 struct gab_obj_string *gab_eg_find_string(struct gab_eg *gab, s_char str,
                                           uint64_t hash);

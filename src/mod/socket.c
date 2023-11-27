@@ -243,17 +243,13 @@ void gab_lib_connect(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
     int sockfd = (intptr_t)gab_boxdata(argv[0]);
 
-    s_char ip = gab_valintocs(gab, argv[1]);
-
-    char cip[ip.len + 1];
-    memcpy(cip, ip.data, ip.len);
-    cip[ip.len] = '\0';
+    const char *ip = gab_valintocs(gab, argv[1]);
 
     int port = htons(gab_valton(argv[2]));
 
     struct sockaddr_in addr = {.sin_family = AF_INET, .sin_port = port};
 
-    int result = inet_pton(AF_INET, cip, &addr.sin_addr);
+    int result = inet_pton(AF_INET, ip, &addr.sin_addr);
 
     if (result <= 0) {
       gab_vmpush(gab.vm, gab_string(gab, "inet_pton_failed"));

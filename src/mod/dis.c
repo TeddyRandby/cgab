@@ -3,8 +3,10 @@
 #include <stdio.h>
 
 void dis_block(gab_value blk) {
-  printf("     %V\n", blk);
-  gab_fbcdump(stdout, GAB_VAL_TO_BLOCK_PROTO(GAB_VAL_TO_BLOCK(blk)->p));
+  printf("     ");
+  gab_fvalinspect(stdout, blk, 0);
+  printf("\n");
+  gab_fmodinspect(stdout, GAB_VAL_TO_BLOCK_PROTO(GAB_VAL_TO_BLOCK(blk)->p));
 }
 
 void dis_message(struct gab_triple gab, gab_value msg, gab_value rec) {
@@ -15,10 +17,12 @@ void dis_message(struct gab_triple gab, gab_value msg, gab_value rec) {
     dis_block(spec);
     break;
   case kGAB_NATIVE:
-    printf("%V\n", spec);
+    gab_fvalinspect(stdout, spec, 0);
+    printf("\n");
     break;
   default:
-    printf("%V\n", gab_nil);
+    gab_fvalinspect(stdout, gab_nil, 0);
+    printf("\n");
     break;
   }
 }
@@ -44,7 +48,8 @@ void gab_lib_dismessage(struct gab_triple gab, size_t argc,
 
   switch (argc) {
   case 1:
-    printf("%V\n", gab_msgrec(argv[0]));
+    gab_fvalinspect(stdout, gab_msgrec(argv[0]), -1);
+    printf("\n");
     break;
   case 2:
     dis_message(gab, argv[0], argv[1]);
@@ -66,13 +71,14 @@ void gab_lib_disblock(struct gab_triple gab, size_t argc,
 }
 
 void gab_lib_disnative(struct gab_triple gab, size_t argc,
-                        gab_value argv[argc]) {
+                       gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, "Invalid call to gab_lib_dis");
     return;
   }
 
-  printf("%V\n", argv[0]);
+  gab_fvalinspect(stdout, argv[0], 0);
+  printf("\n");
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
@@ -98,5 +104,5 @@ a_gab_value *gab_lib(struct gab_triple gab) {
                   });
   }
 
-  return a_gab_value_one(gab_nil);
+  return NULL;
 }

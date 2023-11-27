@@ -1,4 +1,7 @@
+#define STATUS_NAMES
+#define TOKEN_NAMES
 #include "engine.h"
+
 #include "colors.h"
 #include "core.h"
 #include "gab.h"
@@ -150,7 +153,7 @@ struct gab_triple gab_create() {
   eg->types[kGAB_BLOCK_PROTO] = gab_string(gab, "Prototype");
   gab_gciref(gab, eg->types[kGAB_BLOCK_PROTO]);
 
-  eg->types[kGAB_NATIVE] = gab_string(gab, "Builtin");
+  eg->types[kGAB_NATIVE] = gab_string(gab, "Native");
   gab_gciref(gab, eg->types[kGAB_NATIVE]);
 
   eg->types[kGAB_BLOCK] = gab_string(gab, "Block");
@@ -210,6 +213,8 @@ void gab_destroy(struct gab_triple gab) {
   // }
 
   gab_gcrun(gab);
+
+  gab_gcdestroy(gab.gc);
 
   for (uint64_t i = 0; i < gab.eg->imports.cap; i++) {
     if (d_gab_imp_iexists(&gab.eg->imports, i)) {
@@ -285,10 +290,12 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
     for (int32_t i = 0; i < result->len; i++) {
       gab_value arg = result->data[i];
 
-      if (i == result->len - 1)
-        printf("%V", arg);
-      else
-        printf("%V, ", arg);
+      if (i == result->len - 1) {
+        gab_fvalinspect(stdout, arg, -1);
+      } else {
+        gab_fvalinspect(stdout, arg, -1);
+        printf(", ");
+      }
     }
 
     printf("\n");
@@ -466,7 +473,7 @@ gab_value gab_type(struct gab_eg *gab, enum gab_kind k) {
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
                            const void *const *args) {
   const gab_value value = *(const gab_value *const)args[0];
-  return gab_fvaldump(stream, value);
+  return gab_fvalinspect(stream, value, -1);
 }
 int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
                            int *sizes) {
@@ -483,7 +490,8 @@ size_t gab_egkeep(struct gab_eg *gab, gab_value v) {
   return gab->scratch.len;
 }
 
-size_t gab_negkeep(struct gab_eg *gab, size_t len, gab_value *values) {
+size_t gab_negkeep(struct gab_eg *gab, size_t len,
+                   gab_value values[static len]) {
   for (uint64_t i = 0; i < len; i++)
     v_gab_value_push(&gab->scratch, values[i]);
 
@@ -615,18 +623,20 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
   }
 }
 
-gab_value gab_string(struct gab_triple gab, const char *data) {
+gab_value gab_string(struct gab_triple gab, const char data[static 1]) {
   return gab_nstring(gab, strlen(data), data);
 }
 
 gab_value gab_record(struct gab_triple gab, uint64_t size, gab_value keys[size],
                      gab_value values[size]) {
+  gab_gcreserve(gab, 2);
   gab_value bundle_shape = gab_shape(gab, 1, size, keys);
   return gab_recordof(gab, bundle_shape, 1, values);
 }
 
 gab_value gab_srecord(struct gab_triple gab, uint64_t size,
                       const char *keys[size], gab_value values[size]) {
+  gab_gcreserve(gab, size + 2);
   gab_value value_keys[size];
 
   for (uint64_t i = 0; i < size; i++)
@@ -637,22 +647,28 @@ gab_value gab_srecord(struct gab_triple gab, uint64_t size,
 }
 
 gab_value gab_etuple(struct gab_triple gab, size_t len) {
+  gab_gcreserve(gab, 2);
   gab_value bundle_shape = gab_nshape(gab, len);
   return gab_erecordof(gab, bundle_shape);
 }
 
 gab_value gab_tuple(struct gab_triple gab, uint64_t size,
                     gab_value values[size]) {
+  gab_gcreserve(gab, 2);
   gab_value bundle_shape = gab_nshape(gab, size);
   return gab_recordof(gab, bundle_shape, 1, values);
 }
 
 void gab_verr(struct gab_err_argt args, va_list varargs) {
   if (!args.src) {
+    fprintf(stderr, "[" ANSI_COLOR_GREEN);
+
+    gab_fvalinspect(stderr, args.context, 0);
+
     fprintf(stderr,
-            "[" ANSI_COLOR_GREEN "%V" ANSI_COLOR_RESET "]" ANSI_COLOR_YELLOW
-            " %s. " ANSI_COLOR_RESET " " ANSI_COLOR_GREEN,
-            args.context, gab_status_names[args.status]);
+            ANSI_COLOR_RESET "]" ANSI_COLOR_YELLOW " %s. " ANSI_COLOR_RESET
+                             " " ANSI_COLOR_GREEN,
+            gab_status_names[args.status]);
 
     vfprintf(stderr, args.note_fmt, varargs);
 
@@ -694,13 +710,17 @@ void gab_verr(struct gab_err_argt args, va_list varargs) {
   const char *curr_color = ANSI_COLOR_RED;
   const char *curr_box = "\u256d";
 
+  fprintf(stderr, "\n[" ANSI_COLOR_GREEN);
+
+  gab_fvalinspect(stderr, args.context, 0);
+
   fprintf(stderr,
-          "\n[" ANSI_COLOR_GREEN "%V" ANSI_COLOR_RESET
+          ANSI_COLOR_RESET
           "] Error near " ANSI_COLOR_MAGENTA "%s" ANSI_COLOR_RESET
           ":\n\t%s%s %.4lu " ANSI_COLOR_RESET "%.*s"
           "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
           "\n\t\u2570\u2500> ",
-          args.context, tok_name, curr_box, curr_color, line, (int)line_src.len,
+          tok_name, curr_box, curr_color, line, (int)line_src.len,
           line_src.data, (int)line_under->len, line_under->data);
 
   a_char_destroy(line_under);
@@ -712,4 +732,18 @@ void gab_verr(struct gab_err_argt args, va_list varargs) {
   vfprintf(stderr, args.note_fmt, varargs);
 
   fprintf(stderr, "\n" ANSI_COLOR_RESET);
+}
+
+void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size) {
+  if (size == 0) {
+    assert(obj);
+
+    free(obj);
+
+    return NULL;
+  }
+
+  assert(!obj);
+
+  return malloc(size);
 }

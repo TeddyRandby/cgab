@@ -1,7 +1,10 @@
-#include "colors.h"
 #include "core.h"
-#include "engine.h"
 #include "gab.h"
+
+#define STATUS_NAMES
+#include "engine.h"
+
+#include "colors.h"
 #include "lexer.h"
 
 #include <stdarg.h>
@@ -120,7 +123,7 @@ gab_value gab_vmframe(struct gab_triple gab, uint64_t depth) {
   return gab_srecord(gab, len, keys, values);
 }
 
-void gab_fvmdump(FILE *stream, struct gab_vm *vm, uint64_t value) {
+void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t value) {
   uint64_t frame_count = vm->fp - vm->fb;
 
   if (value >= frame_count)
@@ -139,8 +142,10 @@ void gab_fvmdump(FILE *stream, struct gab_vm *vm, uint64_t value) {
           proto->nupvalues);
 
   for (int32_t i = proto->nslots - 1; i >= 0; i--) {
-    fprintf(stream, "%2s" ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET "%V\n",
-            vm->sp == f->slots + i ? "->" : "", i, f->slots[i]);
+    fprintf(stream, "%2s" ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET,
+            vm->sp == f->slots + i ? "->" : "", i);
+    gab_fvalinspect(stream, f->slots[i], 0);
+    fprintf(stream, "\n");
   }
 }
 
@@ -212,7 +217,6 @@ static inline bool call_suspense(struct gab_vm *vm,
       GAB_VAL_TO_BLOCK_PROTO(vm->fp->b->p)->bytecode.data + proto->offset;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
-  vm->fp->s = sus;
 
   gab_value *from = vm->sp - have;
   gab_value *to = vm->fp->slots + frame->len;
@@ -255,7 +259,6 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   vm->fp->ip = proto->bytecode.data;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
-  vm->fp->s = NULL;
 
   // Update the SP to point just past the locals section
   // Or past the arguments if we're using VAR_EXP
@@ -369,7 +372,6 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 #define INSTR() (instr)
 #define FRAME() (VM()->fp)
 #define BLOCK() (FRAME()->b)
-#define SUSPENSE() (FRAME()->s)
 #define BLOCK_PROTO() (GAB_VAL_TO_BLOCK_PROTO(BLOCK()->p))
 #define IP() (ip)
 #define TOP() (VM()->sp)
@@ -382,12 +384,12 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 #if cGAB_DEBUG_VM
 #define PUSH(value)                                                            \
   ({                                                                           \
-    if (TOP() > (SLOTS() + BLOCK()->p->nslots + 1)) {                          \
+    if (TOP() > (SLOTS() + BLOCK_PROTO()->nslots + 1)) {                       \
       fprintf(stderr,                                                          \
               "Stack exceeded frame "                                          \
               "(%d). %lu passed\n",                                            \
-              BLOCK()->p->nslots, TOP() - SLOTS() - CLOSURE()->p->nslots);     \
-      gab_pry(VM(), 0);                                                        \
+              BLOCK_PROTO()->nslots, TOP() - SLOTS() - BLOCK_PROTO()->nslots); \
+      gab_fvminspect(stdout, VM(), 0);                                            \
       exit(1);                                                                 \
     }                                                                          \
     *TOP()++ = value;                                                          \
@@ -645,7 +647,8 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
         // state this instruction is in.
         // Dispatch to one-past the beginning of this instruction
         // we want to pretend we already read the op-code.
-        // TODO: Handle primitive calls with the wrong number of arguments
+        // TODO: Handle primitive calls with the wrong number of
+        // arguments
         uint8_t op = gab_valtop(spec);
 
         IP() -= SEND_CACHE_DIST - 1;
@@ -913,24 +916,10 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
         uint64_t frame_len = TOP() - SLOTS() - have;
 
-        assert(frame_len < UINT16_MAX);
+        gab_value sus =
+            gab_suspense(GAB(), frame_len, __gab_obj(BLOCK()), proto, SLOTS());
 
-        if (SUSPENSE()) {
-          struct gab_obj_suspense *sus = SUSPENSE();
-          struct gab_obj_record *f = GAB_VAL_TO_RECORD(sus->f);
-
-          if (f->len == frame_len)
-            memcpy(f->data, SLOTS(), frame_len * sizeof(gab_value));
-          else
-            sus->f = gab_tuple(gab, frame_len, SLOTS());
-
-          PUSH(__gab_obj(sus));
-        } else {
-          gab_value sus = gab_suspense(GAB(), frame_len, __gab_obj(BLOCK()),
-                                       proto, SLOTS());
-
-          PUSH(sus);
-        }
+        PUSH(sus);
 
         have++;
 
@@ -1313,9 +1302,9 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
       /*
        * When packing at the entrypoint of a function
-       * It is possible that we pack TOP() to actually be lower than the number
-       * of locals the function is expected to have.
-       * Move TOP() to past the locals section in this case.
+       * It is possible that we pack TOP() to actually be lower than the
+       * number of locals the function is expected to have. Move TOP()
+       * to past the locals section in this case.
        */
       if (TOP() - SLOTS() < BLOCK_PROTO()->nlocals)
         TOP() = SLOTS() + BLOCK_PROTO()->nlocals;

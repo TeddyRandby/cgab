@@ -1,3 +1,4 @@
+#define TOKEN_NAMES
 #include "colors.h"
 #include "core.h"
 #include "engine.h"
@@ -977,6 +978,196 @@ bool curr_prefix(struct bc *bc) {
   These functions consume tokens and can emit bytes.
 */
 
+int encode_codepoint(char *out, int utf) {
+  if (utf <= 0x7F) {
+    // Plain ASCII
+    out[0] = (char)utf;
+    return 1;
+  } else if (utf <= 0x07FF) {
+    // 2-byte unicode
+    out[0] = (char)(((utf >> 6) & 0x1F) | 0xC0);
+    out[1] = (char)(((utf >> 0) & 0x3F) | 0x80);
+    return 2;
+  } else if (utf <= 0xFFFF) {
+    // 3-byte unicode
+    out[0] = (char)(((utf >> 12) & 0x0F) | 0xE0);
+    out[1] = (char)(((utf >> 6) & 0x3F) | 0x80);
+    out[2] = (char)(((utf >> 0) & 0x3F) | 0x80);
+    return 3;
+  } else if (utf <= 0x10FFFF) {
+    // 4-byte unicode
+    out[0] = (char)(((utf >> 18) & 0x07) | 0xF0);
+    out[1] = (char)(((utf >> 12) & 0x3F) | 0x80);
+    out[2] = (char)(((utf >> 6) & 0x3F) | 0x80);
+    out[3] = (char)(((utf >> 0) & 0x3F) | 0x80);
+    return 4;
+  } else {
+    // error - use replacement character
+    out[0] = (char)0xEF;
+    out[1] = (char)0xBF;
+    out[2] = (char)0xBD;
+    return 3;
+  }
+}
+
+/*
+ * Returns null if an error occured.
+ */
+a_char *parse_raw_str(struct bc *bc, s_char raw_str) {
+  // The parsed string will be at most as long as the raw string.
+  // (\n -> one char)
+  char buffer[raw_str.len];
+  size_t buf_end = 0;
+
+  // Skip the first and last character (")
+  size_t start = 0;
+  while (raw_str.data[start] != '\'' && raw_str.data[start] != '"' &&
+         raw_str.data[start] != '}')
+    start++;
+
+  for (size_t i = start + 1; i < raw_str.len - 1; i++) {
+    int8_t c = raw_str.data[i];
+
+    if (c == '\\') {
+
+      switch (raw_str.data[i + 1]) {
+
+      case 'r':
+        buffer[buf_end++] = '\r';
+        break;
+      case 'n':
+        buffer[buf_end++] = '\n';
+        break;
+      case 't':
+        buffer[buf_end++] = '\t';
+        break;
+      case '{':
+        buffer[buf_end++] = '{';
+        break;
+      case 'u':
+        i += 2;
+
+        if (raw_str.data[i] != '[') {
+          return NULL;
+        }
+
+        i++;
+
+        uint8_t cpl = 0;
+        char codepoint[8] = {0};
+
+        while (raw_str.data[i] != ']') {
+
+          if (cpl == 7)
+            return NULL;
+
+          codepoint[cpl++] = raw_str.data[i++];
+        }
+
+        i++;
+
+        long cp = strtol(codepoint, NULL, 16);
+
+        int result = encode_codepoint(buffer + buf_end, cp);
+
+        buf_end += result;
+
+        break;
+      case '\\':
+        buffer[buf_end++] = '\\';
+        break;
+      default:
+        buffer[buf_end++] = c;
+        continue;
+      }
+
+      i++;
+
+    } else {
+      buffer[buf_end++] = c;
+    }
+  }
+
+  return a_char_create(buffer, buf_end);
+};
+
+int compile_strlit(struct bc *bc) {
+  a_char *parsed = parse_raw_str(bc, prev_src(bc));
+
+  if (parsed == NULL) {
+    compiler_error(bc, GAB_MALFORMED_STRING, "");
+    return COMP_ERR;
+  }
+
+  push_loadk((bc), gab_nstring(gab(bc), parsed->len, parsed->data),
+             bc->offset - 1);
+
+  a_char_destroy(parsed);
+
+  push_slot(bc, 1);
+
+  return COMP_OK;
+}
+
+int compile_symbol(struct bc *bc) {
+  gab_value sym = trim_prev_id(bc);
+
+  push_loadk(bc, sym, bc->offset - 1);
+
+  push_slot(bc, 1);
+
+  return COMP_OK;
+}
+
+int compile_string(struct bc *bc) {
+  if (prev_tok(bc) == TOKEN_SYMBOL)
+    return compile_symbol(bc);
+
+  if (prev_tok(bc) == TOKEN_STRING)
+    return compile_strlit(bc);
+
+  if (prev_tok(bc) == TOKEN_INTERPOLATION_BEGIN) {
+    int result = COMP_OK;
+    uint8_t n = 0;
+    do {
+      if (compile_strlit(bc) < 0)
+        return COMP_ERR;
+
+      n++;
+
+      if (match_token(bc, TOKEN_INTERPOLATION_END)) {
+        goto fin;
+      }
+
+      if (compile_expression(bc) < 0)
+        return COMP_ERR;
+      n++;
+
+    } while ((result = match_and_eat_token(bc, TOKEN_INTERPOLATION_MIDDLE)));
+
+  fin:
+    if (result < 0)
+      return COMP_ERR;
+
+    if (expect_token(bc, TOKEN_INTERPOLATION_END) < 0)
+      return COMP_ERR;
+
+    if (compile_strlit(bc) < 0)
+      return COMP_ERR;
+    n++;
+
+    // Concat the final string.
+    push_op((bc), OP_INTERPOLATE, bc->offset - 1);
+    push_byte((bc), n, bc->offset - 1);
+
+    pop_slot(bc, n - 1);
+
+    return COMP_OK;
+  }
+
+  return COMP_ERR;
+}
+
 static int compile_local(struct bc *bc, gab_value name, uint8_t flags) {
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;
@@ -1574,8 +1765,26 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
 int compile_definition(struct bc *bc, s_char name);
 
 int compile_rec_internal_item(struct bc *bc) {
-  if (match_and_eat_token(bc, TOKEN_IDENTIFIER)) {
+  if (match_and_eat_token(bc, TOKEN_SYMBOL) ||
+      match_and_eat_token(bc, TOKEN_STRING) ||
+      match_and_eat_token(bc, TOKEN_INTERPOLATION_BEGIN)) {
+    size_t t = bc->offset - 1;
 
+    if (compile_string(bc) < 0)
+      return COMP_ERR;
+
+    if (match_and_eat_token(bc, TOKEN_COLON)) {
+      if (compile_expression(bc) < 0)
+        return COMP_ERR;
+    } else {
+      push_op((bc), OP_PUSH_TRUE, t);
+      push_slot(bc, 1);
+    }
+
+    return COMP_OK;
+  }
+
+  if (match_and_eat_token(bc, TOKEN_IDENTIFIER)) {
     gab_value val_name = prev_id(bc);
 
     size_t t = bc->offset - 1;
@@ -1584,7 +1793,7 @@ int compile_rec_internal_item(struct bc *bc) {
 
     push_loadk(bc, val_name, t);
 
-    switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
+    switch (match_and_eat_token(bc, TOKEN_COLON)) {
 
     case COMP_OK: {
       if (compile_expression(bc) < 0)
@@ -1632,7 +1841,7 @@ int compile_rec_internal_item(struct bc *bc) {
     if (expect_token(bc, TOKEN_RBRACE) < 0)
       return COMP_ERR;
 
-    if (match_and_eat_token(bc, TOKEN_EQUAL)) {
+    if (match_and_eat_token(bc, TOKEN_COLON)) {
       if (compile_expression(bc) < 0)
         return COMP_ERR;
     } else {
@@ -1870,10 +2079,11 @@ int compile_exp_mch(struct bc *bc, bool assignable) {
 
     // Test for equality
     push_send(bc, m, 1, false, t);
-    pop_slot(bc, 1);
+    pop_slot(bc, 1); // Pops 2, pushes 1
 
     next = push_jump((bc), OP_POP_JUMP_IF_FALSE, bc->offset - 1);
-    pop_slot(bc, 1);
+    push_pop(bc, 1, t); // Pop the test and pattern
+    pop_slot(bc, 2);
 
     if (expect_token(bc, TOKEN_FAT_ARROW) < 0)
       return COMP_ERR;
@@ -2033,196 +2243,6 @@ int compile_exp_una(struct bc *bc, bool assignable) {
                    "While compiling unary expression");
     return COMP_ERR;
   }
-}
-
-int encode_codepoint(char *out, int utf) {
-  if (utf <= 0x7F) {
-    // Plain ASCII
-    out[0] = (char)utf;
-    return 1;
-  } else if (utf <= 0x07FF) {
-    // 2-byte unicode
-    out[0] = (char)(((utf >> 6) & 0x1F) | 0xC0);
-    out[1] = (char)(((utf >> 0) & 0x3F) | 0x80);
-    return 2;
-  } else if (utf <= 0xFFFF) {
-    // 3-byte unicode
-    out[0] = (char)(((utf >> 12) & 0x0F) | 0xE0);
-    out[1] = (char)(((utf >> 6) & 0x3F) | 0x80);
-    out[2] = (char)(((utf >> 0) & 0x3F) | 0x80);
-    return 3;
-  } else if (utf <= 0x10FFFF) {
-    // 4-byte unicode
-    out[0] = (char)(((utf >> 18) & 0x07) | 0xF0);
-    out[1] = (char)(((utf >> 12) & 0x3F) | 0x80);
-    out[2] = (char)(((utf >> 6) & 0x3F) | 0x80);
-    out[3] = (char)(((utf >> 0) & 0x3F) | 0x80);
-    return 4;
-  } else {
-    // error - use replacement character
-    out[0] = (char)0xEF;
-    out[1] = (char)0xBF;
-    out[2] = (char)0xBD;
-    return 3;
-  }
-}
-
-/*
- * Returns null if an error occured.
- */
-a_char *parse_raw_str(struct bc *bc, s_char raw_str) {
-  // The parsed string will be at most as long as the raw string.
-  // (\n -> one char)
-  char buffer[raw_str.len];
-  size_t buf_end = 0;
-
-  // Skip the first and last character (")
-  size_t start = 0;
-  while (raw_str.data[start] != '\'' && raw_str.data[start] != '"' &&
-         raw_str.data[start] != '}')
-    start++;
-
-  for (size_t i = start + 1; i < raw_str.len - 1; i++) {
-    int8_t c = raw_str.data[i];
-
-    if (c == '\\') {
-
-      switch (raw_str.data[i + 1]) {
-
-      case 'r':
-        buffer[buf_end++] = '\r';
-        break;
-      case 'n':
-        buffer[buf_end++] = '\n';
-        break;
-      case 't':
-        buffer[buf_end++] = '\t';
-        break;
-      case '{':
-        buffer[buf_end++] = '{';
-        break;
-      case 'u':
-        i += 2;
-
-        if (raw_str.data[i] != '[') {
-          return NULL;
-        }
-
-        i++;
-
-        uint8_t cpl = 0;
-        char codepoint[8] = {0};
-
-        while (raw_str.data[i] != ']') {
-
-          if (cpl == 7)
-            return NULL;
-
-          codepoint[cpl++] = raw_str.data[i++];
-        }
-
-        i++;
-
-        long cp = strtol(codepoint, NULL, 16);
-
-        int result = encode_codepoint(buffer + buf_end, cp);
-
-        buf_end += result;
-
-        break;
-      case '\\':
-        buffer[buf_end++] = '\\';
-        break;
-      default:
-        buffer[buf_end++] = c;
-        continue;
-      }
-
-      i++;
-
-    } else {
-      buffer[buf_end++] = c;
-    }
-  }
-
-  return a_char_create(buffer, buf_end);
-};
-
-int compile_strlit(struct bc *bc) {
-  a_char *parsed = parse_raw_str(bc, prev_src(bc));
-
-  if (parsed == NULL) {
-    compiler_error(bc, GAB_MALFORMED_STRING, "");
-    return COMP_ERR;
-  }
-
-  push_loadk((bc), gab_nstring(gab(bc), parsed->len, parsed->data),
-             bc->offset - 1);
-
-  a_char_destroy(parsed);
-
-  push_slot(bc, 1);
-
-  return COMP_OK;
-}
-
-int compile_symbol(struct bc *bc) {
-  gab_value sym = trim_prev_id(bc);
-
-  push_loadk(bc, sym, bc->offset - 1);
-
-  push_slot(bc, 1);
-
-  return COMP_OK;
-}
-
-int compile_string(struct bc *bc) {
-  if (prev_tok(bc) == TOKEN_SYMBOL)
-    return compile_symbol(bc);
-
-  if (prev_tok(bc) == TOKEN_STRING)
-    return compile_strlit(bc);
-
-  if (prev_tok(bc) == TOKEN_INTERPOLATION_BEGIN) {
-    int result = COMP_OK;
-    uint8_t n = 0;
-    do {
-      if (compile_strlit(bc) < 0)
-        return COMP_ERR;
-
-      n++;
-
-      if (match_token(bc, TOKEN_INTERPOLATION_END)) {
-        goto fin;
-      }
-
-      if (compile_expression(bc) < 0)
-        return COMP_ERR;
-      n++;
-
-    } while ((result = match_and_eat_token(bc, TOKEN_INTERPOLATION_MIDDLE)));
-
-  fin:
-    if (result < 0)
-      return COMP_ERR;
-
-    if (expect_token(bc, TOKEN_INTERPOLATION_END) < 0)
-      return COMP_ERR;
-
-    if (compile_strlit(bc) < 0)
-      return COMP_ERR;
-    n++;
-
-    // Concat the final string.
-    push_op((bc), OP_INTERPOLATE, bc->offset - 1);
-    push_byte((bc), n, bc->offset - 1);
-
-    pop_slot(bc, n - 1);
-
-    return COMP_OK;
-  }
-
-  return COMP_ERR;
 }
 
 /*
@@ -3329,7 +3349,7 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   gab_egkeep(eg(bc), main);
 
   if (fGAB_DUMP_BYTECODE & bc->flags)
-    gab_fbcdump(stdout, GAB_VAL_TO_BLOCK_PROTO(p));
+    gab_fmodinspect(stdout, GAB_VAL_TO_BLOCK_PROTO(p));
 
   return main;
 }
@@ -3428,9 +3448,11 @@ uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_block_proto *self,
   uint8_t var = have & FLAG_VAR_EXP;
   have = have >> 1;
 
-  fprintf(stream,
-          "%-25s" ANSI_COLOR_BLUE "%10V" ANSI_COLOR_RESET " (%s%d) -> %d\n",
-          name, msg, var ? "& more" : "", have, want);
+  fprintf(stream, "%-25s" ANSI_COLOR_BLUE, name);
+  gab_fvalinspect(stream, msg, 0);
+  fprintf(stream, ANSI_COLOR_RESET " (%s%d) -> %d\n", var ? "& more" : "", have,
+          want);
+
   return offset + 22;
 }
 
@@ -3486,7 +3508,7 @@ uint64_t dumpConstantInstruction(FILE *stream, struct gab_obj_block_proto *self,
   const char *name =
       gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
   fprintf(stream, "%-25s", name);
-  gab_fvaldump(stdout, v_gab_value_val_at(&self->constants, constant));
+  gab_fvalinspect(stdout, v_gab_value_val_at(&self->constants, constant), 0);
   fprintf(stream, "\n");
   return offset + 3;
 }
@@ -3532,6 +3554,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
                          uint64_t offset) {
   uint8_t op = v_uint8_t_val_at(&self->bytecode, offset);
   switch (op) {
+  case OP_PUSH_UNDEFINED:
   case OP_STORE_LOCAL_0:
   case OP_STORE_LOCAL_1:
   case OP_STORE_LOCAL_2:
@@ -3692,10 +3715,12 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
   }
 }
 
-void gab_fbcdump(FILE *stream, struct gab_obj_block_proto *mod) {
+int gab_fmodinspect(FILE *stream, struct gab_obj_block_proto *mod) {
   uint64_t offset = 0;
   while (offset < mod->bytecode.len) {
     fprintf(stream, ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);
     offset = dumpInstruction(stream, mod, offset);
   }
+
+  return 0;
 }

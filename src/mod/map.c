@@ -152,7 +152,7 @@ void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value type = gab_string(gab, "map");
+  gab_value type = gab_string(gab, "Map");
 
   struct gab_spec_argt specs[] = {
       {
@@ -168,12 +168,12 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "put!",
           type,
-          gab_snative(gab, "put", gab_lib_put),
+          gab_snative(gab, "put!", gab_lib_put),
       },
       {
           "add!",
           type,
-          gab_snative(gab, "add", gab_lib_add),
+          gab_snative(gab, "add!", gab_lib_add),
       },
       {
           "at",

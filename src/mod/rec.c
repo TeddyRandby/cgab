@@ -144,7 +144,7 @@ void gab_lib_tuple(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   }
 }
 
-void gab_lib_record(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+void gab_lib_shape(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     if (gab_valkind(argv[1]) != kGAB_SHAPE) {
@@ -229,7 +229,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "record.new",
           gab_undefined,
-          gab_snative(gab, "record.new", gab_lib_record),
+          gab_snative(gab, "record.new", gab_lib_shape),
       },
       {
           "len",

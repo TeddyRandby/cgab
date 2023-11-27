@@ -22,15 +22,15 @@ end
 
 def from[.Number](src)
   ?src match
-      nil     => { from = self }           end
-      .Number => { from = src to = self }  end
+      nil     => { from: self }           end
+      .Number => { from: src to: self }  end
       else    => .INVALID_ARGUMENTS:panic end
 end
 
 def to[.Number](dest)
   ?dest match
-      nil     => { to = self }             end
-      .Number => { from = self to = dest } end
+      nil     => { to: self }             end
+      .Number => { from: self to: dest } end
       else    => .INVALID_ARGUMENTS:panic end
 end
 

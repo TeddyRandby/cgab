@@ -3,6 +3,7 @@
 #include "engine.h"
 #include "gab.h"
 #include "types.h"
+#include <stdint.h>
 
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \
   ((struct obj_type *)gab_obj_create(gab, sizeof(struct obj_type), kind))
@@ -11,47 +12,23 @@
   ((struct obj_type *)gab_obj_create(                                          \
       gab, sizeof(struct obj_type) + sizeof(flex_type) * flex_count, kind))
 
-static const char *gab_kind_names[] = {
-    [kGAB_TRUE] = "true",
-    [kGAB_FALSE] = "false",
-    [kGAB_PRIMITIVE] = "primitive",
-    [kGAB_NUMBER] = "number",
-    [kGAB_UNDEFINED] = "undefined",
-    [kGAB_STRING] = "obj_string",
-    [kGAB_MESSAGE] = "obj_message",
-    [kGAB_SHAPE] = "obj_shape",
-    [kGAB_RECORD] = "obj_record",
-    [kGAB_BOX] = "obj_box",
-    [kGAB_BLOCK] = "obj_block",
-    [kGAB_SUSPENSE] = "obj_suspense",
-    [kGAB_NATIVE] = "obj_native",
-    [kGAB_BLOCK_PROTO] = "obj_block_proto",
-    [kGAB_SUSPENSE_PROTO] = "obj_suspense_proto",
-};
-
 struct gab_obj *gab_obj_create(struct gab_triple gab, size_t sz,
                                enum gab_kind k) {
-  struct gab_obj *self = gab_memalloc(gab, NULL, sz);
+  struct gab_obj *self = gab_egalloc(gab, NULL, sz);
 
   self->kind = k;
   self->references = 1;
   self->flags = fGAB_OBJ_NEW;
-
-#if cGAB_LOG_GC
-  printf("CREATE\t%p\t%s\n", self, gab_kind_names[k]);
-#endif
 
   gab_gcdref(gab, __gab_obj(self));
 
   return self;
 }
 
-int32_t __dump_value(FILE *stream, gab_value self, uint8_t depth);
-
-int32_t shape_dump_properties(FILE *stream, struct gab_obj_shape *shape,
-                              uint8_t depth) {
+int shape_dump_properties(FILE *stream, struct gab_obj_shape *shape,
+                          int depth) {
   if (shape->len == 0)
-    return fprintf(stream, "~");
+    return fprintf(stream, "~ ");
 
   if (shape->len > 8)
     return fprintf(stream, "...");
@@ -59,12 +36,12 @@ int32_t shape_dump_properties(FILE *stream, struct gab_obj_shape *shape,
   int32_t bytes = 0;
 
   for (uint64_t i = 0; i < shape->len - 1; i++) {
-    bytes += __dump_value(stream, shape->data[i], depth - 1);
+    bytes += gab_fvalinspect(stream, shape->data[i], depth - 1);
 
     bytes += fprintf(stream, " ");
   }
 
-  bytes += __dump_value(stream, shape->data[shape->len - 1], depth - 1);
+  bytes += gab_fvalinspect(stream, shape->data[shape->len - 1], depth - 1);
 
   return bytes;
 }
@@ -80,32 +57,36 @@ int32_t rec_dump_properties(FILE *stream, struct gab_obj_record *rec,
   int32_t bytes = 0;
 
   struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(rec->shape);
-  for (uint64_t i = 0; i < rec->len - 1; i++) {
-    bytes += __dump_value(stream, shape->data[i], depth - 1);
 
-    bytes += fprintf(stream, " = ");
+  for (uint64_t i = 0; i < rec->len - 1; i++) {
+    bytes += gab_fvalinspect(stream, shape->data[i], depth - 1);
+
+    bytes += fprintf(stream, ": ");
 
     if (rec->data[i] == __gab_obj(rec))
       bytes += fprintf(stream, "{ ... }");
     else
-      bytes += __dump_value(stream, rec->data[i], depth - 1);
+      bytes += gab_fvalinspect(stream, rec->data[i], depth - 1);
 
     bytes += fprintf(stream, " ");
   }
 
-  bytes += __dump_value(stream, shape->data[rec->len - 1], depth - 1);
+  bytes += gab_fvalinspect(stream, shape->data[rec->len - 1], depth - 1);
 
-  bytes += fprintf(stream, " = ");
+  bytes += fprintf(stream, ": ");
 
   if (rec->data[rec->len - 1] == __gab_obj(rec))
     bytes += fprintf(stream, "{ ... }");
   else
-    bytes += __dump_value(stream, rec->data[rec->len - 1], depth - 1);
+    bytes += gab_fvalinspect(stream, rec->data[rec->len - 1], depth - 1);
 
   return bytes;
 }
 
-int __dump_value(FILE *stream, gab_value self, uint8_t depth) {
+int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
+  if (depth < 0)
+    depth = 1;
+
   switch (gab_valkind(self)) {
   case kGAB_NIL:
     return fprintf(stream, "%s", "nil");
@@ -125,7 +106,7 @@ int __dump_value(FILE *stream, gab_value self, uint8_t depth) {
   }
   case kGAB_MESSAGE: {
     struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(self);
-    return fprintf(stream, "&:%V", msg->name);
+    return fprintf(stream, "&:") + gab_fvalinspect(stream, msg->name, depth);
   }
   case kGAB_SHAPE: {
     struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(self);
@@ -139,39 +120,40 @@ int __dump_value(FILE *stream, gab_value self, uint8_t depth) {
   }
   case kGAB_BOX: {
     struct gab_obj_box *con = GAB_VAL_TO_BOX(self);
-    return fprintf(stream, "<%V %p>", con->type, con->data);
+    return fprintf(stream, "<") + gab_fvalinspect(stream, con->type, depth) +
+           fprintf(stream, " %p>", con->data);
   }
   case kGAB_BLOCK: {
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(self);
-    return fprintf(stream, "<Block %V>", blk->p);
+    struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(blk->p);
+    return fprintf(stream, "<Block ") +
+           gab_fvalinspect(stream, p->name, depth) + fprintf(stream, ">");
   }
   case kGAB_SUSPENSE: {
     struct gab_obj_suspense *sus = GAB_VAL_TO_SUSPENSE(self);
-    return fprintf(stream, "<Suspense %V>", sus->b);
+    struct gab_obj_suspense_proto *p = GAB_VAL_TO_SUSPENSE_PROTO(sus->p);
+    return fprintf(stream, "<Suspense ") +
+           gab_fvalinspect(stream, p->name, depth) + fprintf(stream, ">");
   }
   case kGAB_NATIVE: {
-    struct gab_obj_native *blt = GAB_VAL_TO_NATIVE(self);
-    return fprintf(stream, "<Builtin %V>", blt->name);
+    struct gab_obj_native *n = GAB_VAL_TO_NATIVE(self);
+    return fprintf(stream, "<Native ") +
+           gab_fvalinspect(stream, n->name, depth) + fprintf(stream, ">");
   }
   case kGAB_BLOCK_PROTO: {
     struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(self);
-    return fprintf(stream, "%V", proto->name);
+    return fprintf(stream, "<Prototype ") +
+           gab_fvalinspect(stream, proto->name, depth) + fprintf(stream, ">");
   }
   case kGAB_SUSPENSE_PROTO: {
     struct gab_obj_suspense_proto *proto = GAB_VAL_TO_SUSPENSE_PROTO(self);
-    return fprintf(stream, "%V", proto->name);
+    return fprintf(stream, "<Prototype ") +
+           gab_fvalinspect(stream, proto->name, depth) + fprintf(stream, ">");
   }
   default: {
-    fprintf(stderr, "%d is not an object.\n", gab_valtoo(self)->kind);
-    exit(0);
+    assert(false && "NOT AN OBJECT");
   }
   }
-
-  assert(false && "Unknown value type.");
-}
-
-int gab_fvaldump(FILE *stream, gab_value self) {
-  return __dump_value(stream, self, 2);
 }
 
 void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
@@ -245,9 +227,11 @@ uint64_t gab_obj_size(struct gab_obj *self) {
 static inline uint64_t hash_keys(uint64_t seed, uint64_t len, uint64_t stride,
                                  gab_value values[len]) {
   gab_value words[len];
+
   for (uint64_t i = 0; i < len; i++) {
     words[i] = values[i * stride];
   }
+
   return hash_words(seed, len, words);
 };
 
@@ -263,11 +247,12 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
     return __gab_obj(interned);
 
   struct gab_obj_string *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_string, char, str.len, kGAB_STRING);
+      GAB_CREATE_FLEX_OBJ(gab_obj_string, char, str.len + 1, kGAB_STRING);
 
   memcpy(self->data, str.data, str.len);
   self->len = str.len;
   self->hash = hash;
+  self->data[str.len] = '\0';
 
   GAB_OBJ_GREEN((struct gab_obj *)self);
 
@@ -352,17 +337,18 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
   if (interned)
     return __gab_obj(interned);
 
+  gab_gcreserve(gab, 3);
+
   struct gab_obj_message *self = GAB_CREATE_OBJ(gab_obj_message, kGAB_MESSAGE);
 
   self->name = name;
   self->version = 0;
   self->hash = GAB_VAL_TO_STRING(name)->hash;
 
-  self->specs = gab_erecordof(gab, gab_nshape(gab, 0));
+  self->specs = gab_etuple(gab, 0);
 
   d_messages_insert(&gab.eg->interned_messages, self, 0);
 
-  /* The message is owned by the engine. */
   return __gab_obj(self);
 }
 
@@ -494,9 +480,9 @@ gab_value gab_susproto(struct gab_triple gab, struct gab_src *src,
   return __gab_obj(self);
 }
 
-gab_value gab_suspense(struct gab_triple gab, uint16_t len, gab_value b,
+gab_value gab_suspense(struct gab_triple gab, uint64_t len, gab_value b,
                        gab_value p, gab_value frame[static len]) {
-  gab_gcreserve(gab, 2);
+  gab_gcreserve(gab, 3);
 
   assert(gab_valkind(b) == kGAB_BLOCK);
   assert(gab_valkind(p) == kGAB_SUSPENSE_PROTO);

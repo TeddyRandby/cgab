@@ -126,9 +126,9 @@ void gab_lib_to_n(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  s_char str = gab_valintocs(gab, argv[0]);
+  const char *str = gab_valintocs(gab, argv[0]);
 
-  gab_value res = gab_number(strtod(str.data, NULL));
+  gab_value res = gab_number(strtod(str, NULL));
 
   gab_vmpush(gab.vm, res);
 };

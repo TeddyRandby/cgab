@@ -82,9 +82,9 @@ gab_value out_queue_pop(struct gab_triple gab, fiber *f) {
 void out_queue_push(fiber *f, gab_value v) {
   gab_egkeep(f->gab.eg, v);
 
-  s_char ref = gab_valintocs(f->gab, v);
+  const char *ref = gab_valintocs(f->gab, v);
 
-  v_a_char_push(&f->out_queue, a_char_create(ref.data, ref.len));
+  v_a_char_push(&f->out_queue, a_char_create(ref, strlen(ref)));
 }
 
 gab_value run(fiber *f, gab_value runnable, gab_value arg) {
@@ -191,10 +191,10 @@ void gab_lib_fiber(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     thrd_detach(f->thrd); // The fiber will clean itself up
 
     gab_value fiber = gab_box(gab, (struct gab_box_argt){
-                                          .data = f,
-                                          .type = gab_string(gab, "Fiber"),
-                                          .destructor = fiber_destructor_cb,
-                                      });
+                                       .data = f,
+                                       .type = gab_string(gab, "Fiber"),
+                                       .destructor = fiber_destructor_cb,
+                                   });
 
     gab_vmpush(gab.vm, fiber);
     break;
@@ -222,9 +222,9 @@ void gab_lib_send(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   for (int i = 1; i < argc; i++) {
     gab_value msg = gab_valintos(gab, argv[i]);
 
-    s_char ref = gab_valintocs(gab, msg);
+    const char *ref = gab_valintocs(gab, msg);
 
-    v_a_char_push(&f->in_queue, a_char_create(ref.data, ref.len));
+    v_a_char_push(&f->in_queue, a_char_create(ref, strlen(ref)));
   }
   mtx_unlock(&f->mutex);
 
@@ -266,21 +266,21 @@ void gab_lib_await(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 a_gab_value *gab_lib(struct gab_triple gab) {
 
   struct gab_spec_argt specs[] = {
-    {
-      "fiber.new",
-      gab_undefined,
-      gab_snative(gab, "fiber.new", gab_lib_fiber),
-    },
-    {
-      "send",
-      gab_string(gab, "Fiber"),
-      gab_snative(gab, "send", gab_lib_send),
-    },
-    {
-      "await",
-      gab_string(gab, "Fiber"),
-      gab_snative(gab, "await", gab_lib_await),
-    },
+      {
+          "fiber.new",
+          gab_undefined,
+          gab_snative(gab, "fiber.new", gab_lib_fiber),
+      },
+      {
+          "send",
+          gab_string(gab, "Fiber"),
+          gab_snative(gab, "send", gab_lib_send),
+      },
+      {
+          "await",
+          gab_string(gab, "Fiber"),
+          gab_snative(gab, "await", gab_lib_await),
+      },
   };
 
   gab_nspec(gab, sizeof(specs) / sizeof(specs[0]), specs);

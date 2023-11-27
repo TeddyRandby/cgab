@@ -15,9 +15,9 @@ void gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
 void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
-    default:
-      gab_panic(gab, "&:string.new expects 1 argument");
-      return;
+  default:
+    gab_panic(gab, "&:string.new expects 1 argument");
+    return;
   }
 }
 
@@ -26,7 +26,7 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 #define CLAMP(a, b) (MAX(0, MIN(a, b)))
 
 void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  s_char str = gab_valintocs(gab, argv[0]);
+  const char *str = gab_valintocs(gab, argv[0]);
 
   uint64_t len = gab_strlen(argv[0]);
   uint64_t start = 0, end = len;
@@ -70,7 +70,7 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   uint64_t size = end - start;
 
-  gab_value res = gab_nstring(gab, size, str.data + start);
+  gab_value res = gab_nstring(gab, size, str + start);
 
   gab_vmpush(gab.vm, res);
 }

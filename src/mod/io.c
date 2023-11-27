@@ -11,18 +11,10 @@ void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  s_char path = gab_valintocs(gab, argv[1]);
-  s_char perm = gab_valintocs(gab, argv[2]);
+  const char *path = gab_valintocs(gab, argv[1]);
+  const char *perm = gab_valintocs(gab, argv[2]);
 
-  char cpath[path.len + 1];
-  memcpy(cpath, path.data, path.len);
-  cpath[path.len] = '\0';
-
-  char cperm[perm.len + 1];
-  memcpy(cperm, perm.data, perm.len);
-  cperm[perm.len] = '\0';
-
-  FILE *file = fopen(cpath, cperm);
+  FILE *file = fopen(path, perm);
 
   if (file == NULL) {
     gab_value r = gab_string(gab, "FILE_COULD_NOT_OPEN");
@@ -81,13 +73,9 @@ void gab_lib_write(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   FILE *file = gab_boxdata(argv[0]);
 
-  s_char data = gab_valintocs(gab, argv[1]);
+  const char *data = gab_valintocs(gab, argv[1]);
 
-  char cdata[data.len + 1];
-  memcpy(cdata, data.data, data.len);
-  cdata[data.len] = '\0';
-
-  int32_t result = fputs(cdata, file);
+  int32_t result = fputs(data, file);
 
   if (result > 0) {
     gab_vmpush(gab.vm, gab_string(gab, "ok"));
@@ -108,7 +96,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value type = gab_string(gab, "File");
 
   gab_value receivers[] = {
-      gab_nil,
+      gab_undefined,
       type,
       type,
   };
@@ -127,5 +115,5 @@ a_gab_value *gab_lib(struct gab_triple gab) {
                   });
   }
 
-  return a_gab_value_one(type);
+  return NULL;
 }

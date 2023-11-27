@@ -1,4 +1,3 @@
-#include "alloc.h"
 #include "core.h"
 #include "gab.h"
 #include "os.h"
@@ -62,7 +61,7 @@ uint8_t parse_flags(const char *arg) {
       print_help(stdout);
       exit(0);
     case 'v':
-      printf("gab %d.%d\n", GAB_VERSION_MAJOR, GAB_VERSION_MINOR);
+      printf("gab " GAB_VERSION_MAJOR "." GAB_VERSION_MINOR "\n");
       exit(0);
     default:
       throw_err("Unknown flag");

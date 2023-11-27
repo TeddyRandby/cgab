@@ -19,28 +19,15 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  const char *names[] = {
-      "symbol.new",
+  struct gab_spec_argt specs[] = {
+      {
+          "symbol.new",
+          gab_undefined,
+          gab_snative(gab, "new", gab_lib_new),
+      },
   };
 
-  gab_value receivers[] = {
-      gab_undefined,
-  };
-
-  gab_value specs[] = {
-      gab_snative(gab, "new", gab_lib_new),
-  };
-
-  static_assert(LEN_CARRAY(names) == LEN_CARRAY(receivers));
-  static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
-
-  for (int i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = names[i],
-                      .receiver = receivers[i],
-                      .specialization = specs[i],
-                  });
-  }
+  gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
   return NULL;
 }

@@ -147,11 +147,11 @@ void gab_lib_use(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   // skip first argument
   for (size_t i = 1; i < argc; i++) {
-    s_char name = gab_valintocs(gab, argv[i]);
+    const char *name = gab_valintocs(gab, argv[i]);
 
     for (int j = 0; j < sizeof(resources) / sizeof(resource); j++) {
       resource *res = resources + j;
-      a_char *path = match_resource(res, name.data, name.len);
+      a_char *path = match_resource(res, name, strlen(name));
 
       if (path) {
         struct gab_imp *cached = gab_impat(gab.eg, (char *)path->data);
@@ -182,13 +182,9 @@ void gab_lib_use(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
 void gab_lib_panic(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc == 1) {
-    s_char str = gab_valintocs(gab, argv[0]);
+    const char* str = gab_valintocs(gab, argv[0]);
 
-    char *cstr = strndup((char *)str.data, str.len);
-
-    gab_panic(gab, cstr);
-
-    free(cstr);
+    gab_panic(gab, str);
 
     return;
   }
@@ -200,7 +196,7 @@ void gab_lib_print(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   for (uint8_t i = 0; i < argc; i++) {
     if (i > 0)
       putc(' ', stdout);
-    gab_fvaldump(stdout, argv[i]);
+    gab_fvalinspect(stdout, argv[i], -1);
   }
 
   printf("\n");

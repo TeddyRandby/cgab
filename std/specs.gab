@@ -1,9 +1,11 @@
 :use 'maps'
 :use 'records'
 :use 'lists'
+:use 'shapes'
 :use 'symbol'
 :use 'msg'
 :use 'any'
+:use 'dis'
 
 ## TODO: Optimize for memory by caching generated specs based on input
 
@@ -132,7 +134,7 @@ def spec.map[](k_spec, v_spec)
   end
 
   def spec.gen[map.predicate]
-    :map.new { [k_spec:spec.gen] = v_spec:spec.gen }
+    :map.new { [k_spec:spec.gen]:  v_spec:spec.gen }
   end
 
   return map.predicate
@@ -157,43 +159,41 @@ def spec.list[](spec)
   return list.predicate
 end
 
-## predicate for a list of keys
-def spec.record[](record)
+## predicate for a type which implements a set of messages
+def spec.protocol[](protocol)
   # Return a predicate which returns true if the given value
   # has all the keys of the record
-  def record.predicate (value)
-    ## TODO: Update this such that the value is AT LEAST the record
-    value:is?(record) or return false, self, value
+  def protocol.predicate (value)
+    for k in protocol:each
+      # If message doesn't specify for this value, then the spec doesn't fit
+      m = :message.new(k)
+      m:at(value) == .some or return false, self, value
 
-    for k in :record.new(record):each
-      # If the value has the shape we expect,
-      # then we can continue on and check each
-      # of its keys against a possible spec
-      # in the registry.
+      # Check for a spec which corresponds to this message in the protocol
       _, s = registry.spec:at(k) in match
          .some => s:spec.fits?(value[k]) else
               return false, s, value, k
             end
          end
-         else  => .MISSING_SPEC:panic end
+         else  => .pass end
     end
 
     return true, self, value
   end
 
-  def spec.gen[record.predicate]
-    gen = :record.new(record)
+  def spec.gen[protocol.predicate]
+    gen = :record.new(protocol)
 
-    for k in :record.new(record):each
+    for k in protocol:each
       _, s = registry.spec:at(k) in match
         .some => gen[k] = s:spec.gen end
         else  => .MISSING_SPEC:panic end
     end
 
     return gen
-  end
+  end:dis(protocol.predicate)
 
-  return record.predicate
+  return protocol.predicate
 end
 
 ## Convenience specs for composing above types
