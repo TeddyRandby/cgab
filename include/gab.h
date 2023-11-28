@@ -1274,7 +1274,11 @@ gab_value gab_susproto(struct gab_triple gab, struct gab_src *src,
 struct gab_obj_suspense {
   struct gab_obj header;
 
-  gab_value p, b, f;
+  gab_value p, b;
+
+  size_t len;
+
+  gab_value data[FLEXIBLE_ARRAY];
 };
 
 #define GAB_VAL_TO_SUSPENSE(value)                                             \
@@ -1293,8 +1297,8 @@ struct gab_obj_suspense {
  *
  * @param frame The frame.
  */
-gab_value gab_suspense(struct gab_triple gab, uint64_t len, gab_value block,
-                       gab_value proto, gab_value frame[static len]);
+gab_value gab_suspense(struct gab_triple gab, gab_value block, gab_value proto,
+                       uint64_t len, gab_value frame[static len]);
 
 /**
  * # Create a native wrapper to a c function with a gab_string name.

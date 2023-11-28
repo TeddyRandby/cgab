@@ -186,8 +186,7 @@ static inline bool has_callspace(struct gab_vm *vm, size_t space_needed) {
 static inline bool call_suspense(struct gab_vm *vm,
                                  struct gab_obj_suspense *sus, uint8_t have,
                                  uint8_t want) {
-  struct gab_obj_record *frame = GAB_VAL_TO_RECORD(sus->f);
-  int32_t space_needed = frame->len;
+  int32_t space_needed = sus->len;
 
   if (space_needed > 0 && !has_callspace(vm, space_needed))
     return false;
@@ -202,10 +201,10 @@ static inline bool call_suspense(struct gab_vm *vm,
   vm->fp->slots = vm->sp - have - 1;
 
   gab_value *from = vm->sp - have;
-  gab_value *to = vm->fp->slots + frame->len;
+  gab_value *to = vm->fp->slots + sus->len;
 
   vm->sp = trim_return(from, to, have, proto->want);
-  memcpy(vm->fp->slots, frame->data, frame->len * sizeof(gab_value));
+  memcpy(vm->fp->slots, sus->data, sus->len * sizeof(gab_value));
 
   return true;
 }
@@ -327,7 +326,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   SKIP_SHORT;                                                                  \
   SKIP_BYTE;                                                                   \
   SKIP_BYTE;                                                                   \
-  SKIP_QWORD;                                                                   \
+  SKIP_QWORD;                                                                  \
   SKIP_QWORD;                                                                  \
   SKIP_QWORD;                                                                  \
   if (!__gab_valisn(PEEK2())) {                                                \
@@ -900,7 +899,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
         uint64_t frame_len = TOP() - SLOTS() - have;
 
         gab_value sus =
-            gab_suspense(GAB(), frame_len, __gab_obj(BLOCK()), proto, SLOTS());
+            gab_suspense(GAB(), __gab_obj(BLOCK()), proto, frame_len, SLOTS());
 
         PUSH(sus);
 

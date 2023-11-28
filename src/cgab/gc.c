@@ -32,7 +32,11 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
   case kGAB_SUSPENSE: {
     struct gab_obj_suspense *sus = (struct gab_obj_suspense *)obj;
 
-    fnc(gab, gab_valtoo(sus->f));
+    for (size_t i = 0; i < sus->len; i++) {
+      if (gab_valiso(sus->data[i]))
+        fnc(gab, gab_valtoo(sus->data[i]));
+    }
+
     fnc(gab, gab_valtoo(sus->b));
 
     break;
@@ -388,7 +392,7 @@ void gab_gccreate(struct gab_gc *gc) {
   gc->nreserve = 0;
 };
 
-void gab_gcdestroy(struct gab_gc* gc) {
+void gab_gcdestroy(struct gab_gc *gc) {
   v_gab_obj_destroy(&gc->modifications);
   v_gab_obj_destroy(&gc->decrements);
 }

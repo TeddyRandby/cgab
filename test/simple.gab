@@ -1,2 +1,5 @@
+:use .records
 
-lhs:(dynamic_message)(*rhs)
+for i in [1,2,3]:each
+  i:print
+end
