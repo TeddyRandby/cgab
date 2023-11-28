@@ -332,9 +332,9 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
 #define NEXT() DISPATCH(*IP()++);
 
-#define SEND_CACHE_GUARD(cached_type, type, version, m)                        \
-  if (version != 255 && ((cached_type != type) ||                              \
-                         (version != GAB_VAL_TO_MESSAGE(m)->version))) {       \
+#define SEND_CACHE_GUARD(cached_type, type, cached_specs, m)                   \
+  if (cached_specs != 0 && ((cached_type != type) ||                           \
+                            (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs))) { \
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);                                  \
     IP() -= SEND_CACHE_DIST;                                                   \
     NEXT();                                                                    \
@@ -344,7 +344,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   SKIP_SHORT;                                                                  \
   SKIP_BYTE;                                                                   \
   SKIP_BYTE;                                                                   \
-  SKIP_BYTE;                                                                   \
+  SKIP_QWORD;                                                                   \
   SKIP_QWORD;                                                                  \
   SKIP_QWORD;                                                                  \
   if (!__gab_valisn(PEEK2())) {                                                \
@@ -389,7 +389,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
               "Stack exceeded frame "                                          \
               "(%d). %lu passed\n",                                            \
               BLOCK_PROTO()->nslots, TOP() - SLOTS() - BLOCK_PROTO()->nslots); \
-      gab_fvminspect(stdout, VM(), 0);                                            \
+      gab_fvminspect(stdout, VM(), 0);                                         \
       exit(1);                                                                 \
     }                                                                          \
     *TOP()++ = value;                                                          \
@@ -426,7 +426,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 #define STORE_FRAME() ({ FRAME()->ip = IP(); })
 #define LOAD_FRAME() ({ IP() = FRAME()->ip; })
 
-#define SEND_CACHE_DIST 22
+#define SEND_CACHE_DIST 29
 
 #define ERROR(status, help, ...)                                               \
   (vm_error(GAB(), args.flags, status, help, __VA_ARGS__))
@@ -484,7 +484,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
                      gab_valtype(EG(), receiver));
       }
 
-      WRITE_INLINEBYTE(GAB_VAL_TO_MESSAGE(m)->version);
+      WRITE_INLINEQWORD(GAB_VAL_TO_MESSAGE(m)->specs);
       WRITE_INLINEQWORD(type);
       WRITE_INLINEQWORD(offset);
 
@@ -510,10 +510,9 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
     CASE_CODE(SEND_MONO_BLOCK) : {
       gab_value m = READ_CONSTANT;
-
       uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
-      uint8_t version = READ_BYTE;
+      gab_value cached_specs = *READ_QWORD;
       gab_value cached_type = *READ_QWORD;
       uint64_t offset = *READ_QWORD;
 
@@ -521,9 +520,9 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
       gab_value type = gab_pvaltype(EG(), receiver);
 
-      SEND_CACHE_GUARD(cached_type, type, version, m)
+      SEND_CACHE_GUARD(cached_type, type, cached_specs, m)
 
-      gab_value spec = gab_umsgat(m, offset);
+      gab_value spec = gab_urecat(cached_specs, offset);
 
       struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
 
@@ -539,10 +538,9 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
     CASE_CODE(SEND_MONO_NATIVE) : {
       gab_value m = READ_CONSTANT;
-
       uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
-      uint8_t version = READ_BYTE;
+      gab_value cached_specs = *READ_QWORD;
       gab_value cached_type = *READ_QWORD;
       uint64_t offset = *READ_QWORD;
 
@@ -550,9 +548,9 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
       gab_value type = gab_pvaltype(EG(), receiver);
 
-      SEND_CACHE_GUARD(cached_type, type, version, m)
+      SEND_CACHE_GUARD(cached_type, type, cached_specs, m)
 
-      gab_value spec = gab_umsgat(m, offset);
+      gab_value spec = gab_urecat(cached_specs, offset);
 
       STORE_FRAME();
 
@@ -567,7 +565,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       gab_value m = READ_CONSTANT;
       uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
-      uint8_t version = READ_BYTE;
+      gab_value cached_specs = *READ_QWORD;
       gab_value cached_type = *READ_QWORD;
       SKIP_QWORD;
 
@@ -575,7 +573,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
       gab_value type = gab_pvaltype(EG(), receiver);
 
-      SEND_CACHE_GUARD(cached_type, type, version, m)
+      SEND_CACHE_GUARD(cached_type, type, cached_specs, m)
 
       STORE_FRAME();
 
@@ -589,7 +587,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       SKIP_SHORT;
       uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
-      SKIP_BYTE;
+      SKIP_QWORD;
       SKIP_QWORD;
       SKIP_QWORD;
 
@@ -667,7 +665,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       gab_value m = READ_CONSTANT;
       uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
-      uint8_t version = READ_BYTE;
+      gab_value cached_specs = *READ_QWORD;
       gab_value cached_type = *READ_QWORD;
       SKIP_QWORD;
 
@@ -675,7 +673,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
       gab_value type = gab_pvaltype(EG(), receiver);
 
-      SEND_CACHE_GUARD(cached_type, type, version, m)
+      SEND_CACHE_GUARD(cached_type, type, cached_specs, m)
 
       STORE_FRAME();
 
@@ -693,7 +691,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       gab_value m = READ_CONSTANT;
       uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;
-      uint8_t version = READ_BYTE;
+      gab_value cached_specs = *READ_QWORD;
       gab_value cached_type = *READ_QWORD;
       SKIP_QWORD;
 
@@ -701,7 +699,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
       gab_value type = gab_pvaltype(EG(), receiver);
 
-      SEND_CACHE_GUARD(cached_type, type, version, m)
+      SEND_CACHE_GUARD(cached_type, type, cached_specs, m)
 
       STORE_FRAME();
 
@@ -782,7 +780,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       SKIP_SHORT;
       SKIP_BYTE;
       SKIP_BYTE;
-      SKIP_BYTE;
+      SKIP_QWORD;
       SKIP_QWORD;
       SKIP_QWORD;
 
@@ -813,7 +811,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       gab_value m = READ_CONSTANT;
       uint64_t have = compute_arity(VM(), READ_BYTE);
       SKIP_BYTE;
-      uint8_t version = READ_BYTE;
+      gab_value cached_specs = *READ_QWORD;
       gab_value cached_type = *READ_QWORD;
       SKIP_QWORD;
 
@@ -821,7 +819,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
       gab_value type = gab_pvaltype(EG(), index);
 
-      SEND_CACHE_GUARD(cached_type, type, version, m)
+      SEND_CACHE_GUARD(cached_type, type, cached_specs, m)
 
       gab_value b = POP();
       gab_value a = POP();
@@ -837,15 +835,17 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       gab_value m = READ_CONSTANT;
       uint64_t have = compute_arity(VM(), READ_BYTE);
       SKIP_BYTE;
-      uint8_t version = READ_BYTE;
-      gab_value cached_type = *READ_QWORD;
+      SKIP_QWORD;
+      SKIP_QWORD;
+      // gab_value cached_specs = *READ_QWORD;
+      // gab_value cached_type = *READ_QWORD;
       uint64_t prop_offset = *READ_QWORD;
 
       gab_value index = PEEK_N(have + 1);
 
-      gab_value type = gab_pvaltype(EG(), index);
+      // gab_value type = gab_pvaltype(EG(), index);
 
-      SEND_CACHE_GUARD(cached_type, type, version, m)
+      // SEND_CACHE_GUARD(cached_type, type, cached_specs, m)
 
       switch (have) {
       case 0:

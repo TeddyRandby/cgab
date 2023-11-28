@@ -342,7 +342,6 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
   struct gab_obj_message *self = GAB_CREATE_OBJ(gab_obj_message, kGAB_MESSAGE);
 
   self->name = name;
-  self->version = 0;
   self->hash = GAB_VAL_TO_STRING(name)->hash;
 
   self->specs = gab_etuple(gab, 0);

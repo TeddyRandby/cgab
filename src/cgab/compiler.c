@@ -392,8 +392,7 @@ static inline void push_dynsend(struct bc *bc, uint8_t have, bool mv,
   push_byte(bc, encode_arity(have, mv), t);
   push_byte(bc, 1, t); // Default to wnating one
 
-  push_byte(bc, 255, t); // Push the sentinel version value
-  push_nnop(bc, 16, t);  // Push space for the inline cache (will be unused, but
+  push_nnop(bc, 24, t);  // Push space for the inline cache (will be unused, but
                          // necessary to mimic sends)
 }
 
@@ -406,7 +405,7 @@ static inline void push_send(struct bc *bc, uint16_t m, uint8_t have, bool mv,
   push_byte(bc, encode_arity(have, mv), t);
   push_byte(bc, 1, t); // Default to wnating one
 
-  push_nnop(bc, 17, t); // Push space for the inline cache, and the version byte
+  push_nnop(bc, 24, t); // Push space for the inline cache, and the version byte
 }
 
 static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
@@ -560,7 +559,7 @@ static inline bool patch_mv(struct bc *bc, uint8_t want) {
 
   switch (f->prev_op) {
   case OP_SEND_ANA:
-    v_uint8_t_set(&f->bytecode, f->bytecode.len - 18, want);
+    v_uint8_t_set(&f->bytecode, f->bytecode.len - 25, want);
     return true;
   case OP_YIELD: {
     uint16_t offset =
@@ -3428,7 +3427,7 @@ uint64_t dumpDynSendInstruction(FILE *stream, struct gab_obj_block_proto *self,
           "%-25s"
           "(%s%d) -> %d\n",
           name, var ? "& more" : "", have, want);
-  return offset + 22;
+  return offset + 29;
 }
 
 uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_block_proto *self,
@@ -3453,7 +3452,7 @@ uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_block_proto *self,
   fprintf(stream, ANSI_COLOR_RESET " (%s%d) -> %d\n", var ? "& more" : "", have,
           want);
 
-  return offset + 22;
+  return offset + 29;
 }
 
 uint64_t dumpByteInstruction(FILE *stream, struct gab_obj_block_proto *self,
@@ -3710,7 +3709,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
   default: {
     uint8_t code = v_uint8_t_val_at(&self->bytecode, offset);
     printf("Unknown opcode %d (%s?)\n", code, gab_opcode_names[code]);
-    return offset + 1;
+   return offset + 1;
   }
   }
 }

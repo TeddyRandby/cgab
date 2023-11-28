@@ -1121,8 +1121,6 @@ static inline gab_value *gab_recdata(gab_value value) {
 struct gab_obj_message {
   struct gab_obj header;
 
-  uint8_t version;
-
   uint64_t hash;
 
   gab_value name;
@@ -1211,11 +1209,6 @@ static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg,
     return gab_undefined;
 
   obj->specs = gab_recordwith(gab, obj->specs, receiver, spec);
-  obj->version++;
-
-  // 255 is a sentinel value, so we can't use it
-  if (obj->version == 255)
-    obj->version = 0;
 
   return msg;
 }
