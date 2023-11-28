@@ -21,22 +21,6 @@ static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
   return v_uint64_t_val_at(&p->bytecode_toks, offset);
 }
 
-void boxed_vm_destructor(void *data) { /* DESTROY(data);  */
-}
-
-void boxed_vm_visitor(struct gab_triple gab, gab_gcvisit_f f, void *data) {
-  // struct gab_vm *vm = data;
-  //
-  // gab_value *tracker = vm->sp - 1;
-  //
-  // while (tracker != vm->sb) {
-  //   if (gab_valiso(*tracker))
-  //     f(gab, gab_valtoo(*tracker));
-  //
-  //   tracker--;
-  // }
-}
-
 a_gab_value *vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
                       const char *help_fmt, ...) {
 
@@ -65,10 +49,9 @@ a_gab_value *vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
       gab_string(gab, gab_status_names[e]),
       gab_box(gab,
               (struct gab_box_argt){
+                  .size = sizeof(struct gab_vm *),
                   .data = gab.vm,
                   .type = gab_string(gab, "gab.vm"),
-                  .destructor = boxed_vm_destructor,
-                  .visitor = boxed_vm_visitor,
               }),
   };
 

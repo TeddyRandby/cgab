@@ -1,14 +1,14 @@
 #include "gab.h"
 #include <stdio.h>
 
-static inline void list_destroy(void *data) {
-  v_gab_value *self = data;
-  v_gab_value_destroy(self);
-  DESTROY(self);
+static inline void list_destroy(size_t len, unsigned char data[static len]) {
+  v_gab_value_destroy((void*) data);
 }
 
-void list_visit(struct gab_triple gab, gab_gcvisit_f v, void *data) {
-  v_gab_value *self = data;
+void list_visit(struct gab_triple gab, gab_gcvisit_f v, size_t len,
+                unsigned char data[static len]) {
+  v_gab_value *self = (void *)data;
+
   for (uint64_t i = 0; i < self->len; i++) {
     gab_value val = v_gab_value_val_at(self, i);
     if (gab_valiso(val)) {
@@ -49,14 +49,15 @@ static inline gab_value list_at(gab_value self, uint64_t offset) {
 }
 
 static inline gab_value list_create_empty(struct gab_triple gab, uint64_t len) {
-  v_gab_value *data = NEW(v_gab_value);
-  v_gab_value_create(data, len);
+  v_gab_value data = {};
+  v_gab_value_create(&data, len);
 
   return gab_box(gab, (struct gab_box_argt){
                           .type = gab_string(gab, "List"),
                           .destructor = list_destroy,
                           .visitor = list_visit,
-                          .data = data,
+                          .data = &data,
+                          .size = sizeof(data),
                       });
 }
 

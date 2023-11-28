@@ -161,9 +161,9 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
 
   switch (self->kind) {
   case kGAB_BOX: {
-    struct gab_obj_box *container = (struct gab_obj_box *)self;
-    if (container->do_destroy)
-      container->do_destroy(container->data);
+    struct gab_obj_box *box = (struct gab_obj_box *)self;
+    if (box->do_destroy)
+      box->do_destroy(box->len, box->data);
     break;
   }
   case kGAB_BLOCK_PROTO: {
@@ -193,12 +193,14 @@ uint64_t gab_obj_size(struct gab_obj *self) {
     return sizeof(struct gab_obj_message);
   case kGAB_NATIVE:
     return sizeof(struct gab_obj_native);
-  case kGAB_BOX:
-    return sizeof(struct gab_obj_box);
   case kGAB_SUSPENSE_PROTO:
     return sizeof(struct gab_obj_suspense_proto);
   case kGAB_SUSPENSE:
     return sizeof(struct gab_obj_suspense);
+  case kGAB_BOX: {
+    struct gab_obj_box *obj = (struct gab_obj_box *)self;
+    return sizeof(struct gab_obj_box) + obj->len;
+  }
   case kGAB_BLOCK_PROTO: {
     struct gab_obj_block_proto *obj = (struct gab_obj_block_proto *)self;
     return sizeof(struct gab_obj_block_proto) + obj->nupvalues * 2;
@@ -454,12 +456,18 @@ gab_value gab_erecordof(struct gab_triple gab, gab_value shp) {
 }
 
 gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
-  struct gab_obj_box *self = GAB_CREATE_OBJ(gab_obj_box, kGAB_BOX);
+  struct gab_obj_box *self =
+      GAB_CREATE_FLEX_OBJ(gab_obj_box, unsigned char, args.size, kGAB_BOX);
 
   self->do_destroy = args.destructor;
   self->do_visit = args.visitor;
-  self->data = args.data;
   self->type = args.type;
+
+  if (args.data) {
+    memcpy(self->data, args.data, args.size);
+  } else {
+    memset(self->data, 0, args.size);
+  }
 
   return __gab_obj(self);
 }

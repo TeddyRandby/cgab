@@ -5,7 +5,6 @@
 :use 'symbol'
 :use 'msg'
 :use 'any'
-:use 'dis'
 
 ## TODO: Optimize for memory by caching generated specs based on input
 
@@ -191,7 +190,7 @@ def spec.protocol[](protocol)
     end
 
     return gen
-  end:dis(protocol.predicate)
+  end
 
   return protocol.predicate
 end

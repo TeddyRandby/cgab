@@ -4,6 +4,7 @@
 #include <stdio.h>
 
 #include "core.h"
+#include "types.h"
 
 /**
  An IEEE 754 double-precision float is a 64-bit value with bits laid out like:
@@ -243,10 +244,10 @@ typedef void (*gab_gcvisit_f)(struct gab_triple, struct gab_obj *obj);
 typedef void (*gab_native_f)(struct gab_triple, size_t argc,
                              gab_value argv[argc]);
 
-typedef void (*gab_boxdestroy_f)(void *data);
+typedef void (*gab_boxdestroy_f)(size_t len, unsigned char data[static len]);
 
-typedef void (*gab_boxvisit_f)(struct gab_triple, gab_gcvisit_f visitor,
-                               void *data);
+typedef void (*gab_boxvisit_f)(struct gab_triple gab, gab_gcvisit_f visitor,
+                               size_t len, unsigned char data[static len]);
 
 /**
  * This header is the first member of all heap-allocated objects.
@@ -1229,7 +1230,9 @@ struct gab_obj_box {
 
   gab_value type;
 
-  void *data;
+  size_t len;
+
+  unsigned char data[FLEXIBLE_ARRAY];
 };
 
 #define GAB_VAL_TO_BOX(value) ((struct gab_obj_box *)gab_valtoo(value))
@@ -1320,10 +1323,11 @@ gab_value gab_native(struct gab_triple gab, gab_value name, gab_native_f f);
 gab_value gab_snative(struct gab_triple gab, const char *name, gab_native_f f);
 
 struct gab_box_argt {
+  size_t size;
+  void *data;
   gab_value type;
   gab_boxdestroy_f destructor;
   gab_boxvisit_f visitor;
-  void *data;
 };
 /**
  * # Create a gab value which wraps some user data.
@@ -1337,6 +1341,18 @@ struct gab_box_argt {
 
  */
 gab_value gab_box(struct gab_triple gab, struct gab_box_argt args);
+
+/**
+ * # Get the length of the user data from a boxed value.
+ *
+ * @param value The value.
+ *
+ * @return The user data.
+ */
+static inline size_t gab_boxlen(gab_value value) {
+  assert(gab_valkind(value) == kGAB_BOX);
+  return GAB_VAL_TO_BOX(value)->len;
+}
 
 /**
  * # Get the user data from a boxed value.

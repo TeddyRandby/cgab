@@ -18,13 +18,13 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
     break;
 
   case kGAB_BOX: {
-    struct gab_obj_box *container = (struct gab_obj_box *)obj;
+    struct gab_obj_box *box = (struct gab_obj_box *)obj;
 
-    if (gab_valiso(container->type))
-      fnc(gab, gab_valtoo(container->type));
+    if (gab_valiso(box->type))
+      fnc(gab, gab_valtoo(box->type));
 
-    if (container->do_visit)
-      container->do_visit(gab, fnc, container->data);
+    if (box->do_visit)
+      box->do_visit(gab, fnc, box->len, box->data);
 
     break;
   }
