@@ -13,7 +13,7 @@
 
 #define SOCKET_BOX_TYPE "Socket"
 
-void gab_container_socket_cb(void *data) {
+void gab_container_socket_cb(size_t len, unsigned char data[static len]) {
   shutdown((int64_t)data, SHUT_RDWR);
   close((int64_t)data);
 }
@@ -114,7 +114,8 @@ void gab_lib_sock(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
               (struct gab_box_argt){
                   .type = gab_string(gab, SOCKET_BOX_TYPE),
                   .destructor = gab_container_socket_cb,
-                  .data = (void *)sockfd,
+                  .size = sizeof(int64_t),
+                  .data = &sockfd,
               }),
   };
 

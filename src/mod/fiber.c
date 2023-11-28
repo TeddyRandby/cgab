@@ -10,7 +10,7 @@ enum {
   fRUNNING,
 };
 
-typedef struct {
+struct fiber {
   atomic_char status;
   atomic_int rc;
   v_a_char in_queue;
@@ -21,10 +21,10 @@ typedef struct {
 
   gab_value init;
   struct gab_triple gab;
-} fiber;
+};
 
-fiber *fiber_create(gab_value init) {
-  fiber *self = NEW(fiber);
+struct fiber *fiber_create(gab_value init) {
+  struct fiber *self = NEW(struct fiber);
 
   mtx_init(&self->mutex, mtx_plain);
   v_a_char_create(&self->in_queue, 8);
@@ -43,13 +43,13 @@ fiber *fiber_create(gab_value init) {
   return self;
 }
 
-void fiber_destroy(fiber *self) {
+void fiber_destroy(struct fiber *self) {
   mtx_destroy(&self->mutex);
   v_a_char_destroy(&self->in_queue);
   v_a_char_destroy(&self->out_queue);
 }
 
-void fiber_dref(fiber *f) {
+void fiber_dref(struct fiber *f) {
   f->rc--;
   if (f->rc <= 0) {
     fiber_destroy(f);
@@ -57,8 +57,8 @@ void fiber_dref(fiber *f) {
   }
 }
 
-void fiber_destructor_cb(void *d) {
-  fiber *f = (fiber *)d;
+void fiber_destructor_cb(size_t len, unsigned char data[static len]) {
+  struct fiber *f = (struct fiber *)data;
   fiber_dref(f);
 }
 
@@ -66,7 +66,7 @@ bool callable(gab_value v) {
   return gab_valkind(v) == kGAB_BLOCK || gab_valkind(v) == kGAB_SUSPENSE;
 }
 
-gab_value out_queue_pop(struct gab_triple gab, fiber *f) {
+gab_value out_queue_pop(struct gab_triple gab, struct fiber *f) {
   if (f->out_queue.len < 1)
     return gab_string(gab, "none");
 
@@ -79,7 +79,7 @@ gab_value out_queue_pop(struct gab_triple gab, fiber *f) {
   return v;
 }
 
-void out_queue_push(fiber *f, gab_value v) {
+void out_queue_push(struct fiber *f, gab_value v) {
   gab_egkeep(f->gab.eg, v);
 
   const char *ref = gab_valintocs(f->gab, v);
@@ -87,7 +87,7 @@ void out_queue_push(fiber *f, gab_value v) {
   v_a_char_push(&f->out_queue, a_char_create(ref, strlen(ref)));
 }
 
-gab_value run(fiber *f, gab_value runnable, gab_value arg) {
+gab_value run(struct fiber *f, gab_value runnable, gab_value arg) {
   // Run the runnable in the engine for the fiber
   a_gab_value *result =
       gab_run(f->gab, (struct gab_run_argt){
@@ -126,7 +126,7 @@ gab_value run(fiber *f, gab_value runnable, gab_value arg) {
 }
 
 int fiber_launch(void *d) {
-  fiber *self = (fiber *)d;
+  struct fiber *self = (struct fiber *)d;
   self->rc++;
 
   gab_value runner = self->init;
@@ -181,7 +181,7 @@ void gab_lib_fiber(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
       return;
     }
 
-    fiber *f = fiber_create(argv[1]);
+    struct fiber *f = fiber_create(argv[1]);
 
     if (thrd_create(&f->thrd, fiber_launch, f) != thrd_success) {
       gab_panic(gab, "Invalid call to gab_lib_go");
@@ -191,6 +191,7 @@ void gab_lib_fiber(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     thrd_detach(f->thrd); // The fiber will clean itself up
 
     gab_value fiber = gab_box(gab, (struct gab_box_argt){
+                                       .size = sizeof(void *),
                                        .data = f,
                                        .type = gab_string(gab, "Fiber"),
                                        .destructor = fiber_destructor_cb,
@@ -211,7 +212,7 @@ void gab_lib_send(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  fiber *f = (fiber *)gab_boxdata(argv[0]);
+  struct fiber *f = (struct fiber *)gab_boxdata(argv[0]);
 
   if (f->status == fDONE) {
     gab_panic(gab, "fiber_done");
@@ -232,7 +233,7 @@ void gab_lib_send(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_await(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  fiber *f = gab_boxdata(argv[0]);
+  struct fiber *f = gab_boxdata(argv[0]);
 
   for (;;) {
     mtx_lock(&f->mutex);
