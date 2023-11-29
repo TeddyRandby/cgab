@@ -38,7 +38,7 @@ void gab_lib_put(struct gab_triple gab, size_t argc,
 }
 
 void gab_lib_has(struct gab_triple gab, size_t argc,
-                gab_value argv[static argc]) {
+                 gab_value argv[static argc]) {
   switch (argc) {
   case 2: {
     gab_value type;

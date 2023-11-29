@@ -102,7 +102,7 @@ void gab_lib_push(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_vmpush(gab.vm, *argv);
 }
 
-void gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+void gab_lib_has(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 2 || gab_valkind(argv[1]) != kGAB_NUMBER) {
     gab_panic(gab, "Invalid call to gab_lib_put");
     return;
@@ -243,7 +243,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "at",
           type,
-          gab_snative(gab, "at", gab_lib_at),
+          gab_snative(gab, "at", gab_lib_has),
       },
       {
           "to_bytes",

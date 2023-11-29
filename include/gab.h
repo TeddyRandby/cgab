@@ -229,8 +229,8 @@ struct gab_triple {
 struct gab_obj;
 
 struct gab_obj_string;
-struct gab_obj_block_proto;
-struct gab_obj_suspense_proto;
+struct gab_obj_bprototype;
+struct gab_obj_sprototype;
 struct gab_obj_native;
 struct gab_obj_block;
 struct gab_obj_message;
@@ -693,50 +693,6 @@ struct gab_obj_native {
 
 /* Cast a value to a (gab_obj_native*) */
 #define GAB_VAL_TO_NATIVE(value) ((struct gab_obj_native *)gab_valtoo(value))
-
-/**
- * The prototype of a block. Encapsulates everything known about a block
- * at compile time.
- */
-struct gab_obj_block_proto {
-  struct gab_obj header;
-
-  struct gab_src *src;
-
-  struct gab_obj_block_proto *next;
-
-  gab_value name;
-
-  uint8_t narguments, nupvalues, nslots, nlocals;
-
-  v_gab_value constants;
-  v_uint8_t bytecode;
-  v_uint64_t bytecode_toks;
-
-  uint8_t upv_desc[FLEXIBLE_ARRAY];
-};
-
-/* Cast a value to a (gab_obj_block_proto*) */
-#define GAB_VAL_TO_BLOCK_PROTO(value)                                          \
-  ((struct gab_obj_block_proto *)gab_valtoo(value))
-
-struct gab_blkproto_argt {
-  uint8_t narguments, nslots, nlocals, nupvalues, *flags, *indexes;
-  v_gab_value constants;
-  v_uint8_t bytecode;
-  v_uint64_t bytecode_toks;
-};
-
-/**
- * Create a new prototype object.
- *
- * @param gab The gab engine.
- * @param args The arguments.
- * @see struct gab_blkproto_argt
- * @return The new block prototype object.
- */
-gab_value gab_blkproto(struct gab_triple gab, struct gab_src *src,
-                       gab_value name, struct gab_blkproto_argt args);
 
 /**
  * A block - aka a prototype and it's captures.
@@ -1237,24 +1193,63 @@ struct gab_obj_box {
 
 #define GAB_VAL_TO_BOX(value) ((struct gab_obj_box *)gab_valtoo(value))
 
-/**
- * A suspense object prototye, which holds the information about a suspense that
- * we know at compile time
- */
-struct gab_obj_suspense_proto {
+struct gab_obj_code {
   struct gab_obj header;
 
+  /* The compiled source file */
   struct gab_src *src;
 
-  gab_value name;
-
-  uint8_t want;
-
-  uint64_t offset;
+  /* An offset into the source's bytecode, marking the beginning of this basic
+   * block. */
+  size_t offset;
 };
 
+/**
+ * The prototype of a block. Encapsulates everything known about a block
+ * at compile time.
+ */
+struct gab_obj_prototype {
+  struct gab_obj header;
+
+  gab_value name, bb;
+
+  union {
+    struct {
+      char narguments, nupvalues, nslots, nlocals;
+    } block;
+
+    struct {
+      char want;
+    } suspense;
+  } as;
+
+  char data[FLEXIBLE_ARRAY];
+};
+
+/* Cast a value to a (gab_obj_bprototype*) */
+#define GAB_VAL_TO_BLOCK_PROTO(value)                                          \
+  ((struct gab_obj_bprototype *)gab_valtoo(value))
+
+struct gab_blkproto_argt {
+  uint8_t narguments, nslots, nlocals, nupvalues, *flags, *indexes;
+  v_gab_value constants;
+  v_uint8_t bytecode;
+  v_uint64_t bytecode_toks;
+};
+
+/**
+ * Create a new prototype object.
+ *
+ * @param gab The gab engine.
+ * @param args The arguments.
+ * @see struct gab_blkproto_argt
+ * @return The new block prototype object.
+ */
+gab_value gab_blkproto(struct gab_triple gab, struct gab_src *src,
+                       gab_value name, struct gab_blkproto_argt args);
+
 #define GAB_VAL_TO_SUSPENSE_PROTO(value)                                       \
-  ((struct gab_obj_suspense_proto *)gab_valtoo(value))
+  ((struct gab_obj_sprototype *)gab_valtoo(value))
 
 /**
  * Create a new suspense object prototype.
@@ -1765,7 +1760,7 @@ static inline const char *gab_valintocs(struct gab_triple gab,
   return obj->data;
 }
 
-int gab_fmodinspect(FILE *stream, struct gab_obj_block_proto *mod);
+int gab_fmodinspect(FILE *stream, struct gab_obj_bprototype *mod);
 
 /**
  * # Print a gab value to a file stream.

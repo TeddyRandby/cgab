@@ -51,7 +51,7 @@ void gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   return;
 }
 
-void gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+void gab_lib_has(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 2) {
     gab_panic(gab, "&:at expects 2 arguments");
     return;
@@ -178,7 +178,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "at",
           type,
-          gab_snative(gab, "at", gab_lib_at),
+          gab_snative(gab, "at", gab_lib_has),
       },
       {
           "next",

@@ -14,7 +14,7 @@
 #include <string.h>
 
 static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
-  struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(f->b->p);
+  struct gab_obj_bprototype *p = GAB_VAL_TO_bprototype(f->b->p);
 
   size_t offset = f->ip - p->bytecode.data - 1;
 
@@ -24,7 +24,7 @@ static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
 a_gab_value *vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
                       const char *help_fmt, ...) {
 
-  struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(gab.vm->fp->b->p);
+  struct gab_obj_bprototype *p = GAB_VAL_TO_bprototype(gab.vm->fp->b->p);
 
   size_t tok = compute_token_from_ip(gab.vm->fp);
 
@@ -114,7 +114,7 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t value) {
 
   struct gab_vm_frame *f = vm->fp - value;
 
-  struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(f->b->p);
+  struct gab_obj_bprototype *proto = GAB_VAL_TO_bprototype(f->b->p);
 
   struct gab_obj_string *func_name = GAB_VAL_TO_STRING(proto->name);
 
@@ -191,7 +191,7 @@ static inline bool call_suspense(struct gab_vm *vm,
   if (space_needed > 0 && !has_callspace(vm, space_needed))
     return false;
 
-  struct gab_obj_suspense_proto *proto = GAB_VAL_TO_SUSPENSE_PROTO(sus->p);
+  struct gab_obj_sprototype *proto = GAB_VAL_TO_sprototype(sus->p);
 
   vm->fp++;
   vm->fp->b = GAB_VAL_TO_BLOCK(sus->b);
@@ -227,7 +227,7 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
 
 static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
                               uint64_t have, uint8_t want) {
-  struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(b->p);
+  struct gab_obj_bprototype *proto = GAB_VAL_TO_bprototype(b->p);
   bool wants_var = proto->narguments == VAR_EXP;
   size_t len = (wants_var ? have : proto->narguments) + 1;
 
@@ -1195,7 +1195,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       gab_value blk = gab_block(GAB(), p);
 
       struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
-      struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(p);
+      struct gab_obj_bprototype *proto = GAB_VAL_TO_bprototype(p);
 
       for (int i = 0; i < proto->nupvalues; i++) {
         uint8_t flags = proto->upv_desc[i * 2];
@@ -1221,7 +1221,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       gab_value blk = gab_block(GAB(), p);
 
       struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
-      struct gab_obj_block_proto *proto = GAB_VAL_TO_BLOCK_PROTO(p);
+      struct gab_obj_bprototype *proto = GAB_VAL_TO_bprototype(p);
 
       for (int i = 0; i < b->nupvalues; i++) {
         uint8_t flags = proto->upv_desc[i * 2];

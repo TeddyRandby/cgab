@@ -570,7 +570,7 @@ static inline bool patch_mv(struct bc *bc, uint8_t want) {
 
     assert(gab_valkind(value) == kGAB_SUSPENSE_PROTO);
 
-    struct gab_obj_suspense_proto *proto = GAB_VAL_TO_SUSPENSE_PROTO(value);
+    struct gab_obj_sprototype *proto = GAB_VAL_TO_sprototype(value);
 
     proto->want = want;
     return true;
@@ -3401,10 +3401,10 @@ static void compiler_error(struct bc *bc, enum gab_status e,
   }
 }
 
-uint64_t dumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpInstruction(FILE *stream, struct gab_obj_bprototype *self,
                          uint64_t offset);
 
-uint64_t dumpSimpleInstruction(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpSimpleInstruction(FILE *stream, struct gab_obj_bprototype *self,
                                uint64_t offset) {
   const char *name =
       gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
@@ -3412,7 +3412,7 @@ uint64_t dumpSimpleInstruction(FILE *stream, struct gab_obj_block_proto *self,
   return offset + 1;
 }
 
-uint64_t dumpDynSendInstruction(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpDynSendInstruction(FILE *stream, struct gab_obj_bprototype *self,
                                 uint64_t offset) {
   const char *name =
       gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
@@ -3430,7 +3430,7 @@ uint64_t dumpDynSendInstruction(FILE *stream, struct gab_obj_block_proto *self,
   return offset + 29;
 }
 
-uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_bprototype *self,
                              uint64_t offset) {
   const char *name =
       gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
@@ -3455,7 +3455,7 @@ uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_block_proto *self,
   return offset + 29;
 }
 
-uint64_t dumpByteInstruction(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpByteInstruction(FILE *stream, struct gab_obj_bprototype *self,
                              uint64_t offset) {
   uint8_t operand = v_uint8_t_val_at(&self->bytecode, offset + 1);
   const char *name =
@@ -3463,7 +3463,7 @@ uint64_t dumpByteInstruction(FILE *stream, struct gab_obj_block_proto *self,
   fprintf(stream, "%-25s%hhx\n", name, operand);
   return offset + 2;
 }
-uint64_t dumpReturnInstruction(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpReturnInstruction(FILE *stream, struct gab_obj_bprototype *self,
                                uint64_t offset) {
   uint8_t havebyte = v_uint8_t_val_at(&self->bytecode, offset + 1);
   uint8_t have = havebyte >> 1;
@@ -3472,7 +3472,7 @@ uint64_t dumpReturnInstruction(FILE *stream, struct gab_obj_block_proto *self,
   return offset + 2;
 }
 
-uint64_t dumpYieldInstruction(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpYieldInstruction(FILE *stream, struct gab_obj_bprototype *self,
                               uint64_t offset) {
   uint8_t havebyte = v_uint8_t_val_at(&self->bytecode, offset + 3);
   uint8_t have = havebyte >> 1;
@@ -3481,7 +3481,7 @@ uint64_t dumpYieldInstruction(FILE *stream, struct gab_obj_block_proto *self,
   return offset + 4;
 }
 
-uint64_t dumpTwoByteInstruction(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpTwoByteInstruction(FILE *stream, struct gab_obj_bprototype *self,
                                 uint64_t offset) {
   uint8_t operandA = v_uint8_t_val_at(&self->bytecode, offset + 1);
   uint8_t operandB = v_uint8_t_val_at(&self->bytecode, offset + 2);
@@ -3491,7 +3491,7 @@ uint64_t dumpTwoByteInstruction(FILE *stream, struct gab_obj_block_proto *self,
   return offset + 3;
 }
 
-uint64_t dumpDictInstruction(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpDictInstruction(FILE *stream, struct gab_obj_bprototype *self,
                              uint8_t i, uint64_t offset) {
   uint8_t operand = v_uint8_t_val_at(&self->bytecode, offset + 1);
   const char *name = gab_opcode_names[i];
@@ -3499,7 +3499,7 @@ uint64_t dumpDictInstruction(FILE *stream, struct gab_obj_block_proto *self,
   return offset + 2;
 };
 
-uint64_t dumpConstantInstruction(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpConstantInstruction(FILE *stream, struct gab_obj_bprototype *self,
                                  uint64_t offset) {
   uint16_t constant = ((uint16_t)v_uint8_t_val_at(&self->bytecode, offset + 1))
                           << 8 |
@@ -3512,7 +3512,7 @@ uint64_t dumpConstantInstruction(FILE *stream, struct gab_obj_block_proto *self,
   return offset + 3;
 }
 
-uint64_t dumpJumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpJumpInstruction(FILE *stream, struct gab_obj_bprototype *self,
                              uint64_t sign, uint64_t offset) {
   const char *name =
       gab_opcode_names[v_uint8_t_val_at(&self->bytecode, offset)];
@@ -3526,7 +3526,7 @@ uint64_t dumpJumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
   return offset + 3;
 }
 
-uint64_t dumpIter(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpIter(FILE *stream, struct gab_obj_bprototype *self,
                   uint64_t offset) {
   uint16_t dist = (uint16_t)v_uint8_t_val_at(&self->bytecode, offset + 3) << 8;
   dist |= v_uint8_t_val_at(&self->bytecode, offset + 4);
@@ -3543,13 +3543,13 @@ uint64_t dumpIter(FILE *stream, struct gab_obj_block_proto *self,
   return offset + 5;
 }
 
-uint64_t dumpNext(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpNext(FILE *stream, struct gab_obj_bprototype *self,
                   uint64_t offset) {
   fprintf(stream, "%-25s\n", "NEXT");
   return offset + 2;
 }
 
-uint64_t dumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
+uint64_t dumpInstruction(FILE *stream, struct gab_obj_bprototype *self,
                          uint64_t offset) {
   uint8_t op = v_uint8_t_val_at(&self->bytecode, offset);
   switch (op) {
@@ -3661,7 +3661,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
     offset += 4;
 
     gab_value pval = v_gab_value_val_at(&self->constants, proto_constant);
-    struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(pval);
+    struct gab_obj_bprototype *p = GAB_VAL_TO_bprototype(pval);
 
     struct gab_obj_string *func_name = GAB_VAL_TO_STRING(p->name);
 
@@ -3684,7 +3684,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
     offset += 2;
 
     gab_value pval = v_gab_value_val_at(&self->constants, proto_constant);
-    struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(pval);
+    struct gab_obj_bprototype *p = GAB_VAL_TO_bprototype(pval);
 
     struct gab_obj_string *func_name = GAB_VAL_TO_STRING(p->name);
 
@@ -3714,7 +3714,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_block_proto *self,
   }
 }
 
-int gab_fmodinspect(FILE *stream, struct gab_obj_block_proto *mod) {
+int gab_fmodinspect(FILE *stream, struct gab_obj_bprototype *mod) {
   uint64_t offset = 0;
   while (offset < mod->bytecode.len) {
     fprintf(stream, ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);

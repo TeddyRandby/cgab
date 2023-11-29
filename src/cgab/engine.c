@@ -533,7 +533,7 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
   }
 
   case kGAB_BLOCK_PROTO: {
-    struct gab_obj_block_proto *self = GAB_VAL_TO_BLOCK_PROTO(value);
+    struct gab_obj_bprototype *self = GAB_VAL_TO_bprototype(value);
 
     gab_value copy = gab_blkproto(gab, gab_srccpy(gab.eg, self->src),
                                   gab_valcpy(gab, self->name),
@@ -543,7 +543,7 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
                                       .narguments = self->narguments,
                                       .nlocals = self->nlocals,
                                   });
-    struct gab_obj_block_proto *p = GAB_VAL_TO_BLOCK_PROTO(copy);
+    struct gab_obj_bprototype *p = GAB_VAL_TO_bprototype(copy);
 
     memcpy(p, self->upv_desc, self->nupvalues * 2);
     v_uint8_t_copy(&p->bytecode, &self->bytecode);
@@ -605,7 +605,7 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
   }
 
   case kGAB_SUSPENSE_PROTO: {
-    struct gab_obj_suspense_proto *self = GAB_VAL_TO_SUSPENSE_PROTO(value);
+    struct gab_obj_sprototype *self = GAB_VAL_TO_sprototype(value);
 
     return gab_susproto(gab, gab_srccpy(gab.eg, self->src),
                         gab_valcpy(gab, self->name), self->offset, self->want);

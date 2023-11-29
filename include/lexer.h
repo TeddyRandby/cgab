@@ -27,6 +27,10 @@ struct gab_src {
   v_s_char token_srcs;
 
   v_uint64_t token_lines;
+
+  v_uint8_t bytecode;
+
+  v_uint64_t bytecode_toks;
 };
 
 struct gab_src *gab_src(struct gab_eg* gab, const char* src, size_t len);
