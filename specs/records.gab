@@ -1,31 +1,46 @@
 :use 'specs'
 
+:spec.def! .Record {
+  help: "A fixed-size container of key value pairs."
+  spec: :spec.protocols
+}
+
 :spec.def! .Record.len {
-  help = "Get the number of key-value pairs in the record."
-  spec = :spec.message {
-    message  = &:len
-    receiver = .Record
-    input    = :spec.unknown
-    output   = :spec.int
+  help: "Get the number of key-value pairs in the record."
+  spec: :spec.message {
+    message:  &:len
+    receiver: .Record
+    input:    :spec.unknown
+    output:   :spec.int
   }
 }
 
 :spec.def! .Record.at {
-  help = "Get the value at the given key, if it exists."
-  spec = :spec.message {
-    message  = &:at
-    receiver = .Record
-    input    = :spec.unknown
-    output   = :spec.option(:spec.unknown)
+  help: "Get the value at the given key, if it exists."
+  spec: :spec.message {
+    message:  &:at
+    receiver: .Record
+    input:    :spec.unknown
+    output:   :spec.option(:spec.unknown)
   }
 }
 
 :spec.def! .Record.to_l {
-  help = "Convert a record to a list of key-value pairs."
-  spec = :spec.message {
-    message  = &:to_l
-    receiver = .Record
-    input    = :spec.unknown
-    output   = :spec.list(:spec.tuple(:spec.unknown, :spec.unknown))
+  help: "Convert a record to a list of key-value pairs."
+  spec: :spec.message {
+    message:  &:to_l
+    receiver: .Record
+    input:    :spec.nil
+    output:   :spec.list(:spec.tuple(:spec.unknown, :spec.unknown))
+  }
+}
+
+:spec.def! .Record.to_m {
+  help: "Convert a record to a map."
+  spec: :spec.message {
+    message: &:to_m
+    receiver: .Record
+    input:    :spec.nil
+    output:   :spec.map(:spec.unknown, :spec.unknown)
   }
 }

@@ -60,6 +60,12 @@ end
 #      where value is the rejected value
 #      where path is the 'path' taken to the rejected value ( or nil, if no path )
 
+def spec.nil[]
+  def nil.predicate(value)
+    return !value, self, value
+  end
+end
+
 def spec.unknown[]
   def unknown.predicate(value)
     return true, self, value
