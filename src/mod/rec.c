@@ -1,4 +1,4 @@
-#include "gab.h"
+
 #include "list.h"
 #include "map.h"
 
@@ -62,7 +62,7 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 #undef MAX
 #undef CLAMP
 
-void gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+void gab_lib_has(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 2) {
     gab_panic(gab, "Invalid call to  gab_lib_at");
     return;
@@ -254,7 +254,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "at",
           gab_type(gab.eg, kGAB_RECORD),
-          gab_snative(gab, "at", gab_lib_at),
+          gab_snative(gab, "at", gab_lib_has),
       },
       {
           "next",

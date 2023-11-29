@@ -814,20 +814,14 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
     }
 
     CASE_CODE(SEND_MONO_PROPERTY) : {
-      gab_value m = READ_CONSTANT;
+      SKIP_SHORT;
       uint64_t have = compute_arity(VM(), READ_BYTE);
       SKIP_BYTE;
       SKIP_QWORD;
       SKIP_QWORD;
-      // gab_value cached_specs = *READ_QWORD;
-      // gab_value cached_type = *READ_QWORD;
       uint64_t prop_offset = *READ_QWORD;
 
       gab_value index = PEEK_N(have + 1);
-
-      // gab_value type = gab_pvaltype(EG(), index);
-
-      // SEND_CACHE_GUARD(cached_type, type, cached_specs, m)
 
       switch (have) {
       case 0:

@@ -1,4 +1,5 @@
 #include "gab.h"
+#include <stdint.h>
 
 void gab_lib_message(struct gab_triple gab, size_t argc,
                      gab_value argv[static argc]) {
@@ -36,19 +37,21 @@ void gab_lib_put(struct gab_triple gab, size_t argc,
   }
 }
 
-void gab_lib_at(struct gab_triple gab, size_t argc,
+void gab_lib_has(struct gab_triple gab, size_t argc,
                 gab_value argv[static argc]) {
   switch (argc) {
   case 2: {
-    gab_value result = gab_msgat(argv[0], argv[1]);
-    
-    if (result == gab_undefined) {
-      gab_vmpush(gab.vm, gab_string(gab, "none"));
-      return;
-    }
-    
-    gab_vmpush(gab.vm, gab_string(gab, "some"));
-    gab_vmpush(gab.vm, result);
+    gab_value type;
+    uint64_t offset;
+
+    int result = gab_egimpl(gab.eg, (struct gab_egimpl_argt){
+                                        .msg = argv[0],
+                                        .receiver = argv[1],
+                                        .type = &type,
+                                        .offset = &offset,
+                                    });
+
+    gab_vmpush(gab.vm, gab_bool(result));
     return;
   }
   default:
@@ -70,9 +73,9 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "put!", gab_lib_put),
       },
       {
-          "at",
+          "has?",
           gab_type(gab.eg, kGAB_MESSAGE),
-          gab_snative(gab, "at", gab_lib_at),
+          gab_snative(gab, "has?", gab_lib_has),
       },
   };
 
