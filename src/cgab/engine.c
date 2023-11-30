@@ -150,8 +150,11 @@ struct gab_triple gab_create() {
   eg->types[kGAB_MESSAGE] = gab_string(gab, "Message");
   gab_gciref(gab, eg->types[kGAB_MESSAGE]);
 
-  eg->types[kGAB_BLOCK_PROTO] = gab_string(gab, "Prototype");
-  gab_gciref(gab, eg->types[kGAB_BLOCK_PROTO]);
+  eg->types[kGAB_SPROTOTYPE] = gab_string(gab, "Prototype");
+  gab_gciref(gab, eg->types[kGAB_SPROTOTYPE]);
+
+  eg->types[kGAB_BPROTOTYPE] = gab_string(gab, "Prototype");
+  gab_gciref(gab, eg->types[kGAB_BPROTOTYPE]);
 
   eg->types[kGAB_NATIVE] = gab_string(gab, "Native");
   gab_gciref(gab, eg->types[kGAB_NATIVE]);
@@ -532,29 +535,29 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
     return gab_native(gab, gab_valcpy(gab, self->name), self->function);
   }
 
-  case kGAB_BLOCK_PROTO: {
-    struct gab_obj_bprototype *self = GAB_VAL_TO_bprototype(value);
+  case kGAB_BPROTOTYPE: {
+    struct gab_obj_prototype *self = GAB_VAL_TO_PROTOTYPE(value);
 
-    gab_value copy = gab_blkproto(gab, gab_srccpy(gab.eg, self->src),
-                                  gab_valcpy(gab, self->name),
-                                  (struct gab_blkproto_argt){
-                                      .nupvalues = self->nupvalues,
-                                      .nslots = self->nslots,
-                                      .narguments = self->narguments,
-                                      .nlocals = self->nlocals,
-                                  });
-    struct gab_obj_bprototype *p = GAB_VAL_TO_bprototype(copy);
+    gab_value copy = gab_bprototype(gab, gab_srccpy(gab.eg, self->src),
+                                    gab_valcpy(gab, self->name), self->offset,
+                                    (struct gab_blkproto_argt){
+                                        .nupvalues = self->as.block.nupvalues,
+                                        .nslots = self->as.block.nslots,
+                                        .narguments = self->as.block.narguments,
+                                        .nlocals = self->as.block.nlocals,
+                                    });
+    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(copy);
 
-    memcpy(p, self->upv_desc, self->nupvalues * 2);
-    v_uint8_t_copy(&p->bytecode, &self->bytecode);
-    v_uint64_t_copy(&p->bytecode_toks, &self->bytecode_toks);
-    v_gab_value_copy(&p->constants, &self->constants);
+    memcpy(p, self->data, self->as.block.nupvalues * 2);
+    v_uint8_t_copy(&p->src->bytecode, &self->src->bytecode);
+    v_uint64_t_copy(&p->src->bytecode_toks, &self->src->bytecode_toks);
+    v_gab_value_copy(&p->src->constants, &self->src->constants);
 
     // Reconcile the constant array by copying the non trivial values
-    for (size_t i = 0; i < p->constants.len; i++) {
-      gab_value v = v_gab_value_val_at(&self->constants, i);
+    for (size_t i = 0; i < p->src->constants.len; i++) {
+      gab_value v = v_gab_value_val_at(&self->src->constants, i);
       if (gab_valiso(v)) {
-        v_gab_value_set(&p->constants, i, gab_valcpy(gab, v));
+        v_gab_value_set(&p->src->constants, i, gab_valcpy(gab, v));
       }
     }
 
@@ -570,7 +573,8 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
 
     gab_value copy = gab_block(gab, p_copy);
 
-    for (uint8_t i = 0; i < GAB_VAL_TO_BLOCK_PROTO(p_copy)->nupvalues; i++) {
+    for (uint8_t i = 0; i < GAB_VAL_TO_PROTOTYPE(p_copy)->as.block.nupvalues;
+         i++) {
       GAB_VAL_TO_BLOCK(copy)->upvalues[i] = gab_valcpy(gab, self->upvalues[i]);
     }
 
@@ -604,11 +608,12 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
     return gab_recordof(gab, s_copy, 1, values);
   }
 
-  case kGAB_SUSPENSE_PROTO: {
-    struct gab_obj_sprototype *self = GAB_VAL_TO_sprototype(value);
+  case kGAB_SPROTOTYPE: {
+    struct gab_obj_prototype *self = GAB_VAL_TO_PROTOTYPE(value);
 
-    return gab_susproto(gab, gab_srccpy(gab.eg, self->src),
-                        gab_valcpy(gab, self->name), self->offset, self->want);
+    return gab_sprototype(gab, gab_srccpy(gab.eg, self->src),
+                          gab_valcpy(gab, self->name), self->offset,
+                          self->as.suspense.want);
   }
 
   case kGAB_SUSPENSE: {
@@ -621,9 +626,8 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
     }
 
     gab_value p_copy = gab_valcpy(gab, self->p);
-    gab_value b_copy = gab_valcpy(gab, self->b);
 
-    return gab_suspense(gab, b_copy, p_copy, self->len, frame_copy);
+    return gab_suspense(gab, p_copy, self->len, frame_copy);
   }
   }
 }

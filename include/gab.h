@@ -71,8 +71,8 @@ enum gab_kind {
   kGAB_SUSPENSE,
   kGAB_STRING,
   kGAB_MESSAGE,
-  kGAB_BLOCK_PROTO,
-  kGAB_SUSPENSE_PROTO,
+  kGAB_BPROTOTYPE,
+  kGAB_SPROTOTYPE,
   kGAB_NATIVE,
   kGAB_BLOCK,
   kGAB_BOX,
@@ -229,8 +229,7 @@ struct gab_triple {
 struct gab_obj;
 
 struct gab_obj_string;
-struct gab_obj_bprototype;
-struct gab_obj_sprototype;
+struct gab_obj_prototype;
 struct gab_obj_native;
 struct gab_obj_block;
 struct gab_obj_message;
@@ -1193,17 +1192,6 @@ struct gab_obj_box {
 
 #define GAB_VAL_TO_BOX(value) ((struct gab_obj_box *)gab_valtoo(value))
 
-struct gab_obj_code {
-  struct gab_obj header;
-
-  /* The compiled source file */
-  struct gab_src *src;
-
-  /* An offset into the source's bytecode, marking the beginning of this basic
-   * block. */
-  size_t offset;
-};
-
 /**
  * The prototype of a block. Encapsulates everything known about a block
  * at compile time.
@@ -1211,11 +1199,19 @@ struct gab_obj_code {
 struct gab_obj_prototype {
   struct gab_obj header;
 
-  gab_value name, bb;
+  gab_value name;
+
+  /* The compiled source file */
+  struct gab_src *src;
+
+  size_t offset;
+
+  /* The length of the variable sized data member, in bytes. */
+  size_t len;
 
   union {
     struct {
-      char narguments, nupvalues, nslots, nlocals;
+      unsigned char narguments, nupvalues, nslots, nlocals;
     } block;
 
     struct {
@@ -1227,14 +1223,11 @@ struct gab_obj_prototype {
 };
 
 /* Cast a value to a (gab_obj_bprototype*) */
-#define GAB_VAL_TO_BLOCK_PROTO(value)                                          \
-  ((struct gab_obj_bprototype *)gab_valtoo(value))
+#define GAB_VAL_TO_PROTOTYPE(value)                                            \
+  ((struct gab_obj_prototype *)gab_valtoo(value))
 
 struct gab_blkproto_argt {
-  uint8_t narguments, nslots, nlocals, nupvalues, *flags, *indexes;
-  v_gab_value constants;
-  v_uint8_t bytecode;
-  v_uint64_t bytecode_toks;
+  char narguments, nslots, nlocals, nupvalues, *flags, *indexes;
 };
 
 /**
@@ -1245,11 +1238,9 @@ struct gab_blkproto_argt {
  * @see struct gab_blkproto_argt
  * @return The new block prototype object.
  */
-gab_value gab_blkproto(struct gab_triple gab, struct gab_src *src,
-                       gab_value name, struct gab_blkproto_argt args);
-
-#define GAB_VAL_TO_SUSPENSE_PROTO(value)                                       \
-  ((struct gab_obj_sprototype *)gab_valtoo(value))
+gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
+                         gab_value name, size_t offset,
+                         struct gab_blkproto_argt args);
 
 /**
  * Create a new suspense object prototype.
@@ -1260,8 +1251,8 @@ gab_value gab_blkproto(struct gab_triple gab, struct gab_src *src,
  *
  * @param want The number of values the block wants.
  */
-gab_value gab_susproto(struct gab_triple gab, struct gab_src *src,
-                       gab_value name, uint64_t offset, uint8_t want);
+gab_value gab_sprototype(struct gab_triple gab, struct gab_src *src,
+                         gab_value name, size_t offset, uint8_t want);
 
 /**
  * A suspense object, which holds the state of a suspended coroutine.
@@ -1269,7 +1260,7 @@ gab_value gab_susproto(struct gab_triple gab, struct gab_src *src,
 struct gab_obj_suspense {
   struct gab_obj header;
 
-  gab_value p, b;
+  gab_value p;
 
   size_t len;
 
@@ -1292,8 +1283,8 @@ struct gab_obj_suspense {
  *
  * @param frame The frame.
  */
-gab_value gab_suspense(struct gab_triple gab, gab_value block, gab_value proto,
-                       uint64_t len, gab_value frame[static len]);
+gab_value gab_suspense(struct gab_triple gab, gab_value proto, uint64_t len,
+                       gab_value frame[static len]);
 
 /**
  * # Create a native wrapper to a c function with a gab_string name.
@@ -1712,8 +1703,8 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
     return gab_string(gab, "<Shape>");
   case kGAB_MESSAGE:
     return gab_string(gab, "<Message>");
-  case kGAB_SUSPENSE_PROTO:
-  case kGAB_BLOCK_PROTO:
+  case kGAB_SPROTOTYPE:
+  case kGAB_BPROTOTYPE:
     return gab_string(gab, "<Prototype>");
   case kGAB_NATIVE:
     return gab_string(gab, "<Native>");
@@ -1760,7 +1751,7 @@ static inline const char *gab_valintocs(struct gab_triple gab,
   return obj->data;
 }
 
-int gab_fmodinspect(FILE *stream, struct gab_obj_bprototype *mod);
+int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *mod);
 
 /**
  * # Print a gab value to a file stream.
