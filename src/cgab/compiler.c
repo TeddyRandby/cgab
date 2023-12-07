@@ -178,6 +178,11 @@ static inline bool match_terminator(struct bc *bc) {
 }
 
 static int eat_token(struct bc *bc) {
+  if (match_token(bc, TOKEN_EOF)) {
+    compiler_error(bc, GAB_MALFORMED_TOKEN, "Unexpected EOF");
+    return COMP_ERR;
+  }
+
   bc->offset++;
 
   if (match_token(bc, TOKEN_ERROR)) {
@@ -273,10 +278,6 @@ static inline void push_op(struct bc *bc, uint8_t op, size_t t) {
 }
 
 static inline void push_byte(struct bc *bc, uint8_t data, size_t t) {
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  assert(ctx >= 0 && "Internal compiler error: no frame context");
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
   v_uint8_t_push(&bc->src->bytecode, data);
   v_uint64_t_push(&bc->src->bytecode_toks, t);
 }
@@ -297,16 +298,20 @@ static inline void push_qword(struct bc *bc, uint64_t data, size_t t) {
   push_byte(bc, data & 0xff, t);
 }
 
-static inline gab_value addk(struct bc *bc, gab_value value) {
+static inline size_t addk(struct bc *bc, gab_value value) {
   gab_gciref(gab(bc), value);
   gab_egkeep(eg(bc), value);
 
-  return value;
+  v_gab_value_push(&bc->src->constants, value);
+
+  return bc->src->constants.len - 1;
 }
 
 static inline void push_loadk(struct bc *bc, gab_value k, size_t t) {
   push_op(bc, OP_CONSTANT, t);
-  push_short(bc, addk(bc, k), t);
+  size_t c = addk(bc, k);
+  assert(c < UINT16_MAX);
+  push_short(bc, c, t);
 }
 
 static inline void push_shift(struct bc *bc, uint8_t n, size_t t) {
@@ -488,10 +493,6 @@ static inline void push_pack(struct bc *bc, uint8_t below, uint8_t above,
 
 static inline size_t push_iter(struct bc *bc, uint8_t want, uint8_t start,
                                size_t t) {
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  assert(ctx >= 0 && "Internal compiler error: no frame context");
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
   push_op(bc, OP_ITER, t);
   push_byte(bc, want, t);
   push_byte(bc, start, t);
@@ -501,10 +502,6 @@ static inline size_t push_iter(struct bc *bc, uint8_t want, uint8_t start,
 }
 
 static inline size_t push_jump(struct bc *bc, uint8_t op, size_t t) {
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  assert(ctx >= 0 && "Internal compiler error: no frame context");
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
   push_op(bc, op, t);
   push_nnop(bc, 2, t);
 
@@ -527,10 +524,6 @@ static inline void patch_jump(struct bc *bc, size_t jump) {
 }
 
 static inline size_t push_loop(struct bc *bc, size_t t) {
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  assert(ctx >= 0 && "Internal compiler error: no frame context");
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
   return bc->src->bytecode.len;
 }
 
@@ -568,7 +561,7 @@ static inline bool patch_mv(struct bc *bc, uint8_t want) {
 
     gab_value value = v_gab_value_val_at(&bc->src->constants, offset);
 
-    assert(gab_valkind(value) == kGAB_PROTOTYPE);
+    assert(gab_valkind(value) == kGAB_SPROTOTYPE);
 
     struct gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(value);
 
@@ -959,7 +952,8 @@ static gab_value pop_ctxframe(struct bc *bc) {
   if (pop_ctx(bc, kFRAME) < 0)
     return gab_undefined;
 
-  patch_jump(bc, f->jump);
+  if (peek_ctx(bc, kFRAME, 0) != COMP_CONTEXT_NOT_FOUND)
+    patch_jump(bc, f->jump);
 
   return p;
 }
@@ -3340,6 +3334,7 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   push_ret(bc, !mv, mv, bc->offset - 1);
 
   gab_value p = pop_ctxframe(bc);
+
   if (p == gab_undefined)
     return COMP_ERR;
 

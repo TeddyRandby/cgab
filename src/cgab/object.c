@@ -194,7 +194,7 @@ uint64_t gab_obj_size(struct gab_obj *self) {
   }
   case kGAB_SUSPENSE: {
     struct gab_obj_suspense *obj = (struct gab_obj_suspense *)self;
-    return sizeof(struct gab_obj_suspense) + obj->len * sizeof(gab_value);
+    return sizeof(struct gab_obj_suspense) + obj->nslots * sizeof(gab_value);
   }
   case kGAB_BLOCK: {
     struct gab_obj_block *obj = (struct gab_obj_block *)self;
@@ -476,17 +476,18 @@ gab_value gab_sprototype(struct gab_triple gab, struct gab_src *src,
   return __gab_obj(self);
 }
 
-gab_value gab_suspense(struct gab_triple gab, gab_value p, uint64_t len,
+gab_value gab_suspense(struct gab_triple gab, gab_value b, gab_value p, uint64_t len,
                        gab_value data[static len]) {
   assert(gab_valkind(p) == kGAB_SPROTOTYPE);
 
   struct gab_obj_suspense *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_suspense, gab_value, len, kGAB_SUSPENSE);
 
+  self->b = b;
   self->p = p;
-  self->len = len;
+  self->nslots = len;
 
-  memcpy(self->data, data, len * sizeof(gab_value));
+  memcpy(self->slots, data, len * sizeof(gab_value));
 
   return __gab_obj(self);
 }

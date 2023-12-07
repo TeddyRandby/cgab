@@ -78,7 +78,7 @@ enum variable_flag {
  * The run-time representation of a callframe.
  */
 struct gab_vm_frame {
-  struct gab_obj_prototype *p;
+  struct gab_obj_block *b;
 
   /**
    *The instruction pointer.

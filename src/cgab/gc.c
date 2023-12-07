@@ -32,9 +32,9 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
   case kGAB_SUSPENSE: {
     struct gab_obj_suspense *sus = (struct gab_obj_suspense *)obj;
 
-    for (size_t i = 0; i < sus->len; i++) {
-      if (gab_valiso(sus->data[i]))
-        fnc(gab, gab_valtoo(sus->data[i]));
+    for (size_t i = 0; i < sus->nslots; i++) {
+      if (gab_valiso(sus->slots[i]))
+        fnc(gab, gab_valtoo(sus->slots[i]));
     }
 
     fnc(gab, gab_valtoo(sus->b));

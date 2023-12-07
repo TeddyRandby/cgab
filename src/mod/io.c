@@ -2,7 +2,9 @@
 #include "gab.h"
 #include <stdio.h>
 
-void file_cb(void *data) { fclose(data); }
+void file_cb(size_t len, unsigned char data[static len]) {
+  fclose((void *)data);
+}
 
 void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 3 || gab_valkind(argv[1]) != kGAB_STRING ||

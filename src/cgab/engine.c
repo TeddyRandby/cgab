@@ -619,15 +619,16 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
   case kGAB_SUSPENSE: {
     struct gab_obj_suspense *self = GAB_VAL_TO_SUSPENSE(value);
 
-    gab_value frame_copy[self->len];
+    gab_value frame_copy[self->nslots];
 
-    for (size_t i = 0; i < self->len; i++) {
-      frame_copy[i] = gab_valcpy(gab, self->data[i]);
+    for (size_t i = 0; i < self->nslots; i++) {
+      frame_copy[i] = gab_valcpy(gab, self->slots[i]);
     }
 
     gab_value p_copy = gab_valcpy(gab, self->p);
+    gab_value b_copy = gab_valcpy(gab, self->b);
 
-    return gab_suspense(gab, p_copy, self->len, frame_copy);
+    return gab_suspense(gab, b_copy, p_copy, self->nslots, frame_copy);
   }
   }
 }

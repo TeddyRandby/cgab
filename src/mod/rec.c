@@ -159,9 +159,6 @@ void gab_lib_shape(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
   default:
-    for (int i = 0; i < argc; i++) {
-      printf("%V\n", argv[i]);
-    }
     gab_panic(gab, "Expected 1 argument to :record.new");
     return;
   }

@@ -122,6 +122,7 @@ int32_t run_4_args(const char *arg_flags, const char *arg1, const char *arg2) {
   }
 
   throw_err("Too many arguments");
+  return 1;
 }
 
 int32_t main(int32_t argc, const char **argv) {

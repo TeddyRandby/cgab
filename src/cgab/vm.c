@@ -14,7 +14,7 @@
 #include <string.h>
 
 static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
-  struct gab_obj_prototype *p = f->p;
+  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
 
   size_t offset = f->ip - p->src->bytecode.data - 1;
 
@@ -24,7 +24,7 @@ static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
 a_gab_value *vm_error(struct gab_triple gab, uint8_t flags, enum gab_status e,
                       const char *help_fmt, ...) {
 
-  struct gab_obj_prototype *p = gab.vm->fp->p;
+  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(gab.vm->fp->b->p);
 
   size_t tok = compute_token_from_ip(gab.vm->fp);
 
@@ -91,14 +91,14 @@ gab_value gab_vmframe(struct gab_triple gab, uint64_t depth) {
       "locals",
   };
 
-  struct gab_src *src = f->p->src;
+  struct gab_src *src = GAB_VAL_TO_PROTOTYPE(f->b->p)->src;
 
   size_t tok = compute_token_from_ip(f);
 
   gab_value values[] = {
-      __gab_obj(f->p),
+      __gab_obj(f->b),
       gab_number(v_uint64_t_val_at(&src->token_lines, tok)),
-      gab_tuple(gab, f->p->as.block.nlocals, f->slots),
+      gab_tuple(gab, GAB_VAL_TO_PROTOTYPE(f->b->p)->as.block.nlocals, f->slots),
   };
 
   size_t len = sizeof(keys) / sizeof(keys[0]);
@@ -114,15 +114,17 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t value) {
 
   struct gab_vm_frame *f = vm->fp - value;
 
-  struct gab_obj_string *func_name = GAB_VAL_TO_STRING(f->p->name);
+  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
+
+  struct gab_obj_string *func_name = GAB_VAL_TO_STRING(p->name);
 
   fprintf(stream,
           ANSI_COLOR_GREEN " %03lu" ANSI_COLOR_RESET " closure:" ANSI_COLOR_CYAN
                            "%-20.*s" ANSI_COLOR_RESET " %d upvalues\n",
           frame_count - value, (int32_t)func_name->len, func_name->data,
-          f->p->as.block.nupvalues);
+          p->as.block.nupvalues);
 
-  for (int32_t i = f->p->as.block.nslots - 1; i >= 0; i--) {
+  for (int32_t i = p->as.block.nslots - 1; i >= 0; i--) {
     fprintf(stream, "%2s" ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET,
             vm->sp == f->slots + i ? "->" : "", i);
     gab_fvalinspect(stream, f->slots[i], 0);
@@ -184,7 +186,7 @@ static inline bool has_callspace(struct gab_vm *vm, size_t space_needed) {
 static inline bool call_suspense(struct gab_vm *vm,
                                  struct gab_obj_suspense *sus, uint8_t have,
                                  uint8_t want) {
-  int32_t space_needed = sus->len;
+  int32_t space_needed = sus->nslots;
 
   if (space_needed > 0 && !has_callspace(vm, space_needed))
     return false;
@@ -192,16 +194,16 @@ static inline bool call_suspense(struct gab_vm *vm,
   struct gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(sus->p);
 
   vm->fp++;
-  vm->fp->p = proto;
+  vm->fp->b = GAB_VAL_TO_BLOCK(sus->b);
   vm->fp->ip = proto->src->bytecode.data + proto->offset;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
 
   gab_value *from = vm->sp - have;
-  gab_value *to = vm->fp->slots + sus->len;
+  gab_value *to = vm->fp->slots + sus->nslots;
 
   vm->sp = trim_return(from, to, have, proto->as.suspense.want);
-  memcpy(vm->fp->slots, sus->data, sus->len * sizeof(gab_value));
+  memcpy(vm->fp->slots, sus->slots, sus->nslots * sizeof(gab_value));
 
   return true;
 }
@@ -234,7 +236,7 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
     return false;
 
   vm->fp++;
-  vm->fp->p = p;
+  vm->fp->b = b;
   vm->fp->ip = p->src->bytecode.data + p->offset;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
@@ -244,7 +246,8 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   size_t offset = (wants_var ? len : p->as.block.nlocals);
 
   // Trim arguments into the slots
-  vm->sp = trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, offset - 1);
+  vm->sp =
+      trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, offset - 1);
 
   return true;
 }
@@ -351,13 +354,13 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 #define INSTR() (instr)
 #define FRAME() (VM()->fp)
 #define BLOCK() (FRAME()->b)
-#define BLOCK_PROTO() (GAB_VAL_TO_PROTOTYPE(BLOCK()->p))
+#define BLOCK_PROTO() (GAB_VAL_TO_PROTOTYPE(FRAME()->b->p))
 #define IP() (ip)
 #define TOP() (VM()->sp)
 #define VAR() (*TOP())
 #define SLOTS() (FRAME()->slots)
 #define LOCAL(i) (SLOTS()[i])
-#define UPVALUE(i) (BLOCK()->upvalues[i])
+#define UPVALUE(i) (FRAME()->b->upvalues[i])
 #define MOD_CONSTANT(k) (v_gab_value_val_at(&BLOCK_PROTO()->src->constants, k))
 
 #if cGAB_DEBUG_VM
@@ -1122,8 +1125,6 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
     CASE_CODE(LOAD_UPVALUE_6) :
     CASE_CODE(LOAD_UPVALUE_7) :
     CASE_CODE(LOAD_UPVALUE_8) : {
-      // printf("LOAD_UPVALUE %V", __gab_obj(BLOCK()));
-      // printf("% d of %d\n", INSTR() - OP_LOAD_UPVALUE_0, BLOCK()->nupvalues);
       PUSH(UPVALUE(INSTR() - OP_LOAD_UPVALUE_0));
       NEXT();
     }
@@ -1192,11 +1193,11 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       gab_value blk = gab_block(GAB(), p);
 
       struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
-      struct gab_obj_bprototype *proto = GAB_VAL_TO_bprototype(p);
+      struct gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(p);
 
-      for (int i = 0; i < proto->nupvalues; i++) {
-        uint8_t flags = proto->upv_desc[i * 2];
-        uint8_t index = proto->upv_desc[i * 2 + 1];
+      for (int i = 0; i < proto->as.block.nupvalues; i++) {
+        uint8_t flags = proto->data[i * 2];
+        uint8_t index = proto->data[i * 2 + 1];
 
         if (flags & fVAR_LOCAL) {
           b->upvalues[i] = LOCAL(index);
@@ -1218,14 +1219,14 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       gab_value blk = gab_block(GAB(), p);
 
       struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
-      struct gab_obj_bprototype *proto = GAB_VAL_TO_bprototype(p);
+      struct gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(p);
 
       for (int i = 0; i < b->nupvalues; i++) {
-        uint8_t flags = proto->upv_desc[i * 2];
-        uint8_t index = proto->upv_desc[i * 2 + 1];
+        uint8_t flags = proto->data[i * 2];
+        uint8_t index = proto->data[i * 2 + 1];
 
         if (flags & fVAR_LOCAL) {
-          assert(index < BLOCK_PROTO()->nlocals);
+          assert(index < BLOCK_PROTO()->as.block.nlocals);
           b->upvalues[i] = LOCAL(index);
         } else {
           assert(index < BLOCK()->nupvalues);
@@ -1279,8 +1280,8 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
        * number of locals the function is expected to have. Move TOP()
        * to past the locals section in this case.
        */
-      if (TOP() - SLOTS() < BLOCK_PROTO()->nlocals)
-        TOP() = SLOTS() + BLOCK_PROTO()->nlocals;
+      if (TOP() - SLOTS() < BLOCK_PROTO()->as.block.nlocals)
+        TOP() = SLOTS() + BLOCK_PROTO()->as.block.nlocals;
 
       VAR() = want + 1;
 

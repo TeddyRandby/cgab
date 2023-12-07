@@ -6,7 +6,7 @@ void dis_block(gab_value blk) {
   printf("     ");
   gab_fvalinspect(stdout, blk, 0);
   printf("\n");
-  gab_fmodinspect(stdout, GAB_VAL_TO_BLOCK_PROTO(GAB_VAL_TO_BLOCK(blk)->p));
+  gab_fmodinspect(stdout, GAB_VAL_TO_PROTOTYPE(GAB_VAL_TO_BLOCK(blk)->p));
 }
 
 void dis_message(struct gab_triple gab, gab_value msg, gab_value rec) {
