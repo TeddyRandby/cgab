@@ -390,7 +390,7 @@ static inline void push_dynsend(struct bc *bc, uint8_t have, bool mv,
                                 size_t t) {
   assert(have < 16);
 
-  push_op(bc, OP_DYNAMIC_SEND, t);
+  push_op(bc, OP_SEND_DYN, t);
   push_nnop(bc, 2, t);
   push_byte(bc, encode_arity(have, mv), t);
   push_byte(bc, 1, t); // Default to wnating one
@@ -549,6 +549,7 @@ static inline bool patch_mv(struct bc *bc, uint8_t want) {
     return false;
 
   switch (f->prev_op) {
+  case OP_SEND_DYN:
   case OP_SEND_ANA:
     v_uint8_t_set(&bc->src->bytecode, bc->src->bytecode.len - 25, want);
     return true;
@@ -3635,7 +3636,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_SEND_PRIMITIVE_CALL_NATIVE:
   case OP_SEND_PRIMITIVE_CALL_SUSPENSE:
     return dumpSendInstruction(stream, self, offset);
-  case OP_DYNAMIC_SEND:
+  case OP_SEND_DYN:
     return dumpDynSendInstruction(stream, self, offset);
   case OP_POP_N:
   case OP_STORE_LOCAL:
@@ -3716,7 +3717,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
 }
 
 int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *proto) {
-  uint64_t offset = 0;
+  uint64_t offset = proto->offset;
   while (offset < proto->src->bytecode.len) {
     fprintf(stream, ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);
     offset = dumpInstruction(stream, proto, offset);

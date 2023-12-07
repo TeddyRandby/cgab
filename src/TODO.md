@@ -12,3 +12,35 @@
     - inspect should be useful for printf debugging
 - C-API improvements and documentation
     - First improviement idea - pass buffers into functions that evaluate gab code, and gab can trim-return values in and return a status code.
+
+- Is it possible to remove some language features and implement them simply in a std lib?
+    My thoughts are `then`, `else`, `and`, `or`, `match`, and `for in`
+    ```gab
+        def then[.Boolean](cb); self and cb(); self end
+    ```
+
+    I can't define messages on 'True', only on the .Boolean type.
+
+    I can't implement (:and) because it does short-circuiting. 
+
+    ```gab
+    [some collection]:for(&:each) do (v)
+        .pass
+    end
+
+    :for([some collection]:each) do (v)
+        .pass
+    end
+
+    def for[](msg, cb)
+        *args, suspense = self:(msg)
+
+        loop
+            cb(*args)            
+
+            ?suspense == .Suspense or break
+
+            *args, suspense = suspense()
+        end
+    end
+    ```

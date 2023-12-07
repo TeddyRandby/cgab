@@ -565,7 +565,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       NEXT();
     }
 
-    CASE_CODE(DYNAMIC_SEND) : {
+    CASE_CODE(SEND_DYN) : {
       SKIP_SHORT;
       uint64_t have = compute_arity(VM(), READ_BYTE);
       uint8_t want = READ_BYTE;

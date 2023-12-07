@@ -171,7 +171,7 @@ struct gab_triple gab_create() {
   eg->types[kGAB_BOX] = gab_string(gab, "Box");
   gab_gciref(gab, eg->types[kGAB_BOX]);
 
-  eg->types[kGAB_SUSPENSE] = gab_string(gab, "Suspsense");
+  eg->types[kGAB_SUSPENSE] = gab_string(gab, "Suspense");
   gab_gciref(gab, eg->types[kGAB_SUSPENSE]);
 
   eg->types[kGAB_PRIMITIVE] = gab_string(gab, "Primitive");

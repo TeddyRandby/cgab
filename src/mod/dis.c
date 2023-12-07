@@ -48,8 +48,7 @@ void gab_lib_dismessage(struct gab_triple gab, size_t argc,
 
   switch (argc) {
   case 1:
-    gab_fvalinspect(stdout, gab_msgrec(argv[0]), -1);
-    printf("\n");
+    gab_vmpush(gab.vm, gab_msgrec(argv[0]));
     break;
   case 2:
     dis_message(gab, argv[0], argv[1]);

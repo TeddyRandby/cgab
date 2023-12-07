@@ -1,1 +1,20 @@
+:use .dis
+:use .records
 
+def customfor[](msg, cb)
+  *args, suspense = self:(msg)
+
+  loop
+      ?suspense == .Suspense or break
+
+      cb(args:splat)            
+
+      *args, suspense = suspense()
+  end
+end
+
+l = { a b c }
+
+l:customfor(&:each) do (v, i)
+  '{i}: {v}':print
+end
