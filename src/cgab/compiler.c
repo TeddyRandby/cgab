@@ -891,7 +891,7 @@ static inline int push_ctx(struct bc *bc, enum context_k kind) {
   return bc->ncontext++;
 }
 
-static void push_ctxframe(struct bc *bc, gab_value name) {
+static void push_ctxframe(struct bc *bc, gab_value name, bool message) {
   int ctx = push_ctx(bc, kFRAME);
 
   assert(ctx >= 0 && "Failed to push frame context");
@@ -908,7 +908,7 @@ static void push_ctxframe(struct bc *bc, gab_value name) {
 
   addk(bc, name);
 
-  init_local(bc, add_local(bc, gab_string(gab(bc), "self"), 0));
+  init_local(bc, add_local(bc, gab_string(gab(bc), message ? "self" : ""), 0));
 }
 
 static int pop_ctxloop(struct bc *bc) {
@@ -1375,7 +1375,7 @@ int compile_message_spec(struct bc *bc) {
 }
 
 int compile_block(struct bc *bc, gab_value name) {
-  push_ctxframe(bc, name);
+  push_ctxframe(bc, name, false);
 
   int narguments = compile_parameters(bc);
 
@@ -1401,7 +1401,7 @@ int compile_message(struct bc *bc, gab_value name) {
   if (compile_message_spec(bc) < 0)
     return COMP_ERR;
 
-  push_ctxframe(bc, name);
+  push_ctxframe(bc, name, true);
 
   int narguments = compile_parameters(bc);
 
@@ -3313,7 +3313,7 @@ struct compile_rule get_rule(gab_token k) { return rules[k]; }
 
 gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
                   gab_value arguments[narguments]) {
-  push_ctxframe(bc, name);
+  push_ctxframe(bc, name, false);
 
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;
