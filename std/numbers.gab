@@ -21,10 +21,10 @@ def times[.Number](cb)
 end
 
 def from[.Number](src)
-  ?src match
-      nil     => { from: self }           end
-      .Number => { from: src to: self }  end
-      else    => .INVALID_ARGUMENTS:panic end
+  ?src :match {
+      [nil]:  do; { from: self }           end
+      Number: do; { from: src to: self }   end
+  } do; .INVALID_ARGUMENTS:panic end
 end
 
 def to[.Number](dest)

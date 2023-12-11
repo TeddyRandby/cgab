@@ -278,7 +278,7 @@ static inline bool find_implementation(struct gab_triple gab, gab_value msg,
 
 static inline void call_native(struct gab_triple gab, struct gab_obj_native *b,
                                uint8_t arity, uint8_t want, bool is_message) {
-  gab_value *to = gab.vm->sp - arity - 1; // Is this -1 correct?
+  gab_value *to = gab.vm->sp - arity - 1;
 
   gab_value *before = gab.vm->sp;
 
@@ -288,12 +288,10 @@ static inline void call_native(struct gab_triple gab, struct gab_obj_native *b,
 
   uint64_t have = gab.vm->sp - before;
 
-  // Always have atleast one
+  // Always have atleast one result
   if (have == 0)
     *gab.vm->sp++ = gab_nil, have++;
 
-  // There is always an extra to trim bc of
-  // the receiver or callee.
   gab.vm->sp = trim_return(gab.vm->sp - have, to, have, want);
 }
 
@@ -1036,20 +1034,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       NEXT();
     }
 
-    CASE_CODE(MATCH) : {
-      gab_value test = POP();
-      gab_value pattern = PEEK();
-      if (test == pattern) {
-        DROP();
-        PUSH(gab_bool(true));
-      } else {
-        PUSH(gab_bool(false));
-      }
-      NEXT();
-    }
-
     // clang-format off
-
     CASE_CODE(LOAD_LOCAL_0):
     CASE_CODE(LOAD_LOCAL_1):
     CASE_CODE(LOAD_LOCAL_2):

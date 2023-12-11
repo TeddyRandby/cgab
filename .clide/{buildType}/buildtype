@@ -2,4 +2,4 @@
 
 echo "Debug:Include debug symbols, etc:debug"
 echo "Release:Optimize for speed:release"
-echo "Debug Optimized:Optimize for speed and include debug symbols:debugoptimize"
+echo "Debug Optimized:Optimize for speed and include debug symbols:debugoptimized"

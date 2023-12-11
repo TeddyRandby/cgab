@@ -121,10 +121,6 @@ const keyword keywords[] = {
         TOKEN_FALSE,
     },
     {
-        "match",
-        TOKEN_MATCH,
-    },
-    {
         "then",
         TOKEN_THEN,
     },

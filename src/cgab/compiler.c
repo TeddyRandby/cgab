@@ -2000,91 +2000,6 @@ int compile_exp_else(struct bc *bc, bool assignable) {
   return compile_condexp(bc, assignable, OP_JUMP_IF_TRUE);
 }
 
-int compile_exp_mch(struct bc *bc, bool assignable) {
-  size_t t = bc->offset - 1;
-
-  if (skip_newlines(bc) < 0)
-    return COMP_ERR;
-
-  uint64_t next = 0;
-  v_uint64_t done_jumps = {0};
-
-  while (!match_and_eat_token(bc, TOKEN_ELSE)) {
-    if (next != 0)
-      patch_jump((bc), next);
-
-    // Duplicate the pattern
-    push_op((bc), OP_DUP, t);
-    push_slot(bc, 1);
-
-    // Compile a test expression
-    if (compile_expression(bc) < 0)
-      return COMP_ERR;
-
-    size_t t = bc->offset - 1;
-
-    int m = add_message_constant(bc, gab_string(gab(bc), mGAB_EQ));
-
-    push_op(bc, OP_SWAP, t);
-
-    // Test for equality
-    push_send(bc, m, 1, false, t);
-    pop_slot(bc, 1); // Pops 2, pushes 1
-
-    next = push_jump((bc), OP_POP_JUMP_IF_FALSE, bc->offset - 1);
-    push_pop(bc, 1, t); // Pop the test and pattern
-    pop_slot(bc, 2);
-
-    if (expect_token(bc, TOKEN_FAT_ARROW) < 0)
-      return COMP_ERR;
-
-    if (optional_newline(bc) < 0)
-      return COMP_ERR;
-
-    if (compile_expressions(bc) < 0)
-      return COMP_ERR;
-
-    // We need to pretend to pop the slot
-    // In all of the branches, because in reality
-    // we only ever keep one.
-    pop_slot(bc, 1);
-
-    if (expect_token(bc, TOKEN_END) < 0)
-      return COMP_ERR;
-
-    if (skip_newlines(bc) < 0)
-      return COMP_ERR;
-
-    // Push a jump out of the match statement at the end of every case.
-    v_uint64_t_push(&done_jumps, push_jump((bc), OP_JUMP, t));
-  }
-
-  // If none of the cases match, the last jump should end up here.
-  patch_jump((bc), next);
-
-  // Pop the pattern that we never matched
-  push_pop((bc), 1, t);
-  pop_slot(bc, 1);
-
-  if (expect_token(bc, TOKEN_FAT_ARROW) < 0)
-    return COMP_ERR;
-
-  if (compile_expressions(bc) < 0)
-    return COMP_ERR;
-
-  if (expect_token(bc, TOKEN_END) < 0)
-    return COMP_ERR;
-
-  for (int i = 0; i < done_jumps.len; i++) {
-    // Patch all the jumps to the end of the match expression.
-    patch_jump((bc), v_uint64_t_val_at(&done_jumps, i));
-  }
-
-  v_uint64_t_destroy(&done_jumps);
-
-  return COMP_OK;
-}
-
 int compile_exp_bin(struct bc *bc, bool assignable) {
   gab_token op = prev_tok(bc);
   size_t t = bc->offset - 1;
@@ -3106,7 +3021,6 @@ const struct compile_rule rules[] = {
     INFIX(then, AND, false),                    // THEN
     INFIX(else, OR, false),                     // ELSE
     PREFIX_INFIX(blk, bcal, SEND, false),       // DO
-    INFIX(mch, MATCH, false),                   // MATCH
     INFIX(in, IN, false),                       // IN
     NONE(),                                     // END
     PREFIX(def),                                // DEF
@@ -3453,7 +3367,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_SWAP:
   case OP_DUP:
   case OP_NOT:
-  case OP_MATCH:
   case OP_POP:
   case OP_TYPE:
   case OP_NOP:
