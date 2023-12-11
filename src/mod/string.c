@@ -13,12 +13,97 @@ void gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_vmpush(gab.vm, result);
 };
 
-void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+static inline bool begins(const char *str, const char *pat, size_t offset) {
+  size_t len = strlen(pat);
+
+  if (strlen(str) < offset + len)
+    return false;
+
+  return !memcmp(str + offset, pat, len);
+}
+
+void gab_lib_begins(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
-  default:
-    gab_panic(gab, "&:string.new expects 1 argument");
+  case 2: {
+    if (gab_valkind(argv[1]) != kGAB_STRING) {
+      gab_panic(gab, "&:begins? expects 1 string argument");
+      return;
+    }
+
+    const char *pat = gab_valintocs(gab, argv[0]);
+    const char *str = gab_valintocs(gab, argv[1]);
+
+    gab_vmpush(gab.vm, gab_bool(begins(str, pat, 0)));
     return;
   }
+  case 3: {
+    if (gab_valkind(argv[1]) != kGAB_STRING) {
+      gab_panic(gab, "&:begins? expects 1 string argument");
+      return;
+    }
+
+    if (gab_valkind(argv[2]) != kGAB_NUMBER) {
+      gab_panic(gab, "&:begins? expects an optinal number argument");
+      return;
+    }
+    const char *pat = gab_valintocs(gab, argv[0]);
+    const char *str = gab_valintocs(gab, argv[1]);
+
+    gab_vmpush(gab.vm, gab_bool(begins(str, pat, gab_valton(argv[2]))));
+    return;
+  }
+  }
+}
+
+void gab_lib_to_byte(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  if (argc != 1) {
+    gab_panic(gab, "&:to_byte expects 0 arguments");
+    return;
+  }
+
+  long int index = argc == 1 ? 0 : gab_valton(argv[1]);
+
+  if (index > gab_strlen(argv[0])) {
+    gab_panic(gab, "Index out of bounds");
+    return;
+  }
+
+  if (index < 0) {
+    // Go from the back
+    index = gab_strlen(argv[0]) + index;
+
+    if (index < 0) {
+      gab_panic(gab, "Index out of bounds");
+      return;
+    }
+  }
+
+  char byte = gab_valintocs(gab, argv[0])[index];
+
+  gab_vmpush(gab.vm, gab_number(byte));
+}
+
+void gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  if (argc != 2 && gab_valkind(argv[1]) != kGAB_NUMBER) {
+    gab_panic(gab, "&:at expects 1 number argument");
+    return;
+  }
+
+  long int index = gab_valton(argv[1]);
+
+  if (index > gab_strlen(argv[0])) {
+    gab_panic(gab, "Index out of bounds");
+    return;
+  }
+
+  if (index < 0) {
+    // Go from the back
+    index = gab_strlen(argv[0]) + index;
+  }
+
+  char byte = gab_valintocs(gab, argv[0])[index];
+
+  gab_vmpush(gab.vm, gab_nstring(gab, 1, &byte));
 }
 
 #define MIN(a, b) (a < b ? a : b)
@@ -78,31 +163,35 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value string_type = gab_type(gab.eg, kGAB_STRING);
 
-  gab_value receivers[] = {
-      string_type,
-      string_type,
-      string_type,
+  struct gab_spec_argt specs[] = {
+      {
+          "slice",
+          string_type,
+          gab_snative(gab, "slice", gab_lib_slice),
+      },
+      {
+          "len",
+          string_type,
+          gab_snative(gab, "len", gab_lib_len),
+      },
+      {
+          "at",
+          string_type,
+          gab_snative(gab, "at", gab_lib_at),
+      },
+      {
+          "begins?",
+          string_type,
+          gab_snative(gab, "begins?", gab_lib_begins),
+      },
+      {
+          "to_byte",
+          string_type,
+          gab_snative(gab, "to_byte", gab_lib_to_byte),
+      },
   };
 
-  const char *names[] = {
-      "slice",
-      "len",
-      "string.new",
-  };
-
-  gab_value specs[] = {
-      gab_snative(gab, "slice", gab_lib_slice),
-      gab_snative(gab, "len", gab_lib_len),
-      gab_snative(gab, "string.new", gab_lib_new),
-  };
-
-  for (uint8_t i = 0; i < LEN_CARRAY(names); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = names[i],
-                      .receiver = receivers[i],
-                      .specialization = specs[i],
-                  });
-  }
+  gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
   return NULL;
 }

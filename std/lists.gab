@@ -9,13 +9,3 @@ def each[.List]
     v = v + 1
   until v >= self:len end
 end
-
-def list.collect[](*stream)
-  def list = :list.new
-  
-  for val in stream:splat
-    list:push!(val)
-  end
-  
-  list
-end

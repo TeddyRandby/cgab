@@ -125,10 +125,6 @@ const keyword keywords[] = {
         TOKEN_MATCH,
     },
     {
-        "for",
-        TOKEN_FOR,
-    },
-    {
         "then",
         TOKEN_THEN,
     },

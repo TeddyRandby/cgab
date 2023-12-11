@@ -12,7 +12,7 @@ def first[.Record]; self:at(0) end
 
 def last[.Record]; self:at(self:len - 1) end
 
-def each[.Record]
+def pairs[.Record]
     key = self:next
 
     loop
@@ -37,38 +37,4 @@ def values[.Record]
       yield self[key]
       key = self:next(key)
     until key == nil end
-end
-
-def map[.Record](mapper)
-    other = :record(?self)
-
-    for key, value in self:each
-        other[key] = mapper(value)
-    end
-
-    return other
-end
-
-def map![.Record](mapper)
-    for key, value in self:each
-        self[key] = mapper(value, key)
-    end
-
-    return self
-end
-
-def fold[.Record](init, folder)
-    acc = init
-
-    for key, value in self:each
-        acc = folder(acc, value)
-    end
-
-    return acc
-end
-
-def join[.Record](sep)
-  self:fold('') do (str, cur, i)
-    return i == 0 and '{cur}' or str + sep + '{cur}'
-  end
 end

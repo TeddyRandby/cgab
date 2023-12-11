@@ -1,8 +1,17 @@
-:use 'string'
-:use 'std/numbers'
+:use .string
+:use .numbers
+:use .symbol
 
-def string[](*args)
+def string.new[](*args)
   return args:join('')
+end
+
+def string.begins?[](sep, offset)
+ sym = :symbol.new('string.begins?|{sep}') 
+
+ def ==[sym](target); sep:begins?(target, offset or 0) end
+
+ return sym
 end
 
 def [][.String](opts)
@@ -14,22 +23,32 @@ def [][.String](opts)
         else         => .INVALID_ARGUMENTS:panic       end
 end
 
+def chars[.String]
+  i, len = 0, self:len
+
+  loop
+    yield self:at(i)
+    i = i + 1
+  until i == len end
+end
+
 def split[.String](sep)
-  s, slen, w, wlen = 0, 1, 0, 1
+  s, slen, w, wlen = 0, sep:len, 0, 0
 
   loop
     self[s:to(s + slen)] match
       sep  =>
-          yield self[w:to(w + wlen)]
+          wlen > 0 and yield self[w:to(w + wlen)]
 
-          w = wlen + 1
-          s, slen = w, 0
-        end 
+          w = w + wlen + slen
+          s = s + slen
+          wlen = 0
+      end 
       else =>
-          slen = slen + 1
+          s = s + 1
           wlen = wlen + 1
-        end
-  until w + wlen > self:len end 
-  
-  self[s:to(slen)]
+      end
+  until s + slen > self:len end 
+
+  yield self:slice(w)
 end

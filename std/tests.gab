@@ -1,6 +1,6 @@
+:use 'streams'
 :use 'records'
 :use 'lists'
-:use 'any'
 
 def TestState  { fails errs }
 
@@ -25,7 +25,7 @@ def passed?[TestState]
 end
 
 def show_errs[TestState]
-    for mismatch in self:errs:each
+    self:errs:for(&:each) do (mismatch)
         '     - got {mismatch[0]}, expecting {mismatch[1]}':print
     end
 end

@@ -1,6 +1,6 @@
 :use 'shp'
 
-def each[.Shape]
+def keys[.Shape]
     key = self:next
 
     loop

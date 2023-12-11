@@ -110,6 +110,7 @@ static inline void destroy(struct gab_triple gab, struct gab_obj *obj) {
            func, line);
   }
   GAB_OBJ_FREED(obj);
+  gab_obj_destroy(gab.eg, obj);
 #else
   gab_obj_destroy(gab.eg, obj);
   gab_egalloc(gab, obj, 0);
@@ -407,9 +408,11 @@ static inline void increment_reachable(struct gab_triple gab) {
   debug_collect = false;
 #endif
 
-  size_t stack_size = gab.vm->sp - 1 - gab.vm->sb;
+  size_t stack_size = gab.vm->sp - gab.vm->sb;
 
-  gab_ngciref(gab, 1, stack_size, gab.vm->sb);
+  for (size_t i = 0; i <= stack_size; i++) {
+    inc_if_obj_ref(gab, gab.vm->sb[i]);
+  }
 
 #if cGAB_DEBUG_GC
   debug_collect = true;
@@ -421,9 +424,12 @@ static inline void decrement_reachable(struct gab_triple gab) {
   debug_collect = false;
 #endif
 
-  size_t stack_size = gab.vm->sp - 1 - gab.vm->sb;
+  size_t stack_size = gab.vm->sp - gab.vm->sb;
 
-  gab_ngcdref(gab, 1, stack_size, gab.vm->sb);
+  for (size_t i = 0; i <= stack_size; i++) {
+    if (gab_valiso(gab.vm->sb[i]))
+      queue_decrement(gab, gab_valtoo(gab.vm->sb[i]));
+  }
 
 #if cGAB_DEBUG_GC
   debug_collect = true;
@@ -670,6 +676,8 @@ void collect_cycles(struct gab_triple gab) {
 }
 
 void gab_gcreserve(struct gab_triple gab, size_t n) {
+  gab.gc->nreserve += n;
+
   if (!gab.gc->running &&
       ((gab.gc->modifications.len + n) >= cGAB_GC_MOD_BUFF_MAX ||
        (gab.gc->decrements.len + n) >= cGAB_GC_DEC_BUFF_MAX)) {
@@ -680,6 +688,12 @@ void gab_gcreserve(struct gab_triple gab, size_t n) {
 
 void gab_gcrun(struct gab_triple gab) {
   gab.gc->running = true;
+
+  if (gab.gc->nreserve > 0)
+    gab.gc->nreserve -= 1;
+
+  if (gab.gc->nreserve)
+    return;
 
   if (gab.vm != NULL)
     increment_reachable(gab);

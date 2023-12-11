@@ -1,0 +1,36 @@
+def for[](msg, cb)
+  *args, suspense = self:(msg)
+
+  loop
+      ?suspense == .Suspense or break
+
+      cb(args:splat)            
+
+      *args, suspense = suspense()
+  end
+end
+
+def fold[](msg, init, cb)
+  acc = init
+  *args, suspense = self:(msg)
+
+  loop
+      ?suspense == .Suspense or break acc
+
+      acc = cb(acc, args:splat)            
+
+      *args, suspense = suspense()
+  end
+end
+
+def filter[](msg, cb)
+  *args, suspense = self:(msg)
+
+  loop
+      ?suspense == .Suspense or break acc
+
+      acc = cb(acc, args:splat)            
+
+      *args, suspense = suspense()
+  end
+end

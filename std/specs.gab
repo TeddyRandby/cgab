@@ -1,11 +1,12 @@
-:use 'maps'
-:use 'records'
-:use 'lists'
-:use 'shapes'
-:use 'symbol'
-:use 'numbers'
-:use 'msg'
-:use 'any'
+:use .maps
+:use .records
+:use .lists
+:use .shapes
+:use .symbol
+:use .numbers
+:use .msg
+:use .any
+:use .streams
 
 ## TODO: Optimize for memory by caching generated specs based on input
 
@@ -62,7 +63,7 @@ end
 
 def spec.nil[]
   def nil.predicate(value)
-    return !value, self, value
+    return not value, self, value
   end
 end
 
@@ -131,7 +132,7 @@ def spec.map[](k_spec, v_spec)
   def map.predicate (value)
     ?value == .Map or return false, self, value 
     
-    for k, v in value:each
+    value:for(&:pairs) do (k, v)
       k_spec:spec.fits?(k) or return false, k_spec, k, k
       v_spec:spec.fits?(v) or return false, v_spec, v, k
     end
@@ -151,8 +152,8 @@ def spec.list[](spec)
   def list.predicate (value)
     ?value == .List or return false, self, value
 
-    for v, i in value:each
-      spec:spec.fits?(v) or return false, self, value, i
+    value:for(&:pairs) do (k, v)
+      spec:spec.fits?(v) or return false, self, value, k
     end
 
     return true, self, value
@@ -170,7 +171,7 @@ def spec.protocol[](protocol)
   # Return a predicate which returns true if the given value
   # has all the keys of the record
   def protocol.predicate (value)
-    for k in protocol:each
+    protocol:for(&:keys) do (k)
       # If message doesn't specify for this value, then the spec doesn't fit
       m = :message.new(k)
       m:has?(value) or return false, self, k
@@ -188,9 +189,9 @@ def spec.protocol[](protocol)
   end
 
   def spec.gen[protocol.predicate]
-    gen = :record.new(protocol)
+    def gen = :record.new(protocol)
 
-    for k in protocol:each
+    protocol:for(&:keys) do (k)
       _, s = registry.spec:at(k) in match
         .some => gen[k] = s:spec.gen end
         else  => .MISSING_SPEC:panic end
@@ -225,8 +226,9 @@ def spec.or[](*specs)
   # Return a predicate which returns true if the given value
   # fits any of the given specs
   def or.predicate (value)
-    for k, spec in specs:each
-      spec:spec.fits?(value) and return true, spec, value, k
+    specs:fold(&:pairs, false) do (acc, k, spec)
+      { k spec value }:print
+      spec:spec.fits?(value) or acc
     end
     
     return false, self, value
@@ -244,7 +246,7 @@ def spec.and[](*specs)
   # Return a predicate which returns true iff the given value
   # fits all of the given specs
   def and.predicate (value)
-    for k, spec in specs:each
+    specs:for(&:pairs) do (k, spec)
       spec:spec.fits?(value) or return false, spec, value, k
     end
     
@@ -256,11 +258,11 @@ def spec.and[](*specs)
     
     start = specs[0]
     loop
-      value, valid, tries = start:spec.gen, false, tries + 1
+      def value = start:spec.gen
+      tries = tries + 1
 
-      for s in specs:values
-        valid = s:spec.fits?(value)
-        valid or break
+      valid = specs:fold(&:values, true) do (a, s)
+        a and s:spec.fits?(value)
       end
 
       valid and return value
@@ -398,8 +400,12 @@ def spec.message[](args, semantics)
     loop
       receiver = args:receiver:spec.gen
 
+      { receiver }:print
+
       args:receiver:spec.fits?(receiver) then
         *input  = args:input:spec.gen
+
+        { input arg: args:input }:print
 
         args:input:spec.fits?(input:splat) then
           *output = receiver:(args:message)(input:splat)
@@ -423,12 +429,12 @@ def spec.fits?      [](value); self == value    end
 def spec.fits?[.Block](value); self(value)      end
 
 ## MODIFY
-# Because it is common for gab messages to modify `self`, spec
+# Because it is common for messages to modify `self`, spec
 # needs a way to emulate this in messages that it generates.
-# User models can define their own version of &:spec.modify! If this
+# User types can define their own version of &:spec.modify! If this
 # Doesn't satisfy their use case.
 def spec.modify![.Record](new_value)
-  for k in self:keys
+    self:for(&:keys) do (k)
     # If new_value has a corresponding value, modify self. Else, pass
     _, v = new_value:at(k) in match
       .some => self[k] = v end

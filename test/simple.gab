@@ -1,20 +1,12 @@
-:use .dis
 :use .records
+:use .streams
 
-def customfor[](msg, cb)
-  *args, suspense = self:(msg)
+l = { a: 1 b: 2 c: 3 }
 
-  loop
-      ?suspense == .Suspense or break
-
-      cb(args:splat)            
-
-      *args, suspense = suspense()
-  end
+l:for(&:pairs) do (k, v)
+  '{k}: {v}':print
 end
 
-l = { a b c }
+sum = l:fold(&:values, 0) do; @1 + @2 end
 
-l:customfor(&:each) do (v, i)
-  '{i}: {v}':print
-end
+sum:print

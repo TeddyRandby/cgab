@@ -43,8 +43,7 @@ end
 # It generates receivers and inputs, sends the message,
 # And checks the output against the spec and semantics.
 # This code will run forever if the spec is always satisfied
-first_fail = for ok, spec, value, path in car.paint.spec:spec.check
- ok or break { spec value path }
+car.paint.spec:for(&:spec.check) do (ok, spec, value, path)
+  'hi':print
+ { ok spec value path }:print
 end
-
-first_fail:print

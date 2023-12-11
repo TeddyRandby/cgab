@@ -182,11 +182,14 @@ struct gab_triple gab_create() {
   gab_setup_natives(gab);
 
   for (int i = 0; i < LEN_CARRAY(primitives); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = primitives[i].name,
-                      .receiver = gab_type(eg, primitives[i].type),
-                      .specialization = primitives[i].primitive,
-                  });
+    gab_egkeep(
+        gab.eg,
+        gab_gciref(
+            gab, gab_spec(gab, (struct gab_spec_argt){
+                                   .name = primitives[i].name,
+                                   .receiver = gab_type(eg, primitives[i].type),
+                                   .specialization = primitives[i].primitive,
+                               })));
   }
 
   return gab;

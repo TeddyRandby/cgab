@@ -479,26 +479,11 @@ static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
   push_op(bc, OP_POP, t);
 }
 
-static inline void push_next(struct bc *bc, uint8_t n, size_t t) {
-  push_op(bc, OP_NEXT, t);
-  push_byte(bc, n, t);
-}
-
 static inline void push_pack(struct bc *bc, uint8_t below, uint8_t above,
                              size_t t) {
   push_op(bc, OP_PACK, t);
   push_byte(bc, below, t);
   push_byte(bc, above, t);
-}
-
-static inline size_t push_iter(struct bc *bc, uint8_t want, uint8_t start,
-                               size_t t) {
-  push_op(bc, OP_ITER, t);
-  push_byte(bc, want, t);
-  push_byte(bc, start, t);
-  push_nnop(bc, 2, t);
-
-  return bc->src->bytecode.len - 2;
 }
 
 static inline size_t push_jump(struct bc *bc, uint8_t op, size_t t) {
@@ -1433,7 +1418,7 @@ int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out) {
     return COMP_ERR;
 
   uint8_t have = 0;
-  bool mv;
+  bool mv = false;
 
   int result;
   do {
@@ -1510,46 +1495,6 @@ int add_message_constant(struct bc *bc, gab_value name) {
 
 int add_string_constant(struct bc *bc, s_char str) {
   return addk(bc, gab_nstring(gab(bc), str.len, str.data));
-}
-
-int compile_rec_tup_internal_item(struct bc *bc, uint8_t index) {
-  return compile_expression(bc);
-}
-
-int compile_rec_tup_internals(struct bc *bc, bool *mv_out) {
-  uint8_t size = 0;
-
-  if (skip_newlines(bc) < 0)
-    return COMP_ERR;
-
-  while (!match_token(bc, TOKEN_RBRACE)) {
-
-    int result = compile_rec_tup_internal_item(bc, size);
-
-    if (result < 0)
-      return COMP_ERR;
-
-    if (size == UINT8_MAX) {
-      compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_INITIALIZER, "");
-      return COMP_ERR;
-    }
-
-    match_and_eat_token(bc, TOKEN_COMMA);
-
-    if (skip_newlines(bc) < 0)
-      return COMP_ERR;
-    size++;
-  }
-
-  if (expect_token(bc, TOKEN_RBRACE) < 0)
-    return COMP_ERR;
-
-  bool mv = patch_mv(bc, VAR_EXP);
-
-  if (mv_out)
-    *mv_out = mv;
-
-  return size - mv;
 }
 
 bool new_local_needs_shift(v_lvalue *lvalues, uint8_t index) {
@@ -1896,9 +1841,17 @@ int compile_record(struct bc *bc) {
 
 int compile_record_tuple(struct bc *bc) {
   bool mv;
-  int size = compile_rec_tup_internals(bc, &mv);
+  int size = compile_tuple(bc, VAR_EXP, &mv);
 
   if (size < 0)
+    return COMP_ERR;
+
+  if (size > 255) {
+    compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_INITIALIZER, "");
+    return COMP_ERR;
+  }
+
+  if (expect_token(bc, TOKEN_RBRACE) < 0)
     return COMP_ERR;
 
   push_tuple((bc), size, mv, bc->offset - 1);
@@ -2071,6 +2024,8 @@ int compile_exp_mch(struct bc *bc, bool assignable) {
     size_t t = bc->offset - 1;
 
     int m = add_message_constant(bc, gab_string(gab(bc), mGAB_EQ));
+
+    push_op(bc, OP_SWAP, t);
 
     // Test for equality
     push_send(bc, m, 1, false, t);
@@ -2988,103 +2943,6 @@ int compile_exp_prec(struct bc *bc, enum prec_k prec) {
   return have;
 }
 
-int compile_exp_for(struct bc *bc, bool assignable) {
-  push_scope(bc);
-
-  push_ctx(bc, kLOOP);
-
-  size_t t = bc->offset - 1;
-
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  assert(ctx >= 0);
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
-  uint8_t local_start = f->next_local;
-  uint8_t nlooplocals = 0;
-  int result;
-
-  int mv = -1;
-
-  do {
-    switch (match_and_eat_token(bc, TOKEN_STAR)) {
-    case COMP_OK:
-      mv = nlooplocals;
-      [[fallthrough]];
-    case COMP_TOKEN_NO_MATCH: {
-      if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
-        return COMP_ERR;
-
-      gab_value val_name = prev_id(bc);
-
-      int loc = compile_local(bc, val_name, 0);
-
-      if (loc < 0)
-        return COMP_ERR;
-
-      init_local(bc, loc);
-      nlooplocals++;
-      break;
-    }
-
-    default:
-      return COMP_ERR;
-    }
-  } while ((result = match_and_eat_token(bc, TOKEN_COMMA)));
-
-  if (result == COMP_ERR)
-    return COMP_ERR;
-
-  init_local(bc, add_local(bc, gab_string(gab(bc), ""), 0));
-
-  if (expect_token(bc, TOKEN_IN) < 0)
-    return COMP_ERR;
-
-  if (compile_expression(bc) < 0)
-    return COMP_ERR;
-
-  if (expect_token(bc, TOKEN_NEWLINE) < 0)
-    return COMP_ERR;
-
-  pop_slot(bc, 1);
-
-  if (!patch_mv(bc, VAR_EXP)) {
-    push_op(bc, OP_VAR, t);
-    push_byte(bc, 1, t);
-  }
-
-  uint64_t loop = push_loop(bc, t);
-
-  if (mv >= 0)
-    push_pack(bc, mv, nlooplocals - mv, t);
-
-  uint64_t jump_start = push_iter(bc, nlooplocals, local_start, t);
-
-  if (compile_expressions(bc) < 0)
-    return COMP_ERR;
-
-  push_pop(bc, 1, t);
-  pop_slot(bc, 1);
-
-  if (expect_token(bc, TOKEN_END) < 0)
-    return COMP_ERR;
-
-  push_next(bc, local_start + nlooplocals, t);
-
-  patch_loop(bc, loop, t);
-
-  pop_scope(bc); /* Pop the scope once, after we exit the loop. */
-
-  patch_jump(bc, jump_start);
-
-  push_op(bc, OP_PUSH_NIL, t);
-  push_slot(bc, 1);
-
-  if (pop_ctxloop(bc) < 0)
-    return COMP_ERR;
-
-  return COMP_OK;
-}
-
 int compile_exp_brk(struct bc *bc, bool assignable) {
   size_t t = bc->offset - 1;
 
@@ -3245,68 +3103,67 @@ int compile_exp_rtn(struct bc *bc, bool assignable) {
 
 // ----------------Pratt Parsing Table ----------------------
 const struct compile_rule rules[] = {
-    INFIX(then, AND, false),                        // THEN
-    INFIX(else, OR, false),                            // ELSE
-    PREFIX_INFIX(blk, bcal, SEND, false),                       // DO
-    PREFIX(for),                       // FOR
-    INFIX(mch, MATCH, false),                       //MATCH 
-    INFIX(in, IN, false),                            // IN
-    NONE(),                            // END
-    PREFIX(def),                       // DEF
-    PREFIX(rtn),                       // RETURN
-    PREFIX(yld),// YIELD
-    PREFIX(lop),                       // LOOP
-    NONE(),                       // UNTIL
-    PREFIX(brk),                       // BREAK
-    INFIX(bin, TERM, false),                  // PLUS
-    PREFIX_INFIX(una, bin, TERM, false),      // MINUS
-    PREFIX_INFIX(splt, bin, FACTOR, false),                // STAR
-    INFIX(bin, FACTOR, false),                // SLASH
-    INFIX(bin, FACTOR, false),                // PERCENT
-    NONE(),                            // COMMA
-    INFIX(dyn, SEND, false),       // COLON
-    PREFIX_INFIX(amp, bin, BITWISE_AND, false),           // AMPERSAND
-    NONE(),           // DOLLAR
-    PREFIX_INFIX(sym, symcal, SEND, false), // SYMBOL
-    PREFIX_INFIX(emp, snd, SEND, true), // MESSAGE
-    NONE(),              // DOT
-    NONE(),                            // EQUAL
-    INFIX(bin, EQUALITY, false),              // EQUALEQUAL
-    PREFIX(una),                            // QUESTION
-    NONE(),                      // BANG
-    NONE(),                            // AT
-    NONE(),                            // COLON_EQUAL
-    INFIX(bin, COMPARISON, false),            // LESSER
-    INFIX(bin, EQUALITY, false),              // LESSEREQUAL
-    INFIX(bin, TERM, false),              // LESSERLESSER
-    INFIX(bin, COMPARISON, false),            // GREATER
-    INFIX(bin, EQUALITY, false),              // GREATEREQUAL
-    INFIX(bin, TERM, false),                            // GREATER_GREATER
-    NONE(),                            // ARROW
-    NONE(),                            // FATARROW
-    INFIX(and, AND, false),                   // AND
-    INFIX(or, OR, false),                     // OR
-    PREFIX(una),                       // NOT
-    PREFIX_INFIX(arr, idx, PROPERTY, false),  // LBRACE
-    NONE(),                            // RBRACE
-    PREFIX_INFIX(rec, rcal, SEND, false), // LBRACK
-    NONE(),                            // RBRACK
-    PREFIX_INFIX(grp, cal, SEND, false),     // LPAREN
-    NONE(),                            // RPAREN
-    INFIX(bin, BITWISE_OR, false),            // PIPE
-    PREFIX(idn),                       // ID
-    PREFIX(ipm), //IMPLICIT
-    PREFIX_INFIX(str, scal, SEND, false),                       // STRING
-    PREFIX_INFIX(itp, scal, SEND, false),                       // INTERPOLATION END
-    NONE(),                       // INTERPOLATION MIDDLE 
-    NONE(),                       // INTERPOLATION END
-    PREFIX(num),                       // NUMBER
-    PREFIX(bool),                      // FALSE
-    PREFIX(bool),                      // TRUE
-    PREFIX(nil),                      // NIL
-    NONE(),                      // NEWLINE
-    NONE(),                            // EOF
-    NONE(),                            // ERROR
+    INFIX(then, AND, false),                    // THEN
+    INFIX(else, OR, false),                     // ELSE
+    PREFIX_INFIX(blk, bcal, SEND, false),       // DO
+    INFIX(mch, MATCH, false),                   // MATCH
+    INFIX(in, IN, false),                       // IN
+    NONE(),                                     // END
+    PREFIX(def),                                // DEF
+    PREFIX(rtn),                                // RETURN
+    PREFIX(yld),                                // YIELD
+    PREFIX(lop),                                // LOOP
+    NONE(),                                     // UNTIL
+    PREFIX(brk),                                // BREAK
+    INFIX(bin, TERM, false),                    // PLUS
+    PREFIX_INFIX(una, bin, TERM, false),        // MINUS
+    PREFIX_INFIX(splt, bin, FACTOR, false),     // STAR
+    INFIX(bin, FACTOR, false),                  // SLASH
+    INFIX(bin, FACTOR, false),                  // PERCENT
+    NONE(),                                     // COMMA
+    INFIX(dyn, SEND, false),                    // COLON
+    PREFIX_INFIX(amp, bin, BITWISE_AND, false), // AMPERSAND
+    NONE(),                                     // DOLLAR
+    PREFIX_INFIX(sym, symcal, SEND, false),     // SYMBOL
+    PREFIX_INFIX(emp, snd, SEND, true),         // MESSAGE
+    NONE(),                                     // DOT
+    NONE(),                                     // EQUAL
+    INFIX(bin, EQUALITY, false),                // EQUALEQUAL
+    PREFIX(una),                                // QUESTION
+    NONE(),                                     // BANG
+    NONE(),                                     // AT
+    NONE(),                                     // COLON_EQUAL
+    INFIX(bin, COMPARISON, false),              // LESSER
+    INFIX(bin, EQUALITY, false),                // LESSEREQUAL
+    INFIX(bin, TERM, false),                    // LESSERLESSER
+    INFIX(bin, COMPARISON, false),              // GREATER
+    INFIX(bin, EQUALITY, false),                // GREATEREQUAL
+    INFIX(bin, TERM, false),                    // GREATER_GREATER
+    NONE(),                                     // ARROW
+    NONE(),                                     // FATARROW
+    INFIX(and, AND, false),                     // AND
+    INFIX(or, OR, false),                       // OR
+    PREFIX(una),                                // NOT
+    PREFIX_INFIX(arr, idx, PROPERTY, false),    // LBRACE
+    NONE(),                                     // RBRACE
+    PREFIX_INFIX(rec, rcal, SEND, false),       // LBRACK
+    NONE(),                                     // RBRACK
+    PREFIX_INFIX(grp, cal, SEND, false),        // LPAREN
+    NONE(),                                     // RPAREN
+    INFIX(bin, BITWISE_OR, false),              // PIPE
+    PREFIX(idn),                                // ID
+    PREFIX(ipm),                                // IMPLICIT
+    PREFIX_INFIX(str, scal, SEND, false),       // STRING
+    PREFIX_INFIX(itp, scal, SEND, false),       // INTERPOLATION END
+    NONE(),                                     // INTERPOLATION MIDDLE
+    NONE(),                                     // INTERPOLATION END
+    PREFIX(num),                                // NUMBER
+    PREFIX(bool),                               // FALSE
+    PREFIX(bool),                               // TRUE
+    PREFIX(nil),                                // NIL
+    NONE(),                                     // NEWLINE
+    NONE(),                                     // EOF
+    NONE(),                                     // ERROR
 };
 
 struct compile_rule get_rule(gab_token k) { return rules[k]; }
@@ -3615,8 +3472,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
     return dumpJumpInstruction(stream, self, -1, offset);
   case OP_CONSTANT:
     return dumpConstantInstruction(stream, self, offset);
-  case OP_ITER:
-    return dumpIter(stream, self, offset);
   case OP_SEND_ANA:
   case OP_SEND_MONO_BLOCK:
   case OP_SEND_MONO_NATIVE:
@@ -3644,7 +3499,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_LOAD_UPVALUE:
   case OP_INTERPOLATE:
   case OP_SHIFT:
-  case OP_NEXT:
   case OP_VAR:
   case OP_LOAD_LOCAL: {
     return dumpByteInstruction(stream, self, offset);

@@ -1,5 +1,6 @@
 :use 'tests'
 :use 'numbers'
+:use .any
 
 :describe('Multiple Assignment') do
     :it('should declare new variables') do
@@ -44,6 +45,7 @@
 
     :it('should rest assign a constant multi value in middle') do
         (a, *b, c = 1,2,3,4,5):expect(1)
+
         a:expect(1)
         c:expect(5)
         b[0]:expect(2)
@@ -278,7 +280,7 @@ end
   end
 
   :it('should make tuples') do
-    tup = [ 1 2 3 ]
+    tup = [ 1, 2, 3 ]
 
     1:expect(tup[0])
     2:expect(tup[1])

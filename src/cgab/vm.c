@@ -124,7 +124,11 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t value) {
           frame_count - value, (int32_t)func_name->len, func_name->data,
           p->as.block.nupvalues);
 
-  for (int32_t i = p->as.block.nslots - 1; i >= 0; i--) {
+  int top = p->as.block.nslots - 1;
+  if (f->slots + top > vm->sp)
+    top = vm->sp - f->slots - 1;
+
+  for (int32_t i = top; i >= 0; i--) {
     fprintf(stream, "%2s" ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET,
             vm->sp == f->slots + i ? "->" : "", i);
     gab_fvalinspect(stream, f->slots[i], 0);
@@ -246,8 +250,7 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   size_t offset = (wants_var ? len : p->as.block.nlocals);
 
   // Trim arguments into the slots
-  vm->sp =
-      trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, offset - 1);
+  vm->sp = trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, offset - 1);
 
   return true;
 }
@@ -284,6 +287,10 @@ static inline void call_native(struct gab_triple gab, struct gab_obj_native *b,
   (*b->function)(gab, arity + is_message, gab.vm->sp - arity - is_message);
 
   uint64_t have = gab.vm->sp - before;
+
+  // Always have atleast one
+  if (have == 0)
+    *gab.vm->sp++ = gab_nil, have++;
 
   // There is always an extra to trim bc of
   // the receiver or callee.
@@ -366,11 +373,12 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 #if cGAB_DEBUG_VM
 #define PUSH(value)                                                            \
   ({                                                                           \
-    if (TOP() > (SLOTS() + BLOCK_PROTO()->nslots + 1)) {                       \
+    if (TOP() > (SLOTS() + BLOCK_PROTO()->as.block.nslots + 1)) {              \
       fprintf(stderr,                                                          \
               "Stack exceeded frame "                                          \
               "(%d). %lu passed\n",                                            \
-              BLOCK_PROTO()->nslots, TOP() - SLOTS() - BLOCK_PROTO()->nslots); \
+              BLOCK_PROTO()->as.block.nslots,                                  \
+              TOP() - SLOTS() - BLOCK_PROTO()->as.block.nslots);               \
       gab_fvminspect(stdout, VM(), 0);                                         \
       exit(1);                                                                 \
     }                                                                          \
@@ -847,41 +855,6 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
       NEXT();
     }
 
-    CASE_CODE(ITER) : {
-      uint8_t want = READ_BYTE;
-      uint8_t start = READ_BYTE;
-      uint16_t dist = READ_SHORT;
-      uint64_t have = VAR();
-
-      gab_value sus = POP();
-      have--;
-
-      IP() += dist * (gab_valkind(sus) != kGAB_SUSPENSE);
-
-      trim_values(TOP() - have, SLOTS() + start, have, want);
-
-      DROP_N(have);
-
-      LOCAL(start + want) = sus;
-
-      NEXT();
-    }
-
-    CASE_CODE(NEXT) : {
-      uint8_t iterator = READ_BYTE;
-
-      PUSH(LOCAL(iterator));
-
-      STORE_FRAME();
-
-      if (!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(PEEK()), 0, VAR_EXP))
-        return ERROR(GAB_OVERFLOW, "", "");
-
-      LOAD_FRAME();
-
-      NEXT();
-    }
-
     {
 
       uint64_t have;
@@ -1264,12 +1237,13 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
       gab_value *ap = TOP() - above;
 
-      gab_value shape = gab_nshape(GAB(), len);
-
-      gab_value rec = gab_recordof(GAB(), shape, 1, ap - len);
+      gab_value rec = gab_tuple(GAB(), len, ap - len);
 
       DROP_N(len - 1);
 
+      /*
+       * When len and above are 1, we copy nonsense from the stack
+       */
       memcpy(ap - len + 1, ap, above * sizeof(gab_value));
 
       PEEK_N(above + 1) = rec;
@@ -1280,8 +1254,8 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
        * number of locals the function is expected to have. Move TOP()
        * to past the locals section in this case.
        */
-      if (TOP() - SLOTS() < BLOCK_PROTO()->as.block.nlocals)
-        TOP() = SLOTS() + BLOCK_PROTO()->as.block.nlocals;
+      while (TOP() - SLOTS() < BLOCK_PROTO()->as.block.nlocals)
+        PUSH(gab_nil);
 
       VAR() = want + 1;
 
@@ -1290,6 +1264,8 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
     CASE_CODE(RECORD) : {
       uint8_t len = READ_BYTE;
+
+      gab_gcreserve(gab, 2);
 
       gab_value shape = gab_shape(GAB(), 2, len, TOP() - len * 2);
 
@@ -1304,6 +1280,8 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
     CASE_CODE(TUPLE) : {
       uint64_t len = compute_arity(VM(), READ_BYTE);
+
+      gab_gcreserve(gab, 2);
 
       gab_value shape = gab_nshape(GAB(), len);
 
