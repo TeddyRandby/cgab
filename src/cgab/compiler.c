@@ -893,7 +893,8 @@ static void push_ctxframe(struct bc *bc, gab_value name, bool message) {
 
   addk(bc, name);
 
-  init_local(bc, add_local(bc, gab_string(gab(bc), message ? "self" : ""), 0));
+  init_local(bc,
+             add_local(bc, message ? gab_string(gab(bc), "self") : name, 0));
 }
 
 static int pop_ctxloop(struct bc *bc) {

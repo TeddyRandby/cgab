@@ -1,4 +1,5 @@
-CFLAGS 			 = -std=c2x -fPIC -MMD -Wall ${GAB_CCFLAGS}
+CC 		 = gcc
+CFLAGS = -std=c2x -fPIC -MMD -Wall ${GAB_CCFLAGS}
 
 SRC_PREFIX 	 	 	= src/**
 BUILD_PREFIX 	 	= build

@@ -320,6 +320,21 @@ size_t gab_egkeep(struct gab_eg *eg, gab_value v);
  */
 size_t gab_negkeep(struct gab_eg *eg, size_t len, gab_value argv[static len]);
 
+struct gab_egimpl_argt {
+  gab_value msg, receiver, *type;
+  uint64_t *offset;
+};
+
+enum {
+  sGAB_IMPL_NONE = 0,
+  sGAB_IMPL_PROPERTY,
+  sGAB_IMPL_PRIMARY,
+  sGAB_IMPL_SECONDARY,
+  sGAB_IMPL_TERTIARY,
+  sGAB_IMPL_GENERAL,
+};
+static inline int gab_egimpl(struct gab_eg *eg, struct gab_egimpl_argt args);
+
 /**
  * # Push a value(s) onto the vm's internal stack
  *
@@ -1159,9 +1174,13 @@ static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg,
   assert(gab_valkind(msg) == kGAB_MESSAGE);
   assert(gab_valkind(spec) == kGAB_PRIMITIVE ||
          gab_valkind(spec) == kGAB_BLOCK || gab_valkind(spec) == kGAB_NATIVE);
+
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
 
-  if (gab_msgfind(msg, receiver) != GAB_PROPERTY_NOT_FOUND)
+  int s = gab_egimpl(
+      gab.eg, (struct gab_egimpl_argt){.msg = msg, .receiver = receiver});
+
+  if (s != sGAB_IMPL_NONE && s != sGAB_IMPL_GENERAL)
     return gab_undefined;
 
   obj->specs = gab_recordwith(gab, obj->specs, receiver, spec);
@@ -1489,7 +1508,7 @@ gab_value gab_valcpy(struct gab_triple eg, gab_value value);
  *
  * @return The runtime value corresponding to that type.
  */
-gab_value gab_type(struct gab_eg *gab, enum gab_kind kind);
+static inline gab_value gab_type(struct gab_eg *gab, enum gab_kind kind);
 
 /**
  * # Get the practical runtime type of a value.
@@ -1521,6 +1540,10 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
   }
 }
 
+static inline bool gab_valisa(struct gab_eg* eg, gab_value a, gab_value b) {
+  return gab_valtype(eg, a) == b || a == b;
+}
+
 /**
  * # Get the primary runtime type of a value.
  *
@@ -1533,7 +1556,7 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
  *
  * @return The runtime value corresponding to the type of the given value
  */
-static inline gab_value gab_pvaltype(struct gab_eg *gab, gab_value value) {
+static inline gab_value gab_pvaltype(struct gab_eg *eg, gab_value value) {
   enum gab_kind k = gab_valkind(value);
   switch (k) {
   /* These primitives have a runtime type of themselves */
@@ -1548,7 +1571,7 @@ static inline gab_value gab_pvaltype(struct gab_eg *gab, gab_value value) {
     return value;
 
   default:
-    return gab_type(gab, k);
+    return gab_type(eg, k);
   }
 }
 
@@ -1605,26 +1628,68 @@ static inline gab_value gab_tvaltype(struct gab_eg *gab, gab_value value) {
   }
 }
 
-struct gab_egimpl_argt {
-  gab_value msg, receiver, *type;
-  uint64_t *offset;
+#define NAME strings
+#define K struct gab_obj_string *
+#define HASH(a) (a->hash)
+#define EQUAL(a, b) (a == b)
+#define LOAD cGAB_DICT_MAX_LOAD
+#include "dict.h"
+
+#define NAME shapes
+#define K struct gab_obj_shape *
+#define HASH(a) (a->hash)
+#define EQUAL(a, b) (a == b)
+#define LOAD cGAB_DICT_MAX_LOAD
+#include "dict.h"
+
+#define NAME messages
+#define K struct gab_obj_message *
+#define HASH(a) (a->hash)
+#define EQUAL(a, b) (a == b)
+#define LOAD cGAB_DICT_MAX_LOAD
+#include "dict.h"
+
+#define NAME gab_imp
+#define K uint64_t
+#define V struct gab_imp *
+#define DEF_V NULL
+#define HASH(a) (a)
+#define EQUAL(a, b) (a == b)
+#include "dict.h"
+
+struct gab_eg {
+  size_t hash_seed;
+
+  struct gab_src *sources;
+
+  d_gab_imp imports;
+
+  d_strings interned_strings;
+
+  d_shapes interned_shapes;
+
+  d_messages interned_messages;
+
+  gab_value types[kGAB_NKINDS];
+
+  v_gab_value scratch;
 };
 
-enum {
-  sGAB_IMPL_NONE = 0,
-  sGAB_IMPL_PROPERTY,
-  sGAB_IMPL_PRIMARY,
-  sGAB_IMPL_SECONDARY,
-  sGAB_IMPL_TERTIARY,
-  sGAB_IMPL_GENERAL,
-};
+static inline gab_value gab_type(struct gab_eg *gab, enum gab_kind k) {
+  return gab->types[k];
+}
 
 static inline int gab_egimpl(struct gab_eg *eg, struct gab_egimpl_argt args) {
-  *args.type = gab_pvaltype(eg, args.receiver);
+  gab_value type_backup;
+  size_t offset_backup;
+  gab_value *type = args.type ? args.type : &type_backup;
+  size_t *offset = args.offset ? args.offset : &offset_backup;
+
+  *type = gab_pvaltype(eg, args.receiver);
 
   /* If the primary type is a record and the property exists, use that */
-  if (gab_valkind(*args.type) == kGAB_RECORD &&
-      (*args.offset = gab_recfind(*args.type, gab_msgname(args.msg))) !=
+  if (gab_valkind(*type) == kGAB_RECORD &&
+      (*offset = gab_recfind(*type, gab_msgname(args.msg))) !=
           GAB_PROPERTY_NOT_FOUND)
     return sGAB_IMPL_PROPERTY;
 
@@ -1635,11 +1700,10 @@ static inline int gab_egimpl(struct gab_eg *eg, struct gab_egimpl_argt args) {
    * done searching and can bail to the final case.
    */
 
-  if (*args.type == gab_undefined)
+  if (*type == gab_undefined)
     goto fin;
 
-  if ((*args.offset = gab_msgfind(args.msg, *args.type)) !=
-      GAB_PROPERTY_NOT_FOUND)
+  if ((*offset = gab_msgfind(args.msg, *type)) != GAB_PROPERTY_NOT_FOUND)
     return sGAB_IMPL_PRIMARY;
 
   /* Otherwise try the secondary type */
@@ -1648,7 +1712,7 @@ static inline int gab_egimpl(struct gab_eg *eg, struct gab_egimpl_argt args) {
   if (stype == gab_undefined)
     goto fin;
 
-  if ((*args.offset = gab_msgfind(args.msg, stype)) != GAB_PROPERTY_NOT_FOUND)
+  if ((*offset = gab_msgfind(args.msg, stype)) != GAB_PROPERTY_NOT_FOUND)
     return sGAB_IMPL_SECONDARY;
 
   /* Try the tertiary type */
@@ -1657,7 +1721,7 @@ static inline int gab_egimpl(struct gab_eg *eg, struct gab_egimpl_argt args) {
   if (ttype == gab_undefined)
     goto fin;
 
-  if ((*args.offset = gab_msgfind(args.msg, ttype)) != GAB_PROPERTY_NOT_FOUND)
+  if ((*offset = gab_msgfind(args.msg, ttype)) != GAB_PROPERTY_NOT_FOUND)
     return sGAB_IMPL_TERTIARY;
 
 fin:
@@ -1665,10 +1729,9 @@ fin:
    * If there is an implentation for the undefined case, use that.
    * Otherwise fail.
    */
-  *args.offset = gab_msgfind(args.msg, gab_undefined);
+  *offset = gab_msgfind(args.msg, gab_undefined);
 
-  return *args.offset == GAB_PROPERTY_NOT_FOUND ? sGAB_IMPL_NONE
-                                                : sGAB_IMPL_GENERAL;
+  return *offset == GAB_PROPERTY_NOT_FOUND ? sGAB_IMPL_NONE : sGAB_IMPL_GENERAL;
 }
 
 /**

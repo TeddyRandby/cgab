@@ -3,7 +3,7 @@
 
 // Collect as frequently as possible (on every RC push)
 #ifndef cGAB_DEBUG_GC
-#define cGAB_DEBUG_GC 1
+#define cGAB_DEBUG_GC 0
 #endif
 
 // Log what is happening during collection.

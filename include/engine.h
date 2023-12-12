@@ -23,35 +23,6 @@ static const char *gab_token_names[] = {
 #undef TOKEN_NAMES
 #endif
 
-#define NAME strings
-#define K struct gab_obj_string *
-#define HASH(a) (a->hash)
-#define EQUAL(a, b) (a == b)
-#define LOAD cGAB_DICT_MAX_LOAD
-#include "dict.h"
-
-#define NAME shapes
-#define K struct gab_obj_shape *
-#define HASH(a) (a->hash)
-#define EQUAL(a, b) (a == b)
-#define LOAD cGAB_DICT_MAX_LOAD
-#include "dict.h"
-
-#define NAME messages
-#define K struct gab_obj_message *
-#define HASH(a) (a->hash)
-#define EQUAL(a, b) (a == b)
-#define LOAD cGAB_DICT_MAX_LOAD
-#include "dict.h"
-
-#define NAME gab_imp
-#define K uint64_t
-#define V struct gab_imp *
-#define DEF_V NULL
-#define HASH(a) (a)
-#define EQUAL(a, b) (a == b)
-#include "dict.h"
-
 #define T struct gab_obj *
 #define NAME gab_obj
 #include "vector.h"
@@ -81,7 +52,7 @@ struct gab_vm_frame {
   struct gab_obj_block *b;
 
   /**
-   *The instruction pointer.
+   *The instruction pointer to return to.
    */
   uint8_t *ip;
 
@@ -114,24 +85,6 @@ struct gab_vm {
   gab_value sb[cGAB_STACK_MAX];
 
   struct gab_vm_frame fb[cGAB_FRAMES_MAX];
-};
-
-struct gab_eg {
-  size_t hash_seed;
-
-  struct gab_src *sources;
-
-  d_gab_imp imports;
-
-  d_strings interned_strings;
-
-  d_shapes interned_shapes;
-
-  d_messages interned_messages;
-
-  gab_value types[kGAB_NKINDS];
-
-  v_gab_value scratch;
 };
 
 void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size);

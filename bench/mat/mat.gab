@@ -1,5 +1,6 @@
 :use 'records'
 :use 'numbers'
+:use .streams
 
 def Matrix { n data }
 

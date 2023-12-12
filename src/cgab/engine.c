@@ -472,10 +472,6 @@ struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *self, uint64_t size,
   }
 }
 
-gab_value gab_type(struct gab_eg *gab, enum gab_kind k) {
-  return gab->types[k];
-}
-
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
                            const void *const *args) {
   const gab_value value = *(const gab_value *const)args[0];

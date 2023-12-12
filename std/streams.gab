@@ -22,15 +22,3 @@ def fold[](msg, init, cb)
       *args, suspense = suspense()
   end
 end
-
-def filter[](msg, cb)
-  *args, suspense = self:(msg)
-
-  loop
-      ?suspense == .Suspense or break acc
-
-      acc = cb(acc, args:splat)            
-
-      *args, suspense = suspense()
-  end
-end

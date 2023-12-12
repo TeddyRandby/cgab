@@ -1,9 +1,9 @@
 :use 'rec'
 
 def [][.Record](key)
-  _, v = self:at(key) in match
-    .some => return v end
-    else => return nil end
+  status, v = self:at(key)
+
+  status == .some and v or nil
 end
 
 def [=][.Record](key, value); self:put!(key, value) end

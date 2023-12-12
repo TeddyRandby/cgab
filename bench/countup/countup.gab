@@ -1,15 +1,28 @@
-def upto(limit)
+:use .rec
+
+def upto[.Number]
   i = 0
 
   loop
     yield i
     i = i + 1
-  until i == limit end
+  until i == self end
 
 end
 
-sum = 0
+def fold[](msg, init, cb)
+  acc = init
+  *args, suspense = self:(msg)
 
-for i in upto(1000000)
-  sum = sum + i
+  loop
+    ?suspense == .Suspense or break acc
+
+    acc = cb(acc, args:splat)            
+
+    *args, suspense = suspense()
+  end
+end
+
+sum = 1000000:fold(&:upto, 0) do (acc, curr)
+  acc + curr
 end
