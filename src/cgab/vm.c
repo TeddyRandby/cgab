@@ -26,21 +26,23 @@ static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
   return v_uint64_t_val_at(&p->src->bytecode_toks, offset);
 }
 
-a_gab_value *vm_error(OP_HANDLER_ARGS) {
+a_gab_value *vm_error(struct gab_triple gab, enum gab_status s, const char *fmt,
+                      ...) {
 
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(gab.vm->fp->b->p);
 
   size_t tok = compute_token_from_ip(gab.vm->fp);
 
   va_list va;
+  va_start(va, fmt);
 
   gab_verr(
       (struct gab_err_argt){
           .tok = tok,
           .context = p->name,
-          .note_fmt = "",
           .src = p->src,
-          .status = 0,
+          .note_fmt = fmt,
+          .status = s,
       },
       va);
 
@@ -62,7 +64,7 @@ a_gab_value *vm_error(OP_HANDLER_ARGS) {
 }
 
 void gab_panic(struct gab_triple gab, const char *msg) {
-  a_gab_value *res = vm_error(gab, NULL, NULL, NULL);
+  a_gab_value *res = vm_error(gab, GAB_PANIC, msg);
 
   gab_nvmpush(gab.vm, res->len, res->data);
 }
@@ -255,27 +257,6 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   return true;
 }
 
-static inline bool find_implementation(struct gab_triple gab, gab_value msg,
-                                       gab_value rec, gab_value *spec,
-                                       gab_value *type, size_t *offset) {
-
-  int status = gab_egimpl(gab.eg, (struct gab_egimpl_argt){
-                                      .receiver = rec,
-                                      .msg = msg,
-                                      .type = type,
-                                      .offset = offset,
-                                  });
-
-  if (!status) {
-    return false;
-  }
-
-  *spec = status == sGAB_IMPL_PROPERTY ? gab_primitive(OP_SEND_MONO_PROPERTY)
-                                       : gab_umsgat(msg, *offset);
-
-  return true;
-}
-
 static inline void call_native(struct gab_triple gab, struct gab_obj_native *b,
                                uint8_t arity, uint8_t want, bool is_message) {
   gab_value *to = gab.vm->sp - arity - 1;
@@ -308,7 +289,7 @@ static handler handlers[] = {
 };
 
 #if cGAB_LOG_VM
-#define LOG(op) printf("OP_%s\n", gab_opcode_names[op])
+#define LOG(op) printf("OP_%s\n", gab_opcode_names[op]);
 #else
 #define LOG(op)
 #endif
@@ -317,13 +298,14 @@ static handler handlers[] = {
 #define DISPATCH(op)                                                           \
   ({                                                                           \
     uint8_t o = (op);                                                          \
-    LOG(o);                                                                    \
-    [[clang::musttail]] return handlers[o](GAB(), FRAME(), TOP(), IP());       \
+    LOG(o)                                                                     \
+    return handlers[o](GAB(), FRAME(), TOP(), IP());                           \
   })
 
 #define NEXT() DISPATCH(*IP()++);
 
-#define ERROR(status, help, ...) return vm_error(GAB(), FRAME(), TOP(), IP());
+#define ERROR(status, help, ...)                                               \
+  return vm_error(GAB(), status, help, __VA_ARGS__);
 
 #define SEND_CACHE_GUARD(cached_type, r, cached_specs, m)                      \
   if (!gab_valisa(EG(), r, cached_type) ||                                     \
@@ -469,7 +451,8 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   LOAD_FRAME();
 
   uint8_t op = *IP()++;
-  return handlers[op](GAB(), FRAME(), TOP(), IP());
+  a_gab_value *res = handlers[op](GAB(), FRAME(), TOP(), IP());
+  return res;
 }
 
 CASE_CODE(SEND_ANA) {
@@ -477,21 +460,24 @@ CASE_CODE(SEND_ANA) {
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   SKIP_BYTE;
 
-  gab_value receiver = PEEK_N(have + 1);
-
-  gab_value spec, type;
-  uint64_t offset;
+  gab_value r = PEEK_N(have + 1);
 
   /* Do the expensive lookup */
-  if (!find_implementation(gab, m, receiver, &spec, &type, &offset)) {
+  struct gab_egimpl_rest res = gab_egimpl(gab.eg, m, r);
+
+  if (!res.status) {
     STORE_FRAME();
     ERROR(GAB_IMPLEMENTATION_MISSING, "%V does not specialize for %V (%V)", m,
-          receiver, gab_valtype(EG(), receiver));
+          r, gab_valtype(EG(), r));
   }
 
+  gab_value spec = res.status == sGAB_IMPL_PROPERTY
+                       ? gab_primitive(OP_SEND_MONO_PROPERTY)
+                       : gab_umsgat(m, res.offset);
+
   WRITE_INLINEQWORD(GAB_VAL_TO_MESSAGE(m)->specs);
-  WRITE_INLINEQWORD(type);
-  WRITE_INLINEQWORD(offset);
+  WRITE_INLINEQWORD(res.type);
+  WRITE_INLINEQWORD(res.offset);
 
   switch (gab_valkind(spec)) {
   case kGAB_PRIMITIVE:
@@ -505,7 +491,7 @@ CASE_CODE(SEND_ANA) {
     break;
   default:
     STORE_FRAME();
-    ERROR(GAB_NOT_CALLABLE, "Found %V %V", type, spec);
+    ERROR(GAB_NOT_CALLABLE, "Found %V %V", res.type, spec);
   }
 
   IP() -= SEND_CACHE_DIST;
@@ -592,7 +578,7 @@ CASE_CODE(SEND_DYN) {
   SKIP_QWORD;
   SKIP_QWORD;
 
-  gab_value receiver = PEEK_N(have + 2);
+  gab_value r = PEEK_N(have + 2);
   gab_value m = PEEK_N(have + 1);
 
   if (gab_valkind(m) != kGAB_MESSAGE) {
@@ -602,16 +588,17 @@ CASE_CODE(SEND_DYN) {
 
   gab_value type = gab_pvaltype(EG(), m);
 
-  size_t offset;
-  gab_value spec;
+  struct gab_egimpl_rest res = gab_egimpl(gab.eg, m, r);
 
-  if (!find_implementation(gab, m, receiver, &spec, &type, &offset)) {
+  if (!res.status) {
     STORE_FRAME();
     ERROR(GAB_IMPLEMENTATION_MISSING, "%V does not specialize for %V (%V)", m,
-          receiver, gab_valtype(EG(), receiver));
+          r, gab_valtype(EG(), r));
   }
 
-  /* Write our found type and offset to the cache */
+  gab_value spec = res.status == sGAB_IMPL_PROPERTY
+                       ? gab_primitive(OP_SEND_MONO_PROPERTY)
+                       : gab_umsgat(m, res.offset);
 
   switch (gab_valkind(spec)) {
   case kGAB_BLOCK: {

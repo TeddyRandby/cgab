@@ -389,6 +389,33 @@ gab_value gab_nshape(struct gab_triple gab, size_t len) {
   return gab_shape(gab, 1, len, keys);
 }
 
+gab_value gab_shapewith(struct gab_triple gab, gab_value shape, gab_value key) {
+  assert(gab_valkind(shape) == kGAB_SHAPE);
+  struct gab_obj_shape *obj = GAB_VAL_TO_SHAPE(shape);
+
+  struct gab_obj_shape *self =
+      GAB_CREATE_FLEX_OBJ(gab_obj_shape, gab_value, obj->len + 1, kGAB_SHAPE);
+  memcpy(self->data, obj->data, obj->len * sizeof(gab_value));
+  self->data[obj->len] = key;
+  self->len = obj->len + 1;
+
+  uint64_t hash = hash_keys(gab.eg->hash_seed, self->len, 1, self->data);
+
+  self->hash = hash;
+
+  struct gab_obj_shape *interned =
+      gab_eg_find_shape(gab.eg, self->len, 1, hash, self->data);
+
+  if (interned) {
+    free(self);
+    return __gab_obj(interned);
+  }
+
+  d_shapes_insert(&gab.eg->interned_shapes, self, 0);
+
+  return __gab_obj(self);
+}
+
 gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
                     gab_value keys[len]) {
   uint64_t hash = hash_keys(gab.eg->hash_seed, len, stride, keys);
@@ -410,6 +437,29 @@ gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
   }
 
   d_shapes_insert(&gab.eg->interned_shapes, self, 0);
+
+  return __gab_obj(self);
+}
+
+gab_value gab_recordwith(struct gab_triple gab, gab_value rec, gab_value key,
+                         gab_value value) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
+
+  gab_value shp = gab_shapewith(gab, obj->shape, key);
+  assert(gab_valkind(shp) == kGAB_SHAPE);
+  struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(shp);
+
+  struct gab_obj_record *self =
+      GAB_CREATE_FLEX_OBJ(gab_obj_record, gab_value, shape->len, kGAB_RECORD);
+
+  self->shape = shp;
+  self->len = shape->len;
+
+  for (uint64_t i = 0; i < shape->len; i++)
+    self->data[i] = obj->data[i];
+
+  self->data[self->len - 1] = value;
 
   return __gab_obj(self);
 }
@@ -480,8 +530,8 @@ gab_value gab_sprototype(struct gab_triple gab, struct gab_src *src,
   return __gab_obj(self);
 }
 
-gab_value gab_suspense(struct gab_triple gab, gab_value b, gab_value p, uint64_t len,
-                       gab_value data[static len]) {
+gab_value gab_suspense(struct gab_triple gab, gab_value b, gab_value p,
+                       uint64_t len, gab_value data[static len]) {
   assert(gab_valkind(p) == kGAB_SPROTOTYPE);
 
   struct gab_obj_suspense *self =

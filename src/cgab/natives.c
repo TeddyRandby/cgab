@@ -69,6 +69,10 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   return res;
 }
 
+#ifndef GAB_PREFIX
+#define GAB_PREFIX "."
+#endif
+
 resource resources[] = {
     // Local resources
     {
@@ -98,22 +102,22 @@ resource resources[] = {
     },
     // Installed resources
     {
-        .prefix = "/home/tr/gab/modules/",
+        .prefix = GAB_PREFIX"/gab/modules/",
         .suffix = ".gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = "/home/tr/gab/modules/",
+        .prefix = GAB_PREFIX"/gab/modules/",
         .suffix = "/mod.gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = "/home/tr/gab/modules/",
+        .prefix = GAB_PREFIX"/gab/modules/",
         .suffix = "/mod/mod.gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = "/home/tr/gab/modules/libcgab",
+        .prefix = GAB_PREFIX"/gab/modules/libcgab",
         .suffix = ".so",
         .handler = gab_shared_object_handler,
     },

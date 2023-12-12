@@ -41,17 +41,10 @@ void gab_lib_has(struct gab_triple gab, size_t argc,
                  gab_value argv[static argc]) {
   switch (argc) {
   case 2: {
-    gab_value type;
-    uint64_t offset;
 
-    int result = gab_egimpl(gab.eg, (struct gab_egimpl_argt){
-                                        .msg = argv[0],
-                                        .receiver = argv[1],
-                                        .type = &type,
-                                        .offset = &offset,
-                                    });
+    struct gab_egimpl_rest res = gab_egimpl(gab.eg, argv[0], argv[1]);
 
-    gab_vmpush(gab.vm, gab_bool(result));
+    gab_vmpush(gab.vm, gab_bool(res.status));
     return;
   }
   default:
