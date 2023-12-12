@@ -328,11 +328,10 @@ struct gab_egimpl_rest {
 
 enum {
   sGAB_IMPL_NONE = 0,
-  sGAB_IMPL_PROPERTY,
-  sGAB_IMPL_PRIMARY,
-  sGAB_IMPL_SECONDARY,
-  sGAB_IMPL_TERTIARY,
+  sGAB_IMPL_TYPE,
+  sGAB_IMPL_KIND,
   sGAB_IMPL_GENERAL,
+  sGAB_IMPL_PROPERTY,
 };
 static inline struct gab_egimpl_rest
 gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver);
@@ -637,6 +636,22 @@ static inline enum gab_kind gab_valkind(gab_value value) {
     return gab_valtoo(value)->kind;
 
   return __GAB_VAL_TAG(value);
+}
+
+static inline bool gab_valhasp(gab_value value) {
+  enum gab_kind k = gab_valkind(value);
+  return k == kGAB_RECORD;
+}
+
+static inline bool gab_valhast(gab_value value) {
+  enum gab_kind k = gab_valkind(value);
+  switch (k) {
+  case kGAB_RECORD:
+  case kGAB_BOX:
+    return true;
+  default:
+    return false;
+  }
 }
 
 /**
@@ -1515,93 +1530,8 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
   }
 }
 
-/**
- * # Get the primary runtime type of a value.
- *
- * *NOTE* This function is used internally to determine which specialization to
- * dispatch to when sending messages.
- *
- * @param gab The engine
- *
- * @param value The value
- *
- * @return The runtime value corresponding to the type of the given value
- */
-static inline gab_value gab_pvaltype(struct gab_eg *eg, gab_value value) {
-  enum gab_kind k = gab_valkind(value);
-  switch (k) {
-  /* These primitives have a runtime type of themselves */
-  case kGAB_NIL:
-  case kGAB_UNDEFINED:
-  /* These are referential/instance types which can have specializations */
-  case kGAB_SUSPENSE:
-  case kGAB_NATIVE:
-  case kGAB_RECORD:
-  case kGAB_BLOCK:
-  case kGAB_BOX:
-    return value;
-
-  default:
-    return gab_type(eg, k);
-  }
-}
-
-/**
- * # Get the secondary runtime type of a value.
- *
- * *NOTE* This function is used internally to determine which specialization to
- * dispatch to when sending messages.
- *
- * @param gab The engine
- *
- * @param value The value
- *
- * @return The runtime value corresponding to the type of the given value
- */
-static inline gab_value gab_svaltype(struct gab_eg *gab, gab_value value) {
-  enum gab_kind k = gab_valkind(value);
-  switch (k) {
-  /* These are referential/instance types which can have specializations */
-  case kGAB_RECORD:
-    return gab_recshp(value);
-  case kGAB_BOX:
-    return gab_boxtype(value);
-  case kGAB_SUSPENSE:
-  case kGAB_BLOCK:
-  case kGAB_NATIVE:
-    return gab_type(gab, k);
-  /* These types have no secondary types*/
-  default:
-    return gab_undefined;
-  }
-}
-
-/**
- * # Get the tertiary runtime type of a value.
- *
- * *NOTE* This function is used internally to determine which specialization to
- * dispatch to when sending messages.
- *
- * @param gab The engine
- *
- * @param value The value
- *
- * @return The runtime value corresponding to the type of the given value
- */
-static inline gab_value gab_tvaltype(struct gab_eg *gab, gab_value value) {
-  enum gab_kind k = gab_valkind(value);
-  switch (k) {
-  case kGAB_RECORD:
-    return gab_type(gab, k);
-  /* These types have no tertiary types*/
-  default:
-    return gab_undefined;
-  }
-}
-
 static inline bool gab_valisa(struct gab_eg *eg, gab_value a, gab_value b) {
-  return gab_valtype(eg, a) == b || a == b ||
-         gab_type(eg, gab_valkind(a)) == b;
+  return gab_valtype(eg, a) == b || a == b || gab_type(eg, gab_valkind(a)) == b;
 }
 
 #define NAME strings
@@ -1657,54 +1587,31 @@ static inline gab_value gab_type(struct gab_eg *gab, enum gab_kind k) {
 
 static inline struct gab_egimpl_rest
 gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
-  gab_value type;
   size_t offset;
+  gab_value type = gab_valtype(eg, receiver);
 
-  type = gab_pvaltype(eg, receiver);
+  if (gab_valhasp(receiver)) {
+    offset = gab_recfind(receiver, gab_msgname(message));
 
-  /* If the primary type is a record and the property exists, use that */
-  if (gab_valkind(type) == kGAB_RECORD &&
-      (offset = gab_recfind(type, gab_msgname(message))) !=
-          GAB_PROPERTY_NOT_FOUND)
-    return (struct gab_egimpl_rest){type, offset, sGAB_IMPL_PROPERTY};
+    if (offset != GAB_PROPERTY_NOT_FOUND)
+      return (struct gab_egimpl_rest){type, offset, sGAB_IMPL_PROPERTY};
+  }
 
-  /*
-   * Otherwise if the primary type exists and is on the message, use that
-   *
-   * At any point, if we see gab_undfined as the type, we know we are
-   * done searching and can bail to the final case.
-   */
+  if (gab_valhast(receiver)) {
+    offset = gab_msgfind(message, type);
 
-  if (type == gab_undefined)
-    goto fin;
+    if (offset != GAB_PROPERTY_NOT_FOUND)
+      return (struct gab_egimpl_rest){type, offset, sGAB_IMPL_TYPE};
+  }
 
-  if ((offset = gab_msgfind(message, type)) != GAB_PROPERTY_NOT_FOUND)
-    return (struct gab_egimpl_rest){type, offset, sGAB_IMPL_PRIMARY};
+  type = gab_type(eg, gab_valkind(receiver));
+  offset = gab_msgfind(message, type);
 
-  /* Otherwise try the secondary type */
-  type = gab_svaltype(eg, receiver);
+  if (offset != GAB_PROPERTY_NOT_FOUND)
+    return (struct gab_egimpl_rest){type, offset, sGAB_IMPL_KIND};
 
-  if (type == gab_undefined)
-    goto fin;
-
-  if ((offset = gab_msgfind(message, type)) != GAB_PROPERTY_NOT_FOUND)
-    return (struct gab_egimpl_rest){type, offset, sGAB_IMPL_SECONDARY};
-
-  /* Try the tertiary type */
-  type = gab_tvaltype(eg, receiver);
-
-  if (type == gab_undefined)
-    goto fin;
-
-  if ((offset = gab_msgfind(message, type)) != GAB_PROPERTY_NOT_FOUND)
-    return (struct gab_egimpl_rest){type, offset, sGAB_IMPL_TERTIARY};
-
-fin:
-  /*
-   * If there is an implentation for the undefined case, use that.
-   * Otherwise fail.
-   */
-  offset = gab_msgfind(message, gab_undefined);
+  type = gab_undefined;
+  offset = gab_msgfind(message, type);
 
   return (struct gab_egimpl_rest){
       type, offset,

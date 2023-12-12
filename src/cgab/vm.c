@@ -308,7 +308,7 @@ static handler handlers[] = {
   return vm_error(GAB(), status, help, __VA_ARGS__);
 
 #define SEND_CACHE_GUARD(cached_type, r, cached_specs, m)                      \
-  if (!gab_valisa(EG(), r, cached_type) ||                                     \
+  if (gab_valtype(EG(), r) != cached_type ||                                   \
       cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {                          \
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);                                  \
     IP() -= SEND_CACHE_DIST;                                                   \
@@ -461,6 +461,7 @@ CASE_CODE(SEND_ANA) {
   SKIP_BYTE;
 
   gab_value r = PEEK_N(have + 1);
+  gab_value t = gab_valtype(EG(), r);
 
   /* Do the expensive lookup */
   struct gab_egimpl_rest res = gab_egimpl(gab.eg, m, r);
@@ -476,7 +477,7 @@ CASE_CODE(SEND_ANA) {
                        : gab_umsgat(m, res.offset);
 
   WRITE_INLINEQWORD(GAB_VAL_TO_MESSAGE(m)->specs);
-  WRITE_INLINEQWORD(res.type);
+  WRITE_INLINEQWORD(t);
   WRITE_INLINEQWORD(res.offset);
 
   switch (gab_valkind(spec)) {
@@ -586,8 +587,6 @@ CASE_CODE(SEND_DYN) {
     ERROR(GAB_NOT_MESSAGE, "Found %V (%V)", m, gab_valtype(EG(), m));
   }
 
-  gab_value type = gab_pvaltype(EG(), m);
-
   struct gab_egimpl_rest res = gab_egimpl(gab.eg, m, r);
 
   if (!res.status) {
@@ -644,7 +643,7 @@ CASE_CODE(SEND_DYN) {
     DISPATCH(op);
   }
   default:
-    ERROR(GAB_NOT_CALLABLE, "Found %V %V", type, spec);
+    ERROR(GAB_NOT_CALLABLE, "Found %V %V", gab_valtype(EG(), r), spec);
   }
 }
 
@@ -775,7 +774,7 @@ CASE_CODE(SEND_PRIMITIVE_CONCAT) {
 
   if (gab_valkind(PEEK()) != kGAB_STRING) {
     STORE_FRAME();
-    ERROR(GAB_NOT_STRING, "Found %V %V", gab_pvaltype(EG(), PEEK()), PEEK());
+    ERROR(GAB_NOT_STRING, "Found %V %V", gab_valtype(EG(), PEEK()), PEEK());
   }
 
   gab_value b = POP();
@@ -1004,7 +1003,7 @@ CASE_CODE(PUSH_FALSE) {
 CASE_CODE(NEGATE) {
   if (!__gab_valisn(PEEK())) {
     STORE_FRAME();
-    ERROR(GAB_NOT_NUMBER, "Found %V %V", gab_pvaltype(EG(), PEEK()), PEEK());
+    ERROR(GAB_NOT_NUMBER, "Found %V %V", gab_valtype(EG(), PEEK()), PEEK());
   }
 
   gab_value new_value = gab_number(-gab_valton(POP()));
