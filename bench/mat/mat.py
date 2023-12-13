@@ -38,7 +38,7 @@ class SimpleMatrix(object):
 sum = 0
 
 
-N = 2
+N = 3
 
 
 for i in range(5000):

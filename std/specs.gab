@@ -19,34 +19,20 @@ def registry.help = :map.new
 def register(registry, name, value)
   # Add a new specification to the registry.
   # If this key already existed, panic.
-  result = registry:add!(name, value) in match
-     .ok  => .ok                    end
-     else => .SPEC_NAME_TAKEN:panic end
+  registry:add!(name, value) == .ok or .SPEC_NAME_TAKEN:panic
 end
 
 ## Add a spec to the global registry under the given name.
-def spec.def![](name, spec)
-  ?spec match
-    ?{ spec } => 
-      register(registry.spec, name, spec:spec)
-    end
-    ?{ help spec } => 
-      register(registry.spec, name, spec:spec)
-      register(registry.help, name, spec:help)
-    end
-    ?{ spec help } => 
-      register(registry.spec, name, spec:spec)
-      register(registry.help, name, spec:help)
-    end
-    else => register(registry.spec, name, spec) end
+def spec.def![](name, opts)
+  register(registry.spec, name, opts:spec)
 end
 
-def spec.help[](name); registry.help:at(name) end
+def spec.help[](name)
+  registry.help:at(name)
+end
 
 def spec[](name)
-  _, s = registry.spec:at(name) in match
-    .some => return s            end
-    else  => .MISSING_SPEC:panic end
+  _, s = registry.spec:at(name) in == .ok or .MISSING_SPEC:panic
 end
 
 ## PREDICATES
@@ -177,12 +163,12 @@ def spec.protocol[](protocol)
       m:has?(value) or return false, self, k
 
       # Check for a spec which corresponds to this message in the protocol
-      _, s = registry.spec:at(k) in match
-         .some => s:spec.fits?(value[k]) else
-              return false, s, value, k
-            end
-         end
-         else  => .pass end
+      res, s = registry.spec:at(k)
+      
+      res == .some and s:spec.fits?(value[k]) else
+        return false, s, value, k
+      end
+
     end
 
     return true, self, value

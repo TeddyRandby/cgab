@@ -478,7 +478,7 @@ CASE_CODE(SEND_ANA) {
 
   WRITE_INLINEQWORD(GAB_VAL_TO_MESSAGE(m)->specs);
   WRITE_INLINEQWORD(t);
-  WRITE_INLINEQWORD(res.offset);
+  WRITE_INLINEQWORD(res.status == sGAB_IMPL_PROPERTY ? res.offset : spec);
 
   switch (gab_valkind(spec)) {
   case kGAB_PRIMITIVE:
@@ -506,13 +506,11 @@ CASE_CODE(SEND_MONO_BLOCK) {
   uint8_t want = READ_BYTE;
   gab_value cached_specs = *READ_QWORD;
   gab_value cached_type = *READ_QWORD;
-  uint64_t offset = *READ_QWORD;
+  gab_value spec = *READ_QWORD;
 
   gab_value receiver = PEEK_N(have + 1);
 
   SEND_CACHE_GUARD(cached_type, receiver, cached_specs, m)
-
-  gab_value spec = gab_urecat(cached_specs, offset);
 
   struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
 
@@ -532,13 +530,11 @@ CASE_CODE(SEND_MONO_NATIVE) {
   uint8_t want = READ_BYTE;
   gab_value cached_specs = *READ_QWORD;
   gab_value cached_type = *READ_QWORD;
-  uint64_t offset = *READ_QWORD;
+  gab_value spec = *READ_QWORD;
 
   gab_value receiver = PEEK_N(have + 1);
 
   SEND_CACHE_GUARD(cached_type, receiver, cached_specs, m)
-
-  gab_value spec = gab_urecat(cached_specs, offset);
 
   STORE_FRAME();
 
@@ -1014,7 +1010,7 @@ CASE_CODE(NEGATE) {
 }
 
 CASE_CODE(NOT) {
-  gab_value new_value = gab_bool(gab_valintob(POP()));
+  gab_value new_value = gab_bool(!gab_valintob(POP()));
   PUSH(new_value);
   NEXT();
 }

@@ -1,4 +1,5 @@
-:use 'list'
+:use .list
+:use .streams
 
 def each[.List]
   self:len == 0 and return
@@ -8,4 +9,28 @@ def each[.List]
     yield self:at(v), v
     v = v + 1
   until v >= self:len end
+end
+
+def <<[.List](other)
+  other:for(&:each) do; self:push!(@1) end
+end
+
+def list.collect[](msg, cb?)
+  def l = :list.new
+
+  *args, suspense = self:(msg)
+
+  loop
+    ?suspense == .Suspense or break
+
+    cb? then
+      l:push!(cb?(args:splat))
+    end else 
+      l:push!(args:splat)    
+    end
+
+    *args, suspense = suspense()
+  end
+
+  return l
 end

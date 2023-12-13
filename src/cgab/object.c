@@ -492,7 +492,7 @@ gab_value gab_erecordof(struct gab_triple gab, gab_value shp) {
   self->len = shape->len;
 
   for (uint64_t i = 0; i < shape->len; i++)
-    self->data[i] = gab_undefined;
+    self->data[i] = gab_nil;
 
   return __gab_obj(self);
 }

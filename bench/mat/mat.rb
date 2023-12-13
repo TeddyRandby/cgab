@@ -50,7 +50,7 @@ end
 
 sum = 0
 
-n = 2
+n = 3
 
 5000.times do |i|
   a = SimpleMatrix.new(n, Array.new(n * n).map { i | i })

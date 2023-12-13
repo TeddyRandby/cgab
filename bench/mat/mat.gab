@@ -13,9 +13,11 @@ def +[Matrix](other)
 
   data = :record.new(?self:data)
 
-  for i in (N * N):each
+  i, done = 0, (N * N)
+  loop
     data[i] = self:data[i] + other:data[i]
-  end
+    i = i + 1
+  until i == done end
 
   :matrix(N, data)
 end
@@ -25,17 +27,25 @@ def *[Matrix](other)
 
   def data = :record.new(?self:data)
 
-  for i in N:each
-    for j in N:each
-      sum = 0
+  i, done = 0, N
 
-      for k in N:each
+  loop
+    j = 0
+    loop
+      sum, k = 0, 0
+
+      loop
         sum = sum + self:data[i*N+k] * other:data[k*N+j]
-      end
+        k = k + 1
+      until k == done end
 
       data[i*N+j] = sum
-    end
-  end
+
+      j = j + 1
+    until j == done end
+
+    i = i + 1
+  until i == done end
 
   :matrix(N, data)
 end
@@ -45,14 +55,16 @@ def diag_sum[Matrix]
 
   def N = self:n
 
-  for i in N:each
+  i, done = 0, N
+  loop
     sum = sum + self:data[i*(N + 1)]
-  end
+    i = i + 1
+  until i == done end
 
   sum
 end
 
-N, sum, i = 2, 0, 0 
+N, sum, i = 3, 0, 0 
 
 loop
   a = :matrix(N, :tuple.new(N * N):map! do; @2 end)
