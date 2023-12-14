@@ -13,6 +13,8 @@ end
 
 def <<[.List](other)
   other:for(&:each) do; self:push!(@1) end
+  
+  self
 end
 
 def list.collect[](msg, cb?)

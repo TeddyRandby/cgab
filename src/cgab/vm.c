@@ -1318,11 +1318,11 @@ CASE_CODE(VAR) {
 }
 
 CASE_CODE(PACK) {
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
   uint8_t below = READ_BYTE;
   uint8_t above = READ_BYTE;
 
   uint64_t want = below + above;
-  uint64_t have = VAR();
 
   while (have < want)
     PUSH(gab_nil), have++;

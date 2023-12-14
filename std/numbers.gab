@@ -22,21 +22,22 @@ end
 
 def from[.Number](src)
   ?src :match {
-      [nil]:  do; { from: self }           end
-      Number: do; { from: src to: self }   end
+      [nil]  = do; { from = self }           end,
+      Number = do; { from = src, to = self }   end
   } do; .INVALID_ARGUMENTS:panic end
 end
 
 def to[.Number](dest)
+  { self, dest, t = ?dest }:print
   ?dest :match {
-      [nil]:  do; { to: self }             end
-      Number: do; { from: self to: dest } end
+      [nil]  = do; { to = self }             end,
+      Number = do; { from = self, to = dest } end
   } do; .INVALID_ARGUMENTS:panic end
 end
 
 def clamp[.Number](arg)
   ?arg :match {
-      [?{ from to }]: do;
+      [?{ from, to }] = do;
         self < arg:from and arg:from or
         self > arg:to   and arg:to   or
         self

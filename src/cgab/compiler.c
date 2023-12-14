@@ -479,9 +479,10 @@ static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
   push_op(bc, OP_POP, t);
 }
 
-static inline void push_pack(struct bc *bc, uint8_t below, uint8_t above,
-                             size_t t) {
+static inline void push_pack(struct bc *bc, uint8_t have, bool mv,
+                             uint8_t below, uint8_t above, size_t t) {
   push_op(bc, OP_PACK, t);
+  push_byte(bc, encode_arity(have, mv), t);
   push_byte(bc, below, t);
   push_byte(bc, above, t);
 }
@@ -1245,7 +1246,7 @@ fin:
     return COMP_ERR;
 
   if (mv >= 0)
-    push_pack(bc, mv, narguments - mv, bc->offset - 1);
+    push_pack(bc, 0, mv, mv, narguments - mv, bc->offset - 1);
 
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;
@@ -1306,8 +1307,6 @@ int compile_expressions_body(struct bc *bc) {
 }
 
 int compile_expressions(struct bc *bc) {
-  push_scope(bc);
-
   uint64_t line = prev_line(bc);
 
   if (compile_expressions_body(bc) < 0)
@@ -1320,8 +1319,6 @@ int compile_expressions(struct bc *bc) {
     return COMP_ERR;
   }
 
-  pop_scope(bc);
-
   return COMP_OK;
 }
 
@@ -1333,6 +1330,8 @@ int compile_block_body(struct bc *bc) {
 
   if (expect_token(bc, TOKEN_END) < 0)
     return COMP_ERR;
+
+  pop_scope(bc);
 
   bool mv = patch_mv(bc, VAR_EXP);
 
@@ -1607,11 +1606,6 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
   if (have < 0)
     return COMP_ERR;
 
-  if (!mv && n_rest_values) {
-    push_op(bc, OP_VAR, bc->offset - 1);
-    push_byte(bc, have, bc->offset - 1);
-  }
-
   if (n_rest_values) {
     for (uint8_t i = 0; i < lvalues->len; i++) {
       if (lvalues->data[i].kind == kEXISTING_REST_LOCAL ||
@@ -1619,7 +1613,7 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
         uint8_t before = i;
         uint8_t after = lvalues->len - i - 1;
 
-        push_pack(bc, before, after, t);
+        push_pack(bc, have, mv, before, after, t);
 
         int slots = lvalues->len - have;
 
@@ -1714,7 +1708,7 @@ int compile_rec_internal_item(struct bc *bc) {
     if (compile_string(bc) < 0)
       return COMP_ERR;
 
-    if (match_and_eat_token(bc, TOKEN_COLON)) {
+    if (match_and_eat_token(bc, TOKEN_EQUAL)) {
       if (compile_expression(bc) < 0)
         return COMP_ERR;
     } else {
@@ -1734,7 +1728,7 @@ int compile_rec_internal_item(struct bc *bc) {
 
     push_loadk(bc, val_name, t);
 
-    switch (match_and_eat_token(bc, TOKEN_COLON)) {
+    switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
 
     case COMP_OK: {
       if (compile_expression(bc) < 0)
@@ -1782,7 +1776,7 @@ int compile_rec_internal_item(struct bc *bc) {
     if (expect_token(bc, TOKEN_RBRACE) < 0)
       return COMP_ERR;
 
-    if (match_and_eat_token(bc, TOKEN_COLON)) {
+    if (match_and_eat_token(bc, TOKEN_EQUAL)) {
       if (compile_expression(bc) < 0)
         return COMP_ERR;
     } else {
@@ -1805,7 +1799,16 @@ int compile_rec_internals(struct bc *bc) {
   if (skip_newlines(bc) < 0)
     return COMP_ERR;
 
-  while (match_and_eat_token(bc, TOKEN_RBRACK) == COMP_TOKEN_NO_MATCH) {
+  if (match_and_eat_token(bc, TOKEN_RBRACK))
+    return size;
+
+  int result = COMP_ERR;
+  do {
+    if (skip_newlines(bc) < 0)
+      return COMP_ERR;
+
+    if (match_token(bc, TOKEN_RBRACK))
+      break;
 
     if (compile_rec_internal_item(bc) < 0)
       return COMP_ERR;
@@ -1819,13 +1822,25 @@ int compile_rec_internals(struct bc *bc) {
       return COMP_ERR;
 
     size++;
-  };
+  } while ((result = match_and_eat_token(bc, TOKEN_COMMA)) == COMP_OK);
+
+  if (result == COMP_ERR)
+    return COMP_ERR;
+
+  if (expect_token(bc, TOKEN_RBRACK) < 0)
+    return COMP_ERR;
 
   return size;
 }
 
 int compile_record(struct bc *bc) {
+  if (push_ctx(bc, kTUPLE) < 0)
+    return COMP_ERR;
+
   int size = compile_rec_internals(bc);
+
+  if (pop_ctx(bc, kTUPLE) < 0)
+    return COMP_ERR;
 
   if (size < 0)
     return COMP_ERR;
@@ -3194,8 +3209,8 @@ uint64_t dumpDynSendInstruction(FILE *stream, struct gab_obj_prototype *self,
 
   fprintf(stream,
           "%-25s"
-          "(%s%d) -> %d\n",
-          name, var ? "& more" : "", have, want);
+          "(%d%s) -> %d\n",
+          name, have, var ? " & more" : "", want);
   return offset + 29;
 }
 
@@ -3250,14 +3265,17 @@ uint64_t dumpYieldInstruction(FILE *stream, struct gab_obj_prototype *self,
   return offset + 4;
 }
 
-uint64_t dumpTwoByteInstruction(FILE *stream, struct gab_obj_prototype *self,
-                                uint64_t offset) {
-  uint8_t operandA = v_uint8_t_val_at(&self->src->bytecode, offset + 1);
-  uint8_t operandB = v_uint8_t_val_at(&self->src->bytecode, offset + 2);
+uint64_t dumpPackInstruction(FILE *stream, struct gab_obj_prototype *self,
+                             uint64_t offset) {
+  uint8_t havebyte = v_uint8_t_val_at(&self->src->bytecode, offset + 1);
+  uint8_t operandA = v_uint8_t_val_at(&self->src->bytecode, offset + 2);
+  uint8_t operandB = v_uint8_t_val_at(&self->src->bytecode, offset + 3);
   const char *name =
       gab_opcode_names[v_uint8_t_val_at(&self->src->bytecode, offset)];
-  fprintf(stream, "%-25s%hhx %hhx\n", name, operandA, operandB);
-  return offset + 3;
+  uint8_t have = havebyte >> 1;
+  fprintf(stream, "%-25s(%hhx%s) -> %hhx %hhx\n", name, have,
+          havebyte & FLAG_VAR_EXP ? " & more" : "", operandA, operandB);
+  return offset + 4;
 }
 
 uint64_t dumpDictInstruction(FILE *stream, struct gab_obj_prototype *self,
@@ -3373,7 +3391,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_NOP:
     return dumpSimpleInstruction(stream, self, offset);
   case OP_PACK:
-    return dumpTwoByteInstruction(stream, self, offset);
+    return dumpPackInstruction(stream, self, offset);
   case OP_LOGICAL_AND:
   case OP_JUMP_IF_FALSE:
   case OP_JUMP_IF_TRUE:

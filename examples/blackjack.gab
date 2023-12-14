@@ -8,39 +8,68 @@
 :use .records
 :use .streams
 
+# A helper message for swapping two fields in a record
+# NOTE: Ending messages with ! is a convention that dictates that this message modifies self.
 def swap![.Record](i, j)
     self[i], self[j] = self[j], self[i]
 end
 
-def permutations![.Record](opt_k)
-    def k = opt_k or 0
+# A mutating & recursive algorithm for finding permutations.
+#   Each value yielded is the *same* record, but with its fields rearranged.
+def permutations![.Record](k?)
+    def k = k? or 0
     
     self:len == k then
         yield self
     end else
       i = k
       loop
+        # swap the fields at i, k
         self:swap!(i, k)
 
+        # Recurse with our change
         val, s = self:permutations!(k + 1)
 
+        # yield each of these recused values
+        # for as long as we receive continuations
         s and loop
           yield val
           val, s = s()
         until not s end
 
+        # restore what we swapped
         self:swap!(i, k)
         i = i + 1
+
+        # continue until we have exhausted all i's for this k
       until i == self:len end
     end
 end
 
-def ops = [ &+, &-, &/, &* ]:list.collect(&:permutations!) do; @1:slice end
-def hands = [ 8, 5, 3, 10, 11 ]:list.collect(&:permutations!) do; @1:slice end
-hands << [ 8, 5, 3, 10, 1 ]:list.collect(&:permutations!) do; @1:slice end
+# A small wrapper around our mutating algorithm.
+#   This version doesn't mutate self, and yields individual records.
+# NOTE: This message doesn't end with !, because it doesn't modify self anymore.
+def permutations[.Record](k?)
+  val, s = self:slice:permutations!(k?)
 
+  s and loop
+    yield val:slice
+    val, s = s()
+  until not s end
+end
+
+# &:list.collect collects all the values from the stream (self:(<arg0>) into a new list.
+def ops = [ &+, &-, &/, &* ]:list.collect(&:permutations)
+
+# the << message for list appends the rhs to the list on the lhs
+def hands = [ 8, 5, 3, 10, 11 ]:list.collect(&:permutations) in
+         << [ 8, 5, 3, 10, 1  ]:list.collect(&:permutations)
+
+# &:for calls the cb with every value of the stream (self:(<arg0>))
 ops:for(&:each) do (seq)
   hands:for(&:each) do (hand)
+    # &:fold calls the cb with every value of the stream (self:(<arg0>)), 
+    # The accumulator is always passed as the first argument to the cb, and it is initialized with arg1
     total = seq:fold(&:pairs, hand[0]) do (total, i, op)
         total:(op)(hand[i + 1])
     end

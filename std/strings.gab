@@ -1,6 +1,7 @@
 :use .string
 :use .numbers
 :use .symbol
+:use .conditionals
 
 def string.new[](*args)
   return args:join('')
@@ -15,40 +16,48 @@ def string.begins?[](sep, offset)
 end
 
 def [][.String](opts)
-    ?opts match
-        ?{ from to } => self:slice(opts:from, opts:to) end
-        ?{ from }    => self:slice(opts:from)          end
-        ?{ to }      => self:slice(nil, opts:to)       end
-        .Number      => self:slice(opts)               end
-        else         => .INVALID_ARGUMENTS:panic       end
+    { self, opts, t = ?opts }:print
+    ?opts :match {
+        [?{ from, to }] = do; self:slice(opts:from, opts:to) end,
+        [?{ from }   ]  = do; self:slice(opts:from)          end,
+        [?{ to }     ]  = do; self:slice(nil, opts:to)       end,
+        .Number         = do; self:slice(opts)               end
+    }
+end
+
+def rchars[.String]
+  i, done = self:len - 1, -1
+
+  loop
+    yield self:at(i)
+    i = i - 1
+  until i == done end
 end
 
 def chars[.String]
-  i, len = 0, self:len
+  i, done = 0, self:len
 
   loop
     yield self:at(i)
     i = i + 1
-  until i == len end
+  until i == done end
 end
 
 def split[.String](sep)
   s, slen, w, wlen = 0, sep:len, 0, 0
 
   loop
-    self[s:to(s + slen)] match
-      sep  =>
-          wlen > 0 and yield self[w:to(w + wlen)]
+    self:slice(s, s + slen) == sep then
+      wlen > 0 and yield self:slice(w, w + wlen)
 
-          w = w + wlen + slen
-          s = s + slen
-          wlen = 0
-      end 
-      else =>
-          s = s + 1
-          wlen = wlen + 1
-      end
+      w = w + wlen + slen
+      s = s + slen
+      wlen = 0
+    end else
+      s = s + 1
+      wlen = wlen + 1
+    end
   until s + slen > self:len end 
 
-  yield self:slice(w)
+  yield self:slice(w, w + wlen)
 end

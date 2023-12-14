@@ -2,7 +2,7 @@
 :use 'records'
 :use 'lists'
 
-def TestState  { fails errs }
+def TestState  { fails, errs }
 
 def testState[]
     :record.new(TestState):reset

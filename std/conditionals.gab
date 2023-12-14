@@ -1,0 +1,20 @@
+:use .records
+
+def match[](cases, fallback?)
+  case = cases:next
+
+  loop
+    case == self then
+      branch = cases[case]
+
+      ?branch == .Block   and return branch(self)
+      ?branch == .Message and return self:(branch)
+
+      break .INVALID_ARGUMENTS:panic
+    end
+
+    case = cases:next(case)
+  until not case end
+
+  fallback? and fallback?(self)
+end

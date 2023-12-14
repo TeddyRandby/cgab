@@ -1,24 +1,33 @@
-def for[](msg, cb)
-  *args, suspense = self:(msg)
+:use .any
+def for[](msg, *p, cb)
+  *args, s = self:(msg)(p:splat)
 
-  loop
-      ?suspense == .Suspense or break
-
+  s:is? .Suspense and loop
       cb(args:splat)            
-
-      *args, suspense = suspense()
-  end
+      *args, s = s()
+  until not s:is? .Suspense end
 end
 
-def fold[](msg, init, cb)
-  acc = init
-  *args, suspense = self:(msg)
+def first[](msg, *p, cb)
+  *args, s = self:(msg)(p:splat)
 
-  loop
-      ?suspense == .Suspense or break acc
+  s:is? .Suspense and loop
+      res, *vals = cb(args:splat)
+      res == .some and return res, vals:splat
 
+      *args, s = s()
+  until not s:is? .Suspense end
+
+  .none
+end
+
+def fold[](msg, *p, init, cb)
+  init:print
+  acc, *args, s = init, self:(msg)(p:splat)
+  acc:print
+
+  s:is? .Suspense and loop
       acc = cb(acc, args:splat)            
-
-      *args, suspense = suspense()
-  end
+      *args, s = s()
+  until not s:is? .Suspense end
 end
