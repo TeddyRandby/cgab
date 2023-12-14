@@ -1,4 +1,5 @@
 :use .any
+
 def for[](msg, *p, cb)
   *args, s = self:(msg)(p:splat)
 
@@ -22,12 +23,12 @@ def first[](msg, *p, cb)
 end
 
 def fold[](msg, *p, init, cb)
-  init:print
   acc, *args, s = init, self:(msg)(p:splat)
-  acc:print
 
   s:is? .Suspense and loop
       acc = cb(acc, args:splat)            
       *args, s = s()
   until not s:is? .Suspense end
+
+  acc
 end
