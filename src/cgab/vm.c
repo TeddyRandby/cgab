@@ -1312,11 +1312,6 @@ CASE_CODE(MESSAGE) {
   NEXT();
 }
 
-CASE_CODE(VAR) {
-  VAR() = READ_BYTE;
-  NEXT();
-}
-
 CASE_CODE(PACK) {
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   uint8_t below = READ_BYTE;

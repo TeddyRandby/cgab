@@ -3431,7 +3431,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_LOAD_UPVALUE:
   case OP_INTERPOLATE:
   case OP_SHIFT:
-  case OP_VAR:
   case OP_LOAD_LOCAL: {
     return dumpByteInstruction(stream, self, offset);
   }
