@@ -8,8 +8,9 @@ void gab_lib_prybreak(struct gab_triple gab, size_t argc,
   gab_value vargv[] = {
       gab_box(gab,
               (struct gab_box_argt){
-                  .data = gab.vm,
-                  .type = gab_string(gab, "pry.vm"),
+                  .data = &gab.vm,
+                  .size = sizeof(struct gab_vm*),
+                  .type = gab_string(gab, "gab.vm"),
               }),
   };
   const char *sargv[] = {"vm"};
@@ -35,7 +36,7 @@ void gab_lib_pryframes(struct gab_triple gab, size_t argc,
   if (argc == 1) {
     gab_value frame = gab_vmframe(
         (struct gab_triple){
-            .vm = gab_boxdata(argv[0]), .eg = gab.eg, .gc = gab.gc},
+            .vm = *(struct gab_vm**)gab_boxdata(argv[0]), .eg = gab.eg, .gc = gab.gc},
         0);
 
     gab_vmpush(gab.vm, frame);
@@ -47,7 +48,7 @@ void gab_lib_pryframes(struct gab_triple gab, size_t argc,
 
     gab_value frame = gab_vmframe(
         (struct gab_triple){
-            .vm = gab_boxdata(argv[0]), .eg = gab.eg, .gc = gab.gc},
+            .vm = *(struct gab_vm**)gab_boxdata(argv[0]), .eg = gab.eg, .gc = gab.gc},
         depth);
 
     gab_vmpush(gab.vm, frame);

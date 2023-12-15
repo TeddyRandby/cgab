@@ -1,5 +1,5 @@
 // Compile-time errors
-STATUS(OK, "OK")
+STATUS(OK, "ok")
 STATUS(PANIC, "A fatal error occurred")
 STATUS(MALFORMED_STRING, "Unexpected character in string literal")
 STATUS(MALFORMED_TOKEN, "Unrecognized token")

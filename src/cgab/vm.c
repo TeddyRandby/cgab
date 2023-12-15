@@ -126,9 +126,9 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t value) {
           frame_count - value, (int32_t)func_name->len, func_name->data,
           p->as.block.nupvalues);
 
-  int top = p->as.block.nslots - 1;
+  int top = p->as.block.nslots;
   if (f->slots + top > vm->sp)
-    top = vm->sp - f->slots - 1;
+    top = vm->sp - f->slots;
 
   for (int32_t i = top; i >= 0; i--) {
     fprintf(stream, "%2s" ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET,
@@ -617,7 +617,11 @@ CASE_CODE(SEND_DYN) {
 
     struct gab_obj_native *n = GAB_VAL_TO_NATIVE(spec);
 
+    STORE_FRAME();
+
     call_native(GAB(), n, have, want, true);
+
+    LOAD_FRAME();
 
     NEXT();
   }
@@ -1284,6 +1288,14 @@ CASE_CODE(MESSAGE) {
   gab_value m = READ_CONSTANT;
   gab_value r = PEEK();
 
+  struct gab_egimpl_rest res = gab_egimpl(gab.eg, m, r);
+
+  if (res.status != sGAB_IMPL_NONE && res.status != sGAB_IMPL_GENERAL) {
+    printf("Definition for %V\n", res.type);
+    STORE_FRAME();
+    ERROR(GAB_IMPLEMENTATION_EXISTS, "%V already specializes for %V", m, r);
+  }
+
   gab_value blk = gab_block(GAB(), p);
 
   struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
@@ -1332,8 +1344,9 @@ CASE_CODE(PACK) {
 
   /*
    * When len and above are 1, we copy nonsense from the stack
+   * prefer memmove to memcpy, as there might be overlap.
    */
-  memcpy(ap - len + 1, ap, above * sizeof(gab_value));
+  memmove(ap - len + 1, ap, above * sizeof(gab_value));
 
   PEEK_N(above + 1) = rec;
 

@@ -333,13 +333,17 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
                       });
 }
 
-void gab_nspec(struct gab_triple gab, size_t len,
-               struct gab_spec_argt args[static len]) {
+int gab_nspec(struct gab_triple gab, size_t len,
+              struct gab_spec_argt args[static len]) {
   gab_gcreserve(gab, len * 3);
 
   for (size_t i = 0; i < len; i++) {
-    gab_spec(gab, args[i]);
+    if (gab_spec(gab, args[i]) == gab_undefined) {
+      return i;
+    }
   }
+
+  return -1;
 }
 
 gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {

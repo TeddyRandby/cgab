@@ -956,7 +956,7 @@ static inline gab_value gab_urecat(gab_value rec, uint64_t offset) {
  *
  * @param key The key.
  *
- * @return The value at the key, or gab_nil.
+ * @return The value at the key, or gab_undefined.
  */
 static inline gab_value gab_recat(gab_value rec, gab_value key) {
   assert(gab_valkind(rec) == kGAB_RECORD);
@@ -1032,7 +1032,7 @@ static inline bool gab_srecput(struct gab_triple gab, gab_value value,
  * @return true if the key exists on the record, false otherwise.
  */
 static inline bool gab_rechas(gab_value obj, gab_value key) {
-  return gab_recat(obj, key) != gab_nil;
+  return gab_recat(obj, key) != gab_undefined;
 }
 
 static inline bool gab_srechas(struct gab_triple gab, gab_value value,
@@ -1168,9 +1168,7 @@ static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg,
 
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
 
-  struct gab_egimpl_rest res = gab_egimpl(gab.eg, msg, receiver);
-
-  if (res.status != sGAB_IMPL_NONE && res.status != sGAB_IMPL_GENERAL)
+  if (gab_rechas(obj->specs, receiver))
     return gab_undefined;
 
   obj->specs = gab_recordwith(gab, obj->specs, receiver, spec);
@@ -1459,8 +1457,8 @@ struct gab_spec_argt {
  *
  * @return The message that was updated.
  */
-void gab_nspec(struct gab_triple gab, size_t len,
-               struct gab_spec_argt args[static len]);
+int gab_nspec(struct gab_triple gab, size_t len,
+              struct gab_spec_argt args[static len]);
 
 /**
  * # Create a specialization on the given message for the given receiver
@@ -1639,26 +1637,11 @@ static inline bool gab_valintob(gab_value self) {
  * @return The string representation of the value.
  */
 static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
+  char buffer[128];
+
   switch (gab_valkind(self)) {
   case kGAB_STRING:
     return self;
-  case kGAB_BLOCK:
-    return gab_string(gab, "<Block>");
-  case kGAB_RECORD:
-    return gab_string(gab, "<Record>");
-  case kGAB_SHAPE:
-    return gab_string(gab, "<Shape>");
-  case kGAB_MESSAGE:
-    return gab_string(gab, "<Message>");
-  case kGAB_SPROTOTYPE:
-  case kGAB_BPROTOTYPE:
-    return gab_string(gab, "<Prototype>");
-  case kGAB_NATIVE:
-    return gab_string(gab, "<Native>");
-  case kGAB_BOX:
-    return gab_string(gab, "<Box>");
-  case kGAB_SUSPENSE:
-    return gab_string(gab, "<Suspense>");
   case kGAB_TRUE:
     return gab_string(gab, "true");
   case kGAB_FALSE:
@@ -1670,9 +1653,62 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
   case kGAB_PRIMITIVE:
     return gab_string(gab, gab_opcode_names[gab_valtop(self)]);
   case kGAB_NUMBER: {
-    char str[24];
-    snprintf(str, 24, "%g", gab_valton(self));
-    return gab_string(gab, str);
+    snprintf(buffer, 24, "%g", gab_valton(self));
+    return gab_string(gab, buffer);
+  }
+  case kGAB_BLOCK: {
+    struct gab_obj_block *o = GAB_VAL_TO_BLOCK(self);
+    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(o->p);
+    struct gab_obj_string *s = GAB_VAL_TO_STRING(p->name);
+    snprintf(buffer, 128, "<Block %s %p>", s->data, o);
+    return gab_string(gab, buffer);
+  }
+  case kGAB_RECORD: {
+    struct gab_obj_record *o = GAB_VAL_TO_RECORD(self);
+    snprintf(buffer, 128, "<Record %p>", o);
+    return gab_string(gab, buffer);
+  }
+  case kGAB_SHAPE: {
+    struct gab_obj_shape *o = GAB_VAL_TO_SHAPE(self);
+    snprintf(buffer, 128, "<Shape %p>", o);
+    return gab_string(gab, buffer);
+  }
+  case kGAB_MESSAGE: {
+    struct gab_obj_message *o = GAB_VAL_TO_MESSAGE(self);
+    struct gab_obj_string *s = GAB_VAL_TO_STRING(o->name);
+    snprintf(buffer, 128, "<Message %s>", s->data);
+
+    return gab_string(gab, buffer);
+  }
+  case kGAB_SPROTOTYPE:
+  case kGAB_BPROTOTYPE: {
+    struct gab_obj_prototype *o = GAB_VAL_TO_PROTOTYPE(self);
+    struct gab_obj_string *s = GAB_VAL_TO_STRING(o->name);
+    snprintf(buffer, 128, "<Prototype %s>", s->data);
+
+    return gab_string(gab, buffer);
+  }
+  case kGAB_NATIVE: {
+    struct gab_obj_native *o = GAB_VAL_TO_NATIVE(self);
+    struct gab_obj_string *s = GAB_VAL_TO_STRING(o->name);
+    snprintf(buffer, 128, "<Native %s>", s->data);
+
+    return gab_string(gab, buffer);
+  }
+  case kGAB_BOX: {
+    struct gab_obj_box *o = GAB_VAL_TO_BOX(self);
+    struct gab_obj_string *s = GAB_VAL_TO_STRING(gab_valintos(gab, o->type));
+    snprintf(buffer, 128, "<%s %p>", s->data, o);
+
+    return gab_string(gab, buffer);
+  }
+  case kGAB_SUSPENSE: {
+    struct gab_obj_suspense *o = GAB_VAL_TO_SUSPENSE(self);
+    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(o->p);
+    struct gab_obj_string *s = GAB_VAL_TO_STRING(p->name);
+    snprintf(buffer, 128, "<Suspense %s %p>", s->data, o);
+
+    return gab_string(gab, buffer);
   }
   default:
     assert(false && "Unhandled type in gab_valtos");

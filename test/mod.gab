@@ -196,6 +196,22 @@ end
       varfunc(onetwothree())
    end
 
+   :it 'should make var args empty when necessary' do
+      def varfunc = do (first, *args, other, last)
+        first:expect(1)
+        args:len:expect(0)
+        other:expect(2)
+        last:expect(nil)
+      end
+
+      varfunc(1,2)
+
+      def onetwo = do; return 1, 2 end
+
+      varfunc(onetwo())
+
+   end
+
    :it 'should take implicit parameters'  do
         def imp_func = do (a)
             a:expect(@1)

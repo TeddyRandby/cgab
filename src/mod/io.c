@@ -29,7 +29,8 @@ void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
       gab_box(gab,
               (struct gab_box_argt){
                   .type = gab_string(gab, "File"),
-                  .data = file,
+                  .data = &file,
+                  .size = sizeof(FILE*),
                   .destructor = file_cb,
                   .visitor = NULL,
               }),
@@ -44,7 +45,7 @@ void gab_lib_read(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  FILE *file = gab_boxdata(argv[0]);
+  FILE *file = *(FILE**)gab_boxdata(argv[0]);
 
   fseek(file, 0L, SEEK_END);
   size_t fileSize = ftell(file);

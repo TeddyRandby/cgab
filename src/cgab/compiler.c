@@ -1636,7 +1636,7 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
     case kNEW_REST_LOCAL:
     case kNEW_LOCAL:
       init_local(bc, lval.as.local);
-      [[fallthrough]];
+      // Fallthrough
     case kEXISTING_REST_LOCAL:
     case kEXISTING_LOCAL:
       push_storel(bc, lval.as.local, t);
@@ -2704,7 +2704,7 @@ int compile_exp_snd(struct bc *bc, bool assignable) {
     return COMP_ERR;
   }
 
-  pop_slot(bc, result + 1);
+  pop_slot(bc, result + 1 + mv);
 
   push_send(bc, m, result, mv, t);
 
@@ -3233,7 +3233,7 @@ uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_prototype *self,
 
   fprintf(stream, "%-25s" ANSI_COLOR_BLUE, name);
   gab_fvalinspect(stream, msg, 0);
-  fprintf(stream, ANSI_COLOR_RESET " (%s%d) -> %d\n", var ? "& more" : "", have,
+  fprintf(stream, ANSI_COLOR_RESET " (%d%s) -> %d\n", have, var ? " & more" : "",
           want);
 
   return offset + 29;

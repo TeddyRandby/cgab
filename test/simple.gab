@@ -1,12 +1,19 @@
-:use .records
-:use .streams
+def Solver { input, rowlen, begin, length, is_part? }
 
-l = { a: 1 b: 2 c: 3 }
+def check[Solver](delta_y)
+  row, col = self:coord
+  row = row + delta_y 
 
-l:for(&:pairs) do (k, v)
-  '{k}: {v}':print
+  '{col},{row}:checking':print
+
+  row > 0 and row * self:rowlen <= self:input:len then
+    col > 0 and col <= self:rowlen then
+      self:is_part? = self:input:at(row * self:rowlen + col):is_symbol?
+    end
+  end
 end
 
-sum = l:fold(&:values, 0) do; @1 + @2 end
 
-sum:print
+:use .dis
+
+&:check:dis(Solver)

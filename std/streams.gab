@@ -1,4 +1,5 @@
 :use .any
+:use .records
 
 def for[](msg, *p, cb)
   *args, s = self:(msg)(p:splat)
@@ -7,6 +8,19 @@ def for[](msg, *p, cb)
       cb(args:splat)            
       *args, s = s()
   until not s:is? .Suspense end
+end
+
+def take[](msg, *p, n)
+  i, store = 0, :tuple.new(n)
+  *args, s = self:(msg)(p:splat)
+
+  s:is? .Suspense and loop
+      store[i] = args
+      *args, s = s()
+      i = i + 1
+  until i == n or not s:is? .Suspense end
+
+  store:splat
 end
 
 def first[](msg, *p, cb)
