@@ -13,7 +13,7 @@
     (h) ^= (h) >> 47;                                                          \
   })
 
-static uint64_t hash(const void *buf, uint64_t len, uint64_t seed) {
+static uint64_t hash(const char *buf, uint64_t len, uint64_t seed) {
   const uint64_t m = 0x880355f21e6d1965ULL;
   const uint64_t *pos = (const uint64_t *)buf;
   const uint64_t *end = pos + (len / 8);
@@ -54,11 +54,13 @@ static uint64_t hash(const void *buf, uint64_t len, uint64_t seed) {
 
 #undef mix
 
-static inline uint64_t hash_bytes(uint64_t seed, uint64_t len, uint8_t bytes[len]) {
-  return hash(bytes, len * sizeof(uint8_t), seed);
+static inline uint64_t hash_bytes(uint64_t seed, uint64_t len,
+                                  uint8_t bytes[len]) {
+  return hash((char *)bytes, len * sizeof(uint8_t), seed);
 }
 
-static inline uint64_t hash_words(uint64_t seed, uint64_t len, uint64_t words[len]) {
-  return hash(words, len * sizeof(uint64_t), seed);
+static inline uint64_t hash_words(uint64_t seed, uint64_t len,
+                                  uint64_t words[len]) {
+  return hash((char *)words, len * sizeof(uint64_t), seed);
 }
 #endif

@@ -128,6 +128,23 @@ void gab_lib_del(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_vmpush(gab.vm, *argv);
 }
 
+void gab_lib_splat(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  switch (argc) {
+  case 1: {
+    v_gab_value* v = gab_boxdata(argv[0]);
+    gab_nvmpush(gab.vm, v->len, v->data); 
+    break;
+    }
+
+  default:
+    gab_panic(gab, "Invalid call to gab_lib_put");
+    return;
+  }
+
+  gab_vmpush(gab.vm, *argv);
+}
+
+
 void gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 3:
@@ -239,6 +256,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "put!",
           type,
           gab_snative(gab, "put", gab_lib_put),
+      },
+      {
+          "splat",
+          type,
+          gab_snative(gab, "splat", gab_lib_splat),
       },
       {
           "at",

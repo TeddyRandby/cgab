@@ -89,12 +89,16 @@ enum gab_kind {
 
 #define __GAB_VAL_TAG(val) ((enum gab_kind)((val)&__GAB_TAGMASK))
 
+union __gabvaldunion { double number; gab_value value; };
+
 static inline double __gab_valtod(gab_value value) {
-  return *(double *)(&value);
+  union __gabvaldunion u = { value };
+  return u.number;
 }
 
 static inline gab_value __gab_dtoval(double value) {
-  return *(gab_value *)(&value);
+  union __gabvaldunion u = { value };
+  return u.value;
 }
 
 #define __gab_valisn(val) (((val)&__GAB_QNAN) != __GAB_QNAN)

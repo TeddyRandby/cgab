@@ -148,7 +148,6 @@ void gab_lib_shape(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     if (gab_valkind(argv[1]) != kGAB_SHAPE) {
-      printf("%V\n", argv[1]);
       gab_panic(gab, "Expected shape as second argument to :record.new");
       return;
     }

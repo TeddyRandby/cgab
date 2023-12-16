@@ -2357,7 +2357,7 @@ int compile_exp_splt(struct bc *bc, bool assignable) {
 int compile_exp_idn(struct bc *bc, bool assignable) {
   gab_value id = prev_id(bc);
 
-  uint8_t index;
+  uint8_t index = 0;
   int result = resolve_id(bc, id, &index);
 
   if (assignable && !match_ctx(bc, kTUPLE)) {
@@ -2810,6 +2810,8 @@ int compile_exp_and(struct bc *bc, bool assignable) {
   if (compile_exp_prec(bc, kAND) < 0)
     return COMP_ERR;
 
+  pop_slot(bc, 1);
+
   patch_jump(bc, end_jump);
 
   return COMP_OK;
@@ -2827,6 +2829,8 @@ int compile_exp_or(struct bc *bc, bool assignable) {
 
   if (compile_exp_prec(bc, kOR) < 0)
     return COMP_ERR;
+
+  pop_slot(bc, 1);
 
   patch_jump(bc, end_jump);
 

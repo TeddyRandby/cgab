@@ -1288,14 +1288,6 @@ CASE_CODE(MESSAGE) {
   gab_value m = READ_CONSTANT;
   gab_value r = PEEK();
 
-  struct gab_egimpl_rest res = gab_egimpl(gab.eg, m, r);
-
-  if (res.status != sGAB_IMPL_NONE && res.status != sGAB_IMPL_GENERAL) {
-    printf("Definition for %V\n", res.type);
-    STORE_FRAME();
-    ERROR(GAB_IMPLEMENTATION_EXISTS, "%V already specializes for %V", m, r);
-  }
-
   gab_value blk = gab_block(GAB(), p);
 
   struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
