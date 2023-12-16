@@ -14,9 +14,9 @@ def record.exactly?[](rec)
 end
 
 def [][.Record](key)
-  status, v = self:at(key)
+  _, v = self:at(key)
 
-  status == .some and v or nil
+  v
 end
 
 def [=][.Record](key, value); self:put!(key, value) end

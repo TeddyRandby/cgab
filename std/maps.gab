@@ -1,10 +1,9 @@
 :use 'map'
 
 def [][.Map](key)
-  status, value = self:at(key) in
-    match
-      .some => value end
-      else => nil end
+  _, val = self:at(key)
+
+  val
 end
 
 def [=][.Map](key, value); self:put!(key, value); end

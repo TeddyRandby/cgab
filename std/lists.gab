@@ -1,6 +1,10 @@
 :use .list
 :use .streams
 
+def [][.List](key)
+  self:at(key)
+end
+
 def each[.List]
   self:len == 0 and return
 
@@ -17,19 +21,15 @@ def <<[.List](other)
   self
 end
 
-def list.collect[](msg, cb?)
+def list.collect[](msg, *p)
   def l = :list.new
 
-  *args, suspense = self:(msg)
+  *args, suspense = self:(msg)(p:splat)
 
   loop
     ?suspense == .Suspense or break
 
-    cb? then
-      l:push!(cb?(args:splat))
-    end else 
-      l:push!(args:splat)    
-    end
+    l:push!(args:splat)    
 
     *args, suspense = suspense()
   end

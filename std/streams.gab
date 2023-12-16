@@ -1,6 +1,15 @@
 :use .any
 :use .records
 
+def apply[.Block](*stream)
+  *args, s = stream
+
+  s:is? .Suspense and loop
+      self(args:splat)            
+      *args, s = s()
+  until not s:is? .Suspense end
+end
+
 def for[](msg, *p, cb)
   *args, s = self:(msg)(p:splat)
 
@@ -10,12 +19,21 @@ def for[](msg, *p, cb)
   until not s:is? .Suspense end
 end
 
-def take[](msg, *p, n)
-  i, store = 0, :tuple.new(n)
+def map[](msg, *p, cb)
   *args, s = self:(msg)(p:splat)
 
   s:is? .Suspense and loop
-      store[i] = args
+      yield cb(args:splat)
+      *args, s = s()
+  until not s:is? .Suspense end
+end
+
+def take[](msg, *p, n)
+  i, store = 0, :list.new
+  *args, s = self:(msg)(p:splat)
+
+  s:is? .Suspense and loop
+      store:push!(args:splat)
       *args, s = s()
       i = i + 1
   until i == n or not s:is? .Suspense end
