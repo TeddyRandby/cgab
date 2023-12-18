@@ -458,7 +458,7 @@ gab_value gab_recordwith(struct gab_triple gab, gab_value rec, gab_value key,
   self->shape = shp;
   self->len = shape->len;
 
-  memcpy(self->data, obj->data, shape->len * sizeof(gab_value));
+  memcpy(self->data, obj->data, obj->len * sizeof(gab_value));
 
   self->data[self->len - 1] = value;
 
