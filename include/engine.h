@@ -30,8 +30,7 @@ static const char *gab_token_names[] = {
 struct gab_gc {
   v_gab_obj decrements;
   v_gab_obj modifications;
-  size_t nreserve;
-  bool running;
+  bool locked, running;
 };
 
 void gab_gccreate(struct gab_gc *gc);

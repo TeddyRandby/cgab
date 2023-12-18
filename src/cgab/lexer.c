@@ -498,6 +498,11 @@ void gab_srcdestroy(struct gab_src *self) {
   v_s_char_destroy(&self->token_srcs);
   v_uint64_t_destroy(&self->token_lines);
 
+  v_gab_value_destroy(&self->constants);
+
+  v_uint8_t_destroy(&self->bytecode);
+  v_uint64_t_destroy(&self->bytecode_toks);
+
   DESTROY(self);
 }
 

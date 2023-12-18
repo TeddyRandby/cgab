@@ -1359,7 +1359,7 @@ CASE_CODE(PACK) {
 CASE_CODE(RECORD) {
   uint8_t len = READ_BYTE;
 
-  gab_gcreserve(gab, 2);
+  gab_gclock(gab.gc);
 
   gab_value shape = gab_shape(GAB(), 2, len, TOP() - len * 2);
 
@@ -1369,13 +1369,15 @@ CASE_CODE(RECORD) {
 
   PUSH(rec);
 
+  gab_gcunlock(gab.gc);
+
   NEXT();
 }
 
 CASE_CODE(TUPLE) {
   uint64_t len = compute_arity(VAR(), READ_BYTE);
 
-  gab_gcreserve(gab, 2);
+  gab_gclock(gab.gc);
 
   gab_value shape = gab_nshape(GAB(), len);
 
@@ -1384,6 +1386,8 @@ CASE_CODE(TUPLE) {
   DROP_N(len);
 
   PUSH(rec);
+
+  gab_gcunlock(gab.gc);
 
   NEXT();
 }

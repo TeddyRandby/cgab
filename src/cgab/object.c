@@ -21,7 +21,7 @@ struct gab_obj *gab_obj_create(struct gab_triple gab, size_t sz,
   self->flags = fGAB_OBJ_NEW;
 
 #if cGAB_LOG_GC
-  printf("CREATE\t%p\t%lu\t%d\n", self, sz, k);
+  printf("CREATE\t%p\t%lu\t%d\n", (void*)self, sz, k);
 #endif
 
   gab_gcdref(gab, __gab_obj(self));
@@ -332,7 +332,7 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
   if (interned)
     return __gab_obj(interned);
 
-  gab_gcreserve(gab, 3);
+  gab_gclock(gab.gc);
 
   struct gab_obj_message *self = GAB_CREATE_OBJ(gab_obj_message, kGAB_MESSAGE);
 
@@ -342,6 +342,8 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
   self->specs = gab_etuple(gab, 0);
 
   d_messages_insert(&gab.eg->interned_messages, self, 0);
+
+  gab_gcunlock(gab.gc);
 
   return __gab_obj(self);
 }
@@ -409,7 +411,9 @@ gab_value gab_shapewith(struct gab_triple gab, gab_value shape, gab_value key) {
       gab_eg_find_shape(gab.eg, self->len, 1, hash, self->data);
 
   if (interned) {
-    free(self);
+// NOTE: We don't free the intermediate self shape, even if we hit the cache.
+// We queued a decrement for it already when it was created, so we can let it
+// clean up that way.
     return __gab_obj(interned);
   }
 
@@ -448,6 +452,8 @@ gab_value gab_recordwith(struct gab_triple gab, gab_value rec, gab_value key,
   assert(gab_valkind(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
 
+  gab_gclock(gab.gc);
+
   gab_value shp = gab_shapewith(gab, obj->shape, key);
   assert(gab_valkind(shp) == kGAB_SHAPE);
   struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(shp);
@@ -461,6 +467,8 @@ gab_value gab_recordwith(struct gab_triple gab, gab_value rec, gab_value key,
   memcpy(self->data, obj->data, obj->len * sizeof(gab_value));
 
   self->data[self->len - 1] = value;
+
+  gab_gclock(gab.gc);
 
   return __gab_obj(self);
 }

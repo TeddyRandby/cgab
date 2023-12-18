@@ -249,7 +249,7 @@ void __gab_ngciref(struct gab_triple gab, size_t stride, size_t len,
 void gab_ngciref(struct gab_triple gab, size_t stride, size_t len,
                  gab_value values[len]) {
 #endif
-  gab_gcreserve(gab, len);
+  gab_gclock(gab.gc);
 
   for (size_t i = 0; i < len; i++) {
     gab_value value = values[i * stride];
@@ -260,6 +260,8 @@ void gab_ngciref(struct gab_triple gab, size_t stride, size_t len,
     gab_gciref(gab, value);
 #endif
   }
+
+  gab_gcunlock(gab.gc);
 }
 
 #if cGAB_LOG_GC
@@ -270,7 +272,7 @@ void gab_ngcdref(struct gab_triple gab, size_t stride, size_t len,
                  gab_value values[len]) {
 #endif
 
-  gab_gcreserve(gab, len);
+  gab_gclock(gab.gc);
 
   for (size_t i = 0; i < len; i++) {
     gab_value value = values[i * stride];
@@ -281,6 +283,8 @@ void gab_ngcdref(struct gab_triple gab, size_t stride, size_t len,
     gab_gcdref(gab, value);
 #endif
   }
+
+  gab_gcunlock(gab.gc);
 }
 
 #if cGAB_LOG_GC
@@ -390,7 +394,7 @@ void gab_gccreate(struct gab_gc *gc) {
   v_gab_obj_create(&gc->decrements, cGAB_GC_DEC_BUFF_MAX);
   v_gab_obj_create(&gc->modifications, cGAB_GC_MOD_BUFF_MAX);
   gc->running = false;
-  gc->nreserve = 0;
+  gc->locked = false;
 };
 
 void gab_gcdestroy(struct gab_gc *gc) {
@@ -675,25 +679,14 @@ void collect_cycles(struct gab_triple gab) {
   collect_roots(gab);
 }
 
-void gab_gcreserve(struct gab_triple gab, size_t n) {
-  gab.gc->nreserve += n;
-
-  if (!gab.gc->running &&
-      ((gab.gc->modifications.len + n) >= cGAB_GC_MOD_BUFF_MAX ||
-       (gab.gc->decrements.len + n) >= cGAB_GC_DEC_BUFF_MAX)) {
-    gab_gcrun(gab);
-    return;
-  };
-}
+void gab_gclock(struct gab_gc *gc) { gc->locked = true; }
+void gab_gcunlock(struct gab_gc *gc) { gc->locked = false; }
 
 void gab_gcrun(struct gab_triple gab) {
-  gab.gc->running = true;
-
-  if (gab.gc->nreserve > 0)
-    gab.gc->nreserve -= 1;
-
-  if (gab.gc->nreserve)
+  if (gab.gc->locked)
     return;
+
+  gab.gc->running = true;
 
   if (gab.vm != NULL)
     increment_reachable(gab);
@@ -702,9 +695,9 @@ void gab_gcrun(struct gab_triple gab) {
 
   process_decrements(gab);
 
-  collect_modifications(gab);
-
   collect_cycles(gab);
+
+  collect_modifications(gab);
 
   if (gab.vm != NULL)
     decrement_reachable(gab);

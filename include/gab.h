@@ -619,7 +619,8 @@ void gab_ngcdref(struct gab_triple gab, size_t stride, size_t len,
  */
 void gab_gcrun(struct gab_triple gab);
 
-void gab_gcreserve(struct gab_triple gab, size_t n);
+void gab_gclock(struct gab_gc *gc);
+void gab_gcunlock(struct gab_gc *gc);
 /**
  * # Get the kind of a value.
  * @see enum gab_kind

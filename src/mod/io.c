@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 void file_cb(size_t len, unsigned char data[static len]) {
-  fclose((void *)data);
+  fclose(*(FILE**)data);
 }
 
 void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {

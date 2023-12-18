@@ -198,26 +198,6 @@ struct gab_triple gab_create() {
 void gab_destroy(struct gab_triple gab) {
   gab_ngcdref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
 
-  while (gab.eg->sources) {
-    struct gab_src *s = gab.eg->sources;
-    gab.eg->sources = s->next;
-    gab_srcdestroy(s);
-  }
-
-  // while (gab.eg->prototypes) {
-  //   gab_ngcdref(gab, 1, gab.eg->prototypes->constants.len,
-  //               gab.eg->prototypes->constants.data);
-  //
-  //   gab.eg->prototypes = gab.eg->prototypes->next;
-  // }
-
-  // for (size_t i = 0; i < gab.eg->interned_messages.cap; i++) {
-  //   if (d_messages_iexists(&gab.eg->interned_messages, i)) {
-  //     gab_gcdref(gab,
-  //                __gab_obj(d_messages_ikey(&gab.eg->interned_messages, i)));
-  //   };
-  // }
-
   gab_gcrun(gab);
 
   gab_gcdestroy(gab.gc);
@@ -226,6 +206,12 @@ void gab_destroy(struct gab_triple gab) {
     if (d_gab_imp_iexists(&gab.eg->imports, i)) {
       gab_impdestroy(gab.eg, gab.gc, d_gab_imp_ival(&gab.eg->imports, i));
     }
+  }
+
+  while (gab.eg->sources) {
+    struct gab_src *s = gab.eg->sources;
+    gab.eg->sources = s->next;
+    gab_srcdestroy(s);
   }
 
   d_strings_destroy(&gab.eg->interned_strings);
@@ -335,21 +321,28 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
 
 int gab_nspec(struct gab_triple gab, size_t len,
               struct gab_spec_argt args[static len]) {
-  gab_gcreserve(gab, len * 3);
-
+  gab_gclock(gab.gc);
   for (size_t i = 0; i < len; i++) {
     if (gab_spec(gab, args[i]) == gab_undefined) {
+      gab_gcunlock(gab.gc);
       return i;
     }
   }
 
+  gab_gcunlock(gab.gc);
   return -1;
 }
 
 gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
+  gab_gclock(gab.gc);
+
   gab_value n = gab_string(gab, args.name);
   gab_value m = gab_message(gab, n);
-  return gab_msgput(gab, m, args.receiver, args.specialization);
+  gab_msgput(gab, m, args.receiver, args.specialization);
+
+  gab_gcunlock(gab.gc);
+
+  return m;
 }
 
 struct gab_obj_message *gab_eg_find_message(struct gab_eg *self, gab_value name,
@@ -643,14 +636,12 @@ gab_value gab_string(struct gab_triple gab, const char data[static 1]) {
 
 gab_value gab_record(struct gab_triple gab, uint64_t size, gab_value keys[size],
                      gab_value values[size]) {
-  gab_gcreserve(gab, 2);
   gab_value bundle_shape = gab_shape(gab, 1, size, keys);
   return gab_recordof(gab, bundle_shape, 1, values);
 }
 
 gab_value gab_srecord(struct gab_triple gab, uint64_t size,
                       const char *keys[size], gab_value values[size]) {
-  gab_gcreserve(gab, size + 2);
   gab_value value_keys[size];
 
   for (uint64_t i = 0; i < size; i++)
@@ -661,16 +652,21 @@ gab_value gab_srecord(struct gab_triple gab, uint64_t size,
 }
 
 gab_value gab_etuple(struct gab_triple gab, size_t len) {
-  gab_gcreserve(gab, 2);
+  gab_gclock(gab.gc);
   gab_value bundle_shape = gab_nshape(gab, len);
-  return gab_erecordof(gab, bundle_shape);
+  gab_value v = gab_erecordof(gab, bundle_shape);
+  gab_gcunlock(gab.gc);
+  return v;
 }
 
 gab_value gab_tuple(struct gab_triple gab, uint64_t size,
                     gab_value values[size]) {
-  gab_gcreserve(gab, 2);
+  gab_gclock(gab.gc);
+
   gab_value bundle_shape = gab_nshape(gab, size);
-  return gab_recordof(gab, bundle_shape, 1, values);
+  gab_value v = gab_recordof(gab, bundle_shape, 1, values);
+  gab_gcunlock(gab.gc);
+  return v;
 }
 
 void gab_verr(struct gab_err_argt args, va_list varargs) {
