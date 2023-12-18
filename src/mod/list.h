@@ -48,6 +48,17 @@ static inline gab_value list_at(gab_value self, uint64_t offset) {
   return v_gab_value_val_at(data, offset);
 }
 
+static inline gab_value list_replace(gab_value self, gab_value other) {
+  v_gab_value *data = gab_boxdata(self);
+  v_gab_value *other_data = gab_boxdata(other);
+
+  v_gab_value_cap(data, other_data->cap);
+  data->len = other_data->len;
+  memcpy(data->data, other_data->data, data->len * sizeof(gab_value));
+
+  return self;
+}
+
 static inline gab_value list_create_empty(struct gab_triple gab, uint64_t len) {
   v_gab_value data = {};
   v_gab_value_create(&data, len);

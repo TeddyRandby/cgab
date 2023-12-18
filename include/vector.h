@@ -75,6 +75,13 @@ LINKAGE T METHOD(val_at)(TYPENAME *self, uint64_t index) {
   return self->data[index];
 }
 
+LINKAGE void METHOD(cap)(TYPENAME* self, size_t cap) {
+  if (self->cap < cap) {
+    self->data = GROW(T, self->data, MAX(8, cap));
+    self->cap = cap;
+  }
+}
+
 LINKAGE T *METHOD(emplace)(TYPENAME *self) {
   if (self->len >= self->cap) {
     self->data = GROW(T, self->data, MAX(8, self->cap * 2));

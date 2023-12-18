@@ -201,7 +201,7 @@ static inline bool call_suspense(struct gab_vm *vm,
 
   vm->fp++;
   vm->fp->b = GAB_VAL_TO_BLOCK(sus->b);
-  vm->fp->ip = proto->src->bytecode.data + proto->offset;
+  vm->fp->ip = proto->src->bytecode.data + proto->begin;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
 
@@ -236,14 +236,12 @@ static inline bool call_block(struct gab_vm *vm, struct gab_obj_block *b,
   bool wants_var = p->as.block.narguments == VAR_EXP;
   size_t len = (wants_var ? have : p->as.block.narguments) + 1;
 
-  assert(p->as.block.nslots >= len);
-
   if (!has_callspace(vm, p->as.block.nslots - len - 1))
     return false;
 
   vm->fp++;
   vm->fp->b = b;
-  vm->fp->ip = p->src->bytecode.data + p->offset;
+  vm->fp->ip = p->src->bytecode.data + p->begin;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
 
@@ -811,14 +809,16 @@ CASE_CODE(SEND_PRIMITIVE_EQ) {
 }
 
 CASE_CODE(SEND_MONO_PROPERTY) {
-  SKIP_SHORT;
+  gab_value m = READ_CONSTANT;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   SKIP_BYTE;
-  SKIP_QWORD;
-  SKIP_QWORD;
+  gab_value cached_specs = *READ_QWORD;
+  gab_value cached_type = *READ_QWORD;
   uint64_t prop_offset = *READ_QWORD;
 
   gab_value index = PEEK_N(have + 1);
+
+  SEND_CACHE_GUARD(cached_type, index, cached_specs, m)
 
   switch (have) {
   case 0:

@@ -7,8 +7,7 @@ def match[](cases, fallback?)
     case == self then
       branch = cases[case]
 
-      ?branch == .Block   and return branch(self)
-      ?branch == .Message and return self:(branch)
+      return branch(self)
 
       break .INVALID_ARGUMENTS:panic
     end
@@ -16,5 +15,7 @@ def match[](cases, fallback?)
     case = cases:next(case)
   until not case end
 
-  fallback? and fallback?(self)
+  fallback? or 'MISSING_CASE: {self}':panic
+
+  fallback?(self)
 end

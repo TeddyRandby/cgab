@@ -922,7 +922,7 @@ static gab_value pop_ctxframe(struct bc *bc) {
   uint8_t nargs = f->narguments;
   uint8_t nlocals = f->nlocals;
 
-  gab_value p = gab_bprototype(gab(bc), bc->src, f->name, f->offset,
+  gab_value p = gab_bprototype(gab(bc), bc->src, f->name, f->offset, bc->src->bytecode.len,
                                (struct gab_blkproto_argt){
                                    .nslots = nslots,
                                    .nlocals = nlocals,
@@ -1172,8 +1172,8 @@ static int compile_local(struct bc *bc, gab_value name, uint8_t flags) {
 }
 
 int compile_parameters(struct bc *bc) {
-  int mv = -1;
-  int result = 0;
+  //Somehow track below and above for packing
+  int below = -1, result = 0;
   uint8_t narguments = 0;
 
   if (push_ctx(bc, kTUPLE) < 0)
@@ -1195,14 +1195,13 @@ int compile_parameters(struct bc *bc) {
 
     switch (match_and_eat_token(bc, TOKEN_STAR)) {
     case COMP_OK:
-      if (mv >= 0) {
+      if (below >= 0) {
         compiler_error(bc, GAB_UNEXPECTED_TOKEN,
                        "Multiple variadic parameters");
         return COMP_ERR;
       }
 
-      narguments--;
-      mv = narguments;
+      below = --narguments;
       // falthrough
 
     case COMP_TOKEN_NO_MATCH: {
@@ -1245,13 +1244,14 @@ fin:
   if (pop_ctx(bc, kTUPLE) < 0)
     return COMP_ERR;
 
-  if (mv >= 0)
-    push_pack(bc, 0, mv, mv, narguments - mv, bc->offset - 1);
+  if (below >= 0) {
+    push_pack(bc, 0, true, below, narguments - below, bc->offset - 1);
+  }
 
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;
 
-  f->narguments = mv >= 0 ? VAR_EXP : narguments;
+  f->narguments = below >= 0 ? VAR_EXP : narguments;
   return f->narguments;
 }
 
@@ -2664,7 +2664,7 @@ int compile_exp_dyn(struct bc *bc, bool assignable) {
     return COMP_ERR;
   }
 
-  pop_slot(bc, result + 1);
+  pop_slot(bc, result + 1 + mv);
 
   push_dynsend(bc, result, mv, t);
 
@@ -2727,7 +2727,7 @@ int compile_exp_cal(struct bc *bc, bool assignable) {
     return COMP_ERR;
   }
 
-  pop_slot(bc, result + 1);
+  pop_slot(bc, result + 1 + mv);
 
   uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
 
@@ -3506,8 +3506,8 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
 }
 
 int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *proto) {
-  uint64_t offset = proto->offset;
-  while (offset < proto->src->bytecode.len) {
+  uint64_t offset = proto->begin;
+  while (offset < proto->as.block.end) {
     fprintf(stream, ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);
     offset = dumpInstruction(stream, proto, offset);
   }

@@ -8,3 +8,5 @@ def is_n?[.Number]; true end
 
 def is_s?[]       ; false end
 def is_s?[.String]; true end
+
+def to_b[]; self end

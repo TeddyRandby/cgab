@@ -34,13 +34,14 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   }
 }
 
-void gab_lib_to_bytes(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+void gab_lib_to_bytes(struct gab_triple gab, size_t argc,
+                      gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, "Invalid call to gab_lib_to_bytes");
     return;
   }
 
-  v_gab_value* bytes = gab_boxdata(argv[0]);
+  v_gab_value *bytes = gab_boxdata(argv[0]);
 
   char buffer[bytes->len];
 
@@ -56,7 +57,7 @@ void gab_lib_to_bytes(struct gab_triple gab, size_t argc, gab_value argv[argc]) 
       gab_panic(gab, "Invalid call to gab_lib_to_bytes");
       return;
     }
-    
+
     buffer[i] = val;
   }
 
@@ -92,7 +93,7 @@ void gab_lib_pop(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
 void gab_lib_push(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc < 2) {
-    gab_panic(gab, "Invalid call to gab_lib_len");
+    gab_panic(gab, "Invalid call to gab_lib_push");
     return;
   }
 
@@ -131,13 +132,35 @@ void gab_lib_del(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 void gab_lib_splat(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 1: {
-    v_gab_value* v = gab_boxdata(argv[0]);
-    gab_nvmpush(gab.vm, v->len, v->data); 
+    v_gab_value *v = gab_boxdata(argv[0]);
+    gab_nvmpush(gab.vm, v->len, v->data);
     break;
-    }
+  }
 
   default:
     gab_panic(gab, "Invalid call to gab_lib_put");
+    return;
+  }
+}
+
+void gab_lib_set(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  switch (argc) {
+  case 2:
+    if (gab_valkind(argv[1]) != kGAB_BOX) {
+      gab_panic(gab, "Invalid call to gab_lib_set");
+      return;
+    }
+
+    if (gab_boxtype((argv[1])) != gab_string(gab, "List")) {
+      gab_panic(gab, "Invalid call to gab_lib_set");
+      return;
+    }
+
+    list_replace(argv[0], argv[1]);
+    break;
+
+  default:
+    gab_panic(gab, "Invalid call to gab_lib_set");
     return;
   }
 
@@ -256,6 +279,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "put!",
           type,
           gab_snative(gab, "put", gab_lib_put),
+      },
+      {
+          "replace!",
+          type,
+          gab_snative(gab, "set", gab_lib_set),
       },
       {
           "splat",

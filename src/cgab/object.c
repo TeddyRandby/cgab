@@ -10,7 +10,7 @@
 
 #define GAB_CREATE_FLEX_OBJ(obj_type, flex_type, flex_count, kind)             \
   ((struct obj_type *)gab_obj_create(                                          \
-      gab, sizeof(struct obj_type) + sizeof(flex_type) * flex_count, kind))
+      gab, sizeof(struct obj_type) + sizeof(flex_type) * (flex_count), kind))
 
 struct gab_obj *gab_obj_create(struct gab_triple gab, size_t sz,
                                enum gab_kind k) {
@@ -301,15 +301,16 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
 };
 
 gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
-                         gab_value name, size_t offset,
+                         gab_value name, size_t begin, size_t end,
                          struct gab_blkproto_argt args) {
   struct gab_obj_prototype *self = GAB_CREATE_FLEX_OBJ(
       gab_obj_prototype, uint8_t, args.nupvalues * 2, kGAB_BPROTOTYPE);
 
   self->src = src;
   self->name = name;
-  self->offset = offset;
+  self->begin = begin;
   self->len = args.nupvalues * 2;
+  self->as.block.end = end;
   self->as.block.nslots = args.nslots;
   self->as.block.nlocals = args.nlocals;
   self->as.block.nupvalues = args.nupvalues;
@@ -395,6 +396,7 @@ gab_value gab_shapewith(struct gab_triple gab, gab_value shape, gab_value key) {
 
   struct gab_obj_shape *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_shape, gab_value, obj->len + 1, kGAB_SHAPE);
+
   memcpy(self->data, obj->data, obj->len * sizeof(gab_value));
   self->data[obj->len] = key;
   self->len = obj->len + 1;
@@ -456,8 +458,7 @@ gab_value gab_recordwith(struct gab_triple gab, gab_value rec, gab_value key,
   self->shape = shp;
   self->len = shape->len;
 
-  for (uint64_t i = 0; i < shape->len; i++)
-    self->data[i] = obj->data[i];
+  memcpy(self->data, obj->data, shape->len * sizeof(gab_value));
 
   self->data[self->len - 1] = value;
 
@@ -516,13 +517,13 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
 }
 
 gab_value gab_sprototype(struct gab_triple gab, struct gab_src *src,
-                         gab_value name, uint64_t offset, uint8_t want) {
+                         gab_value name, size_t begin, uint8_t want) {
   struct gab_obj_prototype *self =
       GAB_CREATE_OBJ(gab_obj_prototype, kGAB_SPROTOTYPE);
 
   self->src = src;
   self->name = name;
-  self->offset = offset;
+  self->begin = begin;
   self->len = 0;
   self->as.suspense.want = want;
 

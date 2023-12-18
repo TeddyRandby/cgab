@@ -89,16 +89,14 @@ enum gab_kind {
 
 #define __GAB_VAL_TAG(val) ((enum gab_kind)((val)&__GAB_TAGMASK))
 
-union __gabvaldunion { double number; gab_value value; };
-
+// Idk what the best way is to convert these back to a float type.
+// Breaking strict aliasing isn't great.
 static inline double __gab_valtod(gab_value value) {
-  union __gabvaldunion u = { value };
-  return u.number;
+  return *(double *)(&value);
 }
 
 static inline gab_value __gab_dtoval(double value) {
-  union __gabvaldunion u = { value };
-  return u.value;
+  return *(gab_value *)(&value);
 }
 
 #define __gab_valisn(val) (((val)&__GAB_QNAN) != __GAB_QNAN)
@@ -1215,13 +1213,14 @@ struct gab_obj_prototype {
   /* The compiled source file */
   struct gab_src *src;
 
-  size_t offset;
+  size_t begin;
 
   /* The length of the variable sized data member, in bytes. */
   size_t len;
 
   union {
     struct {
+      size_t end;
       unsigned char narguments, nupvalues, nslots, nlocals;
     } block;
 
@@ -1250,7 +1249,7 @@ struct gab_blkproto_argt {
  * @return The new block prototype object.
  */
 gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
-                         gab_value name, size_t offset,
+                         gab_value name, size_t begin, size_t end,
                          struct gab_blkproto_argt args);
 
 /**
@@ -1263,7 +1262,7 @@ gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
  * @param want The number of values the block wants.
  */
 gab_value gab_sprototype(struct gab_triple gab, struct gab_src *src,
-                         gab_value name, size_t offset, uint8_t want);
+                         gab_value name, size_t begin, uint8_t want);
 
 /**
  * A suspense object, which holds the state of a suspended coroutine.
@@ -1589,7 +1588,7 @@ static inline gab_value gab_type(struct gab_eg *gab, enum gab_kind k) {
 
 static inline struct gab_egimpl_rest
 gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
-  size_t offset;
+  size_t offset = GAB_PROPERTY_NOT_FOUND;
   gab_value type = gab_valtype(eg, receiver);
 
   if (gab_valhasp(receiver)) {
@@ -1657,7 +1656,7 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
   case kGAB_PRIMITIVE:
     return gab_string(gab, gab_opcode_names[gab_valtop(self)]);
   case kGAB_NUMBER: {
-    snprintf(buffer, 24, "%g", gab_valton(self));
+    snprintf(buffer, 128, "%lf", gab_valton(self));
     return gab_string(gab, buffer);
   }
   case kGAB_BLOCK: {

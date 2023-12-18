@@ -28,19 +28,30 @@ def from[.Number](src)
 end
 
 def to[.Number](dest)
-  { self, dest, t = ?dest }:print
   ?dest :match {
       [nil]  = do; { to = self }             end,
       Number = do; { from = self, to = dest } end
   } do; .INVALID_ARGUMENTS:panic end
 end
 
-def clamp[.Number](arg)
-  ?arg :match {
-      [?{ from, to }] = do;
-        self < arg:from and arg:from or
-        self > arg:to   and arg:to   or
-        self
-      end
-  } do; .INVALID_ARGUMENTS:panic end
+def num.min[](*nums)
+  sofar, i, done = 9999999999999, 0, nums:len
+
+  loop
+    nums[i] < sofar and (sofar = nums[i])
+    i = i + 1
+  until i == done end
+
+  sofar
+end
+
+def num.max[](*nums)
+  sofar, i, done = -9999999999999, 0, nums:len
+
+  loop
+    nums[i] > sofar and (sofar = nums[i])
+    i = i + 1
+  until i == done end
+
+  sofar
 end
