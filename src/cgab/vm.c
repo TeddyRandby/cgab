@@ -557,8 +557,6 @@ CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
 
   STORE_FRAME();
 
-  gab_fvminspect(stdout, VM(), 0);
-
   call_native(GAB(), GAB_VAL_TO_NATIVE(receiver), have, want, false);
 
   LOAD_FRAME();
@@ -775,6 +773,8 @@ CASE_CODE(SEND_PRIMITIVE_CONCAT) {
     ERROR(GAB_NOT_STRING, "Found %V %V", gab_valtype(EG(), PEEK()), PEEK());
   }
 
+  STORE_FRAME();
+
   gab_value b = POP();
   gab_value a = POP();
   gab_value ab = gab_strcat(GAB(), a, b);
@@ -853,6 +853,8 @@ CASE_CODE(SEND_MONO_PROPERTY) {
                                                                                \
     VM()->fp = FRAME() - 1;                                                    \
                                                                                \
+    LOAD_FRAME();                                                              \
+                                                                               \
     if (VM()->fp == VM()->fb) {                                                \
       a_gab_value *results = a_gab_value_empty(have + 1);                      \
       results->data[0] = gab_string(gab, "ok");                                \
@@ -868,8 +870,6 @@ CASE_CODE(SEND_MONO_PROPERTY) {
                                                                                \
       return results;                                                          \
     }                                                                          \
-                                                                               \
-    LOAD_FRAME();                                                              \
   })
 
 CASE_CODE(YIELD) {
@@ -878,6 +878,7 @@ CASE_CODE(YIELD) {
 
   uint64_t frame_len = TOP() - SLOTS() - have;
 
+  STORE_FRAME();
   gab_value sus =
       gab_suspense(GAB(), __gab_obj(BLOCK()), proto, frame_len, SLOTS());
 
@@ -942,6 +943,7 @@ CASE_CODE(SWAP) {
 
 CASE_CODE(INTERPOLATE) {
   uint8_t n = READ_BYTE;
+  STORE_FRAME();
   gab_value str = gab_valintos(GAB(), PEEK_N(n));
 
   for (uint8_t i = n - 1; i > 0; i--) {
@@ -1262,6 +1264,7 @@ CASE_CODE(LOOP) {
 CASE_CODE(BLOCK) {
   gab_value p = READ_CONSTANT;
 
+  STORE_FRAME();
   gab_value blk = gab_block(GAB(), p);
 
   struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
@@ -1288,6 +1291,7 @@ CASE_CODE(MESSAGE) {
   gab_value m = READ_CONSTANT;
   gab_value r = PEEK();
 
+  STORE_FRAME();
   gab_value blk = gab_block(GAB(), p);
 
   struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
@@ -1330,6 +1334,8 @@ CASE_CODE(PACK) {
 
   gab_value *ap = TOP() - above;
 
+  STORE_FRAME();
+
   gab_value rec = gab_tuple(GAB(), len, ap - len);
 
   DROP_N(len - 1);
@@ -1361,6 +1367,8 @@ CASE_CODE(RECORD) {
 
   gab_gclock(gab.gc);
 
+  STORE_FRAME();
+
   gab_value shape = gab_shape(GAB(), 2, len, TOP() - len * 2);
 
   gab_value rec = gab_recordof(GAB(), shape, 2, TOP() + 1 - (len * 2));
@@ -1378,6 +1386,8 @@ CASE_CODE(TUPLE) {
   uint64_t len = compute_arity(VAR(), READ_BYTE);
 
   gab_gclock(gab.gc);
+
+  STORE_FRAME();
 
   gab_value shape = gab_nshape(GAB(), len);
 

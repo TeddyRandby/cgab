@@ -468,7 +468,7 @@ gab_value gab_recordwith(struct gab_triple gab, gab_value rec, gab_value key,
 
   self->data[self->len - 1] = value;
 
-  gab_gclock(gab.gc);
+  gab_gcunlock(gab.gc);
 
   return __gab_obj(self);
 }

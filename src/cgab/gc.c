@@ -3,16 +3,8 @@
 #include "gab.h"
 #include <stdio.h>
 
-#if cGAB_DEBUG_GC
-static bool debug_collect = true;
-#endif
-
 static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
                                 struct gab_triple gab) {
-#if cGAB_DEBUG_GC
-  debug_collect = false;
-#endif
-
   switch (obj->kind) {
   default:
     break;
@@ -85,10 +77,6 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
 
     break;
   }
-
-#if cGAB_DEBUG_GC
-    debug_collect = true;
-#endif
   }
 }
 
@@ -169,7 +157,7 @@ static inline void queue_modification(struct gab_triple gab,
     gab_gcrun(gab);
 
 #if cGAB_DEBUG_GC
-  if (debug_collect)
+  else if (!gab.gc->running)
     gab_gcrun(gab);
 #endif
 
@@ -185,9 +173,13 @@ static inline void queue_modification(struct gab_triple gab,
 void queue_decrement(struct gab_triple gab, struct gab_obj *obj) {
   if (!gab.gc->running && (gab.gc->decrements.len + 1 >= cGAB_GC_DEC_BUFF_MAX))
     gab_gcrun(gab);
+#if cGAB_DEBUG_GC
+  else if (!gab.gc->running)
+    gab_gcrun(gab);
+#endif
 
 #if cGAB_DEBUG_GC
-  if (debug_collect)
+  else if (!gab.gc->running)
     gab_gcrun(gab);
 #endif
 
@@ -402,42 +394,29 @@ void gab_gcdestroy(struct gab_gc *gc) {
   v_gab_obj_destroy(&gc->decrements);
 }
 
-static inline void inc_if_obj_ref(struct gab_triple gab, gab_value val) {
-  if (gab_valiso(val))
-    inc_obj_ref(gab, gab_valtoo(val));
-}
-
 static inline void increment_reachable(struct gab_triple gab) {
-#if cGAB_DEBUG_GC
-  debug_collect = false;
-#endif
-
   size_t stack_size = gab.vm->sp - gab.vm->sb;
 
   for (size_t i = 0; i <= stack_size; i++) {
-    inc_if_obj_ref(gab, gab.vm->sb[i]);
+    if (gab_valiso(gab.vm->sb[i])) {
+      struct gab_obj *o = gab_valtoo(gab.vm->sb[i]);
+      printf("REACHINC\t%p\n", o);
+      inc_obj_ref(gab, o);
+    }
   }
-
-#if cGAB_DEBUG_GC
-  debug_collect = true;
-#endif
 }
 
 static inline void decrement_reachable(struct gab_triple gab) {
-#if cGAB_DEBUG_GC
-  debug_collect = false;
-#endif
-
   size_t stack_size = gab.vm->sp - gab.vm->sb;
 
   for (size_t i = 0; i <= stack_size; i++) {
-    if (gab_valiso(gab.vm->sb[i]))
-      queue_decrement(gab, gab_valtoo(gab.vm->sb[i]));
+    if (gab_valiso(gab.vm->sb[i])) {
+      struct gab_obj *o = gab_valtoo(gab.vm->sb[i]);
+      printf("REACHDEC\t%p\n", o);
+      // queue_decrement(gab, o);
+      gab_gcdref(gab, gab.vm->sb[i]);
+    }
   }
-
-#if cGAB_DEBUG_GC
-  debug_collect = true;
-#endif
 }
 
 static inline void process_modifications(struct gab_triple gab) {
@@ -493,9 +472,13 @@ static inline void collect_modifications(struct gab_triple gab) {
 }
 
 static inline void process_decrements(struct gab_triple gab) {
-  while (gab.gc->decrements.len)
-    dec_obj_ref(gab, v_gab_obj_pop(&gab.gc->decrements));
+  while (gab.gc->decrements.len) {
+    struct gab_obj *o = v_gab_obj_pop(&gab.gc->decrements);
+    printf("PROCDEC\t%p\n", o);
+    dec_obj_ref(gab, o);
+  }
 }
+
 static inline void mark_gray(struct gab_triple gab, struct gab_obj *obj);
 
 static inline void dec_and_mark_gray(struct gab_triple gab,
@@ -679,8 +662,8 @@ void collect_cycles(struct gab_triple gab) {
   collect_roots(gab);
 }
 
-void gab_gclock(struct gab_gc *gc) { gc->locked = true; }
-void gab_gcunlock(struct gab_gc *gc) { gc->locked = false; }
+void gab_gclock(struct gab_gc *gc) { gc->locked += 1; }
+void gab_gcunlock(struct gab_gc *gc) { gc->locked -= 1; }
 
 void gab_gcrun(struct gab_triple gab) {
   if (gab.gc->locked)

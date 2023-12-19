@@ -7,7 +7,7 @@ def string.new[](*args)
 end
 
 def [][.String](opts)
-    ?opts :match {
+    (?opts) :match {
         [?{ from, to }] = do; self:slice(opts:from, opts:to) end,
         [?{ from }   ]  = do; self:slice(opts:from)          end,
         [?{ to }     ]  = do; self:slice(nil, opts:to)       end,
