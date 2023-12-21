@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 void file_cb(size_t len, unsigned char data[static len]) {
-  fclose(*(FILE**)data);
+  fclose(*(FILE **)data);
 }
 
 void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
@@ -30,7 +30,7 @@ void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
               (struct gab_box_argt){
                   .type = gab_string(gab, "File"),
                   .data = &file,
-                  .size = sizeof(FILE*),
+                  .size = sizeof(FILE *),
                   .destructor = file_cb,
                   .visitor = NULL,
               }),
@@ -45,7 +45,7 @@ void gab_lib_read(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  FILE *file = *(FILE**)gab_boxdata(argv[0]);
+  FILE *file = *(FILE **)gab_boxdata(argv[0]);
 
   fseek(file, 0L, SEEK_END);
   size_t fileSize = ftell(file);
@@ -90,33 +90,25 @@ void gab_lib_write(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  const char *names[] = {
-      "io.open",
-      "read",
-      "write",
+  struct gab_spec_argt specs[] = {
+      {
+          "io.open",
+          gab_undefined,
+          gab_snative(gab, "io.open", gab_lib_open),
+      },
+      {
+          "read",
+          gab_string(gab, "File"),
+          gab_snative(gab, "read", gab_lib_read),
+      },
+      {
+          "write",
+          gab_string(gab, "File"),
+          gab_snative(gab, "write", gab_lib_write),
+      },
   };
 
-  gab_value type = gab_string(gab, "File");
-
-  gab_value receivers[] = {
-      gab_undefined,
-      type,
-      type,
-  };
-
-  gab_value specs[] = {
-      gab_snative(gab, "io.open", gab_lib_open),
-      gab_snative(gab, "read", gab_lib_read),
-      gab_snative(gab, "write", gab_lib_write),
-  };
-
-  for (uint8_t i = 0; i < LEN_CARRAY(specs); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
-                      .name = names[i],
-                      .receiver = receivers[i],
-                      .specialization = specs[i],
-                  });
-  }
+  gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
   return NULL;
 }

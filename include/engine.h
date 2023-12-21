@@ -28,9 +28,8 @@ static const char *gab_token_names[] = {
 #include "vector.h"
 
 struct gab_gc {
-  v_gab_obj decrements;
-  v_gab_obj modifications;
-  bool locked, running;
+  v_gab_obj decrements, increments, roots;
+  int locked;
 };
 
 void gab_gccreate(struct gab_gc *gc);

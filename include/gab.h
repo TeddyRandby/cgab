@@ -107,6 +107,8 @@ static inline gab_value __gab_dtoval(double value) {
 #define gab_valiso(val)                                                        \
   (((val) & (__GAB_QNAN | __GAB_SIGN_BIT)) == (__GAB_QNAN | __GAB_SIGN_BIT))
 
+#define gab_valisnew(val) (gab_valiso(val) && GAB_OBJ_IS_NEW(gab_valtoo(val)))
+
 /* The gab value 'nil'*/
 #define gab_nil ((gab_value)(uint64_t)(__GAB_QNAN | kGAB_NIL))
 
@@ -148,26 +150,28 @@ static inline gab_value __gab_dtoval(double value) {
 #define fGAB_OBJ_BLACK (1 << 1)
 #define fGAB_OBJ_GRAY (1 << 2)
 #define fGAB_OBJ_WHITE (1 << 3)
+#define fGAB_OBJ_PURPLE (1 << 4)
 #define fGAB_OBJ_GREEN (1 << 5)
-#define fGAB_OBJ_MODIFIED (1 << 6)
+#define fGAB_OBJ_BUFFERED (1 << 6)
 #define fGAB_OBJ_NEW (1 << 7)
 #define fGAB_OBJ_FREED (1 << 8) // Used for debug purposes
 
 #define GAB_OBJ_IS_BLACK(obj) ((obj)->flags & fGAB_OBJ_BLACK)
 #define GAB_OBJ_IS_GRAY(obj) ((obj)->flags & fGAB_OBJ_GRAY)
 #define GAB_OBJ_IS_WHITE(obj) ((obj)->flags & fGAB_OBJ_WHITE)
+#define GAB_OBJ_IS_PURPLE(obj) ((obj)->flags & fGAB_OBJ_PURPLE)
 #define GAB_OBJ_IS_GREEN(obj) ((obj)->flags & fGAB_OBJ_GREEN)
-#define GAB_OBJ_IS_MODIFIED(obj) ((obj)->flags & fGAB_OBJ_MODIFIED)
+#define GAB_OBJ_IS_BUFFERED(obj) ((obj)->flags & fGAB_OBJ_BUFFERED)
 #define GAB_OBJ_IS_NEW(obj) ((obj)->flags & fGAB_OBJ_NEW)
 #define GAB_OBJ_IS_FREED(obj) ((obj)->flags & fGAB_OBJ_FREED)
 
-#define GAB_OBJ_MODIFIED(obj) ((obj)->flags |= fGAB_OBJ_MODIFIED)
+#define GAB_OBJ_BUFFERED(obj) ((obj)->flags |= fGAB_OBJ_BUFFERED)
 
 #define GAB_OBJ_NEW(obj) ((obj)->flags |= fGAB_OBJ_NEW)
 
 #define GAB_OBJ_FREED(obj) ((obj)->flags |= fGAB_OBJ_FREED)
 
-#define __KEEP_FLAGS (fGAB_OBJ_MODIFIED | fGAB_OBJ_NEW | fGAB_OBJ_FREED)
+#define __KEEP_FLAGS (fGAB_OBJ_BUFFERED | fGAB_OBJ_NEW | fGAB_OBJ_FREED)
 
 #define GAB_OBJ_GREEN(obj)                                                     \
   ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_GREEN)
@@ -178,10 +182,13 @@ static inline gab_value __gab_dtoval(double value) {
 #define GAB_OBJ_GRAY(obj)                                                      \
   ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_GRAY)
 
+#define GAB_OBJ_PURPLE(obj)                                                    \
+  ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_PURPLE)
+
 #define GAB_OBJ_WHITE(obj)                                                     \
   ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_WHITE)
 
-#define GAB_OBJ_NOT_MODIFIED(obj) ((obj)->flags &= ~fGAB_OBJ_MODIFIED)
+#define GAB_OBJ_NOT_BUFFERED(obj) ((obj)->flags &= ~fGAB_OBJ_BUFFERED)
 #define GAB_OBJ_NOT_NEW(obj) ((obj)->flags &= ~fGAB_OBJ_NEW)
 
 #define T gab_value
@@ -924,14 +931,20 @@ gab_value gab_erecordof(struct gab_triple gab, gab_value shape);
  *
  * @param obj The record object.
  */
-static inline void gab_urecput(gab_value rec, uint64_t offset,
-                               gab_value value) {
+static inline void gab_urecput(struct gab_triple gab, gab_value rec,
+                               uint64_t offset, gab_value value) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
 
   assert(offset < obj->len);
 
+  if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
+    gab_gcdref(gab, obj->data[offset]);
+
   obj->data[offset] = value;
+
+  if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
+    gab_gciref(gab, obj->data[offset]);
 }
 
 /**
@@ -1006,7 +1019,8 @@ static inline gab_value gab_srecat(struct gab_triple gab, gab_value value,
  *
  * @return true if the put was a success, false otherwise.
  */
-static inline bool gab_recput(gab_value rec, gab_value key, gab_value value) {
+static inline bool gab_recput(struct gab_triple gab, gab_value rec,
+                              gab_value key, gab_value value) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
 
@@ -1015,14 +1029,14 @@ static inline bool gab_recput(gab_value rec, gab_value key, gab_value value) {
   if (offset == GAB_PROPERTY_NOT_FOUND)
     return false;
 
-  gab_urecput(rec, offset, value);
+  gab_urecput(gab, rec, offset, value);
 
   return true;
 }
 
 static inline bool gab_srecput(struct gab_triple gab, gab_value value,
                                const char *key, gab_value v) {
-  return gab_recput(value, gab_string(gab, key), v);
+  return gab_recput(gab, value, gab_string(gab, key), v);
 }
 
 /**
@@ -1165,6 +1179,8 @@ static inline gab_value gab_msgat(gab_value msg, gab_value receiver) {
 
 static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg,
                                    gab_value receiver, gab_value spec) {
+  gab_gclock(gab.gc);
+
   assert(gab_valkind(msg) == kGAB_MESSAGE);
   assert(gab_valkind(spec) == kGAB_PRIMITIVE ||
          gab_valkind(spec) == kGAB_BLOCK || gab_valkind(spec) == kGAB_NATIVE);
@@ -1174,7 +1190,15 @@ static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg,
   if (gab_rechas(obj->specs, receiver))
     return gab_undefined;
 
+  if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
+    gab_gcdref(gab, obj->specs);
+
   obj->specs = gab_recordwith(gab, obj->specs, receiver, spec);
+
+  if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
+    gab_gciref(gab, obj->specs);
+
+  gab_gcunlock(gab.gc);
 
   return msg;
 }

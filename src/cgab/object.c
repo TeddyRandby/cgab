@@ -303,6 +303,7 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
 gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
                          gab_value name, size_t begin, size_t end,
                          struct gab_blkproto_argt args) {
+
   struct gab_obj_prototype *self = GAB_CREATE_FLEX_OBJ(
       gab_obj_prototype, uint8_t, args.nupvalues * 2, kGAB_BPROTOTYPE);
 
@@ -417,6 +418,7 @@ gab_value gab_shapewith(struct gab_triple gab, gab_value shape, gab_value key) {
     return __gab_obj(interned);
   }
 
+
   d_shapes_insert(&gab.eg->interned_shapes, self, 0);
 
   return __gab_obj(self);
@@ -526,6 +528,7 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
 
 gab_value gab_sprototype(struct gab_triple gab, struct gab_src *src,
                          gab_value name, size_t begin, uint8_t want) {
+
   struct gab_obj_prototype *self =
       GAB_CREATE_OBJ(gab_obj_prototype, kGAB_SPROTOTYPE);
 

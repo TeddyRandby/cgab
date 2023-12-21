@@ -102,22 +102,22 @@ resource resources[] = {
     },
     // Installed resources
     {
-        .prefix = GAB_PREFIX"/gab/modules/",
+        .prefix = GAB_PREFIX "/gab/modules/",
         .suffix = ".gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = GAB_PREFIX"/gab/modules/",
+        .prefix = GAB_PREFIX "/gab/modules/",
         .suffix = "/mod.gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = GAB_PREFIX"/gab/modules/",
+        .prefix = GAB_PREFIX "/gab/modules/",
         .suffix = "/mod/mod.gab",
         .handler = gab_source_file_handler,
     },
     {
-        .prefix = GAB_PREFIX"/gab/modules/libcgab",
+        .prefix = GAB_PREFIX "/gab/modules/libcgab",
         .suffix = ".so",
         .handler = gab_shared_object_handler,
     },
@@ -186,7 +186,7 @@ void gab_lib_use(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
 void gab_lib_panic(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc == 1) {
-    const char* str = gab_valintocs(gab, argv[0]);
+    const char *str = gab_valintocs(gab, argv[0]);
 
     gab_panic(gab, str);
 
@@ -207,21 +207,37 @@ void gab_lib_print(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_setup_natives(struct gab_triple gab) {
-  gab_spec(gab, (struct gab_spec_argt){
-                    .name = "use",
-                    .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
-                    .specialization = gab_snative(gab, "use", gab_lib_use),
-                });
+  gab_gclock(gab.gc);
 
-  gab_spec(gab, (struct gab_spec_argt){
-                    .name = "panic",
-                    .receiver = gab_type(gab.eg, kGAB_STRING),
-                    .specialization = gab_snative(gab, "panic", gab_lib_panic),
-                });
+  gab_egkeep(
+      gab.eg,
+      gab_gciref(gab,
+                 gab_spec(gab, (struct gab_spec_argt){
+                                   .name = "use",
+                                   .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
+                                   .specialization =
+                                       gab_snative(gab, "use", gab_lib_use),
+                               })));
 
-  gab_spec(gab, (struct gab_spec_argt){
-                    .name = "print",
-                    .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
-                    .specialization = gab_snative(gab, "print", gab_lib_print),
-                });
+  gab_egkeep(
+      gab.eg,
+      gab_gciref(gab,
+                 gab_spec(gab, (struct gab_spec_argt){
+                                   .name = "panic",
+                                   .receiver = gab_type(gab.eg, kGAB_STRING),
+                                   .specialization =
+                                       gab_snative(gab, "panic", gab_lib_panic),
+                               })));
+
+  gab_egkeep(
+      gab.eg,
+      gab_gciref(gab,
+                 gab_spec(gab, (struct gab_spec_argt){
+                                   .name = "print",
+                                   .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
+                                   .specialization =
+                                       gab_snative(gab, "print", gab_lib_print),
+                               })));
+
+  gab_gcunlock(gab.gc);
 }

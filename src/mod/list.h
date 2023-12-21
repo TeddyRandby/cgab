@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 static inline void list_destroy(size_t len, unsigned char data[static len]) {
-  v_gab_value_destroy((void*) data);
+  v_gab_value_destroy((void *)data);
 }
 
 void list_visit(struct gab_triple gab, gab_gcvisit_f v, size_t len,
@@ -21,6 +21,9 @@ static inline gab_value list_put(struct gab_triple gab, gab_value self,
                                  uint64_t offset, gab_value value) {
   v_gab_value *data = gab_boxdata(self);
 
+  if (!gab_valisnew(self))
+    gab_gciref(gab, value);
+
   if (offset >= data->len) {
     uint64_t nils = offset - data->len;
 
@@ -33,10 +36,33 @@ static inline gab_value list_put(struct gab_triple gab, gab_value self,
     goto fin;
   }
 
+  if (!gab_valisnew(self))
+    gab_gcdref(gab, v_gab_value_val_at(data, offset));
+
   v_gab_value_set(data, offset, value);
 
 fin:
   return value;
+}
+
+static inline gab_value list_pop(struct gab_triple gab, gab_value self) {
+  v_gab_value *data = gab_boxdata(self);
+
+  gab_value result = v_gab_value_pop(data);
+
+  if (!gab_valisnew(self))
+    gab_gcdref(gab, result);
+
+  return result;
+}
+
+static inline void list_push(struct gab_triple gab, gab_value self, size_t len,
+                             gab_value values[static len]) {
+  if (!gab_valisnew(self))
+    gab_ngciref(gab, 1, len, values);
+
+  for (uint8_t i = 0; i < len; i++)
+    v_gab_value_push(gab_boxdata(self), values[i]);
 }
 
 static inline gab_value list_at(gab_value self, uint64_t offset) {
@@ -48,9 +74,16 @@ static inline gab_value list_at(gab_value self, uint64_t offset) {
   return v_gab_value_val_at(data, offset);
 }
 
-static inline gab_value list_replace(gab_value self, gab_value other) {
+static inline gab_value list_replace(struct gab_triple gab, gab_value self,
+                                     gab_value other) {
   v_gab_value *data = gab_boxdata(self);
   v_gab_value *other_data = gab_boxdata(other);
+
+  if (!gab_valisnew(self))
+    gab_ngciref(gab, 1, other_data->len, other_data->data);
+
+  if (!gab_valisnew(self))
+    gab_ngcdref(gab, 1, data->len, data->data);
 
   v_gab_value_cap(data, other_data->cap);
   data->len = other_data->len;

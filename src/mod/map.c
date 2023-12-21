@@ -75,7 +75,7 @@ void gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  map_put(argv[0], argv[1], argv[2]);
+  map_put(gab, argv[0], argv[1], argv[2]);
 
   gab_vmpush(gab.vm, *argv);
 
@@ -93,7 +93,7 @@ void gab_lib_add(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  map_put(argv[0], argv[1], argv[2]);
+  map_put(gab, argv[0], argv[1], argv[2]);
   gab_vmpush(gab.vm, gab_string(gab, "ok"));
 
   return;

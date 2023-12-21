@@ -84,7 +84,7 @@ void gab_lib_pop(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  gab_value result = v_gab_value_pop(gab_boxdata(argv[0]));
+  gab_value result = list_pop(gab, argv[0]);
 
   gab_vmpush(gab.vm, result);
 
@@ -97,8 +97,7 @@ void gab_lib_push(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     return;
   }
 
-  for (uint8_t i = 1; i < argc; i++)
-    v_gab_value_push(gab_boxdata(argv[0]), argv[i]);
+  list_push(gab, argv[0], argc - 1, argv + 1);
 
   gab_vmpush(gab.vm, *argv);
 }
@@ -156,7 +155,7 @@ void gab_lib_set(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
       return;
     }
 
-    list_replace(argv[0], argv[1]);
+    list_replace(gab, argv[0], argv[1]);
     break;
 
   default:
@@ -253,52 +252,52 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "new",
           type,
-          gab_snative(gab, "new", gab_lib_new),
+          gab_snative(gab, "list.new", gab_lib_new),
       },
       {
           "len",
           type,
-          gab_snative(gab, "len", gab_lib_len),
+          gab_snative(gab, "list.len", gab_lib_len),
       },
       {
           "slice",
           type,
-          gab_snative(gab, "slice", gab_lib_slice),
+          gab_snative(gab, "list.slice", gab_lib_slice),
       },
       {
           "push!",
           type,
-          gab_snative(gab, "push", gab_lib_push),
+          gab_snative(gab, "list.push", gab_lib_push),
       },
       {
           "pop!",
           type,
-          gab_snative(gab, "pop", gab_lib_pop),
+          gab_snative(gab, "list.pop", gab_lib_pop),
       },
       {
           "put!",
           type,
-          gab_snative(gab, "put", gab_lib_put),
+          gab_snative(gab, "list.put", gab_lib_put),
       },
       {
           "replace!",
           type,
-          gab_snative(gab, "set", gab_lib_set),
+          gab_snative(gab, "list.set", gab_lib_set),
       },
       {
           "splat",
           type,
-          gab_snative(gab, "splat", gab_lib_splat),
+          gab_snative(gab, "list.splat", gab_lib_splat),
       },
       {
           "at",
           type,
-          gab_snative(gab, "at", gab_lib_has),
+          gab_snative(gab, "list.at", gab_lib_has),
       },
       {
           "to_bytes",
           type,
-          gab_snative(gab, "to_bytes", gab_lib_to_bytes),
+          gab_snative(gab, "list.to_bytes", gab_lib_to_bytes),
       },
   };
 

@@ -485,7 +485,9 @@ int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
 }
 
 size_t gab_egkeep(struct gab_eg *gab, gab_value v) {
-  v_gab_value_push(&gab->scratch, v);
+  if (gab_valiso(v))
+    v_gab_value_push(&gab->scratch, v);
+
   return gab->scratch.len;
 }
 

@@ -34,8 +34,21 @@ bool map_has(gab_value self, gab_value key) {
   return d_gab_value_exists(gab_boxdata(self), key);
 }
 
-gab_value map_put(gab_value self, gab_value key, gab_value value) {
-  d_gab_value_insert(gab_boxdata(self), key, value);
+gab_value map_put(struct gab_triple gab, gab_value self, gab_value key,
+                  gab_value value) {
+  d_gab_value *data = gab_boxdata(self);
+
+  if (!gab_valisnew(self)) {
+    if (d_gab_value_exists(data, key)) {
+      gab_gcdref(gab, d_gab_value_read(data, key));
+    } else {
+      gab_gcdref(gab, key);
+    }
+
+    gab_gciref(gab, value);
+  }
+
+  d_gab_value_insert(data, key, value);
   return value;
 }
 
@@ -44,6 +57,9 @@ gab_value map_create(struct gab_triple gab, size_t len, size_t stride,
   d_gab_value d = {0};
 
   for (size_t i = 0; i < len; i++) {
+    gab_ngciref(gab, stride, len, keys);
+    gab_ngciref(gab, stride, len, values);
+
     d_gab_value_insert(&d, keys[i * stride], values[i * stride]);
   }
 

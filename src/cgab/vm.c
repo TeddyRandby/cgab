@@ -263,7 +263,9 @@ static inline void call_native(struct gab_triple gab, struct gab_obj_native *b,
 
   // Only pass in the extra "self" argument
   // if this is a message.
+  gab_gclock(gab.gc);
   (*b->function)(gab, arity + is_message, gab.vm->sp - arity - is_message);
+  gab_gcunlock(gab.gc);
 
   uint64_t have = gab.vm->sp - before;
 
@@ -833,7 +835,7 @@ CASE_CODE(SEND_MONO_PROPERTY) {
   case 1: {
     /* Pop the top value */
     gab_value value = POP();
-    gab_urecput(index, prop_offset, value);
+    gab_urecput(GAB(), index, prop_offset, value);
     PEEK() = value;
     break;
   }
@@ -879,6 +881,7 @@ CASE_CODE(YIELD) {
   uint64_t frame_len = TOP() - SLOTS() - have;
 
   STORE_FRAME();
+
   gab_value sus =
       gab_suspense(GAB(), __gab_obj(BLOCK()), proto, frame_len, SLOTS());
 
@@ -1367,8 +1370,6 @@ CASE_CODE(RECORD) {
 
   gab_gclock(gab.gc);
 
-  STORE_FRAME();
-
   gab_value shape = gab_shape(GAB(), 2, len, TOP() - len * 2);
 
   gab_value rec = gab_recordof(GAB(), shape, 2, TOP() + 1 - (len * 2));
@@ -1376,6 +1377,8 @@ CASE_CODE(RECORD) {
   DROP_N(len * 2);
 
   PUSH(rec);
+
+  STORE_FRAME();
 
   gab_gcunlock(gab.gc);
 
@@ -1387,8 +1390,6 @@ CASE_CODE(TUPLE) {
 
   gab_gclock(gab.gc);
 
-  STORE_FRAME();
-
   gab_value shape = gab_nshape(GAB(), len);
 
   gab_value rec = gab_recordof(GAB(), shape, 1, TOP() - len);
@@ -1396,6 +1397,8 @@ CASE_CODE(TUPLE) {
   DROP_N(len);
 
   PUSH(rec);
+
+  STORE_FRAME();
 
   gab_gcunlock(gab.gc);
 
