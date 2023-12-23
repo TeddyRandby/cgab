@@ -922,7 +922,8 @@ static gab_value pop_ctxframe(struct bc *bc) {
   uint8_t nargs = f->narguments;
   uint8_t nlocals = f->nlocals;
 
-  gab_value p = gab_bprototype(gab(bc), bc->src, f->name, f->offset, bc->src->bytecode.len,
+  gab_value p = gab_bprototype(gab(bc), bc->src, f->name, f->offset,
+                               bc->src->bytecode.len,
                                (struct gab_blkproto_argt){
                                    .nslots = nslots,
                                    .nlocals = nlocals,
@@ -1172,7 +1173,7 @@ static int compile_local(struct bc *bc, gab_value name, uint8_t flags) {
 }
 
 int compile_parameters(struct bc *bc) {
-  //Somehow track below and above for packing
+  // Somehow track below and above for packing
   int below = -1, result = 0;
   uint8_t narguments = 0;
 
@@ -3237,8 +3238,8 @@ uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_prototype *self,
 
   fprintf(stream, "%-25s" ANSI_COLOR_BLUE, name);
   gab_fvalinspect(stream, msg, 0);
-  fprintf(stream, ANSI_COLOR_RESET " (%d%s) -> %d\n", have, var ? " & more" : "",
-          want);
+  fprintf(stream, ANSI_COLOR_RESET " (%d%s) -> %d\n", have,
+          var ? " & more" : "", want);
 
   return offset + 29;
 }

@@ -1,13 +1,15 @@
 :use .records
 
-def match[](cases, fallback?)
+def is_ok?[]; self == .ok end
+
+def match[](*p, cases)
   case = cases:next
 
   loop
     case == self then
       branch = cases[case]
 
-      return branch(self)
+      return branch(self, p:splat)
 
       break .INVALID_ARGUMENTS:panic
     end
@@ -15,7 +17,23 @@ def match[](cases, fallback?)
     case = cases:next(case)
   until not case end
 
-  fallback? or 'MISSING_CASE: {self}':panic
+  'MISSING_CASE: {self}':panic
+end
 
-  fallback?(self)
+def typematch[](*p, cases)
+  target, case = ?self, cases:next
+
+  loop
+    case == target then
+      branch = cases[case]
+
+      return branch(self, p:splat)
+
+      break .INVALID_ARGUMENTS:panic
+    end
+
+    case = cases:next(case)
+  until not case end
+
+  'MISSING_CASE: {self}':panic
 end

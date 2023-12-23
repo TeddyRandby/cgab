@@ -49,6 +49,24 @@ def map[](msg, *p, cb)
   until not s:is? .Suspense end
 end
 
+def unwrap[](msg, *p, cb)
+  x, *args, s = self:(msg)(p:splat)
+
+  s:is? .Suspense then
+    cb(x) and yield args:splat
+
+    loop
+
+      loop
+        x, *args, s = s()
+        s:is? .Suspense or return
+      until cb(x) end
+
+      yield args:splat
+    until not s:is? .Suspense end 
+  end
+end
+
 def filter[](msg, *p, cb)
   *args, s = self:(msg)(p:splat)
 

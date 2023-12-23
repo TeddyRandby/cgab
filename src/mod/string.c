@@ -98,7 +98,8 @@ void gab_lib_begins(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   }
 }
 
-void gab_lib_is_digit(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+void gab_lib_is_digit(struct gab_triple gab, size_t argc,
+                      gab_value argv[argc]) {
   if (argc != 1) {
     gab_panic(gab, "&:is_digit? expects 0 arguments");
     return;
@@ -231,6 +232,42 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_vmpush(gab.vm, res);
 }
 
+void gab_lib_has(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  if (argc < 2) {
+    gab_panic(gab, "&:has? expects one argument");
+    return;
+  }
+
+  const char* str = gab_valintocs(gab, argv[0]);
+  const char* pat = gab_valintocs(gab, argv[1]);
+
+  gab_vmpush(gab.vm, gab_bool(strstr(str, pat)));
+}
+
+void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  if (argc < 2) {
+    gab_vmpush(gab.vm, gab_string(gab, ""));
+    return;
+  }
+
+  gab_value str = gab_valintos(gab, argv[1]);
+
+  if (argc == 2) {
+    gab_vmpush(gab.vm, str);
+    return;
+  }
+
+  gab_gclock(gab.gc);
+
+  for (uint8_t i = 2; i < argc; i++) {
+    gab_value curr = gab_valintos(gab, argv[i]);
+    str = gab_strcat(gab, str, curr);
+  }
+
+  gab_vmpush(gab.vm, str);
+  gab_gcunlock(gab.gc);
+}
+
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value string_type = gab_type(gab.eg, kGAB_STRING);
 
@@ -239,6 +276,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "slice",
           string_type,
           gab_snative(gab, "slice", gab_lib_slice),
+      },
+      {
+          "string.new",
+          gab_undefined,
+          gab_snative(gab, "string.new", gab_lib_new),
       },
       {
           "len",
@@ -270,6 +312,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           string_type,
           gab_snative(gab, "is_digit?", gab_lib_is_digit),
       },
+      {
+          "has?",
+          string_type,
+          gab_snative(gab, "has?", gab_lib_has),
+      }
   };
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);

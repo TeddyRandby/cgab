@@ -25,7 +25,7 @@ def passed?[TestState]
 end
 
 def show_errs[TestState]
-    self:errs:for(&:each) do (mismatch)
+    self:errs:for(&:values) do (mismatch)
         '     - got {mismatch[0]}, expecting {mismatch[1]}':print
     end
 end

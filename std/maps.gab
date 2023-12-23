@@ -20,3 +20,12 @@ def each[.Map]
     key = self:next(key)
   until key == nil end
 end
+
+def keys[.Map]
+  key = self:next
+
+  loop
+    yield key
+    key = self:next(key)
+  until key == nil end
+end

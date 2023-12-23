@@ -121,11 +121,6 @@ void gab_lib_floor(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_to_n(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (argc != 1) {
-    gab_panic(gab, "Invalid call to gab_lib_from");
-    return;
-  }
-
   const char *str = gab_valintocs(gab, argv[0]);
 
   gab_value res = gab_number(strtod(str, NULL));

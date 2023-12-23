@@ -65,7 +65,7 @@ int32_t rec_dump_properties(FILE *stream, struct gab_obj_record *rec,
   for (uint64_t i = 0; i < rec->len - 1; i++) {
     bytes += gab_fvalinspect(stream, shape->data[i], depth - 1);
 
-    bytes += fprintf(stream, ": ");
+    bytes += fprintf(stream, " = ");
 
     if (rec->data[i] == __gab_obj(rec))
       bytes += fprintf(stream, "{ ... }");
@@ -77,7 +77,7 @@ int32_t rec_dump_properties(FILE *stream, struct gab_obj_record *rec,
 
   bytes += gab_fvalinspect(stream, shape->data[rec->len - 1], depth - 1);
 
-  bytes += fprintf(stream, ": ");
+  bytes += fprintf(stream, " = ");
 
   if (rec->data[rec->len - 1] == __gab_obj(rec))
     bytes += fprintf(stream, "{ ... }");
@@ -287,7 +287,7 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
   size_t hash = s_char_hash(ref, gab.eg->hash_seed);
 
   /*
-    If this string was interned already, destroy and return.
+    If this string was interned already, return.
 
     Unfortunately, we can't check for this before copying and computing the
     hash.

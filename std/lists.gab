@@ -5,12 +5,22 @@ def [][.List](key)
   self:at(key)
 end
 
-def each[.List]
+def values[.List]
   self:empty? and return
 
   v = 0 
   loop
-    yield self:at(v), v
+    yield self:at(v)
+    v = v + 1
+  until v >= self:len end
+end
+
+def pairs[.List]
+  self:empty? and return
+
+  v = 0 
+  loop
+    yield v, self:at(v)
     v = v + 1
   until v >= self:len end
 end

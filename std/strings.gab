@@ -2,10 +2,6 @@
 :use .numbers
 :use .conditionals
 
-def string.new[](*args)
-  return args:join('')
-end
-
 def [][.String](opts)
     (?opts) :match {
         [?{ from, to }] = do; self:slice(opts:from, opts:to) end,
