@@ -2897,7 +2897,7 @@ int compile_exp_brk(struct bc *bc, bool assignable) {
   if (compile_expression(bc) < 0)
     return COMP_OK;
 
-fin : {
+fin: {
   size_t jump = push_jump(bc, OP_JUMP, t);
   v_uint64_t_push(&bc->contexts[ctx].as.break_list, jump);
   return COMP_OK;
