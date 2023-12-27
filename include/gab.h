@@ -87,19 +87,27 @@ enum gab_kind {
 
 #define __GAB_TAGMASK (7)
 
-#define __GAB_VAL_TAG(val) ((enum gab_kind)((val)&__GAB_TAGMASK))
+#define __GAB_VAL_TAG(val) ((enum gab_kind)((val) & __GAB_TAGMASK))
 
-// Idk what the best way is to convert these back to a float type.
-// Breaking strict aliasing isn't great.
 static inline double __gab_valtod(gab_value value) {
-  return *(double *)(&value);
+  union {
+    uint64_t bits;
+    double num;
+  } data;
+  data.bits = value;
+  return data.num;
 }
 
 static inline gab_value __gab_dtoval(double value) {
-  return *(gab_value *)(&value);
+  union {
+    uint64_t bits;
+    double num;
+  } data;
+  data.num = value;
+  return data.bits;
 }
 
-#define __gab_valisn(val) (((val)&__GAB_QNAN) != __GAB_QNAN)
+#define __gab_valisn(val) (((val) & __GAB_QNAN) != __GAB_QNAN)
 
 #define __gab_obj(val)                                                         \
   (gab_value)(__GAB_SIGN_BIT | __GAB_QNAN | (uint64_t)(uintptr_t)(val))
