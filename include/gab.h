@@ -89,6 +89,7 @@ enum gab_kind {
 
 #define __GAB_VAL_TAG(val) ((enum gab_kind)((val) & __GAB_TAGMASK))
 
+// Sneakily use a union to get around the type system
 static inline double __gab_valtod(gab_value value) {
   union {
     uint64_t bits;

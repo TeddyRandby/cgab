@@ -2,10 +2,10 @@
 :use 'numbers'
 :use .streams
 
-def Matrix { n data }
+def Matrix { n, data }
 
 def matrix[](n, data)
-  { n data }
+  { n, data }
 end
 
 def +[Matrix](other)

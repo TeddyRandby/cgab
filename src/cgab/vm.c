@@ -14,7 +14,7 @@
 #include <string.h>
 
 #define OP_HANDLER_ARGS                                                        \
-  struct gab_triple gab, struct gab_vm_frame *fp, gab_value *sp, uint8_t *ip
+  struct gab_triple gab, gab_value *fp, gab_value *sp, uint8_t *ip
 
 typedef a_gab_value *(*handler)(OP_HANDLER_ARGS);
 
@@ -294,26 +294,20 @@ static handler handlers[] = {
 #define LOG(op)
 #endif
 
-#define CASE_CODE(name) a_gab_value *op_##name##_handler(OP_HANDLER_ARGS)
+#define CASE_CODE(name)                                                        \
+  [[gnu::hot, gnu::sysv_abi, gnu::flatten]] a_gab_value *op_##name##_handler(  \
+      OP_HANDLER_ARGS)
 #define DISPATCH(op)                                                           \
   ({                                                                           \
     uint8_t o = (op);                                                          \
     LOG(o)                                                                     \
-    return handlers[o](GAB(), FRAME(), TOP(), IP());                           \
+    return handlers[o](GAB(), SLOTS(), TOP(), IP());                           \
   })
 
 #define NEXT() DISPATCH(*IP()++);
 
 #define ERROR(status, help, ...)                                               \
   return vm_error(GAB(), status, help, __VA_ARGS__);
-
-#define SEND_CACHE_GUARD(cached_type, r, cached_specs, m)                      \
-  if (gab_valtype(EG(), r) != cached_type ||                                   \
-      cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {                          \
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);                                  \
-    IP() -= SEND_CACHE_DIST;                                                   \
-    NEXT();                                                                    \
-  }
 
 /*
   Lots of helper macros.
@@ -323,13 +317,13 @@ static handler handlers[] = {
 #define GC() (GAB().gc)
 #define VM() (GAB().vm)
 #define INSTR() (instr)
-#define FRAME() (fp)
+#define FRAME() (VM()->fp)
 #define BLOCK() (FRAME()->b)
 #define BLOCK_PROTO() (GAB_VAL_TO_PROTOTYPE(BLOCK()->p))
 #define IP() (ip)
 #define TOP() (sp)
 #define VAR() (*TOP())
-#define SLOTS() (FRAME()->slots)
+#define SLOTS() (fp)
 #define LOCAL(i) (SLOTS()[i])
 #define UPVALUE(i) (FRAME()->b->upvalues[i])
 #define MOD_CONSTANT(k) (v_gab_value_val_at(&BLOCK_PROTO()->src->constants, k))
@@ -409,7 +403,7 @@ static handler handlers[] = {
 #define LOAD_FRAME()                                                           \
   ({                                                                           \
     TOP() = VM()->sp;                                                          \
-    FRAME() = VM()->fp;                                                        \
+    SLOTS() = VM()->fp->slots;                                                 \
     IP() = VM()->fp->ip;                                                       \
   })
 
@@ -424,8 +418,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   gab_vmcreate(VM(), args.flags, args.len, args.argv);
 
   uint8_t *ip = NULL;
-  struct gab_vm_frame *fp = NULL;
-  gab_value *sp = NULL;
+  gab_value *sp, *fp = NULL;
 
   *VM()->sp++ = args.main;
   for (uint8_t i = 0; i < args.len; i++)
@@ -451,7 +444,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   LOAD_FRAME();
 
   uint8_t op = *IP()++;
-  a_gab_value *res = handlers[op](GAB(), FRAME(), TOP(), IP());
+  a_gab_value *res = handlers[op](GAB(), SLOTS(), TOP(), IP());
   return res;
 }
 
@@ -508,9 +501,19 @@ CASE_CODE(SEND_MONO_BLOCK) {
   gab_value cached_type = *READ_QWORD;
   gab_value spec = *READ_QWORD;
 
-  gab_value receiver = PEEK_N(have + 1);
+  gab_value r = PEEK_N(have + 1);
 
-  SEND_CACHE_GUARD(cached_type, receiver, cached_specs, m)
+  if (gab_valtype(EG(), r) != cached_type) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
 
   struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
 
@@ -532,9 +535,19 @@ CASE_CODE(SEND_MONO_NATIVE) {
   gab_value cached_type = *READ_QWORD;
   gab_value spec = *READ_QWORD;
 
-  gab_value receiver = PEEK_N(have + 1);
+  gab_value r = PEEK_N(have + 1);
 
-  SEND_CACHE_GUARD(cached_type, receiver, cached_specs, m)
+  if (gab_valtype(EG(), r) != cached_type) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
 
   STORE_FRAME();
 
@@ -553,13 +566,23 @@ CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
   gab_value cached_type = *READ_QWORD;
   SKIP_QWORD;
 
-  gab_value receiver = PEEK_N(have + 1);
+  gab_value r = PEEK_N(have + 1);
 
-  SEND_CACHE_GUARD(cached_type, receiver, cached_specs, m)
+  if (gab_valtype(EG(), r) != cached_type) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
 
   STORE_FRAME();
 
-  call_native(GAB(), GAB_VAL_TO_NATIVE(receiver), have, want, false);
+  call_native(GAB(), GAB_VAL_TO_NATIVE(r), have, want, false);
 
   LOAD_FRAME();
   NEXT();
@@ -653,13 +676,23 @@ CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) {
   gab_value cached_type = *READ_QWORD;
   SKIP_QWORD;
 
-  gab_value receiver = PEEK_N(have + 1);
+  gab_value r = PEEK_N(have + 1);
 
-  SEND_CACHE_GUARD(cached_type, receiver, cached_specs, m)
+  if (gab_valtype(EG(), r) != cached_type) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
 
   STORE_FRAME();
 
-  struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(receiver);
+  struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(r);
 
   if (!call_block(VM(), blk, have, want))
     ERROR(GAB_OVERFLOW, "", "");
@@ -677,13 +710,23 @@ CASE_CODE(SEND_PRIMITIVE_CALL_SUSPENSE) {
   gab_value cached_type = *READ_QWORD;
   SKIP_QWORD;
 
-  gab_value receiver = PEEK_N(have + 1);
+  gab_value r = PEEK_N(have + 1);
 
-  SEND_CACHE_GUARD(cached_type, receiver, cached_specs, m)
+  if (gab_valtype(EG(), r) != cached_type) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
 
   STORE_FRAME();
 
-  if (!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(receiver), have, want))
+  if (!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(r), have, want))
     ERROR(GAB_OVERFLOW, "", "");
 
   LOAD_FRAME();
@@ -796,9 +839,19 @@ CASE_CODE(SEND_PRIMITIVE_EQ) {
   gab_value cached_type = *READ_QWORD;
   SKIP_QWORD;
 
-  gab_value receiver = PEEK_N(have + 1);
+  gab_value r = PEEK_N(have + 1);
 
-  SEND_CACHE_GUARD(cached_type, receiver, cached_specs, m)
+  if (gab_valtype(EG(), r) != cached_type) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
 
   gab_value b = POP();
   gab_value a = POP();
@@ -811,6 +864,7 @@ CASE_CODE(SEND_PRIMITIVE_EQ) {
 }
 
 CASE_CODE(SEND_MONO_PROPERTY) {
+  // TODO: Break this into two opcodes
   gab_value m = READ_CONSTANT;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   SKIP_BYTE;
@@ -818,14 +872,24 @@ CASE_CODE(SEND_MONO_PROPERTY) {
   gab_value cached_type = *READ_QWORD;
   uint64_t prop_offset = *READ_QWORD;
 
-  gab_value index = PEEK_N(have + 1);
+  gab_value r = PEEK_N(have + 1);
 
-  SEND_CACHE_GUARD(cached_type, index, cached_specs, m)
+  if (gab_valtype(EG(), r) != cached_type) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
 
   switch (have) {
   case 0:
     /* Simply load the value into the top of the stack */
-    PEEK() = gab_urecat(index, prop_offset);
+    PEEK() = gab_urecat(r, prop_offset);
     break;
 
   default:
@@ -835,7 +899,7 @@ CASE_CODE(SEND_MONO_PROPERTY) {
   case 1: {
     /* Pop the top value */
     gab_value value = POP();
-    gab_urecput(GAB(), index, prop_offset, value);
+    gab_urecput(GAB(), r, prop_offset, value);
     PEEK() = value;
     break;
   }
@@ -846,33 +910,24 @@ CASE_CODE(SEND_MONO_PROPERTY) {
   NEXT();
 }
 
-#define COMPLETE_RETURN                                                        \
-  ({                                                                           \
-    gab_value *from = TOP() - have;                                            \
-    gab_value *to = FRAME()->slots;                                            \
-                                                                               \
-    VM()->sp = trim_return(from, to, have, FRAME()->want);                     \
-                                                                               \
-    VM()->fp = FRAME() - 1;                                                    \
-                                                                               \
-    LOAD_FRAME();                                                              \
-                                                                               \
-    if (VM()->fp == VM()->fb) {                                                \
-      a_gab_value *results = a_gab_value_empty(have + 1);                      \
-      results->data[0] = gab_string(gab, "ok");                                \
-      memcpy(results->data + 1, to, have * sizeof(gab_value));                 \
-                                                                               \
-      gab_ngciref(GAB(), 1, results->len, results->data);                      \
-                                                                               \
-      VM()->sp = VM()->sb;                                                     \
-                                                                               \
-      gab_vmdestroy(EG(), VM());                                               \
-      DESTROY(VM());                                                           \
-      GAB().vm = NULL;                                                         \
-                                                                               \
-      return results;                                                          \
-    }                                                                          \
-  })
+a_gab_value *final_return(OP_HANDLER_ARGS) {
+  uint64_t have = VAR();
+  gab_value *to = FRAME()->slots;
+
+  a_gab_value *results = a_gab_value_empty(have + 1);
+  results->data[0] = gab_string(gab, "ok");
+  memcpy(results->data + 1, to, have * sizeof(gab_value));
+
+  gab_ngciref(GAB(), 1, results->len, results->data);
+
+  VM()->sp = VM()->sb;
+
+  gab_vmdestroy(EG(), VM());
+  DESTROY(VM());
+  GAB().vm = NULL;
+
+  return results;
+}
 
 CASE_CODE(YIELD) {
   gab_value proto = READ_CONSTANT;
@@ -889,7 +944,21 @@ CASE_CODE(YIELD) {
 
   have++;
 
-  COMPLETE_RETURN;
+  gab_value *from = TOP() - have;
+  gab_value *to = FRAME()->slots;
+
+  VM()->sp = trim_return(from, to, have, FRAME()->want);
+
+  if (VM()->fp - VM()->fb == 1) {
+    VAR() = have;
+    return final_return(GAB(), SLOTS(), TOP(), IP());
+  }
+
+  VM()->fp = FRAME() - 1;
+
+  LOAD_FRAME();
+
+  NEXT();
 
   NEXT();
 }
@@ -897,7 +966,19 @@ CASE_CODE(YIELD) {
 CASE_CODE(RETURN) {
   uint8_t have = compute_arity(VAR(), READ_BYTE);
 
-  COMPLETE_RETURN;
+  gab_value *from = TOP() - have;
+  gab_value *to = FRAME()->slots;
+
+  VM()->sp = trim_return(from, to, have, FRAME()->want);
+
+  if (VM()->fp - VM()->fb == 1) {
+    VAR() = have;
+    return final_return(GAB(), SLOTS(), TOP(), IP());
+  }
+
+  VM()->fp = FRAME() - 1;
+
+  LOAD_FRAME();
 
   NEXT();
 }

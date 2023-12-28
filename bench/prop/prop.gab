@@ -1,8 +1,8 @@
 obj = {
-    zebra
-    camel
-    cow
-    rooster
+    zebra,
+    camel,
+    cow,
+    rooster,
 } 
 
 i = 0
