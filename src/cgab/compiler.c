@@ -323,35 +323,21 @@ static inline void push_shift(struct bc *bc, uint8_t n, size_t t) {
 }
 
 static inline void push_loadl(struct bc *bc, uint8_t local, size_t t) {
-  if (local > 8) {
-    push_op(bc, OP_LOAD_LOCAL, t);
-    push_byte(bc, local, t);
-    return;
-  }
-
-  // We have a specialized opcode
-  push_op(bc, OP_LOAD_LOCAL_0 + local, t);
+  push_op(bc, OP_LOAD_LOCAL, t);
+  push_byte(bc, local, t);
+  return;
 }
 
 static inline void push_loadu(struct bc *bc, uint8_t upv, size_t t) {
-  if (upv > 8) {
-    push_op(bc, OP_LOAD_UPVALUE, t);
-    push_byte(bc, upv, t);
-    return;
-  }
-
-  // We have a specialized opcode
-  push_op(bc, OP_LOAD_UPVALUE_0 + upv, t);
+  push_op(bc, OP_LOAD_UPVALUE, t);
+  push_byte(bc, upv, t);
+  return;
 }
 
 static inline void push_storel(struct bc *bc, uint8_t local, size_t t) {
-  if (local > 8) {
-    push_op(bc, OP_STORE_LOCAL, t);
-    push_byte(bc, local, t);
-    return;
-  }
-  // We have a specialized opcode
-  push_op(bc, OP_STORE_LOCAL_0 + local, t);
+  push_op(bc, OP_STORE_LOCAL, t);
+  push_byte(bc, local, t);
+  return;
 }
 
 static inline uint8_t encode_arity(uint8_t have, bool mv) {
@@ -428,47 +414,24 @@ static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
     case OP_PUSH_UNDEFINED:
     case OP_PUSH_TRUE:
     case OP_PUSH_FALSE:
-    case OP_LOAD_UPVALUE_0:
-    case OP_LOAD_UPVALUE_1:
-    case OP_LOAD_UPVALUE_2:
-    case OP_LOAD_UPVALUE_3:
-    case OP_LOAD_UPVALUE_4:
-    case OP_LOAD_UPVALUE_5:
-    case OP_LOAD_UPVALUE_6:
-    case OP_LOAD_UPVALUE_7:
-    case OP_LOAD_UPVALUE_8:
-    case OP_LOAD_LOCAL_0:
-    case OP_LOAD_LOCAL_1:
-    case OP_LOAD_LOCAL_2:
-    case OP_LOAD_LOCAL_3:
-    case OP_LOAD_LOCAL_4:
-    case OP_LOAD_LOCAL_5:
-    case OP_LOAD_LOCAL_6:
-    case OP_LOAD_LOCAL_7:
-    case OP_LOAD_LOCAL_8:
       bc->src->bytecode.len -= 1;
       f->prev_op = bc->src->bytecode.data[bc->src->bytecode.len - 1];
       return;
+
     case OP_LOAD_UPVALUE:
     case OP_LOAD_LOCAL:
       bc->src->bytecode.len -= 2;
       f->prev_op = bc->src->bytecode.data[bc->src->bytecode.len - 1];
       return;
+
     case OP_CONSTANT:
       bc->src->bytecode.len -= 3;
       f->prev_op = bc->src->bytecode.data[bc->src->bytecode.len - 1];
       return;
-    case OP_STORE_LOCAL_0:
-    case OP_STORE_LOCAL_1:
-    case OP_STORE_LOCAL_2:
-    case OP_STORE_LOCAL_3:
-    case OP_STORE_LOCAL_4:
-    case OP_STORE_LOCAL_5:
-    case OP_STORE_LOCAL_6:
-    case OP_STORE_LOCAL_7:
-    case OP_STORE_LOCAL_8:
-      bc->src->bytecode.data[bc->src->bytecode.len - 1] += 9;
-      f->prev_op = bc->src->bytecode.data[bc->src->bytecode.len - 1];
+
+    case OP_STORE_LOCAL:
+      bc->src->bytecode.data[bc->src->bytecode.len - 2] += 1;
+      f->prev_op = bc->src->bytecode.data[bc->src->bytecode.len - 2];
       return;
 
     default:
@@ -3349,42 +3312,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   uint8_t op = v_uint8_t_val_at(&self->src->bytecode, offset);
   switch (op) {
   case OP_PUSH_UNDEFINED:
-  case OP_STORE_LOCAL_0:
-  case OP_STORE_LOCAL_1:
-  case OP_STORE_LOCAL_2:
-  case OP_STORE_LOCAL_3:
-  case OP_STORE_LOCAL_4:
-  case OP_STORE_LOCAL_5:
-  case OP_STORE_LOCAL_6:
-  case OP_STORE_LOCAL_7:
-  case OP_STORE_LOCAL_8:
-  case OP_POP_STORE_LOCAL_0:
-  case OP_POP_STORE_LOCAL_1:
-  case OP_POP_STORE_LOCAL_2:
-  case OP_POP_STORE_LOCAL_3:
-  case OP_POP_STORE_LOCAL_4:
-  case OP_POP_STORE_LOCAL_5:
-  case OP_POP_STORE_LOCAL_6:
-  case OP_POP_STORE_LOCAL_7:
-  case OP_POP_STORE_LOCAL_8:
-  case OP_LOAD_LOCAL_0:
-  case OP_LOAD_LOCAL_1:
-  case OP_LOAD_LOCAL_2:
-  case OP_LOAD_LOCAL_3:
-  case OP_LOAD_LOCAL_4:
-  case OP_LOAD_LOCAL_5:
-  case OP_LOAD_LOCAL_6:
-  case OP_LOAD_LOCAL_7:
-  case OP_LOAD_LOCAL_8:
-  case OP_LOAD_UPVALUE_0:
-  case OP_LOAD_UPVALUE_1:
-  case OP_LOAD_UPVALUE_2:
-  case OP_LOAD_UPVALUE_3:
-  case OP_LOAD_UPVALUE_4:
-  case OP_LOAD_UPVALUE_5:
-  case OP_LOAD_UPVALUE_6:
-  case OP_LOAD_UPVALUE_7:
-  case OP_LOAD_UPVALUE_8:
   case OP_PUSH_FALSE:
   case OP_PUSH_NIL:
   case OP_PUSH_TRUE:
