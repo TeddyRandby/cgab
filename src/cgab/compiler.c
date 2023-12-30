@@ -3106,8 +3106,11 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
 }
 
 gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
+  gab_value name = gab_string(gab, args.name);
+  gab_egkeep(gab.eg, gab_gciref(gab, name));
+
   struct gab_src *src =
-      gab_src(gab.eg, (char *)args.source, strlen(args.source) + 1);
+      gab_src(gab.eg, name, (char *)args.source, strlen(args.source) + 1);
 
   struct bc bc;
   bc_create(&bc, gab, src, args.flags);

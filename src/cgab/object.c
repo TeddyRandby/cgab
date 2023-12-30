@@ -2,7 +2,6 @@
 #include "core.h"
 #include "engine.h"
 #include "gab.h"
-#include "types.h"
 #include <stdint.h>
 
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \

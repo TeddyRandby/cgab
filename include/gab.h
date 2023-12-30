@@ -310,6 +310,22 @@ struct gab_triple gab_create();
  */
 void gab_destroy(struct gab_triple gab);
 
+int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *mod);
+
+/**
+ * # Print a gab value to a file stream.
+ *
+ * @param stream The file stream to dump to.
+ *
+ * @param self The value to dump
+ *
+ * @param depth How far to recursively inspect. A value less than zero will use
+ * the default depth.
+ *
+ * @return The number of bytes written.
+ */
+int gab_fvalinspect(FILE *stream, gab_value self, int depth);
+
 /**
  * # Give the engine ownership of the values.
  *
@@ -591,9 +607,8 @@ void __gab_ngcdref(struct gab_triple gab, size_t stride, size_t len,
 /**
  * # Increment the reference count of the value(s)
  *
- * @param vm The vm.
- * @param len The number of values.
- * @param values The values.
+ * @param gab The gab triple.
+ * @param value The value to increment.
  */
 gab_value gab_gciref(struct gab_triple gab, gab_value value);
 
@@ -1598,10 +1613,18 @@ static inline bool gab_valisa(struct gab_eg *eg, gab_value a, gab_value b) {
 #define EQUAL(a, b) (a == b)
 #include "dict.h"
 
+#define NAME gab_src
+#define K gab_value
+#define V struct gab_src *
+#define DEF_V NULL
+#define HASH(a) (a)
+#define EQUAL(a, b) (a == b)
+#include "dict.h"
+
 struct gab_eg {
   size_t hash_seed;
 
-  struct gab_src *sources;
+  d_gab_src sources;
 
   d_gab_imp imports;
 
@@ -1770,22 +1793,6 @@ static inline const char *gab_valintocs(struct gab_triple gab,
 
   return obj->data;
 }
-
-int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *mod);
-
-/**
- * # Print a gab value to a file stream.
- *
- * @param stream The file stream to dump to.
- *
- * @param self The value to dump
- *
- * @param depth How far to recursively inspect. A value less than zero will use
- * the default depth.
- *
- * @return The number of bytes written.
- */
-int gab_fvalinspect(FILE *stream, gab_value self, int depth);
 
 #include <printf.h>
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,

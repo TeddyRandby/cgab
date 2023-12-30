@@ -16,7 +16,7 @@ struct gab_eg;
 struct gab_src;
 
 struct gab_src {
-  struct gab_src *next;
+  gab_value name;
 
   a_char *source;
 
@@ -35,9 +35,9 @@ struct gab_src {
   v_gab_value constants;
 };
 
-struct gab_src *gab_src(struct gab_eg *gab, const char *src, size_t len);
+struct gab_src *gab_src(struct gab_eg *gab, gab_value name, const char *src, size_t len);
 
-struct gab_src *gab_srccpy(struct gab_eg *gab, struct gab_src *src);
+struct gab_src *gab_srccpy(struct gab_triple gab, struct gab_src *src);
 
 void gab_srcdestroy(struct gab_src *self);
 

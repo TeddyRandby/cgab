@@ -1,5 +1,4 @@
 #include "lexer.h"
-#include "engine.h"
 #include <stdio.h>
 
 bool is_whitespace(uint8_t c) { return c == ' ' || c == '\t' || c == '\f'; }
@@ -454,26 +453,39 @@ fin:
   return tok;
 }
 
-struct gab_src *gab_srccreate(struct gab_eg *gab, s_char source) {
-  struct gab_src *self = NEW(struct gab_src);
-  memset(self, 0, sizeof(struct gab_src));
+struct gab_src *gab_srccpy(struct gab_triple gab, struct gab_src *self) {
+  if (d_gab_src_exists(&gab.eg->sources, self->name))
+    d_gab_src_read(&gab.eg->sources, self->name);
 
-  self->source = a_char_create(source.data, source.len);
-  self->next = gab->sources;
-  gab->sources = self;
-
-  return self;
-}
-
-struct gab_src *gab_srccpy(struct gab_eg *gab, struct gab_src *self) {
   struct gab_src *copy = NEW(struct gab_src);
+
+  copy->name = gab_valcpy(gab, self->name);
   copy->source = a_char_create(self->source->data, self->source->len);
+
+  // Copy all of the constants into the engine
+  for (size_t i = 0; i < self->constants.len; i++) {
+    v_gab_value_push(&copy->constants, v_gab_value_val_at(&self->constants, i));
+  }
 
   v_s_char_copy(&copy->lines, &self->lines);
 
   v_gab_token_copy(&copy->tokens, &self->tokens);
   v_s_char_copy(&copy->token_srcs, &self->token_srcs);
   v_uint64_t_copy(&copy->token_lines, &self->token_lines);
+
+  v_uint8_t_copy(&copy->bytecode, &self->bytecode);
+  v_uint64_t_copy(&copy->bytecode_toks, &self->bytecode_toks);
+  v_gab_value_copy(&copy->constants, &self->constants);
+
+  // Reconcile the constant array by copying the non trivial values
+  for (size_t i = 0; i < self->constants.len; i++) {
+    gab_value v = v_gab_value_val_at(&self->constants, i);
+    if (gab_valiso(v)) {
+      gab_value cpy =  gab_valcpy(gab, v);
+      gab_egkeep(gab.eg, gab_gciref(gab, cpy));
+      v_gab_value_set(&copy->constants, i, cpy);
+    }
+  }
 
   // Reconcile the copied slices to point to the new source
   for (uint64_t i = 0; i < copy->lines.len; i++) {
@@ -482,9 +494,6 @@ struct gab_src *gab_srccpy(struct gab_eg *gab, struct gab_src *self) {
 
     copy_src->data = copy->source->data + (src_src->data - self->source->data);
   }
-
-  copy->next = gab->sources;
-  gab->sources = copy;
 
   return copy;
 }
@@ -506,8 +515,15 @@ void gab_srcdestroy(struct gab_src *self) {
   DESTROY(self);
 }
 
-struct gab_src *gab_src(struct gab_eg *gab, const char *source, size_t len) {
-  struct gab_src *src = gab_srccreate(gab, s_char_create(source, len));
+struct gab_src *gab_src(struct gab_eg *eg, gab_value name, const char *source,
+                        size_t len) {
+  if (d_gab_src_exists(&eg->sources, name))
+    return d_gab_src_read(&eg->sources, name);
+
+  struct gab_src *src = NEW(struct gab_src);
+  memset(src, 0, sizeof(struct gab_src));
+
+  src->source = a_char_create(source, len);
 
   gab_lx lex;
   gab_lexcreate(&lex, src);
@@ -517,6 +533,8 @@ struct gab_src *gab_src(struct gab_eg *gab, const char *source, size_t len) {
     if (t == TOKEN_EOF)
       break;
   }
+
+  d_gab_src_insert(&eg->sources, name, src);
 
   return src;
 }

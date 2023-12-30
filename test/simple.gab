@@ -1,6 +1,7 @@
-:use .records
-:use .strings
-:use .streams
-:use .io
-:use .lists
-:use .maps
+:use .fibers
+
+fiber = :fiber.new do
+  'Hi':print
+end
+
+fiber:await

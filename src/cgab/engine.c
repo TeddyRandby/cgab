@@ -208,10 +208,10 @@ void gab_destroy(struct gab_triple gab) {
     }
   }
 
-  while (gab.eg->sources) {
-    struct gab_src *s = gab.eg->sources;
-    gab.eg->sources = s->next;
-    gab_srcdestroy(s);
+  for (uint64_t i = 0; i < gab.eg->sources.cap; i++) {
+    if (d_gab_src_iexists(&gab.eg->sources, i)) {
+      gab_srcdestroy(d_gab_src_ival(&gab.eg->sources, i));
+    }
   }
 
   d_strings_destroy(&gab.eg->interned_strings);
@@ -500,6 +500,7 @@ size_t gab_negkeep(struct gab_eg *gab, size_t len,
 }
 
 gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
+  printf("Copying value %V\n", value);
   switch (gab_valkind(value)) {
 
   default:
@@ -510,6 +511,7 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
     gab_value copy = gab_box(gab, (struct gab_box_argt){
                                       .type = gab_valcpy(gab, self->type),
                                       .data = self->data,
+                                      .size = self->len,
                                       .visitor = self->do_visit,
                                       .destructor = self->do_destroy,
                                   });
@@ -536,7 +538,7 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
   case kGAB_BPROTOTYPE: {
     struct gab_obj_prototype *self = GAB_VAL_TO_PROTOTYPE(value);
 
-    gab_value copy = gab_bprototype(gab, gab_srccpy(gab.eg, self->src),
+    gab_value copy = gab_bprototype(gab, gab_srccpy(gab, self->src),
                                     gab_valcpy(gab, self->name), self->begin,
                                     self->as.block.end,
                                     (struct gab_blkproto_argt){
@@ -548,17 +550,6 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(copy);
 
     memcpy(p, self->data, self->as.block.nupvalues * 2);
-    v_uint8_t_copy(&p->src->bytecode, &self->src->bytecode);
-    v_uint64_t_copy(&p->src->bytecode_toks, &self->src->bytecode_toks);
-    v_gab_value_copy(&p->src->constants, &self->src->constants);
-
-    // Reconcile the constant array by copying the non trivial values
-    for (size_t i = 0; i < p->src->constants.len; i++) {
-      gab_value v = v_gab_value_val_at(&self->src->constants, i);
-      if (gab_valiso(v)) {
-        v_gab_value_set(&p->src->constants, i, gab_valcpy(gab, v));
-      }
-    }
 
     gab_egkeep(gab.eg, copy);
 
@@ -610,7 +601,7 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
   case kGAB_SPROTOTYPE: {
     struct gab_obj_prototype *self = GAB_VAL_TO_PROTOTYPE(value);
 
-    return gab_sprototype(gab, gab_srccpy(gab.eg, self->src),
+    return gab_sprototype(gab, gab_srccpy(gab, self->src),
                           gab_valcpy(gab, self->name), self->begin,
                           self->as.suspense.want);
   }
