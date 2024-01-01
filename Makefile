@@ -69,4 +69,4 @@ compile_commands:
 
 .PHONY: clean
 clean:
-	rm -v $(BUILD_PREFIX)/*
+	rm -vf $(BUILD_PREFIX)/*

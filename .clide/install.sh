@@ -16,6 +16,8 @@ clide build || exit 1
 
 echo "Beginning installation."
 
-make install || exit 1
+# We need to preserve our install prefixes for the install here.
+# The build type is not necessary - all our artifacts should have been built above.
+sudo --preserve-env=GAB_PREFIX,GAB_INSTALLPREFIX make install || exit 1
 
 echo "Success!"

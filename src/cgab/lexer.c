@@ -454,18 +454,18 @@ fin:
 }
 
 struct gab_src *gab_srccpy(struct gab_triple gab, struct gab_src *self) {
-  if (d_gab_src_exists(&gab.eg->sources, self->name))
-    d_gab_src_read(&gab.eg->sources, self->name);
+  gab_value name = gab_valcpy(gab, self->name);
+
+  if (d_gab_src_exists(&gab.eg->sources, name))
+    return d_gab_src_read(&gab.eg->sources, name);
 
   struct gab_src *copy = NEW(struct gab_src);
+  memset(copy, 0, sizeof(struct gab_src));
 
-  copy->name = gab_valcpy(gab, self->name);
+  d_gab_src_insert(&gab.eg->sources, name, copy);
+
+  copy->name = name;
   copy->source = a_char_create(self->source->data, self->source->len);
-
-  // Copy all of the constants into the engine
-  for (size_t i = 0; i < self->constants.len; i++) {
-    v_gab_value_push(&copy->constants, v_gab_value_val_at(&self->constants, i));
-  }
 
   v_s_char_copy(&copy->lines, &self->lines);
 
@@ -515,15 +515,18 @@ void gab_srcdestroy(struct gab_src *self) {
   DESTROY(self);
 }
 
-struct gab_src *gab_src(struct gab_eg *eg, gab_value name, const char *source,
+struct gab_src *gab_src(struct gab_triple gab, gab_value name, const char *source,
                         size_t len) {
-  if (d_gab_src_exists(&eg->sources, name))
-    return d_gab_src_read(&eg->sources, name);
+  if (d_gab_src_exists(&gab.eg->sources, name))
+    return d_gab_src_read(&gab.eg->sources, name);
 
   struct gab_src *src = NEW(struct gab_src);
   memset(src, 0, sizeof(struct gab_src));
 
   src->source = a_char_create(source, len);
+  src->name = name;
+
+  gab_egkeep(gab.eg, gab_gciref(gab, name));
 
   gab_lx lex;
   gab_lexcreate(&lex, src);
@@ -534,7 +537,7 @@ struct gab_src *gab_src(struct gab_eg *eg, gab_value name, const char *source,
       break;
   }
 
-  d_gab_src_insert(&eg->sources, name, src);
+  d_gab_src_insert(&gab.eg->sources, name, src);
 
   return src;
 }

@@ -125,6 +125,8 @@ struct gab_triple gab_create() {
   struct gab_eg *eg = NEW(struct gab_eg);
   memset(eg, 0, sizeof(struct gab_eg));
 
+  d_gab_src_create(&eg->sources, 8);
+
   struct gab_gc *gc = NEW(struct gab_gc);
   gab_gccreate(gc);
 
@@ -218,6 +220,7 @@ void gab_destroy(struct gab_triple gab) {
   d_shapes_destroy(&gab.eg->interned_shapes);
   d_messages_destroy(&gab.eg->interned_messages);
   d_gab_imp_destroy(&gab.eg->imports);
+  d_gab_src_destroy(&gab.eg->sources);
 
   v_gab_value_destroy(&gab.eg->scratch);
   free(gab.gc);
@@ -500,7 +503,6 @@ size_t gab_negkeep(struct gab_eg *gab, size_t len,
 }
 
 gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
-  printf("Copying value %V\n", value);
   switch (gab_valkind(value)) {
 
   default:
@@ -547,11 +549,10 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
                                         .narguments = self->as.block.narguments,
                                         .nlocals = self->as.block.nlocals,
                                     });
+
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(copy);
 
     memcpy(p, self->data, self->as.block.nupvalues * 2);
-
-    gab_egkeep(gab.eg, copy);
 
     return copy;
   }

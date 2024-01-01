@@ -4,4 +4,6 @@ fiber = :fiber.new do
   'Hi':print
 end
 
+fiber:print
+
 fiber:await

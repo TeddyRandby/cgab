@@ -14,16 +14,14 @@ void gab_lib_fiber(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
     gab_value fiber = fiber_create(gab, argv[1]);
 
-    struct fiber *fi = gab_boxdata(fiber);
+    gab_vmpush(gab.vm, fiber);
 
-    gab_fmodinspect(stdout, GAB_VAL_TO_PROTOTYPE(GAB_VAL_TO_BLOCK(fi->runner)->p));
+    fiber_iref(fiber);
 
     if (!fiber_go(fiber)) {
       gab_panic(gab, "Failed to start fiber");
       return;
     }
-
-    gab_vmpush(gab.vm, fiber);
     break;
   }
   default:
@@ -33,22 +31,24 @@ void gab_lib_fiber(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_call(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  struct fiber *f = (struct fiber *)gab_boxdata(argv[0]);
+  struct fiber *f = *(struct fiber **)gab_boxdata(argv[0]);
 
   if (f->status == fDONE) {
     gab_vmpush(gab.vm, gab_string(gab, "none"));
     return;
   }
 
-  if (f->status == fWAITING) {
-    fiber_run(f);
+  if (f->status == fPAUSED) {
+    fiber_iref(argv[0]);
+    fiber_run(argv[0]);
+
     gab_vmpush(gab.vm, gab_string(gab, "some"));
     gab_vmpush(gab.vm, argv[0]);
   }
 }
 
 void gab_lib_await(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  struct fiber *f = gab_boxdata(argv[0]);
+  struct fiber *f = *(struct fiber **)gab_boxdata(argv[0]);
 
   for (;;) {
     if (f->status == fDONE) {

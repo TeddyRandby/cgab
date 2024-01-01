@@ -223,6 +223,7 @@ uint64_t gab_obj_size(struct gab_obj *self) {
 static inline uint64_t hash_keys(uint64_t seed, uint64_t len, uint64_t stride,
                                  gab_value values[len]) {
   gab_value words[len];
+  memset(words, 0, sizeof(gab_value) * len);
 
   for (uint64_t i = 0; i < len; i++) {
     words[i] = values[i * stride];

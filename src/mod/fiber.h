@@ -2,14 +2,15 @@
 #include <threads.h>
 
 enum {
+  fNONE,
   fDONE,
-  fWAITING,
+  fPAUSED,
   fRUNNING,
 };
 
 struct fiber {
-  atomic_char status;
-  atomic_int rc;
+  _Atomic char status;
+  _Atomic int rc;
   thrd_t thrd;
   thrd_t parent;
 
@@ -17,37 +18,54 @@ struct fiber {
   struct gab_triple gab;
 };
 
-void fiber_destroy(size_t len, unsigned char data[static len]) {
-  struct fiber *f = (struct fiber *)data;
-  if (!f->rc--) {
+void fiber_deref(size_t len, unsigned char data[static len]) {
+  struct fiber *f = *(struct fiber **)data;
+  f->rc--;
+  if (f->rc == 0) {
     gab_destroy(f->gab);
+    free(f);
   }
 }
 
+void fiber_iref(gab_value fiber) {
+  assert(gab_valkind(fiber) == kGAB_BOX);
+  struct fiber *f = *(struct fiber **)gab_boxdata(fiber);
+  f->rc++;
+}
+
 gab_value fiber_create(struct gab_triple gab, gab_value runner) {
-  assert(gab_valkind(runner) == kGAB_SUSPENSE || gab_valkind(runner) == kGAB_BLOCK);
+  assert(gab_valkind(runner) == kGAB_SUSPENSE ||
+         gab_valkind(runner) == kGAB_BLOCK);
 
-  struct fiber f = {
-    .rc = 1,
-    .gab = gab_create(),
-    .parent = thrd_current(),
-    .runner = runner,
-  };
+  struct fiber *f = malloc(sizeof(struct fiber));
 
-  gab_gciref(gab, f.runner);
-  gab_egkeep(f.gab.eg, f.runner);
+  f->rc = 1;
+  f->status = fNONE;
+  f->gab = gab_create();
+  f->parent = thrd_current();
+  f->runner = gab_valcpy(f->gab, runner);
+
+  gab_gciref(gab, f->runner);
+  gab_egkeep(f->gab.eg, f->runner);
 
   gab_value fiber = gab_box(gab, (struct gab_box_argt){
-                                      .data = &f,
-                                      .size = sizeof(struct fiber),
-                                      .type = gab_string(gab, "Fiber"),
-                                      .destructor = fiber_destroy,
-                                  });
+                                     .data = &f,
+                                     .size = sizeof(struct fiber *),
+                                     .type = gab_string(gab, "Fiber"),
+                                     .destructor = fiber_deref,
+                                 });
 
   return fiber;
 }
 
-void fiber_run(struct fiber *f) {
+void fiber_run(gab_value fiber) {
+  assert(gab_valkind(fiber) == kGAB_BOX);
+  struct fiber *f = *(struct fiber **)gab_boxdata(fiber);
+
+  if (f->status == fDONE || f->status == fRUNNING) {
+    goto fin;
+  }
+
   f->status = fRUNNING;
 
   a_gab_value *result =
@@ -55,40 +73,43 @@ void fiber_run(struct fiber *f) {
                           .main = f->runner,
                           .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
                       });
-  printf("RUNNING %V\n", f->runner);
 
   f->runner = result->data[result->len - 1];
-  free(result);
 
   enum gab_kind runk = gab_valkind(f->runner);
+  bool continuing = runk == kGAB_BLOCK || runk == kGAB_SUSPENSE;
 
-  if (runk != kGAB_BLOCK && runk != kGAB_SUSPENSE)
-    f->status = fDONE;
-  else
-    f->status = fWAITING;
+  if (continuing)
+    gab_egkeep(f->gab.eg, f->runner);
 
+  /* Decrement all the results we didn't use. */
+  gab_ngcdref(f->gab, 1, result->len - continuing, result->data + continuing);
+
+  free(result);
+
+  f->status = continuing ? fPAUSED : fDONE;
+
+fin:
+  fiber_deref(sizeof(struct fiber *), (unsigned char *)&f);
 }
 
 int fiber_launch(void *d) {
   gab_value fiber = (gab_value)(intptr_t)d;
-  struct fiber *f = gab_boxdata(fiber);
 
-  f->rc++;
-
-  fiber_run(f);
-
-  fiber_destroy(sizeof(struct fiber), (void *)f);
+  fiber_run(fiber);
 
   return 0;
 }
 
 bool fiber_go(gab_value fiber) {
-    struct fiber *f = gab_boxdata(fiber);
+  assert(gab_valkind(fiber) == kGAB_BOX);
+  struct fiber *f = *(struct fiber **)gab_boxdata(fiber);
 
-    if (thrd_create(&f->thrd, fiber_launch, (void*) (intptr_t) fiber) != thrd_success) {
-      return false;
-    }
+  if (thrd_create(&f->thrd, fiber_launch, (void *)(intptr_t)fiber) !=
+      thrd_success) {
+    return false;
+  }
 
-    thrd_detach(f->thrd);
-    return true;
+  thrd_detach(f->thrd);
+  return true;
 }

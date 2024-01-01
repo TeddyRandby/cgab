@@ -1531,13 +1531,11 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args);
  *
  * @param gab The engine.
  *
- * @param vm The vm.
- *
  * @param value The value to copy.
  *
  * @return The copy.
  */
-gab_value gab_valcpy(struct gab_triple eg, gab_value value);
+gab_value gab_valcpy(struct gab_triple gab, gab_value value);
 
 /**
  * # Get the runtime value that corresponds to the given kind.

@@ -2,7 +2,6 @@
 #include "engine.h"
 #include "gab.h"
 #include <dlfcn.h>
-#include <stdio.h>
 
 void gab_impputmod(struct gab_eg *gab, const char *name, gab_value mod,
                    a_gab_value *val) {
