@@ -20,7 +20,7 @@ struct gab_obj *gab_obj_create(struct gab_triple gab, size_t sz,
   self->flags = fGAB_OBJ_NEW;
 
 #if cGAB_LOG_GC
-  printf("CREATE\t%p\t%lu\t%d\n", (void*)self, sz, k);
+  printf("CREATE\t%p\t%lu\t%d\n", (void *)self, sz, k);
 #endif
 
   gab_gcdref(gab, __gab_obj(self));
@@ -317,9 +317,17 @@ gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
   self->as.block.nupvalues = args.nupvalues;
   self->as.block.narguments = args.narguments;
 
-  for (uint8_t i = 0; i < args.nupvalues; i++) {
-    self->data[i * 2] = args.flags[i];
-    self->data[i * 2 + 1] = args.indexes[i];
+  if (args.nupvalues > 0) {
+    if (args.data) {
+      memcpy(self->data, args.data, args.nupvalues * 2 * sizeof(uint8_t));
+    } else if (args.flags && args.indexes) {
+      for (uint8_t i = 0; i < args.nupvalues; i++) {
+        self->data[i * 2] = args.flags[i];
+        self->data[i * 2 + 1] = args.indexes[i];
+      }
+    } else {
+      assert(0 && "Invalid arguments to gab_bprototype");
+    }
   }
 
   GAB_OBJ_GREEN((struct gab_obj *)self);
@@ -412,12 +420,11 @@ gab_value gab_shapewith(struct gab_triple gab, gab_value shape, gab_value key) {
       gab_eg_find_shape(gab.eg, self->len, 1, hash, self->data);
 
   if (interned) {
-// NOTE: We don't free the intermediate self shape, even if we hit the cache.
-// We queued a decrement for it already when it was created, so we can let it
-// clean up that way.
+    // NOTE: We don't free the intermediate self shape, even if we hit the
+    // cache. We queued a decrement for it already when it was created, so we
+    // can let it clean up that way.
     return __gab_obj(interned);
   }
-
 
   d_shapes_insert(&gab.eg->interned_shapes, self, 0);
 

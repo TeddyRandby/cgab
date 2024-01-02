@@ -548,11 +548,8 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
                                         .nslots = self->as.block.nslots,
                                         .narguments = self->as.block.narguments,
                                         .nlocals = self->as.block.nlocals,
+                                        .data = self->data,
                                     });
-
-    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(copy);
-
-    memcpy(p, self->data, self->as.block.nupvalues * 2);
 
     return copy;
   }

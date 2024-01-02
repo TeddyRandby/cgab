@@ -1,9 +1,31 @@
 :use .fibers
+:use .channel
+:use .lists
+:use .numbers
+:use .streams
 
-fiber = :fiber.new do
-  'Hi':print
+def work = :channel.new
+
+1000 :times do (i)
+  work << 'HI from {i}'
 end
 
-fiber:print
+def workers = :list.new
 
-fiber:await
+1 :times do (i)
+  workers:push!(:fiber.new do
+    :use .channel
+
+    loop
+      status, job = work:await
+
+      status == .none and return
+
+      job:print
+    end
+  end)
+end
+
+workers:for(&:values) do (fiber)
+  fiber:await
+end

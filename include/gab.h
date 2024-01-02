@@ -1286,7 +1286,7 @@ struct gab_obj_prototype {
   ((struct gab_obj_prototype *)gab_valtoo(value))
 
 struct gab_blkproto_argt {
-  char narguments, nslots, nlocals, nupvalues, *flags, *indexes;
+  char narguments, nslots, nlocals, nupvalues, *flags, *indexes, *data;
 };
 
 /**

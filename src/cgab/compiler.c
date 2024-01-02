@@ -392,7 +392,7 @@ static inline void push_send(struct bc *bc, uint16_t m, uint8_t have, bool mv,
   push_op(bc, OP_SEND_ANA, t);
   push_short(bc, m, t);
   push_byte(bc, encode_arity(have, mv), t);
-  push_byte(bc, 1, t); // Default to wnating one
+  push_byte(bc, 1, t); // Default to wanting one
 
   push_nnop(bc, 24, t); // Push space for the inline cache, and the version byte
 }
