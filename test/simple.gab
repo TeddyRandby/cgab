@@ -26,6 +26,4 @@ def workers = :list.new
   end)
 end
 
-workers:for(&:values) do (fiber)
-  fiber:await
-end
+workers:for(&:values, &:await)
