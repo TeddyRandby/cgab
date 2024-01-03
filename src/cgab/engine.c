@@ -319,8 +319,9 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
                                      .argv = args.sargv,
                                  });
 
-  if (main == gab_undefined)
+  if (main == gab_undefined) {
     return NULL;
+  }
 
   return gab_run(gab, (struct gab_run_argt){
                           .main = main,
@@ -333,6 +334,7 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
 int gab_nspec(struct gab_triple gab, size_t len,
               struct gab_spec_argt args[static len]) {
   gab_gclock(gab.gc);
+
   for (size_t i = 0; i < len; i++) {
     if (gab_spec(gab, args[i]) == gab_undefined) {
       gab_gcunlock(gab.gc);
@@ -425,34 +427,6 @@ static inline bool shape_matches_keys(struct gab_obj_shape *self,
 
   return true;
 }
-
-/*
- *
- * TODO: All these find_x functions need to change.
- *
- * Now that we can remove interned values, this chaining dict doesn't work as
- * well.
- *
- * Imagine a hash-collision chain like this
- *
- * Looking for z, which hashes to 5
- *
- * [x] [y] [z]
- *  5   6   7
- *
- * In this scenario, we hash to 5 and follow the chain to z. Works as planned.
- *
- * Now we remove y from the dict, as it is collected
- *
- * [x] [ ] [z]
- *  5   6   7
- *
- * Next time we go looking for z, we hash to 5 and find the open spot at 6.
- *
- * This is where the tombstone values come into play I believe.
- *
- * We can reactive the tombstone slot somehow
- */
 
 struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *self, uint64_t size,
                                         uint64_t stride, uint64_t hash,
@@ -675,8 +649,8 @@ void gab_verr(struct gab_err_argt args, va_list varargs) {
     gab_fvalinspect(stderr, args.context, 0);
 
     fprintf(stderr,
-            ANSI_COLOR_RESET "]" ANSI_COLOR_YELLOW " %s. " ANSI_COLOR_RESET
-                             " " ANSI_COLOR_GREEN,
+            ANSI_COLOR_RESET "]" ANSI_COLOR_YELLOW " %s." ANSI_COLOR_RESET
+                             "\n\nNOTE: " ANSI_COLOR_GREEN,
             gab_status_names[args.status]);
 
     vfprintf(stderr, args.note_fmt, varargs);
@@ -719,28 +693,41 @@ void gab_verr(struct gab_err_argt args, va_list varargs) {
   const char *curr_color = ANSI_COLOR_RED;
   const char *curr_box = "\u256d";
 
-  fprintf(stderr, "\n[" ANSI_COLOR_GREEN);
+  fprintf(stderr, "[" ANSI_COLOR_GREEN);
 
   gab_fvalinspect(stderr, args.context, 0);
 
   fprintf(stderr,
           ANSI_COLOR_RESET
           "] Error near " ANSI_COLOR_MAGENTA "%s" ANSI_COLOR_RESET
-          ":\n\t%s%s %.4lu " ANSI_COLOR_RESET "%.*s"
-          "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
-          "\n\t\u2570\u2500> ",
+          ":\n\n%s%s %.4lu " ANSI_COLOR_RESET "%.*s"
+          "\n\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
+          "\n\u2570\u2500\u2524 ",
           tok_name, curr_box, curr_color, line, (int)line_src.len,
           line_src.data, (int)line_under->len, line_under->data);
 
   a_char_destroy(line_under);
 
-  fprintf(stderr,
-          ANSI_COLOR_YELLOW "%s. \n\n" ANSI_COLOR_RESET "\t" ANSI_COLOR_GREEN,
+  fprintf(stderr, ANSI_COLOR_YELLOW "%s. " ANSI_COLOR_RESET,
           gab_status_names[args.status]);
 
-  vfprintf(stderr, args.note_fmt, varargs);
+  if (args.note_fmt && strlen(args.note_fmt) > 0) {
+    fprintf(stderr, "\n  \u2502"
+                    "\n  \u2502 ");
 
-  fprintf(stderr, "\n" ANSI_COLOR_RESET);
+    const char *c = args.note_fmt;
+
+    while (*c != '\0') {
+      if (*c == '$') {
+        gab_fvalinspect(stderr, va_arg(varargs, gab_value), 1);
+      } else {
+        fputc(*c, stderr);
+      }
+      c++;
+    }
+  }
+
+  fprintf(stderr, "\n");
 }
 
 void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size) {

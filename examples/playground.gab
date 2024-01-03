@@ -2,27 +2,26 @@
 :use 'numbers'
 
 ## cars.gab
-def Car { car.make car.model car.year car.color }
+def Car { car.make, car.model, car.year, car.color }
 
-:spec.def! 'car.make'  { spec: :spec.or('Ford', 'Chevy', 'Toyota', 'Honda') }
-:spec.def! 'car.year'  { spec: :spec.and(:spec.int, :spec.gt(2000)) }
-:spec.def! 'car.color' { spec: :spec.or('RED', 'BLUE', 'WHITE', 'BLACK') }
-:spec.def! 'car.model' { spec: :spec.or('Mustang', 'Civic', 'Camry', 'Prius') }
-:spec.def! 'car' { spec: :spec.protocol(Car) }
+:spec.def! 'car.make'  { spec = :spec.or('Ford', 'Chevy', 'Toyota', 'Honda') }
+:spec.def! 'car.year'  { spec = :spec.and(:spec.int, :spec.gt(2000)) }
+:spec.def! 'car.color' { spec = :spec.or('RED', 'BLUE', 'WHITE', 'BLACK') }
+:spec.def! 'car.model' { spec = :spec.or('Mustang', 'Civic', 'Camry', 'Prius') }
+:spec.def! 'car' { spec = :spec.protocol(Car) }
 
 def car.paint.spec = :spec.message {
     # The message we spec over
-    message:  &:car.paint
+    message  = &:car.paint,
     # The receiver's spec
-    receiver: :spec 'car'
+    receiver = :spec 'car',
     # Fetch the spec 'car.color' for the input
-    input:    :spec 'car.color'
+    input    = :spec 'car.color',
     # Fetch the spec 'car.color' for the output
-    output:   :spec 'car.color'
+    output   = :spec 'car.color',
   } do (receiver, input, output)
-  { receiver input output } :print
-    input[0] == receiver:car.color and input[0] == output[0]
-  end
+      input[0] == receiver:car.color and input[0] == output[0]
+    end
 
 # Generate a mock car
 # test_car = car.spec:spec.gen
@@ -31,7 +30,7 @@ def car.paint.spec = :spec.message {
 # test_car:car.paint('BLUE') :print # => 'BLUE'
 
 # Generate a mock implementation of car.paint for Car
-#car.paint.spec:spec.gen(Car)
+# car.paint.spec:spec.gen(Car)
 
 # Define a faulty car.paint specialization
 def car.paint[Car](color)
@@ -43,7 +42,8 @@ end
 # It generates receivers and inputs, sends the message,
 # And checks the output against the spec and semantics.
 # This code will run forever if the spec is always satisfied
-car.paint.spec:for(&:spec.check) do (ok, spec, value, path)
-  'hi':print
- { ok spec value path }:print
-end
+_, spec, value, path = car.paint.spec:first(&:spec.check) do (ok, spec, value, path)
+    not ok and return .some, spec, value, path
+  end
+
+{ spec, value, path }:print

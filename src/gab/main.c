@@ -149,7 +149,7 @@ int32_t main(int32_t argc, const char **argv) {
       return 0;
     }
 
-    run_file(argv[1], NULL, 0, fGAB_DUMP_ERROR);
+    run_file(argv[1], NULL, 0, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC);
     return 0;
 
   case 3:

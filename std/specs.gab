@@ -32,7 +32,11 @@ def spec.help[](name)
 end
 
 def spec[](name)
-  _, s = registry.spec:at(name) in == .ok or .MISSING_SPEC:panic
+  s, v = registry.spec:at(name)
+
+  s == .some or .MISSING_SPEC:panic
+
+  v
 end
 
 ## PREDICATES
@@ -46,76 +50,95 @@ end
 #      where spec is the predicate that rejected the value ( or nil, if no spec was found )
 #      where value is the rejected value
 #      where path is the 'path' taken to the rejected value ( or nil, if no path )
-
-def spec.nil[]
-  def nil.predicate(value)
-    return not value, self, value
-  end
+def nil.predicate(value)
+  return not value, self, value
 end
 
-def spec.unknown[]
-  def unknown.predicate(value)
-    return true, self, value
-  end
+def spec.nil[]; nil.predicate end
+
+def unknown.predicate(value)
+  return true, self, value
 end
 
-def spec.int[]
-  def int.predicate(value)
-    return value:is_n?, self, value
-  end
+def spec.unknown[]; unknown.predicate end
 
-  def spec.gen[int.predicate]; :int.between(-10000, 10000) end
+#
+# INT PREDICATE
+#
 
-  return int.predicate
+def int.predicate = :symbol.new 'predicate:int'
+
+def spec.fits?[?int.predicate](value)
+  return value:is_n?, self, value
 end
 
-def spec.float[]
-  def float.predicate(value)
-    return value:is_n?, self, value
-  end
+def spec.gen[?int.predicate]
+  :int.between(-10000, 10000)
+end
+
+def spec.int[]; int.predicate end
+
+#
+# FLOAT PREDICATE
+#
+
+def float.predicate = :symbol.new 'predicate:float'
+
+def spec.fits?[?float.predicate](value)
+  return value:is_n?, self, value
+end
+
+def spec.gen[?float.predicate]
+  :float.between(-10000, 10000)
+end
+
+def spec.float[]; return float.predicate end
+
+#
+# STRING PREDICATE
+#
+def string.predicate = :symbol.new 'predicate:string'
+
+def spec.fits?[?string.predicate](value)
+  return value:is_s?, self, value
+end
+
+def spec.gen[?string.predicate]
+  def len  = :int.between(1, 100)
+  def list = :list.new
   
-  def spec.gen[float.predicate]; :float.between(-10000, 10000) end
-
-  return float.predicate
+  i = 0
+  
+  loop
+    list:push!(:int.between(0, 127))
+    i = i + 1
+  until i == len end
+  
+  list:to_bytes
 end
 
-def spec.string[]
-  def string.predicate(value)
-    return value:is_s?, self, value
-  end
+def spec.string[]; string.predicate end
 
-  def spec.gen[string.predicate]
-    def len  = :int.between(1, 100)
-    def list = :list.new
-    
-    i = 0
-    
-    loop
-      list:push!(:int.between(0, 127))
-      i = i + 1
-    until i == len end
-    
-    list:to_bytes
-  end
+#
+# BOOL PREDICATE
+#
+def bool.predicate = :symbol.new 'predicate:bool'
 
-  return string.predicate
+def spec.fits?[?bool.predicate](value)
+  return value:is_b?, self, value
 end
 
-def spec.bool[]
-  def bool.predicate(value)
-    return value:is_b?, self, value
-  end
-
-  def spec.gen[bool.predicate]
-    :float.between > 0.5
-  end
-
-  return bool.predicate
+def spec.gen[?bool.predicate]
+  :float.between > 0.5
 end
+
+def spec.bool[]; return bool.predicate end
 
 ## predicate for a map of key type -> value type
 def spec.map[](k_spec, v_spec)
-  def map.predicate (value)
+  def map.predicate = :symbol.new 'predicate:map:{k_spec}:{v_spec}'
+
+  def spec.fits?[?map.predicate](value)
     ?value == .Map or return false, self, value 
     
     value:for(&:pairs) do (k, v)
@@ -126,8 +149,8 @@ def spec.map[](k_spec, v_spec)
     return true, self, value
   end
 
-  def spec.gen[map.predicate]
-    :map.new { [k_spec:spec.gen]:  v_spec:spec.gen }
+  def spec.gen[?map.predicate]
+    :map.new { [k_spec:spec.gen] =  v_spec:spec.gen }
   end
 
   return map.predicate
@@ -135,7 +158,9 @@ end
 
 ## predicate for a list of values
 def spec.list[](spec)
-  def list.predicate (value)
+  def list.predicate = :symbol.new 'predicate:list:{spec}'
+
+  def spec.fits?[?list.predicate](value)
     ?value == .List or return false, self, value
 
     value:for(&:pairs) do (k, v)
@@ -154,9 +179,10 @@ end
 
 ## predicate for a type which implements a set of messages
 def spec.protocol[](protocol)
+  def protocol.predicate = :symbol.new 'predicate:protocol:{protocol}'
   # Return a predicate which returns true if the given value
   # has all the keys of the record
-  def protocol.predicate (value)
+  def spec.fits?[?protocol.predicate](value)
     protocol:for(&:keys) do (k)
       # If message doesn't specify for this value, then the spec doesn't fit
       m = :message.new(k)
@@ -174,13 +200,15 @@ def spec.protocol[](protocol)
     return true, self, value
   end
 
-  def spec.gen[protocol.predicate]
+  def spec.gen[?protocol.predicate]
     def gen = :record.new(protocol)
 
     protocol:for(&:keys) do (k)
-      _, s = registry.spec:at(k) in match
-        .some => gen[k] = s:spec.gen end
-        else  => .MISSING_SPEC:panic end
+      s, found = registry.spec:at(k)
+
+      s == .some or .MISSING_SPEC:panic
+
+      gen[k] = found:spec.gen
     end
 
     return gen
@@ -209,18 +237,18 @@ end
 def spec.or[](*specs)
   specs:len > 0 or .INVALID_ARGUMENTS:panic
   
+  def or.predicate = :symbol.new 'predicate:or:{specs}'
   # Return a predicate which returns true if the given value
   # fits any of the given specs
-  def or.predicate (value)
-    specs:fold(&:pairs, false) do (acc, k, spec)
-      { k spec value }:print
-      spec:spec.fits?(value) or acc
+  def spec.fits?[?or.predicate](value)
+    valid = specs:fold(&:values, false) do (acc, s)
+      acc or s:spec.fits?(value)
     end
     
-    return false, self, value
+    return valid, self, value
   end
 
-  def spec.gen[or.predicate]
+  def spec.gen[?or.predicate]
     specs[(:int.between(0, specs:len - 1))] :spec.gen
   end
 
@@ -229,9 +257,11 @@ end
 
 def spec.and[](*specs)
   specs:len > 0 or .INVALID_ARGUMENTS:panic
+
+  def and.predicate = :symbol.new 'predicate:and:{specs}'
   # Return a predicate which returns true iff the given value
   # fits all of the given specs
-  def and.predicate (value)
+  def spec.fits?[?and.predicate](value)
     specs:for(&:pairs) do (k, spec)
       spec:spec.fits?(value) or return false, spec, value, k
     end
@@ -239,7 +269,7 @@ def spec.and[](*specs)
     return true, self, value
   end
   
-  def spec.gen[and.predicate]
+  def spec.gen[?and.predicate]
     tries = 0
     
     start = specs[0]
@@ -274,12 +304,14 @@ def spec.lt[](min)
   end
 end
 
-def spec.block.Args { input output }
+def spec.block.Args { input, output }
 
 def spec.block[](args, semantics)
   args:is?(spec.block.Args) or .INVALID_ARGUMENTS:panic
 
-  def block.predicate(input, output)
+  def block.predicate = :symbol.new 'predicate:block:{args}:{semantics}'
+
+  def spec.fits?[?block.predicate](input, output)
     success, pred, val, path = args:input:spec.fits?(input:splat)
     success or return false, pred, input, .input
     
@@ -291,7 +323,7 @@ def spec.block[](args, semantics)
     return semantics(input, output), self, [input, output], .semantics
   end
 
-  def spec.gen[block.predicate]
+  def spec.gen[?block.predicate]
     def block.gen(*input)
       loop
         # Generate an output
@@ -309,7 +341,7 @@ def spec.block[](args, semantics)
     end
   end
 
-  def spec.check[block.predicate](block)
+  def spec.check[?block.predicate](block)
     loop
       *input  = args:input:spec.gen
 
@@ -328,12 +360,14 @@ end
 ##    - no arguments
 ##    - no output
 ##    - no receiver
-def spec.message.Args { message receiver input output }
+def spec.message.Args { message, receiver, input, output }
 
 def spec.message[](args, semantics)
   args:is?(spec.message.Args) or .INVALID_ARGUMENTS:panic
 
-  def message.predicate(rec, input, output)
+  def message.predicate = :symbol.new 'predicate:message:{args}:{semantics}'
+
+  def spec.fits?[?message.predicate](rec, input, output)
     success, pred, val, path = args:input:spec.fits?(input:splat)
     success or return false, pred, input, .input
     
@@ -342,13 +376,13 @@ def spec.message[](args, semantics)
     
     success, pred, val, path = args:receiver:spec.fits?(rec)
     success or return false, pred, rec, .receiver
-    
+
     semantics or return success, self, [rec, input, output]
 
     return semantics(rec, input, output), self, [rec, input, output], .semantics
   end
 
-  def spec.gen[message.predicate](receiver)
+  def spec.gen[?message.predicate](receiver)
     def message.gen(*input)
       args:input:spec.fits?(input:splat) or .INVALID_ARGUMENTS:panic
 
@@ -382,21 +416,17 @@ def spec.message[](args, semantics)
     return args:message
   end
 
-  def spec.check[message.predicate]
+  def spec.check[?message.predicate]
     loop
       receiver = args:receiver:spec.gen
-
-      { receiver }:print
 
       args:receiver:spec.fits?(receiver) then
         *input  = args:input:spec.gen
 
-        { input arg: args:input }:print
-
         args:input:spec.fits?(input:splat) then
           *output = receiver:(args:message)(input:splat)
           
-          yield message.predicate(receiver, input, output)
+          yield self:spec.fits?(receiver, input, output)
         end
       end
     end
@@ -421,10 +451,12 @@ def spec.fits?[.Block](value); self(value)      end
 # Doesn't satisfy their use case.
 def spec.modify![.Record](new_value)
     self:for(&:keys) do (k)
-    # If new_value has a corresponding value, modify self. Else, pass
-    _, v = new_value:at(k) in match
-      .some => self[k] = v end
-      else  => .pass       end
+      # If new_value has a corresponding value, modify self. Else, pass
+      s, v = new_value:at(k)
+
+      s == .some then
+        self[k] = v
+      end
   end
 end
 

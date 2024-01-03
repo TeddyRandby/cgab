@@ -26,6 +26,15 @@ static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
   return v_uint64_t_val_at(&p->src->bytecode_toks, offset);
 }
 
+#define TYPE_MISMATCH                                                          \
+  "Found " ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET " of type: " ANSI_COLOR_GREEN \
+  "$" ANSI_COLOR_RESET
+
+#define MISSING_IMPL                                                           \
+  ANSI_COLOR_GREEN                                                             \
+  "$" ANSI_COLOR_RESET " does not specialize for " ANSI_COLOR_GREEN            \
+  "$" ANSI_COLOR_RESET " of type: " ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET
+
 a_gab_value *vm_error(struct gab_triple gab, enum gab_status s, const char *fmt,
                       ...) {
 
@@ -65,6 +74,9 @@ a_gab_value *vm_error(struct gab_triple gab, enum gab_status s, const char *fmt,
 
 void gab_panic(struct gab_triple gab, const char *msg) {
   a_gab_value *res = vm_error(gab, GAB_PANIC, msg);
+
+  if (gab.vm && gab.vm->flags & fGAB_EXIT_ON_PANIC)
+    exit(1);
 
   gab_nvmpush(gab.vm, res->len, res->data);
 }
@@ -385,7 +397,7 @@ static handler handlers[] = {
   }                                                                            \
   if (!__gab_valisn(PEEK())) {                                                 \
     STORE_FRAME();                                                             \
-    ERROR(GAB_NOT_NUMBER, "Found %V (%V)", PEEK(), gab_valtype(EG(), PEEK()),  \
+    ERROR(GAB_NOT_NUMBER, TYPE_MISMATCH, PEEK(), gab_valtype(EG(), PEEK()),    \
           PEEK());                                                             \
   }                                                                            \
   operation_type b = gab_valton(POP());                                        \
@@ -461,8 +473,7 @@ CASE_CODE(SEND_ANA) {
 
   if (!res.status) {
     STORE_FRAME();
-    ERROR(GAB_IMPLEMENTATION_MISSING, "%V does not specialize for %V (%V)", m,
-          r, gab_valtype(EG(), r));
+    ERROR(GAB_IMPLEMENTATION_MISSING, MISSING_IMPL, m, r, gab_valtype(EG(), r));
   }
 
   gab_value spec = res.status == sGAB_IMPL_PROPERTY
@@ -485,7 +496,7 @@ CASE_CODE(SEND_ANA) {
     break;
   default:
     STORE_FRAME();
-    ERROR(GAB_NOT_CALLABLE, "Found %V %V", res.type, spec);
+    ERROR(GAB_NOT_CALLABLE, TYPE_MISMATCH, spec, res.type);
   }
 
   IP() -= SEND_CACHE_DIST;
@@ -601,15 +612,14 @@ CASE_CODE(SEND_DYN) {
 
   if (gab_valkind(m) != kGAB_MESSAGE) {
     STORE_FRAME();
-    ERROR(GAB_NOT_MESSAGE, "Found %V (%V)", m, gab_valtype(EG(), m));
+    ERROR(GAB_NOT_MESSAGE, TYPE_MISMATCH, m, gab_valtype(EG(), m));
   }
 
   struct gab_egimpl_rest res = gab_egimpl(gab.eg, m, r);
 
   if (!res.status) {
     STORE_FRAME();
-    ERROR(GAB_IMPLEMENTATION_MISSING, "%V does not specialize for %V (%V)", m,
-          r, gab_valtype(EG(), r));
+    ERROR(GAB_IMPLEMENTATION_MISSING, MISSING_IMPL, m, r, gab_valtype(EG(), r));
   }
 
   gab_value spec = res.status == sGAB_IMPL_PROPERTY
@@ -664,7 +674,7 @@ CASE_CODE(SEND_DYN) {
     DISPATCH(op);
   }
   default:
-    ERROR(GAB_NOT_CALLABLE, "Found %V %V", gab_valtype(EG(), r), spec);
+    ERROR(GAB_NOT_CALLABLE, TYPE_MISMATCH, spec, gab_valtype(EG(), r));
   }
 }
 
@@ -815,7 +825,7 @@ CASE_CODE(SEND_PRIMITIVE_CONCAT) {
 
   if (gab_valkind(PEEK()) != kGAB_STRING) {
     STORE_FRAME();
-    ERROR(GAB_NOT_STRING, "Found %V %V", gab_valtype(EG(), PEEK()), PEEK());
+    ERROR(GAB_NOT_STRING, TYPE_MISMATCH, PEEK(), gab_valtype(EG(), PEEK()));
   }
 
   STORE_FRAME();
@@ -1089,7 +1099,7 @@ CASE_CODE(PUSH_FALSE) {
 CASE_CODE(NEGATE) {
   if (!__gab_valisn(PEEK())) {
     STORE_FRAME();
-    ERROR(GAB_NOT_NUMBER, "Found %V %V", gab_valtype(EG(), PEEK()), PEEK());
+    ERROR(GAB_NOT_NUMBER, TYPE_MISMATCH, gab_valtype(EG(), PEEK()), PEEK());
   }
 
   gab_value new_value = gab_number(-gab_valton(POP()));
@@ -1217,7 +1227,11 @@ CASE_CODE(MESSAGE) {
 
   if (gab_msgput(GAB(), m, r, blk) == gab_undefined) {
     STORE_FRAME();
-    ERROR(GAB_IMPLEMENTATION_EXISTS, "%V already specializes for %V", m, r);
+    ERROR(GAB_IMPLEMENTATION_EXISTS,
+          ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET
+                           " already specializes for type: " ANSI_COLOR_GREEN
+                           "$" ANSI_COLOR_RESET,
+          m, r);
   }
 
   PEEK() = m;

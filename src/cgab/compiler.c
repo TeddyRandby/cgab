@@ -205,8 +205,8 @@ static inline int expect_token(struct bc *bc, gab_token tok) {
   if (!match_token(bc, tok)) {
     eat_token(bc);
     compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                   "Expected " ANSI_COLOR_MAGENTA "%s" ANSI_COLOR_RESET,
-                   gab_token_names[tok]);
+                   "Expected " ANSI_COLOR_MAGENTA "$" ANSI_COLOR_RESET,
+                   gab_string(gab(bc), gab_token_names[tok]));
     return COMP_ERR;
   }
 
@@ -577,7 +577,7 @@ static inline void push_slot(struct bc *bc, uint16_t n) {
 
   if (f->next_slot + n >= UINT16_MAX) {
     compiler_error(bc, GAB_PANIC,
-                   "Too many slots. This is an internal compiler error.\n");
+                   "Too many slots. This is an internal compiler error.");
     assert(0);
   }
 
@@ -617,7 +617,7 @@ static inline void pop_slot(struct bc *bc, uint16_t n) {
 
   if (f->next_slot - n < 0) {
     compiler_error(bc, GAB_PANIC,
-                   "Too few slots. This is an internal compiler error.\n");
+                   "Too few slots. This is an internal compiler error.");
     assert(0);
   }
 
@@ -840,7 +840,7 @@ static inline int push_ctx(struct bc *bc, enum context_k kind) {
   return bc->ncontext++;
 }
 
-static void push_ctxframe(struct bc *bc, gab_value name, bool message) {
+static void push_ctxframe(struct bc *bc, gab_value name, bool is_message) {
   int ctx = push_ctx(bc, kFRAME);
 
   assert(ctx >= 0 && "Failed to push frame context");
@@ -851,14 +851,18 @@ static void push_ctxframe(struct bc *bc, gab_value name, bool message) {
 
   memset(f, 0, sizeof(struct frame));
 
+  bool is_anonymous = name == gab_nil;
+
   f->jump = push_jump(bc, OP_JUMP, bc->offset - 1);
   f->offset = bc->src->bytecode.len;
-  f->name = name;
+  f->name = is_anonymous ? gab_string(gab(bc), "anonymous") : name;
 
   addk(bc, name);
 
-  init_local(bc,
-             add_local(bc, message ? gab_string(gab(bc), "self") : name, 0));
+  init_local(bc, add_local(bc,
+                           is_anonymous ? gab_string(gab(bc), "")
+                                        : gab_string(gab(bc), "self"),
+                           0));
 }
 
 static int pop_ctxloop(struct bc *bc) {
@@ -1279,7 +1283,8 @@ int compile_expressions(struct bc *bc) {
   if (match_token(bc, TOKEN_EOF)) {
     eat_token(bc);
     compiler_error(bc, GAB_MISSING_END,
-                   "Make sure the block at line %lu is closed.", line);
+                   "Make sure the block at line $ is closed.",
+                   gab_number(line));
     return COMP_ERR;
   }
 
@@ -1346,7 +1351,7 @@ int compile_block(struct bc *bc, gab_value name) {
   return COMP_OK;
 }
 
-int compile_message(struct bc *bc, gab_value name) {
+int compile_message(struct bc *bc, gab_value name, size_t t) {
   if (compile_message_spec(bc) < 0)
     return COMP_ERR;
 
@@ -1364,12 +1369,11 @@ int compile_message(struct bc *bc, gab_value name) {
   if (p == gab_undefined)
     return COMP_ERR;
 
-  // Create the closure, adding a specialization to the pushed function.
-  push_op(bc, OP_MESSAGE, bc->offset - 1);
-  push_short(bc, addk(bc, p), bc->offset - 1);
+  push_op(bc, OP_MESSAGE, t);
+  push_short(bc, addk(bc, p), t);
 
   gab_value m = gab_message(gab(bc), name);
-  push_short(bc, addk(bc, m), bc->offset - 1);
+  push_short(bc, addk(bc, m), t);
 
   push_slot(bc, 1);
   return COMP_OK;
@@ -1910,7 +1914,7 @@ int compile_definition(struct bc *bc, s_char name) {
   }
 
   if (match_token(bc, TOKEN_LBRACE)) {
-    if (compile_message(bc, val_name) < 0)
+    if (compile_message(bc, val_name, t) < 0)
       return COMP_ERR;
 
     goto fin;
@@ -1930,7 +1934,7 @@ fin:
 //---------------- Compiling Expressions ------------------
 
 int compile_exp_blk(struct bc *bc, bool assignable) {
-  return compile_block(bc, gab_string(gab(bc), "anonymous"));
+  return compile_block(bc, gab_nil);
 }
 
 int compile_condexp(struct bc *bc, bool assignable, uint8_t jump_op) {
@@ -2385,8 +2389,7 @@ int compile_exp_idn(struct bc *bc, bool assignable) {
   }
 
   case COMP_ID_NOT_FOUND: {
-    compiler_error(bc, GAB_MISSING_IDENTIFIER,
-                   "Double check the spelling of '%V'.", id);
+    compiler_error(bc, GAB_MISSING_IDENTIFIER, "");
     return COMP_ERR;
   }
 
@@ -2484,7 +2487,7 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
 
   if (flags & fHAS_DO || match_and_eat_token(bc, TOKEN_DO)) {
     // We are an anonyumous function
-    if (compile_block(bc, gab_string(gab(bc), "anonymous")) < 0)
+    if (compile_block(bc, gab_nil) < 0)
       return COMP_ERR;
 
     result += 1 + *mv_out;

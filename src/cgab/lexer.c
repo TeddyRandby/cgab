@@ -77,9 +77,9 @@ void gab_lexcreate(gab_lx *self, struct gab_src *src) {
   start_row(self);
 }
 
-static inline int8_t peek(gab_lx *self) { return *self->cursor; }
+static inline char peek(gab_lx *self) { return *self->cursor; }
 
-static inline int8_t peek_next(gab_lx *self) { return *(self->cursor + 1); }
+static inline char peek_next(gab_lx *self) { return *(self->cursor + 1); }
 
 static inline gab_token error(gab_lx *self, enum gab_status s) {
   self->status = s;
@@ -380,8 +380,12 @@ gab_token other(gab_lx *self) {
 
 static inline void parse_comment(gab_lx *self) {
   while (is_comment(peek(self))) {
-    while (peek(self) != '\n')
+    while (peek(self) != '\n') {
       advance(self);
+
+      if (peek_next(self) == '\0' || peek_next(self) == EOF)
+        break;
+    }
 
     advance(self);
     finish_row(self);

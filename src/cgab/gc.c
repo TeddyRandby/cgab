@@ -214,10 +214,10 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
 #if cGAB_LOG_GC
     printf("NEW\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
+    GAB_OBJ_NOT_NEW(obj);
     for_child_do(obj, inc_obj_ref, gab);
   }
 
-  GAB_OBJ_NOT_NEW(obj);
 }
 
 #if cGAB_LOG_GC
