@@ -1,3 +1,9 @@
+/**
+ * @file
+ * @brief A small, fast, and portable implementation of the gab programming
+ * language
+ */
+
 #ifndef GAB_H
 #define GAB_H
 
@@ -5,6 +11,11 @@
 
 #include "core.h"
 #include "types.h"
+
+/**
+ * \file
+ * \brief The API for the gab programming language.
+ */
 
 /**
  An IEEE 754 double-precision float is a 64-bit value with bits laid out like:
@@ -267,10 +278,8 @@ typedef void (*gab_boxvisit_f)(struct gab_triple gab, gab_gcvisit_f visitor,
                                size_t len, unsigned char data[static len]);
 
 /**
- * This header is the first member of all heap-allocated objects.
- *
- * This way, garbage collection code can refer to all heap objects through a
- * single interface.
+ * @class gab_obj
+ * @brief This struct is the first member of all heap-allocated objects.
  */
 struct gab_obj {
   int64_t references;
@@ -279,81 +288,84 @@ struct gab_obj {
 };
 
 /**
- * Free any memory owned by the object, but not the object itself.
+ * @brief INTERNAL: Free memory held by an object.
  *
- * @param self The object whose memory should be freed.
+ * @param eg The engine responsible for the object.
+ * @param obj The object.
  */
 void gab_obj_destroy(struct gab_eg *eg, struct gab_obj *obj);
 
 /**
- * Get the size of the object in bytes.
+ * @brief Compute the size of an object, in bytes.
  *
- * @param obj The object to calculate the size of.
- * @return The size of the object in bytes.
+ * @param obj The object.
+ * @return The number of bytes allocated for the object.
  */
-uint64_t gab_obj_size(struct gab_obj *obj);
+size_t gab_obj_size(struct gab_obj *obj);
 
 /**
- * # Create a gab_eg.
- * This struct stores data about the environment that gab
- * code executes in.
- *
- * @return A pointer to the struct on the heap.
+ * @brief Allocate data necessary for a runtime. This struct is lightweight and
+ * should be passed by value.
  */
 struct gab_triple gab_create();
 
 /**
- * # Destroy a gab_eg.
- * Free all memory associated with the engine.
+ * @brief Free the memory owned by this triple.
  *
- * @param gab The engine.
+ * @param gab The triple to free.
  */
 void gab_destroy(struct gab_triple gab);
 
-int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *mod);
-
 /**
- * # Print a gab value to a file stream.
+ * @brief Print the bytecode to the stream - useful for debugging.
  *
- * @param stream The file stream to dump to.
- *
- * @param self The value to dump
- *
- * @param depth How far to recursively inspect. A value less than zero will use
- * the default depth.
- *
- * @return The number of bytes written.
+ * @param stream The stream to print to
+ * @param proto The prototype to inspect
+ * @return non-zero if an error occured.
  */
-int gab_fvalinspect(FILE *stream, gab_value self, int depth);
+int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *proto);
 
 /**
- * # Give the engine ownership of the values.
+ * @brief Print a gab_value to the given stream. Will prent nested values as
+ * deep as depth.
  *
- *  When in c-code, it can be useful to have gab_values outlive the function
+ * @param stream The stream to print to
+ * @param value The value to inspect
+ * @param depth The depth to recurse to
+ * @return the number of bytes written to the stream.
+ */
+int gab_fvalinspect(FILE *stream, gab_value value, int depth);
+
+/**
+ * @brief Give the engine ownership of the values. When in c-code,
+ * it can be useful to have gab_values outlive the function
  * they are created in, but if they aren't referenced by another value they will
  * be collected. Thus, the scratch buffer is useful to hold a reference to the
  * value until the engine is destroyed.
  *
- *  @param gab The engine.
+ *  @param eg The engine.
+ *  @param value The value to keep.
  *  @return The value.
  */
-size_t gab_egkeep(struct gab_eg *eg, gab_value v);
+size_t gab_egkeep(struct gab_eg *eg, gab_value value);
 
 /**
- * # Give the engine ownership of the values.
- *
- *  When in c-code, it can be useful to have gab_values outlive the function
- * they are created in, but if they aren't referenced by another value they will
- * be collected. Thus, the scratch buffer is useful to hold a reference to the
- * value until the engine is destroyed.
+ * @brief Give the engine ownership of multiple values.
+ * @see gab_egkeep.
  *
  *  @param gab The engine.
- *  @param len The number of values to scratch.
+ *  @param len The number of values to keep.
  *  @param values The values.
- *  @return The number of values pushed.
+ *  @return The total number of values kept by the engine.
  */
 size_t gab_negkeep(struct gab_eg *eg, size_t len, gab_value argv[static len]);
 
+/**
+ * @class gab_egimpl_rest
+ * @brief The result of gab_egimpl
+ * @see gab_egimpl.
+ *
+ */
 struct gab_egimpl_rest {
   gab_value type;
   size_t offset;
@@ -367,191 +379,259 @@ enum {
   sGAB_IMPL_GENERAL,
   sGAB_IMPL_PROPERTY,
 };
+
+/**
+ * @brief Find the implementation of a message for a given receiver.
+ *
+ * @param eg The engine to search for an implementation.
+ * @param message The message to find.
+ * @param receiver The receiver to find the implementation for.
+ */
 static inline struct gab_egimpl_rest
 gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver);
 
 /**
- * # Push a value(s) onto the vm's internal stack
+ * @brief Push a value onto the vm's internal stack. This is how
+ * c-natives can return values to the runtime.
  *
- * This is used to return values from c-natives.
- *
- * @param vm The vm that will receive the values.
- * @return The number of values pushed.
+ * @param vm The vm to push the values onto.
+ * @param value the value to push.
+ * @return The number of values pushed (always one).
  */
-size_t gab_vmpush(struct gab_vm *vm, gab_value v);
+size_t gab_vmpush(struct gab_vm *vm, gab_value value);
 
 /**
- * # Push values onto the vm's internal stack
- * Used to return values from c-natives.
+ * @brief Push multiple values onto the vm's internal stack.
+ * @see gab_vmpush.
  *
  * @param vm The vm that will receive the values.
- * @param argc The number of values.
+ * @param len The number of values.
  * @param argv The array of values.
  */
 size_t gab_nvmpush(struct gab_vm *vm, size_t len, gab_value argv[static len]);
 
 /**
- * # Pry into the frame at the given depth in the callstack.
+ * @brief Inspect the vm at depth N in the callstack.
  *
- * @param gab The engine.
- *
+ * @param stream The stream to print to.
  * @param vm The vm.
- *
- * @param depth The depth.
+ * @param depth The depth of the callframe. '0' would be the topmost callframe.
  */
 void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t depth);
 
 /**
- * # Build a record which contains the data relevant to the callframe
- * at depth N in the vm's callstack.
+ * @brief Inspect the vm's callstack at the given depth, and return a value with
+ * the relevant data.
  *
- * @param gab The engine.
- * @param depth The depth of the callframe.
+ * @param gab The triple to inspect.
+ * @param depth The depth of the callframe. '0' would be the topmost callframe.
  * @return The record.
  */
 gab_value gab_vmframe(struct gab_triple gab, uint64_t depth);
 
 /**
- * # Store a module in the engine's import table.
+ * @brief Put a source-file-type module into the engine.
  *
- * @param gab The engine.
- * @param name The name of the import.
- * @param mod The module to import.
- * @param val The value of the import.
+ * @param eg The engine.
+ * @param name The name of the import. This is used to lookup the import.
+ * @param mod The module to store. This is usually a block, but can be anything
+ * @param values The value of the import. This will be returned when a user
+ * imports the given name.
  */
-void gab_impputmod(struct gab_eg *eg, const char *name, gab_value mod,
-                   a_gab_value *val);
+void gab_egimpputmod(struct gab_eg *eg, const char *name, gab_value mod,
+                     a_gab_value *values);
 
 /**
- * # Store a shared library in the engine's import table.
+ * @brief Put a shared-object-type module into the engine.
  *
- * @param gab The engine.
+ * @param eg The engine.
  * @param name The name of the import.
- * @param obj The shared library to import.
- * @param val The value of the import.
+ * @param so The shared library to import.
+ * @param values The value of the import. This will be returned when a user
+ * imports the given name.
  */
-void gab_impputshd(struct gab_eg *eg, const char *name, void *obj,
-                   a_gab_value *val);
+void gab_egimpputshd(struct gab_eg *eg, const char *name, void *so,
+                     a_gab_value *values);
 
 /**
- * # Check if an import exists in the engine's import table.
+ * @brief Check if an engine has an import by name.
  *
- * @param gab The engine.
+ * @param eg The engine.
  * @param name The name of the import.
- * @returns The import if it exists, NULL otherwise.
+ * @returns The import if it exists, or NULL.
  */
-struct gab_imp *gab_impat(struct gab_eg *eg, const char *name);
+struct gab_imp *gab_egimpat(struct gab_eg *eg, const char *name);
 
 /**
- * # Get the value of an import.
+ * @brief Get the values of an import.
  *
  * @param imp The import.
  * @returns The value of the import.
  */
-a_gab_value *gab_impval(struct gab_imp *imp);
+a_gab_value *gab_impvals(struct gab_imp *imp);
 
+/**
+ * @class gab_cmpl_argt
+ * @brief Arguments and options for compiling a string of source code.
+ * @see gab_cmpl.
+ * @see enum gab_flags.
+ */
 struct gab_cmpl_argt {
-  /* The name of the module */
+  /**
+   * @brief The name of the module.
+   */
   const char *name;
-  /* The source code */
+  /**
+   * @brief The source code to compile.
+   */
   const char *source;
-  /* Options for the compiler */
+  /**
+   * @brief Optional flags for compilation.
+   */
   int flags;
-  /* The number of arguments */
+  /**
+   * @brief The number of arguments expected by the main block.
+   */
   size_t len;
-  /* The names of the arguments to the main block */
+  /**
+   * @brief The names of the arguments expected by the main block.
+   */
   const char **argv;
 };
+
 /**
- * # Compile a source string into a block.
+ * @brief Compile a source string into a block.
+ * Flag options are defined in @link enum gab_flags.
  *
- * @see enum gab_flags
+ * @see struct gab_cmpl_argt.
+ * @see enum gab_flags.
+ *
  * @param gab The engine.
  * @param args The arguments.
- * @see struct gab_block_argt
- * @param argv The names of the arguments to the main block
- * @return The block.
+ * @returns A gab_value containing the compiled block, which can be called.
  */
 gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args);
 
+/**
+ * @class gab_run_argt
+ * @brief Arguments and options for running a block.
+ * @see gab_run
+ */
 struct gab_run_argt {
-  /* The value to call */
+  /**
+   * @brief The main block to run.
+   */
   gab_value main;
-  /* Options for the vm */
+  /**
+   * @brief Optional flags for the vm.
+   */
   int flags;
-  /* The number of arguments */
+  /**
+   * @brief The number of arguments passed to the main block.
+   */
   size_t len;
-  /* The number of arguments */
+  /**
+   * @brief The arguments passed to the main block.
+   */
   gab_value *argv;
 };
+
 /**
- * # Call main with the engine's arguments.
- *
- * @param  gab The engine.
- * @param gc The garbage collector. May be nullptr.
- * @param args The arguments.
+ * @brief Call a block
  * @see struct gab_run_argt
- * @param argv The values of the arguments passed to main.
+ *
+ * @param  gab The triple.
+ * @param args The arguments.
  * @return A heap-allocated slice of values returned by the block.
  */
 a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args);
 
+/**
+ * @class gab_exec_argt
+ * @brief Arguments and options for executing a source string.
+ */
 struct gab_exec_argt {
-  /* The name of the module */
+  /**
+   * @brief The name of the module - defaults to "__main__".
+   */
   const char *name;
-  /* Defaults to (main) */
-  /* The source code */
+  /**
+   * @brief The source code to execute.
+   */
   const char *source;
-  /* Options for the compiler & vm */
+  /**
+   * @brief Optional flags for compilation AND execution.
+   */
   int flags;
-  /* The number of arguments */
+  /**
+   * @brief The number of arguments to the main block.
+   */
   size_t len;
-  /* The names of the arguments to the main block */
+  /**
+   * @brief The names of the arguments to the main block.
+   */
   const char **sargv;
-  /* The values of the arguments to the main block */
+  /**
+   * @brief The values of the arguments to the main block.
+   */
   gab_value *argv;
 };
 
 /**
- * # Compile a source string to a block and run it.
- * This is equivalent to calling `gab_compile` and then `gab_run` on the
+ * @brief Compile a source string to a block and run it.
+ * This is equivalent to calling @link gab_cmpl and then @link gab_run on the
  * result.
  *
- * @param gab The engine.
- * @param args The arguments.
  * @see struct gab_exec_argt
+ *
+ * @param gab The triple.
+ * @param args The arguments.
  * @return A heap-allocated slice of values returned by the block.
  */
 a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args);
 
+/**
+ * @class gab_repl_argt
+ * @brief Arguments and options for an interactive REPL.
+ */
 struct gab_repl_argt {
-  /* The prompt to display */
+  /**
+   * @brief The prompt to display before each input of REPL.
+   */
   const char *prompt_prefix;
-  /* The prompt to display */
+  /**
+   * @brief The prefix to display before each result of REPL.
+   */
   const char *result_prefix;
-
-  /* The following are passed to gab_exec */
-
-  /* Name for the modules compiled in the repl */
+  /**
+   * @brief The name of the module - defaults to "__main__".
+   */
   const char *name;
-  /* Options for the vm */
+  /**
+   * @brief Optional flags for compilation AND execution.
+   */
   int flags;
-  /* The number of arguments */
+  /**
+   * @brief The number of arguments to the main block.
+   */
   size_t len;
-  /* The names of the arguments to the main block */
+  /**
+   * @brief The names of the arguments to the main block.
+   */
   const char **sargv;
-  /* The values of the arguments to the main block */
+  /**
+   * @brief The values of the arguments to the main block.
+   */
   gab_value *argv;
 };
 
 /**
- * # Compile a source string to a block and run it.
- * This is equivalent to calling `gab_compile` and then `gab_run` on the
- * result.
+ * @brief Begin an interactive REPL.
+ *
+ * @see struct gab_repl_argt
  *
  * @param gab The engine.
  * @param args The arguments.
- * @see struct gab_repl_argt
  * @return A heap-allocated slice of values returned by the block.
  */
 void gab_repl(struct gab_triple gab, struct gab_repl_argt args);

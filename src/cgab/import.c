@@ -3,7 +3,7 @@
 #include "gab.h"
 #include <dlfcn.h>
 
-void gab_impputmod(struct gab_eg *gab, const char *name, gab_value mod,
+void gab_egimpputmod(struct gab_eg *gab, const char *name, gab_value mod,
                    a_gab_value *val) {
   uint64_t hash = s_char_hash(s_char_cstr(name), gab->hash_seed);
 
@@ -16,7 +16,7 @@ void gab_impputmod(struct gab_eg *gab, const char *name, gab_value mod,
   d_gab_imp_insert(&gab->imports, hash, i);
 }
 
-void gab_impputshd(struct gab_eg *gab, const char *name, void *obj,
+void gab_egimpputshd(struct gab_eg *gab, const char *name, void *obj,
                    a_gab_value *val) {
   uint64_t hash = s_char_hash(s_char_cstr(name), gab->hash_seed);
 
@@ -32,7 +32,7 @@ void gab_impputshd(struct gab_eg *gab, const char *name, void *obj,
   d_gab_imp_insert(&gab->imports, hash, i);
 }
 
-struct gab_imp *gab_impat(struct gab_eg *gab, const char *name) {
+struct gab_imp *gab_egimpat(struct gab_eg *gab, const char *name) {
   uint64_t hash = s_char_hash(s_char_cstr(name), gab->hash_seed);
 
   struct gab_imp *i = d_gab_imp_read(&gab->imports, hash);
@@ -40,7 +40,7 @@ struct gab_imp *gab_impat(struct gab_eg *gab, const char *name) {
   return i;
 }
 
-a_gab_value *gab_impval(struct gab_imp *imp) { return imp->cache; }
+a_gab_value *gab_impvals(struct gab_imp *imp) { return imp->cache; }
 
 void gab_impdestroy(struct gab_eg *gab, struct gab_gc *gc, struct gab_imp *i) {
   switch (i->k) {

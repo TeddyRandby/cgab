@@ -3437,6 +3437,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
 
 int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *proto) {
   uint64_t offset = proto->begin;
+
   while (offset < proto->as.block.end) {
     fprintf(stream, ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);
     offset = dumpInstruction(stream, proto, offset);

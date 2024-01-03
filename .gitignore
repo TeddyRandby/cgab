@@ -1,6 +1,6 @@
 build/
 bin/
+docs/
 .cache/
 .vscode/
-.lute
 compile_commands.json

@@ -49,7 +49,7 @@ a_gab_value *vm_error(struct gab_triple gab, enum gab_status s, const char *fmt,
   va_end(va);
 
   gab_value results[] = {
-      gab_string(gab, gab_status_names[0]),
+      gab_string(gab, gab_status_names[s]),
       gab_box(gab,
               (struct gab_box_argt){
                   .size = sizeof(struct gab_vm *),

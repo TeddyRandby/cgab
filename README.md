@@ -55,7 +55,7 @@ do_work do (argument)
 end
 
 # Thus, spawning a thread to do some work with some configuration looks like:
-:fiber { mod = 'my_module' } do
+:fiber.new do
     :some_other_work()
 end
 ```

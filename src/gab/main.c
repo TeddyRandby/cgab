@@ -2,7 +2,6 @@
 #include "gab.h"
 #include "os.h"
 #include "runners.h"
-#include <assert.h>
 #include <printf.h>
 #include <stdio.h>
 #include <stdlib.h>

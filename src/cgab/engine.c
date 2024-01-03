@@ -230,6 +230,8 @@ void gab_destroy(struct gab_triple gab) {
 void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
   a_gab_value *prev = NULL;
 
+  size_t iterations = 0;
+
   for (;;) {
     printf("%s", args.prompt_prefix);
     a_char *src = gab_fosreadl(stdin);
@@ -245,6 +247,12 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
     }
 
     size_t prev_len = prev == NULL ? 0 : prev->len;
+
+    // Append the iterations number to the end of the given name
+    char unique_name[strlen(args.name) + 16];
+    snprintf(unique_name, sizeof(unique_name), "%s:%lu", args.name, iterations);
+
+    iterations++;
 
     /*
      * Build a buffer holding the argument names.
@@ -267,7 +275,7 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
     memcpy(argv + prev_len, args.argv, args.len * sizeof(gab_value));
 
     a_gab_value *result = gab_exec(gab, (struct gab_exec_argt){
-                                            .name = args.name,
+                                            .name = unique_name,
                                             .source = (char *)src->data,
                                             .flags = args.flags,
                                             .len = args.len + prev_len,

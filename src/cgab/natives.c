@@ -35,7 +35,7 @@ a_gab_value *gab_shared_object_handler(struct gab_triple gab,
 
   a_gab_value *res = symbol(gab);
 
-  gab_impputshd(gab.eg, path, handle, res);
+  gab_egimpputshd(gab.eg, path, handle, res);
 
   return res;
 }
@@ -63,7 +63,7 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
                        .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
                    });
 
-  gab_impputmod(gab.eg, path, pkg, res);
+  gab_egimpputmod(gab.eg, path, pkg, res);
   gab_negkeep(gab.eg, res->len, res->data);
 
   return res;
@@ -158,10 +158,10 @@ void gab_lib_use(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
       a_char *path = match_resource(res, name, strlen(name));
 
       if (path) {
-        struct gab_imp *cached = gab_impat(gab.eg, (char *)path->data);
+        struct gab_imp *cached = gab_egimpat(gab.eg, (char *)path->data);
 
         if (cached != NULL) {
-          a_gab_value *v = gab_impval(cached);
+          a_gab_value *v = gab_impvals(cached);
           if (v != NULL)
             gab_nvmpush(gab.vm, v->len, v->data);
           goto fin;
