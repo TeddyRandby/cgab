@@ -13,6 +13,23 @@ def record.exactly?[](rec)
   sym
 end
 
+def tuple.collect[](msg, *p, len)
+  def t = :tuple.new(len)
+
+  i, *args, s = 0, self:(msg)(p:splat)
+
+  loop
+    ?s == .Suspense or break
+
+    t[i] = args:splat
+    i = i + 1
+
+    *args, s = s()
+  until i == len end
+
+  return t
+end
+
 def [][.Record](key)
   _, v = self:at(key)
 
@@ -54,7 +71,7 @@ def map![.Record](mapper)
     key = self:next
 
     loop
-      self:put!(key, mapper(self:at(key), key))
+      self:put!(key, mapper(key, self:at(key)))
       key = self:next(key)
     until key == nil end
 

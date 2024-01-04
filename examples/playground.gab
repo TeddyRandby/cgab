@@ -4,7 +4,11 @@
 ## cars.gab
 def Car { car.make, car.model, car.year, car.color }
 
-:spec.def! 'car.make'  { spec = :spec.or('Ford', 'Chevy', 'Toyota', 'Honda') }
+:spec.def! 'car.make'  {
+  spec = :spec.or('Ford', 'Chevy', 'Toyota', 'Honda'),
+  help = "The car's manufacturer, ie 'Ford'",
+}
+
 :spec.def! 'car.year'  { spec = :spec.and(:spec.int, :spec.gt(2000)) }
 :spec.def! 'car.color' { spec = :spec.or('RED', 'BLUE', 'WHITE', 'BLACK') }
 :spec.def! 'car.model' { spec = :spec.or('Mustang', 'Civic', 'Camry', 'Prius') }
@@ -36,6 +40,10 @@ def car.paint.spec = :spec.message {
 def car.paint[Car](color)
   self:car.color = 10
 end
+
+:spec.help 'car.make' :print
+:spec 'car' :spec.explain:print
+car.paint.spec :spec.explain:print
 
 # Check our faulty implementation
 # &:spec.check yields a stream of predicate results.

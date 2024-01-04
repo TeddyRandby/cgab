@@ -1,29 +1,10 @@
-:use .fibers
-:use .channel
-:use .lists
-:use .numbers
-:use .streams
+:use .specs
 
-def work = :channel.new
+s = :spec.tuple(.some, :spec.int)
 
-1000 :times do (i)
-  work << 'HI from {i}'
-end
+:print(s:spec.fits?(.some, 1))
+:print(s:spec.fits?(.some, 'hi'))
+:print(s:spec.fits?(.none, 3))
 
-def workers = :list.new
-
-1 :times do (i)
-  workers:push!(:fiber.new do
-    :use .channel
-
-    loop
-      status, job = work:await
-
-      status == .none and return
-
-      job:print
-    end
-  end)
-end
-
-workers:for(&:values, &:await)
+s:spec.explain:print
+s:spec.gen:print

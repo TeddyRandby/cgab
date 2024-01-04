@@ -303,9 +303,32 @@ end
   :it('should make tuples') do
     tup = [ 1, 2, 3 ]
 
-    1:expect(tup[0])
-    2:expect(tup[1])
-    3:expect(tup[2])
+    tup[0]:expect(1)
+    tup[1]:expect(2)
+    tup[2]:expect(3)
+  end
+
+  :it 'should make var tuples' do
+    def onetwothree; return 1, 2, 3 end
+
+    tup = [ onetwothree() ]
+
+    tup[0]:expect(1)
+    tup[1]:expect(2)
+    tup[2]:expect(3)
+
+    tup = [ true and onetwothree() ]
+    tup[0]:expect(1)
+    tup:len:expect(1)
+
+    tup = [ true or onetwothree() ]
+    tup[0]:expect(true)
+    tup:len:expect(1)
+
+    tup = true and [ onetwothree() ]
+    tup[0]:expect(1)
+    tup[1]:expect(2)
+    tup[2]:expect(3)
   end
 end
 

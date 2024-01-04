@@ -36,14 +36,14 @@ def empty?[.List]; self:len == 0 end
 def list.collect[](msg, *p)
   def l = :list.new
 
-  *args, suspense = self:(msg)(p:splat)
+  *args, s = self:(msg)(p:splat)
 
   loop
-    ?suspense == .Suspense or break
+    ?s == .Suspense or break
 
     l:push!(args:splat)    
 
-    *args, suspense = suspense()
+    *args, s = s()
   end
 
   return l

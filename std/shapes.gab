@@ -8,3 +8,12 @@ def keys[.Shape]
       key = self:next(key)
     until key == nil end
 end
+
+def values[.Shape]
+    key = self:next
+
+    loop
+      yield key
+      key = self:next(key)
+    until key == nil end
+end

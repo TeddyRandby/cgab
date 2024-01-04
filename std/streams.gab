@@ -111,6 +111,22 @@ def first[](msg, *p, cb)
   .none
 end
 
+def join[](msg, *p, sep, cb)
+  arg, *_, s = self:(msg)(p:splat)
+
+  s:is? .Suspense or return arg
+
+  acc, arg, *_, s = arg, s()
+
+  s:is? .Suspense and loop
+      acc = cb(acc, sep)
+      acc = cb(acc, arg)            
+      arg, *_, s = s()
+  until not s:is? .Suspense end
+
+  acc
+end
+
 def fold[](msg, *p, init, cb)
   acc, *args, s = init, self:(msg)(p:splat)
 

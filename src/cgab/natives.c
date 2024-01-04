@@ -202,9 +202,13 @@ void gab_lib_panic(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_print(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  for (uint8_t i = 0; i < argc; i++) {
-    if (i > 0)
-      putc(' ', stdout);
+  int start = argv[0] == gab_undefined;
+
+  for (int i = start; i < argc; i++) {
+
+    if (i > start)
+      fputs(", ", stdout);
+
     gab_fvalinspect(stdout, argv[i], -1);
   }
 

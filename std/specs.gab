@@ -8,10 +8,37 @@
 :use .any
 :use .streams
 
-## TODO: Optimize for memory by caching generated specs based on input
+def explain_specs(specs, separator)
+  specs :tuple.collect(
+            &:map,
+            &:values,
+            &:spec.explain,
+            specs:len,
+       ):join(
+            &:values,
+            separator,
+            &+,
+       )
+end
+
+def explain_strings(strings, separator)
+  inner = strings :tuple.collect(
+                      &:map,
+                      &:values,
+                      do (v); '{v} = {:spec(v):spec.explain}' end,
+                      strings:len,
+                  ):join(
+                      &:values,
+                      separator,
+                      &+,
+                  )
+end
 
 ## Registry of qualified name -> spec
 def registry.spec = :map.new
+
+## Registry of spec -> qualified name
+def registry.name = :map.new
 
 ## Registry of qualified name -> help text
 def registry.help = :map.new
@@ -25,16 +52,31 @@ end
 ## Add a spec to the global registry under the given name.
 def spec.def![](name, opts)
   register(registry.spec, name, opts:spec)
-end
+  register(registry.name, opts:spec, name)
 
-def spec.help[](name)
-  registry.help:at(name)
+  opts:has? .help and register(registry.help, name, opts:help)
 end
 
 def spec[](name)
   s, v = registry.spec:at(name)
 
   s == .some or .MISSING_SPEC:panic
+
+  v
+end
+
+def spec.help[](name)
+  s, v = registry.help:at(name)
+
+  s == .some or .MISSING_HELP:panic
+
+  v
+end
+
+def spec.name[]
+  s, v = registry.name:at(self)
+
+  s == .some or .MISSING_NAME:panic
 
   v
 end
@@ -50,22 +92,42 @@ end
 #      where spec is the predicate that rejected the value ( or nil, if no spec was found )
 #      where value is the rejected value
 #      where path is the 'path' taken to the rejected value ( or nil, if no path )
-def nil.predicate(value)
-  return not value, self, value
+
+# NIL PREDICATE
+def nil.predicate = :symbol.new 'predicate:nil'
+
+def spec.fits?[?nil.predicate](value)
+  return value == nil, self, value
 end
+
+def spec.gen[?nil.predicate]
+  nil
+end
+
+def spec.explain[?nil.predicate](); 'nil' end
 
 def spec.nil[]; nil.predicate end
 
-def unknown.predicate(value)
+# UNKNOWN PREDICATE
+def unknown.predicate = :symbol.new 'predicate:unknown'
+
+def spec.fits?[?unknown.predicate](value)
   return true, self, value
 end
 
+def unknown_values = [ nil, 0, 1, 'test', true ]
+
+def spec.gen[?unknown.predicate]
+  idx = :int.between(0, unknown_values:len - 1)
+
+  unknown_values[idx]
+end
+
+def spec.explain[?unknown.predicate](); 'unknown' end
+
 def spec.unknown[]; unknown.predicate end
 
-#
 # INT PREDICATE
-#
-
 def int.predicate = :symbol.new 'predicate:int'
 
 def spec.fits?[?int.predicate](value)
@@ -75,6 +137,8 @@ end
 def spec.gen[?int.predicate]
   :int.between(-10000, 10000)
 end
+
+def spec.explain[?int.predicate](); 'int' end
 
 def spec.int[]; int.predicate end
 
@@ -91,6 +155,8 @@ end
 def spec.gen[?float.predicate]
   :float.between(-10000, 10000)
 end
+
+def spec.explain[?float.predicate](); 'float' end
 
 def spec.float[]; return float.predicate end
 
@@ -117,6 +183,8 @@ def spec.gen[?string.predicate]
   list:to_bytes
 end
 
+def spec.explain[?string.predicate](); 'string' end
+
 def spec.string[]; string.predicate end
 
 #
@@ -131,6 +199,8 @@ end
 def spec.gen[?bool.predicate]
   :float.between > 0.5
 end
+
+def spec.explain[?bool.predicate](); 'bool' end
 
 def spec.bool[]; return bool.predicate end
 
@@ -153,7 +223,11 @@ def spec.map[](k_spec, v_spec)
     :map.new { [k_spec:spec.gen] =  v_spec:spec.gen }
   end
 
-  return map.predicate
+  def spec.explain[?map.predicate](k_spec, v_spec)
+    'map[{k_spec},{v_spec}]'
+  end
+
+  map.predicate
 end
 
 ## predicate for a list of values
@@ -174,7 +248,11 @@ def spec.list[](spec)
     :list.new:push!(spec:spec.gen)
   end
 
-  return list.predicate
+  def spec.explain[?list.predicate](spec)
+    'list[{spec}]'
+  end
+
+  list.predicate
 end
 
 ## predicate for a type which implements a set of messages
@@ -214,12 +292,51 @@ def spec.protocol[](protocol)
     return gen
   end
 
-  return protocol.predicate
+  def spec.explain[?protocol.predicate]
+    "{\n " + explain_strings(protocol, '\n ') + "\n}"
+  end
+
+  protocol.predicate
+end
+
+def spec.tuple[](*specs)
+  def tuple.predicate = :symbol.new 'predicate:tuple:{specs}'
+
+  def spec.fits?[?tuple.predicate](*values)
+    specs :fold(
+              &:pairs,
+              [ true, tuple.predicate, values, nil ],
+              do (a, i, s)
+                # Stop at the first failing spec
+                a[0] or a
+
+                success, sp, value, path = s:spec.fits?(values[i])
+
+                # If our spec fits, continue with the initial value.
+                # Otherwise, return the result from the failed spec
+                success and a or [success, sp, value, path]
+              end,
+         ):splat
+  end
+
+  def spec.gen[?tuple.predicate]
+    res = :tuple.new(specs:len)
+
+    res:map! do (k)
+      specs[k]:spec.gen
+    end
+
+    res
+  end
+
+  def spec.explain[?tuple.predicate]
+    '(' + explain_specs(specs, ', ') + ')'
+  end
+
+  tuple.predicate
 end
 
 ## Convenience specs for composing above types
-def spec.tuple[](*specs); :spec.record(specs) end
-
 def spec.result[](value, err)
   :spec.or(
     :spec.tuple(.ok, value),
@@ -250,6 +367,10 @@ def spec.or[](*specs)
 
   def spec.gen[?or.predicate]
     specs[(:int.between(0, specs:len - 1))] :spec.gen
+  end
+
+  def spec.explain[?or.predicate]
+    explain_specs(specs, ' | ')
   end
 
   return or.predicate
@@ -288,20 +409,36 @@ def spec.and[](*specs)
     .SPEC_COULD_NOT_GEN:panic
   end
 
+  def spec.explain[?and.predicate]
+    explain_specs(specs, ' & ')
+  end
+
   return and.predicate
 end
 
 # Modifying specs
 def spec.gt[](min)
-  def gt.predicate(value)
+  def gt.predicate = :symbol.new 'predicate:gt:{min}'
+
+  def spec.fits?[?gt.predicate](value)
     return value > min, self, value
   end
+
+  def spec.explain[?gt.predicate](); '> {min}' end
+
+  gt.predicate
 end
 
 def spec.lt[](min)
-  def lt.predicate(value)
+  def lt.predicate = :symbol.new 'predicate:lt:{min}'
+
+  def spec.fits?[?lt.predicate](value)
     return value < min, self, value
   end
+
+  def spec.explain[?lt.predicate](); '< {min}' end
+
+  lt.predicate
 end
 
 def spec.block.Args { input, output }
@@ -432,15 +569,25 @@ def spec.message[](args, semantics)
     end
   end
 
+  def spec.explain[?message.predicate]
+    '{args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}'
+  end
+
   return message.predicate
 end
 
 # A default gen implementation is the identity function
 def spec.gen []; self end
 
+# A default explain implementation
+def spec.explain[](name); '{self}' end
+
 ## FITS
-# Default fits? specializfation is just good ol' equality
-def spec.fits?      [](value); self == value    end
+# Default spec.fits? specializfation is just good ol' equality
+def spec.fits?      [](value)
+  return self == value, self, value
+end
+
 # Since a spec is just a predicate, we can simply call it and return the result
 def spec.fits?[.Block](value); self(value)      end
 
