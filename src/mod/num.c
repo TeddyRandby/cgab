@@ -1,6 +1,5 @@
 
 #include "gab.h"
-#include <assert.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -105,7 +104,6 @@ void gab_lib_between(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 }
 
 void gab_lib_floor(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-
   if (argc != 1 || gab_valkind(argv[0]) != kGAB_NUMBER) {
     gab_panic(gab, "Invalid call to gab_lib_floor");
 

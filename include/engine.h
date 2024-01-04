@@ -47,22 +47,14 @@ enum variable_flag {
  * The run-time representation of a callframe.
  */
 struct gab_vm_frame {
+  gab_value m;
+
   struct gab_obj_block *b;
 
-  /**
-   *The instruction pointer to return to.
-   */
   uint8_t *ip;
 
-  /**
-   * The value on the stack where this callframe begins.
-   */
   gab_value *slots;
 
-  /**
-   * Every call wants a different number of results.
-   * This is set at the call site.
-   */
   uint8_t want;
 };
 
@@ -71,11 +63,6 @@ struct gab_vm_frame {
  * bytecode.
  */
 struct gab_vm {
-  /*
-   * The flags passed in to the vm
-   */
-  uint8_t flags;
-
   struct gab_vm_frame *fp;
 
   gab_value *sp;
@@ -101,9 +88,9 @@ struct gab_err_argt {
   enum gab_status status;
   const char *note_fmt;
   struct gab_src *src;
-  gab_value context;
+  gab_value message;
   size_t tok;
 };
 
-void gab_verr(struct gab_err_argt args, va_list va);
+void gab_fvpanic(struct gab_triple gab, FILE* stream, va_list vastruct, struct gab_err_argt args);
 #endif

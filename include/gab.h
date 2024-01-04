@@ -253,6 +253,7 @@ struct gab_triple {
   struct gab_eg *eg;
   struct gab_gc *gc;
   struct gab_vm *vm;
+  int flags;
 };
 
 struct gab_obj;
@@ -637,16 +638,13 @@ struct gab_repl_argt {
 void gab_repl(struct gab_triple gab, struct gab_repl_argt args);
 
 /**
- * # Panic the VM with an error message. Useful for native functions.
+ * @brief If fGAB_DUMP_ERROR is set, print an error message to stderr.
+ * If fGAB_EXIT_ON_PANIC is set, then exit the program.
  *
- * This is useful in natives when an unrecoverable error occurs.
- *
- * @param  gab The engine.
- * @param   vm The vm.
- * @param  msg The message to display.
- * @return A gab value wrapping the error.
+ * @param gab The triple.
+ * @param fmt The format string.
  */
-void gab_panic(struct gab_triple gab, const char *msg);
+void gab_panic(struct gab_triple gab, const char *fmt, ...);
 
 #if cGAB_LOG_GC
 

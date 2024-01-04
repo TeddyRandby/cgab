@@ -133,11 +133,9 @@ struct compile_rule {
   bool multi_line;
 };
 
-void bc_create(struct bc *self, struct gab_triple gab, struct gab_src *source,
-               uint8_t flags) {
+void bc_create(struct bc *self, struct gab_triple gab, struct gab_src *source) {
   memset(self, 0, sizeof(*self));
 
-  self->flags = flags;
   self->src = source;
   self->gab = gab;
 }
@@ -3109,13 +3107,15 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
 }
 
 gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
+  gab.flags = args.flags;
+
   gab_value name = gab_string(gab, args.name);
 
   struct gab_src *src =
       gab_src(gab, name, (char *)args.source, strlen(args.source) + 1);
 
   struct bc bc;
-  bc_create(&bc, gab, src, args.flags);
+  bc_create(&bc, gab, src);
 
   gab_value vargv[args.len];
 
@@ -3137,25 +3137,19 @@ static void compiler_error(struct bc *bc, enum gab_status e,
 
   bc->panic = true;
 
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  struct frame *f = &bc->contexts[ctx].as.frame;
+  va_list va;
+  va_start(va, note_fmt);
 
-  if (bc->flags & fGAB_DUMP_ERROR) {
-    va_list va;
-    va_start(va, note_fmt);
+  gab_fvpanic(gab(bc), stderr, va,
+              (struct gab_err_argt){
+                  .src = bc->src,
+                  .message = gab_nil,
+                  .status = e,
+                  .tok = bc->offset - 1,
+                  .note_fmt = note_fmt,
+              });
 
-    gab_verr(
-        (struct gab_err_argt){
-            .src = bc->src,
-            .context = f->name,
-            .status = e,
-            .tok = bc->offset - 1,
-            .note_fmt = note_fmt,
-        },
-        va);
-
-    va_end(va);
-  }
+  va_end(va);
 }
 
 uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,

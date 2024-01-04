@@ -642,23 +642,10 @@ gab_value gab_tuple(struct gab_triple gab, uint64_t size,
   return v;
 }
 
-void gab_verr(struct gab_err_argt args, va_list varargs) {
-  if (!args.src) {
-    fprintf(stderr, "[" ANSI_COLOR_GREEN);
-
-    gab_fvalinspect(stderr, args.context, 0);
-
-    fprintf(stderr,
-            ANSI_COLOR_RESET "]" ANSI_COLOR_YELLOW " %s." ANSI_COLOR_RESET
-                             "\n\nNOTE: " ANSI_COLOR_GREEN,
-            gab_status_names[args.status]);
-
-    vfprintf(stderr, args.note_fmt, varargs);
-
-    fprintf(stderr, ANSI_COLOR_RESET "\n");
-
-    return;
-  }
+void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
+                 struct gab_err_argt args) {
+  if (!(gab.flags & fGAB_DUMP_ERROR))
+    goto fin;
 
   uint64_t line = v_uint64_t_val_at(&args.src->token_lines, args.tok);
 
@@ -690,44 +677,51 @@ void gab_verr(struct gab_err_argt args, va_list varargs) {
       line_under->data[i] = ' ';
   }
 
-  const char *curr_color = ANSI_COLOR_RED;
-  const char *curr_box = "\u256d";
+  fprintf(stream, "\n[" ANSI_COLOR_GREEN);
 
-  fprintf(stderr, "[" ANSI_COLOR_GREEN);
+  gab_fvalinspect(stream, args.src->name, 0);
+  if (args.message != gab_nil) {
+    fprintf(stream, ANSI_COLOR_RESET "/" ANSI_COLOR_CYAN);
+    gab_fvalinspect(stream, args.message, 0);
+  }
 
-  gab_fvalinspect(stderr, args.context, 0);
-
-  fprintf(stderr,
+  fprintf(stream,
           ANSI_COLOR_RESET
           "] Error near " ANSI_COLOR_MAGENTA "%s" ANSI_COLOR_RESET
-          ":\n\n%s%s %.4lu " ANSI_COLOR_RESET "%.*s"
-          "\n\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
-          "\n\u2570\u2500\u2524 ",
-          tok_name, curr_box, curr_color, line, (int)line_src.len,
-          line_src.data, (int)line_under->len, line_under->data);
+          ":\n\n\t\u256d" ANSI_COLOR_RED " %.4lu " ANSI_COLOR_RESET "%.*s"
+          "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
+          "\n\t\u2570\u2500\u2524 ",
+          tok_name, line, (int)line_src.len, line_src.data,
+          (int)line_under->len, line_under->data);
 
   a_char_destroy(line_under);
 
-  fprintf(stderr, ANSI_COLOR_YELLOW "%s. " ANSI_COLOR_RESET,
+  fprintf(stream, ANSI_COLOR_YELLOW "%s. " ANSI_COLOR_RESET,
           gab_status_names[args.status]);
 
   if (args.note_fmt && strlen(args.note_fmt) > 0) {
-    fprintf(stderr, "\n  \u2502"
-                    "\n  \u2502 ");
+    fprintf(stream, "\n" ANSI_COLOR_MAGENTA "HINT" ANSI_COLOR_RESET ":\n");
 
     const char *c = args.note_fmt;
 
     while (*c != '\0') {
-      if (*c == '$') {
-        gab_fvalinspect(stderr, va_arg(varargs, gab_value), 1);
-      } else {
-        fputc(*c, stderr);
+      switch (*c) {
+      case '$':
+        gab_fvalinspect(stream, va_arg(varargs, gab_value), 1);
+        break;
+      default:
+        fputc(*c, stream);
       }
       c++;
     }
   }
 
-  fprintf(stderr, "\n");
+  fprintf(stream, "\n\n");
+
+fin:
+  if (gab.flags & fGAB_EXIT_ON_PANIC) {
+    exit(1);
+  }
 }
 
 void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size) {
