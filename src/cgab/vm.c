@@ -26,26 +26,30 @@ static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
   return v_uint64_t_val_at(&p->src->bytecode_toks, offset);
 }
 
-#define TYPE_MISMATCH                                                          \
-  "Expected type: " ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET                      \
-  ". Found " ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET                             \
-  " of type: " ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET
+/**
+ * TODO: Introduce a way for native's to be on the stack here.
+ * This way, stack traces won't look weird
+ *
+ */
 
-#define MISSING_IMPL                                                           \
-  ANSI_COLOR_GREEN                                                             \
-  "$" ANSI_COLOR_RESET " does not specialize for " ANSI_COLOR_GREEN            \
-  "$" ANSI_COLOR_RESET " of type: " ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET
+struct gab_err_argt vm_frame_build_err(struct gab_vm_frame *fp,
+                                       enum gab_status s, const char *fmt) {
+  if (fp->b) {
+    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(fp->b->p);
 
-struct gab_err_argt vm_build_err(struct gab_vm *vm, enum gab_status s,
-                                 const char *fmt) {
-  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(vm->fp->b->p);
+    size_t tok = compute_token_from_ip(fp);
 
-  size_t tok = compute_token_from_ip(vm->fp);
+    return (struct gab_err_argt){
+        .tok = tok,
+        .message = fp->m,
+        .src = p->src,
+        .note_fmt = fmt,
+        .status = s,
+    };
+  }
 
   return (struct gab_err_argt){
-      .tok = tok,
-      .message = vm->fp->m,
-      .src = p->src,
+      .message = fp->m,
       .note_fmt = fmt,
       .status = s,
   };
@@ -53,7 +57,14 @@ struct gab_err_argt vm_build_err(struct gab_vm *vm, enum gab_status s,
 
 a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
                        const char *fmt, va_list va) {
-  gab_fvpanic(gab, stderr, va, vm_build_err(gab.vm, s, fmt));
+  struct gab_vm_frame *f = gab.vm->fb + 1;
+
+  while (f != gab.vm->fp) {
+    gab_fvpanic(gab, stderr, NULL, vm_frame_build_err(f, GAB_NONE, ""));
+    f++;
+  }
+
+  gab_fvpanic(gab, stderr, va, vm_frame_build_err(f, s, fmt));
 
   gab_value results[] = {
       gab_string(gab, gab_status_names[s]),
@@ -65,7 +76,7 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
               }),
   };
 
-  gab_ngciref(gab, 1, 2, results);
+  gab_niref(gab, 1, 2, results);
 
   return a_gab_value_create(results, sizeof(results) / sizeof(gab_value));
 }
@@ -82,11 +93,24 @@ a_gab_value *vm_error(struct gab_triple gab, enum gab_status s, const char *fmt,
   return res;
 }
 
+#define FMT_TYPEMISMATCH                                                       \
+  "found '$' of type:\n\n | $\n\nbut expected type:\n\n | $"
+
+#define FMT_MISSINGIMPL "$ does not specialize for $ of type: $"
+
 void gab_panic(struct gab_triple gab, const char *fmt, ...) {
   va_list va;
   va_start(va, fmt);
 
   a_gab_value *res = vvm_error(gab, GAB_PANIC, fmt, va);
+
+  gab_nvmpush(gab.vm, res->len, res->data);
+}
+
+void gab_ptypemismatch(struct gab_triple gab, gab_value found,
+                       gab_value texpected) {
+  a_gab_value *res = vm_error(gab, GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, found,
+                              gab_valtype(gab.eg, found), texpected);
 
   gab_nvmpush(gab.vm, res->len, res->data);
 }
@@ -277,8 +301,9 @@ static inline bool call_block(struct gab_vm *vm, gab_value m,
   return true;
 }
 
-static inline void call_native(struct gab_triple gab, struct gab_obj_native *b,
-                               uint8_t arity, uint8_t want, bool is_message) {
+static inline void call_native(struct gab_triple gab, gab_value m,
+                               struct gab_obj_native *b, uint8_t arity,
+                               uint8_t want, bool is_message) {
   gab_value *to = gab.vm->sp - arity - 1;
 
   gab_value *before = gab.vm->sp;
@@ -287,7 +312,11 @@ static inline void call_native(struct gab_triple gab, struct gab_obj_native *b,
   // if this is a message.
 
   // gab_gclock(gab.gc);
+  gab.vm->fp++;
+  gab.vm->fp->m = m;
+  gab.vm->fp->b = NULL;
   (*b->function)(gab, arity + is_message, gab.vm->sp - arity - is_message);
+  gab.vm->fp--;
   // gab_gcunlock(gab.gc);
 
   uint64_t have = gab.vm->sp - before;
@@ -407,9 +436,9 @@ static handler handlers[] = {
     NEXT();                                                                    \
   }                                                                            \
   if (!__gab_valisn(PEEK())) {                                                 \
-    STORE_PRIMITIVE_FRAME(m);                                                  \
-    ERROR(GAB_NOT_NUMBER, TYPE_MISMATCH, gab_valtype(EG(), PEEK2()),           \
-          gab_valtype(EG(), PEEK()), PEEK());                                  \
+    STORE_PRIMITIVE_ERROR_FRAME(m);                                            \
+    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),                         \
+          gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));              \
   }                                                                            \
   operation_type b = gab_valton(POP());                                        \
   operation_type a = gab_valton(POP());                                        \
@@ -423,28 +452,14 @@ static handler handlers[] = {
     VM()->fp->ip = IP();                                                       \
   })
 
-#define STORE_NATIVE_FRAME(m)                                                  \
+#define STORE_PRIMITIVE_ERROR_FRAME(m)                                         \
   ({                                                                           \
     VM()->sp = TOP();                                                          \
     VM()->fp = FRAME();                                                        \
     VM()->fp->ip = IP();                                                       \
     VM()->fp++;                                                                \
     VM()->fp->m = m;                                                           \
-    VM()->fp->b = VM()->fp[-1].b;                                              \
-    VM()->fp->ip = IP();                                                       \
-    VM()->fp->slots = SLOTS();                                                 \
-  })
-
-#define STORE_PRIMITIVE_FRAME(m)                                               \
-  ({                                                                           \
-    VM()->sp = TOP();                                                          \
-    VM()->fp = FRAME();                                                        \
-    VM()->fp->ip = IP();                                                       \
-    VM()->fp++;                                                                \
-    VM()->fp->m = m;                                                           \
-    VM()->fp->b = VM()->fp[-1].b;                                              \
-    VM()->fp->ip = IP();                                                       \
-    VM()->fp->slots = SLOTS();                                                 \
+    VM()->fp->b = NULL;                                                        \
   })
 
 #define LOAD_FRAME()                                                           \
@@ -509,7 +524,8 @@ CASE_CODE(SEND_ANA) {
 
   if (!res.status) {
     STORE_FRAME();
-    ERROR(GAB_IMPLEMENTATION_MISSING, MISSING_IMPL, m, r, gab_valtype(EG(), r));
+    ERROR(GAB_IMPLEMENTATION_MISSING, FMT_MISSINGIMPL, m, r,
+          gab_valtype(EG(), r));
   }
 
   gab_value spec = res.status == sGAB_IMPL_PROPERTY
@@ -532,7 +548,8 @@ CASE_CODE(SEND_ANA) {
     break;
   default:
     STORE_FRAME();
-    ERROR(GAB_NOT_CALLABLE, TYPE_MISMATCH, spec, res.type);
+    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, spec, gab_type(EG(), kGAB_BLOCK),
+          res.type);
   }
 
   IP() -= SEND_CACHE_DIST;
@@ -596,9 +613,9 @@ CASE_CODE(SEND_MONO_NATIVE) {
     NEXT();
   }
 
-  STORE_NATIVE_FRAME(m);
+  STORE_FRAME();
 
-  call_native(GAB(), GAB_VAL_TO_NATIVE(spec), have, want, true);
+  call_native(GAB(), m, GAB_VAL_TO_NATIVE(spec), have, want, true);
 
   LOAD_FRAME();
 
@@ -627,9 +644,9 @@ CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
     NEXT();
   }
 
-  STORE_NATIVE_FRAME(m);
+  STORE_FRAME();
 
-  call_native(GAB(), GAB_VAL_TO_NATIVE(r), have, want, false);
+  call_native(GAB(), m, GAB_VAL_TO_NATIVE(r), have, want, false);
 
   LOAD_FRAME();
   NEXT();
@@ -648,14 +665,16 @@ CASE_CODE(SEND_DYN) {
 
   if (gab_valkind(m) != kGAB_MESSAGE) {
     STORE_FRAME();
-    ERROR(GAB_NOT_MESSAGE, TYPE_MISMATCH, m, gab_valtype(EG(), m));
+    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, m, gab_valtype(EG(), m),
+          gab_type(EG(), kGAB_MESSAGE));
   }
 
   struct gab_egimpl_rest res = gab_egimpl(gab.eg, m, r);
 
   if (!res.status) {
     STORE_FRAME();
-    ERROR(GAB_IMPLEMENTATION_MISSING, MISSING_IMPL, m, r, gab_valtype(EG(), r));
+    ERROR(GAB_IMPLEMENTATION_MISSING, FMT_MISSINGIMPL, m, r,
+          gab_valtype(EG(), r));
   }
 
   gab_value spec = res.status == sGAB_IMPL_PROPERTY
@@ -684,9 +703,9 @@ CASE_CODE(SEND_DYN) {
 
     struct gab_obj_native *n = GAB_VAL_TO_NATIVE(spec);
 
-    STORE_NATIVE_FRAME(m);
+    STORE_FRAME();
 
-    call_native(GAB(), n, have, want, true);
+    call_native(GAB(), m, n, have, want, true);
 
     LOAD_FRAME();
 
@@ -710,7 +729,7 @@ CASE_CODE(SEND_DYN) {
     DISPATCH(op);
   }
   default:
-    ERROR(GAB_NOT_CALLABLE, TYPE_MISMATCH, spec, gab_valtype(EG(), r));
+    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, spec, gab_valtype(EG(), r));
   }
 }
 
@@ -860,8 +879,9 @@ CASE_CODE(SEND_PRIMITIVE_CONCAT) {
   }
 
   if (gab_valkind(PEEK()) != kGAB_STRING) {
-    STORE_PRIMITIVE_FRAME(m);
-    ERROR(GAB_NOT_STRING, TYPE_MISMATCH, PEEK(), gab_valtype(EG(), PEEK()));
+    STORE_PRIMITIVE_ERROR_FRAME(m);
+    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),
+          gab_valtype(EG(), PEEK()));
   }
 
   STORE_FRAME();
@@ -964,7 +984,7 @@ a_gab_value *final_return(OP_HANDLER_ARGS) {
   results->data[0] = gab_string(gab, "ok");
   memcpy(results->data + 1, to, have * sizeof(gab_value));
 
-  gab_ngciref(GAB(), 1, results->len, results->data);
+  gab_niref(GAB(), 1, results->len, results->data);
 
   VM()->sp = VM()->sb;
 
@@ -1135,7 +1155,8 @@ CASE_CODE(PUSH_FALSE) {
 CASE_CODE(NEGATE) {
   if (!__gab_valisn(PEEK())) {
     STORE_FRAME();
-    ERROR(GAB_NOT_NUMBER, TYPE_MISMATCH, gab_valtype(EG(), PEEK()), PEEK());
+    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, gab_valtype(EG(), PEEK()),
+          PEEK());
   }
 
   gab_value new_value = gab_number(-gab_valton(POP()));

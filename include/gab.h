@@ -161,6 +161,9 @@ static inline gab_value __gab_dtoval(double value) {
 /* Cast a gab value to a primitive operation */
 #define gab_valtop(val) ((uint8_t)((val >> 8) & 0xff))
 
+/* Convenience macro for getting arguments in builtins */
+#define gab_arg(i) (i > argc ? gab_nil : argv[i])
+
 /*
  * Gab uses a purely RC garbage collection approach.
  *
@@ -646,6 +649,15 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args);
  */
 void gab_panic(struct gab_triple gab, const char *fmt, ...);
 
+/**
+ * @brief If fGAB_DUMP_ERROR is set, print a type-mismatch error message to stderr.
+ *
+ * @param gab The triple.
+ * @param found The value with the mismatched type.
+ * @param texpected The expected type.
+ */
+void gab_ptypemismatch(struct gab_triple gab, gab_value found, gab_value texpected);
+
 #if cGAB_LOG_GC
 
 #define gab_gciref(gab, val) (__gab_gciref(gab, val, __FUNCTION__, __LINE__))
@@ -688,7 +700,7 @@ void __gab_ngcdref(struct gab_triple gab, size_t stride, size_t len,
  * @param gab The gab triple.
  * @param value The value to increment.
  */
-gab_value gab_gciref(struct gab_triple gab, gab_value value);
+gab_value gab_iref(struct gab_triple gab, gab_value value);
 
 /**
  * # Decrement the reference count of the value(s)
@@ -697,7 +709,7 @@ gab_value gab_gciref(struct gab_triple gab, gab_value value);
  * @param len The number of values.
  * @param values The values.
  */
-gab_value gab_gcdref(struct gab_triple gab, gab_value value);
+gab_value gab_dref(struct gab_triple gab, gab_value value);
 
 /**
  * # Increment the reference count of the value(s)
@@ -705,8 +717,8 @@ gab_value gab_gcdref(struct gab_triple gab, gab_value value);
  * @param vm The vm.
  * @param value The value.
  */
-void gab_ngciref(struct gab_triple gab, size_t stride, size_t len,
-                 gab_value values[len]);
+void gab_niref(struct gab_triple gab, size_t stride, size_t len,
+               gab_value values[len]);
 
 /**
  * # Decrement the reference count of the value(s)
@@ -714,8 +726,8 @@ void gab_ngciref(struct gab_triple gab, size_t stride, size_t len,
  * @param vm The vm.
  * @param value The value.
  */
-void gab_ngcdref(struct gab_triple gab, size_t stride, size_t len,
-                 gab_value values[len]);
+void gab_ndref(struct gab_triple gab, size_t stride, size_t len,
+               gab_value values[len]);
 
 #endif
 
@@ -726,7 +738,7 @@ void gab_ngcdref(struct gab_triple gab, size_t stride, size_t len,
  * @param gc The garbage collector.
  * @param vm The vm.
  */
-void gab_gcrun(struct gab_triple gab);
+void gab_collect(struct gab_triple gab);
 
 void gab_gclock(struct gab_gc *gc);
 void gab_gcunlock(struct gab_gc *gc);
@@ -1041,12 +1053,12 @@ static inline void gab_urecput(struct gab_triple gab, gab_value rec,
   assert(offset < obj->len);
 
   if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
-    gab_gcdref(gab, obj->data[offset]);
+    gab_dref(gab, obj->data[offset]);
 
   obj->data[offset] = value;
 
   if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
-    gab_gciref(gab, obj->data[offset]);
+    gab_iref(gab, obj->data[offset]);
 }
 
 /**
@@ -1293,12 +1305,12 @@ static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg,
     return gab_undefined;
 
   if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
-    gab_gcdref(gab, obj->specs);
+    gab_dref(gab, obj->specs);
 
   obj->specs = gab_recordwith(gab, obj->specs, receiver, spec);
 
   if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
-    gab_gciref(gab, obj->specs);
+    gab_iref(gab, obj->specs);
 
   gab_gcunlock(gab.gc);
 

@@ -45,7 +45,7 @@ gab_value fiber_create(struct gab_triple gab, gab_value runner) {
   f->parent = thrd_current();
   f->runner = gab_valcpy(f->gab, runner);
 
-  gab_gciref(gab, f->runner);
+  gab_iref(gab, f->runner);
   gab_egkeep(f->gab.eg, f->runner);
 
   gab_value fiber = gab_box(gab, (struct gab_box_argt){
@@ -83,7 +83,7 @@ void fiber_run(gab_value fiber) {
     gab_egkeep(f->gab.eg, f->runner);
 
   /* Decrement all the results we didn't use. */
-  gab_ngcdref(f->gab, 1, result->len - continuing, result->data + continuing);
+  gab_ndref(f->gab, 1, result->len - continuing, result->data + continuing);
 
   free(result);
 

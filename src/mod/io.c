@@ -1,4 +1,3 @@
-#include "core.h"
 #include "gab.h"
 #include <stdio.h>
 
@@ -7,16 +6,23 @@ void file_cb(size_t len, unsigned char data[static len]) {
 }
 
 void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (argc != 3 || gab_valkind(argv[1]) != kGAB_STRING ||
-      gab_valkind(argv[2]) != kGAB_STRING) {
-    gab_panic(gab, "&:open expects a path and permissions string");
+  gab_value path = gab_arg(1);
+  gab_value perm = gab_arg(2);
+
+  if (gab_valkind(path) != kGAB_STRING) {
+    gab_ptypemismatch(gab, path, gab_type(gab.eg, kGAB_STRING));
     return;
   }
 
-  const char *path = gab_valintocs(gab, argv[1]);
-  const char *perm = gab_valintocs(gab, argv[2]);
+  if (gab_valkind(perm) != kGAB_STRING) {
+    gab_ptypemismatch(gab, perm, gab_type(gab.eg, kGAB_STRING));
+    return;
+  }
 
-  FILE *file = fopen(path, perm);
+  const char *cpath = gab_valintocs(gab, path);
+  const char *cperm = gab_valintocs(gab, perm);
+
+  FILE *file = fopen(cpath, cperm);
 
   if (file == NULL) {
     gab_value r = gab_string(gab, "FILE_COULD_NOT_OPEN");

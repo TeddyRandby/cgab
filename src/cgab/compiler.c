@@ -64,11 +64,9 @@ struct lvalue {
 #include "vector.h"
 
 enum context_k {
-  kIMPL,
   kFRAME,
   kTUPLE,
   kASSIGNMENT_TARGET,
-  kMATCH_TARGET,
   kLOOP,
   kCONTEXT_NKINDS,
 };
@@ -157,6 +155,7 @@ enum comp_status {
   COMP_MAX = INT32_MAX,
 };
 
+#define FMT_UNEXPECTEDTOKEN "Expected $ instead."
 static void compiler_error(struct bc *bc, enum gab_status e,
                            const char *help_fmt, ...);
 
@@ -177,7 +176,7 @@ static inline bool match_terminator(struct bc *bc) {
 
 static int eat_token(struct bc *bc) {
   if (match_token(bc, TOKEN_EOF)) {
-    compiler_error(bc, GAB_MALFORMED_TOKEN, "Unexpected EOF");
+    compiler_error(bc, GAB_UNEXPECTED_EOF, "");
     return COMP_ERR;
   }
 
@@ -202,8 +201,7 @@ static inline int match_and_eat_token(struct bc *bc, gab_token tok) {
 static inline int expect_token(struct bc *bc, gab_token tok) {
   if (!match_token(bc, tok)) {
     eat_token(bc);
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                   "Expected " ANSI_COLOR_MAGENTA "$" ANSI_COLOR_RESET,
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN, FMT_UNEXPECTEDTOKEN,
                    gab_string(gab(bc), gab_token_names[tok]));
     return COMP_ERR;
   }
@@ -257,6 +255,11 @@ static inline int peek_ctx(struct bc *bc, enum context_k kind, uint8_t depth) {
       if (depth-- == 0)
         return idx;
 
+    /* We don't peek to parent frame contexts, unless we're peeking for a frame
+     * context */
+    if (kind != kFRAME && bc->contexts[idx].kind == kFRAME)
+      break;
+
     idx--;
   }
 
@@ -297,7 +300,7 @@ static inline void push_qword(struct bc *bc, uint64_t data, size_t t) {
 }
 
 static inline size_t addk(struct bc *bc, gab_value value) {
-  gab_gciref(gab(bc), value);
+  gab_iref(gab(bc), value);
   gab_egkeep(eg(bc), value);
 
   v_gab_value_push(&bc->src->constants, value);
@@ -898,7 +901,7 @@ static gab_value pop_ctxframe(struct bc *bc) {
                                    .indexes = f->upv_indexes,
                                });
 
-  gab_gciref(gab(bc), p);
+  gab_iref(gab(bc), p);
   gab_egkeep(eg(bc), p);
 
   assert(match_ctx(bc, kFRAME));
@@ -1068,7 +1071,7 @@ int compile_symbol(struct bc *bc) {
 }
 
 int compile_string(struct bc *bc) {
-  if (prev_tok(bc) == TOKEN_SYMBOL)
+  if (prev_tok(bc) == TOKEN_SIGIL)
     return compile_symbol(bc);
 
   if (prev_tok(bc) == TOKEN_STRING)
@@ -1162,8 +1165,17 @@ int compile_parameters(struct bc *bc) {
     switch (match_and_eat_token(bc, TOKEN_STAR)) {
     case COMP_OK:
       if (below >= 0) {
-        compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                       "Multiple variadic parameters");
+        int ctx = peek_ctx(bc, kFRAME, 0);
+        struct frame *f = &bc->contexts[ctx].as.frame;
+
+        gab_value other_name = f->local_names[below + 1];
+
+        compiler_error(
+            bc, GAB_INVALID_REST_VARIABLE,
+            "The parameter '$' at index $ is already a 'rest' parameter.\n"
+            "\nBlocks can only declare one parameter as a 'rest' parameter.\n",
+            other_name, gab_number(below));
+
         return COMP_ERR;
       }
 
@@ -1190,7 +1202,6 @@ int compile_parameters(struct bc *bc) {
     }
 
     default:
-      compiler_error(bc, GAB_UNEXPECTED_TOKEN, "While compiling parameter");
       return COMP_ERR;
     }
 
@@ -1412,6 +1423,11 @@ int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out) {
     return COMP_ERR;
   }
 
+  if (have == 0) {
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected an expression.");
+    return COMP_ERR;
+  }
+
   if (want == VAR_EXP) {
     /*
      * If we want all possible values, try to patch a mv.
@@ -1547,7 +1563,7 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
   uint8_t n_new_values = new_lvalues(lvalues);
 
   if (n_rest_values > 1) {
-    compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+    compiler_error(bc, GAB_INVALID_REST_VARIABLE,
                    "Only one rest value allowed");
     return COMP_ERR;
   }
@@ -1666,7 +1682,7 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
 int compile_definition(struct bc *bc, s_char name);
 
 int compile_rec_internal_item(struct bc *bc) {
-  if (match_and_eat_token(bc, TOKEN_SYMBOL) ||
+  if (match_and_eat_token(bc, TOKEN_SIGIL) ||
       match_and_eat_token(bc, TOKEN_STRING) ||
       match_and_eat_token(bc, TOKEN_INTERPOLATION_BEGIN)) {
     size_t t = bc->offset - 1;
@@ -1755,7 +1771,14 @@ int compile_rec_internal_item(struct bc *bc) {
 
 err:
   eat_token(bc);
-  compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Try '<identifier>' or '[<exp>]'");
+  compiler_error(bc, GAB_MALFORMED_RECORD_KEY,
+                 "A valid key is either:\n"
+                 " | { an_identifier }\n"
+                 " | { \"a string\", .a_sigil, 'or' }\n"
+                 " | { [an:expression] }\n\n"
+                 "A key can be followed by an " ANSI_COLOR_GREEN
+                 "EQUAL" ANSI_COLOR_RESET ", and then an expression.\n"
+                 "If a value is not set explicitly, it will be true.\n");
   return COMP_ERR;
 }
 
@@ -2046,8 +2069,7 @@ int compile_exp_bin(struct bc *bc, bool assignable) {
     break;
 
   default:
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                   "While compiling binary expression");
+    assert(false && "This is an internal compiler error.");
     return COMP_ERR;
   }
 
@@ -2086,8 +2108,7 @@ int compile_exp_una(struct bc *bc, bool assignable) {
     return COMP_OK;
 
   default:
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                   "While compiling unary expression");
+    assert(false && "This is an internal compiler error.");
     return COMP_ERR;
   }
 }
@@ -2186,7 +2207,7 @@ int compile_exp_def(struct bc *bc, bool assignable) {
     }
   }
   default:
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "While compiling definition");
+    assert(false && "This is an internal compiler error.");
     return COMP_ERR;
   }
 
@@ -2262,8 +2283,7 @@ int compile_exp_ipm(struct bc *bc, bool assignable) {
     break;
 
   default:
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                   "While compiling 'implicit parameter' expression");
+    assert(false && "This is an internal compiler error.");
     return COMP_ERR;
   }
 
@@ -2316,7 +2336,7 @@ int compile_exp_splt(struct bc *bc, bool assignable) {
     }
   }
 
-  compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expression is not assignable");
+  assert(false && "This is an internal compiler error.");
   return COMP_ERR;
 }
 
@@ -2464,7 +2484,7 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
       return COMP_ERR;
   }
 
-  if (flags & fHAS_STRING || match_and_eat_token(bc, TOKEN_SYMBOL) ||
+  if (flags & fHAS_STRING || match_and_eat_token(bc, TOKEN_SIGIL) ||
       match_and_eat_token(bc, TOKEN_STRING) ||
       match_and_eat_token(bc, TOKEN_INTERPOLATION_BEGIN)) {
     if (compile_string(bc) < 0)
@@ -2594,7 +2614,14 @@ int compile_exp_amp(struct bc *bc, bool assignable) {
     expect_token(bc, TOKEN_RBRACE);
     break;
   default:
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected a message literal.");
+    compiler_error(bc, GAB_MALFORMED_MESSAGE_LITERAL,
+                   "A message literal is either:\n"
+                   " | &:a_normal_message\n"
+                   " | &+ # or a builtin message, like " ANSI_COLOR_GREEN
+                   "PLUS" ANSI_COLOR_RESET "\n"
+                   "\nWhat follows the " ANSI_COLOR_GREEN
+                   "AMPERSAND" ANSI_COLOR_RESET
+                   " is exactly what you would type to send the message.\n");
     return COMP_ERR;
   }
 
@@ -2809,7 +2836,11 @@ int compile_exp_prec(struct bc *bc, enum prec_k prec) {
   struct compile_rule rule = get_rule(prev_tok(bc));
 
   if (rule.prefix == NULL) {
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected an expression.");
+    s_char p = prev_src(bc);
+    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                   FMT_UNEXPECTEDTOKEN " $ cannot begin an expression.",
+                   gab_string(gab(bc), "EXPRESSION"),
+                   gab_nstring(gab(bc), p.len, p.data));
     return COMP_ERR;
   }
 
@@ -2849,7 +2880,7 @@ int compile_exp_brk(struct bc *bc, bool assignable) {
   int ctx = peek_ctx(bc, kLOOP, 0);
 
   if (ctx < 0) {
-    compiler_error(bc, GAB_BREAK_OUTSIDE_LOOP, "");
+    compiler_error(bc, GAB_INVALID_BREAK, "");
     return COMP_ERR;
   }
 
@@ -3097,7 +3128,7 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
 
   gab_value main = gab_block(gab(bc), p);
 
-  gab_gciref(gab(bc), main);
+  gab_iref(gab(bc), main);
   gab_egkeep(eg(bc), main);
 
   if (fGAB_DUMP_BYTECODE & bc->flags)

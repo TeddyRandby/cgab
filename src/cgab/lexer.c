@@ -297,7 +297,7 @@ gab_token other(gab_lx *self) {
     if (can_continue_identifier(peek(self))) {
       // If we didn't get a keyword, return a token property
       if (identifier(self) == TOKEN_IDENTIFIER)
-        return TOKEN_SYMBOL;
+        return TOKEN_SIGIL;
 
       // Otherwise, we got a keyword and this was an error
       return error(self, GAB_MALFORMED_TOKEN);
@@ -486,7 +486,7 @@ struct gab_src *gab_srccpy(struct gab_triple gab, struct gab_src *self) {
     gab_value v = v_gab_value_val_at(&self->constants, i);
     if (gab_valiso(v)) {
       gab_value cpy =  gab_valcpy(gab, v);
-      gab_egkeep(gab.eg, gab_gciref(gab, cpy));
+      gab_egkeep(gab.eg, gab_iref(gab, cpy));
       v_gab_value_set(&copy->constants, i, cpy);
     }
   }
@@ -530,7 +530,7 @@ struct gab_src *gab_src(struct gab_triple gab, gab_value name, const char *sourc
   src->source = a_char_create(source, len);
   src->name = name;
 
-  gab_egkeep(gab.eg, gab_gciref(gab, name));
+  gab_egkeep(gab.eg, gab_iref(gab, name));
 
   gab_lx lex;
   gab_lexcreate(&lex, src);

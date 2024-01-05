@@ -73,7 +73,7 @@ void run_src(struct gab_triple gab, s_char src, const char *module, char delim,
                                              .argv = buf,
                                          });
 
-      gab_ngciref(gab, 1, result->len, result->data);
+      gab_niref(gab, 1, result->len, result->data);
       gab_negkeep(gab.eg, result->len, result->data);
 
       a_gab_value_destroy(result);

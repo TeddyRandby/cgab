@@ -138,46 +138,46 @@ struct gab_triple gab_create() {
   eg->types[kGAB_NIL] = gab_nil;
 
   eg->types[kGAB_NUMBER] = gab_string(gab, "Number");
-  gab_gciref(gab, eg->types[kGAB_NUMBER]);
+  gab_iref(gab, eg->types[kGAB_NUMBER]);
 
   eg->types[kGAB_TRUE] = gab_string(gab, "Boolean");
-  gab_gciref(gab, eg->types[kGAB_TRUE]);
+  gab_iref(gab, eg->types[kGAB_TRUE]);
 
   eg->types[kGAB_FALSE] = gab_string(gab, "Boolean");
-  gab_gciref(gab, eg->types[kGAB_FALSE]);
+  gab_iref(gab, eg->types[kGAB_FALSE]);
 
   eg->types[kGAB_STRING] = gab_string(gab, "String");
-  gab_gciref(gab, eg->types[kGAB_STRING]);
+  gab_iref(gab, eg->types[kGAB_STRING]);
 
   eg->types[kGAB_MESSAGE] = gab_string(gab, "Message");
-  gab_gciref(gab, eg->types[kGAB_MESSAGE]);
+  gab_iref(gab, eg->types[kGAB_MESSAGE]);
 
   eg->types[kGAB_SPROTOTYPE] = gab_string(gab, "Prototype");
-  gab_gciref(gab, eg->types[kGAB_SPROTOTYPE]);
+  gab_iref(gab, eg->types[kGAB_SPROTOTYPE]);
 
   eg->types[kGAB_BPROTOTYPE] = gab_string(gab, "Prototype");
-  gab_gciref(gab, eg->types[kGAB_BPROTOTYPE]);
+  gab_iref(gab, eg->types[kGAB_BPROTOTYPE]);
 
   eg->types[kGAB_NATIVE] = gab_string(gab, "Native");
-  gab_gciref(gab, eg->types[kGAB_NATIVE]);
+  gab_iref(gab, eg->types[kGAB_NATIVE]);
 
   eg->types[kGAB_BLOCK] = gab_string(gab, "Block");
-  gab_gciref(gab, eg->types[kGAB_BLOCK]);
+  gab_iref(gab, eg->types[kGAB_BLOCK]);
 
   eg->types[kGAB_RECORD] = gab_string(gab, "Record");
-  gab_gciref(gab, eg->types[kGAB_RECORD]);
+  gab_iref(gab, eg->types[kGAB_RECORD]);
 
   eg->types[kGAB_SHAPE] = gab_string(gab, "Shape");
-  gab_gciref(gab, eg->types[kGAB_SHAPE]);
+  gab_iref(gab, eg->types[kGAB_SHAPE]);
 
   eg->types[kGAB_BOX] = gab_string(gab, "Box");
-  gab_gciref(gab, eg->types[kGAB_BOX]);
+  gab_iref(gab, eg->types[kGAB_BOX]);
 
   eg->types[kGAB_SUSPENSE] = gab_string(gab, "Suspense");
-  gab_gciref(gab, eg->types[kGAB_SUSPENSE]);
+  gab_iref(gab, eg->types[kGAB_SUSPENSE]);
 
   eg->types[kGAB_PRIMITIVE] = gab_string(gab, "Primitive");
-  gab_gciref(gab, eg->types[kGAB_PRIMITIVE]);
+  gab_iref(gab, eg->types[kGAB_PRIMITIVE]);
 
   gab_negkeep(gab.eg, kGAB_NKINDS, eg->types);
 
@@ -186,8 +186,8 @@ struct gab_triple gab_create() {
   for (int i = 0; i < LEN_CARRAY(primitives); i++) {
     gab_egkeep(
         gab.eg,
-        gab_gciref(
-            gab, gab_spec(gab, (struct gab_spec_argt){
+        gab_iref(gab,
+                 gab_spec(gab, (struct gab_spec_argt){
                                    .name = primitives[i].name,
                                    .receiver = gab_type(eg, primitives[i].type),
                                    .specialization = primitives[i].primitive,
@@ -198,9 +198,9 @@ struct gab_triple gab_create() {
 }
 
 void gab_destroy(struct gab_triple gab) {
-  gab_ngcdref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
+  gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
 
-  gab_gcrun(gab);
+  gab_collect(gab);
 
   gab_gcdestroy(gab.gc);
 
@@ -286,7 +286,7 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
     if (result == NULL)
       continue;
 
-    gab_ngciref(gab, 1, result->len, result->data);
+    gab_niref(gab, 1, result->len, result->data);
     gab_negkeep(gab.eg, result->len, result->data);
 
     printf("%s", args.result_prefix);
@@ -647,67 +647,86 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
   if (!(gab.flags & fGAB_DUMP_ERROR))
     goto fin;
 
-  uint64_t line = v_uint64_t_val_at(&args.src->token_lines, args.tok);
-
-  s_char tok_src = v_s_char_val_at(&args.src->token_srcs, args.tok);
-
-  s_char line_src = v_s_char_val_at(&args.src->lines, line - 1);
-
-  while (*line_src.data == ' ' || *line_src.data == '\t') {
-    line_src.data++;
-    line_src.len--;
-    if (line_src.len == 0)
-      break;
-  }
-
-  a_char *line_under = a_char_empty(line_src.len);
-
-  const char *tok_start, *tok_end;
-
-  tok_start = tok_src.data;
-  tok_end = tok_src.data + tok_src.len;
-
   const char *tok_name =
-      gab_token_names[v_gab_token_val_at(&args.src->tokens, args.tok)];
+      args.src
+          ? gab_token_names[v_gab_token_val_at(&args.src->tokens, args.tok)]
+          : "<c>";
 
-  for (uint8_t i = 0; i < line_under->len; i++) {
-    if (line_src.data + i >= tok_start && line_src.data + i < tok_end)
-      line_under->data[i] = '^';
-    else
-      line_under->data[i] = ' ';
+  fputc('\n', stream);
+
+  if (args.src) {
+    fprintf(stream, "[" ANSI_COLOR_GREEN);
+    gab_fvalinspect(stream, args.src->name, 0);
+    fprintf(stream, ANSI_COLOR_RESET "]");
+  } else {
   }
 
-  fprintf(stream, "\n[" ANSI_COLOR_GREEN);
-
-  gab_fvalinspect(stream, args.src->name, 0);
   if (args.message != gab_nil) {
-    fprintf(stream, ANSI_COLOR_RESET "/" ANSI_COLOR_CYAN);
+    fprintf(stream, "[" ANSI_COLOR_CYAN);
     gab_fvalinspect(stream, args.message, 0);
+    fprintf(stream, ANSI_COLOR_RESET "]");
   }
 
   fprintf(stream,
-          ANSI_COLOR_RESET
-          "] Error near " ANSI_COLOR_MAGENTA "%s" ANSI_COLOR_RESET
-          ":\n\n\t\u256d" ANSI_COLOR_RED " %.4lu " ANSI_COLOR_RESET "%.*s"
-          "\n\t\u2502      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET
-          "\n\t\u2570\u2500\u2524 ",
-          tok_name, line, (int)line_src.len, line_src.data,
-          (int)line_under->len, line_under->data);
+          ANSI_COLOR_RESET " panicked near " ANSI_COLOR_MAGENTA
+                           "%s" ANSI_COLOR_RESET,
+          tok_name);
 
-  a_char_destroy(line_under);
+  if (args.status != GAB_NONE) {
+    fprintf(stream, ":" ANSI_COLOR_YELLOW " %s." ANSI_COLOR_RESET,
+            gab_status_names[args.status]);
+  }
 
-  fprintf(stream, ANSI_COLOR_YELLOW "%s. " ANSI_COLOR_RESET,
-          gab_status_names[args.status]);
+  if (args.src) {
+    s_char tok_src = v_s_char_val_at(&args.src->token_srcs, args.tok);
+    const char *tok_start = tok_src.data;
+    const char *tok_end = tok_src.data + tok_src.len;
+
+    uint64_t line = v_uint64_t_val_at(&args.src->token_lines, args.tok);
+
+    s_char line_src = v_s_char_val_at(&args.src->lines, line - 1);
+
+    while (*line_src.data == ' ' || *line_src.data == '\t') {
+      line_src.data++;
+      line_src.len--;
+      if (line_src.len == 0)
+        break;
+    }
+
+    a_char *line_under = a_char_empty(line_src.len);
+
+    for (uint8_t i = 0; i < line_under->len; i++) {
+      if (line_src.data + i >= tok_start && line_src.data + i < tok_end)
+        line_under->data[i] = '^';
+      else
+        line_under->data[i] = ' ';
+    }
+
+    fprintf(stream,
+            "\n\n" ANSI_COLOR_RED "%.4lu" ANSI_COLOR_RESET "| %.*s"
+            "\n      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET "",
+            line, (int)line_src.len, line_src.data, (int)line_under->len,
+            line_under->data);
+
+    a_char_destroy(line_under);
+
+  }
 
   if (args.note_fmt && strlen(args.note_fmt) > 0) {
-    fprintf(stream, "\n" ANSI_COLOR_MAGENTA "HINT" ANSI_COLOR_RESET ":\n");
-
+    fprintf(stream, "\n\n");
     const char *c = args.note_fmt;
 
     while (*c != '\0') {
       switch (*c) {
       case '$':
+        fprintf(stream, ANSI_COLOR_GREEN);
         gab_fvalinspect(stream, va_arg(varargs, gab_value), 1);
+        fprintf(stream, ANSI_COLOR_RESET);
+        break;
+      case '@':
+        fprintf(stream, ANSI_COLOR_CYAN);
+        gab_fvalinspect(stream, args.message, 0);
+        fprintf(stream, ANSI_COLOR_RESET);
         break;
       default:
         fputc(*c, stream);
@@ -716,7 +735,7 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
     }
   }
 
-  fprintf(stream, "\n\n");
+  fprintf(stream, "\n________________________________________________________\n");
 
 fin:
   if (gab.flags & fGAB_EXIT_ON_PANIC) {

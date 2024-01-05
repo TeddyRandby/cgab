@@ -22,7 +22,7 @@ static inline gab_value list_put(struct gab_triple gab, gab_value self,
   v_gab_value *data = gab_boxdata(self);
 
   if (!gab_valisnew(self))
-    gab_gciref(gab, value);
+    gab_iref(gab, value);
 
   if (offset >= data->len) {
     uint64_t nils = offset - data->len;
@@ -37,7 +37,7 @@ static inline gab_value list_put(struct gab_triple gab, gab_value self,
   }
 
   if (!gab_valisnew(self))
-    gab_gcdref(gab, v_gab_value_val_at(data, offset));
+    gab_dref(gab, v_gab_value_val_at(data, offset));
 
   v_gab_value_set(data, offset, value);
 
@@ -51,7 +51,7 @@ static inline gab_value list_pop(struct gab_triple gab, gab_value self) {
   gab_value result = v_gab_value_pop(data);
 
   if (!gab_valisnew(self))
-    gab_gcdref(gab, result);
+    gab_dref(gab, result);
 
   return result;
 }
@@ -59,7 +59,7 @@ static inline gab_value list_pop(struct gab_triple gab, gab_value self) {
 static inline void list_push(struct gab_triple gab, gab_value self, size_t len,
                              gab_value values[static len]) {
   if (!gab_valisnew(self))
-    gab_ngciref(gab, 1, len, values);
+    gab_niref(gab, 1, len, values);
 
   for (uint8_t i = 0; i < len; i++)
     v_gab_value_push(gab_boxdata(self), values[i]);
@@ -80,10 +80,10 @@ static inline gab_value list_replace(struct gab_triple gab, gab_value self,
   v_gab_value *other_data = gab_boxdata(other);
 
   if (!gab_valisnew(self))
-    gab_ngciref(gab, 1, other_data->len, other_data->data);
+    gab_niref(gab, 1, other_data->len, other_data->data);
 
   if (!gab_valisnew(self))
-    gab_ngcdref(gab, 1, data->len, data->data);
+    gab_ndref(gab, 1, data->len, data->data);
 
   v_gab_value_cap(data, other_data->cap);
   data->len = other_data->len;

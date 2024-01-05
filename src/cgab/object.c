@@ -23,7 +23,7 @@ struct gab_obj *gab_obj_create(struct gab_triple gab, size_t sz,
   printf("CREATE\t%p\t%lu\t%d\n", (void *)self, sz, k);
 #endif
 
-  gab_gcdref(gab, __gab_obj(self));
+  gab_dref(gab, __gab_obj(self));
 
   return self;
 }

@@ -201,6 +201,15 @@ void gab_lib_panic(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_panic(gab, "Error");
 }
 
+void gab_lib_assertis(struct gab_triple gab, size_t argc,
+                        gab_value argv[argc]) {
+  gab_value r = gab_arg(0);
+  gab_value t = gab_arg(1);
+
+  if (gab_valtype(gab.eg, r) != t)
+    gab_ptypemismatch(gab, r, t);
+}
+
 void gab_lib_print(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   int start = argv[0] == gab_undefined;
 
@@ -220,33 +229,41 @@ void gab_setup_natives(struct gab_triple gab) {
 
   gab_egkeep(
       gab.eg,
-      gab_gciref(gab,
-                 gab_spec(gab, (struct gab_spec_argt){
-                                   .name = "use",
-                                   .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
-                                   .specialization =
-                                       gab_snative(gab, "use", gab_lib_use),
-                               })));
+      gab_iref(gab,
+               gab_spec(gab, (struct gab_spec_argt){
+                                 .name = "use",
+                                 .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
+                                 .specialization =
+                                     gab_snative(gab, "use", gab_lib_use),
+                             })));
+
+  gab_egkeep(gab.eg,
+             gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
+                                             .name = "assert.is?",
+                                             .receiver = gab_undefined,
+                                             .specialization = gab_snative(
+                                                 gab, "assert.is?",
+                                                 gab_lib_assertis),
+                                         })));
 
   gab_egkeep(
       gab.eg,
-      gab_gciref(gab,
-                 gab_spec(gab, (struct gab_spec_argt){
-                                   .name = "panic",
-                                   .receiver = gab_type(gab.eg, kGAB_STRING),
-                                   .specialization =
-                                       gab_snative(gab, "panic", gab_lib_panic),
-                               })));
+      gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
+                                      .name = "panic",
+                                      .receiver = gab_type(gab.eg, kGAB_STRING),
+                                      .specialization = gab_snative(
+                                          gab, "panic", gab_lib_panic),
+                                  })));
 
   gab_egkeep(
       gab.eg,
-      gab_gciref(gab,
-                 gab_spec(gab, (struct gab_spec_argt){
-                                   .name = "print",
-                                   .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
-                                   .specialization =
-                                       gab_snative(gab, "print", gab_lib_print),
-                               })));
+      gab_iref(gab,
+               gab_spec(gab, (struct gab_spec_argt){
+                                 .name = "print",
+                                 .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
+                                 .specialization =
+                                     gab_snative(gab, "print", gab_lib_print),
+                             })));
 
   gab_gcunlock(gab.gc);
 }

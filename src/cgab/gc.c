@@ -12,7 +12,7 @@ void queue_decrement(struct gab_triple gab, struct gab_obj *obj) {
 #endif
 
   if (gab.gc->decrements.len + 1 >= cGAB_GC_DEC_BUFF_MAX)
-    gab_gcrun(gab);
+    gab_collect(gab);
 
   v_gab_obj_push(&gab.gc->decrements, obj);
 
@@ -30,7 +30,7 @@ void queue_increment(struct gab_triple gab, struct gab_obj *obj) {
 #endif
 
   if (gab.gc->increments.len + 1 >= cGAB_GC_DEC_BUFF_MAX)
-    gab_gcrun(gab);
+    gab_collect(gab);
 
   v_gab_obj_push(&gab.gc->increments, obj);
 
@@ -62,7 +62,7 @@ fin:
   GAB_OBJ_BUFFERED(obj);
 
   if (gab.gc->roots.len + 1 >= cGAB_GC_DEC_BUFF_MAX)
-    gab_gcrun(gab);
+    gab_collect(gab);
 
   v_gab_obj_push(&gab.gc->roots, obj);
 
@@ -224,7 +224,7 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
 void __gab_ngciref(struct gab_triple gab, size_t stride, size_t len,
                    gab_value values[len], const char *func, int line) {
 #else
-void gab_ngciref(struct gab_triple gab, size_t stride, size_t len,
+void gab_niref(struct gab_triple gab, size_t stride, size_t len,
                  gab_value values[len]) {
 #endif
   gab_gclock(gab.gc);
@@ -235,7 +235,7 @@ void gab_ngciref(struct gab_triple gab, size_t stride, size_t len,
 #if cGAB_LOG_GC
     __gab_gciref(gab, value, func, line);
 #else
-    gab_gciref(gab, value);
+    gab_iref(gab, value);
 #endif
   }
 
@@ -246,7 +246,7 @@ void gab_ngciref(struct gab_triple gab, size_t stride, size_t len,
 void __gab_ngcdref(struct gab_triple gab, size_t stride, size_t len,
                    gab_value values[len], const char *func, int line) {
 #else
-void gab_ngcdref(struct gab_triple gab, size_t stride, size_t len,
+void gab_ndref(struct gab_triple gab, size_t stride, size_t len,
                  gab_value values[len]) {
 #endif
 
@@ -258,7 +258,7 @@ void gab_ngcdref(struct gab_triple gab, size_t stride, size_t len,
 #if cGAB_LOG_GC
     __gab_gcdref(gab, value, func, line);
 #else
-    gab_gcdref(gab, value);
+    gab_dref(gab, value);
 #endif
   }
 
@@ -269,7 +269,7 @@ void gab_ngcdref(struct gab_triple gab, size_t stride, size_t len,
 gab_value __gab_gciref(struct gab_triple gab, gab_value value, const char *func,
                        int32_t line) {
 #else
-gab_value gab_gciref(struct gab_triple gab, gab_value value) {
+gab_value gab_iref(struct gab_triple gab, gab_value value) {
 #endif
   /*
    * If the value is not a heap object, then do nothing
@@ -299,7 +299,7 @@ gab_value gab_gciref(struct gab_triple gab, gab_value value) {
 gab_value __gab_gcdref(struct gab_triple gab, gab_value value, const char *func,
                        int32_t line) {
 #else
-gab_value gab_gcdref(struct gab_triple gab, gab_value value) {
+gab_value gab_dref(struct gab_triple gab, gab_value value) {
 #endif
   /*
    * If the value is not a heap object, then do nothing
@@ -629,7 +629,7 @@ void collect_cycles(struct gab_triple gab) {
 void gab_gclock(struct gab_gc *gc) { gc->locked += 1; }
 void gab_gcunlock(struct gab_gc *gc) { gc->locked -= 1; }
 
-void gab_gcrun(struct gab_triple gab) {
+void gab_collect(struct gab_triple gab) {
   if (gab.gc->locked)
     return;
 
