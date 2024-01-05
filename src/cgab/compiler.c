@@ -88,8 +88,6 @@ struct bc {
 
   size_t offset;
 
-  uint8_t flags;
-
   bool panic;
 
   uint8_t ncontext;
@@ -184,7 +182,8 @@ static int eat_token(struct bc *bc) {
 
   if (match_token(bc, TOKEN_ERROR)) {
     eat_token(bc);
-    compiler_error(bc, GAB_MALFORMED_TOKEN, "");
+    compiler_error(bc, GAB_MALFORMED_TOKEN,
+                   "This token is malformed or unrecognized.");
     return COMP_ERR;
   }
 
@@ -557,9 +556,7 @@ static inline void _push_slot(struct bc *bc, uint16_t n, const char *file,
   struct frame *f = &bc->contexts[ctx].as.frame;
 
   if (f->next_slot + n >= UINT16_MAX) {
-    compiler_error(bc, GAB_PANIC,
-                   "Too many slots. This is an internal compiler error.\n");
-    assert(0);
+    assert(false && "Too many slots. This is an internal compiler error.");
   }
 
   f->next_slot += n;
@@ -577,9 +574,7 @@ static inline void push_slot(struct bc *bc, uint16_t n) {
   struct frame *f = &bc->contexts[ctx].as.frame;
 
   if (f->next_slot + n >= UINT16_MAX) {
-    compiler_error(bc, GAB_PANIC,
-                   "Too many slots. This is an internal compiler error.");
-    assert(0);
+    assert(false && "Too many slots. This is an internal compiler error.");
   }
 
   f->next_slot += n;
@@ -600,9 +595,7 @@ static inline void _pop_slot(struct bc *bc, uint16_t n, const char *file,
   struct frame *f = &bc->contexts[ctx].as.frame;
 
   if (f->next_slot - n < 0) {
-    compiler_error(bc, GAB_PANIC,
-                   "Too few slots. This is an internal compiler error.\n");
-    assert(0);
+    assert(false && "Too few slots. This is an internal compiler error.");
   }
 
   f->next_slot -= n;
@@ -617,9 +610,7 @@ static inline void pop_slot(struct bc *bc, uint16_t n) {
   struct frame *f = &bc->contexts[ctx].as.frame;
 
   if (f->next_slot - n < 0) {
-    compiler_error(bc, GAB_PANIC,
-                   "Too few slots. This is an internal compiler error.");
-    assert(0);
+    assert(false && "Too few slots. This is an internal compiler error.");
   }
 
   f->next_slot -= n;
@@ -646,7 +637,9 @@ static int add_local(struct bc *bc, gab_value name, uint8_t flags) {
   struct frame *f = &bc->contexts[ctx].as.frame;
 
   if (f->nlocals == GAB_LOCAL_MAX) {
-    compiler_error(bc, GAB_TOO_MANY_LOCALS, "");
+    compiler_error(
+        bc, GAB_TOO_MANY_LOCALS,
+        "For arbitrary reasons, blocks cannot decalre more than 255 locals.");
     return COMP_ERR;
   }
 
@@ -680,7 +673,9 @@ static int add_upvalue(struct bc *bc, int depth, uint8_t index, uint8_t flags) {
   }
 
   if (count == GAB_UPVALUE_MAX) {
-    compiler_error(bc, GAB_TOO_MANY_UPVALUES, "");
+    compiler_error(bc, GAB_TOO_MANY_UPVALUES,
+                   "For arbitrary reasons, blocks cannot capture more than 255 "
+                   "variables.");
     return COMP_ERR;
   }
 
@@ -709,7 +704,9 @@ static int resolve_local(struct bc *bc, gab_value name, uint8_t depth) {
 
     if (name == other_local_name) {
       if (f->local_depths[local] == -1) {
-        compiler_error(bc, GAB_REFERENCE_BEFORE_INITIALIZE, "");
+        compiler_error(
+            bc, GAB_REFERENCE_BEFORE_INITIALIZE,
+            "The variable $ was referenced before it was initialized.", name);
         return COMP_ERR;
       }
       return local;
@@ -737,7 +734,12 @@ static int resolve_upvalue(struct bc *bc, gab_value name, uint8_t depth) {
     uint8_t flags = f->local_flags[local] |= fVAR_CAPTURED;
 
     if (flags & fVAR_MUTABLE) {
-      compiler_error(bc, GAB_CAPTURED_MUTABLE, "");
+      compiler_error(bc, GAB_CAPTURED_MUTABLE,
+                     "Variables are mutable by default.\n"
+                     "To capture $, declare it as immutable:\n"
+                     "\n | " ANSI_COLOR_MAGENTA "def" ANSI_COLOR_RESET
+                     " $ = ...\n",
+                     name, name);
       return COMP_ERR;
     }
 
@@ -970,13 +972,10 @@ a_char *parse_raw_str(struct bc *bc, s_char raw_str) {
   char buffer[raw_str.len];
   size_t buf_end = 0;
 
-  // Skip the first and last character (")
-  size_t start = 0;
-  while (raw_str.data[start] != '\'' && raw_str.data[start] != '"' &&
-         raw_str.data[start] != '}')
-    start++;
-
-  for (size_t i = start + 1; i < raw_str.len - 1; i++) {
+  // Skip the first and last bytes of the string.
+  // These are the opening/closing quotes, doublequotes, or brackets (For
+  // interpolation).
+  for (size_t i = 1; i < raw_str.len - 1; i++) {
     int8_t c = raw_str.data[i];
 
     if (c == '\\') {
@@ -994,6 +993,13 @@ a_char *parse_raw_str(struct bc *bc, s_char raw_str) {
         break;
       case '{':
         buffer[buf_end++] = '{';
+        break;
+      case '"':
+        buffer[buf_end++] = '"';
+        break;
+      case '\'':
+        buffer[buf_end++] = '\'';
+        break;
         break;
       case 'u':
         i += 2;
@@ -1046,7 +1052,13 @@ int compile_strlit(struct bc *bc) {
   a_char *parsed = parse_raw_str(bc, prev_src(bc));
 
   if (parsed == NULL) {
-    compiler_error(bc, GAB_MALFORMED_STRING, "");
+    compiler_error(bc, GAB_MALFORMED_STRING,
+                   "Single quoted strings can contain interpolations.\n"
+                   "\n | 'this is { an:interpolation }'\n"
+                   "\nBoth single and double quoted strings can contain escape "
+                   "sequences.\n"
+                   "\n | 'a newline -> \\n, or a forward slash -> \\\\'"
+                   "\n | \"arbitrary unicode: \\u[2502]\"");
     return COMP_ERR;
   }
 
@@ -1502,6 +1514,17 @@ uint8_t rest_lvalues(v_lvalue *lvalues) {
             lvalues->data[i].kind == kEXISTING_REST_LOCAL;
 
   return rest;
+}
+
+void adjust_preceding_lvalues(struct bc *bc) {
+  int ctx = peek_ctx(bc, kASSIGNMENT_TARGET, 0);
+
+  if (ctx >= 0) {
+    v_lvalue *lvalues = &bc->contexts[ctx].as.assignment_target;
+
+    for (size_t i = 0; i < lvalues->len; i++)
+      lvalues->data[i].slot++;
+  }
 }
 
 uint8_t new_lvalues(v_lvalue *lvalues) {
@@ -2304,7 +2327,9 @@ int compile_exp_splt(struct bc *bc, bool assignable) {
     case COMP_ID_NOT_FOUND:
       index = compile_local(bc, id, fVAR_MUTABLE);
 
-      push_slot(bc, 1);
+      // We're adding a new local, which means we retroactively need
+      // to add one to each other assignment target slot
+      adjust_preceding_lvalues(bc);
 
       return compile_assignment(bc, (struct lvalue){
                                         .kind = kNEW_REST_LOCAL,
@@ -2352,16 +2377,9 @@ int compile_exp_idn(struct bc *bc, bool assignable) {
       case COMP_ID_NOT_FOUND:
         index = compile_local(bc, id, fVAR_MUTABLE);
 
-        int ctx = peek_ctx(bc, kASSIGNMENT_TARGET, 0);
-
-        if (ctx >= 0) {
-          v_lvalue *lvalues = &bc->contexts[ctx].as.assignment_target;
-
-          // We're adding a new local, which means we retroactively need
-          // to add one to each other assignment target slot
-          for (size_t i = 0; i < lvalues->len; i++)
-            lvalues->data[i].slot++;
-        }
+        // We're adding a new local, which means we retroactively need
+        // to add one to each other assignment target slot
+        adjust_preceding_lvalues(bc);
 
         return compile_assignment(bc, (struct lvalue){
                                           .kind = kNEW_LOCAL,
@@ -2637,13 +2655,13 @@ int compile_exp_dyn(struct bc *bc, bool assignable) {
   if (expect_token(bc, TOKEN_LPAREN) < 0)
     return COMP_ERR;
 
+  size_t t = bc->offset - 1;
+
   if (compile_expression(bc) < 0)
     return COMP_ERR;
 
   if (expect_token(bc, TOKEN_RPAREN) < 0)
     return COMP_ERR;
-
-  size_t t = bc->offset - 1;
 
   bool mv = false;
   int result = compile_arguments(bc, &mv, 0);
@@ -2880,7 +2898,17 @@ int compile_exp_brk(struct bc *bc, bool assignable) {
   int ctx = peek_ctx(bc, kLOOP, 0);
 
   if (ctx < 0) {
-    compiler_error(bc, GAB_INVALID_BREAK, "");
+    compiler_error(bc, GAB_INVALID_BREAK,
+                   ANSI_COLOR_MAGENTA
+                   "break" ANSI_COLOR_RESET
+                   " is only valid within the context of a " ANSI_COLOR_MAGENTA
+                   "loop" ANSI_COLOR_RESET ".\n" ANSI_COLOR_MAGENTA
+                   "break" ANSI_COLOR_RESET " allows " ANSI_COLOR_MAGENTA
+                   "loop" ANSI_COLOR_RESET
+                   " to evaluate to something other than $\n"
+                   "\n | a = loop; break 'example' end"
+                   "\n | a == 'example' # => true ",
+                   gab_nil);
     return COMP_ERR;
   }
 
@@ -3009,7 +3037,9 @@ int compile_exp_rtn(struct bc *bc, bool assignable) {
     return COMP_ERR;
 
   if (result > GAB_RET_MAX) {
-    compiler_error(bc, GAB_TOO_MANY_RETURN_VALUES, "");
+    compiler_error(
+        bc, GAB_TOO_MANY_RETURN_VALUES,
+        "For arbitrary reasons, blocks cannot return more than 255 values.");
     return COMP_ERR;
   }
 
@@ -3126,13 +3156,13 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   if (p == gab_undefined)
     return COMP_ERR;
 
+  if (gab(bc).flags & fGAB_DUMP_BYTECODE)
+    gab_fmodinspect(stdout, GAB_VAL_TO_PROTOTYPE(p));
+
   gab_value main = gab_block(gab(bc), p);
 
   gab_iref(gab(bc), main);
   gab_egkeep(eg(bc), main);
-
-  if (fGAB_DUMP_BYTECODE & bc->flags)
-    gab_fmodinspect(stdout, GAB_VAL_TO_PROTOTYPE(p));
 
   return main;
 }

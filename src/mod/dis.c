@@ -1,5 +1,4 @@
 #include "gab.h"
-#include <assert.h>
 #include <stdio.h>
 
 void dis_block(gab_value blk) {
@@ -27,24 +26,22 @@ void dis_message(struct gab_triple gab, gab_value msg, gab_value rec) {
   }
 }
 
-void gab_lib_disstring(struct gab_triple gab, size_t argc,
-                       gab_value argv[argc]) {
-  if (argc < 1) {
-    gab_panic(gab, "Invalid call to gab_lib_dis");
-    return;
-  }
+a_gab_value* gab_lib_disstring(struct gab_triple gab, size_t argc,
+                      gab_value argv[argc]) {
+  if (argc < 1)
+    return gab_panic(gab, "Invalid call to gab_lib_dis");
 
   gab_value msg = gab_message(gab, argv[0]);
 
   dis_message(gab, msg, argc == 1 ? gab_undefined : argv[1]);
+
+  return NULL;
 };
 
-void gab_lib_dismessage(struct gab_triple gab, size_t argc,
-                        gab_value argv[argc]) {
-  if (gab_valkind(argv[0]) != kGAB_MESSAGE) {
-    gab_panic(gab, "Invalid call to gab_lib_dis");
-    return;
-  }
+a_gab_value* gab_lib_dismessage(struct gab_triple gab, size_t argc,
+                       gab_value argv[argc]) {
+  if (gab_valkind(argv[0]) != kGAB_MESSAGE)
+    return gab_panic(gab, "Invalid call to gab_lib_dis");
 
   switch (argc) {
   case 1:
@@ -56,28 +53,29 @@ void gab_lib_dismessage(struct gab_triple gab, size_t argc,
   default:
     gab_panic(gab, "Invalid call to gab_lib_dis");
   }
+
+  return NULL;
 }
 
-void gab_lib_disblock(struct gab_triple gab, size_t argc,
-                      gab_value argv[argc]) {
+a_gab_value* gab_lib_disblock(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
-    gab_panic(gab, "Invalid call to gab_lib_dis");
-
-    return;
+    return gab_panic(gab, "Invalid call to gab_lib_dis");
   }
 
   dis_block(argv[0]);
+
+  return NULL;
 }
 
-void gab_lib_disnative(struct gab_triple gab, size_t argc,
-                       gab_value argv[argc]) {
-  if (argc != 1) {
-    gab_panic(gab, "Invalid call to gab_lib_dis");
-    return;
-  }
+a_gab_value* gab_lib_disnative(struct gab_triple gab, size_t argc,
+                      gab_value argv[argc]) {
+  if (argc != 1)
+    return gab_panic(gab, "Invalid call to gab_lib_dis");
 
   gab_fvalinspect(stdout, argv[0], 0);
   printf("\n");
+
+  return NULL;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {

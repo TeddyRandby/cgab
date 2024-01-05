@@ -1,7 +1,7 @@
 #include "symbol.h"
 #include <curses.h>
 
-void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value* gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     gab_value name = argv[1];
@@ -10,11 +10,10 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
     gab_vmpush(gab.vm, sym);
 
-    return;
+    return NULL;
   }
   default:
-    gab_panic(gab, "&:symbol.new expects 2 arguments");
-    return;
+    return gab_panic(gab, "&:symbol.new expects 2 arguments");
   }
 }
 

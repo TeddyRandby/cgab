@@ -1,21 +1,18 @@
 #include "map.h"
-#include <assert.h>
 #include <stdio.h>
 
-void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value* gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 1: {
     gab_value map = map_create(gab, 0, 0, NULL, NULL);
 
     gab_vmpush(gab.vm, map);
-
-    return;
+    return NULL;
   }
 
   case 2: {
     if (gab_valkind(argv[1]) != kGAB_RECORD) {
-      gab_panic(gab, "&:new expects a record as second argument");
-      return;
+      return gab_panic(gab, "&:new expects a record as second argument");
     }
 
     gab_value shp = gab_recshp(argv[1]);
@@ -26,20 +23,17 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
         map_create(gab, len, 1, gab_shpdata(shp), gab_recdata(argv[1]));
 
     gab_vmpush(gab.vm, map);
-
-    return;
+    return NULL;
   }
 
   default:
-    gab_panic(gab, "&:new expects 1 or 2 arguments");
-    return;
+    return gab_panic(gab, "&:new expects 1 or 2 arguments");
   }
 }
 
-void gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value* gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
-    gab_panic(gab, "&:len expects 1 argument");
-    return;
+    return gab_panic(gab, "&:len expects 1 argument");
   }
 
   d_gab_value *data = gab_boxdata(argv[0]);
@@ -47,59 +41,54 @@ void gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_value res = gab_number(data->len);
 
   gab_vmpush(gab.vm, res);
-
-  return;
+  return NULL;
 }
 
-void gab_lib_has(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value* gab_lib_has(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 2) {
-    gab_panic(gab, "&:at expects 2 arguments");
-    return;
+    return gab_panic(gab, "&:at expects 2 arguments");
   }
 
   gab_value res = map_at(argv[0], argv[1]);
 
   if (res == gab_undefined) {
     gab_vmpush(gab.vm, gab_string(gab, "none"));
-    return;
+    return NULL;
   }
 
   gab_vmpush(gab.vm, gab_string(gab, "some"));
   gab_vmpush(gab.vm, res);
-  return;
+  return NULL;
 }
 
-void gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value* gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 3) {
-    gab_panic(gab, "&:put! expects 3 arguments");
-    return;
+    return gab_panic(gab, "&:put! expects 3 arguments");
   }
 
   map_put(gab, argv[0], argv[1], argv[2]);
 
   gab_vmpush(gab.vm, *argv);
-
-  return;
+  return NULL;
 }
 
-void gab_lib_add(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value* gab_lib_add(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 3) {
-    gab_panic(gab, "&:add! expects 3 arguments");
-    return;
+    return gab_panic(gab, "&:add! expects 3 arguments");
   }
 
   if (map_has(argv[0], argv[1])) {
     gab_vmpush(gab.vm, gab_string(gab, "KEY_ALREADY_EXISTS"));
-    return;
+    return NULL;
   }
 
   map_put(gab, argv[0], argv[1], argv[2]);
-  gab_vmpush(gab.vm, gab_string(gab, "ok"));
 
-  return;
+  gab_vmpush(gab.vm, gab_string(gab, "ok"));
+  return NULL;
 }
 
-void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value* gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   d_gab_value *map = gab_boxdata(argv[0]);
 
   switch (argc) {
@@ -111,15 +100,13 @@ void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
       gab_value res = gab_nil;
 
       gab_vmpush(gab.vm, res);
-
-      return;
+      return NULL;
     }
 
     gab_value res = d_gab_value_ikey(map, next_index);
 
     gab_vmpush(gab.vm, res);
-
-    return;
+    return NULL;
   }
 
   case 2: {
@@ -134,20 +121,17 @@ void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
       gab_value res = gab_nil;
 
       gab_vmpush(gab.vm, res);
-
-      return;
+      return NULL;
     }
 
     gab_value res = d_gab_value_ikey(map, next_index);
 
     gab_vmpush(gab.vm, res);
-
-    return;
+    return NULL;
   }
 
   default:
-    gab_panic(gab, "&:next expects 1 or 2 arguments");
-    return;
+    return gab_panic(gab, "&:next expects 1 or 2 arguments");
   }
 }
 

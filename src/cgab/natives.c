@@ -148,10 +148,10 @@ a_char *match_resource(resource *res, const char *name, uint64_t len) {
   return a_char_create(buffer, total_len);
 }
 
-void gab_lib_use(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_use(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
   if (argc == 1) {
-    gab_panic(gab, "Invalid call to gab_lib_require");
-    return;
+    return gab_panic(gab, "Invalid call to gab_lib_require");
   }
 
   // skip first argument
@@ -181,36 +181,38 @@ void gab_lib_use(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
       fin:
         a_char_destroy(path);
-        return;
+        return NULL;
       }
     }
   }
 
-  gab_panic(gab, "Could not locate module");
+  return gab_panic(gab, "Could not locate module");
 }
 
-void gab_lib_panic(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_panic(struct gab_triple gab, size_t argc,
+                           gab_value argv[argc]) {
   if (argc == 1) {
     const char *str = gab_valintocs(gab, argv[0]);
 
-    gab_panic(gab, str);
-
-    return;
+    return gab_panic(gab, str);
   }
 
-  gab_panic(gab, "Error");
+  return gab_panic(gab, "Error");
 }
 
-void gab_lib_assertis(struct gab_triple gab, size_t argc,
-                        gab_value argv[argc]) {
+a_gab_value *gab_lib_assertis(struct gab_triple gab, size_t argc,
+                              gab_value argv[argc]) {
   gab_value r = gab_arg(0);
   gab_value t = gab_arg(1);
 
   if (gab_valtype(gab.eg, r) != t)
-    gab_ptypemismatch(gab, r, t);
+    return gab_ptypemismatch(gab, r, t);
+
+  return NULL;
 }
 
-void gab_lib_print(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_print(struct gab_triple gab, size_t argc,
+                           gab_value argv[argc]) {
   int start = argv[0] == gab_undefined;
 
   for (int i = start; i < argc; i++) {
@@ -222,6 +224,8 @@ void gab_lib_print(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   }
 
   printf("\n");
+
+  return NULL;
 }
 
 void gab_setup_natives(struct gab_triple gab) {
@@ -237,14 +241,14 @@ void gab_setup_natives(struct gab_triple gab) {
                                      gab_snative(gab, "use", gab_lib_use),
                              })));
 
-  gab_egkeep(gab.eg,
-             gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
-                                             .name = "assert.is?",
-                                             .receiver = gab_undefined,
-                                             .specialization = gab_snative(
-                                                 gab, "assert.is?",
-                                                 gab_lib_assertis),
-                                         })));
+  gab_egkeep(
+      gab.eg,
+      gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
+                                      .name = "assert.is?",
+                                      .receiver = gab_undefined,
+                                      .specialization = gab_snative(
+                                          gab, "assert.is?", gab_lib_assertis),
+                                  })));
 
   gab_egkeep(
       gab.eg,

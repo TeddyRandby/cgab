@@ -162,7 +162,7 @@ static inline gab_value __gab_dtoval(double value) {
 #define gab_valtop(val) ((uint8_t)((val >> 8) & 0xff))
 
 /* Convenience macro for getting arguments in builtins */
-#define gab_arg(i) (i > argc ? gab_nil : argv[i])
+#define gab_arg(i) (i < argc ? argv[i] : gab_nil)
 
 /*
  * Gab uses a purely RC garbage collection approach.
@@ -273,7 +273,7 @@ struct gab_obj_suspense;
 
 typedef void (*gab_gcvisit_f)(struct gab_triple, struct gab_obj *obj);
 
-typedef void (*gab_native_f)(struct gab_triple, size_t argc,
+typedef a_gab_value* (*gab_native_f)(struct gab_triple, size_t argc,
                              gab_value argv[argc]);
 
 typedef void (*gab_boxdestroy_f)(size_t len, unsigned char data[static len]);
@@ -646,8 +646,9 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args);
  *
  * @param gab The triple.
  * @param fmt The format string.
+ * @returns false.
  */
-void gab_panic(struct gab_triple gab, const char *fmt, ...);
+a_gab_value* gab_panic(struct gab_triple gab, const char *fmt, ...);
 
 /**
  * @brief If fGAB_DUMP_ERROR is set, print a type-mismatch error message to stderr.
@@ -655,8 +656,9 @@ void gab_panic(struct gab_triple gab, const char *fmt, ...);
  * @param gab The triple.
  * @param found The value with the mismatched type.
  * @param texpected The expected type.
+ * @returns false.
  */
-void gab_ptypemismatch(struct gab_triple gab, gab_value found, gab_value texpected);
+a_gab_value* gab_ptypemismatch(struct gab_triple gab, gab_value found, gab_value texpected);
 
 #if cGAB_LOG_GC
 

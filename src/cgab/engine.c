@@ -650,7 +650,7 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
   const char *tok_name =
       args.src
           ? gab_token_names[v_gab_token_val_at(&args.src->tokens, args.tok)]
-          : "<c>";
+          : "C";
 
   fputc('\n', stream);
 
@@ -658,7 +658,6 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
     fprintf(stream, "[" ANSI_COLOR_GREEN);
     gab_fvalinspect(stream, args.src->name, 0);
     fprintf(stream, ANSI_COLOR_RESET "]");
-  } else {
   }
 
   if (args.message != gab_nil) {
@@ -721,11 +720,6 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
       case '$':
         fprintf(stream, ANSI_COLOR_GREEN);
         gab_fvalinspect(stream, va_arg(varargs, gab_value), 1);
-        fprintf(stream, ANSI_COLOR_RESET);
-        break;
-      case '@':
-        fprintf(stream, ANSI_COLOR_CYAN);
-        gab_fvalinspect(stream, args.message, 0);
         fprintf(stream, ANSI_COLOR_RESET);
         break;
       default:

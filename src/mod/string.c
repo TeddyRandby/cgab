@@ -4,15 +4,16 @@
 #include <stdio.h>
 #include <string.h>
 
-void gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
   if (argc != 1) {
-    gab_panic(gab, "&:len expects 1 argument");
-    return;
+    return gab_panic(gab, "&:len expects 1 argument");
   }
 
   gab_value result = gab_number(gab_strlen(argv[0]));
 
   gab_vmpush(gab.vm, result);
+  return NULL;
 };
 
 static inline bool begins(const char *str, const char *pat, size_t offset) {
@@ -32,84 +33,82 @@ static inline bool ends(const char *str, const char *pat, size_t offset) {
 
   return !memcmp(str + strlen(str) - offset - len, pat, len);
 }
-void gab_lib_ends(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_ends(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     if (gab_valkind(argv[1]) != kGAB_STRING) {
-      gab_panic(gab, "&:ends? expects 1 string argument");
-      return;
+      return gab_panic(gab, "&:ends? expects 1 string argument");
     }
 
     const char *pat = gab_valintocs(gab, argv[0]);
     const char *str = gab_valintocs(gab, argv[1]);
 
     gab_vmpush(gab.vm, gab_bool(ends(str, pat, 0)));
-    return;
+    return NULL;
   }
+
   case 3: {
     if (gab_valkind(argv[1]) != kGAB_STRING) {
-      gab_panic(gab, "&:ends? expects 1 string argument");
-      return;
+      return gab_panic(gab, "&:ends? expects 1 string argument");
     }
 
     if (gab_valkind(argv[2]) != kGAB_NUMBER) {
-      gab_panic(gab, "&:ends? expects an optinal number argument");
-      return;
+      return gab_panic(gab, "&:ends? expects an optinal number argument");
     }
     const char *pat = gab_valintocs(gab, argv[0]);
     const char *str = gab_valintocs(gab, argv[1]);
 
     gab_vmpush(gab.vm, gab_bool(ends(str, pat, gab_valton(argv[2]))));
-    return;
+    return NULL;
   }
   }
+
+  return NULL;
 }
 
-void gab_lib_begins(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_begins(struct gab_triple gab, size_t argc,
+                            gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     if (gab_valkind(argv[1]) != kGAB_STRING) {
-      gab_panic(gab, "&:begins? expects 1 string argument");
-      return;
+      return gab_panic(gab, "&:begins? expects 1 string argument");
     }
 
     const char *pat = gab_valintocs(gab, argv[0]);
     const char *str = gab_valintocs(gab, argv[1]);
 
     gab_vmpush(gab.vm, gab_bool(begins(str, pat, 0)));
-    return;
+    return NULL;
   }
   case 3: {
     if (gab_valkind(argv[1]) != kGAB_STRING) {
-      gab_panic(gab, "&:begins? expects 1 string argument");
-      return;
+      return gab_panic(gab, "&:begins? expects 1 string argument");
     }
 
     if (gab_valkind(argv[2]) != kGAB_NUMBER) {
-      gab_panic(gab, "&:begins? expects an optinal number argument");
-      return;
+      return gab_panic(gab, "&:begins? expects an optinal number argument");
     }
     const char *pat = gab_valintocs(gab, argv[0]);
     const char *str = gab_valintocs(gab, argv[1]);
 
     gab_vmpush(gab.vm, gab_bool(begins(str, pat, gab_valton(argv[2]))));
-    return;
+    return NULL;
   }
   }
+  return NULL;
 }
 
-void gab_lib_is_digit(struct gab_triple gab, size_t argc,
-                      gab_value argv[argc]) {
+a_gab_value *gab_lib_is_digit(struct gab_triple gab, size_t argc,
+                              gab_value argv[argc]) {
   if (argc != 1) {
-    gab_panic(gab, "&:is_digit? expects 0 arguments");
-    return;
+    return gab_panic(gab, "&:is_digit? expects 0 arguments");
   }
 
   int64_t index = argc == 1 ? 0 : gab_valton(argv[1]);
 
   if (index > gab_strlen(argv[0])) {
-    gab_panic(gab, "Index out of bounds");
-    return;
+    return gab_panic(gab, "Index out of bounds");
   }
 
   if (index < 0) {
@@ -117,27 +116,26 @@ void gab_lib_is_digit(struct gab_triple gab, size_t argc,
     index = gab_strlen(argv[0]) + index;
 
     if (index < 0) {
-      gab_panic(gab, "Index out of bounds");
-      return;
+      return gab_panic(gab, "Index out of bounds");
     }
   }
 
   int byte = gab_valintocs(gab, argv[0])[index];
 
   gab_vmpush(gab.vm, gab_bool(isdigit(byte)));
+  return NULL;
 }
 
-void gab_lib_to_byte(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_to_byte(struct gab_triple gab, size_t argc,
+                             gab_value argv[argc]) {
   if (argc != 1) {
-    gab_panic(gab, "&:to_byte expects 0 arguments");
-    return;
+    return gab_panic(gab, "&:to_byte expects 0 arguments");
   }
 
   int64_t index = argc == 1 ? 0 : gab_valton(argv[1]);
 
   if (index > gab_strlen(argv[0])) {
-    gab_panic(gab, "Index out of bounds");
-    return;
+    return gab_panic(gab, "Index out of bounds");
   }
 
   if (index < 0) {
@@ -145,27 +143,26 @@ void gab_lib_to_byte(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     index = gab_strlen(argv[0]) + index;
 
     if (index < 0) {
-      gab_panic(gab, "Index out of bounds");
-      return;
+      return gab_panic(gab, "Index out of bounds");
     }
   }
 
   char byte = gab_valintocs(gab, argv[0])[index];
 
   gab_vmpush(gab.vm, gab_number(byte));
+  return NULL;
 }
 
-void gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
+                        gab_value argv[argc]) {
   if (argc != 2 && gab_valkind(argv[1]) != kGAB_NUMBER) {
-    gab_panic(gab, "&:at expects 1 number argument");
-    return;
+    return gab_panic(gab, "&:at expects 1 number argument");
   }
 
   long int index = gab_valton(argv[1]);
 
   if (index > gab_strlen(argv[0])) {
-    gab_panic(gab, "Index out of bounds");
-    return;
+    return gab_panic(gab, "Index out of bounds");
   }
 
   if (index < 0) {
@@ -176,53 +173,51 @@ void gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   char byte = gab_valintocs(gab, argv[0])[index];
 
   gab_vmpush(gab.vm, gab_nstring(gab, 1, &byte));
+  return NULL;
 }
 
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (MAX(0, MIN(a, b)))
 
-void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
+                           gab_value argv[argc]) {
   const char *str = gab_valintocs(gab, argv[0]);
 
   uint64_t len = gab_strlen(argv[0]);
   uint64_t start = 0, end = len;
 
   switch (argc) {
-  case 2:
+  case 2: {
     if (gab_valkind(argv[1]) != kGAB_NUMBER) {
-      gab_panic(gab, "&:slice expects a number as the second argument");
-      return;
+      return gab_panic(gab, "&:slice expects a number as the second argument");
     }
 
     double a = gab_valton(argv[1]);
     end = MIN(a, len);
     break;
+  }
 
   case 3:
     if (gab_valkind(argv[1]) == kGAB_NUMBER) {
       start = MIN(gab_valton(argv[1]), len);
     } else if (argv[1] == gab_nil) {
-      gab_panic(gab, "&:slice expects a number as the second argument");
-      return;
+      return gab_panic(gab, "&:slice expects a number as the second argument");
     }
 
     if (gab_valkind(argv[2]) == kGAB_NUMBER) {
       end = MIN(gab_valton(argv[2]), len);
     } else if (argv[2] == gab_nil) {
-      gab_panic(gab, "&:slice expects a number as the third argument");
-      return;
+      return gab_panic(gab, "&:slice expects a number as the third argument");
     }
     break;
 
   default:
-    gab_panic(gab, "&:slice expects 2 or 3 arguments");
-    return;
+    return gab_panic(gab, "&:slice expects 2 or 3 arguments");
   }
 
   if (start >= end) {
-    gab_panic(gab, "&:slice expects the start to be before the end");
-    return;
+    return gab_panic(gab, "&:slice expects the start to be before the end");
   }
 
   uint64_t size = end - start;
@@ -230,31 +225,32 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_value res = gab_nstring(gab, size, str + start);
 
   gab_vmpush(gab.vm, res);
+  return NULL;
 }
 
-void gab_lib_has(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value * gab_lib_has(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc < 2) {
-    gab_panic(gab, "&:has? expects one argument");
-    return;
+    return gab_panic(gab, "&:has? expects one argument");
   }
 
-  const char* str = gab_valintocs(gab, argv[0]);
-  const char* pat = gab_valintocs(gab, argv[1]);
+  const char *str = gab_valintocs(gab, argv[0]);
+  const char *pat = gab_valintocs(gab, argv[1]);
 
   gab_vmpush(gab.vm, gab_bool(strstr(str, pat)));
+  return NULL;
 }
 
-void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value * gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc < 2) {
     gab_vmpush(gab.vm, gab_string(gab, ""));
-    return;
+    return NULL;
   }
 
   gab_value str = gab_valintos(gab, argv[1]);
 
   if (argc == 2) {
     gab_vmpush(gab.vm, str);
-    return;
+    return NULL;
   }
 
   gab_gclock(gab.gc);
@@ -266,6 +262,7 @@ void gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   gab_vmpush(gab.vm, str);
   gab_gcunlock(gab.gc);
+  return NULL;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
@@ -316,8 +313,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "has?",
           string_type,
           gab_snative(gab, "has?", gab_lib_has),
-      }
-  };
+      }};
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 

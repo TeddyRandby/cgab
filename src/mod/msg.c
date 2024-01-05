@@ -1,18 +1,17 @@
 #include "gab.h"
-#include <stdint.h>
 
-void gab_lib_message(struct gab_triple gab, size_t argc,
-                     gab_value argv[static argc]) {
+a_gab_value* gab_lib_message(struct gab_triple gab, size_t argc,
+                    gab_value argv[static argc]) {
   if (argc != 2 || gab_valkind(argv[1]) != kGAB_STRING) {
-    gab_panic(gab, "INVALID_ARGUMENTS");
-    return;
+    return gab_panic(gab, "INVALID_ARGUMENTS");
   }
 
   gab_vmpush(gab.vm, gab_message(gab, argv[1]));
+  return NULL;
 }
 
-void gab_lib_put(struct gab_triple gab, size_t argc,
-                 gab_value argv[static argc]) {
+a_gab_value* gab_lib_put(struct gab_triple gab, size_t argc,
+                gab_value argv[static argc]) {
   gab_value rec = gab_undefined;
   switch (argc) {
   case 3:
@@ -23,33 +22,31 @@ void gab_lib_put(struct gab_triple gab, size_t argc,
 
     if (result == gab_undefined) {
       gab_vmpush(gab.vm, gab_string(gab, "SPECIALIZATION_EXISTS"));
-      return;
+      return NULL;
     }
 
     gab_vmpush(gab.vm, gab_string(gab, "ok"));
     gab_vmpush(gab.vm, result);
-    return;
+    return NULL;
   }
 
   default:
-    gab_panic(gab, "INVALID_ARGUMENTS");
-    return;
+    return gab_panic(gab, "INVALID_ARGUMENTS");
   }
 }
 
-void gab_lib_has(struct gab_triple gab, size_t argc,
-                 gab_value argv[static argc]) {
+a_gab_value* gab_lib_has(struct gab_triple gab, size_t argc,
+                gab_value argv[static argc]) {
   switch (argc) {
   case 2: {
 
     struct gab_egimpl_rest res = gab_egimpl(gab.eg, argv[0], argv[1]);
 
     gab_vmpush(gab.vm, gab_bool(res.status));
-    return;
+    return NULL;
   }
   default:
-    gab_panic(gab, "INVALID_ARGUMENTS");
-    return;
+    return gab_panic(gab, "INVALID_ARGUMENTS");
   }
 }
 

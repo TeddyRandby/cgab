@@ -14,9 +14,157 @@
 #include <string.h>
 
 #define OP_HANDLER_ARGS                                                        \
-  struct gab_triple gab, gab_value *fp, gab_value *sp, uint8_t *ip
+  struct gab_triple gab, gab_value *fb, gab_value *sp, uint8_t *ip
 
 typedef a_gab_value *(*handler)(OP_HANDLER_ARGS);
+
+// Forward declare all our opcode handlers
+#define OP_CODE(name) a_gab_value *op_##name##_handler(OP_HANDLER_ARGS);
+#include "bytecode.h"
+#undef OP_CODE
+
+// Plop them all in an array
+static handler handlers[] = {
+#define OP_CODE(name) op_##name##_handler,
+#include "bytecode.h"
+#undef OP_CODE
+};
+
+#if cGAB_LOG_VM
+#define LOG(op) printf("OP_%s\n", gab_opcode_names[op]);
+#else
+#define LOG(op)
+#endif
+
+#define CASE_CODE(name)                                                        \
+  [[gnu::hot, gnu::sysv_abi, gnu::flatten]] a_gab_value *op_##name##_handler(  \
+      OP_HANDLER_ARGS)
+#define DISPATCH(op)                                                           \
+  ({                                                                           \
+    uint8_t o = (op);                                                          \
+    LOG(o)                                                                     \
+    return handlers[o](GAB(), SLOTS(), TOP(), IP());                           \
+  })
+
+#define NEXT() DISPATCH(*IP()++);
+
+#define ERROR(status, help, ...)                                               \
+  return vm_error(GAB(), status, help __VA_OPT__(, ) __VA_ARGS__);
+
+/*
+  Lots of helper macros.
+*/
+#define GAB() (gab)
+#define EG() (GAB().eg)
+#define GC() (GAB().gc)
+#define VM() (GAB().vm)
+#define INSTR() (instr)
+#define FRAME() (VM()->fp)
+#define BLOCK() (FRAME()->b)
+#define BLOCK_PROTO() (GAB_VAL_TO_PROTOTYPE(BLOCK()->p))
+#define IP() (ip)
+#define TOP() (sp)
+#define VAR() (*TOP())
+#define SLOTS() (fb)
+#define LOCAL(i) (SLOTS()[i])
+#define UPVALUE(i) (FRAME()->b->upvalues[i])
+#define MOD_CONSTANT(k) (v_gab_value_val_at(&BLOCK_PROTO()->src->constants, k))
+
+#if cGAB_DEBUG_VM
+#define PUSH(value)                                                            \
+  ({                                                                           \
+    if (TOP() > (SLOTS() + BLOCK_PROTO()->as.block.nslots + 1)) {              \
+      fprintf(stderr,                                                          \
+              "Stack exceeded frame "                                          \
+              "(%d). %lu passed\n",                                            \
+              BLOCK_PROTO()->as.block.nslots,                                  \
+              TOP() - SLOTS() - BLOCK_PROTO()->as.block.nslots);               \
+      gab_fvminspect(stdout, VM(), 0);                                         \
+      exit(1);                                                                 \
+    }                                                                          \
+    *TOP()++ = value;                                                          \
+  })
+
+#else
+#define PUSH(value) (*TOP()++ = value)
+#endif
+#define POP() (*(--TOP()))
+#define DROP() (TOP()--)
+#define POP_N(n) (TOP() -= (n))
+#define DROP_N(n) (TOP() -= (n))
+#define PEEK() (*(TOP() - 1))
+#define PEEK2() (*(TOP() - 2))
+#define PEEK_N(n) (*(TOP() - (n)))
+
+#define WRITE_BYTE(dist, n) (*(IP() - dist) = (n))
+
+#define WRITE_INLINEBYTE(n) (*IP()++ = (n))
+#define WRITE_INLINESHORT(n)                                                   \
+  (IP() += 2, IP()[-2] = (n >> 8) & 0xFF, IP()[-1] = n & 0xFF)
+#define WRITE_INLINEQWORD(n) (IP() += 8, *((uint64_t *)(IP() - 8)) = n)
+
+#define SKIP_BYTE (IP()++)
+#define SKIP_SHORT (IP() += 2)
+#define SKIP_QWORD (IP() += 8)
+
+#define READ_BYTE (*IP()++)
+#define READ_SHORT (IP() += 2, (((uint16_t)IP()[-2] << 8) | IP()[-1]))
+#define READ_QWORD (IP() += 8, (uint64_t *)(IP() - 8))
+
+#define READ_CONSTANT (MOD_CONSTANT(READ_SHORT))
+
+#define BINARY_PRIMITIVE(value_type, operation_type, operation)                \
+  gab_value m = READ_CONSTANT;                                                 \
+  SKIP_BYTE;                                                                   \
+  SKIP_BYTE;                                                                   \
+  SKIP_QWORD;                                                                  \
+  SKIP_QWORD;                                                                  \
+  SKIP_QWORD;                                                                  \
+  if (!__gab_valisn(PEEK2())) {                                                \
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);                                  \
+    IP() -= SEND_CACHE_DIST;                                                   \
+    NEXT();                                                                    \
+  }                                                                            \
+  if (!__gab_valisn(PEEK())) {                                                 \
+    STORE_PRIMITIVE_ERROR_FRAME(m);                                            \
+    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),                         \
+          gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));              \
+  }                                                                            \
+  operation_type b = gab_valton(POP());                                        \
+  operation_type a = gab_valton(POP());                                        \
+  PUSH(value_type(a operation b));                                             \
+  VAR() = 1;
+
+#define STORE_FRAME()                                                          \
+  ({                                                                           \
+    VM()->sp = TOP();                                                          \
+    VM()->fp = FRAME();                                                        \
+    VM()->fp->ip = IP();                                                       \
+  })
+
+#define STORE_ERROR_FRAME(m)                                                   \
+  ({                                                                           \
+    VM()->fp++;                                                                \
+    VM()->fp->m = m;                                                           \
+    VM()->fp->b = NULL;                                                        \
+  })
+
+#define STORE_PRIMITIVE_ERROR_FRAME(m)                                         \
+  ({                                                                           \
+    VM()->sp = TOP();                                                          \
+    VM()->fp = FRAME();                                                        \
+    VM()->fp->ip = IP();                                                       \
+    STORE_ERROR_FRAME(m);                                                      \
+  })
+
+#define LOAD_FRAME()                                                           \
+  ({                                                                           \
+    TOP() = VM()->sp;                                                          \
+    SLOTS() = VM()->fp->slots;                                                 \
+    IP() = VM()->fp->ip;                                                       \
+  })
+
+#define SEND_CACHE_DIST 29
 
 static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
@@ -59,8 +207,11 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
                        const char *fmt, va_list va) {
   struct gab_vm_frame *f = gab.vm->fb + 1;
 
+  struct gab_triple dont_exit = gab;
+  dont_exit.flags &= ~fGAB_EXIT_ON_PANIC;
+
   while (f != gab.vm->fp) {
-    gab_fvpanic(gab, stderr, NULL, vm_frame_build_err(f, GAB_NONE, ""));
+    gab_fvpanic(dont_exit, stderr, NULL, vm_frame_build_err(f, GAB_NONE, ""));
     f++;
   }
 
@@ -94,25 +245,26 @@ a_gab_value *vm_error(struct gab_triple gab, enum gab_status s, const char *fmt,
 }
 
 #define FMT_TYPEMISMATCH                                                       \
-  "found '$' of type:\n\n | $\n\nbut expected type:\n\n | $"
+  "found:\n\n | $\n\nof type:\n\n | $\n\nbut expected type:\n\n | $"
 
-#define FMT_MISSINGIMPL "$ does not specialize for $ of type: $"
+#define FMT_MISSINGIMPL "$ does not specialize for:\n\n | $\n\nof type:\n\n | $"
 
-void gab_panic(struct gab_triple gab, const char *fmt, ...) {
+a_gab_value *gab_panic(struct gab_triple gab, const char *fmt, ...) {
   va_list va;
   va_start(va, fmt);
 
   a_gab_value *res = vvm_error(gab, GAB_PANIC, fmt, va);
 
-  gab_nvmpush(gab.vm, res->len, res->data);
+  va_end(va);
+
+  return res;
 }
 
-void gab_ptypemismatch(struct gab_triple gab, gab_value found,
-                       gab_value texpected) {
-  a_gab_value *res = vm_error(gab, GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, found,
-                              gab_valtype(gab.eg, found), texpected);
+a_gab_value *gab_ptypemismatch(struct gab_triple gab, gab_value found,
+                               gab_value texpected) {
 
-  gab_nvmpush(gab.vm, res->len, res->data);
+  return vm_error(gab, GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, found,
+                  gab_valtype(gab.eg, found), texpected);
 }
 
 void gab_vmcreate(struct gab_vm *self, size_t argc, gab_value argv[argc]) {
@@ -301,175 +453,34 @@ static inline bool call_block(struct gab_vm *vm, gab_value m,
   return true;
 }
 
-static inline void call_native(struct gab_triple gab, gab_value m,
-                               struct gab_obj_native *b, uint8_t arity,
-                               uint8_t want, bool is_message) {
+static inline a_gab_value *call_native(struct gab_triple gab, gab_value m,
+                                       struct gab_obj_native *b, uint8_t arity,
+                                       uint8_t want, bool is_message) {
   gab_value *to = gab.vm->sp - arity - 1;
 
   gab_value *before = gab.vm->sp;
 
+  STORE_ERROR_FRAME(m);
+
   // Only pass in the extra "self" argument
   // if this is a message.
-
-  // gab_gclock(gab.gc);
-  gab.vm->fp++;
-  gab.vm->fp->m = m;
-  gab.vm->fp->b = NULL;
-  (*b->function)(gab, arity + is_message, gab.vm->sp - arity - is_message);
-  gab.vm->fp--;
-  // gab_gcunlock(gab.gc);
+  a_gab_value *res =
+      (*b->function)(gab, arity + is_message, gab.vm->sp - arity - is_message);
 
   uint64_t have = gab.vm->sp - before;
+
+  // Drop the error frame
+  gab.vm->fp--;
 
   // Always have atleast one result
   if (have == 0)
     *gab.vm->sp++ = gab_nil, have++;
 
+  // Trim our return values into our destination slot
   gab.vm->sp = trim_return(gab.vm->sp - have, to, have, want);
+
+  return res;
 }
-
-// Forward declare all our opcode handlers
-#define OP_CODE(name) a_gab_value *op_##name##_handler(OP_HANDLER_ARGS);
-#include "bytecode.h"
-#undef OP_CODE
-
-// Plop them all in an array
-static handler handlers[] = {
-#define OP_CODE(name) op_##name##_handler,
-#include "bytecode.h"
-#undef OP_CODE
-};
-
-#if cGAB_LOG_VM
-#define LOG(op) printf("OP_%s\n", gab_opcode_names[op]);
-#else
-#define LOG(op)
-#endif
-
-#define CASE_CODE(name)                                                        \
-  [[gnu::hot, gnu::sysv_abi, gnu::flatten]] a_gab_value *op_##name##_handler(  \
-      OP_HANDLER_ARGS)
-#define DISPATCH(op)                                                           \
-  ({                                                                           \
-    uint8_t o = (op);                                                          \
-    LOG(o)                                                                     \
-    return handlers[o](GAB(), SLOTS(), TOP(), IP());                           \
-  })
-
-#define NEXT() DISPATCH(*IP()++);
-
-#define ERROR(status, help, ...)                                               \
-  return vm_error(GAB(), status, help __VA_OPT__(, ) __VA_ARGS__);
-
-/*
-  Lots of helper macros.
-*/
-#define GAB() (gab)
-#define EG() (GAB().eg)
-#define GC() (GAB().gc)
-#define VM() (GAB().vm)
-#define INSTR() (instr)
-#define FRAME() (VM()->fp)
-#define BLOCK() (FRAME()->b)
-#define BLOCK_PROTO() (GAB_VAL_TO_PROTOTYPE(BLOCK()->p))
-#define IP() (ip)
-#define TOP() (sp)
-#define VAR() (*TOP())
-#define SLOTS() (fp)
-#define LOCAL(i) (SLOTS()[i])
-#define UPVALUE(i) (FRAME()->b->upvalues[i])
-#define MOD_CONSTANT(k) (v_gab_value_val_at(&BLOCK_PROTO()->src->constants, k))
-
-#if cGAB_DEBUG_VM
-#define PUSH(value)                                                            \
-  ({                                                                           \
-    if (TOP() > (SLOTS() + BLOCK_PROTO()->as.block.nslots + 1)) {              \
-      fprintf(stderr,                                                          \
-              "Stack exceeded frame "                                          \
-              "(%d). %lu passed\n",                                            \
-              BLOCK_PROTO()->as.block.nslots,                                  \
-              TOP() - SLOTS() - BLOCK_PROTO()->as.block.nslots);               \
-      gab_fvminspect(stdout, VM(), 0);                                         \
-      exit(1);                                                                 \
-    }                                                                          \
-    *TOP()++ = value;                                                          \
-  })
-
-#else
-#define PUSH(value) (*TOP()++ = value)
-#endif
-#define POP() (*(--TOP()))
-#define DROP() (TOP()--)
-#define POP_N(n) (TOP() -= (n))
-#define DROP_N(n) (TOP() -= (n))
-#define PEEK() (*(TOP() - 1))
-#define PEEK2() (*(TOP() - 2))
-#define PEEK_N(n) (*(TOP() - (n)))
-
-#define WRITE_BYTE(dist, n) (*(IP() - dist) = (n))
-
-#define WRITE_INLINEBYTE(n) (*IP()++ = (n))
-#define WRITE_INLINESHORT(n)                                                   \
-  (IP() += 2, IP()[-2] = (n >> 8) & 0xFF, IP()[-1] = n & 0xFF)
-#define WRITE_INLINEQWORD(n) (IP() += 8, *((uint64_t *)(IP() - 8)) = n)
-
-#define SKIP_BYTE (IP()++)
-#define SKIP_SHORT (IP() += 2)
-#define SKIP_QWORD (IP() += 8)
-
-#define READ_BYTE (*IP()++)
-#define READ_SHORT (IP() += 2, (((uint16_t)IP()[-2] << 8) | IP()[-1]))
-#define READ_QWORD (IP() += 8, (uint64_t *)(IP() - 8))
-
-#define READ_CONSTANT (MOD_CONSTANT(READ_SHORT))
-
-#define BINARY_PRIMITIVE(value_type, operation_type, operation)                \
-  gab_value m = READ_CONSTANT;                                                 \
-  SKIP_BYTE;                                                                   \
-  SKIP_BYTE;                                                                   \
-  SKIP_QWORD;                                                                  \
-  SKIP_QWORD;                                                                  \
-  SKIP_QWORD;                                                                  \
-  if (!__gab_valisn(PEEK2())) {                                                \
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);                                  \
-    IP() -= SEND_CACHE_DIST;                                                   \
-    NEXT();                                                                    \
-  }                                                                            \
-  if (!__gab_valisn(PEEK())) {                                                 \
-    STORE_PRIMITIVE_ERROR_FRAME(m);                                            \
-    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),                         \
-          gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));              \
-  }                                                                            \
-  operation_type b = gab_valton(POP());                                        \
-  operation_type a = gab_valton(POP());                                        \
-  PUSH(value_type(a operation b));                                             \
-  VAR() = 1;
-
-#define STORE_FRAME()                                                          \
-  ({                                                                           \
-    VM()->sp = TOP();                                                          \
-    VM()->fp = FRAME();                                                        \
-    VM()->fp->ip = IP();                                                       \
-  })
-
-#define STORE_PRIMITIVE_ERROR_FRAME(m)                                         \
-  ({                                                                           \
-    VM()->sp = TOP();                                                          \
-    VM()->fp = FRAME();                                                        \
-    VM()->fp->ip = IP();                                                       \
-    VM()->fp++;                                                                \
-    VM()->fp->m = m;                                                           \
-    VM()->fp->b = NULL;                                                        \
-  })
-
-#define LOAD_FRAME()                                                           \
-  ({                                                                           \
-    TOP() = VM()->sp;                                                          \
-    SLOTS() = VM()->fp->slots;                                                 \
-    IP() = VM()->fp->ip;                                                       \
-  })
-
-#define SEND_CACHE_DIST 29
 
 a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   gab.flags = args.flags;
@@ -481,7 +492,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   gab_vmcreate(VM(), args.len, args.argv);
 
   uint8_t *ip = NULL;
-  gab_value *sp, *fp = NULL;
+  gab_value *sp, *fb = NULL;
 
   *VM()->sp++ = args.main;
   for (uint8_t i = 0; i < args.len; i++)
@@ -591,6 +602,36 @@ CASE_CODE(SEND_MONO_BLOCK) {
   NEXT();
 }
 
+a_gab_value *return_err(OP_HANDLER_ARGS) {
+  uint64_t have = *gab.vm->sp;
+  gab_value *from = gab.vm->sp - have;
+
+  a_gab_value *results = a_gab_value_empty(have);
+  memcpy(results->data, from, have * sizeof(gab_value));
+
+  gab_niref(GAB(), 1, results->len, results->data);
+
+  return results;
+}
+
+a_gab_value *return_ok(OP_HANDLER_ARGS) {
+  uint64_t have = *gab.vm->sp;
+  gab_value *from = gab.vm->sp - have;
+
+  a_gab_value *results = a_gab_value_empty(have + 1);
+  results->data[0] = gab_string(gab, "ok");
+  memcpy(results->data + 1, from, have * sizeof(gab_value));
+
+  gab_niref(GAB(), 1, results->len, results->data);
+
+  VM()->sp = VM()->sb;
+
+  gab_vmdestroy(EG(), VM());
+  DESTROY(VM());
+
+  return results;
+}
+
 CASE_CODE(SEND_MONO_NATIVE) {
   gab_value m = READ_CONSTANT;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
@@ -615,7 +656,11 @@ CASE_CODE(SEND_MONO_NATIVE) {
 
   STORE_FRAME();
 
-  call_native(GAB(), m, GAB_VAL_TO_NATIVE(spec), have, want, true);
+  a_gab_value *res =
+      call_native(GAB(), m, GAB_VAL_TO_NATIVE(spec), have, want, true);
+
+  if (res)
+    return res;
 
   LOAD_FRAME();
 
@@ -646,9 +691,14 @@ CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
 
   STORE_FRAME();
 
-  call_native(GAB(), m, GAB_VAL_TO_NATIVE(r), have, want, false);
+  a_gab_value *res =
+      call_native(GAB(), m, GAB_VAL_TO_NATIVE(r), have, want, false);
+
+  if (res)
+    return res;
 
   LOAD_FRAME();
+
   NEXT();
 }
 
@@ -705,7 +755,10 @@ CASE_CODE(SEND_DYN) {
 
     STORE_FRAME();
 
-    call_native(GAB(), m, n, have, want, true);
+    a_gab_value *res = call_native(GAB(), m, n, have, want, true);
+
+    if (!res)
+      return res;
 
     LOAD_FRAME();
 
@@ -976,25 +1029,6 @@ CASE_CODE(SEND_MONO_PROPERTY) {
   NEXT();
 }
 
-a_gab_value *final_return(OP_HANDLER_ARGS) {
-  uint64_t have = VAR();
-  gab_value *to = FRAME()->slots;
-
-  a_gab_value *results = a_gab_value_empty(have + 1);
-  results->data[0] = gab_string(gab, "ok");
-  memcpy(results->data + 1, to, have * sizeof(gab_value));
-
-  gab_niref(GAB(), 1, results->len, results->data);
-
-  VM()->sp = VM()->sb;
-
-  gab_vmdestroy(EG(), VM());
-  DESTROY(VM());
-  GAB().vm = NULL;
-
-  return results;
-}
-
 CASE_CODE(YIELD) {
   gab_value proto = READ_CONSTANT;
   uint8_t have = compute_arity(VAR(), READ_BYTE);
@@ -1017,7 +1051,7 @@ CASE_CODE(YIELD) {
 
   if (VM()->fp - VM()->fb == 1) {
     VAR() = have;
-    return final_return(GAB(), SLOTS(), TOP(), IP());
+    return return_ok(GAB(), SLOTS(), TOP(), IP());
   }
 
   VM()->fp = FRAME() - 1;
@@ -1039,7 +1073,7 @@ CASE_CODE(RETURN) {
 
   if (VM()->fp - VM()->fb == 1) {
     VAR() = have;
-    return final_return(GAB(), SLOTS(), TOP(), IP());
+    return return_ok(GAB(), SLOTS(), TOP(), IP());
   }
 
   VM()->fp = FRAME() - 1;

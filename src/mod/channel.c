@@ -1,13 +1,18 @@
 #include "channel.h"
 
-void gab_lib_channel(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value * gab_lib_channel(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_value c = channel_create(gab);
   gab_vmpush(gab.vm, c);
+  return NULL;
 }
-void gab_lib_send(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+
+a_gab_value * gab_lib_send(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   channel_send(gab, argv[0], argc - 1, argv + 1);
+  return NULL;
 }
-void gab_lib_recv(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+
+a_gab_value *gab_lib_recv(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
   gab_value v = channel_recv(gab, argv[0]);
   if (v == gab_undefined) {
     gab_vmpush(gab.vm, gab_string(gab, "none"));
@@ -15,6 +20,8 @@ void gab_lib_recv(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     gab_vmpush(gab.vm, gab_string(gab, "some"));
     gab_vmpush(gab.vm, v);
   }
+
+  return NULL;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {

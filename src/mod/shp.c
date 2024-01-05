@@ -2,15 +2,17 @@
 #include "list.h"
 #include "map.h"
 
-void gab_lib_splat(struct gab_triple gab, size_t argc,
-                   gab_value argv[static argc]) {
+a_gab_value *gab_lib_splat(struct gab_triple gab, size_t argc,
+                           gab_value argv[static argc]) {
   gab_nvmpush(gab.vm, gab_shplen(argv[0]), gab_shpdata(argv[0]));
+  return NULL;
 }
 
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (a < 0 ? 0 : MIN(a, b))
-void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
+                           gab_value argv[argc]) {
   gab_value shp = argv[0];
 
   uint64_t len = gab_shplen(shp);
@@ -23,8 +25,7 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   case 3: {
     if (gab_valkind(argv[1]) != kGAB_NUMBER ||
         gab_valkind(argv[2]) != kGAB_NUMBER) {
-      gab_panic(gab, "Invalid call to gab_lib_slice");
-      return;
+      return gab_panic(gab, "Invalid call to gab_lib_slice");
     }
 
     uint64_t a = gab_valton(argv[1]);
@@ -43,8 +44,7 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     }
 
   default:
-    gab_panic(gab, "Invalid call to gab_lib_slice");
-    return;
+    return gab_panic(gab, "Invalid call to gab_lib_slice");
   }
 
   uint64_t result_len = end - start;
@@ -52,12 +52,14 @@ void gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_value result = gab_shape(gab, 1, result_len, gab_shpdata(shp) + start);
 
   gab_vmpush(gab.vm, result);
+  return NULL;
 }
 #undef MIN
 #undef MAX
 #undef CLAMP
 
-void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
   gab_value shp = argv[0];
 
   gab_value res = gab_nil;
@@ -81,36 +83,36 @@ void gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     goto fin;
   }
   default:
-    gab_panic(gab, "Invalid call to gab_lib_next");
-    return;
+    return gab_panic(gab, "Invalid call to gab_lib_next");
   }
 
 fin:
   gab_vmpush(gab.vm, res);
+  return NULL;
 }
 
-void gab_lib_shape(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_shape(struct gab_triple gab, size_t argc,
+                           gab_value argv[argc]) {
   gab_value result = gab_shape(gab, 1, argc - 1, argv + 1);
 
   gab_vmpush(gab.vm, result);
-
-  return;
+  return NULL;
 };
 
-void gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
   gab_value result = gab_number(gab_shplen(argv[0]));
 
   gab_vmpush(gab.vm, result);
-
-  return;
+  return NULL;
 }
 
-void gab_lib_to_l(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_to_l(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
   gab_value list = list_create(gab, gab_shplen(argv[0]), gab_shpdata(argv[0]));
 
   gab_vmpush(gab.vm, list);
-
-  return;
+  return NULL;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {

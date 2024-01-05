@@ -3,13 +3,13 @@
 #include "gab.h"
 #include <threads.h>
 
-void gab_lib_fiber(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_fiber(struct gab_triple gab, size_t argc,
+                           gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     enum gab_kind runk = gab_valkind(argv[1]);
     if (runk != kGAB_SUSPENSE && runk != kGAB_BLOCK) {
-      gab_panic(gab, "Invalid call to &:fiber.new");
-      return;
+      return gab_panic(gab, "Invalid call to &:fiber.new");
     }
 
     gab_value fiber = fiber_create(gab, argv[1]);
@@ -19,23 +19,25 @@ void gab_lib_fiber(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     fiber_iref(fiber);
 
     if (!fiber_go(fiber)) {
-      gab_panic(gab, "Failed to start fiber");
-      return;
+      return gab_panic(gab, "Failed to start fiber");
     }
+
     break;
   }
   default:
-    gab_panic(gab, "Invalid call to &:fiber.new");
-    return;
+    return gab_panic(gab, "Invalid call to &:fiber.new");
   }
+
+  return NULL;
 }
 
-void gab_lib_call(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_call(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
   struct fiber *f = *(struct fiber **)gab_boxdata(argv[0]);
 
   if (f->status == fDONE) {
     gab_vmpush(gab.vm, gab_string(gab, "none"));
-    return;
+    return NULL;
   }
 
   if (f->status == fPAUSED) {
@@ -44,15 +46,19 @@ void gab_lib_call(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
     gab_vmpush(gab.vm, gab_string(gab, "some"));
     gab_vmpush(gab.vm, argv[0]);
+    return NULL;
   }
+
+  return NULL;
 }
 
-void gab_lib_await(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_await(struct gab_triple gab, size_t argc,
+                           gab_value argv[argc]) {
   struct fiber *f = *(struct fiber **)gab_boxdata(argv[0]);
 
   for (;;) {
     if (f->status == fDONE) {
-      return;
+      return NULL;
     }
   }
 }

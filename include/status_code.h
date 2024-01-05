@@ -22,7 +22,7 @@ STATUS(TOO_MANY_EXPRESSIONS, "Expected fewer expressions")
 STATUS(TOO_MANY_EXPRESSIONS_IN_INITIALIZER,
        "Record literals cannot initialize more than 255 properties")
 STATUS(REFERENCE_BEFORE_INITIALIZE,
-       "Variables cannot be referenced before they are initialized")
+       "Uninitialized variable")
 STATUS(LOCAL_ALREADY_EXISTS, "A local with this name already exists")
 STATUS(EXPRESSION_NOT_ASSIGNABLE,
        "The expression on the left is not assignable")

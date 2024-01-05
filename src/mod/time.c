@@ -1,11 +1,9 @@
 #include "gab.h"
-#include <assert.h>
 #include <time.h>
 
-void gab_lib_now(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value* gab_lib_now(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
-    gab_panic(gab, "Invalid call to gab_lib_clock");
-    return;
+    return gab_panic(gab, "Invalid call to gab_lib_clock");
   }
 
   clock_t t = clock();
@@ -13,6 +11,7 @@ void gab_lib_now(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_value res = gab_number((double)t / CLOCKS_PER_SEC);
 
   gab_vmpush(gab.vm, res);
+  return NULL;
 };
 
 a_gab_value *gab_lib(struct gab_triple gab) {

@@ -1,4 +1,3 @@
-
 #include "gab.h"
 #include <stdio.h>
 #include <time.h>
@@ -57,7 +56,8 @@ static double random_float() {
   return result;
 }
 
-void gab_lib_between(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_between(struct gab_triple gab, size_t argc,
+                             gab_value argv[argc]) {
 
   double min = 0, max = 1;
 
@@ -66,11 +66,8 @@ void gab_lib_between(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
     break;
 
   case 2: {
-    if (gab_valkind(argv[1]) != kGAB_NUMBER) {
-      gab_panic(gab, "Invalid call to gab_lib_random");
-
-      return;
-    }
+    if (gab_valkind(argv[1]) != kGAB_NUMBER)
+      return gab_panic(gab, "Invalid call to gab_lib_random");
 
     max = gab_valton(argv[1]);
 
@@ -80,9 +77,7 @@ void gab_lib_between(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   case 3: {
     if (gab_valkind(argv[1]) != kGAB_NUMBER ||
         gab_valkind(argv[2]) != kGAB_NUMBER) {
-      gab_panic(gab, "Invalid call to gab_lib_random");
-
-      return;
+      return gab_panic(gab, "Invalid call to gab_lib_random");
     }
 
     min = gab_valton(argv[1]);
@@ -91,7 +86,7 @@ void gab_lib_between(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   }
 
   default:
-    gab_panic(gab, "Invalid call to gab_lib_random");
+    return gab_panic(gab, "Invalid call to gab_lib_random");
   }
 
   double range = max - min;
@@ -101,14 +96,13 @@ void gab_lib_between(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_value res = gab_number(num);
 
   gab_vmpush(gab.vm, res);
+  return NULL;
 }
 
-void gab_lib_floor(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (argc != 1 || gab_valkind(argv[0]) != kGAB_NUMBER) {
-    gab_panic(gab, "Invalid call to gab_lib_floor");
-
-    return;
-  }
+a_gab_value *gab_lib_floor(struct gab_triple gab, size_t argc,
+                           gab_value argv[argc]) {
+  if (argc != 1 || gab_valkind(argv[0]) != kGAB_NUMBER)
+    return gab_panic(gab, "Invalid call to gab_lib_floor");
 
   double float_num = gab_valton(argv[0]);
   int64_t int_num = gab_valton(argv[0]);
@@ -116,14 +110,17 @@ void gab_lib_floor(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_value res = gab_number(int_num + (float_num < 0));
 
   gab_vmpush(gab.vm, res);
+  return NULL;
 }
 
-void gab_lib_to_n(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_to_n(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
   const char *str = gab_valintocs(gab, argv[0]);
 
   gab_value res = gab_number(strtod(str, NULL));
 
   gab_vmpush(gab.vm, res);
+  return NULL;
 };
 
 a_gab_value *gab_lib(struct gab_triple gab) {

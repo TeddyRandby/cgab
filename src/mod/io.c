@@ -5,19 +5,16 @@ void file_cb(size_t len, unsigned char data[static len]) {
   fclose(*(FILE **)data);
 }
 
-void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_open(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
   gab_value path = gab_arg(1);
   gab_value perm = gab_arg(2);
 
-  if (gab_valkind(path) != kGAB_STRING) {
-    gab_ptypemismatch(gab, path, gab_type(gab.eg, kGAB_STRING));
-    return;
-  }
+  if (gab_valkind(path) != kGAB_STRING)
+    return gab_ptypemismatch(gab, path, gab_type(gab.eg, kGAB_STRING));
 
-  if (gab_valkind(perm) != kGAB_STRING) {
-    gab_ptypemismatch(gab, perm, gab_type(gab.eg, kGAB_STRING));
-    return;
-  }
+  if (gab_valkind(perm) != kGAB_STRING)
+    return gab_ptypemismatch(gab, perm, gab_type(gab.eg, kGAB_STRING));
 
   const char *cpath = gab_valintocs(gab, path);
   const char *cperm = gab_valintocs(gab, perm);
@@ -27,7 +24,7 @@ void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (file == NULL) {
     gab_value r = gab_string(gab, "FILE_COULD_NOT_OPEN");
     gab_vmpush(gab.vm, r);
-    return;
+    return NULL;
   }
 
   gab_value result[2] = {
@@ -43,13 +40,14 @@ void gab_lib_open(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   };
 
   gab_nvmpush(gab.vm, 2, result);
+
+  return NULL;
 }
 
-void gab_lib_read(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  if (argc != 1 || gab_valkind(argv[0]) != kGAB_BOX) {
-    gab_panic(gab, "&:read expects a file handle");
-    return;
-  }
+a_gab_value *gab_lib_read(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
+  if (argc != 1 || gab_valkind(argv[0]) != kGAB_BOX)
+    return gab_panic(gab, "&:read expects a file handle");
 
   FILE *file = *(FILE **)gab_boxdata(argv[0]);
 
@@ -63,7 +61,7 @@ void gab_lib_read(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   if (bytesRead < fileSize) {
     gab_vmpush(gab.vm, gab_string(gab, "FILE_COULD_NOT_READ"));
-    return;
+    return NULL;
   }
 
   gab_value res[2] = {
@@ -72,12 +70,14 @@ void gab_lib_read(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   };
 
   gab_nvmpush(gab.vm, 2, res);
+
+  return NULL;
 }
 
-void gab_lib_write(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_write(struct gab_triple gab, size_t argc,
+                           gab_value argv[argc]) {
   if (argc != 2 || gab_valkind(argv[0]) != kGAB_BOX) {
-    gab_panic(gab, "&:write expects a file handle and data string");
-    return;
+    return gab_panic(gab, "&:write expects a file handle and data string");
   }
 
   FILE *file = gab_boxdata(argv[0]);
@@ -88,11 +88,11 @@ void gab_lib_write(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
 
   if (result > 0) {
     gab_vmpush(gab.vm, gab_string(gab, "ok"));
-    return;
+    return NULL;
   }
 
   gab_vmpush(gab.vm, gab_string(gab, "FILE_COULD_NOT_WRITE"));
-  return;
+  return NULL;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
