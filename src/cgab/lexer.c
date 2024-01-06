@@ -334,7 +334,74 @@ gab_token other(gab_lx *self) {
     }
 
     switch (peek(self)) {
-      CHAR_CASE('=', COLON_EQUAL)
+      CHAR_CASE('+', MESSAGE)
+      CHAR_CASE('-', MESSAGE)
+      CHAR_CASE('*', MESSAGE)
+      CHAR_CASE('/', MESSAGE)
+      CHAR_CASE('%', MESSAGE)
+      CHAR_CASE('&', MESSAGE)
+      CHAR_CASE('|', MESSAGE)
+    case '[': {
+      advance(self);
+
+      if (peek(self) == ']') {
+        advance(self);
+
+        return TOKEN_MESSAGE;
+      }
+
+      if (peek(self) == '=') {
+        advance(self);
+        if (peek(self) == ']') {
+          advance(self);
+          return TOKEN_MESSAGE;
+        }
+      }
+
+      return TOKEN_ERROR;
+    }
+    case '(': {
+      if (peek_next(self) == ')') {
+        advance(self);
+        advance(self);
+
+        return TOKEN_MESSAGE;
+      }
+
+      return TOKEN_COLON;
+    }
+    case '=': {
+      advance(self);
+
+      if (peek(self) == '=') {
+        advance(self);
+        return TOKEN_MESSAGE;
+      }
+
+      return TOKEN_COLON_EQUAL;
+    }
+    case '<': {
+      advance(self);
+
+      switch (peek(self)) {
+      case '<':
+      case '=':
+        advance(self);
+      }
+
+      return TOKEN_MESSAGE;
+    }
+    case '>': {
+      advance(self);
+
+      switch (peek(self)) {
+      case '>':
+      case '=':
+        advance(self);
+      }
+
+      return TOKEN_MESSAGE;
+    }
     default: {
       return TOKEN_COLON;
     }
@@ -485,7 +552,7 @@ struct gab_src *gab_srccpy(struct gab_triple gab, struct gab_src *self) {
   for (size_t i = 0; i < self->constants.len; i++) {
     gab_value v = v_gab_value_val_at(&self->constants, i);
     if (gab_valiso(v)) {
-      gab_value cpy =  gab_valcpy(gab, v);
+      gab_value cpy = gab_valcpy(gab, v);
       gab_egkeep(gab.eg, gab_iref(gab, cpy));
       v_gab_value_set(&copy->constants, i, cpy);
     }
@@ -519,8 +586,8 @@ void gab_srcdestroy(struct gab_src *self) {
   DESTROY(self);
 }
 
-struct gab_src *gab_src(struct gab_triple gab, gab_value name, const char *source,
-                        size_t len) {
+struct gab_src *gab_src(struct gab_triple gab, gab_value name,
+                        const char *source, size_t len) {
   if (d_gab_src_exists(&gab.eg->sources, name))
     return d_gab_src_read(&gab.eg->sources, name);
 

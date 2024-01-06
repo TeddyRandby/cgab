@@ -3,7 +3,8 @@
 #include "core.h"
 #include <stdio.h>
 
-a_gab_value* gab_lib_prybreak(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_prybreak(struct gab_triple gab, size_t argc,
+                              gab_value argv[argc]) {
   gab_value vargv[] = {
       gab_box(gab,
               (struct gab_box_argt){
@@ -27,18 +28,16 @@ a_gab_value* gab_lib_prybreak(struct gab_triple gab, size_t argc, gab_value argv
   return NULL;
 }
 
-a_gab_value* gab_lib_pryframes(struct gab_triple gab, size_t argc,
-                      gab_value argv[argc]) {
+a_gab_value *gab_lib_pryframes(struct gab_triple gab, size_t argc,
+                               gab_value argv[argc]) {
   if (argc < 1) {
     return gab_panic(gab, "Invalid call to gab_lib_pryframes");
   }
 
   if (argc == 1) {
-    gab_value frame = gab_vmframe(
-        (struct gab_triple){.vm = *(struct gab_vm **)gab_boxdata(argv[0]),
-                            .eg = gab.eg,
-                            .gc = gab.gc},
-        0);
+    struct gab_triple with_vm = gab;
+    with_vm.vm = *(struct gab_vm **)gab_boxdata(argv[0]);
+    gab_value frame = gab_vmframe(with_vm, 0);
 
     gab_vmpush(gab.vm, frame);
     return NULL;
@@ -47,11 +46,9 @@ a_gab_value* gab_lib_pryframes(struct gab_triple gab, size_t argc,
   if (argc == 2 && gab_valkind(argv[1]) == kGAB_NUMBER) {
     uint64_t depth = gab_valton(argv[1]);
 
-    gab_value frame = gab_vmframe(
-        (struct gab_triple){.vm = *(struct gab_vm **)gab_boxdata(argv[0]),
-                            .eg = gab.eg,
-                            .gc = gab.gc},
-        depth);
+    struct gab_triple with_vm = gab;
+    with_vm.vm = *(struct gab_vm **)gab_boxdata(argv[0]);
+    gab_value frame = gab_vmframe(with_vm, depth);
 
     gab_vmpush(gab.vm, frame);
     return NULL;
@@ -60,20 +57,21 @@ a_gab_value* gab_lib_pryframes(struct gab_triple gab, size_t argc,
   return NULL;
 }
 
-a_gab_value* gab_lib_prydumpframe(struct gab_triple gab, size_t argc,
-                         gab_value argv[argc]) {
+a_gab_value *gab_lib_prydumpframe(struct gab_triple gab, size_t argc,
+                                  gab_value argv[argc]) {
   if (argc < 1)
     return gab_panic(gab, "Invalid call to gab_lib_pryframes");
 
   if (argc == 1) {
-    gab_fvminspect(stdout, gab_boxdata(argv[0]), 0);
+    struct gab_vm *vm = *(struct gab_vm **)gab_boxdata(argv[0]);
+    gab_fvminspect(stdout, vm, 0);
     return NULL;
   }
 
   if (argc == 2 && gab_valkind(argv[1]) == kGAB_NUMBER) {
     uint64_t depth = gab_valton(argv[1]);
-
-    gab_fvminspect(stdout, gab_boxdata(argv[0]), depth);
+    struct gab_vm *vm = *(struct gab_vm **)gab_boxdata(argv[0]);
+    gab_fvminspect(stdout, vm, depth);
     return NULL;
   }
 

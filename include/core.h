@@ -124,8 +124,6 @@ enum gab_flags {
 #define mGAB_GET "[]"
 #define mGAB_CALL "()"
 
-#include "types.h"
-
 #define T char
 #include "slice.h"
 

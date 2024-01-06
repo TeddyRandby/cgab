@@ -126,7 +126,7 @@ static handler handlers[] = {
     NEXT();                                                                    \
   }                                                                            \
   if (!__gab_valisn(PEEK())) {                                                 \
-    STORE_PRIMITIVE_ERROR_FRAME(m);                                            \
+    STORE_PRIMITIVE_ERROR_FRAME(m, 1);                                         \
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),                         \
           gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));              \
   }                                                                            \
@@ -142,19 +142,22 @@ static handler handlers[] = {
     VM()->fp->ip = IP();                                                       \
   })
 
-#define STORE_ERROR_FRAME(m)                                                   \
+#define STORE_ERROR_FRAME(m, have)                                             \
   ({                                                                           \
     VM()->fp++;                                                                \
     VM()->fp->m = m;                                                           \
     VM()->fp->b = NULL;                                                        \
+    VM()->fp->slots = TOP() - have;                                            \
   })
 
-#define STORE_PRIMITIVE_ERROR_FRAME(m)                                         \
+#define DROP_ERROR_FRAME() ({ VM()->fp--; })
+
+#define STORE_PRIMITIVE_ERROR_FRAME(m, have)                                   \
   ({                                                                           \
     VM()->sp = TOP();                                                          \
     VM()->fp = FRAME();                                                        \
     VM()->fp->ip = IP();                                                       \
-    STORE_ERROR_FRAME(m);                                                      \
+    STORE_ERROR_FRAME(m, have);                                                \
   })
 
 #define LOAD_FRAME()                                                           \
@@ -222,7 +225,7 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
       gab_box(gab,
               (struct gab_box_argt){
                   .size = sizeof(struct gab_vm *),
-                  .data = gab.vm,
+                  .data = &gab.vm,
                   .type = gab_string(gab, "gab.vm"),
               }),
   };
@@ -286,17 +289,19 @@ gab_value gab_vmframe(struct gab_triple gab, uint64_t depth) {
   const char *keys[] = {
       "block",
       "line",
-      "locals",
   };
 
-  struct gab_src *src = GAB_VAL_TO_PROTOTYPE(f->b->p)->src;
+  gab_value line = gab_nil;
 
-  size_t tok = compute_token_from_ip(f);
+  if (f->b) {
+    struct gab_src *src = GAB_VAL_TO_PROTOTYPE(f->b->p)->src;
+    size_t tok = compute_token_from_ip(f);
+    line = gab_number(v_uint64_t_val_at(&src->token_lines, tok));
+  }
 
   gab_value values[] = {
-      __gab_obj(f->b),
-      gab_number(v_uint64_t_val_at(&src->token_lines, tok)),
-      gab_tuple(gab, GAB_VAL_TO_PROTOTYPE(f->b->p)->as.block.nlocals, f->slots),
+      f->m,
+      line,
   };
 
   size_t len = sizeof(keys) / sizeof(keys[0]);
@@ -453,14 +458,13 @@ static inline bool call_block(struct gab_vm *vm, gab_value m,
   return true;
 }
 
-static inline a_gab_value *call_native(struct gab_triple gab, gab_value m,
+// Maybe change these to do tailcalls?
+static inline a_gab_value *call_native(struct gab_triple gab,
                                        struct gab_obj_native *b, uint8_t arity,
                                        uint8_t want, bool is_message) {
   gab_value *to = gab.vm->sp - arity - 1;
 
   gab_value *before = gab.vm->sp;
-
-  STORE_ERROR_FRAME(m);
 
   // Only pass in the extra "self" argument
   // if this is a message.
@@ -468,9 +472,6 @@ static inline a_gab_value *call_native(struct gab_triple gab, gab_value m,
       (*b->function)(gab, arity + is_message, gab.vm->sp - arity - is_message);
 
   uint64_t have = gab.vm->sp - before;
-
-  // Drop the error frame
-  gab.vm->fp--;
 
   // Always have atleast one result
   if (have == 0)
@@ -656,11 +657,15 @@ CASE_CODE(SEND_MONO_NATIVE) {
 
   STORE_FRAME();
 
+  STORE_ERROR_FRAME(m, have);
+
   a_gab_value *res =
-      call_native(GAB(), m, GAB_VAL_TO_NATIVE(spec), have, want, true);
+      call_native(GAB(), GAB_VAL_TO_NATIVE(spec), have, want, true);
 
   if (res)
     return res;
+
+  DROP_ERROR_FRAME();
 
   LOAD_FRAME();
 
@@ -691,11 +696,15 @@ CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
 
   STORE_FRAME();
 
+  STORE_ERROR_FRAME(m, have);
+
   a_gab_value *res =
-      call_native(GAB(), m, GAB_VAL_TO_NATIVE(r), have, want, false);
+      call_native(GAB(), GAB_VAL_TO_NATIVE(r), have, want, false);
 
   if (res)
     return res;
+
+  DROP_ERROR_FRAME();
 
   LOAD_FRAME();
 
@@ -755,10 +764,14 @@ CASE_CODE(SEND_DYN) {
 
     STORE_FRAME();
 
-    a_gab_value *res = call_native(GAB(), m, n, have, want, true);
+    STORE_ERROR_FRAME(m, have);
 
-    if (!res)
+    a_gab_value *res = call_native(GAB(), n, have, want, true);
+
+    if (res)
       return res;
+
+    DROP_ERROR_FRAME();
 
     LOAD_FRAME();
 
@@ -932,7 +945,7 @@ CASE_CODE(SEND_PRIMITIVE_CONCAT) {
   }
 
   if (gab_valkind(PEEK()) != kGAB_STRING) {
-    STORE_PRIMITIVE_ERROR_FRAME(m);
+    STORE_PRIMITIVE_ERROR_FRAME(m, 1);
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),
           gab_valtype(EG(), PEEK()));
   }

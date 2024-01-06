@@ -2,7 +2,46 @@
 #include "core.h"
 #include "gab.h"
 #include "os.h"
+#include <dlfcn.h>
 #include <stdio.h>
+
+#if OS_UNIX
+#include <unistd.h>
+#endif
+
+void *osdlopen(const char *path) {
+#if OS_UNIX
+  return dlopen(path, RTLD_NOW);
+#else
+#error Windows not supported
+#endif
+}
+
+void *osdlsym(void *handle, const char *path) {
+#if OS_UNIX
+  return dlsym(handle, path);
+#else
+#error Windows not supported
+#endif
+}
+
+void osdlclose(void *handle) {
+#if OS_UNIX
+  dlclose(handle);
+#else
+#error Windows not supported
+#endif
+}
+
+#define BUFFER_MAX 1024
+a_char *oscwd() {
+#if OS_UNIX
+  a_char *result = a_char_empty(BUFFER_MAX);
+  getcwd((char *)result->data, BUFFER_MAX);
+
+  return result;
+#endif
+}
 
 #define MODULE_SYMBOL "gab_lib"
 
@@ -18,35 +57,40 @@ typedef struct {
 
 a_gab_value *gab_shared_object_handler(struct gab_triple gab,
                                        const char *path) {
-  void *handle = gab_osdlopen(path);
+  void *handle = osdlopen(path);
 
   if (!handle) {
     gab_panic(gab, "Couldn't open module");
     return NULL;
   }
 
-  module_f symbol = gab_osdlsym(handle, MODULE_SYMBOL);
+  module_f symbol = osdlsym(handle, MODULE_SYMBOL);
 
   if (!symbol) {
-    gab_osdlclose(handle);
+    osdlclose(handle);
     gab_panic(gab, "Missing symbol " MODULE_SYMBOL);
     return NULL;
   }
 
   a_gab_value *res = symbol(gab);
 
-  gab_egimpputshd(gab.eg, path, handle, res);
+  if (res) {
+    a_gab_value *final =
+        gab_segmodput(gab.eg, path, gab_nil, res->len, res->data);
 
-  return res;
+    free(res);
+
+    return final;
+  }
+
+  return gab_segmodput(gab.eg, path, gab_nil, 0, NULL);
 }
 
 a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   a_char *src = gab_osread(path);
 
-  if (src == NULL) {
-    gab_panic(gab, "Failed to load module");
-    return NULL;
-  }
+  if (src == NULL)
+    return gab_panic(gab, "Failed to load module");
 
   gab_value pkg =
       gab_cmpl(gab, (struct gab_cmpl_argt){
@@ -63,15 +107,16 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
                        .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
                    });
 
-  gab_egimpputmod(gab.eg, path, pkg, res);
-  gab_negkeep(gab.eg, res->len, res->data);
+  if (res->data[0] != gab_string(gab, "ok"))
+    return gab_panic(gab, "Failed to load module");
 
-  if (res->data[0] != gab_string(gab, "ok")) {
-    gab_panic(gab, "Failed to load module");
-    return NULL;
-  }
+  a_gab_value *final = gab_segmodput(gab.eg, path, pkg, res->len, res->data);
 
-  return res;
+  free(res);
+
+  gab_negkeep(gab.eg, final->len, final->data);
+
+  return final;
 }
 
 #ifndef GAB_PREFIX
@@ -150,43 +195,41 @@ a_char *match_resource(resource *res, const char *name, uint64_t len) {
 
 a_gab_value *gab_lib_use(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
-  if (argc == 1) {
-    return gab_panic(gab, "Invalid call to gab_lib_require");
-  }
 
-  // skip first argument
-  for (size_t i = 1; i < argc; i++) {
-    const char *name = gab_valintocs(gab, argv[i]);
+  gab_value mod = gab_arg(1);
 
-    for (int j = 0; j < sizeof(resources) / sizeof(resource); j++) {
-      resource *res = resources + j;
-      a_char *path = match_resource(res, name, strlen(name));
+  if (gab_valkind(mod) != kGAB_STRING)
+    return gab_ptypemismatch(gab, mod, gab_type(gab.eg, kGAB_STRING));
 
-      if (path) {
-        struct gab_imp *cached = gab_egimpat(gab.eg, (char *)path->data);
+  const char *name = gab_valintocs(gab, mod);
 
-        if (cached != NULL) {
-          a_gab_value *v = gab_impvals(cached);
-          if (v != NULL)
-            gab_nvmpush(gab.vm, v->len, v->data);
-          goto fin;
-        }
+  for (int j = 0; j < sizeof(resources) / sizeof(resource); j++) {
+    resource *res = resources + j;
+    a_char *path = match_resource(res, name, strlen(name));
 
-        a_gab_value *result = res->handler(gab, (char *)path->data);
+    if (path) {
+      a_gab_value *cached = gab_segmodat(gab.eg, (char *)path->data);
 
-        if (result != NULL) {
-          gab_nvmpush(gab.vm, result->len, result->data);
-          goto fin;
-        }
-
-      fin:
+      if (cached != NULL) {
+        /* SKip the first argument, which is the module's data */
+        gab_nvmpush(gab.vm, cached->len - 1, cached->data + 1);
         a_char_destroy(path);
+        return NULL;
+      }
+
+      a_gab_value *result = res->handler(gab, (char *)path->data);
+
+      if (result != NULL) {
+        /* SKip the first argument, which is the module's data */
+        gab_nvmpush(gab.vm, result->len - 1, result->data + 1);
+        a_char_destroy(path);
+
         return NULL;
       }
     }
   }
 
-  return gab_panic(gab, "Could not locate module");
+  return gab_panic(gab, "Could not locate module:\n\n | $", mod);
 }
 
 a_gab_value *gab_lib_panic(struct gab_triple gab, size_t argc,
@@ -229,8 +272,6 @@ a_gab_value *gab_lib_print(struct gab_triple gab, size_t argc,
 }
 
 void gab_setup_natives(struct gab_triple gab) {
-  gab_gclock(gab.gc);
-
   gab_egkeep(
       gab.eg,
       gab_iref(gab,
@@ -268,6 +309,4 @@ void gab_setup_natives(struct gab_triple gab) {
                                  .specialization =
                                      gab_snative(gab, "print", gab_lib_print),
                              })));
-
-  gab_gcunlock(gab.gc);
 }

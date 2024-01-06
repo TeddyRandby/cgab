@@ -273,8 +273,8 @@ struct gab_obj_suspense;
 
 typedef void (*gab_gcvisit_f)(struct gab_triple, struct gab_obj *obj);
 
-typedef a_gab_value* (*gab_native_f)(struct gab_triple, size_t argc,
-                             gab_value argv[argc]);
+typedef a_gab_value *(*gab_native_f)(struct gab_triple, size_t argc,
+                                     gab_value argv[argc]);
 
 typedef void (*gab_boxdestroy_f)(size_t len, unsigned char data[static len]);
 
@@ -434,45 +434,26 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t depth);
 gab_value gab_vmframe(struct gab_triple gab, uint64_t depth);
 
 /**
- * @brief Put a source-file-type module into the engine.
+ * @brief Put a module into the engine's import table.
  *
  * @param eg The engine.
  * @param name The name of the import. This is used to lookup the import.
  * @param mod The module to store. This is usually a block, but can be anything
- * @param values The value of the import. This will be returned when a user
- * imports the given name.
+ * @param len The number of values returned by the module.
+ * @param values The values returned by the module.
+ * @returns The module if it was added, NULL otherwise.
  */
-void gab_egimpputmod(struct gab_eg *eg, const char *name, gab_value mod,
-                     a_gab_value *values);
+a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
+                           size_t len, gab_value values[len]);
 
 /**
- * @brief Put a shared-object-type module into the engine.
+ * @brief Check if an engine has an module by name.
  *
  * @param eg The engine.
  * @param name The name of the import.
- * @param so The shared library to import.
- * @param values The value of the import. This will be returned when a user
- * imports the given name.
+ * @returns The module if it exists, NULL otherwise.
  */
-void gab_egimpputshd(struct gab_eg *eg, const char *name, void *so,
-                     a_gab_value *values);
-
-/**
- * @brief Check if an engine has an import by name.
- *
- * @param eg The engine.
- * @param name The name of the import.
- * @returns The import if it exists, or NULL.
- */
-struct gab_imp *gab_egimpat(struct gab_eg *eg, const char *name);
-
-/**
- * @brief Get the values of an import.
- *
- * @param imp The import.
- * @returns The value of the import.
- */
-a_gab_value *gab_impvals(struct gab_imp *imp);
+a_gab_value *gab_segmodat(struct gab_eg *eg, const char *name);
 
 /**
  * @class gab_cmpl_argt
@@ -648,17 +629,19 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args);
  * @param fmt The format string.
  * @returns false.
  */
-a_gab_value* gab_panic(struct gab_triple gab, const char *fmt, ...);
+a_gab_value *gab_panic(struct gab_triple gab, const char *fmt, ...);
 
 /**
- * @brief If fGAB_DUMP_ERROR is set, print a type-mismatch error message to stderr.
+ * @brief If fGAB_DUMP_ERROR is set, print a type-mismatch error message to
+ * stderr.
  *
  * @param gab The triple.
  * @param found The value with the mismatched type.
  * @param texpected The expected type.
  * @returns false.
  */
-a_gab_value* gab_ptypemismatch(struct gab_triple gab, gab_value found, gab_value texpected);
+a_gab_value *gab_ptypemismatch(struct gab_triple gab, gab_value found,
+                               gab_value texpected);
 
 #if cGAB_LOG_GC
 
@@ -1029,23 +1012,25 @@ gab_value gab_recordwith(struct gab_triple gab, gab_value rec, gab_value key,
                          gab_value value);
 
 /**
- * # Create a nil-initialized (empty) record of shape shape.
+ * @brief Create a nil-initialized (empty) record of shape shape.
  *
- * @param gab The engine.
- *
+ * @param gab The triple.
  * @param shape The shape of the record.
  */
 gab_value gab_erecordof(struct gab_triple gab, gab_value shape);
 
 /**
- * Set a value in the record. This function is not bounds checked. It should be
- * used only internally in the vm.
+ * @brief Set a value within the record.
+ * This function is not bounds checked. For save alternatives,
+ * try @link gab_recput or @link gab_srecput
  *
- * @param gab The gab engine.
+ * @see gab_recput
+ * @see gab_srecput
  *
- * @param vm The vm.
- *
- * @param obj The record object.
+ * @param gab The triple.
+ * @param rec The record.
+ * @param offset The offset within the record.
+ * @param value The new value to put into the record.
  */
 static inline void gab_urecput(struct gab_triple gab, gab_value rec,
                                uint64_t offset, gab_value value) {
@@ -1064,14 +1049,16 @@ static inline void gab_urecput(struct gab_triple gab, gab_value rec,
 }
 
 /**
- * Get a value in the record. This function is not bounds checked. It should be
- * used only internally in the vm.
+ * @brief Get the value within the record at the given offset.
+ * This function is not bounds checked. For safe alternatives,
+ * try @link gab_recat or @link gab_srecat
  *
- * @param gab The gab engine.
+ * @see gab_recat
+ * @see gab_srecat
  *
- * @param vm The vm.
- *
- * @param obj The record object.
+ * @param rec The record.
+ * @param offset the offset.
+ * @retunrs the value at the offset.
  */
 static inline gab_value gab_urecat(gab_value rec, uint64_t offset) {
   assert(gab_valkind(rec) == kGAB_RECORD);
@@ -1123,16 +1110,11 @@ static inline gab_value gab_srecat(struct gab_triple gab, gab_value value,
 }
 
 /**
- * Put a value in the record at the given key.
- *
- * @param vm The vm.
- *
+ * @brief Put a value in the record at the given key.
+ * @param gab The triple.
  * @param obj The record object.
- *
- * @param key The key.
- *
+ * @param key The key, as a value.
  * @param value The value.
- *
  * @return true if the put was a success, false otherwise.
  */
 static inline bool gab_recput(struct gab_triple gab, gab_value rec,
@@ -1150,18 +1132,23 @@ static inline bool gab_recput(struct gab_triple gab, gab_value rec,
   return true;
 }
 
-static inline bool gab_srecput(struct gab_triple gab, gab_value value,
+/**
+ * @brief Put a value in the record at the given key.
+ * @param gab The triple.
+ * @param obj The record object.
+ * @param key The key, as a c string literal.
+ * @param value The value.
+ * @return true if the put was a success, false otherwise.
+ */
+static inline bool gab_srecput(struct gab_triple gab, gab_value rec,
                                const char *key, gab_value v) {
-  return gab_recput(gab, value, gab_string(gab, key), v);
+  return gab_recput(gab, rec, gab_string(gab, key), v);
 }
 
 /**
- * Check if the record has a value at the given key.
- *
+ * @brief Check if the record has a value at the given key.
  * @param obj The record object.
- *
  * @param key The key.
- *
  * @return true if the key exists on the record, false otherwise.
  */
 static inline bool gab_rechas(gab_value obj, gab_value key) {
@@ -1695,9 +1682,9 @@ static inline bool gab_valisa(struct gab_eg *eg, gab_value a, gab_value b) {
 #define LOAD cGAB_DICT_MAX_LOAD
 #include "dict.h"
 
-#define NAME gab_imp
-#define K uint64_t
-#define V struct gab_imp *
+#define NAME gab_modules
+#define K size_t
+#define V a_gab_value *
 #define DEF_V NULL
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
@@ -1716,13 +1703,13 @@ struct gab_eg {
 
   d_gab_src sources;
 
-  d_gab_imp imports;
+  d_gab_modules modules;
 
-  d_strings interned_strings;
+  d_strings strings;
 
-  d_shapes interned_shapes;
+  d_shapes shapes;
 
-  d_messages interned_messages;
+  d_messages messages;
 
   gab_value types[kGAB_NKINDS];
 
@@ -1826,7 +1813,7 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
   case kGAB_MESSAGE: {
     struct gab_obj_message *o = GAB_VAL_TO_MESSAGE(self);
     struct gab_obj_string *s = GAB_VAL_TO_STRING(o->name);
-    snprintf(buffer, 128, "<Message %s>", s->data);
+    snprintf(buffer, 128, "&:%s", s->data);
 
     return gab_string(gab, buffer);
   }

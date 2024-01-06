@@ -5,7 +5,6 @@
 #include "colors.h"
 #include "core.h"
 #include "gab.h"
-#include "import.h"
 #include "lexer.h"
 #include "natives.h"
 #include "os.h"
@@ -200,15 +199,17 @@ struct gab_triple gab_create() {
 void gab_destroy(struct gab_triple gab) {
   gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
 
+  for (uint64_t i = 0; i < gab.eg->modules.cap; i++) {
+    if (d_gab_modules_iexists(&gab.eg->modules, i)) {
+      a_gab_value *module = d_gab_modules_ival(&gab.eg->modules, i);
+      gab_ndref(gab, 1, module->len, module->data);
+      free(module);
+    }
+  }
+
   gab_collect(gab);
 
   gab_gcdestroy(gab.gc);
-
-  for (uint64_t i = 0; i < gab.eg->imports.cap; i++) {
-    if (d_gab_imp_iexists(&gab.eg->imports, i)) {
-      gab_impdestroy(gab.eg, gab.gc, d_gab_imp_ival(&gab.eg->imports, i));
-    }
-  }
 
   for (uint64_t i = 0; i < gab.eg->sources.cap; i++) {
     if (d_gab_src_iexists(&gab.eg->sources, i)) {
@@ -216,10 +217,10 @@ void gab_destroy(struct gab_triple gab) {
     }
   }
 
-  d_strings_destroy(&gab.eg->interned_strings);
-  d_shapes_destroy(&gab.eg->interned_shapes);
-  d_messages_destroy(&gab.eg->interned_messages);
-  d_gab_imp_destroy(&gab.eg->imports);
+  d_strings_destroy(&gab.eg->strings);
+  d_shapes_destroy(&gab.eg->shapes);
+  d_messages_destroy(&gab.eg->messages);
+  d_gab_modules_destroy(&gab.eg->modules);
   d_gab_src_destroy(&gab.eg->sources);
 
   v_gab_value_destroy(&gab.eg->scratch);
@@ -360,15 +361,14 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
 
 struct gab_obj_message *gab_eg_find_message(struct gab_eg *self, gab_value name,
                                             uint64_t hash) {
-  if (self->interned_messages.len == 0)
+  if (self->messages.len == 0)
     return NULL;
 
-  uint64_t index = hash & (self->interned_messages.cap - 1);
+  uint64_t index = hash & (self->messages.cap - 1);
 
   for (;;) {
-    d_status status = d_messages_istatus(&self->interned_messages, index);
-    struct gab_obj_message *key =
-        d_messages_ikey(&self->interned_messages, index);
+    d_status status = d_messages_istatus(&self->messages, index);
+    struct gab_obj_message *key = d_messages_ikey(&self->messages, index);
 
     switch (status) {
     case D_TOMBSTONE:
@@ -380,20 +380,20 @@ struct gab_obj_message *gab_eg_find_message(struct gab_eg *self, gab_value name,
         return key;
     }
 
-    index = (index + 1) & (self->interned_messages.cap - 1);
+    index = (index + 1) & (self->messages.cap - 1);
   }
 }
 
 struct gab_obj_string *gab_eg_find_string(struct gab_eg *self, s_char str,
                                           uint64_t hash) {
-  if (self->interned_strings.len == 0)
+  if (self->strings.len == 0)
     return NULL;
 
-  uint64_t index = hash & (self->interned_strings.cap - 1);
+  uint64_t index = hash & (self->strings.cap - 1);
 
   for (;;) {
-    d_status status = d_strings_istatus(&self->interned_strings, index);
-    struct gab_obj_string *key = d_strings_ikey(&self->interned_strings, index);
+    d_status status = d_strings_istatus(&self->strings, index);
+    struct gab_obj_string *key = d_strings_ikey(&self->strings, index);
 
     switch (status) {
     case D_TOMBSTONE:
@@ -408,7 +408,7 @@ struct gab_obj_string *gab_eg_find_string(struct gab_eg *self, s_char str,
         return key;
     }
 
-    index = (index + 1) & (self->interned_strings.cap - 1);
+    index = (index + 1) & (self->strings.cap - 1);
   }
 }
 
@@ -431,14 +431,14 @@ static inline bool shape_matches_keys(struct gab_obj_shape *self,
 struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *self, uint64_t size,
                                         uint64_t stride, uint64_t hash,
                                         gab_value keys[size]) {
-  if (self->interned_shapes.len == 0)
+  if (self->shapes.len == 0)
     return NULL;
 
-  uint64_t index = hash & (self->interned_shapes.cap - 1);
+  uint64_t index = hash & (self->shapes.cap - 1);
 
   for (;;) {
-    d_status status = d_shapes_istatus(&self->interned_shapes, index);
-    struct gab_obj_shape *key = d_shapes_ikey(&self->interned_shapes, index);
+    d_status status = d_shapes_istatus(&self->shapes, index);
+    struct gab_obj_shape *key = d_shapes_ikey(&self->shapes, index);
 
     switch (status) {
     case D_TOMBSTONE:
@@ -450,23 +450,29 @@ struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *self, uint64_t size,
         return key;
     }
 
-    index = (index + 1) & (self->interned_shapes.cap - 1);
+    index = (index + 1) & (self->shapes.cap - 1);
   }
 }
 
-int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
-                           const void *const *args) {
-  const gab_value value = *(const gab_value *const)args[0];
-  return gab_fvalinspect(stream, value, -1);
-}
-int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
-                           int *sizes) {
-  if (n > 0) {
-    argtypes[0] = PA_INT | PA_FLAG_LONG;
-    sizes[0] = sizeof(gab_value);
-  }
+a_gab_value *gab_segmodat(struct gab_eg *eg, const char *name) {
+  size_t hash = s_char_hash(s_char_cstr(name), eg->hash_seed);
 
-  return 1;
+  return d_gab_modules_read(&eg->modules, hash);
+}
+
+a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
+                           size_t len, gab_value values[len]) {
+  size_t hash = s_char_hash(s_char_cstr(name), eg->hash_seed);
+
+  if (d_gab_modules_exists(&eg->modules, hash))
+    return NULL;
+
+  a_gab_value *module = a_gab_value_empty(len + 1);
+  module->data[0] = mod;
+  memcpy(module->data + 1, values, len * sizeof(gab_value));
+
+  d_gab_modules_insert(&eg->modules, hash, module);
+  return module;
 }
 
 size_t gab_egkeep(struct gab_eg *gab, gab_value v) {
@@ -708,7 +714,6 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
             line_under->data);
 
     a_char_destroy(line_under);
-
   }
 
   if (args.note_fmt && strlen(args.note_fmt) > 0) {
@@ -729,7 +734,8 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
     }
   }
 
-  fprintf(stream, "\n________________________________________________________\n");
+  fprintf(stream,
+          "\n________________________________________________________\n");
 
 fin:
   if (gab.flags & fGAB_EXIT_ON_PANIC) {
@@ -749,4 +755,20 @@ void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size) {
   assert(!obj);
 
   return malloc(size);
+}
+
+int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
+                           const void *const *args) {
+  const gab_value value = *(const gab_value *const)args[0];
+  return gab_fvalinspect(stream, value, -1);
+}
+
+int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
+                           int *sizes) {
+  if (n > 0) {
+    argtypes[0] = PA_INT | PA_FLAG_LONG;
+    sizes[0] = sizeof(gab_value);
+  }
+
+  return 1;
 }

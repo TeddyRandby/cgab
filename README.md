@@ -201,19 +201,6 @@ Most of the time, the return value of the `:use` call can be ignored. It is just
  - `<File>:write`
 And thats it!
 
-# Modules
-There are some modules bundled with the main cli.
-  - *list*: A growing container of contiguous elements
-  - *map*: A growing container of sparse elements, indexed by keys
-  - *string*: Helpers for the `<String>` type
-  - *num*: Helpers for the `<Number>` type
-  - *rec*: Helpers for the `<Record>` type
-  - *symbol*: The `:symbol` constructor (Useful for libraries and namespacing)
-  - *fiber*: The `:fiber` constructor (Multi-threading)
-  - *io*: See above
-  - *socket*: Basically a wrapper for posix sockets
-  - *dis*: Disassemble your blocks into bytecode for debugging purposes
-  - *pry*: Pry into the callstack for debugging purposes
 # Dependencies
 libc is the only dependency for the interpreter. However, some libraries (such as http and term) depend on some c libraries. 
 # Installation
@@ -222,5 +209,8 @@ This project is built with `Make`. The `Makefile` expects some environment varia
   - `GAB_INSTALLPREFIX`: Where gab should install itself - the executable, header files, libcgab, etc. Something like `/usr/local`
   - `GAB_CFLAGS`: Additional flags ot pass to the c compiler.
 
-[Clide](https://github.com/TeddyRandby/clide) is a tool for managing shell scripts for projects. This project uses it to manage useful scripts and build configuration. To configure and install with clide,
-run `clide configure` and then `sudo clide install`. Alternatively, you can run just run `sudo clide install`, and you will be prompted to create your configuration.
+[Clide](https://github.com/TeddyRandby/clide) is a tool for managing shell scripts within projects. cgab uses it to manage useful scripts and build configuration. To configure and install with clide, run `clide install` and complete the prompts.
+
+If clide is unavailable, it is simple to just use make. To install a release build:
+  1. `GAB_PREFIX="<path>" GAB_INSTALL_PREFIX="<path>" GAB_CCFLAGS="-O3" make build`
+  2. `sudo make install`

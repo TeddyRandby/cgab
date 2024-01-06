@@ -1,8 +1,5 @@
-#include "colors.h"
-#include "core.h"
-#include "engine.h"
 #include "gab.h"
-#include <stdint.h>
+#include "engine.h"
 
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \
   ((struct obj_type *)gab_obj_create(gab, sizeof(struct obj_type), kind))
@@ -166,13 +163,13 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
     break;
   }
   case kGAB_SHAPE:
-    d_shapes_remove(&gab->interned_shapes, (struct gab_obj_shape *)self);
+    d_shapes_remove(&gab->shapes, (struct gab_obj_shape *)self);
     break;
   case kGAB_STRING:
-    d_strings_remove(&gab->interned_strings, (struct gab_obj_string *)self);
+    d_strings_remove(&gab->strings, (struct gab_obj_string *)self);
     break;
   case kGAB_MESSAGE:
-    d_messages_remove(&gab->interned_messages, (struct gab_obj_message *)self);
+    d_messages_remove(&gab->messages, (struct gab_obj_message *)self);
     break;
   default:
     break;
@@ -253,7 +250,7 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
 
   GAB_OBJ_GREEN((struct gab_obj *)self);
 
-  d_strings_insert(&gab.eg->interned_strings, self, 0);
+  d_strings_insert(&gab.eg->strings, self, 0);
 
   return __gab_obj(self);
 };
@@ -350,7 +347,7 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
 
   self->specs = gab_etuple(gab, 0);
 
-  d_messages_insert(&gab.eg->interned_messages, self, 0);
+  d_messages_insert(&gab.eg->messages, self, 0);
 
   gab_gcunlock(gab.gc);
 
@@ -426,7 +423,7 @@ gab_value gab_shapewith(struct gab_triple gab, gab_value shape, gab_value key) {
     return __gab_obj(interned);
   }
 
-  d_shapes_insert(&gab.eg->interned_shapes, self, 0);
+  d_shapes_insert(&gab.eg->shapes, self, 0);
 
   return __gab_obj(self);
 }
@@ -451,7 +448,7 @@ gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
     self->data[i] = keys[i * stride];
   }
 
-  d_shapes_insert(&gab.eg->interned_shapes, self, 0);
+  d_shapes_insert(&gab.eg->shapes, self, 0);
 
   return __gab_obj(self);
 }

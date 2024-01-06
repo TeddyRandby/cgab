@@ -162,7 +162,21 @@ static bool match_token(struct bc *bc, gab_token tok);
 static int eat_token(struct bc *bc);
 
 //------------------- Token Helpers -----------------------
-// Can't return an error.
+size_t prev_line(struct bc *bc) {
+  return v_uint64_t_val_at(&bc->src->token_lines, bc->offset - 1);
+}
+
+gab_token curr_tok(struct bc *bc) {
+  return v_gab_token_val_at(&bc->src->tokens, bc->offset);
+}
+
+gab_token prev_tok(struct bc *bc) {
+  return v_gab_token_val_at(&bc->src->tokens, bc->offset - 1);
+}
+
+s_char prev_src(struct bc *bc) {
+  return v_s_char_val_at(&bc->src->token_srcs, bc->offset - 1);
+}
 static inline bool match_token(struct bc *bc, gab_token tok) {
   return v_gab_token_val_at(&bc->src->tokens, bc->offset) == tok;
 }
@@ -219,22 +233,6 @@ static inline int match_and_eat_tokoneof(struct bc *bc, gab_token toka,
     return COMP_TOKEN_NO_MATCH;
 
   return eat_token(bc);
-}
-
-size_t prev_line(struct bc *bc) {
-  return v_uint64_t_val_at(&bc->src->token_lines, bc->offset - 1);
-}
-
-gab_token curr_tok(struct bc *bc) {
-  return v_gab_token_val_at(&bc->src->tokens, bc->offset);
-}
-
-gab_token prev_tok(struct bc *bc) {
-  return v_gab_token_val_at(&bc->src->tokens, bc->offset - 1);
-}
-
-s_char prev_src(struct bc *bc) {
-  return v_s_char_val_at(&bc->src->token_srcs, bc->offset - 1);
 }
 
 s_char trim_prev_src(struct bc *bc) {
@@ -3140,9 +3138,15 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
   if (curr_tok(bc) == TOKEN_EOF)
     return gab_undefined;
 
-  for (uint8_t i = 0; i < narguments; i++) {
-    init_local(bc, add_local(bc, arguments[i], 0));
+  if (curr_tok(bc) == TOKEN_ERROR) {
+    eat_token(bc);
+    compiler_error(bc, GAB_MALFORMED_TOKEN,
+                   "This token is malformed or unrecognized.");
+    return gab_undefined;
   }
+
+  for (uint8_t i = 0; i < narguments; i++)
+    init_local(bc, add_local(bc, arguments[i], 0));
 
   if (compile_expressions_body(bc) < 0)
     return gab_undefined;

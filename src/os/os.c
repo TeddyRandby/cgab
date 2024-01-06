@@ -1,36 +1,4 @@
 #include "os.h"
-#include "core.h"
-#include "stdio.h"
-#include "types.h"
-#include <dlfcn.h>
-
-#if OS_UNIX
-#include <unistd.h>
-#endif
-
-void *gab_osdlopen(const char *path) {
-#if OS_UNIX
-  return dlopen(path, RTLD_NOW);
-#else
-#error Windows not supported
-#endif
-}
-
-void *gab_osdlsym(void *handle, const char *path) {
-#if OS_UNIX
-  return dlsym(handle, path);
-#else
-#error Windows not supported
-#endif
-}
-
-void gab_osdlclose(void *handle) {
-#if OS_UNIX
-  dlclose(handle);
-#else
-#error Windows not supported
-#endif
-}
 
 a_char *gab_fosread(FILE *fd) {
   v_char buffer = {0};
@@ -87,14 +55,4 @@ a_char *gab_fosreadl(FILE *fd) {
   v_char_destroy(&buffer);
 
   return data;
-}
-
-#define BUFFER_MAX 1024
-a_char *gab_oscwd() {
-#if OS_UNIX
-  a_char *result = a_char_empty(BUFFER_MAX);
-  getcwd((char *)result->data, BUFFER_MAX);
-
-  return result;
-#endif
 }
