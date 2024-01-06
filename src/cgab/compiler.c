@@ -2325,6 +2325,7 @@ int compile_exp_splt(struct bc *bc, bool assignable) {
     case COMP_ID_NOT_FOUND:
       index = compile_local(bc, id, fVAR_MUTABLE);
 
+      // push_slot(bc, 1);
       // We're adding a new local, which means we retroactively need
       // to add one to each other assignment target slot
       adjust_preceding_lvalues(bc);

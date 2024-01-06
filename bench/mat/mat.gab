@@ -35,11 +35,11 @@ def *[Matrix](other)
       sum, k = 0, 0
 
       loop
-        sum = sum + self:data[i*N+k] * other:data[k*N+j]
+        sum = sum + self:data[i * N + k] * other:data[k * N + j]
         k = k + 1
       until k == done end
 
-      data[i*N+j] = sum
+      data[i * N + j] = sum
 
       j = j + 1
     until j == done end
@@ -67,9 +67,9 @@ end
 N, sum, i = 3, 0, 0 
 
 loop
-  a = :matrix(N, :tuple.new(N * N):map! do; @2 end)
+  a = :matrix(N, :tuple.new(N * N):map! do; @1 end)
   
-  b = :matrix(N, :tuple.new(N * N):map! do; @2 end)
+  b = :matrix(N, :tuple.new(N * N):map! do; @1 end)
 
   c = a + b
 

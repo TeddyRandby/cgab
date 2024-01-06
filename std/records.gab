@@ -71,7 +71,7 @@ def map![.Record](mapper)
     key = self:next
 
     loop
-      self:put!(key, mapper(key, self:at(key)))
+      self:put!(key, mapper(key, self[key]))
       key = self:next(key)
     until key == nil end
 

@@ -1,5 +1,5 @@
 def fib(n)
-    n < 2 and n or fib(n - 1) + fib(n - 2)
+    n < 2 and n or self(n - 1) + self(n - 2)
 end
 
 fib(30)
