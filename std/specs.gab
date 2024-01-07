@@ -58,12 +58,14 @@ def spec.def![](name, opts)
   opts:has? .help then
     register(registry.help, opts:spec, opts:help)
   end
+
+  opts:spec
 end
 
 def spec[](name)
   s, v = registry.spec:at(name)
 
-  s == .some or .MISSING_SPEC:panic
+  s == .some or 'Could not find spec "{name}"':panic
 
   v
 end
@@ -75,7 +77,7 @@ end
 def spec.name[]
   s, v = registry.name:at(self)
 
-  s == .some or .MISSING_NAME:panic
+  s == .some or 'spec {self} is not named':panic
 
   v
 end
@@ -569,13 +571,12 @@ def spec.message[](args, semantics)
   end
 
   def spec.explain[?message.predicate]
-    self:spec.name:print
+    name = self:spec.name
 
-    _, help = self:spec.help in == .some then
-      help:print
-    end
+    has_help, help = self:spec.help
 
-    ' | {args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}':print
+    '{name}: {has_help and help or ''}':print
+    '\t| {args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}':print
 
     nil
   end

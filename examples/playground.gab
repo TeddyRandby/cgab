@@ -5,8 +5,8 @@
 def Car { car.make, car.model, car.year, car.color }
 
 :spec.def! 'car.make'  {
-  spec = :spec.or('Ford', 'Chevy', 'Toyota', 'Honda'),
   help = "The car's manufacturer, ie 'Ford'",
+  spec = :spec.or('Ford', 'Chevy', 'Toyota', 'Honda'),
 }
 
 :spec.def! 'car.year'  { spec = :spec.and(:spec.int, :spec.gt(2000)) }
@@ -14,18 +14,21 @@ def Car { car.make, car.model, car.year, car.color }
 :spec.def! 'car.model' { spec = :spec.or('Mustang', 'Civic', 'Camry', 'Prius') }
 :spec.def! 'car' { spec = :spec.protocol(Car) }
 
-def car.paint.spec = :spec.message {
-    # The receiver's spec
-    receiver = :spec 'car',
-    # The message we spec over
-    message  = &:car.paint,
-    # Fetch the spec 'car.color' for the input
-    input    = :spec 'car.color',
-    # Fetch the spec 'car.color' for the output
-    output   = :spec 'car.color',
-  } do (receiver, input, output)
-      input[0] == receiver:car.color and input[0] == output[0]
-    end
+def car.paint.spec = :spec.def! 'car.paint' {
+    help = "Paint the car with the given color",
+    spec = :spec.message {
+      # The receiver's spec
+      receiver = :spec 'car',
+      # The message we spec over
+      message  = &:car.paint,
+      # Fetch the spec 'car.color' for the input
+      input    = :spec 'car.color',
+      # Fetch the spec 'car.color' for the output
+      output   = :spec 'car.color',
+    } do (receiver, input, output)
+        input[0] == receiver:car.color and input[0] == output[0]
+      end,
+}
 
 # Generate a mock car
 # test_car = car.spec:spec.gen
@@ -41,9 +44,7 @@ def car.paint[Car](color)
   self:car.color = 10
 end
 
-:spec.help 'car.make' :print
-:spec 'car' :spec.explain:print
-car.paint.spec :spec.explain:print
+car.paint.spec :spec.explain
 
 # Check our faulty implementation
 # &:spec.check yields a stream of predicate results.
@@ -53,5 +54,3 @@ car.paint.spec :spec.explain:print
 _, spec, value, path = car.paint.spec:first(&:spec.check) do (ok, spec, value, path)
     not ok and return .some, spec, value, path
   end
-
-{ spec, value, path }:print
