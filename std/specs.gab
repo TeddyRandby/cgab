@@ -6,6 +6,7 @@
 :use .numbers
 :use .msg
 :use .any
+:use .assert
 :use .streams
 
 def explain_specs(specs, separator)
@@ -54,7 +55,9 @@ def spec.def![](name, opts)
   register(registry.spec, name, opts:spec)
   register(registry.name, opts:spec, name)
 
-  opts:has? .help and register(registry.help, name, opts:help)
+  opts:has? .help then
+    register(registry.help, opts:spec, opts:help)
+  end
 end
 
 def spec[](name)
@@ -65,12 +68,8 @@ def spec[](name)
   v
 end
 
-def spec.help[](name)
-  s, v = registry.help:at(name)
-
-  s == .some or .MISSING_HELP:panic
-
-  v
+def spec.help[]
+  registry.help:at(self)
 end
 
 def spec.name[]
@@ -444,7 +443,7 @@ end
 def spec.block.Args { input, output }
 
 def spec.block[](args, semantics)
-  args:is?(spec.block.Args) or .INVALID_ARGUMENTS:panic
+  args:assert.is?(spec.block.Args)
 
   def block.predicate = :symbol.new 'predicate:block:{args}:{semantics}'
 
@@ -497,10 +496,10 @@ end
 ##    - no arguments
 ##    - no output
 ##    - no receiver
-def spec.message.Args { message, receiver, input, output }
+def spec.message.Args { receiver, message, input, output }
 
 def spec.message[](args, semantics)
-  args:is?(spec.message.Args) or .INVALID_ARGUMENTS:panic
+  args:assert.is?(spec.message.Args)
 
   def message.predicate = :symbol.new 'predicate:message:{args}:{semantics}'
 
@@ -570,21 +569,29 @@ def spec.message[](args, semantics)
   end
 
   def spec.explain[?message.predicate]
-    '{args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}'
+    self:spec.name:print
+
+    _, help = self:spec.help in == .some then
+      help:print
+    end
+
+    ' | {args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}':print
+
+    nil
   end
 
   return message.predicate
 end
 
 # A default gen implementation is the identity function
-def spec.gen []; self end
+def spec.gen[]; self end
 
 # A default explain implementation
 def spec.explain[](name); '{self}' end
 
 ## FITS
 # Default spec.fits? specializfation is just good ol' equality
-def spec.fits?      [](value)
+def spec.fits?[](value)
   return self == value, self, value
 end
 

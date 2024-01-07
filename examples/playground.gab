@@ -15,10 +15,10 @@ def Car { car.make, car.model, car.year, car.color }
 :spec.def! 'car' { spec = :spec.protocol(Car) }
 
 def car.paint.spec = :spec.message {
-    # The message we spec over
-    message  = &:car.paint,
     # The receiver's spec
     receiver = :spec 'car',
+    # The message we spec over
+    message  = &:car.paint,
     # Fetch the spec 'car.color' for the input
     input    = :spec 'car.color',
     # Fetch the spec 'car.color' for the output

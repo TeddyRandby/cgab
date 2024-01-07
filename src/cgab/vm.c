@@ -138,7 +138,6 @@ static handler handlers[] = {
 #define STORE_FRAME()                                                          \
   ({                                                                           \
     VM()->sp = TOP();                                                          \
-    VM()->fp = FRAME();                                                        \
     VM()->fp->ip = IP();                                                       \
   })
 
@@ -155,7 +154,6 @@ static handler handlers[] = {
 #define STORE_PRIMITIVE_ERROR_FRAME(m, have)                                   \
   ({                                                                           \
     VM()->sp = TOP();                                                          \
-    VM()->fp = FRAME();                                                        \
     VM()->fp->ip = IP();                                                       \
     STORE_ERROR_FRAME(m, have);                                                \
   })
@@ -174,7 +172,9 @@ static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
 
   size_t offset = f->ip - p->src->bytecode.data - 1;
 
-  return v_uint64_t_val_at(&p->src->bytecode_toks, offset);
+  size_t token = v_uint64_t_val_at(&p->src->bytecode_toks, offset);
+
+  return token;
 }
 
 /**
@@ -821,9 +821,9 @@ CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) {
     NEXT();
   }
 
-  STORE_FRAME();
-
   struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(r);
+
+  STORE_FRAME();
 
   if (!call_block(VM(), m, blk, have, want))
     ERROR(GAB_OVERFLOW, "");

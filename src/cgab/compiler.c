@@ -413,17 +413,20 @@ static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
     case OP_PUSH_TRUE:
     case OP_PUSH_FALSE:
       bc->src->bytecode.len -= 1;
+      bc->src->bytecode_toks.len -= 1;
       f->prev_op = bc->src->bytecode.data[bc->src->bytecode.len - 1];
       return;
 
     case OP_LOAD_UPVALUE:
     case OP_LOAD_LOCAL:
       bc->src->bytecode.len -= 2;
+      bc->src->bytecode_toks.len -= 2;
       f->prev_op = bc->src->bytecode.data[bc->src->bytecode.len - 1];
       return;
 
     case OP_CONSTANT:
       bc->src->bytecode.len -= 3;
+      bc->src->bytecode_toks.len -= 3;
       f->prev_op = bc->src->bytecode.data[bc->src->bytecode.len - 1];
       return;
 
@@ -3192,6 +3195,8 @@ gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
   gab_value module = compile(&bc, gab_string(gab, args.name), args.len, vargv);
 
   bc_destroy(&bc);
+
+  assert(src->bytecode.len == src->bytecode_toks.len);
 
   return module;
 }

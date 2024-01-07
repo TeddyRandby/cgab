@@ -243,17 +243,6 @@ a_gab_value *gab_lib_panic(struct gab_triple gab, size_t argc,
   return gab_panic(gab, "Error");
 }
 
-a_gab_value *gab_lib_assertis(struct gab_triple gab, size_t argc,
-                              gab_value argv[argc]) {
-  gab_value r = gab_arg(0);
-  gab_value t = gab_arg(1);
-
-  if (gab_valtype(gab.eg, r) != t)
-    return gab_ptypemismatch(gab, r, t);
-
-  return NULL;
-}
-
 a_gab_value *gab_lib_print(struct gab_triple gab, size_t argc,
                            gab_value argv[argc]) {
   int start = argv[0] == gab_undefined;
@@ -281,15 +270,6 @@ void gab_setup_natives(struct gab_triple gab) {
                                  .specialization =
                                      gab_snative(gab, "use", gab_lib_use),
                              })));
-
-  gab_egkeep(
-      gab.eg,
-      gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
-                                      .name = "assert.is?",
-                                      .receiver = gab_undefined,
-                                      .specialization = gab_snative(
-                                          gab, "assert.is?", gab_lib_assertis),
-                                  })));
 
   gab_egkeep(
       gab.eg,
