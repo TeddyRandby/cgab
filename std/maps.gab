@@ -8,9 +8,18 @@ end
 
 def [=][.Map](key, value); self:put!(key, value); end
 
-def has[.Map](key); self:at(key) == .some; end
+def has?[.Map](key); self:at(key) == .some; end
 
-def del[.Map](key); self:put!(key, nil); end
+def at_or![.Map](key, default)
+  _, val = self:at(key) in == .some then
+    return val
+  end else
+    self:put!(key, default)
+    return default
+  end
+end
+
+def del![.Map](key); self:put!(key, nil); end
 
 def each[.Map]
   key = self:next
@@ -28,4 +37,22 @@ def keys[.Map]
     yield key
     key = self:next(key)
   until key == nil end
+end
+
+def values[.Map]
+  key = self:next
+
+  loop
+    yield self[key]
+    key = self:next(key)
+  until key == nil end
+end
+
+def pairs[.Map]
+    key = self:next
+
+    loop
+      yield key, self[key]
+      key = self:next(key)
+    until key == nil end
 end

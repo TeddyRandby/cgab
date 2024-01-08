@@ -44,6 +44,9 @@ def registry.name = :map.new
 ## Registry of qualified name -> help text
 def registry.help = :map.new
 
+## Registry of receiver -> list of spec'd messages
+def registry.messages = :map.new
+
 def register(registry, name, value)
   # Add a new specification to the registry.
   # If this key already existed, panic.
@@ -505,6 +508,10 @@ def spec.message[](args, semantics)
 
   def message.predicate = :symbol.new 'predicate:message:{args}:{semantics}'
 
+  registry.messages in
+    :at_or!(args:receiver, :map.new) in
+    :add!(args:message, message.predicate)
+
   def spec.fits?[?message.predicate](rec, input, output)
     success, pred, val, path = args:input:spec.fits?(input:splat)
     success or return false, pred, input, .input
@@ -575,8 +582,8 @@ def spec.message[](args, semantics)
 
     has_help, help = self:spec.help
 
-    '{name}: {has_help and help or ''}':print
-    '\t| {args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}':print
+    '\n{name}: {has_help and help or ''}':print
+    '| {args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}\n':print
 
     nil
   end
@@ -588,7 +595,14 @@ end
 def spec.gen[]; self end
 
 # A default explain implementation
-def spec.explain[](name); '{self}' end
+def spec.explain[]; '{self}' end
+
+def spec.messages[]
+  has, messages = registry.messages:at(self) 
+
+  has == .some and
+    messages:for(&:values, &:spec.explain)
+end
 
 ## FITS
 # Default spec.fits? specializfation is just good ol' equality

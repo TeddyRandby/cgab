@@ -1,0 +1,3 @@
+:use .records.specs
+
+:spec .Record :spec.messages

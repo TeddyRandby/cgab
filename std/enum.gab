@@ -1,0 +1,6 @@
+:use .specs
+
+:spec.def! .Enumerable {
+  help = "A protocol for data structures",
+  spec = :spec.protocol { fold },
+}
