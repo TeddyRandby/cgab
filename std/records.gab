@@ -13,10 +13,10 @@ def record.exactly?[](rec)
   sym
 end
 
-def tuple.collect[](msg, *p, len)
+def tuple.collect[](msg, ..p, len)
   def t = :tuple.new(len)
 
-  i, *args, s = 0, self:(msg)(p:splat)
+  i, ..args, s = 0, self:(msg)(p:splat)
 
   loop
     ?s == .Suspense or break
@@ -24,7 +24,7 @@ def tuple.collect[](msg, *p, len)
     t[i] = args:splat
     i = i + 1
 
-    *args, s = s()
+    ..args, s = s()
   until i == len end
 
   return t

@@ -1,33 +1,33 @@
 :use .any
 :use .records
 
-def ()[.Message](r, *args)
+def ()[.Message](r, ..args)
   r:(self)(args:splat)
 end
 
-def apply[.Block](*stream)
-  *args, s = stream
+def apply[.Block](..stream)
+  ..args, s = stream
 
   s:is? .Suspense and loop
-      self(args:splat)            
-      *args, s = s()
+      self(..args)            
+      ..args, s = s()
   until not s:is? .Suspense end
 end
 
-def for[](msg, *p, cb)
-  *args, s = self:(msg)(p:splat)
+def for[](msg, ..p, cb)
+  ..args, s = self:(msg)(..p)
 
   s:is? .Suspense and loop
       cb(args:splat)            
-      *args, s = s()
+      ..args, s = s()
   until not s:is? .Suspense end
 end
 
-def flatmap[](msg, *p, cb)
-  *args, s = self:(msg)(p:splat)
+def flatmap[](msg, ..p, cb)
+  ..args, s = self:(msg)(p:splat)
 
   s:is? .Suspense and loop
-      *res = cb(args:splat)
+      ..res = cb(args:splat)
 
       i, done = 0, res:len
       loop
@@ -35,22 +35,22 @@ def flatmap[](msg, *p, cb)
         i = i + 1
       until i == done end
 
-      *args, s = s()
+      ..args, s = s()
   until not s:is? .Suspense end
 end
 
 
-def map[](msg, *p, cb)
-  *args, s = self:(msg)(p:splat)
+def map[](msg, ..p, cb)
+  ..args, s = self:(msg)(p:splat)
 
   s:is? .Suspense and loop
       yield cb(args:splat)
-      *args, s = s()
+      ..args, s = s()
   until not s:is? .Suspense end
 end
 
-def unwrap[](msg, *p, cb)
-  x, *args, s = self:(msg)(p:splat)
+def unwrap[](msg, ..p, cb)
+  x, ..args, s = self:(msg)(p:splat)
 
   s:is? .Suspense then
     cb(x) and yield args:splat
@@ -58,7 +58,7 @@ def unwrap[](msg, *p, cb)
     loop
 
       loop
-        x, *args, s = s()
+        x, ..args, s = s()
         s:is? .Suspense or return
       until cb(x) end
 
@@ -67,8 +67,8 @@ def unwrap[](msg, *p, cb)
   end
 end
 
-def filter[](msg, *p, cb)
-  *args, s = self:(msg)(p:splat)
+def filter[](msg, ..p, cb)
+  ..args, s = self:(msg)(p:splat)
 
   s:is? .Suspense then
     cb(args:splat) and yield args:splat
@@ -76,7 +76,7 @@ def filter[](msg, *p, cb)
     loop
 
       loop
-        *args, s = s()
+        ..args, s = s()
         s:is? .Suspense or return
       until cb(args:splat) end
 
@@ -85,63 +85,63 @@ def filter[](msg, *p, cb)
   end
 end
 
-def take[](msg, *p, n)
+def take[](msg, ..p, n)
   i, store = 0, :list.new
-  *args, s = self:(msg)(p:splat)
+  ..args, s = self:(msg)(p:splat)
 
   s:is? .Suspense and loop
       store:push!(args:splat)
-      *args, s = s()
+      ..args, s = s()
       i = i + 1
   until i == n or not s:is? .Suspense end
 
   store:splat
 end
 
-def first[](msg, *p, cb)
-  *args, s = self:(msg)(p:splat)
+def first[](msg, ..p, cb)
+  ..args, s = self:(msg)(p:splat)
 
   s:is? .Suspense and loop
-      res, *vals = cb(args:splat)
+      res, ..vals = cb(args:splat)
       res == .some and return res, vals:splat
 
-      *args, s = s()
+      ..args, s = s()
   until not s:is? .Suspense end
 
   .none
 end
 
-def join[](msg, *p, sep, cb)
-  arg, *_, s = self:(msg)(p:splat)
+def join[](msg, ..p, sep, cb)
+  arg, .._, s = self:(msg)(p:splat)
 
   s:is? .Suspense or return arg
 
-  acc, arg, *_, s = arg, s()
+  acc, arg, .._, s = arg, s()
 
   s:is? .Suspense and loop
       acc = cb(acc, sep)
       acc = cb(acc, arg)            
-      arg, *_, s = s()
+      arg, .._, s = s()
   until not s:is? .Suspense end
 
   acc
 end
 
-def fold[](msg, *p, init, cb)
-  acc, *args, s = init, self:(msg)(p:splat)
+def fold[](msg, ..p, init, cb)
+  acc, ..args, s = init, self:(msg)(p:splat)
 
   s:is? .Suspense and loop
       acc = cb(acc, args:splat)            
-      *args, s = s()
+      ..args, s = s()
   until not s:is? .Suspense end
 
   acc
 end
 
-def partition[](msg, *p, n)
+def partition[](msg, ..p, n)
   n > 1 or return
 
-  *args, s = self:(msg)(p:splat)
+  ..args, s = self:(msg)(p:splat)
   acc, i   = :tuple.new(n), 0
 
   s:is? .Suspense and loop
@@ -152,7 +152,7 @@ def partition[](msg, *p, n)
         j = j + 1
       until j == done end
       
-      *args, s = s()
+      ..args, s = s()
       i = i + 1
     until i == n or not s:is? .Suspense end
 

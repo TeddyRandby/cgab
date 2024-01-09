@@ -174,6 +174,10 @@ gab_token prev_tok(struct bc *bc) {
   return v_gab_token_val_at(&bc->src->tokens, bc->offset - 1);
 }
 
+s_char curr_src(struct bc *bc) {
+  return v_s_char_val_at(&bc->src->token_srcs, bc->offset);
+}
+
 s_char prev_src(struct bc *bc) {
   return v_s_char_val_at(&bc->src->token_srcs, bc->offset - 1);
 }
@@ -522,6 +526,14 @@ static inline bool patch_mv(struct bc *bc, uint8_t want) {
   }
 
   return false;
+}
+
+gab_value curr_id(struct bc *bc) {
+  s_char s = curr_src(bc);
+
+  gab_value sv = gab_nstring(gab(bc), s.len, s.data);
+
+  return sv;
 }
 
 gab_value prev_id(struct bc *bc) {
@@ -1175,7 +1187,7 @@ int compile_parameters(struct bc *bc) {
 
     narguments++;
 
-    switch (match_and_eat_token(bc, TOKEN_STAR)) {
+    switch (match_and_eat_token(bc, TOKEN_DOT_DOT)) {
     case COMP_OK:
       if (below >= 0) {
         int ctx = peek_ctx(bc, kFRAME, 0);
@@ -2314,59 +2326,6 @@ int compile_exp_ipm(struct bc *bc, bool assignable) {
   return COMP_OK;
 }
 
-int compile_exp_splt(struct bc *bc, bool assignable) {
-  if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
-    return COMP_ERR;
-
-  gab_value id = prev_id(bc);
-
-  uint8_t index;
-  int result = resolve_id(bc, id, &index);
-
-  if (assignable && !match_ctx(bc, kTUPLE)) {
-    switch (result) {
-    case COMP_ID_NOT_FOUND:
-      index = compile_local(bc, id, fVAR_MUTABLE);
-
-      // push_slot(bc, 1);
-      // We're adding a new local, which means we retroactively need
-      // to add one to each other assignment target slot
-      adjust_preceding_lvalues(bc);
-
-      return compile_assignment(bc, (struct lvalue){
-                                        .kind = kNEW_REST_LOCAL,
-                                        .slot = peek_slot(bc),
-                                        .as.local = index,
-                                    });
-    case COMP_RESOLVED_TO_LOCAL: {
-      int ctx = peek_ctx(bc, kFRAME, 0);
-      struct frame *f = &bc->contexts[ctx].as.frame;
-
-      if (!(f->local_flags[index] & fVAR_MUTABLE)) {
-        compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                       "Cannot assign to immutable variable.");
-        return COMP_ERR;
-      }
-
-      return compile_assignment(bc, (struct lvalue){
-                                        .kind = kEXISTING_REST_LOCAL,
-                                        .slot = peek_slot(bc),
-                                        .as.local = index,
-                                    });
-    }
-    case COMP_RESOLVED_TO_UPVALUE:
-      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                     "Captured variables are not assignable.");
-      return COMP_ERR;
-    default:
-      return COMP_ERR;
-    }
-  }
-
-  assert(false && "This is an internal compiler error.");
-  return COMP_ERR;
-}
-
 int compile_exp_idn(struct bc *bc, bool assignable) {
   gab_value id = prev_id(bc);
 
@@ -2438,6 +2397,82 @@ int compile_exp_idn(struct bc *bc, bool assignable) {
   push_slot(bc, 1);
 
   return COMP_OK;
+}
+
+int compile_exp_splt(struct bc *bc, bool assignable) {
+  size_t t = bc->offset - 1;
+
+  if (!assignable || match_ctx(bc, kTUPLE)) {
+    if (compile_expression(bc) < 0)
+      return COMP_ERR;
+
+    goto as_splat_exp;
+  }
+
+  if (!match_token(bc, TOKEN_IDENTIFIER)) {
+    if (compile_expression(bc) < 0)
+      return COMP_ERR;
+
+    goto as_splat_exp;
+  }
+
+  if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
+    return COMP_ERR;
+
+  if (!match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
+    compile_exp_idn(bc, assignable);
+    goto as_splat_exp;
+  }
+
+  gab_value id = prev_id(bc);
+
+  uint8_t index;
+  int result = resolve_id(bc, id, &index);
+
+  switch (result) {
+  case COMP_ID_NOT_FOUND:
+    index = compile_local(bc, id, fVAR_MUTABLE);
+
+    // We're adding a new local, which means we retroactively need
+    // to add one to each other assignment target slot
+    adjust_preceding_lvalues(bc);
+
+    return compile_assignment(bc, (struct lvalue){
+                                      .kind = kNEW_REST_LOCAL,
+                                      .slot = peek_slot(bc),
+                                      .as.local = index,
+                                  });
+  case COMP_RESOLVED_TO_LOCAL: {
+    int ctx = peek_ctx(bc, kFRAME, 0);
+    struct frame *f = &bc->contexts[ctx].as.frame;
+
+    if (!(f->local_flags[index] & fVAR_MUTABLE)) {
+      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                     "Cannot assign to immutable variable.");
+      return COMP_ERR;
+    }
+
+    return compile_assignment(bc, (struct lvalue){
+                                      .kind = kEXISTING_REST_LOCAL,
+                                      .slot = peek_slot(bc),
+                                      .as.local = index,
+                                  });
+  }
+  case COMP_RESOLVED_TO_UPVALUE:
+    compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                   "Captured variables are not assignable.");
+    return COMP_ERR;
+  default:
+    return COMP_ERR;
+  }
+
+as_splat_exp: {
+  uint16_t m = add_message_constant(bc, gab_string(gab(bc), mGAB_SPLAT));
+
+  push_send(bc, m, 0, false, t);
+
+  return VAR_EXP;
+}
 }
 
 int compile_exp_idx(struct bc *bc, bool assignable) {
@@ -2583,6 +2618,9 @@ int compile_exp_amp(struct bc *bc, bool assignable) {
   case TOKEN_EQUAL_EQUAL:
     msg = mGAB_EQ;
     break;
+  case TOKEN_DOT_DOT:
+    msg = mGAB_SPLAT;
+    break;
   case TOKEN_STAR:
     msg = mGAB_MUL;
     break;
@@ -2697,7 +2735,9 @@ int compile_exp_snd(struct bc *bc, bool assignable) {
                                         .slot = peek_slot(bc),
                                         .as.property = name,
                                     });
-    } else if (match_ctx(bc, kASSIGNMENT_TARGET)) {
+    }
+
+    if (match_ctx(bc, kASSIGNMENT_TARGET)) {
       eat_token(bc);
       compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
     }
@@ -2827,10 +2867,6 @@ int compile_exp_and(struct bc *bc, bool assignable) {
   patch_jump(bc, end_jump);
 
   return COMP_OK;
-}
-
-int compile_exp_in(struct bc *bc, bool assignable) {
-  return optional_newline(bc);
 }
 
 int compile_exp_or(struct bc *bc, bool assignable) {
@@ -3069,7 +3105,6 @@ const struct compile_rule rules[] = {
     INFIX(then, AND, false),                    // THEN
     INFIX(else, OR, false),                     // ELSE
     PREFIX_INFIX(blk, bcal, SEND, false),       // DO
-    INFIX(in, IN, false),                       // IN
     NONE(),                                     // END
     PREFIX(def),                                // DEF
     PREFIX(rtn),                                // RETURN
@@ -3079,7 +3114,7 @@ const struct compile_rule rules[] = {
     PREFIX(brk),                                // BREAK
     INFIX(bin, TERM, false),                    // PLUS
     PREFIX_INFIX(una, bin, TERM, false),        // MINUS
-    PREFIX_INFIX(splt, bin, FACTOR, false),     // STAR
+    INFIX(bin, FACTOR, false),                  // STAR
     INFIX(bin, FACTOR, false),                  // SLASH
     INFIX(bin, FACTOR, false),                  // PERCENT
     NONE(),                                     // COMMA
@@ -3089,6 +3124,7 @@ const struct compile_rule rules[] = {
     PREFIX_INFIX(sym, symcal, SEND, false),     // SYMBOL
     PREFIX_INFIX(emp, snd, SEND, true),         // MESSAGE
     NONE(),                                     // DOT
+    PREFIX(splt),                               // DOTDOT
     NONE(),                                     // EQUAL
     INFIX(bin, EQUALITY, false),                // EQUALEQUAL
     PREFIX(una),                                // QUESTION

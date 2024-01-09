@@ -33,17 +33,17 @@ end
 
 def empty?[.List]; self:len == 0 end
 
-def list.collect[](msg, *p)
+def list.collect[](msg, ..p)
   def l = :list.new
 
-  *args, s = self:(msg)(p:splat)
+  ..args, s = self:(msg)(p:splat)
 
   loop
     ?s == .Suspense or break
 
     l:push!(args:splat)    
 
-    *args, s = s()
+    ..args, s = s()
   end
 
   return l

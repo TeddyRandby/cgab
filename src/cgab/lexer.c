@@ -124,10 +124,6 @@ const keyword keywords[] = {
         TOKEN_THEN,
     },
     {
-        "in",
-        TOKEN_IN,
-    },
-    {
         "not",
         TOKEN_NOT,
     },
@@ -294,12 +290,15 @@ gab_token other(gab_lx *self) {
   case '.': {
     advance(self);
 
+    if (peek(self) == '.') {
+      advance(self);
+      return TOKEN_DOT_DOT;
+    }
+
     if (can_continue_identifier(peek(self))) {
-      // If we didn't get a keyword, return a token property
       if (identifier(self) == TOKEN_IDENTIFIER)
         return TOKEN_SIGIL;
 
-      // Otherwise, we got a keyword and this was an error
       return error(self, GAB_MALFORMED_TOKEN);
     }
 

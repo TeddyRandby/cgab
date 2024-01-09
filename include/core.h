@@ -106,6 +106,9 @@ enum gab_flags {
 #define GAB_VERSION_MINOR "1"
 
 // Message constants
+#define mGAB_LT "<"
+#define mGAB_GT ">"
+#define mGAB_EQ "=="
 #define mGAB_ADD "+"
 #define mGAB_SUB "-"
 #define mGAB_MUL "*"
@@ -115,14 +118,12 @@ enum gab_flags {
 #define mGAB_BOR "|"
 #define mGAB_LSH "<<"
 #define mGAB_RSH ">>"
-#define mGAB_LT "<"
-#define mGAB_GT ">"
 #define mGAB_LTE "<="
 #define mGAB_GTE ">="
-#define mGAB_EQ "=="
 #define mGAB_SET "[=]"
 #define mGAB_GET "[]"
 #define mGAB_CALL "()"
+#define mGAB_SPLAT ".."
 
 #define T char
 #include "slice.h"

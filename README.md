@@ -165,7 +165,7 @@ sus('Bob') # Hello Bob
 The feature `multi values` is similar to multiple return values that are in other languages like Go and Lua.
 ```
 def full_name[Person]
-    return self.first_name, self.last_name
+    return self:first_name, self:last_name
 end
 
 first, last = Bob:full_name

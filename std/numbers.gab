@@ -34,7 +34,7 @@ def to[.Number](dest)
   } do; .INVALID_ARGUMENTS:panic end
 end
 
-def num.min[](*nums)
+def num.min[](..nums)
   sofar, i, done = 9999999999999, 0, nums:len
 
   loop
@@ -45,7 +45,7 @@ def num.min[](*nums)
   sofar
 end
 
-def num.max[](*nums)
+def num.max[](..nums)
   sofar, i, done = -9999999999999, 0, nums:len
 
   loop

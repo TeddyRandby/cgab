@@ -995,6 +995,37 @@ CASE_CODE(SEND_PRIMITIVE_EQ) {
   NEXT();
 }
 
+CASE_CODE(SEND_PRIMITIVE_SPLAT) {
+  gab_value m = READ_CONSTANT;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+  uint8_t want = READ_BYTE;
+  gab_value cached_specs = *READ_QWORD;
+  gab_value cached_type = *READ_QWORD;
+  SKIP_QWORD;
+
+  gab_value r = PEEK_N(have + 1);
+
+  if (gab_valtype(EG(), r) != cached_type) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  struct gab_obj_record* rec = GAB_VAL_TO_RECORD(r);
+
+  DROP_N(have + 1);
+
+  TOP() = trim_return(rec->data, TOP(), rec->len, want);
+
+  NEXT();
+}
+
 CASE_CODE(SEND_MONO_PROPERTY) {
   // TODO: Break this into two opcodes
   gab_value m = READ_CONSTANT;
