@@ -12,6 +12,9 @@
 #include "core.h"
 #include "types.h"
 
+#define __gab_likely(x) (__builtin_expect(!!(x), 1))
+#define __gab_unlikely(x) (__builtin_expect(!!(x), 0))
+
 /**
  * \file
  * \brief The API for the gab programming language.

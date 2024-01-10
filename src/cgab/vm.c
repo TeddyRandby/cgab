@@ -120,12 +120,12 @@ static handler handlers[] = {
   SKIP_QWORD;                                                                  \
   SKIP_QWORD;                                                                  \
   SKIP_QWORD;                                                                  \
-  if (!__gab_valisn(PEEK2())) {                                                \
+  if (__gab_unlikely(!__gab_valisn(PEEK2()))) {                                \
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);                                  \
     IP() -= SEND_CACHE_DIST;                                                   \
     NEXT();                                                                    \
   }                                                                            \
-  if (!__gab_valisn(PEEK())) {                                                 \
+  if (__gab_unlikely(!__gab_valisn(PEEK()))) {                                 \
     STORE_PRIMITIVE_ERROR_FRAME(m, 1);                                         \
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),                         \
           gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));              \
@@ -438,7 +438,7 @@ static inline bool call_block(struct gab_vm *vm, gab_value m,
   bool wants_var = p->as.block.narguments == VAR_EXP;
   size_t len = (wants_var ? have : p->as.block.narguments) + 1;
 
-  if (!has_callspace(vm, p->as.block.nslots - len - 1))
+  if (__gab_unlikely(!has_callspace(vm, p->as.block.nslots - len - 1)))
     return false;
 
   vm->fp++;
@@ -502,13 +502,13 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   switch (gab_valkind(args.main)) {
   case kGAB_BLOCK: {
     struct gab_obj_block *b = GAB_VAL_TO_BLOCK(args.main);
-    if (!call_block(VM(), gab_nil, b, args.len, VAR_EXP))
+    if (__gab_unlikely(!call_block(VM(), gab_nil, b, args.len, VAR_EXP)))
       ERROR(GAB_OVERFLOW, "");
     break;
   }
   case kGAB_SUSPENSE: {
     struct gab_obj_suspense *s = GAB_VAL_TO_SUSPENSE(args.main);
-    if (!call_suspense(VM(), s, args.len, VAR_EXP))
+    if (__gab_unlikely(!call_suspense(VM(), s, args.len, VAR_EXP)))
       ERROR(GAB_OVERFLOW, "");
     break;
   }
@@ -534,7 +534,7 @@ CASE_CODE(SEND_ANA) {
   /* Do the expensive lookup */
   struct gab_egimpl_rest res = gab_egimpl(gab.eg, m, r);
 
-  if (!res.status) {
+  if (__gab_unlikely(!res.status)) {
     STORE_FRAME();
     ERROR(GAB_IMPLEMENTATION_MISSING, FMT_MISSINGIMPL, m, r,
           gab_valtype(EG(), r));
@@ -565,7 +565,6 @@ CASE_CODE(SEND_ANA) {
   }
 
   IP() -= SEND_CACHE_DIST;
-
   NEXT();
 }
 
@@ -579,13 +578,13 @@ CASE_CODE(SEND_MONO_BLOCK) {
 
   gab_value r = PEEK_N(have + 1);
 
-  if (gab_valtype(EG(), r) != cached_type) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -595,7 +594,7 @@ CASE_CODE(SEND_MONO_BLOCK) {
 
   STORE_FRAME();
 
-  if (!call_block(VM(), m, blk, have, want))
+  if (__gab_unlikely(!call_block(VM(), m, blk, have, want)))
     ERROR(GAB_OVERFLOW, "");
 
   LOAD_FRAME();
@@ -643,13 +642,13 @@ CASE_CODE(SEND_MONO_NATIVE) {
 
   gab_value r = PEEK_N(have + 1);
 
-  if (gab_valtype(EG(), r) != cached_type) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -662,7 +661,7 @@ CASE_CODE(SEND_MONO_NATIVE) {
   a_gab_value *res =
       call_native(GAB(), GAB_VAL_TO_NATIVE(spec), have, want, true);
 
-  if (res)
+  if (__gab_unlikely(res))
     return res;
 
   DROP_ERROR_FRAME();
@@ -682,13 +681,13 @@ CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
 
   gab_value r = PEEK_N(have + 1);
 
-  if (gab_valtype(EG(), r) != cached_type) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -701,7 +700,7 @@ CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
   a_gab_value *res =
       call_native(GAB(), GAB_VAL_TO_NATIVE(r), have, want, false);
 
-  if (res)
+  if (__gab_unlikely(res))
     return res;
 
   DROP_ERROR_FRAME();
@@ -722,7 +721,7 @@ CASE_CODE(SEND_DYN) {
   gab_value r = PEEK_N(have + 2);
   gab_value m = PEEK_N(have + 1);
 
-  if (gab_valkind(m) != kGAB_MESSAGE) {
+  if (__gab_unlikely(gab_valkind(m) != kGAB_MESSAGE)) {
     STORE_FRAME();
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, m, gab_valtype(EG(), m),
           gab_type(EG(), kGAB_MESSAGE));
@@ -730,7 +729,7 @@ CASE_CODE(SEND_DYN) {
 
   struct gab_egimpl_rest res = gab_egimpl(gab.eg, m, r);
 
-  if (!res.status) {
+  if (__gab_unlikely(!res.status)) {
     STORE_FRAME();
     ERROR(GAB_IMPLEMENTATION_MISSING, FMT_MISSINGIMPL, m, r,
           gab_valtype(EG(), r));
@@ -749,7 +748,7 @@ CASE_CODE(SEND_DYN) {
 
     STORE_FRAME();
 
-    if (!call_block(VM(), m, b, have, want))
+    if (__gab_unlikely(!call_block(VM(), m, b, have, want)))
       ERROR(GAB_OVERFLOW, "");
 
     LOAD_FRAME();
@@ -768,7 +767,7 @@ CASE_CODE(SEND_DYN) {
 
     a_gab_value *res = call_native(GAB(), n, have, want, true);
 
-    if (res)
+    if (__gab_unlikely(res))
       return res;
 
     DROP_ERROR_FRAME();
@@ -809,13 +808,13 @@ CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) {
 
   gab_value r = PEEK_N(have + 1);
 
-  if (gab_valtype(EG(), r) != cached_type) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -825,7 +824,7 @@ CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) {
 
   STORE_FRAME();
 
-  if (!call_block(VM(), m, blk, have, want))
+  if (__gab_unlikely(!call_block(VM(), m, blk, have, want)))
     ERROR(GAB_OVERFLOW, "");
 
   LOAD_FRAME();
@@ -843,13 +842,13 @@ CASE_CODE(SEND_PRIMITIVE_CALL_SUSPENSE) {
 
   gab_value r = PEEK_N(have + 1);
 
-  if (gab_valtype(EG(), r) != cached_type) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -857,7 +856,7 @@ CASE_CODE(SEND_PRIMITIVE_CALL_SUSPENSE) {
 
   STORE_FRAME();
 
-  if (!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(r), have, want))
+  if (__gab_unlikely(!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(r), have, want)))
     ERROR(GAB_OVERFLOW, "");
 
   LOAD_FRAME();
@@ -938,13 +937,13 @@ CASE_CODE(SEND_PRIMITIVE_CONCAT) {
   SKIP_QWORD;
   SKIP_QWORD;
 
-  if (gab_valkind(PEEK2()) != kGAB_STRING) {
+  if (__gab_unlikely(gab_valkind(PEEK2()) != kGAB_STRING)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (gab_valkind(PEEK()) != kGAB_STRING) {
+  if (__gab_unlikely(gab_valkind(PEEK()) != kGAB_STRING)) {
     STORE_PRIMITIVE_ERROR_FRAME(m, 1);
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),
           gab_valtype(EG(), PEEK()));
@@ -973,13 +972,13 @@ CASE_CODE(SEND_PRIMITIVE_EQ) {
 
   gab_value r = PEEK_N(have + 1);
 
-  if (gab_valtype(EG(), r) != cached_type) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -1005,19 +1004,19 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
 
   gab_value r = PEEK_N(have + 1);
 
-  if (gab_valtype(EG(), r) != cached_type) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  struct gab_obj_record* rec = GAB_VAL_TO_RECORD(r);
+  struct gab_obj_record *rec = GAB_VAL_TO_RECORD(r);
 
   DROP_N(have + 1);
 
@@ -1037,13 +1036,13 @@ CASE_CODE(SEND_MONO_PROPERTY) {
 
   gab_value r = PEEK_N(have + 1);
 
-  if (gab_valtype(EG(), r) != cached_type) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (cached_specs != GAB_VAL_TO_MESSAGE(m)->specs) {
+  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -1093,7 +1092,7 @@ CASE_CODE(YIELD) {
 
   VM()->sp = trim_return(from, to, have, FRAME()->want);
 
-  if (VM()->fp - VM()->fb == 1) {
+  if (__gab_unlikely(VM()->fp - VM()->fb == 1)) {
     VAR() = have;
     return return_ok(GAB(), SLOTS(), TOP(), IP());
   }
@@ -1115,7 +1114,7 @@ CASE_CODE(RETURN) {
 
   VM()->sp = trim_return(from, to, have, FRAME()->want);
 
-  if (VM()->fp - VM()->fb == 1) {
+  if (__gab_unlikely(VM()->fp - VM()->fb == 1)) {
     VAR() = have;
     return return_ok(GAB(), SLOTS(), TOP(), IP());
   }
@@ -1139,7 +1138,7 @@ CASE_CODE(SHIFT) {
 
   gab_value tmp = PEEK();
 
-  memcpy(TOP() - (n - 1), TOP() - n, (n - 1) * sizeof(gab_value));
+  memmove(TOP() - (n - 1), TOP() - n, (n - 1) * sizeof(gab_value));
 
   PEEK_N(n) = tmp;
 
@@ -1231,7 +1230,7 @@ CASE_CODE(PUSH_FALSE) {
 }
 
 CASE_CODE(NEGATE) {
-  if (!__gab_valisn(PEEK())) {
+  if (__gab_unlikely(!__gab_valisn(PEEK()))) {
     STORE_FRAME();
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, gab_valtype(EG(), PEEK()),
           PEEK());
@@ -1360,7 +1359,7 @@ CASE_CODE(MESSAGE) {
     }
   }
 
-  if (gab_msgput(GAB(), m, r, blk) == gab_undefined) {
+  if (__gab_unlikely(gab_msgput(GAB(), m, r, blk) == gab_undefined)) {
     STORE_FRAME();
     ERROR(GAB_IMPLEMENTATION_EXISTS,
           ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET
