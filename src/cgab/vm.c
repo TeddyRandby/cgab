@@ -1238,8 +1238,8 @@ CASE_CODE(PUSH_FALSE) {
 CASE_CODE(NEGATE) {
   if (__gab_unlikely(!__gab_valisn(PEEK()))) {
     STORE_FRAME();
-    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, gab_valtype(EG(), PEEK()),
-          PEEK());
+    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),
+          gab_valtype(EG(), PEEK()), gab_type(EG(), kGAB_NUMBER));
   }
 
   gab_value new_value = gab_number(-gab_valton(POP()));

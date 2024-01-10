@@ -11,7 +11,7 @@ def [=][.Map](key, value); self:put!(key, value); end
 def has?[.Map](key); self:at(key) == .some; end
 
 def at_or![.Map](key, default)
-  _, val = self:at(key) in == .some then
+  (_, val = self:at(key)) == .some then
     return val
   end else
     self:put!(key, default)

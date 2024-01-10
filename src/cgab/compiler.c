@@ -104,7 +104,6 @@ static inline struct gab_triple gab(struct bc *bc) { return bc->gab; }
 */
 enum prec_k {
   kNONE,
-  kIN,
   kASSIGNMENT,  // =
   kOR,          // or, infix else
   kAND,         // and, infix then
@@ -115,9 +114,8 @@ enum prec_k {
   kBITWISE_AND, // &
   kTERM,        // + -
   kFACTOR,      // * /
-  kUNARY,       // ! - not
+  kUNARY,       // - not
   kSEND,        // ( { :
-  kPROPERTY,    // .
   kPRIMARY
 };
 
@@ -931,6 +929,7 @@ static gab_value pop_ctxframe(struct bc *bc) {
 }
 
 struct compile_rule get_rule(gab_token k);
+int compile_exp_startwith(struct bc *bc, int prec, gab_token rule);
 int compile_exp_prec(struct bc *bc, enum prec_k prec);
 int compile_expression(struct bc *bc);
 int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out);
@@ -1413,7 +1412,9 @@ int compile_message(struct bc *bc, gab_value name, size_t t) {
   return COMP_OK;
 }
 
-int compile_expression(struct bc *bc) { return compile_exp_prec(bc, kIN); }
+int compile_expression(struct bc *bc) {
+  return compile_exp_prec(bc, kASSIGNMENT);
+}
 
 int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out) {
   if (push_ctx(bc, kTUPLE) < 0)
@@ -2125,9 +2126,7 @@ int compile_exp_una(struct bc *bc, bool assignable) {
 
   size_t t = bc->offset - 1;
 
-  int result = compile_exp_prec(bc, kUNARY);
-
-  if (result < 0)
+  if (compile_exp_prec(bc, kUNARY) < 0)
     return COMP_ERR;
 
   switch (op) {
@@ -2403,14 +2402,14 @@ int compile_exp_splt(struct bc *bc, bool assignable) {
   size_t t = bc->offset - 1;
 
   if (!assignable || match_ctx(bc, kTUPLE)) {
-    if (compile_expression(bc) < 0)
+    if (compile_exp_prec(bc, kUNARY) < 0)
       return COMP_ERR;
 
     goto as_splat_exp;
   }
 
   if (!match_token(bc, TOKEN_IDENTIFIER)) {
-    if (compile_expression(bc) < 0)
+    if (compile_exp_prec(bc, kUNARY) < 0)
       return COMP_ERR;
 
     goto as_splat_exp;
@@ -2420,7 +2419,9 @@ int compile_exp_splt(struct bc *bc, bool assignable) {
     return COMP_ERR;
 
   if (!match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
-    compile_exp_idn(bc, assignable);
+    if (compile_exp_startwith(bc, kUNARY, TOKEN_IDENTIFIER) < 0)
+      return COMP_ERR;
+
     goto as_splat_exp;
   }
 
@@ -2885,11 +2886,8 @@ int compile_exp_or(struct bc *bc, bool assignable) {
   return COMP_OK;
 }
 
-int compile_exp_prec(struct bc *bc, enum prec_k prec) {
-  if (eat_token(bc) < 0)
-    return COMP_ERR;
-
-  struct compile_rule rule = get_rule(prev_tok(bc));
+int compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
+  struct compile_rule rule = get_rule(tok);
 
   if (rule.prefix == NULL) {
     s_char p = prev_src(bc);
@@ -2903,9 +2901,6 @@ int compile_exp_prec(struct bc *bc, enum prec_k prec) {
   bool assignable = prec <= kASSIGNMENT;
 
   int have = rule.prefix(bc, assignable);
-
-  if (have < 0)
-    return COMP_ERR;
 
   while (prec <= get_rule(curr_tok(bc)).prec) {
     if (have < 0)
@@ -2928,6 +2923,13 @@ int compile_exp_prec(struct bc *bc, enum prec_k prec) {
   }
 
   return have;
+}
+
+int compile_exp_prec(struct bc *bc, enum prec_k prec) {
+  if (eat_token(bc) < 0)
+    return COMP_ERR;
+
+  return compile_exp_startwith(bc, prec, prev_tok(bc));
 }
 
 int compile_exp_brk(struct bc *bc, bool assignable) {
@@ -3142,7 +3144,7 @@ const struct compile_rule rules[] = {
     INFIX(and, AND, false),                     // AND
     INFIX(or, OR, false),                       // OR
     PREFIX(una),                                // NOT
-    PREFIX_INFIX(arr, idx, PROPERTY, false),    // LBRACE
+    PREFIX_INFIX(arr, idx, SEND, false),        // LBRACE
     NONE(),                                     // RBRACE
     PREFIX_INFIX(rec, rcal, SEND, false),       // LBRACK
     NONE(),                                     // RBRACK
@@ -3426,6 +3428,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_NOT:
   case OP_POP:
   case OP_TYPE:
+  case OP_NEGATE:
   case OP_NOP:
     return dumpSimpleInstruction(stream, self, offset);
   case OP_PACK:
