@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 static inline size_t do_increment(struct gab_gc* gc, struct gab_obj *obj) {
-  if (__gab_unlikely(obj->references == UINT8_MAX)) {
+  if (__gab_unlikely(obj->references == INT8_MAX)) {
     size_t rc = d_gab_obj_read(&gc->overflow_rc, obj);
 
     d_gab_obj_insert(&gc->overflow_rc, obj, rc + 1);
@@ -17,7 +17,7 @@ static inline size_t do_increment(struct gab_gc* gc, struct gab_obj *obj) {
 }
 
 static inline size_t do_decrement(struct gab_gc* gc, struct gab_obj *obj) {
-  if (__gab_unlikely(obj->references == UINT8_MAX)) {
+  if (__gab_unlikely(obj->references == INT8_MAX)) {
     size_t rc = d_gab_obj_read(&gc->overflow_rc, obj);
 
     if (__gab_unlikely(rc == UINT8_MAX)) {
@@ -64,7 +64,7 @@ void queue_increment(struct gab_triple gab, struct gab_obj *obj) {
   v_gab_obj_push(&gab.gc->increments, obj);
 
 #if cGAB_LOG_GC
-  printf("QINC\t%V\t%p\t%i\n", __gab_obj(obj), obj, obj->references);
+  printf("QINC\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
 }
 
@@ -96,7 +96,7 @@ fin:
   v_gab_obj_push(&gab.gc->roots, obj);
 
 #if cGAB_LOG_GC
-  printf("QROOT\t%V\t%p\t%i\n", __gab_obj(obj), obj, obj->references);
+  printf("QROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
 }
 
@@ -191,7 +191,7 @@ static inline void destroy(struct gab_triple gab, struct gab_obj *obj) {
     printf("DFREE\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, func, line);
     exit(1);
   } else {
-    printf("FREE\t%V\t%p\t%i\t%s:%i\n", __gab_obj(obj), obj, obj->references,
+    printf("FREE\t%V\t%p\t%i\t%s:%d\n", __gab_obj(obj), obj, obj->references,
            func, line);
   }
   gab_obj_destroy(gab.eg, obj);
@@ -250,7 +250,7 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
 }
 
 #if cGAB_LOG_GC
-void __gab_ngciref(struct gab_triple gab, size_t stride, size_t len,
+void __gab_niref(struct gab_triple gab, size_t stride, size_t len,
                    gab_value values[len], const char *func, int line) {
 #else
 void gab_niref(struct gab_triple gab, size_t stride, size_t len,
@@ -262,7 +262,7 @@ void gab_niref(struct gab_triple gab, size_t stride, size_t len,
     gab_value value = values[i * stride];
 
 #if cGAB_LOG_GC
-    __gab_gciref(gab, value, func, line);
+    __gab_iref(gab, value, func, line);
 #else
     gab_iref(gab, value);
 #endif
@@ -272,7 +272,7 @@ void gab_niref(struct gab_triple gab, size_t stride, size_t len,
 }
 
 #if cGAB_LOG_GC
-void __gab_ngcdref(struct gab_triple gab, size_t stride, size_t len,
+void __gab_ndref(struct gab_triple gab, size_t stride, size_t len,
                    gab_value values[len], const char *func, int line) {
 #else
 void gab_ndref(struct gab_triple gab, size_t stride, size_t len,
@@ -285,7 +285,7 @@ void gab_ndref(struct gab_triple gab, size_t stride, size_t len,
     gab_value value = values[i * stride];
 
 #if cGAB_LOG_GC
-    __gab_gcdref(gab, value, func, line);
+    __gab_dref(gab, value, func, line);
 #else
     gab_dref(gab, value);
 #endif
@@ -295,7 +295,7 @@ void gab_ndref(struct gab_triple gab, size_t stride, size_t len,
 }
 
 #if cGAB_LOG_GC
-gab_value __gab_gciref(struct gab_triple gab, gab_value value, const char *func,
+gab_value __gab_iref(struct gab_triple gab, gab_value value, const char *func,
                        int32_t line) {
 #else
 gab_value gab_iref(struct gab_triple gab, gab_value value) {
@@ -325,7 +325,7 @@ gab_value gab_iref(struct gab_triple gab, gab_value value) {
 }
 
 #if cGAB_LOG_GC
-gab_value __gab_gcdref(struct gab_triple gab, gab_value value, const char *func,
+gab_value __gab_dref(struct gab_triple gab, gab_value value, const char *func,
                        int32_t line) {
 #else
 gab_value gab_dref(struct gab_triple gab, gab_value value) {
@@ -347,9 +347,9 @@ gab_value gab_dref(struct gab_triple gab, gab_value value) {
 
 #if cGAB_LOG_GC
   if (GAB_OBJ_IS_NEW(obj)) {
-    printf("NEWDEC\t%p\n", obj);
+    printf("NEWDEC\t%p\t%d\t%s:%i\n", obj, obj->references, func, line);
   } else {
-    printf("DEC\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+    printf("DEC\t%V\t%p\t%d\t%s:%i\n", __gab_obj(obj), obj, obj->references, func, line);
   }
 #endif
 
@@ -444,7 +444,7 @@ static inline void process_decrements(struct gab_triple gab) {
   while (gab.gc->decrements.len) {
     struct gab_obj *o = v_gab_obj_pop(&gab.gc->decrements);
 #if cGAB_LOG_GC
-    printf("PROCDEC\t%p\n", o);
+    printf("PROCDEC\t%V\t%p\t%d\n", __gab_obj(o), o, o->references);
 #endif
     dec_obj_ref(gab, o);
   }

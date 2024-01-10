@@ -295,8 +295,12 @@ typedef void (*gab_boxvisit_f)(struct gab_triple gab, gab_gcvisit_f visitor,
  * @brief This struct is the first member of all heap-allocated objects.
  */
 struct gab_obj {
-  uint8_t references;
+  int8_t references;
+#if cGAB_LOG_GC
+  uint16_t flags;
+#else
   uint8_t flags;
+#endif
   enum gab_kind kind;
 };
 
@@ -654,14 +658,14 @@ a_gab_value *gab_ptypemismatch(struct gab_triple gab, gab_value found,
 
 #if cGAB_LOG_GC
 
-#define gab_gciref(gab, val) (__gab_gciref(gab, val, __FUNCTION__, __LINE__))
+#define gab_iref(gab, val) (__gab_iref(gab, val, __FUNCTION__, __LINE__))
 
-gab_value __gab_gciref(struct gab_triple gab, gab_value val, const char *file,
+gab_value __gab_iref(struct gab_triple gab, gab_value val, const char *file,
                        int line);
 
-#define gab_gcdref(gab, val) (__gab_gcdref(gab, val, __FUNCTION__, __LINE__))
+#define gab_dref(gab, val) (__gab_dref(gab, val, __FUNCTION__, __LINE__))
 
-gab_value __gab_gcdref(struct gab_triple gab, gab_value val, const char *file,
+gab_value __gab_dref(struct gab_triple gab, gab_value val, const char *file,
                        int line);
 
 /**
@@ -670,10 +674,10 @@ gab_value __gab_gcdref(struct gab_triple gab, gab_value val, const char *file,
  * @param vm The vm.
  * @param value The value.
  */
-void __gab_ngciref(struct gab_triple gab, size_t stride, size_t len,
+void __gab_niref(struct gab_triple gab, size_t stride, size_t len,
                    gab_value values[len], const char *file, int line);
-#define gab_ngciref(gab, stride, len, values)                                  \
-  (__gab_ngciref(gab, stride, len, values, __FUNCTION__, __LINE__))
+#define gab_niref(gab, stride, len, values)                                  \
+  (__gab_niref(gab, stride, len, values, __FUNCTION__, __LINE__))
 
 /**
  * # Decrement the reference count of the value(s)
@@ -681,10 +685,10 @@ void __gab_ngciref(struct gab_triple gab, size_t stride, size_t len,
  * @param vm The vm.
  * @param value The value.
  */
-void __gab_ngcdref(struct gab_triple gab, size_t stride, size_t len,
+void __gab_ndref(struct gab_triple gab, size_t stride, size_t len,
                    gab_value values[len], const char *file, int line);
-#define gab_ngcdref(gab, stride, len, values)                                  \
-  (__gab_ngcdref(gab, stride, len, values, __FUNCTION__, __LINE__))
+#define gab_ndref(gab, stride, len, values)                                  \
+  (__gab_ndref(gab, stride, len, values, __FUNCTION__, __LINE__))
 
 #else
 

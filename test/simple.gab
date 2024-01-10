@@ -1,3 +1,20 @@
-:use .records.specs
+def b = { c, d, e }
 
-:spec .Record :spec.messages
+a = do
+  'this is a test' :print
+  b:c = b:d
+  b:d = { e = b:e }
+  b:e = do; .pass end
+end
+
+i = 0
+
+loop
+  a()
+  a()
+  a()
+  a()
+  a()
+  a()
+  i = i + 1
+until i == 1000 end

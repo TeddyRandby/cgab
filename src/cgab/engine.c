@@ -207,7 +207,6 @@ void gab_destroy(struct gab_triple gab) {
   for (uint64_t i = 0; i < gab.eg->modules.cap; i++) {
     if (d_gab_modules_iexists(&gab.eg->modules, i)) {
       a_gab_value *module = d_gab_modules_ival(&gab.eg->modules, i);
-      gab_ndref(gab, 1, module->len, module->data);
       free(module);
     }
   }
