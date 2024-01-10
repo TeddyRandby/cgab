@@ -2,7 +2,7 @@
 :use .records
 
 def ()[.Message](r, ..args)
-  r:(self)(args:splat)
+  r:(self)(..args)
 end
 
 def apply[.Block](..stream)
@@ -18,16 +18,16 @@ def for[](msg, ..p, cb)
   ..args, s = self:(msg)(..p)
 
   s:is? .Suspense and loop
-      cb(args:splat)            
+      cb(..args)            
       ..args, s = s()
   until not s:is? .Suspense end
 end
 
 def flatmap[](msg, ..p, cb)
-  ..args, s = self:(msg)(p:splat)
+  ..args, s = self:(msg)(..p)
 
   s:is? .Suspense and loop
-      ..res = cb(args:splat)
+      ..res = cb(..args)
 
       i, done = 0, res:len
       loop
@@ -41,19 +41,19 @@ end
 
 
 def map[](msg, ..p, cb)
-  ..args, s = self:(msg)(p:splat)
+  ..args, s = self:(msg)(..p)
 
   s:is? .Suspense and loop
-      yield cb(args:splat)
+      yield cb(..args)
       ..args, s = s()
   until not s:is? .Suspense end
 end
 
 def unwrap[](msg, ..p, cb)
-  x, ..args, s = self:(msg)(p:splat)
+  x, ..args, s = self:(msg)(..p)
 
   s:is? .Suspense then
-    cb(x) and yield args:splat
+    cb(x) and yield ..args
 
     loop
 
@@ -62,48 +62,48 @@ def unwrap[](msg, ..p, cb)
         s:is? .Suspense or return
       until cb(x) end
 
-      yield args:splat
+      yield ..args
     until not s:is? .Suspense end 
   end
 end
 
 def filter[](msg, ..p, cb)
-  ..args, s = self:(msg)(p:splat)
+  ..args, s = self:(msg)(..p)
 
   s:is? .Suspense then
-    cb(args:splat) and yield args:splat
+    cb(..args) and yield ..args
 
     loop
 
       loop
         ..args, s = s()
         s:is? .Suspense or return
-      until cb(args:splat) end
+      until cb(..args) end
 
-      yield args:splat
+      yield ..args
     until not s:is? .Suspense end 
   end
 end
 
 def take[](msg, ..p, n)
   i, store = 0, :list.new
-  ..args, s = self:(msg)(p:splat)
+  ..args, s = self:(msg)(..p)
 
   s:is? .Suspense and loop
-      store:push!(args:splat)
+      store:push!(..args)
       ..args, s = s()
       i = i + 1
   until i == n or not s:is? .Suspense end
 
-  store:splat
+  ..store
 end
 
 def first[](msg, ..p, cb)
-  ..args, s = self:(msg)(p:splat)
+  ..args, s = self:(msg)(..p)
 
   s:is? .Suspense and loop
-      res, ..vals = cb(args:splat)
-      res == .some and return res, vals:splat
+      res, ..vals = cb(..args)
+      res == .some and return res, ..vals
 
       ..args, s = s()
   until not s:is? .Suspense end
@@ -112,7 +112,7 @@ def first[](msg, ..p, cb)
 end
 
 def join[](msg, ..p, sep, cb)
-  arg, .._, s = self:(msg)(p:splat)
+  arg, .._, s = self:(msg)(..p)
 
   s:is? .Suspense or return arg
 
@@ -128,10 +128,10 @@ def join[](msg, ..p, sep, cb)
 end
 
 def fold[](msg, ..p, init, cb)
-  acc, ..args, s = init, self:(msg)(p:splat)
+  acc, ..args, s = init, self:(msg)(..p)
 
   s:is? .Suspense and loop
-      acc = cb(acc, args:splat)            
+      acc = cb(acc, ..args)            
       ..args, s = s()
   until not s:is? .Suspense end
 
@@ -141,8 +141,7 @@ end
 def partition[](msg, ..p, n)
   n > 1 or return
 
-  ..args, s = self:(msg)(p:splat)
-  acc, i   = :tuple.new(n), 0
+  acc, i, ..args, s = :tuple.new(n), 0, self:(msg)(..p)
 
   s:is? .Suspense and loop
     loop
@@ -156,7 +155,7 @@ def partition[](msg, ..p, n)
       i = i + 1
     until i == n or not s:is? .Suspense end
 
-    i == n and yield acc:splat
+    i == n and yield ..acc
     i = 0
   until not s:is? .Suspense end
 

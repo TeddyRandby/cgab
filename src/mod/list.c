@@ -267,7 +267,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "list.set", gab_lib_set),
       },
       {
-          "splat",
+          mGAB_SPLAT,
           type,
           gab_snative(gab, "list.splat", gab_lib_splat),
       },

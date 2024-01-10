@@ -1,12 +1,6 @@
 #include "list.h"
 #include "map.h"
 
-a_gab_value *gab_lib_splat(struct gab_triple gab, size_t argc,
-                           gab_value argv[static argc]) {
-  gab_nvmpush(gab.vm, gab_reclen(argv[0]), gab_recdata(argv[0]));
-  return NULL;
-}
-
 #define MIN(a, b) (a < b ? a : b)
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (a < 0 ? 0 : MIN(a, b))
@@ -261,11 +255,6 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "slice",
           gab_type(gab.eg, kGAB_RECORD),
           gab_snative(gab, "slice", gab_lib_slice),
-      },
-      {
-          "splat",
-          gab_type(gab.eg, kGAB_RECORD),
-          gab_snative(gab, "splat", gab_lib_splat),
       },
   };
 
