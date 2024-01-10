@@ -1,6 +1,12 @@
 #ifndef GAB_COMMON_H
 #define GAB_COMMON_H
 
+// Use __builtin_expect to aid the compiler
+// in choosing hot/cold code paths in the interpreter.
+#ifndef cGAB_LIKELY
+#define cGAB_LIKELY
+#endif
+
 // Collect as frequently as possible (on every RC push)
 #ifndef cGAB_DEBUG_GC
 #define cGAB_DEBUG_GC 0

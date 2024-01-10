@@ -14,18 +14,19 @@
 #include <string.h>
 
 #define OP_HANDLER_ARGS                                                        \
-  struct gab_triple gab, gab_value *fb, gab_value *sp, uint8_t *ip
+  struct gab_triple gab, gab_value *kb, gab_value *fb, gab_value *sp,          \
+      uint8_t *ip
 
 typedef a_gab_value *(*handler)(OP_HANDLER_ARGS);
 
 // Forward declare all our opcode handlers
-#define OP_CODE(name) a_gab_value *op_##name##_handler(OP_HANDLER_ARGS);
+#define OP_CODE(name) a_gab_value *OP_##name##_HANDLER(OP_HANDLER_ARGS);
 #include "bytecode.h"
 #undef OP_CODE
 
 // Plop them all in an array
 static handler handlers[] = {
-#define OP_CODE(name) op_##name##_handler,
+#define OP_CODE(name) OP_##name##_HANDLER,
 #include "bytecode.h"
 #undef OP_CODE
 };
@@ -36,14 +37,18 @@ static handler handlers[] = {
 #define LOG(op)
 #endif
 
+#define ATTRIBUTES [[gnu::hot, gnu::sysv_abi, gnu::flatten]]
+
 #define CASE_CODE(name)                                                        \
-  [[gnu::hot, gnu::sysv_abi, gnu::flatten]] a_gab_value *op_##name##_handler(  \
-      OP_HANDLER_ARGS)
+  ATTRIBUTES a_gab_value *OP_##name##_HANDLER(OP_HANDLER_ARGS)
+
+#define DISPATCH_ARGS() GAB(), KB(), FB(), SP(), IP()
+
 #define DISPATCH(op)                                                           \
   ({                                                                           \
     uint8_t o = (op);                                                          \
     LOG(o)                                                                     \
-    return handlers[o](GAB(), SLOTS(), TOP(), IP());                           \
+    return handlers[o](DISPATCH_ARGS());                                       \
   })
 
 #define NEXT() DISPATCH(*IP()++);
@@ -63,38 +68,39 @@ static handler handlers[] = {
 #define BLOCK() (FRAME()->b)
 #define BLOCK_PROTO() (GAB_VAL_TO_PROTOTYPE(BLOCK()->p))
 #define IP() (ip)
-#define TOP() (sp)
-#define VAR() (*TOP())
-#define SLOTS() (fb)
-#define LOCAL(i) (SLOTS()[i])
+#define SP() (sp)
+#define VAR() (*SP())
+#define FB() (fb)
+#define KB() (kb)
+#define LOCAL(i) (FB()[i])
 #define UPVALUE(i) (FRAME()->b->upvalues[i])
-#define MOD_CONSTANT(k) (v_gab_value_val_at(&BLOCK_PROTO()->src->constants, k))
+#define MOD_CONSTANT(k) (kb[k])
 
 #if cGAB_DEBUG_VM
 #define PUSH(value)                                                            \
   ({                                                                           \
-    if (TOP() > (SLOTS() + BLOCK_PROTO()->as.block.nslots + 1)) {              \
+    if (SP() > (FB() + BLOCK_PROTO()->as.block.nslots + 1)) {                  \
       fprintf(stderr,                                                          \
               "Stack exceeded frame "                                          \
               "(%d). %lu passed\n",                                            \
               BLOCK_PROTO()->as.block.nslots,                                  \
-              TOP() - SLOTS() - BLOCK_PROTO()->as.block.nslots);               \
+              SP() - FB() - BLOCK_PROTO()->as.block.nslots);                   \
       gab_fvminspect(stdout, VM(), 0);                                         \
       exit(1);                                                                 \
     }                                                                          \
-    *TOP()++ = value;                                                          \
+    *SP()++ = value;                                                           \
   })
 
 #else
-#define PUSH(value) (*TOP()++ = value)
+#define PUSH(value) (*SP()++ = value)
 #endif
-#define POP() (*(--TOP()))
-#define DROP() (TOP()--)
-#define POP_N(n) (TOP() -= (n))
-#define DROP_N(n) (TOP() -= (n))
-#define PEEK() (*(TOP() - 1))
-#define PEEK2() (*(TOP() - 2))
-#define PEEK_N(n) (*(TOP() - (n)))
+#define POP() (*(--SP()))
+#define DROP() (SP()--)
+#define POP_N(n) (SP() -= (n))
+#define DROP_N(n) (SP() -= (n))
+#define PEEK() (*(SP() - 1))
+#define PEEK2() (*(SP() - 2))
+#define PEEK_N(n) (*(SP() - (n)))
 
 #define WRITE_BYTE(dist, n) (*(IP() - dist) = (n))
 
@@ -137,7 +143,7 @@ static handler handlers[] = {
 
 #define STORE_FRAME()                                                          \
   ({                                                                           \
-    VM()->sp = TOP();                                                          \
+    VM()->sp = SP();                                                           \
     VM()->fp->ip = IP();                                                       \
   })
 
@@ -146,23 +152,24 @@ static handler handlers[] = {
     VM()->fp++;                                                                \
     VM()->fp->m = m;                                                           \
     VM()->fp->b = NULL;                                                        \
-    VM()->fp->slots = TOP() - have;                                            \
+    VM()->fp->slots = SP() - have;                                             \
   })
 
 #define DROP_ERROR_FRAME() ({ VM()->fp--; })
 
 #define STORE_PRIMITIVE_ERROR_FRAME(m, have)                                   \
   ({                                                                           \
-    VM()->sp = TOP();                                                          \
+    VM()->sp = SP();                                                           \
     VM()->fp->ip = IP();                                                       \
     STORE_ERROR_FRAME(m, have);                                                \
   })
 
 #define LOAD_FRAME()                                                           \
   ({                                                                           \
-    TOP() = VM()->sp;                                                          \
-    SLOTS() = VM()->fp->slots;                                                 \
+    SP() = VM()->sp;                                                           \
+    FB() = VM()->fp->slots;                                                    \
     IP() = VM()->fp->ip;                                                       \
+    KB() = BLOCK_PROTO()->src->constants.data;                                 \
   })
 
 #define SEND_CACHE_DIST 29
@@ -350,7 +357,7 @@ static inline uint64_t trim_values(gab_value *from, gab_value *to,
                                    uint64_t have, uint8_t want) {
   uint64_t nulls = 0;
 
-  if ((have != want) && (want != VAR_EXP)) {
+  if (__gab_unlikely(((have != want) && (want != VAR_EXP)))) {
     if (have > want)
       have = want;
     else
@@ -493,7 +500,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   gab_vmcreate(VM(), args.len, args.argv);
 
   uint8_t *ip = NULL;
-  gab_value *sp, *fb = NULL;
+  gab_value *sp = NULL, *kb = NULL, *fb = NULL;
 
   *VM()->sp++ = args.main;
   for (uint8_t i = 0; i < args.len; i++)
@@ -519,7 +526,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   LOAD_FRAME();
 
   uint8_t op = *IP()++;
-  a_gab_value *res = handlers[op](GAB(), SLOTS(), TOP(), IP());
+  a_gab_value *res = handlers[op](GAB(), KB(), FB(), SP(), IP());
   return res;
 }
 
@@ -742,7 +749,7 @@ CASE_CODE(SEND_DYN) {
   switch (gab_valkind(spec)) {
   case kGAB_BLOCK: {
     // Shift our args down and forget about the message being called
-    TOP() = trim_return(TOP() - have, TOP() - (have + 1), have, have);
+    SP() = trim_return(SP() - have, SP() - (have + 1), have, have);
 
     struct gab_obj_block *b = GAB_VAL_TO_BLOCK(spec);
 
@@ -757,7 +764,7 @@ CASE_CODE(SEND_DYN) {
   }
   case kGAB_NATIVE: {
     // Shift our args down and forget about the message being called
-    TOP() = trim_return(TOP() - have, TOP() - (have + 1), have, have);
+    SP() = trim_return(SP() - have, SP() - (have + 1), have, have);
 
     struct gab_obj_native *n = GAB_VAL_TO_NATIVE(spec);
 
@@ -789,7 +796,7 @@ CASE_CODE(SEND_DYN) {
     IP() -= SEND_CACHE_DIST - 1;
     want = op >= OP_SEND_PRIMITIVE_CALL_NATIVE ? VAR_EXP : 1;
     // Shift our args down and forget about the message being called
-    TOP() = trim_return(TOP() - have, TOP() - (have + 1), have, want);
+    SP() = trim_return(SP() - have, SP() - (have + 1), have, want);
 
     DISPATCH(op);
   }
@@ -1020,7 +1027,7 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
 
   DROP_N(have + 1);
 
-  TOP() = trim_return(rec->data, TOP(), rec->len, want);
+  SP() = trim_return(rec->data, SP(), rec->len, want);
 
   NEXT();
 }
@@ -1076,28 +1083,26 @@ CASE_CODE(YIELD) {
   gab_value proto = READ_CONSTANT;
   uint8_t have = compute_arity(VAR(), READ_BYTE);
 
-  uint64_t frame_len = TOP() - SLOTS() - have;
+  uint64_t frame_len = SP() - FB() - have;
 
   STORE_FRAME();
 
   gab_value sus =
-      gab_suspense(GAB(), __gab_obj(BLOCK()), proto, frame_len, SLOTS());
+      gab_suspense(GAB(), __gab_obj(BLOCK()), proto, frame_len, FB());
 
   PUSH(sus);
 
   have++;
 
-  gab_value *from = TOP() - have;
+  gab_value *from = SP() - have;
   gab_value *to = FRAME()->slots;
 
   VM()->sp = trim_return(from, to, have, FRAME()->want);
 
-  if (__gab_unlikely(VM()->fp - VM()->fb == 1)) {
-    VAR() = have;
-    return return_ok(GAB(), SLOTS(), TOP(), IP());
-  }
+  if (__gab_unlikely(VM()->fp - VM()->fb == 1))
+    return return_ok(DISPATCH_ARGS());
 
-  VM()->fp = FRAME() - 1;
+  VM()->fp--;
 
   LOAD_FRAME();
 
@@ -1109,17 +1114,15 @@ CASE_CODE(YIELD) {
 CASE_CODE(RETURN) {
   uint8_t have = compute_arity(VAR(), READ_BYTE);
 
-  gab_value *from = TOP() - have;
+  gab_value *from = SP() - have;
   gab_value *to = FRAME()->slots;
 
   VM()->sp = trim_return(from, to, have, FRAME()->want);
 
-  if (__gab_unlikely(VM()->fp - VM()->fb == 1)) {
-    VAR() = have;
-    return return_ok(GAB(), SLOTS(), TOP(), IP());
-  }
+  if (__gab_unlikely(VM()->fp - VM()->fb == 1))
+    return return_ok(DISPATCH_ARGS());
 
-  VM()->fp = FRAME() - 1;
+  VM()->fp--;
 
   LOAD_FRAME();
 
@@ -1130,6 +1133,7 @@ CASE_CODE(NOP) { NEXT(); }
 
 CASE_CODE(CONSTANT) {
   PUSH(READ_CONSTANT);
+
   NEXT();
 }
 
@@ -1138,7 +1142,7 @@ CASE_CODE(SHIFT) {
 
   gab_value tmp = PEEK();
 
-  memmove(TOP() - (n - 1), TOP() - n, (n - 1) * sizeof(gab_value));
+  memmove(SP() - (n - 1), SP() - n, (n - 1) * sizeof(gab_value));
 
   PEEK_N(n) = tmp;
 
@@ -1147,11 +1151,13 @@ CASE_CODE(SHIFT) {
 
 CASE_CODE(POP) {
   DROP();
+
   NEXT();
 }
 
 CASE_CODE(POP_N) {
   DROP_N(READ_BYTE);
+
   NEXT();
 }
 
@@ -1385,7 +1391,7 @@ CASE_CODE(PACK) {
 
   uint64_t len = have - want;
 
-  gab_value *ap = TOP() - above;
+  gab_value *ap = SP() - above;
 
   STORE_FRAME();
 
@@ -1403,11 +1409,11 @@ CASE_CODE(PACK) {
 
   /*
    * When packing at the entrypoint of a function
-   * It is possible that we pack TOP() to actually be lower than the
-   * number of locals the function is expected to have. Move TOP()
+   * It is possible that we pack SP() to actually be lower than the
+   * number of locals the function is expected to have. Move SP()
    * to past the locals section in this case.
    */
-  while (TOP() - SLOTS() < BLOCK_PROTO()->as.block.nlocals)
+  while (SP() - FB() < BLOCK_PROTO()->as.block.nlocals)
     PUSH(gab_nil);
 
   VAR() = want + 1;
@@ -1420,9 +1426,9 @@ CASE_CODE(RECORD) {
 
   gab_gclock(gab.gc);
 
-  gab_value shape = gab_shape(GAB(), 2, len, TOP() - len * 2);
+  gab_value shape = gab_shape(GAB(), 2, len, SP() - len * 2);
 
-  gab_value rec = gab_recordof(GAB(), shape, 2, TOP() + 1 - (len * 2));
+  gab_value rec = gab_recordof(GAB(), shape, 2, SP() + 1 - (len * 2));
 
   DROP_N(len * 2);
 
@@ -1442,7 +1448,7 @@ CASE_CODE(TUPLE) {
 
   gab_value shape = gab_nshape(GAB(), len);
 
-  gab_value rec = gab_recordof(GAB(), shape, 1, TOP() - len);
+  gab_value rec = gab_recordof(GAB(), shape, 1, SP() - len);
 
   DROP_N(len);
 

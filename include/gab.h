@@ -7,13 +7,19 @@
 #ifndef GAB_H
 #define GAB_H
 
+#include <stdint.h>
 #include <stdio.h>
 
 #include "core.h"
 #include "types.h"
 
+#ifdef cGAB_LIKELY
 #define __gab_likely(x) (__builtin_expect(!!(x), 1))
 #define __gab_unlikely(x) (__builtin_expect(!!(x), 0))
+#else
+#define __gab_likely(x) (x)
+#define __gab_unlikely(x) (x)
+#endif
 
 /**
  * \file
@@ -289,8 +295,8 @@ typedef void (*gab_boxvisit_f)(struct gab_triple gab, gab_gcvisit_f visitor,
  * @brief This struct is the first member of all heap-allocated objects.
  */
 struct gab_obj {
-  int64_t references;
-  uint16_t flags;
+  uint8_t references;
+  uint8_t flags;
   enum gab_kind kind;
 };
 

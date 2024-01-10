@@ -27,8 +27,17 @@ static const char *gab_token_names[] = {
 #define NAME gab_obj
 #include "vector.h"
 
+#define NAME gab_obj
+#define K struct gab_obj *
+#define V size_t
+#define HASH(a) ((intptr_t)a)
+#define EQUAL(a, b) (a == b)
+#define DEF_V (UINT8_MAX)
+#include "dict.h"
+
 struct gab_gc {
   v_gab_obj decrements, increments, roots;
+  d_gab_obj overflow_rc;
   int locked;
 };
 
@@ -92,5 +101,6 @@ struct gab_err_argt {
   size_t tok;
 };
 
-void gab_fvpanic(struct gab_triple gab, FILE* stream, va_list vastruct, struct gab_err_argt args);
+void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list vastruct,
+                 struct gab_err_argt args);
 #endif

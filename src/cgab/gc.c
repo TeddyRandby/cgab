@@ -1,7 +1,36 @@
 #include "core.h"
 #include "engine.h"
 #include "gab.h"
+#include <stdint.h>
 #include <stdio.h>
+
+static inline size_t do_increment(struct gab_gc* gc, struct gab_obj *obj) {
+  if (__gab_unlikely(obj->references == UINT8_MAX)) {
+    size_t rc = d_gab_obj_read(&gc->overflow_rc, obj);
+
+    d_gab_obj_insert(&gc->overflow_rc, obj, rc + 1);
+
+    return rc + 1;
+  }
+
+  return obj->references++;
+}
+
+static inline size_t do_decrement(struct gab_gc* gc, struct gab_obj *obj) {
+  if (__gab_unlikely(obj->references == UINT8_MAX)) {
+    size_t rc = d_gab_obj_read(&gc->overflow_rc, obj);
+
+    if (__gab_unlikely(rc == UINT8_MAX)) {
+      d_gab_obj_remove(&gc->overflow_rc, obj);
+      return obj->references--;
+    }
+
+    d_gab_obj_insert(&gc->overflow_rc, obj, rc - 1);
+    return rc - 1;
+  }
+
+  return obj->references--;
+}
 
 void queue_decrement(struct gab_triple gab, struct gab_obj *obj) {
 #if cGAB_LOG_GC
@@ -184,7 +213,7 @@ static inline void dec_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
   printf("DEC\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references - 1);
 #endif
 
-  obj->references--;
+  do_decrement(gab.gc, obj);
 
   queue_root(gab, obj);
 
@@ -205,7 +234,7 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
   printf("INC\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references + 1);
 #endif
 
-  obj->references++;
+  do_increment(gab.gc, obj);
 
   if (!GAB_OBJ_IS_GREEN(obj))
     GAB_OBJ_BLACK(obj);
@@ -337,13 +366,15 @@ void gab_gccreate(struct gab_gc *gc) {
   v_gab_obj_create(&gc->decrements, cGAB_GC_DEC_BUFF_MAX);
   v_gab_obj_create(&gc->increments, cGAB_GC_MOD_BUFF_MAX);
   v_gab_obj_create(&gc->roots, cGAB_GC_MOD_BUFF_MAX);
-  gc->locked = false;
+  d_gab_obj_create(&gc->overflow_rc, 8);
+  gc->locked = 0;
 };
 
 void gab_gcdestroy(struct gab_gc *gc) {
   v_gab_obj_destroy(&gc->increments);
   v_gab_obj_destroy(&gc->decrements);
   v_gab_obj_destroy(&gc->roots);
+  d_gab_obj_destroy(&gc->overflow_rc);
 }
 
 static inline void increment_reachable(struct gab_triple gab) {
@@ -425,7 +456,7 @@ static inline void mark_gray(struct gab_triple gab, struct gab_obj *obj);
 
 static inline void dec_and_mark_gray(struct gab_triple gab,
                                      struct gab_obj *child) {
-  child->references -= 1;
+  do_decrement(gab.gc, child);
   mark_gray(gab, child);
 
 #if cGAB_LOG_GC
@@ -503,7 +534,8 @@ static inline void inc_and_scan_black(struct gab_triple gab,
   }
 #endif
 
-  child->references++;
+  do_increment(gab.gc, child);
+
   if (!GAB_OBJ_IS_BLACK(child))
     scan_root_black(gab, child);
 
