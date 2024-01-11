@@ -229,14 +229,14 @@ static inline uint64_t hash_keys(uint64_t seed, uint64_t len, uint64_t stride,
 };
 
 gab_value gab_shorstr(size_t len, const char data[static len]) {
-  assert(len <= 4);
+  assert(len <= 5);
 
   gab_value v = 0;
-  v |= (kGAB_STRING | __GAB_QNAN | (((uint64_t)4 - len) << 40));
+  v |= (__GAB_QNAN | (uint64_t)kGAB_STRING << __GAB_TAGOFFSET |
+        (((uint64_t)5 - len) << 40));
 
   for (size_t i = 0; i < len; i++) {
-    size_t offset = (1 + i);
-    v |= (size_t)(0xff & data[i]) << (offset * 8);
+    v |= (size_t)(0xff & data[i]) << (i * 8);
   }
 
   return v;
@@ -249,21 +249,20 @@ gab_value gab_shortstrcat(gab_value _a, gab_value _b) {
   size_t alen = gab_strlen(_a);
   size_t blen = gab_strlen(_b);
 
-  assert(alen + blen <= 4);
+  assert(alen + blen <= 5);
 
   uint8_t len = alen + blen;
 
   gab_value v = 0;
-  v |= (kGAB_STRING | __GAB_QNAN | (((uint64_t)4 - len) << 40));
+  v |= (__GAB_QNAN | (uint64_t)kGAB_STRING << __GAB_TAGOFFSET |
+        (((uint64_t)5 - len) << 40));
 
   for (size_t i = 0; i < alen; i++) {
-    size_t offset = (1 + i);
-    v |= (size_t)(0xff & gab_strdata(&_a)[i]) << (offset * 8);
+    v |= (size_t)(0xff & gab_strdata(&_a)[i]) << (i * 8);
   }
 
   for (size_t i = 0; i < blen; i++) {
-    size_t offset = (1 + i + alen);
-    v |= (size_t)(0xff & gab_strdata(&_b)[i]) << (offset * 8);
+    v |= (size_t)(0xff & gab_strdata(&_b)[i]) << ((i + alen) * 8);
   }
 
   return v;
@@ -271,7 +270,7 @@ gab_value gab_shortstrcat(gab_value _a, gab_value _b) {
 
 gab_value gab_nstring(struct gab_triple gab, size_t len,
                       const char data[static len]) {
-  if (len <= 4)
+  if (len <= 5)
     return gab_shorstr(len, data);
 
   s_char str = s_char_create(data, len);
@@ -316,7 +315,7 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
 
   size_t len = alen + blen;
 
-  if (len <= 4)
+  if (len <= 5)
     return gab_shortstrcat(_a, _b);
 
   a_char *buff = a_char_empty(len + 1);

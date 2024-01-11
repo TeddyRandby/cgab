@@ -53,8 +53,8 @@
 
  Quiet NaNs are indicated by setting the highest mantissa bit:
 
-                Highest mantissa bit
-                |
+                  Highest mantissa bit
+                  |
  [-][....NaN....][1---------------------------------------------------]
 
  This leaves the rest of the following bits to play with.
@@ -71,11 +71,55 @@
 
  Immediate values store a tag in the lowest three bits.
 
- Some immediates (like primitive messages, for example) store data.
+ Several of these values don't need any data other than the tag - nil,
+ undefined, true, and false.
 
-                     Immediate data                                    Tag
-                     |                                                 |
- [0][....NaN....][1][------------------------------------------------][---]
+                     Tag
+                     |
+ [0][....NaN....][1][---][------------------------------------------------]
+
+
+ 'Primitives' are message specializtions which are implemented *as an opcode in
+ the vm*. This covers things like '+' on numbers and strings, '()' on blocks,
+ etc.
+
+ The opcode is store in the second-to-lowest byte (after the tag)
+
+                                                        Opcode          Tag
+                                                        |               |
+ [0][....NaN....][1]----------------------------------[--------]------[---]
+
+ Gab also employs a short string optimization. Lots of strings in a gab program
+ are incredibly small, and incredibly common. values like '.some', '.none',
+ '.ok', and even messages like '+' store a small string.
+
+ We need to store the string's length, a null-terminator (for c-compatibility),
+ and the string's data.
+
+ Instead of storing the length of the string, we store the amount of bytes not
+ used. Since there are a total of 4 bytes availble for storing string data, the
+ remaining length is computed as 4 - strlen.
+
+ We do this for a special case - when the string has length 4, the remaining
+ length is 0. In this case, the byte which stores the remaining length *also*
+ serves as the null-terminator for the string.
+
+ There is a bytes worth of wasted space:
+  - 3 higher bits (between the highest mantissa bit, and the length)
+  - 5 lower bits (after the tag and before the data)
+
+  This would be enough to store an extra character, so we could shift our data
+ structure right 3 bits and use all the room. But if we did this, then the data
+ would begin *in the middle of a byte* instead of on an 8-bit boundary. This
+ means that we can't read the string just by pointing a (char*) at the
+ appropriate byte.
+
+                        Remaining Length                       <- Data    Tag
+                         |                                        |       |
+ [0][....NaN....][1]---[--------][--------------------------------]-----[---]
+                       [...0....][...e.......m........o......s....]
+                       [...2....][-----------------...k......o....]
+
 */
 
 typedef uint64_t gab_value;
@@ -107,7 +151,10 @@ enum gab_kind {
 
 #define __GAB_TAGMASK (7)
 
-#define __GAB_VAL_TAG(val) ((enum gab_kind)((val) & __GAB_TAGMASK))
+#define __GAB_TAGOFFSET (47)
+
+#define __GAB_VAL_TAG(val)                                                     \
+  ((enum gab_kind)((val >> __GAB_TAGOFFSET) & __GAB_TAGMASK))
 
 // Sneakily use a union to get around the type system
 static inline double __gab_valtod(gab_value value) {
@@ -139,16 +186,20 @@ static inline gab_value __gab_dtoval(double value) {
 #define gab_valisnew(val) (gab_valiso(val) && GAB_OBJ_IS_NEW(gab_valtoo(val)))
 
 /* The gab value 'nil'*/
-#define gab_nil ((gab_value)(uint64_t)(__GAB_QNAN | kGAB_NIL))
+#define gab_nil                                                                \
+  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_NIL << __GAB_TAGOFFSET))
 
 /* The gab value 'false'*/
-#define gab_false ((gab_value)(uint64_t)(__GAB_QNAN | kGAB_FALSE))
+#define gab_false                                                              \
+  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_FALSE << __GAB_TAGOFFSET))
 
 /* The gab value 'true'*/
-#define gab_true ((gab_value)(uint64_t)(__GAB_QNAN | kGAB_TRUE))
+#define gab_true                                                               \
+  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_TRUE << __GAB_TAGOFFSET))
 
 /* The gab value 'undefined'*/
-#define gab_undefined ((gab_value)(uint64_t)(__GAB_QNAN | kGAB_UNDEFINED))
+#define gab_undefined                                                          \
+  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_UNDEFINED << __GAB_TAGOFFSET))
 
 /* Convert a bool into the corresponding gab value */
 #define gab_bool(val) (val ? gab_true : gab_false)
@@ -158,7 +209,7 @@ static inline gab_value __gab_dtoval(double value) {
 
 /* Create the gab value for a primitive operation */
 #define gab_primitive(op)                                                      \
-  ((gab_value)(kGAB_PRIMITIVE | __GAB_QNAN | ((uint64_t)op << 8)))
+  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_PRIMITIVE << __GAB_TAGOFFSET | (op)))
 
 /* Cast a gab value to a number */
 #define gab_valton(val) (__gab_valtod(val))
@@ -168,7 +219,7 @@ static inline gab_value __gab_dtoval(double value) {
   ((struct gab_obj *)(uintptr_t)((val) & ~(__GAB_SIGN_BIT | __GAB_QNAN)))
 
 /* Cast a gab value to a primitive operation */
-#define gab_valtop(val) ((uint8_t)((val >> 8) & 0xff))
+#define gab_valtop(val) ((uint8_t)((val) & 0xff))
 
 /* Convenience macro for getting arguments in builtins */
 #define gab_arg(i) (i < argc ? argv[i] : gab_nil)
@@ -834,7 +885,7 @@ static inline size_t gab_strlen(gab_value str) {
   if (gab_valiso(str))
     return GAB_VAL_TO_STRING(str)->len;
 
-  return 4 - ((str >> 40) & 0xff);
+  return 5 - ((str >> 40) & 0xff);
 };
 
 /**
@@ -851,7 +902,7 @@ static inline const char *gab_strdata(gab_value *str) {
   if (gab_valiso(*str))
     return GAB_VAL_TO_STRING(*str)->data;
 
-  return ((const char *)str) + 1;
+  return ((const char *)str);
 }
 
 /**
