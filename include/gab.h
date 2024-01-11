@@ -168,7 +168,7 @@ static inline gab_value __gab_dtoval(double value) {
   ((struct gab_obj *)(uintptr_t)((val) & ~(__GAB_SIGN_BIT | __GAB_QNAN)))
 
 /* Cast a gab value to a primitive operation */
-#define gab_valtop(val) ((uint8_t)((val >> 8) & 0xf))
+#define gab_valtop(val) ((uint8_t)((val >> 8) & 0xff))
 
 /* Convenience macro for getting arguments in builtins */
 #define gab_arg(i) (i < argc ? argv[i] : gab_nil)
@@ -740,6 +740,7 @@ void gab_collect(struct gab_triple gab);
 
 void gab_gclock(struct gab_gc *gc);
 void gab_gcunlock(struct gab_gc *gc);
+
 /**
  * # Get the kind of a value.
  * @see enum gab_kind
@@ -823,15 +824,50 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
 gab_value gab_strcat(struct gab_triple gab, gab_value a, gab_value b);
 
 /**
- * # Get the length of a string
+ * Get the length of a string. This is a constant-time operation.
  *
  * @param str The string.
  * @return The length of the string.
  */
 static inline size_t gab_strlen(gab_value str) {
   assert(gab_valkind(str) == kGAB_STRING);
-  return GAB_VAL_TO_STRING(str)->len;
+  if (gab_valiso(str))
+    return GAB_VAL_TO_STRING(str)->len;
+
+  return 4 - ((str >> 40) & 0xff);
 };
+
+/**
+ * @brief Get a pointer to the start of the string.
+ * This accepts a pointer because of short string optimization, where
+ * the gab_value itself *is* the string.
+ *
+ * @param str The string
+ * @return A pointer to the start of the string
+ */
+static inline const char *gab_strdata(gab_value *str) {
+  assert(gab_valkind(*str) == kGAB_STRING);
+
+  if (gab_valiso(*str))
+    return GAB_VAL_TO_STRING(*str)->data;
+
+  return ((const char *)str) + 1;
+}
+
+/**
+ * @brief Get a string's hash. This is a constant-time operation.
+ *
+ * @param str The string
+ * @return The hash
+ */
+static inline size_t gab_strhash(gab_value str) {
+  assert(gab_valkind(str) == kGAB_STRING);
+
+  if (gab_valiso(str))
+    return GAB_VAL_TO_STRING(str)->hash;
+
+  return str;
+}
 
 /**
  * A wrapper for a native c function.
@@ -1777,6 +1813,8 @@ static inline bool gab_valintob(gab_value self) {
   return !(self == gab_false || self == gab_nil);
 }
 
+static inline const char *gab_valintocs(struct gab_triple gab, gab_value value);
+
 /**
  * # Coerce the given value to a gab string.
  *
@@ -1809,8 +1847,7 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
   case kGAB_BLOCK: {
     struct gab_obj_block *o = GAB_VAL_TO_BLOCK(self);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(o->p);
-    struct gab_obj_string *s = GAB_VAL_TO_STRING(p->name);
-    snprintf(buffer, 128, "<Block %s %p>", s->data, o);
+    snprintf(buffer, 128, "<Block %s %p>", gab_valintocs(gab, p->name), o);
     return gab_string(gab, buffer);
   }
   case kGAB_RECORD: {
@@ -1825,38 +1862,33 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
   }
   case kGAB_MESSAGE: {
     struct gab_obj_message *o = GAB_VAL_TO_MESSAGE(self);
-    struct gab_obj_string *s = GAB_VAL_TO_STRING(o->name);
-    snprintf(buffer, 128, "&:%s", s->data);
+    snprintf(buffer, 128, "&:%s", gab_valintocs(gab, o->name));
 
     return gab_string(gab, buffer);
   }
   case kGAB_SPROTOTYPE:
   case kGAB_BPROTOTYPE: {
     struct gab_obj_prototype *o = GAB_VAL_TO_PROTOTYPE(self);
-    struct gab_obj_string *s = GAB_VAL_TO_STRING(o->name);
-    snprintf(buffer, 128, "<Prototype %s>", s->data);
+    snprintf(buffer, 128, "<Prototype %s>", gab_valintocs(gab, o->name));
 
     return gab_string(gab, buffer);
   }
   case kGAB_NATIVE: {
     struct gab_obj_native *o = GAB_VAL_TO_NATIVE(self);
-    struct gab_obj_string *s = GAB_VAL_TO_STRING(o->name);
-    snprintf(buffer, 128, "<Native %s>", s->data);
+    snprintf(buffer, 128, "<Native %s>", gab_valintocs(gab, o->name));
 
     return gab_string(gab, buffer);
   }
   case kGAB_BOX: {
     struct gab_obj_box *o = GAB_VAL_TO_BOX(self);
-    struct gab_obj_string *s = GAB_VAL_TO_STRING(gab_valintos(gab, o->type));
-    snprintf(buffer, 128, "<%s %p>", s->data, o);
+    snprintf(buffer, 128, "<%s %p>", gab_valintocs(gab, o->type), o);
 
     return gab_string(gab, buffer);
   }
   case kGAB_SUSPENSE: {
     struct gab_obj_suspense *o = GAB_VAL_TO_SUSPENSE(self);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(o->p);
-    struct gab_obj_string *s = GAB_VAL_TO_STRING(p->name);
-    snprintf(buffer, 128, "<Suspense %s %p>", s->data, o);
+    snprintf(buffer, 128, "<Suspense %s %p>", gab_valintocs(gab, p->name), o);
 
     return gab_string(gab, buffer);
   }
@@ -1883,8 +1915,8 @@ static inline const char *gab_valintocs(struct gab_triple gab,
     return GAB_VAL_TO_STRING(str)->data;
   }
 
-  static char buffer[8];
-  memcpy(buffer, &str, sizeof(buffer));
+  static char buffer[8]; // hacky
+  memcpy(buffer, gab_strdata(&str), gab_strlen(str) + 1);
 
   return buffer;
 }

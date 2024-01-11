@@ -145,7 +145,9 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
   case (kGAB_MESSAGE): {
     struct gab_obj_message *msg = (struct gab_obj_message *)obj;
     fnc(gab, gab_valtoo(msg->specs));
-    fnc(gab, gab_valtoo(msg->name));
+
+    if (gab_valiso(msg->name))
+      fnc(gab, gab_valtoo(msg->name));
 
     break;
   }

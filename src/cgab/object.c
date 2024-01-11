@@ -1,5 +1,6 @@
 #include "engine.h"
 #include "gab.h"
+#include <stddef.h>
 
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \
   ((struct obj_type *)gab_obj_create(gab, sizeof(struct obj_type), kind))
@@ -100,14 +101,8 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
     return fprintf(stream, "%g", gab_valton(self));
   case kGAB_UNDEFINED:
     return fprintf(stream, "%s", "undefined");
-  case kGAB_STRING: {
-    if (gab_valiso(self)) {
-      struct gab_obj_string *str = GAB_VAL_TO_STRING(self);
-      return fprintf(stream, "%s", str->data);
-    }
-
-    return fprintf(stream, "%s", (const char *)&self);
-  }
+  case kGAB_STRING:
+    return fprintf(stream, "%s", gab_strdata(&self));
   case kGAB_MESSAGE: {
     struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(self);
     return fprintf(stream, "&:") + gab_fvalinspect(stream, msg->name, depth);
@@ -233,23 +228,52 @@ static inline uint64_t hash_keys(uint64_t seed, uint64_t len, uint64_t stride,
   return hash_words(seed, len, words);
 };
 
-gab_value gab_shorstring(size_t len, const char data[static len]) {
-  assert(len <= 6);
+gab_value gab_shorstr(size_t len, const char data[static len]) {
+  assert(len <= 4);
 
   gab_value v = 0;
-  v |= (kGAB_STRING | __GAB_QNAN | ((uint64_t)(6 - len) << 8));
+  v |= (kGAB_STRING | __GAB_QNAN | (((uint64_t)4 - len) << 40));
 
   for (size_t i = 0; i < len; i++) {
-    v |= (data[i] << (i * 8));
+    size_t offset = (1 + i);
+    v |= (size_t)(0xff & data[i]) << (offset * 8);
   }
 
-  v |= ((uint64_t)'\0') << (len * 8);
+  return v;
+}
+
+gab_value gab_shortstrcat(gab_value _a, gab_value _b) {
+  assert(gab_valkind(_a) == kGAB_STRING);
+  assert(gab_valkind(_b) == kGAB_STRING);
+
+  size_t alen = gab_strlen(_a);
+  size_t blen = gab_strlen(_b);
+
+  assert(alen + blen <= 4);
+
+  uint8_t len = alen + blen;
+
+  gab_value v = 0;
+  v |= (kGAB_STRING | __GAB_QNAN | (((uint64_t)4 - len) << 40));
+
+  for (size_t i = 0; i < alen; i++) {
+    size_t offset = (1 + i);
+    v |= (size_t)(0xff & gab_strdata(&_a)[i]) << (offset * 8);
+  }
+
+  for (size_t i = 0; i < blen; i++) {
+    size_t offset = (1 + i + alen);
+    v |= (size_t)(0xff & gab_strdata(&_b)[i]) << (offset * 8);
+  }
 
   return v;
 }
 
 gab_value gab_nstring(struct gab_triple gab, size_t len,
                       const char data[static len]) {
+  if (len <= 4)
+    return gab_shorstr(len, data);
+
   s_char str = s_char_create(data, len);
 
   uint64_t hash = s_char_hash(str, gab.eg->hash_seed);
@@ -281,25 +305,28 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
   assert(gab_valkind(_a) == kGAB_STRING);
   assert(gab_valkind(_b) == kGAB_STRING);
 
-  struct gab_obj_string *a = GAB_VAL_TO_STRING(_a);
-  struct gab_obj_string *b = GAB_VAL_TO_STRING(_b);
-  if (a->len == 0)
+  size_t alen = gab_strlen(_a);
+  size_t blen = gab_strlen(_b);
+
+  if (alen == 0)
     return _b;
 
-  if (b->len == 0)
+  if (blen == 0)
     return _a;
 
-  size_t len = a->len + b->len;
+  size_t len = alen + blen;
 
-  char data[len];
+  if (len <= 4)
+    return gab_shortstrcat(_a, _b);
+
+  a_char *buff = a_char_empty(len + 1);
 
   // Copy the data into the string obj.
-  memcpy(data, a->data, a->len);
-
-  memcpy(data + a->len, b->data, b->len);
+  memcpy(buff->data, gab_strdata(&_a), alen);
+  memcpy(buff->data + alen, gab_strdata(&_b), blen);
 
   // Pre compute the hash
-  s_char ref = s_char_create(data, len);
+  s_char ref = s_char_create(buff->data, len);
   size_t hash = s_char_hash(ref, gab.eg->hash_seed);
 
   /*
@@ -310,10 +337,14 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
   */
   struct gab_obj_string *interned = gab_egstrfind(gab.eg, ref, hash);
 
-  if (interned)
+  if (interned) {
+    a_char_destroy(buff);
     return __gab_obj(interned);
+  }
 
-  return gab_nstring(gab, len, data);
+  gab_value result = gab_nstring(gab, len, buff->data);
+  a_char_destroy(buff);
+  return result;
 };
 
 gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
@@ -351,8 +382,9 @@ gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
 }
 
 gab_value gab_message(struct gab_triple gab, gab_value name) {
-  struct gab_obj_message *interned =
-      gab_egmsgfind(gab.eg, name, GAB_VAL_TO_STRING(name)->hash);
+  size_t hash = gab_strhash(name);
+
+  struct gab_obj_message *interned = gab_egmsgfind(gab.eg, name, hash);
 
   if (interned)
     return __gab_obj(interned);
@@ -362,7 +394,7 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
   struct gab_obj_message *self = GAB_CREATE_OBJ(gab_obj_message, kGAB_MESSAGE);
 
   self->name = name;
-  self->hash = GAB_VAL_TO_STRING(name)->hash;
+  self->hash = hash;
 
   self->specs = gab_etuple(gab, 0);
 
