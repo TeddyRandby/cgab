@@ -1192,21 +1192,25 @@ CASE_CODE(LOGICAL_OR) {
 
 CASE_CODE(PUSH_UNDEFINED) {
   PUSH(gab_undefined);
+
   NEXT();
 }
 
 CASE_CODE(PUSH_NIL) {
   PUSH(gab_nil);
+
   NEXT();
 }
 
 CASE_CODE(PUSH_TRUE) {
   PUSH(gab_bool(true));
+
   NEXT();
 }
 
 CASE_CODE(PUSH_FALSE) {
   PUSH(gab_bool(false));
+
   NEXT();
 }
 
@@ -1235,33 +1239,75 @@ CASE_CODE(TYPE) {
   NEXT();
 }
 
+CASE_CODE(LOAD_UPVALUE) {
+  PUSH(UPVALUE(READ_BYTE));
+
+  NEXT();
+}
+
+CASE_CODE(NLOAD_UPVALUE) {
+  uint8_t n = READ_BYTE;
+
+  while (n--)
+    PUSH(UPVALUE(READ_BYTE));
+
+  NEXT();
+}
+
 CASE_CODE(LOAD_LOCAL) {
   PUSH(LOCAL(READ_BYTE));
+
+  NEXT();
+}
+
+CASE_CODE(NLOAD_LOCAL) {
+  uint8_t n = READ_BYTE;
+
+  while (n--)
+    PUSH(LOCAL(READ_BYTE));
+
   NEXT();
 }
 
 CASE_CODE(STORE_LOCAL) {
   LOCAL(READ_BYTE) = PEEK();
+
   NEXT();
 }
 
-CASE_CODE(POP_STORE_LOCAL) {
+CASE_CODE(NPOPSTORE_STORE_LOCAL) {
+  uint8_t n = READ_BYTE - 1;
+
+  while (n--)
+    LOCAL(READ_BYTE) = POP();
+
+  LOCAL(READ_BYTE) = PEEK();
+
+  NEXT();
+}
+
+CASE_CODE(POPSTORE_LOCAL) {
   LOCAL(READ_BYTE) = POP();
+
   NEXT();
 }
 
-CASE_CODE(LOAD_UPVALUE) {
-  PUSH(UPVALUE(READ_BYTE));
+CASE_CODE(NPOPSTORE_LOCAL) {
+  uint8_t n = READ_BYTE;
+
+  while (n--)
+    LOCAL(READ_BYTE) = POP();
+
   NEXT();
 }
 
-CASE_CODE(POP_JUMP_IF_TRUE) {
+CASE_CODE(POPJUMP_IF_TRUE) {
   uint16_t dist = READ_SHORT;
   ip += dist * gab_valintob(POP());
   NEXT();
 }
 
-CASE_CODE(POP_JUMP_IF_FALSE) {
+CASE_CODE(POPJUMP_IF_FALSE) {
   uint16_t dist = READ_SHORT;
   ip += dist * !gab_valintob(POP());
   NEXT();

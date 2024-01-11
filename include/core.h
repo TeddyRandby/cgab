@@ -4,7 +4,11 @@
 // Use __builtin_expect to aid the compiler
 // in choosing hot/cold code paths in the interpreter.
 #ifndef cGAB_LIKELY
-#define cGAB_LIKELY
+#define cGAB_LIKELY 1
+#endif
+
+#ifndef cGAB_SUPERINSTRUCTIONS
+#define cGAB_SUPERINSTRUCTIONS 1
 #endif
 
 // Collect as frequently as possible (on every RC push)

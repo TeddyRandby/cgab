@@ -13,7 +13,7 @@
 #include "core.h"
 #include "types.h"
 
-#ifdef cGAB_LIKELY
+#if cGAB_LIKELY
 #define __gab_likely(x) (__builtin_expect(!!(x), 1))
 #define __gab_unlikely(x) (__builtin_expect(!!(x), 0))
 #else

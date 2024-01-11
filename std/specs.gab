@@ -262,15 +262,15 @@ end
 ## predicate for a type which implements a set of messages
 def spec.protocol[](protocol)
   def protocol.predicate = :symbol.new 'predicate:protocol:{protocol}'
-  # Return a predicate which returns true if the given value
-  # has all the keys of the record
+# Return a predicate which returns true if the given value
+# has all the keys of the record
   def spec.fits?[?protocol.predicate](value)
     protocol:for(&:keys) do (k)
-      # If message doesn't specify for this value, then the spec doesn't fit
+# If message doesn't specify for this value, then the spec doesn't fit
       m = :message.new(k)
       m:has?(value) or return false, self, k
 
-      # Check for a spec which corresponds to this message in the protocol
+# Check for a spec which corresponds to this message in the protocol
       res, s = registry.spec:at(k)
       
       res == .some and s:spec.fits?(value[k]) else
@@ -303,10 +303,10 @@ def spec.protocol[](protocol)
   protocol.predicate
 end
 
-def spec.tuple[](*specs)
+def spec.tuple[](..specs)
   def tuple.predicate = :symbol.new 'predicate:tuple:{specs}'
 
-  def spec.fits?[?tuple.predicate](*values)
+  def spec.fits?[?tuple.predicate](..values)
     specs :fold(
               &:pairs,
               [ true, tuple.predicate, values, nil ],
@@ -355,7 +355,7 @@ def spec.option[](value)
   )
 end
 
-def spec.or[](*specs)
+def spec.or[](..specs)
   specs:len > 0 or .INVALID_ARGUMENTS:panic
   
   def or.predicate = :symbol.new 'predicate:or:{specs}'
@@ -380,7 +380,7 @@ def spec.or[](*specs)
   return or.predicate
 end
 
-def spec.and[](*specs)
+def spec.and[](..specs)
   specs:len > 0 or .INVALID_ARGUMENTS:panic
 
   def and.predicate = :symbol.new 'predicate:and:{specs}'
@@ -465,10 +465,10 @@ def spec.block[](args, semantics)
   end
 
   def spec.gen[?block.predicate]
-    def block.gen(*input)
+    def block.gen(..input)
       loop
         # Generate an output
-        *output = args:output:spec.gen
+        ..output = args:output:spec.gen
 
         args:output:spec.fits?(output:splat) then
           # If there are no semantics to satisfy, just return this output
@@ -484,10 +484,10 @@ def spec.block[](args, semantics)
 
   def spec.check[?block.predicate](block)
     loop
-      *input  = args:input:spec.gen
+      ..input  = args:input:spec.gen
 
       args:input:spec.fits?(input:splat) then
-        *output = block(input:splat)
+        ..output = block(input:splat)
         
         yield block.predicate(input, output)
       end
@@ -508,9 +508,13 @@ def spec.message[](args, semantics)
 
   def message.predicate = :symbol.new 'predicate:message:{args}:{semantics}'
 
-  registry.messages in
-    :at_or!(args:receiver, :map.new) in
-    :add!(args:message, message.predicate)
+  registry.messages:at_or!(
+                      args:receiver,
+                      :map.new,
+                  ):add!(
+                      args:message,
+                      message.predicate,
+                  )
 
   def spec.fits?[?message.predicate](rec, input, output)
     success, pred, val, path = args:input:spec.fits?(input:splat)
@@ -528,12 +532,12 @@ def spec.message[](args, semantics)
   end
 
   def spec.gen[?message.predicate](receiver)
-    def message.gen(*input)
+    def message.gen(..input)
       args:input:spec.fits?(input:splat) or .INVALID_ARGUMENTS:panic
 
       loop
         # Generate an output
-        *output = args:output:spec.gen
+        ..output = args:output:spec.gen
 
         args:output:spec.fits?(output:splat) then
           # If there are no semantics to satisfy, just return this output
@@ -566,10 +570,10 @@ def spec.message[](args, semantics)
       receiver = args:receiver:spec.gen
 
       args:receiver:spec.fits?(receiver) then
-        *input  = args:input:spec.gen
+        ..input  = args:input:spec.gen
 
         args:input:spec.fits?(input:splat) then
-          *output = receiver:(args:message)(input:splat)
+          ..output = receiver:(args:message)(input:splat)
           
           yield self:spec.fits?(receiver, input, output)
         end
