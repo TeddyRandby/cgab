@@ -74,7 +74,6 @@ static handler handlers[] = {
 #define KB() (kb)
 #define LOCAL(i) (FB()[i])
 #define UPVALUE(i) (FRAME()->b->upvalues[i])
-#define MOD_CONSTANT(k) (kb[k])
 
 #if cGAB_DEBUG_VM
 #define PUSH(value)                                                            \
@@ -105,27 +104,24 @@ static handler handlers[] = {
 #define WRITE_BYTE(dist, n) (*(IP() - dist) = (n))
 
 #define WRITE_INLINEBYTE(n) (*IP()++ = (n))
-#define WRITE_INLINESHORT(n)                                                   \
-  (IP() += 2, IP()[-2] = (n >> 8) & 0xFF, IP()[-1] = n & 0xFF)
-#define WRITE_INLINEQWORD(n) (IP() += 8, *((uint64_t *)(IP() - 8)) = n)
 
 #define SKIP_BYTE (IP()++)
 #define SKIP_SHORT (IP() += 2)
-#define SKIP_QWORD (IP() += 8)
 
 #define READ_BYTE (*IP()++)
 #define READ_SHORT (IP() += 2, (((uint16_t)IP()[-2] << 8) | IP()[-1]))
-#define READ_QWORD (IP() += 8, (uint64_t *)(IP() - 8))
 
-#define READ_CONSTANT (MOD_CONSTANT(READ_SHORT))
+#define READ_CONSTANT (KB()[READ_SHORT])
+#define READ_CACHE (KB() + READ_SHORT)
+#define CACHED_SPECS 0
+#define CACHED_TYPE 1
+#define CACHED_SPEC 2
 
 #define BINARY_PRIMITIVE(value_type, operation_type, operation)                \
   gab_value m = READ_CONSTANT;                                                 \
+  SKIP_SHORT;                                                                  \
   SKIP_BYTE;                                                                   \
   SKIP_BYTE;                                                                   \
-  SKIP_QWORD;                                                                  \
-  SKIP_QWORD;                                                                  \
-  SKIP_QWORD;                                                                  \
   if (__gab_unlikely(!__gab_valisn(PEEK2()))) {                                \
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);                                  \
     IP() -= SEND_CACHE_DIST;                                                   \
@@ -172,7 +168,7 @@ static handler handlers[] = {
     KB() = BLOCK_PROTO()->src->constants.data;                                 \
   })
 
-#define SEND_CACHE_DIST 29
+#define SEND_CACHE_DIST 7
 
 static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
@@ -532,6 +528,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
 CASE_CODE(SEND_ANA) {
   gab_value m = READ_CONSTANT;
+  gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   SKIP_BYTE;
 
@@ -551,9 +548,9 @@ CASE_CODE(SEND_ANA) {
                        ? gab_primitive(OP_SEND_MONO_PROPERTY)
                        : gab_umsgat(m, res.offset);
 
-  WRITE_INLINEQWORD(GAB_VAL_TO_MESSAGE(m)->specs);
-  WRITE_INLINEQWORD(t);
-  WRITE_INLINEQWORD(res.status == sGAB_IMPL_PROPERTY ? res.offset : spec);
+  cache[0] = GAB_VAL_TO_MESSAGE(m)->specs;
+  cache[1] = t;
+  cache[2] = res.status == sGAB_IMPL_PROPERTY ? res.offset : spec;
 
   switch (gab_valkind(spec)) {
   case kGAB_PRIMITIVE:
@@ -577,27 +574,25 @@ CASE_CODE(SEND_ANA) {
 
 CASE_CODE(SEND_MONO_BLOCK) {
   gab_value m = READ_CONSTANT;
+  gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   uint8_t want = READ_BYTE;
-  gab_value cached_specs = *READ_QWORD;
-  gab_value cached_type = *READ_QWORD;
-  gab_value spec = *READ_QWORD;
 
   gab_value r = PEEK_N(have + 1);
 
-  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
+  if (__gab_unlikely(cache[CACHED_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cache[CACHED_TYPE])) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
+  struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(cache[CACHED_SPEC]);
 
   STORE_FRAME();
 
@@ -641,21 +636,19 @@ a_gab_value *return_ok(OP_HANDLER_ARGS) {
 
 CASE_CODE(SEND_MONO_NATIVE) {
   gab_value m = READ_CONSTANT;
+  gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   uint8_t want = READ_BYTE;
-  gab_value cached_specs = *READ_QWORD;
-  gab_value cached_type = *READ_QWORD;
-  gab_value spec = *READ_QWORD;
 
   gab_value r = PEEK_N(have + 1);
 
-  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
+  if (__gab_unlikely(cache[CACHED_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cache[CACHED_TYPE])) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -665,8 +658,8 @@ CASE_CODE(SEND_MONO_NATIVE) {
 
   STORE_ERROR_FRAME(m, have);
 
-  a_gab_value *res =
-      call_native(GAB(), GAB_VAL_TO_NATIVE(spec), have, want, true);
+  a_gab_value *res = call_native(GAB(), GAB_VAL_TO_NATIVE(cache[CACHED_SPEC]),
+                                 have, want, true);
 
   if (__gab_unlikely(res))
     return res;
@@ -680,21 +673,19 @@ CASE_CODE(SEND_MONO_NATIVE) {
 
 CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
   gab_value m = READ_CONSTANT;
+  gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   uint8_t want = READ_BYTE;
-  gab_value cached_specs = *READ_QWORD;
-  gab_value cached_type = *READ_QWORD;
-  SKIP_QWORD;
 
   gab_value r = PEEK_N(have + 1);
 
-  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
+  if (__gab_unlikely(cache[CACHED_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cache[CACHED_TYPE])) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -718,12 +709,8 @@ CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
 }
 
 CASE_CODE(SEND_DYN) {
-  SKIP_SHORT;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   uint8_t want = READ_BYTE;
-  SKIP_QWORD;
-  SKIP_QWORD;
-  SKIP_QWORD;
 
   gab_value r = PEEK_N(have + 2);
   gab_value m = PEEK_N(have + 1);
@@ -807,21 +794,19 @@ CASE_CODE(SEND_DYN) {
 
 CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) {
   gab_value m = READ_CONSTANT;
+  gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   uint8_t want = READ_BYTE;
-  gab_value cached_specs = *READ_QWORD;
-  gab_value cached_type = *READ_QWORD;
-  SKIP_QWORD;
 
   gab_value r = PEEK_N(have + 1);
 
-  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
+  if (__gab_unlikely(cache[CACHED_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cache[CACHED_TYPE])) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -841,21 +826,19 @@ CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) {
 
 CASE_CODE(SEND_PRIMITIVE_CALL_SUSPENSE) {
   gab_value m = READ_CONSTANT;
+  gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   uint8_t want = READ_BYTE;
-  gab_value cached_specs = *READ_QWORD;
-  gab_value cached_type = *READ_QWORD;
-  SKIP_QWORD;
 
   gab_value r = PEEK_N(have + 1);
 
-  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
+  if (__gab_unlikely(cache[CACHED_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cache[CACHED_TYPE])) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -938,11 +921,9 @@ CASE_CODE(SEND_PRIMITIVE_GTE) {
 
 CASE_CODE(SEND_PRIMITIVE_CONCAT) {
   gab_value m = READ_CONSTANT;
+  SKIP_SHORT;
   SKIP_BYTE;
   SKIP_BYTE;
-  SKIP_QWORD;
-  SKIP_QWORD;
-  SKIP_QWORD;
 
   if (__gab_unlikely(gab_valkind(PEEK2()) != kGAB_STRING)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
@@ -971,21 +952,19 @@ CASE_CODE(SEND_PRIMITIVE_CONCAT) {
 
 CASE_CODE(SEND_PRIMITIVE_EQ) {
   gab_value m = READ_CONSTANT;
+  gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   SKIP_BYTE;
-  gab_value cached_specs = *READ_QWORD;
-  gab_value cached_type = *READ_QWORD;
-  SKIP_QWORD;
 
   gab_value r = PEEK_N(have + 1);
 
-  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
+  if (__gab_unlikely(cache[CACHED_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cache[CACHED_TYPE])) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -1003,21 +982,19 @@ CASE_CODE(SEND_PRIMITIVE_EQ) {
 
 CASE_CODE(SEND_PRIMITIVE_SPLAT) {
   gab_value m = READ_CONSTANT;
+  gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   uint8_t want = READ_BYTE;
-  gab_value cached_specs = *READ_QWORD;
-  gab_value cached_type = *READ_QWORD;
-  SKIP_QWORD;
 
   gab_value r = PEEK_N(have + 1);
 
-  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
+  if (__gab_unlikely(cache[CACHED_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cache[CACHED_TYPE])) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -1035,21 +1012,19 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
 CASE_CODE(SEND_MONO_PROPERTY) {
   // TODO: Break this into two opcodes
   gab_value m = READ_CONSTANT;
+  gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   SKIP_BYTE;
-  gab_value cached_specs = *READ_QWORD;
-  gab_value cached_type = *READ_QWORD;
-  uint64_t prop_offset = *READ_QWORD;
 
   gab_value r = PEEK_N(have + 1);
 
-  if (__gab_unlikely(gab_valtype(EG(), r) != cached_type)) {
+  if (__gab_unlikely(cache[CACHED_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
 
-  if (__gab_unlikely(cached_specs != GAB_VAL_TO_MESSAGE(m)->specs)) {
+  if (__gab_unlikely(gab_valtype(EG(), r) != cache[CACHED_TYPE])) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_ANA);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -1058,7 +1033,7 @@ CASE_CODE(SEND_MONO_PROPERTY) {
   switch (have) {
   case 0:
     /* Simply load the value into the top of the stack */
-    PEEK() = gab_urecat(r, prop_offset);
+    PEEK() = gab_urecat(r, cache[CACHED_SPEC]);
     break;
 
   default:
@@ -1068,7 +1043,7 @@ CASE_CODE(SEND_MONO_PROPERTY) {
   case 1: {
     /* Pop the top value */
     gab_value value = POP();
-    gab_urecput(GAB(), r, prop_offset, value);
+    gab_urecput(GAB(), r, cache[CACHED_SPEC], value);
     PEEK() = value;
     break;
   }

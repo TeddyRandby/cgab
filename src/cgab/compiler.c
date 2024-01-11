@@ -298,11 +298,13 @@ static inline void push_qword(struct bc *bc, uint64_t data, size_t t) {
   push_byte(bc, data & 0xff, t);
 }
 
-static inline size_t addk(struct bc *bc, gab_value value) {
+static inline uint16_t addk(struct bc *bc, gab_value value) {
   gab_iref(gab(bc), value);
   gab_egkeep(eg(bc), value);
 
   v_gab_value_push(&bc->src->constants, value);
+
+  assert(bc->src->constants.len < UINT16_MAX);
 
   return bc->src->constants.len - 1;
 }
@@ -310,7 +312,6 @@ static inline size_t addk(struct bc *bc, gab_value value) {
 static inline void push_loadk(struct bc *bc, gab_value k, size_t t) {
   push_op(bc, OP_CONSTANT, t);
   size_t c = addk(bc, k);
-  assert(c < UINT16_MAX);
   push_short(bc, c, t);
 }
 
@@ -377,24 +378,23 @@ static inline void push_dynsend(struct bc *bc, uint8_t have, bool mv,
   assert(have < 16);
 
   push_op(bc, OP_SEND_DYN, t);
-  push_nnop(bc, 2, t);
   push_byte(bc, encode_arity(have, mv), t);
-  push_byte(bc, 1, t); // Default to wnating one
-
-  push_nnop(bc, 24, t); // Push space for the inline cache (will be unused, but
-                        // necessary to mimic sends)
+  push_byte(bc, 1, t);
 }
 
 static inline void push_send(struct bc *bc, uint16_t m, uint8_t have, bool mv,
                              size_t t) {
   assert(have < 16);
 
+  uint16_t cache = addk(bc, gab_undefined);
+  addk(bc, gab_undefined);
+  addk(bc, gab_undefined);
+
   push_op(bc, OP_SEND_ANA, t);
   push_short(bc, m, t);
+  push_short(bc, cache, t);
   push_byte(bc, encode_arity(have, mv), t);
-  push_byte(bc, 1, t); // Default to wanting one
-
-  push_nnop(bc, 24, t); // Push space for the inline cache, and the version byte
+  push_byte(bc, 1, t);
 }
 
 static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
@@ -503,7 +503,7 @@ static inline bool patch_mv(struct bc *bc, uint8_t want) {
   switch (f->prev_op) {
   case OP_SEND_DYN:
   case OP_SEND_ANA:
-    v_uint8_t_set(&bc->src->bytecode, bc->src->bytecode.len - 25, want);
+    v_uint8_t_set(&bc->src->bytecode, bc->src->bytecode.len - 1, want);
     return true;
   case OP_YIELD: {
     uint16_t offset =
@@ -3301,8 +3301,8 @@ uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_prototype *self,
 
   gab_value msg = v_gab_value_val_at(&self->src->constants, constant);
 
-  uint8_t have = v_uint8_t_val_at(&self->src->bytecode, offset + 3);
-  uint8_t want = v_uint8_t_val_at(&self->src->bytecode, offset + 4);
+  uint8_t have = v_uint8_t_val_at(&self->src->bytecode, offset + 5);
+  uint8_t want = v_uint8_t_val_at(&self->src->bytecode, offset + 6);
 
   uint8_t var = have & FLAG_VAR_EXP;
   have = have >> 1;
@@ -3312,7 +3312,7 @@ uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_prototype *self,
   fprintf(stream, ANSI_COLOR_RESET " (%d%s) -> %d\n", have,
           var ? " & more" : "", want);
 
-  return offset + 29;
+  return offset + 7;
 }
 
 uint64_t dumpByteInstruction(FILE *stream, struct gab_obj_prototype *self,
