@@ -74,7 +74,7 @@
  Several of these values don't need any data other than the tag - nil,
  undefined, true, and false.
 
-                     Tag
+                     kGAB_NIL or kGAB_UNDEFINED or kGAB_TRUE or kGAB_FALSE
                      |
  [0][....NaN....][1][---][------------------------------------------------]
 
@@ -85,9 +85,9 @@
 
  The opcode is store in the second-to-lowest byte (after the tag)
 
-                                                        Opcode          Tag
-                                                        |               |
- [0][....NaN....][1]----------------------------------[--------]------[---]
+                     kPRIMITIVE                                   Opcode
+                     |                                            |
+ [0][....NaN....][1][---]----------------------------------------[--------]
 
  Gab also employs a short string optimization. Lots of strings in a gab program
  are incredibly small, and incredibly common. values like '.some', '.none',
@@ -96,29 +96,20 @@
  We need to store the string's length, a null-terminator (for c-compatibility),
  and the string's data.
 
- Instead of storing the length of the string, we store the amount of bytes not
- used. Since there are a total of 4 bytes availble for storing string data, the
- remaining length is computed as 4 - strlen.
+ Instead of storing the length of the string, we store the amount of bytes *not* used.
+ Since there are a total of 5 bytes availble for storing string data, the remaining length is computed as 5 - strlen(str).
 
- We do this for a special case - when the string has length 4, the remaining
+ We do this for a special case - when the string has length 5, the remaining
  length is 0. In this case, the byte which stores the remaining length *also*
  serves as the null-terminator for the string.
 
- There is a bytes worth of wasted space:
-  - 3 higher bits (between the highest mantissa bit, and the length)
-  - 5 lower bits (after the tag and before the data)
+ This layout sneakily gives us an extra byte of storage in our small strings.
 
-  This would be enough to store an extra character, so we could shift our data
- structure right 3 bits and use all the room. But if we did this, then the data
- would begin *in the middle of a byte* instead of on an 8-bit boundary. This
- means that we can't read the string just by pointing a (char*) at the
- appropriate byte.
-
-                        Remaining Length                       <- Data    Tag
-                         |                                        |       |
- [0][....NaN....][1]---[--------][--------------------------------]-----[---]
-                       [...0....][...e.......m........o......s....]
-                       [...2....][-----------------...k......o....]
+                  kSTRING Remaining Length                              <- Data  
+                     |    |                                                |     
+ [0][....NaN....][1][---][--------][----------------------------------------]
+                         [...0....][...e.......p.......a........h......s....]
+                         [...3....][-------------------------...k......o....]
 
 */
 

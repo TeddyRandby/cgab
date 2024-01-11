@@ -934,7 +934,7 @@ CASE_CODE(SEND_PRIMITIVE_CONCAT) {
   if (__gab_unlikely(gab_valkind(PEEK()) != kGAB_STRING)) {
     STORE_PRIMITIVE_ERROR_FRAME(m, 1);
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),
-          gab_valtype(EG(), PEEK()));
+          gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));
   }
 
   STORE_FRAME();

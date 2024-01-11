@@ -10,6 +10,8 @@
 :use .streams
 
 def explain_specs(specs, separator)
+  not specs and return ''
+
   specs :tuple.collect(
             &:map,
             &:values,
@@ -307,7 +309,7 @@ def spec.tuple[](..specs)
   def tuple.predicate = :symbol.new 'predicate:tuple:{specs}'
 
   def spec.fits?[?tuple.predicate](..values)
-    specs :fold(
+     ..specs:fold(
               &:pairs,
               [ true, tuple.predicate, values, nil ],
               do (a, i, s)
@@ -320,7 +322,7 @@ def spec.tuple[](..specs)
                 # Otherwise, return the result from the failed spec
                 success and a or [success, sp, value, path]
               end,
-         ):splat
+         )
   end
 
   def spec.gen[?tuple.predicate]
@@ -334,7 +336,7 @@ def spec.tuple[](..specs)
   end
 
   def spec.explain[?tuple.predicate]
-    '(' + explain_specs(specs, ', ') + ')'
+    explain_specs(specs, ', ')
   end
 
   tuple.predicate
@@ -453,10 +455,10 @@ def spec.block[](args, semantics)
   def block.predicate = :symbol.new 'predicate:block:{args}:{semantics}'
 
   def spec.fits?[?block.predicate](input, output)
-    success, pred, val, path = args:input:spec.fits?(input:splat)
+    success, pred, val, path = args:input:spec.fits?(..input)
     success or return false, pred, input, .input
     
-    success, pred, val, path = args:output:spec.fits?(output:splat)
+    success, pred, val, path = args:output:spec.fits?(..output)
     success or return false, pred, output, .output
 
     semantics or return success, self, [input, output]
@@ -470,13 +472,13 @@ def spec.block[](args, semantics)
         # Generate an output
         ..output = args:output:spec.gen
 
-        args:output:spec.fits?(output:splat) then
+        args:output:spec.fits?(..output) then
           # If there are no semantics to satisfy, just return this output
-          semantics or return output:splat
+          semantics or return ..output
           
           # Otherwise, we need to continue generating until we
           # find an output which satisfy the semantics for the input.
-          semantics(input, output) and return output:splat
+          semantics(input, output) and return ..output
         end
       end
     end
@@ -486,8 +488,8 @@ def spec.block[](args, semantics)
     loop
       ..input  = args:input:spec.gen
 
-      args:input:spec.fits?(input:splat) then
-        ..output = block(input:splat)
+      args:input:spec.fits?(..input) then
+        ..output = block(..input)
         
         yield block.predicate(input, output)
       end
@@ -517,10 +519,10 @@ def spec.message[](args, semantics)
                   )
 
   def spec.fits?[?message.predicate](rec, input, output)
-    success, pred, val, path = args:input:spec.fits?(input:splat)
+    success, pred, val, path = args:input:spec.fits?(..input)
     success or return false, pred, input, .input
     
-    success, pred, val, path = args:output:spec.fits?(output:splat)
+    success, pred, val, path = args:output:spec.fits?(..output)
     success or return false, pred, output, .output
     
     success, pred, val, path = args:receiver:spec.fits?(rec)
@@ -533,15 +535,15 @@ def spec.message[](args, semantics)
 
   def spec.gen[?message.predicate](receiver)
     def message.gen(..input)
-      args:input:spec.fits?(input:splat) or .INVALID_ARGUMENTS:panic
+      args:input:spec.fits?(..input) or .INVALID_ARGUMENTS:panic
 
       loop
-        # Generate an output
+# Generate an output
         ..output = args:output:spec.gen
 
-        args:output:spec.fits?(output:splat) then
+        args:output:spec.fits?(..output) then
           # If there are no semantics to satisfy, just return this output
-          semantics or return output:splat
+          semantics or return ..output
           
           rec = args:receiver:spec.gen
 
@@ -553,7 +555,7 @@ def spec.message[](args, semantics)
               self:spec.modify!(rec)
 
               # Return the generated output
-              return output:splat
+              return ..output
             end
           end
         end
@@ -572,8 +574,8 @@ def spec.message[](args, semantics)
       args:receiver:spec.fits?(receiver) then
         ..input  = args:input:spec.gen
 
-        args:input:spec.fits?(input:splat) then
-          ..output = receiver:(args:message)(input:splat)
+        args:input:spec.fits?(..input) then
+          ..output = receiver:(args:message)(..input)
           
           yield self:spec.fits?(receiver, input, output)
         end
@@ -586,14 +588,19 @@ def spec.message[](args, semantics)
 
     has_help, help = self:spec.help
 
-    '\n{name}: {has_help and help or ''}':print
-    '| {args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}\n':print
-
-    nil
+    '\n{name}: { has_help and help or '' }\n| {args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}\n'
   end
 
   return message.predicate
 end
+
+def LabeledSpec { spec.label, spec.spec }
+def spec.labeled[](spec.spec, spec.label); { spec.label, spec.spec } end
+def spec.gen[LabeledSpec]; self:spec.spec:spec.gen end
+def spec.fits?[LabeledSpec]; self:spec.spec:spec.fits? end
+def spec.explain[LabeledSpec]; '{self:spec.label}:' +  self:spec.spec:spec.explain end
+def spec.modify![LabeledSpec](new_value); self:spec.spec:spec.modify!(new_value) end
+def spec.check[LabeledSpec]; self:spec.spec:spec.check  end
 
 # A default gen implementation is the identity function
 def spec.gen[]; self end

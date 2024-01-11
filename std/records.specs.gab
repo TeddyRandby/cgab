@@ -10,7 +10,7 @@
   spec = :spec.message {
     receiver = :spec .Record,
     message  = &:len,
-    input    = :spec.unknown,
+    input    = :spec.labeled(:spec.tuple) .key,
     output   = :spec.int,
   },
 }
@@ -20,7 +20,7 @@
   spec = :spec.message {
     receiver = :spec .Record,
     message  = &:at,
-    input    = :spec.nil,
+    input    = :spec.unknown,
     output   = :spec.option(:spec.unknown),
   },
 }
