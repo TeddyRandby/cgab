@@ -85,11 +85,11 @@ enum gab_kind {
   kGAB_UNDEFINED = 1,
   kGAB_NIL = 2,
   kGAB_FALSE = 3,
-  kGAB_TRUE,
-  kGAB_PRIMITIVE,
+  kGAB_TRUE = 4,
+  kGAB_PRIMITIVE = 5,
+  kGAB_STRING = 6,
   kGAB_NUMBER,
   kGAB_SUSPENSE,
-  kGAB_STRING,
   kGAB_MESSAGE,
   kGAB_BPROTOTYPE,
   kGAB_SPROTOTYPE,
@@ -168,7 +168,7 @@ static inline gab_value __gab_dtoval(double value) {
   ((struct gab_obj *)(uintptr_t)((val) & ~(__GAB_SIGN_BIT | __GAB_QNAN)))
 
 /* Cast a gab value to a primitive operation */
-#define gab_valtop(val) ((uint8_t)((val >> 8) & 0xff))
+#define gab_valtop(val) ((uint8_t)((val >> 8) & 0xf))
 
 /* Convenience macro for getting arguments in builtins */
 #define gab_arg(i) (i < argc ? argv[i] : gab_nil)
@@ -661,12 +661,12 @@ a_gab_value *gab_ptypemismatch(struct gab_triple gab, gab_value found,
 #define gab_iref(gab, val) (__gab_iref(gab, val, __FUNCTION__, __LINE__))
 
 gab_value __gab_iref(struct gab_triple gab, gab_value val, const char *file,
-                       int line);
+                     int line);
 
 #define gab_dref(gab, val) (__gab_dref(gab, val, __FUNCTION__, __LINE__))
 
 gab_value __gab_dref(struct gab_triple gab, gab_value val, const char *file,
-                       int line);
+                     int line);
 
 /**
  * # Increment the reference count of the value(s)
@@ -675,8 +675,8 @@ gab_value __gab_dref(struct gab_triple gab, gab_value val, const char *file,
  * @param value The value.
  */
 void __gab_niref(struct gab_triple gab, size_t stride, size_t len,
-                   gab_value values[len], const char *file, int line);
-#define gab_niref(gab, stride, len, values)                                  \
+                 gab_value values[len], const char *file, int line);
+#define gab_niref(gab, stride, len, values)                                    \
   (__gab_niref(gab, stride, len, values, __FUNCTION__, __LINE__))
 
 /**
@@ -686,8 +686,8 @@ void __gab_niref(struct gab_triple gab, size_t stride, size_t len,
  * @param value The value.
  */
 void __gab_ndref(struct gab_triple gab, size_t stride, size_t len,
-                   gab_value values[len], const char *file, int line);
-#define gab_ndref(gab, stride, len, values)                                  \
+                 gab_value values[len], const char *file, int line);
+#define gab_ndref(gab, stride, len, values)                                    \
   (__gab_ndref(gab, stride, len, values, __FUNCTION__, __LINE__))
 
 #else
@@ -1879,9 +1879,14 @@ static inline const char *gab_valintocs(struct gab_triple gab,
                                         gab_value value) {
   gab_value str = gab_valintos(gab, value);
 
-  struct gab_obj_string *obj = GAB_VAL_TO_STRING(str);
+  if (gab_valiso(str)) {
+    return GAB_VAL_TO_STRING(str)->data;
+  }
 
-  return obj->data;
+  static char buffer[8];
+  memcpy(buffer, &str, sizeof(buffer));
+
+  return buffer;
 }
 
 #include <printf.h>

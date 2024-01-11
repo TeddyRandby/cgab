@@ -1,5 +1,5 @@
-#include "gab.h"
 #include "engine.h"
+#include "gab.h"
 
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \
   ((struct obj_type *)gab_obj_create(gab, sizeof(struct obj_type), kind))
@@ -101,8 +101,12 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
   case kGAB_UNDEFINED:
     return fprintf(stream, "%s", "undefined");
   case kGAB_STRING: {
-    struct gab_obj_string *str = GAB_VAL_TO_STRING(self);
-    return fprintf(stream, "%.*s", (int32_t)str->len, (const char *)str->data);
+    if (gab_valiso(self)) {
+      struct gab_obj_string *str = GAB_VAL_TO_STRING(self);
+      return fprintf(stream, "%s", str->data);
+    }
+
+    return fprintf(stream, "%s", (const char *)&self);
   }
   case kGAB_MESSAGE: {
     struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(self);
@@ -229,13 +233,28 @@ static inline uint64_t hash_keys(uint64_t seed, uint64_t len, uint64_t stride,
   return hash_words(seed, len, words);
 };
 
+gab_value gab_shorstring(size_t len, const char data[static len]) {
+  assert(len <= 6);
+
+  gab_value v = 0;
+  v |= (kGAB_STRING | __GAB_QNAN | ((uint64_t)(6 - len) << 8));
+
+  for (size_t i = 0; i < len; i++) {
+    v |= (data[i] << (i * 8));
+  }
+
+  v |= ((uint64_t)'\0') << (len * 8);
+
+  return v;
+}
+
 gab_value gab_nstring(struct gab_triple gab, size_t len,
                       const char data[static len]) {
   s_char str = s_char_create(data, len);
 
   uint64_t hash = s_char_hash(str, gab.eg->hash_seed);
 
-  struct gab_obj_string *interned = gab_eg_find_string(gab.eg, str, hash);
+  struct gab_obj_string *interned = gab_egstrfind(gab.eg, str, hash);
 
   if (interned)
     return __gab_obj(interned);
@@ -289,7 +308,7 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
     Unfortunately, we can't check for this before copying and computing the
     hash.
   */
-  struct gab_obj_string *interned = gab_eg_find_string(gab.eg, ref, hash);
+  struct gab_obj_string *interned = gab_egstrfind(gab.eg, ref, hash);
 
   if (interned)
     return __gab_obj(interned);
@@ -333,7 +352,7 @@ gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
 
 gab_value gab_message(struct gab_triple gab, gab_value name) {
   struct gab_obj_message *interned =
-      gab_eg_find_message(gab.eg, name, GAB_VAL_TO_STRING(name)->hash);
+      gab_egmsgfind(gab.eg, name, GAB_VAL_TO_STRING(name)->hash);
 
   if (interned)
     return __gab_obj(interned);
@@ -414,7 +433,7 @@ gab_value gab_shapewith(struct gab_triple gab, gab_value shape, gab_value key) {
   self->hash = hash;
 
   struct gab_obj_shape *interned =
-      gab_eg_find_shape(gab.eg, self->len, 1, hash, self->data);
+      gab_egshpfind(gab.eg, self->len, 1, hash, self->data);
 
   if (interned) {
     // NOTE: We don't free the intermediate self shape, even if we hit the
@@ -433,7 +452,7 @@ gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
   uint64_t hash = hash_keys(gab.eg->hash_seed, len, stride, keys);
 
   struct gab_obj_shape *interned =
-      gab_eg_find_shape(gab.eg, len, stride, hash, keys);
+      gab_egshpfind(gab.eg, len, stride, hash, keys);
 
   if (interned)
     return __gab_obj(interned);

@@ -83,15 +83,15 @@ struct gab_vm {
 
 void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size);
 
-struct gab_obj_string *gab_eg_find_string(struct gab_eg *gab, s_char str,
-                                          uint64_t hash);
+struct gab_obj_string *gab_egstrfind(struct gab_eg *gab, s_char str,
+                                     uint64_t hash);
 
-struct gab_obj_message *gab_eg_find_message(struct gab_eg *gab, gab_value name,
-                                            uint64_t hash);
+struct gab_obj_message *gab_egmsgfind(struct gab_eg *gab, gab_value name,
+                                      uint64_t hash);
 
-struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *gab, uint64_t size,
-                                        uint64_t stride, uint64_t hash,
-                                        gab_value keys[size]);
+struct gab_obj_shape *gab_egshpfind(struct gab_eg *gab, uint64_t size,
+                                    uint64_t stride, uint64_t hash,
+                                    gab_value keys[size]);
 
 struct gab_err_argt {
   enum gab_status status;

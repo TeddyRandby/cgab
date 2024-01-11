@@ -363,7 +363,7 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
   return m;
 }
 
-struct gab_obj_message *gab_eg_find_message(struct gab_eg *self, gab_value name,
+struct gab_obj_message *gab_egmsgfind(struct gab_eg *self, gab_value name,
                                             uint64_t hash) {
   if (self->messages.len == 0)
     return NULL;
@@ -388,7 +388,7 @@ struct gab_obj_message *gab_eg_find_message(struct gab_eg *self, gab_value name,
   }
 }
 
-struct gab_obj_string *gab_eg_find_string(struct gab_eg *self, s_char str,
+struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
                                           uint64_t hash) {
   if (self->strings.len == 0)
     return NULL;
@@ -432,7 +432,7 @@ static inline bool shape_matches_keys(struct gab_obj_shape *self,
   return true;
 }
 
-struct gab_obj_shape *gab_eg_find_shape(struct gab_eg *self, uint64_t size,
+struct gab_obj_shape *gab_egshpfind(struct gab_eg *self, uint64_t size,
                                         uint64_t stride, uint64_t hash,
                                         gab_value keys[size]) {
   if (self->shapes.len == 0)
