@@ -534,7 +534,7 @@ def spec.message[](args, semantics)
   end
 
   def spec.gen[?message.predicate](receiver)
-    def message.gen(..input)
+    def (args:message)[receiver](..input)
       args:input:spec.fits?(..input) or .INVALID_ARGUMENTS:panic
 
       loop
@@ -561,8 +561,6 @@ def spec.message[](args, semantics)
         end
       end
     end
-    
-    args:message:put!(receiver, message.gen)
 
     return args:message
   end

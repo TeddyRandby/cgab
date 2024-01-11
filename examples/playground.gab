@@ -44,7 +44,7 @@ def car.paint[Car](color)
   self:car.color = 10
 end
 
-car.paint.spec :spec.explain
+car.paint.spec:spec.explain:print
 
 # Check our faulty implementation
 # &:spec.check yields a stream of predicate results.

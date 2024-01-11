@@ -467,7 +467,7 @@ static inline void push_dynsend(struct bc *bc, uint8_t have, bool mv,
                                 size_t t) {
   assert(have < 16);
 
-  push_op(bc, OP_SEND_DYN, t);
+  push_op(bc, OP_DYNSEND, t);
   push_byte(bc, encode_arity(have, mv), t);
   push_byte(bc, 1, t);
 }
@@ -480,7 +480,7 @@ static inline void push_send(struct bc *bc, uint16_t m, uint8_t have, bool mv,
   addk(bc, gab_undefined);
   addk(bc, gab_undefined);
 
-  push_op(bc, OP_SEND_ANA, t);
+  push_op(bc, OP_SEND, t);
   push_short(bc, m, t);
   push_short(bc, cache, t);
   push_byte(bc, encode_arity(have, mv), t);
@@ -602,8 +602,8 @@ static inline bool patch_mv(struct bc *bc, uint8_t want) {
     return false;
 
   switch (f->prev_op) {
-  case OP_SEND_DYN:
-  case OP_SEND_ANA:
+  case OP_DYNSEND:
+  case OP_SEND:
     v_uint8_t_set(&bc->src->bytecode, bc->src->bytecode.len - 1, want);
     return true;
   case OP_YIELD: {
@@ -975,8 +975,8 @@ static void push_ctxframe(struct bc *bc, gab_value name, bool is_message) {
   addk(bc, name);
 
   init_local(bc, add_local(bc,
-                           is_anonymous ? gab_string(gab(bc), "")
-                                        : gab_string(gab(bc), "self"),
+                           is_message ? gab_string(gab(bc), "self")
+                                      : gab_string(gab(bc), ""),
                            0));
 }
 
@@ -1501,14 +1501,21 @@ int compile_message(struct bc *bc, gab_value name, size_t t) {
     return COMP_ERR;
 
   gab_value p = pop_ctxframe(bc);
+
   if (p == gab_undefined)
     return COMP_ERR;
 
-  push_op(bc, OP_MESSAGE, t);
+  bool is_anonymous = name == gab_nil;
+
+  push_op(bc, is_anonymous ? OP_DYNSPEC : OP_SPEC, t);
   push_short(bc, addk(bc, p), t);
 
-  gab_value m = gab_message(gab(bc), name);
-  push_short(bc, addk(bc, m), t);
+  if (!is_anonymous) {
+    gab_value m = gab_message(gab(bc), name);
+    push_short(bc, addk(bc, m), t);
+  }
+
+  pop_slot(bc, 1 + is_anonymous);
 
   push_slot(bc, 1);
   return COMP_OK;
@@ -2319,15 +2326,24 @@ int compile_exp_def(struct bc *bc, bool assignable) {
   case TOKEN_EQUAL_EQUAL:
   case TOKEN_PIPE:
   case TOKEN_AMPERSAND:
+  case TOKEN_DOT_DOT:
     name = prev_src(bc);
     break;
   case TOKEN_LPAREN:
     name = prev_src(bc);
+
     if (match_and_eat_token(bc, TOKEN_RPAREN)) {
       name.len++;
       break;
     }
-    break;
+
+    if (compile_expression(bc) < 0)
+      return COMP_ERR;
+
+    if (expect_token(bc, TOKEN_RPAREN) < 0)
+      return COMP_ERR;
+
+    return compile_message(bc, gab_nil, bc->offset - 1);
   case TOKEN_LBRACE: {
     name = prev_src(bc);
     if (match_and_eat_token(bc, TOKEN_RBRACE)) {
@@ -2344,7 +2360,9 @@ int compile_exp_def(struct bc *bc, bool assignable) {
     }
   }
   default:
-    assert(false && "This is an internal compiler error.");
+    eat_token(bc);
+    compiler_error(bc, GAB_MALFORMED_TOKEN,
+                   "This is an invalid specialization definition");
     return COMP_ERR;
   }
 
@@ -3272,7 +3290,7 @@ struct compile_rule get_rule(gab_token k) { return rules[k]; }
 
 gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
                   gab_value arguments[narguments]) {
-  push_ctxframe(bc, name, false);
+  push_ctxframe(bc, gab_nil, false);
 
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;
@@ -3523,10 +3541,10 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
     return dumpJumpInstruction(stream, self, -1, offset);
   case OP_CONSTANT:
     return dumpConstantInstruction(stream, self, offset);
-  case OP_SEND_ANA:
-  case OP_SEND_MONO_BLOCK:
-  case OP_SEND_MONO_NATIVE:
-  case OP_SEND_MONO_PROPERTY:
+  case OP_SEND:
+  case OP_SEND_BLOCK:
+  case OP_SEND_NATIVE:
+  case OP_SEND_PROPERTY:
   case OP_SEND_PRIMITIVE_CONCAT:
   case OP_SEND_PRIMITIVE_ADD:
   case OP_SEND_PRIMITIVE_SUB:
@@ -3542,7 +3560,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_SEND_PRIMITIVE_CALL_NATIVE:
   case OP_SEND_PRIMITIVE_CALL_SUSPENSE:
     return dumpSendInstruction(stream, self, offset);
-  case OP_SEND_DYN:
+  case OP_DYNSEND:
     return dumpDynSendInstruction(stream, self, offset);
   case OP_POP_N:
   case OP_STORE_LOCAL:
@@ -3578,7 +3596,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_YIELD: {
     return dumpYieldInstruction(stream, self, offset);
   }
-  case OP_MESSAGE: {
+  case OP_SPEC: {
     offset++;
     uint16_t proto_constant =
         ((((uint16_t)self->src->bytecode.data[offset]) << 8) |
