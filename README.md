@@ -207,10 +207,12 @@ libc is the only dependency for the interpreter. However, some libraries (such a
 This project is built with `Make`. The `Makefile` expects some environment variables to be present. Specifically:
   - `GAB_PREFIX`: A place for gab to install data without root. This is for packages and other kinds of things. Something like `/home/<user>`
   - `GAB_INSTALLPREFIX`: Where gab should install itself - the executable, header files, libcgab, etc. Something like `/usr/local`
-  - `GAB_CFLAGS`: Additional flags ot pass to the c compiler.
+  - `GAB_CCFLAGS`: Additional flags ot pass to the c compiler.
 
 [Clide](https://github.com/TeddyRandby/clide) is a tool for managing shell scripts within projects. cgab uses it to manage useful scripts and build configuration. To configure and install with clide, run `clide install` and complete the prompts.
 
 If clide is unavailable, it is simple to just use make. To install a release build:
   1. `GAB_PREFIX="<path>" GAB_INSTALL_PREFIX="<path>" GAB_CCFLAGS="-O3" make build`
   2. `sudo make install`
+# C-API Documentation
+The c-api is contained in the single header file `gab.h`. You can generate documentation with `clide docs`, or by just running `doxygen`.
