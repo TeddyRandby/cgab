@@ -10,3 +10,12 @@ def is_s?[]       ; false end
 def is_s?[.String]; true end
 
 def to_b[]; self end
+
+def deferto[](..messages, target)
+  i = 0
+
+  loop
+    def (messages[i])[self](..input); self:(target)(..input) end
+    i = i + 1
+  until i == messages:len end
+end

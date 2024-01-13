@@ -21,7 +21,7 @@ def tuple.collect[](msg, ..p, len)
   loop
     ?s == .Suspense or break
 
-    t[i] = args:at(0)
+    t[i] = args[0]
     i = i + 1
 
     ..args, s = s()

@@ -10,7 +10,7 @@
   spec = :spec.message {
     receiver = :spec .Record,
     message  = &:len,
-    input    = :spec.labeled(:spec.tuple) .key,
+    input    = :spec.values,
     output   = :spec.int,
   },
 }
@@ -20,18 +20,18 @@
   spec = :spec.message {
     receiver = :spec .Record,
     message  = &:at,
-    input    = :spec.unknown,
+    input    = :spec.label(:spec.unknown) .key,
     output   = :spec.option(:spec.unknown),
   },
 }
 
 :spec.def! .Record.to_l {
-  help = "Convert a record to a list of key-value pairs.",
+  help = "Convert a record to a list of key, value pairs.",
   spec = :spec.message {
     receiver = :spec .Record,
     message  = &:to_l,
-    input    = :spec.nil,
-    output   = :spec.list(:spec.tuple(:spec.unknown, :spec.unknown)),
+    input    = :spec.values,
+    output   = :spec.list(:spec.unknown),
   },
 }
 
@@ -40,7 +40,7 @@
   spec = :spec.message {
     receiver = :spec .Record,
     message  = &:to_m,
-    input    = :spec.nil,
+    input    = :spec.values,
     output   = :spec.map(:spec.unknown, :spec.unknown),
   },
 }

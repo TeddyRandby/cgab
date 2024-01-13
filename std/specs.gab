@@ -10,31 +10,33 @@
 :use .streams
 
 def explain_specs(specs, separator)
-  not specs and return ''
+  not specs or specs:len == 0 and return ''
 
-  specs :tuple.collect(
-            &:map,
-            &:values,
-            &:spec.explain,
-            specs:len,
-       ):join(
-            &:values,
-            separator,
-            &+,
-       )
+  specs:tuple.collect(
+        &:map,
+        &:values,
+        &:spec.explain,
+        specs:len,
+      ):join(
+        &:values,
+        separator,
+        &+,
+      )
 end
 
 def explain_strings(strings, separator)
-  inner = strings :tuple.collect(
-                      &:map,
-                      &:values,
-                      do (v); '{v} = {:spec(v):spec.explain}' end,
-                      strings:len,
-                  ):join(
-                      &:values,
-                      separator,
-                      &+,
-                  )
+  not strings or strings:len == 0 and return ''
+
+  strings:tuple.collect(
+          &:map,
+          &:values,
+          do (v); '{v} = {:spec(v):spec.explain}' end,
+          strings:len,
+        ):join(
+          &:values,
+          separator,
+          &+,
+        )
 end
 
 ## Registry of qualified name -> spec
@@ -229,8 +231,8 @@ def spec.map[](k_spec, v_spec)
     :map.new { [k_spec:spec.gen] =  v_spec:spec.gen }
   end
 
-  def spec.explain[?map.predicate](k_spec, v_spec)
-    'map[{k_spec},{v_spec}]'
+  def spec.explain[?map.predicate]
+    'map[{k_spec:spec.explain}: {v_spec:spec.explain}]'
   end
 
   map.predicate
@@ -254,8 +256,8 @@ def spec.list[](spec)
     :list.new:push!(spec:spec.gen)
   end
 
-  def spec.explain[?list.predicate](spec)
-    'list[{spec}]'
+  def spec.explain[?list.predicate]
+    'list[{spec:spec.explain}]'
   end
 
   list.predicate
@@ -305,13 +307,13 @@ def spec.protocol[](protocol)
   protocol.predicate
 end
 
-def spec.tuple[](..specs)
-  def tuple.predicate = :symbol.new 'predicate:tuple:{specs}'
+def spec.values[](..specs)
+  def values.predicate = :symbol.new 'predicate:values:{specs}'
 
-  def spec.fits?[?tuple.predicate](..values)
+  def spec.fits?[?values.predicate](..values)
      ..specs:fold(
               &:pairs,
-              [ true, tuple.predicate, values, nil ],
+              [ true, values.predicate, values, nil ],
               do (a, i, s)
                 # Stop at the first failing spec
                 a[0] or a
@@ -325,8 +327,8 @@ def spec.tuple[](..specs)
          )
   end
 
-  def spec.gen[?tuple.predicate]
-    res = :tuple.new(specs:len)
+  def spec.gen[?values.predicate]
+    res = :values.new(specs:len)
 
     res:map! do (k)
       specs[k]:spec.gen
@@ -335,24 +337,24 @@ def spec.tuple[](..specs)
     res
   end
 
-  def spec.explain[?tuple.predicate]
+  def spec.explain[?values.predicate]
     explain_specs(specs, ', ')
   end
 
-  tuple.predicate
+  values.predicate
 end
 
 ## Convenience specs for composing above types
 def spec.result[](value, err)
   :spec.or(
-    :spec.tuple(.ok, value),
+    :spec.values(.ok, value),
     err,
   )
 end
 
 def spec.option[](value)
   :spec.or(
-    :spec.tuple(.some, value),
+    :spec.values(.some, value),
     .none,
   )
 end
@@ -582,23 +584,23 @@ def spec.message[](args, semantics)
   end
 
   def spec.explain[?message.predicate]
-    name = self:spec.name
-
-    has_help, help = self:spec.help
-
-    '\n{name}: { has_help and help or '' }\n| {args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}\n'
+    '{args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}'
   end
 
   return message.predicate
 end
 
 def LabeledSpec { spec.label, spec.spec }
-def spec.labeled[](spec.spec, spec.label); { spec.label, spec.spec } end
-def spec.gen[LabeledSpec]; self:spec.spec:spec.gen end
-def spec.fits?[LabeledSpec]; self:spec.spec:spec.fits? end
-def spec.explain[LabeledSpec]; '{self:spec.label}:' +  self:spec.spec:spec.explain end
-def spec.modify![LabeledSpec](new_value); self:spec.spec:spec.modify!(new_value) end
-def spec.check[LabeledSpec]; self:spec.spec:spec.check  end
+def spec.label[](spec.spec, spec.label); { spec.label, spec.spec } end
+def spec.explain[LabeledSpec]; '{self:spec.label}: {self:spec.spec:spec.explain}' end
+
+LabeledSpec:deferto(
+  &:spec.gen,
+  &:spec.fits?,
+  &:spec.check,
+  &:spec.modify!,
+  &:spec.spec,
+)
 
 # A default gen implementation is the identity function
 def spec.gen[]; self end
@@ -606,11 +608,16 @@ def spec.gen[]; self end
 # A default explain implementation
 def spec.explain[]; '{self}' end
 
+def spec.doc[];
+  name, help = registry.name[self], registry.help[self]
+
+  '## {name}\n{help}\n\n\t{self:spec.explain}\n'
+end
 def spec.messages[]
   has, messages = registry.messages:at(self) 
 
   has == .some and
-    messages:for(&:values, &:spec.explain)
+    messages:for(&:map, &:values, &:spec.doc, &:print)
 end
 
 ## FITS
