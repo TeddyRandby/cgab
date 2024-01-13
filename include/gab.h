@@ -355,14 +355,6 @@ struct gab_obj {
 void gab_obj_destroy(struct gab_eg *eg, struct gab_obj *obj);
 
 /**
- * @brief Compute the size of an object, in bytes.
- *
- * @param obj The object.
- * @return The number of bytes allocated for the object.
- */
-size_t gab_obj_size(struct gab_obj *obj);
-
-/**
  * @brief Allocate data necessary for a runtime. This struct is lightweight and
  * should be passed by value.
  */

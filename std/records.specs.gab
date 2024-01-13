@@ -44,3 +44,13 @@
     output   = :spec.map(:spec.unknown, :spec.unknown),
   },
 }
+
+:spec.def! .Record.pairs {
+  help = ""
+  spec = :spec.message {
+    receiver = :spec .Record,
+    message  = &:pairs,
+    input    = :spec.values,
+    output   = :spec.generator(:spec.unknown, :spec.unknown),
+  }
+}

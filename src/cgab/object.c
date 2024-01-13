@@ -175,47 +175,6 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
   }
 }
 
-uint64_t gab_obj_size(struct gab_obj *self) {
-  switch (self->kind) {
-  case kGAB_MESSAGE:
-    return sizeof(struct gab_obj_message);
-  case kGAB_NATIVE:
-    return sizeof(struct gab_obj_native);
-  case kGAB_SPROTOTYPE:
-    return sizeof(struct gab_obj_prototype);
-  case kGAB_BPROTOTYPE: {
-    struct gab_obj_prototype *obj = (struct gab_obj_prototype *)self;
-    return sizeof(struct gab_obj_prototype) + obj->len;
-  }
-  case kGAB_BOX: {
-    struct gab_obj_box *obj = (struct gab_obj_box *)self;
-    return sizeof(struct gab_obj_box) + obj->len;
-  }
-  case kGAB_SUSPENSE: {
-    struct gab_obj_suspense *obj = (struct gab_obj_suspense *)self;
-    return sizeof(struct gab_obj_suspense) + obj->nslots * sizeof(gab_value);
-  }
-  case kGAB_BLOCK: {
-    struct gab_obj_block *obj = (struct gab_obj_block *)self;
-    return sizeof(struct gab_obj_block) + obj->nupvalues * sizeof(gab_value);
-  }
-  case kGAB_RECORD: {
-    struct gab_obj_record *obj = (struct gab_obj_record *)self;
-    return sizeof(struct gab_obj_record) + obj->len * sizeof(gab_value);
-  }
-  case kGAB_SHAPE: {
-    struct gab_obj_shape *obj = (struct gab_obj_shape *)self;
-    return sizeof(struct gab_obj_shape) + obj->len * sizeof(gab_value);
-  }
-  case kGAB_STRING: {
-    struct gab_obj_string *obj = (struct gab_obj_string *)self;
-    return sizeof(struct gab_obj_string) + obj->len * sizeof(char);
-  }
-  default:
-    return sizeof(gab_value);
-  }
-}
-
 static inline uint64_t hash_keys(uint64_t seed, uint64_t len, uint64_t stride,
                                  gab_value values[len]) {
   gab_value words[len];
