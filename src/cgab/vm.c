@@ -1133,6 +1133,15 @@ CASE_CODE(CONSTANT) {
   NEXT();
 }
 
+CASE_CODE(NCONSTANT) {
+  uint8_t n = READ_BYTE;
+
+  while (n--)
+    PUSH(READ_CONSTANT);
+
+  NEXT();
+}
+
 CASE_CODE(SHIFT) {
   uint8_t n = READ_BYTE;
 

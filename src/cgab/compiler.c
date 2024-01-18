@@ -309,18 +309,60 @@ static inline uint16_t addk(struct bc *bc, gab_value value) {
   return v_gab_value_push(&bc->src->constants, value);
 }
 
-static inline void push_loadk(struct bc *bc, gab_value k, size_t t) {
-  push_op(bc, OP_CONSTANT, t);
-  size_t c = addk(bc, k);
-  push_short(bc, c, t);
-}
-
 static inline void push_shift(struct bc *bc, uint8_t n, size_t t) {
   if (n <= 1)
     return; // No op
 
   push_op(bc, OP_SHIFT, t);
   push_byte(bc, n, t);
+}
+
+static inline void push_loadk(struct bc *bc, gab_value k, size_t t) {
+  uint16_t c = addk(bc, k);
+
+#if cGAB_SUPERINSTRUCTIONS
+  int ctx = peek_ctx(bc, kFRAME, 0);
+  assert(ctx >= 0 && "Internal compiler error: no frame context");
+  struct frame *f = &bc->contexts[ctx].as.frame;
+
+  if (f->curr_bb == f->prev_bb) {
+    switch (f->prev_op) {
+    case OP_CONSTANT: {
+      size_t prev_local_arg = f->prev_op_at + 1;
+
+      uint8_t prev_ka = v_uint8_t_val_at(&bc->src->bytecode, prev_local_arg);
+      uint8_t prev_kb =
+          v_uint8_t_val_at(&bc->src->bytecode, prev_local_arg + 1);
+
+      uint16_t prev_k = prev_ka << 8 | prev_kb;
+
+      v_uint8_t_pop(&bc->src->bytecode);
+      v_uint64_t_pop(&bc->src->bytecode_toks);
+      v_uint8_t_pop(&bc->src->bytecode);
+      v_uint64_t_pop(&bc->src->bytecode_toks);
+
+      f->prev_op = OP_NCONSTANT;
+      v_uint8_t_set(&bc->src->bytecode, f->prev_op_at, OP_NCONSTANT);
+
+      push_byte(bc, 2, t);
+      push_short(bc, prev_k, t);
+      push_short(bc, c, t);
+
+      return;
+    }
+    case OP_NCONSTANT: {
+      size_t prev_local_arg = f->prev_op_at + 1;
+      uint8_t prev_n = v_uint8_t_val_at(&bc->src->bytecode, prev_local_arg);
+      v_uint8_t_set(&bc->src->bytecode, prev_local_arg, prev_n + 1);
+      push_short(bc, c, t);
+      return;
+    }
+    }
+  }
+#endif
+
+  push_op(bc, OP_CONSTANT, t);
+  push_short(bc, c, t);
 }
 
 static inline void push_loadl(struct bc *bc, uint8_t local, size_t t) {
@@ -3598,6 +3640,31 @@ uint64_t dumpConstantInstruction(FILE *stream, struct gab_obj_prototype *self,
   return offset + 3;
 }
 
+uint64_t dumpNConstantInstruction(FILE *stream, struct gab_obj_prototype *self,
+                                  uint64_t offset) {
+  const char *name =
+      gab_opcode_names[v_uint8_t_val_at(&self->src->bytecode, offset)];
+  fprintf(stream, "%-25s", name);
+
+  uint8_t n = v_uint8_t_val_at(&self->src->bytecode, offset + 1);
+
+  for (int i = 0; i < n; i++) {
+    uint16_t constant =
+        ((uint16_t)v_uint8_t_val_at(&self->src->bytecode, offset + 2 + (2 * i)))
+            << 8 |
+        v_uint8_t_val_at(&self->src->bytecode, offset + 3 + (2 * i));
+
+    gab_fvalinspect(stdout, v_gab_value_val_at(&self->src->constants, constant),
+                    0);
+
+    if (i < n - 1)
+      fprintf(stream, ", ");
+  }
+
+  fprintf(stream, "\n");
+  return offset + 2 + (2 * n);
+}
+
 uint64_t dumpJumpInstruction(FILE *stream, struct gab_obj_prototype *self,
                              uint64_t sign, uint64_t offset) {
   const char *name =
@@ -3641,6 +3708,8 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
     return dumpJumpInstruction(stream, self, 1, offset);
   case OP_LOOP:
     return dumpJumpInstruction(stream, self, -1, offset);
+  case OP_NCONSTANT:
+    return dumpNConstantInstruction(stream, self, offset);
   case OP_CONSTANT:
     return dumpConstantInstruction(stream, self, offset);
   case OP_SEND:
