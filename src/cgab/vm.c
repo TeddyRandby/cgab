@@ -1375,10 +1375,11 @@ CASE_CODE(SPEC) {
   gab_value m = READ_CONSTANT;
   gab_value r = PEEK();
 
+  STORE_FRAME();
+
   gab_value b = block(GAB(), p, FB(), BLOCK()->upvalues);
 
   if (__gab_unlikely(gab_msgput(GAB(), m, r, b) == gab_undefined)) {
-    STORE_FRAME();
     ERROR(GAB_IMPLEMENTATION_EXISTS,
           ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET
                            " already specializes for type: " ANSI_COLOR_GREEN
@@ -1398,16 +1399,16 @@ CASE_CODE(DYNSPEC) {
   gab_value m = PEEK2();
   gab_value r = PEEK();
 
+  STORE_FRAME();
+
   gab_value b = block(GAB(), p, FB(), BLOCK()->upvalues);
 
   if (__gab_unlikely(gab_valkind(m) != kGAB_MESSAGE)) {
-    STORE_FRAME();
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, m, gab_valtype(EG(), m),
           gab_type(EG(), kGAB_MESSAGE));
   }
 
   if (__gab_unlikely(gab_msgput(GAB(), m, r, b) == gab_undefined)) {
-    STORE_FRAME();
     ERROR(GAB_IMPLEMENTATION_EXISTS,
           ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET
                            " already specializes for type: " ANSI_COLOR_GREEN
