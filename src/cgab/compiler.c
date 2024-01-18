@@ -593,6 +593,40 @@ static inline void patch_loop(struct bc *bc, size_t loop, size_t t) {
   push_short(bc, dist, t);
 }
 
+static inline bool unpatch_mv(struct bc *bc) {
+  int ctx = peek_ctx(bc, kFRAME, 0);
+  assert(ctx >= 0 && "Internal compiler error: no frame context");
+  struct frame *f = &bc->contexts[ctx].as.frame;
+
+  if (f->prev_bb != f->curr_bb)
+    return false;
+
+  switch (f->prev_op) {
+  case OP_DYNSEND:
+  case OP_SEND:
+    v_uint8_t_set(&bc->src->bytecode, bc->src->bytecode.len - 1, 1);
+    return true;
+  case OP_YIELD: {
+    uint16_t offset =
+        ((uint16_t)v_uint8_t_val_at(&bc->src->bytecode,
+                                    bc->src->bytecode.len - 3)
+         << 8) |
+        v_uint8_t_val_at(&bc->src->bytecode, bc->src->bytecode.len - 2);
+
+    gab_value value = v_gab_value_val_at(&bc->src->constants, offset);
+
+    assert(gab_valkind(value) == kGAB_SPROTOTYPE);
+
+    struct gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(value);
+
+    proto->as.suspense.want = 1;
+    return true;
+  }
+  }
+
+  return false;
+}
+
 static inline bool patch_mv(struct bc *bc, uint8_t want) {
   int ctx = peek_ctx(bc, kFRAME, 0);
   assert(ctx >= 0 && "Internal compiler error: no frame context");
@@ -2663,6 +2697,8 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
   if (flags & fHAS_STRING || match_and_eat_token(bc, TOKEN_SIGIL) ||
       match_and_eat_token(bc, TOKEN_STRING) ||
       match_and_eat_token(bc, TOKEN_INTERPOLATION_BEGIN)) {
+    unpatch_mv(bc);
+
     if (compile_string(bc) < 0)
       return COMP_ERR;
 
@@ -2671,6 +2707,7 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
   }
 
   if (flags & fHAS_BRACK || match_and_eat_token(bc, TOKEN_LBRACK)) {
+    unpatch_mv(bc);
     // record argument
     if (compile_record(bc) < 0)
       return COMP_ERR;
@@ -2680,6 +2717,7 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
   }
 
   if (flags & fHAS_DO || match_and_eat_token(bc, TOKEN_DO)) {
+    unpatch_mv(bc);
     // We are an anonyumous function
     if (compile_block(bc, gab_nil) < 0)
       return COMP_ERR;
