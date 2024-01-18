@@ -9,6 +9,8 @@ def match[](..p, cases)
     case == self then
       branch = cases[case]
 
+      { branch, case, self }:print
+
       return branch(self, ..p)
 
       break .INVALID_ARGUMENTS:panic

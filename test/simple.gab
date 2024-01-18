@@ -1,3 +1,5 @@
-:use .records.specs
+:use .match
 
-:spec .Record :spec.messages
+1:typematch {
+  .Number ==> @1:print
+}

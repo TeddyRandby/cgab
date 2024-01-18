@@ -410,8 +410,14 @@ gab_token other(gab_lx *self) {
   case '=': {
     advance(self);
     switch (peek(self)) {
-      CHAR_CASE('=', EQUAL_EQUAL)
       CHAR_CASE('>', FAT_ARROW)
+    case '=': {
+      if (peek_next(self) == '>')
+        return TOKEN_EQUAL;
+
+      advance(self);
+      return TOKEN_EQUAL_EQUAL;
+    }
     default: {
       return TOKEN_EQUAL;
     }
