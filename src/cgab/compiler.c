@@ -317,9 +317,7 @@ static inline void push_shift(struct bc *bc, uint8_t n, size_t t) {
   push_byte(bc, n, t);
 }
 
-static inline void push_loadk(struct bc *bc, gab_value k, size_t t) {
-  uint16_t c = addk(bc, k);
-
+static inline void push_k(struct bc *bc, uint16_t k, size_t t) {
 #if cGAB_SUPERINSTRUCTIONS
   int ctx = peek_ctx(bc, kFRAME, 0);
   assert(ctx >= 0 && "Internal compiler error: no frame context");
@@ -346,7 +344,7 @@ static inline void push_loadk(struct bc *bc, gab_value k, size_t t) {
 
       push_byte(bc, 2, t);
       push_short(bc, prev_k, t);
-      push_short(bc, c, t);
+      push_short(bc, k, t);
 
       return;
     }
@@ -354,7 +352,7 @@ static inline void push_loadk(struct bc *bc, gab_value k, size_t t) {
       size_t prev_local_arg = f->prev_op_at + 1;
       uint8_t prev_n = v_uint8_t_val_at(&bc->src->bytecode, prev_local_arg);
       v_uint8_t_set(&bc->src->bytecode, prev_local_arg, prev_n + 1);
-      push_short(bc, c, t);
+      push_short(bc, k, t);
       return;
     }
     }
@@ -362,7 +360,18 @@ static inline void push_loadk(struct bc *bc, gab_value k, size_t t) {
 #endif
 
   push_op(bc, OP_CONSTANT, t);
-  push_short(bc, c, t);
+  push_short(bc, k, t);
+}
+
+static inline void push_loadi(struct bc *bc, enum gab_kind k, size_t t) {
+  assert(k == kGAB_UNDEFINED || k == kGAB_NIL || k == kGAB_TRUE ||
+         k == kGAB_FALSE);
+
+  push_k(bc, k - 1, t);
+};
+
+static inline void push_loadk(struct bc *bc, gab_value k, size_t t) {
+  push_k(bc, addk(bc, k), t);
 }
 
 static inline void push_loadl(struct bc *bc, uint8_t local, size_t t) {
@@ -543,16 +552,6 @@ static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
 
   if (f->curr_bb == f->prev_bb) {
     switch (f->prev_op) {
-    case OP_PUSH_NIL:
-    case OP_PUSH_UNDEFINED:
-    case OP_PUSH_TRUE:
-    case OP_PUSH_FALSE:
-      bc->src->bytecode.len -= 1;
-      bc->src->bytecode_toks.len -= 1;
-      f->prev_op_at = bc->src->bytecode.len - 1;
-      f->prev_op = bc->src->bytecode.data[f->prev_op_at];
-      return;
-
     case OP_LOAD_UPVALUE:
     case OP_LOAD_LOCAL:
       bc->src->bytecode.len -= 2;
@@ -1526,7 +1525,7 @@ int compile_message_spec(struct bc *bc) {
 
   if (match_and_eat_token(bc, TOKEN_RBRACE)) {
     push_slot(bc, 1);
-    push_op(bc, OP_PUSH_UNDEFINED, bc->offset - 1);
+    push_loadi(bc, kGAB_UNDEFINED, bc->offset - 1);
     return COMP_OK;
   }
 
@@ -1695,7 +1694,7 @@ int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out) {
      */
     while (have < want) {
       // While we have fewer expressions than we want, push nulls.
-      push_op(bc, OP_PUSH_NIL, bc->offset - 1);
+      push_loadi(bc, kGAB_NIL, bc->offset - 1);
       push_slot(bc, 1);
       have++;
     }
@@ -1944,7 +1943,7 @@ int compile_rec_internal_item(struct bc *bc) {
       if (compile_expression(bc) < 0)
         return COMP_ERR;
     } else {
-      push_op((bc), OP_PUSH_TRUE, t);
+      push_loadi(bc, kGAB_TRUE, t);
       push_slot(bc, 1);
     }
 
@@ -1978,15 +1977,15 @@ int compile_rec_internal_item(struct bc *bc) {
       switch (result) {
 
       case COMP_RESOLVED_TO_LOCAL:
-        push_loadl((bc), value_in, t);
+        push_loadl(bc, value_in, t);
         return COMP_OK;
 
       case COMP_RESOLVED_TO_UPVALUE:
-        push_loadu((bc), value_in, t);
+        push_loadu(bc, value_in, t);
         return COMP_OK;
 
       case COMP_ID_NOT_FOUND:
-        push_op((bc), OP_PUSH_TRUE, t);
+        push_loadi(bc, kGAB_TRUE, t);
         return COMP_OK;
 
       default:
@@ -2012,7 +2011,7 @@ int compile_rec_internal_item(struct bc *bc) {
       if (compile_expression(bc) < 0)
         return COMP_ERR;
     } else {
-      push_op((bc), OP_PUSH_TRUE, t);
+      push_loadi(bc, kGAB_TRUE, t);
       push_slot(bc, 1);
     }
 
@@ -2397,14 +2396,14 @@ int compile_exp_num(struct bc *bc, bool assignable) {
 }
 
 int compile_exp_bool(struct bc *bc, bool assignable) {
-  push_op((bc), prev_tok(bc) == TOKEN_TRUE ? OP_PUSH_TRUE : OP_PUSH_FALSE,
-          bc->offset - 1);
+  push_loadi(bc, prev_tok(bc) == TOKEN_TRUE ? kGAB_TRUE : kGAB_FALSE,
+             bc->offset - 1);
   push_slot(bc, 1);
   return COMP_OK;
 }
 
 int compile_exp_nil(struct bc *bc, bool assignable) {
-  push_op((bc), OP_PUSH_NIL, bc->offset - 1);
+  push_loadi(bc, kGAB_NIL, bc->offset - 1);
   push_slot(bc, 1);
   return COMP_OK;
 }
@@ -2824,7 +2823,7 @@ int compile_exp_emp(struct bc *bc, bool assignable) {
 
   uint16_t m = add_message_constant(bc, val_name);
 
-  push_op((bc), OP_PUSH_UNDEFINED, t);
+  push_loadi(bc, kGAB_UNDEFINED, t);
 
   push_slot(bc, 1);
 
@@ -3217,7 +3216,7 @@ int compile_exp_brk(struct bc *bc, bool assignable) {
   }
 
   if (!curr_prefix(bc)) {
-    push_op(bc, OP_PUSH_NIL, t);
+    push_loadi(bc, kGAB_NIL, t);
     goto fin;
   }
 
@@ -3266,7 +3265,7 @@ int compile_exp_lop(struct bc *bc, bool assignable) {
     patch_loop(bc, loop, t);
   }
 
-  push_op(bc, OP_PUSH_NIL, t);
+  push_loadi(bc, kGAB_NIL, t);
 
   if (pop_ctxloop(bc) < 0)
     return COMP_ERR;
@@ -3326,7 +3325,7 @@ int compile_exp_rtn(struct bc *bc, bool assignable) {
   if (!get_rule(curr_tok(bc)).prefix) {
     push_slot(bc, 1);
 
-    push_op(bc, OP_PUSH_NIL, bc->offset - 1);
+    push_loadi(bc, kGAB_NIL, bc->offset - 1);
 
     push_ret(bc, 1, false, bc->offset - 1);
 
@@ -3493,6 +3492,11 @@ gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
   for (int i = 0; i < args.len; i++) {
     vargv[i] = gab_string(gab, args.argv[i]);
   }
+
+  addk(&bc, gab_undefined);
+  addk(&bc, gab_nil);
+  addk(&bc, gab_false);
+  addk(&bc, gab_true);
 
   gab_value module = compile(&bc, gab_string(gab, args.name), args.len, vargv);
 
@@ -3684,10 +3688,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
                          uint64_t offset) {
   uint8_t op = v_uint8_t_val_at(&self->src->bytecode, offset);
   switch (op) {
-  case OP_PUSH_UNDEFINED:
-  case OP_PUSH_FALSE:
-  case OP_PUSH_NIL:
-  case OP_PUSH_TRUE:
   case OP_SWAP:
   case OP_DUP:
   case OP_NOT:

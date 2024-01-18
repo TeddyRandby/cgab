@@ -1220,30 +1220,6 @@ CASE_CODE(LOGICAL_OR) {
   NEXT();
 }
 
-CASE_CODE(PUSH_UNDEFINED) {
-  PUSH(gab_undefined);
-
-  NEXT();
-}
-
-CASE_CODE(PUSH_NIL) {
-  PUSH(gab_nil);
-
-  NEXT();
-}
-
-CASE_CODE(PUSH_TRUE) {
-  PUSH(gab_bool(true));
-
-  NEXT();
-}
-
-CASE_CODE(PUSH_FALSE) {
-  PUSH(gab_bool(false));
-
-  NEXT();
-}
-
 CASE_CODE(NEGATE) {
   if (__gab_unlikely(!__gab_valisn(PEEK()))) {
     STORE_FRAME();
