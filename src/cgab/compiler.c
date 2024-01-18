@@ -552,21 +552,6 @@ static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
 
   if (f->curr_bb == f->prev_bb) {
     switch (f->prev_op) {
-    case OP_LOAD_UPVALUE:
-    case OP_LOAD_LOCAL:
-      bc->src->bytecode.len -= 2;
-      bc->src->bytecode_toks.len -= 2;
-      f->prev_op_at = bc->src->bytecode.len - 1;
-      f->prev_op = bc->src->bytecode.data[f->prev_op_at];
-      return;
-
-    case OP_CONSTANT:
-      bc->src->bytecode.len -= 3;
-      bc->src->bytecode_toks.len -= 3;
-      f->prev_op_at = bc->src->bytecode.len - 1;
-      f->prev_op = bc->src->bytecode.data[f->prev_op_at];
-      return;
-
     case OP_STORE_LOCAL:
       f->prev_op_at = bc->src->bytecode.len - 2;
       bc->src->bytecode.data[f->prev_op_at] = OP_POPSTORE_LOCAL;

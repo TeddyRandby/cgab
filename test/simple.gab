@@ -1,5 +1,7 @@
-:use .match
+eff = 1
 
-1:typematch {
-  .Number ==> @1:print
-}
+valtwo, efftwo = 1()
+
+valthree = efftwo()
+
+2:expect(1)
