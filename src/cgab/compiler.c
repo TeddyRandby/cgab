@@ -1009,8 +1009,9 @@ static void push_ctxframe(struct bc *bc, gab_value name, bool is_message) {
   addk(bc, name);
 
   init_local(bc, add_local(bc,
-                           is_message ? gab_string(gab(bc), "self")
-                                      : gab_string(gab(bc), ""),
+                           is_message     ? gab_string(gab(bc), "self")
+                           : is_anonymous ? gab_string(gab(bc), "")
+                                          : name,
                            0));
 }
 
