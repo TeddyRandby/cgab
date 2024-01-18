@@ -1497,6 +1497,33 @@ int compile_message_spec(struct bc *bc) {
   return COMP_OK;
 }
 
+int compile_lambda(struct bc *bc, size_t t) {
+  push_ctxframe(bc, gab_nil, false);
+
+  push_scope(bc);
+
+  if (compile_expression(bc) < 0)
+    return COMP_ERR;
+
+  pop_scope(bc);
+
+  bool mv = patch_mv(bc, VAR_EXP);
+
+  push_ret(bc, !mv, mv, bc->offset - 1);
+
+  gab_value p = pop_ctxframe(bc);
+
+  if (p == gab_undefined)
+    return COMP_ERR;
+
+  push_op(bc, OP_BLOCK, bc->offset - 1);
+  push_short(bc, addk(bc, p), bc->offset - 1);
+
+  push_slot(bc, 1);
+
+  return COMP_OK;
+}
+
 int compile_block(struct bc *bc, gab_value name) {
   push_ctxframe(bc, name, false);
 
@@ -2135,6 +2162,10 @@ fin:
 
 //---------------- Compiling Expressions ------------------
 
+int compile_exp_lmb(struct bc *bc, bool assignable) {
+  return compile_lambda(bc, 0);
+}
+
 int compile_exp_blk(struct bc *bc, bool assignable) {
   return compile_block(bc, gab_nil);
 }
@@ -2680,6 +2711,7 @@ enum {
   fHAS_BRACK = 1 << 1,
   fHAS_DO = 1 << 2,
   fHAS_STRING = 1 << 3,
+  fHAS_FATARROW = 1 << 4,
 };
 
 int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
@@ -2717,14 +2749,27 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
     *mv_out = false;
   }
 
-  if (flags & fHAS_DO || match_and_eat_token(bc, TOKEN_DO)) {
+  if (flags & fHAS_FATARROW || match_and_eat_token(bc, TOKEN_FAT_ARROW)) {
     unpatch_mv(bc);
-    // We are an anonyumous function
+
+    if (compile_lambda(bc, bc->offset - 1) < 0)
+      return COMP_ERR;
+
+    result += 1 + *mv_out;
+    *mv_out = false;
+  } else if (flags & fHAS_DO || match_and_eat_token(bc, TOKEN_DO)) {
+    unpatch_mv(bc);
+
     if (compile_block(bc, gab_nil) < 0)
       return COMP_ERR;
 
     result += 1 + *mv_out;
     *mv_out = false;
+  }
+
+  if (result > 254) {
+    compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
+    return COMP_ERR;
   }
 
   return result;
@@ -2950,6 +2995,24 @@ int compile_exp_cal(struct bc *bc, bool assignable) {
   return VAR_EXP;
 }
 
+int compile_exp_lmbcal(struct bc *bc, bool assignable) {
+  size_t t = bc->offset - 1;
+
+  bool mv = false;
+  int result = compile_arguments(bc, &mv, fHAS_FATARROW);
+
+  if (result < 0)
+    return COMP_ERR;
+
+  pop_slot(bc, result);
+
+  uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
+
+  push_send(bc, msg, result, mv, t);
+
+  return VAR_EXP;
+}
+
 int compile_exp_bcal(struct bc *bc, bool assignable) {
   size_t t = bc->offset - 1;
 
@@ -2958,13 +3021,13 @@ int compile_exp_bcal(struct bc *bc, bool assignable) {
 
   if (result < 0)
     return COMP_ERR;
-  if (result > 254) {
-    compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
-    return COMP_ERR;
-  }
+
   pop_slot(bc, result);
+
   uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
+
   push_send(bc, msg, result, mv, t);
+
   return VAR_EXP;
 }
 
@@ -3299,7 +3362,7 @@ const struct compile_rule rules[] = {
     INFIX(bin, EQUALITY, false),                // GREATEREQUAL
     INFIX(bin, TERM, false),                    // GREATER_GREATER
     NONE(),                                     // ARROW
-    NONE(),                                     // FATARROW
+    PREFIX_INFIX(lmb, lmbcal, SEND, false),     // FATARROW
     INFIX(and, AND, false),                     // AND
     INFIX(or, OR, false),                       // OR
     PREFIX(una),                                // NOT
