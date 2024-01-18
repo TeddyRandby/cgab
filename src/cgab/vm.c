@@ -1361,6 +1361,8 @@ CASE_CODE(LOOP) {
 CASE_CODE(BLOCK) {
   gab_value p = READ_CONSTANT;
 
+  STORE_FRAME();
+
   gab_value b = block(GAB(), p, FB(), BLOCK()->upvalues);
 
   PUSH(b);
@@ -1413,9 +1415,7 @@ CASE_CODE(DYNSPEC) {
           m, r);
   }
 
-  DROP_N(2);
-
-  PUSH(m);
+  DROP();
 
   NEXT();
 }
