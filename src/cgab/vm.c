@@ -121,7 +121,6 @@ static handler handlers[] = {
   gab_value m = READ_CONSTANT;                                                 \
   SKIP_SHORT;                                                                  \
   SKIP_BYTE;                                                                   \
-  SKIP_BYTE;                                                                   \
   if (__gab_unlikely(!__gab_valisn(PEEK2()))) {                                \
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                      \
     IP() -= SEND_CACHE_DIST;                                                   \
@@ -168,7 +167,7 @@ static handler handlers[] = {
     KB() = BLOCK_PROTO()->src->constants.data;                                 \
   })
 
-#define SEND_CACHE_DIST 7
+#define SEND_CACHE_DIST 6
 
 static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
@@ -394,8 +393,7 @@ static inline bool has_callspace(struct gab_vm *vm, size_t space_needed) {
 }
 
 static inline bool call_suspense(struct gab_vm *vm,
-                                 struct gab_obj_suspense *sus, uint8_t have,
-                                 uint8_t want) {
+                                 struct gab_obj_suspense *sus, uint8_t have) {
   int32_t space_needed = sus->nslots;
 
   if (space_needed > 0 && !has_callspace(vm, space_needed))
@@ -408,13 +406,13 @@ static inline bool call_suspense(struct gab_vm *vm,
   vm->fp++;
   vm->fp->b = b;
   vm->fp->ip = proto->src->bytecode.data + bproto->offset + proto->offset;
-  vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
 
   gab_value *from = vm->sp - have;
   gab_value *to = vm->fp->slots + sus->nslots;
 
-  vm->sp = trim_return(from, to, have, proto->as.suspense.want);
+  memcpy(to, from, have * sizeof(gab_value));
+  vm->sp = to + have;
   memcpy(vm->fp->slots, sus->slots, sus->nslots * sizeof(gab_value));
 
   return true;
@@ -437,8 +435,7 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
 }
 
 static inline bool call_block(struct gab_vm *vm, gab_value m,
-                              struct gab_obj_block *b, uint64_t have,
-                              uint8_t want) {
+                              struct gab_obj_block *b, uint64_t have) {
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
   bool wants_var = p->as.block.narguments == VAR_EXP;
   size_t len = (wants_var ? have : p->as.block.narguments) + 1;
@@ -450,15 +447,14 @@ static inline bool call_block(struct gab_vm *vm, gab_value m,
   vm->fp->m = m;
   vm->fp->b = b;
   vm->fp->ip = p->src->bytecode.data + p->offset;
-  vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
 
   // Update the SP to point just past the locals section
   // Or past the arguments if we're using VAR_EXP
-  size_t offset = (wants_var ? len : p->as.block.nlocals);
+  // size_t offset = (wants_var ? len : p->as.block.nlocals);
 
   // Trim arguments into the slots
-  vm->sp = trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, offset - 1);
+  // vm->sp = trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, offset - 1);
 
   return true;
 }
@@ -466,7 +462,7 @@ static inline bool call_block(struct gab_vm *vm, gab_value m,
 // Maybe change these to do tailcalls?
 static inline a_gab_value *call_native(struct gab_triple gab,
                                        struct gab_obj_native *b, uint8_t arity,
-                                       uint8_t want, bool is_message) {
+                                       bool is_message) {
   gab_value *to = gab.vm->sp - arity - 1;
 
   gab_value *before = gab.vm->sp;
@@ -483,7 +479,9 @@ static inline a_gab_value *call_native(struct gab_triple gab,
     *gab.vm->sp++ = gab_nil, have++;
 
   // Trim our return values into our destination slot
-  gab.vm->sp = trim_return(gab.vm->sp - have, to, have, want);
+  memmove(to, before, have * sizeof(gab_value));
+  gab.vm->sp = to + have;
+  *gab.vm->sp = have;
 
   return res;
 }
@@ -528,13 +526,13 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   switch (gab_valkind(args.main)) {
   case kGAB_BLOCK: {
     struct gab_obj_block *b = GAB_VAL_TO_BLOCK(args.main);
-    if (__gab_unlikely(!call_block(VM(), gab_nil, b, args.len, VAR_EXP)))
+    if (__gab_unlikely(!call_block(VM(), gab_nil, b, args.len)))
       ERROR(GAB_OVERFLOW, "");
     break;
   }
   case kGAB_SUSPENSE: {
     struct gab_obj_suspense *s = GAB_VAL_TO_SUSPENSE(args.main);
-    if (__gab_unlikely(!call_suspense(VM(), s, args.len, VAR_EXP)))
+    if (__gab_unlikely(!call_suspense(VM(), s, args.len)))
       ERROR(GAB_OVERFLOW, "");
     break;
   }
@@ -553,7 +551,6 @@ CASE_CODE(SEND) {
   gab_value m = READ_CONSTANT;
   gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
-  SKIP_BYTE;
 
   gab_value r = PEEK_N(have + 1);
   gab_value t = gab_valtype(EG(), r);
@@ -599,7 +596,6 @@ CASE_CODE(SEND_BLOCK) {
   gab_value m = READ_CONSTANT;
   gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
-  uint8_t want = READ_BYTE;
 
   gab_value r = PEEK_N(have + 1);
 
@@ -619,7 +615,7 @@ CASE_CODE(SEND_BLOCK) {
 
   STORE_FRAME();
 
-  if (__gab_unlikely(!call_block(VM(), m, blk, have, want)))
+  if (__gab_unlikely(!call_block(VM(), m, blk, have)))
     ERROR(GAB_OVERFLOW, "");
 
   LOAD_FRAME();
@@ -661,44 +657,6 @@ CASE_CODE(SEND_NATIVE) {
   gab_value m = READ_CONSTANT;
   gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
-  uint8_t want = READ_BYTE;
-
-  gab_value r = PEEK_N(have + 1);
-
-  if (__gab_unlikely(cache[CACHED_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
-    IP() -= SEND_CACHE_DIST;
-    NEXT();
-  }
-
-  if (__gab_unlikely(gab_valtype(EG(), r) != cache[CACHED_TYPE])) {
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
-    IP() -= SEND_CACHE_DIST;
-    NEXT();
-  }
-
-  STORE_FRAME();
-
-  STORE_ERROR_FRAME(m, have);
-
-  a_gab_value *res = call_native(GAB(), GAB_VAL_TO_NATIVE(cache[CACHED_SPEC]),
-                                 have, want, true);
-
-  if (__gab_unlikely(res))
-    return res;
-
-  DROP_ERROR_FRAME();
-
-  LOAD_FRAME();
-
-  NEXT();
-}
-
-CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
-  gab_value m = READ_CONSTANT;
-  gab_value *cache = READ_CACHE;
-  uint64_t have = compute_arity(VAR(), READ_BYTE);
-  uint8_t want = READ_BYTE;
 
   gab_value r = PEEK_N(have + 1);
 
@@ -719,7 +677,42 @@ CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
   STORE_ERROR_FRAME(m, have);
 
   a_gab_value *res =
-      call_native(GAB(), GAB_VAL_TO_NATIVE(r), have, want, false);
+      call_native(GAB(), GAB_VAL_TO_NATIVE(cache[CACHED_SPEC]), have, true);
+
+  if (__gab_unlikely(res))
+    return res;
+
+  DROP_ERROR_FRAME();
+
+  LOAD_FRAME();
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
+  gab_value m = READ_CONSTANT;
+  gab_value *cache = READ_CACHE;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value r = PEEK_N(have + 1);
+
+  if (__gab_unlikely(cache[CACHED_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (__gab_unlikely(gab_valtype(EG(), r) != cache[CACHED_TYPE])) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  STORE_FRAME();
+
+  STORE_ERROR_FRAME(m, have);
+
+  a_gab_value *res = call_native(GAB(), GAB_VAL_TO_NATIVE(r), have, false);
 
   if (__gab_unlikely(res))
     return res;
@@ -733,7 +726,6 @@ CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
 
 CASE_CODE(DYNSEND) {
   uint64_t have = compute_arity(VAR(), READ_BYTE);
-  uint8_t want = READ_BYTE;
 
   gab_value r = PEEK_N(have + 2);
   gab_value m = PEEK_N(have + 1);
@@ -765,7 +757,7 @@ CASE_CODE(DYNSEND) {
 
     STORE_FRAME();
 
-    if (__gab_unlikely(!call_block(VM(), m, b, have, want)))
+    if (__gab_unlikely(!call_block(VM(), m, b, have)))
       ERROR(GAB_OVERFLOW, "");
 
     LOAD_FRAME();
@@ -782,7 +774,7 @@ CASE_CODE(DYNSEND) {
 
     STORE_ERROR_FRAME(m, have);
 
-    a_gab_value *res = call_native(GAB(), n, have, want, true);
+    a_gab_value *res = call_native(GAB(), n, have, true);
 
     if (__gab_unlikely(res))
       return res;
@@ -804,9 +796,6 @@ CASE_CODE(DYNSEND) {
     uint8_t op = gab_valtop(spec);
 
     IP() -= SEND_CACHE_DIST - 1;
-    want = op >= OP_SEND_PRIMITIVE_CALL_NATIVE ? VAR_EXP : 1;
-    // Shift our args down and forget about the message being called
-    SP() = trim_return(SP() - have, SP() - (have + 1), have, want);
 
     DISPATCH(op);
   }
@@ -819,7 +808,6 @@ CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) {
   gab_value m = READ_CONSTANT;
   gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
-  uint8_t want = READ_BYTE;
 
   gab_value r = PEEK_N(have + 1);
 
@@ -839,7 +827,7 @@ CASE_CODE(SEND_PRIMITIVE_CALL_BLOCK) {
 
   STORE_FRAME();
 
-  if (__gab_unlikely(!call_block(VM(), m, blk, have, want)))
+  if (__gab_unlikely(!call_block(VM(), m, blk, have)))
     ERROR(GAB_OVERFLOW, "");
 
   LOAD_FRAME();
@@ -851,7 +839,6 @@ CASE_CODE(SEND_PRIMITIVE_CALL_SUSPENSE) {
   gab_value m = READ_CONSTANT;
   gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
-  uint8_t want = READ_BYTE;
 
   gab_value r = PEEK_N(have + 1);
 
@@ -869,7 +856,7 @@ CASE_CODE(SEND_PRIMITIVE_CALL_SUSPENSE) {
 
   STORE_FRAME();
 
-  if (__gab_unlikely(!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(r), have, want)))
+  if (__gab_unlikely(!call_suspense(VM(), GAB_VAL_TO_SUSPENSE(r), have)))
     ERROR(GAB_OVERFLOW, "");
 
   LOAD_FRAME();
@@ -945,8 +932,6 @@ CASE_CODE(SEND_PRIMITIVE_GTE) {
 CASE_CODE(SEND_PRIMITIVE_CONCAT) {
   gab_value m = READ_CONSTANT;
   SKIP_SHORT;
-  SKIP_BYTE;
-  SKIP_BYTE;
 
   if (__gab_unlikely(gab_valkind(PEEK2()) != kGAB_STRING)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
@@ -977,7 +962,6 @@ CASE_CODE(SEND_PRIMITIVE_EQ) {
   gab_value m = READ_CONSTANT;
   gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
-  SKIP_BYTE;
 
   gab_value r = PEEK_N(have + 1);
 
@@ -1007,7 +991,6 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
   gab_value m = READ_CONSTANT;
   gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
-  uint8_t want = READ_BYTE;
 
   gab_value r = PEEK_N(have + 1);
 
@@ -1027,7 +1010,8 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
 
   DROP_N(have + 1);
 
-  SP() = trim_return(rec->data, SP(), rec->len, want);
+  memmove(SP(), rec->data, rec->len * sizeof(gab_value));
+  SP() += rec->len;
 
   NEXT();
 }
@@ -1037,7 +1021,6 @@ CASE_CODE(SEND_PROPERTY) {
   gab_value m = READ_CONSTANT;
   gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
-  SKIP_BYTE;
 
   gab_value r = PEEK_N(have + 1);
 
@@ -1095,7 +1078,8 @@ CASE_CODE(YIELD) {
   gab_value *from = SP() - have;
   gab_value *to = FRAME()->slots;
 
-  VM()->sp = trim_return(from, to, have, FRAME()->want);
+  memmove(to, from, have * sizeof(gab_value));
+  VM()->sp = to + have;
 
   if (__gab_unlikely(VM()->fp - VM()->fb == 1))
     return return_ok(DISPATCH_ARGS());
@@ -1115,7 +1099,9 @@ CASE_CODE(RETURN) {
   gab_value *from = SP() - have;
   gab_value *to = FRAME()->slots;
 
-  VM()->sp = trim_return(from, to, have, FRAME()->want);
+  memmove(to, from, have * sizeof(gab_value));
+  VM()->sp = to + have;
+  *VM()->sp = have;
 
   if (__gab_unlikely(VM()->fp - VM()->fb == 1))
     return return_ok(DISPATCH_ARGS());
@@ -1404,6 +1390,31 @@ CASE_CODE(DYNSPEC) {
   }
 
   DROP();
+
+  NEXT();
+}
+
+CASE_CODE(TRIM) {
+  uint8_t want = READ_BYTE;
+  uint64_t have = VAR(), nulls = 0;
+
+  SP() = SP() - have;
+
+  if (want == VAR_EXP) {
+    want = have;
+  } else if (have != want) {
+    if (have > want)
+      have = want;
+    else
+      nulls = want - have;
+  }
+
+  SP() += want;
+
+  while (nulls--)
+    PUSH(gab_nil);
+
+  VAR() = want;
 
   NEXT();
 }

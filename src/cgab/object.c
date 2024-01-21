@@ -540,7 +540,7 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
 }
 
 gab_value gab_sprototype(struct gab_triple gab, struct gab_src *src,
-                         gab_value name, size_t begin, uint8_t want) {
+                         gab_value name, size_t begin) {
 
   struct gab_obj_prototype *self =
       GAB_CREATE_OBJ(gab_obj_prototype, kGAB_SPROTOTYPE);
@@ -549,7 +549,6 @@ gab_value gab_sprototype(struct gab_triple gab, struct gab_src *src,
   self->name = name;
   self->offset = begin;
   self->len = 0;
-  self->as.suspense.want = want;
 
   GAB_OBJ_GREEN((struct gab_obj *)self);
 

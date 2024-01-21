@@ -104,9 +104,9 @@ struct primitive primitives[] = {
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
     },
     {
-      .name = mGAB_SPLAT,
-      .type = kGAB_RECORD,
-      .primitive = gab_primitive(OP_SEND_PRIMITIVE_SPLAT),
+        .name = mGAB_SPLAT,
+        .type = kGAB_RECORD,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_SPLAT),
     },
     {
         .name = mGAB_CALL,
@@ -364,7 +364,7 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
 }
 
 struct gab_obj_message *gab_egmsgfind(struct gab_eg *self, gab_value name,
-                                            uint64_t hash) {
+                                      uint64_t hash) {
   if (self->messages.len == 0)
     return NULL;
 
@@ -389,7 +389,7 @@ struct gab_obj_message *gab_egmsgfind(struct gab_eg *self, gab_value name,
 }
 
 struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
-                                          uint64_t hash) {
+                                     uint64_t hash) {
   if (self->strings.len == 0)
     return NULL;
 
@@ -433,8 +433,8 @@ static inline bool shape_matches_keys(struct gab_obj_shape *self,
 }
 
 struct gab_obj_shape *gab_egshpfind(struct gab_eg *self, uint64_t size,
-                                        uint64_t stride, uint64_t hash,
-                                        gab_value keys[size]) {
+                                    uint64_t stride, uint64_t hash,
+                                    gab_value keys[size]) {
   if (self->shapes.len == 0)
     return NULL;
 
@@ -592,8 +592,7 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
     struct gab_obj_prototype *self = GAB_VAL_TO_PROTOTYPE(value);
 
     return gab_sprototype(gab, gab_srccpy(gab, self->src),
-                          gab_valcpy(gab, self->name), self->offset,
-                          self->as.suspense.want);
+                          gab_valcpy(gab, self->name), self->offset);
   }
 
   case kGAB_SUSPENSE: {

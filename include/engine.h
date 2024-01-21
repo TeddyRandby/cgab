@@ -63,8 +63,6 @@ struct gab_vm_frame {
   uint8_t *ip;
 
   gab_value *slots;
-
-  uint8_t want;
 };
 
 /*

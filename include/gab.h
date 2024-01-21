@@ -96,8 +96,9 @@
  We need to store the string's length, a null-terminator (for c-compatibility),
  and the string's data.
 
- Instead of storing the length of the string, we store the amount of bytes *not* used.
- Since there are a total of 5 bytes availble for storing string data, the remaining length is computed as 5 - strlen(str).
+ Instead of storing the length of the string, we store the amount of bytes *not*
+ used. Since there are a total of 5 bytes availble for storing string data, the
+ remaining length is computed as 5 - strlen(str).
 
  We do this for a special case - when the string has length 5, the remaining
  length is 0. In this case, the byte which stores the remaining length *also*
@@ -105,8 +106,8 @@
 
  This layout sneakily gives us an extra byte of storage in our small strings.
 
-                  kSTRING Remaining Length                              <- Data  
-                     |    |                                                |     
+                  kSTRING Remaining Length                              <- Data
+                     |    |                                                |
  [0][....NaN....][1][---][--------][----------------------------------------]
                          [...0....][...e.......p.......a........h......s....]
                          [...3....][-------------------------...k......o....]
@@ -1434,10 +1435,6 @@ struct gab_obj_prototype {
       size_t len;
       unsigned char narguments, nupvalues, nslots, nlocals;
     } block;
-
-    struct {
-      char want;
-    } suspense;
   } as;
 
   char data[FLEXIBLE_ARRAY];
@@ -1469,11 +1466,9 @@ gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
  * @param gab The gab engine.
  *
  * @param offset The offset in the block.
- *
- * @param want The number of values the block wants.
  */
 gab_value gab_sprototype(struct gab_triple gab, struct gab_src *src,
-                         gab_value name, size_t begin, uint8_t want);
+                         gab_value name, size_t begin);
 
 /**
  * A suspense object, which holds the state of a suspended coroutine.
