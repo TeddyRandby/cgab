@@ -306,7 +306,7 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
 };
 
 gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
-                         gab_value name, size_t begin, size_t end,
+                         gab_value name, size_t offset, size_t len,
                          struct gab_blkproto_argt args) {
 
   struct gab_obj_prototype *self = GAB_CREATE_FLEX_OBJ(
@@ -314,9 +314,9 @@ gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
 
   self->src = src;
   self->name = name;
-  self->begin = begin;
+  self->offset = offset;
   self->len = args.nupvalues * 2;
-  self->as.block.end = end;
+  self->as.block.len = len;
   self->as.block.nslots = args.nslots;
   self->as.block.nlocals = args.nlocals;
   self->as.block.nupvalues = args.nupvalues;
@@ -547,7 +547,7 @@ gab_value gab_sprototype(struct gab_triple gab, struct gab_src *src,
 
   self->src = src;
   self->name = name;
-  self->begin = begin;
+  self->offset = begin;
   self->len = 0;
   self->as.suspense.want = want;
 

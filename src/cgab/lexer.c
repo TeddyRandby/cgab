@@ -618,6 +618,21 @@ struct gab_src *gab_src(struct gab_triple gab, gab_value name,
   return src;
 }
 
+size_t gab_srcappend(struct gab_src *self, size_t len, uint8_t bc[static len],
+                     uint64_t toks[static len]) {
+  v_uint8_t_cap(&self->bytecode, self->bytecode.len + len);
+  v_uint64_t_cap(&self->bytecode_toks, self->bytecode_toks.len + len);
+
+  for (size_t i = 0; i < len; i++) {
+    v_uint8_t_push(&self->bytecode, bc[i]);
+    v_uint64_t_push(&self->bytecode_toks, toks[i]);
+  }
+
+  assert(self->bytecode.len == self->bytecode_toks.len);
+
+  return self->bytecode.len;
+}
+
 #undef CURSOR
 #undef NEXT_CURSOR
 #undef ADVANCE

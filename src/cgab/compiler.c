@@ -10,8 +10,8 @@
 #include <string.h>
 
 struct frame {
-  size_t offset;
-  size_t jump;
+  v_uint8_t bc;
+  v_uint64_t bc_toks;
   gab_value name;
 
   size_t prev_op_at;
@@ -89,6 +89,8 @@ struct bc {
   struct gab_triple gab;
 
   size_t offset;
+
+  size_t next_block;
 
   bool panic;
 
@@ -275,13 +277,17 @@ static inline void push_op(struct bc *bc, uint8_t op, size_t t) {
   f->prev_bb = f->curr_bb;
   f->prev_op = op;
 
-  f->prev_op_at = v_uint8_t_push(&bc->src->bytecode, op);
-  v_uint64_t_push(&bc->src->bytecode_toks, t);
+  f->prev_op_at = v_uint8_t_push(&f->bc, op);
+  v_uint64_t_push(&f->bc_toks, t);
 }
 
 static inline void push_byte(struct bc *bc, uint8_t data, size_t t) {
-  v_uint8_t_push(&bc->src->bytecode, data);
-  v_uint64_t_push(&bc->src->bytecode_toks, t);
+  int ctx = peek_ctx(bc, kFRAME, 0);
+  assert(ctx >= 0 && "Internal compiler error: no frame context");
+  struct frame *f = &bc->contexts[ctx].as.frame;
+
+  v_uint8_t_push(&f->bc, data);
+  v_uint64_t_push(&f->bc_toks, t);
 }
 
 static inline void push_short(struct bc *bc, uint16_t data, size_t t) {
@@ -328,19 +334,19 @@ static inline void push_k(struct bc *bc, uint16_t k, size_t t) {
     case OP_CONSTANT: {
       size_t prev_local_arg = f->prev_op_at + 1;
 
-      uint8_t prev_ka = v_uint8_t_val_at(&bc->src->bytecode, prev_local_arg);
+      uint8_t prev_ka = v_uint8_t_val_at(&f->bc, prev_local_arg);
       uint8_t prev_kb =
-          v_uint8_t_val_at(&bc->src->bytecode, prev_local_arg + 1);
+          v_uint8_t_val_at(&f->bc, prev_local_arg + 1);
 
       uint16_t prev_k = prev_ka << 8 | prev_kb;
 
-      v_uint8_t_pop(&bc->src->bytecode);
-      v_uint64_t_pop(&bc->src->bytecode_toks);
-      v_uint8_t_pop(&bc->src->bytecode);
-      v_uint64_t_pop(&bc->src->bytecode_toks);
+      v_uint8_t_pop(&f->bc);
+      v_uint64_t_pop(&f->bc_toks);
+      v_uint8_t_pop(&f->bc);
+      v_uint64_t_pop(&f->bc_toks);
 
       f->prev_op = OP_NCONSTANT;
-      v_uint8_t_set(&bc->src->bytecode, f->prev_op_at, OP_NCONSTANT);
+      v_uint8_t_set(&f->bc, f->prev_op_at, OP_NCONSTANT);
 
       push_byte(bc, 2, t);
       push_short(bc, prev_k, t);
@@ -350,8 +356,8 @@ static inline void push_k(struct bc *bc, uint16_t k, size_t t) {
     }
     case OP_NCONSTANT: {
       size_t prev_local_arg = f->prev_op_at + 1;
-      uint8_t prev_n = v_uint8_t_val_at(&bc->src->bytecode, prev_local_arg);
-      v_uint8_t_set(&bc->src->bytecode, prev_local_arg, prev_n + 1);
+      uint8_t prev_n = v_uint8_t_val_at(&f->bc, prev_local_arg);
+      v_uint8_t_set(&f->bc, prev_local_arg, prev_n + 1);
       push_short(bc, k, t);
       return;
     }
@@ -384,18 +390,18 @@ static inline void push_loadl(struct bc *bc, uint8_t local, size_t t) {
     switch (f->prev_op) {
     case OP_LOAD_LOCAL: {
       size_t prev_local_arg = f->prev_op_at + 1;
-      uint8_t prev_local = v_uint8_t_val_at(&bc->src->bytecode, prev_local_arg);
+      uint8_t prev_local = v_uint8_t_val_at(&f->bc, prev_local_arg);
       push_byte(bc, prev_local, t);
       push_byte(bc, local, t);
-      v_uint8_t_set(&bc->src->bytecode, prev_local_arg, 2);
-      v_uint8_t_set(&bc->src->bytecode, f->prev_op_at, OP_NLOAD_LOCAL);
+      v_uint8_t_set(&f->bc, prev_local_arg, 2);
+      v_uint8_t_set(&f->bc, f->prev_op_at, OP_NLOAD_LOCAL);
       f->prev_op = OP_NLOAD_LOCAL;
       return;
     }
     case OP_NLOAD_LOCAL: {
       size_t prev_local_arg = f->prev_op_at + 1;
-      uint8_t old_arg = v_uint8_t_val_at(&bc->src->bytecode, prev_local_arg);
-      v_uint8_t_set(&bc->src->bytecode, prev_local_arg, old_arg + 1);
+      uint8_t old_arg = v_uint8_t_val_at(&f->bc, prev_local_arg);
+      v_uint8_t_set(&f->bc, prev_local_arg, old_arg + 1);
       push_byte(bc, local, t);
       return;
     }
@@ -418,18 +424,18 @@ static inline void push_loadu(struct bc *bc, uint8_t upv, size_t t) {
     switch (f->prev_op) {
     case OP_LOAD_UPVALUE: {
       size_t prev_upv_arg = f->prev_op_at + 1;
-      uint8_t prev_upv = v_uint8_t_val_at(&bc->src->bytecode, prev_upv_arg);
+      uint8_t prev_upv = v_uint8_t_val_at(&f->bc, prev_upv_arg);
       push_byte(bc, prev_upv, t);
       push_byte(bc, upv, t);
-      v_uint8_t_set(&bc->src->bytecode, prev_upv_arg, 2);
-      v_uint8_t_set(&bc->src->bytecode, f->prev_op_at, OP_NLOAD_UPVALUE);
+      v_uint8_t_set(&f->bc, prev_upv_arg, 2);
+      v_uint8_t_set(&f->bc, f->prev_op_at, OP_NLOAD_UPVALUE);
       f->prev_op = OP_NLOAD_UPVALUE;
       return;
     }
     case OP_NLOAD_UPVALUE: {
       size_t prev_upv_arg = f->prev_op_at + 1;
-      uint8_t old_arg = v_uint8_t_val_at(&bc->src->bytecode, prev_upv_arg);
-      v_uint8_t_set(&bc->src->bytecode, prev_upv_arg, old_arg + 1);
+      uint8_t old_arg = v_uint8_t_val_at(&f->bc, prev_upv_arg);
+      v_uint8_t_set(&f->bc, prev_upv_arg, old_arg + 1);
       push_byte(bc, upv, t);
       return;
     }
@@ -452,23 +458,23 @@ static inline void push_storel(struct bc *bc, uint8_t local, size_t t) {
     switch (f->prev_op) {
     case OP_POPSTORE_LOCAL: {
       size_t prev_local_arg = f->prev_op_at + 1;
-      uint8_t prev_local = v_uint8_t_val_at(&bc->src->bytecode, prev_local_arg);
+      uint8_t prev_local = v_uint8_t_val_at(&f->bc, prev_local_arg);
       push_byte(bc, prev_local, t);
       push_byte(bc, local, t);
-      v_uint8_t_set(&bc->src->bytecode, prev_local_arg, 2);
-      v_uint8_t_set(&bc->src->bytecode, f->prev_op_at,
+      v_uint8_t_set(&f->bc, prev_local_arg, 2);
+      v_uint8_t_set(&f->bc, f->prev_op_at,
                     OP_NPOPSTORE_STORE_LOCAL);
       f->prev_op = OP_NPOPSTORE_STORE_LOCAL;
       return;
     }
     case OP_NPOPSTORE_LOCAL: {
       size_t prev_loc_arg = f->prev_op_at + 1;
-      uint8_t old_arg = v_uint8_t_val_at(&bc->src->bytecode, prev_loc_arg);
-      v_uint8_t_set(&bc->src->bytecode, prev_loc_arg, old_arg + 1);
+      uint8_t old_arg = v_uint8_t_val_at(&f->bc, prev_loc_arg);
+      v_uint8_t_set(&f->bc, prev_loc_arg, old_arg + 1);
 
       push_byte(bc, local, t);
 
-      v_uint8_t_set(&bc->src->bytecode, f->prev_op_at,
+      v_uint8_t_set(&f->bc, f->prev_op_at,
                     OP_NPOPSTORE_STORE_LOCAL);
       f->prev_op = OP_NPOPSTORE_STORE_LOCAL;
       return;
@@ -553,13 +559,13 @@ static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
   if (f->curr_bb == f->prev_bb) {
     switch (f->prev_op) {
     case OP_STORE_LOCAL:
-      f->prev_op_at = bc->src->bytecode.len - 2;
-      bc->src->bytecode.data[f->prev_op_at] = OP_POPSTORE_LOCAL;
+      f->prev_op_at = f->bc.len - 2;
+      f->bc.data[f->prev_op_at] = OP_POPSTORE_LOCAL;
       f->prev_op = OP_POPSTORE_LOCAL;
       return;
 
     case OP_NPOPSTORE_STORE_LOCAL:
-      bc->src->bytecode.data[f->prev_op_at] = OP_NPOPSTORE_LOCAL;
+      f->bc.data[f->prev_op_at] = OP_NPOPSTORE_LOCAL;
       f->prev_op = OP_NPOPSTORE_LOCAL;
       return;
 
@@ -581,10 +587,14 @@ static inline void push_pack(struct bc *bc, uint8_t have, bool mv,
 }
 
 static inline size_t push_jump(struct bc *bc, uint8_t op, size_t t) {
+  int ctx = peek_ctx(bc, kFRAME, 0);
+  assert(ctx >= 0 && "Internal compiler error: no frame context");
+  struct frame *f = &bc->contexts[ctx].as.frame;
+
   push_op(bc, op, t);
   push_nnop(bc, 2, t);
 
-  return bc->src->bytecode.len - 2;
+  return f->bc.len - 2;
 }
 
 static inline void patch_jump(struct bc *bc, size_t jump) {
@@ -594,16 +604,20 @@ static inline void patch_jump(struct bc *bc, size_t jump) {
 
   f->curr_bb++;
 
-  size_t dist = bc->src->bytecode.len - jump - 2;
+  size_t dist = f->bc.len - jump - 2;
 
   assert(dist < UINT16_MAX);
 
-  v_uint8_t_set(&bc->src->bytecode, jump, (dist >> 8) & 0xff);
-  v_uint8_t_set(&bc->src->bytecode, jump + 1, dist & 0xff);
+  v_uint8_t_set(&f->bc, jump, (dist >> 8) & 0xff);
+  v_uint8_t_set(&f->bc, jump + 1, dist & 0xff);
 }
 
 static inline size_t push_loop(struct bc *bc, size_t t) {
-  return bc->src->bytecode.len;
+  int ctx = peek_ctx(bc, kFRAME, 0);
+  assert(ctx >= 0 && "Internal compiler error: no frame context");
+  struct frame *f = &bc->contexts[ctx].as.frame;
+
+  return f->bc.len;
 }
 
 static inline void patch_loop(struct bc *bc, size_t loop, size_t t) {
@@ -613,7 +627,7 @@ static inline void patch_loop(struct bc *bc, size_t loop, size_t t) {
 
   f->curr_bb++;
 
-  size_t dist = bc->src->bytecode.len - loop + 3;
+  size_t dist = f->bc.len - loop + 3;
   assert(dist < UINT16_MAX);
   push_op(bc, OP_LOOP, t);
   push_short(bc, dist, t);
@@ -630,14 +644,14 @@ static inline bool unpatch_mv(struct bc *bc) {
   switch (f->prev_op) {
   case OP_DYNSEND:
   case OP_SEND:
-    v_uint8_t_set(&bc->src->bytecode, bc->src->bytecode.len - 1, 1);
+    v_uint8_t_set(&f->bc, f->bc.len - 1, 1);
     return true;
   case OP_YIELD: {
     uint16_t offset =
-        ((uint16_t)v_uint8_t_val_at(&bc->src->bytecode,
-                                    bc->src->bytecode.len - 3)
+        ((uint16_t)v_uint8_t_val_at(&f->bc,
+                                    f->bc.len - 3)
          << 8) |
-        v_uint8_t_val_at(&bc->src->bytecode, bc->src->bytecode.len - 2);
+        v_uint8_t_val_at(&f->bc, f->bc.len - 2);
 
     gab_value value = v_gab_value_val_at(&bc->src->constants, offset);
 
@@ -664,14 +678,14 @@ static inline bool patch_mv(struct bc *bc, uint8_t want) {
   switch (f->prev_op) {
   case OP_DYNSEND:
   case OP_SEND:
-    v_uint8_t_set(&bc->src->bytecode, bc->src->bytecode.len - 1, want);
+    v_uint8_t_set(&f->bc, f->bc.len - 1, want);
     return true;
   case OP_YIELD: {
     uint16_t offset =
-        ((uint16_t)v_uint8_t_val_at(&bc->src->bytecode,
-                                    bc->src->bytecode.len - 3)
+        ((uint16_t)v_uint8_t_val_at(&f->bc,
+                                    f->bc.len - 3)
          << 8) |
-        v_uint8_t_val_at(&bc->src->bytecode, bc->src->bytecode.len - 2);
+        v_uint8_t_val_at(&f->bc, f->bc.len - 2);
 
     gab_value value = v_gab_value_val_at(&bc->src->constants, offset);
 
@@ -1028,8 +1042,6 @@ static void push_ctxframe(struct bc *bc, gab_value name, bool is_message) {
 
   bool is_anonymous = name == gab_nil;
 
-  f->jump = push_jump(bc, OP_JUMP, bc->offset - 1);
-  f->offset = bc->src->bytecode.len;
   f->name = is_anonymous ? gab_string(gab(bc), "anonymous") : name;
 
   addk(bc, name);
@@ -1065,8 +1077,8 @@ static gab_value pop_ctxframe(struct bc *bc) {
   uint8_t nargs = f->narguments;
   uint8_t nlocals = f->nlocals;
 
-  gab_value p = gab_bprototype(gab(bc), bc->src, f->name, f->offset,
-                               bc->src->bytecode.len,
+  gab_value p = gab_bprototype(gab(bc), bc->src, f->name, bc->next_block,
+                               f->bc.len,
                                (struct gab_blkproto_argt){
                                    .nslots = nslots,
                                    .nlocals = nlocals,
@@ -1084,8 +1096,11 @@ static gab_value pop_ctxframe(struct bc *bc) {
   if (pop_ctx(bc, kFRAME) < 0)
     return gab_undefined;
 
-  if (peek_ctx(bc, kFRAME, 0) != COMP_CONTEXT_NOT_FOUND)
-    patch_jump(bc, f->jump);
+  bc->next_block =
+      gab_srcappend(bc->src, f->bc.len, f->bc.data, f->bc_toks.data);
+
+  v_uint8_t_destroy(&f->bc);
+  v_uint64_t_destroy(&f->bc_toks);
 
   return p;
 }
@@ -3270,7 +3285,7 @@ int compile_exp_yld(struct bc *bc, bool assignable) {
 
   if (!get_rule(curr_tok(bc)).prefix) {
     gab_value proto =
-        gab_sprototype(gab(bc), bc->src, f->name, bc->src->bytecode.len + 4, 1);
+        gab_sprototype(gab(bc), bc->src, f->name, f->bc.len + 4, 1);
 
     uint16_t kproto = addk(bc, proto);
 
@@ -3293,7 +3308,7 @@ int compile_exp_yld(struct bc *bc, bool assignable) {
   }
 
   gab_value proto =
-      gab_sprototype(gab(bc), bc->src, f->name, bc->src->bytecode.len + 4, 1);
+      gab_sprototype(gab(bc), bc->src, f->name, f->bc.len + 4, 1);
 
   uint16_t kproto = addk(bc, proto);
 
@@ -3818,9 +3833,11 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
 }
 
 int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *proto) {
-  uint64_t offset = proto->begin;
+  uint64_t offset = proto->offset;
 
-  while (offset < proto->as.block.end) {
+  uint64_t end = proto->offset + proto->as.block.len;
+
+  while (offset < end) {
     fprintf(stream, ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);
     offset = dumpInstruction(stream, proto, offset);
   }

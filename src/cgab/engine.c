@@ -533,8 +533,8 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
     struct gab_obj_prototype *self = GAB_VAL_TO_PROTOTYPE(value);
 
     gab_value copy = gab_bprototype(gab, gab_srccpy(gab, self->src),
-                                    gab_valcpy(gab, self->name), self->begin,
-                                    self->as.block.end,
+                                    gab_valcpy(gab, self->name), self->offset,
+                                    self->as.block.len,
                                     (struct gab_blkproto_argt){
                                         .nupvalues = self->as.block.nupvalues,
                                         .nslots = self->as.block.nslots,
@@ -592,7 +592,7 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
     struct gab_obj_prototype *self = GAB_VAL_TO_PROTOTYPE(value);
 
     return gab_sprototype(gab, gab_srccpy(gab, self->src),
-                          gab_valcpy(gab, self->name), self->begin,
+                          gab_valcpy(gab, self->name), self->offset,
                           self->as.suspense.want);
   }
 

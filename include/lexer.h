@@ -35,9 +35,13 @@ struct gab_src {
   v_gab_value constants;
 };
 
-struct gab_src *gab_src(struct gab_triple gab, gab_value name, const char *src, size_t len);
+struct gab_src *gab_src(struct gab_triple gab, gab_value name, const char *src,
+                        size_t len);
 
 struct gab_src *gab_srccpy(struct gab_triple gab, struct gab_src *src);
+
+size_t gab_srcappend(struct gab_src *self, size_t len, uint8_t bc[static len],
+                     uint64_t toks[static len]);
 
 void gab_srcdestroy(struct gab_src *self);
 

@@ -402,10 +402,12 @@ static inline bool call_suspense(struct gab_vm *vm,
     return false;
 
   struct gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(sus->p);
+  struct gab_obj_block *b = GAB_VAL_TO_BLOCK(sus->b);
+  struct gab_obj_prototype *bproto = GAB_VAL_TO_PROTOTYPE(b->p);
 
   vm->fp++;
-  vm->fp->b = GAB_VAL_TO_BLOCK(sus->b);
-  vm->fp->ip = proto->src->bytecode.data + proto->begin;
+  vm->fp->b = b;
+  vm->fp->ip = proto->src->bytecode.data + bproto->offset + proto->offset;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
 
@@ -447,7 +449,7 @@ static inline bool call_block(struct gab_vm *vm, gab_value m,
   vm->fp++;
   vm->fp->m = m;
   vm->fp->b = b;
-  vm->fp->ip = p->src->bytecode.data + p->begin;
+  vm->fp->ip = p->src->bytecode.data + p->offset;
   vm->fp->want = want;
   vm->fp->slots = vm->sp - have - 1;
 

@@ -1424,14 +1424,14 @@ struct gab_obj_prototype {
   /* The compiled source file */
   struct gab_src *src;
 
-  size_t begin;
+  size_t offset;
 
   /* The length of the variable sized data member, in bytes. */
   size_t len;
 
   union {
     struct {
-      size_t end;
+      size_t len;
       unsigned char narguments, nupvalues, nslots, nlocals;
     } block;
 
