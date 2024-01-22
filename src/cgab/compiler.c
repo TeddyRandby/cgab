@@ -522,6 +522,7 @@ static inline void push_dynsend(struct bc *bc, uint8_t have, bool mv,
   assert(have < 16);
 
   push_op(bc, OP_DYNSEND, t);
+  push_nnop(bc, 4, t);
   push_byte(bc, encode_arity(have, mv), t);
 }
 
@@ -633,23 +634,6 @@ static inline void patch_loop(struct bc *bc, size_t loop, size_t t) {
   push_short(bc, dist, t);
 }
 
-static inline bool unpatch_trim(struct bc *bc) {
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  assert(ctx >= 0 && "Internal compiler error: no frame context");
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
-  if (f->prev_bb != f->curr_bb)
-    return false;
-
-  switch (f->prev_op) {
-  case OP_TRIM:
-    v_uint8_t_set(&f->bc, f->bc.len - 1, 1); /* want */
-    return true;
-  }
-
-  return false;
-}
-
 static inline bool patch_trim(struct bc *bc, uint8_t want) {
   int ctx = peek_ctx(bc, kFRAME, 0);
   assert(ctx >= 0 && "Internal compiler error: no frame context");
@@ -660,7 +644,12 @@ static inline bool patch_trim(struct bc *bc, uint8_t want) {
 
   switch (f->prev_op) {
   case OP_TRIM:
-    v_uint8_t_set(&f->bc, f->bc.len - 1, want); /* want */
+    if (want != VAR_EXP) {
+      v_uint8_t_set(&f->bc, f->bc.len - 1, want); /* want */
+    } else {
+      f->bc.len -= 2;
+      f->bc_toks.len -= 2;
+    }
     return true;
   }
 
@@ -1017,6 +1006,8 @@ static void push_ctxframe(struct bc *bc, gab_value name, bool is_message) {
                            : is_anonymous ? gab_string(gab(bc), "")
                                           : name,
                            0));
+
+  push_trim(bc, 0, bc->offset - 1);
 }
 
 static int pop_ctxloop(struct bc *bc) {
@@ -1061,6 +1052,9 @@ static gab_value pop_ctxframe(struct bc *bc) {
 
   if (pop_ctx(bc, kFRAME) < 0)
     return gab_undefined;
+
+  if (f->bc.data[0] == OP_TRIM)
+    v_uint8_t_set(&f->bc, 1, nlocals);
 
   bc->next_block =
       gab_srcappend(bc->src, f->bc.len, f->bc.data, f->bc_toks.data);
@@ -1389,9 +1383,8 @@ fin:
     return COMP_ERR;
 
   if (below >= 0) {
+    patch_trim(bc, VAR_EXP);
     push_pack(bc, 0, true, below, narguments - below, bc->offset - 1);
-  } else {
-    push_trim(bc, narguments, bc->offset - 1);
   }
 
   int ctx = peek_ctx(bc, kFRAME, 0);
@@ -1638,7 +1631,7 @@ int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out) {
     /*
      * If we want all possible values, try to patch a mv.
      * If we are successful, remove one from have.
-     * This is because have's meaning changes to mean the number of
+
      * values in ADDITION to the mv ending the tuple.
      */
     have -= patch_trim(bc, VAR_EXP);
@@ -2739,7 +2732,9 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
   if (flags & fHAS_STRING || match_and_eat_token(bc, TOKEN_SIGIL) ||
       match_and_eat_token(bc, TOKEN_STRING) ||
       match_and_eat_token(bc, TOKEN_INTERPOLATION_BEGIN)) {
-    unpatch_trim(bc);
+
+    if (*mv_out)
+      push_trim(bc, 1, bc->offset - 1);
 
     if (compile_string(bc) < 0)
       return COMP_ERR;
@@ -2749,7 +2744,8 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
   }
 
   if (flags & fHAS_BRACK || match_and_eat_token(bc, TOKEN_LBRACK)) {
-    unpatch_trim(bc);
+    if (*mv_out)
+      push_trim(bc, 1, bc->offset - 1);
     // record argument
     if (compile_record(bc) < 0)
       return COMP_ERR;
@@ -2759,7 +2755,8 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
   }
 
   if (flags & fHAS_FATARROW || match_and_eat_token(bc, TOKEN_FAT_ARROW)) {
-    unpatch_trim(bc);
+    if (*mv_out)
+      push_trim(bc, 1, bc->offset - 1);
 
     if (compile_lambda(bc, bc->offset - 1) < 0)
       return COMP_ERR;
@@ -2767,7 +2764,8 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
     result += 1 + *mv_out;
     *mv_out = false;
   } else if (flags & fHAS_DO || match_and_eat_token(bc, TOKEN_DO)) {
-    unpatch_trim(bc);
+    if (*mv_out)
+      push_trim(bc, 1, bc->offset - 1);
 
     if (compile_block(bc, gab_nil) < 0)
       return COMP_ERR;
@@ -3758,10 +3756,8 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
     gab_value pval = v_gab_value_val_at(&self->src->constants, proto_constant);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(pval);
 
-    struct gab_obj_string *func_name = GAB_VAL_TO_STRING(p->name);
-
-    fprintf(stream, "%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET,
-            "OP_MESSAGE", (int)func_name->len, func_name->data);
+    fprintf(stream, "%-25s" ANSI_COLOR_CYAN "%-20s\n" ANSI_COLOR_RESET,
+            "OP_MESSAGE", gab_strdata(&p->name));
 
     for (int j = 0; j < p->as.block.nupvalues; j++) {
       uint8_t flags = p->data[j * 2];
@@ -3785,10 +3781,8 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
 
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(pval);
 
-    struct gab_obj_string *func_name = GAB_VAL_TO_STRING(p->name);
-
-    printf("%-25s" ANSI_COLOR_CYAN "%-20.*s\n" ANSI_COLOR_RESET, "OP_BLOCK",
-           (int)func_name->len, func_name->data);
+    printf("%-25s" ANSI_COLOR_CYAN "%-20s\n" ANSI_COLOR_RESET, "OP_BLOCK",
+           gab_strdata(&p->name));
 
     for (int j = 0; j < p->as.block.nupvalues; j++) {
       uint8_t flags = p->data[j * 2];

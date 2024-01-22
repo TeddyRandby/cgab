@@ -1,7 +1,12 @@
-eff = 1
+:use .dis
 
-valtwo, efftwo = 1()
+def once = do
+    yield 1
+    2
+end
 
-valthree = efftwo()
+once:dis
 
-2:expect(1)
+_, eff = once()
+
+eff()

@@ -455,14 +455,14 @@ end
     def receive_one = do
         val = yield
 
-        1:expect(val)
+        val:expect(1)
     end
 
     def receive_onetwo = do
         one, two = yield
         
-        1:expect(one)
-        2:expect(two)
+        one:expect(1)
+        two:expect(2)
     end
 
     def onetwo = do
@@ -476,8 +476,8 @@ end
    :it('should yield once') do
        val, eff = once()
 
-       1:expect(val)
-       2:expect(eff())
+       val:expect(1)
+       eff():expect(2)
    end
 
    :it('should yield twice') do
@@ -487,8 +487,8 @@ end
 
        valthree = efftwo()
 
-       2:expect(valtwo)
-       3:expect(efftwo())
+       valtwo:expect(2)
+       efftwo():expect(3)
    end
 
    :it('should receive a value') do

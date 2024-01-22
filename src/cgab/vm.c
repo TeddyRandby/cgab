@@ -321,17 +321,12 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t value) {
 
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
 
-  struct gab_obj_string *func_name = GAB_VAL_TO_STRING(p->name);
-
   fprintf(stream,
           ANSI_COLOR_GREEN " %03lu" ANSI_COLOR_RESET " closure:" ANSI_COLOR_CYAN
-                           "%-20.*s" ANSI_COLOR_RESET " %d upvalues\n",
-          frame_count - value, (int32_t)func_name->len, func_name->data,
-          p->as.block.nupvalues);
+                           "%-20s" ANSI_COLOR_RESET " %d upvalues\n",
+          frame_count - value, gab_strdata(&p->name), p->as.block.nupvalues);
 
-  int top = p->as.block.nslots;
-  if (f->slots + top > vm->sp)
-    top = vm->sp - f->slots;
+  size_t top = vm->sp - f->slots;
 
   for (int32_t i = top; i >= 0; i--) {
     fprintf(stream, "%2s" ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET,
@@ -346,38 +341,6 @@ static inline int32_t compute_arity(size_t var, uint8_t have) {
     return var + (have >> 1);
   else
     return have >> 1;
-}
-
-static inline uint64_t trim_values(gab_value *from, gab_value *to,
-                                   uint64_t have, uint8_t want) {
-  uint64_t nulls = 0;
-
-  if (__gab_unlikely(((have != want) && (want != VAR_EXP)))) {
-    if (have > want)
-      have = want;
-    else
-      nulls = want - have;
-  }
-
-  const uint64_t got = have + nulls;
-
-  while (have--)
-    *to++ = *from++;
-
-  while (nulls--)
-    *to++ = gab_nil;
-
-  return got;
-}
-
-static inline gab_value *trim_return(gab_value *from, gab_value *to,
-                                     uint64_t have, uint8_t want) {
-  uint64_t got = trim_values(from, to, have, want);
-
-  gab_value *sp = to + got;
-  *sp = got;
-
-  return sp;
 }
 
 static inline bool has_callspace(struct gab_vm *vm, size_t space_needed) {
@@ -411,8 +374,10 @@ static inline bool call_suspense(struct gab_vm *vm,
   gab_value *from = vm->sp - have;
   gab_value *to = vm->fp->slots + sus->nslots;
 
-  memcpy(to, from, have * sizeof(gab_value));
+  memmove(to, from, have * sizeof(gab_value));
   vm->sp = to + have;
+  *vm->sp = have;
+
   memcpy(vm->fp->slots, sus->slots, sus->nslots * sizeof(gab_value));
 
   return true;
@@ -450,14 +415,6 @@ static inline bool call_block(struct gab_vm *vm, gab_value m,
   vm->fp->slots = vm->sp - have - 1;
   *vm->sp = have;
 
-  // Update the SP to point just past the locals section
-  // Or past the arguments if we're using VAR_EXP
-  // size_t offset = (wants_var ? len : p->as.block.nlocals);
-
-  // Trim arguments into the slots
-  // vm->sp = trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, offset -
-  // 1);
-
   return true;
 }
 
@@ -465,6 +422,7 @@ static inline bool call_block(struct gab_vm *vm, gab_value m,
 static inline a_gab_value *call_native(struct gab_triple gab,
                                        struct gab_obj_native *b, uint8_t arity,
                                        bool is_message) {
+
   gab_value *to = gab.vm->sp - arity - 1;
 
   gab_value *before = gab.vm->sp;
@@ -616,20 +574,12 @@ CASE_CODE(SEND_BLOCK) {
 
   struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(cache[CACHED_SPEC]);
 
-  printf("1: VAR: %lu\n", VAR());
-
   STORE_FRAME();
-
-  printf("2: VAR: %lu\n", VAR());
 
   if (__gab_unlikely(!call_block(VM(), m, blk, have)))
     ERROR(GAB_OVERFLOW, "");
 
-  printf("3: VAR: %lu\n", VAR());
-
   LOAD_FRAME();
-
-  printf("4: VAR: %lu\n", VAR());
 
   NEXT();
 }
@@ -668,8 +618,6 @@ CASE_CODE(SEND_NATIVE) {
   gab_value m = READ_CONSTANT;
   gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
-
-  printf("SEND_NATIVE_HAVE: %lu\n", have);
 
   gab_value r = PEEK_N(have + 1);
 
@@ -738,6 +686,8 @@ CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
 }
 
 CASE_CODE(DYNSEND) {
+  SKIP_SHORT;
+  SKIP_SHORT;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   gab_value r = PEEK_N(have + 2);
@@ -764,7 +714,9 @@ CASE_CODE(DYNSEND) {
   switch (gab_valkind(spec)) {
   case kGAB_BLOCK: {
     // Shift our args down and forget about the message being called
-    SP() = trim_return(SP() - have, SP() - (have + 1), have, have);
+    memmove(SP() - (have + 1), SP() - have, have * sizeof(gab_value));
+    SP() -= 1;
+    VAR() = have;
 
     struct gab_obj_block *b = GAB_VAL_TO_BLOCK(spec);
 
@@ -779,7 +731,9 @@ CASE_CODE(DYNSEND) {
   }
   case kGAB_NATIVE: {
     // Shift our args down and forget about the message being called
-    SP() = trim_return(SP() - have, SP() - (have + 1), have, have);
+    memmove(SP() - (have + 1), SP() - have, have * sizeof(gab_value));
+    SP() -= 1;
+    VAR() = have;
 
     struct gab_obj_native *n = GAB_VAL_TO_NATIVE(spec);
 
@@ -806,6 +760,10 @@ CASE_CODE(DYNSEND) {
     // we want to pretend we already read the op-code.
     // TODO: Handle primitive calls with the wrong number of
     // arguments
+    memmove(SP() - (have + 1), SP() - have, have * sizeof(gab_value));
+    SP() -= 1;
+    VAR() = have;
+
     uint8_t op = gab_valtop(spec);
 
     IP() -= SEND_CACHE_DIST - 1;
@@ -945,6 +903,7 @@ CASE_CODE(SEND_PRIMITIVE_GTE) {
 CASE_CODE(SEND_PRIMITIVE_CONCAT) {
   gab_value m = READ_CONSTANT;
   SKIP_SHORT;
+  SKIP_BYTE;
 
   if (__gab_unlikely(gab_valkind(PEEK2()) != kGAB_STRING)) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
@@ -1025,6 +984,7 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
 
   memmove(SP(), rec->data, rec->len * sizeof(gab_value));
   SP() += rec->len;
+  VAR() = rec->len;
 
   NEXT();
 }
@@ -1093,6 +1053,7 @@ CASE_CODE(YIELD) {
 
   memmove(to, from, have * sizeof(gab_value));
   VM()->sp = to + have;
+  *VM()->sp = have;
 
   if (__gab_unlikely(VM()->fp - VM()->fb == 1))
     return return_ok(DISPATCH_ARGS());
@@ -1182,6 +1143,7 @@ CASE_CODE(SWAP) {
 
 CASE_CODE(INTERPOLATE) {
   uint8_t n = READ_BYTE;
+
   STORE_FRAME();
   gab_value str = gab_valintos(GAB(), PEEK_N(n));
 
@@ -1414,9 +1376,7 @@ CASE_CODE(TRIM) {
 
   SP() -= have;
 
-  if (want == VAR_EXP) {
-    want = have;
-  } else if (have != want) {
+  if (__gab_unlikely(have != want && want != VAR_EXP)) {
     if (have > want) {
       have = want;
     } else {
@@ -1424,12 +1384,11 @@ CASE_CODE(TRIM) {
     }
   }
 
-  SP() += want;
+  SP() += have + nulls;
+  VAR() = have + nulls;
 
   while (nulls--)
-    PUSH(gab_nil);
-
-  VAR() = want;
+    PEEK_N(nulls + 1) = gab_nil;
 
   NEXT();
 }
