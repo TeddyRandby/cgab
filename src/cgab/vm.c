@@ -448,13 +448,15 @@ static inline bool call_block(struct gab_vm *vm, gab_value m,
   vm->fp->b = b;
   vm->fp->ip = p->src->bytecode.data + p->offset;
   vm->fp->slots = vm->sp - have - 1;
+  *vm->sp = have;
 
   // Update the SP to point just past the locals section
   // Or past the arguments if we're using VAR_EXP
   // size_t offset = (wants_var ? len : p->as.block.nlocals);
 
   // Trim arguments into the slots
-  // vm->sp = trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, offset - 1);
+  // vm->sp = trim_return(vm->fp->slots + 1, vm->fp->slots + 1, have, offset -
+  // 1);
 
   return true;
 }
@@ -589,6 +591,7 @@ CASE_CODE(SEND) {
   }
 
   IP() -= SEND_CACHE_DIST;
+
   NEXT();
 }
 
@@ -613,12 +616,20 @@ CASE_CODE(SEND_BLOCK) {
 
   struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(cache[CACHED_SPEC]);
 
+  printf("1: VAR: %lu\n", VAR());
+
   STORE_FRAME();
+
+  printf("2: VAR: %lu\n", VAR());
 
   if (__gab_unlikely(!call_block(VM(), m, blk, have)))
     ERROR(GAB_OVERFLOW, "");
 
+  printf("3: VAR: %lu\n", VAR());
+
   LOAD_FRAME();
+
+  printf("4: VAR: %lu\n", VAR());
 
   NEXT();
 }
@@ -657,6 +668,8 @@ CASE_CODE(SEND_NATIVE) {
   gab_value m = READ_CONSTANT;
   gab_value *cache = READ_CACHE;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  printf("SEND_NATIVE_HAVE: %lu\n", have);
 
   gab_value r = PEEK_N(have + 1);
 
@@ -1396,17 +1409,19 @@ CASE_CODE(DYNSPEC) {
 
 CASE_CODE(TRIM) {
   uint8_t want = READ_BYTE;
-  uint64_t have = VAR(), nulls = 0;
+  uint64_t have = VAR();
+  uint64_t nulls = 0;
 
-  SP() = SP() - have;
+  SP() -= have;
 
   if (want == VAR_EXP) {
     want = have;
   } else if (have != want) {
-    if (have > want)
+    if (have > want) {
       have = want;
-    else
+    } else {
       nulls = want - have;
+    }
   }
 
   SP() += want;

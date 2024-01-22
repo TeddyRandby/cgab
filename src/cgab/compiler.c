@@ -1062,9 +1062,8 @@ static gab_value pop_ctxframe(struct bc *bc) {
   if (pop_ctx(bc, kFRAME) < 0)
     return gab_undefined;
 
-  if (peek_ctx(bc, kFRAME, 0) != 0)
-    bc->next_block =
-        gab_srcappend(bc->src, f->bc.len, f->bc.data, f->bc_toks.data);
+  bc->next_block =
+      gab_srcappend(bc->src, f->bc.len, f->bc.data, f->bc_toks.data);
 
   v_uint8_t_destroy(&f->bc);
   v_uint64_t_destroy(&f->bc_toks);
@@ -1642,7 +1641,6 @@ int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out) {
      * This is because have's meaning changes to mean the number of
      * values in ADDITION to the mv ending the tuple.
      */
-    printf("have: %d\n", have);
     have -= patch_trim(bc, VAR_EXP);
   } else {
     /*

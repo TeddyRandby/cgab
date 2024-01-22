@@ -147,7 +147,7 @@ a_gab_value *gab_lib_shape(struct gab_triple gab, size_t argc,
   switch (argc) {
   case 2: {
     if (gab_valkind(argv[1]) != kGAB_SHAPE) {
-      return gab_panic(gab, "Expected shape as second argument to :record.new");
+      return gab_ptypemismatch(gab, argv[1], gab_type(gab.eg, kGAB_SHAPE));
     }
 
     gab_value result = gab_erecordof(gab, argv[1]);
