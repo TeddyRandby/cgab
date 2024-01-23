@@ -505,6 +505,20 @@ static inline void push_yield(struct bc *bc, uint16_t p, uint8_t have, bool mv,
   push_byte(bc, encode_arity(have, mv), t);
 }
 
+static inline void push_block(struct bc *bc, gab_value p, size_t t) {
+  assert(gab_valkind(p) == kGAB_BPROTOTYPE);
+  struct gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(p);
+
+  if (proto->as.block.nupvalues == 0) {
+    gab_value b = gab_block(gab(bc), p);
+    push_loadk(bc, b, t);
+    return;
+  }
+
+  push_op(bc, OP_BLOCK, t);
+  push_short(bc, addk(bc, p), t);
+}
+
 static inline void push_tuple(struct bc *bc, uint8_t have, bool mv, size_t t) {
   assert(have < 16);
 
@@ -1518,8 +1532,7 @@ int compile_lambda(struct bc *bc, size_t t) {
   if (p == gab_undefined)
     return COMP_ERR;
 
-  push_op(bc, OP_BLOCK, bc->offset - 1);
-  push_short(bc, addk(bc, p), bc->offset - 1);
+  push_block(bc, p, bc->offset - 1);
 
   push_slot(bc, 1);
 
@@ -1542,8 +1555,7 @@ int compile_block(struct bc *bc, gab_value name) {
   if (p == gab_undefined)
     return COMP_ERR;
 
-  push_op(bc, OP_BLOCK, bc->offset - 1);
-  push_short(bc, addk(bc, p), bc->offset - 1);
+  push_block(bc, p, bc->offset - 1);
 
   push_slot(bc, 1);
 
