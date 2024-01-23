@@ -136,6 +136,38 @@ static handler handlers[] = {
   PUSH(value_type(a operation b));                                             \
   VAR() = 1;
 
+#define TRIM_N(n)                                                              \
+  CASE_CODE(TRIM_DOWN##n) {                                                    \
+    uint8_t want = READ_BYTE;                                                  \
+    if (__gab_unlikely((VAR() - n) != want)) {                                 \
+      WRITE_BYTE(2, OP_TRIM);                                                  \
+      IP() -= 2;                                                               \
+      NEXT();                                                                  \
+    }                                                                          \
+    DROP_N(n);                                                                 \
+    NEXT();                                                                    \
+  }                                                                            \
+  CASE_CODE(TRIM_EXACTLY##n) {                                                 \
+    if (__gab_unlikely(VAR() != n)) {                                          \
+      WRITE_BYTE(1, OP_TRIM);                                                  \
+      IP() -= 1;                                                               \
+      NEXT();                                                                  \
+    }                                                                          \
+    SKIP_BYTE;                                                                 \
+    NEXT();                                                                    \
+  }                                                                            \
+  CASE_CODE(TRIM_UP##n) {                                                      \
+    uint8_t want = READ_BYTE;                                                  \
+    if (__gab_unlikely((VAR() + n) != want)) {                                 \
+      WRITE_BYTE(2, OP_TRIM);                                                  \
+      IP() -= 2;                                                               \
+      NEXT();                                                                  \
+    }                                                                          \
+    for (int i = 0; i < n; i++)                                                \
+      PUSH(gab_nil);                                                           \
+    NEXT();                                                                    \
+  }
+
 #define STORE_FRAME()                                                          \
   ({                                                                           \
     VM()->sp = SP();                                                           \
@@ -1369,14 +1401,6 @@ CASE_CODE(DYNSPEC) {
   NEXT();
 }
 
-#define TRIM_N(n)                                                              \
-  CASE_CODE(TRIM##n) {                                                         \
-    if (__gab_unlikely(VAR() != n))                                            \
-      DISPATCH(OP_TRIM);                                                       \
-    SKIP_BYTE;                                                                 \
-    NEXT();                                                                    \
-  }
-
 TRIM_N(0)
 TRIM_N(1)
 TRIM_N(2)
@@ -1394,7 +1418,23 @@ CASE_CODE(TRIM) {
   uint64_t nulls = 0;
 
   if (have == want && want < 10) {
-    WRITE_BYTE(2, OP_TRIM + want + 1);
+    WRITE_BYTE(2, OP_TRIM_EXACTLY0 + want);
+
+    IP() -= 2;
+
+    NEXT();
+  }
+
+  if (have > want && have - want < 10) {
+    WRITE_BYTE(2, OP_TRIM_DOWN1 - 1 + (have - want));
+
+    IP() -= 2;
+
+    NEXT();
+  }
+
+  if (want > have && want - have < 10) {
+    WRITE_BYTE(2, OP_TRIM_UP1 - 1 + (want - have));
 
     IP() -= 2;
 

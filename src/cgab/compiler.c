@@ -3805,15 +3805,36 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
     }
     return offset;
   }
-  case OP_TRIM1:
-  case OP_TRIM2:
-  case OP_TRIM3:
-  case OP_TRIM4:
-  case OP_TRIM5:
-  case OP_TRIM6:
-  case OP_TRIM7:
-  case OP_TRIM8:
-  case OP_TRIM9:
+  case OP_TRIM_UP0:
+  case OP_TRIM_UP1:
+  case OP_TRIM_UP2:
+  case OP_TRIM_UP3:
+  case OP_TRIM_UP4:
+  case OP_TRIM_UP5:
+  case OP_TRIM_UP6:
+  case OP_TRIM_UP7:
+  case OP_TRIM_UP8:
+  case OP_TRIM_UP9:
+  case OP_TRIM_DOWN0:
+  case OP_TRIM_DOWN1:
+  case OP_TRIM_DOWN2:
+  case OP_TRIM_DOWN3:
+  case OP_TRIM_DOWN4:
+  case OP_TRIM_DOWN5:
+  case OP_TRIM_DOWN6:
+  case OP_TRIM_DOWN7:
+  case OP_TRIM_DOWN8:
+  case OP_TRIM_DOWN9:
+  case OP_TRIM_EXACTLY0:
+  case OP_TRIM_EXACTLY1:
+  case OP_TRIM_EXACTLY2:
+  case OP_TRIM_EXACTLY3:
+  case OP_TRIM_EXACTLY4:
+  case OP_TRIM_EXACTLY5:
+  case OP_TRIM_EXACTLY6:
+  case OP_TRIM_EXACTLY7:
+  case OP_TRIM_EXACTLY8:
+  case OP_TRIM_EXACTLY9:
   case OP_TRIM: {
     return dumpTrimInstruction(stream, self, offset);
   }
