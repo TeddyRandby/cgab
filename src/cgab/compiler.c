@@ -1068,7 +1068,7 @@ static gab_value pop_ctxframe(struct bc *bc) {
     return gab_undefined;
 
   if (f->bc.data[0] == OP_TRIM)
-    v_uint8_t_set(&f->bc, 1, nlocals);
+    v_uint8_t_set(&f->bc, 1, nlocals - 1);
 
   bc->next_block =
       gab_srcappend(bc->src, f->bc.len, f->bc.data, f->bc_toks.data);
@@ -3538,7 +3538,7 @@ uint64_t dumpDynSendInstruction(FILE *stream, struct gab_obj_prototype *self,
           "%-25s"
           "(%d%s)\n",
           name, have, var ? " & more" : "");
-  return offset + 2;
+  return offset + 6;
 }
 
 uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_prototype *self,
@@ -3805,6 +3805,15 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
     }
     return offset;
   }
+  case OP_TRIM1:
+  case OP_TRIM2:
+  case OP_TRIM3:
+  case OP_TRIM4:
+  case OP_TRIM5:
+  case OP_TRIM6:
+  case OP_TRIM7:
+  case OP_TRIM8:
+  case OP_TRIM9:
   case OP_TRIM: {
     return dumpTrimInstruction(stream, self, offset);
   }

@@ -1369,10 +1369,37 @@ CASE_CODE(DYNSPEC) {
   NEXT();
 }
 
+#define TRIM_N(n)                                                              \
+  CASE_CODE(TRIM##n) {                                                         \
+    if (__gab_unlikely(VAR() != n))                                            \
+      DISPATCH(OP_TRIM);                                                       \
+    SKIP_BYTE;                                                                 \
+    NEXT();                                                                    \
+  }
+
+TRIM_N(0)
+TRIM_N(1)
+TRIM_N(2)
+TRIM_N(3)
+TRIM_N(4)
+TRIM_N(5)
+TRIM_N(6)
+TRIM_N(7)
+TRIM_N(8)
+TRIM_N(9)
+
 CASE_CODE(TRIM) {
   uint8_t want = READ_BYTE;
   uint64_t have = VAR();
   uint64_t nulls = 0;
+
+  if (have == want && want < 10) {
+    WRITE_BYTE(2, OP_TRIM + want + 1);
+
+    IP() -= 2;
+
+    NEXT();
+  }
 
   SP() -= have;
 
