@@ -1115,9 +1115,10 @@ gab_value gab_erecordof(struct gab_triple gab, gab_value shape);
  * @param rec The record.
  * @param offset The offset within the record.
  * @param value The new value to put into the record.
+ * @returns the new value
  */
-static inline void gab_urecput(struct gab_triple gab, gab_value rec,
-                               uint64_t offset, gab_value value) {
+static inline gab_value gab_urecput(struct gab_triple gab, gab_value rec,
+                                    uint64_t offset, gab_value value) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
 
@@ -1130,6 +1131,8 @@ static inline void gab_urecput(struct gab_triple gab, gab_value rec,
 
   if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
     gab_iref(gab, obj->data[offset]);
+
+  return value;
 }
 
 /**
@@ -1199,9 +1202,9 @@ static inline gab_value gab_srecat(struct gab_triple gab, gab_value value,
  * @param obj The record object.
  * @param key The key, as a value.
  * @param value The value.
- * @return true if the put was a success, false otherwise.
+ * @return the new value if a success, gab_undefined otherwise.
  */
-static inline bool gab_recput(struct gab_triple gab, gab_value rec,
+static inline gab_value gab_recput(struct gab_triple gab, gab_value rec,
                               gab_value key, gab_value value) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
@@ -1209,11 +1212,9 @@ static inline bool gab_recput(struct gab_triple gab, gab_value rec,
   size_t offset = gab_shpfind(obj->shape, key);
 
   if (offset == GAB_PROPERTY_NOT_FOUND)
-    return false;
+    return gab_undefined;
 
-  gab_urecput(gab, rec, offset, value);
-
-  return true;
+  return gab_urecput(gab, rec, offset, value);
 }
 
 /**
@@ -1222,10 +1223,10 @@ static inline bool gab_recput(struct gab_triple gab, gab_value rec,
  * @param obj The record object.
  * @param key The key, as a c string literal.
  * @param value The value.
- * @return true if the put was a success, false otherwise.
+ * @return the new value if a success, gab_undefined otherwise.
  */
-static inline bool gab_srecput(struct gab_triple gab, gab_value rec,
-                               const char *key, gab_value v) {
+static inline gab_value gab_srecput(struct gab_triple gab, gab_value rec,
+                                    const char *key, gab_value v) {
   return gab_recput(gab, rec, gab_string(gab, key), v);
 }
 

@@ -3805,7 +3805,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
     }
     return offset;
   }
-  case OP_TRIM_UP0:
   case OP_TRIM_UP1:
   case OP_TRIM_UP2:
   case OP_TRIM_UP3:
@@ -3815,7 +3814,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_TRIM_UP7:
   case OP_TRIM_UP8:
   case OP_TRIM_UP9:
-  case OP_TRIM_DOWN0:
   case OP_TRIM_DOWN1:
   case OP_TRIM_DOWN2:
   case OP_TRIM_DOWN3:

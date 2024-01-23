@@ -30,14 +30,6 @@ def tuple.collect[](msg, ..p, len)
   return t
 end
 
-def [][.Record](key)
-  _, v = self:at(key)
-
-  v
-end
-
-def [=][.Record](key, value); self:put!(key, value) end
-
 def has?[.Record](key); self:at(key) == .some end
 
 def pairs[.Record]

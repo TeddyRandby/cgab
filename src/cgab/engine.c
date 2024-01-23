@@ -109,6 +109,16 @@ struct primitive primitives[] = {
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_SPLAT),
     },
     {
+        .name = mGAB_GET,
+        .type = kGAB_RECORD,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_GET),
+    },
+    {
+        .name = mGAB_SET,
+        .type = kGAB_RECORD,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_SET),
+    },
+    {
         .name = mGAB_CALL,
         .type = kGAB_NATIVE,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_NATIVE),

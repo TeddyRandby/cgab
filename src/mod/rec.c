@@ -82,7 +82,7 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
     return gab_panic(gab, "Invalid call to gab_lib_put");
   }
 
-  if (!gab_recput(gab, argv[0], argv[1], argv[2]))
+  if (gab_recput(gab, argv[0], argv[1], argv[2]) == gab_undefined)
     gab_vmpush(gab.vm, gab_nil);
   else
     gab_vmpush(gab.vm, argv[2]);

@@ -99,6 +99,7 @@ static handler handlers[] = {
 #define DROP_N(n) (SP() -= (n))
 #define PEEK() (*(SP() - 1))
 #define PEEK2() (*(SP() - 2))
+#define PEEK3() (*(SP() - 3))
 #define PEEK_N(n) (*(SP() - (n)))
 
 #define WRITE_BYTE(dist, n) (*(IP() - dist) = (n))
@@ -1017,6 +1018,68 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
   memmove(SP(), rec->data, rec->len * sizeof(gab_value));
   SP() += rec->len;
   VAR() = rec->len;
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_GET) {
+  gab_value m = READ_CONSTANT;
+  gab_value *cache = READ_CACHE;
+  SKIP_BYTE;
+
+  gab_value r = PEEK2();
+
+  if (__gab_unlikely(cache[CACHED_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (__gab_unlikely(gab_valtype(EG(), r) != cache[CACHED_TYPE])) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  gab_value res = gab_recat(r, PEEK());
+  
+  DROP_N(2);
+
+  PUSH(res == gab_undefined ? gab_nil : res);
+
+  VAR() = 1;
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_SET) {
+  gab_value m = READ_CONSTANT;
+  gab_value *cache = READ_CACHE;
+  SKIP_BYTE;
+
+  gab_value r = PEEK3();
+
+  if (__gab_unlikely(cache[CACHED_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (__gab_unlikely(gab_valtype(EG(), r) != cache[CACHED_TYPE])) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  STORE_FRAME();
+
+  bool ok = gab_recput(gab, r, PEEK2(), PEEK());
+
+  DROP_N(3);
+
+  PUSH(gab_bool(ok));
+
+  VAR() = 1;
 
   NEXT();
 }
