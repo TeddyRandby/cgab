@@ -793,11 +793,11 @@ CASE_CODE(DYNSEND) {
     // we want to pretend we already read the op-code.
     // TODO: Handle primitive calls with the wrong number of
     // arguments
-    memmove(SP() - (have + 1), SP() - have, have * sizeof(gab_value));
-    SP() -= 1;
-    VAR() = have;
-
     uint8_t op = gab_valtop(spec);
+    uint8_t want = op >= OP_SEND_PRIMITIVE_CALL_NATIVE ? have : 1;
+    memmove(SP() - (have + 1), SP() - have, want * sizeof(gab_value));
+    SP() -= (have - want) + 1;
+    VAR() = have;
 
     IP() -= SEND_CACHE_DIST - 1;
 
@@ -1042,7 +1042,7 @@ CASE_CODE(SEND_PRIMITIVE_GET) {
   }
 
   gab_value res = gab_recat(r, PEEK());
-  
+
   DROP_N(2);
 
   PUSH(res == gab_undefined ? gab_nil : res);
@@ -1073,11 +1073,11 @@ CASE_CODE(SEND_PRIMITIVE_SET) {
 
   STORE_FRAME();
 
-  bool ok = gab_recput(gab, r, PEEK2(), PEEK());
+  gab_value res = gab_recput(gab, r, PEEK2(), PEEK());
 
   DROP_N(3);
 
-  PUSH(gab_bool(ok));
+  PUSH(res);
 
   VAR() = 1;
 
