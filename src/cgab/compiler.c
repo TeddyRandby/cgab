@@ -2146,7 +2146,6 @@ int compile_definition(struct bc *bc, s_char name) {
     if (compile_tuple(bc, n, NULL) < 0)
       return COMP_ERR;
 
-    // Initialize all the additional locals
     for (int i = n - 1; i > 0; i--) {
       push_storel((bc), local + i, t);
       push_pop((bc), 1, t);
