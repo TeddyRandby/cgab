@@ -436,6 +436,24 @@ gab_value gab_shapewith(struct gab_triple gab, gab_value shape, gab_value key) {
 
   return __gab_obj(self);
 }
+gab_value gab_sshape(struct gab_triple gab, size_t stride, size_t len,
+                     const char *keys[static len]) {
+  a_gab_value *buff = a_gab_value_empty(len);
+
+  gab_gclock(gab.gc);
+
+  for (size_t i = 0; i < len; i++) {
+    buff->data[i] = gab_string(gab, keys[stride * i]);
+  }
+
+  gab_value s = gab_shape(gab, stride, len, buff->data);
+
+  free(buff);
+
+  gab_gcunlock(gab.gc);
+
+  return s;
+}
 
 gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
                     gab_value keys[len]) {

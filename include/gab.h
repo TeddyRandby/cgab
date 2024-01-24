@@ -658,6 +658,61 @@ struct gab_repl_argt {
   gab_value *argv;
 };
 
+struct gab_spec_argt {
+  const char *name;
+  gab_value receiver, specialization;
+};
+/**
+ * # Create a specialization on the given message for the given receiver
+ *
+ * @param gab The engine.
+ *
+ * @param vm The vm.
+ *
+ * @param args The arguments.
+ * @see struct gab_spec_argt
+ *
+ * @return The message that was updated.
+ */
+int gab_nspec(struct gab_triple gab, size_t len,
+              struct gab_spec_argt args[static len]);
+
+/**
+ * # Create a specialization on the given message for the given receiver
+ *
+ * @param gab The engine.
+ *
+ * @param vm The vm.
+ *
+ * @param args The arguments.
+ * @see struct gab_spec_argt
+ *
+ * @return The message that was updated.
+ */
+gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args);
+
+/**
+ * # Deep-copy a value.
+ *
+ * @param gab The engine.
+ *
+ * @param value The value to copy.
+ *
+ * @return The copy.
+ */
+gab_value gab_valcpy(struct gab_triple gab, gab_value value);
+
+/**
+ * # Get the runtime value that corresponds to the given kind.
+ *
+ * @param gab The engine
+ *
+ * @param kind The type to retrieve the value for.
+ *
+ * @return The runtime value corresponding to that type.
+ */
+static inline gab_value gab_type(struct gab_eg *gab, enum gab_kind kind);
+
 /**
  * @brief Begin an interactive REPL.
  *
@@ -690,6 +745,21 @@ a_gab_value *gab_panic(struct gab_triple gab, const char *fmt, ...);
  */
 a_gab_value *gab_ptypemismatch(struct gab_triple gab, gab_value found,
                                gab_value texpected);
+
+/**
+ * @brief If fGAB_DUMP_ERROR is set, print a type-mismatch error message to
+ * stderr.
+ *
+ * @param gab The triple.
+ * @param found The value with the mismatched type.
+ * @param texpected The expected type.
+ * @returns false.
+ */
+static inline a_gab_value *gab_pktypemismatch(struct gab_triple gab,
+                                              gab_value found,
+                                              enum gab_kind texpected) {
+  return gab_ptypemismatch(gab, found, gab_type(gab.eg, texpected));
+};
 
 #if cGAB_LOG_GC
 
@@ -958,19 +1028,36 @@ struct gab_obj_shape {
 #define GAB_VAL_TO_SHAPE(v) ((struct gab_obj_shape *)gab_valtoo(v))
 
 /**
- * Create a new shape object.
+ * @brief Create a new shape object.
  *
  * @param gab The gab triple.
- *
  * @param stride The stride of the keys in they key array.
- *
  * @param len The length of the shape.
- *
  * @param keys The key array.
+ * @returns The new shape.
  */
 gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
                     gab_value keys[static len]);
 
+/**
+ * @brief Create a new shape object.
+ *
+ * @param gab The gab triple.
+ * @param stride The stride of the keys in they key array.
+ * @param len The length of the shape.
+ * @param keys The key array.
+ */
+gab_value gab_sshape(struct gab_triple gab, size_t stride, size_t len,
+                     const char *keys[static len]);
+
+/**
+ * @brief Append a key to a shape, returning the new shape.
+ *
+ * @param gab The gab triple.
+ * @param shape The shape to extend.
+ * @param key The key to append.
+ * @returns The new shape.
+ */
 gab_value gab_shapewith(struct gab_triple gab, gab_value shape, gab_value key);
 
 /**
@@ -1205,7 +1292,7 @@ static inline gab_value gab_srecat(struct gab_triple gab, gab_value value,
  * @return the new value if a success, gab_undefined otherwise.
  */
 static inline gab_value gab_recput(struct gab_triple gab, gab_value rec,
-                              gab_value key, gab_value value) {
+                                   gab_value key, gab_value value) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
 
@@ -1650,61 +1737,6 @@ gab_value gab_tuple(struct gab_triple gab, size_t len,
  * @return The new record.
  */
 gab_value gab_etuple(struct gab_triple gab, size_t len);
-
-struct gab_spec_argt {
-  const char *name;
-  gab_value receiver, specialization;
-};
-/**
- * # Create a specialization on the given message for the given receiver
- *
- * @param gab The engine.
- *
- * @param vm The vm.
- *
- * @param args The arguments.
- * @see struct gab_spec_argt
- *
- * @return The message that was updated.
- */
-int gab_nspec(struct gab_triple gab, size_t len,
-              struct gab_spec_argt args[static len]);
-
-/**
- * # Create a specialization on the given message for the given receiver
- *
- * @param gab The engine.
- *
- * @param vm The vm.
- *
- * @param args The arguments.
- * @see struct gab_spec_argt
- *
- * @return The message that was updated.
- */
-gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args);
-
-/**
- * # Deep-copy a value.
- *
- * @param gab The engine.
- *
- * @param value The value to copy.
- *
- * @return The copy.
- */
-gab_value gab_valcpy(struct gab_triple gab, gab_value value);
-
-/**
- * # Get the runtime value that corresponds to the given kind.
- *
- * @param gab The engine
- *
- * @param kind The type to retrieve the value for.
- *
- * @return The runtime value corresponding to that type.
- */
-static inline gab_value gab_type(struct gab_eg *gab, enum gab_kind kind);
 
 /**
  * # Get the practical runtime type of a value.
