@@ -2573,28 +2573,27 @@ int compile_exp_idn(struct bc *bc, bool assignable) {
   }
 
   switch (result) {
-  case COMP_RESOLVED_TO_LOCAL: {
+  case COMP_RESOLVED_TO_LOCAL:
     push_loadl((bc), index, bc->offset - 1);
-    break;
-  }
 
-  case COMP_RESOLVED_TO_UPVALUE: {
+    push_slot(bc, 1);
+
+    return COMP_OK;
+
+  case COMP_RESOLVED_TO_UPVALUE:
     push_loadu((bc), index, bc->offset - 1);
-    break;
-  }
 
-  case COMP_ID_NOT_FOUND: {
+    push_slot(bc, 1);
+
+    return COMP_OK;
+
+  case COMP_ID_NOT_FOUND:
     compiler_error(bc, GAB_MISSING_IDENTIFIER, "");
     return COMP_ERR;
-  }
 
   default:
     return COMP_ERR;
   }
-
-  push_slot(bc, 1);
-
-  return COMP_OK;
 }
 
 int compile_exp_splt(struct bc *bc, bool assignable) {

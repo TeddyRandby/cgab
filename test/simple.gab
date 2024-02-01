@@ -1,12 +1,27 @@
-:use .dis
-
-def once = do
-    yield 1
-    2
+# Guards like this can definitely be implemented
+# But they aren't very useful.
+def ..[.Number](bottom &:is_n?, top &:is_n?)
+  .pass
 end
 
-once:dis
+# I want to be able to define a message with _multiple_ cases like this
+def ..[.Number](top &:is_n?)
+  .pass
+end
 
-_, eff = once()
+# This makes message lookup significantly more complex.
+# It depends on the types of the arguments.
+# Because arity can't be known at compile time, this would have to be a runtime lookup
 
-eff()
+def is_cases?[.Record]
+  self:reduce(
+    &:for,
+    &:values,
+    &:is_callable?,
+    &:and,
+  )
+end
+
+def match[](..args, cases &:is_cases?)
+  cases[self](..args)
+end
