@@ -536,21 +536,27 @@ static inline void push_dynsend(struct bc *bc, uint8_t have, bool mv,
   assert(have < 16);
 
   push_op(bc, OP_DYNSEND, t);
-  push_nnop(bc, 4, t);
+  push_nnop(bc, 2, t);
   push_byte(bc, encode_arity(have, mv), t);
 }
 
-static inline void push_send(struct bc *bc, uint16_t m, uint8_t have, bool mv,
+static inline void push_send(struct bc *bc, gab_value m, uint8_t have, bool mv,
                              size_t t) {
   assert(have < 16);
 
-  uint16_t cache = addk(bc, gab_undefined);
+  if (gab_valkind(m) == kGAB_STRING) {
+    m = gab_message(gab(bc), m);
+  }
+
+  assert(gab_valkind(m) == kGAB_MESSAGE);
+
+  uint16_t ks = addk(bc, m);
+  addk(bc, gab_undefined);
   addk(bc, gab_undefined);
   addk(bc, gab_undefined);
 
   push_op(bc, OP_SEND, t);
-  push_short(bc, m, t);
-  push_short(bc, cache, t);
+  push_short(bc, ks, t);
   push_byte(bc, encode_arity(have, mv), t);
 }
 
@@ -1870,8 +1876,7 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
       break;
 
     case kPROP: {
-      uint16_t m = add_message_constant(bc, lval.as.property);
-      push_send(bc, m, 1, false, t);
+      push_send(bc, lval.as.property, 1, false, t);
 
       if (!is_last_assignment)
         push_pop(bc, 1, t);
@@ -1881,8 +1886,7 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
     }
 
     case kINDEX: {
-      uint16_t m = add_message_constant(bc, gab_string(gab(bc), mGAB_SET));
-      push_send(bc, m, 2, false, t);
+      push_send(bc, gab_string(gab(bc), mGAB_SET), 2, false, t);
 
       if (!is_last_assignment)
         push_pop(bc, 1, t);
@@ -2234,63 +2238,63 @@ int compile_exp_bin(struct bc *bc, bool assignable) {
   gab_token op = prev_tok(bc);
   size_t t = bc->offset - 1;
 
-  uint16_t m;
+  gab_value m;
 
   switch (op) {
   case TOKEN_MINUS:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_SUB));
+    m = gab_string(gab(bc), mGAB_SUB);
     break;
 
   case TOKEN_PLUS:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_ADD));
+    m = gab_string(gab(bc), mGAB_ADD);
     break;
 
   case TOKEN_STAR:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_MUL));
+    m = gab_string(gab(bc), mGAB_MUL);
     break;
 
   case TOKEN_SLASH:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_DIV));
+    m = gab_string(gab(bc), mGAB_DIV);
     break;
 
   case TOKEN_PERCENT:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_MOD));
+    m = gab_string(gab(bc), mGAB_MOD);
     break;
 
   case TOKEN_PIPE:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_BOR));
+    m = gab_string(gab(bc), mGAB_BOR);
     break;
 
   case TOKEN_AMPERSAND:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_BND));
+    m = gab_string(gab(bc), mGAB_BND);
     break;
 
   case TOKEN_EQUAL_EQUAL:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_EQ));
+    m = gab_string(gab(bc), mGAB_EQ);
     break;
 
   case TOKEN_LESSER:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_LT));
+    m = gab_string(gab(bc), mGAB_LT);
     break;
 
   case TOKEN_LESSER_EQUAL:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_LTE));
+    m = gab_string(gab(bc), mGAB_LTE);
     break;
 
   case TOKEN_LESSER_LESSER:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_LSH));
+    m = gab_string(gab(bc), mGAB_LSH);
     break;
 
   case TOKEN_GREATER:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_GT));
+    m = gab_string(gab(bc), mGAB_GT);
     break;
 
   case TOKEN_GREATER_EQUAL:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_GTE));
+    m = gab_string(gab(bc), mGAB_GTE);
     break;
 
   case TOKEN_GREATER_GREATER:
-    m = add_message_constant(bc, gab_string(gab(bc), mGAB_RSH));
+    m = gab_string(gab(bc), mGAB_RSH);
     break;
 
   default:
@@ -2666,9 +2670,7 @@ int compile_exp_splt(struct bc *bc, bool assignable) {
   }
 
 as_splat_exp: {
-  uint16_t m = add_message_constant(bc, gab_string(gab(bc), mGAB_SPLAT));
-
-  push_send(bc, m, 0, false, t);
+  push_send(bc, gab_string(gab(bc), mGAB_SPLAT), 0, false, t);
 
   return VAR_EXP;
 }
@@ -2692,8 +2694,7 @@ int compile_exp_idx(struct bc *bc, bool assignable) {
     }
   }
 
-  uint16_t m = add_message_constant(bc, gab_string(gab(bc), mGAB_GET));
-  push_send(bc, m, 1, false, t);
+  push_send(bc, gab_string(gab(bc), mGAB_GET), 1, false, t);
 
   pop_slot(bc, 2);
   push_slot(bc, 1);
@@ -2797,8 +2798,6 @@ int compile_exp_emp(struct bc *bc, bool assignable) {
 
   gab_value val_name = trim_prev_id(bc);
 
-  uint16_t m = add_message_constant(bc, val_name);
-
   push_loadi(bc, kGAB_UNDEFINED, t);
 
   push_slot(bc, 1);
@@ -2814,7 +2813,7 @@ int compile_exp_emp(struct bc *bc, bool assignable) {
     return COMP_ERR;
   }
 
-  push_send(bc, m, result, mv, t);
+  push_send(bc, val_name, result, mv, t);
 
   pop_slot(bc, result);
 
@@ -2965,8 +2964,6 @@ int compile_exp_snd(struct bc *bc, bool assignable) {
     }
   }
 
-  uint16_t m = add_message_constant(bc, name);
-
   bool mv = false;
   int result = compile_arguments(bc, &mv, 0);
 
@@ -2980,7 +2977,7 @@ int compile_exp_snd(struct bc *bc, bool assignable) {
 
   pop_slot(bc, result + 1 + mv);
 
-  push_send(bc, m, result, mv, t);
+  push_send(bc, name, result, mv, t);
 
   push_slot(bc, 1);
 
@@ -3003,9 +3000,7 @@ int compile_exp_cal(struct bc *bc, bool assignable) {
 
   pop_slot(bc, result + 1 + mv);
 
-  uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
-
-  push_send(bc, msg, result, mv, t);
+  push_send(bc, gab_string(gab(bc), mGAB_CALL), result, mv, t);
 
   push_slot(bc, 1);
 
@@ -3023,9 +3018,7 @@ int compile_exp_lmbcal(struct bc *bc, bool assignable) {
 
   pop_slot(bc, result);
 
-  uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
-
-  push_send(bc, msg, result, mv, t);
+  push_send(bc, gab_string(gab(bc), mGAB_CALL), result, mv, t);
 
   return VAR_EXP;
 }
@@ -3041,9 +3034,7 @@ int compile_exp_bcal(struct bc *bc, bool assignable) {
 
   pop_slot(bc, result);
 
-  uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
-
-  push_send(bc, msg, result, mv, t);
+  push_send(bc, gab_string(gab(bc), mGAB_CALL), result, mv, t);
 
   return VAR_EXP;
 }
@@ -3056,9 +3047,7 @@ int compile_exp_symcal(struct bc *bc, bool assignable) {
 
   pop_slot(bc, 1);
 
-  uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
-
-  push_send(bc, msg, result, mv, t);
+  push_send(bc, gab_string(gab(bc), mGAB_CALL), result, mv, t);
 
   return VAR_EXP;
 }
@@ -3071,9 +3060,7 @@ int compile_exp_scal(struct bc *bc, bool assignable) {
 
   pop_slot(bc, 1);
 
-  uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
-
-  push_send(bc, msg, result, mv, t);
+  push_send(bc, gab_string(gab(bc), mGAB_CALL), result, mv, t);
 
   return VAR_EXP;
 }
@@ -3086,9 +3073,7 @@ int compile_exp_rcal(struct bc *bc, bool assignable) {
 
   pop_slot(bc, 1);
 
-  uint16_t msg = add_message_constant(bc, gab_string(gab(bc), mGAB_CALL));
-
-  push_send(bc, msg, result, mv, t);
+  push_send(bc, gab_string(gab(bc), mGAB_CALL), result, mv, t);
 
   return VAR_EXP;
 }
@@ -3527,7 +3512,7 @@ uint64_t dumpDynSendInstruction(FILE *stream, struct gab_obj_prototype *self,
   const char *name =
       gab_opcode_names[v_uint8_t_val_at(&self->src->bytecode, offset)];
 
-  uint8_t have = v_uint8_t_val_at(&self->src->bytecode, offset + 1);
+  uint8_t have = v_uint8_t_val_at(&self->src->bytecode, offset + 3);
 
   uint8_t var = have & FLAG_VAR_EXP;
   have = have >> 1;
@@ -3536,7 +3521,7 @@ uint64_t dumpDynSendInstruction(FILE *stream, struct gab_obj_prototype *self,
           "%-25s"
           "(%d%s)\n",
           name, have, var ? " & more" : "");
-  return offset + 6;
+  return offset + 4;
 }
 
 uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_prototype *self,
@@ -3550,7 +3535,7 @@ uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_prototype *self,
 
   gab_value msg = v_gab_value_val_at(&self->src->constants, constant);
 
-  uint8_t have = v_uint8_t_val_at(&self->src->bytecode, offset + 5);
+  uint8_t have = v_uint8_t_val_at(&self->src->bytecode, offset + 3);
 
   uint8_t var = have & FLAG_VAR_EXP;
   have = have >> 1;
@@ -3559,7 +3544,7 @@ uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_prototype *self,
   gab_fvalinspect(stream, msg, 0);
   fprintf(stream, ANSI_COLOR_RESET " (%d%s)\n", have, var ? " & more" : "");
 
-  return offset + 6;
+  return offset + 4;
 }
 
 uint64_t dumpByteInstruction(FILE *stream, struct gab_obj_prototype *self,
