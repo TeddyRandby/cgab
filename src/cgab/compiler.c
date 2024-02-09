@@ -2077,8 +2077,13 @@ int compile_record(struct bc *bc) {
 }
 
 int compile_record_tuple(struct bc *bc) {
-  bool mv;
-  int size = compile_tuple(bc, VAR_EXP, &mv);
+  bool mv = false;
+  int size = 0;
+
+  if (match_and_eat_token(bc, TOKEN_RBRACE))
+    goto fin;
+
+  size = compile_tuple(bc, VAR_EXP, &mv);
 
   if (size < 0)
     return COMP_ERR;
@@ -2091,6 +2096,7 @@ int compile_record_tuple(struct bc *bc) {
   if (expect_token(bc, TOKEN_RBRACE) < 0)
     return COMP_ERR;
 
+fin:
   push_tuple((bc), size, mv, bc->offset - 1);
 
   pop_slot(bc, size);

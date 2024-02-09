@@ -12,7 +12,7 @@
 def explain_specs(specs, separator)
   not specs or specs:len == 0 and return ''
 
-  specs:tuple.collect(
+  res = specs:tuple.collect(
         &:map,
         &:values,
         &:spec.explain,
@@ -27,7 +27,7 @@ end
 def explain_strings(strings, separator)
   not strings or strings:len == 0 and return ''
 
-  strings:tuple.collect(
+  res = strings:tuple.collect(
           &:map,
           &:values,
           do (v); '{v} = {:spec(v):spec.explain}' end,
@@ -112,7 +112,7 @@ def spec.gen[?nil.predicate]
   nil
 end
 
-def spec.explain[?nil.predicate](); 'nil' end
+def spec.explain[?nil.predicate](); 'Nil' end
 
 def spec.nil[]; nil.predicate end
 
@@ -131,9 +131,11 @@ def spec.gen[?unknown.predicate]
   unknown_values[idx]
 end
 
-def spec.explain[?unknown.predicate](); 'unknown' end
+def spec.explain[?unknown.predicate](); 'Unknown' end
 
 def spec.unknown[]; unknown.predicate end
+
+registry.name:put!(unknown.predicate, 'unknown')
 
 # INT PREDICATE
 def int.predicate = :symbol.new 'predicate:int'
@@ -146,7 +148,7 @@ def spec.gen[?int.predicate]
   :int.between(-10000, 10000)
 end
 
-def spec.explain[?int.predicate](); 'int' end
+def spec.explain[?int.predicate](); 'Int' end
 
 def spec.int[]; int.predicate end
 
@@ -164,7 +166,7 @@ def spec.gen[?float.predicate]
   :float.between(-10000, 10000)
 end
 
-def spec.explain[?float.predicate](); 'float' end
+def spec.explain[?float.predicate](); 'Float' end
 
 def spec.float[]; return float.predicate end
 
@@ -191,26 +193,62 @@ def spec.gen[?string.predicate]
   list:to_bytes
 end
 
-def spec.explain[?string.predicate](); 'string' end
+def spec.explain[?string.predicate](); 'String' end
 
 def spec.string[]; string.predicate end
 
 #
+# SHAPE PREDICATE
+#
+
+def shape.predicate = :symbol.new 'predicate:shape'
+
+def spec.fits?[?shape.predicate](value)
+  return value:is_shape?, self, value
+end
+
+def spec.gen[?shape.predicate]
+  yield
+end
+
+def spec.explain[?shape.predicate](); 'Shape' end
+
+def spec.shape[]; shape.predicate end
+
+#
+# SUSPENSE PREDICATE
+#
+
+def suspense.predicate = :symbol.new 'predicate:suspense'
+
+def spec.fits?[?suspense.predicate](value)
+  return value:is_suspense?, self, value
+end
+
+def spec.gen[?suspense.predicate]
+  yield
+end
+
+def spec.explain[?suspense.predicate](); 'Suspense' end
+
+def spec.suspense[]; suspense.predicate end
+
+#
 # BOOL PREDICATE
 #
-def bool.predicate = :symbol.new 'predicate:bool'
+def boolean.predicate = :symbol.new 'predicate:boolean'
 
-def spec.fits?[?bool.predicate](value)
+def spec.fits?[?boolean.predicate](value)
   return value:is_b?, self, value
 end
 
-def spec.gen[?bool.predicate]
+def spec.gen[?boolean.predicate]
   :float.between > 0.5
 end
 
-def spec.explain[?bool.predicate](); 'bool' end
+def spec.explain[?boolean.predicate](); 'Boolean' end
 
-def spec.bool[]; return bool.predicate end
+def spec.boolean[]; return boolean.predicate end
 
 ## predicate for a map of key type -> value type
 def spec.map[](k_spec, v_spec)
@@ -232,7 +270,7 @@ def spec.map[](k_spec, v_spec)
   end
 
   def spec.explain[?map.predicate]
-    'map[{k_spec:spec.explain}: {v_spec:spec.explain}]'
+    'Map[{k_spec:spec.explain}: {v_spec:spec.explain}]'
   end
 
   map.predicate
@@ -300,7 +338,10 @@ def spec.protocol[](protocol)
     return gen
   end
 
+# Modifying specs
   def spec.explain[?protocol.predicate]
+    protocol:len == 0 and return "{}"
+
     "{\n " + explain_strings(protocol, '\n ') + "\n}"
   end
 
@@ -501,6 +542,20 @@ def spec.block[](args, semantics)
   return block.predicate
 end
 
+def spec.generator[](..specs)
+  :spec.values(..specs:push(:spec.suspense))
+end
+
+def general_message.predicate = :symbol.new 'predicate:message'
+
+def spec.fits?[?general_message.predicate](value)
+  return value:is_m?, self, value
+end
+
+def spec.gen[?general_message.predicate]; &+ end
+
+def spec.explain[?general_message.predicate]; 'Message' end
+
 ## TODO: Handle -
 ##    - no arguments
 ##    - no output
@@ -508,6 +563,8 @@ end
 def spec.message.Args { receiver, message, input, output }
 
 def spec.message[](args, semantics)
+  not args and return general_message.predicate
+
   args:assert.is?(spec.message.Args)
 
   def message.predicate = :symbol.new 'predicate:message:{args}:{semantics}'
@@ -613,6 +670,7 @@ def spec.doc[];
 
   '## {name}\n{help}\n\n\t{self:spec.explain}\n'
 end
+
 def spec.messages[]
   has, messages = registry.messages:at(self) 
 

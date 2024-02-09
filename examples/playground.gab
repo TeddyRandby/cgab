@@ -54,3 +54,5 @@ car.paint.spec:spec.explain:print
 _, spec, value, path = car.paint.spec:first(&:spec.check) do (ok, spec, value, path)
     not ok and return .some, spec, value, path
   end
+
+:print(spec, value, path)

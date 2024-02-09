@@ -936,6 +936,7 @@ gab_value gab_strcat(struct gab_triple gab, gab_value a, gab_value b);
  */
 static inline size_t gab_strlen(gab_value str) {
   assert(gab_valkind(str) == kGAB_STRING);
+
   if (gab_valiso(str))
     return GAB_VAL_TO_STRING(str)->len;
 

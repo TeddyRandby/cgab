@@ -20,6 +20,13 @@ a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
   case 1:
     break;
 
+  case 2:
+    if (gab_valkind(argv[1]) == kGAB_NUMBER) {
+      uint64_t a = gab_valton(argv[1]);
+      end = MIN(a, len);
+      break;
+    }
+
   case 3: {
     if (gab_valkind(argv[1]) != kGAB_NUMBER ||
         gab_valkind(argv[2]) != kGAB_NUMBER) {
@@ -33,13 +40,6 @@ a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
     end = MIN(b, len);
     break;
   }
-
-  case 2:
-    if (gab_valkind(argv[1]) == kGAB_NUMBER) {
-      uint64_t a = gab_valton(argv[1]);
-      end = MIN(a, len);
-      break;
-    }
 
   default:
     return gab_panic(gab, "Invalid call to gab_lib_slice");
@@ -86,6 +86,20 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
     gab_vmpush(gab.vm, gab_nil);
   else
     gab_vmpush(gab.vm, argv[2]);
+
+  return NULL;
+}
+
+a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
+  if (argc != 2) {
+    return gab_panic(gab, "Invalid call to gab_lib_push");
+  }
+
+  gab_value tup =
+      gab_recordwith(gab, argv[0], gab_number(gab_reclen(argv[0])), argv[1]);
+
+  gab_vmpush(gab.vm, tup);
 
   return NULL;
 }
@@ -256,6 +270,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "slice",
           gab_type(gab.eg, kGAB_RECORD),
           gab_snative(gab, "slice", gab_lib_slice),
+      },
+      {
+          "push",
+          gab_type(gab.eg, kGAB_RECORD),
+          gab_snative(gab, "push", gab_lib_push),
       },
   };
 

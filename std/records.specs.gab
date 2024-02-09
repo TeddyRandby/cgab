@@ -1,14 +1,47 @@
 :use 'specs'
 
-:spec.def! .Record {
+def receiver = :spec.def! .Record {
   help = "An ordered, consant array of key-value pairs.",
   spec = :spec.protocol {},
 }
 
-:spec.def! .Record.len {
-  help = "Get the number of key-value pairs in the record.",
+:spec.def! .tuple.new {
+  help = "Construct an empty tuple with the given length.",
   spec = :spec.message {
-    receiver = :spec .Record,
+    receiver = :spec.unknown,
+    message  = &:tuple.new,
+    input    = :spec.label(:spec.int) .len,
+    output   = receiver,
+  }
+}
+
+:spec.def! .record.new {
+  help = "Construct an empty record with the given shape.",
+  spec = :spec.message {
+    receiver = :spec.unknown,
+    message  = &:record.new,
+    input    = :spec.label(:spec.shape) .template,
+    output   = receiver,
+  }
+}
+
+:spec.def! .tuple.collect {
+  help = "Collect up to len vales from the given stream into a record.",
+  spec = :spec.message {
+    receiver = :spec.unknown,
+    message  = &:tuple.collect,
+    input    = :spec.values(:spec.message, [], :spec.int),
+    output   = receiver,
+  }
+}
+
+def KEY   = :spec.label(:spec.unknown) .key
+def VALUE = :spec.label(:spec.unknown) .value
+
+:spec.def! .Record.len {
+  help = "Return the number of key-value pairs in the record.",
+  spec = :spec.message {
+    receiver,
     message  = &:len,
     input    = :spec.values,
     output   = :spec.int,
@@ -16,41 +49,114 @@
 }
 
 :spec.def! .Record.at {
-  help = "Get the value at the given key, if it exists.",
+  help = "Return the value at the given key, if it exists.",
   spec = :spec.message {
-    receiver = :spec .Record,
+    receiver,
     message  = &:at,
-    input    = :spec.label(:spec.unknown) .key,
-    output   = :spec.option(:spec.unknown),
+    input    = KEY,
+    output   = :spec.option(VALUE),
   },
 }
 
 :spec.def! .Record.to_l {
-  help = "Convert a record to a list of key, value pairs.",
+  help = "Return a list of key, value pairs.",
   spec = :spec.message {
-    receiver = :spec .Record,
+    receiver,
     message  = &:to_l,
     input    = :spec.values,
-    output   = :spec.list(:spec.unknown),
+    output   = :spec.list(VALUE),
   },
 }
 
 :spec.def! .Record.to_m {
-  help = "Convert a record to a map.",
+  help = "Return a map, populated with the key-value pairs of the record.",
   spec = :spec.message {
-    receiver = :spec .Record,
+    receiver,
     message  = &:to_m,
     input    = :spec.values,
-    output   = :spec.map(:spec.unknown, :spec.unknown),
+    output   = :spec.map(KEY, VALUE),
   },
 }
 
-:spec.def! .Record.pairs {
-  help = ""
+:spec.def! .Record.put! {
+  help = "Put a value in the record at the given key",
   spec = :spec.message {
-    receiver = :spec .Record,
+    receiver,
+    message  = &:put!,
+    input    = :spec.values(KEY, VALUE),
+    output   = :spec.or(VALUE, :spec.nil),
+  }
+}
+
+:spec.def! .Record.next {
+  help = "Return the key that appears after the given key in the record",
+  spec = :spec.message {
+    receiver,
+    message  = &:next,
+    input    = KEY,
+    output   = :spec.or(KEY, :spec.nil),
+  }
+}
+
+:spec.def! .Record.slice {
+  help = "Return a record with only the key-value pairs in the given range.",
+  spec = :spec.message {
+    receiver,
+    message  = &:slice,
+    input    = :spec.values(
+      :spec.or(:spec.int, :spec.nil),
+      :spec.or(:spec.int, :spec.nil),
+    ),
+    output   = receiver
+  }
+}
+
+:spec.def! .Record.push {
+  help = "Return a record with an additional value. ",
+  spec = :spec.message {
+    receiver,
+    message  = &:push,
+    input    = VALUE,
+    output   = receiver
+  }
+}
+
+:spec.def! .Record.has? {
+  help = "Return true if the key exists in the record.",
+  spec = :spec.message {
+    receiver,
+    message  = &:has?,
+    input    = KEY,
+    output   = :spec.boolean,
+  }
+}
+
+:spec.def! .Record.pairs {
+  help = "Yield each key-value pair in the record.",
+  spec = :spec.message {
+    receiver,
     message  = &:pairs,
     input    = :spec.values,
-    output   = :spec.generator(:spec.unknown, :spec.unknown),
+    output   = :spec.generator(KEY, VALUE),
+  }
+}
+
+:spec.def! .Record.keys {
+  help = "Yield each key in the record.",
+  spec = :spec.message {
+    receiver,
+    message  = &:keys,
+    input    = :spec.values,
+    output   = :spec.generator(KEY),
+  }
+}
+
+:spec.def! .Record.values {
+  help = "Yield each value in the record.",
+  spec = :spec.message {
+    receiver,
+    message  = &:values,
+    input    = :spec.values,
+    output   = :spec.generator(VALUE),
   }
 }
