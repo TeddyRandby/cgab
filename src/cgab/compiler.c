@@ -531,13 +531,35 @@ static inline void push_nnop(struct bc *bc, uint8_t n, size_t t) {
     push_byte(bc, OP_NOP, t); // Don't count this as an op
 }
 
+static inline bool patch_trim(struct bc *bc, uint8_t want) {
+  int ctx = peek_ctx(bc, kFRAME, 0);
+  assert(ctx >= 0 && "Internal compiler error: no frame context");
+  struct frame *f = &bc->contexts[ctx].as.frame;
+
+  if (f->prev_bb != f->curr_bb)
+    return false;
+
+  switch (f->prev_op) {
+  case OP_TRIM:
+    if (want != VAR_EXP) {
+      v_uint8_t_set(&f->bc, f->bc.len - 1, want); /* want */
+    } else {
+      f->bc.len -= 2;
+      f->bc_toks.len -= 2;
+    }
+    return true;
+  }
+
+  return false;
+}
+
 static inline void push_dynsend(struct bc *bc, uint8_t have, bool mv,
                                 size_t t) {
   assert(have < 16);
 
   push_op(bc, OP_DYNSEND, t);
   push_nnop(bc, 2, t);
-  push_byte(bc, encode_arity(have, mv), t);
+  push_byte(bc, encode_arity(1 + have, mv), t);
 }
 
 static inline void push_send(struct bc *bc, gab_value m, uint8_t have, bool mv,
@@ -554,6 +576,12 @@ static inline void push_send(struct bc *bc, gab_value m, uint8_t have, bool mv,
   addk(bc, gab_undefined);
   addk(bc, gab_undefined);
   addk(bc, gab_undefined);
+
+  if (have == 0 && !mv && patch_trim(bc, VAR_EXP)) {
+    mv = true;
+  } else {
+    have++;
+  }
 
   push_op(bc, OP_SEND, t);
   push_short(bc, ks, t);
@@ -652,28 +680,6 @@ static inline void patch_loop(struct bc *bc, size_t loop, size_t t) {
   assert(dist < UINT16_MAX);
   push_op(bc, OP_LOOP, t);
   push_short(bc, dist, t);
-}
-
-static inline bool patch_trim(struct bc *bc, uint8_t want) {
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  assert(ctx >= 0 && "Internal compiler error: no frame context");
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
-  if (f->prev_bb != f->curr_bb)
-    return false;
-
-  switch (f->prev_op) {
-  case OP_TRIM:
-    if (want != VAR_EXP) {
-      v_uint8_t_set(&f->bc, f->bc.len - 1, want); /* want */
-    } else {
-      f->bc.len -= 2;
-      f->bc_toks.len -= 2;
-    }
-    return true;
-  }
-
-  return false;
 }
 
 gab_value curr_id(struct bc *bc) {
@@ -1074,7 +1080,7 @@ static gab_value pop_ctxframe(struct bc *bc) {
     return gab_undefined;
 
   if (f->bc.data[0] == OP_TRIM)
-    v_uint8_t_set(&f->bc, 1, nlocals - 1);
+    v_uint8_t_set(&f->bc, 1, nlocals);
 
   bc->next_block =
       gab_srcappend(bc->src, f->bc.len, f->bc.data, f->bc_toks.data);
@@ -1404,7 +1410,7 @@ fin:
 
   if (below >= 0) {
     patch_trim(bc, VAR_EXP);
-    push_pack(bc, 0, true, below, narguments - below, bc->offset - 1);
+    push_pack(bc, 0, true, below + 1, narguments - below, bc->offset - 1);
   }
 
   int ctx = peek_ctx(bc, kFRAME, 0);
@@ -2935,7 +2941,7 @@ int compile_exp_dyn(struct bc *bc, bool assignable) {
     return COMP_ERR;
   }
 
-  pop_slot(bc, result + 1 + mv);
+  pop_slot(bc, 1 + result + mv);
 
   push_dynsend(bc, result, mv, t);
 
