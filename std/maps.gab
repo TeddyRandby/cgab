@@ -1,16 +1,16 @@
 :use 'map'
 
-def [][.Map](key)
+def [][.gab.map](key)
   _, val = self:at(key)
 
   val
 end
 
-def [=][.Map](key, value); self:put!(key, value); end
+def [=][.gab.map](key, value); self:put!(key, value); end
 
-def has?[.Map](key); self:at(key) == .some; end
+def has?[.gab.map](key); self:at(key) == .some; end
 
-def at_or![.Map](key, default)
+def at_or![.gab.map](key, default)
   (_, val = self:at(key)) == .some then
     return val
   end else
@@ -19,9 +19,9 @@ def at_or![.Map](key, default)
   end
 end
 
-def del![.Map](key); self:put!(key, nil); end
+def del![.gab.map](key); self:put!(key, nil); end
 
-def each[.Map]
+def each[.gab.map]
   key = self:next
 
   loop
@@ -30,7 +30,7 @@ def each[.Map]
   until key == nil end
 end
 
-def keys[.Map]
+def keys[.gab.map]
   key = self:next
 
   loop
@@ -39,7 +39,7 @@ def keys[.Map]
   until key == nil end
 end
 
-def values[.Map]
+def values[.gab.map]
   key = self:next
 
   loop
@@ -48,7 +48,7 @@ def values[.Map]
   until key == nil end
 end
 
-def pairs[.Map]
+def pairs[.gab.map]
     key = self:next
 
     loop

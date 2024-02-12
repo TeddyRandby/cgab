@@ -1,11 +1,11 @@
 :use .list
 :use .streams
 
-def [][.List](key)
+def [][.gab.list](key)
   self:at(key)
 end
 
-def values[.List]
+def values[.gab.list]
   self:empty? and return
 
   v = 0 
@@ -15,7 +15,7 @@ def values[.List]
   until v >= self:len end
 end
 
-def pairs[.List]
+def pairs[.gab.list]
   self:empty? and return
 
   v = 0 
@@ -25,13 +25,13 @@ def pairs[.List]
   until v >= self:len end
 end
 
-def <<[.List](other)
+def <<[.gab.list](other)
   other:for(&:each) do; self:push!(@1) end
   
   self
 end
 
-def empty?[.List]; self:len == 0 end
+def empty?[.gab.list]; self:len == 0 end
 
 def list.collect[](msg, ..p)
   def l = :list.new

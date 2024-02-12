@@ -136,7 +136,7 @@ a_gab_value* gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[arg
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value type = gab_string(gab, "Map");
+  gab_value type = gab_string(gab, "gab.map");
 
   struct gab_spec_argt specs[] = {
       {

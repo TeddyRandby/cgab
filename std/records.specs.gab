@@ -1,7 +1,7 @@
 :use 'specs'
 
-def receiver = :spec.def! .Record {
-  help = "An ordered, consant array of key-value pairs.",
+def receiver = :spec.def! .gab.record {
+  help = "An ordered, constant array of key-value pairs.",
   spec = :spec.protocol {},
 }
 
@@ -38,7 +38,7 @@ def receiver = :spec.def! .Record {
 def KEY   = :spec.label(:spec.unknown) .key
 def VALUE = :spec.label(:spec.unknown) .value
 
-:spec.def! .Record.len {
+:spec.def! .gab.record.len {
   help = "Return the number of key-value pairs in the record.",
   spec = :spec.message {
     receiver,
@@ -48,7 +48,7 @@ def VALUE = :spec.label(:spec.unknown) .value
   },
 }
 
-:spec.def! .Record.at {
+:spec.def! .gab.record.at {
   help = "Return the value at the given key, if it exists.",
   spec = :spec.message {
     receiver,
@@ -58,7 +58,7 @@ def VALUE = :spec.label(:spec.unknown) .value
   },
 }
 
-:spec.def! .Record.to_l {
+:spec.def! .gab.record.to_l {
   help = "Return a list of key, value pairs.",
   spec = :spec.message {
     receiver,
@@ -68,7 +68,7 @@ def VALUE = :spec.label(:spec.unknown) .value
   },
 }
 
-:spec.def! .Record.to_m {
+:spec.def! .gab.record.to_m {
   help = "Return a map, populated with the key-value pairs of the record.",
   spec = :spec.message {
     receiver,
@@ -78,7 +78,7 @@ def VALUE = :spec.label(:spec.unknown) .value
   },
 }
 
-:spec.def! .Record.put! {
+:spec.def! .gab.record.put! {
   help = "Put a value in the record at the given key",
   spec = :spec.message {
     receiver,
@@ -88,7 +88,7 @@ def VALUE = :spec.label(:spec.unknown) .value
   }
 }
 
-:spec.def! .Record.next {
+:spec.def! .gab.record.next {
   help = "Return the key that appears after the given key in the record",
   spec = :spec.message {
     receiver,
@@ -98,7 +98,7 @@ def VALUE = :spec.label(:spec.unknown) .value
   }
 }
 
-:spec.def! .Record.slice {
+:spec.def! .gab.record.slice {
   help = "Return a record with only the key-value pairs in the given range.",
   spec = :spec.message {
     receiver,
@@ -111,7 +111,7 @@ def VALUE = :spec.label(:spec.unknown) .value
   }
 }
 
-:spec.def! .Record.push {
+:spec.def! .gab.record.push {
   help = "Return a record with an additional value. ",
   spec = :spec.message {
     receiver,
@@ -121,7 +121,7 @@ def VALUE = :spec.label(:spec.unknown) .value
   }
 }
 
-:spec.def! .Record.has? {
+:spec.def! .gab.record.has? {
   help = "Return true if the key exists in the record.",
   spec = :spec.message {
     receiver,
@@ -131,7 +131,7 @@ def VALUE = :spec.label(:spec.unknown) .value
   }
 }
 
-:spec.def! .Record.pairs {
+:spec.def! .gab.record.pairs {
   help = "Yield each key-value pair in the record.",
   spec = :spec.message {
     receiver,
@@ -141,7 +141,7 @@ def VALUE = :spec.label(:spec.unknown) .value
   }
 }
 
-:spec.def! .Record.keys {
+:spec.def! .gab.record.keys {
   help = "Yield each key in the record.",
   spec = :spec.message {
     receiver,
@@ -151,7 +151,7 @@ def VALUE = :spec.label(:spec.unknown) .value
   }
 }
 
-:spec.def! .Record.values {
+:spec.def! .gab.record.values {
   help = "Yield each value in the record.",
   spec = :spec.message {
     receiver,

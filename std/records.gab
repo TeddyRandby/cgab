@@ -30,9 +30,9 @@ def tuple.collect[](msg, ..p, len)
   return t
 end
 
-def has?[.Record](key); self:at(key) == .some end
+def has?[.gab.record](key); self:at(key) == .some end
 
-def pairs[.Record]
+def pairs[.gab.record]
     key = self:next
 
     loop
@@ -41,7 +41,7 @@ def pairs[.Record]
     until key == nil end
 end
 
-def keys[.Record]
+def keys[.gab.record]
     key = self:next
 
     loop
@@ -50,7 +50,7 @@ def keys[.Record]
     until key == nil end
 end
 
-def values[.Record]
+def values[.gab.record]
     key = self:next
 
     loop
@@ -59,7 +59,7 @@ def values[.Record]
     until key == nil end
 end
 
-def map![.Record](mapper)
+def map![.gab.record](mapper)
     key = self:next
 
     loop

@@ -109,7 +109,7 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
   }
   case kGAB_SHAPE: {
     struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(self);
-    return fprintf(stream, "<Shape ") +
+    return fprintf(stream, "<gab.shape ") +
            shape_dump_properties(stream, shape, depth) + fprintf(stream, ">");
   }
   case kGAB_RECORD: {
@@ -125,24 +125,24 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
   case kGAB_BLOCK: {
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(self);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);
-    return fprintf(stream, "<Block ") +
+    return fprintf(stream, "<gab.block ") +
            gab_fvalinspect(stream, p->name, depth) + fprintf(stream, ">");
   }
   case kGAB_SUSPENSE: {
     struct gab_obj_suspense *sus = GAB_VAL_TO_SUSPENSE(self);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(sus->p);
-    return fprintf(stream, "<Suspense ") +
+    return fprintf(stream, "<gab.suspense ") +
            gab_fvalinspect(stream, p->name, depth) + fprintf(stream, ">");
   }
   case kGAB_NATIVE: {
     struct gab_obj_native *n = GAB_VAL_TO_NATIVE(self);
-    return fprintf(stream, "<Native ") +
+    return fprintf(stream, "<gab.native ") +
            gab_fvalinspect(stream, n->name, depth) + fprintf(stream, ">");
   }
   case kGAB_BPROTOTYPE:
   case kGAB_SPROTOTYPE: {
     struct gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(self);
-    return fprintf(stream, "<Prototype ") +
+    return fprintf(stream, "<gab.prototype ") +
            gab_fvalinspect(stream, proto->name, depth) + fprintf(stream, ">");
   }
   default: {

@@ -223,7 +223,7 @@ a_gab_value * gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[a
 #undef CLAMP
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value type = gab_string(gab, "List");
+  gab_value type = gab_string(gab, "gab.list");
 
   struct gab_spec_argt specs[] = {
       {

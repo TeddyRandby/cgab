@@ -64,7 +64,7 @@ gab_value map_create(struct gab_triple gab, size_t len, size_t stride,
   }
 
   gab_value self = gab_box(gab, (struct gab_box_argt){
-                                    .type = gab_string(gab, "Map"),
+                                    .type = gab_string(gab, "gab.map"),
                                     .destructor = map_destroy,
                                     .visitor = map_visit,
                                     .data = &d,
