@@ -3499,7 +3499,7 @@ static void compiler_error(struct bc *bc, enum gab_status e,
   gab_fvpanic(gab(bc), stderr, va,
               (struct gab_err_argt){
                   .src = bc->src,
-                  .message = gab_nil,
+                  .block = gab_nil,
                   .status = e,
                   .tok = bc->offset - 1,
                   .note_fmt = note_fmt,

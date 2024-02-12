@@ -95,7 +95,7 @@ struct gab_err_argt {
   enum gab_status status;
   const char *note_fmt;
   struct gab_src *src;
-  gab_value message;
+  gab_value block;
   size_t tok;
 };
 

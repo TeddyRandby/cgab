@@ -151,46 +151,46 @@ struct gab_triple gab_create() {
   eg->types[kGAB_UNDEFINED] = gab_undefined;
   eg->types[kGAB_NIL] = gab_nil;
 
-  eg->types[kGAB_NUMBER] = gab_string(gab, "Number");
+  eg->types[kGAB_NUMBER] = gab_string(gab, "gab.number");
   gab_iref(gab, eg->types[kGAB_NUMBER]);
 
-  eg->types[kGAB_TRUE] = gab_string(gab, "Boolean");
+  eg->types[kGAB_TRUE] = gab_string(gab, "gab.bool");
   gab_iref(gab, eg->types[kGAB_TRUE]);
 
-  eg->types[kGAB_FALSE] = gab_string(gab, "Boolean");
+  eg->types[kGAB_FALSE] = gab_string(gab, "gab.bool");
   gab_iref(gab, eg->types[kGAB_FALSE]);
 
-  eg->types[kGAB_STRING] = gab_string(gab, "String");
+  eg->types[kGAB_STRING] = gab_string(gab, "gab.string");
   gab_iref(gab, eg->types[kGAB_STRING]);
 
-  eg->types[kGAB_MESSAGE] = gab_string(gab, "Message");
+  eg->types[kGAB_MESSAGE] = gab_string(gab, "gab.message");
   gab_iref(gab, eg->types[kGAB_MESSAGE]);
 
-  eg->types[kGAB_SPROTOTYPE] = gab_string(gab, "Prototype");
+  eg->types[kGAB_SPROTOTYPE] = gab_string(gab, "gab.prototype");
   gab_iref(gab, eg->types[kGAB_SPROTOTYPE]);
 
-  eg->types[kGAB_BPROTOTYPE] = gab_string(gab, "Prototype");
+  eg->types[kGAB_BPROTOTYPE] = gab_string(gab, "gab.prototype");
   gab_iref(gab, eg->types[kGAB_BPROTOTYPE]);
 
-  eg->types[kGAB_NATIVE] = gab_string(gab, "Native");
+  eg->types[kGAB_NATIVE] = gab_string(gab, "gab.native");
   gab_iref(gab, eg->types[kGAB_NATIVE]);
 
-  eg->types[kGAB_BLOCK] = gab_string(gab, "Block");
+  eg->types[kGAB_BLOCK] = gab_string(gab, "gab.block");
   gab_iref(gab, eg->types[kGAB_BLOCK]);
 
-  eg->types[kGAB_RECORD] = gab_string(gab, "Record");
+  eg->types[kGAB_RECORD] = gab_string(gab, "gab.record");
   gab_iref(gab, eg->types[kGAB_RECORD]);
 
-  eg->types[kGAB_SHAPE] = gab_string(gab, "Shape");
+  eg->types[kGAB_SHAPE] = gab_string(gab, "gab.shape");
   gab_iref(gab, eg->types[kGAB_SHAPE]);
 
-  eg->types[kGAB_BOX] = gab_string(gab, "Box");
+  eg->types[kGAB_BOX] = gab_string(gab, "gab.box");
   gab_iref(gab, eg->types[kGAB_BOX]);
 
-  eg->types[kGAB_SUSPENSE] = gab_string(gab, "Suspense");
+  eg->types[kGAB_SUSPENSE] = gab_string(gab, "gab.suspense");
   gab_iref(gab, eg->types[kGAB_SUSPENSE]);
 
-  eg->types[kGAB_PRIMITIVE] = gab_string(gab, "Primitive");
+  eg->types[kGAB_PRIMITIVE] = gab_string(gab, "gab.primitive");
   gab_iref(gab, eg->types[kGAB_PRIMITIVE]);
 
   gab_negkeep(gab.eg, kGAB_NKINDS, eg->types);
@@ -679,10 +679,10 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
     fprintf(stream, ANSI_COLOR_RESET "]");
   }
 
-  if (args.message != gab_nil) {
-    fprintf(stream, "[" ANSI_COLOR_CYAN);
-    gab_fvalinspect(stream, args.message, 0);
-    fprintf(stream, ANSI_COLOR_RESET "]");
+  if (args.block != gab_nil) {
+    fprintf(stream, " " ANSI_COLOR_CYAN);
+    gab_fvalinspect(stream, args.block, 0);
+    fprintf(stream, ANSI_COLOR_RESET);
   }
 
   fprintf(stream,

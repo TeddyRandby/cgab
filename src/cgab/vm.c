@@ -14,8 +14,8 @@
 #include <string.h>
 
 #define OP_HANDLER_ARGS                                                        \
-  struct gab_triple __gab, uint8_t *__ip, gab_value *__kb, struct gab_obj_block *__b,  \
-      gab_value *__fb, gab_value *__sp
+  struct gab_triple __gab, uint8_t *__ip, gab_value *__kb,                     \
+      struct gab_obj_block *__b, gab_value *__fb, gab_value *__sp
 
 typedef a_gab_value *(*handler)(OP_HANDLER_ARGS);
 
@@ -190,7 +190,7 @@ static handler handlers[] = {
 
 #define STORE_PRIMITIVE_ERROR_FRAME(have)                                      \
   ({                                                                           \
-    VM()->fp->ip = IP();                                                       \
+    PUSH_FRAME();                                                              \
     PUSH_ERROR_FRAME(have);                                                    \
   })
 
@@ -232,12 +232,14 @@ struct gab_err_argt vm_frame_build_err(struct gab_vm_frame *fp,
         .src = p->src,
         .note_fmt = fmt,
         .status = s,
+        .block = __gab_obj(fp->b),
     };
   }
 
   return (struct gab_err_argt){
       .note_fmt = fmt,
       .status = s,
+      .block = gab_nil,
   };
 }
 
@@ -462,7 +464,7 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
                                                                                \
     size_t pass = message ? have : have - 1;                                   \
                                                                                \
-    a_gab_value *res = (*n->function)(GAB(), pass, SP() - pass);                 \
+    a_gab_value *res = (*n->function)(GAB(), pass, SP() - pass);               \
     if (__gab_unlikely(res))                                                   \
       return res;                                                              \
                                                                                \
@@ -652,23 +654,6 @@ CASE_CODE(SEND_NATIVE) {
   CALL_NATIVE(n, have, true);
 }
 
-CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
-  gab_value *ks = READ_CONSTANTS;
-  uint64_t have = compute_arity(VAR(), READ_BYTE);
-
-  gab_value r = PEEK_N(have);
-
-  if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
-    IP() -= SEND_CACHE_DIST;
-    NEXT();
-  }
-
-  struct gab_obj_native *n = GAB_VAL_TO_NATIVE(r);
-
-  CALL_NATIVE(n, have, false);
-}
-
 CASE_CODE(DYNSEND) {
   SKIP_SHORT;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
@@ -772,6 +757,23 @@ CASE_CODE(SEND_PRIMITIVE_CALL_SUSPENSE) {
   struct gab_obj_suspense *s = GAB_VAL_TO_SUSPENSE(r);
 
   CALL_SUSPENSE(s, have);
+}
+
+CASE_CODE(SEND_PRIMITIVE_CALL_NATIVE) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value r = PEEK_N(have);
+
+  if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  struct gab_obj_native *n = GAB_VAL_TO_NATIVE(r);
+
+  CALL_NATIVE(n, have, false);
 }
 
 CASE_CODE(SEND_PRIMITIVE_ADD) {
