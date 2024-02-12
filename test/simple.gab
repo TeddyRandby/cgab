@@ -1,0 +1,4 @@
+:use .streams
+:use .records
+
+[1,2,3]:for(&:values, &:print)
