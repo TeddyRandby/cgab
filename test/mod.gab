@@ -411,20 +411,20 @@ end
         1:expect(1:test)
     end
 
-    def test[.Number](a)
+    def test[.gab.number](a)
         self + 1
     end
 
     :it('should use more specific') do
-        2:expect(1:test)
+        1:test:expect(2)
     end
 
     def repeat = do; 1:test end
 
     :it('should cache') do
-        2:expect(repeat())
-        2:expect(repeat())
-        2:expect(repeat())
+        repeat():expect(2)
+        repeat():expect(2)
+        repeat():expect(2)
     end
 
     def oneTwo = do; return 1, 2 end

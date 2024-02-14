@@ -10,8 +10,6 @@
 :use .streams
 
 def explain_specs(specs, separator)
-  not specs or specs:len == 0 and return ''
-
   res = specs:tuple.collect(
         &:map,
         &:values,
@@ -648,7 +646,7 @@ def spec.message[](args, semantics)
 end
 
 def LabeledSpec { spec.label, spec.spec }
-def spec.label[](spec.spec, spec.label); { spec.label, spec.spec } end
+ spec.label[](spec.spec, spec.label); { spec.label, spec.spec } end
 def spec.explain[LabeledSpec]; '{self:spec.label}: {self:spec.spec:spec.explain}' end
 
 LabeledSpec:deferto(

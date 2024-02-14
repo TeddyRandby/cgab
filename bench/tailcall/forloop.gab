@@ -1,0 +1,14 @@
+def for[](msg, ..p, cb)
+  ..args, s = self:(msg)(..p)
+
+  (?s) == .gab.suspense and loop
+      cb(..args)            
+      ..args, s = s()
+  until not ((?s) == .gab.suspense) end
+end
+
+:use .lists
+
+:list.new(500000):for(&:values) do (val)
+  val == nil
+end

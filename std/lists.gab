@@ -1,5 +1,4 @@
 :use .list
-:use .streams
 
 def [][.gab.list](key)
   self:at(key)
@@ -39,7 +38,7 @@ def list.collect[](msg, ..p)
   ..args, s = self:(msg)(..p)
 
   loop
-    ?s == .Suspense or break
+    ?s == .gab.suspense or break
 
     l:push!(..args)    
 

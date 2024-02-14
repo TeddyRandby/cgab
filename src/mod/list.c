@@ -137,7 +137,7 @@ a_gab_value * gab_lib_set(struct gab_triple gab, size_t argc, gab_value argv[arg
       return gab_panic(gab, "Invalid call to gab_lib_set");
     }
 
-    if (gab_boxtype((argv[1])) != gab_string(gab, "List")) {
+    if (gab_boxtype((argv[1])) != gab_string(gab, "gab.list")) {
       return gab_panic(gab, "Invalid call to gab_lib_set");
     }
 

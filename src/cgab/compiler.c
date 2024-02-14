@@ -14,6 +14,8 @@ struct frame {
   v_uint64_t bc_toks;
   gab_value name;
 
+  unsigned char pprev_op;
+
   size_t prev_op_at;
   unsigned char prev_op;
 
@@ -274,6 +276,8 @@ static inline void push_op(struct bc *bc, uint8_t op, size_t t) {
   assert(ctx >= 0 && "Internal compiler error: no frame context");
   struct frame *f = &bc->contexts[ctx].as.frame;
 
+  f->pprev_op = f->prev_op;
+
   f->prev_bb = f->curr_bb;
   f->prev_op = op;
 
@@ -486,11 +490,23 @@ static inline void push_storel(struct bc *bc, uint8_t local, size_t t) {
 }
 
 static inline uint8_t encode_arity(uint8_t have, bool mv) {
-  return (have << 1) | mv;
+  assert(have < 64);
+  return (have << 2) | mv;
 }
 
 static inline void push_ret(struct bc *bc, uint8_t have, bool mv, size_t t) {
   assert(have < 16);
+
+#if cGAB_TAILCALL
+  int ctx = peek_ctx(bc, kFRAME, 0);
+  assert(ctx >= 0 && "Internal compiler error: no frame context");
+  struct frame *f = &bc->contexts[ctx].as.frame;
+
+  if (f->curr_bb == f->prev_bb && f->prev_op == OP_SEND) {
+    uint8_t have_byte = v_uint8_t_val_at(&f->bc, f->bc.len - 1);
+    v_uint8_t_set(&f->bc, f->bc.len - 1, have_byte | fHAVE_TAIL);
+  }
+#endif
 
   push_op(bc, OP_RETURN, t);
   push_byte(bc, encode_arity(have, mv), t);
@@ -544,6 +560,7 @@ static inline bool patch_trim(struct bc *bc, uint8_t want) {
     if (want != VAR_EXP) {
       v_uint8_t_set(&f->bc, f->bc.len - 1, want); /* want */
     } else {
+      f->prev_op = f->pprev_op;
       f->bc.len -= 2;
       f->bc_toks.len -= 2;
     }
@@ -3526,8 +3543,8 @@ uint64_t dumpDynSendInstruction(FILE *stream, struct gab_obj_prototype *self,
 
   uint8_t have = v_uint8_t_val_at(&self->src->bytecode, offset + 3);
 
-  uint8_t var = have & FLAG_VAR_EXP;
-  have = have >> 1;
+  uint8_t var = have & fHAVE_VAR;
+  have = have >> 2;
 
   fprintf(stream,
           "%-25s"
@@ -3549,12 +3566,14 @@ uint64_t dumpSendInstruction(FILE *stream, struct gab_obj_prototype *self,
 
   uint8_t have = v_uint8_t_val_at(&self->src->bytecode, offset + 3);
 
-  uint8_t var = have & FLAG_VAR_EXP;
-  have = have >> 1;
+  uint8_t var = have & fHAVE_VAR;
+  uint8_t tail = have & fHAVE_TAIL;
+  have = have >> 2;
 
   fprintf(stream, "%-25s" ANSI_COLOR_BLUE, name);
   gab_fvalinspect(stream, msg, 0);
-  fprintf(stream, ANSI_COLOR_RESET " (%d%s)\n", have, var ? " & more" : "");
+  fprintf(stream, ANSI_COLOR_RESET " (%d%s)%s\n", have, var ? " & more" : "",
+          tail ? " [TAILCALL]" : "");
 
   return offset + 4;
 }
@@ -3580,18 +3599,18 @@ uint64_t dumpTrimInstruction(FILE *stream, struct gab_obj_prototype *self,
 uint64_t dumpReturnInstruction(FILE *stream, struct gab_obj_prototype *self,
                                uint64_t offset) {
   uint8_t havebyte = v_uint8_t_val_at(&self->src->bytecode, offset + 1);
-  uint8_t have = havebyte >> 1;
+  uint8_t have = havebyte >> 2;
   fprintf(stream, "%-25s%hhx%s\n", "RETURN", have,
-          havebyte & FLAG_VAR_EXP ? " & more" : "");
+          havebyte & fHAVE_VAR ? " & more" : "");
   return offset + 2;
 }
 
 uint64_t dumpYieldInstruction(FILE *stream, struct gab_obj_prototype *self,
                               uint64_t offset) {
   uint8_t havebyte = v_uint8_t_val_at(&self->src->bytecode, offset + 3);
-  uint8_t have = havebyte >> 1;
+  uint8_t have = havebyte >> 2;
   fprintf(stream, "%-25s%hhx%s\n", "YIELD", have,
-          havebyte & FLAG_VAR_EXP ? " & more" : "");
+          havebyte & fHAVE_VAR ? " & more" : "");
   return offset + 4;
 }
 
@@ -3602,9 +3621,9 @@ uint64_t dumpPackInstruction(FILE *stream, struct gab_obj_prototype *self,
   uint8_t operandB = v_uint8_t_val_at(&self->src->bytecode, offset + 3);
   const char *name =
       gab_opcode_names[v_uint8_t_val_at(&self->src->bytecode, offset)];
-  uint8_t have = havebyte >> 1;
+  uint8_t have = havebyte >> 2;
   fprintf(stream, "%-25s(%hhx%s) -> %hhx %hhx\n", name, have,
-          havebyte & FLAG_VAR_EXP ? " & more" : "", operandA, operandB);
+          havebyte & fHAVE_VAR ? " & more" : "", operandA, operandB);
   return offset + 4;
 }
 
@@ -3703,6 +3722,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_SEND_NATIVE:
   case OP_SEND_PROPERTY:
   case OP_SEND_PRIMITIVE_CONCAT:
+  case OP_SEND_PRIMITIVE_SPLAT:
   case OP_SEND_PRIMITIVE_ADD:
   case OP_SEND_PRIMITIVE_SUB:
   case OP_SEND_PRIMITIVE_MUL:
@@ -3716,6 +3736,9 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_SEND_PRIMITIVE_CALL_BLOCK:
   case OP_SEND_PRIMITIVE_CALL_NATIVE:
   case OP_SEND_PRIMITIVE_CALL_SUSPENSE:
+  case OP_TAILSEND_BLOCK:
+  case OP_TAILSEND_PRIMITIVE_CALL_BLOCK:
+  case OP_TAILSEND_PRIMITIVE_CALL_SUSPENSE:
     return dumpSendInstruction(stream, self, offset);
   case OP_DYNSEND:
     return dumpDynSendInstruction(stream, self, offset);

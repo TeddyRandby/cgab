@@ -2,7 +2,7 @@
 
 def int.between[](a, b); :float.between(a, b) :floor end
 
-def each[.Number]
+def each[.gab.number]
   v = 0
 
   loop
@@ -11,7 +11,7 @@ def each[.Number]
   until v == self end
 end
 
-def times[.Number](cb)
+def times[.gab.number](cb)
   v = 0
 
   loop
@@ -20,17 +20,17 @@ def times[.Number](cb)
   until v == self end
 end
 
-def from[.Number](src)
+def from[.gab.number](src)
   ?src :match {
       [nil]  = do; { from = self }           end,
-      Number = do; { from = src, to = self }   end
+     .gab.number = do; { from = src, to = self }   end
   } do; .INVALID_ARGUMENTS:panic end
 end
 
-def to[.Number](dest)
+def to[.gab.number](dest)
   ?dest :match {
       [nil]  = do; { to = self }             end,
-      Number = do; { from = self, to = dest } end
+     .gab.number = do; { from = self, to = dest } end
   } do; .INVALID_ARGUMENTS:panic end
 end
 

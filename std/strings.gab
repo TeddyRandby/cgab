@@ -2,7 +2,7 @@
 :use .numbers
 :use .conditionals
 
-def [][.String](opts)
+def [][.gab.string](opts)
     (?opts) :match {
         [?{ from, to }] = do; self:slice(opts:from, opts:to) end,
         [?{ from }   ]  = do; self:slice(opts:from)          end,
@@ -11,7 +11,7 @@ def [][.String](opts)
     }
 end
 
-def rchars[.String]
+def rchars[.gab.string]
   i, done = self:len - 1, -1
 
   loop
@@ -20,7 +20,7 @@ def rchars[.String]
   until i == done end
 end
 
-def chars[.String]
+def chars[.gab.string]
   i, done = 0, self:len
 
   loop
@@ -29,7 +29,7 @@ def chars[.String]
   until i == done end
 end
 
-def split[.String](sep)
+def split[.gab.string](sep)
   s, slen, w, wlen = 0, sep:len, 0, 0
 
   loop

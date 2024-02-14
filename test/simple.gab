@@ -1,4 +1,4 @@
+:use .strings
 :use .streams
-:use .records
 
-[1,2,3]:for(&:values, &:print)
+'h e l l o':for(&:split, ' ', &:print)

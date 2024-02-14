@@ -1,4 +1,6 @@
-def is?[](other); ?self == other end
+def is?[](other)
+  ?self == other
+end
 
 def is_b?[]        ; false end
 def is_b?[.Boolean]; true end

@@ -11,6 +11,10 @@
 #define cGAB_SUPERINSTRUCTIONS 1
 #endif
 
+#ifndef cGAB_TAILCALL
+#define cGAB_TAILCALL 1
+#endif
+
 // Collect as frequently as possible (on every RC push)
 #ifndef cGAB_DEBUG_GC
 #define cGAB_DEBUG_GC 0
@@ -94,7 +98,8 @@
 #define GAB_RET_MAX 128
 
 #define VAR_EXP 255
-#define FLAG_VAR_EXP 1
+#define fHAVE_VAR (1 << 0)
+#define fHAVE_TAIL (1 << 1)
 
 enum gab_status {
 #define STATUS(name, message) GAB_##name,
