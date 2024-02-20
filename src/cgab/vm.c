@@ -160,179 +160,6 @@ static handler handlers[] = {
     NEXT();                                                                    \
   }
 
-#define SEND_PRIMITIVE_CONCAT                                                  \
-  SKIP_SHORT;                                                                  \
-  SKIP_BYTE;                                                                   \
-                                                                               \
-  if (__gab_unlikely(gab_valkind(PEEK2()) != kGAB_STRING)) {                   \
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                      \
-    IP() -= SEND_CACHE_DIST;                                                   \
-    NEXT();                                                                    \
-  }                                                                            \
-                                                                               \
-  if (__gab_unlikely(gab_valkind(PEEK()) != kGAB_STRING)) {                    \
-    STORE_PRIMITIVE_ERROR_FRAME(1);                                            \
-    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),                         \
-          gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));              \
-  }                                                                            \
-                                                                               \
-  STORE_SP();                                                                  \
-                                                                               \
-  gab_value val_b = POP();                                                     \
-  gab_value val_a = POP();                                                     \
-  gab_value val_ab = gab_strcat(GAB(), val_a, val_b);                          \
-                                                                               \
-  PUSH(val_ab);                                                                \
-                                                                               \
-  VAR() = 1;
-
-#define SEND_PRIMITIVE_EQ                                                      \
-  gab_value *ks = READ_CONSTANTS;                                              \
-  uint64_t have = compute_arity(VAR(), READ_BYTE);                             \
-                                                                               \
-  gab_value r = PEEK_N(have);                                                  \
-  gab_value m = ks[SEND_MESSAGE];                                              \
-                                                                               \
-  if (__gab_unlikely(ks[SEND_CACHE_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {  \
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                      \
-    IP() -= SEND_CACHE_DIST;                                                   \
-    NEXT();                                                                    \
-  }                                                                            \
-                                                                               \
-  if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {           \
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                      \
-    IP() -= SEND_CACHE_DIST;                                                   \
-    NEXT();                                                                    \
-  }                                                                            \
-  gab_value val_b = POP();                                                     \
-  gab_value val_a = POP();                                                     \
-                                                                               \
-  PUSH(gab_bool(val_a == val_b));                                              \
-                                                                               \
-  VAR() = 1;
-
-#define SEND_PRIMITIVE_SPLAT                                                   \
-  gab_value *ks = READ_CONSTANTS;                                              \
-  uint8_t have_byte = READ_BYTE;                                               \
-  uint64_t have = compute_arity(VAR(), have_byte);                             \
-                                                                               \
-  gab_value r = PEEK_N(have);                                                  \
-                                                                               \
-  if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {           \
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                      \
-    IP() -= SEND_CACHE_DIST;                                                   \
-    NEXT();                                                                    \
-  }                                                                            \
-                                                                               \
-  struct gab_obj_record *rec = GAB_VAL_TO_RECORD(r);                           \
-                                                                               \
-  DROP_N(have);                                                                \
-                                                                               \
-  memmove(SP(), rec->data, rec->len * sizeof(gab_value));                      \
-  SP() += rec->len;                                                            \
-  VAR() = rec->len;
-
-#define SEND_PRIMITIVE_GET                                                     \
-  gab_value *ks = READ_CONSTANTS;                                              \
-  SKIP_BYTE;                                                                   \
-                                                                               \
-  gab_value r = PEEK2();                                                       \
-  gab_value m = ks[SEND_MESSAGE];                                              \
-  if (__gab_unlikely(ks[SEND_CACHE_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {  \
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                      \
-    IP() -= SEND_CACHE_DIST;                                                   \
-    NEXT();                                                                    \
-  }                                                                            \
-  if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {           \
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                      \
-    IP() -= SEND_CACHE_DIST;                                                   \
-    NEXT();                                                                    \
-  }                                                                            \
-                                                                               \
-  gab_value res = gab_recat(r, PEEK());                                        \
-                                                                               \
-  DROP_N(2);                                                                   \
-                                                                               \
-  PUSH(res == gab_undefined ? gab_nil : res);                                  \
-                                                                               \
-  VAR() = 1;
-
-#define SEND_PRIMITIVE_SET                                                     \
-  gab_value *ks = READ_CONSTANTS;                                              \
-  SKIP_BYTE;                                                                   \
-                                                                               \
-  gab_value r = PEEK3();                                                       \
-  gab_value m = ks[SEND_MESSAGE];                                              \
-                                                                               \
-  if (__gab_unlikely(ks[SEND_CACHE_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {  \
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                      \
-    IP() -= SEND_CACHE_DIST;                                                   \
-    NEXT();                                                                    \
-  }                                                                            \
-                                                                               \
-  if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {           \
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                      \
-    IP() -= SEND_CACHE_DIST;                                                   \
-    NEXT();                                                                    \
-  }                                                                            \
-                                                                               \
-  STORE_SP();                                                                  \
-                                                                               \
-  gab_value res = gab_recput(GAB(), r, PEEK2(), PEEK());                       \
-                                                                               \
-  DROP_N(3);                                                                   \
-                                                                               \
-  PUSH(res);                                                                   \
-                                                                               \
-  VAR() = 1;
-
-#define SEND_PROPERTY                                                          \
-  gab_value *ks = READ_CONSTANTS;                                              \
-  uint8_t have_byte = READ_BYTE;                                               \
-  uint64_t have = compute_arity(VAR(), have_byte);                             \
-                                                                               \
-  gab_value r = PEEK_N(have);                                                  \
-  gab_value m = ks[SEND_MESSAGE];                                              \
-                                                                               \
-  if (__gab_unlikely(ks[SEND_CACHE_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {  \
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                      \
-    IP() -= SEND_CACHE_DIST;                                                   \
-    NEXT();                                                                    \
-  }                                                                            \
-                                                                               \
-  if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {           \
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                      \
-    IP() -= SEND_CACHE_DIST;                                                   \
-    NEXT();                                                                    \
-  }                                                                            \
-                                                                               \
-  switch (have) {                                                              \
-  case 1:                                                                      \
-    /* Simply load the value into the top of the stack */                      \
-    PEEK() = gab_urecat(r, ks[SEND_CACHE_OFFSET]);                             \
-    break;                                                                     \
-                                                                               \
-  default:                                                                     \
-    /* Drop all the values we don't need, then fallthrough */                  \
-    DROP_N(have - 1);                                                          \
-                                                                               \
-  case 2: {                                                                    \
-    /* Pop the top value */                                                    \
-    gab_value value = POP();                                                   \
-    gab_urecput(GAB(), r, ks[SEND_CACHE_OFFSET], value);                       \
-    PEEK() = value;                                                            \
-    break;                                                                     \
-  }                                                                            \
-  }                                                                            \
-                                                                               \
-  VAR() = 1;
-
-#define IMPL_SEND(CODE)                                                        \
-  CASE_CODE(SEND_##CODE) {                                                     \
-    SEND_##CODE;                                                               \
-    NEXT();                                                                    \
-  }
-
 #define TRIM_N(n)                                                              \
   CASE_CODE(TRIM_DOWN##n) {                                                    \
     uint8_t want = READ_BYTE;                                                  \
@@ -660,7 +487,7 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
                                                                                \
     memmove(to, from, arity * sizeof(gab_value));                              \
     SP() = to + arity;                                                         \
-    VAR() = arity; /* Should this be have or arity? */                         \
+    VAR() = arity;                                                             \
                                                                                \
     memcpy(FB(), s->slots, s->nslots * sizeof(gab_value));                     \
                                                                                \
@@ -691,7 +518,7 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
                                                                                \
     memmove(to, from, arity * sizeof(gab_value));                              \
     SP() = to + arity;                                                         \
-    VAR() = arity; /* Should this be have or arity? */                         \
+    VAR() = arity;                                                             \
                                                                                \
     memcpy(FB(), s->slots, s->nslots * sizeof(gab_value));                     \
                                                                                \
@@ -1074,12 +901,243 @@ IMPL_SEND_BINARY(PRIMITIVE_LT, gab_bool, double, <);
 IMPL_SEND_BINARY(PRIMITIVE_LTE, gab_bool, double, >=);
 IMPL_SEND_BINARY(PRIMITIVE_GT, gab_bool, double, >);
 IMPL_SEND_BINARY(PRIMITIVE_GTE, gab_bool, double, >=);
-IMPL_SEND(PRIMITIVE_EQ)
-IMPL_SEND(PRIMITIVE_CONCAT)
-IMPL_SEND(PRIMITIVE_SPLAT)
-IMPL_SEND(PRIMITIVE_GET)
-IMPL_SEND(PRIMITIVE_SET)
-IMPL_SEND(PROPERTY)
+
+CASE_CODE(SEND_PRIMITIVE_EQ) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value r = PEEK_N(have);
+  gab_value m = ks[SEND_MESSAGE];
+
+  if (__gab_unlikely(ks[SEND_CACHE_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+  gab_value val_b = POP();
+  gab_value val_a = POP();
+
+  PUSH(gab_bool(val_a == val_b));
+
+  VAR() = 1;
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_CONCAT) {
+  SKIP_SHORT;
+  SKIP_BYTE;
+
+  if (__gab_unlikely(gab_valkind(PEEK2()) != kGAB_STRING)) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (__gab_unlikely(gab_valkind(PEEK()) != kGAB_STRING)) {
+    STORE_PRIMITIVE_ERROR_FRAME(1);
+    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),
+          gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));
+  }
+
+  STORE_SP();
+
+  gab_value val_b = POP();
+  gab_value val_a = POP();
+  gab_value val_ab = gab_strcat(GAB(), val_a, val_b);
+
+  PUSH(val_ab);
+
+  VAR() = 1;
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_SPLAT) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value r = PEEK_N(have);
+
+  if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  struct gab_obj_record *rec = GAB_VAL_TO_RECORD(r);
+
+  DROP_N(have);
+
+  memmove(SP(), rec->data, rec->len * sizeof(gab_value));
+  SP() += rec->len;
+  VAR() = rec->len;
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_GET) {
+  gab_value *ks = READ_CONSTANTS;
+  SKIP_BYTE;
+
+  gab_value r = PEEK2();
+  gab_value m = ks[SEND_MESSAGE];
+  if (__gab_unlikely(ks[SEND_CACHE_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+  if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  gab_value res = gab_recat(r, PEEK());
+
+  DROP_N(2);
+
+  PUSH(res == gab_undefined ? gab_nil : res);
+
+  VAR() = 1;
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_SET) {
+  gab_value *ks = READ_CONSTANTS;
+  SKIP_BYTE;
+
+  gab_value r = PEEK3();
+  gab_value m = ks[SEND_MESSAGE];
+
+  if (__gab_unlikely(ks[SEND_CACHE_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  STORE_SP();
+
+  gab_value res = gab_recput(GAB(), r, PEEK2(), PEEK());
+
+  DROP_N(3);
+
+  PUSH(res);
+
+  VAR() = 1;
+  NEXT();
+}
+
+CASE_CODE(SEND_PROPERTY) {
+  gab_value *ks = READ_CONSTANTS;
+  uint8_t have_byte = READ_BYTE;
+  uint64_t have = compute_arity(VAR(), have_byte);
+
+  gab_value r = PEEK_N(have);
+  gab_value m = ks[SEND_MESSAGE];
+
+  if (__gab_unlikely(ks[SEND_CACHE_SPECS] != GAB_VAL_TO_MESSAGE(m)->specs)) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);
+    IP() -= SEND_CACHE_DIST;
+    NEXT();
+  }
+
+  switch (have) {
+  case 1: /* Simply load the value into the top of the stack */
+    PEEK() = gab_urecat(r, ks[SEND_CACHE_OFFSET]);
+    break;
+
+  default: /* Drop all the values we don't need, then fallthrough */
+    DROP_N(have - 1);
+
+  case 2: { /* Pop the top value */
+    gab_value value = POP();
+    gab_urecput(GAB(), r, ks[SEND_CACHE_OFFSET], value);
+    PEEK() = value;
+    break;
+  }
+  }
+
+  VAR() = 1;
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_AND) {
+  SKIP_SHORT;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value r = PEEK_N(have);
+  gab_value cb = PEEK_N(have - 1);
+
+  if (gab_valintob(r)) {
+    if (__gab_unlikely(gab_valkind(cb) != kGAB_BLOCK)) {
+      PUSH_FRAME();
+      ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, cb, gab_valtype(EG(), cb),
+            gab_type(EG(), kGAB_BLOCK));
+    }
+
+    struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(cb);
+
+    DROP_N(have);
+
+    PUSH(cb);
+    VAR() = 1;
+
+    TAILCALL_BLOCK(blk, 1);
+  }
+
+  DROP_N(have - 1);
+  VAR() = 1;
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_OR) {
+  SKIP_SHORT;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value r = PEEK_N(have);
+  gab_value cb = PEEK_N(have - 1);
+
+  if (!gab_valintob(r)) {
+    if (__gab_unlikely(gab_valkind(cb) != kGAB_BLOCK)) {
+      PUSH_FRAME();
+      ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, cb, gab_valtype(EG(), cb),
+            gab_type(EG(), kGAB_BLOCK));
+    }
+
+    struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(cb);
+
+    DROP_N(have);
+
+    PUSH(cb);
+    VAR() = 1;
+
+    TAILCALL_BLOCK(blk, 1);
+  }
+
+  DROP_N(have - 1);
+  VAR() = 1;
+
+  NEXT();
+}
 
 CASE_CODE(YIELD) {
   gab_value proto = READ_CONSTANT;

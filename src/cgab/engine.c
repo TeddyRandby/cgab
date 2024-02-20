@@ -21,13 +21,24 @@ struct primitive {
   gab_value primitive;
 };
 
+struct primitive all_primitives[] = {
+    {
+        .name = mGAB_AND,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_AND),
+    },
+    {
+        .name = mGAB_OR,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_OR),
+    },
+};
+
 /*
  * It is important that all primitives be FINAL -
  * as in, it is not possible for a gab program to define some
  * specialization which would take precedence OVER the primitive.
  * This is becayse of how dynamic message sends handle primitives
  */
-struct primitive primitives[] = {
+struct primitive specific_primitive[] = {
     {
         .name = mGAB_BOR,
         .type = kGAB_NUMBER,
@@ -150,15 +161,11 @@ struct gab_triple gab_create() {
 
   eg->types[kGAB_UNDEFINED] = gab_undefined;
   eg->types[kGAB_NIL] = gab_nil;
+  eg->types[kGAB_TRUE] = gab_true;
+  eg->types[kGAB_FALSE] = gab_false;
 
   eg->types[kGAB_NUMBER] = gab_string(gab, "gab.number");
   gab_iref(gab, eg->types[kGAB_NUMBER]);
-
-  eg->types[kGAB_TRUE] = gab_string(gab, "gab.bool");
-  gab_iref(gab, eg->types[kGAB_TRUE]);
-
-  eg->types[kGAB_FALSE] = gab_string(gab, "gab.bool");
-  gab_iref(gab, eg->types[kGAB_FALSE]);
 
   eg->types[kGAB_STRING] = gab_string(gab, "gab.string");
   gab_iref(gab, eg->types[kGAB_STRING]);
@@ -197,15 +204,30 @@ struct gab_triple gab_create() {
 
   gab_setup_natives(gab);
 
-  for (int i = 0; i < LEN_CARRAY(primitives); i++) {
+  for (int i = 0; i < LEN_CARRAY(specific_primitive); i++) {
     gab_egkeep(
         gab.eg,
-        gab_iref(gab,
-                 gab_spec(gab, (struct gab_spec_argt){
-                                   .name = primitives[i].name,
-                                   .receiver = gab_type(eg, primitives[i].type),
-                                   .specialization = primitives[i].primitive,
-                               })));
+        gab_iref(
+            gab,
+            gab_spec(gab,
+                     (struct gab_spec_argt){
+                         .name = specific_primitive[i].name,
+                         .receiver = gab_type(eg, specific_primitive[i].type),
+                         .specialization = specific_primitive[i].primitive,
+                     })));
+  }
+
+  for (int i = 0; i < LEN_CARRAY(all_primitives); i++) {
+    for (int t = 1; t < kGAB_NKINDS; t++) {
+      gab_egkeep(
+          gab.eg,
+          gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
+                                          .name = all_primitives[i].name,
+                                          .receiver = gab_type(eg, t),
+                                          .specialization =
+                                              all_primitives[i].primitive,
+                                      })));
+    }
   }
 
   return gab;

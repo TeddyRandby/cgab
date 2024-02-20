@@ -317,15 +317,15 @@ end
     tup[1]:expect(2)
     tup[2]:expect(3)
 
-    tup = [ true and onetwothree() ]
+    tup = [ true :and => onetwothree() ]
     tup[0]:expect(1)
     tup:len:expect(1)
 
-    tup = [ true or onetwothree() ]
+    tup = [ true :or => onetwothree() ]
     tup[0]:expect(true)
     tup:len:expect(1)
 
-    tup = true and [ onetwothree() ]
+    tup = true :and => [ onetwothree() ]
     tup[0]:expect(1)
     tup[1]:expect(2)
     tup[2]:expect(3)
@@ -336,7 +336,7 @@ end
     def Vector { x, y }
 
     def + [Vector](other)
-        other:is?(Vector) or .INVALID_ARGUMENTS:panic
+        other:is?(Vector) :or => .INVALID_ARGUMENTS:panic
 
         {
             x = self:x + other:x,
@@ -352,7 +352,7 @@ end
     end
 
     def < [Vector](other)
-        other:is?(Vector) or .INVALID_ARGUMENTS:panic
+        other:is?(Vector) :or => .INVALID_ARGUMENTS:panic
 
         mag = self:x * self:x + self:y * self:y
         other_mag = other:x * other:x + other:y * other:y
@@ -361,7 +361,7 @@ end
     end
 
     def == [Vector](other)
-        (self:x == other:x) and (self:y == other:y)
+        (self:x == other:x) :and => (self:y == other:y)
     end
 
     :it('should overload comparison') do
@@ -379,7 +379,7 @@ end
 
 
     def [] [Vector](key)
-       key == 'mag' then
+       key == 'mag' :and do
         return self:x * self:x + self:y * self:y
        end
     end

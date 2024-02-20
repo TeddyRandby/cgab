@@ -1,164 +1,171 @@
-:use .any
-:use .records
-
 def ()[.gab.message](r, ..args)
   r:(self)(..args)
 end
 
-def apply[.gab.block](..stream)
-  ..args, s = stream
+def _streams.for[.gab.suspense](p, cb)
+  cb(..p)
 
-  s:is? .gab.suspense and loop
-      self(..args)            
-      ..args, s = s()
-  until not s:is? .gab.suspense end
+  ..args, s = self()
+
+  s:_streams.for(args, cb)
+end
+
+def _streams.for[](p, cb)
+  nil
 end
 
 def for[](msg, ..p, cb)
   ..args, s = self:(msg)(..p)
 
-  s:is? .gab.suspense and loop
-      cb(..args)            
-      ..args, s = s()
-  until not s:is? .gab.suspense end
+  s:_streams.for(args, cb)
 end
 
-def flatmap[](msg, ..p, cb)
-  ..args, s = self:(msg)(..p)
+def _streams.map[.gab.suspense](p, cb)
+  yield cb(..p)
 
-  s:is? .gab.suspense and loop
-      ..res = cb(..args)
+  ..args, s = self()
 
-      i, done = 0, res:len
-      loop
-        yield res[i]
-        i = i + 1
-      until i == done end
-
-      ..args, s = s()
-  until not s:is? .gab.suspense end
+  s:_streams.map(args, cb)
 end
 
+def _streams.map[](p, cb); yield cb(..p) end
 
 def map[](msg, ..p, cb)
   ..args, s = self:(msg)(..p)
 
-  s:is? .gab.suspense and loop
-      yield cb(..args)
-      ..args, s = s()
-  until not s:is? .gab.suspense end
+  s:_streams.map(args, cb)
 end
 
-def unwrap[](msg, ..p, cb)
-  x, ..args, s = self:(msg)(..p)
+def continue_filter(s, cb)
+  ..args, next = s()
 
-  s:is? .gab.suspense then
-    cb(x) and yield ..args
+  next:_streams.filter(args, cb)
+end
 
-    loop
+def _streams.dofilter[true](p, s, cb)
+  yield ..p
 
-      loop
-        x, ..args, s = s()
-        s:is? .gab.suspense or return
-      until cb(x) end
+  continue_filter(s, cb)
+end
 
-      yield ..args
-    until not s:is? .gab.suspense end 
-  end
+def _streams.dofilter[false](p, s, cb)
+  continue_filter(s, cb)
+end
+
+def _streams.filter[.gab.suspense](p, cb)
+  cb(..p):_streams.dofilter(p, self, cb)
+end
+
+def _streams.filter[](p, cb)
+  nil
 end
 
 def filter[](msg, ..p, cb)
   ..args, s = self:(msg)(..p)
 
-  s:is? .gab.suspense then
-    cb(..args) and yield ..args
+  s:_streams.filter(args, cb)
+end
 
-    loop
+def _streams.dotake[true](..args)
+  ..args
+end
 
-      loop
-        ..args, s = s()
-        s:is? .gab.suspense or return
-      until cb(..args) end
+def _streams.dotake[false]
+  nil
+end
 
-      yield ..args
-    until not s:is? .gab.suspense end 
-  end
+def _streams.take[.gab.suspense](p, n, i)
+  (i < n):_streams.dotake(p, self, n, i)
+end
+
+def _streams.take[](p, n, i)
+  (i < n):_streams.dotake(p, self, n,i)
 end
 
 def take[](msg, ..p, n)
-  i, store = 0, :list.new
-
   ..args, s = self:(msg)(..p)
 
-  s:is? .gab.suspense and loop
-      store:push!(..args)
-      ..args, s = s()
-      i = i + 1
-  until i == n or not s:is? .gab.suspense end
-
-  ..store
+  s:_streams.take(args, n, 0)
 end
 
-def first[](msg, ..p, cb)
-  ..args, s = self:(msg)(..p)
+#def unwrap[](msg, ..p, cb)
+#  x, ..args, s = self:(msg)(..p)
+#
+#  s:is? .gab.suspense then
+#    cb(x) and yield ..args
+#
+#    loop
+#
+#      loop
+#        x, ..args, s = s()
+#        s:is? .gab.suspense or return
+#      until cb(x) end
+#
+#      yield ..args
+#    until not s:is? .gab.suspense end 
+#  end
+#end
 
-  s:is? .gab.suspense and loop
-      res, ..vals = cb(..args)
-      res == .some and return res, ..vals
-
-      ..args, s = s()
-  until not s:is? .gab.suspense end
-
-  .none
-end
-
-def join[](msg, ..p, sep, cb)
-  arg, .._, s = self:(msg)(..p)
-
-  s:is? .gab.suspense or return arg
-
-  acc, arg, .._, s = arg, s()
-
-  s:is? .gab.suspense and loop
-      acc = cb(acc, sep)
-      acc = cb(acc, arg)            
-      arg, .._, s = s()
-  until not s:is? .gab.suspense end
-
-  acc
-end
-
-def fold[](msg, ..p, init, cb)
-  acc, ..args, s = init, self:(msg)(..p)
-
-  s:is? .gab.suspense and loop
-      acc = cb(acc, ..args)            
-      ..args, s = s()
-  until not s:is? .gab.suspense end
-
-  acc
-end
-
-def partition[](msg, ..p, n)
-  n > 1 or return
-
-  acc, i, ..args, s = :tuple.new(n), 0, self:(msg)(..p)
-
-  s:is? .gab.suspense and loop
-    loop
-      j, done = 0, args:len
-      loop
-        acc[i + j] = args[j]
-        j = j + 1
-      until j == done end
-      
-      ..args, s = s()
-      i = i + 1
-    until i == n or not s:is? .gab.suspense end
-
-    i == n and yield ..acc
-    i = 0
-  until not s:is? .gab.suspense end
-
-  acc
-end
+#def first[](msg, ..p, cb)
+#  ..args, s = self:(msg)(..p)
+#
+#  s:is? .gab.suspense and loop
+#      res, ..vals = cb(..args)
+#      res == .some and return res, ..vals
+#
+#      ..args, s = s()
+#  until not s:is? .gab.suspense end
+#
+#  .none
+#end
+#
+#def join[](msg, ..p, sep, cb)
+#  arg, .._, s = self:(msg)(..p)
+#
+#  s:is? .gab.suspense or return arg
+#
+#  acc, arg, .._, s = arg, s()
+#
+#  s:is? .gab.suspense and loop
+#      acc = cb(acc, sep)
+#      acc = cb(acc, arg)            
+#      arg, .._, s = s()
+#  until not s:is? .gab.suspense end
+#
+#  acc
+#end
+#
+#def fold[](msg, ..p, init, cb)
+#  acc, ..args, s = init, self:(msg)(..p)
+#
+#  s:is? .gab.suspense and loop
+#      acc = cb(acc, ..args)            
+#      ..args, s = s()
+#  until not s:is? .gab.suspense end
+#
+#  acc
+#end
+#
+#def partition[](msg, ..p, n)
+#  n > 1 or return
+#
+#  acc, i, ..args, s = :tuple.new(n), 0, self:(msg)(..p)
+#
+#  s:is? .gab.suspense and loop
+#    loop
+#      j, done = 0, args:len
+#      loop
+#        acc[i + j] = args[j]
+#        j = j + 1
+#      until j == done end
+#      
+#      ..args, s = s()
+#      i = i + 1
+#    until i == n or not s:is? .gab.suspense end
+#
+#    i == n and yield ..acc
+#    i = 0
+#  until not s:is? .gab.suspense end
+#
+#  acc
+#end

@@ -40,6 +40,12 @@ struct frame {
   char upv_indexes[GAB_UPVALUE_MAX];
 };
 
+enum recognized_k {
+  kRECOGNIZED_AND = 0,
+  kRECOGNIZED_OR,
+  kNRECOGNIZED,
+};
+
 enum lvalue_k {
   kNEW_LOCAL,
   kEXISTING_LOCAL,
@@ -71,7 +77,6 @@ enum context_k {
   kFRAME,
   kTUPLE,
   kASSIGNMENT_TARGET,
-  kLOOP,
   kCONTEXT_NKINDS,
 };
 
@@ -80,10 +85,11 @@ struct context {
 
   union {
     v_lvalue assignment_target;
-    v_uint64_t break_list;
     struct frame frame;
   } as;
 };
+
+static const char *recognized_messages[] = {"and", "or"};
 
 struct bc {
   struct gab_src *src;
@@ -98,6 +104,8 @@ struct bc {
 
   uint8_t ncontext;
   struct context contexts[cGAB_FUNCTION_DEF_NESTING_MAX];
+
+  gab_value recognized_messages[kNRECOGNIZED];
 };
 
 static inline struct gab_gc *gc(struct bc *bc) { return bc->gab.gc; }
@@ -111,8 +119,6 @@ static inline struct gab_triple gab(struct bc *bc) { return bc->gab; }
 enum prec_k {
   kNONE,
   kASSIGNMENT,  // =
-  kOR,          // or, infix else
-  kAND,         // and, infix then
   kMATCH,       // match
   kEQUALITY,    // ==
   kCOMPARISON,  // < > <= >=
@@ -138,6 +144,10 @@ void bc_create(struct bc *self, struct gab_triple gab, struct gab_src *source) {
 
   self->src = source;
   self->gab = gab;
+
+  for (int i = 0; i < kNRECOGNIZED; i++) {
+    self->recognized_messages[i] = gab_string(gab, recognized_messages[i]);
+  }
 }
 
 void bc_destroy(struct bc *self) {}
@@ -154,6 +164,7 @@ enum comp_status {
   COMP_CLOSURE = -7,
   COMP_METHOD = -8,
   COMP_CONTEXT_NOT_FOUND = -9,
+  COMP_COULD_NOT_INLINE = -10,
   COMP_MAX = INT32_MAX,
 };
 
@@ -190,8 +201,7 @@ static inline bool match_token(struct bc *bc, gab_token tok) {
 }
 
 static inline bool match_terminator(struct bc *bc) {
-  return match_token(bc, TOKEN_END) || match_token(bc, TOKEN_ELSE) ||
-         match_token(bc, TOKEN_UNTIL) || match_token(bc, TOKEN_EOF);
+  return match_token(bc, TOKEN_END) || match_token(bc, TOKEN_EOF);
 }
 
 static int eat_token(struct bc *bc) {
@@ -295,17 +305,6 @@ static inline void push_byte(struct bc *bc, uint8_t data, size_t t) {
 }
 
 static inline void push_short(struct bc *bc, uint16_t data, size_t t) {
-  push_byte(bc, (data >> 8) & 0xff, t);
-  push_byte(bc, data & 0xff, t);
-}
-
-static inline void push_qword(struct bc *bc, uint64_t data, size_t t) {
-  push_byte(bc, (data >> 56) & 0xff, t);
-  push_byte(bc, (data >> 48) & 0xff, t);
-  push_byte(bc, (data >> 40) & 0xff, t);
-  push_byte(bc, (data >> 32) & 0xff, t);
-  push_byte(bc, (data >> 24) & 0xff, t);
-  push_byte(bc, (data >> 16) & 0xff, t);
   push_byte(bc, (data >> 8) & 0xff, t);
   push_byte(bc, data & 0xff, t);
 }
@@ -678,27 +677,6 @@ static inline void patch_jump(struct bc *bc, size_t jump) {
   v_uint8_t_set(&f->bc, jump + 1, dist & 0xff);
 }
 
-static inline size_t push_loop(struct bc *bc, size_t t) {
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  assert(ctx >= 0 && "Internal compiler error: no frame context");
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
-  return f->bc.len;
-}
-
-static inline void patch_loop(struct bc *bc, size_t loop, size_t t) {
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  assert(ctx >= 0 && "Internal compiler error: no frame context");
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
-  f->curr_bb++;
-
-  size_t dist = f->bc.len - loop + 3;
-  assert(dist < UINT16_MAX);
-  push_op(bc, OP_LOOP, t);
-  push_short(bc, dist, t);
-}
-
 gab_value curr_id(struct bc *bc) {
   s_char s = curr_src(bc);
 
@@ -1027,7 +1005,8 @@ static inline int push_ctx(struct bc *bc, enum context_k kind) {
   return bc->ncontext++;
 }
 
-static void push_ctxframe(struct bc *bc, gab_value name, bool is_message) {
+static struct frame *push_ctxframe(struct bc *bc, gab_value name,
+                                   bool is_message) {
   int ctx = push_ctx(bc, kFRAME);
 
   assert(ctx >= 0 && "Failed to push frame context");
@@ -1051,21 +1030,8 @@ static void push_ctxframe(struct bc *bc, gab_value name, bool is_message) {
                            0));
 
   push_trim(bc, 0, bc->offset - 1);
-}
 
-static int pop_ctxloop(struct bc *bc) {
-  int ctx = peek_ctx(bc, kLOOP, 0);
-
-  v_uint64_t *breaks = &bc->contexts[ctx].as.break_list;
-
-  for (int i = 0; i < breaks->len; i++) {
-    uint64_t jump = breaks->data[i];
-    patch_jump(bc, jump);
-  }
-
-  v_uint64_t_destroy(breaks);
-
-  return pop_ctx(bc, kLOOP);
+  return f;
 }
 
 static gab_value pop_ctxframe(struct bc *bc) {
@@ -1344,13 +1310,20 @@ static int compile_local(struct bc *bc, gab_value name, uint8_t flags) {
   return add_local(bc, name, flags);
 }
 
-int compile_parameters(struct bc *bc) {
-  // Somehow track below and above for packing
-  int below = -1, result = 0;
-  uint8_t narguments = 0;
+int compile_parameters_internal(struct bc *bc, int *below,
+                                uint8_t *narguments) {
+  int backup_below;
+  uint8_t backup_narguments;
 
-  if (push_ctx(bc, kTUPLE) < 0)
-    return COMP_ERR;
+  if (!below)
+    below = &backup_below;
+
+  if (!narguments)
+    narguments = &backup_narguments;
+
+  *below = -1;
+  *narguments = 0;
+  int result = COMP_OK;
 
   if (!match_and_eat_token(bc, TOKEN_LPAREN))
     goto fin;
@@ -1359,31 +1332,32 @@ int compile_parameters(struct bc *bc) {
     goto fin;
 
   do {
-    if (narguments >= GAB_ARG_MAX) {
+    if (*narguments >= GAB_ARG_MAX) {
       compiler_error(bc, GAB_TOO_MANY_PARAMETERS, "");
       return COMP_ERR;
     }
 
-    narguments++;
+    *narguments = *narguments + 1;
 
     switch (match_and_eat_token(bc, TOKEN_DOT_DOT)) {
     case COMP_OK:
-      if (below >= 0) {
+      if (*below >= 0) {
         int ctx = peek_ctx(bc, kFRAME, 0);
         struct frame *f = &bc->contexts[ctx].as.frame;
 
-        gab_value other_name = f->local_names[below + 1];
+        gab_value other_name = f->local_names[*below + 1];
 
         compiler_error(
             bc, GAB_INVALID_REST_VARIABLE,
             "The parameter '$' at index $ is already a 'rest' parameter.\n"
             "\nBlocks can only declare one parameter as a 'rest' parameter.\n",
-            other_name, gab_number(below));
+            other_name, gab_number(*below));
 
         return COMP_ERR;
       }
 
-      below = --narguments;
+      *narguments = *narguments - 1;
+      *below = *narguments;
       // falthrough
 
     case COMP_TOKEN_NO_MATCH: {
@@ -1411,15 +1385,25 @@ int compile_parameters(struct bc *bc) {
 
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)) > 0);
 
-  if (result < 0)
-    return COMP_ERR;
-
   if (expect_token(bc, TOKEN_RPAREN) < 0)
     return COMP_ERR;
 
 fin:
-
   if (expect_token(bc, TOKEN_NEWLINE) < 0)
+    return COMP_ERR;
+
+  return result;
+}
+
+int compile_parameters(struct bc *bc) {
+  // Somehow track below and above for packing
+  int below;
+  uint8_t narguments;
+
+  if (push_ctx(bc, kTUPLE) < 0)
+    return COMP_ERR;
+
+  if (compile_parameters_internal(bc, &below, &narguments) < 0)
     return COMP_ERR;
 
   if (pop_ctx(bc, kTUPLE) < 0)
@@ -1430,11 +1414,7 @@ fin:
     push_pack(bc, 0, true, below + 1, narguments - below, bc->offset - 1);
   }
 
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
-  f->narguments = below >= 0 ? VAR_EXP : narguments;
-  return f->narguments;
+  return below >= 0 ? VAR_EXP : narguments;
 }
 
 static inline int skip_newlines(struct bc *bc) {
@@ -1569,12 +1549,14 @@ int compile_lambda(struct bc *bc, size_t t) {
 }
 
 int compile_block(struct bc *bc, gab_value name) {
-  push_ctxframe(bc, name, false);
+  struct frame *f = push_ctxframe(bc, name, false);
 
   int narguments = compile_parameters(bc);
 
   if (narguments < 0)
     return COMP_ERR;
+
+  f->narguments = narguments;
 
   if (compile_block_body(bc) < 0)
     return COMP_ERR;
@@ -1595,12 +1577,14 @@ int compile_message(struct bc *bc, gab_value name, size_t t) {
   if (compile_message_spec(bc) < 0)
     return COMP_ERR;
 
-  push_ctxframe(bc, name, true);
+  struct frame *f = push_ctxframe(bc, name, true);
 
   int narguments = compile_parameters(bc);
 
   if (narguments < 0)
     return COMP_ERR;
+
+  f->narguments = narguments;
 
   if (compile_block_body(bc) < 0)
     return COMP_ERR;
@@ -2216,51 +2200,27 @@ int compile_exp_blk(struct bc *bc, bool assignable) {
   return compile_block(bc, gab_nil);
 }
 
-int compile_condexp(struct bc *bc, bool assignable, uint8_t jump_op) {
+typedef int (*cond_bodyfn)(struct bc *bc);
+
+int compile_logical(struct bc *bc, uint8_t jump_op, cond_bodyfn fn,
+                    int closing_tok) {
   size_t t = bc->offset - 1;
 
   uint64_t j = push_jump((bc), jump_op, t);
 
   push_scope(bc);
 
-  int phantom = add_local(bc, gab_string(gab(bc), ""), 0);
-
-  if (phantom < 0)
+  if (fn(bc) < 0)
     return COMP_ERR;
 
-  init_local(bc, phantom);
-
-  push_storel(bc, phantom, t);
-
-  push_pop(bc, 1, t);
-
-  if (compile_expressions(bc) < 0)
+  if (closing_tok > 0 && expect_token(bc, closing_tok) < 0)
     return COMP_ERR;
-
-  push_pop((bc), 1, t);
 
   pop_slot(bc, 1);
 
-  push_loadl((bc), phantom, t);
-
-  push_slot(bc, 1);
-
-  pop_scope(bc);
-
-  if (expect_token(bc, TOKEN_END) < 0)
-    return COMP_ERR;
-
-  patch_jump((bc), j);
+  patch_jump(bc, j);
 
   return COMP_OK;
-}
-
-int compile_exp_then(struct bc *bc, bool assignable) {
-  return compile_condexp(bc, assignable, OP_JUMP_IF_FALSE);
-}
-
-int compile_exp_else(struct bc *bc, bool assignable) {
-  return compile_condexp(bc, assignable, OP_JUMP_IF_TRUE);
 }
 
 int compile_exp_bin(struct bc *bc, bool assignable) {
@@ -2973,6 +2933,42 @@ int compile_exp_dyn(struct bc *bc, bool assignable) {
   return VAR_EXP;
 }
 
+int is_recognized_message(struct bc *bc, gab_value name) {
+  for (int i = 0; i < kNRECOGNIZED; i++) {
+    if (bc->recognized_messages[i] == name) {
+      return i;
+    }
+  }
+
+  return -1;
+}
+
+int attempt_inlinelogical(struct bc *bc, uint8_t jump_op) {
+  if (match_and_eat_token(bc, TOKEN_DO)) {
+    if (compile_parameters_internal(bc, nullptr, nullptr) < 0)
+      return COMP_ERR;
+
+    return compile_logical(bc, jump_op, compile_expressions, TOKEN_END);
+  }
+
+  if (match_and_eat_token(bc, TOKEN_FAT_ARROW))
+    return compile_logical(bc, jump_op, compile_expression, -1);
+
+  return COMP_COULD_NOT_INLINE;
+}
+
+int inline_recognized_message(struct bc *bc, int k) {
+  switch (k) {
+  case kRECOGNIZED_AND:
+    return attempt_inlinelogical(bc, OP_LOGICAL_AND);
+  case kRECOGNIZED_OR:
+    return attempt_inlinelogical(bc, OP_LOGICAL_OR);
+  default:
+    assert(false && "This is an internal compiler error.");
+    return COMP_ERR;
+  }
+}
+
 int compile_exp_snd(struct bc *bc, bool assignable) {
   size_t t = bc->offset - 1;
 
@@ -2991,6 +2987,15 @@ int compile_exp_snd(struct bc *bc, bool assignable) {
       eat_token(bc);
       compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
     }
+  }
+
+  int k = is_recognized_message(bc, name);
+
+  if (k >= 0) {
+    int result = inline_recognized_message(bc, k);
+
+    if (result != COMP_COULD_NOT_INLINE)
+      return result;
   }
 
   bool mv = false;
@@ -3107,38 +3112,6 @@ int compile_exp_rcal(struct bc *bc, bool assignable) {
   return VAR_EXP;
 }
 
-int compile_exp_and(struct bc *bc, bool assignable) {
-  uint64_t end_jump = push_jump(bc, OP_LOGICAL_AND, bc->offset - 1);
-
-  if (optional_newline(bc) < 0)
-    return COMP_ERR;
-
-  if (compile_exp_prec(bc, kAND) < 0)
-    return COMP_ERR;
-
-  pop_slot(bc, 1);
-
-  patch_jump(bc, end_jump);
-
-  return COMP_OK;
-}
-
-int compile_exp_or(struct bc *bc, bool assignable) {
-  uint64_t end_jump = push_jump(bc, OP_LOGICAL_OR, bc->offset - 1);
-
-  if (optional_newline(bc) < 0)
-    return COMP_ERR;
-
-  if (compile_exp_prec(bc, kOR) < 0)
-    return COMP_ERR;
-
-  pop_slot(bc, 1);
-
-  patch_jump(bc, end_jump);
-
-  return COMP_OK;
-}
-
 int compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
   struct compile_rule rule = get_rule(tok);
 
@@ -3191,85 +3164,6 @@ int compile_exp_prec(struct bc *bc, enum prec_k prec) {
     return COMP_ERR;
 
   return compile_exp_startwith(bc, prec, prev_tok(bc));
-}
-
-int compile_exp_brk(struct bc *bc, bool assignable) {
-  size_t t = bc->offset - 1;
-
-  int ctx = peek_ctx(bc, kLOOP, 0);
-
-  if (ctx < 0) {
-    compiler_error(bc, GAB_INVALID_BREAK,
-                   ANSI_COLOR_MAGENTA
-                   "break" ANSI_COLOR_RESET
-                   " is only valid within the context of a " ANSI_COLOR_MAGENTA
-                   "loop" ANSI_COLOR_RESET ".\n" ANSI_COLOR_MAGENTA
-                   "break" ANSI_COLOR_RESET " allows " ANSI_COLOR_MAGENTA
-                   "loop" ANSI_COLOR_RESET
-                   " to evaluate to something other than $\n"
-                   "\n | a = loop; break 'example' end"
-                   "\n | a == 'example' # => true ",
-                   gab_nil);
-    return COMP_ERR;
-  }
-
-  if (!curr_prefix(bc)) {
-    push_loadi(bc, kGAB_NIL, t);
-    goto fin;
-  }
-
-  if (compile_expression(bc) < 0)
-    return COMP_OK;
-
-fin: {
-  size_t jump = push_jump(bc, OP_JUMP, t);
-  v_uint64_t_push(&bc->contexts[ctx].as.break_list, jump);
-  return COMP_OK;
-}
-}
-
-int compile_exp_lop(struct bc *bc, bool assignable) {
-  push_scope(bc);
-
-  size_t t = bc->offset - 1;
-
-  uint64_t loop = push_loop(bc, t);
-
-  push_ctx(bc, kLOOP);
-
-  if (compile_expressions(bc) < 0)
-    return COMP_ERR;
-
-  push_pop(bc, 1, t);
-
-  if (match_and_eat_token(bc, TOKEN_UNTIL)) {
-    if (compile_expression(bc) < 0)
-      return COMP_ERR;
-
-    size_t t = bc->offset - 1;
-
-    uint64_t jump = push_jump(bc, OP_POPJUMP_IF_TRUE, t);
-
-    patch_loop(bc, loop, t);
-
-    patch_jump(bc, jump);
-
-    if (expect_token(bc, TOKEN_END) < 0)
-      return COMP_ERR;
-  } else {
-    if (expect_token(bc, TOKEN_END) < 0)
-      return COMP_ERR;
-
-    patch_loop(bc, loop, t);
-  }
-
-  push_loadi(bc, kGAB_NIL, t);
-
-  if (pop_ctxloop(bc) < 0)
-    return COMP_ERR;
-
-  pop_scope(bc);
-  return COMP_OK;
 }
 
 int compile_exp_sym(struct bc *bc, bool assignable) {
@@ -3363,16 +3257,11 @@ int compile_exp_rtn(struct bc *bc, bool assignable) {
 
 // ----------------Pratt Parsing Table ----------------------
 const struct compile_rule rules[] = {
-    INFIX(then, AND, false),                    // THEN
-    INFIX(else, OR, false),                     // ELSE
     PREFIX_INFIX(blk, bcal, SEND, false),       // DO
     NONE(),                                     // END
     PREFIX(def),                                // DEF
     PREFIX(rtn),                                // RETURN
     PREFIX(yld),                                // YIELD
-    PREFIX(lop),                                // LOOP
-    NONE(),                                     // UNTIL
-    PREFIX(brk),                                // BREAK
     INFIX(bin, TERM, false),                    // PLUS
     PREFIX_INFIX(una, bin, TERM, false),        // MINUS
     INFIX(bin, FACTOR, false),                  // STAR
@@ -3400,8 +3289,6 @@ const struct compile_rule rules[] = {
     INFIX(bin, TERM, false),                    // GREATER_GREATER
     NONE(),                                     // ARROW
     PREFIX_INFIX(lmb, lmbcal, SEND, false),     // FATARROW
-    INFIX(and, AND, false),                     // AND
-    INFIX(or, OR, false),                       // OR
     PREFIX(una),                                // NOT
     PREFIX_INFIX(arr, idx, SEND, false),        // LBRACE
     NONE(),                                     // RBRACE

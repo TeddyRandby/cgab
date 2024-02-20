@@ -93,10 +93,6 @@ typedef struct keyword {
 
 const keyword keywords[] = {
     {
-        "and",
-        TOKEN_AND,
-    },
-    {
 
         "do",
         TOKEN_DO,
@@ -107,11 +103,6 @@ const keyword keywords[] = {
         TOKEN_DEF,
     },
     {
-
-        "else",
-        TOKEN_ELSE,
-    },
-    {
         "end",
         TOKEN_END,
     },
@@ -120,16 +111,8 @@ const keyword keywords[] = {
         TOKEN_FALSE,
     },
     {
-        "then",
-        TOKEN_THEN,
-    },
-    {
         "not",
         TOKEN_NOT,
-    },
-    {
-        "or",
-        TOKEN_OR,
     },
     {
         "return",
@@ -146,18 +129,6 @@ const keyword keywords[] = {
     {
         "nil",
         TOKEN_NIL,
-    },
-    {
-        "loop",
-        TOKEN_LOOP,
-    },
-    {
-        "until",
-        TOKEN_UNTIL,
-    },
-    {
-        "break",
-        TOKEN_BREAK,
     },
 };
 

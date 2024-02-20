@@ -33,11 +33,11 @@ end
 def T = :testState
 
 def expect[](other)
-    (self == other) or T:fail(self, other)
+    (self == other) :or => T:fail(self, other)
 end
 
 def expect_not[](other)
-    (self == other) and T:fail(self, other)
+    (self == other) :and => T:fail(self, other)
 end
 
 def describe[](name, cb)
@@ -50,6 +50,7 @@ def it[](name, cb)
 
   cb()
 
-  '  {T:passed? and '✓' or '×'} it {name}':print
-  T:passed? or T:show_errs
+  '  {(T:passed?:and => '✓') :or => '×'} it {name}':print
+
+  T:passed?:or => T:show_errs
 end

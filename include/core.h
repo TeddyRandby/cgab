@@ -139,6 +139,10 @@ enum gab_flags {
 #define mGAB_GET "[]"
 #define mGAB_CALL "()"
 #define mGAB_SPLAT ".."
+#define mGAB_AND "and"
+#define mGAB_OR "or"
+#define mGAB_THEN "then"
+#define mGAB_ELSE "else"
 
 #define T char
 #include "slice.h"

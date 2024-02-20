@@ -1,12 +1,12 @@
 CC 		 = gcc
-CFLAGS = -std=c2x -fPIC -foptimize-sibling-calls -MMD -Wall -DGAB_PREFIX=\"${GAB_PREFIX}\" ${GAB_CCFLAGS}
+CFLAGS = -std=c2x -fPIC -foptimize-sibling-calls -flto=auto -MMD -Wall -DGAB_PREFIX=\"${GAB_PREFIX}\" ${GAB_CCFLAGS}
 
 SRC_PREFIX 	 	 	= src/**
 BUILD_PREFIX 	 	= build
 INCLUDE_PREFIX 	= include
 
 INCLUDE	= -I$(INCLUDE_PREFIX)
-LD_CGAB	= -L$(BUILD_PREFIX) -lcgab
+LD_CGAB	= -L$(BUILD_PREFIX) -L/usr/lib -lcgab 
 
 OS_SRC = $(wildcard src/os/*.c)
 OS_OBJ = $(OS_SRC:src/os/%.c=$(BUILD_PREFIX)/%.o)

@@ -1,71 +1,62 @@
 :use .rec
 :use .symbol
 
-def record.exactly?[](rec)
-  sym = :symbol.new('record.exactly?|{rec}')  
-
-  def ==[?sym](other)
-    rec:fold(&:keys, true) do (sofar, key)
-      sofar and other:has?(key) and other[key] == rec[key]
-    end
-  end
-
-  sym
-end
-
-def tuple.collect[](msg, ..p, len)
-  def t = :tuple.new(len)
-
-  i, ..args, s = 0, self:(msg)(..p)
-
-  loop
-    ?s == .Suspense or break
-
-    t[i] = args[0]
-    i = i + 1
-
-    ..args, s = s()
-  until i == len end
-
-  return t
-end
+#def tuple.collect[](msg, ..p, len)
+#  def t = :tuple.new(len)
+#
+#  i, ..args, s = 0, self:(msg)(..p)
+#
+#  loop
+#    ?s == .Suspense or break
+#
+#    t[i] = args[0]
+#    i = i + 1
+#
+#    ..args, s = s()
+#  until i == len end
+#
+#  return t
+#end
 
 def has?[.gab.record](key); self:at(key) == .some end
 
+def _pairs[nil]; nil end
+
+def _pairs[](rec)
+  yield self, rec[self]
+
+  rec:next(self):_pairs(rec)
+end
+
 def pairs[.gab.record]
-    key = self:next
-
-    loop
-      yield key, self[key]
-      key = self:next(key)
-    until key == nil end
+  self:next:_pairs(self)
 end
 
-def keys[.gab.record]
-    key = self:next
-
-    loop
-      yield key
-      key = self:next(key)
-    until key == nil end
-end
-
-def values[.gab.record]
-    key = self:next
-
-    loop
-      yield self[key]
-      key = self:next(key)
-    until key == nil end
-end
-
-def map![.gab.record](mapper)
-    key = self:next
-
-    loop
-      self:put!(key, mapper(key, self[key]))
-      key = self:next(key)
-    until key == nil end
-
-    self
-end
+#def keys[.gab.record]
+#    key = self:next
+#
+#    loop
+#      yield key
+#      key = self:next(key)
+#    until key == nil end
+#end
+#
+#def values[.gab.record]
+#    key = self:next
+#
+#    loop
+#      yield self[key]
+#      key = self:next(key)
+#    until key == nil end
+#end
+#
+#def map![.gab.record](mapper)
+#    key = self:next
+#
+#    loop
+#      self:put!(key, mapper(key, self[key]))
+#      key = self:next(key)
+#    until key == nil end
+#
+#    self
+#end

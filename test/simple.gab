@@ -1,4 +1,13 @@
-:use .strings
+:use .records
 :use .streams
 
-'h e l l o':for(&:split, ' ', &:print)
+even = [0, 1, 2, 3, 4, 5]:for(
+  &:take,
+  &:filter,
+  &:pairs,
+  => @1 % 2 == 0,
+  5,
+  &:print,
+)
+
+even:print
