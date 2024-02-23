@@ -66,20 +66,22 @@ def filter[](msg, ..p, cb)
   s:_streams.filter(args, cb)
 end
 
-def _streams.dotake[true](..args)
-  ..args
-end
-
-def _streams.dotake[false]
-  nil
-end
-
 def _streams.take[.gab.suspense](p, n, i)
-  (i < n):_streams.dotake(p, self, n, i)
+  'in sus':print
+  yield ..p
+
+  ..args, next = self()
+
+  { args, next }:print
+
+  (i + 1 < n):and => next:_streams.take(args, n, i + 1)
 end
 
 def _streams.take[](p, n, i)
-  (i < n):_streams.dotake(p, self, n,i)
+  'in nil':print
+  yield nil
+
+  (i + 1 < n):and => self:_streams.take(p, n, i + 1)
 end
 
 def take[](msg, ..p, n)

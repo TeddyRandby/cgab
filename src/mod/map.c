@@ -36,7 +36,7 @@ a_gab_value* gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc
     return gab_panic(gab, "&:len expects 1 argument");
   }
 
-  d_gab_value *data = gab_boxdata(argv[0]);
+  d_uint64_t *data = gab_boxdata(argv[0]);
 
   gab_value res = gab_number(data->len);
 
@@ -89,12 +89,12 @@ a_gab_value* gab_lib_add(struct gab_triple gab, size_t argc, gab_value argv[argc
 }
 
 a_gab_value* gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
-  d_gab_value *map = gab_boxdata(argv[0]);
+  d_uint64_t *map = gab_boxdata(argv[0]);
 
   switch (argc) {
 
   case 1: {
-    uint64_t next_index = d_gab_value_inext(map, 0);
+    uint64_t next_index = d_uint64_t_inext(map, 0);
 
     if (next_index == -1) {
       gab_value res = gab_nil;
@@ -103,7 +103,7 @@ a_gab_value* gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[arg
       return NULL;
     }
 
-    gab_value res = d_gab_value_ikey(map, next_index);
+    gab_value res = d_uint64_t_ikey(map, next_index);
 
     gab_vmpush(gab.vm, res);
     return NULL;
@@ -113,9 +113,9 @@ a_gab_value* gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[arg
 
     gab_value key = argv[1];
 
-    uint64_t index = d_gab_value_index_of(map, key);
+    uint64_t index = d_uint64_t_index_of(map, key);
 
-    uint64_t next_index = d_gab_value_inext(map, index + 1);
+    uint64_t next_index = d_uint64_t_inext(map, index + 1);
 
     if (next_index == -1) {
       gab_value res = gab_nil;
@@ -124,7 +124,7 @@ a_gab_value* gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[arg
       return NULL;
     }
 
-    gab_value res = d_gab_value_ikey(map, next_index);
+    gab_value res = d_uint64_t_ikey(map, next_index);
 
     gab_vmpush(gab.vm, res);
     return NULL;

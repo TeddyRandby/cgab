@@ -1,13 +1,22 @@
 :use .records
 :use .streams
 
-even = [0, 1, 2, 3, 4, 5]:for(
-  &:take,
+..res, sus = [0, 1, 2, 3, 4, 5]:filter(
+  &:pairs,
+  => @1 % 2 == 0,
+)
+
+{ res, sus }:print
+
+..res, sus = [0, 1, 2, 3, 4, 5]:take(
   &:filter,
   &:pairs,
   => @1 % 2 == 0,
-  5,
-  &:print,
+  2,
 )
 
-even:print
+{ res, sus }:print
+
+..res, sus = sus()
+
+{ res, sus }:print

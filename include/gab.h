@@ -114,7 +114,17 @@
 
 */
 
-typedef uint64_t gab_value;
+
+#define T uint64_t
+#define NAME gab_value
+#include "array.h"
+
+#define T uint64_t
+#define NAME gab_value
+#include "vector.h"
+
+
+#define gab_value size_t
 
 enum gab_kind {
   kGAB_NAN = 0,
@@ -265,12 +275,6 @@ static inline gab_value __gab_dtoval(double value) {
 
 #define GAB_OBJ_NOT_BUFFERED(obj) ((obj)->flags &= ~fGAB_OBJ_BUFFERED)
 #define GAB_OBJ_NOT_NEW(obj) ((obj)->flags &= ~fGAB_OBJ_NEW)
-
-#define T gab_value
-#include "array.h"
-
-#define T gab_value
-#include "vector.h"
 
 #define NAME specs
 #define K gab_value
@@ -1087,12 +1091,17 @@ static inline size_t gab_shpfind(gab_value shp, gab_value key) {
   assert(gab_valkind(shp) == kGAB_SHAPE);
   struct gab_obj_shape *obj = GAB_VAL_TO_SHAPE(shp);
 
+  size_t res = GAB_PROPERTY_NOT_FOUND;
+
   // Linear search for the key in the shape
+  // Instead of early return, prefer
+  // This sort of result-storing strategy.
+  // It is trivially vectorized by the compiler.
   for (size_t i = 0; i < obj->len; i++)
     if (obj->data[i] == key)
-      return i;
+      res = i;
 
-  return GAB_PROPERTY_NOT_FOUND;
+  return res;
 };
 
 /**

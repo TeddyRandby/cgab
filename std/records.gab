@@ -1,22 +1,22 @@
 :use .rec
 :use .symbol
 
-#def tuple.collect[](msg, ..p, len)
-#  def t = :tuple.new(len)
-#
-#  i, ..args, s = 0, self:(msg)(..p)
-#
-#  loop
-#    ?s == .Suspense or break
-#
-#    t[i] = args[0]
-#    i = i + 1
-#
-#    ..args, s = s()
-#  until i == len end
-#
-#  return t
-#end
+def tuple.collect[](msg, ..p, len)
+  def t = :tuple.new(len)
+
+  i, ..args, s = 0, self:(msg)(..p)
+
+  loop
+    ?s == .Suspense or break
+
+    t[i] = args[0]
+    i = i + 1
+
+    ..args, s = s()
+  until i == len end
+
+  return t
+end
 
 def has?[.gab.record](key); self:at(key) == .some end
 

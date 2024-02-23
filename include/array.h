@@ -9,7 +9,12 @@
 #define CONCAT(a, b) CONCAT_(a, b)
 #define CONCAT_(a, b) a##b
 
+#ifndef NAME
 #define TYPENAME CONCAT(a_, T)
+#else
+#define TYPENAME CONCAT(a_, NAME)
+#endif
+
 #define PREFIX TYPENAME
 #define LINKAGE static inline
 #define METHOD(name) CONCAT(PREFIX, CONCAT(_, name))
@@ -46,6 +51,7 @@ LINKAGE bool METHOD(match)(TYPENAME *self, TYPENAME *other) {
 
 LINKAGE void METHOD(destroy)(TYPENAME *self) { DESTROY(self); }
 
+#undef NAME
 #undef T
 #undef TYPENAME
 #undef PREFIX
