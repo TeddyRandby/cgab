@@ -502,9 +502,16 @@ static inline void push_ret(struct bc *bc, uint8_t have, bool mv, size_t t) {
   assert(ctx >= 0 && "Internal compiler error: no frame context");
   struct frame *f = &bc->contexts[ctx].as.frame;
 
-  if (f->curr_bb == f->prev_bb && f->prev_op == OP_SEND) {
+  if (f->prev_op == OP_SEND) {
     uint8_t have_byte = v_uint8_t_val_at(&f->bc, f->bc.len - 1);
     v_uint8_t_set(&f->bc, f->bc.len - 1, have_byte | fHAVE_TAIL);
+    have -= !mv;
+    mv = true;
+  } else if (f->prev_op == OP_TRIM && f->pprev_op == OP_SEND) {
+    uint8_t have_byte = v_uint8_t_val_at(&f->bc, f->bc.len - 3);
+    v_uint8_t_set(&f->bc, f->bc.len - 3, have_byte | fHAVE_TAIL);
+    have -= !mv;
+    mv = true;
   }
 #endif
 
@@ -2877,7 +2884,7 @@ int compile_exp_dyn(struct bc *bc, bool assignable) {
 }
 
 int is_recognized_message(struct bc *bc, gab_value name) {
-  for (int i = 0; i < 0; i++) {
+  for (int i = 0; i < kNRECOGNIZED; i++) {
     if (bc->recognized_messages[i] == name) {
       return i;
     }
