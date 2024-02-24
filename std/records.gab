@@ -4,9 +4,7 @@
 def _tuple.build[.gab.suspense](t, p, n, i)
   t:put!(i, p)
 
-  { t, p, n, i }:print
-  def ..args, next = self()
-  { self, args, next }:print
+  def ..args, def next = self()
 
   ( (i < n):and => next:_tuple.build(t, args, n, i + 1) ) :or => t
 end

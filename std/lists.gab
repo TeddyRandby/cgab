@@ -1,28 +1,44 @@
 :use .list
 
+#def list.collect[](msg, ..p)
+#  def l = :list.new
+#
+#  ..args, s = self:(msg)(..p)
+#
+#  loop
+#    ?s == .gab.suspense or break
+#
+#    l:push!(..args)    
+#
+#    ..args, s = s()
+#  end
+#
+#  return l
+#end
+
 def [][.gab.list](key)
   self:at(key)
 end
 
-def values[.gab.list]
-  self:empty? and return
+#def values[.gab.list]
+#  self:empty? and return
+#
+#  v = 0 
+#  loop
+#    yield self:at(v)
+#    v = v + 1
+#  until v >= self:len end
+#end
 
-  v = 0 
-  loop
-    yield self:at(v)
-    v = v + 1
-  until v >= self:len end
-end
-
-def pairs[.gab.list]
-  self:empty? and return
-
-  v = 0 
-  loop
-    yield v, self:at(v)
-    v = v + 1
-  until v >= self:len end
-end
+#def pairs[.gab.list]
+#  self:empty? and return
+#
+#  v = 0 
+#  loop
+#    yield v, self:at(v)
+#    v = v + 1
+#  until v >= self:len end
+#end
 
 def <<[.gab.list](other)
   other:for(&:each) do; self:push!(@1) end
@@ -31,19 +47,3 @@ def <<[.gab.list](other)
 end
 
 def empty?[.gab.list]; self:len == 0 end
-
-def list.collect[](msg, ..p)
-  def l = :list.new
-
-  ..args, s = self:(msg)(..p)
-
-  loop
-    ?s == .gab.suspense or break
-
-    l:push!(..args)    
-
-    ..args, s = s()
-  end
-
-  return l
-end

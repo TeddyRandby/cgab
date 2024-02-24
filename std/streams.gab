@@ -71,7 +71,7 @@ end
 def _streams.take[.gab.suspense](p, n, i)
   yield ..p
 
-  ..args, next = self()
+  def ..args, def next = self()
 
   (i < n):and => next:_streams.take(args, n, i + 1)
 end

@@ -46,10 +46,11 @@ enum recognized_k {
   kNRECOGNIZED,
 };
 
+// ORDER_MATTERS
 enum lvalue_k {
   kNEW_LOCAL,
-  kEXISTING_LOCAL,
   kNEW_REST_LOCAL,
+  kEXISTING_LOCAL,
   kEXISTING_REST_LOCAL,
   kPROP,
   kINDEX,
@@ -1780,7 +1781,7 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
   if (!first)
     return COMP_OK;
 
-  uint16_t targets = 0;
+  uint16_t targets = 1;
 
   while (match_and_eat_token(bc, TOKEN_COMMA)) {
     if (compile_exp_prec(bc, kASSIGNMENT) < 0)
@@ -1912,7 +1913,49 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
   return COMP_OK;
 }
 
-int compile_definition(struct bc *bc, s_char name);
+int compile_lvalue(struct bc *bc, bool assignable, gab_value name,
+                   int new_flags, bool rest) {
+  uint8_t index = 0;
+  int result = resolve_id(bc, name, &index);
+
+  switch (result) {
+  case COMP_ID_NOT_FOUND:
+    index = compile_local(bc, name, new_flags);
+
+    // We're adding a new local, which means we retroactively need
+    // to add one to each other assignment target slot
+    adjust_preceding_lvalues(bc);
+
+    return compile_assignment(bc, (struct lvalue){
+                                      .kind = kNEW_LOCAL + rest,
+                                      .slot = peek_slot(bc),
+                                      .as.local = index,
+                                  });
+
+  case COMP_RESOLVED_TO_LOCAL: {
+    int ctx = peek_ctx(bc, kFRAME, 0);
+    struct frame *f = &bc->contexts[ctx].as.frame;
+
+    if (!(f->local_flags[index] & fVAR_MUTABLE)) {
+      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                     "Cannot assign to immutable variable.");
+      return COMP_ERR;
+    }
+
+    return compile_assignment(bc, (struct lvalue){
+                                      .kind = kEXISTING_LOCAL + rest,
+                                      .slot = peek_slot(bc),
+                                      .as.local = index,
+                                  });
+  }
+  case COMP_RESOLVED_TO_UPVALUE:
+    compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                   "Captured variables are not assignable.");
+    return COMP_ERR;
+  default:
+    return COMP_ERR;
+  }
+}
 
 int compile_rec_internal_item(struct bc *bc) {
   if (match_and_eat_token(bc, TOKEN_SIGIL) ||
@@ -2103,89 +2146,6 @@ fin:
   pop_slot(bc, size);
 
   push_slot(bc, 1);
-
-  return COMP_OK;
-}
-
-int compile_definition(struct bc *bc, s_char name) {
-  size_t t = bc->offset - 1;
-
-  if (match_and_eat_token(bc, TOKEN_QUESTION))
-    name.len++;
-
-  else if (match_and_eat_token(bc, TOKEN_BANG))
-    name.len++;
-
-  gab_value val_name = gab_nstring(gab(bc), name.len, name.data);
-
-  // Create a local to store the new function in
-  int local = add_local(bc, val_name, 0);
-
-  if (local < 0)
-    return COMP_ERR;
-
-  // A record definition
-  if (match_and_eat_token(bc, TOKEN_LBRACK)) {
-    if (compile_record(bc) < 0)
-      return COMP_ERR;
-
-    push_op((bc), OP_TYPE, t);
-
-    goto fin;
-  }
-
-  if (match_and_eat_token(bc, TOKEN_EQUAL)) {
-    if (compile_expression(bc) < 0)
-      return COMP_ERR;
-
-    goto fin;
-  }
-
-  if (match_and_eat_token(bc, TOKEN_COMMA)) {
-    size_t n = 1;
-    do {
-      if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
-        return COMP_ERR;
-
-      int l = add_local(bc, prev_id(bc), 0);
-
-      if (l < 0)
-        return COMP_ERR;
-
-      n++;
-    } while (match_and_eat_token(bc, TOKEN_COMMA));
-
-    if (expect_token(bc, TOKEN_EQUAL) < 0)
-      return COMP_ERR;
-
-    t = bc->offset - 1;
-
-    if (compile_tuple(bc, n, NULL) < 0)
-      return COMP_ERR;
-
-    for (int i = n - 1; i > 0; i--) {
-      push_storel((bc), local + i, t);
-      push_pop((bc), 1, t);
-      init_local(bc, local + i);
-    }
-
-    goto fin;
-  }
-
-  if (match_token(bc, TOKEN_LBRACE)) {
-    if (compile_message(bc, val_name, t) < 0)
-      return COMP_ERR;
-
-    goto fin;
-  }
-
-  if (compile_block(bc, val_name) < 0)
-    return COMP_ERR;
-
-fin:
-  push_storel((bc), local, t);
-
-  init_local(bc, local);
 
   return COMP_OK;
 }
@@ -2400,13 +2360,18 @@ int compile_exp_def(struct bc *bc, bool assignable) {
   case TOKEN_AMPERSAND:
   case TOKEN_DOT_DOT:
     name = prev_src(bc);
+
+    if (match_and_eat_token(bc, TOKEN_IDENTIFIER))
+      if (assignable && !match_ctx(bc, kTUPLE))
+        return compile_lvalue(bc, assignable, prev_id(bc), 0, true);
+
     break;
   case TOKEN_LPAREN:
     name = prev_src(bc);
 
     if (match_and_eat_token(bc, TOKEN_RPAREN)) {
       name.len++;
-      break;
+      goto fin;
     }
 
     if (compile_expression(bc) < 0)
@@ -2416,11 +2381,12 @@ int compile_exp_def(struct bc *bc, bool assignable) {
       return COMP_ERR;
 
     return compile_message(bc, gab_nil, bc->offset - 1);
+
   case TOKEN_LBRACE: {
     name = prev_src(bc);
     if (match_and_eat_token(bc, TOKEN_RBRACE)) {
       name.len++;
-      break;
+      goto fin;
     }
 
     if (match_and_eat_token(bc, TOKEN_EQUAL)) {
@@ -2428,7 +2394,7 @@ int compile_exp_def(struct bc *bc, bool assignable) {
         return COMP_ERR;
 
       name.len += 2;
-      break;
+      goto fin;
     }
   }
   default:
@@ -2438,8 +2404,64 @@ int compile_exp_def(struct bc *bc, bool assignable) {
     return COMP_ERR;
   }
 
-  if (compile_definition(bc, name) < 0)
+fin:
+  if (assignable && !match_ctx(bc, kTUPLE))
+    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
+      return compile_lvalue(
+          bc, assignable, gab_nstring(gab(bc), name.len, name.data), 0, false);
+
+  size_t t = bc->offset - 1;
+
+  gab_value val_name = gab_nstring(gab(bc), name.len, name.data);
+
+  // Create a local to store the new function in
+  int local = add_local(bc, val_name, 0);
+
+  if (local < 0)
     return COMP_ERR;
+
+  // A record definition
+  if (match_and_eat_token(bc, TOKEN_LBRACK)) {
+    if (compile_record(bc) < 0)
+      return COMP_ERR;
+
+    push_op((bc), OP_TYPE, t);
+
+    push_storel((bc), local, t);
+
+    init_local(bc, local);
+
+    return COMP_OK;
+  }
+
+  if (match_and_eat_token(bc, TOKEN_EQUAL)) {
+    if (compile_expression(bc) < 0)
+      return COMP_ERR;
+
+    push_storel((bc), local, t);
+
+    init_local(bc, local);
+
+    return COMP_OK;
+  }
+
+  if (match_token(bc, TOKEN_LBRACE)) {
+    if (compile_message(bc, val_name, t) < 0)
+      return COMP_ERR;
+
+    push_storel((bc), local, t);
+
+    init_local(bc, local);
+
+    return COMP_OK;
+  }
+
+  if (compile_block(bc, val_name) < 0)
+    return COMP_ERR;
+
+  push_storel((bc), local, t);
+
+  init_local(bc, local);
 
   return COMP_OK;
 }
@@ -2523,47 +2545,9 @@ int compile_exp_idn(struct bc *bc, bool assignable) {
   uint8_t index = 0;
   int result = resolve_id(bc, id, &index);
 
-  if (assignable && !match_ctx(bc, kTUPLE)) {
-    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
-      switch (result) {
-      case COMP_ID_NOT_FOUND:
-        index = compile_local(bc, id, fVAR_MUTABLE);
-
-        // We're adding a new local, which means we retroactively need
-        // to add one to each other assignment target slot
-        adjust_preceding_lvalues(bc);
-
-        return compile_assignment(bc, (struct lvalue){
-                                          .kind = kNEW_LOCAL,
-                                          .slot = peek_slot(bc),
-                                          .as.local = index,
-                                      });
-
-      case COMP_RESOLVED_TO_LOCAL: {
-        int ctx = peek_ctx(bc, kFRAME, 0);
-        struct frame *f = &bc->contexts[ctx].as.frame;
-
-        if (!(f->local_flags[index] & fVAR_MUTABLE)) {
-          compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                         "Cannot assign to immutable variable.");
-          return COMP_ERR;
-        }
-
-        return compile_assignment(bc, (struct lvalue){
-                                          .kind = kEXISTING_LOCAL,
-                                          .slot = peek_slot(bc),
-                                          .as.local = index,
-                                      });
-      }
-      case COMP_RESOLVED_TO_UPVALUE:
-        compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                       "Captured variables are not assignable.");
-        return COMP_ERR;
-      default:
-        return COMP_ERR;
-      }
-    }
-  }
+  if (assignable && !match_ctx(bc, kTUPLE))
+    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
+      return compile_lvalue(bc, assignable, id, fVAR_MUTABLE, false);
 
   switch (result) {
   case COMP_RESOLVED_TO_LOCAL:
@@ -2616,53 +2600,12 @@ int compile_exp_splt(struct bc *bc, bool assignable) {
     goto as_splat_exp;
   }
 
-  gab_value id = prev_id(bc);
+  return compile_lvalue(bc, assignable, prev_id(bc), fVAR_MUTABLE, true);
 
-  uint8_t index;
-  int result = resolve_id(bc, id, &index);
-
-  switch (result) {
-  case COMP_ID_NOT_FOUND:
-    index = compile_local(bc, id, fVAR_MUTABLE);
-
-    // We're adding a new local, which means we retroactively need
-    // to add one to each other assignment target slot
-    adjust_preceding_lvalues(bc);
-
-    return compile_assignment(bc, (struct lvalue){
-                                      .kind = kNEW_REST_LOCAL,
-                                      .slot = peek_slot(bc),
-                                      .as.local = index,
-                                  });
-  case COMP_RESOLVED_TO_LOCAL: {
-    int ctx = peek_ctx(bc, kFRAME, 0);
-    struct frame *f = &bc->contexts[ctx].as.frame;
-
-    if (!(f->local_flags[index] & fVAR_MUTABLE)) {
-      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                     "Cannot assign to immutable variable.");
-      return COMP_ERR;
-    }
-
-    return compile_assignment(bc, (struct lvalue){
-                                      .kind = kEXISTING_REST_LOCAL,
-                                      .slot = peek_slot(bc),
-                                      .as.local = index,
-                                  });
-  }
-  case COMP_RESOLVED_TO_UPVALUE:
-    compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                   "Captured variables are not assignable.");
-    return COMP_ERR;
-  default:
-    return COMP_ERR;
-  }
-
-as_splat_exp: {
+as_splat_exp:
   push_send(bc, gab_string(gab(bc), mGAB_SPLAT), 0, false, t);
 
   return VAR_EXP;
-}
 }
 
 int compile_exp_idx(struct bc *bc, bool assignable) {
