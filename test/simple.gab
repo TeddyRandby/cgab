@@ -1,22 +1,38 @@
 :use .records
 :use .streams
+:use .dis
 
-..res, sus = [0, 1, 2, 3, 4, 5]:filter(
+nums = [ 0, 1, 2, 3, 4, 5 ]
+
+nums:print 'nums'
+
+nums_times_two = nums:tuple.collect(
+  &:map,
   &:pairs,
-  => @1 % 2 == 0,
+  => @2 * 2,
+  nums:len,
 )
 
-{ res, sus }:print
+nums_times_two:print 'times two'
 
-..res, sus = [0, 1, 2, 3, 4, 5]:take(
+filtered_nums = nums:tuple.collect(
+  &:filter,
+  &:pairs,
+  => @2 % 2 == 0,
+  nums:len / 2,
+)
+
+filtered_nums:print 'filtered'
+
+take_filtered = nums:tuple.collect(
+  &:take,
   &:filter,
   &:pairs,
   => @1 % 2 == 0,
   2,
+  2,
 )
 
-{ res, sus }:print
+take_filtered:print 'take filtered'
 
-..res, sus = sus()
-
-{ res, sus }:print
+#&:_streams.take :dis .gab.suspense

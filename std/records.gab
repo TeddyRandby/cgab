@@ -1,21 +1,28 @@
 :use .rec
 :use .symbol
 
+def _tuple.build[.gab.suspense](t, p, n, i)
+  t:put!(i, p)
+
+  { t, p, n, i }:print
+  def ..args, next = self()
+  { self, args, next }:print
+
+  ( (i < n):and => next:_tuple.build(t, args, n, i + 1) ) :or => t
+end
+
+def _tuple.build[](t, p, n, i)
+  t:put!(i, p)
+
+  t
+end
+
 def tuple.collect[](msg, ..p, len)
   def t = :tuple.new(len)
 
-  i, ..args, s = 0, self:(msg)(..p)
+  ..args, s = self:(msg)(..p)
 
-  loop
-    ?s == .Suspense or break
-
-    t[i] = args[0]
-    i = i + 1
-
-    ..args, s = s()
-  until i == len end
-
-  return t
+  s:_tuple.build(t, args, len, 0)
 end
 
 def has?[.gab.record](key); self:at(key) == .some end

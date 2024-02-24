@@ -2934,7 +2934,7 @@ int compile_exp_dyn(struct bc *bc, bool assignable) {
 }
 
 int is_recognized_message(struct bc *bc, gab_value name) {
-  for (int i = 0; i < kNRECOGNIZED; i++) {
+  for (int i = 0; i < 0; i++) {
     if (bc->recognized_messages[i] == name) {
       return i;
     }

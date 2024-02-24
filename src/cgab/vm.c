@@ -974,7 +974,7 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
 
   DROP_N(have);
 
-  memmove(SP(), rec->data, rec->len * sizeof(gab_value));
+  memcpy(SP(), rec->data, rec->len * sizeof(gab_value));
   SP() += rec->len;
   VAR() = rec->len;
 
@@ -1141,7 +1141,7 @@ CASE_CODE(SEND_PRIMITIVE_OR) {
 
 CASE_CODE(YIELD) {
   gab_value proto = READ_CONSTANT;
-  uint8_t have = compute_arity(VAR(), READ_BYTE);
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   uint64_t frame_len = SP() - FB() - have;
 
@@ -1172,7 +1172,7 @@ CASE_CODE(YIELD) {
 }
 
 CASE_CODE(RETURN) {
-  size_t have = compute_arity(VAR(), READ_BYTE);
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   gab_value *from = SP() - have;
   gab_value *to = FB();

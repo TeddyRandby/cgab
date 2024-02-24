@@ -28,7 +28,9 @@ def _streams.map[.gab.suspense](p, cb)
   s:_streams.map(args, cb)
 end
 
-def _streams.map[](p, cb); yield cb(..p) end
+def _streams.map[](p, cb)
+  nil
+end
 
 def map[](msg, ..p, cb)
   ..args, s = self:(msg)(..p)
@@ -67,21 +69,15 @@ def filter[](msg, ..p, cb)
 end
 
 def _streams.take[.gab.suspense](p, n, i)
-  'in sus':print
   yield ..p
 
   ..args, next = self()
 
-  { args, next }:print
-
-  (i + 1 < n):and => next:_streams.take(args, n, i + 1)
+  (i < n):and => next:_streams.take(args, n, i + 1)
 end
 
 def _streams.take[](p, n, i)
-  'in nil':print
-  yield nil
-
-  (i + 1 < n):and => self:_streams.take(p, n, i + 1)
+  nil
 end
 
 def take[](msg, ..p, n)
