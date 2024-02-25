@@ -2,88 +2,129 @@ def ()[.gab.message](r, ..args)
   r:(self)(..args)
 end
 
-def _streams.for[.gab.suspense](p, cb)
+def streams.fold[.gab.suspense](p, acc, cb)
+  next_acc = cb(acc, ..p)            
+
+  ..next_p, next_s = self()
+
+  next_s:streams.fold(next_p, next_acc, cb)
+end
+
+def streams.fold[](p, acc, cb)
+  acc
+end
+
+def fold[](msg, ..p, init, cb)
+  acc, ..args, s = init, self:(msg)(..p)
+
+  s:streams.fold(args, init, cb)
+end
+
+def streams.for[.gab.suspense](p, cb)
   cb(..p)
 
   ..args, s = self()
 
-  s:_streams.for(args, cb)
+  s:streams.for(args, cb)
 end
 
-def _streams.for[](p, cb)
+def streams.for[](p, cb)
   nil
 end
-
 def for[](msg, ..p, cb)
   ..args, s = self:(msg)(..p)
 
-  s:_streams.for(args, cb)
+  s:streams.for(args, cb)
 end
 
-def _streams.map[.gab.suspense](p, cb)
+def streams.map[.gab.suspense](p, cb)
   yield cb(..p)
 
   ..args, s = self()
 
-  s:_streams.map(args, cb)
+  s:streams.map(args, cb)
 end
 
-def _streams.map[](p, cb)
+def streams.map[](p, cb)
   nil
 end
 
 def map[](msg, ..p, cb)
   ..args, s = self:(msg)(..p)
 
-  s:_streams.map(args, cb)
+  s:streams.map(args, cb)
 end
 
-def continue_filter(s, cb)
-  ..args, next = s()
-
-  next:_streams.filter(args, cb)
-end
-
-def _streams.dofilter[true](p, s, cb)
+def streams.dofilter[true](p, s, cb)
   yield ..p
 
-  continue_filter(s, cb)
+  ..args, next = s()
+
+  next:streams.filter(args, cb)
 end
 
-def _streams.dofilter[false](p, s, cb)
-  continue_filter(s, cb)
+def streams.dofilter[false](p, s, cb)
+  ..args, next = s()
+
+  next:streams.filter(args, cb)
 end
 
-def _streams.filter[.gab.suspense](p, cb)
-  cb(..p):_streams.dofilter(p, self, cb)
+def streams.filter[.gab.suspense](p, cb)
+  cb(..p):streams.dofilter(p, self, cb)
 end
 
-def _streams.filter[](p, cb)
+def streams.filter[](p, cb)
   nil
 end
 
 def filter[](msg, ..p, cb)
   ..args, s = self:(msg)(..p)
 
-  s:_streams.filter(args, cb)
+  s:streams.filter(args, cb)
 end
 
-def _streams.take[.gab.suspense](p, n, i)
+def streams.take[.gab.suspense](p, n, i)
   yield ..p
 
   def ..args, def next = self()
 
-  (i < n):and => next:_streams.take(args, n, i + 1)
+  (i < n):and => next:streams.take(args, n, i + 1)
 end
 
-def _streams.take[](p, n, i)
+def streams.take[](p, n, i)
   nil
 end
 
 def take[](msg, ..p, n)
   ..args, s = self:(msg)(..p)
 
-  s:_streams.take(args, n, 0)
+  s:streams.take(args, n, 0)
+end
+
+def streams.dofirst[true](p, s, cb)
+  ..p
+end
+
+def streams.dofirst[false](p, s, cb)
+  ..args, next = s()
+
+  next:streams.first(args, cb)
+end
+
+def streams.first[.gab.suspense](p, cb)
+  res, ..vals = cb(..p)
+
+  (res == .some):streams.dofirst(vals, self, cb)
+end
+
+def streams.first[](p, cb)
+  .none
+end
+
+def first[](msg, ..p, cb)
+  ..args, s = self:(msg)(..p)
+
+  s:streams.first(args, cb)
 end
 
 #def unwrap[](msg, ..p, cb)
@@ -103,19 +144,6 @@ end
 #    until not s:is? .gab.suspense end 
 #  end
 #end
-
-#def first[](msg, ..p, cb)
-#  ..args, s = self:(msg)(..p)
-#
-#  s:is? .gab.suspense and loop
-#      res, ..vals = cb(..args)
-#      res == .some and return res, ..vals
-#
-#      ..args, s = s()
-#  until not s:is? .gab.suspense end
-#
-#  .none
-#end
 #
 #def join[](msg, ..p, sep, cb)
 #  arg, .._, s = self:(msg)(..p)
@@ -133,16 +161,6 @@ end
 #  acc
 #end
 #
-#def fold[](msg, ..p, init, cb)
-#  acc, ..args, s = init, self:(msg)(..p)
-#
-#  s:is? .gab.suspense and loop
-#      acc = cb(acc, ..args)            
-#      ..args, s = s()
-#  until not s:is? .gab.suspense end
-#
-#  acc
-#end
 #
 #def partition[](msg, ..p, n)
 #  n > 1 or return

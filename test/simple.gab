@@ -35,4 +35,41 @@ take_filtered = nums:tuple.collect(
 
 take_filtered:print 'take filtered'
 
+nums:for(
+  &:take,
+  &:map,
+  &:filter,
+  &:pairs,
+  => @1 % 2 == 0,
+  => @2 * 2,
+  2,
+  &:print,
+)
+
+take_filtered_mapped_total = nums:fold(
+  &:take,
+  &:map,
+  &:filter,
+  &:pairs,
+  => @1 % 2 == 0,
+  => @2 * 2,
+  2,
+  0,
+  &+,
+)
+
+take_filtered_mapped_total:print
+
+first = nums:first(
+  &:map,
+  &:filter,
+  &:pairs,
+  => @1 % 2 == 0,
+  => @2 * 2,
+  => (@1 == 4) :and => return .some, .hi,
+)
+
+first:print
+
+
 #&:_streams.take :dis .gab.suspense
