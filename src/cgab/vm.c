@@ -1272,6 +1272,8 @@ CASE_CODE(LOGICAL_AND) {
   else
     IP() += offset;
 
+  VAR() = 1;
+
   NEXT();
 }
 
@@ -1283,6 +1285,8 @@ CASE_CODE(LOGICAL_OR) {
     IP() += offset;
   else
     DROP();
+
+  VAR() = 1;
 
   NEXT();
 }

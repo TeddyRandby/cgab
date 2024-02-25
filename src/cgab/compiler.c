@@ -502,14 +502,18 @@ static inline void push_ret(struct bc *bc, uint8_t have, bool mv, size_t t) {
   assert(ctx >= 0 && "Internal compiler error: no frame context");
   struct frame *f = &bc->contexts[ctx].as.frame;
 
-  if (f->prev_op == OP_SEND) {
+  if (f->curr_bb == f->prev_bb && f->prev_op == OP_SEND) {
     uint8_t have_byte = v_uint8_t_val_at(&f->bc, f->bc.len - 1);
     v_uint8_t_set(&f->bc, f->bc.len - 1, have_byte | fHAVE_TAIL);
     have -= !mv;
     mv = true;
-  } else if (f->prev_op == OP_TRIM && f->pprev_op == OP_SEND) {
+  } else if (f->curr_bb == f->prev_bb && f->prev_op == OP_TRIM &&
+             f->pprev_op == OP_SEND) {
     uint8_t have_byte = v_uint8_t_val_at(&f->bc, f->bc.len - 3);
     v_uint8_t_set(&f->bc, f->bc.len - 3, have_byte | fHAVE_TAIL);
+    // f->prev_op = f->pprev_op;
+    // f->bc.len -= 2;
+    // f->bc_toks.len -= 2;
     have -= !mv;
     mv = true;
   }

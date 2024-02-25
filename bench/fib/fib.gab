@@ -2,4 +2,8 @@ def fib[.gab.number]
   ((self < 2) :and => self) :or => (self - 1):fib + (self - 2):fib
 end
 
-30:fib
+:use .dis
+
+&:fib:dis .gab.number
+
+#30:fib
