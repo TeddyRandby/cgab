@@ -1374,42 +1374,6 @@ CASE_CODE(NPOPSTORE_LOCAL) {
   NEXT();
 }
 
-CASE_CODE(POPJUMP_IF_TRUE) {
-  uint16_t dist = READ_SHORT;
-  IP() += dist * gab_valintob(POP());
-  NEXT();
-}
-
-CASE_CODE(POPJUMP_IF_FALSE) {
-  uint16_t dist = READ_SHORT;
-  IP() += dist * !gab_valintob(POP());
-  NEXT();
-}
-
-CASE_CODE(JUMP_IF_TRUE) {
-  uint16_t dist = READ_SHORT;
-  IP() += dist * gab_valintob(PEEK());
-  NEXT();
-}
-
-CASE_CODE(JUMP_IF_FALSE) {
-  uint16_t dist = READ_SHORT;
-  IP() += dist * !gab_valintob(PEEK());
-  NEXT();
-}
-
-CASE_CODE(JUMP) {
-  uint16_t dist = READ_SHORT;
-  IP() += dist;
-  NEXT();
-}
-
-CASE_CODE(LOOP) {
-  uint16_t dist = READ_SHORT;
-  IP() -= dist;
-  NEXT();
-}
-
 CASE_CODE(BLOCK) {
   gab_value p = READ_CONSTANT;
 
