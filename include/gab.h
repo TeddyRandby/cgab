@@ -1469,8 +1469,10 @@ static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg,
 
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
 
-  if (gab_rechas(obj->specs, receiver))
+  if (gab_rechas(obj->specs, receiver)) {
+    gab_gcunlock(gab.gc);
     return gab_undefined;
+  }
 
   if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
     gab_dref(gab, obj->specs);
@@ -1982,8 +1984,6 @@ static inline const char *gab_valintocs(struct gab_triple gab,
 
   if (gab_valiso(str))
     return GAB_VAL_TO_STRING(str)->data;
-
-  printf("INTOCS: %V\n", str);
 
   static char buffer[8]; // hacky
   memcpy(buffer, gab_strdata(&str), gab_strlen(str) + 1);

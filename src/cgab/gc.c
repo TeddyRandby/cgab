@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-static inline size_t do_increment(struct gab_gc* gc, struct gab_obj *obj) {
+static inline size_t do_increment(struct gab_gc *gc, struct gab_obj *obj) {
   if (__gab_unlikely(obj->references == INT8_MAX)) {
     size_t rc = d_gab_obj_read(&gc->overflow_rc, obj);
 
@@ -16,7 +16,7 @@ static inline size_t do_increment(struct gab_gc* gc, struct gab_obj *obj) {
   return obj->references++;
 }
 
-static inline size_t do_decrement(struct gab_gc* gc, struct gab_obj *obj) {
+static inline size_t do_decrement(struct gab_gc *gc, struct gab_obj *obj) {
   if (__gab_unlikely(obj->references == INT8_MAX)) {
     size_t rc = d_gab_obj_read(&gc->overflow_rc, obj);
 
@@ -248,15 +248,14 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
     GAB_OBJ_NOT_NEW(obj);
     for_child_do(obj, inc_obj_ref, gab);
   }
-
 }
 
 #if cGAB_LOG_GC
 void __gab_niref(struct gab_triple gab, size_t stride, size_t len,
-                   gab_value values[len], const char *func, int line) {
+                 gab_value values[len], const char *func, int line) {
 #else
 void gab_niref(struct gab_triple gab, size_t stride, size_t len,
-                 gab_value values[len]) {
+               gab_value values[len]) {
 #endif
   gab_gclock(gab.gc);
 
@@ -275,10 +274,10 @@ void gab_niref(struct gab_triple gab, size_t stride, size_t len,
 
 #if cGAB_LOG_GC
 void __gab_ndref(struct gab_triple gab, size_t stride, size_t len,
-                   gab_value values[len], const char *func, int line) {
+                 gab_value values[len], const char *func, int line) {
 #else
 void gab_ndref(struct gab_triple gab, size_t stride, size_t len,
-                 gab_value values[len]) {
+               gab_value values[len]) {
 #endif
 
   gab_gclock(gab.gc);
@@ -298,7 +297,7 @@ void gab_ndref(struct gab_triple gab, size_t stride, size_t len,
 
 #if cGAB_LOG_GC
 gab_value __gab_iref(struct gab_triple gab, gab_value value, const char *func,
-                       int32_t line) {
+                     int32_t line) {
 #else
 gab_value gab_iref(struct gab_triple gab, gab_value value) {
 #endif
@@ -328,7 +327,7 @@ gab_value gab_iref(struct gab_triple gab, gab_value value) {
 
 #if cGAB_LOG_GC
 gab_value __gab_dref(struct gab_triple gab, gab_value value, const char *func,
-                       int32_t line) {
+                     int32_t line) {
 #else
 gab_value gab_dref(struct gab_triple gab, gab_value value) {
 #endif
@@ -351,7 +350,8 @@ gab_value gab_dref(struct gab_triple gab, gab_value value) {
   if (GAB_OBJ_IS_NEW(obj)) {
     printf("NEWDEC\t%p\t%d\t%s:%i\n", obj, obj->references, func, line);
   } else {
-    printf("DEC\t%V\t%p\t%d\t%s:%i\n", __gab_obj(obj), obj, obj->references, func, line);
+    printf("DEC\t%V\t%p\t%d\t%s:%i\n", __gab_obj(obj), obj, obj->references,
+           func, line);
   }
 #endif
 
@@ -660,8 +660,15 @@ void collect_cycles(struct gab_triple gab) {
   collect_roots(gab);
 }
 
-void gab_gclock(struct gab_gc *gc) { gc->locked += 1; }
-void gab_gcunlock(struct gab_gc *gc) { gc->locked -= 1; }
+void gab_gclock(struct gab_gc *gc) {
+  assert(gc->locked < UINT8_MAX);
+  gc->locked += 1;
+}
+
+void gab_gcunlock(struct gab_gc *gc) {
+  assert(gc->locked > 0);
+  gc->locked -= 1;
+}
 
 void gab_collect(struct gab_triple gab) {
   if (gab.gc->locked)

@@ -249,7 +249,8 @@ void gab_destroy(struct gab_triple gab) {
 
   for (uint64_t i = 0; i < gab.eg->sources.cap; i++) {
     if (d_gab_src_iexists(&gab.eg->sources, i)) {
-      gab_srcdestroy(d_gab_src_ival(&gab.eg->sources, i));
+      struct gab_src *s = d_gab_src_ival(&gab.eg->sources, i);
+      gab_srcdestroy(s);
     }
   }
 
