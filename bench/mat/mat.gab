@@ -1,5 +1,5 @@
-:use 'records'
-:use 'numbers'
+:use .records
+:use .numbers
 :use .streams
 
 def Matrix { n, data }
@@ -14,10 +14,13 @@ def +[Matrix](other)
   data = :record.new(?self:data)
 
   i, done = 0, (N * N)
-  loop
+  do
     data[i] = self:data[i] + other:data[i]
+
     i = i + 1
-  until i == done end
+
+    i
+  end :until => @1 == done
 
   :matrix(N, data)
 end

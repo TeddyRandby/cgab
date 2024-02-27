@@ -131,8 +131,8 @@ enum gab_kind {
   kGAB_NIL = 2,
   kGAB_FALSE = 3,
   kGAB_TRUE = 4,
-  kGAB_STRING = 5,
-  kGAB_PRIMITIVE = 6,
+  kGAB_PRIMITIVE = 5,
+  kGAB_STRING = 6,
   kGAB_NUMBER,
   kGAB_SUSPENSE,
   kGAB_MESSAGE,
@@ -941,7 +941,7 @@ static inline size_t gab_strlen(gab_value str) {
   if (gab_valiso(str))
     return GAB_VAL_TO_STRING(str)->len;
 
-  return 5 - ((str >> 40) & 0xff);
+  return 5 - ((str >> 40) & 0xFF);
 };
 
 /**
@@ -1980,9 +1980,10 @@ static inline const char *gab_valintocs(struct gab_triple gab,
                                         gab_value value) {
   gab_value str = gab_valintos(gab, value);
 
-  if (gab_valiso(str)) {
+  if (gab_valiso(str))
     return GAB_VAL_TO_STRING(str)->data;
-  }
+
+  printf("INTOCS: %V\n", str);
 
   static char buffer[8]; // hacky
   memcpy(buffer, gab_strdata(&str), gab_strlen(str) + 1);
