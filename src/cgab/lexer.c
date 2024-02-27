@@ -487,7 +487,7 @@ void gab_srcdestroy(struct gab_src *self) {
   v_uint8_t_destroy(&self->bytecode);
   v_uint64_t_destroy(&self->bytecode_toks);
 
-  DESTROY(self);
+  free(self);
 }
 
 struct gab_src *gab_src(struct gab_triple gab, gab_value name,

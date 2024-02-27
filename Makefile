@@ -1,5 +1,5 @@
 CC 		 = gcc
-CFLAGS = -std=c2x -fPIC -foptimize-sibling-calls -flto=auto -MMD -Wall -DGAB_PREFIX=\"${GAB_PREFIX}\" ${GAB_CCFLAGS}
+CFLAGS = -std=c2x -fPIC -foptimize-sibling-calls -MMD -Wall -DGAB_PREFIX=\"${GAB_PREFIX}\" ${GAB_CCFLAGS}
 
 SRC_PREFIX 	 	 	= src/**
 BUILD_PREFIX 	 	= build

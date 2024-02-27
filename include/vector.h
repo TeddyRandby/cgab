@@ -33,17 +33,17 @@ struct TYPENAME {
 LINKAGE void METHOD(create)(TYPENAME *self, uint64_t cap) {
   self->cap = cap;
   self->len = 0;
-  self->data = NEW_ARRAY(T, cap);
+  self->data = malloc(sizeof(T) * cap);
 }
 
 LINKAGE void METHOD(copy)(TYPENAME *self, TYPENAME *other) {
   self->cap = other->cap;
   self->len = other->len;
-  self->data = NEW_ARRAY(T, other->cap);
+  self->data = malloc(sizeof(T) * other->cap);
   memcpy(self->data, other->data, other->len * sizeof(T));
 }
 
-LINKAGE void METHOD(destroy)(TYPENAME *self) { DESTROY(self->data); }
+LINKAGE void METHOD(destroy)(TYPENAME *self) { free(self->data); }
 
 LINKAGE uint64_t METHOD(set)(TYPENAME *self, uint64_t index, T value) {
   assert(index < self->len);

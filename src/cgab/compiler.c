@@ -90,8 +90,6 @@ struct context {
   } as;
 };
 
-static const char *recognized_messages[] = {"and", "or"};
-
 struct bc {
   struct gab_src *src;
 
@@ -145,10 +143,6 @@ void bc_create(struct bc *self, struct gab_triple gab, struct gab_src *source) {
 
   self->src = source;
   self->gab = gab;
-
-  for (int i = 0; i < kNRECOGNIZED; i++) {
-    self->recognized_messages[i] = gab_string(gab, recognized_messages[i]);
-  }
 }
 
 void bc_destroy(struct bc *self) {}
@@ -2346,14 +2340,9 @@ int compile_exp_nil(struct bc *bc, bool assignable) {
 }
 
 int compile_exp_def(struct bc *bc, bool assignable) {
-  size_t help_cmt_line = prev_line(bc);
-  // 1 indexed, so correct for that if not the first line
-  if (help_cmt_line > 0)
-    help_cmt_line--;
-
   eat_token(bc);
 
-  s_char name = {0};
+  s_char name = {};
 
   switch (prev_tok(bc)) {
   case TOKEN_IDENTIFIER:
@@ -2370,6 +2359,8 @@ int compile_exp_def(struct bc *bc, bool assignable) {
   case TOKEN_EQUAL_EQUAL:
   case TOKEN_PIPE:
   case TOKEN_AMPERSAND:
+    name = prev_src(bc);
+    break;
   case TOKEN_DOT_DOT:
     name = prev_src(bc);
 
@@ -2888,42 +2879,6 @@ int compile_exp_dyn(struct bc *bc, bool assignable) {
   return VAR_EXP;
 }
 
-int is_recognized_message(struct bc *bc, gab_value name) {
-  for (int i = 0; i < kNRECOGNIZED; i++) {
-    if (bc->recognized_messages[i] == name) {
-      return i;
-    }
-  }
-
-  return -1;
-}
-
-int attempt_inlinelogical(struct bc *bc, uint8_t jump_op) {
-  if (match_and_eat_token(bc, TOKEN_DO)) {
-    if (compile_parameters_internal(bc, nullptr, nullptr) < 0)
-      return COMP_ERR;
-
-    return compile_logical(bc, jump_op, compile_expressions, TOKEN_END);
-  }
-
-  if (match_and_eat_token(bc, TOKEN_FAT_ARROW))
-    return compile_logical(bc, jump_op, compile_expression, -1);
-
-  return COMP_COULD_NOT_INLINE;
-}
-
-int inline_recognized_message(struct bc *bc, int k) {
-  switch (k) {
-  case kRECOGNIZED_AND:
-    return attempt_inlinelogical(bc, OP_LOGICAL_AND);
-  case kRECOGNIZED_OR:
-    return attempt_inlinelogical(bc, OP_LOGICAL_OR);
-  default:
-    assert(false && "This is an internal compiler error.");
-    return COMP_ERR;
-  }
-}
-
 int compile_exp_snd(struct bc *bc, bool assignable) {
   size_t t = bc->offset - 1;
 
@@ -2942,15 +2897,6 @@ int compile_exp_snd(struct bc *bc, bool assignable) {
       eat_token(bc);
       compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
     }
-  }
-
-  int k = is_recognized_message(bc, name);
-
-  if (k >= 0) {
-    int result = inline_recognized_message(bc, k);
-
-    if (result != COMP_COULD_NOT_INLINE)
-      return result;
   }
 
   bool mv = false;

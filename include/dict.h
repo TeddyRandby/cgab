@@ -121,14 +121,14 @@ LINKAGE uint64_t METHOD(inext)(TYPENAME *self, uint64_t index) {
 LINKAGE void METHOD(create)(TYPENAME *self, uint64_t cap) {
   assert(cap % 2 == 0);
 
-  self->buckets = NEW_ARRAY(BUCKET_T, cap);
+  self->buckets = malloc(sizeof(BUCKET_T) * cap);
   memset(self->buckets, 0, cap * sizeof(BUCKET_T));
 
   self->cap = cap;
   self->len = 0;
 }
 
-LINKAGE void METHOD(destroy)(TYPENAME *self) { DESTROY(self->buckets); }
+LINKAGE void METHOD(destroy)(TYPENAME *self) { free(self->buckets); }
 
 LINKAGE uint64_t METHOD(index_of)(TYPENAME *self, K key) {
   uint64_t index = HASH(key) & (self->cap - 1);
@@ -175,7 +175,7 @@ LINKAGE void METHOD(cap)(TYPENAME *self, uint64_t cap) {
     self->len++;
   }
 
-  DESTROY(self->buckets);
+  free(self->buckets);
   self->buckets = other.buckets;
   self->cap = cap;
 }

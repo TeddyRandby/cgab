@@ -9,9 +9,15 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "core.h"
-#include "types.h"
+
+#if defined(_WIN32) || defined(_WIN64) || defined(Wint32_t)
+#define OS_UNIX 0
+#else
+#define OS_UNIX 1
+#endif
 
 #if cGAB_LIKELY
 #define __gab_likely(x) (__builtin_expect(!!(x), 1))
@@ -20,11 +26,6 @@
 #define __gab_likely(x) (x)
 #define __gab_unlikely(x) (x)
 #endif
-
-/**
- * \file
- * \brief The API for the gab programming language.
- */
 
 /**
  An IEEE 754 double-precision float is a 64-bit value with bits laid out like:
@@ -114,7 +115,6 @@
 
 */
 
-
 #define T uint64_t
 #define NAME gab_value
 #include "array.h"
@@ -123,8 +123,7 @@
 #define NAME gab_value
 #include "vector.h"
 
-
-#define gab_value size_t
+typedef uint64_t gab_value;
 
 enum gab_kind {
   kGAB_NAN = 0,
@@ -132,8 +131,8 @@ enum gab_kind {
   kGAB_NIL = 2,
   kGAB_FALSE = 3,
   kGAB_TRUE = 4,
-  kGAB_PRIMITIVE = 5,
-  kGAB_STRING = 6,
+  kGAB_STRING = 5,
+  kGAB_PRIMITIVE = 6,
   kGAB_NUMBER,
   kGAB_SUSPENSE,
   kGAB_MESSAGE,
@@ -156,7 +155,9 @@ enum gab_kind {
 #define __GAB_TAGOFFSET (47)
 
 #define __GAB_VAL_TAG(val)                                                     \
-  ((enum gab_kind)((val >> __GAB_TAGOFFSET) & __GAB_TAGMASK))
+  ((enum gab_kind)((__gab_valisn(val)                                          \
+                        ? kGAB_NUMBER                                          \
+                        : (val >> __GAB_TAGOFFSET) & __GAB_TAGMASK)))
 
 // Sneakily use a union to get around the type system
 static inline double __gab_valtod(gab_value value) {
@@ -858,12 +859,8 @@ void gab_gcunlock(struct gab_gc *gc);
  *
  * @param value The value.
  * @return The kind of the value.
- *
  */
 static inline enum gab_kind gab_valkind(gab_value value) {
-  if (__gab_valisn(value))
-    return kGAB_NUMBER;
-
   if (gab_valiso(value))
     return gab_valtoo(value)->kind;
 
@@ -896,7 +893,7 @@ struct gab_obj_string {
 
   size_t len;
 
-  char data[FLEXIBLE_ARRAY];
+  char data[];
 };
 
 /* Cast a value to a (gab_obj_string*) */
@@ -1003,7 +1000,7 @@ struct gab_obj_block {
 
   gab_value p;
 
-  gab_value upvalues[FLEXIBLE_ARRAY];
+  gab_value upvalues[];
 };
 
 /* Cast a value to a (gab_obj_block*) */
@@ -1026,7 +1023,7 @@ struct gab_obj_shape {
 
   uint64_t hash, len;
 
-  gab_value data[FLEXIBLE_ARRAY];
+  gab_value data[];
 };
 
 /* Cast a value to a (gab_obj_shape*) */
@@ -1165,7 +1162,7 @@ struct gab_obj_record {
 
   uint64_t len;
 
-  gab_value data[FLEXIBLE_ARRAY];
+  gab_value data[];
 };
 
 /* Cast a value to a (gab_obj_record*) */
@@ -1506,7 +1503,7 @@ struct gab_obj_box {
 
   size_t len;
 
-  unsigned char data[FLEXIBLE_ARRAY];
+  unsigned char data[];
 };
 
 #define GAB_VAL_TO_BOX(value) ((struct gab_obj_box *)gab_valtoo(value))
@@ -1535,7 +1532,7 @@ struct gab_obj_prototype {
     } block;
   } as;
 
-  char data[FLEXIBLE_ARRAY];
+  char data[];
 };
 
 /* Cast a value to a (gab_obj_bprototype*) */
@@ -1578,7 +1575,7 @@ struct gab_obj_suspense {
 
   gab_value p, b;
 
-  gab_value slots[FLEXIBLE_ARRAY];
+  gab_value slots[];
 };
 
 #define GAB_VAL_TO_SUSPENSE(value)                                             \

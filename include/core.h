@@ -7,10 +7,12 @@
 #define cGAB_LIKELY 1
 #endif
 
+// Combine common consecutive instruction patterns into one superinstruction
 #ifndef cGAB_SUPERINSTRUCTIONS
 #define cGAB_SUPERINSTRUCTIONS 1
 #endif
 
+// Emit tailcalls where possible
 #ifndef cGAB_TAILCALL
 #define cGAB_TAILCALL 1
 #endif
@@ -36,7 +38,7 @@
 
 // Log what is happening during execution.
 #ifndef cGAB_LOG_VM
-#define cGAB_LOG_VM 0
+#define cGAB_LOG_VM 1
 #endif
 
 // Capacity at which point dictionaries are resized

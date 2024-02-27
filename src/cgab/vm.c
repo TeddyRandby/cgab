@@ -1,4 +1,3 @@
-#include "core.h"
 #include "gab.h"
 
 #define STATUS_NAMES
@@ -8,9 +7,6 @@
 #include "lexer.h"
 
 #include <stdarg.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #define OP_HANDLER_ARGS                                                        \
@@ -119,24 +115,6 @@ static handler handlers[] = {
 #define SEND_CACHE_OFFSET 3
 
 #define SEND_BINARY_PRIMITIVE(value_type, operation_type, operation)           \
-  SKIP_SHORT;                                                                  \
-  SKIP_BYTE;                                                                   \
-  if (__gab_unlikely(!__gab_valisn(PEEK2()))) {                                \
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                      \
-    IP() -= SEND_CACHE_DIST;                                                   \
-    NEXT();                                                                    \
-  }                                                                            \
-  if (__gab_unlikely(!__gab_valisn(PEEK()))) {                                 \
-    STORE_PRIMITIVE_ERROR_FRAME(1);                                            \
-    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),                         \
-          gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));              \
-  }                                                                            \
-  operation_type val_b = gab_valton(POP());                                    \
-  operation_type val_a = gab_valton(POP());                                    \
-  PUSH(value_type(val_a operation val_b));                                     \
-  VAR() = 1;
-
-#define TAILSEND_BINARY_PRIMITIVE(value_type, operation_type, operation)       \
   SKIP_SHORT;                                                                  \
   SKIP_BYTE;                                                                   \
   if (__gab_unlikely(!__gab_valisn(PEEK2()))) {                                \
@@ -428,27 +406,6 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
   return argc;
 }
 
-#define TAILCALL_BLOCK(blk, have)                                              \
-  ({                                                                           \
-    gab_value *from = SP() - have;                                             \
-    gab_value *to = FB();                                                      \
-                                                                               \
-    memmove(to, from, have * sizeof(gab_value));                               \
-    SP() = to + have;                                                          \
-    VAR() = have;                                                              \
-                                                                               \
-    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);                \
-                                                                               \
-    if (__gab_unlikely(!has_callspace(VM(), p->as.block.nslots - have)))       \
-      ERROR(GAB_OVERFLOW, "");                                                 \
-                                                                               \
-    IP() = p->src->bytecode.data + p->offset;                                  \
-    KB() = p->src->constants.data;                                             \
-    BLOCK() = blk;                                                             \
-                                                                               \
-    NEXT();                                                                    \
-  })
-
 #define CALL_BLOCK(blk, have)                                                  \
   ({                                                                           \
     PUSH_FRAME();                                                              \
@@ -463,6 +420,57 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
     BLOCK() = blk;                                                             \
     FB() = SP() - have;                                                        \
     VAR() = have;                                                              \
+                                                                               \
+    NEXT();                                                                    \
+  })
+
+#define LOCALCALL_BLOCK(blk, have)                                             \
+  ({                                                                           \
+    PUSH_FRAME();                                                              \
+                                                                               \
+    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);                \
+                                                                               \
+    if (__gab_unlikely(!has_callspace(VM(), p->as.block.nslots - have)))       \
+      ERROR(GAB_OVERFLOW, "");                                                 \
+                                                                               \
+    IP() += ((int32_t)(ks[SEND_CACHE_OFFSET] >> 32));                          \
+    BLOCK() = blk;                                                             \
+    FB() = SP() - have;                                                        \
+    VAR() = have;                                                              \
+                                                                               \
+    NEXT();                                                                    \
+  })
+
+#define TAILCALL_BLOCK(blk, have)                                              \
+  ({                                                                           \
+    gab_value *from = SP() - have;                                             \
+    gab_value *to = FB();                                                      \
+                                                                               \
+    memmove(to, from, have * sizeof(gab_value));                               \
+    SP() = to + have;                                                          \
+    VAR() = have;                                                              \
+                                                                               \
+    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);                \
+                                                                               \
+    IP() = p->src->bytecode.data + p->offset;                                  \
+    KB() = p->src->constants.data;                                             \
+    BLOCK() = blk;                                                             \
+                                                                               \
+    NEXT();                                                                    \
+  })
+
+#define LOCALTAILCALL_BLOCK(blk, have)                                         \
+  ({                                                                           \
+    gab_value *from = SP() - have;                                             \
+    gab_value *to = FB();                                                      \
+                                                                               \
+    memmove(to, from, have * sizeof(gab_value));                               \
+    SP() = to + have;                                                          \
+    VAR() = have;                                                              \
+                                                                               \
+    int32_t dist = ks[SEND_CACHE_OFFSET] >> 32;                                \
+    IP() += dist;                                                              \
+    BLOCK() = blk;                                                             \
                                                                                \
     NEXT();                                                                    \
   })
@@ -604,7 +612,7 @@ a_gab_value *return_ok(OP_HANDLER_ARGS) {
   VM()->sp = VM()->sb;
 
   gab_vmdestroy(EG(), VM());
-  DESTROY(VM());
+  free(VM());
 
   return results;
 }
@@ -612,7 +620,7 @@ a_gab_value *return_ok(OP_HANDLER_ARGS) {
 a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   gab.flags = args.flags;
 
-  gab.vm = NEW(struct gab_vm);
+  gab.vm = malloc(sizeof(struct gab_vm));
   gab_vmcreate(gab.vm, args.len, args.argv);
 
   *gab.vm->sp++ = args.main;
@@ -641,22 +649,25 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
                                                                                \
     gab_value r = PEEK_N(have);                                                \
     gab_value m = ks[SEND_MESSAGE];                                            \
-                                                                               \
     if (__gab_unlikely(ks[SEND_CACHE_SPECS] !=                                 \
                        GAB_VAL_TO_MESSAGE(m)->specs)) {                        \
+      printf("MISS SPEC: %V | %V\n", ks[SEND_CACHE_SPECS],                     \
+             GAB_VAL_TO_MESSAGE(m)->specs);                                    \
       WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                    \
       IP() -= SEND_CACHE_DIST;                                                 \
       NEXT();                                                                  \
     }                                                                          \
                                                                                \
     if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {         \
+      printf("MISS TYPE: %V | %V\n", ks[SEND_CACHE_TYPE],                      \
+             gab_valtype(EG(), r));                                            \
       WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                    \
       IP() -= SEND_CACHE_DIST;                                                 \
       NEXT();                                                                  \
     }                                                                          \
                                                                                \
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(                              \
-        gab_urecat(ks[SEND_CACHE_SPECS], ks[SEND_CACHE_OFFSET]));              \
+        gab_urecat(ks[SEND_CACHE_SPECS], ks[SEND_CACHE_OFFSET] & 0x0000FFFF)); \
                                                                                \
     PREFIX##CALL_BLOCK(blk, have);                                             \
   }
@@ -768,7 +779,7 @@ CASE_CODE(SEND) {
   ks[SEND_CACHE_SPECS] = GAB_VAL_TO_MESSAGE(m)->specs;
   ks[SEND_CACHE_TYPE] = t;
 
-  bool tail = (have_byte & fHAVE_TAIL) >> 1;
+  uint8_t adjust = (have_byte & fHAVE_TAIL) >> 1;
 
   switch (gab_valkind(spec)) {
   case kGAB_PRIMITIVE: {
@@ -776,13 +787,21 @@ CASE_CODE(SEND) {
 
     if (op == OP_SEND_PRIMITIVE_CALL_BLOCK ||
         op == OP_SEND_PRIMITIVE_CALL_SUSPENSE)
-      op += tail;
+      op += adjust;
 
     WRITE_BYTE(SEND_CACHE_DIST, op);
     break;
   }
   case kGAB_BLOCK: {
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_BLOCK + tail);
+    struct gab_obj_block *b = GAB_VAL_TO_BLOCK(spec);
+    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
+    uint8_t local = (GAB_VAL_TO_PROTOTYPE(b->p)->src == BLOCK_PROTO()->src);
+    if (local && res.offset < INT32_MAX) {
+      int64_t dist = p->src->bytecode.data + p->offset - IP();
+      ks[SEND_CACHE_OFFSET] |= dist << 32;
+    }
+    adjust |= (local << 1);
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_BLOCK + adjust);
     break;
   }
   case kGAB_NATIVE:
@@ -879,6 +898,8 @@ IMPL_SEND_NATIVE()
 
 IMPL_SEND_BLOCK()
 IMPL_SEND_BLOCK(TAIL)
+IMPL_SEND_BLOCK(LOCAL)
+IMPL_SEND_BLOCK(LOCALTAIL)
 
 IMPL_SEND_PRIMITIVE_CALL_NATIVE()
 

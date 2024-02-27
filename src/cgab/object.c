@@ -1,6 +1,5 @@
 #include "engine.h"
 #include "gab.h"
-#include <stddef.h>
 
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \
   ((struct obj_type *)gab_obj_create(gab, sizeof(struct obj_type), kind))

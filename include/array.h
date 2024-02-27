@@ -22,26 +22,24 @@
 typedef struct TYPENAME TYPENAME;
 struct TYPENAME {
   uint64_t len;
-  T data[FLEXIBLE_ARRAY];
+  T data[];
 };
 
 LINKAGE TYPENAME *METHOD(create)(const T *data, uint64_t len) {
-  TYPENAME *self = NEW_FLEX(TYPENAME, T, len);
-  memcpy(self->data, data, len * sizeof(T));
+  TYPENAME *self = malloc(sizeof(TYPENAME) + sizeof(T) * len);
+  memcpy(self->data, data, sizeof(T) * len);
   self->len = len;
   return self;
 }
 
 LINKAGE TYPENAME *METHOD(empty)(size_t len) {
-  TYPENAME *self = NEW_FLEX(TYPENAME, T, len);
-  memset(self->data, 0, len * sizeof(T));
+  TYPENAME *self = malloc(sizeof(TYPENAME) + sizeof(T) * len);
+  memset(self->data, 0, sizeof(T) * len);
   self->len = len;
   return self;
 }
 
-LINKAGE TYPENAME *METHOD(one)(T value) {
-    return METHOD(create)(&value, 1);
-}
+LINKAGE TYPENAME *METHOD(one)(T value) { return METHOD(create)(&value, 1); }
 
 LINKAGE bool METHOD(match)(TYPENAME *self, TYPENAME *other) {
   if (self->len != other->len)
@@ -49,7 +47,7 @@ LINKAGE bool METHOD(match)(TYPENAME *self, TYPENAME *other) {
   return memcmp(self->data, other->data, self->len) == 0;
 }
 
-LINKAGE void METHOD(destroy)(TYPENAME *self) { DESTROY(self); }
+LINKAGE void METHOD(destroy)(TYPENAME *self) { free(self); }
 
 #undef NAME
 #undef T

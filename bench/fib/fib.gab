@@ -1,5 +1,17 @@
+
+# This strategy produces a lot of cache-misses.
+# We need to change this into a polymorphic cache
+# Which can handle multiple-local-dispatches
+def _fib[true](n)
+  n
+end
+
+def _fib[false](n)
+  (n-1):fib + (n-2):fib
+end
+
 def fib[.gab.number]
-  ((self < 2) :and => self) :or => (self - 1):fib + (self - 2):fib
+  (self < 2):_fib(self)
 end
 
 30:fib
