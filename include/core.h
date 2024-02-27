@@ -38,7 +38,7 @@
 
 // Log what is happening during execution.
 #ifndef cGAB_LOG_VM
-#define cGAB_LOG_VM 1
+#define cGAB_LOG_VM 0
 #endif
 
 // Capacity at which point dictionaries are resized

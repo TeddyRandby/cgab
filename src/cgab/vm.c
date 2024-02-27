@@ -651,16 +651,12 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
     gab_value m = ks[SEND_MESSAGE];                                            \
     if (__gab_unlikely(ks[SEND_CACHE_SPECS] !=                                 \
                        GAB_VAL_TO_MESSAGE(m)->specs)) {                        \
-      printf("MISS SPEC: %V | %V\n", ks[SEND_CACHE_SPECS],                     \
-             GAB_VAL_TO_MESSAGE(m)->specs);                                    \
       WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                    \
       IP() -= SEND_CACHE_DIST;                                                 \
       NEXT();                                                                  \
     }                                                                          \
                                                                                \
     if (__gab_unlikely(ks[SEND_CACHE_TYPE] != gab_valtype(EG(), r))) {         \
-      printf("MISS TYPE: %V | %V\n", ks[SEND_CACHE_TYPE],                      \
-             gab_valtype(EG(), r));                                            \
       WRITE_BYTE(SEND_CACHE_DIST, OP_SEND);                                    \
       IP() -= SEND_CACHE_DIST;                                                 \
       NEXT();                                                                  \
