@@ -402,7 +402,7 @@ size_t gab_vmpush(struct gab_vm *vm, gab_value value) {
 }
 
 size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
-  if (!has_callspace(vm, argc)) {
+  if (__gab_unlikely(!has_callspace(vm, argc))) {
     return -1;
   }
 
@@ -415,8 +415,8 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
 
 #define OP_TRIM_N(n) ((uint16_t)OP_TRIM << 8 | (n))
 
-//    if (__gab_likely(n < 255 && PREVIEW_SHORT == OP_TRIM_N(n)))
-// SKIP_SHORT;
+/* Branchlessley skip the next instruction if the trim amount is matched */
+// IP() += 2 * (n < 255 && PREVIEW_SHORT == OP_TRIM_N(n));
 
 #define SET_VAR(n) ({ VAR() = n; })
 
@@ -448,7 +448,7 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
     if (__gab_unlikely(!has_callspace(VM(), p->as.block.nslots - have)))       \
       ERROR(GAB_OVERFLOW, "");                                                 \
                                                                                \
-    IP() += ((int64_t)ks[GAB_SEND_KOFFSET]);                                   \
+    IP() = ((void *)ks[GAB_SEND_KOFFSET]);                                     \
     BLOCK() = blk;                                                             \
     FB() = SP() - have;                                                        \
                                                                                \
@@ -484,7 +484,7 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
     memmove(to, from, have * sizeof(gab_value));                               \
     SP() = to + have;                                                          \
                                                                                \
-    IP() += ((int64_t)ks[GAB_SEND_KOFFSET]);                                   \
+    IP() = ((void *)ks[GAB_SEND_KOFFSET]);                                     \
     BLOCK() = blk;                                                             \
                                                                                \
     SET_VAR(have);                                                             \
@@ -762,14 +762,13 @@ CASE_CODE(MATCHTAILSEND_BLOCK) {
     MISS_CACHED_SEND();
 
   struct gab_obj_block *b = (void *)ks[GAB_SEND_KSPEC + idx];
-  int64_t d = ks[GAB_SEND_KOFFSET + idx];
 
   gab_value *from = SP() - have;
   gab_value *to = FB();
 
   memcpy(to, from, have * sizeof(gab_value));
 
-  IP() += d;
+  IP() = (void *)ks[GAB_SEND_KOFFSET + idx];
   BLOCK() = b;
   SP() = to + have;
 
@@ -796,7 +795,6 @@ CASE_CODE(MATCHSEND_BLOCK) {
     MISS_CACHED_SEND();
 
   struct gab_obj_block *b = (void *)ks[GAB_SEND_KSPEC + idx];
-  int64_t d = ks[GAB_SEND_KOFFSET + idx];
 
   PUSH_FRAME();
 
@@ -805,7 +803,7 @@ CASE_CODE(MATCHSEND_BLOCK) {
   if (__gab_unlikely(!has_callspace(VM(), p->as.block.nslots - have)))
     ERROR(GAB_OVERFLOW, "");
 
-  IP() += d;
+  IP() = (void *)ks[GAB_SEND_KOFFSET + idx];
   BLOCK() = b;
   FB() = SP() - have;
 
@@ -814,7 +812,7 @@ CASE_CODE(MATCHSEND_BLOCK) {
   NEXT();
 }
 
-static inline bool try_setup_localmatch(gab_value m, gab_value *ks, uint8_t *ip,
+static inline bool try_setup_localmatch(gab_value m, gab_value *ks,
                                         struct gab_obj_prototype *p) {
   gab_value specs = gab_msgrec(m);
 
@@ -841,11 +839,11 @@ static inline bool try_setup_localmatch(gab_value m, gab_value *ks, uint8_t *ip,
     if (ks[GAB_SEND_KSPEC + idx] != gab_undefined)
       return false;
 
-    int64_t d = p->src->bytecode.data + spec_p->offset - ip;
+    uint8_t *ip = p->src->bytecode.data + spec_p->offset;
 
     ks[GAB_SEND_KTYPE + idx] = t;
     ks[GAB_SEND_KSPEC + idx] = (intptr_t)b;
-    ks[GAB_SEND_KOFFSET + idx] = d;
+    ks[GAB_SEND_KOFFSET + idx] = (intptr_t)ip;
   }
 
   ks[GAB_SEND_KSPECS] = specs;
@@ -1114,8 +1112,6 @@ CASE_CODE(SEND_PRIMITIVE_AND) {
 
     PUSH(cb);
 
-    SET_VAR(1);
-
     if (have_byte & fHAVE_TAIL) {
       TAILCALL_BLOCK(blk, 1);
     } else {
@@ -1150,8 +1146,6 @@ CASE_CODE(SEND_PRIMITIVE_OR) {
     DROP_N(have);
 
     PUSH(cb);
-
-    SET_VAR(1);
 
     if (have_byte & fHAVE_TAIL) {
       TAILCALL_BLOCK(blk, 1);
@@ -1540,7 +1534,7 @@ CASE_CODE(SEND) {
   gab_value r = PEEK_N(have);
   gab_value t = gab_valtype(EG(), r);
 
-  if (try_setup_localmatch(m, ks, IP(), BLOCK_PROTO())) {
+  if (try_setup_localmatch(m, ks, BLOCK_PROTO())) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_MATCHSEND_BLOCK + adjust);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -1583,8 +1577,7 @@ CASE_CODE(SEND) {
     adjust |= (local << 1);
 
     if (local) {
-      int64_t dist = p->src->bytecode.data + p->offset - IP();
-      ks[GAB_SEND_KOFFSET] = dist;
+      ks[GAB_SEND_KOFFSET] = (intptr_t)p->src->bytecode.data + p->offset;
     }
 
     ks[GAB_SEND_KSPEC] = (intptr_t)b;

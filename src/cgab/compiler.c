@@ -2945,14 +2945,14 @@ int compile_exp_snd(struct bc *bc, bool assignable) {
     }
   }
 
-  // int k = is_recognized_message(bc, name);
-  //
-  // if (k >= 0) {
-  //   int result = inline_recognized_message(bc, k);
-  //
-  //   if (result != COMP_COULD_NOT_INLINE)
-  //     return result;
-  // }
+  int k = is_recognized_message(bc, name);
+
+  if (k >= 0) {
+    int result = inline_recognized_message(bc, k);
+
+    if (result != COMP_COULD_NOT_INLINE)
+      return result;
+  }
 
   bool mv = false;
   int result = compile_arguments(bc, &mv, 0);
