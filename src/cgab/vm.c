@@ -732,12 +732,12 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
 #define IMPL_SEND_PRIMITIVE_CALL_BLOCK(PREFIX)                                 \
   CASE_CODE(PREFIX##SEND_PRIMITIVE_CALL_BLOCK) {                               \
-    gab_value *ks = READ_CONSTANTS;                                            \
+    SKIP_SHORT;                                                                \
     uint64_t have = compute_arity(VAR(), READ_BYTE);                           \
                                                                                \
     gab_value r = PEEK_N(have);                                                \
                                                                                \
-    if (__gab_unlikely(ks[GAB_SEND_KTYPE] != gab_valtype(EG(), r)))            \
+    if (__gab_unlikely(gab_valkind(r) != kGAB_BLOCK))                          \
       MISS_CACHED_SEND();                                                      \
                                                                                \
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(r);                           \
@@ -747,12 +747,12 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
 #define IMPL_SEND_PRIMITIVE_CALL_SUSPENSE(PREFIX)                              \
   CASE_CODE(PREFIX##SEND_PRIMITIVE_CALL_SUSPENSE) {                            \
-    gab_value *ks = READ_CONSTANTS;                                            \
+    SKIP_SHORT;                                                                \
     uint64_t have = compute_arity(VAR(), READ_BYTE);                           \
                                                                                \
     gab_value r = PEEK_N(have);                                                \
                                                                                \
-    if (__gab_unlikely(ks[GAB_SEND_KTYPE] != gab_valtype(EG(), r)))            \
+    if (__gab_unlikely(gab_valkind(r) != kGAB_SUSPENSE))                       \
       MISS_CACHED_SEND();                                                      \
                                                                                \
     struct gab_obj_suspense *s = GAB_VAL_TO_SUSPENSE(r);                       \
@@ -767,7 +767,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
                                                                                \
     gab_value r = PEEK_N(have);                                                \
                                                                                \
-    if (__gab_unlikely(ks[GAB_SEND_KTYPE] != gab_valtype(EG(), r)))            \
+    if (__gab_unlikely(gab_valkind(r) != kGAB_NATIVE))                         \
       MISS_CACHED_SEND();                                                      \
                                                                                \
     struct gab_obj_native *n = GAB_VAL_TO_NATIVE(r);                           \
