@@ -109,14 +109,22 @@
 // Maximum number of function return values.
 #define GAB_RET_MAX 128
 
-#define GAB_SEND_CACH_SIZE 3
+#define GAB_CALL_CACHE_SIZE 4
+#define GAB_SEND_CACHE_SIZE 3
 #define GAB_SEND_KMESSAGE 0
 #define GAB_SEND_KSPECS 1
 #define GAB_SEND_KTYPE 2
 #define GAB_SEND_KSPEC 3
 #define GAB_SEND_KOFFSET 4
 
+#define GAB_CALL_CACHE_LEN ((cGAB_SEND_CACHE_LEN * GAB_SEND_CACHE_SIZE) / GAB_CALL_CACHE_SIZE)
+
+#if GAB_CALL_CACHE_LEN % GAB_CALL_CACHE_LEN != 0
+#error Invalid GAB_CALL_CACHE_LEN
+#endif
+
 #define GAB_SEND_HASH(t) (t & (cGAB_SEND_CACHE_LEN - 1))
+#define GAB_CALL_HASH(t) (t & (cGAB_CALL_CACHE_LEN - 1))
 
 #define VAR_EXP 255
 #define fHAVE_VAR (1 << 0)

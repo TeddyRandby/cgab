@@ -113,20 +113,7 @@ static inline struct gab_triple gab(struct bc *bc) { return bc->gab; }
 /*
   Precedence rules for the parsing of expressions.
 */
-enum prec_k {
-  kNONE,
-  kASSIGNMENT,  // =
-  kMATCH,       // match
-  kEQUALITY,    // ==
-  kCOMPARISON,  // < > <= >=
-  kBITWISE_OR,  // |
-  kBITWISE_AND, // &
-  kTERM,        // + -
-  kFACTOR,      // * /
-  kUNARY,       // - not
-  kSEND,        // ( { :
-  kPRIMARY
-};
+enum prec_k { kNONE, kASSIGNMENT, kSEND, kUNARY_SEND, kPRIMARY };
 
 typedef int (*compile_f)(struct bc *, bool);
 struct compile_rule {
@@ -2275,7 +2262,7 @@ int compile_exp_una(struct bc *bc, bool assignable) {
 
   size_t t = bc->offset - 1;
 
-  if (compile_exp_prec(bc, kUNARY) < 0)
+  if (compile_exp_prec(bc, kUNARY_SEND) < 0)
     return COMP_ERR;
 
   switch (op) {
@@ -2582,14 +2569,14 @@ int compile_exp_splt(struct bc *bc, bool assignable) {
   size_t t = bc->offset - 1;
 
   if (!assignable || match_ctx(bc, kTUPLE)) {
-    if (compile_exp_prec(bc, kUNARY) < 0)
+    if (compile_exp_prec(bc, kUNARY_SEND) < 0)
       return COMP_ERR;
 
     goto as_splat_exp;
   }
 
   if (!match_token(bc, TOKEN_IDENTIFIER)) {
-    if (compile_exp_prec(bc, kUNARY) < 0)
+    if (compile_exp_prec(bc, kUNARY_SEND) < 0)
       return COMP_ERR;
 
     goto as_splat_exp;
@@ -2599,7 +2586,7 @@ int compile_exp_splt(struct bc *bc, bool assignable) {
     return COMP_ERR;
 
   if (!match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
-    if (compile_exp_startwith(bc, kUNARY, TOKEN_IDENTIFIER) < 0)
+    if (compile_exp_startwith(bc, kUNARY_SEND, TOKEN_IDENTIFIER) < 0)
       return COMP_ERR;
 
     goto as_splat_exp;
@@ -3160,59 +3147,59 @@ int compile_exp_rtn(struct bc *bc, bool assignable) {
 
 // ----------------Pratt Parsing Table ----------------------
 const struct compile_rule rules[] = {
-    PREFIX_INFIX(blk, bcal, SEND, false),       // DO
-    NONE(),                                     // END
-    PREFIX(def),                                // DEF
-    PREFIX(rtn),                                // RETURN
-    PREFIX(yld),                                // YIELD
-    INFIX(bin, TERM, false),                    // PLUS
-    PREFIX_INFIX(una, bin, TERM, false),        // MINUS
-    INFIX(bin, FACTOR, false),                  // STAR
-    INFIX(bin, FACTOR, false),                  // SLASH
-    INFIX(bin, FACTOR, false),                  // PERCENT
-    NONE(),                                     // COMMA
-    INFIX(dyn, SEND, false),                    // COLON
-    PREFIX_INFIX(amp, bin, BITWISE_AND, false), // AMPERSAND
-    NONE(),                                     // DOLLAR
-    PREFIX_INFIX(sym, symcal, SEND, false),     // SYMBOL
-    PREFIX_INFIX(emp, snd, SEND, true),         // MESSAGE
-    NONE(),                                     // DOT
-    PREFIX(splt),                               // DOTDOT
-    NONE(),                                     // EQUAL
-    INFIX(bin, EQUALITY, false),                // EQUALEQUAL
-    PREFIX(una),                                // QUESTION
-    NONE(),                                     // BANG
-    NONE(),                                     // AT
-    NONE(),                                     // COLON_EQUAL
-    INFIX(bin, COMPARISON, false),              // LESSER
-    INFIX(bin, EQUALITY, false),                // LESSEREQUAL
-    INFIX(bin, TERM, false),                    // LESSERLESSER
-    INFIX(bin, COMPARISON, false),              // GREATER
-    INFIX(bin, EQUALITY, false),                // GREATEREQUAL
-    INFIX(bin, TERM, false),                    // GREATER_GREATER
-    NONE(),                                     // ARROW
-    PREFIX_INFIX(lmb, lmbcal, SEND, false),     // FATARROW
-    PREFIX(una),                                // NOT
-    PREFIX_INFIX(arr, idx, SEND, false),        // LBRACE
-    NONE(),                                     // RBRACE
-    PREFIX_INFIX(rec, rcal, SEND, false),       // LBRACK
-    NONE(),                                     // RBRACK
-    PREFIX_INFIX(grp, cal, SEND, false),        // LPAREN
-    NONE(),                                     // RPAREN
-    INFIX(bin, BITWISE_OR, false),              // PIPE
-    PREFIX(idn),                                // ID
-    PREFIX(ipm),                                // IMPLICIT
-    PREFIX_INFIX(str, scal, SEND, false),       // STRING
-    PREFIX_INFIX(itp, scal, SEND, false),       // INTERPOLATION END
-    NONE(),                                     // INTERPOLATION MIDDLE
-    NONE(),                                     // INTERPOLATION END
-    PREFIX(num),                                // NUMBER
-    PREFIX(bool),                               // FALSE
-    PREFIX(bool),                               // TRUE
-    PREFIX(nil),                                // NIL
-    NONE(),                                     // NEWLINE
-    NONE(),                                     // EOF
-    NONE(),                                     // ERROR
+    PREFIX_INFIX(blk, bcal, SEND, false),   // DO
+    NONE(),                                 // END
+    PREFIX(def),                            // DEF
+    PREFIX(rtn),                            // RETURN
+    PREFIX(yld),                            // YIELD
+    INFIX(bin, SEND, false),              // PLUS
+    PREFIX_INFIX(una, bin, SEND, false),  // MINUS
+    INFIX(bin, SEND, false),              // STAR
+    INFIX(bin, SEND, false),              // SLASH
+    INFIX(bin, SEND, false),              // PERCENT
+    NONE(),                                 // COMMA
+    INFIX(dyn, SEND, false),                // COLON
+    PREFIX_INFIX(amp, bin, SEND, false),  // AMPERSAND
+    NONE(),                                 // DOLLAR
+    PREFIX_INFIX(sym, symcal, SEND, false), // SYMBOL
+    PREFIX_INFIX(emp, snd, SEND, true),     // MESSAGE
+    NONE(),                                 // DOT
+    PREFIX(splt),                           // DOTDOT
+    NONE(),                                 // EQUAL
+    INFIX(bin, SEND, false),              // EQUALEQUAL
+    PREFIX(una),                            // QUESTION
+    NONE(),                                 // BANG
+    NONE(),                                 // AT
+    NONE(),                                 // COLON_EQUAL
+    INFIX(bin, SEND, false),              // LESSER
+    INFIX(bin, SEND, false),              // LESSEREQUAL
+    INFIX(bin, SEND, false),              // LESSERLESSER
+    INFIX(bin, SEND, false),              // GREATER
+    INFIX(bin, SEND, false),              // GREATEREQUAL
+    INFIX(bin, SEND, false),              // GREATER_GREATER
+    NONE(),                                 // ARROW
+    PREFIX_INFIX(lmb, lmbcal, SEND, false), // FATARROW
+    PREFIX(una),                            // NOT
+    PREFIX_INFIX(arr, idx, SEND, false),    // LBRACE
+    NONE(),                                 // RBRACE
+    PREFIX_INFIX(rec, rcal, SEND, false),   // LBRACK
+    NONE(),                                 // RBRACK
+    PREFIX_INFIX(grp, cal, SEND, false),    // LPAREN
+    NONE(),                                 // RPAREN
+    INFIX(bin, SEND, false),              // PIPE
+    PREFIX(idn),                            // ID
+    PREFIX(ipm),                            // IMPLICIT
+    PREFIX_INFIX(str, scal, SEND, false),   // STRING
+    PREFIX_INFIX(itp, scal, SEND, false),   // INTERPOLATION END
+    NONE(),                                 // INTERPOLATION MIDDLE
+    NONE(),                                 // INTERPOLATION END
+    PREFIX(num),                            // NUMBER
+    PREFIX(bool),                           // FALSE
+    PREFIX(bool),                           // TRUE
+    PREFIX(nil),                            // NIL
+    NONE(),                                 // NEWLINE
+    NONE(),                                 // EOF
+    NONE(),                                 // ERROR
 };
 
 struct compile_rule get_rule(gab_token k) { return rules[k]; }

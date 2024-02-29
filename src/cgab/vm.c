@@ -762,7 +762,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
 #define IMPL_SEND_PRIMITIVE_CALL_NATIVE(PREFIX)                                \
   CASE_CODE(PREFIX##SEND_PRIMITIVE_CALL_NATIVE) {                              \
-    gab_value *ks = READ_CONSTANTS;                                            \
+    SKIP_SHORT;                                                                \
     uint64_t have = compute_arity(VAR(), READ_BYTE);                           \
                                                                                \
     gab_value r = PEEK_N(have);                                                \
@@ -786,7 +786,7 @@ CASE_CODE(MATCHTAILSEND_BLOCK) {
   if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
     MISS_CACHED_SEND();
 
-  uint8_t idx = GAB_SEND_HASH(t) * GAB_SEND_CACH_SIZE;
+  uint8_t idx = GAB_SEND_HASH(t) * GAB_SEND_CACHE_SIZE;
 
   // TODO: Handle undefined and record case
   if (__gab_unlikely(ks[GAB_SEND_KTYPE + idx] != t))
@@ -819,7 +819,7 @@ CASE_CODE(MATCHSEND_BLOCK) {
   if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
     MISS_CACHED_SEND();
 
-  uint8_t idx = GAB_SEND_HASH(t) * GAB_SEND_CACH_SIZE;
+  uint8_t idx = GAB_SEND_HASH(t) * GAB_SEND_CACHE_SIZE;
 
   // TODO: Handle undefined and record case
   if (__gab_unlikely(ks[GAB_SEND_KTYPE + idx] != t))
@@ -864,7 +864,7 @@ static inline bool try_setup_localmatch(gab_value m, gab_value *ks,
 
     gab_value t = gab_ushpat(gab_recshp(specs), i);
 
-    uint8_t idx = GAB_SEND_HASH(t) * GAB_SEND_CACH_SIZE;
+    uint8_t idx = GAB_SEND_HASH(t) * GAB_SEND_CACHE_SIZE;
 
     // We have a collision - no point in messing about with this.
     if (ks[GAB_SEND_KSPEC + idx] != gab_undefined)
