@@ -77,3 +77,23 @@ def l = :list.new(10)
 l:push!(1,2,3,4)
 
 l:for(&:values, &:print)
+
+def callme[.gab.block]
+  self()
+end
+
+def sayhi
+  'hi':print
+end
+
+def saybye
+  'bye':print
+end
+
+sayhi:callme
+sayhi:callme
+sayhi:callme
+
+saybye:callme
+saybye:callme
+saybye:callme

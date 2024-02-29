@@ -2189,12 +2189,16 @@ int compile_logical(struct bc *bc, uint8_t jump_op, cond_bodyfn fn,
   if (fn(bc) < 0)
     return COMP_ERR;
 
+  patch_trim(bc, VAR_EXP);
+
   if (closing_tok > 0 && expect_token(bc, closing_tok) < 0)
     return COMP_ERR;
 
   pop_slot(bc, 1);
 
   patch_jump(bc, j);
+
+  push_trim(bc, 1, t);
 
   return COMP_OK;
 }

@@ -492,8 +492,10 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
     NEXT();                                                                    \
   })
 
-#define TAILCALL_SUSPENSE(s, have)                                             \
+#define CALL_SUSPENSE(s, have)                                                 \
   ({                                                                           \
+    PUSH_FRAME();                                                              \
+                                                                               \
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(s->p);                  \
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(s->b);                        \
     struct gab_obj_prototype *bp = GAB_VAL_TO_PROTOTYPE(blk->p);               \
@@ -504,6 +506,7 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
     IP() = p->src->bytecode.data + bp->offset + p->offset;                     \
     KB() = p->src->constants.data;                                             \
     BLOCK() = blk;                                                             \
+    FB() = SP() - have;                                                        \
                                                                                \
     size_t arity = have - 1;                                                   \
                                                                                \
@@ -520,7 +523,7 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
     NEXT();                                                                    \
   })
 
-#define CALL_SUSPENSE(s, have)                                                 \
+#define LOCALCALL_SUSPENSE(s, have)                                            \
   ({                                                                           \
     PUSH_FRAME();                                                              \
                                                                                \
@@ -535,6 +538,34 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
     KB() = p->src->constants.data;                                             \
     BLOCK() = blk;                                                             \
     FB() = SP() - have;                                                        \
+                                                                               \
+    size_t arity = have - 1;                                                   \
+                                                                               \
+    gab_value *from = SP() - arity;                                            \
+    gab_value *to = FB() + s->nslots;                                          \
+                                                                               \
+    memmove(to, from, arity * sizeof(gab_value));                              \
+    SP() = to + arity;                                                         \
+                                                                               \
+    memcpy(FB(), s->slots, s->nslots * sizeof(gab_value));                     \
+                                                                               \
+    SET_VAR(arity);                                                            \
+                                                                               \
+    NEXT();                                                                    \
+  })
+
+#define TAILCALL_SUSPENSE(s, have)                                             \
+  ({                                                                           \
+    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(s->p);                  \
+    struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(s->b);                        \
+    struct gab_obj_prototype *bp = GAB_VAL_TO_PROTOTYPE(blk->p);               \
+                                                                               \
+    if (__gab_unlikely(!has_callspace(VM(), s->nslots - have)))                \
+      ERROR(GAB_OVERFLOW, "");                                                 \
+                                                                               \
+    IP() = p->src->bytecode.data + bp->offset + p->offset;                     \
+    KB() = p->src->constants.data;                                             \
+    BLOCK() = blk;                                                             \
                                                                                \
     size_t arity = have - 1;                                                   \
                                                                                \

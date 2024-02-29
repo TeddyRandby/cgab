@@ -12,7 +12,7 @@ def _nums.from[.gab.number](n)
   { from = n, to = self }
 end
 
-def nums.from[.gab.number](src)
+def from[.gab.number](src)
   src:_num.from(self)
 end
 
@@ -24,6 +24,14 @@ def _nums.to[.gab.number](n)
   { from = self, to = n }
 end
 
-def nums.to[.gab.number](dest)
+def to[.gab.number](dest)
   dest:_num.to(self)
 end
+
+def times[.gab.number](cb)
+  (self > 0) :and => cb()
+
+  (self > 1) :and => (self - 1) :times(cb)
+end
+
+nil
