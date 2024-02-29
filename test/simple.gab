@@ -1,4 +1,5 @@
 :use .records
+:use .lists
 :use .streams
 :use .dis
 
@@ -6,7 +7,7 @@ nums = [ 0, 1, 2, 3, 4, 5 ]
 
 nums:print 'nums'
 
-nums_times_two = nums:tuple.collect(
+nums_times_two = nums:tuples.collect(
   &:map,
   &:pairs,
   => @2 * 2,
@@ -15,7 +16,7 @@ nums_times_two = nums:tuple.collect(
 
 nums_times_two:print 'times two'
 
-filtered_nums = nums:tuple.collect(
+filtered_nums = nums:tuples.collect(
   &:filter,
   &:pairs,
   => @2 % 2 == 0,
@@ -24,7 +25,7 @@ filtered_nums = nums:tuple.collect(
 
 filtered_nums:print 'filtered'
 
-take_filtered = nums:tuple.collect(
+take_filtered = nums:tuples.collect(
   &:take,
   &:filter,
   &:pairs,
@@ -71,5 +72,8 @@ first = nums:first(
 
 first:print
 
+def l = :list.new(10)
 
-#&:_streams.take :dis .gab.suspense
+l:push!(1,2,3,4)
+
+l:for(&:values, &:print)

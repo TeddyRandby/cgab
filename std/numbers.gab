@@ -1,57 +1,29 @@
 :use 'num'
 
-def int.between[](a, b); :float.between(a, b) :floor end
-
-def each[.gab.number]
-  v = 0
-
-  loop
-    yield v
-    v = v + 1
-  until v == self end
+def nums.int_between[](a, b)
+  :float.between(a, b):floor
 end
 
-def times[.gab.number](cb)
-  v = 0
-
-  loop
-      cb(v)
-      v = v + 1
-  until v == self end
+def _nums.from[nil](n)
+  { from = n }
 end
 
-def from[.gab.number](src)
-  ?src :match {
-      [nil]  = do; { from = self }           end,
-     .gab.number = do; { from = src, to = self }   end
-  } do; .INVALID_ARGUMENTS:panic end
+def _nums.from[.gab.number](n)
+  { from = n, to = self }
 end
 
-def to[.gab.number](dest)
-  ?dest :match {
-      [nil]  = do; { to = self }             end,
-     .gab.number = do; { from = self, to = dest } end
-  } do; .INVALID_ARGUMENTS:panic end
+def nums.from[.gab.number](src)
+  src:_num.from(self)
 end
 
-def num.min[](..nums)
-  sofar, i, done = 9999999999999, 0, nums:len
-
-  loop
-    nums[i] < sofar and (sofar = nums[i])
-    i = i + 1
-  until i == done end
-
-  sofar
+def _nums.to[nil](n)
+  { to = n }
 end
 
-def num.max[](..nums)
-  sofar, i, done = -9999999999999, 0, nums:len
+def _nums.to[.gab.number](n)
+  { from = self, to = n }
+end
 
-  loop
-    nums[i] > sofar and (sofar = nums[i])
-    i = i + 1
-  until i == done end
-
-  sofar
+def nums.to[.gab.number](dest)
+  dest:_num.to(self)
 end

@@ -1,6 +1,6 @@
 #! /usr/bin/bash
 
-valgrind --tool=callgrind --callgrind-out-file=callgrind.out --dump-line=yes gab fib.gab
+valgrind --tool=callgrind --callgrind-out-file=callgrind.out --dump-line=yes gab fib_split.gab
 
 ~/pyenv/bin/gprof2dot --format=callgrind callgrind.out > dot.out
 

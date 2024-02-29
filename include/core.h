@@ -1,6 +1,16 @@
 #ifndef GAB_COMMON_H
 #define GAB_COMMON_H
 
+// The number of cache slots, mostly used for
+// Note - it must be a power of 2
+#ifndef cGAB_SEND_CACHE_LEN
+#define cGAB_SEND_CACHE_LEN 4
+#endif
+
+#if cGAB_SEND_CACHE_LEN < 1
+#error "cGAB_SEND_CACHE_LEN must be at least 1"
+#endif
+
 // Use __builtin_expect to aid the compiler
 // in choosing hot/cold code paths in the interpreter.
 #ifndef cGAB_LIKELY
@@ -98,6 +108,15 @@
 #define GAB_ARG_MAX 128
 // Maximum number of function return values.
 #define GAB_RET_MAX 128
+
+#define GAB_SEND_CACH_SIZE 3
+#define GAB_SEND_KMESSAGE 0
+#define GAB_SEND_KSPECS 1
+#define GAB_SEND_KTYPE 2
+#define GAB_SEND_KSPEC 3
+#define GAB_SEND_KOFFSET 4
+
+#define GAB_SEND_HASH(t) (t & (cGAB_SEND_CACHE_LEN - 1))
 
 #define VAR_EXP 255
 #define fHAVE_VAR (1 << 0)

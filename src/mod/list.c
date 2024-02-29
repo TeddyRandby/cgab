@@ -95,10 +95,10 @@ a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
   return NULL;
 }
 
-a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
   if (argc != 2 || gab_valkind(argv[1]) != kGAB_NUMBER) {
-    return gab_panic(gab, "Invalid call to gab_lib_put");
+    return gab_panic(gab, "Invalid call to gab_lib_at");
   }
 
   uint64_t offset = gab_valton(argv[1]);
@@ -274,7 +274,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "at",
           type,
-          gab_snative(gab, "list.at", gab_lib_has),
+          gab_snative(gab, "list.at", gab_lib_at),
       },
       {
           "to_bytes",

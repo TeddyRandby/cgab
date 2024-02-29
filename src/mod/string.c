@@ -1,8 +1,5 @@
 #include "gab.h"
 #include <ctype.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 
 a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {

@@ -127,17 +127,17 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   struct gab_spec_argt specs[] = {
       {
-          "float.between",
+          "nums.float_between",
           gab_undefined,
-          gab_snative(gab, "float.between", gab_lib_between),
+          gab_snative(gab, "float_between", gab_lib_between),
       },
       {
-          "floor",
+          "nums.floor",
           gab_type(gab.eg, kGAB_NUMBER),
           gab_snative(gab, "floor", gab_lib_floor),
       },
       {
-          "to_n",
+          "nums.into",
           gab_type(gab.eg, kGAB_STRING),
           gab_snative(gab, "to_n", gab_lib_to_n),
       },

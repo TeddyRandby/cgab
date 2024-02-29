@@ -58,7 +58,7 @@ a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
 #undef MAX
 #undef CLAMP
 
-a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
   if (argc != 2) {
     return gab_panic(gab, "Invalid call to  gab_lib_at");
@@ -259,7 +259,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "at",
           gab_type(gab.eg, kGAB_RECORD),
-          gab_snative(gab, "at", gab_lib_has),
+          gab_snative(gab, "at", gab_lib_at),
       },
       {
           "next",

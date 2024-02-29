@@ -10,7 +10,7 @@ a_gab_value* gab_lib_message(struct gab_triple gab, size_t argc,
   return NULL;
 }
 
-a_gab_value* gab_lib_has(struct gab_triple gab, size_t argc,
+a_gab_value* gab_lib_at(struct gab_triple gab, size_t argc,
                 gab_value argv[static argc]) {
   switch (argc) {
   case 2: {
@@ -35,7 +35,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "has?",
           gab_type(gab.eg, kGAB_MESSAGE),
-          gab_snative(gab, "has?", gab_lib_has),
+          gab_snative(gab, "has?", gab_lib_at),
       },
   };
 

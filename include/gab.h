@@ -190,22 +190,24 @@ static inline gab_value __gab_dtoval(double value) {
 
 /* The gab value 'nil'*/
 #define gab_nil                                                                \
-  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_NIL << __GAB_TAGOFFSET))
+  ((gab_value)(__GAB_QNAN | kGAB_NIL | (uint64_t)kGAB_NIL << __GAB_TAGOFFSET))
 
 /* The gab value 'false'*/
 #define gab_false                                                              \
-  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_FALSE << __GAB_TAGOFFSET))
+  ((gab_value)(__GAB_QNAN | kGAB_FALSE |                                       \
+               (uint64_t)kGAB_FALSE << __GAB_TAGOFFSET))
 
 /* The gab value 'true'*/
 #define gab_true                                                               \
-  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_TRUE << __GAB_TAGOFFSET))
+  ((gab_value)(__GAB_QNAN | kGAB_TRUE | (uint64_t)kGAB_TRUE << __GAB_TAGOFFSET))
 
 /* The gab value 'undefined'*/
 #define gab_undefined                                                          \
-  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_UNDEFINED << __GAB_TAGOFFSET))
+  ((gab_value)(__GAB_QNAN | kGAB_UNDEFINED |                                   \
+               (uint64_t)kGAB_UNDEFINED << __GAB_TAGOFFSET))
 
 /* Convert a bool into the corresponding gab value */
-#define gab_bool(val) (val ? gab_true : gab_false)
+#define gab_bool(val) ((val) ? gab_true : gab_false)
 
 /* Convert a double into a gab value */
 #define gab_number(val) (__gab_dtoval(val))
@@ -1151,6 +1153,21 @@ static inline size_t gab_shpnext(gab_value shp, gab_value key) {
 
   return offset + 1;
 };
+/**
+ * @brief Get the value within the shape at the given offset.
+ * This function is not bounds checked.
+ *
+ * @param shp The shape.
+ * @param offset the offset.
+ * @retunrs the value at the offset.
+ */
+static inline gab_value gab_ushpat(gab_value shp, uint64_t offset) {
+  assert(gab_valkind(shp) == kGAB_SHAPE);
+  struct gab_obj_shape *obj = GAB_VAL_TO_SHAPE(shp);
+
+  assert(offset < obj->len);
+  return obj->data[offset];
+}
 
 /**
  * The counterpart to shape, which holds the data.

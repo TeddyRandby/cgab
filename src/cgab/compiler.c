@@ -603,8 +603,12 @@ static inline void push_send(struct bc *bc, gab_value m, uint8_t have, bool mv,
 
   uint16_t ks = addk(bc, m);
   addk(bc, gab_undefined);
-  addk(bc, gab_undefined);
-  addk(bc, gab_undefined);
+
+  for (int i = 0; i < cGAB_SEND_CACHE_LEN; i++) {
+    addk(bc, gab_undefined);
+    addk(bc, gab_undefined);
+    addk(bc, gab_undefined);
+  }
 
   if (have == 0 && !mv && patch_trim(bc, VAR_EXP)) {
     mv = true;
@@ -2941,14 +2945,14 @@ int compile_exp_snd(struct bc *bc, bool assignable) {
     }
   }
 
-  int k = is_recognized_message(bc, name);
-
-  if (k >= 0) {
-    int result = inline_recognized_message(bc, k);
-
-    if (result != COMP_COULD_NOT_INLINE)
-      return result;
-  }
+  // int k = is_recognized_message(bc, name);
+  //
+  // if (k >= 0) {
+  //   int result = inline_recognized_message(bc, k);
+  //
+  //   if (result != COMP_COULD_NOT_INLINE)
+  //     return result;
+  // }
 
   bool mv = false;
   int result = compile_arguments(bc, &mv, 0);
@@ -3532,8 +3536,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
                          uint64_t offset) {
   uint8_t op = v_uint8_t_val_at(&self->src->bytecode, offset);
   switch (op) {
-  case OP_SWAP:
-  case OP_DUP:
   case OP_NOT:
   case OP_POP:
   case OP_TYPE:
@@ -3571,6 +3573,10 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_TAILSEND_BLOCK:
   case OP_TAILSEND_PRIMITIVE_CALL_BLOCK:
   case OP_TAILSEND_PRIMITIVE_CALL_SUSPENSE:
+  case OP_LOCALSEND_BLOCK:
+  case OP_LOCALTAILSEND_BLOCK:
+  case OP_MATCHSEND_BLOCK:
+  case OP_MATCHTAILSEND_BLOCK:
     return dumpSendInstruction(stream, self, offset);
   case OP_DYNSEND:
     return dumpDynSendInstruction(stream, self, offset);
