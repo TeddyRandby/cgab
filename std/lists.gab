@@ -25,7 +25,7 @@ def [][.gab.list](key)
 end
 
 def lists.values[.gab.list](i)
-  (i < self:len) :and do
+  self:len > i :and do
     yield self:at(i)
     self:lists.values(i + 1)
   end
@@ -36,7 +36,7 @@ def values[.gab.list]
 end
 
 def lists.pairs[.gab.list](i)
-  (i < self:len) :and do
+  self:len > i :and do
     yield i, self:at(i)
     self:lists.pairs(i + 1)
   end

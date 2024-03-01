@@ -1523,6 +1523,9 @@ int compile_lambda(struct bc *bc, size_t t) {
 
   push_scope(bc);
 
+  if (optional_newline(bc) < 0)
+    return COMP_ERR;
+
   if (compile_expression(bc) < 0)
     return COMP_ERR;
 

@@ -124,25 +124,41 @@ static handler handlers[] = {
     return OP_TRIM_HANDLER(DISPATCH_ARGS());                                   \
   })
 
-#define SEND_BINARY_PRIMITIVE(value_type, operation_type, operation)           \
-  SKIP_SHORT;                                                                  \
-  SKIP_BYTE;                                                                   \
-  if (__gab_unlikely(!__gab_valisn(PEEK2())))                                  \
-    MISS_CACHED_SEND();                                                        \
-                                                                               \
-  if (__gab_unlikely(!__gab_valisn(PEEK()))) {                                 \
-    STORE_PRIMITIVE_ERROR_FRAME(1);                                            \
-    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),                         \
-          gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));              \
-  }                                                                            \
-  operation_type val_b = gab_valton(POP());                                    \
-  operation_type val_a = gab_valton(POP());                                    \
-  PUSH(value_type(val_a operation val_b));                                     \
-  SET_VAR(1);
-
-#define IMPL_SEND_BINARY(CODE, value_type, operation_type, operation)          \
+#define IMPL_SEND_BINARY_NUMERIC(CODE, value_type, operation_type, operation)  \
   CASE_CODE(SEND_##CODE) {                                                     \
-    SEND_BINARY_PRIMITIVE(value_type, operation_type, operation);              \
+    SKIP_SHORT;                                                                \
+    SKIP_BYTE;                                                                 \
+    if (__gab_unlikely(!__gab_valisn(PEEK2())))                                \
+      MISS_CACHED_SEND();                                                      \
+                                                                               \
+    if (__gab_unlikely(!__gab_valisn(PEEK()))) {                               \
+      STORE_PRIMITIVE_ERROR_FRAME(1);                                          \
+      ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),                       \
+            gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));            \
+    }                                                                          \
+    operation_type val_b = gab_valton(POP());                                  \
+    operation_type val_a = gab_valton(POP());                                  \
+    PUSH(value_type(val_a operation val_b));                                   \
+    SET_VAR(1);                                                                \
+    NEXT();                                                                    \
+  }
+
+#define IMPL_SEND_BINARY_BOOLEAN(CODE, value_type, operation_type, operation)  \
+  CASE_CODE(SEND_##CODE) {                                                     \
+    SKIP_SHORT;                                                                \
+    SKIP_BYTE;                                                                 \
+    if (__gab_unlikely(!__gab_valisb(PEEK2())))                                \
+      MISS_CACHED_SEND();                                                      \
+                                                                               \
+    if (__gab_unlikely(!__gab_valisb(PEEK()))) {                               \
+      STORE_PRIMITIVE_ERROR_FRAME(1);                                          \
+      ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),                       \
+            gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));            \
+    }                                                                          \
+    operation_type val_b = gab_valintob(POP());                                \
+    operation_type val_a = gab_valintob(POP());                                \
+    PUSH(value_type(val_a operation val_b));                                   \
+    SET_VAR(1);                                                                \
     NEXT();                                                                    \
   }
 
@@ -958,19 +974,22 @@ IMPL_SEND_PRIMITIVE_CALL_BLOCK(TAIL)
 IMPL_SEND_PRIMITIVE_CALL_SUSPENSE()
 IMPL_SEND_PRIMITIVE_CALL_SUSPENSE(TAIL)
 
-IMPL_SEND_BINARY(PRIMITIVE_ADD, gab_number, double, +);
-IMPL_SEND_BINARY(PRIMITIVE_SUB, gab_number, double, -);
-IMPL_SEND_BINARY(PRIMITIVE_MUL, gab_number, double, *);
-IMPL_SEND_BINARY(PRIMITIVE_DIV, gab_number, double, /);
-IMPL_SEND_BINARY(PRIMITIVE_MOD, gab_number, uint64_t, %);
-IMPL_SEND_BINARY(PRIMITIVE_BOR, gab_number, uint64_t, |);
-IMPL_SEND_BINARY(PRIMITIVE_BND, gab_number, uint64_t, &);
-IMPL_SEND_BINARY(PRIMITIVE_LSH, gab_number, uint64_t, <<);
-IMPL_SEND_BINARY(PRIMITIVE_RSH, gab_number, uint64_t, >>);
-IMPL_SEND_BINARY(PRIMITIVE_LT, gab_bool, double, <);
-IMPL_SEND_BINARY(PRIMITIVE_LTE, gab_bool, double, >=);
-IMPL_SEND_BINARY(PRIMITIVE_GT, gab_bool, double, >);
-IMPL_SEND_BINARY(PRIMITIVE_GTE, gab_bool, double, >=);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_ADD, gab_number, double, +);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_SUB, gab_number, double, -);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_MUL, gab_number, double, *);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_DIV, gab_number, double, /);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_MOD, gab_number, uint64_t, %);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_BOR, gab_number, uint64_t, |);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_BND, gab_number, uint64_t, &);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_LSH, gab_number, uint64_t, <<);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_RSH, gab_number, uint64_t, >>);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_LT, gab_bool, double, <);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_LTE, gab_bool, double, >=);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_GT, gab_bool, double, >);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_GTE, gab_bool, double, >=);
+
+IMPL_SEND_BINARY_BOOLEAN(PRIMITIVE_LOR, gab_bool, bool, ||);
+IMPL_SEND_BINARY_BOOLEAN(PRIMITIVE_LND, gab_bool, bool, &&);
 
 CASE_CODE(SEND_PRIMITIVE_EQ) {
   gab_value *ks = READ_CONSTANTS;
@@ -1128,7 +1147,7 @@ CASE_CODE(SEND_PRIMITIVE_AND) {
   uint64_t have = compute_arity(VAR(), have_byte);
 
   gab_value r = PEEK_N(have);
-  gab_value cb = PEEK_N(have - 1);
+  gab_value cb = PEEK();
 
   if (gab_valintob(r)) {
     if (__gab_unlikely(gab_valkind(cb) != kGAB_BLOCK)) {
@@ -1150,9 +1169,9 @@ CASE_CODE(SEND_PRIMITIVE_AND) {
     }
   }
 
-  DROP_N(have - 1);
+  DROP();
 
-  SET_VAR(1);
+  SET_VAR(have - 1);
 
   NEXT();
 }
@@ -1163,7 +1182,7 @@ CASE_CODE(SEND_PRIMITIVE_OR) {
   uint64_t have = compute_arity(VAR(), have_byte);
 
   gab_value r = PEEK_N(have);
-  gab_value cb = PEEK_N(have - 1);
+  gab_value cb = PEEK();
 
   if (!gab_valintob(r)) {
     if (__gab_unlikely(gab_valkind(cb) != kGAB_BLOCK)) {
@@ -1185,9 +1204,9 @@ CASE_CODE(SEND_PRIMITIVE_OR) {
     }
   }
 
-  DROP_N(have - 1);
+  DROP();
 
-  SET_VAR(1);
+  SET_VAR(have - 1);
 
   NEXT();
 }

@@ -180,6 +180,8 @@ static inline gab_value __gab_dtoval(double value) {
 
 #define __gab_valisn(val) (((val) & __GAB_QNAN) != __GAB_QNAN)
 
+#define __gab_valisb(val) (__GAB_VAL_TAG(val) & (kGAB_TRUE | kGAB_FALSE))
+
 #define __gab_obj(val)                                                         \
   (gab_value)(__GAB_SIGN_BIT | __GAB_QNAN | (uint64_t)(uintptr_t)(val))
 

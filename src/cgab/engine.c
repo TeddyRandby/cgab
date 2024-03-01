@@ -30,6 +30,14 @@ struct primitive all_primitives[] = {
         .name = mGAB_OR,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_OR),
     },
+    {
+        .name = mGAB_LOR,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
+    },
+    {
+        .name = mGAB_LND,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
+    },
 };
 
 /*

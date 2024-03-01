@@ -8,6 +8,7 @@
 :use .any
 :use .assert
 :use .streams
+:use .monads
 
 def explain_specs(specs, separator)
   res = specs:tuple.collect(
@@ -23,8 +24,6 @@ def explain_specs(specs, separator)
 end
 
 def explain_strings(strings, separator)
-  not strings or strings:len == 0 and return ''
-
   res = strings:tuple.collect(
           &:map,
           &:values,
@@ -52,27 +51,31 @@ def registry.messages = :map.new
 def register(registry, name, value)
   # Add a new specification to the registry.
   # If this key already existed, panic.
-  registry:add!(name, value) == .ok or .SPEC_NAME_TAKEN:panic
+  registry:add!(name, value):unwrap!
+end
+
+def spec.register[?{ spec }](name)
+  register(registry.spec, name, self:spec)
+  register(registry.name, self:spec, name)
+
+  self:spec
+end
+
+def spec.register[?{ spec, help }](name)
+  register(registry.spec, name, self:spec)
+  register(registry.name, self:spec, name)
+  register(registry.help, self:spec, self:help)
+
+  self:spec
 end
 
 ## Add a spec to the global registry under the given name.
 def spec.def![](name, opts)
-  register(registry.spec, name, opts:spec)
-  register(registry.name, opts:spec, name)
-
-  opts:has? .help then
-    register(registry.help, opts:spec, opts:help)
-  end
-
-  opts:spec
+  opts:spec.register(name)
 end
 
 def spec[](name)
-  s, v = registry.spec:at(name)
-
-  s == .some or 'Could not find spec "{name}"':panic
-
-  v
+  registry.spec:at(name):unwrap!
 end
 
 def spec.help[]
@@ -80,11 +83,7 @@ def spec.help[]
 end
 
 def spec.name[]
-  s, v = registry.name:at(self)
-
-  s == .some or 'spec {self} is not named':panic
-
-  v
+  registry.name:at(self):unwrap!
 end
 
 ## PREDICATES
@@ -180,13 +179,8 @@ end
 def spec.gen[?string.predicate]
   def len  = :int.between(1, 100)
   def list = :list.new
-  
-  i = 0
-  
-  loop
-    list:push!(:int.between(0, 127))
-    i = i + 1
-  until i == len end
+
+  len:times => list:push!(:int.between(0, 127))
   
   list:to_bytes
 end
@@ -253,14 +247,16 @@ def spec.map[](k_spec, v_spec)
   def map.predicate = :symbol.new 'predicate:map:{k_spec}:{v_spec}'
 
   def spec.fits?[?map.predicate](value)
-    ?value == .Map or return false, self, value 
-    
-    value:for(&:pairs) do (k, v)
-      k_spec:spec.fits?(k) or return false, k_spec, k, k
-      v_spec:spec.fits?(v) or return false, v_spec, v, k
-    end
+    ?value == .Map :and do
+      return false, self, value 
+    end :or do
+      value:for(&:pairs) do (k, v)
+        (k_spec:spec.fits?(k) :or => return false, k_spec, k, k) :and =>
+          v_spec:spec.fits?(v) :or => return false, v_spec, v, k
+      end
 
-    return true, self, value
+      return true, self, value
+    end
   end
 
   def spec.gen[?map.predicate]

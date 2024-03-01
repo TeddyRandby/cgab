@@ -344,8 +344,8 @@ end
         other:is?(Vector) :or => .INVALID_ARGUMENTS:panic
 
         {
-            x = self:x + other:x,
-            y = self:y + other:y
+            x = (self:x) + (other:x),
+            y = (self:y) + (other:y),
         }
     end
 
@@ -359,14 +359,14 @@ end
     def < [Vector](other)
         other:is?(Vector) :or => .INVALID_ARGUMENTS:panic
 
-        mag = self:x * self:x + self:y * self:y
-        other_mag = other:x * other:x + other:y * other:y
+        mag = ((self:x) * (self:x)) + ((self:y) * (self:y))
+        other_mag = ((other:x) * (other:x)) + ((other:y) * (other:y))
 
         mag < other_mag
     end
 
     def == [Vector](other)
-        (self:x == other:x) :and => (self:y == other:y)
+        (self:x) == (other:x) :and => (self:y) == (other:y)
     end
 
     :it 'should overload comparison' do
@@ -384,9 +384,7 @@ end
 
 
     def [] [Vector](key)
-       (key == 'mag') :and do
-        return self:x * self:x + self:y * self:y
-       end
+       key == 'mag' :and => ((self:x) * (self:x)) + ((self:y) * (self:y))
     end
 
     :it 'should overload get' do

@@ -1,0 +1,11 @@
+def monads.unwrap[true](args)
+  ..args 
+end
+
+def monads.unwrap[false](args)
+  .UnwrapError :panic
+end
+
+def unwrap![.gab.string](..args)
+  (self == .ok) | (self == .some) :monads.unwrap(args)
+end

@@ -26,7 +26,7 @@ def car.paint.spec = :spec.def! 'car.paint' {
       # Fetch the spec 'car.color' for the output
       output   = :spec 'car.color',
     } do (receiver, input, output)
-        input[0] == receiver:car.color and input[0] == output[0]
+        input[0] == (receiver:car.color) :and => input[0] == output[0]
       end,
 }
 
@@ -52,7 +52,7 @@ car.paint.spec:spec.explain:print
 # And checks the output against the spec and semantics.
 # This code will run forever if the spec is always satisfied
 _, spec, value, path = car.paint.spec:first(&:spec.check) do (ok, spec, value, path)
-    not ok and return .some, spec, value, path
+     ok :or => return .some, spec, value, path
   end
 
 :print(spec, value, path)

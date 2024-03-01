@@ -1,99 +1,17 @@
-:use .records
-:use .lists
-:use .streams
-:use .dis
+# How to handle situations where we want early returns?
 
-nums = [ 0, 1, 2, 3, 4, 5 ]
+# Smalltalk does this with non-local returns. This way, blocks can return for the whole message send.
 
-nums:print 'nums'
+# I could do the same thing, but I"m not a *huge* fan of it
 
-nums_times_two = nums:tuples.collect(
-  &:map,
-  &:pairs,
-  => @2 * 2,
-  nums:len,
-)
+{
+  [?value == .gab.list] ==> return false, self, value,
+  .else ==> value:for(&:pairs), do (k, v)
+    spec:spec.fits?(v) or return false, self, value, k
+  end
+}:cond
 
-nums_times_two:print 'times two'
-
-filtered_nums = nums:tuples.collect(
-  &:filter,
-  &:pairs,
-  => @2 % 2 == 0,
-  nums:len / 2,
-)
-
-filtered_nums:print 'filtered'
-
-take_filtered = nums:tuples.collect(
-  &:take,
-  &:filter,
-  &:pairs,
-  => @1 % 2 == 0,
-  2,
-  2,
-)
-
-take_filtered:print 'take filtered'
-
-nums:for(
-  &:take,
-  &:map,
-  &:filter,
-  &:pairs,
-  => @1 % 2 == 0,
-  => @2 * 2,
-  2,
-  &:print,
-)
-
-take_filtered_mapped_total = nums:fold(
-  &:take,
-  &:map,
-  &:filter,
-  &:pairs,
-  => @1 % 2 == 0,
-  => @2 * 2,
-  2,
-  0,
-  &+,
-)
-
-take_filtered_mapped_total:print
-
-first = nums:first(
-  &:map,
-  &:filter,
-  &:pairs,
-  => @1 % 2 == 0,
-  => @2 * 2,
-  => (@1 == 4) :and => return .some, .hi,
-)
-
-first:print
-
-def l = :list.new(10)
-
-l:push!(1,2,3,4)
-
-l:for(&:values, &:print)
-
-def callme[.gab.block]
-  self()
-end
-
-def sayhi
-  'hi':print
-end
-
-def saybye
-  'bye':print
-end
-
-sayhi:callme
-sayhi:callme
-sayhi:callme
-
-saybye:callme
-saybye:callme
-saybye:callme
+?value == .gab.list :and (self, value) =>
+  value:first(&:pairs) do (k, v)
+    spec:spec.fits?(v) :and (.some, false, self, v, k) => .none
+  end :unwrap_or(true, self, value)
