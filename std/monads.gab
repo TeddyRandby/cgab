@@ -1,11 +1,32 @@
-def monads.unwrap[true](args)
+def monads.unwrap![true](args)
   ..args 
 end
 
-def monads.unwrap[false](args)
-  .UnwrapError :panic
+def monads.unwrap![false](args)
+  .UNWRAP_ERROR:panic
+end
+
+def monads.unwrap[true](args)
+  ..args
+end
+
+def monads.unwrap[false]
+  nil
+end
+
+def monads.has?[.gab.string](..args)
+  (self == .ok) | (self == .some)
 end
 
 def unwrap![.gab.string](..args)
-  (self == .ok) | (self == .some) :monads.unwrap(args)
+  self :monads.has? :monads.unwrap!(args)
 end
+
+def unwrap[.gab.string](..alt)
+  self :monads.has? :monads.unwrap(alt)
+end
+
+
+def options.into[nil]; .none end
+def options.into[false]; .none end
+def options.into[](..args); return .some, self, ..args end

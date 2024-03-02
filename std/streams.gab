@@ -127,6 +127,10 @@ def first[](msg, ..p, cb)
   s:streams.first(args, cb)
 end
 
+def apply[](msgs)
+  msgs:map(&:values) => self:(@1)
+end
+
 #def unwrap[](msg, ..p, cb)
 #  x, ..args, s = self:(msg)(..p)
 #

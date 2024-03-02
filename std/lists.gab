@@ -1,5 +1,13 @@
 :use .list
 
+def [][.gab.list](key)
+  self:at(key)
+end
+
+def [=][.gab.list](key, val)
+  self:put!(key, val)
+end
+
 def lists.build[.gab.suspense](l, p)
   l:push!(p)
 
@@ -18,10 +26,6 @@ def lists.collect[](msg, ..p)
   ..args, s = self:(msg)(..p)
 
   s:lists.build(l, args)
-end
-
-def [][.gab.list](key)
-  self:at(key)
 end
 
 def lists.values[.gab.list](i)

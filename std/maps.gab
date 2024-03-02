@@ -1,51 +1,56 @@
-:use 'map'
+:use .map
 
 def [][.gab.map](key)
-  _, val = self:at(key)
-
-  val
+  self:at(key):unwrap
 end
 
-def [=][.gab.map](key, value); self:put!(key, value); end
+def [=][.gab.map](key, value)
+  self:put!(key, value)
+end
 
-def has?[.gab.map](key); self:at(key) == .some; end
+def has?[.gab.map](key)
+  self:at(key) == .some
+end
 
 def at_or![.gab.map](key, default)
-  (_, val = self:at(key)) == .some then
-    return val
-  end else
+  self:at(key):unwrap:or =>
     self:put!(key, default)
-    return default
-  end
 end
 
-def del![.gab.map](key); self:put!(key, nil); end
-
-def each[.gab.map]
-  key = self:next
-
-  loop
-    yield key, self:at(key)
-    key = self:next(key)
-  until key == nil end
+def del![.gab.map](key)
+  self:put!(key, nil)
 end
 
-def keys[.gab.map]
-  key = self:next
+def maps.values[.gab.map](k)
+  yield self:at(k)
 
-  loop
-    yield key
-    key = self:next(key)
-  until key == nil end
+  next_key = self:next(k)
+
+  next_key == nil :or =>
+    self:maps.values(next_key)
 end
 
 def values[.gab.map]
   key = self:next
 
-  loop
-    yield self[key]
-    key = self:next(key)
-  until key == nil end
+  key == nil :or =>
+    self:maps.values(key)
+end
+
+def maps.keys[.gab.map](k)
+  yield k
+
+  next_key = self:next(k)
+
+  next_key == nil :or =>
+    self:maps.keys(next_key)
+end
+
+def keys[.gab.map]
+  key = self:next
+
+  key == nil :or =>
+    self:maps.keys(key)
 end
 
 def pairs[.gab.map]

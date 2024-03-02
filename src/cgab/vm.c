@@ -51,7 +51,9 @@ static handler handlers[] = {
 #define NEXT() DISPATCH(*IP()++);
 
 #define ERROR(status, help, ...)                                               \
-  return vm_error(GAB(), status, help __VA_OPT__(, ) __VA_ARGS__);
+  ({                                                                           \
+    return vm_error(GAB(), status, help __VA_OPT__(, ) __VA_ARGS__);           \
+  })
 
 /*
   Lots of helper macros.
@@ -1395,12 +1397,14 @@ CASE_CODE(SPEC) {
 
   gab_value blk = block(GAB(), p, FB(), BLOCK()->upvalues);
 
-  if (__gab_unlikely(gab_msgput(GAB(), m, r, blk) == gab_undefined))
+  if (__gab_unlikely(gab_msgput(GAB(), m, r, blk) == gab_undefined)) {
+    PUSH_FRAME();
     ERROR(GAB_IMPLEMENTATION_EXISTS,
           ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET
                            " already specializes for type: " ANSI_COLOR_GREEN
                            "$" ANSI_COLOR_RESET,
           m, r);
+  }
 
   PEEK() = m;
 
@@ -1416,16 +1420,20 @@ CASE_CODE(DYNSPEC) {
 
   gab_value blk = block(GAB(), p, FB(), BLOCK()->upvalues);
 
-  if (__gab_unlikely(gab_valkind(m) != kGAB_MESSAGE))
+  if (__gab_unlikely(gab_valkind(m) != kGAB_MESSAGE)) {
+    PUSH_FRAME();
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, m, gab_valtype(EG(), m),
           gab_type(EG(), kGAB_MESSAGE));
+  }
 
-  if (__gab_unlikely(gab_msgput(GAB(), m, r, blk) == gab_undefined))
+  if (__gab_unlikely(gab_msgput(GAB(), m, r, blk) == gab_undefined)) {
+    PUSH_FRAME();
     ERROR(GAB_IMPLEMENTATION_EXISTS,
           ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET
                            " already specializes for type: " ANSI_COLOR_GREEN
                            "$" ANSI_COLOR_RESET,
           m, r);
+  }
 
   DROP();
 

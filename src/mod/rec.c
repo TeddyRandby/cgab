@@ -59,7 +59,7 @@ a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
 #undef CLAMP
 
 a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
-                         gab_value argv[argc]) {
+                        gab_value argv[argc]) {
   if (argc != 2) {
     return gab_panic(gab, "Invalid call to  gab_lib_at");
   }
@@ -78,9 +78,8 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
-  if (argc != 3) {
+  if (argc != 3)
     return gab_panic(gab, "Invalid call to gab_lib_put");
-  }
 
   if (gab_recput(gab, argv[0], argv[1], argv[2]) == gab_undefined)
     gab_vmpush(gab.vm, gab_nil);
@@ -92,14 +91,28 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
                           gab_value argv[argc]) {
-  if (argc != 2) {
+  if (argc != 2)
     return gab_panic(gab, "Invalid call to gab_lib_push");
-  }
 
   gab_value tup =
       gab_recordwith(gab, argv[0], gab_number(gab_reclen(argv[0])), argv[1]);
 
   gab_vmpush(gab.vm, tup);
+
+  return NULL;
+}
+
+a_gab_value *gab_lib_with(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
+  if (argc < 3)
+    return gab_panic(gab, "Invalid call to gab_lib_push");
+
+  gab_value key = argv[1];
+  gab_value val = argc > 2 ? argv[2] : gab_nil;
+
+  gab_value rec = gab_recordwith(gab, argv[0], key, val);
+
+  gab_vmpush(gab.vm, rec);
 
   return NULL;
 }
@@ -275,6 +288,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "push",
           gab_type(gab.eg, kGAB_RECORD),
           gab_snative(gab, "push", gab_lib_push),
+      },
+      {
+          "with",
+          gab_type(gab.eg, kGAB_RECORD),
+          gab_snative(gab, "with", gab_lib_with),
       },
   };
 

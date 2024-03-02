@@ -63,5 +63,5 @@ def records.values[](rec)
 end
 
 def values[.gab.record]
-  self:next:values
+  self:next:records.values(self)
 end

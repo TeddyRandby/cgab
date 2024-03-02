@@ -2,38 +2,3 @@
 
 def is_ok?[]; self == .ok end
 
-def match[](..p, cases)
-  case = cases:next
-
-  loop
-    case == self then
-      branch = cases[case]
-
-      return branch(self, ..p)
-
-      break .INVALID_ARGUMENTS:panic
-    end
-
-    case = cases:next(case)
-  until not case end
-
-  'MISSING_CASE: {self}':panic
-end
-
-def typematch[](..p, cases)
-  target, case = ?self, cases:next
-
-  loop
-    case == target then
-      branch = cases[case]
-
-      return branch(self, ..p)
-
-      break .INVALID_ARGUMENTS:panic
-    end
-
-    case = cases:next(case)
-  until not case end
-
-  'MISSING_CASE: {self}':panic
-end
