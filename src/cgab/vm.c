@@ -51,9 +51,7 @@ static handler handlers[] = {
 #define NEXT() DISPATCH(*IP()++);
 
 #define ERROR(status, help, ...)                                               \
-  ({                                                                           \
-    return vm_error(GAB(), status, help __VA_OPT__(, ) __VA_ARGS__);           \
-  })
+  ({ return vm_error(GAB(), status, help __VA_OPT__(, ) __VA_ARGS__); })
 
 /*
   Lots of helper macros.
@@ -1042,13 +1040,10 @@ CASE_CODE(SEND_PRIMITIVE_CONCAT) {
 }
 
 CASE_CODE(SEND_PRIMITIVE_SPLAT) {
-  gab_value *ks = READ_CONSTANTS;
+  SKIP_SHORT;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   gab_value r = PEEK_N(have);
-
-  if (__gab_unlikely(ks[GAB_SEND_KTYPE] != gab_valtype(EG(), r)))
-    MISS_CACHED_SEND();
 
   struct gab_obj_record *rec = GAB_VAL_TO_RECORD(r);
 
@@ -1388,46 +1383,24 @@ CASE_CODE(BLOCK) {
   NEXT();
 }
 
-CASE_CODE(SPEC) {
-  gab_value p = READ_CONSTANT;
-  gab_value m = READ_CONSTANT;
-  gab_value r = PEEK();
+CASE_CODE(SEND_PRIMITIVE_DEF) {
+  // TODO: Handle other cases of def - one record arg, no receiver, etc
+  SKIP_SHORT;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+  gab_value m = PEEK_N(have);
+  gab_value r = PEEK2();
+  gab_value b = PEEK();
 
   STORE_SP();
 
-  gab_value blk = block(GAB(), p, FB(), BLOCK()->upvalues);
-
-  if (__gab_unlikely(gab_msgput(GAB(), m, r, blk) == gab_undefined)) {
-    PUSH_FRAME();
-    ERROR(GAB_IMPLEMENTATION_EXISTS,
-          ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET
-                           " already specializes for type: " ANSI_COLOR_GREEN
-                           "$" ANSI_COLOR_RESET,
-          m, r);
-  }
-
-  PEEK() = m;
-
-  NEXT();
-}
-
-CASE_CODE(DYNSPEC) {
-  gab_value p = READ_CONSTANT;
-  gab_value m = PEEK2();
-  gab_value r = PEEK();
-
-  STORE_SP();
-
-  gab_value blk = block(GAB(), p, FB(), BLOCK()->upvalues);
-
-  if (__gab_unlikely(gab_valkind(m) != kGAB_MESSAGE)) {
-    PUSH_FRAME();
+  if (__gab_unlikely(gab_valkind(b) != kGAB_BLOCK)) {
+    STORE_PRIMITIVE_ERROR_FRAME(have);
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, m, gab_valtype(EG(), m),
-          gab_type(EG(), kGAB_MESSAGE));
+          gab_type(EG(), kGAB_BLOCK));
   }
 
-  if (__gab_unlikely(gab_msgput(GAB(), m, r, blk) == gab_undefined)) {
-    PUSH_FRAME();
+  if (__gab_unlikely(gab_msgput(GAB(), m, r, b) == gab_undefined)) {
+    STORE_PRIMITIVE_ERROR_FRAME(have);
     ERROR(GAB_IMPLEMENTATION_EXISTS,
           ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET
                            " already specializes for type: " ANSI_COLOR_GREEN
@@ -1435,7 +1408,9 @@ CASE_CODE(DYNSPEC) {
           m, r);
   }
 
-  DROP();
+  DROP_N(have - 1);
+
+  SET_VAR(1);
 
   NEXT();
 }

@@ -1,37 +1,36 @@
-def ()[.gab.message](r, ..args)
+&() :def! .gab.message do (r, ..args)
   r:(self)(..args)
 end
 
-def streams.fold[.gab.suspense](p, acc, cb)
-  next_acc = cb(acc, ..p)            
+&:streams.fold :def! {
+  .gab.suspense = do (p, acc, cb)
+    next_acc = cb(acc, ..p)            
 
-  ..next_p, next_s = self()
+    ..next_p, next_s = self()
 
-  next_s:streams.fold(next_p, next_acc, cb)
-end
+    next_s:streams.fold(next_p, next_acc, cb)
+  end
+  .default ==> @2
+}
 
-def streams.fold[](p, acc, cb)
-  acc
-end
-
-def fold[](msg, ..p, init, cb)
+&:fold :def! do (msg, ..p, init, cb)
   acc, ..args, s = init, self:(msg)(..p)
 
   s:streams.fold(args, init, cb)
 end
 
-def streams.for[.gab.suspense](p, cb)
-  cb(..p)
+&:streams.for :def! {
+  .gab.suspense = do (p, cb)
+    cb(..p)
 
-  ..args, s = self()
+    ..args, s = self()
 
-  s:streams.for(args, cb)
-end
+    s:streams.for(args, cb)
+  end
+  .default ==> nil
+}
 
-def streams.for[](p, cb)
-  nil
-end
-def for[](msg, ..p, cb)
+&:for :def! do (msg, ..p, cb)
   ..args, s = self:(msg)(..p)
 
   s:streams.for(args, cb)

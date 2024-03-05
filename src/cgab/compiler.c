@@ -1,3 +1,4 @@
+#include <stdint.h>
 #define TOKEN_NAMES
 #include "colors.h"
 #include "core.h"
@@ -5,7 +6,6 @@
 #include "gab.h"
 #include "lexer.h"
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -149,8 +149,8 @@ enum comp_status {
 };
 
 #define FMT_UNEXPECTEDTOKEN "Expected $ instead."
-static void compiler_error(struct bc *bc, enum gab_status e,
-                           const char *help_fmt, ...);
+static int compiler_error(struct bc *bc, enum gab_status e,
+                          const char *help_fmt, ...);
 
 static bool match_token(struct bc *bc, gab_token tok);
 
@@ -185,18 +185,15 @@ static inline bool match_terminator(struct bc *bc) {
 }
 
 static int eat_token(struct bc *bc) {
-  if (match_token(bc, TOKEN_EOF)) {
-    compiler_error(bc, GAB_UNEXPECTED_EOF, "");
-    return COMP_ERR;
-  }
+  if (match_token(bc, TOKEN_EOF))
+    return compiler_error(bc, GAB_UNEXPECTED_EOF, "");
 
   bc->offset++;
 
   if (match_token(bc, TOKEN_ERROR)) {
     eat_token(bc);
-    compiler_error(bc, GAB_MALFORMED_TOKEN,
-                   "This token is malformed or unrecognized.");
-    return COMP_ERR;
+    return compiler_error(bc, GAB_MALFORMED_TOKEN,
+                          "This token is malformed or unrecognized.");
   }
 
   return COMP_OK;
@@ -212,9 +209,8 @@ static inline int match_and_eat_token(struct bc *bc, gab_token tok) {
 static inline int expect_token(struct bc *bc, gab_token tok) {
   if (!match_token(bc, tok)) {
     eat_token(bc);
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN, FMT_UNEXPECTEDTOKEN,
-                   gab_string(gab(bc), gab_token_names[tok]));
-    return COMP_ERR;
+    return compiler_error(bc, GAB_UNEXPECTED_TOKEN, FMT_UNEXPECTEDTOKEN,
+                          gab_string(gab(bc), gab_token_names[tok]));
   }
 
   return eat_token(bc);
@@ -794,12 +790,10 @@ static int add_local(struct bc *bc, gab_value name, uint8_t flags) {
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;
 
-  if (f->nlocals == GAB_LOCAL_MAX) {
-    compiler_error(
+  if (f->nlocals == GAB_LOCAL_MAX)
+    return compiler_error(
         bc, GAB_TOO_MANY_LOCALS,
         "For arbitrary reasons, blocks cannot decalre more than 255 locals.");
-    return COMP_ERR;
-  }
 
   uint8_t local = f->next_local;
   f->local_names[local] = name;
@@ -830,12 +824,11 @@ static int add_upvalue(struct bc *bc, int depth, uint8_t index, uint8_t flags) {
     }
   }
 
-  if (count == GAB_UPVALUE_MAX) {
-    compiler_error(bc, GAB_TOO_MANY_UPVALUES,
-                   "For arbitrary reasons, blocks cannot capture more than 255 "
-                   "variables.");
-    return COMP_ERR;
-  }
+  if (count == GAB_UPVALUE_MAX)
+    return compiler_error(
+        bc, GAB_TOO_MANY_UPVALUES,
+        "For arbitrary reasons, blocks cannot capture more than 255 "
+        "variables.");
 
   f->upv_indexes[count] = index;
   f->upv_flags[count] = flags;
@@ -861,12 +854,11 @@ static int resolve_local(struct bc *bc, gab_value name, uint8_t depth) {
     gab_value other_local_name = f->local_names[local];
 
     if (name == other_local_name) {
-      if (f->local_depths[local] == -1) {
-        compiler_error(
+      if (f->local_depths[local] == -1)
+        return compiler_error(
             bc, GAB_REFERENCE_BEFORE_INITIALIZE,
             "The variable $ was referenced before it was initialized.", name);
-        return COMP_ERR;
-      }
+
       return local;
     }
   }
@@ -879,9 +871,8 @@ static int resolve_local(struct bc *bc, gab_value name, uint8_t depth) {
  * and otherwise the offset of the upvalue.
  */
 static int resolve_upvalue(struct bc *bc, gab_value name, uint8_t depth) {
-  if (depth >= bc->ncontext) {
+  if (depth >= bc->ncontext)
     return COMP_UPVALUE_NOT_FOUND;
-  }
 
   int local = resolve_local(bc, name, depth + 1);
 
@@ -891,15 +882,13 @@ static int resolve_upvalue(struct bc *bc, gab_value name, uint8_t depth) {
 
     uint8_t flags = f->local_flags[local] |= fVAR_CAPTURED;
 
-    if (flags & fVAR_MUTABLE) {
-      compiler_error(bc, GAB_CAPTURED_MUTABLE,
-                     "Variables are mutable by default.\n"
-                     "To capture $, declare it as immutable:\n"
-                     "\n | " ANSI_COLOR_MAGENTA "def" ANSI_COLOR_RESET
-                     " $ = ...\n",
-                     name, name);
-      return COMP_ERR;
-    }
+    if (flags & fVAR_MUTABLE)
+      return compiler_error(bc, GAB_CAPTURED_MUTABLE,
+                            "Variables are mutable by default.\n"
+                            "To capture $, declare it as immutable:\n"
+                            "\n | " ANSI_COLOR_MAGENTA "def" ANSI_COLOR_RESET
+                            " $ = ...\n",
+                            name, name);
 
     return add_upvalue(bc, depth, local, flags | fVAR_LOCAL);
   }
@@ -1019,11 +1008,7 @@ static struct frame *push_ctxframe(struct bc *bc, gab_value name,
 
   addk(bc, name);
 
-  init_local(bc, add_local(bc,
-                           is_message     ? gab_string(gab(bc), "self")
-                           : is_anonymous ? gab_string(gab(bc), "")
-                                          : name,
-                           0));
+  init_local(bc, add_local(bc, gab_string(gab(bc), "self"), 0));
 
   push_trim(bc, 0, bc->offset - 1);
 
@@ -1205,16 +1190,15 @@ a_char *parse_raw_str(struct bc *bc, s_char raw_str) {
 int compile_strlit(struct bc *bc) {
   a_char *parsed = parse_raw_str(bc, prev_src(bc));
 
-  if (parsed == NULL) {
-    compiler_error(bc, GAB_MALFORMED_STRING,
-                   "Single quoted strings can contain interpolations.\n"
-                   "\n | 'this is { an:interpolation }'\n"
-                   "\nBoth single and double quoted strings can contain escape "
-                   "sequences.\n"
-                   "\n | 'a newline -> \\n, or a forward slash -> \\\\'"
-                   "\n | \"arbitrary unicode: \\u[2502]\"");
-    return COMP_ERR;
-  }
+  if (parsed == NULL)
+    return compiler_error(
+        bc, GAB_MALFORMED_STRING,
+        "Single quoted strings can contain interpolations.\n"
+        "\n | 'this is { an:interpolation }'\n"
+        "\nBoth single and double quoted strings can contain escape "
+        "sequences.\n"
+        "\n | 'a newline -> \\n, or a forward slash -> \\\\'"
+        "\n | \"arbitrary unicode: \\u[2502]\"");
 
   push_loadk((bc), gab_nstring(gab(bc), parsed->len, parsed->data),
              bc->offset - 1);
@@ -1297,10 +1281,8 @@ static int compile_local(struct bc *bc, gab_value name, uint8_t flags) {
 
     gab_value other_local_name = f->local_names[local];
 
-    if (name == other_local_name) {
-      compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
-      return COMP_ERR;
-    }
+    if (name == other_local_name)
+      return compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
   }
 
   return add_local(bc, name, flags);
@@ -1343,13 +1325,11 @@ int compile_parameters_internal(struct bc *bc, int *below,
 
         gab_value other_name = f->local_names[*below + 1];
 
-        compiler_error(
+        return compiler_error(
             bc, GAB_INVALID_REST_VARIABLE,
             "The parameter '$' at index $ is already a 'rest' parameter.\n"
             "\nBlocks can only declare one parameter as a 'rest' parameter.\n",
             other_name, gab_number(*below));
-
-        return COMP_ERR;
       }
 
       *narguments = *narguments - 1;
@@ -1472,10 +1452,9 @@ int compile_expressions(struct bc *bc) {
 
   if (match_token(bc, TOKEN_EOF)) {
     eat_token(bc);
-    compiler_error(bc, GAB_MISSING_END,
-                   "Make sure the block at line $ is closed.",
-                   gab_number(line));
-    return COMP_ERR;
+    return compiler_error(bc, GAB_MISSING_END,
+                          "Make sure the block at line $ is closed.",
+                          gab_number(line));
   }
 
   return COMP_OK;
@@ -1572,43 +1551,6 @@ int compile_block(struct bc *bc, gab_value name) {
   return COMP_OK;
 }
 
-int compile_message(struct bc *bc, gab_value name, size_t t) {
-  if (compile_message_spec(bc) < 0)
-    return COMP_ERR;
-
-  struct frame *f = push_ctxframe(bc, name, true);
-
-  int narguments = compile_parameters(bc);
-
-  if (narguments < 0)
-    return COMP_ERR;
-
-  f->narguments = narguments;
-
-  if (compile_block_body(bc) < 0)
-    return COMP_ERR;
-
-  gab_value p = pop_ctxframe(bc);
-
-  if (p == gab_undefined)
-    return COMP_ERR;
-
-  bool is_anonymous = name == gab_nil;
-
-  push_op(bc, is_anonymous ? OP_DYNSPEC : OP_SPEC, t);
-  push_short(bc, addk(bc, p), t);
-
-  if (!is_anonymous) {
-    gab_value m = gab_message(gab(bc), name);
-    push_short(bc, addk(bc, m), t);
-  }
-
-  pop_slot(bc, 1 + is_anonymous);
-
-  push_slot(bc, 1);
-  return COMP_OK;
-}
-
 int compile_expression(struct bc *bc) {
   return compile_exp_prec(bc, kASSIGNMENT);
 }
@@ -1641,15 +1583,11 @@ int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out) {
   if (result < 0)
     return COMP_ERR;
 
-  if (have > want) {
-    compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS, "");
-    return COMP_ERR;
-  }
+  if (have > want)
+    return compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS, "");
 
-  if (have == 0) {
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected an expression.");
-    return COMP_ERR;
-  }
+  if (have == 0)
+    return compiler_error(bc, GAB_UNEXPECTED_TOKEN, "Expected an expression.");
 
   if (want == VAR_EXP) {
     /*
@@ -1796,11 +1734,9 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
   uint8_t n_rest_values = rest_lvalues(lvalues);
   uint8_t n_new_values = new_lvalues(lvalues);
 
-  if (n_rest_values > 1) {
-    compiler_error(bc, GAB_INVALID_REST_VARIABLE,
-                   "Only one rest value allowed");
-    return COMP_ERR;
-  }
+  if (n_rest_values > 1)
+    return compiler_error(bc, GAB_INVALID_REST_VARIABLE,
+                          "Only one rest value allowed");
 
   uint8_t want = n_rest_values ? VAR_EXP : lvalues->len;
 
@@ -1947,9 +1883,8 @@ int compile_lvalue(struct bc *bc, bool assignable, gab_value name,
                                   });
   }
   case COMP_RESOLVED_TO_UPVALUE:
-    compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                   "Captured variables are not assignable.");
-    return COMP_ERR;
+    return compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+                          "Captured variables are not assignable.");
   default:
     return COMP_ERR;
   }
@@ -2045,15 +1980,14 @@ int compile_rec_internal_item(struct bc *bc) {
 
 err:
   eat_token(bc);
-  compiler_error(bc, GAB_MALFORMED_RECORD_KEY,
-                 "A valid key is either:\n"
-                 " | { an_identifier }\n"
-                 " | { \"a string\", .a_sigil, 'or' }\n"
-                 " | { [an:expression] }\n\n"
-                 "A key can be followed by an " ANSI_COLOR_GREEN
-                 "EQUAL" ANSI_COLOR_RESET ", and then an expression.\n"
-                 "If a value is not set explicitly, it will be true.\n");
-  return COMP_ERR;
+  return compiler_error(bc, GAB_MALFORMED_RECORD_KEY,
+                        "A valid key is either:\n"
+                        " | { an_identifier }\n"
+                        " | { \"a string\", .a_sigil, 'or' }\n"
+                        " | { [an:expression] }\n\n"
+                        "A key can be followed by an " ANSI_COLOR_GREEN
+                        "EQUAL" ANSI_COLOR_RESET ", and then an expression.\n"
+                        "If a value is not set explicitly, it will be true.\n");
 }
 
 int compile_rec_internals(struct bc *bc) {
@@ -2076,10 +2010,8 @@ int compile_rec_internals(struct bc *bc) {
     if (compile_rec_internal_item(bc) < 0)
       return COMP_ERR;
 
-    if (size == UINT8_MAX) {
-      compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_INITIALIZER, "");
-      return COMP_ERR;
-    }
+    if (size > GAB_ARG_MAX)
+      return compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_INITIALIZER, "");
 
     if (skip_newlines(bc) < 0)
       return COMP_ERR;
@@ -2130,10 +2062,8 @@ int compile_record_tuple(struct bc *bc) {
   if (size < 0)
     return COMP_ERR;
 
-  if (size > 255) {
-    compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_INITIALIZER, "");
-    return COMP_ERR;
-  }
+  if (size > GAB_ARG_MAX)
+    return compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS_IN_INITIALIZER, "");
 
   if (expect_token(bc, TOKEN_RBRACE) < 0)
     return COMP_ERR;
@@ -2146,6 +2076,95 @@ fin:
   push_slot(bc, 1);
 
   return COMP_OK;
+}
+
+int compile_arg_list(struct bc *bc, bool *mv_out) {
+  int nargs = 0;
+
+  if (!match_token(bc, TOKEN_RPAREN)) {
+
+    nargs = compile_tuple(bc, VAR_EXP, mv_out);
+
+    if (nargs < 0)
+      return COMP_ERR;
+  }
+
+  if (expect_token(bc, TOKEN_RPAREN) < 0)
+    return COMP_ERR;
+
+  return nargs;
+}
+
+enum {
+  fHAS_PAREN = 1 << 0,
+  fHAS_BRACK = 1 << 1,
+  fHAS_DO = 1 << 2,
+  fHAS_STRING = 1 << 3,
+  fHAS_FATARROW = 1 << 4,
+};
+
+int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
+  int result = 0;
+  *mv_out = false;
+
+  if (flags & fHAS_PAREN ||
+      (~flags & fHAS_DO && match_and_eat_token(bc, TOKEN_LPAREN))) {
+    // Normal function args
+    result = compile_arg_list(bc, mv_out);
+
+    if (result < 0)
+      return COMP_ERR;
+  }
+
+  if (flags & fHAS_STRING || match_and_eat_token(bc, TOKEN_SIGIL) ||
+      match_and_eat_token(bc, TOKEN_STRING) ||
+      match_and_eat_token(bc, TOKEN_INTERPOLATION_BEGIN)) {
+
+    if (*mv_out)
+      push_trim(bc, 1, bc->offset - 1);
+
+    if (compile_string(bc) < 0)
+      return COMP_ERR;
+
+    result += 1 + *mv_out;
+    *mv_out = false;
+  }
+
+  if (flags & fHAS_BRACK || match_and_eat_token(bc, TOKEN_LBRACK)) {
+    if (*mv_out)
+      push_trim(bc, 1, bc->offset - 1);
+    // record argument
+    if (compile_record(bc) < 0)
+      return COMP_ERR;
+
+    result += 1 + *mv_out;
+    *mv_out = false;
+  }
+
+  if (flags & fHAS_FATARROW || match_and_eat_token(bc, TOKEN_FAT_ARROW)) {
+    if (*mv_out)
+      push_trim(bc, 1, bc->offset - 1);
+
+    if (compile_lambda(bc, bc->offset - 1) < 0)
+      return COMP_ERR;
+
+    result += 1 + *mv_out;
+    *mv_out = false;
+  } else if (flags & fHAS_DO || match_and_eat_token(bc, TOKEN_DO)) {
+    if (*mv_out)
+      push_trim(bc, 1, bc->offset - 1);
+
+    if (compile_block(bc, gab_nil) < 0)
+      return COMP_ERR;
+
+    result += 1 + *mv_out;
+    *mv_out = false;
+  }
+
+  if (result > GAB_ARG_MAX)
+    return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
+
+  return result;
 }
 
 //---------------- Compiling Expressions ------------------
@@ -2338,68 +2357,17 @@ int compile_exp_def(struct bc *bc, bool assignable) {
 
   switch (prev_tok(bc)) {
   case TOKEN_IDENTIFIER:
-  case TOKEN_PLUS:
-  case TOKEN_MINUS:
-  case TOKEN_STAR:
-  case TOKEN_SLASH:
-  case TOKEN_LESSER:
-  case TOKEN_LESSER_EQUAL:
-  case TOKEN_LESSER_LESSER:
-  case TOKEN_GREATER:
-  case TOKEN_GREATER_EQUAL:
-  case TOKEN_GREATER_GREATER:
-  case TOKEN_EQUAL_EQUAL:
-  case TOKEN_PIPE:
-  case TOKEN_AMPERSAND:
     name = prev_src(bc);
     break;
   case TOKEN_DOT_DOT:
-    name = prev_src(bc);
-
     if (match_and_eat_token(bc, TOKEN_IDENTIFIER))
       if (assignable && !match_ctx(bc, kTUPLE))
         return compile_lvalue(bc, assignable, prev_id(bc), 0, true);
-
-    break;
-  case TOKEN_LPAREN:
-    name = prev_src(bc);
-
-    if (match_and_eat_token(bc, TOKEN_RPAREN)) {
-      name.len++;
-      goto fin;
-    }
-
-    if (compile_expression(bc) < 0)
-      return COMP_ERR;
-
-    if (expect_token(bc, TOKEN_RPAREN) < 0)
-      return COMP_ERR;
-
-    return compile_message(bc, gab_nil, bc->offset - 1);
-
-  case TOKEN_LBRACE: {
-    name = prev_src(bc);
-    if (match_and_eat_token(bc, TOKEN_RBRACE)) {
-      name.len++;
-      goto fin;
-    }
-
-    if (match_and_eat_token(bc, TOKEN_EQUAL)) {
-      if (!expect_token(bc, TOKEN_RBRACE))
-        return COMP_ERR;
-
-      name.len += 2;
-      goto fin;
-    }
-  }
   default:
     eat_token(bc);
-    compiler_error(bc, GAB_MALFORMED_TOKEN,
-                   "This is an invalid specialization definition");
-    return COMP_ERR;
+    return compiler_error(bc, GAB_MALFORMED_TOKEN, "Invalid definition");
   }
 
-fin:
   if (assignable && !match_ctx(bc, kTUPLE))
     if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
       return compile_lvalue(
@@ -2431,17 +2399,6 @@ fin:
 
   if (match_and_eat_token(bc, TOKEN_EQUAL)) {
     if (compile_expression(bc) < 0)
-      return COMP_ERR;
-
-    push_storel((bc), local, t);
-
-    init_local(bc, local);
-
-    return COMP_OK;
-  }
-
-  if (match_token(bc, TOKEN_LBRACE)) {
-    if (compile_message(bc, val_name, t) < 0)
       return COMP_ERR;
 
     push_storel((bc), local, t);
@@ -2485,10 +2442,8 @@ int compile_exp_ipm(struct bc *bc, bool assignable) {
   if (local - 1 >= f->narguments) {
     // There will always be at least one more local than arguments -
     //   The self local!
-    if ((f->nlocals - f->narguments) > 1) {
-      compiler_error(bc, GAB_INVALID_IMPLICIT, "");
-      return COMP_ERR;
-    }
+    if ((f->nlocals - f->narguments) > 1)
+      return compiler_error(bc, GAB_INVALID_IMPLICIT, "");
 
     uint8_t missing_locals = local - f->narguments;
 
@@ -2509,14 +2464,12 @@ int compile_exp_ipm(struct bc *bc, bool assignable) {
   switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
 
   case COMP_OK: {
-    if (!assignable) {
-      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
-      return COMP_ERR;
-    }
+    if (!assignable)
+      return compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
 
-    compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
-                   "Parameters are not assignable, implicit or otherwise.");
-    return COMP_ERR;
+    return compiler_error(
+        bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+        "Parameters are not assignable, implicit or otherwise.");
   }
 
   case COMP_TOKEN_NO_MATCH:
@@ -2559,9 +2512,28 @@ int compile_exp_idn(struct bc *bc, bool assignable) {
 
     return COMP_OK;
 
-  case COMP_ID_NOT_FOUND:
-    compiler_error(bc, GAB_MISSING_IDENTIFIER, "");
-    return COMP_ERR;
+  case COMP_ID_NOT_FOUND: {
+    size_t t = bc->offset - 1;
+    gab_value id = prev_id(bc);
+
+    push_loadi(bc, kGAB_UNDEFINED, t);
+    push_slot(bc, 1);
+
+    bool mv;
+    int result = compile_arguments(bc, &mv, 0);
+
+    if (result < 0)
+      return COMP_ERR;
+
+    if (result > GAB_ARG_MAX)
+      return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
+
+    push_send(bc, id, result, mv, t);
+
+    pop_slot(bc, result);
+
+    return VAR_EXP;
+  }
 
   default:
     return COMP_ERR;
@@ -2625,124 +2597,6 @@ int compile_exp_idx(struct bc *bc, bool assignable) {
 
   pop_slot(bc, 2);
   push_slot(bc, 1);
-
-  return VAR_EXP;
-}
-
-int compile_arg_list(struct bc *bc, bool *mv_out) {
-  int nargs = 0;
-
-  if (!match_token(bc, TOKEN_RPAREN)) {
-
-    nargs = compile_tuple(bc, VAR_EXP, mv_out);
-
-    if (nargs < 0)
-      return COMP_ERR;
-  }
-
-  if (expect_token(bc, TOKEN_RPAREN) < 0)
-    return COMP_ERR;
-
-  return nargs;
-}
-
-enum {
-  fHAS_PAREN = 1 << 0,
-  fHAS_BRACK = 1 << 1,
-  fHAS_DO = 1 << 2,
-  fHAS_STRING = 1 << 3,
-  fHAS_FATARROW = 1 << 4,
-};
-
-int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
-  int result = 0;
-  *mv_out = false;
-
-  if (flags & fHAS_PAREN ||
-      (~flags & fHAS_DO && match_and_eat_token(bc, TOKEN_LPAREN))) {
-    // Normal function args
-    result = compile_arg_list(bc, mv_out);
-
-    if (result < 0)
-      return COMP_ERR;
-  }
-
-  if (flags & fHAS_STRING || match_and_eat_token(bc, TOKEN_SIGIL) ||
-      match_and_eat_token(bc, TOKEN_STRING) ||
-      match_and_eat_token(bc, TOKEN_INTERPOLATION_BEGIN)) {
-
-    if (*mv_out)
-      push_trim(bc, 1, bc->offset - 1);
-
-    if (compile_string(bc) < 0)
-      return COMP_ERR;
-
-    result += 1 + *mv_out;
-    *mv_out = false;
-  }
-
-  if (flags & fHAS_BRACK || match_and_eat_token(bc, TOKEN_LBRACK)) {
-    if (*mv_out)
-      push_trim(bc, 1, bc->offset - 1);
-    // record argument
-    if (compile_record(bc) < 0)
-      return COMP_ERR;
-
-    result += 1 + *mv_out;
-    *mv_out = false;
-  }
-
-  if (flags & fHAS_FATARROW || match_and_eat_token(bc, TOKEN_FAT_ARROW)) {
-    if (*mv_out)
-      push_trim(bc, 1, bc->offset - 1);
-
-    if (compile_lambda(bc, bc->offset - 1) < 0)
-      return COMP_ERR;
-
-    result += 1 + *mv_out;
-    *mv_out = false;
-  } else if (flags & fHAS_DO || match_and_eat_token(bc, TOKEN_DO)) {
-    if (*mv_out)
-      push_trim(bc, 1, bc->offset - 1);
-
-    if (compile_block(bc, gab_nil) < 0)
-      return COMP_ERR;
-
-    result += 1 + *mv_out;
-    *mv_out = false;
-  }
-
-  if (result > 254) {
-    compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
-    return COMP_ERR;
-  }
-
-  return result;
-}
-
-int compile_exp_emp(struct bc *bc, bool assignable) {
-  size_t t = bc->offset - 1;
-
-  gab_value val_name = trim_prev_id(bc);
-
-  push_loadi(bc, kGAB_UNDEFINED, t);
-
-  push_slot(bc, 1);
-
-  bool mv;
-  int result = compile_arguments(bc, &mv, 0);
-
-  if (result < 0)
-    return COMP_ERR;
-
-  if (result > GAB_ARG_MAX) {
-    compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
-    return COMP_ERR;
-  }
-
-  push_send(bc, val_name, result, mv, t);
-
-  pop_slot(bc, result);
 
   return VAR_EXP;
 }
@@ -2820,15 +2674,14 @@ int compile_exp_amp(struct bc *bc, bool assignable) {
     expect_token(bc, TOKEN_RBRACE);
     break;
   default:
-    compiler_error(bc, GAB_MALFORMED_MESSAGE_LITERAL,
-                   "A message literal is either:\n"
-                   " | &:a_normal_message\n"
-                   " | &+ # or a builtin message, like " ANSI_COLOR_GREEN
-                   "PLUS" ANSI_COLOR_RESET "\n"
-                   "\nWhat follows the " ANSI_COLOR_GREEN
-                   "AMPERSAND" ANSI_COLOR_RESET
-                   " is exactly what you would type to send the message.\n");
-    return COMP_ERR;
+    return compiler_error(
+        bc, GAB_MALFORMED_MESSAGE_LITERAL,
+        "A message literal is either:\n"
+        " | &:a_normal_message\n"
+        " | &+ # or a builtin message, like " ANSI_COLOR_GREEN
+        "PLUS" ANSI_COLOR_RESET "\n"
+        "\nWhat follows the " ANSI_COLOR_GREEN "AMPERSAND" ANSI_COLOR_RESET
+        " is exactly what you would type to send the message.\n");
   }
 
   push_loadk(bc, gab_message(gab(bc), gab_string(gab(bc), msg)),
@@ -2857,10 +2710,8 @@ int compile_exp_dyn(struct bc *bc, bool assignable) {
   if (result < 0)
     return COMP_ERR;
 
-  if (result > GAB_ARG_MAX) {
-    compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
-    return COMP_ERR;
-  }
+  if (result > GAB_ARG_MAX)
+    return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
 
   pop_slot(bc, 1 + result + mv);
 
@@ -2897,10 +2748,8 @@ int compile_exp_snd(struct bc *bc, bool assignable) {
   if (result < 0)
     return COMP_ERR;
 
-  if (result > GAB_ARG_MAX) {
-    compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
-    return COMP_ERR;
-  }
+  if (result > GAB_ARG_MAX)
+    return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
 
   pop_slot(bc, result + 1 + mv);
 
@@ -2920,10 +2769,8 @@ int compile_exp_cal(struct bc *bc, bool assignable) {
   if (result < 0)
     return COMP_ERR;
 
-  if (result > 254) {
-    compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
-    return COMP_ERR;
-  }
+  if (result > GAB_ARG_MAX)
+    return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
 
   pop_slot(bc, result + 1 + mv);
 
@@ -3010,20 +2857,18 @@ int compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
 
   if (rule.prefix == NULL) {
     s_char p = prev_src(bc);
-    compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                   FMT_UNEXPECTEDTOKEN " $ cannot begin an expression.",
-                   gab_string(gab(bc), "EXPRESSION"),
-                   gab_nstring(gab(bc), p.len, p.data));
-    return COMP_ERR;
+    return compiler_error(bc, GAB_UNEXPECTED_TOKEN,
+                          FMT_UNEXPECTEDTOKEN " $ cannot begin an expression.",
+                          gab_string(gab(bc), "EXPRESSION"),
+                          gab_nstring(gab(bc), p.len, p.data));
   }
 
   bool assignable = prec <= kASSIGNMENT;
 
   int have = rule.prefix(bc, assignable);
 
-  if (have == VAR_EXP) {
+  if (have == VAR_EXP)
     push_trim(bc, 1, bc->offset - 1);
-  }
 
   while (prec <= get_rule(curr_tok(bc)).prec) {
     if (have < 0)
@@ -3035,19 +2880,15 @@ int compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
     rule = get_rule(prev_tok(bc));
 
     if (rule.infix != NULL) {
-      // Treat this as an infix expression.
       have = rule.infix(bc, assignable);
 
-      if (have == VAR_EXP) {
+      if (have == VAR_EXP)
         push_trim(bc, 1, bc->offset - 1);
-      }
     }
   }
 
-  if (!assignable && match_token(bc, TOKEN_EQUAL)) {
-    compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
-    return COMP_ERR;
-  }
+  if (!assignable && match_token(bc, TOKEN_EQUAL))
+    return compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
 
   return have;
 }
@@ -3086,10 +2927,8 @@ int compile_exp_yld(struct bc *bc, bool assignable) {
   if (result < 0)
     return COMP_ERR;
 
-  if (result > 16) {
-    compiler_error(bc, GAB_TOO_MANY_RETURN_VALUES, "");
-    return COMP_ERR;
-  }
+  if (result > GAB_RET_MAX)
+    return compiler_error(bc, GAB_TOO_MANY_RETURN_VALUES, "");
 
   gab_value proto = gab_sprototype(gab(bc), bc->src, f->name, f->bc.len + 4);
 
@@ -3122,12 +2961,11 @@ int compile_exp_rtn(struct bc *bc, bool assignable) {
   if (result < 0)
     return COMP_ERR;
 
-  if (result > GAB_RET_MAX) {
-    compiler_error(
+  if (result > GAB_RET_MAX)
+    return compiler_error(
         bc, GAB_TOO_MANY_RETURN_VALUES,
-        "For arbitrary reasons, blocks cannot return more than 255 values.");
-    return COMP_ERR;
-  }
+        "For arbitrary reasons, blocks cannot return more than $ values.",
+        gab_number(GAB_RET_MAX));
 
   push_ret(bc, result, mv, bc->offset - 1);
 
@@ -3155,31 +2993,31 @@ const struct compile_rule rules[] = {
     PREFIX(def),                            // DEF
     PREFIX(rtn),                            // RETURN
     PREFIX(yld),                            // YIELD
-    INFIX(bin, SEND, false),              // PLUS
-    PREFIX_INFIX(una, bin, SEND, false),  // MINUS
-    INFIX(bin, SEND, false),              // STAR
-    INFIX(bin, SEND, false),              // SLASH
-    INFIX(bin, SEND, false),              // PERCENT
+    INFIX(bin, SEND, false),                // PLUS
+    PREFIX_INFIX(una, bin, SEND, false),    // MINUS
+    INFIX(bin, SEND, false),                // STAR
+    INFIX(bin, SEND, false),                // SLASH
+    INFIX(bin, SEND, false),                // PERCENT
     NONE(),                                 // COMMA
     INFIX(dyn, SEND, false),                // COLON
-    PREFIX_INFIX(amp, bin, SEND, false),  // AMPERSAND
+    PREFIX_INFIX(amp, bin, SEND, false),    // AMPERSAND
     NONE(),                                 // DOLLAR
     PREFIX_INFIX(sym, symcal, SEND, false), // SYMBOL
-    PREFIX_INFIX(emp, snd, SEND, true),     // MESSAGE
+    INFIX(snd, SEND, true),                 // MESSAGE
     NONE(),                                 // DOT
     PREFIX(splt),                           // DOTDOT
     NONE(),                                 // EQUAL
-    INFIX(bin, SEND, false),              // EQUALEQUAL
+    INFIX(bin, SEND, false),                // EQUALEQUAL
     PREFIX(una),                            // QUESTION
     NONE(),                                 // BANG
     NONE(),                                 // AT
     NONE(),                                 // COLON_EQUAL
-    INFIX(bin, SEND, false),              // LESSER
-    INFIX(bin, SEND, false),              // LESSEREQUAL
-    INFIX(bin, SEND, false),              // LESSERLESSER
-    INFIX(bin, SEND, false),              // GREATER
-    INFIX(bin, SEND, false),              // GREATEREQUAL
-    INFIX(bin, SEND, false),              // GREATER_GREATER
+    INFIX(bin, SEND, false),                // LESSER
+    INFIX(bin, SEND, false),                // LESSEREQUAL
+    INFIX(bin, SEND, false),                // LESSERLESSER
+    INFIX(bin, SEND, false),                // GREATER
+    INFIX(bin, SEND, false),                // GREATEREQUAL
+    INFIX(bin, SEND, false),                // GREATER_GREATER
     NONE(),                                 // ARROW
     PREFIX_INFIX(lmb, lmbcal, SEND, false), // FATARROW
     PREFIX(una),                            // NOT
@@ -3189,7 +3027,7 @@ const struct compile_rule rules[] = {
     NONE(),                                 // RBRACK
     PREFIX_INFIX(grp, cal, SEND, false),    // LPAREN
     NONE(),                                 // RPAREN
-    INFIX(bin, SEND, false),              // PIPE
+    INFIX(bin, SEND, false),                // PIPE
     PREFIX(idn),                            // ID
     PREFIX(ipm),                            // IMPLICIT
     PREFIX_INFIX(str, scal, SEND, false),   // STRING
@@ -3221,9 +3059,8 @@ gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
 
   if (curr_tok(bc) == TOKEN_ERROR) {
     eat_token(bc);
-    compiler_error(bc, GAB_MALFORMED_TOKEN,
-                   "This token is malformed or unrecognized.");
-    return gab_undefined;
+    return compiler_error(bc, GAB_MALFORMED_TOKEN,
+                          "This token is malformed or unrecognized.");
   }
 
   for (uint8_t i = 0; i < narguments; i++)
@@ -3283,10 +3120,10 @@ gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
   return module;
 }
 
-static void compiler_error(struct bc *bc, enum gab_status e,
-                           const char *note_fmt, ...) {
+static int compiler_error(struct bc *bc, enum gab_status e,
+                          const char *note_fmt, ...) {
   if (bc->panic)
-    return;
+    return COMP_ERR;
 
   bc->panic = true;
 
@@ -3303,6 +3140,8 @@ static void compiler_error(struct bc *bc, enum gab_status e,
               });
 
   va_end(va);
+
+  return COMP_ERR;
 }
 
 uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
@@ -3550,28 +3389,6 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
     return dumpReturnInstruction(stream, self, offset);
   case OP_YIELD: {
     return dumpYieldInstruction(stream, self, offset);
-  }
-  case OP_SPEC: {
-    offset++;
-    uint16_t proto_constant =
-        ((((uint16_t)self->src->bytecode.data[offset]) << 8) |
-         self->src->bytecode.data[offset + 1]);
-    offset += 4;
-
-    gab_value pval = v_gab_value_val_at(&self->src->constants, proto_constant);
-    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(pval);
-
-    fprintf(stream, "%-25s" ANSI_COLOR_CYAN "%-20s\n" ANSI_COLOR_RESET,
-            "OP_MESSAGE", gab_strdata(&p->name));
-
-    for (int j = 0; j < p->as.block.nupvalues; j++) {
-      uint8_t flags = p->data[j * 2];
-      uint8_t index = p->data[j * 2 + 1];
-      int isLocal = flags & fVAR_LOCAL;
-      printf("      |                   %d %s\n", index,
-             isLocal ? "local" : "upvalue");
-    }
-    return offset;
   }
   case OP_BLOCK: {
     offset++;

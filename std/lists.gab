@@ -1,61 +1,59 @@
-:use .list
+def lists.t = :use .list
 
-def [][.gab.list](key)
+&[] :def!(lists.t) do (key)
   self:at(key)
 end
 
-def [=][.gab.list](key, val)
+&[=] :def!(lists.t) do (key, val)
   self:put!(key, val)
 end
 
-def lists.build[.gab.suspense](l, p)
+&:lists.build :def!(lists.t) do (l, p)
   l:push!(p)
 
-  def ..args, def next = self()
+  &:..args, def next = self()
 
   next:lists.build(l, args)
 end
 
-def lists.build[](l, p)
+&:lists.build :def! do (l, p)
   l:push!(p)
 end
 
-def lists.collect[](msg, ..p)
-  def l = :list.new
+&:lists.collect :def! do (msg, ..p)
+  &:l = :list.new
 
   ..args, s = self:(msg)(..p)
 
   s:lists.build(l, args)
 end
 
-def lists.values[.gab.list](i)
+&:lists.values :def!(lists.t) do (i)
   self:len > i :and do
     yield self:at(i)
     self:lists.values(i + 1)
   end
 end
 
-def values[.gab.list]
+&:values :def!(lists.t) do
   self:lists.values(0)
 end
 
-def lists.pairs[.gab.list](i)
+&:lists.pairs :def!(lists.t) do (i)
   self:len > i :and do
     yield i, self:at(i)
     self:lists.pairs(i + 1)
   end
 end
 
-def pairs[.gab.list]
+&:pairs :def!(lists.t) =>
   self:lists.pairs(0)
-end
 
-def <<[.gab.list](other)
+&<< :def!(lists.t) do (other)
   other:for(&:values) => self:push!(@1)
   
   self
 end
 
-def empty?[.gab.list]
+&:empty? :def!(lists.t) =>
   self:len == 0
-end

@@ -138,6 +138,11 @@ struct primitive specific_primitive[] = {
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_SET),
     },
     {
+        .name = mGAB_DEF,
+        .type = kGAB_MESSAGE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_DEF),
+    },
+    {
         .name = mGAB_CALL,
         .type = kGAB_NATIVE,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_NATIVE),

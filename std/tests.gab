@@ -2,50 +2,48 @@
 :use 'records'
 :use 'lists'
 
-def TestState  { fails, errs }
+def TestState = ?{ fails, errs }
 
-def testState[]
+&:testState :def! do
     :record.new(TestState):reset
 end
 
-def reset[TestState]
+&:reset :def!(TestState) do
     self:fails = 0
     self:errs = :list.new
 
     self
 end
 
-def fail[TestState](got, expected)
+&:fail :def!(TestState) do (got, expected)
     self:fails = self:fails + 1
     self:errs:push!([got, expected])
 end
 
-def passed?[TestState]
+&:passed? :def!(TestState) =>
     self:fails == 0
-end
 
-def show_errs[TestState]
+&:show_errs :def! (TestState) =>
     self:errs:for(&:values) do (mismatch)
         '     - got {mismatch[0]}, expecting {mismatch[1]}':print
     end
-end
 
 def T = :testState
 
-def expect[](other)
-    (self == other) :or => T:fail(self, other)
+&:expect :def! do (other)
+    self == other :or => T:fail(self, other)
 end
 
-def expect_not[](other)
+&:expect_not :def! do (other)
     (self == other) :and => T:fail(self, other)
 end
 
-def describe[](name, cb)
+&:describe :def! do (name, cb)
   '\n{name}:':print
   cb()
 end
 
-def it[](name, cb)
+&:it :def! do (name, cb)
   T:reset
 
   cb()

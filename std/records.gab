@@ -1,7 +1,7 @@
 :use .rec
 :use .symbol
 
-def tuples.build[.gab.suspense](t, p, n, i)
+&:tuples.build :def! .gab.suspense do (t, p, n, i)
   t:put!(i, p)
 
   def ..args, def next = self()

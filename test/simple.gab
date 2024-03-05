@@ -1,37 +1,13 @@
-# How to handle situations where we want early returns?
+&:test.next :case {
+  [false] ==> nil
+}
 
-# Smalltalk does this with non-local returns. This way, blocks can return for the whole message send.
+&:at :def .gab.map do
+  self
+end
 
-# I could do the same thing, but I"m not a *huge* fan of it
-
-{
-  [?value == .gab.list] ==> return false, self, value,
-  .else ==> value:for(&:pairs), do (k, v)
-    spec:spec.fits?(v) or return false, self, value, k
-  end
-}:cond
-
-?value == .gab.list :and (self, value) =>
-  value:first(&:pairs) do (k, v)
-    spec:spec.fits?(v) :and (.some, false, self, v, k) => .none
-  end :unwrap_or(true, self, value)
-
-
-# This is making some interesting patterns come to pass.
-# Because there is no way to early return, everything becomes piped into everything else
-# in ever-nesting blocks. Maybe I should just implement non-local return
-# This would also make inlining easier/simpler
-
-
-
-args :first(
-  &:apply,
-  [&:spec.input_fits?, &:spec.output_fits?, &:spec.semantics_fits?],
-  &:option.into,
-)
-  
-
-=> @1:input:spec.fits?(..input)
-=> @1:output:spec.fits?(..output)
-
-args:input:spec.fits?(..input):and
+&:streams.fold :def! {
+  [.gab.suspense] = do (p, acc, cb)
+  end,
+  [] = => @2 
+}

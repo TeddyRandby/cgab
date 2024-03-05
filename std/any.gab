@@ -1,14 +1,16 @@
-def is?[](other)
+&:is :def! do
   ?self == other
 end
 
-def is_b?[]        ; false end
-def is_b?[.Boolean]; true end
+&is_n? :def! {
+  [] = => false,
+  .gab.number = => true,
+}
 
-def is_n?[]       ; false end
-def is_n?[.Number]; true end
+&:is_s? :def! {
+  [] = => false,
+  .gab.string = => true,
+}
 
-def is_s?[]       ; false end
-def is_s?[.String]; true end
 
-def to_b[]; self end
+&:boolean.into :def! => self
