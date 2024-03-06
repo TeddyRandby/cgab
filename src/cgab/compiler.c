@@ -41,6 +41,7 @@ enum lvalue_k {
   kEXISTING_REST_LOCAL,
   kPROP,
   kINDEX,
+  kDYN_PROP,
 };
 
 struct lvalue {
@@ -1629,6 +1630,7 @@ static int compile_assignment(struct bc *bc, struct lvalue target) {
       pop_slot(bc, 1);
       break;
 
+    case kDYN_PROP:
     case kINDEX:
     case kPROP:
       push_shift(bc, peek_slot(bc) - lval.slot, t);
@@ -1649,6 +1651,16 @@ static int compile_assignment(struct bc *bc, struct lvalue target) {
         push_loadl(bc, lval.as.local, t), push_slot(bc, 1);
 
       break;
+
+    case kDYN_PROP: {
+      push_dynsend(bc, 1, false, t);
+
+      if (!is_last_assignment)
+        push_pop(bc, 1, t);
+
+      pop_slot(bc, 2 + !is_last_assignment);
+      break;
+    }
 
     case kPROP: {
       push_send(bc, lval.as.property, 1, false, t);
@@ -1715,6 +1727,7 @@ static int compile_lvalue(struct bc *bc, bool assignable, gab_value name,
                                       .as.local = index,
                                   });
   }
+
   case COMP_RESOLVED_TO_UPVALUE:
     return compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
                           "Captured variables are not assignable.");
@@ -1994,22 +2007,54 @@ int compile_send(struct bc *bc, bool assignable) {
   if (optional_newline(bc) < 0)
     return COMP_ERR;
 
+  if (match_and_eat_token(bc, TOKEN_LBRACK)) {
+    size_t t = bc->offset - 1;
+
+    if (compile_expression(bc) < 0)
+      return COMP_ERR;
+
+    if (expect_token(bc, TOKEN_RBRACK) < 0)
+      return COMP_ERR;
+
+    if (assignable && !match_ctx(bc, kTUPLE))
+      if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
+        return compile_assignment(bc, (struct lvalue){
+                                          .kind = kDYN_PROP,
+                                          .slot = peek_slot(bc),
+                                      });
+
+    bool mv = false;
+    int result = compile_arguments(bc, &mv, 0);
+
+    if (result < 0)
+      return COMP_ERR;
+
+    if (result > GAB_ARG_MAX)
+      return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
+
+    pop_slot(bc, result + 1 + mv);
+
+    push_dynsend(bc, result, mv, t);
+
+    push_slot(bc, 1);
+
+    return VAR_EXP;
+  }
+
   if (!match_and_eat_tokoneof(bc, TOKEN_IDENTIFIER, TOKEN_OPERATOR))
-    return compiler_error(bc, GAB_MALFORMED_MESSAGE,
-                          "Expected an identifier or operator");
+    return compiler_error(bc, GAB_MALFORMED_MESSAGE, "");
 
   size_t t = bc->offset - 1;
 
   gab_value name = prev_id(bc);
 
   if (assignable && !match_ctx(bc, kTUPLE)) {
-    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
+    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
       return compile_assignment(bc, (struct lvalue){
                                         .kind = kPROP,
                                         .slot = peek_slot(bc),
                                         .as.property = name,
                                     });
-    }
 
     if (match_ctx(bc, kASSIGNMENT_TARGET)) {
       eat_token(bc);
@@ -2276,14 +2321,12 @@ int compile_exp_idx(struct bc *bc, bool assignable) {
   if (expect_token(bc, TOKEN_RBRACE) < 0)
     return COMP_ERR;
 
-  if (assignable && !match_ctx(bc, kTUPLE)) {
-    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
+  if (assignable && !match_ctx(bc, kTUPLE))
+    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
       return compile_assignment(bc, (struct lvalue){
                                         .kind = kINDEX,
                                         .slot = peek_slot(bc),
                                     });
-    }
-  }
 
   push_send(bc, gab_string(gab(bc), mGAB_GET), 1, false, t);
 

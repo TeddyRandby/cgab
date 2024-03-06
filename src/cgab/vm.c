@@ -1700,9 +1700,7 @@ CASE_CODE(DYNSEND) {
   case kGAB_BLOCK: {
     // Shift our args down and forget about the message being called
     memmove(SP() - have, SP() - arity, arity * sizeof(gab_value));
-    SP() -= 1;
-
-    SET_VAR(have);
+    DROP();
 
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
 
@@ -1715,8 +1713,7 @@ CASE_CODE(DYNSEND) {
   case kGAB_NATIVE: {
     // Shift our args down and forget about the message being called
     memmove(SP() - have, SP() - arity, arity * sizeof(gab_value));
-    SP() -= 1;
-    VAR() = have;
+    DROP();
 
     struct gab_obj_native *n = GAB_VAL_TO_NATIVE(spec);
 
@@ -1731,10 +1728,9 @@ CASE_CODE(DYNSEND) {
     // TODO: Handle primitive calls with the wrong number of
     // arguments
     uint8_t op = gab_valtop(spec);
-    uint8_t want = op >= OP_SEND_PRIMITIVE_CALL_NATIVE ? have : 1;
-    memmove(SP() - have, SP() - arity, want * sizeof(gab_value));
-    SP() -= (have - want);
-    VAR() = have;
+    memmove(SP() - have, SP() - arity, have * sizeof(gab_value));
+    DROP();
+    SET_VAR(have);
 
     IP() -= SEND_CACHE_DIST - 1;
 

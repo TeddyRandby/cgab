@@ -34,8 +34,11 @@ bool can_start_operator(uint8_t c) {
   case '<':
   case '>':
   case '?':
-  case ':':
   case '~':
+  case '[':
+  case ']':
+  case '(':
+  case ')':
     return true;
   default:
     return false;
@@ -150,6 +153,29 @@ const keyword keywords[] = {
     },
 };
 
+const keyword non_operators[] = {
+    {
+        "=",
+        TOKEN_EQUAL,
+    },
+    {
+        "(",
+        TOKEN_LPAREN,
+    },
+    {
+        ")",
+        TOKEN_RPAREN,
+    },
+    {
+        "[",
+        TOKEN_LBRACE,
+    },
+    {
+        "]",
+        TOKEN_RBRACE,
+    },
+};
+
 gab_token string(gab_lx *self) {
   uint8_t start = peek(self);
   uint8_t stop = start == '"' ? '"' : '\'';
@@ -184,6 +210,14 @@ gab_token string(gab_lx *self) {
 gab_token operator(gab_lx *self) {
   while (can_continue_operator(peek(self)))
     advance(self);
+
+  for (int i = 0; i < sizeof(non_operators) / sizeof(keyword); i++) {
+    keyword k = non_operators[i];
+    s_char lit = s_char_create(k.literal, strlen(k.literal));
+    if (s_char_match(self->current_token_src, lit)) {
+      return k.token;
+    }
+  }
 
   if (self->current_token_src.len == 1 &&
       self->current_token_src.data[0] == '=')
@@ -238,21 +272,6 @@ gab_token floating(gab_lx *self) {
 
 gab_token other(gab_lx *self) {
   switch (peek(self)) {
-  case '[':
-    advance(self);
-    return TOKEN_LBRACE;
-  case ']':
-    advance(self);
-    return TOKEN_RBRACE;
-  case '(':
-    advance(self);
-    return TOKEN_LPAREN;
-  case ')':
-    advance(self);
-    return TOKEN_RPAREN;
-  case ',':
-    advance(self);
-    return TOKEN_COMMA;
   case ';':
     advance(self);
     return TOKEN_NEWLINE;
@@ -262,6 +281,9 @@ gab_token other(gab_lx *self) {
   case ':':
     advance(self);
     return TOKEN_COLON;
+  case ',':
+    advance(self);
+    return TOKEN_COMMA;
 
   case '{':
     advance(self);
