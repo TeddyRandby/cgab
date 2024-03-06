@@ -31,16 +31,32 @@ struct primitive all_primitives[] = {
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_OR),
     },
     {
-        .name = mGAB_LOR,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
-    },
-    {
-        .name = mGAB_LND,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
+        .name = mGAB_TYPE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_TYPE),
     },
 };
 
 struct primitive specific_primitive[] = {
+    {
+        .name = mGAB_LOR,
+        .type = kGAB_TRUE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
+    },
+    {
+        .name = mGAB_LND,
+        .type = kGAB_TRUE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
+    },
+    {
+        .name = mGAB_LOR,
+        .type = kGAB_FALSE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
+    },
+    {
+        .name = mGAB_LND,
+        .type = kGAB_FALSE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
+    },
     {
         .name = mGAB_LIN,
         .type = kGAB_FALSE,
