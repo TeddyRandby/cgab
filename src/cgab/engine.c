@@ -40,13 +40,27 @@ struct primitive all_primitives[] = {
     },
 };
 
-/*
- * It is important that all primitives be FINAL -
- * as in, it is not possible for a gab program to define some
- * specialization which would take precedence OVER the primitive.
- * This is becayse of how dynamic message sends handle primitives
- */
 struct primitive specific_primitive[] = {
+    {
+        .name = mGAB_LIN,
+        .type = kGAB_FALSE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIN),
+    },
+    {
+        .name = mGAB_LIN,
+        .type = kGAB_TRUE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIN),
+    },
+    {
+        .name = mGAB_BIN,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_BIN),
+    },
+    {
+        .name = mGAB_BIN,
+        .type = kGAB_NUMBER,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_BIN),
+    },
     {
         .name = mGAB_BOR,
         .type = kGAB_NUMBER,
@@ -709,15 +723,19 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
 
   fputc('\n', stream);
 
+  fprintf(stream, "[" ANSI_COLOR_GREEN);
+
   if (args.src) {
-    fprintf(stream, "[" ANSI_COLOR_GREEN);
     gab_fvalinspect(stream, args.src->name, 0);
-    fprintf(stream, ANSI_COLOR_RESET "]");
+  } else {
+    fprintf(stream, "C");
   }
 
-  if (args.block != gab_nil) {
+  fprintf(stream, ANSI_COLOR_RESET "]");
+
+  if (args.message != gab_nil) {
     fprintf(stream, " " ANSI_COLOR_CYAN);
-    gab_fvalinspect(stream, args.block, 0);
+    gab_fvalinspect(stream, args.message, 0);
     fprintf(stream, ANSI_COLOR_RESET);
   }
 
@@ -783,8 +801,7 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
     }
   }
 
-  fprintf(stream,
-          "\n________________________________________________________\n");
+  fprintf(stream, "\n");
 
 fin:
   if (gab.flags & fGAB_EXIT_ON_PANIC) {

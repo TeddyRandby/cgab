@@ -104,7 +104,7 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
     return fprintf(stream, "%s", gab_strdata(&self));
   case kGAB_MESSAGE: {
     struct gab_obj_message *msg = GAB_VAL_TO_MESSAGE(self);
-    return fprintf(stream, "&:") + gab_fvalinspect(stream, msg->name, depth);
+    return fprintf(stream, "\\") + gab_fvalinspect(stream, msg->name, depth);
   }
   case kGAB_SHAPE: {
     struct gab_obj_shape *shape = GAB_VAL_TO_SHAPE(self);

@@ -124,21 +124,49 @@ static handler handlers[] = {
     return OP_TRIM_HANDLER(DISPATCH_ARGS());                                   \
   })
 
+#define IMPL_SEND_UNARY_NUMERIC(CODE, value_type, operation_type, operation)   \
+  CASE_CODE(SEND_##CODE) {                                                     \
+    SKIP_SHORT;                                                                \
+    uint64_t have = compute_arity(VAR(), READ_BYTE);                           \
+    if (__gab_unlikely(!__gab_valisn(PEEK_N(have))))                           \
+      MISS_CACHED_SEND();                                                      \
+    operation_type val = gab_valton(PEEK_N(have));                             \
+    DROP_N(have);                                                              \
+    PUSH(value_type(operation val));                                           \
+    SET_VAR(1);                                                                \
+    NEXT();                                                                    \
+  }
+
 #define IMPL_SEND_BINARY_NUMERIC(CODE, value_type, operation_type, operation)  \
   CASE_CODE(SEND_##CODE) {                                                     \
     SKIP_SHORT;                                                                \
-    SKIP_BYTE;                                                                 \
-    if (__gab_unlikely(!__gab_valisn(PEEK2())))                                \
+    uint64_t have = compute_arity(VAR(), READ_BYTE);                           \
+    if (__gab_unlikely(!__gab_valisn(PEEK_N(have))))                           \
       MISS_CACHED_SEND();                                                      \
-                                                                               \
-    if (__gab_unlikely(!__gab_valisn(PEEK()))) {                               \
+    if (__gab_unlikely(have < 2))                                              \
+      PUSH(gab_nil), have++;                                                   \
+    if (__gab_unlikely(!__gab_valisn(PEEK_N(have - 1)))) {                     \
       STORE_PRIMITIVE_ERROR_FRAME(1);                                          \
-      ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),                       \
-            gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));            \
+      ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK_N(have - 1),             \
+            gab_valtype(EG(), PEEK_N(have - 1)),                               \
+            gab_valtype(EG(), PEEK_N(have)));                                  \
     }                                                                          \
-    operation_type val_b = gab_valton(POP());                                  \
-    operation_type val_a = gab_valton(POP());                                  \
+    operation_type val_b = gab_valton(PEEK_N(have - 1));                       \
+    operation_type val_a = gab_valton(PEEK_N(have));                           \
+    DROP_N(have);                                                              \
     PUSH(value_type(val_a operation val_b));                                   \
+    SET_VAR(1);                                                                \
+    NEXT();                                                                    \
+  }
+
+#define IMPL_SEND_UNARY_BOOLEAN(CODE, value_type, operation_type, operation)   \
+  CASE_CODE(SEND_##CODE) {                                                     \
+    SKIP_SHORT;                                                                \
+    uint64_t have = compute_arity(VAR(), READ_BYTE);                           \
+    if (__gab_unlikely(!__gab_valisb(PEEK_N(have))))                           \
+      MISS_CACHED_SEND();                                                      \
+    operation_type val = gab_valintob(PEEK_N(have));                           \
+    PUSH(value_type(operation val));                                           \
     SET_VAR(1);                                                                \
     NEXT();                                                                    \
   }
@@ -146,14 +174,16 @@ static handler handlers[] = {
 #define IMPL_SEND_BINARY_BOOLEAN(CODE, value_type, operation_type, operation)  \
   CASE_CODE(SEND_##CODE) {                                                     \
     SKIP_SHORT;                                                                \
-    SKIP_BYTE;                                                                 \
-    if (__gab_unlikely(!__gab_valisb(PEEK2())))                                \
+    uint64_t have = compute_arity(VAR(), READ_BYTE);                           \
+    if (__gab_unlikely(!__gab_valisb(PEEK_N(have))))                           \
       MISS_CACHED_SEND();                                                      \
-                                                                               \
-    if (__gab_unlikely(!__gab_valisb(PEEK()))) {                               \
+    if (__gab_unlikely(have < 2))                                              \
+      PUSH(gab_nil), have++;                                                   \
+    if (__gab_unlikely(!__gab_valisb(PEEK_N(have - 1)))) {                     \
       STORE_PRIMITIVE_ERROR_FRAME(1);                                          \
-      ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),                       \
-            gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));            \
+      ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK_N(have - 1),             \
+            gab_valtype(EG(), PEEK_N(have - 1)),                               \
+            gab_valtype(EG(), PEEK_N(have)));                                  \
     }                                                                          \
     operation_type val_b = gab_valintob(POP());                                \
     operation_type val_a = gab_valintob(POP());                                \
@@ -216,7 +246,9 @@ static handler handlers[] = {
 #define STORE_PRIMITIVE_ERROR_FRAME(have)                                      \
   ({                                                                           \
     PUSH_FRAME();                                                              \
-    PUSH_ERROR_FRAME(have);                                                    \
+    if (!(IP()[-1] & fHAVE_TAIL)) {                                            \
+      PUSH_ERROR_FRAME(have);                                                  \
+    }                                                                          \
   })
 
 #define LOAD_FRAME()                                                           \
@@ -239,15 +271,29 @@ static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
   return token;
 }
 
+static inline gab_value compute_message_from_ip(struct gab_vm_frame *f) {
+  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
+
+  uint16_t k = ((uint16_t)f->ip[-3] << 8) | f->ip[-2];
+
+  gab_value m = v_gab_value_val_at(&p->src->constants, k);
+
+  return m;
+}
+
 /**
  * TODO: Introduce a way for native's to be on the stack here.
  * This way, stack traces won't look weird
  *
  */
 
-struct gab_err_argt vm_frame_build_err(struct gab_vm_frame *fp,
+struct gab_err_argt vm_frame_build_err(struct gab_vm_frame *fp, bool has_parent,
                                        enum gab_status s, const char *fmt) {
+
+  gab_value message = has_parent ? compute_message_from_ip(fp - 1) : gab_nil;
+
   if (fp->b) {
+
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(fp->b->p);
 
     size_t tok = compute_token_from_ip(fp);
@@ -257,14 +303,14 @@ struct gab_err_argt vm_frame_build_err(struct gab_vm_frame *fp,
         .src = p->src,
         .note_fmt = fmt,
         .status = s,
-        .block = __gab_obj(fp->b),
+        .message = message,
     };
   }
 
   return (struct gab_err_argt){
       .note_fmt = fmt,
       .status = s,
-      .block = gab_nil,
+      .message = message,
   };
 }
 
@@ -275,12 +321,13 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
   struct gab_triple dont_exit = gab;
   dont_exit.flags &= ~fGAB_EXIT_ON_PANIC;
 
-  while (f != gab.vm->fp) {
-    gab_fvpanic(dont_exit, stderr, NULL, vm_frame_build_err(f, GAB_NONE, ""));
+  while (f < gab.vm->fp) {
+    gab_fvpanic(dont_exit, stderr, NULL,
+                vm_frame_build_err(f, f > gab.vm->fb, GAB_NONE, ""));
     f++;
   }
 
-  gab_fvpanic(gab, stderr, va, vm_frame_build_err(f, s, fmt));
+  gab_fvpanic(gab, stderr, va, vm_frame_build_err(f, f > gab.vm->fb, s, fmt));
 
   gab_value results[] = {
       gab_string(gab, gab_status_names[s]),
@@ -960,20 +1007,16 @@ CASE_CODE(NPOPSTORE_LOCAL) {
 }
 
 IMPL_SEND_NATIVE()
-
 IMPL_SEND_BLOCK()
 IMPL_SEND_BLOCK(TAIL)
 IMPL_SEND_BLOCK(LOCAL)
 IMPL_SEND_BLOCK(LOCALTAIL)
-
 IMPL_SEND_PRIMITIVE_CALL_NATIVE()
-
 IMPL_SEND_PRIMITIVE_CALL_BLOCK()
 IMPL_SEND_PRIMITIVE_CALL_BLOCK(TAIL)
-
 IMPL_SEND_PRIMITIVE_CALL_SUSPENSE()
 IMPL_SEND_PRIMITIVE_CALL_SUSPENSE(TAIL)
-
+IMPL_SEND_UNARY_NUMERIC(PRIMITIVE_BIN, gab_number, uint64_t, ~);
 IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_ADD, gab_number, double, +);
 IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_SUB, gab_number, double, -);
 IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_MUL, gab_number, double, *);
@@ -987,7 +1030,7 @@ IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_LT, gab_bool, double, <);
 IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_LTE, gab_bool, double, >=);
 IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_GT, gab_bool, double, >);
 IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_GTE, gab_bool, double, >=);
-
+IMPL_SEND_UNARY_BOOLEAN(PRIMITIVE_LIN, gab_bool, bool, !);
 IMPL_SEND_BINARY_BOOLEAN(PRIMITIVE_LOR, gab_bool, bool, ||);
 IMPL_SEND_BINARY_BOOLEAN(PRIMITIVE_LND, gab_bool, bool, &&);
 
@@ -1346,28 +1389,16 @@ CASE_CODE(LOGICAL_OR) {
   NEXT();
 }
 
-CASE_CODE(NEGATE) {
-  if (__gab_unlikely(!__gab_valisn(PEEK()))) {
-    PUSH_FRAME();
-    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),
-          gab_valtype(EG(), PEEK()), gab_type(EG(), kGAB_NUMBER));
-  }
+CASE_CODE(SEND_PRIMITIVE_TYPE) {
+  SKIP_SHORT;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
 
-  gab_value new_value = gab_number(-gab_valton(POP()));
+  PEEK_N(have) = gab_valtype(EG(), PEEK_N(have));
 
-  PUSH(new_value);
+  DROP_N(have - 1);
 
-  NEXT();
-}
+  SET_VAR(1);
 
-CASE_CODE(NOT) {
-  gab_value new_value = gab_bool(!gab_valintob(POP()));
-  PUSH(new_value);
-  NEXT();
-}
-
-CASE_CODE(TYPE) {
-  PEEK() = gab_valtype(EG(), PEEK());
   NEXT();
 }
 
@@ -1577,7 +1608,7 @@ CASE_CODE(SEND) {
   struct gab_egimpl_rest res = gab_egimpl(EG(), m, r);
 
   if (__gab_unlikely(!res.status)) {
-    PUSH_FRAME();
+    STORE_PRIMITIVE_ERROR_FRAME(have);
     ERROR(GAB_IMPLEMENTATION_MISSING, FMT_MISSINGIMPL, m, r,
           gab_valtype(EG(), r));
   }

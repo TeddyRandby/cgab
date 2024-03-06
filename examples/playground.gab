@@ -1,58 +1,58 @@
-:use 'specs'
-:use 'numbers'
+ use 'specs'
+ use 'numbers'
 
 ## cars.gab
 def Car { car.make, car.model, car.year, car.color }
 
-:spec.def! 'car.make'  {
+ spec.def! 'car.make'  {
   help = "The car's manufacturer, ie 'Ford'",
-  spec = :spec.or('Ford', 'Chevy', 'Toyota', 'Honda'),
+  spec =  spec.or('Ford', 'Chevy', 'Toyota', 'Honda'),
 }
 
-:spec.def! 'car.year'  { spec = :spec.and(:spec.int, :spec.gt(2000)) }
-:spec.def! 'car.color' { spec = :spec.or('RED', 'BLUE', 'WHITE', 'BLACK') }
-:spec.def! 'car.model' { spec = :spec.or('Mustang', 'Civic', 'Camry', 'Prius') }
-:spec.def! 'car' { spec = :spec.protocol(Car) }
+ spec.def! 'car.year'  { spec =  spec.and( spec.int,  spec.gt(2000)) }
+ spec.def! 'car.color' { spec =  spec.or('RED', 'BLUE', 'WHITE', 'BLACK') }
+ spec.def! 'car.model' { spec =  spec.or('Mustang', 'Civic', 'Camry', 'Prius') }
+ spec.def! 'car' { spec =  spec.protocol(Car) }
 
-def car.paint.spec = :spec.def! 'car.paint' {
+def car.paint.spec =  spec.def! 'car.paint' {
     help = "Paint the car with the given color",
-    spec = :spec.message {
+    spec =  spec.message {
       # The receiver's spec
-      receiver = :spec 'car',
+      receiver =  spec 'car',
       # The message we spec over
-      message  = &:car.paint,
+      message  = \car.paint,
       # Fetch the spec 'car.color' for the input
-      input    = :spec 'car.color',
+      input    =  spec 'car.color',
       # Fetch the spec 'car.color' for the output
-      output   = :spec 'car.color',
+      output   =  spec 'car.color',
     } do (receiver, input, output)
-        input[0] == (receiver:car.color) :and => input[0] == output[0]
+        input[0] == (receiver car.color)  and => input[0] == output[0]
       end,
 }
 
 # Generate a mock car
-# test_car = car.spec:spec.gen
+# test_car = car.spec spec.gen
 
 # Test the mock coar with the mock implementation of car.paint
-# test_car:car.paint('BLUE') :print # => 'BLUE'
+# test_car car.paint('BLUE')  print # => 'BLUE'
 
 # Generate a mock implementation of car.paint for Car
-# car.paint.spec:spec.gen(Car)
+# car.paint.spec spec.gen(Car)
 
 # Define a faulty car.paint specialization
 def car.paint[Car](color)
-  self:car.color = 10
+  self car.color = 10
 end
 
-car.paint.spec:spec.explain:print
+car.paint.spec spec.explain print
 
 # Check our faulty implementation
-# &:spec.check yields a stream of predicate results.
+# & spec.check yields a stream of predicate results.
 # It generates receivers and inputs, sends the message,
 # And checks the output against the spec and semantics.
 # This code will run forever if the spec is always satisfied
-_, spec, value, path = car.paint.spec:first(&:spec.check) do (ok, spec, value, path)
-     ok :or => return .some, spec, value, path
+_, spec, value, path = car.paint.spec first(& spec.check) do (ok, spec, value, path)
+     ok  or => return .some, spec, value, path
   end
 
-:print(spec, value, path)
+ print(spec, value, path)

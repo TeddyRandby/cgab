@@ -50,6 +50,7 @@ enum variable_flag {
   fVAR_CAPTURED = 1 << 0,
   fVAR_MUTABLE = 1 << 1,
   fVAR_LOCAL = 1 << 2,
+  fVAR_INITIALIZED = 1 << 3,
 };
 
 /**
@@ -95,7 +96,7 @@ struct gab_err_argt {
   enum gab_status status;
   const char *note_fmt;
   struct gab_src *src;
-  gab_value block;
+  gab_value message;
   size_t tok;
 };
 

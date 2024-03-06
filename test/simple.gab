@@ -1,13 +1,17 @@
-&:test.next :case {
+&test.next case {
   [false] ==> nil
 }
 
-&:at :def .gab.map do
+&at def .gab.map do:
   self
 end
 
-&:streams.fold :def! {
-  [.gab.suspense] = do (p, acc, cb)
+&streams.fold def! {
+  [.gab.suspense]: do (p, acc, cb)
   end,
-  [] = => @2 
+  []: => @2 
 }
+
+&at when! .gab.map do
+
+end -> .ok, result

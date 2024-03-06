@@ -1,13 +1,9 @@
-#include <stdint.h>
 #define TOKEN_NAMES
 #include "colors.h"
 #include "core.h"
 #include "engine.h"
 #include "gab.h"
 #include "lexer.h"
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
 
 struct frame {
   v_uint8_t bc;
@@ -25,25 +21,16 @@ struct frame {
   uint16_t next_slot;
   uint16_t nslots;
 
-  int scope_depth;
-
   unsigned char narguments;
   unsigned char next_local;
   unsigned char nlocals;
   unsigned char nupvalues;
 
   char local_flags[GAB_LOCAL_MAX];
-  int local_depths[GAB_LOCAL_MAX];
   gab_value local_names[GAB_LOCAL_MAX];
 
   char upv_flags[GAB_UPVALUE_MAX];
   char upv_indexes[GAB_UPVALUE_MAX];
-};
-
-enum recognized_k {
-  kRECOGNIZED_AND = 0,
-  kRECOGNIZED_OR,
-  kNRECOGNIZED,
 };
 
 // ORDER_MATTERS
@@ -105,9 +92,9 @@ struct bc {
   struct context contexts[cGAB_FUNCTION_DEF_NESTING_MAX];
 };
 
-static inline struct gab_gc *gc(struct bc *bc) { return bc->gab.gc; }
+// static inline struct gab_gc *gc(struct bc *bc) { return bc->gab.gc; }
 static inline struct gab_eg *eg(struct bc *bc) { return bc->gab.eg; }
-static inline struct gab_vm *vm(struct bc *bc) { return bc->gab.vm; }
+// static inline struct gab_vm *vm(struct bc *bc) { return bc->gab.vm; }
 static inline struct gab_triple gab(struct bc *bc) { return bc->gab; }
 
 /*
@@ -123,14 +110,15 @@ struct compile_rule {
   bool multi_line;
 };
 
-void bc_create(struct bc *self, struct gab_triple gab, struct gab_src *source) {
+static void bc_create(struct bc *self, struct gab_triple gab,
+                      struct gab_src *source) {
   memset(self, 0, sizeof(*self));
 
   self->src = source;
   self->gab = gab;
 }
 
-void bc_destroy(struct bc *self) {}
+static void bc_destroy(struct bc *self) {}
 
 enum comp_status {
   COMP_OK = 1,
@@ -157,23 +145,23 @@ static bool match_token(struct bc *bc, gab_token tok);
 static int eat_token(struct bc *bc);
 
 //------------------- Token Helpers -----------------------
-size_t prev_line(struct bc *bc) {
+static size_t prev_line(struct bc *bc) {
   return v_uint64_t_val_at(&bc->src->token_lines, bc->offset - 1);
 }
 
-gab_token curr_tok(struct bc *bc) {
+static gab_token curr_tok(struct bc *bc) {
   return v_gab_token_val_at(&bc->src->tokens, bc->offset);
 }
 
-gab_token prev_tok(struct bc *bc) {
+static gab_token prev_tok(struct bc *bc) {
   return v_gab_token_val_at(&bc->src->tokens, bc->offset - 1);
 }
 
-s_char curr_src(struct bc *bc) {
-  return v_s_char_val_at(&bc->src->token_srcs, bc->offset);
-}
+// static s_char curr_src(struct bc *bc) {
+//   return v_s_char_val_at(&bc->src->token_srcs, bc->offset);
+// }
 
-s_char prev_src(struct bc *bc) {
+static s_char prev_src(struct bc *bc) {
   return v_s_char_val_at(&bc->src->token_srcs, bc->offset - 1);
 }
 static inline bool match_token(struct bc *bc, gab_token tok) {
@@ -229,7 +217,7 @@ static inline int match_and_eat_tokoneof(struct bc *bc, gab_token toka,
   return eat_token(bc);
 }
 
-s_char trim_prev_src(struct bc *bc) {
+static s_char trim_prev_src(struct bc *bc) {
   s_char message = prev_src(bc);
   // SKip the ':' at the beginning
   message.data++;
@@ -570,9 +558,8 @@ static inline void push_send(struct bc *bc, gab_value m, uint8_t have, bool mv,
                              size_t t) {
   assert(have < 16);
 
-  if (gab_valkind(m) == kGAB_STRING) {
+  if (gab_valkind(m) == kGAB_STRING)
     m = gab_message(gab(bc), m);
-  }
 
   assert(gab_valkind(m) == kGAB_MESSAGE);
 
@@ -643,41 +630,15 @@ static inline void push_pack(struct bc *bc, uint8_t have, bool mv,
   push_byte(bc, above, t);
 }
 
-static inline size_t push_jump(struct bc *bc, uint8_t op, size_t t) {
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  assert(ctx >= 0 && "Internal compiler error: no frame context");
-  struct frame *f = &bc->contexts[ctx].as.frame;
+// static gab_value curr_id(struct bc *bc) {
+//   s_char s = curr_src(bc);
+//
+//   gab_value sv = gab_nstring(gab(bc), s.len, s.data);
+//
+//   return sv;
+// }
 
-  push_op(bc, op, t);
-  push_nnop(bc, 2, t);
-
-  return f->bc.len - 2;
-}
-
-static inline void patch_jump(struct bc *bc, size_t jump) {
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  assert(ctx >= 0 && "Internal compiler error: no frame context");
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
-  f->curr_bb++;
-
-  size_t dist = f->bc.len - jump - 2;
-
-  assert(dist < UINT16_MAX);
-
-  v_uint8_t_set(&f->bc, jump, (dist >> 8) & 0xff);
-  v_uint8_t_set(&f->bc, jump + 1, dist & 0xff);
-}
-
-gab_value curr_id(struct bc *bc) {
-  s_char s = curr_src(bc);
-
-  gab_value sv = gab_nstring(gab(bc), s.len, s.data);
-
-  return sv;
-}
-
-gab_value prev_id(struct bc *bc) {
+static gab_value prev_id(struct bc *bc) {
   s_char s = prev_src(bc);
 
   gab_value sv = gab_nstring(gab(bc), s.len, s.data);
@@ -685,7 +646,7 @@ gab_value prev_id(struct bc *bc) {
   return sv;
 }
 
-gab_value trim_prev_id(struct bc *bc) {
+static gab_value trim_prev_id(struct bc *bc) {
   s_char s = trim_prev_src(bc);
 
   gab_value sv = gab_nstring(gab(bc), s.len, s.data);
@@ -772,14 +733,12 @@ static inline void pop_slot(struct bc *bc, uint16_t n) {
 
 #endif
 
-static void init_local(struct bc *bc, uint8_t local) {
+static int init_local(struct bc *bc, int local) {
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;
+  f->local_flags[local] |= fVAR_INITIALIZED;
 
-  if (f->local_depths[local] != -1)
-    return;
-
-  f->local_depths[local] = f->scope_depth;
+  return local;
 }
 
 /* Returns COMP_ERR if an error is encountered, and otherwise the offset of the
@@ -797,7 +756,6 @@ static int add_local(struct bc *bc, gab_value name, uint8_t flags) {
 
   uint8_t local = f->next_local;
   f->local_names[local] = name;
-  f->local_depths[local] = -1;
   f->local_flags[local] = flags;
 
   if (++f->next_local > f->nlocals)
@@ -854,7 +812,7 @@ static int resolve_local(struct bc *bc, gab_value name, uint8_t depth) {
     gab_value other_local_name = f->local_names[local];
 
     if (name == other_local_name) {
-      if (f->local_depths[local] == -1)
+      if (!(f->local_flags[local] & fVAR_INITIALIZED))
         return compiler_error(
             bc, GAB_REFERENCE_BEFORE_INITIALIZE,
             "The variable $ was referenced before it was initialized.", name);
@@ -913,6 +871,9 @@ static int resolve_upvalue(struct bc *bc, gab_value name, uint8_t depth) {
 static int resolve_id(struct bc *bc, gab_value name, uint8_t *value_in) {
   int arg = resolve_local(bc, name, 0);
 
+  if (value_in)
+    *value_in = arg;
+
   if (arg == COMP_ERR)
     return arg;
 
@@ -925,42 +886,10 @@ static int resolve_id(struct bc *bc, gab_value name, uint8_t *value_in) {
     if (arg == COMP_UPVALUE_NOT_FOUND)
       return COMP_ID_NOT_FOUND;
 
-    if (value_in)
-      *value_in = (uint8_t)arg;
     return COMP_RESOLVED_TO_UPVALUE;
   }
 
-  if (value_in)
-    *value_in = (uint8_t)arg;
   return COMP_RESOLVED_TO_LOCAL;
-}
-
-// static inline int peek_scope(bc *bc) {
-//   int ctx = peek_ctx(bc, kFRAME, 0);
-//   frame *f = &bc->contexts[ctx].as.frame;
-//   return f->scope_depth;
-// }
-
-static void push_scope(struct bc *bc) {
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  struct frame *f = &bc->contexts[ctx].as.frame;
-  f->scope_depth++;
-}
-
-static void pop_scope(struct bc *bc) {
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
-  f->scope_depth--;
-
-  while (f->next_local > 1) {
-    uint8_t local = f->next_local - 1;
-
-    if (f->local_depths[local] <= f->scope_depth)
-      break;
-
-    f->next_local--;
-  }
 }
 
 static inline bool match_ctx(struct bc *bc, enum context_k kind) {
@@ -1056,12 +985,12 @@ static gab_value pop_ctxframe(struct bc *bc) {
 }
 
 struct compile_rule get_rule(gab_token k);
-int compile_exp_startwith(struct bc *bc, int prec, gab_token rule);
-int compile_exp_prec(struct bc *bc, enum prec_k prec);
-int compile_expression(struct bc *bc);
-int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out);
+static int compile_exp_startwith(struct bc *bc, int prec, gab_token rule);
+static int compile_exp_prec(struct bc *bc, enum prec_k prec);
+static int compile_expression(struct bc *bc);
+static int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out);
 
-bool curr_prefix(struct bc *bc) {
+static bool curr_prefix(struct bc *bc) {
   return get_rule(curr_tok(bc)).prefix != NULL;
 }
 
@@ -1070,7 +999,7 @@ bool curr_prefix(struct bc *bc) {
   These functions consume tokens and can emit bytes.
 */
 
-int encode_codepoint(char *out, int utf) {
+static int encode_codepoint(char *out, int utf) {
   if (utf <= 0x7F) {
     // Plain ASCII
     out[0] = (char)utf;
@@ -1105,7 +1034,7 @@ int encode_codepoint(char *out, int utf) {
 /*
  * Returns null if an error occured.
  */
-a_char *parse_raw_str(struct bc *bc, s_char raw_str) {
+static a_char *parse_raw_str(struct bc *bc, s_char raw_str) {
   // The parsed string will be at most as long as the raw string.
   // (\n -> one char)
   char buffer[raw_str.len];
@@ -1187,7 +1116,7 @@ a_char *parse_raw_str(struct bc *bc, s_char raw_str) {
   return a_char_create(buffer, buf_end);
 };
 
-int compile_strlit(struct bc *bc) {
+static int compile_strlit(struct bc *bc) {
   a_char *parsed = parse_raw_str(bc, prev_src(bc));
 
   if (parsed == NULL)
@@ -1210,7 +1139,7 @@ int compile_strlit(struct bc *bc) {
   return COMP_OK;
 }
 
-int compile_symbol(struct bc *bc) {
+static int compile_symbol(struct bc *bc) {
   gab_value sym = trim_prev_id(bc);
 
   push_loadk(bc, sym, bc->offset - 1);
@@ -1220,7 +1149,7 @@ int compile_symbol(struct bc *bc) {
   return COMP_OK;
 }
 
-int compile_string(struct bc *bc) {
+static int compile_string(struct bc *bc) {
   if (prev_tok(bc) == TOKEN_SIGIL)
     return compile_symbol(bc);
 
@@ -1273,23 +1202,15 @@ static int compile_local(struct bc *bc, gab_value name, uint8_t flags) {
   int ctx = peek_ctx(bc, kFRAME, 0);
   struct frame *f = &bc->contexts[ctx].as.frame;
 
-  for (int local = f->next_local - 1; local >= 0; local--) {
-    if (f->local_depths[local] != -1 &&
-        f->local_depths[local] < f->scope_depth) {
-      break;
-    }
-
-    gab_value other_local_name = f->local_names[local];
-
-    if (name == other_local_name)
+  for (int local = f->next_local - 1; local >= 0; local--)
+    if (name == f->local_names[local])
       return compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
-  }
 
   return add_local(bc, name, flags);
 }
 
-int compile_parameters_internal(struct bc *bc, int *below,
-                                uint8_t *narguments) {
+static int compile_parameters_internal(struct bc *bc, int *below,
+                                       uint8_t *narguments) {
   int backup_below;
   uint8_t backup_narguments;
 
@@ -1371,7 +1292,7 @@ fin:
   return result;
 }
 
-int compile_parameters(struct bc *bc) {
+static int compile_parameters(struct bc *bc) {
   // Somehow track below and above for packing
   int below;
   uint8_t narguments;
@@ -1407,7 +1328,7 @@ static inline int optional_newline(struct bc *bc) {
   return COMP_OK;
 }
 
-int compile_expressions_body(struct bc *bc) {
+static int compile_expressions_body(struct bc *bc) {
   if (skip_newlines(bc) < 0)
     return COMP_ERR;
 
@@ -1444,7 +1365,7 @@ int compile_expressions_body(struct bc *bc) {
   return COMP_OK;
 }
 
-int compile_expressions(struct bc *bc) {
+static int compile_expressions(struct bc *bc) {
   uint64_t line = prev_line(bc);
 
   if (compile_expressions_body(bc) < 0)
@@ -1460,7 +1381,7 @@ int compile_expressions(struct bc *bc) {
   return COMP_OK;
 }
 
-int compile_block_body(struct bc *bc) {
+static int compile_block_body(struct bc *bc) {
   int result = compile_expressions(bc);
 
   if (result < 0)
@@ -1469,8 +1390,6 @@ int compile_block_body(struct bc *bc) {
   if (expect_token(bc, TOKEN_END) < 0)
     return COMP_ERR;
 
-  pop_scope(bc);
-
   bool mv = patch_trim(bc, VAR_EXP);
 
   push_ret(bc, !mv, mv, bc->offset - 1);
@@ -1478,55 +1397,7 @@ int compile_block_body(struct bc *bc) {
   return COMP_OK;
 }
 
-int compile_message_spec(struct bc *bc) {
-  if (expect_token(bc, TOKEN_LBRACE) < 0)
-    return COMP_ERR;
-
-  if (match_and_eat_token(bc, TOKEN_RBRACE)) {
-    push_slot(bc, 1);
-    push_loadi(bc, kGAB_UNDEFINED, bc->offset - 1);
-    return COMP_OK;
-  }
-
-  if (compile_expression(bc) < 0)
-    return COMP_ERR;
-
-  if (expect_token(bc, TOKEN_RBRACE) < 0)
-    return COMP_ERR;
-
-  return COMP_OK;
-}
-
-int compile_lambda(struct bc *bc, size_t t) {
-  push_ctxframe(bc, gab_nil, false);
-
-  push_scope(bc);
-
-  if (optional_newline(bc) < 0)
-    return COMP_ERR;
-
-  if (compile_expression(bc) < 0)
-    return COMP_ERR;
-
-  pop_scope(bc);
-
-  bool mv = patch_trim(bc, VAR_EXP);
-
-  push_ret(bc, !mv, mv, bc->offset - 1);
-
-  gab_value p = pop_ctxframe(bc);
-
-  if (p == gab_undefined)
-    return COMP_ERR;
-
-  push_block(bc, p, bc->offset - 1);
-
-  push_slot(bc, 1);
-
-  return COMP_OK;
-}
-
-int compile_block(struct bc *bc, gab_value name) {
+static int compile_block(struct bc *bc, gab_value name) {
   struct frame *f = push_ctxframe(bc, name, false);
 
   int narguments = compile_parameters(bc);
@@ -1551,11 +1422,11 @@ int compile_block(struct bc *bc, gab_value name) {
   return COMP_OK;
 }
 
-int compile_expression(struct bc *bc) {
+static int compile_expression(struct bc *bc) {
   return compile_exp_prec(bc, kASSIGNMENT);
 }
 
-int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out) {
+static int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out) {
   if (push_ctx(bc, kTUPLE) < 0)
     return COMP_ERR;
 
@@ -1632,30 +1503,7 @@ int compile_tuple(struct bc *bc, uint8_t want, bool *mv_out) {
   return have;
 }
 
-int add_message_constant(struct bc *bc, gab_value name) {
-  return addk(bc, gab_message(gab(bc), name));
-}
-
-int add_string_constant(struct bc *bc, s_char str) {
-  return addk(bc, gab_nstring(gab(bc), str.len, str.data));
-}
-
-bool new_local_needs_shift(v_lvalue *lvalues, uint8_t index) {
-  for (int i = 0; i < index; i++) {
-    if (lvalues->data[i].kind != kNEW_LOCAL &&
-        lvalues->data[i].kind != kNEW_REST_LOCAL)
-      return true;
-  }
-
-  for (int i = index; i < lvalues->len; i++) {
-    if (lvalues->data[i].kind == kPROP || lvalues->data[i].kind == kINDEX)
-      return true;
-  }
-
-  return false;
-}
-
-uint8_t rest_lvalues(v_lvalue *lvalues) {
+static uint8_t rest_lvalues(v_lvalue *lvalues) {
   uint8_t rest = 0;
 
   for (int i = 0; i < lvalues->len; i++)
@@ -1665,7 +1513,7 @@ uint8_t rest_lvalues(v_lvalue *lvalues) {
   return rest;
 }
 
-void adjust_preceding_lvalues(struct bc *bc) {
+static void adjust_preceding_lvalues(struct bc *bc) {
   int ctx = peek_ctx(bc, kASSIGNMENT_TARGET, 0);
 
   if (ctx >= 0) {
@@ -1676,7 +1524,7 @@ void adjust_preceding_lvalues(struct bc *bc) {
   }
 }
 
-uint8_t new_lvalues(v_lvalue *lvalues) {
+static uint8_t new_lvalues(v_lvalue *lvalues) {
   uint8_t new = 0;
   for (int i = 0; i < lvalues->len; i++)
     new += lvalues->data[i].kind == kNEW_LOCAL ||
@@ -1684,22 +1532,7 @@ uint8_t new_lvalues(v_lvalue *lvalues) {
   return new;
 }
 
-uint8_t preceding_existing_lvalues(v_lvalue *lvalues, int index) {
-  uint8_t existing = 0;
-  // for (int i = 0; i < index; i++)
-  //   existing += lvalues->data[i].kind == kEXISTING_LOCAL ||
-  //               lvalues->data[i].kind == kEXISTING_REST_LOCAL;
-
-  for (int i = 0; i < index; i++)
-    existing += (lvalues->data[i].kind == kPROP);
-
-  for (int i = 0; i < index; i++)
-    existing += 2 * (lvalues->data[i].kind == kINDEX);
-
-  return existing;
-}
-
-int compile_assignment(struct bc *bc, struct lvalue target) {
+static int compile_assignment(struct bc *bc, struct lvalue target) {
   bool first = !match_ctx(bc, kASSIGNMENT_TARGET);
 
   if (first && push_ctx(bc, kASSIGNMENT_TARGET) < 0)
@@ -1847,8 +1680,8 @@ int compile_assignment(struct bc *bc, struct lvalue target) {
   return COMP_OK;
 }
 
-int compile_lvalue(struct bc *bc, bool assignable, gab_value name,
-                   int new_flags, bool rest) {
+static int compile_lvalue(struct bc *bc, bool assignable, gab_value name,
+                          int new_flags, bool rest) {
   uint8_t index = 0;
   int result = resolve_id(bc, name, &index);
 
@@ -1890,7 +1723,7 @@ int compile_lvalue(struct bc *bc, bool assignable, gab_value name,
   }
 }
 
-int compile_rec_internal_item(struct bc *bc) {
+static int compile_rec_internal_item(struct bc *bc) {
   if (match_and_eat_token(bc, TOKEN_SIGIL) ||
       match_and_eat_token(bc, TOKEN_STRING) ||
       match_and_eat_token(bc, TOKEN_INTERPOLATION_BEGIN)) {
@@ -1990,7 +1823,7 @@ err:
                         "If a value is not set explicitly, it will be true.\n");
 }
 
-int compile_rec_internals(struct bc *bc) {
+static int compile_rec_internals(struct bc *bc) {
   uint8_t size = 0;
 
   if (skip_newlines(bc) < 0)
@@ -2028,7 +1861,7 @@ int compile_rec_internals(struct bc *bc) {
   return size;
 }
 
-int compile_record(struct bc *bc) {
+static int compile_record(struct bc *bc) {
   if (push_ctx(bc, kTUPLE) < 0)
     return COMP_ERR;
 
@@ -2050,7 +1883,7 @@ int compile_record(struct bc *bc) {
   return COMP_OK;
 }
 
-int compile_record_tuple(struct bc *bc) {
+static int compile_record_tuple(struct bc *bc) {
   bool mv = false;
   int size = 0;
 
@@ -2078,7 +1911,7 @@ fin:
   return COMP_OK;
 }
 
-int compile_arg_list(struct bc *bc, bool *mv_out) {
+static int compile_arg_list(struct bc *bc, bool *mv_out) {
   int nargs = 0;
 
   if (!match_token(bc, TOKEN_RPAREN)) {
@@ -2100,10 +1933,9 @@ enum {
   fHAS_BRACK = 1 << 1,
   fHAS_DO = 1 << 2,
   fHAS_STRING = 1 << 3,
-  fHAS_FATARROW = 1 << 4,
 };
 
-int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
+static int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
   int result = 0;
   *mv_out = false;
 
@@ -2141,16 +1973,7 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
     *mv_out = false;
   }
 
-  if (flags & fHAS_FATARROW || match_and_eat_token(bc, TOKEN_FAT_ARROW)) {
-    if (*mv_out)
-      push_trim(bc, 1, bc->offset - 1);
-
-    if (compile_lambda(bc, bc->offset - 1) < 0)
-      return COMP_ERR;
-
-    result += 1 + *mv_out;
-    *mv_out = false;
-  } else if (flags & fHAS_DO || match_and_eat_token(bc, TOKEN_DO)) {
+  if (flags & fHAS_DO || match_and_eat_token(bc, TOKEN_DO)) {
     if (*mv_out)
       push_trim(bc, 1, bc->offset - 1);
 
@@ -2167,160 +1990,97 @@ int compile_arguments(struct bc *bc, bool *mv_out, uint8_t flags) {
   return result;
 }
 
-//---------------- Compiling Expressions ------------------
+int compile_send(struct bc *bc, bool assignable) {
+  if (optional_newline(bc) < 0)
+    return COMP_ERR;
 
-int compile_exp_lmb(struct bc *bc, bool assignable) {
-  return compile_lambda(bc, 0);
-}
+  if (!match_and_eat_tokoneof(bc, TOKEN_IDENTIFIER, TOKEN_OPERATOR))
+    return compiler_error(bc, GAB_MALFORMED_MESSAGE,
+                          "Expected an identifier or operator");
 
-int compile_exp_blk(struct bc *bc, bool assignable) {
-  return compile_block(bc, gab_nil);
-}
-
-typedef int (*cond_bodyfn)(struct bc *bc);
-
-int compile_logical(struct bc *bc, uint8_t jump_op, cond_bodyfn fn,
-                    int closing_tok) {
   size_t t = bc->offset - 1;
 
-  uint64_t j = push_jump((bc), jump_op, t);
+  gab_value name = prev_id(bc);
 
-  push_scope(bc);
+  if (assignable && !match_ctx(bc, kTUPLE)) {
+    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
+      return compile_assignment(bc, (struct lvalue){
+                                        .kind = kPROP,
+                                        .slot = peek_slot(bc),
+                                        .as.property = name,
+                                    });
+    }
 
-  if (fn(bc) < 0)
-    return COMP_ERR;
-
-  if (closing_tok > 0 && expect_token(bc, closing_tok) < 0)
-    return COMP_ERR;
-
-  pop_slot(bc, 1);
-
-  patch_jump(bc, j);
-
-  return COMP_OK;
-}
-
-int compile_exp_bin(struct bc *bc, bool assignable) {
-  gab_token op = prev_tok(bc);
-  size_t t = bc->offset - 1;
-
-  gab_value m;
-
-  switch (op) {
-  case TOKEN_MINUS:
-    m = gab_string(gab(bc), mGAB_SUB);
-    break;
-
-  case TOKEN_PLUS:
-    m = gab_string(gab(bc), mGAB_ADD);
-    break;
-
-  case TOKEN_STAR:
-    m = gab_string(gab(bc), mGAB_MUL);
-    break;
-
-  case TOKEN_SLASH:
-    m = gab_string(gab(bc), mGAB_DIV);
-    break;
-
-  case TOKEN_PERCENT:
-    m = gab_string(gab(bc), mGAB_MOD);
-    break;
-
-  case TOKEN_PIPE:
-    m = gab_string(gab(bc), mGAB_BOR);
-    break;
-
-  case TOKEN_AMPERSAND:
-    m = gab_string(gab(bc), mGAB_BND);
-    break;
-
-  case TOKEN_EQUAL_EQUAL:
-    m = gab_string(gab(bc), mGAB_EQ);
-    break;
-
-  case TOKEN_LESSER:
-    m = gab_string(gab(bc), mGAB_LT);
-    break;
-
-  case TOKEN_LESSER_EQUAL:
-    m = gab_string(gab(bc), mGAB_LTE);
-    break;
-
-  case TOKEN_LESSER_LESSER:
-    m = gab_string(gab(bc), mGAB_LSH);
-    break;
-
-  case TOKEN_GREATER:
-    m = gab_string(gab(bc), mGAB_GT);
-    break;
-
-  case TOKEN_GREATER_EQUAL:
-    m = gab_string(gab(bc), mGAB_GTE);
-    break;
-
-  case TOKEN_GREATER_GREATER:
-    m = gab_string(gab(bc), mGAB_RSH);
-    break;
-
-  default:
-    assert(false && "This is an internal compiler error.");
-    return COMP_ERR;
+    if (match_ctx(bc, kASSIGNMENT_TARGET)) {
+      eat_token(bc);
+      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
+    }
   }
 
-  int result = compile_exp_prec(bc, get_rule(op).prec + 1);
-
-  pop_slot(bc, 1);
+  bool mv = false;
+  int result = compile_arguments(bc, &mv, 0);
 
   if (result < 0)
     return COMP_ERR;
 
-  push_send(bc, m, 1, false, t);
+  if (result > GAB_ARG_MAX)
+    return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
+
+  pop_slot(bc, result + 1 + mv);
+
+  push_send(bc, name, result, mv, t);
+
+  push_slot(bc, 1);
+
   return VAR_EXP;
 }
 
-int compile_exp_una(struct bc *bc, bool assignable) {
-  gab_token op = prev_tok(bc);
+//---------------- Compiling Expressions ------------------
 
+static int compile_exp_blk(struct bc *bc, bool assignable) {
+  return compile_block(bc, gab_nil);
+}
+
+static int compile_exp_bin(struct bc *bc, bool assignable) {
+  gab_token op = prev_tok(bc);
   size_t t = bc->offset - 1;
+
+  gab_value m = prev_id(bc);
+
+  int result = compile_exp_prec(bc, get_rule(op).prec + 1);
+
+  if (result < 0)
+    return COMP_ERR;
+
+  pop_slot(bc, 1);
+
+  push_send(bc, m, 1, false, t);
+
+  return VAR_EXP;
+}
+
+static int compile_exp_una(struct bc *bc, bool assignable) {
+  size_t t = bc->offset - 1;
+
+  gab_value m = prev_id(bc);
 
   if (compile_exp_prec(bc, kUNARY_SEND) < 0)
     return COMP_ERR;
 
-  switch (op) {
-  case TOKEN_MINUS:
-    push_op((bc), OP_NEGATE, t);
-    return COMP_OK;
+  push_send(bc, m, 0, false, t);
 
-  case TOKEN_NOT:
-    push_op((bc), OP_NOT, t);
-    return COMP_OK;
-
-  case TOKEN_QUESTION:
-    push_op((bc), OP_TYPE, t);
-    return COMP_OK;
-
-  default:
-    assert(false && "This is an internal compiler error.");
-    return COMP_ERR;
-  }
+  return VAR_EXP;
 }
 
-/*
- * Returns COMP_ERR if an error occured, otherwise the size of the expressions
- */
-int compile_exp_str(struct bc *bc, bool assignable) {
+static int compile_exp_str(struct bc *bc, bool assignable) {
   return compile_string(bc);
 }
 
-/*
- * Returns COMP_ERR if an error occured, otherwise the size of the expressions
- */
-int compile_exp_itp(struct bc *bc, bool assignable) {
+static int compile_exp_itp(struct bc *bc, bool assignable) {
   return compile_string(bc);
 }
 
-int compile_exp_grp(struct bc *bc, bool assignable) {
+static int compile_exp_grp(struct bc *bc, bool assignable) {
   if (compile_expression(bc) < 0)
     return COMP_ERR;
 
@@ -2330,103 +2090,35 @@ int compile_exp_grp(struct bc *bc, bool assignable) {
   return COMP_OK;
 }
 
-int compile_exp_num(struct bc *bc, bool assignable) {
+static int compile_exp_num(struct bc *bc, bool assignable) {
   double num = strtod((char *)prev_src(bc).data, NULL);
   push_loadk((bc), gab_number(num), bc->offset - 1);
   push_slot(bc, 1);
   return COMP_OK;
 }
 
-int compile_exp_bool(struct bc *bc, bool assignable) {
+static int compile_exp_bool(struct bc *bc, bool assignable) {
   push_loadi(bc, prev_tok(bc) == TOKEN_TRUE ? kGAB_TRUE : kGAB_FALSE,
              bc->offset - 1);
   push_slot(bc, 1);
   return COMP_OK;
 }
 
-int compile_exp_nil(struct bc *bc, bool assignable) {
+static int compile_exp_nil(struct bc *bc, bool assignable) {
   push_loadi(bc, kGAB_NIL, bc->offset - 1);
   push_slot(bc, 1);
   return COMP_OK;
 }
 
-int compile_exp_def(struct bc *bc, bool assignable) {
-  eat_token(bc);
-
-  s_char name = {};
-
-  switch (prev_tok(bc)) {
-  case TOKEN_IDENTIFIER:
-    name = prev_src(bc);
-    break;
-  case TOKEN_DOT_DOT:
-    if (match_and_eat_token(bc, TOKEN_IDENTIFIER))
-      if (assignable && !match_ctx(bc, kTUPLE))
-        return compile_lvalue(bc, assignable, prev_id(bc), 0, true);
-  default:
-    eat_token(bc);
-    return compiler_error(bc, GAB_MALFORMED_TOKEN, "Invalid definition");
-  }
-
-  if (assignable && !match_ctx(bc, kTUPLE))
-    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
-      return compile_lvalue(
-          bc, assignable, gab_nstring(gab(bc), name.len, name.data), 0, false);
-
-  size_t t = bc->offset - 1;
-
-  gab_value val_name = gab_nstring(gab(bc), name.len, name.data);
-
-  // Create a local to store the new function in
-  int local = add_local(bc, val_name, 0);
-
-  if (local < 0)
-    return COMP_ERR;
-
-  // A record definition
-  if (match_and_eat_token(bc, TOKEN_LBRACK)) {
-    if (compile_record(bc) < 0)
-      return COMP_ERR;
-
-    push_op((bc), OP_TYPE, t);
-
-    push_storel((bc), local, t);
-
-    init_local(bc, local);
-
-    return COMP_OK;
-  }
-
-  if (match_and_eat_token(bc, TOKEN_EQUAL)) {
-    if (compile_expression(bc) < 0)
-      return COMP_ERR;
-
-    push_storel((bc), local, t);
-
-    init_local(bc, local);
-
-    return COMP_OK;
-  }
-
-  if (compile_block(bc, val_name) < 0)
-    return COMP_ERR;
-
-  push_storel((bc), local, t);
-
-  init_local(bc, local);
-
-  return COMP_OK;
-}
-
-int compile_exp_arr(struct bc *bc, bool assignable) {
+static int compile_exp_arr(struct bc *bc, bool assignable) {
   return compile_record_tuple(bc);
 }
 
-int compile_exp_rec(struct bc *bc, bool assignable) {
+static int compile_exp_rec(struct bc *bc, bool assignable) {
   return compile_record(bc);
 }
 
-int compile_exp_ipm(struct bc *bc, bool assignable) {
+static int compile_exp_ipm(struct bc *bc, bool assignable) {
   s_char offset = trim_prev_src(bc);
 
   long local = strtoul((char *)offset.data, NULL, 10);
@@ -2601,91 +2293,19 @@ int compile_exp_idx(struct bc *bc, bool assignable) {
   return VAR_EXP;
 }
 
-int compile_exp_amp(struct bc *bc, bool assignable) {
-  if (match_and_eat_token(bc, TOKEN_MESSAGE)) {
-    gab_value val_name = trim_prev_id(bc);
-
-    push_loadk(bc, gab_message(gab(bc), val_name), bc->offset - 1);
-
-    push_slot(bc, 1);
-
-    return COMP_OK;
-  }
-
-  const char *msg;
-
-  eat_token(bc);
-
-  switch (prev_tok(bc)) {
-  case TOKEN_EQUAL_EQUAL:
-    msg = mGAB_EQ;
-    break;
-  case TOKEN_DOT_DOT:
-    msg = mGAB_SPLAT;
-    break;
-  case TOKEN_STAR:
-    msg = mGAB_MUL;
-    break;
-  case TOKEN_SLASH:
-    msg = mGAB_DIV;
-    break;
-  case TOKEN_PLUS:
-    msg = mGAB_ADD;
-    break;
-  case TOKEN_MINUS:
-    msg = mGAB_SUB;
-    break;
-  case TOKEN_PERCENT:
-    msg = mGAB_MOD;
-    break;
-  case TOKEN_GREATER_GREATER:
-    msg = mGAB_RSH;
-    break;
-  case TOKEN_GREATER_EQUAL:
-    msg = mGAB_GTE;
-    break;
-  case TOKEN_GREATER:
-    msg = mGAB_GT;
-    break;
-  case TOKEN_LESSER_LESSER:
-    msg = mGAB_LSH;
-    break;
-  case TOKEN_LESSER_EQUAL:
-    msg = mGAB_LTE;
-    break;
-  case TOKEN_LESSER:
-    msg = mGAB_LT;
-    break;
-  case TOKEN_PIPE:
-    msg = mGAB_BOR;
-    break;
-  case TOKEN_AMPERSAND:
-    msg = mGAB_BND;
-    break;
-  case TOKEN_LPAREN:
-    expect_token(bc, TOKEN_RPAREN);
-    msg = mGAB_CALL;
-    break;
-  case TOKEN_LBRACE:
-    if (match_and_eat_token(bc, TOKEN_EQUAL))
-      msg = mGAB_SET;
-    else
-      msg = mGAB_GET;
-    expect_token(bc, TOKEN_RBRACE);
-    break;
-  default:
+int compile_exp_msg_lit(struct bc *bc, bool assignable) {
+  if (!match_and_eat_tokoneof(bc, TOKEN_OPERATOR, TOKEN_IDENTIFIER))
     return compiler_error(
-        bc, GAB_MALFORMED_MESSAGE_LITERAL,
+        bc, GAB_MALFORMED_MESSAGE,
         "A message literal is either:\n"
-        " | &:a_normal_message\n"
-        " | &+ # or a builtin message, like " ANSI_COLOR_GREEN
+        " | \\a_normal_message\n"
+        " | \\+ # or a builtin message, like " ANSI_COLOR_GREEN
         "PLUS" ANSI_COLOR_RESET "\n"
-        "\nWhat follows the " ANSI_COLOR_GREEN "AMPERSAND" ANSI_COLOR_RESET
-        " is exactly what you would type to send the message.\n");
-  }
+        "Think of this syntax as 'escaping' the message itself.\n");
 
-  push_loadk(bc, gab_message(gab(bc), gab_string(gab(bc), msg)),
-             bc->offset - 1);
+  gab_value m = prev_id(bc);
+
+  push_loadk(bc, gab_message(gab(bc), m), bc->offset - 1);
 
   push_slot(bc, 1);
 
@@ -2693,6 +2313,9 @@ int compile_exp_amp(struct bc *bc, bool assignable) {
 }
 
 int compile_exp_dyn(struct bc *bc, bool assignable) {
+  if (optional_newline(bc) < 0)
+    return COMP_ERR;
+
   if (expect_token(bc, TOKEN_LPAREN) < 0)
     return COMP_ERR;
 
@@ -2722,42 +2345,15 @@ int compile_exp_dyn(struct bc *bc, bool assignable) {
   return VAR_EXP;
 }
 
-int compile_exp_snd(struct bc *bc, bool assignable) {
-  size_t t = bc->offset - 1;
-
-  gab_value name = trim_prev_id(bc);
-
-  if (assignable && !match_ctx(bc, kTUPLE)) {
-    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
-      return compile_assignment(bc, (struct lvalue){
-                                        .kind = kPROP,
-                                        .slot = peek_slot(bc),
-                                        .as.property = name,
-                                    });
-    }
-
-    if (match_ctx(bc, kASSIGNMENT_TARGET)) {
-      eat_token(bc);
-      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
-    }
-  }
-
-  bool mv = false;
-  int result = compile_arguments(bc, &mv, 0);
-
-  if (result < 0)
-    return COMP_ERR;
-
-  if (result > GAB_ARG_MAX)
-    return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, "");
-
-  pop_slot(bc, result + 1 + mv);
-
-  push_send(bc, name, result, mv, t);
-
+int compile_exp_empty_send(struct bc *bc, bool assignable) {
+  push_loadi(bc, kGAB_UNDEFINED, bc->offset - 1);
   push_slot(bc, 1);
 
-  return VAR_EXP;
+  return compile_send(bc, assignable);
+}
+
+int compile_exp_send(struct bc *bc, bool assignable) {
+  return compile_send(bc, assignable);
 }
 
 int compile_exp_cal(struct bc *bc, bool assignable) {
@@ -2777,22 +2373,6 @@ int compile_exp_cal(struct bc *bc, bool assignable) {
   push_send(bc, gab_string(gab(bc), mGAB_CALL), result, mv, t);
 
   push_slot(bc, 1);
-
-  return VAR_EXP;
-}
-
-int compile_exp_lmbcal(struct bc *bc, bool assignable) {
-  size_t t = bc->offset - 1;
-
-  bool mv = false;
-  int result = compile_arguments(bc, &mv, fHAS_FATARROW);
-
-  if (result < 0)
-    return COMP_ERR;
-
-  pop_slot(bc, result);
-
-  push_send(bc, gab_string(gab(bc), mGAB_CALL), result, mv, t);
 
   return VAR_EXP;
 }
@@ -2988,59 +2568,36 @@ int compile_exp_rtn(struct bc *bc, bool assignable) {
 
 // ----------------Pratt Parsing Table ----------------------
 const struct compile_rule rules[] = {
-    PREFIX_INFIX(blk, bcal, SEND, false),   // DO
-    NONE(),                                 // END
-    PREFIX(def),                            // DEF
-    PREFIX(rtn),                            // RETURN
-    PREFIX(yld),                            // YIELD
-    INFIX(bin, SEND, false),                // PLUS
-    PREFIX_INFIX(una, bin, SEND, false),    // MINUS
-    INFIX(bin, SEND, false),                // STAR
-    INFIX(bin, SEND, false),                // SLASH
-    INFIX(bin, SEND, false),                // PERCENT
-    NONE(),                                 // COMMA
-    INFIX(dyn, SEND, false),                // COLON
-    PREFIX_INFIX(amp, bin, SEND, false),    // AMPERSAND
-    NONE(),                                 // DOLLAR
-    PREFIX_INFIX(sym, symcal, SEND, false), // SYMBOL
-    INFIX(snd, SEND, true),                 // MESSAGE
-    NONE(),                                 // DOT
-    PREFIX(splt),                           // DOTDOT
-    NONE(),                                 // EQUAL
-    INFIX(bin, SEND, false),                // EQUALEQUAL
-    PREFIX(una),                            // QUESTION
-    NONE(),                                 // BANG
-    NONE(),                                 // AT
-    NONE(),                                 // COLON_EQUAL
-    INFIX(bin, SEND, false),                // LESSER
-    INFIX(bin, SEND, false),                // LESSEREQUAL
-    INFIX(bin, SEND, false),                // LESSERLESSER
-    INFIX(bin, SEND, false),                // GREATER
-    INFIX(bin, SEND, false),                // GREATEREQUAL
-    INFIX(bin, SEND, false),                // GREATER_GREATER
-    NONE(),                                 // ARROW
-    PREFIX_INFIX(lmb, lmbcal, SEND, false), // FATARROW
-    PREFIX(una),                            // NOT
-    PREFIX_INFIX(arr, idx, SEND, false),    // LBRACE
-    NONE(),                                 // RBRACE
-    PREFIX_INFIX(rec, rcal, SEND, false),   // LBRACK
-    NONE(),                                 // RBRACK
-    PREFIX_INFIX(grp, cal, SEND, false),    // LPAREN
-    NONE(),                                 // RPAREN
-    INFIX(bin, SEND, false),                // PIPE
-    PREFIX(idn),                            // ID
-    PREFIX(ipm),                            // IMPLICIT
-    PREFIX_INFIX(str, scal, SEND, false),   // STRING
-    PREFIX_INFIX(itp, scal, SEND, false),   // INTERPOLATION END
-    NONE(),                                 // INTERPOLATION MIDDLE
-    NONE(),                                 // INTERPOLATION END
-    PREFIX(num),                            // NUMBER
-    PREFIX(bool),                           // FALSE
-    PREFIX(bool),                           // TRUE
-    PREFIX(nil),                            // NIL
-    NONE(),                                 // NEWLINE
-    NONE(),                                 // EOF
-    NONE(),                                 // ERROR
+    PREFIX_INFIX(blk, bcal, SEND, false),       // DO
+    NONE(),                                     // END
+    PREFIX(rtn),                                // RETURN
+    PREFIX(yld),                                // YIELD
+    NONE(),                                     // COMMA
+    PREFIX_INFIX(sym, symcal, SEND, false),     // SIGIL
+    PREFIX_INFIX(empty_send, send, SEND, true), // COLON
+    PREFIX(msg_lit),                            // BACKSLASH
+    PREFIX(splt),                               // DOTDOT
+    NONE(),                                     // EQUAL
+    PREFIX_INFIX(arr, idx, SEND, false),        // LBRACE
+    NONE(),                                     // RBRACE
+    PREFIX_INFIX(rec, rcal, SEND, false),       // LBRACK
+    NONE(),                                     // RBRACK
+    PREFIX_INFIX(grp, cal, SEND, false),        // LPAREN
+    NONE(),                                     // RPAREN
+    PREFIX(idn),                                // ID
+    PREFIX_INFIX(una, bin, SEND, false),        // OPERATOR
+    PREFIX(ipm),                                // IMPLICIT
+    PREFIX_INFIX(str, scal, SEND, false),       // STRING
+    PREFIX_INFIX(itp, scal, SEND, false),       // INTERPOLATION END
+    NONE(),                                     // INTERPOLATION MIDDLE
+    NONE(),                                     // INTERPOLATION END
+    PREFIX(num),                                // NUMBER
+    PREFIX(bool),                               // FALSE
+    PREFIX(bool),                               // TRUE
+    PREFIX(nil),                                // NIL
+    NONE(),                                     // NEWLINE
+    NONE(),                                     // EOF
+    NONE(),                                     // ERROR
 };
 
 struct compile_rule get_rule(gab_token k) { return rules[k]; }
@@ -3133,7 +2690,7 @@ static int compiler_error(struct bc *bc, enum gab_status e,
   gab_fvpanic(gab(bc), stderr, va,
               (struct gab_err_argt){
                   .src = bc->src,
-                  .block = gab_nil,
+                  .message = gab_nil,
                   .status = e,
                   .tok = bc->offset - 1,
                   .note_fmt = note_fmt,
@@ -3312,10 +2869,7 @@ uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
                          uint64_t offset) {
   uint8_t op = v_uint8_t_val_at(&self->src->bytecode, offset);
   switch (op) {
-  case OP_NOT:
   case OP_POP:
-  case OP_TYPE:
-  case OP_NEGATE:
   case OP_NOP:
     return dumpSimpleInstruction(stream, self, offset);
   case OP_PACK:

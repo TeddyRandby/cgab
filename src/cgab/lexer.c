@@ -1,5 +1,4 @@
 #include "lexer.h"
-#include <stdio.h>
 
 bool is_whitespace(uint8_t c) { return c == ' ' || c == '\t' || c == '\f'; }
 
@@ -16,6 +15,34 @@ bool can_start_identifier(uint8_t c) { return is_alpha(c) || c == '_'; }
 bool can_continue_identifier(uint8_t c) {
   return can_start_identifier(c) || c == '.';
 }
+
+bool can_end_identifier(uint8_t c) { return c == '?' || c == '!'; }
+
+bool can_start_operator(uint8_t c) {
+  switch (c) {
+  case '!':
+  case '$':
+  case '%':
+  case '^':
+  case '*':
+  case '/':
+  case '+':
+  case '-':
+  case '&':
+  case '|':
+  case '=':
+  case '<':
+  case '>':
+  case '?':
+  case ':':
+  case '~':
+    return true;
+  default:
+    return false;
+  }
+}
+
+bool can_continue_operator(uint8_t c) { return can_start_operator(c); }
 
 bool is_digit(uint8_t c) { return c >= '0' && c <= '9'; }
 
@@ -98,21 +125,12 @@ const keyword keywords[] = {
         TOKEN_DO,
     },
     {
-
-        "def",
-        TOKEN_DEF,
-    },
-    {
         "end",
         TOKEN_END,
     },
     {
         "false",
         TOKEN_FALSE,
-    },
-    {
-        "not",
-        TOKEN_NOT,
     },
     {
         "return",
@@ -163,11 +181,22 @@ gab_token string(gab_lx *self) {
   return start == '}' ? TOKEN_INTERPOLATION_END : TOKEN_STRING;
 }
 
+gab_token operator(gab_lx *self) {
+  while (can_continue_operator(peek(self)))
+    advance(self);
+
+  if (self->current_token_src.len == 1 &&
+      self->current_token_src.data[0] == '=')
+    return TOKEN_EQUAL;
+
+  return TOKEN_OPERATOR;
+}
+
 gab_token identifier(gab_lx *self) {
   while (can_continue_identifier(peek(self)))
     advance(self);
 
-  if (peek(self) == '?' || peek(self) == '!')
+  if (can_end_identifier(peek(self)))
     advance(self);
 
   for (int i = 0; i < sizeof(keywords) / sizeof(keyword); i++) {
@@ -207,55 +236,57 @@ gab_token floating(gab_lx *self) {
   return TOKEN_NUMBER;
 }
 
-#define CHAR_CASE(char, name)                                                  \
-  case char: {                                                                 \
-    advance(self);                                                             \
-    return TOKEN_##name;                                                       \
-  }
-
 gab_token other(gab_lx *self) {
   switch (peek(self)) {
-
-    CHAR_CASE('+', PLUS)
-    CHAR_CASE('*', STAR)
-    CHAR_CASE('/', SLASH)
-    CHAR_CASE('%', PERCENT)
-    CHAR_CASE('[', LBRACE)
-    CHAR_CASE(']', RBRACE)
-    CHAR_CASE('(', LPAREN)
-    CHAR_CASE(')', RPAREN)
-    CHAR_CASE(',', COMMA)
-    CHAR_CASE(';', NEWLINE) // Treat as a line break for the compiler
-    CHAR_CASE('|', PIPE)
-    CHAR_CASE('?', QUESTION)
-    CHAR_CASE('&', AMPERSAND)
-    CHAR_CASE('!', BANG)
-
-  case '{': {
+  case '[':
     advance(self);
+    return TOKEN_LBRACE;
+  case ']':
+    advance(self);
+    return TOKEN_RBRACE;
+  case '(':
+    advance(self);
+    return TOKEN_LPAREN;
+  case ')':
+    advance(self);
+    return TOKEN_RPAREN;
+  case ',':
+    advance(self);
+    return TOKEN_COMMA;
+  case ';':
+    advance(self);
+    return TOKEN_NEWLINE;
+  case '\\':
+    advance(self);
+    return TOKEN_BACKSLASH;
+  case ':':
+    advance(self);
+    return TOKEN_COLON;
+
+  case '{':
+    advance(self);
+
     if (self->nested_curly > 0)
       self->nested_curly++;
-    return TOKEN_LBRACK;
-  }
 
-  case '}': {
+    return TOKEN_LBRACK;
+
+  case '}':
     advance(self);
+
     if (self->nested_curly > 0)
       self->nested_curly--;
+
     return TOKEN_RBRACK;
-  }
 
   case '@': {
     advance(self);
 
-    if (is_digit(peek(self))) {
+    if (is_digit(peek(self)))
       if (integer(self) == TOKEN_NUMBER)
         return TOKEN_IMPLICIT;
 
-      return error(self, GAB_MALFORMED_TOKEN);
-    }
-
-    return TOKEN_AT;
+    return error(self, GAB_MALFORMED_TOKEN);
   }
 
   case '.': {
@@ -266,83 +297,17 @@ gab_token other(gab_lx *self) {
       return TOKEN_DOT_DOT;
     }
 
-    if (can_continue_identifier(peek(self))) {
+    if (can_continue_identifier(peek(self)))
       if (identifier(self) == TOKEN_IDENTIFIER)
         return TOKEN_SIGIL;
 
-      return error(self, GAB_MALFORMED_TOKEN);
-    }
-
-    return TOKEN_DOT;
-  }
-  case '-': {
-    advance(self);
-    switch (peek(self)) {
-      CHAR_CASE('>', ARROW)
-    default: {
-      return TOKEN_MINUS;
-    }
-    }
+    return error(self, GAB_MALFORMED_TOKEN);
   }
 
-  case ':': {
-    advance(self);
-
-    if (can_start_identifier(peek(self))) {
-      // If we didn't get a keyword, return a token message
-      if (identifier(self) == TOKEN_IDENTIFIER) {
-        // Messages can end in ? or !
-        if (peek(self) == '?' || peek(self) == '!') {
-          advance(self);
-        }
-
-        return TOKEN_MESSAGE;
-      }
-
-      // Otherwise, we got a keyword and this was an error
-      return error(self, GAB_MALFORMED_TOKEN);
-    }
-
-    return TOKEN_COLON;
-  }
-
-  case '=': {
-    advance(self);
-    switch (peek(self)) {
-      CHAR_CASE('>', FAT_ARROW)
-    case '=': {
-      if (peek_next(self) == '>')
-        return TOKEN_EQUAL;
-
-      advance(self);
-      return TOKEN_EQUAL_EQUAL;
-    }
-    default: {
-      return TOKEN_EQUAL;
-    }
-    }
-  }
-  case '<': {
-    advance(self);
-    switch (peek(self)) {
-      CHAR_CASE('=', LESSER_EQUAL)
-      CHAR_CASE('<', LESSER_LESSER)
-    default: {
-      return TOKEN_LESSER;
-    }
-    }
-  }
-  case '>': {
-    advance(self);
-    switch (peek(self)) {
-      CHAR_CASE('=', GREATER_EQUAL)
-      CHAR_CASE('>', GREATER_GREATER)
-    default: {
-      return TOKEN_GREATER;
-    }
-    }
-  }
   default: {
+    if (can_start_operator(peek(self)))
+      return operator(self);
+
     advance(self);
     return error(self, GAB_MALFORMED_TOKEN);
   }
@@ -363,7 +328,7 @@ static inline void parse_comment(gab_lx *self) {
   }
 }
 
-gab_token gab_lexnxt(gab_lx *self) {
+gab_token gab_lexnext(gab_lx *self) {
   while (is_whitespace(peek(self)) || is_comment(peek(self))) {
     if (is_comment(peek(self)))
       parse_comment(self);
@@ -507,7 +472,7 @@ struct gab_src *gab_src(struct gab_triple gab, gab_value name,
   gab_lexcreate(&lex, src);
 
   for (;;) {
-    gab_token t = gab_lexnxt(&lex);
+    gab_token t = gab_lexnext(&lex);
     if (t == TOKEN_EOF)
       break;
   }

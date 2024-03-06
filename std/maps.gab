@@ -1,64 +1,64 @@
-def maps.t = :use .map
+def maps.t = use .map
 
-&[]:def!(maps.t) do (key)
-  self:at(key):unwrap
+\[] when!(maps.t) do (key)
+  self at(key) unwrap
 end
 
-&[=]:def!(maps.t) do (key, value)
-  self:put!(key, value)
+&[=] when!(maps.t) do (key, value)
+  self put!(key, value)
 end
 
-&:has?:def!(maps.t) do (key)
-  self:at(key) == .some
+&has? def!(maps.t) do (key)
+  self at(key) == .some
 end
 
-&:at_or!:def!(maps.t) do (key, default)
-  self:at(key):unwrap:or =>
-    self:put!(key, default)
+&at_or! def!(maps.t) do (key, default)
+  self at(key) unwrap or =>
+    self put!(key, default)
 end
 
-&:del!:def!(maps.t) do (key)
-  self:put!(key, nil)
+&del! def!(maps.t) do (key)
+  self put!(key, nil)
 end
 
-&:maps.values:def!(maps.t) do (k)
-  yield self:at(k)
+&maps.values def!(maps.t) do (k)
+  yield self at(k)
 
-  def next_key = self:next(k)
+  def next_key = self next(k)
 
-  next_key == nil :or =>
-    self:maps.values(next_key)
+  next_key == nil  or =>
+    self maps.values(next_key)
 end
 
-&:values:def!(maps.t) do
-  def key = self:next
+&values def!(maps.t) do
+  def key = self next
 
-  key == nil :or =>
-    self:maps.values(key)
+  key == nil  or =>
+    self maps.values(key)
 end
 
-&:maps.keys:def!(maps.t) do (k)
+& maps.keys def!(maps.t) do (k)
   yield k
 
-  def next_key = self:next(k)
+  def next_key = self next(k)
 
-  next_key == nil :or =>
-    self:maps.keys(next_key)
+  next_key == nil  or =>
+    self maps.keys(next_key)
 end
 
-&:keys:def!(maps.t) do
-  def key = self:next
+& keys def!(maps.t) do
+  def key = self next
 
-  key == nil :or =>
-    self:maps.keys(key)
+  key == nil  or =>
+    self maps.keys(key)
 end
 
-#&:pairs:def!(maps.t) do
-#    key = self:next
+#& pairs def!(maps.t) do
+#    key = self next
 #
 #    loop
 #      yield key, self[key]
-#      key = self:next(key)
+#      key = self next(key)
 #    until key == nil end
 #end
 
