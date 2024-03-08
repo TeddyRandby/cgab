@@ -309,12 +309,12 @@ gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
                          struct gab_blkproto_argt args) {
 
   struct gab_obj_prototype *self = GAB_CREATE_FLEX_OBJ(
-      gab_obj_prototype, uint8_t, args.nupvalues * 2, kGAB_BPROTOTYPE);
+      gab_obj_prototype, uint8_t, args.nupvalues, kGAB_BPROTOTYPE);
 
   self->src = src;
   self->name = name;
   self->offset = offset;
-  self->len = args.nupvalues * 2;
+  self->len = args.nupvalues;
   self->as.block.len = len;
   self->as.block.nslots = args.nslots;
   self->as.block.nlocals = args.nlocals;
@@ -326,8 +326,8 @@ gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
       memcpy(self->data, args.data, args.nupvalues * 2 * sizeof(uint8_t));
     } else if (args.flags && args.indexes) {
       for (uint8_t i = 0; i < args.nupvalues; i++) {
-        self->data[i * 2] = args.flags[i];
-        self->data[i * 2 + 1] = args.indexes[i];
+        bool is_local = args.flags[i] & fLOCAL_LOCAL;
+        self->data[i] = (args.indexes[i] << 1) | is_local;
       }
     } else {
       assert(0 && "Invalid arguments to gab_bprototype");

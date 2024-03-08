@@ -1,6 +1,6 @@
 nil:use .dis
 
-do specs, separator:
+do specs, separator
     specs:
       tuple.collect (
           \map,

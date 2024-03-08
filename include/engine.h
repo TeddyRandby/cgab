@@ -47,10 +47,10 @@ void gab_gcdestroy(struct gab_gc *gc);
 typedef void (*gab_gc_visitor)(struct gab_triple gab, struct gab_obj *obj);
 
 enum variable_flag {
-  fVAR_CAPTURED = 1 << 0,
-  fVAR_MUTABLE = 1 << 1,
-  fVAR_LOCAL = 1 << 2,
-  fVAR_INITIALIZED = 1 << 3,
+  fLOCAL_LOCAL = 1 << 0,
+  fLOCAL_CAPTURED = 1 << 1,
+  fLOCAL_INITIALIZED = 1 << 2,
+  fLOCAL_REST = 1 << 3,
 };
 
 /**

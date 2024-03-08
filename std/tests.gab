@@ -2,7 +2,7 @@
 :use 'records'
 :use 'lists'
 
-def TestState = ?{ fails, errs }
+TestState = .{ fails, errs }?
 
 &:testState :def! do
     :record.new(TestState):reset

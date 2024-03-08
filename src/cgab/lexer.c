@@ -137,43 +137,12 @@ const keyword keywords[] = {
         TOKEN_FALSE,
     },
     {
-        "return",
-        TOKEN_RETURN,
-    },
-    {
-        "yield",
-        TOKEN_YIELD,
-    },
-    {
         "true",
         TOKEN_TRUE,
     },
     {
         "nil",
         TOKEN_NIL,
-    },
-};
-
-const keyword non_operators[] = {
-    {
-        "=",
-        TOKEN_EQUAL,
-    },
-    {
-        "(",
-        TOKEN_LPAREN,
-    },
-    {
-        ")",
-        TOKEN_RPAREN,
-    },
-    {
-        "[",
-        TOKEN_LBRACE,
-    },
-    {
-        "]",
-        TOKEN_RBRACE,
     },
 };
 
@@ -211,14 +180,6 @@ gab_token string(gab_lx *self) {
 gab_token operator(gab_lx *self) {
   while (can_continue_operator(peek(self))) {
     advance(self);
-  }
-
-  for (int i = 0; i < sizeof(non_operators) / sizeof(keyword); i++) {
-    keyword k = non_operators[i];
-    s_char lit = s_char_create(k.literal, strlen(k.literal));
-    if (s_char_match(self->current_token_src, lit)) {
-      return k.token;
-    }
   }
 
   if (self->current_token_src.len == 1 &&
@@ -298,6 +259,9 @@ gab_token other(gab_lx *self) {
   case ']':
     advance(self);
     return TOKEN_RBRACE;
+  case '=':
+    advance(self);
+    return TOKEN_EQUAL;
 
   case '{':
     advance(self);
@@ -315,16 +279,6 @@ gab_token other(gab_lx *self) {
 
     return TOKEN_RBRACK;
 
-  case '@': {
-    advance(self);
-
-    if (is_digit(peek(self)))
-      if (integer(self) == TOKEN_NUMBER)
-        return TOKEN_IMPLICIT;
-
-    return error(self, GAB_MALFORMED_TOKEN);
-  }
-
   case '.': {
     advance(self);
 
@@ -333,7 +287,12 @@ gab_token other(gab_lx *self) {
       return TOKEN_DOT_DOT;
     }
 
-    return TOKEN_DOT;
+    if (can_continue_identifier(peek(self)))
+      if (identifier(self) == TOKEN_IDENTIFIER)
+          return TOKEN_SIGIL;
+
+
+    return error(self, GAB_MALFORMED_TOKEN);
   }
 
   default: {

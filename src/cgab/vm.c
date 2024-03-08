@@ -688,14 +688,13 @@ static inline gab_value block(struct gab_triple gab, gab_value p,
   struct gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(p);
 
   for (int i = 0; i < proto->as.block.nupvalues; i++) {
-    uint8_t flags = proto->data[i * 2];
-    uint8_t index = proto->data[i * 2 + 1];
+    uint8_t is_local = proto->data[i] & fLOCAL_LOCAL;
+    uint8_t index = proto->data[i] >> 1;
 
-    if (flags & fVAR_LOCAL) {
+    if (is_local)
       b->upvalues[i] = locals[index];
-    } else {
+    else
       b->upvalues[i] = upvs[index];
-    }
   }
 
   return blk;
@@ -1593,6 +1592,11 @@ CASE_CODE(SEND) {
   gab_value *ks = READ_CONSTANTS;
   uint8_t have_byte = READ_BYTE;
   uint64_t have = compute_arity(VAR(), have_byte);
+
+  STORE_SP();
+  PUSH_FRAME();
+  gab_fvminspect(stdout, VM(), 0);
+  POP_FRAME();
 
   uint8_t adjust = (have_byte & fHAVE_TAIL) >> 1;
 

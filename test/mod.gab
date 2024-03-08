@@ -1,17 +1,17 @@
-:use .tests
-:use .numbers
-:use .any
+():use .tests
+():use .numbers
+():use .any
 
-:describe 'Multiple Assignment', do:
-    :it 'should declare new variables', do:
-        (a = 2):expect 2
+'Multiple Assignment' :tests.covers do
+    'declare new variables' :tests.should do
+        a = 2
         a:expect(2)
 
-        (a = 3):expect(3)
+        a = 3
         a:expect(3)
     end
 
-    :it 'should assign multiple variables' do
+    'should assign multiple variables' :tests.should do
         (a, b = 1, 2):expect(1)
         a:expect(1)
         b:expect(2)
@@ -20,22 +20,24 @@
         b:expect(1)
     end
 
-    :it 'should reassign' do
-      (a, b, c, d = 1, 2, 3, 4):expect(1)
+    'should reassign' :tests.should do
+      a, b, c, d = 1, 2, 3, 4
+
       a:expect(1)
       b:expect(2)
       c:expect(3)
       d:expect(4)
 
-      (a, c, d, e = 5, 6, 7, 8):expect(5)
+      a, c, d, e = 5, 6, 7, 8
+
       a:expect(5)
       c:expect(6)
       d:expect(7)
       e:expect(8)
     end
 
-    :it 'should rest assign a constant multi value' do
-        (a, b,..c = 1, 2, 3, 4, 5):expect(1)
+    'should rest assign a constant multi value' :tests.should do
+        a, b,..c = 1, 2, 3, 4, 5
         a:expect(1)
         b:expect(2)
         c[0]:expect(3)
@@ -43,8 +45,8 @@
         c[2]:expect(5)
     end
 
-    :it 'should rest assign a constant multi value in middle' do
-        (a, ..b, c = 1,2,3,4,5):expect(1)
+    'should rest assign a constant multi value in middle' :tests.should do
+        a, ..b, c = 1, 2, 3, 4, 5
 
         a:expect(1)
         c:expect(5)
@@ -53,8 +55,8 @@
         b[2]:expect(4)
     end
 
-    :it 'should rest assign a runtime multi value' do
-        one_through_five = do; return 1,2,3,4,5 end
+    'should rest assign a runtime multi value' :tests.should do
+        one_through_five = do; (1,2,3,4,5) end
 
         ..a, b, c = one_through_five ()
 
@@ -65,7 +67,7 @@
         a[2]:expect(3)
     end
 
-    :it 'should rest assign to existing variables' do
+    'should rest assign to existing variables' :tests.should do
         one_through_five = do; return 1,2,3,4,5 end
 
         b = 1
