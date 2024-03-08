@@ -2,13 +2,13 @@ nil:use .dis
 
 do specs, separator:
     specs:
-      tuple.collect(
+      tuple.collect (
           \map,
           \values,
           \spec.explain,
           specs:len,
         ):
-      join(
+      join (
           \values,
           separator,
           \+,

@@ -146,7 +146,7 @@ enum comp_status {
 #define MV_OK ((mv){COMP_OK, false})
 #define MV_EMPTY ((mv){0})
 #define MV_OK_WITH(n) ((mv){n, false})
-#define MV_MULTI ((mv){COMP_OK, true})
+#define MV_MULTI ((mv){0, true})
 #define MV_MULTI_WITH(n) ((mv){n, true})
 
 #define FMT_UNEXPECTEDTOKEN "Expected $ instead."
@@ -590,7 +590,6 @@ static inline mv push_send(struct bc *bc, gab_value m, mv lhs, mv rhs,
     addk(bc, gab_undefined);
     addk(bc, gab_undefined);
   }
-  printf("LHS: %d, RHS: %d\n", lhs.status, rhs.status);
 
   switch (lhs.status) {
   case 0:
@@ -1489,8 +1488,6 @@ static mv compile_tuple_prec(struct bc *bc, enum prec_k prec, uint8_t want) {
 
   mv result = {};
   for (;;) {
-    if (!curr_prefix(bc, prec))
-      break;
 
     result = compile_expression_prec(bc, prec);
 
@@ -1501,6 +1498,9 @@ static mv compile_tuple_prec(struct bc *bc, enum prec_k prec, uint8_t want) {
     case COMP_OK:
       if (optional_newline(bc) < 0)
         return MV_ERR;
+
+      if (!curr_prefix(bc, prec))
+        break;
 
       have += result.status;
 
@@ -1986,13 +1986,9 @@ mv compile_send(struct bc *bc, mv lhs, bool assignable) {
     if (rhs.status > GAB_ARG_MAX)
       return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, ""), MV_ERR;
 
-    pop_slot(bc, rhs.status + 1 + rhs.multi);
+    pop_slot(bc, rhs.status + rhs.multi);
 
-    push_dynsend(bc, lhs, rhs, t);
-
-    push_slot(bc, 1);
-
-    return MV_MULTI;
+    return push_dynsend(bc, lhs, rhs, t);
   }
 
   if (optional_newline(bc) < 0)
@@ -2336,6 +2332,7 @@ mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
       if (have.multi) {
         push_trim(bc, 1, bc->offset - 1);
         have.status += 1;
+        have.multi = false;
       }
 
       have = rule.infix(bc, have, assignable);
