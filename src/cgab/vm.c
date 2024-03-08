@@ -245,10 +245,10 @@ static handler handlers[] = {
 
 #define STORE_PRIMITIVE_ERROR_FRAME(have)                                      \
   ({                                                                           \
-    PUSH_FRAME();                                                              \
     if (!(IP()[-1] & fHAVE_TAIL)) {                                            \
-      PUSH_ERROR_FRAME(have);                                                  \
+      PUSH_FRAME();                                                            \
     }                                                                          \
+    PUSH_ERROR_FRAME(have);                                                    \
   })
 
 #define LOAD_FRAME()                                                           \
@@ -357,9 +357,10 @@ a_gab_value *vm_error(struct gab_triple gab, enum gab_status s, const char *fmt,
 }
 
 #define FMT_TYPEMISMATCH                                                       \
-  "found:\n\n | $\n\nof type:\n\n | $\n\nbut expected type:\n\n | $"
+  "found:\n\n >> $\n\nof type:\n\n >> $\n\nbut expected type:\n\n >> $"
 
-#define FMT_MISSINGIMPL "$ does not specialize for:\n\n | $\n\nof type:\n\n | $"
+#define FMT_MISSINGIMPL                                                        \
+  "$ does not specialize for:\n\n >> $\n\nof type:\n\n >> $"
 
 a_gab_value *gab_panic(struct gab_triple gab, const char *fmt, ...) {
   va_list va;
@@ -1101,9 +1102,9 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
 
 CASE_CODE(SEND_PRIMITIVE_GET) {
   gab_value *ks = READ_CONSTANTS;
-  SKIP_BYTE;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
 
-  gab_value r = PEEK2();
+  gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
   if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
@@ -1112,21 +1113,22 @@ CASE_CODE(SEND_PRIMITIVE_GET) {
   if (__gab_unlikely(ks[GAB_SEND_KTYPE] != gab_valtype(EG(), r)))
     MISS_CACHED_SEND();
 
-  gab_value res = gab_recat(r, PEEK());
+  gab_value res = gab_recat(r, PEEK_N(have - 1));
 
-  DROP_N(2);
+  DROP_N(have);
 
   PUSH(res == gab_undefined ? gab_nil : res);
 
-  VAR() = 1;
+  SET_VAR(1);
+
   NEXT();
 }
 
 CASE_CODE(SEND_PRIMITIVE_SET) {
   gab_value *ks = READ_CONSTANTS;
-  SKIP_BYTE;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
 
-  gab_value r = PEEK3();
+  gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
   if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
@@ -1137,20 +1139,20 @@ CASE_CODE(SEND_PRIMITIVE_SET) {
 
   STORE_SP();
 
-  gab_value res = gab_recput(GAB(), r, PEEK2(), PEEK());
+  gab_value res = gab_recput(GAB(), r, PEEK_N(have - 1), PEEK_N(have - 2));
 
-  DROP_N(3);
+  DROP_N(have);
 
   PUSH(res);
 
-  VAR() = 1;
+  SET_VAR(1);
+
   NEXT();
 }
 
 CASE_CODE(SEND_PROPERTY) {
   gab_value *ks = READ_CONSTANTS;
-  uint8_t have_byte = READ_BYTE;
-  uint64_t have = compute_arity(VAR(), have_byte);
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
@@ -1167,7 +1169,7 @@ CASE_CODE(SEND_PROPERTY) {
     break;
 
   default: /* Drop all the values we don't need, then fallthrough */
-    DROP_N(have - 1);
+    DROP_N(have - 2);
 
   case 2: { /* Pop the top value */
     gab_value value = POP();
@@ -1177,7 +1179,7 @@ CASE_CODE(SEND_PROPERTY) {
   }
   }
 
-  VAR() = 1;
+  SET_VAR(1);
   NEXT();
 }
 
@@ -1669,12 +1671,13 @@ CASE_CODE(SEND) {
 }
 
 CASE_CODE(DYNSEND) {
-  SKIP_SHORT;
+  gab_value *ks = READ_CONSTANTS;
   uint8_t have_byte = READ_BYTE;
   uint64_t have = compute_arity(VAR(), have_byte);
 
   gab_value r = PEEK_N(have + 1);
   gab_value m = PEEK_N(have);
+  gab_value t = gab_valtype(EG(), r);
 
   if (__gab_unlikely(gab_valkind(m) != kGAB_MESSAGE)) {
     PUSH_FRAME();
@@ -1693,6 +1696,11 @@ CASE_CODE(DYNSEND) {
   gab_value spec = res.status == sGAB_IMPL_PROPERTY
                        ? gab_primitive(OP_SEND_PROPERTY)
                        : gab_umsgat(m, res.offset);
+
+  ks[GAB_SEND_KMESSAGE] = m;
+  ks[GAB_SEND_KSPECS] = GAB_VAL_TO_MESSAGE(m)->specs;
+  ks[GAB_SEND_KOFFSET] = res.offset;
+  ks[GAB_SEND_KTYPE] = t;
 
   memmove(SP() - have, SP() - (have - 1), have * sizeof(gab_value));
   DROP();

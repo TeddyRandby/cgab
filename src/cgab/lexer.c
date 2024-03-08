@@ -35,17 +35,18 @@ bool can_start_operator(uint8_t c) {
   case '>':
   case '?':
   case '~':
-  case '[':
-  case ']':
-  case '(':
-  case ')':
     return true;
   default:
     return false;
   }
 }
 
-bool can_continue_operator(uint8_t c) { return can_start_operator(c); }
+bool can_continue_operator(uint8_t c) {
+  switch (c) {
+  default:
+    return can_start_operator(c);
+  }
+}
 
 bool is_digit(uint8_t c) { return c >= '0' && c <= '9'; }
 
@@ -208,8 +209,9 @@ gab_token string(gab_lx *self) {
 }
 
 gab_token operator(gab_lx *self) {
-  while (can_continue_operator(peek(self)))
+  while (can_continue_operator(peek(self))) {
     advance(self);
+  }
 
   for (int i = 0; i < sizeof(non_operators) / sizeof(keyword); i++) {
     keyword k = non_operators[i];
@@ -284,6 +286,18 @@ gab_token other(gab_lx *self) {
   case ',':
     advance(self);
     return TOKEN_COMMA;
+  case '(':
+    advance(self);
+    return TOKEN_LPAREN;
+  case ')':
+    advance(self);
+    return TOKEN_RPAREN;
+  case '[':
+    advance(self);
+    return TOKEN_LBRACE;
+  case ']':
+    advance(self);
+    return TOKEN_RBRACE;
 
   case '{':
     advance(self);
@@ -319,11 +333,7 @@ gab_token other(gab_lx *self) {
       return TOKEN_DOT_DOT;
     }
 
-    if (can_continue_identifier(peek(self)))
-      if (identifier(self) == TOKEN_IDENTIFIER)
-        return TOKEN_SIGIL;
-
-    return error(self, GAB_MALFORMED_TOKEN);
+    return TOKEN_DOT;
   }
 
   default: {

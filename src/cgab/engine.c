@@ -817,7 +817,7 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
     }
   }
 
-  fprintf(stream, "\n");
+  fprintf(stream, "\n\n");
 
 fin:
   if (gab.flags & fGAB_EXIT_ON_PANIC) {

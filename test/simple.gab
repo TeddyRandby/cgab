@@ -1,17 +1,16 @@
-&test.next case {
-  [false] ==> nil
-}
+nil:use .dis
 
-&at def .gab.map do:
-  self
-end
-
-&streams.fold def! {
-  [.gab.suspense]: do (p, acc, cb)
-  end,
-  []: => @2 
-}
-
-&at when! .gab.map do
-
-end -> .ok, result
+do specs, separator:
+    specs:
+      tuple.collect(
+          \map,
+          \values,
+          \spec.explain,
+          specs:len,
+        ):
+      join(
+          \values,
+          separator,
+          \+,
+        )
+end :dis

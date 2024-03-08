@@ -2,9 +2,9 @@
 :use .numbers
 :use .any
 
-:describe 'Multiple Assignment' do
-    :it 'should declare new variables' do
-        (a = 2):expect(2)
+:describe 'Multiple Assignment', do:
+    :it 'should declare new variables', do:
+        (a = 2):expect 2
         a:expect(2)
 
         (a = 3):expect(3)
@@ -56,7 +56,7 @@
     :it 'should rest assign a runtime multi value' do
         one_through_five = do; return 1,2,3,4,5 end
 
-        (..a, b, c = one_through_five())
+        ..a, b, c = one_through_five ()
 
         b:expect(4)
         c:expect(5)
