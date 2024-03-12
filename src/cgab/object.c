@@ -358,7 +358,7 @@ gab_value gab_message(struct gab_triple gab, gab_value name) {
 }
 
 gab_value gab_native(struct gab_triple gab, gab_value name, gab_native_f f) {
-  assert(gab_valkind(name) == kGAB_STRING);
+  assert(gab_valkind(name) == kGAB_STRING || gab_valkind(name) == kGAB_SIGIL);
 
   struct gab_obj_native *self = GAB_CREATE_OBJ(gab_obj_native, kGAB_NATIVE);
 

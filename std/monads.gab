@@ -1,32 +1,33 @@
-def monads.unwrap![true](args)
-  ..args 
-end
+\unwrap! :def! ([.gab.string], do args[]
+  self :monads.unwrap!(args)
+end)
 
-def monads.unwrap![false](args)
-  .UNWRAP_ERROR:panic
-end
-
-def monads.unwrap[true](args)
-  ..args
-end
-
-def monads.unwrap[false]
-  nil
-end
-
-def monads.has?[.gab.string](..args)
-  (self == .ok) | (self == .some)
-end
-
-def unwrap![.gab.string](..args)
-  self :monads.has? :monads.unwrap!(args)
-end
-
-def unwrap[.gab.string](..alt)
+\unwrap :def! ([.gab.string], do alt[]
   self :monads.has? :monads.unwrap(alt)
-end
+end)
 
+\unwrap :defcase! {
+  .some = do args[]
+    args**
+  end,
+  .ok = do args[]
+    args**
+  end,
+  .else = do
+    .UNWRAP_ERR:panic
+  end,
+}
 
-def options.into[nil]; .none end
-def options.into[false]; .none end
-def options.into[](..args); return .some, self, ..args end
+\has? :defcase! {
+  .some = do; .true; end,
+  .ok   = do; .true; end,
+  .else = do; .false; end,
+}
+
+\options.into :def! ([.nil, .false], do
+  .none
+end)
+
+\options.into :def! ([], do ..args
+  (.some, ..args)
+end)

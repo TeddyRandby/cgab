@@ -63,7 +63,7 @@
     'should rest assign a runtime multi value' :tests.should do
         one_through_five = do; (1,2,3,4,5) end
 
-        ..a, b, c = one_through_five:()
+        a[], b, c = one_through_five <- ()
 
         b:should(\be, \==, 4)
         c:should(\be, \==, 5)
@@ -77,7 +77,7 @@
 
         b = 1
 
-        a, ..b, c = one_through_five:()
+        a, b[], c = one_through_five <- ()
 
         a:should(\be, \==, 1)
         c:should(\be, \==, 5)

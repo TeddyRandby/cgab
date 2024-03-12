@@ -35,6 +35,7 @@ bool can_start_operator(uint8_t c) {
   case '>':
   case '?':
   case '~':
+  case '@':
     return true;
   default:
     return false;
@@ -269,16 +270,10 @@ gab_token other(gab_lx *self) {
 
   case ':':
     advance(self);
-
     return TOKEN_COLON;
 
   case '.': {
     advance(self);
-
-    if (peek(self) == '.') {
-      advance(self);
-      return TOKEN_DOT_DOT;
-    }
 
     if (can_continue_identifier(peek(self)))
       if (identifier(self) == TOKEN_IDENTIFIER)

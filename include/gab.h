@@ -126,11 +126,10 @@
 typedef uint64_t gab_value;
 
 enum gab_kind {
-  kGAB_NAN = 0,
-  kGAB_UNDEFINED = 1,
-  kGAB_PRIMITIVE = 2,
-  kGAB_SIGIL = 3,
-  kGAB_STRING = 4,
+  kGAB_UNDEFINED = 0,
+  kGAB_PRIMITIVE = 1,
+  kGAB_SIGIL = 2,
+  kGAB_STRING = 3,
   kGAB_NUMBER,
   kGAB_SUSPENSE,
   kGAB_MESSAGE,
@@ -148,14 +147,14 @@ enum gab_kind {
 
 #define __GAB_SIGN_BIT ((uint64_t)1 << 63)
 
-#define __GAB_TAGMASK (7)
+#define __GAB_TAGMASK (3)
 
-#define __GAB_TAGOFFSET (47)
+#define __GAB_TAGOFFSET (48)
 
 #define __GAB_VAL_TAG(val)                                                     \
   ((enum gab_kind)((__gab_valisn(val)                                          \
                         ? kGAB_NUMBER                                          \
-                        : (val >> __GAB_TAGOFFSET) & __GAB_TAGMASK)))
+                        : ((val) >> __GAB_TAGOFFSET) & __GAB_TAGMASK)))
 
 // Sneakily use a union to get around the type system
 static inline double __gab_valtod(gab_value value) {
@@ -228,7 +227,8 @@ static inline gab_value __gab_dtoval(double value) {
 
 /* Create the gab value for a primitive operation */
 #define gab_primitive(op)                                                      \
-  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_PRIMITIVE << __GAB_TAGOFFSET | (op)))
+  ((gab_value)(__GAB_QNAN | ((uint64_t)kGAB_PRIMITIVE << __GAB_TAGOFFSET) |    \
+               (op)))
 
 /* Cast a gab value to a number */
 #define gab_valton(val) (__gab_valtod(val))
