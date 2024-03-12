@@ -326,17 +326,31 @@ static inline void push_k(struct bc *bc, uint16_t k, size_t t) {
   push_short(bc, k, t);
 }
 
-static inline void push_loadi(struct bc *bc, enum gab_kind k, size_t t) {
-  assert(k == kGAB_UNDEFINED || k == kGAB_NIL || k == kGAB_TRUE ||
-         k == kGAB_FALSE);
+static inline void push_loadi(struct bc *bc, gab_value i, size_t t) {
+  assert(i == gab_undefined || i == gab_true || i == gab_false);
 
-  push_k(bc, k - 1, t);
+  switch (i) {
+  case gab_undefined:
+    push_k(bc, 0, t);
+    break;
+  case gab_nil:
+    push_k(bc, 1, t);
+    break;
+  case gab_false:
+    push_k(bc, 2, t);
+    break;
+  case gab_true:
+    push_k(bc, 3, t);
+    break;
+  default:
+    assert(false && "Invalid constant");
+  }
 };
 
-static inline void push_loadni(struct bc *bc, enum gab_kind k, int n,
+static inline void push_loadni(struct bc *bc, gab_value i, int n,
                                size_t t) {
   for (int i = 0; i < n; i++)
-    push_loadi(bc, k, t);
+    push_loadi(bc, i, t);
 }
 
 static inline void push_loadk(struct bc *bc, gab_value k, size_t t) {
@@ -1138,9 +1152,9 @@ static mv compile_strlit(struct bc *bc) {
 }
 
 static mv compile_sigil(struct bc *bc) {
-  gab_value sym = trim_prev_id(bc);
+  gab_value str = trim_prev_id(bc);
 
-  push_loadk(bc, sym, bc->offset - 1);
+  push_loadk(bc, gab_strtosig(str), bc->offset - 1);
 
   push_slot(bc, 1);
 
@@ -1479,7 +1493,7 @@ static mv compile_tuple_prec(struct bc *bc, enum prec_k prec, uint8_t want) {
   if (result.status + result.multi > want)
     return compiler_error(bc, GAB_TOO_MANY_EXPRESSIONS, ""), MV_ERR;
   else if (!result.multi && result.status < want)
-    push_loadni(bc, kGAB_NIL, want - result.status, t);
+    push_loadni(bc, gab_nil, want - result.status, t);
 
   push_slot(bc, want - result.status);
 
@@ -1725,7 +1739,7 @@ static int compile_rec_internal_item(struct bc *bc) {
       if (compile_expression(bc).status < 0)
         return COMP_ERR;
     } else {
-      push_loadi(bc, kGAB_TRUE, t);
+      push_loadi(bc, gab_true, t);
       push_slot(bc, 1);
     }
 
@@ -1767,7 +1781,7 @@ static int compile_rec_internal_item(struct bc *bc) {
         return COMP_OK;
 
       case COMP_ID_NOT_FOUND:
-        push_loadi(bc, kGAB_TRUE, t);
+        push_loadi(bc, gab_true, t);
         return COMP_OK;
 
       default:
@@ -1793,7 +1807,7 @@ static int compile_rec_internal_item(struct bc *bc) {
       if (compile_expression(bc).status < 0)
         return COMP_ERR;
     } else {
-      push_loadi(bc, kGAB_TRUE, t);
+      push_loadi(bc, gab_true, t);
       push_slot(bc, 1);
     }
 
@@ -2075,19 +2089,6 @@ static mv compile_exp_num(struct bc *bc, mv, bool) {
   return MV_OK;
 }
 
-static mv compile_exp_bool(struct bc *bc, mv, bool) {
-  push_loadi(bc, prev_tok(bc) == TOKEN_TRUE ? kGAB_TRUE : kGAB_FALSE,
-             bc->offset - 1);
-  push_slot(bc, 1);
-  return MV_OK;
-}
-
-static mv compile_exp_nil(struct bc *bc, mv, bool) {
-  push_loadi(bc, kGAB_NIL, bc->offset - 1);
-  push_slot(bc, 1);
-  return MV_OK;
-}
-
 static mv compile_exp_idn(struct bc *bc, mv lhs, bool assignable) {
   gab_value id = prev_id(bc);
 
@@ -2263,9 +2264,6 @@ const struct compile_rule rules[] = {
     NONE(),                  // INTERPOLATION MIDDLE
     NONE(),                  // INTERPOLATION END
     PREFIX(num),             // NUMBER
-    PREFIX(bool),            // FALSE
-    PREFIX(bool),            // TRUE
-    PREFIX(nil),             // NIL
     NONE(),                  // NEWLINE
     NONE(),                  // EOF
     NONE(),                  // ERROR

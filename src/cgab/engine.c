@@ -37,36 +37,36 @@ struct primitive all_primitives[] = {
 };
 
 struct primitive specific_primitive[] = {
-    {
-        .name = mGAB_LOR,
-        .type = kGAB_TRUE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
-    },
-    {
-        .name = mGAB_LND,
-        .type = kGAB_TRUE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
-    },
-    {
-        .name = mGAB_LOR,
-        .type = kGAB_FALSE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
-    },
-    {
-        .name = mGAB_LND,
-        .type = kGAB_FALSE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
-    },
-    {
-        .name = mGAB_LIN,
-        .type = kGAB_FALSE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIN),
-    },
-    {
-        .name = mGAB_LIN,
-        .type = kGAB_TRUE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIN),
-    },
+    // {
+    //     .name = mGAB_LOR,
+    //     .type = kGAB_TRUE,
+    //     .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
+    // },
+    // {
+    //     .name = mGAB_LND,
+    //     .type = kGAB_TRUE,
+    //     .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
+    // },
+    // {
+    //     .name = mGAB_LOR,
+    //     .type = kGAB_FALSE,
+    //     .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
+    // },
+    // {
+    //     .name = mGAB_LND,
+    //     .type = kGAB_FALSE,
+    //     .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
+    // },
+    // {
+    //     .name = mGAB_LIN,
+    //     .type = kGAB_FALSE,
+    //     .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIN),
+    // },
+    // {
+    //     .name = mGAB_LIN,
+    //     .type = kGAB_TRUE,
+    //     .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIN),
+    // },
     {
         .name = mGAB_BIN,
         .type = kGAB_NUMBER,
@@ -203,15 +203,15 @@ struct gab_triple gab_create() {
   eg->hash_seed = time(NULL);
 
   eg->types[kGAB_UNDEFINED] = gab_undefined;
-  eg->types[kGAB_NIL] = gab_nil;
-  eg->types[kGAB_TRUE] = gab_true;
-  eg->types[kGAB_FALSE] = gab_false;
 
   eg->types[kGAB_NUMBER] = gab_string(gab, "gab.number");
   gab_iref(gab, eg->types[kGAB_NUMBER]);
 
   eg->types[kGAB_STRING] = gab_string(gab, "gab.string");
   gab_iref(gab, eg->types[kGAB_STRING]);
+
+  eg->types[kGAB_SIGIL] = gab_string(gab, "gab.sigil");
+  gab_iref(gab, eg->types[kGAB_SIGIL]);
 
   eg->types[kGAB_MESSAGE] = gab_string(gab, "gab.message");
   gab_iref(gab, eg->types[kGAB_MESSAGE]);

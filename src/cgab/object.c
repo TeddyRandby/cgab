@@ -88,18 +88,13 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
     depth = 1;
 
   switch (gab_valkind(self)) {
-  case kGAB_NIL:
-    return fprintf(stream, "%s", "nil");
-  case kGAB_TRUE:
-    return fprintf(stream, "%s", "true");
-  case kGAB_FALSE:
-    return fprintf(stream, "%s", "false");
   case kGAB_PRIMITIVE:
     return fprintf(stream, "%s", gab_opcode_names[gab_valtop(self)]);
   case kGAB_NUMBER:
     return fprintf(stream, "%g", gab_valton(self));
   case kGAB_UNDEFINED:
     return fprintf(stream, "%s", "undefined");
+  case kGAB_SIGIL:
   case kGAB_STRING:
     return fprintf(stream, "%s", gab_strdata(&self));
   case kGAB_MESSAGE: {
@@ -259,8 +254,8 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
   Given two strings, create a third which is the concatenation a+b
 */
 gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
-  assert(gab_valkind(_a) == kGAB_STRING);
-  assert(gab_valkind(_b) == kGAB_STRING);
+  assert(gab_valkind(_a) == kGAB_STRING || gab_valkind(_a) == kGAB_SIGIL);
+  assert(gab_valkind(_b) == kGAB_STRING || gab_valkind(_b) == kGAB_SIGIL);
 
   size_t alen = gab_strlen(_a);
   size_t blen = gab_strlen(_b);

@@ -132,18 +132,6 @@ const keyword keywords[] = {
         "end",
         TOKEN_END,
     },
-    {
-        "false",
-        TOKEN_FALSE,
-    },
-    {
-        "true",
-        TOKEN_TRUE,
-    },
-    {
-        "nil",
-        TOKEN_NIL,
-    },
 };
 
 gab_token string(gab_lx *self) {

@@ -128,11 +128,9 @@ typedef uint64_t gab_value;
 enum gab_kind {
   kGAB_NAN = 0,
   kGAB_UNDEFINED = 1,
-  kGAB_NIL = 2,
-  kGAB_FALSE = 3,
-  kGAB_TRUE = 4,
-  kGAB_PRIMITIVE = 5,
-  kGAB_STRING = 6,
+  kGAB_PRIMITIVE = 2,
+  kGAB_SIGIL = 3,
+  kGAB_STRING = 4,
   kGAB_NUMBER,
   kGAB_SUSPENSE,
   kGAB_MESSAGE,
@@ -180,7 +178,7 @@ static inline gab_value __gab_dtoval(double value) {
 
 #define __gab_valisn(val) (((val) & __GAB_QNAN) != __GAB_QNAN)
 
-#define __gab_valisb(val) (__GAB_VAL_TAG(val) & (kGAB_TRUE | kGAB_FALSE))
+#define __gab_valisb(val) (val == gab_true || val == gab_false)
 
 #define __gab_obj(val)                                                         \
   (gab_value)(__GAB_SIGN_BIT | __GAB_QNAN | (uint64_t)(uintptr_t)(val))
@@ -190,18 +188,32 @@ static inline gab_value __gab_dtoval(double value) {
 
 #define gab_valisnew(val) (gab_valiso(val) && GAB_OBJ_IS_NEW(gab_valtoo(val)))
 
+/*
+ * The gab values true and false are implemented with sigils.
+ *
+ * These are simple gab strings, but serve as their own type, allowing
+ * specialization on messages for sigils like true, false, ok, some, none, etc.
+ *
+ */
+
 /* The gab value 'nil'*/
 #define gab_nil                                                                \
-  ((gab_value)(__GAB_QNAN | kGAB_NIL | (uint64_t)kGAB_NIL << __GAB_TAGOFFSET))
+  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET |          \
+               (uint64_t)2 << 40 | (uint64_t)'\0' << 24 | (uint64_t)'n' |      \
+               (uint64_t)'i' << 8 | (uint64_t)'l' << 16))
 
 /* The gab value 'false'*/
 #define gab_false                                                              \
-  ((gab_value)(__GAB_QNAN | kGAB_FALSE |                                       \
-               (uint64_t)kGAB_FALSE << __GAB_TAGOFFSET))
+  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET |          \
+               (uint64_t)0 << 40 | (uint64_t)'f' | (uint64_t)'a' << 8 |        \
+               (uint64_t)'l' << 16 | (uint64_t)'s' << 24 |                     \
+               (uint64_t)'e' << 32))
 
 /* The gab value 'true'*/
 #define gab_true                                                               \
-  ((gab_value)(__GAB_QNAN | kGAB_TRUE | (uint64_t)kGAB_TRUE << __GAB_TAGOFFSET))
+  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET |          \
+               (uint64_t)1 << 40 | (uint64_t)'t' | (uint64_t)'r' << 8 |        \
+               (uint64_t)'u' << 16 | (uint64_t)'e' << 24))
 
 /* The gab value 'undefined'*/
 #define gab_undefined                                                          \
@@ -879,6 +891,7 @@ static inline bool gab_valhasp(gab_value value) {
 static inline bool gab_valhast(gab_value value) {
   enum gab_kind k = gab_valkind(value);
   switch (k) {
+  case kGAB_SIGIL:
   case kGAB_RECORD:
   case kGAB_BOX:
     return true;
@@ -940,7 +953,7 @@ gab_value gab_strcat(struct gab_triple gab, gab_value a, gab_value b);
  * @return The length of the string.
  */
 static inline size_t gab_strlen(gab_value str) {
-  assert(gab_valkind(str) == kGAB_STRING);
+  assert(gab_valkind(str) == kGAB_STRING || gab_valkind(str) == kGAB_SIGIL);
 
   if (gab_valiso(str))
     return GAB_VAL_TO_STRING(str)->len;
@@ -957,7 +970,7 @@ static inline size_t gab_strlen(gab_value str) {
  * @return A pointer to the start of the string
  */
 static inline const char *gab_strdata(gab_value *str) {
-  assert(gab_valkind(*str) == kGAB_STRING);
+  assert(gab_valkind(*str) == kGAB_STRING || gab_valkind(*str) == kGAB_SIGIL);
 
   if (gab_valiso(*str))
     return GAB_VAL_TO_STRING(*str)->data;
@@ -972,12 +985,23 @@ static inline const char *gab_strdata(gab_value *str) {
  * @return The hash
  */
 static inline size_t gab_strhash(gab_value str) {
-  assert(gab_valkind(str) == kGAB_STRING);
+  assert(gab_valkind(str) == kGAB_STRING || gab_valkind(str) == kGAB_SIGIL);
 
   if (gab_valiso(str))
     return GAB_VAL_TO_STRING(str)->hash;
 
   return str;
+}
+
+/**
+ * @brief Convert a string into it's corresponding sigil.
+ *
+ * @param str The string
+ * @return The sigil
+ */
+static inline gab_value gab_strtosig(gab_value str) {
+  return (str & ~((uint64_t)kGAB_STRING << __GAB_TAGOFFSET)) |
+         (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET;
 }
 
 /**
@@ -1782,7 +1806,7 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
   enum gab_kind k = gab_valkind(value);
   switch (k) {
   /* These primitives have a runtime type of themselves */
-  case kGAB_NIL:
+  case kGAB_SIGIL:
   case kGAB_UNDEFINED:
     return value;
   /* Types are sepcial cases for the practical type */
@@ -1918,14 +1942,9 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
   char buffer[128];
 
   switch (gab_valkind(self)) {
+  case kGAB_SIGIL:
   case kGAB_STRING:
     return self;
-  case kGAB_TRUE:
-    return gab_string(gab, "true");
-  case kGAB_FALSE:
-    return gab_string(gab, "false");
-  case kGAB_NIL:
-    return gab_string(gab, "nil");
   case kGAB_UNDEFINED:
     return gab_string(gab, "undefined");
   case kGAB_PRIMITIVE:
