@@ -1,54 +1,68 @@
-:use 'streams'
-:use 'records'
-:use 'lists'
+'streams' :use
+records = 'records' :use
+lists = 'lists' :use
 
-TestState = .{ fails, errs }?
+TestState = { fails, errs }
 
-&:testState :def! do
-    :record.new(TestState):reset
+\reset :def! (TestState, do
+  self:fails = 0
+  self:errs = lists:list.new
+
+  self
+end)
+
+T = records:make(TestState ?):reset 
+
+\tests.push_result :def! {
+
+# When the result is true, we do nothing.
+# The test passed.
+  [true]  = do
+    nil
+  end,
+
+# When the result is false, The test failed.
+# Count it and add it to the list of fails.
+  [false] = do actual, expected
+    T:fails = T:fails + 1
+    T:errs:push! [actual, expected]
+  end,
+
+}
+
+\passed? :def! (TestState, do
+  self:fails == 0
+end)
+
+\show_errs :def! (TestState, do
+  self:errs:for(\values, do mismatch
+      '     - got {mismatch:at(0)}, expecting {mismatch:at(1)}':print
+  end)
+end)
+
+\should :def! do msg, ..args, other
+    self :{msg} (..args, other) :tests.push_result(self, other)
 end
 
-&:reset :def!(TestState) do
-    self:fails = 0
-    self:errs = :list.new
-
-    self
+\be :def! do msg, other
+  self :{msg} other
 end
 
-&:fail :def!(TestState) do (got, expected)
-    self:fails = self:fails + 1
-    self:errs:push!([got, expected])
+\not.be :def! do msg, other
+  (self :{msg} other)!
 end
 
-&:passed? :def!(TestState) =>
-    self:fails == 0
-
-&:show_errs :def! (TestState) =>
-    self:errs:for(&:values) do (mismatch)
-        '     - got {mismatch[0]}, expecting {mismatch[1]}':print
-    end
-
-def T = :testState
-
-&:expect :def! do (other)
-    self == other :or => T:fail(self, other)
-end
-
-&:expect_not :def! do (other)
-    (self == other) :and => T:fail(self, other)
-end
-
-&:describe :def! do (name, cb)
+\describe :def! do name, cb
   '\n{name}:':print
   cb()
 end
 
-&:it :def! do (name, cb)
+\it :def! do name, cb
   T:reset
 
   cb()
 
-  '  {(T:passed?:and => '✓') :or => '×'} it {name}':print
+  '  { T:passed? :and '✓' :or '×' } it { name }':print end
 
-  T:passed?:or => T:show_errs
+  T:passed?:or do; T:show_errs end
 end

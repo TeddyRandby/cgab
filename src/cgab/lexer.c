@@ -241,14 +241,17 @@ gab_token other(gab_lx *self) {
   case '\\':
     advance(self);
     return TOKEN_BACKSLASH;
-  case ':':
-    advance(self);
-    return TOKEN_COLON;
   case ',':
     advance(self);
     return TOKEN_COMMA;
   case '(':
     advance(self);
+
+    if (peek(self) == ')') {
+      advance(self);
+      return TOKEN_OPERATOR;
+    }
+
     return TOKEN_LPAREN;
   case ')':
     advance(self);
@@ -259,9 +262,6 @@ gab_token other(gab_lx *self) {
   case ']':
     advance(self);
     return TOKEN_RBRACE;
-  case '=':
-    advance(self);
-    return TOKEN_EQUAL;
 
   case '{':
     advance(self);
@@ -279,6 +279,11 @@ gab_token other(gab_lx *self) {
 
     return TOKEN_RBRACK;
 
+  case ':':
+    advance(self);
+
+    return TOKEN_COLON;
+
   case '.': {
     advance(self);
 
@@ -289,8 +294,7 @@ gab_token other(gab_lx *self) {
 
     if (can_continue_identifier(peek(self)))
       if (identifier(self) == TOKEN_IDENTIFIER)
-          return TOKEN_SIGIL;
-
+        return TOKEN_SIGIL;
 
     return error(self, GAB_MALFORMED_TOKEN);
   }
@@ -349,6 +353,12 @@ gab_token gab_lexnext(gab_lx *self) {
 
   if (is_alpha(peek(self))) {
     tok = identifier(self);
+    goto fin;
+  }
+
+  if (peek(self) == '-' && is_digit(peek_next(self))) {
+    advance(self);
+    tok = floating(self);
     goto fin;
   }
 

@@ -1,7 +1,3 @@
-&() :def! .gab.message do (r, ..args)
-  r:(self)(..args)
-end
-
 &:streams.fold :def! {
   .gab.suspense = do (p, acc, cb)
     next_acc = cb(acc, ..p)            
@@ -13,8 +9,8 @@ end
   .default ==> @2
 }
 
-&:fold :def! do (msg, ..p, init, cb)
-  acc, ..args, s = init, self:(msg)(..p)
+\fold :def! do msg, ..p, init, cb
+  acc, ..args, s = init, self:{msg}(..p)
 
   s:streams.fold(args, init, cb)
 end

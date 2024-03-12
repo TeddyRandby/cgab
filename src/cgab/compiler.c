@@ -95,9 +95,6 @@ static inline struct gab_eg *eg(struct bc *bc) { return bc->gab.eg; }
 // static inline struct gab_vm *vm(struct bc *bc) { return bc->gab.vm; }
 static inline struct gab_triple gab(struct bc *bc) { return bc->gab; }
 
-/*
-  Precedence rules for the parsing of expressions.
-*/
 enum prec_k { kNONE, kASSIGNMENT, kBINARY_SEND, kUNARY_SEND, kSEND, kPRIMARY };
 
 typedef struct mv_t {
@@ -166,13 +163,10 @@ static gab_token prev_tok(struct bc *bc) {
   return v_gab_token_val_at(&bc->src->tokens, bc->offset - 1);
 }
 
-// static s_char curr_src(struct bc *bc) {
-//   return v_s_char_val_at(&bc->src->token_srcs, bc->offset);
-// }
-
 static s_char prev_src(struct bc *bc) {
   return v_s_char_val_at(&bc->src->token_srcs, bc->offset - 1);
 }
+
 static inline bool match_token(struct bc *bc, gab_token tok) {
   return v_gab_token_val_at(&bc->src->tokens, bc->offset) == tok;
 }
@@ -508,54 +502,7 @@ static inline void push_nnop(struct bc *bc, uint8_t n, size_t t) {
     push_byte(bc, OP_NOP, t); // Don't count this as an op
 }
 
-static inline bool patch_trim(struct bc *bc, uint8_t want) {
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  assert(ctx >= 0 && "Internal compiler error: no frame context");
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
-  switch (f->prev_op) {
-  case OP_TRIM:
-    if (want != VAR_EXP) {
-      v_uint8_t_set(&f->bc, f->bc.len - 1, want); /* want */
-    } else {
-      f->prev_op = f->pprev_op;
-      f->bc.len -= 2;
-      f->bc_toks.len -= 2;
-    }
-    return true;
-  }
-
-  return false;
-}
-
-static inline mv push_dynsend(struct bc *bc, mv lhs, mv rhs, size_t t) {
-  assert(rhs.status < 16);
-
-  push_op(bc, OP_DYNSEND, t);
-  push_nnop(bc, 2, t);
-  push_byte(bc, encode_arity(rhs), t);
-
-  return MV_MULTI;
-}
-
-static inline mv push_send(struct bc *bc, gab_value m, mv lhs, mv rhs,
-                           size_t t) {
-  assert(rhs.status < 16);
-
-  if (gab_valkind(m) == kGAB_STRING)
-    m = gab_message(gab(bc), m);
-
-  assert(gab_valkind(m) == kGAB_MESSAGE);
-
-  uint16_t ks = addk(bc, m);
-  addk(bc, gab_undefined);
-
-  for (int i = 0; i < cGAB_SEND_CACHE_LEN; i++) {
-    addk(bc, gab_undefined);
-    addk(bc, gab_undefined);
-    addk(bc, gab_undefined);
-  }
-
+static inline mv reconcile_send_args(struct bc *bc, mv lhs, mv rhs) {
   switch (lhs.status) {
   case 0:
     assert(lhs.multi);
@@ -577,11 +524,44 @@ static inline mv push_send(struct bc *bc, gab_value m, mv lhs, mv rhs,
            MV_ERR;
   }
 
-  push_op(bc, OP_SEND, t);
-  push_short(bc, ks, t);
-  push_byte(bc, encode_arity(rhs), t);
+  return rhs;
+}
+
+static inline mv push_dynsend(struct bc *bc, mv lhs, mv rhs, size_t t) {
+  assert(rhs.status < 16);
+
+  mv args = reconcile_send_args(bc, lhs, rhs);
+
+  if (args.status < 0)
+    return MV_ERR;
+
+  push_op(bc, OP_DYNSEND, t);
+  push_nnop(bc, 2, t);
+  push_byte(bc, encode_arity(args), t);
 
   return MV_MULTI_WITH(lhs.status - 1);
+}
+
+static inline void push_send(struct bc *bc, gab_value m, mv args, size_t t) {
+  assert(args.status < 16);
+
+  if (gab_valkind(m) == kGAB_STRING)
+    m = gab_message(gab(bc), m);
+
+  assert(gab_valkind(m) == kGAB_MESSAGE);
+
+  uint16_t ks = addk(bc, m);
+  addk(bc, gab_undefined);
+
+  for (int i = 0; i < cGAB_SEND_CACHE_LEN; i++) {
+    addk(bc, gab_undefined);
+    addk(bc, gab_undefined);
+    addk(bc, gab_undefined);
+  }
+
+  push_op(bc, OP_SEND, t);
+  push_short(bc, ks, t);
+  push_byte(bc, encode_arity(args), t);
 }
 
 static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
@@ -1007,6 +987,10 @@ static mv compile_optional_expression_prec(struct bc *bc, enum prec_k prec) {
   return compile_expression_prec(bc, prec);
 }
 
+static mv compile_optional_expression(struct bc *bc) {
+  return compile_optional_expression_prec(bc, kASSIGNMENT);
+}
+
 //---------------- Compiling Helpers -------------------
 /*
   These functions consume tokens and can emit bytes.
@@ -1384,7 +1368,9 @@ fin:
 static mv compile_expressions(struct bc *bc) {
   uint64_t line = prev_line(bc);
 
-  if (compile_expressions_body(bc).status < 0)
+  mv res = compile_expressions_body(bc);
+
+  if (res.status < 0)
     return MV_ERR;
 
   if (match_token(bc, TOKEN_EOF)) {
@@ -1396,7 +1382,7 @@ static mv compile_expressions(struct bc *bc) {
     return MV_ERR;
   }
 
-  return MV_OK;
+  return res;
 }
 
 static mv compile_block_body(struct bc *bc) {
@@ -1660,7 +1646,7 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
     }
 
     case kPROP: {
-      push_send(bc, lval.as.property, MV_OK, MV_OK, t);
+      push_send(bc, lval.as.property, MV_OK_WITH(2), t);
 
       if (!is_last_assignment)
         push_trim(bc, 0, t);
@@ -1670,7 +1656,7 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
     }
 
     case kINDEX: {
-      push_send(bc, lval.as.property, MV_OK, MV_OK_WITH(2), t);
+      push_send(bc, lval.as.property, MV_OK_WITH(3), t);
 
       if (!is_last_assignment)
         push_trim(bc, 0, t);
@@ -1829,11 +1815,17 @@ err:
 static int compile_rec_internals(struct bc *bc) {
   uint8_t size = 0;
 
+  if (skip_newlines(bc) < 0)
+    return COMP_ERR;
+
   if (match_and_eat_token(bc, TOKEN_RBRACK))
     return size;
 
   int result = COMP_ERR;
   do {
+    if (skip_newlines(bc) < 0)
+      return COMP_ERR;
+
     if (match_token(bc, TOKEN_RBRACK))
       break;
 
@@ -1847,6 +1839,9 @@ static int compile_rec_internals(struct bc *bc) {
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)) == COMP_OK);
 
   if (result == COMP_ERR)
+    return COMP_ERR;
+
+  if (skip_newlines(bc) < 0)
     return COMP_ERR;
 
   if (expect_token(bc, TOKEN_RBRACK) < 0)
@@ -1912,37 +1907,81 @@ enum {
   fHAS_STRING = 1 << 3,
 };
 
+mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs,
+                          size_t t) {
+  mv args = reconcile_send_args(bc, lhs, rhs);
+
+  if (args.status < 0)
+    return MV_ERR;
+
+  push_send(bc, m, args, t);
+
+  pop_slot(bc, args.status);
+
+  push_slot(bc, 1);
+
+  return MV_MULTI_WITH(lhs.status - 1);
+}
+
+mv compile_send_call(struct bc *bc, mv lhs, bool assignable) {
+  size_t t = bc->offset - 1;
+
+  mv rhs = MV_EMPTY;
+
+  if (!match_token(bc, TOKEN_RPAREN))
+    rhs = compile_tuple(bc, VAR_EXP);
+
+  if (rhs.status < 0)
+    return MV_ERR;
+
+  if (expect_token(bc, TOKEN_RPAREN) < 0)
+    return MV_ERR;
+
+  if (rhs.status > GAB_ARG_MAX)
+    return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, ""), MV_ERR;
+
+  gab_value m = gab_string(gab(bc), mGAB_CALL);
+
+  return compile_send_with_args(bc, m, lhs, rhs, t);
+}
+
+mv compile_dyn_send(struct bc *bc, mv lhs, bool assignable) {
+  size_t t = bc->offset - 1;
+
+  if (compile_expression(bc).status < 0)
+    return MV_ERR;
+
+  if (expect_token(bc, TOKEN_RBRACK) < 0)
+    return MV_ERR;
+
+  if (assignable && !match_ctx(bc, kTUPLE))
+    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
+      return compile_assignment(bc,
+                                (struct lvalue){
+                                    .kind = kDYN_PROP,
+                                    .slot = peek_slot(bc),
+                                }),
+             MV_ERR;
+
+  mv rhs = compile_optional_expression_prec(bc, kSEND + 1);
+
+  if (rhs.status < 0)
+    return MV_ERR;
+
+  if (rhs.status > GAB_ARG_MAX)
+    return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, ""), MV_ERR;
+
+  pop_slot(bc, rhs.status + rhs.multi);
+
+  return push_dynsend(bc, lhs, rhs, t);
+}
+
 mv compile_send(struct bc *bc, mv lhs, bool assignable) {
-  if (match_and_eat_token(bc, TOKEN_LBRACK)) {
-    size_t t = bc->offset - 1;
+  if (match_and_eat_token(bc, TOKEN_LBRACK))
+    return compile_dyn_send(bc, lhs, assignable);
 
-    if (compile_expression(bc).status < 0)
-      return MV_ERR;
-
-    if (expect_token(bc, TOKEN_RBRACK) < 0)
-      return MV_ERR;
-
-    if (assignable && !match_ctx(bc, kTUPLE))
-      if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
-        return compile_assignment(bc,
-                                  (struct lvalue){
-                                      .kind = kDYN_PROP,
-                                      .slot = peek_slot(bc),
-                                  }),
-               MV_ERR;
-
-    mv rhs = compile_optional_expression_prec(bc, kSEND + 1);
-
-    if (rhs.status < 0)
-      return MV_ERR;
-
-    if (rhs.status > GAB_ARG_MAX)
-      return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, ""), MV_ERR;
-
-    pop_slot(bc, rhs.status + rhs.multi);
-
-    return push_dynsend(bc, lhs, rhs, t);
-  }
+  if (match_and_eat_token(bc, TOKEN_LPAREN))
+    return compile_send_call(bc, lhs, assignable);
 
   if (optional_newline(bc) < 0)
     return MV_ERR;
@@ -1976,9 +2015,7 @@ mv compile_send(struct bc *bc, mv lhs, bool assignable) {
   if (rhs.status > GAB_ARG_MAX)
     return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, ""), MV_ERR;
 
-  pop_slot(bc, rhs.status + rhs.multi);
-
-  return push_send(bc, name, lhs, rhs, t);
+  return compile_send_with_args(bc, name, lhs, rhs, t);
 }
 
 //---------------- Compiling Expressions ------------------
@@ -1997,9 +2034,7 @@ static mv compile_exp_bin(struct bc *bc, mv lhs, bool assignable) {
   if (rhs.status < 0)
     return MV_ERR;
 
-  pop_slot(bc, rhs.status);
-
-  return push_send(bc, m, lhs, rhs, t);
+  return compile_send_with_args(bc, m, lhs, rhs, t);
 }
 
 static mv compile_exp_str(struct bc *bc, mv, bool) {
@@ -2021,9 +2056,6 @@ static mv compile_exp_itp(struct bc *bc, mv, bool) {
 static mv compile_exp_tup(struct bc *bc, mv, bool) {
   if (optional_newline(bc) < 0)
     return MV_ERR;
-
-  if (match_and_eat_token(bc, TOKEN_RPAREN))
-    return push_loadi(bc, kGAB_NIL, bc->offset - 1), MV_OK;
 
   mv result = compile_tuple(bc, VAR_EXP);
 
@@ -2121,30 +2153,8 @@ static mv compile_exp_splt(struct bc *bc, mv, bool assignable) {
   return compile_lvalue(bc, assignable, prev_id(bc), fLOCAL_REST);
 
 as_splat_exp:
-  return push_send(bc, gab_string(gab(bc), mGAB_SPLAT), MV_OK, MV_OK_WITH(0),
-                   t);
-}
-
-static mv compile_exp_idx(struct bc *bc, mv, bool assignable) {
-  size_t t = bc->offset - 1;
-
-  if (compile_expression(bc).status < 0)
-    return MV_ERR;
-
-  if (expect_token(bc, TOKEN_RBRACE) < 0)
-    return MV_ERR;
-
-  if (assignable && !match_ctx(bc, kTUPLE))
-    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
-      return compile_assignment(bc, (struct lvalue){
-                                        .kind = kINDEX,
-                                        .slot = peek_slot(bc),
-                                    });
-
-  pop_slot(bc, 2);
-  push_slot(bc, 1);
-
-  return push_send(bc, gab_string(gab(bc), mGAB_GET), MV_OK, MV_OK, t);
+  return compile_send_with_args(bc, gab_string(gab(bc), mGAB_SPLAT), MV_OK,
+                                MV_OK_WITH(0), t);
 }
 
 static mv compile_exp_msg_lit(struct bc *bc, mv, bool) {
@@ -2234,6 +2244,7 @@ const struct compile_rule rules[] = {
     PREFIX(blk),             // DO
     NONE(),                  // END
     NONE(),                  // COMMA
+    NONE(),                  // DOT
     PREFIX(splt),            // DOT_DOT
     INFIX(send, SEND),       // COLON
     PREFIX(msg_lit),         // BACKSLASH

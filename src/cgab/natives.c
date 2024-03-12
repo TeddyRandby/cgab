@@ -196,7 +196,7 @@ a_char *match_resource(resource *res, const char *name, uint64_t len) {
 a_gab_value *gab_lib_use(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
 
-  gab_value mod = gab_arg(1);
+  gab_value mod = gab_arg(0);
 
   if (gab_valkind(mod) != kGAB_STRING)
     return gab_ptypemismatch(gab, mod, gab_type(gab.eg, kGAB_STRING));
@@ -266,7 +266,7 @@ void gab_setup_natives(struct gab_triple gab) {
       gab_iref(gab,
                gab_spec(gab, (struct gab_spec_argt){
                                  .name = "use",
-                                 .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
+                                 .receiver = gab_type(gab.eg, kGAB_STRING),
                                  .specialization =
                                      gab_snative(gab, "use", gab_lib_use),
                              })));
