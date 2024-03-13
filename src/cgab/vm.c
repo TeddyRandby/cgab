@@ -1664,34 +1664,43 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   ks[GAB_SEND_KTYPE] = t;
 
   memmove(SP() - have, SP() - (have - 1), (have - 1) * sizeof(gab_value));
-  DROP();
-  have--;
+  PEEK() = gab_nil;
 
   switch (gab_valkind(spec)) {
+    /*
+     * For blocks and primitives, we keep everything
+     * on the stack as it is. This is because these two
+     * options use the VAR(), as set when we entered *this*
+     * opcode. Then they can do their own trimming to achieve
+     * the appropriate stack spacing.
+     */
   case kGAB_BLOCK: {
-
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
 
-    if (have_byte & fHAVE_TAIL) {
+    if (have_byte & fHAVE_TAIL)
       TAILCALL_BLOCK(blk, have);
-    } else {
+    else
       CALL_BLOCK(blk, have);
-    }
-  }
-  case kGAB_NATIVE: {
-
-    struct gab_obj_native *n = GAB_VAL_TO_NATIVE(spec);
-
-    CALL_NATIVE(n, have, true);
   }
   case kGAB_PRIMITIVE: {
-    SET_VAR(have);
-
     uint8_t op = gab_valtop(spec);
 
     IP() -= SEND_CACHE_DIST - 1;
 
     DISPATCH(op);
+  }
+    /*
+     * A native call works differently. Instead of using VAR(),
+     * we just use *have* directly. This means we have to drop the nil and
+     * pass one less argument into the native call.
+     */
+  case kGAB_NATIVE: {
+    struct gab_obj_native *n = GAB_VAL_TO_NATIVE(spec);
+
+    have--;
+    DROP();
+
+    CALL_NATIVE(n, have, true);
   }
   default:
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, spec, gab_valtype(EG(), r));

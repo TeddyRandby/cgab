@@ -1993,6 +1993,9 @@ static mv compile_exp_tup(struct bc *bc, mv, bool) {
   if (optional_newline(bc) < 0)
     return MV_ERR;
 
+  if (match_and_eat_token(bc, TOKEN_RPAREN))
+    return MV_EMPTY;
+
   mv result = compile_tuple(bc, VAR_EXP);
 
   if (result.status < 0)
@@ -2106,11 +2109,34 @@ static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
 
     rule = get_rule(prev_tok(bc));
 
-    if (rule.infix != NULL) {
+    if (rule.infix != nullptr) {
       if (have.multi)
         have = compile_mv_trim(bc, have, 1);
 
       have = rule.infix(bc, have, assignable);
+
+      continue;
+    }
+
+    if (rule.prefix != nullptr) {
+      size_t t = bc->offset - 1;
+
+      if (have.multi)
+        have = compile_mv_trim(bc, have, 1);
+
+      gab_value name = gab_string(gab(bc), mGAB_CALL);
+
+      mv rhs = rule.prefix(bc, MV_ERR, assignable);
+
+      if (rhs.status < 0)
+        return MV_ERR;
+
+      if (rhs.status > GAB_ARG_MAX)
+        return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, ""), MV_ERR;
+
+      have = compile_send_with_args(bc, name, have, rhs, t);
+
+      continue;
     }
   }
 
@@ -2132,7 +2158,7 @@ static mv compile_expression_prec(struct bc *bc, enum prec_k prec) {
 #define NONE()                                                                 \
   { NULL, NULL, kNONE }
 #define PREFIX(fnc)                                                            \
-  { compile_exp_##fnc, NULL, kNONE }
+  { compile_exp_##fnc, NULL, kPRIMARY }
 #define INFIX(fnc, prec)                                                       \
   { NULL, compile_exp_##fnc, k##prec }
 

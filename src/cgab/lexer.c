@@ -235,12 +235,6 @@ gab_token other(gab_lx *self) {
     return TOKEN_COMMA;
   case '(':
     advance(self);
-
-    if (peek(self) == ')') {
-      advance(self);
-      return TOKEN_OPERATOR;
-    }
-
     return TOKEN_LPAREN;
   case ')':
     advance(self);

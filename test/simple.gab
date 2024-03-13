@@ -10,34 +10,25 @@ m = 'msg' :use
     private :case! {
       .ok = do current, next
         (
-          td <- (f, current**),
+          td(f, current**),
           do
-            status, next_value[], next_next = m <- (i, next)
+            status, next_value[], next_next = m(i, next)
             
-            private <- (status, next_value, next_next)
+            private(status, next_value, next_next)
           end,
         )
       end,
       .done = do; .false end,
     }
 
-    status, current[], next = m <- (i, init)
+    status, current[], next = m(i, init)
 
-    private <- (status, current, next)
+    private(status, current, next)
   end)
 end)
 
-.map :deftransducer! {
-  init = do m, init, f
-    .pass
-  end,
-  ok = do
-    .pass
-  end,
-}
-
-.for :deftransducer! do f, current[]
-    f <- (current**)
+.map :deftransducer! do f, current[]
+  f(current**)
 end
 
 # A consumer is a message which takes at three arguments:
@@ -73,4 +64,4 @@ list = .nil:list.new
 
 list:push!(1,2,3)
 
-list:for(\values, 0, \print)
+list:map(\values, 0, \print):print
