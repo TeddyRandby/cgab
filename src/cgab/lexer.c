@@ -113,7 +113,7 @@ static inline char peek(gab_lx *self) { return *self->cursor; }
 
 static inline char peek_next(gab_lx *self) { return *(self->cursor + 1); }
 
-static inline gab_token error(gab_lx *self, enum gab_status s) {
+static inline gab_token lexer_error(gab_lx *self, enum gab_status s) {
   self->status = s;
   return TOKEN_ERROR;
 }
@@ -143,12 +143,12 @@ gab_token string(gab_lx *self) {
     advance(self);
 
     if (peek(self) == '\0') {
-      return error(self, GAB_MALFORMED_STRING);
+      return lexer_error(self, GAB_MALFORMED_STRING);
     }
 
     if (start != '"') {
       if (peek(self) == '\n') {
-        return error(self, GAB_MALFORMED_STRING);
+        return lexer_error(self, GAB_MALFORMED_STRING);
       }
 
       if (peek(self) == '{') {
@@ -167,9 +167,8 @@ gab_token string(gab_lx *self) {
 }
 
 gab_token operator(gab_lx *self) {
-  while (can_continue_operator(peek(self))) {
+  while (can_continue_operator(peek(self)))
     advance(self);
-  }
 
   if (self->current_token_src.len == 1 &&
       self->current_token_src.data[0] == '=')
@@ -198,7 +197,7 @@ gab_token identifier(gab_lx *self) {
 
 gab_token integer(gab_lx *self) {
   if (!is_digit(peek(self)))
-    return error(self, GAB_MALFORMED_TOKEN);
+    return lexer_error(self, GAB_MALFORMED_TOKEN);
 
   while (is_digit(peek(self)))
     advance(self);
@@ -227,9 +226,6 @@ gab_token other(gab_lx *self) {
   case ';':
     advance(self);
     return TOKEN_NEWLINE;
-  case '\\':
-    advance(self);
-    return TOKEN_BACKSLASH;
   case ',':
     advance(self);
     return TOKEN_COMMA;
@@ -262,9 +258,38 @@ gab_token other(gab_lx *self) {
 
     return TOKEN_RBRACK;
 
+  case '\\':
+    advance(self);
+    if (can_start_operator(peek(self))) {
+      advance(self);
+      if (operator(self) == TOKEN_OPERATOR)
+        return TOKEN_MESSAGE;
+    }
+
+    if (can_start_identifier(peek(self))) {
+      advance(self);
+      if (identifier(self) == TOKEN_IDENTIFIER)
+        return TOKEN_MESSAGE;
+    }
+
+    return lexer_error(self, GAB_MALFORMED_TOKEN);
+
   case ':':
     advance(self);
-    return TOKEN_COLON;
+
+    if (can_start_operator(peek(self))) {
+      advance(self);
+      if (operator(self) == TOKEN_OPERATOR)
+        return TOKEN_SEND;
+    }
+
+    if (can_start_identifier(peek(self))) {
+      advance(self);
+      if (identifier(self) == TOKEN_IDENTIFIER)
+        return TOKEN_SEND;
+    }
+
+    return lexer_error(self, GAB_MALFORMED_TOKEN);
 
   case '.': {
     advance(self);
@@ -273,7 +298,7 @@ gab_token other(gab_lx *self) {
       if (identifier(self) == TOKEN_IDENTIFIER)
         return TOKEN_SIGIL;
 
-    return error(self, GAB_MALFORMED_TOKEN);
+    return lexer_error(self, GAB_MALFORMED_TOKEN);
   }
 
   default: {
@@ -281,7 +306,7 @@ gab_token other(gab_lx *self) {
       return operator(self);
 
     advance(self);
-    return error(self, GAB_MALFORMED_TOKEN);
+    return lexer_error(self, GAB_MALFORMED_TOKEN);
   }
   }
 }

@@ -211,13 +211,13 @@ static inline int match_tokoneof(struct bc *bc, gab_token toka,
   return match_token(bc, toka) || match_token(bc, tokb);
 }
 
-static inline int match_and_eat_tokoneof(struct bc *bc, gab_token toka,
-                                         gab_token tokb) {
-  if (!match_tokoneof(bc, toka, tokb))
-    return COMP_TOKEN_NO_MATCH;
-
-  return eat_token(bc);
-}
+// static inline int match_and_eat_tokoneof(struct bc *bc, gab_token toka,
+//                                          gab_token tokb) {
+//   if (!match_tokoneof(bc, toka, tokb))
+//     return COMP_TOKEN_NO_MATCH;
+//
+//   return eat_token(bc);
+// }
 
 static inline int expect_tokoneof(struct bc *bc, gab_token toka,
                                   gab_token tokb) {
@@ -621,14 +621,6 @@ static inline void push_pack(struct bc *bc, mv rhs, uint8_t below,
   push_byte(bc, above, t);
 }
 
-// static gab_value curr_id(struct bc *bc) {
-//   s_char s = curr_src(bc);
-//
-//   gab_value sv = gab_nstring(gab(bc), s.len, s.data);
-//
-//   return sv;
-// }
-
 static gab_value prev_id(struct bc *bc) {
   s_char s = prev_src(bc);
 
@@ -980,7 +972,8 @@ static bool curr_prefix(struct bc *bc, enum prec_k prec) {
   struct compile_rule rule = get_rule(curr_tok(bc));
   bool has_prefix = rule.prefix != NULL;
   bool has_infix = rule.infix != NULL;
-  return has_prefix && (!has_infix || rule.prec > prec);
+  bool result = has_prefix && (!has_infix || rule.prec > prec);
+  return result;
 }
 
 static mv compile_mv_trim(struct bc *bc, mv v, uint8_t want) {
@@ -1923,15 +1916,10 @@ mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs,
 }
 
 mv compile_send(struct bc *bc, mv lhs, bool assignable) {
-  if (optional_newline(bc) < 0)
-    return MV_ERR;
-
-  if (!match_and_eat_tokoneof(bc, TOKEN_IDENTIFIER, TOKEN_OPERATOR))
-    return compiler_error(bc, GAB_MALFORMED_MESSAGE, ""), MV_ERR;
 
   size_t t = bc->offset - 1;
 
-  gab_value name = prev_id(bc);
+  gab_value name = trim_prev_id(bc);
 
   mv rhs = compile_optional_expression_prec(bc, &lhs, kSEND + 1);
 
@@ -2064,18 +2052,8 @@ static mv compile_exp_idn(struct bc *bc, mv lhs, bool assignable) {
   }
 }
 
-static mv compile_exp_msg_lit(struct bc *bc, mv, bool) {
-  if (!match_and_eat_tokoneof(bc, TOKEN_OPERATOR, TOKEN_IDENTIFIER))
-    return compiler_error(
-               bc, GAB_MALFORMED_MESSAGE,
-               "A message literal is either:\n"
-               " | \\a_normal_message\n"
-               " | \\+ # or a builtin message, like " ANSI_COLOR_GREEN
-               "PLUS" ANSI_COLOR_RESET "\n"
-               "Think of this syntax as 'escaping' the message itself.\n"),
-           MV_ERR;
-
-  gab_value m = prev_id(bc);
+static mv compile_exp_msg(struct bc *bc, mv, bool) {
+  gab_value m = trim_prev_id(bc);
 
   push_loadk(bc, gab_message(gab(bc), m), bc->offset - 1);
 
@@ -2166,8 +2144,7 @@ const struct compile_rule rules[] = {
     PREFIX(blk),             // DO
     NONE(),                  // END
     NONE(),                  // COMMA
-    INFIX(send, SEND),       // COLON
-    PREFIX(msg_lit),         // BACKSLASH
+    PREFIX(msg),             // MESSAGE
     NONE(),                  // EQUAL
     PREFIX(arr),             // LBRACE
     NONE(),                  // RBRACE
@@ -2175,8 +2152,9 @@ const struct compile_rule rules[] = {
     NONE(),                  // RBRACK
     PREFIX(tup),             // LPAREN
     NONE(),                  // RPAREN
-    PREFIX(idn),             // ID
+    INFIX(send, SEND),       // SEND
     INFIX(bin, BINARY_SEND), // OPERATOR
+    PREFIX(idn),             // IDENTIFIER
     PREFIX(str),             // SIGIL
     PREFIX(str),             // STRING
     PREFIX(itp),             // INTERPOLATION END
