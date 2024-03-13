@@ -5,3 +5,10 @@
 #define ANSI_COLOR_MAGENTA "\x1b[35m"
 #define ANSI_COLOR_CYAN "\x1b[36m"
 #define ANSI_COLOR_RESET "\x1b[0m"
+
+static const char *ANSI_COLORS[] = {
+    ANSI_COLOR_RED,  ANSI_COLOR_GREEN,   ANSI_COLOR_YELLOW,
+    ANSI_COLOR_BLUE, ANSI_COLOR_MAGENTA, ANSI_COLOR_CYAN,
+};
+
+#define ANSI_COLORS_LEN (sizeof(ANSI_COLORS) / sizeof(ANSI_COLORS[0]))

@@ -805,11 +805,15 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
 
     while (*c != '\0') {
       switch (*c) {
-      case '$':
-        fprintf(stream, ANSI_COLOR_GREEN);
-        gab_fvalinspect(stream, va_arg(varargs, gab_value), 1);
+      case '$': {
+        gab_value arg = va_arg(varargs, gab_value);
+        int idx = gab_valkind(arg) % ANSI_COLORS_LEN;
+        const char *color = ANSI_COLORS[idx];
+        fprintf(stream, "%s", color);
+        gab_fvalinspect(stream, arg, 1);
         fprintf(stream, ANSI_COLOR_RESET);
         break;
+      }
       default:
         fputc(*c, stream);
       }
