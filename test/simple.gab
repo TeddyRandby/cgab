@@ -1,15 +1,30 @@
 m = 'msg' :use
 'list' :use
 
-\deftransducer! :impl! (['gab.sigil', 'gab.string'], do args
+\deftransducer! :impl! (['gab.sigil', 'gab.string'], do td
   public, private = m:message.new self, m:message.new 'do_{self}'
 
-  private :case! {
-    .ok = args:ok,
-    .done = do; .false end,
-  }
+  public :impl! ([], do m, init, f
+    i = self
 
-  public :impl! ([], args:init)
+    private :case! {
+      .ok = do current, next
+        (
+          td <- (f, current**),
+          do
+            status, next_value[], next_next = m <- (i, next)
+            
+            private <- (status, next_value, next_next)
+          end,
+        )
+      end,
+      .done = do; .false end,
+    }
+
+    status, current[], next = m <- (i, init)
+
+    private <- (status, current, next)
+  end)
 end)
 
 .map :deftransducer! {
@@ -21,18 +36,9 @@ end)
   end,
 }
 
-.for :deftransducer! {
-  init = do m, init, f
-    status, current[], next = m <- (self, init)
-
-    status :do_for (current, next, self, m, f)
-  end,
-  ok = do current, next, i, m, f
-      f <- (current**)
-
-      i :for (m, next, f)
-  end,
-}
+.for :deftransducer! do f, current[]
+    f <- (current**)
+end
 
 # A consumer is a message which takes at three arguments:
 # (invariant ie. a list, producer ie. \values, initial ie. 0, args ie. \print)

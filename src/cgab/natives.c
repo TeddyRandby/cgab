@@ -72,7 +72,9 @@ a_gab_value *gab_shared_object_handler(struct gab_triple gab,
     return NULL;
   }
 
+  gab_gclock(gab.gc);
   a_gab_value *res = symbol(gab);
+  gab_gcunlock(gab.gc);
 
   if (res) {
     a_gab_value *final =

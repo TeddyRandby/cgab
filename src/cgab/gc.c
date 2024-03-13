@@ -319,7 +319,7 @@ gab_value gab_iref(struct gab_triple gab, gab_value value) {
   queue_increment(gab, obj);
 
 #if cGAB_DEBUG_GC
-  gab_gcrun(gab);
+  gab_collect(gab);
 #endif
 
   return value;
@@ -356,7 +356,7 @@ gab_value gab_dref(struct gab_triple gab, gab_value value) {
 #endif
 
 #if cGAB_DEBUG_GC
-  gab_gcrun(gab);
+  gab_collect(gab);
 #endif
 
   queue_decrement(gab, obj);
@@ -368,6 +368,7 @@ void gab_gccreate(struct gab_gc *gc) {
   v_gab_obj_create(&gc->decrements, cGAB_GC_DEC_BUFF_MAX);
   v_gab_obj_create(&gc->increments, cGAB_GC_MOD_BUFF_MAX);
   v_gab_obj_create(&gc->roots, cGAB_GC_MOD_BUFF_MAX);
+  v_gab_obj_create(&gc->dead, cGAB_GC_MOD_BUFF_MAX);
   d_gab_obj_create(&gc->overflow_rc, 8);
   gc->locked = 0;
 };
@@ -376,6 +377,7 @@ void gab_gcdestroy(struct gab_gc *gc) {
   v_gab_obj_destroy(&gc->increments);
   v_gab_obj_destroy(&gc->decrements);
   v_gab_obj_destroy(&gc->roots);
+  v_gab_obj_destroy(&gc->dead);
   d_gab_obj_destroy(&gc->overflow_rc);
 }
 
@@ -504,6 +506,7 @@ static inline void mark_roots(struct gab_triple gab) {
 #if cGAB_LOG_GC
       printf("MARKROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
+      assert(GAB_OBJ_IS_BUFFERED(obj));
       v_gab_obj_push(&gab.gc->roots, obj);
       mark_gray(gab, obj);
       continue;
@@ -513,6 +516,7 @@ static inline void mark_roots(struct gab_triple gab) {
 #if cGAB_LOG_GC
       printf("DEADROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
+      assert(GAB_OBJ_IS_BUFFERED(obj));
       v_gab_obj_push(&gab.gc->roots, obj);
       continue;
     }
@@ -606,6 +610,7 @@ static inline void scan_roots(struct gab_triple gab) {
     printf("SCANROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
 
+    assert(GAB_OBJ_IS_BUFFERED(obj));
     v_gab_obj_push(&gab.gc->roots, obj);
     scan_root(gab, obj);
   }
@@ -622,21 +627,18 @@ static inline void collect_white(struct gab_triple gab, struct gab_obj *obj) {
   if (GAB_OBJ_IS_WHITE(obj) && !GAB_OBJ_IS_BUFFERED(obj)) {
     GAB_OBJ_BLACK(obj);
     for_child_do(obj, collect_white, gab);
-    v_gab_obj_push(&gab.gc->roots, obj);
+    // destroy(gab, obj);
+    v_gab_obj_push(&gab.gc->dead, obj);
+#if cGAB_LOG_GC
+    // printf("QDESTROY\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+#endif
   }
 }
 
 static inline void collect_roots(struct gab_triple gab) {
-  const size_t nroots = gab.gc->roots.len;
-  gab.gc->roots.len = 0;
-
-  for (uint64_t i = 0; i < nroots; i++) {
+  for (uint64_t i = 0; i < gab.gc->roots.len; i++) {
     struct gab_obj *obj = gab.gc->roots.data[i];
-
-    if (!GAB_OBJ_IS_BUFFERED(obj)) {
-      v_gab_obj_push(&gab.gc->roots, obj);
-      continue;
-    }
+    assert(GAB_OBJ_IS_BUFFERED(obj));
 
     GAB_OBJ_NOT_BUFFERED(obj);
 
@@ -646,11 +648,12 @@ static inline void collect_roots(struct gab_triple gab) {
     collect_white(gab, obj);
   }
 
-  for (uint64_t i = 0; i < gab.gc->roots.len; i++) {
-    struct gab_obj *obj = gab.gc->roots.data[i];
+  for (uint64_t i = 0; i < gab.gc->dead.len; i++) {
+    struct gab_obj *obj = gab.gc->dead.data[i];
     destroy(gab, obj);
   }
 
+  gab.gc->dead.len = 0;
   gab.gc->roots.len = 0;
 }
 

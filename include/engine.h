@@ -36,7 +36,7 @@ static const char *gab_token_names[] = {
 #include "dict.h"
 
 struct gab_gc {
-  v_gab_obj decrements, increments, roots;
+  v_gab_obj decrements, increments, roots, dead;
   d_gab_obj overflow_rc;
   int locked;
 };
