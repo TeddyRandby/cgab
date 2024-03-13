@@ -1415,38 +1415,6 @@ CASE_CODE(BLOCK) {
   NEXT();
 }
 
-CASE_CODE(SEND_PRIMITIVE_DEF) {
-  // TODO: Handle other cases of def - one record arg, no receiver, etc
-  SKIP_SHORT;
-  uint64_t have = compute_arity(VAR(), READ_BYTE);
-  gab_value m = PEEK_N(have);
-  gab_value r = PEEK2();
-  gab_value b = PEEK();
-
-  STORE_SP();
-
-  if (__gab_unlikely(gab_valkind(b) != kGAB_BLOCK)) {
-    STORE_PRIMITIVE_ERROR_FRAME(have);
-    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, m, gab_valtype(EG(), m),
-          gab_type(EG(), kGAB_BLOCK));
-  }
-
-  if (__gab_unlikely(gab_msgput(GAB(), m, r, b) == gab_undefined)) {
-    STORE_PRIMITIVE_ERROR_FRAME(have);
-    ERROR(GAB_IMPLEMENTATION_EXISTS,
-          ANSI_COLOR_GREEN "$" ANSI_COLOR_RESET
-                           " already specializes for type: " ANSI_COLOR_GREEN
-                           "$" ANSI_COLOR_RESET,
-          m, r);
-  }
-
-  DROP_N(have - 1);
-
-  SET_VAR(1);
-
-  NEXT();
-}
-
 TRIM_N(0)
 TRIM_N(1)
 TRIM_N(2)
@@ -1593,11 +1561,6 @@ CASE_CODE(SEND) {
   uint8_t have_byte = READ_BYTE;
   uint64_t have = compute_arity(VAR(), have_byte);
 
-  STORE_SP();
-  PUSH_FRAME();
-  gab_fvminspect(stdout, VM(), 0);
-  POP_FRAME();
-
   uint8_t adjust = (have_byte & fHAVE_TAIL) >> 1;
 
   gab_value m = ks[GAB_SEND_KMESSAGE];
@@ -1614,7 +1577,7 @@ CASE_CODE(SEND) {
   struct gab_egimpl_rest res = gab_egimpl(EG(), m, r);
 
   if (__gab_unlikely(!res.status)) {
-    STORE_PRIMITIVE_ERROR_FRAME(have);
+    PUSH_FRAME();
     ERROR(GAB_IMPLEMENTATION_MISSING, FMT_MISSINGIMPL, m, r,
           gab_valtype(EG(), r));
   }
@@ -1674,20 +1637,14 @@ CASE_CODE(SEND) {
   NEXT();
 }
 
-CASE_CODE(DYNSEND) {
+CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   gab_value *ks = READ_CONSTANTS;
   uint8_t have_byte = READ_BYTE;
   uint64_t have = compute_arity(VAR(), have_byte);
 
-  gab_value r = PEEK_N(have + 1);
   gab_value m = PEEK_N(have);
+  gab_value r = PEEK_N(have - 1);
   gab_value t = gab_valtype(EG(), r);
-
-  if (__gab_unlikely(gab_valkind(m) != kGAB_MESSAGE)) {
-    PUSH_FRAME();
-    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, m, gab_valtype(EG(), m),
-          gab_type(EG(), kGAB_MESSAGE));
-  }
 
   struct gab_egimpl_rest res = gab_egimpl(EG(), m, r);
 
@@ -1706,8 +1663,9 @@ CASE_CODE(DYNSEND) {
   ks[GAB_SEND_KOFFSET] = res.offset;
   ks[GAB_SEND_KTYPE] = t;
 
-  memmove(SP() - have, SP() - (have - 1), have * sizeof(gab_value));
+  memmove(SP() - have, SP() - (have - 1), (have - 1) * sizeof(gab_value));
   DROP();
+  have--;
 
   switch (gab_valkind(spec)) {
   case kGAB_BLOCK: {
@@ -1727,15 +1685,9 @@ CASE_CODE(DYNSEND) {
     CALL_NATIVE(n, have, true);
   }
   case kGAB_PRIMITIVE: {
-    // We're set up to dispatch to the primitive. Don't do any code
-    // modification, though. We don't actually want to change the
-    // state this instruction is in.
-    // Dispatch to one-past the beginning of this instruction
-    // we want to pretend we already read the op-code.
-    // TODO: Handle primitive calls with the wrong number of
-    // arguments
-    uint8_t op = gab_valtop(spec);
     SET_VAR(have);
+
+    uint8_t op = gab_valtop(spec);
 
     IP() -= SEND_CACHE_DIST - 1;
 

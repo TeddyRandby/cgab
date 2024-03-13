@@ -1,17 +1,21 @@
 #include "gab.h"
 
-a_gab_value* gab_lib_message(struct gab_triple gab, size_t argc,
-                    gab_value argv[static argc]) {
-  if (argc != 2 || gab_valkind(argv[1]) != kGAB_STRING) {
-    return gab_panic(gab, "INVALID_ARGUMENTS");
-  }
+a_gab_value *gab_lib_message(struct gab_triple gab, size_t argc,
+                             gab_value argv[static argc]) {
+  gab_value name = gab_arg(1);
 
-  gab_vmpush(gab.vm, gab_message(gab, argv[1]));
+  if (gab_valkind(name) == kGAB_SIGIL)
+    name = gab_sigtostr(name);
+
+  if (gab_valkind(name) != kGAB_STRING)
+    return gab_pktypemismatch(gab, name, kGAB_STRING);
+
+  gab_vmpush(gab.vm, gab_message(gab, name));
   return NULL;
 }
 
-a_gab_value* gab_lib_at(struct gab_triple gab, size_t argc,
-                gab_value argv[static argc]) {
+a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
+                        gab_value argv[static argc]) {
   switch (argc) {
   case 2: {
 
@@ -25,6 +29,92 @@ a_gab_value* gab_lib_at(struct gab_triple gab, size_t argc,
   }
 }
 
+a_gab_value *gab_lib_name(struct gab_triple gab, size_t argc,
+                          gab_value argv[static argc]) {
+  gab_value m = gab_arg(0);
+
+  gab_vmpush(gab.vm, gab_msgname(m));
+
+  return NULL;
+}
+
+a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
+                         gab_value argv[static argc]) {
+  gab_value m = gab_arg(0);
+  gab_value r = gab_arg(1);
+  gab_value b = gab_arg(2);
+
+  if (gab_valkind(b) != kGAB_PRIMITIVE && gab_valkind(b) != kGAB_BLOCK &&
+      gab_valkind(b) != kGAB_NATIVE)
+    return gab_pktypemismatch(gab, b, kGAB_BLOCK);
+
+  if (gab_msgput(gab, m, r, b) == gab_undefined)
+    return gab_panic(gab, "$ already specializes for type $", m, r);
+
+  return NULL;
+}
+
+a_gab_value *gab_lib_impl(struct gab_triple gab, size_t argc,
+                          gab_value argv[static argc]) {
+  gab_value m = gab_arg(0);
+  gab_value r = gab_arg(1);
+  gab_value b = gab_arg(2);
+
+  if (gab_valkind(m) != kGAB_MESSAGE)
+    return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
+
+  if (gab_valkind(r) != kGAB_RECORD)
+    return gab_pktypemismatch(gab, b, kGAB_RECORD);
+
+  if (gab_valkind(b) != kGAB_PRIMITIVE && gab_valkind(b) != kGAB_BLOCK &&
+      gab_valkind(b) != kGAB_NATIVE)
+    return gab_pktypemismatch(gab, b, kGAB_BLOCK);
+
+  size_t len = gab_reclen(r);
+
+  if (len == 0) {
+    gab_value t = gab_undefined;
+
+    if (gab_msgput(gab, m, t, b) == gab_undefined)
+      return gab_panic(gab, "$ already specializes for type $", m, t);
+
+    return NULL;
+  }
+
+  for (int i = 0; i < len; i++) {
+    gab_value t = gab_urecat(r, i);
+
+    if (gab_msgput(gab, m, t, b) == gab_undefined)
+      return gab_panic(gab, "$ already specializes for type $", m, t);
+  }
+
+  return NULL;
+}
+
+a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
+                          gab_value argv[static argc]) {
+  gab_value m = gab_arg(0);
+  gab_value cases = gab_arg(1);
+
+  if (gab_valkind(m) != kGAB_MESSAGE)
+    return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
+
+  for (int i = 0; i < gab_reclen(cases); i++) {
+    gab_value b = gab_urecat(cases, i);
+
+    if (gab_valkind(b) != kGAB_PRIMITIVE && gab_valkind(b) != kGAB_BLOCK &&
+        gab_valkind(b) != kGAB_NATIVE)
+      return gab_pktypemismatch(gab, b, kGAB_BLOCK);
+
+    gab_value t = gab_ushpat(gab_recshp(cases), i);
+
+    if (gab_msgput(gab, m, t, b) == gab_undefined)
+      return gab_panic(gab, "$ already specializes for type $", m, t);
+  }
+
+  return NULL;
+}
+
 a_gab_value *gab_lib(struct gab_triple gab) {
   struct gab_spec_argt specs[] = {
       {
@@ -33,9 +123,29 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "message.new", gab_lib_message),
       },
       {
+          "name",
+          gab_type(gab.eg, kGAB_MESSAGE),
+          gab_snative(gab, "name", gab_lib_name),
+      },
+      {
           "has?",
           gab_type(gab.eg, kGAB_MESSAGE),
           gab_snative(gab, "has?", gab_lib_at),
+      },
+      {
+          "put!",
+          gab_type(gab.eg, kGAB_MESSAGE),
+          gab_snative(gab, "put!", gab_lib_put),
+      },
+      {
+          "impl!",
+          gab_type(gab.eg, kGAB_MESSAGE),
+          gab_snative(gab, "impl!", gab_lib_impl),
+      },
+      {
+          "case!",
+          gab_type(gab.eg, kGAB_MESSAGE),
+          gab_snative(gab, "case!", gab_lib_case),
       },
   };
 

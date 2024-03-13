@@ -334,6 +334,7 @@ gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
 }
 
 gab_value gab_message(struct gab_triple gab, gab_value name) {
+  assert(gab_valkind(name) == kGAB_STRING);
   size_t hash = gab_strhash(name);
 
   struct gab_obj_message *interned = gab_egmsgfind(gab.eg, name, hash);

@@ -38,7 +38,6 @@ enum lvalue_k {
   kEXISTING_REST_LOCAL,
   kPROP,
   kINDEX,
-  kDYN_PROP,
 };
 
 struct lvalue {
@@ -524,49 +523,26 @@ static inline void push_tuple(struct bc *bc, mv rhs, size_t t) {
   push_byte(bc, encode_arity(rhs), t);
 }
 
-static inline void push_nnop(struct bc *bc, uint8_t n, size_t t) {
-  for (int i = 0; i < n; i++)
-    push_byte(bc, OP_NOP, t); // Don't count this as an op
-}
-
 static inline mv reconcile_send_args(struct bc *bc, mv lhs, mv rhs) {
-  switch (lhs.status) {
-  case 0:
-    assert(lhs.multi);
-    lhs.status++;
-    break;
-  case 1:
-    rhs.status++;
-    break;
-  default:
-    if (rhs.status == 0 && !rhs.multi) {
-      rhs = lhs;
-      lhs.status = 1;
-      break;
-    }
-
+  if (lhs.multi && rhs.multi) {
     return compiler_error(
-               bc, GAB_TOO_MANY_ARGUMENTS,
-               "A tuple is not a valid receiver of an infix message."),
+               bc, GAB_MALFORMED_SEND,
+               "When the right hand side of an infix send is a dynamic-sized "
+               "tuple, the left hand side *must* be constant-sized."
+               "This restriction _may_ be relaxed in a future version of gab."),
            MV_ERR;
   }
 
-  return rhs;
-}
+  if (lhs.multi && rhs.status > 0) {
+    return compiler_error(
+               bc, GAB_MALFORMED_SEND,
+               "When the left hand side of an infix send is a dynamic-sized "
+               "tuple, the right hand side *must* be empty."
+               "This restriction _may_ be relaxed in a future version of gab."),
+           MV_ERR;
+  }
 
-static inline mv push_dynsend(struct bc *bc, mv lhs, mv rhs, size_t t) {
-  assert(rhs.status < 16);
-
-  mv args = reconcile_send_args(bc, lhs, rhs);
-
-  if (args.status < 0)
-    return MV_ERR;
-
-  push_op(bc, OP_DYNSEND, t);
-  push_nnop(bc, 2, t);
-  push_byte(bc, encode_arity(args), t);
-
-  return MV_MULTI_WITH(lhs.status - 1);
+  return (mv){rhs.status + lhs.status, rhs.multi || lhs.multi};
 }
 
 static inline void push_send(struct bc *bc, gab_value m, mv args, size_t t) {
@@ -1007,15 +983,21 @@ static bool curr_prefix(struct bc *bc, enum prec_k prec) {
   return has_prefix && (!has_infix || rule.prec > prec);
 }
 
+static mv compile_mv_trim(struct bc *bc, mv v, uint8_t want) {
+  if (!v.multi)
+    return v;
+
+  push_trim(bc, want, bc->offset - 1);
+  v.status += 1;
+  v.multi = false;
+  return v;
+}
+
 static mv compile_optional_expression_prec(struct bc *bc, enum prec_k prec) {
   if (!curr_prefix(bc, prec))
     return MV_EMPTY;
 
   return compile_expression_prec(bc, prec);
-}
-
-static mv compile_optional_expression(struct bc *bc) {
-  return compile_optional_expression_prec(bc, kASSIGNMENT);
 }
 
 //---------------- Compiling Helpers -------------------
@@ -1481,6 +1463,9 @@ static mv compile_tuple_prec(struct bc *bc, enum prec_k prec, uint8_t want) {
       if (!curr_prefix(bc, prec))
         break;
 
+      if (result.multi)
+        push_trim(bc, 1, bc->offset - 1), result.status = 1;
+
       have += result.status;
 
       continue;
@@ -1641,7 +1626,6 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
       pop_slot(bc, 1);
       break;
 
-    case kDYN_PROP:
     case kINDEX:
     case kPROP:
       push_shift(bc, peek_slot(bc) - lval.slot, t);
@@ -1662,16 +1646,6 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
         push_loadl(bc, lval.as.local, t), push_slot(bc, 1);
 
       break;
-
-    case kDYN_PROP: {
-      push_dynsend(bc, MV_OK, MV_OK, t);
-
-      if (!is_last_assignment)
-        push_trim(bc, 0, t);
-
-      pop_slot(bc, 2 + !is_last_assignment);
-      break;
-    }
 
     case kPROP: {
       push_send(bc, lval.as.property, MV_OK_WITH(2), t);
@@ -1708,7 +1682,7 @@ static mv compile_lvalue(struct bc *bc, bool assignable, gab_value name,
   uint8_t index = 0;
   int result = resolve_id(bc, name, &index);
 
-  uint8_t adjust = new_flags & fLOCAL_REST ? true : false;
+  uint8_t adjust = (new_flags & fLOCAL_REST) ? 1 : 0;
 
   switch (result) {
   case COMP_ID_NOT_FOUND:
@@ -1928,13 +1902,6 @@ fin:
   return MV_OK;
 }
 
-enum {
-  fHAS_PAREN = 1 << 0,
-  fHAS_BRACK = 1 << 1,
-  fHAS_DO = 1 << 2,
-  fHAS_STRING = 1 << 3,
-};
-
 mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs,
                           size_t t) {
   mv args = reconcile_send_args(bc, lhs, rhs);
@@ -1948,44 +1915,10 @@ mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs,
 
   push_slot(bc, 1);
 
-  return MV_MULTI_WITH(lhs.status - 1);
-}
-
-mv compile_dyn_send(struct bc *bc, mv lhs, bool assignable) {
-  size_t t = bc->offset - 1;
-
-  if (compile_expression(bc).status < 0)
-    return MV_ERR;
-
-  if (expect_token(bc, TOKEN_RBRACK) < 0)
-    return MV_ERR;
-
-  if (assignable && !match_ctx(bc, kTUPLE))
-    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
-      return compile_assignment(bc,
-                                (struct lvalue){
-                                    .kind = kDYN_PROP,
-                                    .slot = peek_slot(bc),
-                                }),
-             MV_ERR;
-
-  mv rhs = compile_optional_expression_prec(bc, kSEND + 1);
-
-  if (rhs.status < 0)
-    return MV_ERR;
-
-  if (rhs.status > GAB_ARG_MAX)
-    return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, ""), MV_ERR;
-
-  pop_slot(bc, rhs.status + rhs.multi);
-
-  return push_dynsend(bc, lhs, rhs, t);
+  return MV_MULTI;
 }
 
 mv compile_send(struct bc *bc, mv lhs, bool assignable) {
-  if (match_and_eat_token(bc, TOKEN_LBRACK))
-    return compile_dyn_send(bc, lhs, assignable);
-
   if (optional_newline(bc) < 0)
     return MV_ERR;
 
@@ -2086,11 +2019,13 @@ static mv compile_exp_idn(struct bc *bc, mv lhs, bool assignable) {
 
   if (assignable && !match_ctx(bc, kTUPLE)) {
     if (match_and_eat_token(bc, TOKEN_LBRACE)) {
-      if (expect_token(bc, TOKEN_RBRACE))
+      if (expect_token(bc, TOKEN_RBRACE) < 0)
         return MV_ERR;
 
-      if (expect_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
-        return compile_lvalue(bc, assignable, id, fLOCAL_REST);
+      if (expect_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL) < 0)
+        return MV_ERR;
+
+      return compile_lvalue(bc, assignable, id, fLOCAL_REST);
     }
 
     if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
@@ -2172,11 +2107,8 @@ static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
     rule = get_rule(prev_tok(bc));
 
     if (rule.infix != NULL) {
-      if (have.multi) {
-        push_trim(bc, 1, bc->offset - 1);
-        have.status += 1;
-        have.multi = false;
-      }
+      if (have.multi)
+        have = compile_mv_trim(bc, have, 1);
 
       have = rule.infix(bc, have, assignable);
     }
@@ -2535,7 +2467,6 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_LOCALTAILSEND_BLOCK:
   case OP_MATCHSEND_BLOCK:
   case OP_MATCHTAILSEND_BLOCK:
-  case OP_DYNSEND:
     return dumpSendInstruction(stream, self, offset);
   case OP_POP_N:
   case OP_STORE_LOCAL:

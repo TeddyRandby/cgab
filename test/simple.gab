@@ -1,16 +1,70 @@
-::use .dis
+m = 'msg' :use
+'list' :use
 
-do specs, separator
-    specs:
-      tuple.collect (
-          \map,
-          \values,
-          \spec.explain,
-          specs:len,
-        ):
-      join (
-          \values,
-          separator,
-          \+,
-        )
-end :dis
+\deftransducer! :impl! (['gab.sigil', 'gab.string'], do args
+  public, private = m:message.new self, m:message.new 'do_{self}'
+
+  private :case! {
+    .ok = args:ok,
+    .done = do; .false end,
+  }
+
+  public :impl! ([], args:init)
+end)
+
+.map :deftransducer! {
+  init = do m, init, f
+    .pass
+  end,
+  ok = do
+    .pass
+  end,
+}
+
+.for :deftransducer! {
+  init = do m, init, f
+    status, current[], next = m <- (self, init)
+
+    status :do_for (current, next, self, m, f)
+  end,
+  ok = do current, next, i, m, f
+      f <- (current**)
+
+      i :for (m, next, f)
+  end,
+}
+
+# A consumer is a message which takes at three arguments:
+# (invariant ie. a list, producer ie. \values, initial ie. 0, args ie. \print)
+# [1,2,3] :for (\values, 0, \print)
+# The consumer uses the producer completely, and not lazily.
+# 
+# A producer is a message which takes two arguments:
+# (invariant ie. a list, variant ie. the accumulator)
+# It returns:
+#   - .some, <values>[], <next-variant>
+#   - .none
+#
+
+\list.values.next? :impl!(['gab.list'], do n
+  self:len > n
+end)
+
+\list.values.continue :case! {
+  .true = do list, n
+    (.ok, list:at(n), n + 1)
+  end,
+  .false = do
+    .done
+  end
+}
+
+\values :impl!(['gab.list'], do n
+  self :list.values.next? n :list.values.continue(self, n)
+end)
+
+list = .nil:list.new
+
+list:push!(1,2,3)
+
+list:for(\values, 0, \print)

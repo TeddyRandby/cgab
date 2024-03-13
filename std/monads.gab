@@ -1,33 +1,27 @@
-\unwrap! :def! ([.gab.string], do args[]
-  self :monads.unwrap!(args)
+'msg' :use
+
+# Traditionally, monads are types which wrap another value.
+# In gab, we can implement this using tuples. The first element
+# of the tuple is the type of the monad:
+#   .ok, .err, .none, and any user-created ones.
+#
+# Creating a tuple is as simple as:
+#   (.ok, <valid_value>) -or- (.err, <error_message>)
+
+# The successfull case, unwrap into all the arguments.
+\unwrap! :impl! ([.ok], do args[]
+  args**
 end)
 
-\unwrap :def! ([.gab.string], do alt[]
-  self :monads.has? :monads.unwrap(alt)
+# All other types should panic when unwrapped
+\unwrap! :impl! ([.none, .err], do args[]
+  'Cannot unwrap {self}: ':panic
 end)
 
-\unwrap :defcase! {
-  .some = do args[]
-    args**
-  end,
-  .ok = do args[]
-    args**
-  end,
-  .else = do
-    .UNWRAP_ERR:panic
-  end,
-}
-
-\has? :defcase! {
-  .some = do; .true; end,
-  .ok   = do; .true; end,
-  .else = do; .false; end,
-}
-
-\options.into :def! ([.nil, .false], do
-  .none
+\bools.into :impl! ([.ok], do arg[]
+  (.true, arg)
 end)
 
-\options.into :def! ([], do ..args
-  (.some, ..args)
+\bools.into :impl! ([], do
+  .false
 end)

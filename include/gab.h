@@ -66,18 +66,18 @@
  That's more than enough room for a 32-bit address. Even 64-bit machines
  only actually use 48 bits for addresses.
 
-  Pointer bit set    Pointer data
-  |                  |
- [1][....NaN....][1][---------------------------------------------------]
+  Pointer bit set       Pointer data
+  |                     |
+ [1][....NaN....1][--][------------------------------------------------]
 
  Immediate values store a tag in the lowest three bits.
 
  Several of these values don't need any data other than the tag - nil,
  undefined, true, and false.
 
-                     kGAB_NIL or kGAB_UNDEFINED or kGAB_TRUE or kGAB_FALSE
-                     |
- [0][....NaN....][1][---][------------------------------------------------]
+                   kGAB_STRING, kGAB_SIGIL, kGAB_UNDEFINED, kGAB_PRIMITIVE
+                   |
+ [0][....NaN....1][--][------------------------------------------------]
 
 
  'Primitives' are message specializtions which are implemented *as an opcode in
@@ -86,9 +86,9 @@
 
  The opcode is store in the second-to-lowest byte (after the tag)
 
-                     kPRIMITIVE                                   Opcode
-                     |                                            |
- [0][....NaN....][1][---]----------------------------------------[--------]
+                   kPRIMITIVE                                   Opcode
+                   |                                            |
+ [0][....NaN....1][--]----------------------------------------[--------]
 
  Gab also employs a short string optimization. Lots of strings in a gab program
  are incredibly small, and incredibly common. values like '.some', '.none',
@@ -109,7 +109,7 @@
 
                   kSTRING Remaining Length                              <- Data
                      |    |                                                |
- [0][....NaN....][1][---][--------][----------------------------------------]
+ [0][....NaN....1][---][--------][----------------------------------------]
                          [...0....][...e.......p.......a........h......s....]
                          [...3....][-------------------------...k......o....]
 
@@ -126,10 +126,10 @@
 typedef uint64_t gab_value;
 
 enum gab_kind {
-  kGAB_UNDEFINED = 0,
-  kGAB_PRIMITIVE = 1,
-  kGAB_SIGIL = 2,
-  kGAB_STRING = 3,
+  kGAB_STRING = 0, // MUST_STAY_ZERO
+  kGAB_SIGIL = 1,
+  kGAB_UNDEFINED = 2,
+  kGAB_PRIMITIVE = 3,
   kGAB_NUMBER,
   kGAB_SUSPENSE,
   kGAB_MESSAGE,
@@ -150,6 +150,8 @@ enum gab_kind {
 #define __GAB_TAGMASK (3)
 
 #define __GAB_TAGOFFSET (48)
+
+#define __GAB_TAGBITS ((uint64_t)__GAB_TAGMASK << __GAB_TAGOFFSET)
 
 #define __GAB_VAL_TAG(val)                                                     \
   ((enum gab_kind)((__gab_valisn(val)                                          \
@@ -183,7 +185,7 @@ static inline gab_value __gab_dtoval(double value) {
   (gab_value)(__GAB_SIGN_BIT | __GAB_QNAN | (uint64_t)(uintptr_t)(val))
 
 #define gab_valiso(val)                                                        \
-  (((val) & (__GAB_QNAN | __GAB_SIGN_BIT)) == (__GAB_QNAN | __GAB_SIGN_BIT))
+  (((val) & (__GAB_SIGN_BIT | __GAB_QNAN)) == (__GAB_SIGN_BIT | __GAB_QNAN))
 
 #define gab_valisnew(val) (gab_valiso(val) && GAB_OBJ_IS_NEW(gab_valtoo(val)))
 
@@ -235,7 +237,8 @@ static inline gab_value __gab_dtoval(double value) {
 
 /* Cast a gab value to the generic object pointer */
 #define gab_valtoo(val)                                                        \
-  ((struct gab_obj *)(uintptr_t)((val) & ~(__GAB_SIGN_BIT | __GAB_QNAN)))
+  ((struct gab_obj *)(uintptr_t)((val) & ~(__GAB_SIGN_BIT | __GAB_QNAN |       \
+                                           __GAB_TAGBITS)))
 
 /* Cast a gab value to a primitive operation */
 #define gab_valtop(val) ((uint8_t)((val) & 0xff))
@@ -871,14 +874,14 @@ void gab_gcunlock(struct gab_gc *gc);
  * # Get the kind of a value.
  * @see enum gab_kind
  * *NOTE* This is not the **runtime type** of the value. For that, use
- * `gab_valtyp`.
+ * `gab_valtype`.
  *
  * @param value The value.
  * @return The kind of the value.
  */
 static inline enum gab_kind gab_valkind(gab_value value) {
   if (gab_valiso(value))
-    return gab_valtoo(value)->kind;
+    return gab_valtoo(value)->kind + __GAB_VAL_TAG(value);
 
   return __GAB_VAL_TAG(value);
 }
@@ -985,7 +988,7 @@ static inline const char *gab_strdata(gab_value *str) {
  * @return The hash
  */
 static inline size_t gab_strhash(gab_value str) {
-  assert(gab_valkind(str) == kGAB_STRING || gab_valkind(str) == kGAB_SIGIL);
+  assert(gab_valkind(str) == kGAB_STRING);
 
   if (gab_valiso(str))
     return GAB_VAL_TO_STRING(str)->hash;
@@ -1000,8 +1003,21 @@ static inline size_t gab_strhash(gab_value str) {
  * @return The sigil
  */
 static inline gab_value gab_strtosig(gab_value str) {
-  return (str & ~((uint64_t)kGAB_STRING << __GAB_TAGOFFSET)) |
-         (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET;
+  assert(gab_valkind(str) == kGAB_STRING);
+
+  return str | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET;
+}
+
+/**
+ * @brief Convert a sigil into it's corresponding string.
+ *
+ * @param str The string
+ * @return The sigil
+ */
+static inline gab_value gab_sigtostr(gab_value str) {
+  assert(gab_valkind(str) == kGAB_SIGIL);
+
+  return str & ~((uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET);
 }
 
 /**
@@ -1812,6 +1828,7 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
   /* Types are sepcial cases for the practical type */
   case kGAB_RECORD:
     return gab_recshp(value);
+
   case kGAB_BOX:
     return gab_boxtype(value);
 
