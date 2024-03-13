@@ -94,7 +94,7 @@ static inline struct gab_eg *eg(struct bc *bc) { return bc->gab.eg; }
 // static inline struct gab_vm *vm(struct bc *bc) { return bc->gab.vm; }
 static inline struct gab_triple gab(struct bc *bc) { return bc->gab; }
 
-enum prec_k { kNONE, kASSIGNMENT, kBINARY_SEND, kUNARY_SEND, kSEND, kPRIMARY };
+enum prec_k { kNONE, kASSIGNMENT, kBINARY_SEND, kSEND, kPRIMARY };
 
 typedef struct mv_t {
   int status;
@@ -993,9 +993,13 @@ static mv compile_mv_trim(struct bc *bc, mv v, uint8_t want) {
   return v;
 }
 
-static mv compile_optional_expression_prec(struct bc *bc, enum prec_k prec) {
+static mv compile_optional_expression_prec(struct bc *bc, mv *lhs,
+                                           enum prec_k prec) {
   if (!curr_prefix(bc, prec))
     return MV_EMPTY;
+
+  if (lhs->multi)
+    *lhs = compile_mv_trim(bc, *lhs, 1);
 
   return compile_expression_prec(bc, prec);
 }
@@ -1929,7 +1933,7 @@ mv compile_send(struct bc *bc, mv lhs, bool assignable) {
 
   gab_value name = prev_id(bc);
 
-  mv rhs = compile_optional_expression_prec(bc, kSEND + 1);
+  mv rhs = compile_optional_expression_prec(bc, &lhs, kSEND + 1);
 
   if (assignable && !match_ctx(bc, kTUPLE)) {
     if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
@@ -1965,7 +1969,7 @@ static mv compile_exp_bin(struct bc *bc, mv lhs, bool assignable) {
 
   gab_value m = prev_id(bc);
 
-  mv rhs = compile_optional_expression_prec(bc, kBINARY_SEND);
+  mv rhs = compile_optional_expression_prec(bc, &lhs, kBINARY_SEND);
 
   if (rhs.status < 0)
     return MV_ERR;
@@ -2110,8 +2114,6 @@ static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
     rule = get_rule(prev_tok(bc));
 
     if (rule.infix != nullptr) {
-      if (have.multi)
-        have = compile_mv_trim(bc, have, 1);
 
       have = rule.infix(bc, have, assignable);
 
@@ -2120,9 +2122,6 @@ static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
 
     if (rule.prefix != nullptr) {
       size_t t = bc->offset - 1;
-
-      if (have.multi)
-        have = compile_mv_trim(bc, have, 1);
 
       gab_value name = gab_string(gab(bc), mGAB_CALL);
 
@@ -2167,7 +2166,6 @@ const struct compile_rule rules[] = {
     PREFIX(blk),             // DO
     NONE(),                  // END
     NONE(),                  // COMMA
-    NONE(),                  // DOT
     INFIX(send, SEND),       // COLON
     PREFIX(msg_lit),         // BACKSLASH
     NONE(),                  // EQUAL

@@ -64,4 +64,9 @@ list = .nil:list.new
 
 list:push!(1,2,3)
 
-list:map(\values, 0, \print):print
+_, n = list:map(\values, 0, \print)
+_, n = n()
+_, n = n()
+_, n = n()
+
+_, n = list:map(\values, 0, do x; x + 1 end )
