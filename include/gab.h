@@ -7,6 +7,7 @@
 #ifndef GAB_H
 #define GAB_H
 
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -130,16 +131,14 @@ enum gab_kind {
   kGAB_SIGIL = 1,
   kGAB_UNDEFINED = 2,
   kGAB_PRIMITIVE = 3,
-  kGAB_NUMBER,
-  kGAB_SUSPENSE,
+  kGAB_PROTOTYPE,
   kGAB_MESSAGE,
-  kGAB_BPROTOTYPE,
-  kGAB_SPROTOTYPE,
+  kGAB_NUMBER,
   kGAB_NATIVE,
-  kGAB_BLOCK,
-  kGAB_BOX,
   kGAB_RECORD,
   kGAB_SHAPE,
+  kGAB_BLOCK,
+  kGAB_BOX,
   kGAB_NKINDS,
 };
 
@@ -327,6 +326,7 @@ static const char *gab_opcode_names[] = {
 struct gab_gc;
 struct gab_vm;
 struct gab_eg;
+struct gab_src;
 
 struct gab_triple {
   struct gab_eg *eg;
@@ -345,7 +345,6 @@ struct gab_obj_message;
 struct gab_obj_shape;
 struct gab_obj_record;
 struct gab_obj_box;
-struct gab_obj_suspense;
 
 typedef void (*gab_gcvisit_f)(struct gab_triple, struct gab_obj *obj);
 
@@ -411,6 +410,25 @@ int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *proto);
  * @return the number of bytes written to the stream.
  */
 int gab_fvalinspect(FILE *stream, gab_value value, int depth);
+
+/**
+ * @brief Format the given string to the given stream.
+ *
+ * @param stream The stream to print to
+ * @param fmt The format string
+ * @return the number of bytes written to the stream.
+ */
+int gab_fprintf(FILE *stream, const char *fmt, ...);
+
+/**
+ * @brief Format the given string to the given stream.
+ *
+ * @param stream The stream to print to
+ * @param fmt The format string
+ * @param varargs The arguments
+ * @return the number of bytes written to the stream.
+ */
+int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs);
 
 /**
  * @brief Give the engine ownership of the values. When in c-code,
@@ -867,8 +885,39 @@ void gab_ndref(struct gab_triple gab, size_t stride, size_t len,
  */
 void gab_collect(struct gab_triple gab);
 
+/**
+ * @brief Lock the garbage collector to prevent collection until unlock is
+ * called.
+ * @see gab_gcunlock
+ *
+ * @param gc The gc to lock
+ */
 void gab_gclock(struct gab_gc *gc);
+
+/**
+ * @brief Unlock the given collector.
+ *
+ * @param gc The gc to unlock
+ */
 void gab_gcunlock(struct gab_gc *gc);
+
+/**
+ * @brief Get the name of a source file - aka the fully qualified path.
+ *
+ * @param src The source
+ * @return The name
+ */
+gab_value gab_srcname(struct gab_src *src);
+
+/**
+ * @brief Get the line in the source code corresponding to an offset in the
+ * bytecode.
+ *
+ * @param src The source
+ * @param offset The offset
+ * @return The line in the source code
+ */
+size_t gab_srcline(struct gab_src *src, size_t offset);
 
 /**
  * # Get the kind of a value.
@@ -1576,22 +1625,11 @@ struct gab_obj_box {
 struct gab_obj_prototype {
   struct gab_obj header;
 
-  gab_value name;
-
-  /* The compiled source file */
   struct gab_src *src;
 
-  size_t offset;
+  size_t offset, len;
 
-  /* The length of the variable sized data member, in bytes. */
-  size_t len;
-
-  union {
-    struct {
-      size_t len;
-      unsigned char narguments, nupvalues, nslots, nlocals;
-    } block;
-  } as;
+  unsigned char narguments, nupvalues, nslots, nlocals;
 
   char data[];
 };
@@ -1600,7 +1638,7 @@ struct gab_obj_prototype {
 #define GAB_VAL_TO_PROTOTYPE(value)                                            \
   ((struct gab_obj_prototype *)gab_valtoo(value))
 
-struct gab_blkproto_argt {
+struct gab_prototype_argt {
   char narguments, nslots, nlocals, nupvalues, *flags, *indexes, *data;
 };
 
@@ -1612,51 +1650,9 @@ struct gab_blkproto_argt {
  * @see struct gab_blkproto_argt
  * @return The new block prototype object.
  */
-gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
-                         gab_value name, size_t begin, size_t end,
-                         struct gab_blkproto_argt args);
-
-/**
- * Create a new suspense object prototype.
- *
- * @param gab The gab engine.
- *
- * @param offset The offset in the block.
- */
-gab_value gab_sprototype(struct gab_triple gab, struct gab_src *src,
-                         gab_value name, size_t begin);
-
-/**
- * A suspense object, which holds the state of a suspended coroutine.
- */
-struct gab_obj_suspense {
-  struct gab_obj header;
-
-  size_t nslots;
-
-  gab_value p, b;
-
-  gab_value slots[];
-};
-
-#define GAB_VAL_TO_SUSPENSE(value)                                             \
-  ((struct gab_obj_suspense *)gab_valtoo(value))
-
-/**
- * Create a new suspense object.
- *
- * @param gab The gab engine.
- *
- * @param vm The vm.
- *
- * @param c The paused block.
- *
- * @param len The length of the frame.
- *
- * @param frame The frame.
- */
-gab_value gab_suspense(struct gab_triple gab, gab_value proto, gab_value block,
-                       size_t len, gab_value frame[static len]);
+gab_value gab_prototype(struct gab_triple gab, struct gab_src *src,
+                        size_t begin, size_t end,
+                        struct gab_prototype_argt args);
 
 /**
  * # Create a native wrapper to a c function with a gab_string name.
@@ -1973,7 +1969,9 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
   case kGAB_BLOCK: {
     struct gab_obj_block *o = GAB_VAL_TO_BLOCK(self);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(o->p);
-    snprintf(buffer, 128, "<Block %s %p>", gab_valintocs(gab, p->name), o);
+    snprintf(buffer, 128, "<Block %s:%lu>",
+             gab_valintocs(gab, gab_srcname(p->src)),
+             gab_srcline(p->src, p->offset));
     return gab_string(gab, buffer);
   }
   case kGAB_RECORD: {
@@ -1992,10 +1990,11 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
 
     return gab_string(gab, buffer);
   }
-  case kGAB_SPROTOTYPE:
-  case kGAB_BPROTOTYPE: {
+  case kGAB_PROTOTYPE: {
     struct gab_obj_prototype *o = GAB_VAL_TO_PROTOTYPE(self);
-    snprintf(buffer, 128, "<Prototype %s>", gab_valintocs(gab, o->name));
+    snprintf(buffer, 128, "<Prototype %s:%lu>",
+             gab_valintocs(gab, gab_srcname(o->src)),
+             gab_srcline(o->src, o->offset));
 
     return gab_string(gab, buffer);
   }
@@ -2008,13 +2007,6 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
   case kGAB_BOX: {
     struct gab_obj_box *o = GAB_VAL_TO_BOX(self);
     snprintf(buffer, 128, "<%s %p>", gab_valintocs(gab, o->type), o);
-
-    return gab_string(gab, buffer);
-  }
-  case kGAB_SUSPENSE: {
-    struct gab_obj_suspense *o = GAB_VAL_TO_SUSPENSE(self);
-    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(o->p);
-    snprintf(buffer, 128, "<Suspense %s %p>", gab_valintocs(gab, p->name), o);
 
     return gab_string(gab, buffer);
   }

@@ -74,12 +74,11 @@ static handler handlers[] = {
 #if cGAB_DEBUG_VM
 #define PUSH(value)                                                            \
   ({                                                                           \
-    if (SP() > (FB() + BLOCK_PROTO()->as.block.nslots + 1)) {                  \
+    if (SP() > (FB() + BLOCK_PROTO()->nslots + 1)) {                           \
       fprintf(stderr,                                                          \
               "Stack exceeded frame "                                          \
               "(%d). %lu passed\n",                                            \
-              BLOCK_PROTO()->as.block.nslots,                                  \
-              SP() - FB() - BLOCK_PROTO()->as.block.nslots);                   \
+              BLOCK_PROTO()->nslots, SP() - FB() - BLOCK_PROTO()->nslots);     \
       gab_fvminspect(stdout, VM(), 0);                                         \
       exit(1);                                                                 \
     }                                                                          \
@@ -287,10 +286,12 @@ static inline gab_value compute_message_from_ip(struct gab_vm_frame *f) {
  *
  */
 
-struct gab_err_argt vm_frame_build_err(struct gab_vm_frame *fp, bool has_parent,
+struct gab_err_argt vm_frame_build_err(struct gab_triple gab,
+                                       struct gab_vm_frame *fp, bool has_parent,
                                        enum gab_status s, const char *fmt) {
 
-  gab_value message = has_parent ? compute_message_from_ip(fp - 1) : gab_nil;
+  gab_value message = has_parent ? compute_message_from_ip(fp - 1)
+                                 : gab_message(gab, gab_string(gab, mGAB_CALL));
 
   if (fp->b) {
 
@@ -322,12 +323,13 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
   dont_exit.flags &= ~fGAB_EXIT_ON_PANIC;
 
   while (f < gab.vm->fp) {
-    gab_fvpanic(dont_exit, stderr, NULL,
-                vm_frame_build_err(f, f > gab.vm->fb, GAB_NONE, ""));
+    gab_vfpanic(dont_exit, stderr, NULL,
+                vm_frame_build_err(gab, f, f > gab.vm->fb, GAB_NONE, ""));
     f++;
   }
 
-  gab_fvpanic(gab, stderr, va, vm_frame_build_err(f, f > gab.vm->fb, s, fmt));
+  gab_vfpanic(gab, stderr, va,
+              vm_frame_build_err(gab, f, f > gab.vm->fb, s, fmt));
 
   gab_value results[] = {
       gab_string(gab, gab_status_names[s]),
@@ -430,7 +432,7 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t value) {
   fprintf(stream,
           ANSI_COLOR_GREEN " %03lu" ANSI_COLOR_RESET " closure:" ANSI_COLOR_CYAN
                            "%-20s" ANSI_COLOR_RESET " %d upvalues\n",
-          frame_count - value, gab_strdata(&p->name), p->as.block.nupvalues);
+          frame_count - value, gab_strdata(&p->src->name), p->nupvalues);
 
   size_t top = vm->sp - f->slots;
 
@@ -490,7 +492,7 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
                                                                                \
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);                \
                                                                                \
-    if (__gab_unlikely(!has_callspace(VM(), p->as.block.nslots - have)))       \
+    if (__gab_unlikely(!has_callspace(VM(), p->nslots - have)))                \
       ERROR(GAB_OVERFLOW, "");                                                 \
                                                                                \
     IP() = p->src->bytecode.data + p->offset;                                  \
@@ -509,7 +511,7 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
                                                                                \
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);                \
                                                                                \
-    if (__gab_unlikely(!has_callspace(VM(), p->as.block.nslots - have)))       \
+    if (__gab_unlikely(!has_callspace(VM(), p->nslots - have)))                \
       ERROR(GAB_OVERFLOW, "");                                                 \
                                                                                \
     IP() = ((void *)ks[GAB_SEND_KOFFSET]);                                     \
@@ -687,7 +689,7 @@ static inline gab_value block(struct gab_triple gab, gab_value p,
   struct gab_obj_block *b = GAB_VAL_TO_BLOCK(blk);
   struct gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(p);
 
-  for (int i = 0; i < proto->as.block.nupvalues; i++) {
+  for (int i = 0; i < proto->nupvalues; i++) {
     uint8_t is_local = proto->data[i] & fLOCAL_LOCAL;
     uint8_t index = proto->data[i] >> 1;
 
@@ -894,7 +896,7 @@ CASE_CODE(MATCHSEND_BLOCK) {
 
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
 
-  if (__gab_unlikely(!has_callspace(VM(), p->as.block.nslots - have)))
+  if (__gab_unlikely(!has_callspace(VM(), p->nslots - have)))
     ERROR(GAB_OVERFLOW, "");
 
   IP() = (void *)ks[GAB_SEND_KOFFSET + idx];
@@ -1014,8 +1016,6 @@ IMPL_SEND_BLOCK(LOCALTAIL)
 IMPL_SEND_PRIMITIVE_CALL_NATIVE()
 IMPL_SEND_PRIMITIVE_CALL_BLOCK()
 IMPL_SEND_PRIMITIVE_CALL_BLOCK(TAIL)
-IMPL_SEND_PRIMITIVE_CALL_SUSPENSE()
-IMPL_SEND_PRIMITIVE_CALL_SUSPENSE(TAIL)
 IMPL_SEND_UNARY_NUMERIC(PRIMITIVE_BIN, gab_number, uint64_t, ~);
 IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_ADD, gab_number, double, +);
 IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_SUB, gab_number, double, -);
@@ -1252,39 +1252,6 @@ CASE_CODE(SEND_PRIMITIVE_OR) {
   NEXT();
 }
 
-CASE_CODE(YIELD) {
-  gab_value proto = READ_CONSTANT;
-  uint64_t have = compute_arity(VAR(), READ_BYTE);
-
-  uint64_t frame_len = SP() - FB() - have;
-
-  STORE_SP();
-
-  gab_value sus =
-      gab_suspense(GAB(), __gab_obj(BLOCK()), proto, frame_len, FB());
-
-  PUSH(sus);
-
-  have++;
-
-  gab_value *from = SP() - have;
-  gab_value *to = FB();
-
-  memmove(to, from, have * sizeof(gab_value));
-  SP() = to + have;
-
-  if (__gab_unlikely(VM()->fp < VM()->fb))
-    return STORE_SP(), SET_VAR(have), ok(DISPATCH_ARGS());
-
-  LOAD_FRAME();
-
-  POP_FRAME();
-
-  SET_VAR(have);
-
-  NEXT();
-}
-
 CASE_CODE(RETURN) {
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
@@ -1508,7 +1475,7 @@ CASE_CODE(PACK) {
    * number of locals the function is expected to have. Move SP()
    * to past the locals section in this case.
    */
-  while (SP() - FB() < BLOCK_PROTO()->as.block.nlocals)
+  while (SP() - FB() < BLOCK_PROTO()->nlocals)
     PUSH(gab_nil);
 
   SET_VAR(want + 1);
@@ -1594,8 +1561,7 @@ CASE_CODE(SEND) {
   case kGAB_PRIMITIVE: {
     uint8_t op = gab_valtop(spec);
 
-    if (op == OP_SEND_PRIMITIVE_CALL_BLOCK ||
-        op == OP_SEND_PRIMITIVE_CALL_SUSPENSE)
+    if (op == OP_SEND_PRIMITIVE_CALL_BLOCK)
       op += adjust;
 
     WRITE_BYTE(SEND_CACHE_DIST, op);

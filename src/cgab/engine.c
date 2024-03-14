@@ -182,11 +182,6 @@ struct primitive specific_primitive[] = {
         .type = kGAB_BLOCK,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BLOCK),
     },
-    {
-        .name = mGAB_CALL,
-        .type = kGAB_SUSPENSE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_SUSPENSE),
-    },
 };
 
 struct gab_triple gab_create() {
@@ -216,11 +211,8 @@ struct gab_triple gab_create() {
   eg->types[kGAB_MESSAGE] = gab_string(gab, "gab.message");
   gab_iref(gab, eg->types[kGAB_MESSAGE]);
 
-  eg->types[kGAB_SPROTOTYPE] = gab_string(gab, "gab.prototype");
-  gab_iref(gab, eg->types[kGAB_SPROTOTYPE]);
-
-  eg->types[kGAB_BPROTOTYPE] = gab_string(gab, "gab.prototype");
-  gab_iref(gab, eg->types[kGAB_BPROTOTYPE]);
+  eg->types[kGAB_PROTOTYPE] = gab_string(gab, "gab.prototype");
+  gab_iref(gab, eg->types[kGAB_PROTOTYPE]);
 
   eg->types[kGAB_NATIVE] = gab_string(gab, "gab.native");
   gab_iref(gab, eg->types[kGAB_NATIVE]);
@@ -236,9 +228,6 @@ struct gab_triple gab_create() {
 
   eg->types[kGAB_BOX] = gab_string(gab, "gab.box");
   gab_iref(gab, eg->types[kGAB_BOX]);
-
-  eg->types[kGAB_SUSPENSE] = gab_string(gab, "gab.suspense");
-  gab_iref(gab, eg->types[kGAB_SUSPENSE]);
 
   eg->types[kGAB_PRIMITIVE] = gab_string(gab, "gab.primitive");
   gab_iref(gab, eg->types[kGAB_PRIMITIVE]);
@@ -605,19 +594,18 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
     return gab_native(gab, gab_valcpy(gab, self->name), self->function);
   }
 
-  case kGAB_BPROTOTYPE: {
+  case kGAB_PROTOTYPE: {
     struct gab_obj_prototype *self = GAB_VAL_TO_PROTOTYPE(value);
 
-    gab_value copy = gab_bprototype(gab, gab_srccpy(gab, self->src),
-                                    gab_valcpy(gab, self->name), self->offset,
-                                    self->as.block.len,
-                                    (struct gab_blkproto_argt){
-                                        .nupvalues = self->as.block.nupvalues,
-                                        .nslots = self->as.block.nslots,
-                                        .narguments = self->as.block.narguments,
-                                        .nlocals = self->as.block.nlocals,
-                                        .data = self->data,
-                                    });
+    gab_value copy =
+        gab_prototype(gab, gab_srccpy(gab, self->src), self->offset, self->len,
+                      (struct gab_prototype_argt){
+                          .nupvalues = self->nupvalues,
+                          .nslots = self->nslots,
+                          .narguments = self->narguments,
+                          .nlocals = self->nlocals,
+                          .data = self->data,
+                      });
 
     return copy;
   }
@@ -629,8 +617,7 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
 
     gab_value copy = gab_block(gab, p_copy);
 
-    for (uint8_t i = 0; i < GAB_VAL_TO_PROTOTYPE(p_copy)->as.block.nupvalues;
-         i++) {
+    for (uint8_t i = 0; i < GAB_VAL_TO_PROTOTYPE(p_copy)->nupvalues; i++) {
       GAB_VAL_TO_BLOCK(copy)->upvalues[i] = gab_valcpy(gab, self->upvalues[i]);
     }
 
@@ -662,28 +649,6 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
       values[i] = gab_valcpy(gab, self->data[i]);
 
     return gab_recordof(gab, s_copy, 1, values);
-  }
-
-  case kGAB_SPROTOTYPE: {
-    struct gab_obj_prototype *self = GAB_VAL_TO_PROTOTYPE(value);
-
-    return gab_sprototype(gab, gab_srccpy(gab, self->src),
-                          gab_valcpy(gab, self->name), self->offset);
-  }
-
-  case kGAB_SUSPENSE: {
-    struct gab_obj_suspense *self = GAB_VAL_TO_SUSPENSE(value);
-
-    gab_value frame_copy[self->nslots];
-
-    for (size_t i = 0; i < self->nslots; i++) {
-      frame_copy[i] = gab_valcpy(gab, self->slots[i]);
-    }
-
-    gab_value p_copy = gab_valcpy(gab, self->p);
-    gab_value b_copy = gab_valcpy(gab, self->b);
-
-    return gab_suspense(gab, b_copy, p_copy, self->nslots, frame_copy);
   }
   }
 }
@@ -727,42 +692,60 @@ gab_value gab_tuple(struct gab_triple gab, uint64_t size,
   return v;
 }
 
-void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
+int gab_fprintf(FILE *stream, const char *fmt, ...) {
+  va_list va;
+  va_start(va, fmt);
+
+  int res = gab_vfprintf(stream, fmt, va);
+
+  va_end(va);
+
+  return res;
+}
+
+int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs) {
+  const char *c = fmt;
+  int bytes = 0;
+
+  while (*c != '\0') {
+    switch (*c) {
+    case '$': {
+      gab_value arg = va_arg(varargs, gab_value);
+      int idx = gab_valkind(arg) % ANSI_COLORS_LEN;
+      const char *color = ANSI_COLORS[idx];
+      bytes += fprintf(stream, "%s", color);
+      bytes += gab_fvalinspect(stream, arg, 1);
+      bytes += fprintf(stream, ANSI_COLOR_RESET);
+      break;
+    }
+    default:
+      bytes += fputc(*c, stream);
+    }
+    c++;
+  }
+
+  return bytes;
+}
+
+void gab_vfpanic(struct gab_triple gab, FILE *stream, va_list varargs,
                  struct gab_err_argt args) {
   if (!(gab.flags & fGAB_DUMP_ERROR))
     goto fin;
 
-  const char *tok_name =
+  gab_value tok_name = gab_string(
+      gab,
       args.src
           ? gab_token_names[v_gab_token_val_at(&args.src->tokens, args.tok)]
-          : "C";
+          : "C");
 
-  fputc('\n', stream);
+  gab_value src_name = args.src ? args.src->name : gab_string(gab, "C");
 
-  fprintf(stream, "[" ANSI_COLOR_GREEN);
-
-  if (args.src) {
-    gab_fvalinspect(stream, args.src->name, 0);
-  } else {
-    fprintf(stream, "C");
-  }
-
-  fprintf(stream, ANSI_COLOR_RESET "]");
-
-  if (args.message != gab_nil) {
-    fprintf(stream, " " ANSI_COLOR_CYAN);
-    gab_fvalinspect(stream, args.message, 0);
-    fprintf(stream, ANSI_COLOR_RESET);
-  }
-
-  fprintf(stream,
-          ANSI_COLOR_RESET " panicked near " ANSI_COLOR_MAGENTA
-                           "%s" ANSI_COLOR_RESET,
-          tok_name);
+  gab_fprintf(stream, "\n[$] $ panicked near $", src_name, args.message,
+              tok_name);
 
   if (args.status != GAB_NONE) {
-    fprintf(stream, ":" ANSI_COLOR_YELLOW " %s." ANSI_COLOR_RESET,
-            gab_status_names[args.status]);
+    gab_value status_name = gab_string(gab, gab_status_names[args.status]);
+    gab_fprintf(stream, ": $.\n", status_name);
   }
 
   if (args.src) {
@@ -770,7 +753,7 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
     const char *tok_start = tok_src.data;
     const char *tok_end = tok_src.data + tok_src.len;
 
-    uint64_t line = v_uint64_t_val_at(&args.src->token_lines, args.tok);
+    size_t line = v_uint64_t_val_at(&args.src->token_lines, args.tok);
 
     s_char line_src = v_s_char_val_at(&args.src->lines, line - 1);
 
@@ -781,44 +764,27 @@ void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list varargs,
         break;
     }
 
-    a_char *line_under = a_char_empty(line_src.len);
+    a_char *under_src = a_char_empty(line_src.len);
 
-    for (uint8_t i = 0; i < line_under->len; i++) {
+    for (uint8_t i = 0; i < under_src->len; i++) {
       if (line_src.data + i >= tok_start && line_src.data + i < tok_end)
-        line_under->data[i] = '^';
+        under_src->data[i] = '^';
       else
-        line_under->data[i] = ' ';
+        under_src->data[i] = ' ';
     }
 
     fprintf(stream,
             "\n\n" ANSI_COLOR_RED "%.4lu" ANSI_COLOR_RESET "| %.*s"
             "\n      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET "",
-            line, (int)line_src.len, line_src.data, (int)line_under->len,
-            line_under->data);
+            line, (int)line_src.len, line_src.data, (int)under_src->len,
+            under_src->data);
 
-    a_char_destroy(line_under);
+    a_char_destroy(under_src);
   }
 
   if (args.note_fmt && strlen(args.note_fmt) > 0) {
     fprintf(stream, "\n\n");
-    const char *c = args.note_fmt;
-
-    while (*c != '\0') {
-      switch (*c) {
-      case '$': {
-        gab_value arg = va_arg(varargs, gab_value);
-        int idx = gab_valkind(arg) % ANSI_COLORS_LEN;
-        const char *color = ANSI_COLORS[idx];
-        fprintf(stream, "%s", color);
-        gab_fvalinspect(stream, arg, 1);
-        fprintf(stream, ANSI_COLOR_RESET);
-        break;
-      }
-      default:
-        fputc(*c, stream);
-      }
-      c++;
-    }
+    gab_vfprintf(stream, args.note_fmt, varargs);
   }
 
   fprintf(stream, "\n\n");

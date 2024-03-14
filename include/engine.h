@@ -100,6 +100,6 @@ struct gab_err_argt {
   size_t tok;
 };
 
-void gab_fvpanic(struct gab_triple gab, FILE *stream, va_list vastruct,
+void gab_vfpanic(struct gab_triple gab, FILE *stream, va_list vastruct,
                  struct gab_err_argt args);
 #endif

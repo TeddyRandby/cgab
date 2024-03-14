@@ -500,6 +500,14 @@ size_t gab_srcappend(struct gab_src *self, size_t len, uint8_t bc[static len],
   return self->bytecode.len;
 }
 
+gab_value gab_srcname(struct gab_src* src) { return src->name; }
+
+size_t gab_srcline(struct gab_src* src, size_t offset) {
+  size_t tok = v_uint64_t_val_at(&src->bytecode_toks, offset);
+  return v_uint64_t_val_at(&src->token_lines, tok);
+}
+
+
 #undef CURSOR
 #undef NEXT_CURSOR
 #undef ADVANCE

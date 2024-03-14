@@ -8,7 +8,6 @@
 struct frame {
   v_uint8_t bc;
   v_uint64_t bc_toks;
-  gab_value name;
 
   unsigned char pprev_op;
 
@@ -503,10 +502,10 @@ static inline void push_ret(struct bc *bc, mv rhs, size_t t) {
 }
 
 static inline void push_block(struct bc *bc, gab_value p, size_t t) {
-  assert(gab_valkind(p) == kGAB_BPROTOTYPE);
+  assert(gab_valkind(p) == kGAB_PROTOTYPE);
   struct gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(p);
 
-  if (proto->as.block.nupvalues == 0) {
+  if (proto->nupvalues == 0) {
     gab_value b = gab_block(gab(bc), p);
     push_loadk(bc, b, t);
     return;
@@ -909,10 +908,6 @@ static struct frame *push_ctxframe(struct bc *bc, gab_value name,
 
   memset(f, 0, sizeof(struct frame));
 
-  bool is_anonymous = name == gab_nil;
-
-  f->name = is_anonymous ? gab_string(gab(bc), "anonymous") : name;
-
   addk(bc, name);
 
   init_local(bc, add_local(bc, gab_string(gab(bc), "self"), 0));
@@ -929,16 +924,15 @@ static gab_value pop_ctxframe(struct bc *bc) {
   uint8_t nargs = f->narguments;
   uint8_t nlocals = f->nlocals;
 
-  gab_value p =
-      gab_bprototype(gab(bc), bc->src, f->name, bc->next_block, f->bc.len,
-                     (struct gab_blkproto_argt){
-                         .nslots = nslots,
-                         .nlocals = nlocals,
-                         .narguments = nargs,
-                         .nupvalues = nupvalues,
-                         .flags = f->upv_flags,
-                         .indexes = f->upv_indexes,
-                     });
+  gab_value p = gab_prototype(gab(bc), bc->src, bc->next_block, f->bc.len,
+                              (struct gab_prototype_argt){
+                                  .nslots = nslots,
+                                  .nlocals = nlocals,
+                                  .narguments = nargs,
+                                  .nupvalues = nupvalues,
+                                  .flags = f->upv_flags,
+                                  .indexes = f->upv_indexes,
+                              });
 
   gab_iref(gab(bc), p);
   gab_egkeep(eg(bc), p);
@@ -2255,7 +2249,7 @@ static int compiler_error(struct bc *bc, enum gab_status e,
   va_list va;
   va_start(va, note_fmt);
 
-  gab_fvpanic(gab(bc), stderr, va,
+  gab_vfpanic(gab(bc), stderr, va,
               (struct gab_err_argt){
                   .src = bc->src,
                   .message = gab_nil,
@@ -2335,16 +2329,6 @@ static uint64_t dumpReturnInstruction(FILE *stream,
   fprintf(stream, "%-25s%hhx%s\n", "RETURN", have,
           havebyte & fHAVE_VAR ? " & more" : "");
   return offset + 2;
-}
-
-static uint64_t dumpYieldInstruction(FILE *stream,
-                                     struct gab_obj_prototype *self,
-                                     uint64_t offset) {
-  uint8_t havebyte = v_uint8_t_val_at(&self->src->bytecode, offset + 3);
-  uint8_t have = havebyte >> 2;
-  fprintf(stream, "%-25s%hhx%s\n", "YIELD", have,
-          havebyte & fHAVE_VAR ? " & more" : "");
-  return offset + 4;
 }
 
 static uint64_t dumpPackInstruction(FILE *stream,
@@ -2461,10 +2445,8 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_SEND_PRIMITIVE_GTE:
   case OP_SEND_PRIMITIVE_CALL_BLOCK:
   case OP_SEND_PRIMITIVE_CALL_NATIVE:
-  case OP_SEND_PRIMITIVE_CALL_SUSPENSE:
   case OP_TAILSEND_BLOCK:
   case OP_TAILSEND_PRIMITIVE_CALL_BLOCK:
-  case OP_TAILSEND_PRIMITIVE_CALL_SUSPENSE:
   case OP_LOCALSEND_BLOCK:
   case OP_LOCALTAILSEND_BLOCK:
   case OP_MATCHSEND_BLOCK:
@@ -2501,9 +2483,6 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   }
   case OP_RETURN:
     return dumpReturnInstruction(stream, self, offset);
-  case OP_YIELD: {
-    return dumpYieldInstruction(stream, self, offset);
-  }
   case OP_BLOCK: {
     offset++;
 
@@ -2518,9 +2497,9 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(pval);
 
     printf("%-25s" ANSI_COLOR_CYAN "%-20s\n" ANSI_COLOR_RESET, "OP_BLOCK",
-           gab_strdata(&p->name));
+           gab_strdata(&p->src->name));
 
-    for (int j = 0; j < p->as.block.nupvalues; j++) {
+    for (int j = 0; j < p->nupvalues; j++) {
       int isLocal = p->data[j] & fLOCAL_LOCAL;
       uint8_t index = p->data[j] >> 1;
       printf("      |                   %d %s\n", index,
@@ -2576,7 +2555,7 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
 int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *proto) {
   uint64_t offset = proto->offset;
 
-  uint64_t end = proto->offset + proto->as.block.len;
+  uint64_t end = proto->offset + proto->len;
 
   while (offset < end) {
     fprintf(stream, ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);

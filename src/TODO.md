@@ -10,3 +10,5 @@
     - fmt instead of interpolation?
     - how to define messages? (*case* and *impl* are it rn)
 - Standard library things, badly need iterators
+- Tests, lots more tests
+- Instead of hacky impl in compiler now, impl the *apply* infix properly in pratt table

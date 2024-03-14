@@ -120,24 +120,19 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(self);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);
     return fprintf(stream, "<gab.block ") +
-           gab_fvalinspect(stream, p->name, depth) + fprintf(stream, ">");
-  }
-  case kGAB_SUSPENSE: {
-    struct gab_obj_suspense *sus = GAB_VAL_TO_SUSPENSE(self);
-    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(sus->p);
-    return fprintf(stream, "<gab.suspense ") +
-           gab_fvalinspect(stream, p->name, depth) + fprintf(stream, ">");
+           gab_fvalinspect(stream, gab_srcname(p->src), depth) +
+           fprintf(stream, ">");
   }
   case kGAB_NATIVE: {
     struct gab_obj_native *n = GAB_VAL_TO_NATIVE(self);
     return fprintf(stream, "<gab.native ") +
            gab_fvalinspect(stream, n->name, depth) + fprintf(stream, ">");
   }
-  case kGAB_BPROTOTYPE:
-  case kGAB_SPROTOTYPE: {
+  case kGAB_PROTOTYPE: {
     struct gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(self);
     return fprintf(stream, "<gab.prototype ") +
-           gab_fvalinspect(stream, proto->name, depth) + fprintf(stream, ">");
+           gab_fvalinspect(stream, gab_srcname(proto->src), depth) +
+           fprintf(stream, ">");
   }
   default: {
     assert(false && "NOT AN OBJECT");
@@ -299,22 +294,21 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
   return result;
 };
 
-gab_value gab_bprototype(struct gab_triple gab, struct gab_src *src,
-                         gab_value name, size_t offset, size_t len,
-                         struct gab_blkproto_argt args) {
+gab_value gab_prototype(struct gab_triple gab, struct gab_src *src,
+                        size_t offset, size_t len,
+                        struct gab_prototype_argt args) {
 
   struct gab_obj_prototype *self = GAB_CREATE_FLEX_OBJ(
-      gab_obj_prototype, uint8_t, args.nupvalues, kGAB_BPROTOTYPE);
+      gab_obj_prototype, uint8_t, args.nupvalues, kGAB_PROTOTYPE);
 
   self->src = src;
-  self->name = name;
   self->offset = offset;
   self->len = args.nupvalues;
-  self->as.block.len = len;
-  self->as.block.nslots = args.nslots;
-  self->as.block.nlocals = args.nlocals;
-  self->as.block.nupvalues = args.nupvalues;
-  self->as.block.narguments = args.narguments;
+  self->len = len;
+  self->nslots = args.nslots;
+  self->nlocals = args.nlocals;
+  self->nupvalues = args.nupvalues;
+  self->narguments = args.narguments;
 
   if (args.nupvalues > 0) {
     if (args.data) {
@@ -376,14 +370,14 @@ gab_value gab_snative(struct gab_triple gab, const char *name, gab_native_f f) {
 }
 
 gab_value gab_block(struct gab_triple gab, gab_value prototype) {
-  assert(gab_valkind(prototype) == kGAB_BPROTOTYPE);
+  assert(gab_valkind(prototype) == kGAB_PROTOTYPE);
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(prototype);
 
   struct gab_obj_block *self = GAB_CREATE_FLEX_OBJ(
-      gab_obj_block, gab_value, p->as.block.nupvalues, kGAB_BLOCK);
+      gab_obj_block, gab_value, p->nupvalues, kGAB_BLOCK);
 
   self->p = prototype;
-  self->nupvalues = p->as.block.nupvalues;
+  self->nupvalues = p->nupvalues;
 
   for (uint8_t i = 0; i < self->nupvalues; i++) {
     self->upvalues[i] = gab_undefined;
@@ -548,38 +542,6 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
   } else {
     memset(self->data, 0, args.size);
   }
-
-  return __gab_obj(self);
-}
-
-gab_value gab_sprototype(struct gab_triple gab, struct gab_src *src,
-                         gab_value name, size_t begin) {
-
-  struct gab_obj_prototype *self =
-      GAB_CREATE_OBJ(gab_obj_prototype, kGAB_SPROTOTYPE);
-
-  self->src = src;
-  self->name = name;
-  self->offset = begin;
-  self->len = 0;
-
-  GAB_OBJ_GREEN((struct gab_obj *)self);
-
-  return __gab_obj(self);
-}
-
-gab_value gab_suspense(struct gab_triple gab, gab_value b, gab_value p,
-                       uint64_t len, gab_value data[static len]) {
-  assert(gab_valkind(p) == kGAB_SPROTOTYPE);
-
-  struct gab_obj_suspense *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_suspense, gab_value, len, kGAB_SUSPENSE);
-
-  self->b = b;
-  self->p = p;
-  self->nslots = len;
-
-  memcpy(self->slots, data, len * sizeof(gab_value));
 
   return __gab_obj(self);
 }

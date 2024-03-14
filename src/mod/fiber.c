@@ -8,7 +8,7 @@ a_gab_value *gab_lib_fiber(struct gab_triple gab, size_t argc,
   switch (argc) {
   case 2: {
     enum gab_kind runk = gab_valkind(argv[1]);
-    if (runk != kGAB_SUSPENSE && runk != kGAB_BLOCK) {
+    if (runk != kGAB_BLOCK) {
       return gab_panic(gab, "Invalid call to &:fiber.new");
     }
 

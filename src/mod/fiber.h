@@ -34,8 +34,7 @@ void fiber_iref(gab_value fiber) {
 }
 
 gab_value fiber_create(struct gab_triple gab, gab_value runner) {
-  assert(gab_valkind(runner) == kGAB_SUSPENSE ||
-         gab_valkind(runner) == kGAB_BLOCK);
+  assert(gab_valkind(runner) == kGAB_BLOCK);
 
   struct fiber *f = malloc(sizeof(struct fiber));
 
@@ -77,7 +76,7 @@ void fiber_run(gab_value fiber) {
   f->runner = result->data[result->len - 1];
 
   enum gab_kind runk = gab_valkind(f->runner);
-  bool continuing = runk == kGAB_BLOCK || runk == kGAB_SUSPENSE;
+  bool continuing = runk == kGAB_BLOCK;
 
   if (continuing)
     gab_egkeep(f->gab.eg, f->runner);

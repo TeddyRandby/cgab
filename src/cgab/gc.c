@@ -118,19 +118,6 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
     break;
   }
 
-  case kGAB_SUSPENSE: {
-    struct gab_obj_suspense *sus = (struct gab_obj_suspense *)obj;
-
-    for (size_t i = 0; i < sus->nslots; i++) {
-      if (gab_valiso(sus->slots[i]))
-        fnc(gab, gab_valtoo(sus->slots[i]));
-    }
-
-    fnc(gab, gab_valtoo(sus->b));
-
-    break;
-  }
-
   case (kGAB_BLOCK): {
     struct gab_obj_block *b = (struct gab_obj_block *)obj;
 
