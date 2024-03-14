@@ -896,8 +896,7 @@ static inline int push_ctx(struct bc *bc, enum context_k kind) {
   return bc->ncontext++;
 }
 
-static struct frame *push_ctxframe(struct bc *bc, gab_value name,
-                                   bool is_message) {
+static struct frame *push_ctxframe(struct bc *bc) {
   int ctx = push_ctx(bc, kFRAME);
 
   assert(ctx >= 0 && "Failed to push frame context");
@@ -907,10 +906,6 @@ static struct frame *push_ctxframe(struct bc *bc, gab_value name,
   struct frame *f = &c->as.frame;
 
   memset(f, 0, sizeof(struct frame));
-
-  addk(bc, name);
-
-  init_local(bc, add_local(bc, gab_string(gab(bc), "self"), 0));
 
   return f;
 }
@@ -1301,7 +1296,7 @@ static int compile_parameters(struct bc *bc) {
     return COMP_ERR;
 
   if (below >= 0)
-    push_pack(bc, MV_MULTI, below + 1, narguments - below, bc->offset - 1);
+    push_pack(bc, MV_MULTI, below, narguments - below, bc->offset - 1);
 
   push_trim(bc, 0, bc->offset - 1);
 
@@ -1402,7 +1397,7 @@ static mv compile_block_body(struct bc *bc) {
 }
 
 static mv compile_block(struct bc *bc, gab_value name) {
-  struct frame *f = push_ctxframe(bc, name, false);
+  struct frame *f = push_ctxframe(bc);
 
   int narguments = compile_parameters(bc);
 
@@ -2097,6 +2092,9 @@ static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
 
       gab_value name = gab_string(gab(bc), mGAB_CALL);
 
+      if (have.multi)
+        have = compile_mv_trim(bc, have, 1);
+
       mv rhs = rule.prefix(bc, MV_ERR, assignable);
 
       if (rhs.status < 0)
@@ -2162,9 +2160,9 @@ const struct compile_rule rules[] = {
 
 struct compile_rule get_rule(gab_token k) { return rules[k]; }
 
-gab_value compile(struct bc *bc, gab_value name, uint8_t narguments,
+gab_value compile(struct bc *bc, uint8_t narguments,
                   gab_value arguments[narguments]) {
-  push_ctxframe(bc, gab_nil, false);
+  push_ctxframe(bc);
 
   push_trim(bc, narguments, bc->offset - 1);
 
@@ -2230,7 +2228,7 @@ gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
   addk(&bc, gab_false);
   addk(&bc, gab_true);
 
-  gab_value module = compile(&bc, gab_string(gab, args.name), args.len, vargv);
+  gab_value module = compile(&bc, args.len, vargv);
 
   bc_destroy(&bc);
 

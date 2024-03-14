@@ -1630,7 +1630,6 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   ks[GAB_SEND_KTYPE] = t;
 
   memmove(SP() - have, SP() - (have - 1), (have - 1) * sizeof(gab_value));
-  PEEK() = gab_nil;
 
   switch (gab_valkind(spec)) {
     /*
@@ -1639,16 +1638,12 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
      * options use the VAR(), as set when we entered *this*
      * opcode. Then they can do their own trimming to achieve
      * the appropriate stack spacing.
+     *
+     * This breaks the PACK instruction, as now VAR is dishonest about how
+     * many values this actually has.
      */
-  case kGAB_BLOCK: {
-    struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
-
-    if (have_byte & fHAVE_TAIL)
-      TAILCALL_BLOCK(blk, have);
-    else
-      CALL_BLOCK(blk, have);
-  }
   case kGAB_PRIMITIVE: {
+    PEEK() = gab_nil;
     uint8_t op = gab_valtop(spec);
 
     IP() -= SEND_CACHE_DIST - 1;
@@ -1660,6 +1655,17 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
      * we just use *have* directly. This means we have to drop the nil and
      * pass one less argument into the native call.
      */
+  case kGAB_BLOCK: {
+    struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
+
+    have--;
+    DROP();
+
+    if (have_byte & fHAVE_TAIL)
+      TAILCALL_BLOCK(blk, have);
+    else
+      CALL_BLOCK(blk, have);
+  }
   case kGAB_NATIVE: {
     struct gab_obj_native *n = GAB_VAL_TO_NATIVE(spec);
 

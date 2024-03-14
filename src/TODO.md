@@ -12,3 +12,5 @@
 - Standard library things, badly need iterators
 - Tests, lots more tests
 - Instead of hacky impl in compiler now, impl the *apply* infix properly in pratt table
+- HAMT to implement shapes *and* records
+- Use sigils for types

@@ -1,34 +1,34 @@
-m = 'msg' :use
+'msg' :use
 'list' :use
 
-\deftransducer! :impl! (['gab.sigil', 'gab.string'], do td
-  public, private = m:message.new self, m:message.new 'do_{self}'
+#\map :deftransducer! do f
+#  {
+#    .step = do x, acc, rf
+#      rf(acc, f x)
+#    end,
+#  }
+#end
 
-  public :impl! ([], do m, init, f
-    i = self
-
-    private :case! {
-      .ok = do current, next
+\deftransducer! :impl! (['gab.message'], do m, td
+  m :impl! ([], do i, m, init, f
+    m :case! {
+      .ok = do _, current[], next
         (
           td(f, current**),
           do
-            status, next_value[], next_next = m(i, next)
-            
-            private(status, next_value, next_next)
+            m(m(i, next))
           end,
         )
       end,
-      .done = do; .false end,
+      .done = do; .done end,
     }
 
-    status, current[], next = m(i, init)
-
-    private(status, current, next)
+    m(m(i, init))
   end)
 end)
 
-.map :deftransducer! do f, current[]
-  f(current**)
+\map :deftransducer! do _, f, current[]
+  f (current**)
 end
 
 # A consumer is a message which takes at three arguments:
@@ -43,12 +43,12 @@ end
 #   - .none
 #
 
-\list.values.next? :impl!(['gab.list'], do n
+\list.values.next? :impl!(['gab.list'], do self, n
   self:len > n
 end)
 
 \list.values.continue :case! {
-  .true = do list, n
+  .true = do _, list, n
     (.ok, list:at(n), n + 1)
   end,
   .false = do
@@ -56,17 +56,17 @@ end)
   end
 }
 
-\values :impl!(['gab.list'], do n
+\values :impl!(['gab.list'], do self, n
   self :list.values.next? n :list.values.continue(self, n)
 end)
 
-list = .nil:list.new
+list = .new :list.new
 
 list:push!(1,2,3)
 
 _, n = list:map(\values, 0, \print)
-_, n = n()
-_, n = n()
-_, n = n()
 
-_, n = list:map(\values, 0, do x; x + 1 end )
+
+_, n = n()
+_, n = n()
+_, n = n()
