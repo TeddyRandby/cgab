@@ -97,7 +97,7 @@ static inline gab_value list_create_empty(struct gab_triple gab, uint64_t len) {
   v_gab_value_create(&data, len);
 
   return gab_box(gab, (struct gab_box_argt){
-                          .type = gab_string(gab, "gab.list"),
+                          .type = gab_sigil(gab, "gab.list"),
                           .destructor = list_destroy,
                           .visitor = list_visit,
                           .data = &data,

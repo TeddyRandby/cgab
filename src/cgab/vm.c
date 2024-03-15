@@ -1612,6 +1612,9 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   gab_value r = PEEK_N(have - 1);
   gab_value t = gab_valtype(EG(), r);
 
+  if (__gab_unlikely(gab_valkind(m) != kGAB_MESSAGE))
+    MISS_CACHED_SEND();
+
   struct gab_egimpl_rest res = gab_egimpl(EG(), m, r);
 
   if (__gab_unlikely(!res.status)) {
@@ -1624,7 +1627,6 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
                        ? gab_primitive(OP_SEND_PROPERTY)
                        : gab_umsgat(m, res.offset);
 
-  ks[GAB_SEND_KMESSAGE] = m;
   ks[GAB_SEND_KSPECS] = GAB_VAL_TO_MESSAGE(m)->specs;
   ks[GAB_SEND_KOFFSET] = res.offset;
   ks[GAB_SEND_KTYPE] = t;

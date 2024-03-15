@@ -1058,6 +1058,28 @@ static inline gab_value gab_strtosig(gab_value str) {
 }
 
 /**
+ * @brief Create a sigil value from a cstring.
+ *
+ * @param data The cstring
+ * @return The sigil
+ */
+static inline gab_value gab_sigil(struct gab_triple gab, const char data[static 1]) {
+  return gab_strtosig(gab_string(gab, data));
+}
+
+/**
+ * @brief Create a sigil value from a cstring.
+ *
+ * @param len The number of bytes in data
+ * @param data The cstring
+ * @return The sigil
+ */
+static inline gab_value gab_nsigil(struct gab_triple gab, size_t len,
+                                   const char data[static len]) {
+  return gab_strtosig(gab_nstring(gab, len, data));
+}
+
+/**
  * @brief Convert a sigil into it's corresponding string.
  *
  * @param str The string

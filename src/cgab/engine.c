@@ -11,7 +11,6 @@
 #include "types.h"
 
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <time.h>
 
@@ -37,36 +36,6 @@ struct primitive all_primitives[] = {
 };
 
 struct primitive specific_primitive[] = {
-    // {
-    //     .name = mGAB_LOR,
-    //     .type = kGAB_TRUE,
-    //     .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
-    // },
-    // {
-    //     .name = mGAB_LND,
-    //     .type = kGAB_TRUE,
-    //     .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
-    // },
-    // {
-    //     .name = mGAB_LOR,
-    //     .type = kGAB_FALSE,
-    //     .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
-    // },
-    // {
-    //     .name = mGAB_LND,
-    //     .type = kGAB_FALSE,
-    //     .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
-    // },
-    // {
-    //     .name = mGAB_LIN,
-    //     .type = kGAB_FALSE,
-    //     .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIN),
-    // },
-    // {
-    //     .name = mGAB_LIN,
-    //     .type = kGAB_TRUE,
-    //     .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIN),
-    // },
     {
         .name = mGAB_BIN,
         .type = kGAB_NUMBER,
@@ -199,37 +168,37 @@ struct gab_triple gab_create() {
 
   eg->types[kGAB_UNDEFINED] = gab_undefined;
 
-  eg->types[kGAB_NUMBER] = gab_string(gab, "gab.number");
+  eg->types[kGAB_NUMBER] = gab_sigil(gab, "gab.number");
   gab_iref(gab, eg->types[kGAB_NUMBER]);
 
-  eg->types[kGAB_STRING] = gab_string(gab, "gab.string");
+  eg->types[kGAB_STRING] = gab_sigil(gab, "gab.string");
   gab_iref(gab, eg->types[kGAB_STRING]);
 
-  eg->types[kGAB_SIGIL] = gab_string(gab, "gab.sigil");
+  eg->types[kGAB_SIGIL] = gab_sigil(gab, "gab.sigil");
   gab_iref(gab, eg->types[kGAB_SIGIL]);
 
-  eg->types[kGAB_MESSAGE] = gab_string(gab, "gab.message");
+  eg->types[kGAB_MESSAGE] = gab_sigil(gab, "gab.message");
   gab_iref(gab, eg->types[kGAB_MESSAGE]);
 
-  eg->types[kGAB_PROTOTYPE] = gab_string(gab, "gab.prototype");
+  eg->types[kGAB_PROTOTYPE] = gab_sigil(gab, "gab.prototype");
   gab_iref(gab, eg->types[kGAB_PROTOTYPE]);
 
-  eg->types[kGAB_NATIVE] = gab_string(gab, "gab.native");
+  eg->types[kGAB_NATIVE] = gab_sigil(gab, "gab.native");
   gab_iref(gab, eg->types[kGAB_NATIVE]);
 
-  eg->types[kGAB_BLOCK] = gab_string(gab, "gab.block");
+  eg->types[kGAB_BLOCK] = gab_sigil(gab, "gab.block");
   gab_iref(gab, eg->types[kGAB_BLOCK]);
 
-  eg->types[kGAB_RECORD] = gab_string(gab, "gab.record");
+  eg->types[kGAB_RECORD] = gab_sigil(gab, "gab.record");
   gab_iref(gab, eg->types[kGAB_RECORD]);
 
-  eg->types[kGAB_SHAPE] = gab_string(gab, "gab.shape");
+  eg->types[kGAB_SHAPE] = gab_sigil(gab, "gab.shape");
   gab_iref(gab, eg->types[kGAB_SHAPE]);
 
-  eg->types[kGAB_BOX] = gab_string(gab, "gab.box");
+  eg->types[kGAB_BOX] = gab_sigil(gab, "gab.box");
   gab_iref(gab, eg->types[kGAB_BOX]);
 
-  eg->types[kGAB_PRIMITIVE] = gab_string(gab, "gab.primitive");
+  eg->types[kGAB_PRIMITIVE] = gab_sigil(gab, "gab.primitive");
   gab_iref(gab, eg->types[kGAB_PRIMITIVE]);
 
   gab_negkeep(gab.eg, kGAB_NKINDS, eg->types);

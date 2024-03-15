@@ -907,6 +907,9 @@ static struct frame *push_ctxframe(struct bc *bc) {
 
   memset(f, 0, sizeof(struct frame));
 
+  /* Add the implicit -self- local */
+  init_local(bc, add_local(bc, gab_string(gab(bc), "self"), 0));
+
   return f;
 }
 
@@ -1282,7 +1285,6 @@ fin:
 }
 
 static int compile_parameters(struct bc *bc) {
-  // Somehow track below and above for packing
   int below;
   uint8_t narguments;
 
@@ -1296,7 +1298,7 @@ static int compile_parameters(struct bc *bc) {
     return COMP_ERR;
 
   if (below >= 0)
-    push_pack(bc, MV_MULTI, below, narguments - below, bc->offset - 1);
+    push_pack(bc, MV_MULTI, below + 1, narguments - below, bc->offset - 1);
 
   push_trim(bc, 0, bc->offset - 1);
 
@@ -2176,8 +2178,9 @@ gab_value compile(struct bc *bc, uint8_t narguments,
 
   if (curr_tok(bc) == TOKEN_ERROR) {
     eat_token(bc);
-    return compiler_error(bc, GAB_MALFORMED_TOKEN,
+    compiler_error(bc, GAB_MALFORMED_TOKEN,
                           "This token is malformed or unrecognized.");
+    return gab_undefined;
   }
 
   for (uint8_t i = 0; i < narguments; i++)
@@ -2193,7 +2196,7 @@ gab_value compile(struct bc *bc, uint8_t narguments,
   gab_value p = pop_ctxframe(bc);
 
   if (p == gab_undefined)
-    return COMP_ERR;
+    return p;
 
   if (gab(bc).flags & fGAB_DUMP_BYTECODE)
     gab_fmodinspect(stdout, GAB_VAL_TO_PROTOTYPE(p));
@@ -2443,6 +2446,7 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_SEND_PRIMITIVE_GTE:
   case OP_SEND_PRIMITIVE_CALL_BLOCK:
   case OP_SEND_PRIMITIVE_CALL_NATIVE:
+  case OP_SEND_PRIMITIVE_CALL_MESSAGE:
   case OP_TAILSEND_BLOCK:
   case OP_TAILSEND_PRIMITIVE_CALL_BLOCK:
   case OP_LOCALSEND_BLOCK:

@@ -1,35 +1,42 @@
 'msg' :use
 'list' :use
 
-#\map :deftransducer! do f
-#  {
-#    .step = do x, acc, rf
-#      rf(acc, f x)
-#    end,
-#  }
-#end
-
-\deftransducer! :impl! (['gab.message'], do m, td
-  m :impl! ([], do i, m, init, f
-    m :case! {
-      .ok = do _, current[], next
-        (
-          td(f, current**),
-          do
-            m(m(i, next))
-          end,
-        )
-      end,
-      .done = do; .done end,
-    }
-
-    m(m(i, init))
-  end)
+\map :def! ([.td], do f
+  do rf
+    do acc, x
+      rf(acc, f x)
+    end
+  end
 end)
 
-\map :deftransducer! do _, f, current[]
-  f (current**)
-end
+\reduce :defcase! {
+  .step = do i, m, n, acc, xs, rf
+    acc = rf (acc, xs**) # Apply the reducing function
+
+    s, xs[], n = m (i , n) # Apply the producer, resolving new values for the next step
+            
+    s :reduce (i, m, n, acc, xs, rf) # Tailcall to the next step
+  end,
+  # TODO: Make multple '_'s okay
+  .done = do _a, _b, _c, acc, xs, rf
+    acc
+  end,
+}
+
+# numbers:reduce(\values, 0, 0, \+)
+\reduce :def! ([], do m, acc, rf
+  s, xs[], n = m self
+
+  s :reduce (self, m, n, acc, xs, rf)
+end)
+
+# numbers:transduce(\values, 0, 0, \+, .td :map \++)
+\transduce :def! ([], do m, acc, rf, td
+# Apply the transducer to the reducing function,
+# And then just call a normal reduce
+  self :reduce (m, acc, td rf)
+end)
+
 
 # A consumer is a message which takes at three arguments:
 # (invariant ie. a list, producer ie. \values, initial ie. 0, args ie. \print)
@@ -40,33 +47,44 @@ end
 # (invariant ie. a list, variant ie. the accumulator)
 # It returns:
 #   - .some, <values>[], <next-variant>
-#   - .none
+#   - .done
 #
 
-\list.values.next? :impl!(['gab.list'], do self, n
-  self:len > n
-end)
+\list.values.next? :defcase! {
+  .gab.number = do list
+    list:len > self
+  end,
+  .nil = do
+    .init
+  end
+}
 
-\list.values.continue :case! {
-  .true = do _, list, n
-    (.ok, list:at(n), n + 1)
+\list.values.continue :defcase! {
+  .init = do list
+    (.step, list:at(0), 1)
+  end,
+  .true = do list, n
+    (.step, list:at(n), n + 1)
   end,
   .false = do
     .done
   end
 }
 
-\values :impl!(['gab.list'], do self, n
-  self :list.values.next? n :list.values.continue(self, n)
+\values :def!([.gab.list], do n
+  n :list.values.next? self :list.values.continue(self, n)
 end)
 
 list = .new :list.new
 
 list:push!(1,2,3)
 
-_, n = list:map(\values, 0, \print)
+\++ :def! ([.gab.number], do; self + 1 end)
 
+sum = list:reduce(\values, 0, \+)
 
-_, n = n()
-_, n = n()
-_, n = n()
+'sum: {sum}':print
+
+sum = list:transduce(\values, 0, \+, .td :map \++)
+
+'sum: {sum}':print

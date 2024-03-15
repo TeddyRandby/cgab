@@ -96,7 +96,7 @@ a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
-                         gab_value argv[argc]) {
+                        gab_value argv[argc]) {
   if (argc != 2 || gab_valkind(argv[1]) != kGAB_NUMBER) {
     return gab_panic(gab, "Invalid call to gab_lib_at");
   }
@@ -130,7 +130,8 @@ a_gab_value *gab_lib_splat(struct gab_triple gab, size_t argc,
   return NULL;
 }
 
-a_gab_value * gab_lib_set(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_set(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
   switch (argc) {
   case 2:
     if (gab_valkind(argv[1]) != kGAB_BOX) {
@@ -152,7 +153,8 @@ a_gab_value * gab_lib_set(struct gab_triple gab, size_t argc, gab_value argv[arg
   return NULL;
 }
 
-a_gab_value * gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
   switch (argc) {
   case 3:
     // A put
@@ -176,7 +178,8 @@ a_gab_value * gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[arg
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (a < 0 ? 0 : MIN(a, b))
 
-a_gab_value * gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
+                           gab_value argv[argc]) {
   v_gab_value *data = gab_boxdata(argv[0]);
 
   uint64_t len = data->len;
@@ -223,7 +226,7 @@ a_gab_value * gab_lib_slice(struct gab_triple gab, size_t argc, gab_value argv[a
 #undef CLAMP
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value type = gab_string(gab, "gab.list");
+  gab_value type = gab_strtosig(gab_string(gab, "gab.list"));
 
   struct gab_spec_argt specs[] = {
       {

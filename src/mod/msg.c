@@ -54,8 +54,8 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
   return NULL;
 }
 
-a_gab_value *gab_lib_impl(struct gab_triple gab, size_t argc,
-                          gab_value argv[static argc]) {
+a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
+                         gab_value argv[static argc]) {
   gab_value m = gab_arg(0);
   gab_value r = gab_arg(1);
   gab_value b = gab_arg(2);
@@ -138,14 +138,14 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "put!", gab_lib_put),
       },
       {
-          "impl!",
+          "def!",
           gab_type(gab.eg, kGAB_MESSAGE),
-          gab_snative(gab, "impl!", gab_lib_impl),
+          gab_snative(gab, "def!", gab_lib_def),
       },
       {
-          "case!",
+          "defcase!",
           gab_type(gab.eg, kGAB_MESSAGE),
-          gab_snative(gab, "case!", gab_lib_case),
+          gab_snative(gab, "defcase!", gab_lib_case),
       },
   };
 
