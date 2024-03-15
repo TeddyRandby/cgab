@@ -4,9 +4,8 @@ STATUS(NONE, "")
 STATUS(PANIC, "A fatal error occurred")
 STATUS(MALFORMED_TOKEN, "Unrecognized token")
 STATUS(MALFORMED_STRING, "Malformed string")
-STATUS(MALFORMED_RECORD_KEY, "Malformed key in record")
-STATUS(MALFORMED_MESSAGE, "Malformed message")
-STATUS(MALFORMED_SEND, "Malformed send")
+STATUS(MALFORMED_RECORD_KEY, "Malformed key in record expression")
+STATUS(MALFORMED_SEND, "Malformed send expression")
 STATUS(UNEXPECTED_TOKEN, "Unexpected token")
 STATUS(UNEXPECTED_EOF, "Unexpected end of file")
 STATUS(INVALID_REST_VARIABLE, "Invalid rest variable")
@@ -21,8 +20,8 @@ STATUS(TOO_MANY_EXPRESSIONS_IN_INITIALIZER,
 STATUS(REFERENCE_BEFORE_INITIALIZE,
        "Uninitialized variable")
 STATUS(LOCAL_ALREADY_EXISTS, "A local with this name already exists")
-STATUS(EXPRESSION_NOT_ASSIGNABLE,
-       "The expression on the left is not assignable")
+STATUS(MALFORMED_ASSIGNMENT,
+       "Malformed assignment expression")
 STATUS(MISSING_END, "Block need a corresponding 'end'")
 STATUS(MISSING_INITIALIZER, "Variables must be initialized")
 STATUS(MISSING_IDENTIFIER, "Identifier could not be resolved")

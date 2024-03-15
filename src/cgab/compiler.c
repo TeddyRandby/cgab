@@ -35,9 +35,13 @@ enum lvalue_k {
   kNEW_REST_LOCAL,
   kEXISTING_LOCAL,
   kEXISTING_REST_LOCAL,
-  kPROP,
-  kINDEX,
+  kMESSAGE,
 };
+
+typedef struct mv_t {
+  int status;
+  bool multi;
+} mv;
 
 struct lvalue {
   enum lvalue_k kind;
@@ -46,7 +50,10 @@ struct lvalue {
 
   union {
     uint16_t local;
-    gab_value property;
+    struct {
+      gab_value message;
+      mv args;
+    } property;
   } as;
 };
 
@@ -95,12 +102,8 @@ static inline struct gab_triple gab(struct bc *bc) { return bc->gab; }
 
 enum prec_k { kNONE, kASSIGNMENT, kBINARY_SEND, kSEND, kPRIMARY };
 
-typedef struct mv_t {
-  int status;
-  bool multi;
-} mv;
-
 typedef mv (*compile_f)(struct bc *, mv lhs, bool);
+
 struct compile_rule {
   compile_f prefix;
   compile_f infix;
@@ -141,12 +144,18 @@ enum comp_status {
 #define MV_MULTI_WITH(n) ((mv){n, true})
 
 #define FMT_UNEXPECTEDTOKEN "Expected $ instead."
-static int compiler_error(struct bc *bc, enum gab_status e,
-                          const char *help_fmt, ...);
+static int vcompiler_error(struct bc *bc, enum gab_status e, const char *fmt,
+                           va_list args);
+static int compiler_error(struct bc *bc, enum gab_status e, const char *fmt,
+                          ...);
 
 static bool match_token(struct bc *bc, gab_token tok);
 
 static int eat_token(struct bc *bc);
+
+static gab_value tok_id(struct bc *bc, gab_token tok) {
+  return gab_string(gab(bc), gab_token_names[tok]);
+}
 
 //------------------- Token Helpers -----------------------
 static size_t prev_line(struct bc *bc) {
@@ -195,11 +204,24 @@ static inline int match_and_eat_token(struct bc *bc, gab_token tok) {
   return eat_token(bc);
 }
 
+static inline int expect_token_hint(struct bc *bc, gab_token tok,
+                                    const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+
+  if (!match_token(bc, tok)) {
+    eat_token(bc);
+    return vcompiler_error(bc, GAB_UNEXPECTED_TOKEN, fmt, args);
+  }
+
+  return eat_token(bc);
+}
+
 static inline int expect_token(struct bc *bc, gab_token tok) {
   if (!match_token(bc, tok)) {
     eat_token(bc);
     return compiler_error(bc, GAB_UNEXPECTED_TOKEN, FMT_UNEXPECTEDTOKEN,
-                          gab_string(gab(bc), gab_token_names[tok]));
+                          tok_id(bc, tok));
   }
 
   return eat_token(bc);
@@ -339,7 +361,7 @@ static inline void push_k(struct bc *bc, uint16_t k, size_t t) {
 }
 
 static inline void push_loadi(struct bc *bc, gab_value i, size_t t) {
-  assert(i == gab_undefined || i == gab_true || i == gab_false);
+  assert(i == gab_undefined || i == gab_true || i == gab_false || i == gab_nil);
 
   switch (i) {
   case gab_undefined:
@@ -359,9 +381,9 @@ static inline void push_loadi(struct bc *bc, gab_value i, size_t t) {
   }
 };
 
-static inline void push_loadni(struct bc *bc, gab_value i, int n, size_t t) {
+static inline void push_loadni(struct bc *bc, gab_value v, int n, size_t t) {
   for (int i = 0; i < n; i++)
-    push_loadi(bc, i, t);
+    push_loadi(bc, v, t);
 }
 
 static inline void push_loadk(struct bc *bc, gab_value k, size_t t) {
@@ -522,24 +544,11 @@ static inline void push_tuple(struct bc *bc, mv rhs, size_t t) {
   push_byte(bc, encode_arity(rhs), t);
 }
 
-static inline mv reconcile_send_args(struct bc *bc, mv lhs, mv rhs) {
-  if (lhs.multi && rhs.multi) {
-    return compiler_error(
-               bc, GAB_MALFORMED_SEND,
-               "When the right hand side of an infix send is a dynamic-sized "
-               "tuple, the left hand side *must* be constant-sized."
-               "This restriction _may_ be relaxed in a future version of gab."),
-           MV_ERR;
-  }
-
-  if (lhs.multi && rhs.status > 0) {
-    return compiler_error(
-               bc, GAB_MALFORMED_SEND,
-               "When the left hand side of an infix send is a dynamic-sized "
-               "tuple, the right hand side *must* be empty."
-               "This restriction _may_ be relaxed in a future version of gab."),
-           MV_ERR;
-  }
+static inline mv reconcile_send_args(mv lhs, mv rhs) {
+  assert(!(lhs.multi && rhs.multi) &&
+         "Internal compiler error: cannot reconcile send args");
+  assert(!(lhs.multi && rhs.status > 0) &&
+         "Internal compiler error: cannot reconcile send args");
 
   return (mv){rhs.status + lhs.status, rhs.multi || lhs.multi};
 }
@@ -1115,13 +1124,18 @@ static mv compile_strlit(struct bc *bc) {
   a_char *parsed = parse_raw_str(bc, prev_src(bc));
 
   if (parsed == NULL) {
-    compiler_error(bc, GAB_MALFORMED_STRING,
-                   "Single quoted strings can contain interpolations.\n"
-                   "\n | 'this is { an:interpolation }'\n"
-                   "\nBoth single and double quoted strings can contain escape "
-                   "sequences.\n"
-                   "\n | 'a newline -> \\n, or a forward slash -> \\\\'"
-                   "\n | \"arbitrary unicode: \\u[2502]\"");
+    compiler_error(
+        bc, GAB_MALFORMED_STRING,
+        "Single quoted strings can contain interpolations.\n"
+        "\n   " ANSI_COLOR_GREEN "'answer is: { " ANSI_COLOR_YELLOW
+        "42" ANSI_COLOR_GREEN " }'\n" ANSI_COLOR_RESET
+        "\nBoth single and double quoted strings can contain escape "
+        "sequences.\n"
+        "\n   " ANSI_COLOR_GREEN "'a newline -> " ANSI_COLOR_MAGENTA
+        "\\n" ANSI_COLOR_GREEN ", or a forward slash -> " ANSI_COLOR_MAGENTA
+        "\\\\" ANSI_COLOR_GREEN "'" ANSI_COLOR_RESET "\n   " ANSI_COLOR_GREEN
+        "\"arbitrary unicode: " ANSI_COLOR_MAGENTA "\\u[" ANSI_COLOR_YELLOW
+        "2502" ANSI_COLOR_MAGENTA "]" ANSI_COLOR_GREEN "\"" ANSI_COLOR_RESET);
     return MV_ERR;
   }
 
@@ -1232,14 +1246,17 @@ static int compile_parameters_internal(struct bc *bc, int *below,
 
     *narguments = *narguments + 1;
 
-    if (expect_token(bc, TOKEN_IDENTIFIER) < 0)
+    if (expect_token_hint(bc, TOKEN_IDENTIFIER,
+                          "Expected a parameter name. Maybe you forgot a $?",
+                          tok_id(bc, TOKEN_NEWLINE)) < 0)
       return COMP_ERR;
 
     gab_value name = prev_id(bc);
 
     switch (match_and_eat_token(bc, TOKEN_LBRACE)) {
     case COMP_OK:
-      if (expect_token(bc, TOKEN_RBRACE) < 0)
+      if (expect_token_hint(bc, TOKEN_RBRACE, "Expected a closing $.",
+                            tok_id(bc, TOKEN_RBRACE)) < 0)
         return COMP_ERR;
 
       if (*below >= 0) {
@@ -1277,7 +1294,9 @@ static int compile_parameters_internal(struct bc *bc, int *below,
 
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)) > 0);
 
-  if (expect_token(bc, TOKEN_NEWLINE) < 0)
+  if (expect_token_hint(bc, TOKEN_NEWLINE,
+                        "Blocks require a $ after the parameter list.",
+                        tok_id(bc, TOKEN_NEWLINE)) < 0)
     return COMP_ERR;
 
 fin:
@@ -1333,7 +1352,8 @@ static mv compile_expressions_body(struct bc *bc) {
   if (match_terminator(bc))
     goto fin;
 
-  if (expect_token(bc, TOKEN_NEWLINE) < 0)
+  if (expect_token_hint(bc, TOKEN_NEWLINE, "Expression statements end with $.",
+                        tok_id(bc, TOKEN_NEWLINE)) < 0)
     return MV_ERR;
 
   if (skip_newlines(bc) < 0)
@@ -1352,7 +1372,9 @@ static mv compile_expressions_body(struct bc *bc) {
     if (match_terminator(bc))
       goto fin;
 
-    if (expect_token(bc, TOKEN_NEWLINE) < 0)
+    if (expect_token_hint(bc, TOKEN_NEWLINE,
+                          "Expression statements end with $.",
+                          tok_id(bc, TOKEN_NEWLINE)) < 0)
       return MV_ERR;
 
     if (skip_newlines(bc) < 0)
@@ -1547,8 +1569,13 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
     targets++;
   }
 
+  if (expect_token(bc, TOKEN_EQUAL) < 0)
+    return MV_ERR;
+
   if (targets > lvalues->len)
-    return compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, ""), MV_ERR;
+    return compiler_error(bc, GAB_MALFORMED_ASSIGNMENT,
+                          "Some assignment targets are invalid."),
+           MV_ERR;
 
   uint8_t n_rest_values = rest_lvalues(lvalues);
   uint8_t n_new_values = new_lvalues(lvalues);
@@ -1559,9 +1586,6 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
            MV_ERR;
 
   uint8_t want = n_rest_values ? VAR_EXP : lvalues->len;
-
-  if (expect_token(bc, TOKEN_EQUAL) < 0)
-    return MV_ERR;
 
   size_t t = bc->offset - 1;
 
@@ -1614,8 +1638,7 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
       pop_slot(bc, 1);
       break;
 
-    case kINDEX:
-    case kPROP:
+    case kMESSAGE:
       push_shift(bc, peek_slot(bc) - lval.slot, t);
       break;
     }
@@ -1635,8 +1658,8 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
 
       break;
 
-    case kPROP: {
-      push_send(bc, lval.as.property, MV_OK_WITH(2), t);
+    case kMESSAGE: {
+      push_send(bc, lval.as.property.message, lval.as.property.args, t);
 
       if (!is_last_assignment)
         push_trim(bc, 0, t);
@@ -1645,15 +1668,6 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
       break;
     }
 
-    case kINDEX: {
-      push_send(bc, lval.as.property, MV_OK_WITH(3), t);
-
-      if (!is_last_assignment)
-        push_trim(bc, 0, t);
-
-      pop_slot(bc, 2 + !is_last_assignment);
-      break;
-    }
     }
   }
 
@@ -1694,7 +1708,7 @@ static mv compile_lvalue(struct bc *bc, bool assignable, gab_value name,
                                   });
 
   case COMP_RESOLVED_TO_UPVALUE:
-    return compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE,
+    return compiler_error(bc, GAB_MALFORMED_ASSIGNMENT,
                           "Captured variables are not assignable."),
            MV_ERR;
   default:
@@ -1792,14 +1806,20 @@ static int compile_rec_internal_item(struct bc *bc) {
 
 err:
   eat_token(bc);
-  return compiler_error(bc, GAB_MALFORMED_RECORD_KEY,
-                        "A valid key is either:\n"
-                        " | { an_identifier }\n"
-                        " | { \"a string\", .a_sigil, 'or' }\n"
-                        " | { [an:expression] }\n\n"
-                        "A key can be followed by an " ANSI_COLOR_GREEN
-                        "EQUAL" ANSI_COLOR_RESET ", and then an expression.\n"
-                        "If a value is not set explicitly, it will be true.\n");
+  return compiler_error(
+      bc, GAB_MALFORMED_RECORD_KEY,
+      "A valid key is one of:\n\n"
+      "   " ANSI_COLOR_BLUE "{ " ANSI_COLOR_RESET
+      "an_identifier " ANSI_COLOR_BLUE "}\n" ANSI_COLOR_RESET
+      "   " ANSI_COLOR_BLUE "{ " ANSI_COLOR_GREEN
+      "\"a string\"" ANSI_COLOR_RESET ", " ANSI_COLOR_MAGENTA
+      ".a_sigil" ANSI_COLOR_RESET ", " ANSI_COLOR_GREEN "'or' " ANSI_COLOR_BLUE
+      "}\n" ANSI_COLOR_RESET "   " ANSI_COLOR_BLUE "{ [" ANSI_COLOR_YELLOW
+      "42" ANSI_COLOR_BLUE "] }\n\n" ANSI_COLOR_RESET
+      "A key may be followed by an " ANSI_COLOR_GREEN "EQUAL" ANSI_COLOR_RESET
+      ", then an expression.\n"
+      "If a value is not set this way, it is set to " ANSI_COLOR_MAGENTA
+      ".true" ANSI_COLOR_RESET ".\n");
 }
 
 static int compile_rec_internals(struct bc *bc) {
@@ -1892,7 +1912,7 @@ fin:
 
 mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs,
                           size_t t) {
-  mv args = reconcile_send_args(bc, lhs, rhs);
+  mv args = reconcile_send_args(lhs, rhs);
 
   if (args.status < 0)
     return MV_ERR;
@@ -1912,21 +1932,25 @@ mv compile_send(struct bc *bc, mv lhs, bool assignable) {
 
   gab_value name = trim_prev_id(bc);
 
-  mv rhs = compile_optional_expression_prec(bc, &lhs, kSEND + 1);
-
   if (assignable && !match_ctx(bc, kTUPLE)) {
     if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
-      return compile_assignment(bc, (struct lvalue){
-                                        .kind = rhs.status ? kINDEX : kPROP,
-                                        .slot = peek_slot(bc),
-                                        .as.property = name,
-                                    });
+      return compile_assignment(
+          bc,
+          (struct lvalue){
+              .kind = kMESSAGE,
+              .slot = peek_slot(bc),
+              .as.property.message = name,
+              .as.property.args = reconcile_send_args(lhs, MV_OK),
+          });
 
     if (match_ctx(bc, kASSIGNMENT_TARGET)) {
       eat_token(bc);
-      compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, "");
+      compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, "");
+      return MV_ERR;
     }
   }
+
+  mv rhs = compile_optional_expression_prec(bc, &lhs, kSEND + 1);
 
   if (rhs.status < 0)
     return MV_ERR;
@@ -1977,7 +2001,7 @@ static mv compile_exp_tup(struct bc *bc, mv, bool) {
     return MV_ERR;
 
   if (match_and_eat_token(bc, TOKEN_RPAREN))
-    return MV_EMPTY;
+    return push_loadi(bc, gab_nil, bc->offset - 1), push_slot(bc, 1), MV_OK;
 
   mv result = compile_tuple(bc, VAR_EXP);
 
@@ -2034,6 +2058,7 @@ static mv compile_exp_idn(struct bc *bc, mv lhs, bool assignable) {
     return MV_OK;
 
   case COMP_ID_NOT_FOUND:
+    // TODO: Improve this error message.
     return compiler_error(bc, GAB_MISSING_IDENTIFIER,
                           "'$' is not within lexical scope.", id),
            MV_ERR;
@@ -2062,10 +2087,23 @@ static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
 
   if (rule.prefix == NULL) {
     s_char p = prev_src(bc);
-    return compiler_error(bc, GAB_UNEXPECTED_TOKEN,
-                          FMT_UNEXPECTEDTOKEN " $ cannot begin an expression.",
-                          gab_string(gab(bc), "EXPRESSION"),
-                          gab_nstring(gab(bc), p.len, p.data)),
+    return compiler_error(
+               bc, GAB_UNEXPECTED_TOKEN,
+               "$ cannot begin an expression - "
+               "expressions begin with values.\n\nSomething like:\n\n"
+               "  " ANSI_COLOR_YELLOW "-1.23" ANSI_COLOR_MAGENTA
+               "\t\t\t# A number \n" ANSI_COLOR_RESET "  " ANSI_COLOR_GREEN
+               ".true" ANSI_COLOR_MAGENTA "\t\t\t# A sigil \n" ANSI_COLOR_RESET
+               "  " ANSI_COLOR_GREEN "'hello, Joe!'" ANSI_COLOR_MAGENTA
+               "\t\t# A string \n" ANSI_COLOR_RESET "  " ANSI_COLOR_RED
+               "\\greet" ANSI_COLOR_MAGENTA "\t\t# A message\n" ANSI_COLOR_RESET
+               "  " ANSI_COLOR_BLUE "do x; x + 1 end" ANSI_COLOR_MAGENTA
+               "\t# A block \n" ANSI_COLOR_RESET "  " ANSI_COLOR_CYAN
+               "{ key = value }" ANSI_COLOR_MAGENTA
+               "\t# A record\n" ANSI_COLOR_RESET "  "
+               "a_variable" ANSI_COLOR_MAGENTA
+               "\t\t# Or a variable!\n" ANSI_COLOR_RESET,
+               gab_nstring(gab(bc), p.len, p.data)),
            MV_ERR;
   }
 
@@ -2111,8 +2149,8 @@ static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
     }
   }
 
-  // if (!assignable && match_token(bc, TOKEN_EQUAL))
-  //   return compiler_error(bc, GAB_EXPRESSION_NOT_ASSIGNABLE, ""), MV_ERR;
+  // if (!assignable && match_and_eat_token(bc, TOKEN_EQUAL))
+  //   return compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, ""), MV_ERR;
 
   return have;
 }
@@ -2179,7 +2217,7 @@ gab_value compile(struct bc *bc, uint8_t narguments,
   if (curr_tok(bc) == TOKEN_ERROR) {
     eat_token(bc);
     compiler_error(bc, GAB_MALFORMED_TOKEN,
-                          "This token is malformed or unrecognized.");
+                   "This token is malformed or unrecognized.");
     return gab_undefined;
   }
 
@@ -2240,28 +2278,33 @@ gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
   return module;
 }
 
-static int compiler_error(struct bc *bc, enum gab_status e,
-                          const char *note_fmt, ...) {
+static int vcompiler_error(struct bc *bc, enum gab_status e, const char *fmt,
+                           va_list args) {
   if (bc->panic)
     return COMP_ERR;
 
   bc->panic = true;
 
-  va_list va;
-  va_start(va, note_fmt);
-
-  gab_vfpanic(gab(bc), stderr, va,
+  gab_vfpanic(gab(bc), stderr, args,
               (struct gab_err_argt){
                   .src = bc->src,
                   .message = gab_nil,
                   .status = e,
                   .tok = bc->offset - 1,
-                  .note_fmt = note_fmt,
+                  .note_fmt = fmt,
               });
 
-  va_end(va);
+  va_end(args);
 
   return COMP_ERR;
+}
+
+static int compiler_error(struct bc *bc, enum gab_status e, const char *fmt,
+                          ...) {
+  va_list args;
+  va_start(args, fmt);
+
+  return vcompiler_error(bc, e, fmt, args);
 }
 
 static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
