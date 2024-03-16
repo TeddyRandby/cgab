@@ -102,10 +102,6 @@ a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
   for (int i = 0; i < gab_reclen(cases); i++) {
     gab_value b = gab_urecat(cases, i);
 
-    if (gab_valkind(b) != kGAB_PRIMITIVE && gab_valkind(b) != kGAB_BLOCK &&
-        gab_valkind(b) != kGAB_NATIVE)
-      return gab_pktypemismatch(gab, b, kGAB_BLOCK);
-
     gab_value t = gab_ushpat(gab_recshp(cases), i);
 
     if (gab_msgput(gab, m, t, b) == gab_undefined)

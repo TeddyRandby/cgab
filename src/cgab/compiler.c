@@ -545,12 +545,19 @@ static inline void push_ret(struct bc *bc, mv rhs, size_t t) {
   assert(ctx >= 0 && "Internal compiler error: no frame context");
   struct frame *f = &bc->contexts[ctx].as.frame;
 
-  if (f->prev_op == OP_SEND) {
+  switch (f->prev_op) {
+  case OP_SEND: {
     uint8_t have_byte = v_uint8_t_val_at(&f->bc, f->bc.len - 1);
     v_uint8_t_set(&f->bc, f->bc.len - 1, have_byte | fHAVE_TAIL);
     rhs.status -= !rhs.multi;
     rhs.multi = true;
-  } else if (f->prev_op == OP_TRIM && f->pprev_op == OP_SEND) {
+    push_op(bc, OP_RETURN, t);
+    push_byte(bc, encode_arity(rhs), t);
+    return;
+  }
+  case OP_TRIM: {
+    if (f->pprev_op != OP_SEND)
+      break;
     uint8_t have_byte = v_uint8_t_val_at(&f->bc, f->bc.len - 3);
     v_uint8_t_set(&f->bc, f->bc.len - 3, have_byte | fHAVE_TAIL);
     f->prev_op = f->pprev_op;
@@ -558,6 +565,10 @@ static inline void push_ret(struct bc *bc, mv rhs, size_t t) {
     f->bc_toks.len -= 2;
     rhs.status -= !rhs.multi;
     rhs.multi = true;
+    push_op(bc, OP_RETURN, t);
+    push_byte(bc, encode_arity(rhs), t);
+    return;
+  }
   }
 #endif
 
@@ -577,6 +588,49 @@ static inline void push_block(struct bc *bc, gab_value p, size_t t) {
 
   push_op(bc, OP_BLOCK, t);
   push_short(bc, addk(bc, p), t);
+}
+
+static inline void push_record(struct bc *bc, size_t len, size_t t) {
+  assert(len < 16);
+
+#if cGAB_SUPERINSTRUCTIONS
+  int ctx = peek_ctx(bc, kFRAME, 0);
+  assert(ctx >= 0 && "Internal compiler error: no frame context");
+  struct frame *f = &bc->contexts[ctx].as.frame;
+
+  switch (f->prev_op) {
+  case OP_NCONSTANT: {
+    size_t prev_local_arg = f->prev_op_at + 1;
+    uint8_t prev_n = v_uint8_t_val_at(&f->bc, prev_local_arg);
+    if (prev_n >= len * 2) {
+      // We have a constant record - construct it!
+      uint8_t *byte_args =
+          v_uint8_t_ref_at(&f->bc, prev_local_arg + 1 + 2 * (prev_n - len * 2));
+
+      gab_value *ks = bc->src->constants.data;
+      gab_value stack[len];
+      for (size_t i = 0; i < len * 2; i++) {
+        uint16_t arg_k = (uint16_t)byte_args[i * 2] << 8 | byte_args[i * 2 + 1];
+        stack[i] = ks[arg_k];
+      }
+
+      gab_value shape = gab_shape(gab(bc), 2, len, stack);
+
+      gab_value rec = gab_recordof(gab(bc), shape, 2, stack + 1);
+
+      uint16_t new_k = addk(bc, rec);
+
+      v_uint8_t_set(&f->bc, prev_local_arg, prev_n - len * 2 + 1);
+      f->bc.len -= (len * 4);
+      push_short(bc, new_k, bc->offset - 1);
+      return;
+    }
+  }
+  }
+#endif
+
+  push_op((bc), OP_RECORD, bc->offset - 1);
+  push_byte((bc), len, bc->offset - 1);
 }
 
 static inline void push_tuple(struct bc *bc, mv rhs, size_t t) {
@@ -1255,8 +1309,8 @@ static int compile_local(struct bc *bc, gab_value name, uint8_t flags) {
   struct frame *f = &bc->contexts[ctx].as.frame;
 
   for (int local = f->next_local - 1; local >= 0; local--)
-    assert(name != f->local_names[local] && "Internal Compiler Error: Local "
-                                            "name already in use.");
+    if (name == f->local_names[local])
+      return compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
 
   return add_local(bc, name, flags);
 }
@@ -1388,6 +1442,9 @@ static mv compile_expressions_body(struct bc *bc) {
   if (result.status < 0)
     return MV_ERR;
 
+  if (result.multi)
+    push_trim(bc, 1, bc->offset - 1);
+
   if (match_terminator(bc))
     goto fin;
 
@@ -1399,6 +1456,7 @@ static mv compile_expressions_body(struct bc *bc) {
     return MV_ERR;
 
   while (!match_terminator(bc) && !match_token(bc, TOKEN_EOF)) {
+
     push_pop(bc, 1, bc->offset - 1);
 
     pop_slot(bc, 1);
@@ -1407,6 +1465,9 @@ static mv compile_expressions_body(struct bc *bc) {
 
     if (result.status < 0)
       return MV_ERR;
+
+    if (result.multi)
+      push_trim(bc, 1, bc->offset - 1);
 
     if (match_terminator(bc))
       goto fin;
@@ -1923,8 +1984,7 @@ static mv compile_record(struct bc *bc) {
   if (size < 0)
     return MV_ERR;
 
-  push_op((bc), OP_RECORD, bc->offset - 1);
-  push_byte((bc), size, bc->offset - 1);
+  push_record(bc, size, bc->offset - 1);
 
   pop_slot(bc, size * 2);
 

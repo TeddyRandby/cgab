@@ -1594,8 +1594,6 @@ static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg,
   gab_gclock(gab.gc);
 
   assert(gab_valkind(msg) == kGAB_MESSAGE);
-  assert(gab_valkind(spec) == kGAB_PRIMITIVE ||
-         gab_valkind(spec) == kGAB_BLOCK || gab_valkind(spec) == kGAB_NATIVE);
 
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
 

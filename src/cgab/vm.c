@@ -1148,6 +1148,26 @@ CASE_CODE(SEND_PRIMITIVE_SET) {
   NEXT();
 }
 
+CASE_CODE(SEND_CONSTANT) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value r = PEEK_N(have);
+  gab_value m = ks[GAB_SEND_KMESSAGE];
+
+  if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
+    MISS_CACHED_SEND();
+
+  if (__gab_unlikely(ks[GAB_SEND_KTYPE] != gab_valtype(EG(), r)))
+    MISS_CACHED_SEND();
+
+  DROP_N(have);
+
+  PUSH(ks[GAB_SEND_KSPEC]);
+
+  NEXT();
+}
+
 CASE_CODE(SEND_PROPERTY) {
   gab_value *ks = READ_CONSTANTS;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
@@ -1592,9 +1612,9 @@ CASE_CODE(SEND) {
     break;
   }
   default:
-    PUSH_FRAME();
-    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, spec, gab_type(EG(), kGAB_BLOCK),
-          res.type);
+    ks[GAB_SEND_KSPEC] = spec;
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_CONSTANT);
+    break;
   }
 
   IP() -= SEND_CACHE_DIST;

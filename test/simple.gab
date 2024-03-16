@@ -11,11 +11,12 @@ end)
 
 \reduce :defcase! {
   .step = do i, m, n, acc, xs, rf
-    acc = rf (acc, xs**) # Apply the reducing function
-
-    s, xs[], n = m (i , n) # Apply the producer, resolving new values for the next step
-            
-    s :reduce (i, m, n, acc, xs, rf) # Tailcall to the next step
+    # Apply the reducing function
+    acc = rf (acc, xs**)
+    # Apply the producer, resolving new values for the next step
+    s, xs[], n = m (i , n)
+    # Tailcall to the next step
+    s :reduce (i, m, n, acc, xs, rf)
   end,
   # TODO: Make multple '_'s okay
   .done = do _a, _b, _c, acc, xs, rf
@@ -23,14 +24,14 @@ end)
   end,
 }
 
-# numbers:reduce(\values, 0, 0, \+)
+# numbers:reduce(\values, 0, \+)
 \reduce :def! ([], do m, acc, rf
   s, xs[], n = m self
 
   s :reduce (self, m, n, acc, xs, rf)
 end)
 
-# numbers:transduce(\values, 0, 0, \+, .td :map \++)
+# numbers:transduce(\values, 0, \+, .td :map \++)
 \transduce :def! ([], do m, acc, rf, td
 # Apply the transducer to the reducing function,
 # And then just call a normal reduce
