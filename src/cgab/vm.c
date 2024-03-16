@@ -290,8 +290,7 @@ struct gab_err_argt vm_frame_build_err(struct gab_triple gab,
                                        struct gab_vm_frame *fp, bool has_parent,
                                        enum gab_status s, const char *fmt) {
 
-  gab_value message = has_parent ? compute_message_from_ip(fp - 1)
-                                 : gab_message(gab, gab_string(gab, mGAB_CALL));
+  gab_value message = has_parent ? compute_message_from_ip(fp - 1) : gab_nil;
 
   if (fp->b) {
 
@@ -1142,7 +1141,7 @@ CASE_CODE(SEND_PRIMITIVE_SET) {
 
   DROP_N(have);
 
-  PUSH(res);
+  PUSH(res == gab_undefined ? gab_nil : res);
 
   SET_VAR(1);
 

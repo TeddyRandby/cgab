@@ -78,13 +78,14 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
-  if (argc != 3)
-    return gab_panic(gab, "Invalid call to gab_lib_put");
+  gab_value r = gab_arg(0);
+  gab_value k = gab_arg(1);
+  gab_value v = gab_arg(2);
 
-  if (gab_recput(gab, argv[0], argv[1], argv[2]) == gab_undefined)
+  if (gab_recput(gab, r, k, v) == gab_undefined)
     gab_vmpush(gab.vm, gab_nil);
   else
-    gab_vmpush(gab.vm, argv[2]);
+    gab_vmpush(gab.vm, v);
 
   return NULL;
 }

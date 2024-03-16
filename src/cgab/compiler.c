@@ -48,8 +48,13 @@ struct lvalue {
 
   uint16_t slot;
 
+  size_t tok;
+
   union {
-    uint16_t local;
+    struct {
+      gab_value name;
+      uint16_t index;
+    } local;
     struct {
       gab_value message;
       mv args;
@@ -143,7 +148,44 @@ enum comp_status {
 #define MV_MULTI ((mv){0, true})
 #define MV_MULTI_WITH(n) ((mv){n, true})
 
+#define FMT_EXPECTED_EXPRESSION                                                \
+  "Expected a value - one of:\n\n"                                             \
+  "  " ANSI_COLOR_YELLOW "-1.23" ANSI_COLOR_MAGENTA                            \
+  "\t\t\t# A number \n" ANSI_COLOR_RESET "  " ANSI_COLOR_GREEN                 \
+  ".true" ANSI_COLOR_MAGENTA "\t\t\t# A sigil \n" ANSI_COLOR_RESET             \
+  "  " ANSI_COLOR_GREEN "'hello, Joe!'" ANSI_COLOR_MAGENTA                     \
+  "\t\t# A string \n" ANSI_COLOR_RESET "  " ANSI_COLOR_RED                     \
+  "\\greet" ANSI_COLOR_MAGENTA "\t\t# A message\n" ANSI_COLOR_RESET            \
+  "  " ANSI_COLOR_BLUE "do x; x + 1 end" ANSI_COLOR_MAGENTA                    \
+  "\t# A block \n" ANSI_COLOR_RESET "  " ANSI_COLOR_CYAN                       \
+  "{ key = value }" ANSI_COLOR_MAGENTA "\t# A record\n" ANSI_COLOR_RESET "  "  \
+  "(" ANSI_COLOR_YELLOW "-1.23" ANSI_COLOR_RESET ", " ANSI_COLOR_GREEN         \
+  ".true" ANSI_COLOR_RESET ")" ANSI_COLOR_MAGENTA                              \
+  "\t# A tuple\n" ANSI_COLOR_RESET "  "                                        \
+  "a_variable" ANSI_COLOR_MAGENTA "\t\t# Or a variable!\n" ANSI_COLOR_RESET
+
+#define FMT_CLOSING_RBRACE                                                     \
+  "Expected a closing $ to define a rest assignment target."
+
+#define FMT_EXTRA_REST_TARGET                                                  \
+  "$ is already a rest-target.\n"                                              \
+  "\nBlocks and assignments can only declare one target as a rest-target.\n"
+
 #define FMT_UNEXPECTEDTOKEN "Expected $ instead."
+
+#define FMT_REFERENCE_BEFORE_INIT "$ is referenced before it is initialized."
+
+#define FMT_ID_NOT_FOUND "$ is not defined in this scope."
+
+#define FMT_ASSIGNMENT_ABANDONED                                               \
+  "This assignment expression is incomplete.\n\n"                              \
+  "Assignments consist of a list of targets and a list of values, separated "  \
+  "by an $.\n\n"                                                               \
+  "  a, b = " ANSI_COLOR_YELLOW "1" ANSI_COLOR_RESET ", " ANSI_COLOR_YELLOW    \
+  "2\n" ANSI_COLOR_RESET "  a:put!(" ANSI_COLOR_GREEN ".key" ANSI_COLOR_RESET  \
+  "), b = " ANSI_COLOR_YELLOW "1" ANSI_COLOR_RESET ", " ANSI_COLOR_YELLOW      \
+  "2\n" ANSI_COLOR_RESET
+
 static int vcompiler_error(struct bc *bc, enum gab_status e, const char *fmt,
                            va_list args);
 static int compiler_error(struct bc *bc, enum gab_status e, const char *fmt,
@@ -803,9 +845,8 @@ static int resolve_local(struct bc *bc, gab_value name, uint8_t depth) {
 
     if (name == other_local_name) {
       if (!(f->local_flags[local] & fLOCAL_INITIALIZED))
-        return compiler_error(
-            bc, GAB_REFERENCE_BEFORE_INITIALIZE,
-            "The variable $ was referenced before it was initialized.", name);
+        return compiler_error(bc, GAB_REFERENCE_BEFORE_INITIALIZE,
+                              FMT_REFERENCE_BEFORE_INIT, name);
 
       return local;
     }
@@ -1214,8 +1255,8 @@ static int compile_local(struct bc *bc, gab_value name, uint8_t flags) {
   struct frame *f = &bc->contexts[ctx].as.frame;
 
   for (int local = f->next_local - 1; local >= 0; local--)
-    if (name == f->local_names[local])
-      return compiler_error(bc, GAB_LOCAL_ALREADY_EXISTS, "");
+    assert(name != f->local_names[local] && "Internal Compiler Error: Local "
+                                            "name already in use.");
 
   return add_local(bc, name, flags);
 }
@@ -1255,7 +1296,7 @@ static int compile_parameters_internal(struct bc *bc, int *below,
 
     switch (match_and_eat_token(bc, TOKEN_LBRACE)) {
     case COMP_OK:
-      if (expect_token_hint(bc, TOKEN_RBRACE, "Expected a closing $.",
+      if (expect_token_hint(bc, TOKEN_RBRACE, FMT_CLOSING_RBRACE,
                             tok_id(bc, TOKEN_RBRACE)) < 0)
         return COMP_ERR;
 
@@ -1265,11 +1306,9 @@ static int compile_parameters_internal(struct bc *bc, int *below,
 
         gab_value other_name = f->local_names[*below + 1];
 
-        return compiler_error(
-            bc, GAB_INVALID_REST_VARIABLE,
-            "The parameter '$' at index $ is already a 'rest' parameter.\n"
-            "\nBlocks can only declare one parameter as a 'rest' parameter.\n",
-            other_name, gab_number(*below));
+        return compiler_error(bc, GAB_INVALID_REST_VARIABLE,
+                              FMT_EXTRA_REST_TARGET, other_name,
+                              gab_number(*below));
       }
 
       *narguments = *narguments - 1;
@@ -1513,7 +1552,16 @@ static inline mv compile_tuple(struct bc *bc, uint8_t want) {
   return compile_tuple_prec(bc, kASSIGNMENT, want);
 }
 
-static uint8_t rest_lvalues(v_lvalue *lvalues) {
+static inline int first_rest_lvalue(v_lvalue *lvalues) {
+  for (int i = 0; i < lvalues->len; i++)
+    if (lvalues->data[i].kind == kNEW_REST_LOCAL ||
+        lvalues->data[i].kind == kEXISTING_REST_LOCAL)
+      return i;
+
+  return -1;
+}
+
+static inline uint8_t count_rest_lvalues(v_lvalue *lvalues) {
   uint8_t rest = 0;
 
   for (int i = 0; i < lvalues->len; i++)
@@ -1577,13 +1625,15 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
                           "Some assignment targets are invalid."),
            MV_ERR;
 
-  uint8_t n_rest_values = rest_lvalues(lvalues);
+  uint8_t n_rest_values = count_rest_lvalues(lvalues);
   uint8_t n_new_values = new_lvalues(lvalues);
 
-  if (n_rest_values > 1)
-    return compiler_error(bc, GAB_INVALID_REST_VARIABLE,
-                          "Only one rest value allowed"),
+  if (n_rest_values > 1) {
+    struct lvalue target = v_lvalue_val_at(lvalues, first_rest_lvalue(lvalues));
+    return compiler_error(bc, GAB_INVALID_REST_VARIABLE, FMT_EXTRA_REST_TARGET,
+                          target.as.local.name),
            MV_ERR;
+  }
 
   uint8_t want = n_rest_values ? VAR_EXP : lvalues->len;
 
@@ -1629,11 +1679,11 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
     switch (lval.kind) {
     case kNEW_REST_LOCAL:
     case kNEW_LOCAL:
-      init_local(bc, lval.as.local);
+      init_local(bc, lval.as.local.index);
       // Fallthrough
     case kEXISTING_REST_LOCAL:
     case kEXISTING_LOCAL:
-      push_storel(bc, lval.as.local, t);
+      push_storel(bc, lval.as.local.index, t);
       push_pop(bc, 1, t);
       pop_slot(bc, 1);
       break;
@@ -1654,7 +1704,7 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
     case kEXISTING_LOCAL:
     case kEXISTING_REST_LOCAL:
       if (is_last_assignment)
-        push_loadl(bc, lval.as.local, t), push_slot(bc, 1);
+        push_loadl(bc, lval.as.local.index, t), push_slot(bc, 1);
 
       break;
 
@@ -1667,7 +1717,6 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
       pop_slot(bc, 1 + !is_last_assignment);
       break;
     }
-
     }
   }
 
@@ -1697,14 +1746,16 @@ static mv compile_lvalue(struct bc *bc, bool assignable, gab_value name,
     return compile_assignment(bc, (struct lvalue){
                                       .kind = kNEW_LOCAL + adjust,
                                       .slot = peek_slot(bc),
-                                      .as.local = index,
+                                      .as.local.index = index,
+                                      .as.local.name = name,
                                   });
 
   case COMP_RESOLVED_TO_LOCAL:
     return compile_assignment(bc, (struct lvalue){
                                       .kind = kEXISTING_LOCAL + adjust,
                                       .slot = peek_slot(bc),
-                                      .as.local = index,
+                                      .as.local.index = index,
+                                      .as.local.name = name,
                                   });
 
   case COMP_RESOLVED_TO_UPVALUE:
@@ -1755,7 +1806,7 @@ static int compile_rec_internal_item(struct bc *bc) {
     }
 
     case COMP_TOKEN_NO_MATCH: {
-      uint8_t value_in;
+      uint8_t value_in = 0;
       int result = resolve_id(bc, val_name, &value_in);
 
       push_slot(bc, 1);
@@ -1932,25 +1983,34 @@ mv compile_send(struct bc *bc, mv lhs, bool assignable) {
 
   gab_value name = trim_prev_id(bc);
 
-  if (assignable && !match_ctx(bc, kTUPLE)) {
-    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
-      return compile_assignment(
-          bc,
-          (struct lvalue){
-              .kind = kMESSAGE,
-              .slot = peek_slot(bc),
-              .as.property.message = name,
-              .as.property.args = reconcile_send_args(lhs, MV_OK),
-          });
+  mv rhs = compile_optional_expression_prec(bc, &lhs, kSEND + 1);
 
+  if (assignable && !match_ctx(bc, kTUPLE)) {
+    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
+      /*
+       * Account for the one value that this assignment - will receive from the
+       * rhs of the assignment
+       * */
+      rhs.status++;
+
+      return compile_assignment(
+          bc, (struct lvalue){
+                  .tok = t,
+                  .kind = kMESSAGE,
+                  .slot = peek_slot(bc),
+                  .as.property.message = name,
+                  .as.property.args = reconcile_send_args(lhs, rhs),
+              });
+    }
+
+    // TODO: Can i hit this?
     if (match_ctx(bc, kASSIGNMENT_TARGET)) {
       eat_token(bc);
-      compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, "");
+      compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, FMT_ASSIGNMENT_ABANDONED,
+                     tok_id(bc, TOKEN_EQUAL));
       return MV_ERR;
     }
   }
-
-  mv rhs = compile_optional_expression_prec(bc, &lhs, kSEND + 1);
 
   if (rhs.status < 0)
     return MV_ERR;
@@ -2029,7 +2089,8 @@ static mv compile_exp_idn(struct bc *bc, mv lhs, bool assignable) {
 
   if (assignable && !match_ctx(bc, kTUPLE)) {
     if (match_and_eat_token(bc, TOKEN_LBRACE)) {
-      if (expect_token(bc, TOKEN_RBRACE) < 0)
+      if (expect_token_hint(bc, TOKEN_RBRACE, FMT_CLOSING_RBRACE,
+                            tok_id(bc, TOKEN_RBRACE)) < 0)
         return MV_ERR;
 
       if (expect_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL) < 0)
@@ -2040,6 +2101,13 @@ static mv compile_exp_idn(struct bc *bc, mv lhs, bool assignable) {
 
     if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
       return compile_lvalue(bc, assignable, id, 0);
+
+    if (match_ctx(bc, kASSIGNMENT_TARGET)) {
+      eat_token(bc);
+      compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, FMT_ASSIGNMENT_ABANDONED,
+                     tok_id(bc, TOKEN_EQUAL));
+      return MV_ERR;
+    }
   }
 
   switch (result) {
@@ -2059,8 +2127,7 @@ static mv compile_exp_idn(struct bc *bc, mv lhs, bool assignable) {
 
   case COMP_ID_NOT_FOUND:
     // TODO: Improve this error message.
-    return compiler_error(bc, GAB_MISSING_IDENTIFIER,
-                          "'$' is not within lexical scope.", id),
+    return compiler_error(bc, GAB_MISSING_IDENTIFIER, FMT_ID_NOT_FOUND, id),
            MV_ERR;
 
   default:
@@ -2085,27 +2152,9 @@ static mv compile_exp_send(struct bc *bc, mv lhs, bool assignable) {
 static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
   struct compile_rule rule = get_rule(tok);
 
-  if (rule.prefix == NULL) {
-    s_char p = prev_src(bc);
-    return compiler_error(
-               bc, GAB_UNEXPECTED_TOKEN,
-               "$ cannot begin an expression - "
-               "expressions begin with values.\n\nSomething like:\n\n"
-               "  " ANSI_COLOR_YELLOW "-1.23" ANSI_COLOR_MAGENTA
-               "\t\t\t# A number \n" ANSI_COLOR_RESET "  " ANSI_COLOR_GREEN
-               ".true" ANSI_COLOR_MAGENTA "\t\t\t# A sigil \n" ANSI_COLOR_RESET
-               "  " ANSI_COLOR_GREEN "'hello, Joe!'" ANSI_COLOR_MAGENTA
-               "\t\t# A string \n" ANSI_COLOR_RESET "  " ANSI_COLOR_RED
-               "\\greet" ANSI_COLOR_MAGENTA "\t\t# A message\n" ANSI_COLOR_RESET
-               "  " ANSI_COLOR_BLUE "do x; x + 1 end" ANSI_COLOR_MAGENTA
-               "\t# A block \n" ANSI_COLOR_RESET "  " ANSI_COLOR_CYAN
-               "{ key = value }" ANSI_COLOR_MAGENTA
-               "\t# A record\n" ANSI_COLOR_RESET "  "
-               "a_variable" ANSI_COLOR_MAGENTA
-               "\t\t# Or a variable!\n" ANSI_COLOR_RESET,
-               gab_nstring(gab(bc), p.len, p.data)),
+  if (rule.prefix == NULL)
+    return compiler_error(bc, GAB_UNEXPECTED_TOKEN, FMT_EXPECTED_EXPRESSION),
            MV_ERR;
-  }
 
   bool assignable = prec <= kASSIGNMENT;
 
