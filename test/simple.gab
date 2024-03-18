@@ -1,128 +1,17 @@
-'msg' :use
-'list' :use
+'iter' :use
+'lists' :use
+'numbers' :use
+'transducers' :use
 
 \self :def! ([], do; self end)
 
-\reduce :defcase! {
-  .step = do i, m, n, acc, xs, rf
-    # Apply the reducing function
-    acc = rf (acc, xs**)
-    # Apply the producer, resolving new values for the next step
-    s, xs[], n = m (i , n)
-    # Tailcall to the next step
-    s :reduce (i, m, n, acc, xs, rf)
-  end,
-  # TODO: Make multple '_'s okay
-  .done = do _a, _b, _c, acc, xs, rf
-    acc
-  end,
-}
+list = .gab.list :make
 
-# numbers:reduce(\values, 0, \+)
-\reduce :def! ([], do m, acc, rf
-  s, xs[], n = m self
+list:push!(1,2,3,4)
 
-  s :reduce (self, m, n, acc, xs, rf)
-end)
+test = list:lists.collect(\values, .td :filter \pos? )
 
-# numbers:transduce(\values, 0, \+, .td :map \++)
-\transduce :def! ([], do m, acc, rf, td
-# Apply the transducer to the reducing function,
-# And then just call a normal reduce
-  self :reduce (m, acc, td rf)
-end)
-
-\deftransducer! :def!([.gab.message], do td
-  self :def! ([.td], td)
-
-  self :def! ([], do m, acc, rf, args[]
-    self :transduce (m, acc, rf, td (args**))
-  end)
-end)
-
-\td.conditionally :defcase! {
-  .true = do acc, x, rf
-    rf(acc, x)
-  end,
-  .false = do acc
-    acc
-  end
-}
-
-\map :deftransducer! do f
-  do rf
-    do acc, x
-      rf(acc, f x)
-    end
-  end
-end
-
-\filter :deftransducer! do f
-  do rf
-    do acc, x
-      (f x) :td.conditionally (acc, x, rf)
-    end
-  end
-end
-
-\take :deftransducer! do n
-  do rf
-    state = { n }
-    do acc, x
-      state:n = state:n - 1
-      (state:n >= 0) :td.conditionally (acc, x, rf)
-    end
-  end
-end
-
-\tap :deftransducer! do f
-  do rf
-    do acc, x
-      f x
-      rf(acc, x)
-    end
-  end
-end
-
-
-# A consumer is a message which takes at three arguments:
-# (invariant ie. a list, producer ie. \values, initial ie. 0, args ie. \print)
-# [1,2,3] :for (\values, 0, \print)
-# The consumer uses the producer completely, and not lazily.
-# 
-# A producer is a message which takes two arguments:
-# (invariant ie. a list, variant ie. the accumulator)
-# It returns:
-#   - .some, <values>[], <next-variant>
-#   - .done
-#
-
-\list.values.next? :defcase! {
-  .gab.number = do list
-    list:len > self
-  end,
-  .nil = .init,
-}
-
-\list.values.continue :defcase! {
-  .init = do list
-    (.step, list:at(0), 1)
-  end,
-  .true = do list, n
-    (.step, list:at(n), n + 1)
-  end,
-  .false = .done,
-}
-
-\values :def!([.gab.list], do n
-  n :list.values.next? self :list.values.continue(self, n)
-end)
-
-list = .new :list.new
-
-list:push!(1,2,3)
-
-\++ :def! ([.gab.number], do; self + 1 end)
+test:tap(\values, .nil, \self, \print)
 
 sum = list:reduce(\values, 0, \+)
 'reduce with \+: {sum}':print
@@ -133,22 +22,26 @@ sum = list:transduce(\values, 0, \+, .td :map \++)
 sum = list:map(\values, 0, \+, \++)
 'map with \++, reduce with \+: {sum}':print
 
-mapped_add_one = list:map(\values, .new :list.new, \push!, \++)
+mapped_add_one = list:map(\values, .gab.list :make, \push!, \++)
 
 'map with \++, reduce with \push!:':print
 
 mapped_add_one:tap(\values, .nil, \self, \print)
 
-\even? :def! ([.gab.number], do; (self % 2) == 0 end)
-
-filtered = list:filter(\values, .new :list.new, \push!, \even?)
+filtered = list:filter(\values, .gab.list :make, \push!, \even?)
 
 'filter with even?, reduce with \push!:':print
 
 filtered:tap(\values, .nil, \self, \print)
 
-first_two = list:take(\values, .new :list.new, \push!, 2)
+first_two = list:take(\values, .gab.list :make, \push!, 2)
 
 'took 2, reduce with \push!':print
 
 first_two:tap(\values, .nil, \self, \print)
+
+partition_by = list:partition(\values, .gab.list :make, \push!, 2)
+
+'partition by 2, reduce with \push!':print
+
+partition_by:tap(\values, .nil, \self, \print)

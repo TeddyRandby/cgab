@@ -124,26 +124,27 @@ a_gab_value *gab_lib_to_n(struct gab_triple gab, size_t argc,
 };
 
 a_gab_value *gab_lib(struct gab_triple gab) {
+  gab_value type = gab_type(gab.eg, kGAB_NUMBER);
 
   struct gab_spec_argt specs[] = {
       {
-          "nums.float_between",
-          gab_undefined,
+          "float_between",
+          gab_strtosig(type),
           gab_snative(gab, "float_between", gab_lib_between),
       },
       {
           "nums.floor",
-          gab_type(gab.eg, kGAB_NUMBER),
+          type,
           gab_snative(gab, "floor", gab_lib_floor),
       },
       {
           "nums.into",
-          gab_type(gab.eg, kGAB_STRING),
+          type,
           gab_snative(gab, "to_n", gab_lib_to_n),
       },
   };
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
-  return NULL;
+  return a_gab_value_one(type);
 }

@@ -103,6 +103,20 @@ a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
   return NULL;
 }
 
+a_gab_value *gab_lib_clear(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
+  if (argc < 1)
+    return gab_panic(gab, "Invalid call to gab_lib_push");
+
+  gab_value rec = gab_arg(0);
+
+  for (size_t i = 0; i < gab_reclen(rec); i++) {
+    gab_recput(gab, rec, i, gab_nil);
+  }
+
+  return NULL;
+}
+
 a_gab_value *gab_lib_with(struct gab_triple gab, size_t argc,
                           gab_value argv[argc]) {
   if (argc < 3)
@@ -241,13 +255,13 @@ a_gab_value *gab_lib_to_m(struct gab_triple gab, size_t argc,
 a_gab_value *gab_lib(struct gab_triple gab) {
   struct gab_spec_argt specs[] = {
       {
-          "tuple.new",
-          gab_undefined,
+          "make",
+          gab_sigil(gab, "gab.tuple"),
           gab_snative(gab, "tuple.new", gab_lib_tuple),
       },
       {
-          "record.new",
-          gab_undefined,
+          "make",
+          gab_sigil(gab, "gab.record"),
           gab_snative(gab, "record.new", gab_lib_shape),
       },
       {
@@ -294,6 +308,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "with",
           gab_type(gab.eg, kGAB_RECORD),
           gab_snative(gab, "with", gab_lib_with),
+      },
+      {
+          "clear!",
+          gab_type(gab.eg, kGAB_RECORD),
+          gab_snative(gab, "clear", gab_lib_clear),
       },
   };
 

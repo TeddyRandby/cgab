@@ -1,37 +1,25 @@
-:use 'num'
+nums.t = 'num' :use
 
-def nums.int_between[](a, b)
-  :float.between(a, b):floor
-end
+\++ :def! ([nums.t], do
+  self + 1
+end)
 
-def _nums.from[nil](n)
-  { from = n }
-end
+\-- :def! ([nums.t], do
+  self - 1
+end)
 
-def _nums.from[.gab.number](n)
-  { from = n, to = self }
-end
+\even? :def! ([nums.t], do
+  (self % 2) == 0
+end)
 
-def from[.gab.number](src)
-  src:_num.from(self)
-end
+\odd? :def! ([nums.t], do
+  (self % 2) == 1
+end)
 
-def _nums.to[nil](n)
-  { to = n }
-end
+\pos? :def! ([nums.t], do
+  self > 0
+end)
 
-def _nums.to[.gab.number](n)
-  { from = self, to = n }
-end
-
-def to[.gab.number](dest)
-  dest:_num.to(self)
-end
-
-def times[.gab.number](cb)
-  (self > 0) :and => cb()
-
-  (self > 1) :and => (self - 1) :times(cb)
-end
-
-nil
+\neg? :def! ([nums.t], do
+  self < 0
+end)

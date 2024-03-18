@@ -1702,6 +1702,9 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
 
   mv rhs = compile_tuple(bc, want);
 
+  if (rhs.status < 0)
+    return MV_ERR;
+
   // In the scenario where we want ALL possible values,
   // compile_tuple will only push one slot. Here we know
   // A minimum number of slots that we will have bc we call pack
@@ -1731,6 +1734,9 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
           pop_slot(bc, -slots + 1);
       }
     }
+  } else {
+    if (rhs.multi)
+      rhs = compile_mv_trim(bc, rhs, want - rhs.status);
   }
 
   for (uint8_t i = 0; i < lvalues->len; i++) {
@@ -2014,7 +2020,7 @@ static mv compile_record_tuple(struct bc *bc) {
 fin:
   push_tuple((bc), rhs, bc->offset - 1);
 
-  pop_slot(bc, rhs.status);
+  pop_slot(bc, rhs.status + rhs.multi);
 
   push_slot(bc, 1);
 
@@ -2030,7 +2036,7 @@ mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs,
 
   push_send(bc, m, args, t);
 
-  pop_slot(bc, args.status);
+  pop_slot(bc, args.status + args.multi);
 
   push_slot(bc, 1);
 
@@ -2059,7 +2065,7 @@ mv compile_send(struct bc *bc, mv lhs, bool assignable) {
           bc, (struct lvalue){
                   .tok = t,
                   .kind = kMESSAGE,
-                  .slot = slot,
+                  .slot = slot - rhs.multi,
                   .as.property.message = name,
                   .as.property.args = reconcile_send_args(lhs, rhs),
               });

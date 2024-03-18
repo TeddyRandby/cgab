@@ -1,59 +1,48 @@
-def lists.t = :use .list
+lists.t = 'list' :use
+'msg' :use
 
-&[] :def!(lists.t) do (key)
-  self:at(key)
-end
+# Immediately apply td over (self :m), and collect
+# the results into a list.
+#   ie: some_list :list.collect (\values, .td :map \++)
+\lists.collect :def! ([], do m, td
+  self :transduce (m, .gab.list :make, \push!, td)
+end)
 
-&[=] :def!(lists.t) do (key, val)
-  self:put!(key, val)
-end
+\list.next? :defcase! {
+  gab.number = do list
+    list:len > self
+  end,
+  .nil = .init,
+}
 
-&:lists.build :def!(lists.t) do (l, p)
-  l:push!(p)
+\list.values.continue :defcase! {
+  .init = do list
+    (.step, list:at(0), 1)
+  end,
+  .true = do list, n
+    (.step, list:at(n), n + 1)
+  end,
+  .false = .done,
+}
 
-  &:..args, def next = self()
+\values :def!(['gab.list'], do n
+  n :list.next? self :list.values.continue(self, n)
+end)
 
-  next:lists.build(l, args)
-end
+\list.pairs.continue :defcase! {
+  .init = do list
+    (.step, 0, list:at(0), 1)
+  end,
+  .true = do list, n
+    (.step, n, list:at(n), n + 1)
+  end,
+  .false = .done,
+}
 
-&:lists.build :def! do (l, p)
-  l:push!(p)
-end
+\pairs :def!(['gab.list'], do n
+  n :list.next? self :list.pairs.continue(self, n)
+end)
 
-&:lists.collect :def! do (msg, ..p)
-  &:l = :list.new
-
-  ..args, s = self:(msg)(..p)
-
-  s:lists.build(l, args)
-end
-
-&:lists.values :def!(lists.t) do (i)
-  self:len > i :and do
-    yield self:at(i)
-    self:lists.values(i + 1)
-  end
-end
-
-&:values :def!(lists.t) do
-  self:lists.values(0)
-end
-
-&:lists.pairs :def!(lists.t) do (i)
-  self:len > i :and do
-    yield i, self:at(i)
-    self:lists.pairs(i + 1)
-  end
-end
-
-&:pairs :def!(lists.t) =>
-  self:lists.pairs(0)
-
-&<< :def!(lists.t) do (other)
-  other:for(&:values) => self:push!(@1)
-  
-  self
-end
-
-&:empty? :def!(lists.t) =>
+\empty? :def! (['gab.list'], do
   self:len == 0
+end)

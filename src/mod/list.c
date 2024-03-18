@@ -226,18 +226,13 @@ a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
 #undef CLAMP
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value type = gab_strtosig(gab_string(gab, "gab.list"));
+  gab_value type = gab_string(gab, "gab.list");
 
   struct gab_spec_argt specs[] = {
       {
-          "list.new",
-          gab_undefined,
-          gab_snative(gab, "list.new", gab_lib_new),
-      },
-      {
-          "new",
-          type,
-          gab_snative(gab, "list.new", gab_lib_new),
+          "make",
+          gab_strtosig(type),
+          gab_snative(gab, "list.make", gab_lib_new),
       },
       {
           "len",
@@ -288,5 +283,5 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
-  return NULL;
+  return a_gab_value_one(type);
 }

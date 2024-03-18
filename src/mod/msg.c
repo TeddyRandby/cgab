@@ -112,40 +112,42 @@ a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
+  gab_value type = gab_type(gab.eg, kGAB_MESSAGE);
+
   struct gab_spec_argt specs[] = {
       {
-          "message.new",
-          gab_undefined,
+          "make",
+          gab_strtosig(type),
           gab_snative(gab, "message.new", gab_lib_message),
       },
       {
           "name",
-          gab_type(gab.eg, kGAB_MESSAGE),
+          type,
           gab_snative(gab, "name", gab_lib_name),
       },
       {
           "has?",
-          gab_type(gab.eg, kGAB_MESSAGE),
+          type,
           gab_snative(gab, "has?", gab_lib_at),
       },
       {
           "put!",
-          gab_type(gab.eg, kGAB_MESSAGE),
+          type,
           gab_snative(gab, "put!", gab_lib_put),
       },
       {
           "def!",
-          gab_type(gab.eg, kGAB_MESSAGE),
+          type,
           gab_snative(gab, "def!", gab_lib_def),
       },
       {
           "defcase!",
-          gab_type(gab.eg, kGAB_MESSAGE),
+          type,
           gab_snative(gab, "defcase!", gab_lib_case),
       },
   };
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
-  return NULL;
+  return a_gab_value_one(type);
 }
