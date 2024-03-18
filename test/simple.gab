@@ -1,13 +1,7 @@
 'msg' :use
 'list' :use
 
-\map :def! ([.td], do f
-  do rf
-    do acc, x
-      rf(acc, f x)
-    end
-  end
-end)
+\self :def! ([], do; self end)
 
 \reduce :defcase! {
   .step = do i, m, n, acc, xs, rf
@@ -38,6 +32,58 @@ end)
   self :reduce (m, acc, td rf)
 end)
 
+\deftransducer! :def!([.gab.message], do td
+  self :def! ([.td], td)
+
+  self :def! ([], do m, acc, rf, args[]
+    self :transduce (m, acc, rf, td (args**))
+  end)
+end)
+
+\td.conditionally :defcase! {
+  .true = do acc, x, rf
+    rf(acc, x)
+  end,
+  .false = do acc
+    acc
+  end
+}
+
+\map :deftransducer! do f
+  do rf
+    do acc, x
+      rf(acc, f x)
+    end
+  end
+end
+
+\filter :deftransducer! do f
+  do rf
+    do acc, x
+      (f x) :td.conditionally (acc, x, rf)
+    end
+  end
+end
+
+\take :deftransducer! do n
+  do rf
+    state = { n }
+    do acc, x
+      state:n = state:n - 1
+      (state:n >= 0) :td.conditionally (acc, x, rf)
+    end
+  end
+end
+
+\tap :deftransducer! do f
+  do rf
+    do acc, x
+      f x
+      rf(acc, x)
+    end
+  end
+end
+
 
 # A consumer is a message which takes at three arguments:
 # (invariant ie. a list, producer ie. \values, initial ie. 0, args ie. \print)
@@ -55,9 +101,7 @@ end)
   .gab.number = do list
     list:len > self
   end,
-  .nil = do
-    .init
-  end
+  .nil = .init,
 }
 
 \list.values.continue :defcase! {
@@ -67,9 +111,7 @@ end)
   .true = do list, n
     (.step, list:at(n), n + 1)
   end,
-  .false = do
-    .done
-  end
+  .false = .done,
 }
 
 \values :def!([.gab.list], do n
@@ -83,9 +125,30 @@ list:push!(1,2,3)
 \++ :def! ([.gab.number], do; self + 1 end)
 
 sum = list:reduce(\values, 0, \+)
-
-'sum: {sum}':print
+'reduce with \+: {sum}':print
 
 sum = list:transduce(\values, 0, \+, .td :map \++)
+'transduce with \+ and map \++: {sum}':print
 
-'sum: {sum}':print
+sum = list:map(\values, 0, \+, \++)
+'map with \++, reduce with \+: {sum}':print
+
+mapped_add_one = list:map(\values, .new :list.new, \push!, \++)
+
+'map with \++, reduce with \push!:':print
+
+mapped_add_one:tap(\values, .nil, \self, \print)
+
+\even? :def! ([.gab.number], do; (self % 2) == 0 end)
+
+filtered = list:filter(\values, .new :list.new, \push!, \even?)
+
+'filter with even?, reduce with \push!:':print
+
+filtered:tap(\values, .nil, \self, \print)
+
+first_two = list:take(\values, .new :list.new, \push!, 2)
+
+'took 2, reduce with \push!':print
+
+first_two:tap(\values, .nil, \self, \print)

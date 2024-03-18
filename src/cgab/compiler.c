@@ -1604,7 +1604,7 @@ static mv compile_tuple_prec(struct bc *bc, enum prec_k prec, uint8_t want) {
   else if (!result.multi && result.status < want)
     push_loadni(bc, gab_nil, want - result.status, t);
 
-  push_slot(bc, want - result.status);
+  push_slot(bc, want - (result.status + result.multi));
 
   return result;
 }
@@ -2043,6 +2043,8 @@ mv compile_send(struct bc *bc, mv lhs, bool assignable) {
 
   gab_value name = trim_prev_id(bc);
 
+  uint16_t slot = peek_slot(bc);
+
   mv rhs = compile_optional_expression_prec(bc, &lhs, kSEND + 1);
 
   if (assignable && !match_ctx(bc, kTUPLE)) {
@@ -2057,7 +2059,7 @@ mv compile_send(struct bc *bc, mv lhs, bool assignable) {
           bc, (struct lvalue){
                   .tok = t,
                   .kind = kMESSAGE,
-                  .slot = peek_slot(bc),
+                  .slot = slot,
                   .as.property.message = name,
                   .as.property.args = reconcile_send_args(lhs, rhs),
               });

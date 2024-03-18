@@ -1165,6 +1165,8 @@ CASE_CODE(SEND_CONSTANT) {
 
   PUSH(ks[GAB_SEND_KSPEC]);
 
+  SET_VAR(1);
+
   NEXT();
 }
 
@@ -1207,26 +1209,30 @@ CASE_CODE(SEND_PRIMITIVE_AND) {
   uint64_t have = compute_arity(VAR(), have_byte);
 
   gab_value r = PEEK_N(have);
-  gab_value cb = PEEK();
+  gab_value alt = PEEK();
 
   if (gab_valintob(r)) {
-    if (__gab_unlikely(gab_valkind(cb) != kGAB_BLOCK)) {
-      STORE_PRIMITIVE_ERROR_FRAME(1);
-      ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, cb, gab_valtype(EG(), cb),
-            gab_type(EG(), kGAB_BLOCK));
-    }
+    if (gab_valkind(alt) == kGAB_BLOCK) {
+      struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(alt);
 
-    struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(cb);
+      DROP_N(have);
+
+      PUSH(alt);
+
+      if (have_byte & fHAVE_TAIL) {
+        TAILCALL_BLOCK(blk, 1);
+      } else {
+        CALL_BLOCK(blk, 1);
+      }
+    }
 
     DROP_N(have);
 
-    PUSH(cb);
+    PUSH(alt);
 
-    if (have_byte & fHAVE_TAIL) {
-      TAILCALL_BLOCK(blk, 1);
-    } else {
-      CALL_BLOCK(blk, 1);
-    }
+    SET_VAR(1);
+
+    NEXT();
   }
 
   DROP();
@@ -1242,26 +1248,30 @@ CASE_CODE(SEND_PRIMITIVE_OR) {
   uint64_t have = compute_arity(VAR(), have_byte);
 
   gab_value r = PEEK_N(have);
-  gab_value cb = PEEK();
+  gab_value alt = PEEK();
 
   if (!gab_valintob(r)) {
-    if (__gab_unlikely(gab_valkind(cb) != kGAB_BLOCK)) {
-      STORE_PRIMITIVE_ERROR_FRAME(1);
-      ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, cb, gab_valtype(EG(), cb),
-            gab_type(EG(), kGAB_BLOCK));
-    }
+    if (gab_valkind(alt) == kGAB_BLOCK) {
+      struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(alt);
 
-    struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(cb);
+      DROP_N(have);
+
+      PUSH(alt);
+
+      if (have_byte & fHAVE_TAIL) {
+        TAILCALL_BLOCK(blk, 1);
+      } else {
+        CALL_BLOCK(blk, 1);
+      }
+    }
 
     DROP_N(have);
 
-    PUSH(cb);
+    PUSH(alt);
 
-    if (have_byte & fHAVE_TAIL) {
-      TAILCALL_BLOCK(blk, 1);
-    } else {
-      CALL_BLOCK(blk, 1);
-    }
+    SET_VAR(1);
+
+    NEXT();
   }
 
   DROP();
