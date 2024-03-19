@@ -18,7 +18,7 @@ end)
   end,
   # TODO: Make multple '_'s okay
   .done = do _a, _b, _c, acc, xs, rf
-    rf :reduce.result acc
+    acc
   end,
 }
 

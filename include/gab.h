@@ -943,7 +943,6 @@ static inline bool gab_valhasp(gab_value value) {
 static inline bool gab_valhast(gab_value value) {
   enum gab_kind k = gab_valkind(value);
   switch (k) {
-  case kGAB_SIGIL:
   case kGAB_RECORD:
   case kGAB_BOX:
     return true;
@@ -1063,7 +1062,8 @@ static inline gab_value gab_strtosig(gab_value str) {
  * @param data The cstring
  * @return The sigil
  */
-static inline gab_value gab_sigil(struct gab_triple gab, const char data[static 1]) {
+static inline gab_value gab_sigil(struct gab_triple gab,
+                                  const char data[static 1]) {
   return gab_strtosig(gab_string(gab, data));
 }
 
@@ -1716,7 +1716,6 @@ struct gab_box_argt {
  * @see struct gab_box_argt
  *
  * @return The value.
-
  */
 gab_value gab_box(struct gab_triple gab, struct gab_box_argt args);
 
@@ -1853,10 +1852,6 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
   }
 }
 
-static inline bool gab_valisa(struct gab_eg *eg, gab_value a, gab_value b) {
-  return gab_valtype(eg, a) == b || a == b || gab_type(eg, gab_valkind(a)) == b;
-}
-
 #define NAME strings
 #define K struct gab_obj_string *
 #define HASH(a) (a->hash)
@@ -1916,11 +1911,17 @@ static inline gab_value gab_type(struct gab_eg *gab, enum gab_kind k) {
   return gab->types[k];
 }
 
+static inline bool gab_egvalisa(struct gab_eg *eg, gab_value a, gab_value b) {
+  return gab_valtype(eg, a) == b || a == b || gab_type(eg, gab_valkind(a)) == b;
+}
+
 static inline struct gab_egimpl_rest
 gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
   size_t offset = GAB_PROPERTY_NOT_FOUND;
-  gab_value type = gab_valtype(eg, receiver);
+  gab_value type = receiver;
 
+  /* Check if the receiver supports properties, and if there is a matching
+   * property */
   if (gab_valhasp(receiver)) {
     offset = gab_recfind(receiver, gab_msgname(message));
 
@@ -1928,19 +1929,29 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
       return (struct gab_egimpl_rest){type, offset, sGAB_IMPL_PROPERTY};
   }
 
+  /* Check if the receiver _itself_ implments the message. ie { a = 1, b = 2 }*/
+  offset = gab_msgfind(message, type);
+  if (offset != GAB_PROPERTY_NOT_FOUND)
+    return (struct gab_egimpl_rest){type, offset, sGAB_IMPL_TYPE};
+
+  /* Check if the receiver has a supertype, and if that supertype implments the
+   * message. ie <gab.shape 0 1>*/
   if (gab_valhast(receiver)) {
+    type = gab_valtype(eg, receiver);
     offset = gab_msgfind(message, type);
 
     if (offset != GAB_PROPERTY_NOT_FOUND)
       return (struct gab_egimpl_rest){type, offset, sGAB_IMPL_TYPE};
   }
 
+  /* Check for the kind of the receiver. ie 'gab.record' */
   type = gab_type(eg, gab_valkind(receiver));
   offset = gab_msgfind(message, type);
 
   if (offset != GAB_PROPERTY_NOT_FOUND)
     return (struct gab_egimpl_rest){type, offset, sGAB_IMPL_KIND};
 
+  /* Lastly, check for a generic implmentation.*/
   type = gab_undefined;
   offset = gab_msgfind(message, type);
 

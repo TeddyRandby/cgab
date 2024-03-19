@@ -373,8 +373,8 @@ gab_value gab_block(struct gab_triple gab, gab_value prototype) {
   assert(gab_valkind(prototype) == kGAB_PROTOTYPE);
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(prototype);
 
-  struct gab_obj_block *self = GAB_CREATE_FLEX_OBJ(
-      gab_obj_block, gab_value, p->nupvalues, kGAB_BLOCK);
+  struct gab_obj_block *self =
+      GAB_CREATE_FLEX_OBJ(gab_obj_block, gab_value, p->nupvalues, kGAB_BLOCK);
 
   self->p = prototype;
   self->nupvalues = p->nupvalues;
@@ -524,6 +524,18 @@ gab_value gab_erecordof(struct gab_triple gab, gab_value shp) {
 
   for (uint64_t i = 0; i < shape->len; i++)
     self->data[i] = gab_nil;
+
+  return __gab_obj(self);
+}
+
+gab_value gab_symbol(struct gab_triple gab) {
+  struct gab_obj_box *self =
+      GAB_CREATE_FLEX_OBJ(gab_obj_box, unsigned char, 0, kGAB_BOX);
+
+  self->type = __gab_obj(self);
+  self->do_destroy = nullptr;
+  self->do_visit = nullptr;
+  self->len = 0;
 
   return __gab_obj(self);
 }

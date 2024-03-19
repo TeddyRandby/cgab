@@ -99,10 +99,33 @@ a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
   if (gab_valkind(m) != kGAB_MESSAGE)
     return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
 
+  if (gab_valkind(cases) != kGAB_RECORD)
+    return gab_pktypemismatch(gab, m, kGAB_RECORD);
+
   for (int i = 0; i < gab_reclen(cases); i++) {
     gab_value b = gab_urecat(cases, i);
 
     gab_value t = gab_ushpat(gab_recshp(cases), i);
+
+    if (gab_msgput(gab, m, t, b) == gab_undefined)
+      return gab_panic(gab, "$ already specializes for type $", m, t);
+  }
+
+  return NULL;
+}
+
+a_gab_value *gab_lib_impl(struct gab_triple gab, size_t argc,
+                          gab_value argv[static argc]) {
+  gab_value t = gab_arg(0);
+  gab_value messages = gab_arg(1);
+
+  for (int i = 0; i < gab_reclen(messages); i++) {
+    gab_value b = gab_urecat(messages, i);
+
+    gab_value m = gab_ushpat(gab_recshp(messages), i);
+
+    if (gab_valkind(messages) != kGAB_RECORD)
+      return gab_pktypemismatch(gab, m, kGAB_RECORD);
 
     if (gab_msgput(gab, m, t, b) == gab_undefined)
       return gab_panic(gab, "$ already specializes for type $", m, t);

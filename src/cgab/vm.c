@@ -767,7 +767,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
     if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))   \
       MISS_CACHED_SEND();                                                      \
                                                                                \
-    if (__gab_unlikely(ks[GAB_SEND_KTYPE] != gab_valtype(EG(), r)))            \
+    if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))            \
       MISS_CACHED_SEND();                                                      \
                                                                                \
     struct gab_obj_block *b = (void *)ks[GAB_SEND_KSPEC];                      \
@@ -786,7 +786,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
     if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))   \
       MISS_CACHED_SEND();                                                      \
                                                                                \
-    if (__gab_unlikely(ks[GAB_SEND_KTYPE] != gab_valtype(EG(), r)))            \
+    if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))            \
       MISS_CACHED_SEND();                                                      \
                                                                                \
     struct gab_obj_native *n = (void *)ks[GAB_SEND_KSPEC];                     \
@@ -807,21 +807,6 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(r);                           \
                                                                                \
     PREFIX##CALL_BLOCK(blk, have);                                             \
-  }
-
-#define IMPL_SEND_PRIMITIVE_CALL_SUSPENSE(PREFIX)                              \
-  CASE_CODE(PREFIX##SEND_PRIMITIVE_CALL_SUSPENSE) {                            \
-    SKIP_SHORT;                                                                \
-    uint64_t have = compute_arity(VAR(), READ_BYTE);                           \
-                                                                               \
-    gab_value r = PEEK_N(have);                                                \
-                                                                               \
-    if (__gab_unlikely(gab_valkind(r) != kGAB_SUSPENSE))                       \
-      MISS_CACHED_SEND();                                                      \
-                                                                               \
-    struct gab_obj_suspense *s = GAB_VAL_TO_SUSPENSE(r);                       \
-                                                                               \
-    PREFIX##CALL_SUSPENSE(s, have);                                            \
   }
 
 #define IMPL_SEND_PRIMITIVE_CALL_NATIVE(PREFIX)                                \
@@ -1043,7 +1028,7 @@ CASE_CODE(SEND_PRIMITIVE_EQ) {
   if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
     MISS_CACHED_SEND();
 
-  if (__gab_unlikely(ks[GAB_SEND_KTYPE] != gab_valtype(EG(), r)))
+  if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))
     MISS_CACHED_SEND();
 
   gab_value val_b = POP();
@@ -1087,6 +1072,9 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
 
   gab_value r = PEEK_N(have);
 
+  if (__gab_unlikely(gab_valkind(r) != kGAB_RECORD))
+    MISS_CACHED_SEND();
+
   struct gab_obj_record *rec = GAB_VAL_TO_RECORD(r);
 
   DROP_N(have);
@@ -1108,7 +1096,7 @@ CASE_CODE(SEND_PRIMITIVE_GET) {
   if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
     MISS_CACHED_SEND();
 
-  if (__gab_unlikely(ks[GAB_SEND_KTYPE] != gab_valtype(EG(), r)))
+  if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))
     MISS_CACHED_SEND();
 
   gab_value res = gab_recat(r, PEEK_N(have - 1));
@@ -1132,7 +1120,7 @@ CASE_CODE(SEND_PRIMITIVE_SET) {
   if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
     MISS_CACHED_SEND();
 
-  if (__gab_unlikely(ks[GAB_SEND_KTYPE] != gab_valtype(EG(), r)))
+  if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))
     MISS_CACHED_SEND();
 
   STORE_SP();
@@ -1180,7 +1168,7 @@ CASE_CODE(SEND_PROPERTY) {
   if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
     MISS_CACHED_SEND();
 
-  if (__gab_unlikely(ks[GAB_SEND_KTYPE] != gab_valtype(EG(), r)))
+  if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))
     MISS_CACHED_SEND();
 
   switch (have) {
@@ -1561,7 +1549,6 @@ CASE_CODE(SEND) {
 
   gab_value m = ks[GAB_SEND_KMESSAGE];
   gab_value r = PEEK_N(have);
-  gab_value t = gab_valtype(EG(), r);
 
   if (try_setup_localmatch(m, ks, BLOCK_PROTO())) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_MATCHSEND_BLOCK + adjust);
@@ -1582,8 +1569,10 @@ CASE_CODE(SEND) {
                        ? gab_primitive(OP_SEND_PROPERTY)
                        : gab_umsgat(m, res.offset);
 
+  gab_value type = res.status == sGAB_IMPL_GENERAL ? r : res.type;
+
   ks[GAB_SEND_KSPECS] = GAB_VAL_TO_MESSAGE(m)->specs;
-  ks[GAB_SEND_KTYPE] = t;
+  ks[GAB_SEND_KTYPE] = type;
   ks[GAB_SEND_KOFFSET] = res.offset;
 
   switch (gab_valkind(spec)) {
