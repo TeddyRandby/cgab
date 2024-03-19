@@ -23,3 +23,9 @@ end)
 \neg? :def! ([nums.t], do
   self < 0
 end)
+
+\numbers.into :def!([nums.t], do
+  self
+end)
+
+\numbers.into :def!([.nil, .false], 0)

@@ -1,67 +1,11 @@
-:use .rec
-:use .symbol
+records.t = 'rec' :use
 
-&:tuples.build :def! .gab.suspense do (t, p, n, i)
-  t:put!(i, p)
-
-  def ..args, def next = self()
-
-  ( (i < n):and => next:tuples.build(t, args, n, i + 1) ) :or => t
-end
-
-def tuples.build[](t, p, n, i)
-  t:put!(i, p)
-
-  t
-end
-
-def tuples.collect[](msg, ..p, len)
-  def t = :tuple.new(len)
-
-  ..args, s = self:(msg)(..p)
-
-  s:tuples.build(t, args, len, 0)
-end
-
-def has?[.gab.record](key)
+\has? :def! ([records.t], do key
   self:at(key) == .some
-end
+end)
 
-def records.pairs[nil]
-  nil
-end
-
-def records.pairs[](rec)
-  yield self, rec[self]
-  rec:next(self):records.pairs(rec)
-end
-
-def pairs[.gab.record]
-  self:next:records.pairs(self)
-end
-
-def records.keys[nil]
-  nil
-end
-
-def records.keys[](rec)
-  yield self
-  rec:next(self):records.keys(rec)
-end
-
-def keys[.gab.record]
-  self:next:records.keys(self)
-end
-
-def records.values[nil]
-  nil
-end
-
-def records.values[](rec)
-  yield rec[self]
-  rec:next(self):records.values(rec)
-end
-
-def values[.gab.record]
-  self:next:records.values(self)
-end
+\records.values.step :defcase! {
+  .ok = do rec, key
+    (.step, rec:at(key), 
+  end
+}

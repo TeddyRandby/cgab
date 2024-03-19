@@ -6,7 +6,7 @@
     # Apply the reducing function
     acc = r :reduce.step (acc, xs**)
     # Apply the producer, resolving new values for the next step
-    s, xs[], n = m (i , n)
+    s, n, xs[] = m (i , n)
     # Tailcall to the next step
     s :reduce (i, m, n, acc, xs, r)
   end,
@@ -18,7 +18,7 @@
 
 # numbers:reduce(\values, 0, \+)
 \reduce :def! ([], do m, acc, r
-  s, xs[], n = m self
+  s, n, xs[] = m self
 
   s :reduce (self, m, n, acc, xs, r)
 end)

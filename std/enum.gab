@@ -1,6 +1,31 @@
-:use .specs
+'msg' :use
+'monads' :use
 
-:spec.def! .Enumerable {
-  help = "A protocol for data structures",
-  spec = :spec.protocol { fold },
-}
+\def.enum.next! :def! (['gab.message'], do t, next
+  self :def! ([t], next)
+end)
+
+\def.enum.step! :def! (['gab.message'], do step
+  # A step message dispatches
+  # on the option returned by the 'next' message.
+  self :defcase! {
+    # In the case where there is a next value,
+    # return a tuple:
+    #  (.step, next-key, current-value[])
+    .ok = do i, n, nx
+      (.step, nx, step (i, n))
+    end,
+    # Otherwise, return .done
+    .none = .done,
+  }
+end)
+
+\def.enum! :def! (['gab.message'], do t, init, next, step
+  self :def! ([t], do n
+    n = init n
+
+    ok, n, nx = next (self, n)
+
+    step (ok, self, n, nx)
+  end)
+end)

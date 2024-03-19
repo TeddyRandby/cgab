@@ -9,19 +9,19 @@
 #   (.ok, <valid_value>) -or- (.err, <error_message>)
 
 # The successfull case, unwrap into all the arguments.
-\unwrap! :impl! ([.ok], do args[]
+\unwrap! :def! ([.ok], do args[]
   args**
 end)
 
 # All other types should panic when unwrapped
-\unwrap! :impl! ([.none, .err], do args[]
+\unwrap! :def! ([.none, .err], do args[]
   'Cannot unwrap {self}: ':panic
 end)
 
-\bools.into :impl! ([.ok], do arg[]
-  (.true, arg)
+\options.into :def! ([.nil, .err, .false], do args
+  .none
 end)
 
-\bools.into :impl! ([], do
-  .false
+\options.into :def! ([.true], do args[]
+  (.ok, args**)
 end)

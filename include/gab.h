@@ -196,29 +196,39 @@ static inline gab_value __gab_dtoval(double value) {
  *
  */
 
-/* The gab value 'nil'*/
 #define gab_nil                                                                \
   ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET |          \
-               (uint64_t)2 << 40 | (uint64_t)'\0' << 24 | (uint64_t)'n' |      \
-               (uint64_t)'i' << 8 | (uint64_t)'l' << 16))
+               (uint64_t)2 << 40 | (uint64_t)'n' | (uint64_t)'i' << 8 |        \
+               (uint64_t)'l' << 16))
 
-/* The gab value 'false'*/
 #define gab_false                                                              \
   ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET |          \
                (uint64_t)0 << 40 | (uint64_t)'f' | (uint64_t)'a' << 8 |        \
                (uint64_t)'l' << 16 | (uint64_t)'s' << 24 |                     \
                (uint64_t)'e' << 32))
 
-/* The gab value 'true'*/
 #define gab_true                                                               \
   ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET |          \
                (uint64_t)1 << 40 | (uint64_t)'t' | (uint64_t)'r' << 8 |        \
                (uint64_t)'u' << 16 | (uint64_t)'e' << 24))
 
+#define gab_ok                                                                 \
+  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET |          \
+               (uint64_t)3 << 40 | (uint64_t)'o' | (uint64_t)'k' << 8))
+
+#define gab_none                                                               \
+  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET |          \
+               (uint64_t)1 << 40 | (uint64_t)'n' | (uint64_t)'o' << 8 |        \
+               (uint64_t)'n' << 16 | (uint64_t)'e' << 24))
+
+#define gab_err                                                                \
+  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET |          \
+               (uint64_t)2 << 40 | (uint64_t)'e' | (uint64_t)'r' << 8 |        \
+               (uint64_t)'r' << 16)
+
 /* The gab value 'undefined'*/
 #define gab_undefined                                                          \
-  ((gab_value)(__GAB_QNAN | kGAB_UNDEFINED |                                   \
-               (uint64_t)kGAB_UNDEFINED << __GAB_TAGOFFSET))
+  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_UNDEFINED << __GAB_TAGOFFSET))
 
 /* Convert a bool into the corresponding gab value */
 #define gab_bool(val) ((val) ? gab_true : gab_false)

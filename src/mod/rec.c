@@ -1,3 +1,4 @@
+#include "core.h"
 #include "gab.h"
 #include "list.h"
 #include "map.h"
@@ -104,7 +105,7 @@ a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib_clear(struct gab_triple gab, size_t argc,
-                          gab_value argv[argc]) {
+                           gab_value argv[argc]) {
   if (argc < 1)
     return gab_panic(gab, "Invalid call to gab_lib_push");
 
@@ -137,7 +138,7 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
   gab_value rec = argv[0];
   gab_value shp = gab_recshp(rec);
 
-  gab_value res = gab_nil;
+  gab_value res[] = {gab_none, gab_nil};
 
   size_t len = gab_reclen(rec);
 
@@ -146,7 +147,8 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
 
   switch (argc) {
   case 1:
-    res = gab_shpdata(shp)[0];
+    res[0] = gab_ok;
+    res[1] = gab_shpdata(shp)[0];
     goto fin;
   case 2: {
     size_t current = gab_shpfind(shp, argv[1]);
@@ -154,7 +156,8 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
     if (current == UINT64_MAX || current + 1 == len)
       goto fin;
 
-    res = gab_shpdata(shp)[current + 1];
+    res[0] = gab_ok;
+    res[1] = gab_shpdata(shp)[current + 1];
     goto fin;
   }
   default:
@@ -162,7 +165,7 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
   }
 
 fin:
-  gab_vmpush(gab.vm, res);
+  gab_nvmpush(gab.vm, LEN_CARRAY(res), res);
   return NULL;
 }
 
@@ -290,7 +293,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "at", gab_lib_at),
       },
       {
-          "next",
+          "records.next?",
           gab_type(gab.eg, kGAB_RECORD),
           gab_snative(gab, "next", gab_lib_next),
       },

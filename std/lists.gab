@@ -1,5 +1,7 @@
-lists.t = 'list' :use
 'msg' :use
+'enum' :use
+'numbers' :use
+lists.t = 'list' :use
 
 # Immediately apply td over (self :m), and collect
 # the results into a list.
@@ -8,41 +10,20 @@ lists.t = 'list' :use
   self :transduce (m, .gab.list :make, \push!, td)
 end)
 
-\list.next? :defcase! {
-  gab.number = do list
-    list:len > self
-  end,
-  .nil = .init,
-}
-
-\list.values.continue :defcase! {
-  .init = do list
-    (.step, list:at(0), 1)
-  end,
-  .true = do list, n
-    (.step, list:at(n), n + 1)
-  end,
-  .false = .done,
-}
-
-\values :def!(['gab.list'], do n
-  n :list.next? self :list.values.continue(self, n)
+\lists.next? :def.enum.next! (lists.t, do n
+  (self:len > n, n, n + 1) :options.into
 end)
 
-\list.pairs.continue :defcase! {
-  .init = do list
-    (.step, 0, list:at(0), 1)
-  end,
-  .true = do list, n
-    (.step, n, list:at(n), n + 1)
-  end,
-  .false = .done,
-}
+\lists.values.step :def.enum.step! \at
 
-\pairs :def!(['gab.list'], do n
-  n :list.next? self :list.pairs.continue(self, n)
-end)
+\lists.pairs.step :def.enum.step! do n
+  (n, self:at n)
+end
 
-\empty? :def! (['gab.list'], do
+\values :def.enum! (lists.t, \numbers.into, \lists.next?, \lists.values.step)
+
+\pairs :def.enum! (lists.t, \numbers.into, \lists.next?, \lists.pairs.step)
+
+\empty? :def! ([lists.t], do
   self:len == 0
 end)

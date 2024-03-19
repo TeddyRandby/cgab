@@ -1104,9 +1104,10 @@ CASE_CODE(SEND_PRIMITIVE_GET) {
 
   DROP_N(have);
 
+  PUSH(res == gab_undefined ? gab_none : gab_ok);
   PUSH(res == gab_undefined ? gab_nil : res);
 
-  SET_VAR(1);
+  SET_VAR(2);
 
   NEXT();
 }
@@ -1130,9 +1131,10 @@ CASE_CODE(SEND_PRIMITIVE_SET) {
 
   DROP_N(have);
 
+  PUSH(res == gab_undefined ? gab_none : gab_ok);
   PUSH(res == gab_undefined ? gab_nil : res);
 
-  SET_VAR(1);
+  SET_VAR(2);
 
   NEXT();
 }

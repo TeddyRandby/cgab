@@ -33,14 +33,6 @@ end)
   end
 end
 
-\map :deftransducer! do f
-  do rf
-    do acc, xs[]
-      rf(acc, f (xs**))
-    end
-  end
-end
-
 \filter :deftransducer! do f
   do rf
     do acc, xs[]

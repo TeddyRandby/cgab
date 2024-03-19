@@ -64,11 +64,7 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
     return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
 
   if (gab_valkind(r) != kGAB_RECORD)
-    return gab_pktypemismatch(gab, b, kGAB_RECORD);
-
-  if (gab_valkind(b) != kGAB_PRIMITIVE && gab_valkind(b) != kGAB_BLOCK &&
-      gab_valkind(b) != kGAB_NATIVE)
-    return gab_pktypemismatch(gab, b, kGAB_BLOCK);
+    return gab_pktypemismatch(gab, r, kGAB_RECORD);
 
   size_t len = gab_reclen(r);
 
