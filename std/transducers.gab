@@ -33,30 +33,18 @@ end)
   end
 end
 
+\map :deftransducer! do f
+  do rf
+    do acc, xs[]
+      rf(acc, f (xs**))
+    end
+  end
+end
+
 \filter :deftransducer! do f
   do rf
     do acc, xs[]
       (f (xs**)) :td.conditionally (acc, xs, rf)
-    end
-  end
-end
-
-\take :deftransducer! do n
-  do rf
-    state = { n }
-    do acc, xs[]
-      state:n = state:n - 1
-      (state:n >= 0) :td.conditionally (acc, xs, rf)
-    end
-  end
-end
-
-\skip :deftransducer! do n
-  do rf
-    state = { n }
-    do acc, xs[]
-      state:n = state:n - 1
-      (state:n < 0) :td.conditionally (acc, xs, rf)
     end
   end
 end
@@ -70,27 +58,60 @@ end
   end
 end
 
+\take :deftransducer! do n
+  do rf
+    {
+      n,
+      reduce.step = do acc, xs[]
+        self:n = self:n - 1
+        (self:n >= 0) :td.conditionally (acc, xs, rf)
+      end,
+      reduce.done = do acc
+        acc
+      end,
+    }
+  end
+end
+
+\skip :deftransducer! do n
+  do rf
+    {
+      n,
+      reduce.step = do acc, xs[]
+        self:n = self:n - 1
+        (self:n < 0) :td.conditionally (acc, xs, rf)
+      end,
+      reduce.done = do acc
+        acc
+      end,
+    }
+  end
+end
+
 \do_partition :defcase! {
   .true = do acc, state, rf
-    state:n, xs = 0, state:d:slice
+    state:n, xs = 0, state:d:slice(state:n)
     state:d:clear!
     rf (acc, xs**)
   end,
-  .false = do acc, state, rf
-      state:n = state:n + 1
+  .false = do acc, state, rf, xs
       acc
   end,
 }
 
 \partition :deftransducer! do n
   do rf
-    state = {
+   {
       n = 0,
       d = .gab.tuple :make n,
+      reduce.step = do acc, xs[]
+        self:d:put!(self:n, xs**)
+        self:n = self:n + 1
+        (self:n == n) :do_partition (acc, self, rf)
+      end,
+      reduce.done = do acc
+        (self:n > 0) :do_partition (acc, self, rf)
+      end,
     }
-    do acc, xs[]
-      state:d:put!(state:n, xs**)
-      (state:n == n) :do_partition (acc, state, rf)
-    end
   end
 end

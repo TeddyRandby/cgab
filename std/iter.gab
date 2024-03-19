@@ -1,31 +1,40 @@
 'msg' :use
 
-# numbers:reduce(\values, 0, \+)
-\reduce :def! ([], do m, acc, rf
-  s, xs[], n = m self
-
-  s :reduce (self, m, n, acc, xs, rf)
-end)
-
+# The work of reducing
 \reduce :defcase! {
-  .step = do i, m, n, acc, xs, rf
+  .step = do i, m, n, acc, xs, r
     # Apply the reducing function
-    acc = rf (acc, xs**)
+    acc = r :reduce.step (acc, xs**)
     # Apply the producer, resolving new values for the next step
     s, xs[], n = m (i , n)
     # Tailcall to the next step
-    s :reduce (i, m, n, acc, xs, rf)
+    s :reduce (i, m, n, acc, xs, r)
   end,
   # TODO: Make multple '_'s okay
-  .done = do _a, _b, _c, acc, xs, rf
-    acc
+  .done = do _a, _b, _c, acc, xs, r
+    r :reduce.done (acc)
   end,
 }
 
-# numbers:transduce(\values, 0, \+, .td :map \++)
-\transduce :def! ([], do m, acc, rf, td
-# Apply the transducer to the reducing function,
-# And then just call a normal reduce
-  self :reduce (m, acc, td rf)
+# numbers:reduce(\values, 0, \+)
+\reduce :def! ([], do m, acc, r
+  s, xs[], n = m self
+
+  s :reduce (self, m, n, acc, xs, r)
 end)
 
+# numbers:transduce(\values, 0, \+, .td :map \++)
+\transduce :def! ([], do m, acc, r, td
+# Apply the transducer to the reducing function,
+# And then just call a normal reduce
+  self :reduce (m, acc, td r)
+end)
+
+# Implement the reducer protocol for blocks and messages
+\reduce.step :def! (['gab.block', 'gab.message'], do acc, xs[]
+  self (acc, xs**)
+end)
+
+\reduce.done :def! (['gab.block', 'gab.message'], do acc
+  acc
+end)

@@ -1036,7 +1036,7 @@ CASE_CODE(SEND_PRIMITIVE_EQ) {
 
   PUSH(gab_bool(val_a == val_b));
 
-  VAR() = 1;
+  SET_VAR(1);
 
   NEXT();
 }
@@ -1062,7 +1062,7 @@ CASE_CODE(SEND_PRIMITIVE_CONCAT) {
 
   PUSH(val_ab);
 
-  VAR() = 1;
+  SET_VAR(1);
   NEXT();
 }
 
@@ -1081,7 +1081,8 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
 
   memcpy(SP(), rec->data, rec->len * sizeof(gab_value));
   SP() += rec->len;
-  VAR() = rec->len;
+
+  SET_VAR(rec->len);
 
   NEXT();
 }
@@ -1160,7 +1161,8 @@ CASE_CODE(SEND_CONSTANT) {
 
 CASE_CODE(SEND_PROPERTY) {
   gab_value *ks = READ_CONSTANTS;
-  uint64_t have = compute_arity(VAR(), READ_BYTE);
+  uint8_t have_byte = READ_BYTE;
+  uint64_t have = compute_arity(VAR(), have_byte);
 
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
@@ -1171,24 +1173,56 @@ CASE_CODE(SEND_PROPERTY) {
   if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))
     MISS_CACHED_SEND();
 
-  switch (have) {
-  case 1: /* Simply load the value into the top of the stack */
-    PEEK() = gab_urecat(r, ks[GAB_SEND_KOFFSET]);
-    break;
+  gab_value spec = gab_urecat(r, ks[GAB_SEND_KOFFSET]);
 
-  default: /* Drop all the values we don't need, then fallthrough */
-    DROP_N(have - 2);
+  switch (gab_valkind(spec)) {
+  case kGAB_PRIMITIVE: {
+    uint8_t op = gab_valtop(spec);
 
-  case 2: { /* Pop the top value */
-    gab_value value = POP();
-    gab_urecput(GAB(), r, ks[GAB_SEND_KOFFSET], value);
-    PEEK() = value;
-    break;
+    IP() -= SEND_CACHE_DIST - 1;
+
+    DISPATCH(op);
+  }
+  case kGAB_BLOCK: {
+    struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
+
+    if (have_byte & fHAVE_TAIL)
+      TAILCALL_BLOCK(blk, have);
+    else
+      CALL_BLOCK(blk, have);
+  }
+  case kGAB_NATIVE: {
+    struct gab_obj_native *n = GAB_VAL_TO_NATIVE(spec);
+
+    CALL_NATIVE(n, have, true);
+  }
+  default: {
+    switch (have) {
+    case 1:
+      /* This is a normal property access - load the value from the record. */
+      PEEK() = spec;
+      break;
+
+    default:
+      /* This is a property assignment, but we have extra values. */
+      DROP_N(have - 1);
+    case 2: {
+      /* This is a property assignment, with the one value*/
+      gab_value value = POP();
+
+      gab_urecput(GAB(), r, ks[GAB_SEND_KOFFSET], value);
+
+      PEEK() = value;
+
+      break;
+    }
+    }
+
+    SET_VAR(1);
+
+    NEXT();
   }
   }
-
-  SET_VAR(1);
-  NEXT();
 }
 
 CASE_CODE(SEND_PRIMITIVE_AND) {
@@ -1641,6 +1675,8 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
           gab_valtype(EG(), r));
   }
 
+  memmove(SP() - have, SP() - (have - 1), (have - 1) * sizeof(gab_value));
+
   gab_value spec = res.status == sGAB_IMPL_PROPERTY
                        ? gab_primitive(OP_SEND_PROPERTY)
                        : gab_umsgat(m, res.offset);
@@ -1648,8 +1684,6 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   ks[GAB_SEND_KSPECS] = GAB_VAL_TO_MESSAGE(m)->specs;
   ks[GAB_SEND_KOFFSET] = res.offset;
   ks[GAB_SEND_KTYPE] = t;
-
-  memmove(SP() - have, SP() - (have - 1), (have - 1) * sizeof(gab_value));
 
   switch (gab_valkind(spec)) {
     /*
@@ -1694,8 +1728,13 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
 
     CALL_NATIVE(n, have, true);
   }
-  default:
-    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, spec, gab_valtype(EG(), r));
+  default: {
+    PUSH(spec);
+
+    SET_VAR(1);
+
+    NEXT();
+  }
   }
 }
 

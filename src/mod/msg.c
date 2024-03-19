@@ -168,6 +168,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           type,
           gab_snative(gab, "defcase!", gab_lib_case),
       },
+      {
+          "defimpl!",
+          gab_undefined,
+          gab_snative(gab, "defimpl!", gab_lib_impl),
+      },
   };
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);

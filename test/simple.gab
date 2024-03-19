@@ -7,7 +7,7 @@
 
 list = .gab.list :make
 
-list:push!(1,2,3,4)
+list:push!(1,2,3,4, 5)
 
 test = list:lists.collect(\values, .td :filter \pos? )
 
@@ -23,25 +23,16 @@ sum = list:map(\values, 0, \+, \++)
 'map with \++, reduce with \+: {sum}':print
 
 mapped_add_one = list:map(\values, .gab.list :make, \push!, \++)
-
 'map with \++, reduce with \push!:':print
-
 mapped_add_one:tap(\values, .nil, \self, \print)
 
 filtered = list:filter(\values, .gab.list :make, \push!, \even?)
-
 'filter with even?, reduce with \push!:':print
-
 filtered:tap(\values, .nil, \self, \print)
 
 first_two = list:take(\values, .gab.list :make, \push!, 2)
-
 'took 2, reduce with \push!':print
-
 first_two:tap(\values, .nil, \self, \print)
 
-partition_by = list:partition(\values, .gab.list :make, \push!, 2)
-
 'partition by 2, reduce with \push!':print
-
-partition_by:tap(\values, .nil, \self, \print)
+partition_by = list:partition(\values, .nil, \print, 2)
