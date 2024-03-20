@@ -25,14 +25,6 @@ struct primitive {
 
 struct primitive all_primitives[] = {
     {
-        .name = mGAB_AND,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_AND),
-    },
-    {
-        .name = mGAB_OR,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_OR),
-    },
-    {
         .name = mGAB_TYPE,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_TYPE),
     },
@@ -210,8 +202,8 @@ struct gab_triple gab_create() {
   eg->types[kGAB_STRING] = gab_string(gab, "gab.string");
   gab_iref(gab, eg->types[kGAB_STRING]);
 
-  eg->types[kGAB_STRING] = gab_string(gab, "gab.string");
-  gab_iref(gab, eg->types[kGAB_STRING]);
+  eg->types[kGAB_SIGIL] = gab_string(gab, "gab.sigil");
+  gab_iref(gab, eg->types[kGAB_SIGIL]);
 
   eg->types[kGAB_MESSAGE] = gab_string(gab, "gab.message");
   gab_iref(gab, eg->types[kGAB_MESSAGE]);

@@ -608,7 +608,7 @@ static inline void push_record(struct bc *bc, size_t len, size_t t) {
           v_uint8_t_ref_at(&f->bc, prev_local_arg + 1 + 2 * (prev_n - len * 2));
 
       gab_value *ks = bc->src->constants.data;
-      gab_value stack[len];
+      gab_value stack[len * 2];
       for (size_t i = 0; i < len * 2; i++) {
         uint16_t arg_k = (uint16_t)byte_args[i * 2] << 8 | byte_args[i * 2 + 1];
         stack[i] = ks[arg_k];
@@ -1941,7 +1941,7 @@ err:
 }
 
 static int compile_rec_internals(struct bc *bc) {
-  uint8_t size = 0;
+  int size = 0;
 
   if (skip_newlines(bc) < 0)
     return COMP_ERR;
@@ -2550,22 +2550,6 @@ static uint64_t dumpNConstantInstruction(FILE *stream,
   return offset + 2 + (2 * n);
 }
 
-static uint64_t dumpJumpInstruction(FILE *stream,
-                                    struct gab_obj_prototype *self,
-                                    uint64_t sign, uint64_t offset) {
-  const char *name =
-      gab_opcode_names[v_uint8_t_val_at(&self->src->bytecode, offset)];
-  uint16_t dist = (uint16_t)v_uint8_t_val_at(&self->src->bytecode, offset + 1)
-                  << 8;
-  dist |= v_uint8_t_val_at(&self->src->bytecode, offset + 2);
-
-  fprintf(stream,
-          "%-25s" ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET
-          " -> " ANSI_COLOR_YELLOW "%04lu" ANSI_COLOR_RESET "\n",
-          name, offset, offset + 3 + (sign * (dist)));
-  return offset + 3;
-}
-
 static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
                                 uint64_t offset) {
   uint8_t op = v_uint8_t_val_at(&self->src->bytecode, offset);
@@ -2575,9 +2559,6 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
     return dumpSimpleInstruction(stream, self, offset);
   case OP_PACK:
     return dumpPackInstruction(stream, self, offset);
-  case OP_LOGICAL_AND:
-  case OP_LOGICAL_OR:
-    return dumpJumpInstruction(stream, self, 1, offset);
   case OP_NCONSTANT:
     return dumpNConstantInstruction(stream, self, offset);
   case OP_CONSTANT:

@@ -147,8 +147,9 @@ end
     (10 > 5):should(\be, \==, .true)
   end
 
-  'should dynamically do numberics' :tests.should do
+  'should dynamically do arithemtic' :tests.should do
     (\+ (1,2)):should(\be, \==, 3)
+    (\+ (1,2, .ignore_me)):should(\be, \==, 3)
     (\- (1,2)):should(\be, \==, -1)
   end
 end
@@ -168,6 +169,7 @@ end
 
   'should dynamically concatenate' :tests.should do
     \+ ('hi ', 'world') :should(\be, \==, 'hi world')
+    \+ ('hi ', 'world', .ignore_me) :should(\be, \==, 'hi world')
   end
 
   'should append a sigil' :tests.should do
@@ -318,22 +320,6 @@ end
     end
 
     tup = [ onetwothree() ]
-
-    tup:at!(0):should(\be, \==, 1)
-    tup:at!(1):should(\be, \==, 2)
-    tup:at!(2):should(\be, \==, 3)
-
-    tup = [ .true :and do; onetwothree() end ]
-    tup:at!(0):should(\be, \==, 1)
-    tup:at!(1):should(\be, \==, 2)
-    tup:at!(2):should(\be, \==, 3)
-    tup:len:should(\be, \==, 3)
-
-    tup = [ .true :or do; onetwothree() end ]
-    tup:at!(0):should(\be, \==, .true)
-    tup:len:should(\be, \==, 1)
-
-    tup = .true :and do; [ onetwothree() ] end
     tup:at!(0):should(\be, \==, 1)
     tup:at!(1):should(\be, \==, 2)
     tup:at!(2):should(\be, \==, 3)

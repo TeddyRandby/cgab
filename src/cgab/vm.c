@@ -1265,86 +1265,6 @@ CASE_CODE(SEND_PROPERTY) {
   }
 }
 
-CASE_CODE(SEND_PRIMITIVE_AND) {
-  SKIP_SHORT;
-  uint8_t have_byte = READ_BYTE;
-  uint64_t have = compute_arity(VAR(), have_byte);
-
-  gab_value r = PEEK_N(have);
-  gab_value alt = PEEK_N(have - 1);
-
-  if (gab_valintob(r)) {
-    switch (gab_valkind(alt)) {
-    case kGAB_BLOCK: {
-      struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(alt);
-
-      DROP_N(have);
-
-      PUSH(alt);
-
-      if (have_byte & fHAVE_TAIL) {
-        TAILCALL_BLOCK(blk, 1);
-      } else {
-        CALL_BLOCK(blk, 1);
-      }
-    }
-    default:
-      DROP_N(have);
-
-      PUSH(alt);
-
-      SET_VAR(1);
-
-      NEXT();
-    }
-  }
-
-  DROP();
-
-  SET_VAR(have - 1);
-
-  NEXT();
-}
-
-CASE_CODE(SEND_PRIMITIVE_OR) {
-  SKIP_SHORT;
-  uint8_t have_byte = READ_BYTE;
-  uint64_t have = compute_arity(VAR(), have_byte);
-
-  gab_value r = PEEK_N(have);
-  gab_value alt = PEEK();
-
-  if (!gab_valintob(r)) {
-    if (gab_valkind(alt) == kGAB_BLOCK) {
-      struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(alt);
-
-      DROP_N(have);
-
-      PUSH(alt);
-
-      if (have_byte & fHAVE_TAIL) {
-        TAILCALL_BLOCK(blk, 1);
-      } else {
-        CALL_BLOCK(blk, 1);
-      }
-    }
-
-    DROP_N(have);
-
-    PUSH(alt);
-
-    SET_VAR(1);
-
-    NEXT();
-  }
-
-  DROP();
-
-  SET_VAR(have - 1);
-
-  NEXT();
-}
-
 CASE_CODE(RETURN) {
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
@@ -1422,30 +1342,6 @@ CASE_CODE(INTERPOLATE) {
   POP_N(n);
 
   PUSH(str);
-
-  NEXT();
-}
-
-CASE_CODE(LOGICAL_AND) {
-  uint16_t offset = READ_SHORT;
-  gab_value cond = PEEK();
-
-  if (gab_valintob(cond))
-    DROP();
-  else
-    IP() += offset;
-
-  NEXT();
-}
-
-CASE_CODE(LOGICAL_OR) {
-  uint16_t offset = READ_SHORT;
-  gab_value cond = PEEK();
-
-  if (gab_valintob(cond))
-    IP() += offset;
-  else
-    DROP();
 
   NEXT();
 }

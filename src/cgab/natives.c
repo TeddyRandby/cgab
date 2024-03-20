@@ -114,7 +114,8 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
 
   gab_negkeep(gab.eg, res->len - 1, res->data + 1);
 
-  a_gab_value *final = gab_segmodput(gab.eg, path, pkg, res->len - 1, res->data + 1);
+  a_gab_value *final =
+      gab_segmodput(gab.eg, path, pkg, res->len - 1, res->data + 1);
 
   free(res);
 
@@ -201,7 +202,7 @@ a_gab_value *gab_lib_use(struct gab_triple gab, size_t argc,
   gab_value mod = gab_arg(0);
 
   if (gab_valkind(mod) != kGAB_STRING)
-    return gab_ptypemismatch(gab, mod, gab_type(gab.eg, kGAB_STRING));
+    return gab_pktypemismatch(gab, mod, kGAB_STRING);
 
   const char *name = gab_valintocs(gab, mod);
 
@@ -265,13 +266,12 @@ a_gab_value *gab_lib_print(struct gab_triple gab, size_t argc,
 void gab_setup_natives(struct gab_triple gab) {
   gab_egkeep(
       gab.eg,
-      gab_iref(gab,
-               gab_spec(gab, (struct gab_spec_argt){
-                                 .name = "use",
-                                 .receiver = gab_type(gab.eg, kGAB_STRING),
-                                 .specialization =
-                                     gab_snative(gab, "use", gab_lib_use),
-                             })));
+      gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
+                                      .name = "use",
+                                      .receiver = gab_type(gab.eg, kGAB_STRING),
+                                      .specialization =
+                                          gab_snative(gab, "use", gab_lib_use),
+                                  })));
 
   gab_egkeep(
       gab.eg,

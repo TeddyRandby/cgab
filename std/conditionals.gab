@@ -1,4 +1,31 @@
-:use .records
+'msg' :use
 
-def is_ok?[]; self == .ok end
+[] :defimpl! {
+  [\and] = do alt[]
+    alt**
+  end,
+  [\then] = do cb, alt[]
+    cb (alt**)
+  end,
+  [\or] = do 
+    self
+  end,
+  [\else] = do 
+    self
+  end,
+}
 
+[.nil, .false, .none, .err] :defimpl! {
+  [\and] = do
+    self
+  end,
+  [\then] = do
+    self
+  end,
+  [\or] = do alt[]
+    alt**
+  end,
+  [\else] = do cb, alt[]
+    cb (alt**)
+  end,
+}
