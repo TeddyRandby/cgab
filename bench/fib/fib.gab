@@ -1,5 +1,16 @@
-#def fib[.gab.number]
-  #((self < 2) :and => self) :or => (self - 1):fib + (self - 2):fib
-#end
-#
-#30:fib
+'msg' :use
+
+\do_fib :defcase! {
+  .true = do n
+    n
+  end,
+  .false = do n
+    (n - 1):fib + (n - 2):fib
+  end
+}
+
+\fib :def!(['gab.number'], do
+  (self < 2) :do_fib(self)
+end)
+
+30:fib
