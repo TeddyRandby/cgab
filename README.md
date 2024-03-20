@@ -15,10 +15,8 @@ Principles:
 - Dependencies
 - Installation
 ### Language Tour
-Programs are data, and data implies values.
-LISPs (such as clojure) mean this literally - 'code' is a *data structure* that can be manipulated by *other code*
-Smalltalk and Self are message-oriented. Values receive messages, which determines behavior.
-Gab attempts to marry these two ideas. Here is some example code:
+Programs are data. LISPs (such as the aforementioned Clojure) take this literally - code is a *data structure* that can be manipulated by *other code*.
+Smalltalk and Self are message-oriented. Code is composed of values and messages. Values receive messages, and behavior emerges. Gab takes inspiration from these two ideas. Here is some example code:
 ```gab
     'Hello world!' :print
 ```
@@ -30,17 +28,17 @@ Here is an alternative, equally valid syntax:
 ```gab
     \print ('Hello world!')
 ```
-This syntax might look more familiar to programmers in the c-family of languages. Said programmers might transcribe this block as:
+This syntax might look more familiar to programmers in the c-family of languages (Besides the curious '\'). Said programmers might transcribe this block as:
 ```
     Call the function 'print' with the argument 'Hello world!'
 ```
 This interpretation isn't wrong, but it _is_ shallow. More accurately:
 ```
-    Send the message 'apply' to the value '\print' with the argument 'Hello world!'
+    Send the message '()' to the value '\print' with the argument 'Hello world!'
 ```
 This might explain the peculiar syntax `\print`. This is actually a *message literal*.
-To make an analogy to traditional Classes, think of this as the value-representation of a method.
-Polymorphism works as normal:
+To make an analogy to traditional classes, think of this as a generic value-representation for a method.
+Polymorphism works as you'd expect. \+ behaves differently depending on the receiver:
 ```gab
     1 + 1 # => 2
     \+ (1, 1) # => 2
@@ -49,7 +47,6 @@ Polymorphism works as normal:
     \+ ('Hello ', 'world!')  # => 'Hello world!'
 ```
 To peel back another layer, lets define Gab's syntax a little more clearly:
-### Values
 #### Numbers
 Numbers are represented as IEEE 64-bit floats.
 ```gab
@@ -111,7 +108,7 @@ Sigils are similar to strings (and interchangeable in some ways). However, they 
     'hello' ? # => gab.string
 ```
 #### Messages
-Messages are polymorphic behavior which can be dispatched statically as an infix expression with `:` or via application with the literal.
+Messages are polymorphic behavior which can be dispatched statically as an infix expression with `:` or via application with a message literal.
 ```gab
     \print # => \print
 
@@ -120,8 +117,8 @@ Messages are polymorphic behavior which can be dispatched statically as an infix
     \print (1, 2, 3) # => prints 1, 2, 3
 ```
 ### Behavior
-Behavior in Gab is defined by polymorphic, infix messages. These infix messages always one left-hand value and one right-hand value.
-However, tuple syntax `(3, 4)` allows multiple values to be wrapped into one. Blocks can return multiple values in the same way.
+Behavior in Gab is dictated *exclusively* by polymorphic, infix messages. These infix messages always have one left-hand value and up to one right-hand value.
+However, the tuple syntax (eg: `(3, 4)`) allows multiple values to be wrapped into one. Blocks can return multiple values in the same way.
 ```gab
     # Send \+ to  1 with an argument of 1
     1 + 1
@@ -131,6 +128,8 @@ However, tuple syntax `(3, 4)` allows multiple values to be wrapped into one. Bl
 
     ok, result = val :might_fail 'something'
 ```
+#### Note about tuples
+Tuples are *NOT* records - they don't even allocate memory. Think of them as a statically sized array, which use the stack for storage.
 # What about imports?
 Gab defines several native messages. `:print` is one you should be familiar with by now - `:use` is another!
 It is used like this:
@@ -149,9 +148,9 @@ The implementation searches for the following, in order:
  Files ending in the `.gab` extension are evaluated, and the result of the last top-level expression is returned to the caller of `:use`. Files ending in the `.so` extension are opened dynamically, and searched for the symbol `gab_lib`. The result of this function is returned to the caller.
 
 Most of the time, the return value of the `:use` call can be ignored. It is just called once to define the messages in the module. For example, the `io` module defines three messages:
- - `:io.open`, which returns a `<File>` handle
- - `<File>:read`
- - `<File>:write`
+ - `\open`, which returns a `<File>` handle
+ - `\read`
+ - `\write`
 And thats it!
 
 # Dependencies
