@@ -1,7 +1,0 @@
-
-i, sum = 0, 0
-
-loop
-  sum = sum + 1
-  i = i + 1
-until i == 1000000 end

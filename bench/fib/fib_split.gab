@@ -1,13 +1,15 @@
 'msg' :use
 
-\do_fib :case! {
-  .true = do n; n end,
+\do_fib :defcase! {
+  .true = do n
+    n
+  end,
   .false = do n
     (n - 1):fib + (n - 2):fib
   end
 }
 
-\fib :impl!(['gab.number'], do
+\fib :def!(['gab.number'], do
   (self < 2) :do_fib(self)
 end)
 
