@@ -112,9 +112,9 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   if (res->data[0] != gab_string(gab, "ok"))
     return gab_panic(gab, "Failed to load module");
 
-  gab_negkeep(gab.eg, res->len, res->data);
+  gab_negkeep(gab.eg, res->len - 1, res->data + 1);
 
-  a_gab_value *final = gab_segmodput(gab.eg, path, pkg, res->len, res->data);
+  a_gab_value *final = gab_segmodput(gab.eg, path, pkg, res->len - 1, res->data + 1);
 
   free(res);
 

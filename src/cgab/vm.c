@@ -127,12 +127,17 @@ static handler handlers[] = {
   CASE_CODE(SEND_##CODE) {                                                     \
     SKIP_SHORT;                                                                \
     uint64_t have = compute_arity(VAR(), READ_BYTE);                           \
+                                                                               \
     if (__gab_unlikely(!__gab_valisn(PEEK_N(have))))                           \
       MISS_CACHED_SEND();                                                      \
+                                                                               \
     operation_type val = gab_valton(PEEK_N(have));                             \
+                                                                               \
     DROP_N(have);                                                              \
     PUSH(value_type(operation val));                                           \
+                                                                               \
     SET_VAR(1);                                                                \
+                                                                               \
     NEXT();                                                                    \
   }
 
@@ -140,21 +145,28 @@ static handler handlers[] = {
   CASE_CODE(SEND_##CODE) {                                                     \
     SKIP_SHORT;                                                                \
     uint64_t have = compute_arity(VAR(), READ_BYTE);                           \
+                                                                               \
     if (__gab_unlikely(!__gab_valisn(PEEK_N(have))))                           \
       MISS_CACHED_SEND();                                                      \
+                                                                               \
     if (__gab_unlikely(have < 2))                                              \
       PUSH(gab_nil), have++;                                                   \
+                                                                               \
     if (__gab_unlikely(!__gab_valisn(PEEK_N(have - 1)))) {                     \
       STORE_PRIMITIVE_ERROR_FRAME(1);                                          \
       ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK_N(have - 1),             \
             gab_valtype(EG(), PEEK_N(have - 1)),                               \
             gab_valtype(EG(), PEEK_N(have)));                                  \
     }                                                                          \
+                                                                               \
     operation_type val_b = gab_valton(PEEK_N(have - 1));                       \
     operation_type val_a = gab_valton(PEEK_N(have));                           \
+                                                                               \
     DROP_N(have);                                                              \
     PUSH(value_type(val_a operation val_b));                                   \
+                                                                               \
     SET_VAR(1);                                                                \
+                                                                               \
     NEXT();                                                                    \
   }
 
@@ -162,11 +174,16 @@ static handler handlers[] = {
   CASE_CODE(SEND_##CODE) {                                                     \
     SKIP_SHORT;                                                                \
     uint64_t have = compute_arity(VAR(), READ_BYTE);                           \
+                                                                               \
     if (__gab_unlikely(!__gab_valisb(PEEK_N(have))))                           \
       MISS_CACHED_SEND();                                                      \
+                                                                               \
     operation_type val = gab_valintob(PEEK_N(have));                           \
+                                                                               \
     PUSH(value_type(operation val));                                           \
+                                                                               \
     SET_VAR(1);                                                                \
+                                                                               \
     NEXT();                                                                    \
   }
 
@@ -174,20 +191,27 @@ static handler handlers[] = {
   CASE_CODE(SEND_##CODE) {                                                     \
     SKIP_SHORT;                                                                \
     uint64_t have = compute_arity(VAR(), READ_BYTE);                           \
+                                                                               \
     if (__gab_unlikely(!__gab_valisb(PEEK_N(have))))                           \
       MISS_CACHED_SEND();                                                      \
+                                                                               \
     if (__gab_unlikely(have < 2))                                              \
       PUSH(gab_nil), have++;                                                   \
+                                                                               \
     if (__gab_unlikely(!__gab_valisb(PEEK_N(have - 1)))) {                     \
       STORE_PRIMITIVE_ERROR_FRAME(1);                                          \
       ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK_N(have - 1),             \
             gab_valtype(EG(), PEEK_N(have - 1)),                               \
             gab_valtype(EG(), PEEK_N(have)));                                  \
     }                                                                          \
+                                                                               \
     operation_type val_b = gab_valintob(POP());                                \
     operation_type val_a = gab_valintob(POP());                                \
+                                                                               \
     PUSH(value_type(val_a operation val_b));                                   \
+                                                                               \
     SET_VAR(1);                                                                \
+                                                                               \
     NEXT();                                                                    \
   }
 
@@ -764,7 +788,8 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
     gab_value r = PEEK_N(have);                                                \
     gab_value m = ks[GAB_SEND_KMESSAGE];                                       \
                                                                                \
-    if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))   \
+    if (__gab_unlikely(                                                        \
+            !gab_valeq(GAB_VAL_TO_MESSAGE(m)->specs, ks[GAB_SEND_KSPECS])))    \
       MISS_CACHED_SEND();                                                      \
                                                                                \
     if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))            \
@@ -783,7 +808,8 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
     gab_value r = PEEK_N(have);                                                \
     gab_value m = ks[GAB_SEND_KMESSAGE];                                       \
                                                                                \
-    if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))   \
+    if (__gab_unlikely(                                                        \
+            !gab_valeq(GAB_VAL_TO_MESSAGE(m)->specs, ks[GAB_SEND_KSPECS])))    \
       MISS_CACHED_SEND();                                                      \
                                                                                \
     if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))            \
@@ -832,7 +858,8 @@ CASE_CODE(MATCHTAILSEND_BLOCK) {
   gab_value m = ks[GAB_SEND_KMESSAGE];
   gab_value t = gab_valtype(EG(), r);
 
-  if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
+  if (__gab_unlikely(
+          !gab_valeq(GAB_VAL_TO_MESSAGE(m)->specs, ks[GAB_SEND_KSPECS])))
     MISS_CACHED_SEND();
 
   uint8_t idx = GAB_SEND_HASH(t) * GAB_SEND_CACHE_SIZE;
@@ -865,7 +892,8 @@ CASE_CODE(MATCHSEND_BLOCK) {
   gab_value m = ks[GAB_SEND_KMESSAGE];
   gab_value t = gab_valtype(EG(), r);
 
-  if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
+  if (__gab_unlikely(
+          !gab_valeq(GAB_VAL_TO_MESSAGE(m)->specs, ks[GAB_SEND_KSPECS])))
     MISS_CACHED_SEND();
 
   uint8_t idx = GAB_SEND_HASH(t) * GAB_SEND_CACHE_SIZE;
@@ -1025,16 +1053,20 @@ CASE_CODE(SEND_PRIMITIVE_EQ) {
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
-  if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
+  if (__gab_unlikely(GAB_VAL_TO_MESSAGE(m)->specs != ks[GAB_SEND_KSPECS]))
     MISS_CACHED_SEND();
 
   if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))
     MISS_CACHED_SEND();
 
-  gab_value val_b = POP();
-  gab_value val_a = POP();
+  if (__gab_unlikely(have < 2))
+    PUSH(gab_nil), have++;
 
-  PUSH(gab_bool(val_a == val_b));
+  gab_value a = PEEK_N(have);
+  gab_value b = PEEK_N(have - 1);
+
+  DROP_N(have);
+  PUSH(gab_bool(gab_valeq(a, b)));
 
   SET_VAR(1);
 
@@ -1043,26 +1075,32 @@ CASE_CODE(SEND_PRIMITIVE_EQ) {
 
 CASE_CODE(SEND_PRIMITIVE_CONCAT) {
   SKIP_SHORT;
-  SKIP_BYTE;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
 
-  if (__gab_unlikely(gab_valkind(PEEK2()) != kGAB_STRING))
+  if (__gab_unlikely(gab_valkind(PEEK_N(have)) != kGAB_STRING))
     MISS_CACHED_SEND();
 
-  if (__gab_unlikely(gab_valkind(PEEK()) != kGAB_STRING)) {
+  if (__gab_unlikely(have < 2))
+    PUSH(gab_nil), have++;
+
+  if (__gab_unlikely(gab_valkind(PEEK_N(have - 1)) != kGAB_STRING &&
+                     gab_valkind(PEEK_N(have - 1)) != kGAB_SIGIL)) {
     STORE_PRIMITIVE_ERROR_FRAME(1);
-    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK(),
-          gab_valtype(EG(), PEEK()), gab_valtype(EG(), PEEK2()));
+    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK_N(have - 1),
+          gab_valtype(EG(), PEEK_N(have - 1)), gab_valtype(EG(), PEEK_N(have)));
   }
 
   STORE_SP();
 
-  gab_value val_b = POP();
-  gab_value val_a = POP();
+  gab_value val_a = PEEK_N(have);
+  gab_value val_b = PEEK_N(have - 1);
   gab_value val_ab = gab_strcat(GAB(), val_a, val_b);
 
+  DROP_N(have);
   PUSH(val_ab);
 
   SET_VAR(1);
+
   NEXT();
 }
 
@@ -1092,13 +1130,12 @@ CASE_CODE(SEND_PRIMITIVE_GET) {
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   gab_value r = PEEK_N(have);
-  gab_value m = ks[GAB_SEND_KMESSAGE];
-
-  if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
-    MISS_CACHED_SEND();
 
   if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))
     MISS_CACHED_SEND();
+
+  if (__gab_unlikely(have < 2))
+    PUSH(gab_nil), have++;
 
   gab_value res = gab_recat(r, PEEK_N(have - 1));
 
@@ -1117,13 +1154,12 @@ CASE_CODE(SEND_PRIMITIVE_SET) {
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   gab_value r = PEEK_N(have);
-  gab_value m = ks[GAB_SEND_KMESSAGE];
-
-  if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
-    MISS_CACHED_SEND();
 
   if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))
     MISS_CACHED_SEND();
+
+  if (__gab_unlikely(have < 2))
+    PUSH(gab_nil), have++;
 
   STORE_SP();
 
@@ -1146,7 +1182,8 @@ CASE_CODE(SEND_CONSTANT) {
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
-  if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
+  if (__gab_unlikely(
+          !gab_valeq(GAB_VAL_TO_MESSAGE(m)->specs, ks[GAB_SEND_KSPECS])))
     MISS_CACHED_SEND();
 
   if (__gab_unlikely(ks[GAB_SEND_KTYPE] != gab_valtype(EG(), r)))
@@ -1169,7 +1206,8 @@ CASE_CODE(SEND_PROPERTY) {
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
-  if (__gab_unlikely(ks[GAB_SEND_KSPECS] != GAB_VAL_TO_MESSAGE(m)->specs))
+  if (__gab_unlikely(
+          !gab_valeq(GAB_VAL_TO_MESSAGE(m)->specs, ks[GAB_SEND_KSPECS])))
     MISS_CACHED_SEND();
 
   if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))
@@ -1233,10 +1271,11 @@ CASE_CODE(SEND_PRIMITIVE_AND) {
   uint64_t have = compute_arity(VAR(), have_byte);
 
   gab_value r = PEEK_N(have);
-  gab_value alt = PEEK();
+  gab_value alt = PEEK_N(have - 1);
 
   if (gab_valintob(r)) {
-    if (gab_valkind(alt) == kGAB_BLOCK) {
+    switch (gab_valkind(alt)) {
+    case kGAB_BLOCK: {
       struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(alt);
 
       DROP_N(have);
@@ -1249,14 +1288,15 @@ CASE_CODE(SEND_PRIMITIVE_AND) {
         CALL_BLOCK(blk, 1);
       }
     }
+    default:
+      DROP_N(have);
 
-    DROP_N(have);
+      PUSH(alt);
 
-    PUSH(alt);
+      SET_VAR(1);
 
-    SET_VAR(1);
-
-    NEXT();
+      NEXT();
+    }
   }
 
   DROP();
@@ -1605,10 +1645,8 @@ CASE_CODE(SEND) {
                        ? gab_primitive(OP_SEND_PROPERTY)
                        : gab_umsgat(m, res.offset);
 
-  gab_value type = res.status == sGAB_IMPL_GENERAL ? r : res.type;
-
   ks[GAB_SEND_KSPECS] = GAB_VAL_TO_MESSAGE(m)->specs;
-  ks[GAB_SEND_KTYPE] = type;
+  ks[GAB_SEND_KTYPE] = gab_valtype(EG(), r);
   ks[GAB_SEND_KOFFSET] = res.offset;
 
   switch (gab_valkind(spec)) {
@@ -1683,7 +1721,6 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
                        ? gab_primitive(OP_SEND_PROPERTY)
                        : gab_umsgat(m, res.offset);
 
-  ks[GAB_SEND_KSPECS] = GAB_VAL_TO_MESSAGE(m)->specs;
   ks[GAB_SEND_KOFFSET] = res.offset;
   ks[GAB_SEND_KTYPE] = t;
 

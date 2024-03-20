@@ -178,7 +178,8 @@ static inline gab_value __gab_dtoval(double value) {
 
 #define __gab_valisn(val) (((val) & __GAB_QNAN) != __GAB_QNAN)
 
-#define __gab_valisb(val) (val == gab_true || val == gab_false)
+#define __gab_valisb(val)                                                      \
+  (gab_valeq(val, gab_true) || gab_valeq(val, gab_false))
 
 #define __gab_obj(val)                                                         \
   (gab_value)(__GAB_SIGN_BIT | __GAB_QNAN | (uint64_t)(uintptr_t)(val))
@@ -255,6 +256,9 @@ static inline gab_value __gab_dtoval(double value) {
 /* Convenience macro for getting arguments in builtins */
 #define gab_arg(i) (i < argc ? argv[i] : gab_nil)
 
+/* Convenience macro for comparing values */
+#define gab_valeq(a, b) ((a) == (b))
+
 /*
  * Gab uses a purely RC garbage collection approach.
  *
@@ -310,7 +314,7 @@ static inline gab_value __gab_dtoval(double value) {
 #define V gab_value
 #define DEF_V gab_undefined
 #define HASH(a) (a)
-#define EQUAL(a, b) (a == b)
+#define EQUAL(a, b) (gab_valeq(a, b))
 #include "dict.h"
 
 #define NAME helps
@@ -318,7 +322,7 @@ static inline gab_value __gab_dtoval(double value) {
 #define V s_char
 #define DEF_V ((s_char){0})
 #define HASH(a) (a)
-#define EQUAL(a, b) (a == b)
+#define EQUAL(a, b) (gab_valeq(a, b))
 #include "dict.h"
 
 typedef enum gab_opcode {
@@ -953,6 +957,7 @@ static inline bool gab_valhasp(gab_value value) {
 static inline bool gab_valhast(gab_value value) {
   enum gab_kind k = gab_valkind(value);
   switch (k) {
+  case kGAB_SIGIL:
   case kGAB_RECORD:
   case kGAB_BOX:
     return true;
@@ -1922,7 +1927,7 @@ static inline gab_value gab_type(struct gab_eg *gab, enum gab_kind k) {
 }
 
 static inline bool gab_egvalisa(struct gab_eg *eg, gab_value a, gab_value b) {
-  return gab_valtype(eg, a) == b || a == b || gab_type(eg, gab_valkind(a)) == b;
+  return gab_valeq(gab_valtype(eg, a), b);
 }
 
 static inline struct gab_egimpl_rest
@@ -1938,11 +1943,6 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
     if (offset != GAB_PROPERTY_NOT_FOUND)
       return (struct gab_egimpl_rest){type, offset, sGAB_IMPL_PROPERTY};
   }
-
-  /* Check if the receiver _itself_ implments the message. ie { a = 1, b = 2 }*/
-  offset = gab_msgfind(message, type);
-  if (offset != GAB_PROPERTY_NOT_FOUND)
-    return (struct gab_egimpl_rest){type, offset, sGAB_IMPL_TYPE};
 
   /* Check if the receiver has a supertype, and if that supertype implments the
    * message. ie <gab.shape 0 1>*/
@@ -1978,7 +1978,7 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
  * @return False if the value is false or nil. Otherwise true.
  */
 static inline bool gab_valintob(gab_value self) {
-  return !(self == gab_false || self == gab_nil);
+  return !(gab_valeq(self, gab_false) || gab_valeq(self, gab_nil));
 }
 
 static inline const char *gab_valintocs(struct gab_triple gab, gab_value value);

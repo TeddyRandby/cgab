@@ -1,16 +1,5 @@
-&:is :def! do
-  ?self == other
-end
+'msg' :use
 
-&is_n? :def! {
-  [] = => false,
-  .gab.number = => true,
-}
-
-&:is_s? :def! {
-  [] = => false,
-  .gab.string = => true,
-}
-
-
-&:boolean.into :def! => self
+\is? :def! ([], do other
+  self ? == other
+end)

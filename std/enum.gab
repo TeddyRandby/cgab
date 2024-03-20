@@ -1,31 +1,49 @@
 'msg' :use
+'rec' :use
 'monads' :use
 
+# This wrapper does no work - it just passes the
+# arguments into \def!. However, it is useful to
+# maintain the layer in the api in case it is needed
+# in the future.
 \def.enum.next! :def! (['gab.message'], do t, next
-  self :def! ([t], next)
+  self :def! ([t], do n
+    ok, nx = next (self, n)
+
+    (ok, n, nx) :options.into
+  end)
 end)
 
+# Define a 'step' message with the 
 \def.enum.step! :def! (['gab.message'], do step
   # A step message dispatches
   # on the option returned by the 'next' message.
   self :defcase! {
     # In the case where there is a next value,
     # return a tuple:
-    #  (.step, next-key, current-value[])
+    #  (.ok, next-key, current-value[])
     .ok = do i, n, nx
-      (.step, nx, step (i, n))
+      (.ok, nx, step (i, n))
     end,
-    # Otherwise, return .done
-    .none = .done,
+    # Otherwise, return .none
+    .none = .none,
   }
 end)
 
-\def.enum! :def! (['gab.message'], do t, init, next, step
+\def.enum! :def! (['gab.message'], do t, args
+  init, next, step = args:at! ('init', 'next', 'step')
+
   self :def! ([t], do n
+    # Initialize the enumerator with 'init'.
+    # All next values will pass through 'init' as well,
+    # so it should be designed to do nothing for that case.
     n = init n
 
+    # Call 'next', with the invariant 'self' and the variant 'n'
     ok, n, nx = next (self, n)
 
+    # Dispatch to 'step', on 'ok'. This will terminate if
+    # 'next' returned the sigil .done
     step (ok, self, n, nx)
   end)
 end)

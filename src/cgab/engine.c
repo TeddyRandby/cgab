@@ -16,7 +16,10 @@
 
 struct primitive {
   const char *name;
-  enum gab_kind type;
+  union {
+    enum gab_kind kind;
+    gab_value type;
+  };
   gab_value primitive;
 };
 
@@ -35,120 +38,153 @@ struct primitive all_primitives[] = {
     },
 };
 
-struct primitive specific_primitive[] = {
+struct primitive type_primitives[] = {
+    {
+        .name = mGAB_BND,
+        .type = gab_false,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
+    },
+    {
+        .name = mGAB_BOR,
+        .type = gab_false,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
+    },
+    {
+        .name = mGAB_LIN,
+        .type = gab_false,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIN),
+    },
+    {
+        .name = mGAB_BND,
+        .type = gab_true,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
+    },
+    {
+        .name = mGAB_BOR,
+        .type = gab_true,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
+    },
+    {
+        .name = mGAB_LIN,
+        .type = gab_true,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIN),
+    },
+};
+
+struct primitive kind_primitives[] = {
     {
         .name = mGAB_BIN,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_BIN),
     },
     {
         .name = mGAB_BIN,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_BIN),
     },
     {
         .name = mGAB_BOR,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_BOR),
     },
     {
         .name = mGAB_BND,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_BND),
     },
     {
         .name = mGAB_LSH,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_LSH),
     },
     {
         .name = mGAB_RSH,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_RSH),
     },
     {
         .name = mGAB_ADD,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_ADD),
     },
     {
         .name = mGAB_SUB,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_SUB),
     },
     {
         .name = mGAB_MUL,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_MUL),
     },
     {
         .name = mGAB_DIV,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_DIV),
     },
     {
         .name = mGAB_MOD,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_MOD),
     },
     {
         .name = mGAB_LT,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_LT),
     },
     {
         .name = mGAB_LTE,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_LTE),
     },
     {
         .name = mGAB_GT,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_GT),
     },
     {
         .name = mGAB_GTE,
-        .type = kGAB_NUMBER,
+        .kind = kGAB_NUMBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_GTE),
     },
     {
         .name = mGAB_ADD,
-        .type = kGAB_STRING,
+        .kind = kGAB_STRING,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CONCAT),
     },
     {
         .name = mGAB_EQ,
-        .type = kGAB_UNDEFINED,
+        .kind = kGAB_UNDEFINED,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
     },
     {
         .name = mGAB_SPLAT,
-        .type = kGAB_RECORD,
+        .kind = kGAB_RECORD,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_SPLAT),
     },
     {
         .name = mGAB_GET,
-        .type = kGAB_RECORD,
+        .kind = kGAB_RECORD,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_GET),
     },
     {
         .name = mGAB_SET,
-        .type = kGAB_RECORD,
+        .kind = kGAB_RECORD,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_SET),
     },
     {
         .name = mGAB_CALL,
-        .type = kGAB_NATIVE,
+        .kind = kGAB_NATIVE,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_NATIVE),
     },
     {
         .name = mGAB_CALL,
-        .type = kGAB_MESSAGE,
+        .kind = kGAB_MESSAGE,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_MESSAGE),
     },
     {
         .name = mGAB_CALL,
-        .type = kGAB_BLOCK,
+        .kind = kGAB_BLOCK,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BLOCK),
     },
 };
@@ -205,17 +241,27 @@ struct gab_triple gab_create() {
 
   gab_setup_natives(gab);
 
-  for (int i = 0; i < LEN_CARRAY(specific_primitive); i++) {
+  for (int i = 0; i < LEN_CARRAY(kind_primitives); i++) {
     gab_egkeep(
         gab.eg,
         gab_iref(
             gab,
-            gab_spec(gab,
-                     (struct gab_spec_argt){
-                         .name = specific_primitive[i].name,
-                         .receiver = gab_type(eg, specific_primitive[i].type),
-                         .specialization = specific_primitive[i].primitive,
-                     })));
+            gab_spec(gab, (struct gab_spec_argt){
+                              .name = kind_primitives[i].name,
+                              .receiver = gab_type(eg, kind_primitives[i].kind),
+                              .specialization = kind_primitives[i].primitive,
+                          })));
+  }
+
+  for (int i = 0; i < LEN_CARRAY(type_primitives); i++) {
+    gab_egkeep(
+        gab.eg,
+        gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
+                                        .name = type_primitives[i].name,
+                                        .receiver = type_primitives[i].type,
+                                        .specialization =
+                                            type_primitives[i].primitive,
+                                    })));
   }
 
   for (int i = 0; i < LEN_CARRAY(all_primitives); i++) {

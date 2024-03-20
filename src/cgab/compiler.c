@@ -175,7 +175,7 @@ enum comp_status {
 
 #define FMT_REFERENCE_BEFORE_INIT "$ is referenced before it is initialized."
 
-#define FMT_ID_NOT_FOUND "$ is not defined in this scope."
+#define FMT_ID_NOT_FOUND "Variable $ is not defined in this scope."
 
 #define FMT_ASSIGNMENT_ABANDONED                                               \
   "This assignment expression is incomplete.\n\n"                              \
@@ -2049,8 +2049,6 @@ mv compile_send(struct bc *bc, mv lhs, bool assignable) {
 
   gab_value name = trim_prev_id(bc);
 
-  uint16_t slot = peek_slot(bc);
-
   mv rhs = compile_optional_expression_prec(bc, &lhs, kSEND + 1);
 
   if (assignable && !match_ctx(bc, kTUPLE)) {
@@ -2061,11 +2059,14 @@ mv compile_send(struct bc *bc, mv lhs, bool assignable) {
        * */
       rhs.status++;
 
+      if (rhs.multi)
+        rhs = compile_mv_trim(bc, rhs, 1);
+
       return compile_assignment(
           bc, (struct lvalue){
                   .tok = t,
                   .kind = kMESSAGE,
-                  .slot = slot - rhs.multi,
+                  .slot = peek_slot(bc),
                   .as.property.message = name,
                   .as.property.args = reconcile_send_args(lhs, rhs),
               });
@@ -2169,13 +2170,6 @@ static mv compile_exp_idn(struct bc *bc, mv lhs, bool assignable) {
 
     if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
       return compile_lvalue(bc, assignable, id, 0);
-
-    if (match_ctx(bc, kASSIGNMENT_TARGET)) {
-      eat_token(bc);
-      compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, FMT_ASSIGNMENT_ABANDONED,
-                     tok_id(bc, TOKEN_EQUAL));
-      return MV_ERR;
-    }
   }
 
   switch (result) {

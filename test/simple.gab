@@ -3,8 +3,6 @@
 'numbers' :use
 'transducers' :use
 
-\self :def! ([], do; self end)
-
 list = .gab.list :make
 
 list:push!(1,2,3,4, 5)

@@ -97,13 +97,18 @@ a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
                         gab_value argv[argc]) {
-  if (argc != 2 || gab_valkind(argv[1]) != kGAB_NUMBER) {
-    return gab_panic(gab, "Invalid call to gab_lib_at");
-  }
+  gab_value list = gab_arg(0);
+  gab_value voffset = gab_arg(1);
 
-  uint64_t offset = gab_valton(argv[1]);
+  if (gab_valkind(voffset) != kGAB_NUMBER)
+    return gab_pktypemismatch(gab, voffset, kGAB_NUMBER);
 
-  gab_value res = list_at(argv[0], offset);
+  uint64_t offset = gab_valton(voffset);
+
+  gab_value res = list_at(list, offset);
+
+  if (res == gab_undefined)
+    return gab_panic(gab, "Index $ is out of bounds", voffset);
 
   gab_vmpush(gab.vm, res);
   return NULL;
@@ -270,7 +275,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "list.splat", gab_lib_splat),
       },
       {
-          "at",
+          "at!",
           type,
           gab_snative(gab, "list.at", gab_lib_at),
       },

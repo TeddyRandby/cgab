@@ -69,7 +69,7 @@ static inline gab_value list_at(gab_value self, uint64_t offset) {
   v_gab_value *data = gab_boxdata(self);
 
   if (offset >= data->len)
-    return gab_nil;
+    return gab_undefined;
 
   return v_gab_value_val_at(data, offset);
 }

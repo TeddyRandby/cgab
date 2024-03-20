@@ -18,6 +18,14 @@ end)
   'Cannot unwrap {self}: ':panic
 end)
 
+\unwrap :def! ([.ok], do args[]
+  (.true, args**)
+end)
+
+\unwrap :def! ([.nil, .err, .false], do
+  .false
+end)
+
 \options.into :def! ([.nil, .err, .false], do args
   .none
 end)

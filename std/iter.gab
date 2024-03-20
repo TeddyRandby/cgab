@@ -1,8 +1,10 @@
 'msg' :use
 
+\self :def! ([], do; self end)
+
 # The work of reducing
 \reduce :defcase! {
-  .step = do i, m, n, acc, xs, r
+  .ok = do i, m, n, acc, xs, r
     # Apply the reducing function
     acc = r :reduce.step (acc, xs**)
     # Apply the producer, resolving new values for the next step
@@ -10,8 +12,7 @@
     # Tailcall to the next step
     s :reduce (i, m, n, acc, xs, r)
   end,
-  # TODO: Make multple '_'s okay
-  .done = do _a, _b, _c, acc, xs, r
+  .none = do _i, _m, _n, acc, _xs, r
     r :reduce.done (acc)
   end,
 }

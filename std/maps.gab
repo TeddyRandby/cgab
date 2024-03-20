@@ -1,65 +1,41 @@
-def maps.t = use .map
+'msg' :use
+'enum' :use
+maps.t = 'map' :use
 
-\[] when!(maps.t) do (key)
-  self at(key) unwrap
-end
+\has? :def! ([maps.t], do key
+  self:at key  == .ok
+end)
 
-&[=] when!(maps.t) do (key, value)
-  self put!(key, value)
-end
+\at_or! :def! ([maps.t], do key, default
+  self:at key :unwrap:or do
+    self:put! (key, default)
+  end
+end)
 
-&has? def!(maps.t) do (key)
-  self at(key) == .some
-end
+\at_pair! :def! ([maps.t], do key,
+  (key, self:at key)
+end)
 
-&at_or! def!(maps.t) do (key, default)
-  self at(key) unwrap or =>
-    self put!(key, default)
-end
+\del! :def!([maps.t], do key
+  self:put!(key, .nil)
+end)
 
-&del! def!(maps.t) do (key)
-  self put!(key, nil)
-end
+\maps.next? :def.enum.next! (maps.t, \next?)
 
-&maps.values def!(maps.t) do (k)
-  yield self at(k)
+\maps.values.step :def.enum.step! \at!
 
-  def next_key = self next(k)
+\maps.pairs.step :def.enum.step! \at_pair!
 
-  next_key == nil  or =>
-    self maps.values(next_key)
-end
+\values :def.enum! (maps.t, {
+  init = \self,
+  next = \maps.next?,
+  step = \maps.values.step,
+})
 
-&values def!(maps.t) do
-  def key = self next
-
-  key == nil  or =>
-    self maps.values(key)
-end
-
-& maps.keys def!(maps.t) do (k)
-  yield k
-
-  def next_key = self next(k)
-
-  next_key == nil  or =>
-    self maps.keys(next_key)
-end
-
-& keys def!(maps.t) do
-  def key = self next
-
-  key == nil  or =>
-    self maps.keys(key)
-end
-
-#& pairs def!(maps.t) do
-#    key = self next
-#
-#    loop
-#      yield key, self[key]
-#      key = self next(key)
-#    until key == nil end
-#end
+\pairs :def.enum! (maps.t, {
+  init = \self,
+  next = \maps.next?,
+  step = \maps.pairs.step,
+})
 
 maps.t

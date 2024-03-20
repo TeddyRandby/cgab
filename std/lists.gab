@@ -10,19 +10,31 @@ lists.t = 'list' :use
   self :transduce (m, .gab.list :make, \push!, td)
 end)
 
-\lists.next? :def.enum.next! (lists.t, do n
-  (self:len > n, n, n + 1) :options.into
+\next? :def! ([lists.t], do v
+  (self:len > v, v + 1)
 end)
 
-\lists.values.step :def.enum.step! \at
-
-\lists.pairs.step :def.enum.step! do n
+\at_pair! :def! ([lists.t], do n
   (n, self:at n)
-end
+end)
 
-\values :def.enum! (lists.t, \numbers.into, \lists.next?, \lists.values.step)
+\lists.next? :def.enum.next! (lists.t, \next?)
 
-\pairs :def.enum! (lists.t, \numbers.into, \lists.next?, \lists.pairs.step)
+\lists.values.step :def.enum.step! \at!
+
+\lists.pairs.step :def.enum.step! \at_pair!
+
+\values :def.enum! (lists.t, {
+  init = \numbers.into,
+  next = \lists.next?,
+  step = \lists.values.step,
+})
+
+\pairs :def.enum! (lists.t, {
+  init = \numbers.into,
+  next = \lists.next?,
+  step = \lists.pairs.step,
+})
 
 \empty? :def! ([lists.t], do
   self:len == 0

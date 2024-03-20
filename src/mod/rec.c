@@ -72,8 +72,24 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
     return NULL;
   }
 
-  gab_vmpush(gab.vm, gab_string(gab, "some"));
+  gab_vmpush(gab.vm, gab_string(gab, "ok"));
   gab_vmpush(gab.vm, result);
+  return NULL;
+}
+
+a_gab_value *gab_lib_atn(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
+  gab_value rec = gab_arg(0);
+
+  for (size_t i = 1; i < argc; i++) {
+    gab_value res = gab_recat(rec, argv[i]);
+
+    if (res == gab_undefined)
+      return gab_panic(gab, "$ has no property $", rec, argv[i]);
+
+    gab_vmpush(gab.vm, res);
+  }
+
   return NULL;
 }
 
@@ -256,6 +272,7 @@ a_gab_value *gab_lib_to_m(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
+  gab_value type = gab_type(gab.eg, kGAB_RECORD);
   struct gab_spec_argt specs[] = {
       {
           "make",
@@ -269,57 +286,62 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       },
       {
           "len",
-          gab_type(gab.eg, kGAB_RECORD),
+          type,
           gab_snative(gab, "len", gab_lib_len),
       },
       {
           "to_l",
-          gab_type(gab.eg, kGAB_RECORD),
+          type,
           gab_snative(gab, "to_l", gab_lib_to_l),
       },
       {
           "to_m",
-          gab_type(gab.eg, kGAB_RECORD),
+          type,
           gab_snative(gab, "to_m", gab_lib_to_m),
       },
       {
           "put!",
-          gab_type(gab.eg, kGAB_RECORD),
+          type,
           gab_snative(gab, "put", gab_lib_put),
       },
       {
           "at",
-          gab_type(gab.eg, kGAB_RECORD),
+          type,
           gab_snative(gab, "at", gab_lib_at),
       },
       {
-          "records.next?",
-          gab_type(gab.eg, kGAB_RECORD),
-          gab_snative(gab, "next", gab_lib_next),
+          "at!",
+          type,
+          gab_snative(gab, "at!", gab_lib_atn),
+      },
+      {
+          "next?",
+          type,
+          gab_snative(gab, "next?", gab_lib_next),
       },
       {
           "slice",
-          gab_type(gab.eg, kGAB_RECORD),
+          type,
           gab_snative(gab, "slice", gab_lib_slice),
       },
       {
           "push",
-          gab_type(gab.eg, kGAB_RECORD),
+          type,
           gab_snative(gab, "push", gab_lib_push),
       },
       {
           "with",
-          gab_type(gab.eg, kGAB_RECORD),
+          type,
           gab_snative(gab, "with", gab_lib_with),
       },
       {
           "clear!",
-          gab_type(gab.eg, kGAB_RECORD),
+          type,
           gab_snative(gab, "clear", gab_lib_clear),
       },
   };
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
-  return NULL;
+  return a_gab_value_one(type);
 }
