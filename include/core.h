@@ -144,6 +144,11 @@
 #define GAB_SEND_HASH(t) (t & (cGAB_SEND_CACHE_LEN - 1))
 // #define GAB_CALL_HASH(t) (t & (cGAB_CALL_CACHE_LEN - 1))
 
+#define GAB_HAMT_BITS (6)
+#define GAB_HAMT_SIZE (1 << GAB_HAMT_BITS)
+#define GAB_HAMT_MASK (GAB_HAMT_SIZE - 1)
+#define GAB_HAMT_IDXMASK (0x3f)
+
 #define VAR_EXP 255
 #define fHAVE_VAR (1 << 0)
 #define fHAVE_TAIL (1 << 1)

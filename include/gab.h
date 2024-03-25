@@ -132,6 +132,10 @@ enum gab_kind {
   kGAB_SHAPE,
   kGAB_BLOCK,
   kGAB_BOX,
+  kGAB_MAP,
+  kGAB_MAPNODE,
+  kGAB_VEC,
+  kGAB_VECNODE,
   kGAB_NKINDS,
 };
 
@@ -1673,6 +1677,91 @@ static inline gab_value *gab_recdata(gab_value rec) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   return GAB_VAL_TO_RECORD(rec)->data;
 };
+
+struct gab_obj_mapnode {
+  struct gab_obj header;
+
+  /*
+   * Masks for describing 'data'
+   */
+  size_t mask, vmask;
+
+  /*
+   * Dense array of children. Each child has 2 slots in the array.
+   * This optimizes for the common case of a node being a 'leaf'.
+   * Instead of separately allocating the leaves as nodes,
+   * they are stored directly in this array as [K | V].
+   * The pairs which are leaves are denoted in the mask 'vmask'.
+   */
+  gab_value data[];
+};
+
+/*
+ * The gab_obj_map serves as the root of a HAMT. All of the children are
+ * mapnodes, and may be leaves or branches. The map is the value that is
+ * interned, and so it caches the length and hash.
+ */
+struct gab_obj_map {
+  struct gab_obj header;
+
+  size_t len, hash, mask, vmask;
+
+  gab_value data[];
+};
+
+#define GAB_VAL_TO_MAP(value) ((struct gab_obj_map *)gab_valtoo(value))
+#define GAB_VAL_TO_MAPNODE(value) ((struct gab_obj_mapnode *)gab_valtoo(value))
+
+gab_value gab_map(struct gab_triple gab, size_t stride, size_t len,
+                  gab_value keys[static len], gab_value vals[static len]);
+
+gab_value __gab_mapnode(struct gab_triple gab, size_t len, size_t space,
+                        gab_value data[static len]);
+
+gab_value __gab_mapnode(struct gab_triple gab, size_t len, size_t space,
+                        gab_value data[static len]);
+
+gab_value gab_mapat(gab_value map, gab_value key);
+
+gab_value gab_mapput(struct gab_triple gab, gab_value map, gab_value key,
+                     gab_value val);
+
+gab_value gab_mapdel(struct gab_triple gab, gab_value map, gab_value key,
+                     gab_value val);
+
+struct gab_obj_vecnode {
+  struct gab_obj header;
+
+  gab_value nodes[GAB_HAMT_SIZE];
+  gab_value elems[GAB_HAMT_SIZE];
+};
+
+struct gab_obj_vec {
+  struct gab_obj header;
+
+  size_t depth, hlen, tlen;
+
+  gab_value head, tail, shape;
+};
+
+gab_value gab_vector(struct gab_triple gab, size_t stride, size_t len,
+                     gab_value data[static len]);
+
+gab_value gab_vecat(struct gab_triple gab, gab_value vec, gab_value key);
+
+gab_value gab_vecput(struct gab_triple gab, gab_value vec, size_t key,
+                     gab_value val);
+
+gab_value gab_vecpush(struct gab_triple gab, gab_value vec, gab_value val);
+
+gab_value gab_vecpop(struct gab_triple gab, gab_value vec, gab_value *valout);
+
+void gab_mvecput(struct gab_triple gab, gab_value vec, size_t key,
+                 gab_value val);
+
+void gab_mvecpush(struct gab_triple gab, gab_value vec, gab_value val);
+
+void gab_mvecpop(struct gab_triple gab, gab_value vec, gab_value *valout);
 
 /**
  * @brief The message object, a collection of receivers and specializations,

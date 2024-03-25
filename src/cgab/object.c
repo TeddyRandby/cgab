@@ -560,5 +560,11 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
   return __gab_obj(self);
 }
 
+gab_value gab_map(struct gab_triple gab, size_t stride, size_t len,
+                  gab_value keys[static len], gab_value vals[static len]);
+
+gab_value __gab_mapnode(struct gab_triple gab, size_t len, size_t space,
+                        gab_value data[static len]);
+
 #undef CREATE_GAB_FLEX_OBJ
 #undef CREATE_GAB_OBJ
