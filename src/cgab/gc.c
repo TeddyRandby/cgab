@@ -150,6 +150,42 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
     break;
   }
 
+  case kGAB_MAP: {
+    struct gab_obj_map *map = (struct gab_obj_map *)obj;
+    size_t len = __builtin_popcount(map->mask);
+
+    for (size_t i = 0; i < len; i++) {
+      size_t offset = i * 2;
+
+      if (gab_valiso(map->data[offset]))
+        fnc(gab, gab_valtoo(map->data[offset]));
+
+      if (map->vmask & (1 << i)) {
+        if (gab_valiso(map->data[offset + 1]))
+          fnc(gab, gab_valtoo(map->data[offset + 1]));
+      }
+    }
+    break;
+  }
+
+  case kGAB_MAPNODE: {
+    struct gab_obj_mapnode *map = (struct gab_obj_mapnode *)obj;
+    size_t len = __builtin_popcount(map->mask);
+
+    for (size_t i = 0; i < len; i++) {
+      size_t offset = i * 2;
+
+      if (gab_valiso(map->data[offset]))
+        fnc(gab, gab_valtoo(map->data[offset]));
+
+      if (map->vmask & (1 << i)) {
+        if (gab_valiso(map->data[offset + 1]))
+          fnc(gab, gab_valtoo(map->data[offset + 1]));
+      }
+    }
+    break;
+  }
+
   case kGAB_RECORD: {
     struct gab_obj_record *rec = (struct gab_obj_record *)obj;
 

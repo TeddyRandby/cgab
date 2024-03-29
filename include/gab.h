@@ -1715,19 +1715,23 @@ struct gab_obj_map {
 gab_value gab_map(struct gab_triple gab, size_t stride, size_t len,
                   gab_value keys[static len], gab_value vals[static len]);
 
-gab_value __gab_mapnode(struct gab_triple gab, size_t len, size_t space,
-                        gab_value data[static len]);
+gab_value __gab_map(struct gab_triple gab, size_t len, size_t space,
+                    gab_value *data);
 
 gab_value __gab_mapnode(struct gab_triple gab, size_t len, size_t space,
-                        gab_value data[static len]);
+                        gab_value *data);
 
 gab_value gab_mapat(gab_value map, gab_value key);
 
 gab_value gab_mapput(struct gab_triple gab, gab_value map, gab_value key,
                      gab_value val);
 
-gab_value gab_mapdel(struct gab_triple gab, gab_value map, gab_value key,
-                     gab_value val);
+gab_value gab_mapdel(struct gab_triple gab, gab_value map, gab_value key);
+
+gab_value gab_maplen(gab_value map);
+gab_value gab_ukmapat(gab_value map, size_t i);
+gab_value gab_uvmapat(gab_value map, size_t i);
+gab_value gab_umaphas(gab_value map, size_t i);
 
 struct gab_obj_vecnode {
   struct gab_obj header;
