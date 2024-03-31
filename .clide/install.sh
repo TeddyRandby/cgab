@@ -18,6 +18,9 @@ echo "Beginning installation."
 
 # We need to preserve our install prefixes for the install here.
 # The build type is not necessary - all our artifacts should have been built above.
-sudo --preserve-env=GAB_PREFIX,GAB_INSTALLPREFIX make install || exit 1
+sudo --preserve-env=GAB_PREFIX make install_gab || exit 1
+
+make install_modules || exit 1
+make install_std || exit 1
 
 echo "Success!"

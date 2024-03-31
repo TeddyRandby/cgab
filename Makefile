@@ -56,8 +56,6 @@ install_gab: $(BUILD_PREFIX)/gab
 	install -vC $(BUILD_PREFIX)/gab $(INSTALL_PREFIX)/bin
 	install -vC $(BUILD_PREFIX)/libcgab.so $(INSTALL_PREFIX)/lib
 
-install: install_gab install_modules install_std
-
 uninstall:
 	rm -rf $(INSTALL_PREFIX)/include/gab
 	rm $(INSTALL_PREFIX)/lib/libcgab.so
