@@ -12,7 +12,7 @@ end)
   end
 end)
 
-\at_pair! :def! ([maps.t], do key,
+\at_pair! :def! ([maps.t], do key
   (key, self:at key)
 end)
 
@@ -20,19 +20,19 @@ end)
   self:put!(key, .nil)
 end)
 
-\maps.next? :def.enum.next! (maps.t, \next?)
+\maps.next? :def.iter.next! (maps.t, \next?)
 
-\maps.values.step :def.enum.step! \at!
+\maps.values.step :def.iter.step! \at!
 
-\maps.pairs.step :def.enum.step! \at_pair!
+\maps.pairs.step :def.iter.step! \at_pair!
 
-\values :def.enum! (maps.t, {
+\values :def.iter! (maps.t, {
   init = \self,
   next = \maps.next?,
   step = \maps.values.step,
 })
 
-\pairs :def.enum! (maps.t, {
+\pairs :def.iter! (maps.t, {
   init = \self,
   next = \maps.next?,
   step = \maps.pairs.step,

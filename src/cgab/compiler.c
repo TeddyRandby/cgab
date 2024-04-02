@@ -1494,7 +1494,6 @@ static mv compile_expressions(struct bc *bc) {
     return MV_ERR;
 
   if (match_token(bc, TOKEN_EOF)) {
-    eat_token(bc);
     compiler_error(bc, GAB_MISSING_END,
                    "Make sure the block at line $ is closed.",
                    gab_number(line));
@@ -2001,6 +2000,9 @@ static mv compile_record(struct bc *bc) {
 
 static mv compile_record_tuple(struct bc *bc) {
   mv rhs = {0};
+
+  if (skip_newlines(bc) < 0)
+    return MV_ERR;
 
   if (match_and_eat_token(bc, TOKEN_RBRACE))
     goto fin;

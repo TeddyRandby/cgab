@@ -11,19 +11,19 @@ end)
   (key, self:at! key)
 end)
 
-\records.next? :def.enum.next! (records.t, \next?)
+\records.next? :def.iter.next! (records.t, \next?)
 
-\records.values.step :def.enum.step! \at!
+\records.values.step :def.iter.step! \at!
 
-\records.pairs.step :def.enum.step! \at_pair!
+\records.pairs.step :def.iter.step! \at_pair!
 
-\values :def.enum! (records.t, {
+\values :def.iter! (records.t, {
   init = \numbers.into,
   next = \records.next?,
   step = \records.values.step,
 })
 
-\pairs :def.enum! (records.t, {
+\pairs :def.iter! (records.t, {
   init = \numbers.into,
   next = \records.next?,
   step = \records.pairs.step,

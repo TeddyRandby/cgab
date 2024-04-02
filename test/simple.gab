@@ -1,36 +1,85 @@
-'iter' :use
-'lists' :use
-'numbers' :use
-'transducers' :use
+spec.message.Args = { receiver, message, input, output }?
 
-list = .gab.list :make
+registry.messages = {}
 
-list:push!(1,2,3,4, 5)
+\spec.message.define :def! ([spec.message.Args], do args, semantics
+  message.predicate = 'predicate:message:{args}:{semantics}' :sigil.into
 
-test = list:lists.collect(\values, .td :filter \pos? )
+  registry.messages:at_or!(
+                      args:receiver,
+                      {},
+                  ):add!(
+                      args:message,
+                      message.predicate,
+                  )
 
-test:tap(\values, .nil, \self, \print)
+  \spec.fits? :def! ([message.predicate], do rec, input, output
+    v = args:with(.input_value, input):with(.output_value, output)
 
-sum = list:reduce(\values, 0, \+)
-'reduce with \+: {sum}':print
+    v:first(
+      \apply,
+      [ \spec.message.input_fits?,
+        \spec.message.output_fits?,
+        \spec.message.receiver_fits?,
+        \spec.message.semantics_fits?,
+      ],
+      \option.into,
+    )
+  end)
 
-sum = list:transduce(\values, 0, \+, .td :map \++)
-'transduce with \+ and map \++: {sum}':print
+  \spec.gen :def! ([message.predicate], do receiver
+    args:message :def! ([receiver], do input[]
+      args:input:spec.fits?(input**) :and(.false, do 
+        100:first(\upto, do
+    # Generate an output
+          output[] = args:output:spec.gen
 
-sum = list:map(\values, 0, \+, \++)
-'map with \++, reduce with \+: {sum}':print
+          args:output:spec.fits?(output**) :and do
+            # If there are no semantics to satisfy, just return this output
+            (semantics :or => output**) :and do
+              rec = args:receiver:spec.gen
 
-mapped_add_one = list:map(\values, .gab.list :make, \push!, \++)
-'map with \++, reduce with \push!:':print
-mapped_add_one:tap(\values, .nil, \self, \print)
+              args:receiver:spec.fits?(rec) :and do 
+                # Otherwise, we need to continue generating until we
+                # find a receiver and output which satisfy the semantics.
+                semantics(rec, input, output) :and do
+                  # Woohoo! modify self to reflect the generated receiver
+                  self:spec.modify!(rec)
 
-filtered = list:filter(\values, .gab.list :make, \push!, \even?)
-'filter with even?, reduce with \push!:':print
-filtered:tap(\values, .nil, \self, \print)
+                  # Return the generated output
+                  output**
+                end
+              end
+            end
+          end
+        end)
+      end)
+    end)
 
-first_two = list:take(\values, .gab.list :make, \push!, 2)
-'took 2, reduce with \push!':print
-first_two:tap(\values, .nil, \self, \print)
+    args:message
+  end)
 
-'partition by 2, reduce with \push!':print
-partition_by = list:partition(\values, .nil, \print, 2)
+  \spec.check :def! ([message.predicate], do
+    100:first(\upto, do
+      receiver = args:receiver:spec.gen
+
+      args:receiver:spec.fits?(receiver) :and do
+        input[]  = args:input:spec.gen
+
+        args:input:spec.fits?(input**) :and do
+          output[] = args:message(receiver, input**)
+          
+          self:spec.fits?(receiver, input, output)
+        end
+      end
+    end)
+  end)
+
+  \spec.explain :def! ([message.predicate], do
+    '{args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}'
+  end)
+
+  message.predicate
+end)
+
+.nil

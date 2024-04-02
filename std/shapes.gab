@@ -1,6 +1,9 @@
-:use 'shp'
+'enum' :use
+shapes.t = 'shp' :use
 
-def keys[.Shape]
+\shapes.next? :def.iter.next! ([shapes.t], \next?)
+
+keys[.Shape]
     key = self:next
 
     loop

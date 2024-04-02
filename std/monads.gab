@@ -26,10 +26,10 @@ end)
   .false
 end)
 
-\options.into :def! ([.nil, .err, .false], do args
+\options.into :def! ([.nil, .err, .false, .none], do args
   .none
 end)
 
-\options.into :def! ([.true], do args[]
+\options.into :def! ([.true, .ok], do args[]
   (.ok, args**)
 end)

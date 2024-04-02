@@ -2,11 +2,52 @@
 'rec' :use
 'monads' :use
 
-# This wrapper does no work - it just passes the
-# arguments into \def!. However, it is useful to
-# maintain the layer in the api in case it is needed
-# in the future.
-\def.enum.next! :def! (['gab.message'], do t, next
+### The 'iter' module defines a protocol for producing an ordered sequence of values. 
+### 
+### The protocol consists of three messages:
+###   - init
+###   - next
+###   - step
+###
+### The principle of the protocol is as follows:
+###   The 'next' message must:
+###     - Accept as the first argument the current 'key' into the sequence.
+###       For lists, this could be the index, for maps, a literal key.
+###     - Return a tuple of the form (<continue?>, <next-key>).
+###       <continue?> dictates whether or not the sequence has a next value.
+###         * [.nil, .false, .err, .none] all signal that the sequence is over.
+###         * [.true, .ok] signal that the sequence has a next value. In this case,
+###           the second element of the tuple is the next 'key', which will produce that next value.
+###       
+###   The 'step' message must:
+###     - Accept as the first argument the current 'key' into the sequence.
+###     - Return the value for that key.
+###
+###   The 'init' message must:
+###     - Accept as the first argument the current 'key' into the sequence, or .nil.
+###     - Return the current 'key', or transform .nil into the first 'key' in the sequence.
+###
+###
+### Using the helpers defined in this module, defining an itererator
+### looks like this:
+###
+### # Use the \next? builtin to determine if a list has a value after an index
+### \lists.next? :def.iter.next! (lists.t, \next?)
+### 
+### # Use the \at! builtin to get the value at an index. This will never crash because
+### #  it is never invoked with an index outside the bounds of the list.
+### \lists.values.step :def.iter.step! \at!
+### 
+### # Define the \values iterator using these helpers.
+### \values :def.iter! (lists.t, {
+###   init = \numbers.into, # \numbers.into is a perfect init-message here because it converts .nil to 0.
+###   next = \lists.next?,
+###   step = \lists.values.step,
+### })
+###
+
+# Define an 'iter' message using 'next' to check for and produce the next key.
+\def.iter.next! :def! (['gab.message'], do t, next
   self :def! ([t], do n
     ok, nx = next (self, n)
 
@@ -14,8 +55,8 @@
   end)
 end)
 
-# Define a 'step' message with the 
-\def.enum.step! :def! (['gab.message'], do step
+# Define a 'step' message to produce values until the 'next' message returns .none
+\def.iter.step! :def! (['gab.message'], do step
   # A step message dispatches
   # on the option returned by the 'next' message.
   self :defcase! {
@@ -30,11 +71,12 @@ end)
   }
 end)
 
-\def.enum! :def! (['gab.message'], do t, args
+# Define an iterator using the given 'init', 'next', and 'step' messages.
+\def.iter! :def! (['gab.message'], do t, args
   init, next, step = args:at! ('init', 'next', 'step')
 
   self :def! ([t], do n
-    # Initialize the enumerator with 'init'.
+    # Initialize the itererator with 'init'.
     # All next values will pass through 'init' as well,
     # so it should be designed to do nothing for that case.
     n = init n
@@ -46,4 +88,42 @@ end)
     # 'next' returned the sigil .done
     step (ok, self, n, nx)
   end)
+end)
+
+# The work of reducing
+\reduce :defcase! {
+  .ok = do i, m, n, acc, xs, r
+    # Apply the reducing function
+    acc = r :reduce.step (acc, xs**)
+    # Apply the producer, resolving new values for the next step
+    s, n, xs[] = m (i , n)
+    # Tailcall to the next step
+    s :reduce (i, m, n, acc, xs, r)
+  end,
+  .none = do _i, _m, _n, acc, _xs, r
+    r :reduce.done (acc)
+  end,
+}
+
+# numbers:reduce(\values, 0, \+)
+\reduce :def! ([], do m, acc, r
+  s, n, xs[] = m self
+
+  s :reduce (self, m, n, acc, xs, r)
+end)
+
+# numbers:transduce(\values, 0, \+, .td :map \++)
+\transduce :def! ([], do m, acc, r, td
+# Apply the transducer to the reducing function,
+# And then just call a normal reduce
+  self :reduce (m, acc, td r)
+end)
+
+# Implement the reducer protocol for blocks and messages
+\reduce.step :def! (['gab.block', 'gab.message'], do acc, xs[]
+  self (acc, xs**)
+end)
+
+\reduce.done :def! (['gab.block', 'gab.message'], do acc
+  acc
 end)
