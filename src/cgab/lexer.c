@@ -272,7 +272,7 @@ gab_token other(gab_lx *self) {
         return TOKEN_MESSAGE;
     }
 
-    return lexer_error(self, GAB_MALFORMED_TOKEN);
+    return TOKEN_MESSAGE;
 
   case ':':
     advance(self);
@@ -312,17 +312,15 @@ gab_token other(gab_lx *self) {
 }
 
 static inline void parse_comment(gab_lx *self) {
-  while (is_comment(peek(self))) {
-    while (peek(self) != '\n') {
-      advance(self);
-
-      if (peek_next(self) == '\0' || peek_next(self) == EOF)
-        break;
-    }
-
+  while (peek(self) != '\n') {
     advance(self);
-    finish_row(self);
+
+    if (peek_next(self) == '\0' || peek_next(self) == EOF)
+      break;
   }
+
+  advance(self);
+  finish_row(self);
 }
 
 gab_token gab_lexnext(gab_lx *self) {
@@ -500,13 +498,12 @@ size_t gab_srcappend(struct gab_src *self, size_t len, uint8_t bc[static len],
   return self->bytecode.len;
 }
 
-gab_value gab_srcname(struct gab_src* src) { return src->name; }
+gab_value gab_srcname(struct gab_src *src) { return src->name; }
 
-size_t gab_srcline(struct gab_src* src, size_t offset) {
+size_t gab_srcline(struct gab_src *src, size_t offset) {
   size_t tok = v_uint64_t_val_at(&src->bytecode_toks, offset);
   return v_uint64_t_val_at(&src->token_lines, tok);
 }
-
 
 #undef CURSOR
 #undef NEXT_CURSOR

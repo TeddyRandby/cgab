@@ -1,7 +1,5 @@
-'msg' :use
-'enum' :use
-'numbers' :use
-lists.t = 'list' :use
+'core' :use
+lists.t = 'clists' :use
 
 # Immediately apply td over (self :m), and collect
 # the results into a list.

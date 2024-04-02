@@ -140,9 +140,9 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   struct gab_spec_argt specs[] = {
       {
-          "map.new",
-          gab_undefined,
-          gab_snative(gab, "map.new", gab_lib_new),
+          "make",
+          gab_strtosig(type),
+          gab_snative(gab, "map.make", gab_lib_new),
       },
       {
           "len",

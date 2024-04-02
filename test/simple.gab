@@ -1,85 +1,18 @@
-spec.message.Args = { receiver, message, input, output }?
+#
+#
+#
+#
 
-registry.messages = {}
 
-\spec.message.define :def! ([spec.message.Args], do args, semantics
-  message.predicate = 'predicate:message:{args}:{semantics}' :sigil.into
+#
+#
 
-  registry.messages:at_or!(
-                      args:receiver,
-                      {},
-                  ):add!(
-                      args:message,
-                      message.predicate,
-                  )
+a = do
+  1 + .hi
 
-  \spec.fits? :def! ([message.predicate], do rec, input, output
-    v = args:with(.input_value, input):with(.output_value, output)
+  2
+end
 
-    v:first(
-      \apply,
-      [ \spec.message.input_fits?,
-        \spec.message.output_fits?,
-        \spec.message.receiver_fits?,
-        \spec.message.semantics_fits?,
-      ],
-      \option.into,
-    )
-  end)
+a()
 
-  \spec.gen :def! ([message.predicate], do receiver
-    args:message :def! ([receiver], do input[]
-      args:input:spec.fits?(input**) :and(.false, do 
-        100:first(\upto, do
-    # Generate an output
-          output[] = args:output:spec.gen
-
-          args:output:spec.fits?(output**) :and do
-            # If there are no semantics to satisfy, just return this output
-            (semantics :or => output**) :and do
-              rec = args:receiver:spec.gen
-
-              args:receiver:spec.fits?(rec) :and do 
-                # Otherwise, we need to continue generating until we
-                # find a receiver and output which satisfy the semantics.
-                semantics(rec, input, output) :and do
-                  # Woohoo! modify self to reflect the generated receiver
-                  self:spec.modify!(rec)
-
-                  # Return the generated output
-                  output**
-                end
-              end
-            end
-          end
-        end)
-      end)
-    end)
-
-    args:message
-  end)
-
-  \spec.check :def! ([message.predicate], do
-    100:first(\upto, do
-      receiver = args:receiver:spec.gen
-
-      args:receiver:spec.fits?(receiver) :and do
-        input[]  = args:input:spec.gen
-
-        args:input:spec.fits?(input**) :and do
-          output[] = args:message(receiver, input**)
-          
-          self:spec.fits?(receiver, input, output)
-        end
-      end
-    end)
-  end)
-
-  \spec.explain :def! ([message.predicate], do
-    '{args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}'
-  end)
-
-  message.predicate
-end)
-
-.nil
+2

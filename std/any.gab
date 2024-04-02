@@ -1,5 +1,0 @@
-'msg' :use
-
-\is? :def! ([], do other
-  self ? == other
-end)

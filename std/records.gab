@@ -1,7 +1,5 @@
-'msg' :use
-'enum' :use
-'numbers' :use
-records.t = 'rec' :use
+'core' :use
+records.t = 'crecords' :use
 
 \has? :def! ([records.t], do key
   self:at(key) == .ok

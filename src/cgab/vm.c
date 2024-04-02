@@ -153,7 +153,7 @@ static handler handlers[] = {
       PUSH(gab_nil), have++;                                                   \
                                                                                \
     if (__gab_unlikely(!__gab_valisn(PEEK_N(have - 1)))) {                     \
-      STORE_PRIMITIVE_ERROR_FRAME(1);                                          \
+      STORE_PRIMITIVE_ERROR_FRAME(have);                                       \
       ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK_N(have - 1),             \
             gab_valtype(EG(), PEEK_N(have - 1)),                               \
             gab_valtype(EG(), PEEK_N(have)));                                  \
@@ -247,20 +247,24 @@ static handler handlers[] = {
   }
 
 #define STORE_SP() (VM()->sp = SP())
+#define STORE_FRAME()                                                          \
+  ({                                                                           \
+    FRAME()->b = BLOCK();                                                      \
+    FRAME()->ip = IP();                                                        \
+    FRAME()->slots = FB();                                                     \
+  })
 
 #define PUSH_FRAME()                                                           \
   ({                                                                           \
     FRAME()++;                                                                 \
-    FRAME()->b = BLOCK();                                                      \
-    FRAME()->ip = IP();                                                        \
-    FRAME()->slots = FB();                                                     \
+    STORE_FRAME();                                                             \
   })
 
 #define PUSH_ERROR_FRAME(have)                                                 \
   ({                                                                           \
     FRAME()++;                                                                 \
     FRAME()->b = NULL;                                                         \
-    FRAME()->ip = NULL;                                                        \
+    FRAME()->ip = IP();                                                        \
     FRAME()->slots = SP() - have;                                              \
   })
 
@@ -268,7 +272,9 @@ static handler handlers[] = {
 
 #define STORE_PRIMITIVE_ERROR_FRAME(have)                                      \
   ({                                                                           \
-    if (!(IP()[-1] & fHAVE_TAIL)) {                                            \
+    if (IP()[-1] & fHAVE_TAIL) {                                               \
+      ;                                                                        \
+    } else {                                                                   \
       PUSH_FRAME();                                                            \
     }                                                                          \
     PUSH_ERROR_FRAME(have);                                                    \
@@ -294,6 +300,7 @@ static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
   return token;
 }
 
+// TODO: This doesn't really work with tail calls
 static inline gab_value compute_message_from_ip(struct gab_vm_frame *f) {
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
 
@@ -303,12 +310,6 @@ static inline gab_value compute_message_from_ip(struct gab_vm_frame *f) {
 
   return m;
 }
-
-/**
- * TODO: Introduce a way for native's to be on the stack here.
- * This way, stack traces won't look weird
- *
- */
 
 struct gab_err_argt vm_frame_build_err(struct gab_triple gab,
                                        struct gab_vm_frame *fp, bool has_parent,

@@ -1,6 +1,5 @@
-'msg' :use
-'enum' :use
-maps.t = 'map' :use
+'core' :use
+maps.t = 'cmaps' :use
 
 \has? :def! ([maps.t], do key
   self:at key  == .ok

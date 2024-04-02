@@ -168,7 +168,7 @@ enum gab_flags {
 #define mGAB_GTE ">="
 #define mGAB_SET "put!"
 #define mGAB_GET "at"
-#define mGAB_CALL "()"
+#define mGAB_CALL ""
 #define mGAB_SPLAT "**"
 #define mGAB_TYPE "?"
 #define mGAB_BIN "~"

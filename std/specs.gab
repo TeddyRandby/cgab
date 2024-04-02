@@ -1,14 +1,7 @@
-maps.t = 'maps':use
-records.t = 'records':use
-lists.t = 'lists':use
-
-'shapes':use
-'symbol':use
-'numbers':use
-'msg':use
-'any':use
-'assert':use
-'monads':use
+'core' :use
+'maps':use
+'lists':use
+'records':use
 
 explain_specs = do specs, separator
   specs:tuple.collect(
@@ -37,16 +30,16 @@ explain_strings = do strings, separator
 end
 
 ## Registry of qualified name -> spec
-registry.spec = maps.t :make
+registry.spec = .gab.map :make
 
 ## Registry of spec -> qualified name
-registry.name = maps.t :make
+registry.name = .gab.map :make
 
 ## Registry of qualified name -> help text
-registry.help = maps.t :make
+registry.help = .gab.map :make
 
 ## Registry of receiver -> list of spec'd messages
-registry.messages = maps.t :make
+registry.messages = .gab.map :make
 
 register! = do registry, name, value
   # Add a new specification to the registry.
@@ -180,7 +173,7 @@ end)
 
 \spec.gen :def! ([string.predicate], do
   len  = .int:between(1, 100)
-  list = lists.t :make
+  list = .gab.list :make
 
   len:times => list:push!(.int:between(0, 127))
   
@@ -240,7 +233,7 @@ end)
   .nil = do alt[]
     alt**
   end,
-  [records.t] = do alt[]
+  ['gab.record'] = do alt[]
     spec, value = self:head**
 
     does_fit, result[] = spec :spec.fits? value
@@ -254,7 +247,7 @@ end)
   map.predicate = 'predicate:map:{k_spec}:{v_spec}' :sigil.into
 
   \spec.fits?:def! ([map.predicate], do value
-    (value ? == maps.t) :and do
+    (value ? == .gab.map) :and do
       (.false, self, value)
     end :or do
       value :for(
@@ -269,7 +262,7 @@ end)
   end)
 
   \spec.gen :def! ([map.predicate], do
-    maps.t :make { [k_spec:spec.gen] =  v_spec:spec.gen }
+    .gab.map :make { [k_spec:spec.gen] =  v_spec:spec.gen }
   end)
 
   \spec.explain :def! ([map.predicate], do
@@ -288,7 +281,7 @@ end)
   end)
 
   \spec.gen :def! ([list.predicate], do
-    lists.t:make:push!(spec:spec.gen)
+    .gab.list:make:push!(spec:spec.gen)
   end)
 
   \spec.explain :def! ([list.predicate], do
@@ -320,7 +313,7 @@ end)
   end)
 
   \spec.gen :def! ([protocol.predicate], do
-    gen = records.t :make protocol
+    gen = .gab.record :make protocol
 
     protocol:for(\keys, do k
       found = registry.spec:at!(k)
