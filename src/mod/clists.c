@@ -235,9 +235,9 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   struct gab_spec_argt specs[] = {
       {
-          "make",
+          mGAB_CALL,
           gab_strtosig(type),
-          gab_snative(gab, "list.make", gab_lib_new),
+          gab_snative(gab, "list", gab_lib_new),
       },
       {
           "len",

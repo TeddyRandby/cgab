@@ -1,4 +1,4 @@
-nums.t = 'num' :use
+nums.t = 'cnumbers' :use
 
 \++ :def! ([nums.t], do
   self + 1

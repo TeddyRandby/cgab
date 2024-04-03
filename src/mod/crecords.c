@@ -52,7 +52,7 @@ a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
 
   gab_vmpush(gab.vm, result);
 
-  return NULL;
+  return nullptr;
 }
 
 #undef MIN
@@ -69,12 +69,12 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
 
   if (result == gab_undefined) {
     gab_vmpush(gab.vm, gab_string(gab, "none"));
-    return NULL;
+    return nullptr;
   }
 
   gab_vmpush(gab.vm, gab_string(gab, "ok"));
   gab_vmpush(gab.vm, result);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_atn(struct gab_triple gab, size_t argc,
@@ -90,7 +90,7 @@ a_gab_value *gab_lib_atn(struct gab_triple gab, size_t argc,
     gab_vmpush(gab.vm, res);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
@@ -104,7 +104,7 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
   else
     gab_vmpush(gab.vm, v);
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
@@ -117,13 +117,13 @@ a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
 
   gab_vmpush(gab.vm, tup);
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_clear(struct gab_triple gab, size_t argc,
                            gab_value argv[argc]) {
   if (argc < 1)
-    return gab_panic(gab, "Invalid call to gab_lib_push");
+    return gab_panic(gab, "Invalid call to gab_lib_clear");
 
   gab_value rec = gab_arg(0);
 
@@ -131,22 +131,20 @@ a_gab_value *gab_lib_clear(struct gab_triple gab, size_t argc,
     gab_recput(gab, rec, i, gab_nil);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_with(struct gab_triple gab, size_t argc,
                           gab_value argv[argc]) {
-  if (argc < 3)
-    return gab_panic(gab, "Invalid call to gab_lib_push");
 
-  gab_value key = argv[1];
-  gab_value val = argc > 2 ? argv[2] : gab_nil;
+  gab_value key = gab_arg(1);
+  gab_value val = gab_arg(2);
 
   gab_value rec = gab_recordwith(gab, argv[0], key, val);
 
   gab_vmpush(gab.vm, rec);
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
@@ -162,14 +160,10 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
     goto fin;
 
   switch (argc) {
-  case 1:
-    res[0] = gab_ok;
-    res[1] = gab_shpdata(shp)[0];
-    goto fin;
   case 2: {
     size_t current = gab_shpfind(shp, argv[1]);
 
-    if (current == UINT64_MAX || current + 1 == len)
+    if (current == UINT64_MAX || current == len)
       goto fin;
 
     res[0] = gab_ok;
@@ -182,7 +176,7 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
 
 fin:
   gab_nvmpush(gab.vm, LEN_CARRAY(res), res);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_tuple(struct gab_triple gab, size_t argc,
@@ -197,7 +191,7 @@ a_gab_value *gab_lib_tuple(struct gab_triple gab, size_t argc,
 
     gab_vmpush(gab.vm, result);
 
-    return NULL;
+    return nullptr;
   }
   default:
     return gab_panic(gab, "Invalid call to :tuple");
@@ -215,7 +209,7 @@ a_gab_value *gab_lib_shape(struct gab_triple gab, size_t argc,
     gab_value result = gab_erecordof(gab, argv[1]);
 
     gab_vmpush(gab.vm, result);
-    return NULL;
+    return nullptr;
   }
   default:
     return gab_panic(gab, "Expected 1 argument to :record.new");
@@ -229,7 +223,7 @@ a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
     gab_value result = gab_number(gab_reclen(argv[0]));
 
     gab_vmpush(gab.vm, result);
-    return NULL;
+    return nullptr;
   }
   default:
     return gab_panic(gab, "Invalid call to gab_lib_len");
@@ -244,7 +238,7 @@ a_gab_value *gab_lib_to_l(struct gab_triple gab, size_t argc,
         list_create(gab, gab_reclen(argv[0]), gab_recdata(argv[0]));
 
     gab_vmpush(gab.vm, list);
-    return NULL;
+    return nullptr;
   }
 
   default:
@@ -263,7 +257,7 @@ a_gab_value *gab_lib_to_m(struct gab_triple gab, size_t argc,
         map_create(gab, gab_reclen(rec), 1, gab_shpdata(shp), gab_recdata(rec));
 
     gab_vmpush(gab.vm, map);
-    return NULL;
+    return nullptr;
   }
 
   default:
@@ -275,14 +269,14 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value type = gab_type(gab.eg, kGAB_RECORD);
   struct gab_spec_argt specs[] = {
       {
-          "make",
+          mGAB_CALL,
           gab_sigil(gab, "gab.tuple"),
-          gab_snative(gab, "tuple.new", gab_lib_tuple),
+          gab_snative(gab, "tuple", gab_lib_tuple),
       },
       {
-          "make",
+          mGAB_CALL,
           gab_sigil(gab, "gab.record"),
-          gab_snative(gab, "record.new", gab_lib_shape),
+          gab_snative(gab, "record", gab_lib_shape),
       },
       {
           "len",

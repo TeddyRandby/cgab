@@ -2027,7 +2027,7 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value self) {
   }
   case kGAB_MESSAGE: {
     struct gab_obj_message *o = GAB_VAL_TO_MESSAGE(self);
-    snprintf(buffer, 128, "&:%s", gab_valintocs(gab, o->name));
+    snprintf(buffer, 128, "\\%s", gab_valintocs(gab, o->name));
 
     return gab_string(gab, buffer);
   }

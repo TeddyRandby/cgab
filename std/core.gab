@@ -2,6 +2,7 @@
 'cnumbers':use
 'crecords':use
 'cshapes':use
+'cstrings':use
 
 \self :def! ([], do; self end)
 \first :def! ([], do x; x end)
@@ -11,7 +12,7 @@
   [\and] = do alt[]
     alt**
   end,
-  [\then] = do cb, alt[]
+  [\then] = do alt[], cb
     cb (alt**)
   end,
   [\or] = do 
@@ -32,7 +33,7 @@
   [\or] = do alt[]
     alt**
   end,
-  [\else] = do cb, alt[]
+  [\else] = do alt[], cb
     cb (alt**)
   end,
 }
@@ -51,7 +52,7 @@ end)
   (.true, args**)
 end)
 
-\unwrap :def! ([.nil, .err, .false], do
+\unwrap :def! ([.none, .err], do
   .false
 end)
 
@@ -233,6 +234,22 @@ end
       f (xs**)
       rf(acc, xs**)
     end
+  end
+end
+
+\interpose :def.transducer! do sep
+  do rf
+    {
+      started = .false,
+      reduce.step = do acc, xs[]
+        acc = self:started:td.conditionally (acc, [sep], rf)
+        self:started = .true
+        rf(acc, xs**)
+      end,
+      reduce.done = do acc
+        acc
+      end,
+    }
   end
 end
 

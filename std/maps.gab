@@ -6,9 +6,9 @@ maps.t = 'cmaps' :use
 end)
 
 \at_or! :def! ([maps.t], do key, default
-  self:at key :unwrap:or do
-    self:put! (key, default)
-  end
+  self:at key :unwrap :else (self, do map
+    map:put! (key, default)
+  end)
 end)
 
 \at_pair! :def! ([maps.t], do key

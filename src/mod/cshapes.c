@@ -5,7 +5,7 @@
 a_gab_value *gab_lib_splat(struct gab_triple gab, size_t argc,
                            gab_value argv[static argc]) {
   gab_nvmpush(gab.vm, gab_shplen(argv[0]), gab_shpdata(argv[0]));
-  return NULL;
+  return nullptr;
 }
 
 #define MIN(a, b) (a < b ? a : b)
@@ -52,7 +52,7 @@ a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
   gab_value result = gab_shape(gab, 1, result_len, gab_shpdata(shp) + start);
 
   gab_vmpush(gab.vm, result);
-  return NULL;
+  return nullptr;
 }
 #undef MIN
 #undef MAX
@@ -88,7 +88,7 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
 
 fin:
   gab_vmpush(gab.vm, res);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_shape(struct gab_triple gab, size_t argc,
@@ -96,15 +96,26 @@ a_gab_value *gab_lib_shape(struct gab_triple gab, size_t argc,
   gab_value result = gab_shape(gab, 1, argc - 1, argv + 1);
 
   gab_vmpush(gab.vm, result);
-  return NULL;
+  return nullptr;
 };
+
+a_gab_value *gab_lib_with(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
+  gab_value key = gab_arg(1);
+
+  gab_value rec = gab_shapewith(gab, argv[0], key);
+
+  gab_vmpush(gab.vm, rec);
+
+  return nullptr;
+}
 
 a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
   gab_value result = gab_number(gab_shplen(argv[0]));
 
   gab_vmpush(gab.vm, result);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_to_l(struct gab_triple gab, size_t argc,
@@ -112,7 +123,7 @@ a_gab_value *gab_lib_to_l(struct gab_triple gab, size_t argc,
   gab_value list = list_create(gab, gab_shplen(argv[0]), gab_shpdata(argv[0]));
 
   gab_vmpush(gab.vm, list);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
@@ -147,9 +158,14 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_type(gab.eg, kGAB_SHAPE),
           gab_snative(gab, "splat", gab_lib_splat),
       },
+      {
+          "with",
+          gab_type(gab.eg, kGAB_SHAPE),
+          gab_snative(gab, "with", gab_lib_with),
+      },
   };
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
-  return NULL;
+  return nullptr;
 }

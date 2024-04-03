@@ -10,7 +10,7 @@ a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
   gab_value result = gab_number(gab_strlen(argv[0]));
 
   gab_vmpush(gab.vm, result);
-  return NULL;
+  return nullptr;
 };
 
 static inline bool begins(const char *str, const char *pat, size_t offset) {
@@ -42,7 +42,7 @@ a_gab_value *gab_lib_ends(struct gab_triple gab, size_t argc,
     const char *str = gab_valintocs(gab, argv[1]);
 
     gab_vmpush(gab.vm, gab_bool(ends(str, pat, 0)));
-    return NULL;
+    return nullptr;
   }
 
   case 3: {
@@ -57,11 +57,11 @@ a_gab_value *gab_lib_ends(struct gab_triple gab, size_t argc,
     const char *str = gab_valintocs(gab, argv[1]);
 
     gab_vmpush(gab.vm, gab_bool(ends(str, pat, gab_valton(argv[2]))));
-    return NULL;
+    return nullptr;
   }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_begins(struct gab_triple gab, size_t argc,
@@ -76,7 +76,7 @@ a_gab_value *gab_lib_begins(struct gab_triple gab, size_t argc,
     const char *str = gab_valintocs(gab, argv[1]);
 
     gab_vmpush(gab.vm, gab_bool(begins(str, pat, 0)));
-    return NULL;
+    return nullptr;
   }
   case 3: {
     if (gab_valkind(argv[1]) != kGAB_STRING) {
@@ -90,10 +90,10 @@ a_gab_value *gab_lib_begins(struct gab_triple gab, size_t argc,
     const char *str = gab_valintocs(gab, argv[1]);
 
     gab_vmpush(gab.vm, gab_bool(begins(str, pat, gab_valton(argv[2]))));
-    return NULL;
+    return nullptr;
   }
   }
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_is_digit(struct gab_triple gab, size_t argc,
@@ -120,7 +120,7 @@ a_gab_value *gab_lib_is_digit(struct gab_triple gab, size_t argc,
   int byte = gab_valintocs(gab, argv[0])[index];
 
   gab_vmpush(gab.vm, gab_bool(isdigit(byte)));
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_to_byte(struct gab_triple gab, size_t argc,
@@ -147,7 +147,7 @@ a_gab_value *gab_lib_to_byte(struct gab_triple gab, size_t argc,
   char byte = gab_valintocs(gab, argv[0])[index];
 
   gab_vmpush(gab.vm, gab_number(byte));
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
@@ -170,7 +170,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
   char byte = gab_valintocs(gab, argv[0])[index];
 
   gab_vmpush(gab.vm, gab_nstring(gab, 1, &byte));
-  return NULL;
+  return nullptr;
 }
 
 #define MIN(a, b) (a < b ? a : b)
@@ -222,10 +222,11 @@ a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
   gab_value res = gab_nstring(gab, size, str + start);
 
   gab_vmpush(gab.vm, res);
-  return NULL;
+  return nullptr;
 }
 
-a_gab_value * gab_lib_has(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
   if (argc < 2) {
     return gab_panic(gab, "&:has? expects one argument");
   }
@@ -234,20 +235,27 @@ a_gab_value * gab_lib_has(struct gab_triple gab, size_t argc, gab_value argv[arg
   const char *pat = gab_valintocs(gab, argv[1]);
 
   gab_vmpush(gab.vm, gab_bool(strstr(str, pat)));
-  return NULL;
+  return nullptr;
 }
 
-a_gab_value * gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_sigil_into(struct gab_triple gab, size_t argc,
+                                gab_value argv[argc]) {
+  gab_vmpush(gab.vm, gab_strtosig(argv[0]));
+  return nullptr;
+}
+
+a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
   if (argc < 2) {
     gab_vmpush(gab.vm, gab_string(gab, ""));
-    return NULL;
+    return nullptr;
   }
 
   gab_value str = gab_valintos(gab, argv[1]);
 
   if (argc == 2) {
     gab_vmpush(gab.vm, str);
-    return NULL;
+    return nullptr;
   }
 
   gab_gclock(gab.gc);
@@ -259,7 +267,7 @@ a_gab_value * gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[arg
 
   gab_vmpush(gab.vm, str);
   gab_gcunlock(gab.gc);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
@@ -275,6 +283,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "string.new",
           gab_undefined,
           gab_snative(gab, "string.new", gab_lib_new),
+      },
+      {
+          "sigil.into",
+          string_type,
+          gab_snative(gab, "sigil.into", gab_lib_sigil_into),
       },
       {
           "len",
@@ -314,5 +327,5 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
-  return NULL;
+  return nullptr;
 }

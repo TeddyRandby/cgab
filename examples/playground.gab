@@ -1,32 +1,32 @@
-spec = 'specs' :use
+'specs' :use
 
 ## cars.gab
 Car = { car.make, car.model, car.year, car.color }
 
-'car.make' :spec.def! {
+'car.make' :def.spec! {
   help = "The car's manufacturer, ie 'Ford'",
-  spec =  spec :or  ('Ford', 'Chevy', 'Toyota', 'Honda'),
+  spec =  .spec.or  ('Ford', 'Chevy', 'Toyota', 'Honda'),
 }
 
-'car.year' :spec.def! {
-  spec =  spec:and (spec:int,  spec:gt 2000)
+'car.year' :def.spec! {
+  spec =  .spec.and ( .spec.int (),  .spec.gt 2000 )
 }
 
-'car.color' :spec.def! {
-  spec =  spec:or ('RED', 'BLUE', 'WHITE', 'BLACK')
+'car.color' :def.spec! {
+  spec =  .spec.or ('RED', 'BLUE', 'WHITE', 'BLACK')
 }
 
-'car.model' :spec.def! {
-  spec =  spec:or ('Mustang', 'Civic', 'Camry', 'Prius')
+'car.model' :def.spec! {
+  spec =  .spec.or ('Mustang', 'Civic', 'Camry', 'Prius')
 }
 
-'car' :spec.def! {
-  spec =  spec:protocol(Car)
+'car' :def.spec! {
+  spec =  .spec.protocol Car
 }
 
-car.paint.spec =  'car.paint' :spec.def! {
+car.paint.spec =  'car.paint' :def.spec! {
     help = "Paint the car with the given color",
-    spec =  spec:message {
+    spec =  .spec.message {
       # The receiver's spec
       receiver =  'car' :spec,
       # The message we spec over
@@ -36,7 +36,7 @@ car.paint.spec =  'car.paint' :spec.def! {
       # Fetch the spec 'car.color' for the output
       output   =  'car.color' :spec,
       # Validate the implementation
-      validate = do receiver, input, output
+      semantics = do receiver, input, output
         (input:at!(0) == receiver:car.color) & (input:at!(0) == output:at!(0))
       end,
     }

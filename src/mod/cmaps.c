@@ -52,11 +52,11 @@ a_gab_value* gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]
   gab_value res = map_at(argv[0], argv[1]);
 
   if (res == gab_undefined) {
-    gab_vmpush(gab.vm, gab_string(gab, "none"));
+    gab_vmpush(gab.vm, gab_sigil(gab, "none"));
     return NULL;
   }
 
-  gab_vmpush(gab.vm, gab_string(gab, "some"));
+  gab_vmpush(gab.vm, gab_sigil(gab, "ok"));
   gab_vmpush(gab.vm, res);
   return NULL;
 }
@@ -84,7 +84,7 @@ a_gab_value* gab_lib_add(struct gab_triple gab, size_t argc, gab_value argv[argc
 
   map_put(gab, argv[0], argv[1], argv[2]);
 
-  gab_vmpush(gab.vm, gab_string(gab, "ok"));
+  gab_vmpush(gab.vm, gab_sigil(gab, "ok"));
   return NULL;
 }
 
@@ -140,9 +140,9 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   struct gab_spec_argt specs[] = {
       {
-          "make",
+          mGAB_CALL,
           gab_strtosig(type),
-          gab_snative(gab, "map.make", gab_lib_new),
+          gab_snative(gab, "map", gab_lib_new),
       },
       {
           "len",

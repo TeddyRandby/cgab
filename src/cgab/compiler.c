@@ -621,7 +621,10 @@ static inline void push_record(struct bc *bc, size_t len, size_t t) {
       uint16_t new_k = addk(bc, rec);
 
       v_uint8_t_set(&f->bc, prev_local_arg, prev_n - len * 2 + 1);
+
       f->bc.len -= (len * 4);
+      f->bc_toks.len -= (len * 4);
+
       push_short(bc, new_k, bc->offset - 1);
       return;
     }
