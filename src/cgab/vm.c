@@ -690,6 +690,7 @@ size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
                                                                                \
     SP() = VM()->sp;                                                           \
                                                                                \
+    assert(SP() >= before);                                                    \
     uint64_t have = SP() - before;                                             \
                                                                                \
     if (!have)                                                                 \

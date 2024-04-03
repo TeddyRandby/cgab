@@ -57,14 +57,13 @@ car.paint.spec =  'car.paint' :def.spec! {
 end)
 
 car.paint.spec:spec.explain:print
+'car':spec:spec.explain:print
 
 # Check our faulty implementation
 # & spec.check yields a stream of predicate results.
 # It generates receivers and inputs, sends the message,
 # And checks the output against the spec and semantics.
 # This code will run forever if the spec is always satisfied
-_, spec, value, path = car.paint.spec:first(\spec.check, do ok, spec, value, path
-     ok  :or do; (.some, spec, value, path) end
-  end)
+results[] = car.paint.spec:spec.check
 
-'result:':print(spec, value, path)
+results :print

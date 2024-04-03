@@ -5,7 +5,7 @@ lists.t = 'clists' :use
 # the results into a list.
 #   ie: some_list :list.collect (\values, .td :map \++)
 \lists.collect :def! ([], do m, td
-  self :transduce (m, .gab.list :make, \push!, td)
+  self :transduce (m, .gab.list(0), \push!, td)
 end)
 
 \next? :def! ([lists.t], do v

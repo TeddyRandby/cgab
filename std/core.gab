@@ -45,7 +45,7 @@ end)
 
 # All other types should panic when unwrapped
 \unwrap! :def! ([.none, .err], do args[]
-  'Cannot unwrap {self}: ':panic
+  'Cannot unwrap {self}':panic
 end)
 
 \unwrap :def! ([.ok], do args[]
@@ -141,14 +141,14 @@ end)
     # Initialize the itererator with 'init'.
     # All next values will pass through 'init' as well,
     # so it should be designed to do nothing for that case.
-    n = init n
+    n = init (n, self)
 
     # Call 'next', with the invariant 'self' and the variant 'n'
-    ok, n, nx = next (self, n)
+    s, n, nx = next (self, n)
 
-    # Dispatch to 'step', on 'ok'. This will terminate if
-    # 'next' returned the sigil .done
-    step (ok, self, n, nx)
+    # Dispatch to 'step', on 's'. This will terminate if
+    # 'next' returned the sigil .none
+    step (s, self, n, nx)
   end)
 end)
 
@@ -298,7 +298,7 @@ end
   do rf
    {
       n = 0,
-      d = .gab.tuple :make n,
+      d = .gab.tuple(n),
       reduce.step = do acc, xs[]
         self:d:put!(self:n, xs**)
         self:n = self:n + 1

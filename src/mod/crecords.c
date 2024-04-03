@@ -152,27 +152,31 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
   gab_value rec = argv[0];
   gab_value shp = gab_recshp(rec);
 
-  gab_value res[] = {gab_none, gab_nil};
+  gab_value res[] = {gab_none, gab_none};
 
   size_t len = gab_reclen(rec);
 
   if (len < 1)
     goto fin;
 
-  switch (argc) {
-  case 2: {
-    size_t current = gab_shpfind(shp, argv[1]);
+  gab_value k = gab_arg(1);
 
-    if (current == UINT64_MAX || current == len)
-      goto fin;
+  if (k != gab_nil) {
+    size_t current = gab_shpfind(shp, k);
 
+    if (len > current)
+      res[0] = gab_ok;
+
+    if (len > current + 1)
+      res[1] = gab_ushpat(shp, current + 1);
+  } else {
     res[0] = gab_ok;
-    res[1] = gab_shpdata(shp)[current + 1];
-    goto fin;
+    res[1] = gab_shpdata(shp)[0];
   }
-  default:
-    return gab_panic(gab, "Invalid call to gab_lib_next");
-  }
+
+  goto fin;
+
+  return gab_panic(gab, "Invalid call to gab_lib_next");
 
 fin:
   gab_nvmpush(gab.vm, LEN_CARRAY(res), res);

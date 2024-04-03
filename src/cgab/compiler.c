@@ -545,30 +545,32 @@ static inline void push_ret(struct bc *bc, mv rhs, size_t t) {
   assert(ctx >= 0 && "Internal compiler error: no frame context");
   struct frame *f = &bc->contexts[ctx].as.frame;
 
-  switch (f->prev_op) {
-  case OP_SEND: {
-    uint8_t have_byte = v_uint8_t_val_at(&f->bc, f->bc.len - 1);
-    v_uint8_t_set(&f->bc, f->bc.len - 1, have_byte | fHAVE_TAIL);
-    rhs.status -= !rhs.multi;
-    rhs.multi = true;
-    push_op(bc, OP_RETURN, t);
-    push_byte(bc, encode_arity(rhs), t);
-    return;
-  }
-  case OP_TRIM: {
-    if (f->pprev_op != OP_SEND)
-      break;
-    uint8_t have_byte = v_uint8_t_val_at(&f->bc, f->bc.len - 3);
-    v_uint8_t_set(&f->bc, f->bc.len - 3, have_byte | fHAVE_TAIL);
-    f->prev_op = f->pprev_op;
-    f->bc.len -= 2;
-    f->bc_toks.len -= 2;
-    rhs.status -= !rhs.multi;
-    rhs.multi = true;
-    push_op(bc, OP_RETURN, t);
-    push_byte(bc, encode_arity(rhs), t);
-    return;
-  }
+  if (rhs.status == 0) {
+    switch (f->prev_op) {
+    case OP_SEND: {
+      uint8_t have_byte = v_uint8_t_val_at(&f->bc, f->bc.len - 1);
+      v_uint8_t_set(&f->bc, f->bc.len - 1, have_byte | fHAVE_TAIL);
+      rhs.status -= !rhs.multi;
+      rhs.multi = true;
+      push_op(bc, OP_RETURN, t);
+      push_byte(bc, encode_arity(rhs), t);
+      return;
+    }
+    case OP_TRIM: {
+      if (f->pprev_op != OP_SEND)
+        break;
+      uint8_t have_byte = v_uint8_t_val_at(&f->bc, f->bc.len - 3);
+      v_uint8_t_set(&f->bc, f->bc.len - 3, have_byte | fHAVE_TAIL);
+      f->prev_op = f->pprev_op;
+      f->bc.len -= 2;
+      f->bc_toks.len -= 2;
+      rhs.status -= !rhs.multi;
+      rhs.multi = true;
+      push_op(bc, OP_RETURN, t);
+      push_byte(bc, encode_arity(rhs), t);
+      return;
+    }
+    }
   }
 #endif
 
@@ -1445,9 +1447,6 @@ static mv compile_expressions_body(struct bc *bc) {
   if (result.status < 0)
     return MV_ERR;
 
-  if (result.multi)
-    push_trim(bc, 1, bc->offset - 1);
-
   if (match_terminator(bc))
     goto fin;
 
@@ -1459,6 +1458,8 @@ static mv compile_expressions_body(struct bc *bc) {
     return MV_ERR;
 
   while (!match_terminator(bc) && !match_token(bc, TOKEN_EOF)) {
+    if (result.multi)
+      push_trim(bc, 1, bc->offset - 1);
 
     push_pop(bc, 1, bc->offset - 1);
 
@@ -1468,9 +1469,6 @@ static mv compile_expressions_body(struct bc *bc) {
 
     if (result.status < 0)
       return MV_ERR;
-
-    if (result.multi)
-      push_trim(bc, 1, bc->offset - 1);
 
     if (match_terminator(bc))
       goto fin;

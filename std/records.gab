@@ -9,20 +9,36 @@ end)
   (key, self:at! key)
 end)
 
+\records.init :def! ([.nil], do record
+  record:next?:first
+end)
+
+\records.init :def! ([], do
+  self
+end)
+
 \records.next? :def.iter.next! (records.t, \next?)
+
+\records.keys.step :def.iter.step! \first
 
 \records.values.step :def.iter.step! \at!
 
 \records.pairs.step :def.iter.step! \at_pair!
 
+\keys :def.iter! (records.t, {
+  init = \records.init,
+  next = \records.next?,
+  step = \records.keys.step,
+})
+
 \values :def.iter! (records.t, {
-  init = \numbers.into,
+  init = \records.init,
   next = \records.next?,
   step = \records.values.step,
 })
 
 \pairs :def.iter! (records.t, {
-  init = \numbers.into,
+  init = \records.init,
   next = \records.next?,
   step = \records.pairs.step,
 })
