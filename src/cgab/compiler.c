@@ -1860,8 +1860,15 @@ static int compile_rec_internal_item(struct bc *bc) {
     gab_value m = trim_prev_id(bc);
 
     push_loadk(bc, gab_message(gab(bc), m), t);
-
     push_slot(bc, 1);
+
+    if (match_and_eat_token(bc, TOKEN_EQUAL)) {
+      if (compile_expression(bc).status < 0)
+        return COMP_ERR;
+    } else {
+      push_loadi(bc, gab_true, t);
+      push_slot(bc, 1);
+    }
 
     return COMP_OK;
   }
