@@ -110,7 +110,7 @@ a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
   return NULL;
 }
 
-a_gab_value *gab_lib_impl(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
                           gab_value argv[static argc]) {
   gab_value cases = gab_arg(0);
   gab_value messages = gab_arg(1);
@@ -127,7 +127,7 @@ a_gab_value *gab_lib_impl(struct gab_triple gab, size_t argc,
       gab_value m = gab_ushpat(gab_recshp(messages), i);
 
       if (gab_valkind(m) != kGAB_MESSAGE)
-        return gab_pktypemismatch(gab, m, kGAB_RECORD);
+        return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
 
       if (gab_msgput(gab, m, t, b) == gab_undefined)
         return gab_panic(gab, "$ already specializes for type $", m, t);
@@ -190,9 +190,9 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "defcase!", gab_lib_case),
       },
       {
-          "defimpl!",
+          "defmodule!",
           gab_undefined,
-          gab_snative(gab, "defimpl!", gab_lib_impl),
+          gab_snative(gab, "defmodule!", gab_lib_module),
       },
   };
 

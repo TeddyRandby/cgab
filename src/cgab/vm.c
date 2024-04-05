@@ -1623,16 +1623,6 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   ks[GAB_SEND_KTYPE] = t;
 
   switch (gab_valkind(spec)) {
-    /*
-     * For blocks and primitives, we keep everything
-     * on the stack as it is. This is because these two
-     * options use the VAR(), as set when we entered *this*
-     * opcode. Then they can do their own trimming to achieve
-     * the appropriate stack spacing.
-     *
-     * This breaks the PACK instruction, as now VAR is dishonest about how
-     * many values this actually has.
-     */
   case kGAB_PRIMITIVE: {
     PEEK() = gab_nil;
     uint8_t op = gab_valtop(spec);
@@ -1641,11 +1631,6 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
 
     DISPATCH(op);
   }
-    /*
-     * A native call works differently. Instead of using VAR(),
-     * we just use *have* directly. This means we have to drop the nil and
-     * pass one less argument into the native call.
-     */
   case kGAB_BLOCK: {
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
 
@@ -1666,6 +1651,7 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
     CALL_NATIVE(n, have, true);
   }
   default: {
+    DROP_N(have);
     PUSH(spec);
 
     SET_VAR(1);

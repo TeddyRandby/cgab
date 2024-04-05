@@ -8,7 +8,7 @@
 \first :def! ([], do x; x end)
 \second :def! ([], do _, x; x end)
 
-[] :defimpl! {
+[] :defmodule! {
   [\and] = do alt[]
     alt**
   end,
@@ -23,7 +23,7 @@
   end,
 }
 
-[.nil, .false, .none, .err] :defimpl! {
+[.nil, .false, .none, .err] :defmodule! {
   [\and] = do
     self
   end,
@@ -205,17 +205,37 @@ end)
 
 \td.conditionally :defcase! {
   .true = do acc, xs, rf
-    rf(acc, xs**)
+    rf :reduce.step (acc, xs**)
   end,
   .false = do acc
     acc
   end
 }
 
+transducers = {
+  [\map] = do f
+    do rf
+      do acc, xs[]
+        rf:reduce.step(acc, f (xs**))
+      end
+    end
+  end,
+}
+
+.td :defmodule transducers
+
+\def.enumerable!:def!([], do acc, rf
+  transducers:reduce(\pairs, self, do m, td
+    m:def!([self], do m, args[]
+      self:transduce(m, acc, rf, td (args**))
+    end)
+  end)
+end)
+
 \map :def.transducer! do f
   do rf
     do acc, xs[]
-      rf(acc, f (xs**))
+      rf:reduce.step(acc, f (xs**))
     end
   end
 end
@@ -232,7 +252,7 @@ end
   do rf
     do acc, xs[]
       f (xs**)
-      rf(acc, xs**)
+      rf:reduce.step(acc, xs**)
     end
   end
 end
@@ -244,7 +264,7 @@ end
       reduce.step = do acc, xs[]
         acc = self:started:td.conditionally (acc, [sep], rf)
         self:started = .true
-        rf(acc, xs**)
+        rf:reduce.step(acc, xs**)
       end,
       reduce.done = do acc
         acc
@@ -310,3 +330,25 @@ end
     }
   end
 end
+
+\compose :defcase! {
+  .nil = do f
+    f
+  end,
+  gab.block = do g
+# The following snippet is a bug which
+# Caused the GC to overflow the stack for some reason.
+# This definitely requires investigation.
+#    do args[]
+#      self(g(args**))
+#    end
+    f = self
+    do args[]
+      f(g(args**))
+    end
+  end,
+}
+
+\compose :def! ([.td], do fns[]
+  fns :reduce (\values, .nil, \compose)
+end)

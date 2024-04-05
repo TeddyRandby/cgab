@@ -1854,6 +1854,18 @@ static int compile_rec_internal_item(struct bc *bc) {
     return COMP_OK;
   }
 
+  if (match_and_eat_token(bc, TOKEN_MESSAGE)) {
+    size_t t = bc->offset - 1;
+
+    gab_value m = trim_prev_id(bc);
+
+    push_loadk(bc, gab_message(gab(bc), m), t);
+
+    push_slot(bc, 1);
+
+    return COMP_OK;
+  }
+
   if (match_and_eat_token(bc, TOKEN_IDENTIFIER)) {
     gab_value val_name = prev_id(bc);
 

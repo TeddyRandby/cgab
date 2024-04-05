@@ -6,4 +6,9 @@ record = [1,2,3]
 sum = record:map(\values, 0, \+, \++)
 'map record with \++, reduce with \+: {sum}':print
 
-record:tap(\pairs, .nil, \self, \print)
+td = .td:compose (
+  .td:map do x; '{x}' end,
+  .td:interpose ',',
+)
+
+record:transduce(\pairs, '', \+, td):print

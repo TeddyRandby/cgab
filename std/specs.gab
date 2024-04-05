@@ -4,27 +4,29 @@
 'records':use
 'numbers' :use
 
-td_specs = (.td :map \spec.explain) (.td :interpose ', ')
-
 explain_specs = do specs, separator
   specs:transduce(
     \values,
     '',
     \+,
-    td_specs,
+    .td:compose (
+      .td:map \spec.explain,
+      .td:interpose separator,
+    ),
   )
 end
 
-td_strings = (.td :map do v; '{v} = {v:spec:spec.explain}' end) (.td :interpose ', ')
-
 explain_strings = do strings, separator
-  strings:print
-  strings:tap(\keys, .nil, \self, \print)
   strings:transduce(
-    \values,
+    \keys,
     '',
     \+,
-    td_strings,
+    .td:compose (
+      .td:map do name
+        '{name} = {name:spec:spec.explain}'
+      end,
+      .td:interpose separator,
+    ),
   )
 end
 
@@ -331,7 +333,7 @@ end)
   end)
 
   \spec.explain :def! ([protocol.predicate], do
-    protocol:len == 0 :and "{}" :or ("{\n " + explain_strings(protocol, '\n ') + "\n}")
+    (protocol:len == 0) :and "{}" :or ("{\n " + explain_strings(protocol, '\n ') + "\n}")
   end)
 
   protocol.predicate
