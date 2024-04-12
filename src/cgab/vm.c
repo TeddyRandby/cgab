@@ -1,7 +1,7 @@
 #include "core.h"
 #include "gab.h"
 
-#define STATUS_NAMES
+#define GAB_STATUS_NAMES_IMPL
 #include "engine.h"
 
 #include "colors.h"
@@ -263,7 +263,7 @@ static handler handlers[] = {
 #define PUSH_ERROR_FRAME(have)                                                 \
   ({                                                                           \
     FRAME()++;                                                                 \
-    FRAME()->b = NULL;                                                         \
+    FRAME()->b = nullptr;                                                      \
     FRAME()->ip = IP();                                                        \
     FRAME()->slots = SP() - have;                                              \
   })
@@ -300,7 +300,6 @@ static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
   return token;
 }
 
-// TODO: This doesn't really work with tail calls
 static inline gab_value compute_message_from_ip(struct gab_vm_frame *f) {
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
 
@@ -347,7 +346,7 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
   dont_exit.flags &= ~fGAB_EXIT_ON_PANIC;
 
   while (f < gab.vm->fp) {
-    gab_vfpanic(dont_exit, stderr, NULL,
+    gab_vfpanic(dont_exit, stderr, nullptr,
                 vm_frame_build_err(gab, f, f > gab.vm->fb, GAB_NONE, ""));
     f++;
   }
@@ -454,14 +453,14 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t value) {
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
 
   fprintf(stream,
-          ANSI_COLOR_GREEN " %03lu" ANSI_COLOR_RESET " closure:" ANSI_COLOR_CYAN
-                           "%-20s" ANSI_COLOR_RESET " %d upvalues\n",
+          GAB_GREEN " %03lu" GAB_RESET " closure:" GAB_CYAN "%-20s" GAB_RESET
+                    " %d upvalues\n",
           frame_count - value, gab_strdata(&p->src->name), p->nupvalues);
 
   size_t top = vm->sp - f->slots;
 
   for (int32_t i = top; i >= 0; i--) {
-    fprintf(stream, "%2s" ANSI_COLOR_YELLOW "%4i " ANSI_COLOR_RESET,
+    fprintf(stream, "%2s" GAB_YELLOW "%4i " GAB_RESET,
             vm->sp == f->slots + i ? "->" : "", i);
     gab_fvalinspect(stream, f->slots[i], 0);
     fprintf(stream, "\n");
@@ -770,7 +769,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   *gab.vm->sp = args.len + 1;
 
   if (gab_valkind(args.main) != kGAB_BLOCK)
-    return NULL;
+    return nullptr;
 
   struct gab_obj_block *b = GAB_VAL_TO_BLOCK(args.main);
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);

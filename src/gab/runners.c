@@ -21,9 +21,9 @@ void repl(const char *module, int flags) {
 
 void run_src(struct gab_triple gab, s_char src, const char *module, char delim,
              uint8_t flags) {
-  // if (module != NULL) {
-  //   a_gab_value *res = gab_send(gab, NULL, gab_string(gab, "require"),
-  //                               gab_string(gab, module), 0, NULL);
+  // if (module != nullptr) {
+  //   a_gab_value *res = gab_send(gab, nullptr, gab_string(gab, "require"),
+  //                               gab_string(gab, module), 0, nullptr);
   //   a_gab_value_destroy(res);
   // }
 

@@ -25,7 +25,7 @@ a_gab_value *gab_lib_prybreak(struct gab_triple gab, size_t argc,
                     .sargv = sargv,
                 });
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_pryframes(struct gab_triple gab, size_t argc,
@@ -40,7 +40,7 @@ a_gab_value *gab_lib_pryframes(struct gab_triple gab, size_t argc,
     gab_value frame = gab_vmframe(with_vm, 0);
 
     gab_vmpush(gab.vm, frame);
-    return NULL;
+    return nullptr;
   }
 
   if (argc == 2 && gab_valkind(argv[1]) == kGAB_NUMBER) {
@@ -51,10 +51,10 @@ a_gab_value *gab_lib_pryframes(struct gab_triple gab, size_t argc,
     gab_value frame = gab_vmframe(with_vm, depth);
 
     gab_vmpush(gab.vm, frame);
-    return NULL;
+    return nullptr;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_prydumpframe(struct gab_triple gab, size_t argc,
@@ -65,17 +65,17 @@ a_gab_value *gab_lib_prydumpframe(struct gab_triple gab, size_t argc,
   if (argc == 1) {
     struct gab_vm *vm = *(struct gab_vm **)gab_boxdata(argv[0]);
     gab_fvminspect(stdout, vm, 0);
-    return NULL;
+    return nullptr;
   }
 
   if (argc == 2 && gab_valkind(argv[1]) == kGAB_NUMBER) {
     uint64_t depth = gab_valton(argv[1]);
     struct gab_vm *vm = *(struct gab_vm **)gab_boxdata(argv[0]);
     gab_fvminspect(stdout, vm, depth);
-    return NULL;
+    return nullptr;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
@@ -99,5 +99,5 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
-  return NULL;
+  return nullptr;
 }

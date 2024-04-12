@@ -3,12 +3,12 @@
 a_gab_value * gab_lib_channel(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   gab_value c = channel_create(gab);
   gab_vmpush(gab.vm, c);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value * gab_lib_send(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   channel_send(gab, argv[0], argc - 1, argv + 1);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_recv(struct gab_triple gab, size_t argc,
@@ -21,7 +21,7 @@ a_gab_value *gab_lib_recv(struct gab_triple gab, size_t argc,
     gab_vmpush(gab.vm, v);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
@@ -51,5 +51,5 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_nspec(gab, sizeof(specs) / sizeof(specs[0]), specs);
 
-  return NULL;
+  return nullptr;
 }

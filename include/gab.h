@@ -10,7 +10,6 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 #include "core.h"
 
@@ -545,7 +544,7 @@ gab_value gab_vmframe(struct gab_triple gab, uint64_t depth);
  * @param mod The module to store. This is usually a block, but can be anything
  * @param len The number of values returned by the module.
  * @param values The values returned by the module.
- * @returns The module if it was added, NULL otherwise.
+ * @returns The module if it was added, nullptr otherwise.
  */
 a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
                            size_t len, gab_value values[len]);
@@ -555,7 +554,7 @@ a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
  *
  * @param eg The engine.
  * @param name The name of the import.
- * @returns The module if it exists, NULL otherwise.
+ * @returns The module if it exists, nullptr otherwise.
  */
 a_gab_value *gab_segmodat(struct gab_eg *eg, const char *name);
 
@@ -1775,7 +1774,7 @@ static inline gab_value gab_boxtype(gab_value value) {
  *
  * @param gab The engine.
  *
- * @param vm The vm. This can be NULL.
+ * @param vm The vm. This can be nullptr.
  *
  * @param len The length of keys and values arrays
  *
@@ -1793,7 +1792,7 @@ gab_value gab_record(struct gab_triple gab, size_t len,
  *
  * @param gab The engine.
  *
- * @param vm The vm. This can be NULL.
+ * @param vm The vm. This can be nullptr.
  *
  * @param len The length of keys and values arrays
  *
@@ -1812,7 +1811,7 @@ gab_value gab_srecord(struct gab_triple gab, size_t len,
  *
  * @param gab The engine
  *
- * @param vm The vm. This can be NULL.
+ * @param vm The vm. This can be nullptr.
  *
  * @param len The length of values array.
  *
@@ -1828,7 +1827,7 @@ gab_value gab_tuple(struct gab_triple gab, size_t len,
  *
  * @param gab The engine
  *
- * @param vm The vm. This can be NULL.
+ * @param vm The vm. This can be nullptr.
  *
  * @param len The length of values array.
  *
@@ -1891,7 +1890,7 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
 #define NAME gab_modules
 #define K size_t
 #define V a_gab_value *
-#define DEF_V NULL
+#define DEF_V nullptr
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
 #include "dict.h"
@@ -1899,7 +1898,7 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
 #define NAME gab_src
 #define K gab_value
 #define V struct gab_src *
-#define DEF_V NULL
+#define DEF_V nullptr
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
 #include "dict.h"

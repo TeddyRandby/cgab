@@ -35,7 +35,7 @@ a_gab_value* gab_lib_disstring(struct gab_triple gab, size_t argc,
 
   dis_message(gab, msg, argc == 1 ? gab_undefined : argv[1]);
 
-  return NULL;
+  return nullptr;
 };
 
 a_gab_value* gab_lib_dismessage(struct gab_triple gab, size_t argc,
@@ -54,7 +54,7 @@ a_gab_value* gab_lib_dismessage(struct gab_triple gab, size_t argc,
     gab_panic(gab, "Invalid call to gab_lib_dis");
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value* gab_lib_disblock(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
@@ -64,7 +64,7 @@ a_gab_value* gab_lib_disblock(struct gab_triple gab, size_t argc, gab_value argv
 
   dis_block(argv[0]);
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value* gab_lib_disnative(struct gab_triple gab, size_t argc,
@@ -75,7 +75,7 @@ a_gab_value* gab_lib_disnative(struct gab_triple gab, size_t argc,
   gab_fvalinspect(stdout, argv[0], 0);
   printf("\n");
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
@@ -101,5 +101,5 @@ a_gab_value *gab_lib(struct gab_triple gab) {
                   });
   }
 
-  return NULL;
+  return nullptr;
 }

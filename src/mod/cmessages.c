@@ -11,7 +11,7 @@ a_gab_value *gab_lib_message(struct gab_triple gab, size_t argc,
     return gab_pktypemismatch(gab, name, kGAB_STRING);
 
   gab_vmpush(gab.vm, gab_message(gab, name));
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
@@ -22,7 +22,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
     struct gab_egimpl_rest res = gab_egimpl(gab.eg, argv[0], argv[1]);
 
     gab_vmpush(gab.vm, gab_bool(res.status));
-    return NULL;
+    return nullptr;
   }
   default:
     return gab_panic(gab, "INVALID_ARGUMENTS");
@@ -35,7 +35,7 @@ a_gab_value *gab_lib_name(struct gab_triple gab, size_t argc,
 
   gab_vmpush(gab.vm, gab_msgname(m));
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
@@ -51,7 +51,7 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
   if (gab_msgput(gab, m, r, b) == gab_undefined)
     return gab_panic(gab, "$ already specializes for type $", m, r);
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
@@ -74,7 +74,7 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
     if (gab_msgput(gab, m, t, b) == gab_undefined)
       return gab_panic(gab, "$ already specializes for type $", m, t);
 
-    return NULL;
+    return nullptr;
   }
 
   for (int i = 0; i < len; i++) {
@@ -84,7 +84,7 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
       return gab_panic(gab, "$ already specializes for type $", m, t);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
@@ -107,7 +107,7 @@ a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
       return gab_panic(gab, "$ already specializes for type $", m, t);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
@@ -133,7 +133,7 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
         return gab_panic(gab, "$ already specializes for type $", m, t);
     }
 
-    return NULL;
+    return nullptr;
   }
 
   for (int j = 0; j < gab_reclen(cases); j++) {
@@ -152,7 +152,7 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
     }
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {

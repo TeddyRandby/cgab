@@ -5,7 +5,7 @@
 
 #include <stdarg.h>
 
-#ifdef STATUS_NAMES
+#ifdef GAB_STATUS_NAMES_IMPL
 static const char *gab_status_names[] = {
 #define STATUS(name, message) message,
 #include "status_code.h"
@@ -14,7 +14,7 @@ static const char *gab_status_names[] = {
 #undef STATUS_NAMES
 #endif
 
-#ifdef TOKEN_NAMES
+#ifdef GAB_TOKEN_NAMES_IMPL
 static const char *gab_token_names[] = {
 #define TOKEN(message) #message,
 #include "token.h"
@@ -57,8 +57,6 @@ enum variable_flag {
  * The run-time representation of a callframe.
  */
 struct gab_vm_frame {
-  gab_value m;
-
   struct gab_obj_block *b;
 
   uint8_t *ip;

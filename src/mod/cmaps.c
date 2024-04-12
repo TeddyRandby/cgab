@@ -4,10 +4,10 @@
 a_gab_value* gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   switch (argc) {
   case 1: {
-    gab_value map = map_create(gab, 0, 0, NULL, NULL);
+    gab_value map = map_create(gab, 0, 0, nullptr, nullptr);
 
     gab_vmpush(gab.vm, map);
-    return NULL;
+    return nullptr;
   }
 
   case 2: {
@@ -23,7 +23,7 @@ a_gab_value* gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc
         map_create(gab, len, 1, gab_shpdata(shp), gab_recdata(argv[1]));
 
     gab_vmpush(gab.vm, map);
-    return NULL;
+    return nullptr;
   }
 
   default:
@@ -41,7 +41,7 @@ a_gab_value* gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc
   gab_value res = gab_number(data->len);
 
   gab_vmpush(gab.vm, res);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value* gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
@@ -53,12 +53,12 @@ a_gab_value* gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]
 
   if (res == gab_undefined) {
     gab_vmpush(gab.vm, gab_sigil(gab, "none"));
-    return NULL;
+    return nullptr;
   }
 
   gab_vmpush(gab.vm, gab_sigil(gab, "ok"));
   gab_vmpush(gab.vm, res);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value* gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
@@ -69,7 +69,7 @@ a_gab_value* gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc
   map_put(gab, argv[0], argv[1], argv[2]);
 
   gab_vmpush(gab.vm, *argv);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value* gab_lib_add(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
@@ -79,13 +79,13 @@ a_gab_value* gab_lib_add(struct gab_triple gab, size_t argc, gab_value argv[argc
 
   if (map_has(argv[0], argv[1])) {
     gab_vmpush(gab.vm, gab_string(gab, "KEY_ALREADY_EXISTS"));
-    return NULL;
+    return nullptr;
   }
 
   map_put(gab, argv[0], argv[1], argv[2]);
 
   gab_vmpush(gab.vm, gab_sigil(gab, "ok"));
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value* gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
@@ -100,13 +100,13 @@ a_gab_value* gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[arg
       gab_value res = gab_nil;
 
       gab_vmpush(gab.vm, res);
-      return NULL;
+      return nullptr;
     }
 
     gab_value res = d_uint64_t_ikey(map, next_index);
 
     gab_vmpush(gab.vm, res);
-    return NULL;
+    return nullptr;
   }
 
   case 2: {
@@ -121,13 +121,13 @@ a_gab_value* gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[arg
       gab_value res = gab_nil;
 
       gab_vmpush(gab.vm, res);
-      return NULL;
+      return nullptr;
     }
 
     gab_value res = d_uint64_t_ikey(map, next_index);
 
     gab_vmpush(gab.vm, res);
-    return NULL;
+    return nullptr;
   }
 
   default:

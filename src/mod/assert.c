@@ -8,7 +8,7 @@ a_gab_value *gab_lib_assertis(struct gab_triple gab, size_t argc,
   if (gab_valtype(gab.eg, r) != t)
     return gab_ptypemismatch(gab, r, t);
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
@@ -23,5 +23,5 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_nspec(gab, sizeof(specs) / sizeof(specs[0]), specs);
 
-  return NULL;
+  return nullptr;
 }

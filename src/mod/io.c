@@ -21,10 +21,10 @@ a_gab_value *gab_lib_open(struct gab_triple gab, size_t argc,
 
   FILE *file = fopen(cpath, cperm);
 
-  if (file == NULL) {
+  if (file == nullptr) {
     gab_value r = gab_string(gab, "FILE_COULD_NOT_OPEN");
     gab_vmpush(gab.vm, r);
-    return NULL;
+    return nullptr;
   }
 
   gab_value result[2] = {
@@ -35,13 +35,13 @@ a_gab_value *gab_lib_open(struct gab_triple gab, size_t argc,
                   .data = &file,
                   .size = sizeof(FILE *),
                   .destructor = file_cb,
-                  .visitor = NULL,
+                  .visitor = nullptr,
               }),
   };
 
   gab_nvmpush(gab.vm, 2, result);
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_read(struct gab_triple gab, size_t argc,
@@ -61,7 +61,7 @@ a_gab_value *gab_lib_read(struct gab_triple gab, size_t argc,
 
   if (bytesRead < fileSize) {
     gab_vmpush(gab.vm, gab_string(gab, "FILE_COULD_NOT_READ"));
-    return NULL;
+    return nullptr;
   }
 
   gab_value res[2] = {
@@ -71,7 +71,7 @@ a_gab_value *gab_lib_read(struct gab_triple gab, size_t argc,
 
   gab_nvmpush(gab.vm, 2, res);
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_write(struct gab_triple gab, size_t argc,
@@ -88,11 +88,11 @@ a_gab_value *gab_lib_write(struct gab_triple gab, size_t argc,
 
   if (result > 0) {
     gab_vmpush(gab.vm, gab_string(gab, "ok"));
-    return NULL;
+    return nullptr;
   }
 
   gab_vmpush(gab.vm, gab_string(gab, "FILE_COULD_NOT_WRITE"));
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
@@ -116,5 +116,5 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 
-  return NULL;
+  return nullptr;
 }

@@ -28,7 +28,7 @@ a_gab_value *gab_lib_fiber(struct gab_triple gab, size_t argc,
     return gab_panic(gab, "Invalid call to &:fiber.new");
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_call(struct gab_triple gab, size_t argc,
@@ -37,7 +37,7 @@ a_gab_value *gab_lib_call(struct gab_triple gab, size_t argc,
 
   if (f->status == fDONE) {
     gab_vmpush(gab.vm, gab_string(gab, "none"));
-    return NULL;
+    return nullptr;
   }
 
   if (f->status == fPAUSED) {
@@ -46,10 +46,10 @@ a_gab_value *gab_lib_call(struct gab_triple gab, size_t argc,
 
     gab_vmpush(gab.vm, gab_string(gab, "some"));
     gab_vmpush(gab.vm, argv[0]);
-    return NULL;
+    return nullptr;
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_await(struct gab_triple gab, size_t argc,
@@ -58,7 +58,7 @@ a_gab_value *gab_lib_await(struct gab_triple gab, size_t argc,
 
   for (;;) {
     if (f->status == fDONE) {
-      return NULL;
+      return nullptr;
     }
   }
 }
@@ -85,5 +85,5 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_nspec(gab, sizeof(specs) / sizeof(specs[0]), specs);
 
-  return NULL;
+  return nullptr;
 }

@@ -48,11 +48,11 @@ a_gab_value *gab_lib_poll(struct gab_triple gab, size_t argc,
 
   if (result < 0) {
     gab_vmpush(gab.vm, gab_string(gab, "poll_failed"));
-    return NULL;
+    return nullptr;
   }
 
   gab_vmpush(gab.vm, gab_number(fd.revents));
-  return NULL;
+  return nullptr;
 }
 
 const char *sock_config_keys[] = {SOCKET_FAMILY, SOCKET_TYPE};
@@ -106,7 +106,7 @@ a_gab_value *gab_lib_sock(struct gab_triple gab, size_t argc,
 
   if (sockfd < 0) {
     gab_vmpush(gab.vm, gab_string(gab, "socket_open_failed"));
-    return NULL;
+    return nullptr;
   }
 
   gab_value res[2] = {
@@ -122,7 +122,7 @@ a_gab_value *gab_lib_sock(struct gab_triple gab, size_t argc,
 
   gab_nvmpush(gab.vm, 2, res);
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_bind(struct gab_triple gab, size_t argc,
@@ -176,7 +176,7 @@ fin: {
   else
     gab_vmpush(gab.vm, gab_string(gab, "ok"));
 }
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_listen(struct gab_triple gab, size_t argc,
@@ -195,7 +195,7 @@ a_gab_value *gab_lib_listen(struct gab_triple gab, size_t argc,
   else
     gab_vmpush(gab.vm, gab_string(gab, "ok"));
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_accept(struct gab_triple gab, size_t argc,
@@ -209,7 +209,7 @@ a_gab_value *gab_lib_accept(struct gab_triple gab, size_t argc,
 
   if (connfd < 0) {
     gab_vmpush(gab.vm, gab_string(gab, "ACCEPT_FAILED"));
-    return NULL;
+    return nullptr;
   }
 
   gab_value res[2] = {
@@ -223,7 +223,7 @@ a_gab_value *gab_lib_accept(struct gab_triple gab, size_t argc,
   };
 
   gab_nvmpush(gab.vm, 2, res);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_connect(struct gab_triple gab, size_t argc,
@@ -251,7 +251,7 @@ a_gab_value *gab_lib_connect(struct gab_triple gab, size_t argc,
 
   if (result <= 0) {
     gab_vmpush(gab.vm, gab_string(gab, "INET_PTON_FAILED"));
-    return NULL;
+    return nullptr;
   }
 
   result = connect(sockfd, (struct sockaddr *)&addr, sizeof(addr));
@@ -261,7 +261,7 @@ a_gab_value *gab_lib_connect(struct gab_triple gab, size_t argc,
   else
     gab_vmpush(gab.vm, gab_string(gab, "ok"));
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_receive(struct gab_triple gab, size_t argc,
@@ -282,7 +282,7 @@ a_gab_value *gab_lib_receive(struct gab_triple gab, size_t argc,
     gab_nvmpush(gab.vm, 2, vals);
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_send(struct gab_triple gab, size_t argc,
@@ -303,7 +303,7 @@ a_gab_value *gab_lib_send(struct gab_triple gab, size_t argc,
     gab_vmpush(gab.vm, gab_string(gab, "ok"));
   }
 
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {

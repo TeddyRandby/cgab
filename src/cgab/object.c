@@ -10,7 +10,7 @@
 
 struct gab_obj *gab_obj_create(struct gab_triple gab, size_t sz,
                                enum gab_kind k) {
-  struct gab_obj *self = gab_egalloc(gab, NULL, sz);
+  struct gab_obj *self = gab_egalloc(gab, nullptr, sz);
 
   self->kind = k;
   self->references = 1;

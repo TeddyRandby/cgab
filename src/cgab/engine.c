@@ -1,8 +1,10 @@
-#define STATUS_NAMES
-#define TOKEN_NAMES
+#define GAB_STATUS_NAMES_IMPL
+#define GAB_TOKEN_NAMES_IMPL
 #include "engine.h"
 
+#define GAB_COLORS_IMPL
 #include "colors.h"
+
 #include "core.h"
 #include "gab.h"
 #include "lexer.h"
@@ -192,7 +194,7 @@ struct gab_triple gab_create() {
 
   struct gab_triple gab = {.eg = eg, .gc = gc};
 
-  eg->hash_seed = time(NULL);
+  eg->hash_seed = time(nullptr);
 
   eg->types[kGAB_UNDEFINED] = gab_undefined;
 
@@ -305,7 +307,7 @@ void gab_destroy(struct gab_triple gab) {
 }
 
 void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
-  a_gab_value *prev = NULL;
+  a_gab_value *prev = nullptr;
 
   size_t iterations = 0;
 
@@ -323,7 +325,7 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
       continue;
     }
 
-    size_t prev_len = prev == NULL ? 0 : prev->len;
+    size_t prev_len = prev == nullptr ? 0 : prev->len;
 
     // Append the iterations number to the end of the given name
     char unique_name[strlen(args.name) + 16];
@@ -360,7 +362,7 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
                                             .argv = argv,
                                         });
 
-    if (result == NULL)
+    if (result == nullptr)
       continue;
 
     gab_niref(gab, 1, result->len, result->data);
@@ -397,7 +399,7 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
                                  });
 
   if (main == gab_undefined) {
-    return NULL;
+    return nullptr;
   }
 
   return gab_run(gab, (struct gab_run_argt){
@@ -438,7 +440,7 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
 struct gab_obj_message *gab_egmsgfind(struct gab_eg *self, gab_value name,
                                       uint64_t hash) {
   if (self->messages.len == 0)
-    return NULL;
+    return nullptr;
 
   uint64_t index = hash & (self->messages.cap - 1);
 
@@ -450,7 +452,7 @@ struct gab_obj_message *gab_egmsgfind(struct gab_eg *self, gab_value name,
     case D_TOMBSTONE:
       break;
     case D_EMPTY:
-      return NULL;
+      return nullptr;
     case D_FULL:
       if (key->hash == hash && key->name == name)
         return key;
@@ -463,7 +465,7 @@ struct gab_obj_message *gab_egmsgfind(struct gab_eg *self, gab_value name,
 struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
                                      uint64_t hash) {
   if (self->strings.len == 0)
-    return NULL;
+    return nullptr;
 
   uint64_t index = hash & (self->strings.cap - 1);
 
@@ -475,7 +477,7 @@ struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
     case D_TOMBSTONE:
       break;
     case D_EMPTY:
-      return NULL;
+      return nullptr;
     case D_FULL:
       if (key->hash == hash && s_char_match(str, (s_char){
                                                      .data = key->data,
@@ -508,7 +510,7 @@ struct gab_obj_shape *gab_egshpfind(struct gab_eg *self, uint64_t size,
                                     uint64_t stride, uint64_t hash,
                                     gab_value keys[size]) {
   if (self->shapes.len == 0)
-    return NULL;
+    return nullptr;
 
   uint64_t index = hash & (self->shapes.cap - 1);
 
@@ -520,7 +522,7 @@ struct gab_obj_shape *gab_egshpfind(struct gab_eg *self, uint64_t size,
     case D_TOMBSTONE:
       break;
     case D_EMPTY:
-      return NULL;
+      return nullptr;
     case D_FULL:
       if (key->hash == hash && shape_matches_keys(key, keys, size, stride))
         return key;
@@ -541,7 +543,7 @@ a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
   size_t hash = s_char_hash(s_char_cstr(name), eg->hash_seed);
 
   if (d_gab_modules_exists(&eg->modules, hash))
-    return NULL;
+    return nullptr;
 
   a_gab_value *module = a_gab_value_empty(len + 1);
   module->data[0] = mod;
@@ -718,11 +720,11 @@ int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs) {
     switch (*c) {
     case '$': {
       gab_value arg = va_arg(varargs, gab_value);
-      int idx = gab_valkind(arg) % ANSI_COLORS_LEN;
+      int idx = gab_valkind(arg) % GAB_COLORS_LEN;
       const char *color = ANSI_COLORS[idx];
       bytes += fprintf(stream, "%s", color);
       bytes += gab_fvalinspect(stream, arg, 1);
-      bytes += fprintf(stream, ANSI_COLOR_RESET);
+      bytes += fprintf(stream, GAB_RESET);
       break;
     }
     default:
@@ -781,8 +783,8 @@ void gab_vfpanic(struct gab_triple gab, FILE *stream, va_list varargs,
     }
 
     fprintf(stream,
-            "\n\n" ANSI_COLOR_RED "%.4lu" ANSI_COLOR_RESET "| %.*s"
-            "\n      " ANSI_COLOR_YELLOW "%.*s" ANSI_COLOR_RESET "",
+            "\n\n" GAB_RED "%.4lu" GAB_RESET "| %.*s"
+            "\n      " GAB_YELLOW "%.*s" GAB_RESET "",
             line, (int)line_src.len, line_src.data, (int)under_src->len,
             under_src->data);
 
@@ -808,7 +810,7 @@ void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size) {
 
     free(obj);
 
-    return NULL;
+    return nullptr;
   }
 
   assert(!obj);

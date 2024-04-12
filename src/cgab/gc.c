@@ -2,7 +2,6 @@
 #include "engine.h"
 #include "gab.h"
 #include <stdint.h>
-#include <stdio.h>
 
 static inline size_t do_increment(struct gab_gc *gc, struct gab_obj *obj) {
   if (__gab_unlikely(obj->references == INT8_MAX)) {
@@ -666,7 +665,7 @@ void gab_collect(struct gab_triple gab) {
 
   gab_gclock(gab.gc);
 
-  if (gab.vm != NULL)
+  if (gab.vm != nullptr)
     increment_reachable(gab);
 
   process_increments(gab);
@@ -675,7 +674,7 @@ void gab_collect(struct gab_triple gab) {
 
   collect_cycles(gab);
 
-  if (gab.vm != NULL)
+  if (gab.vm != nullptr)
     decrement_reachable(gab);
 
   gab_gcunlock(gab.gc);

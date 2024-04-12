@@ -1,4 +1,4 @@
-#define TOKEN_NAMES
+#define GAB_TOKEN_NAMES_IMPL
 #include "colors.h"
 #include "core.h"
 #include "engine.h"
@@ -150,19 +150,15 @@ enum comp_status {
 
 #define FMT_EXPECTED_EXPRESSION                                                \
   "Expected a value - one of:\n\n"                                             \
-  "  " ANSI_COLOR_YELLOW "-1.23" ANSI_COLOR_MAGENTA                            \
-  "\t\t\t# A number \n" ANSI_COLOR_RESET "  " ANSI_COLOR_GREEN                 \
-  ".true" ANSI_COLOR_MAGENTA "\t\t\t# A sigil \n" ANSI_COLOR_RESET             \
-  "  " ANSI_COLOR_GREEN "'hello, Joe!'" ANSI_COLOR_MAGENTA                     \
-  "\t\t# A string \n" ANSI_COLOR_RESET "  " ANSI_COLOR_RED                     \
-  "\\greet" ANSI_COLOR_MAGENTA "\t\t# A message\n" ANSI_COLOR_RESET            \
-  "  " ANSI_COLOR_BLUE "do x; x + 1 end" ANSI_COLOR_MAGENTA                    \
-  "\t# A block \n" ANSI_COLOR_RESET "  " ANSI_COLOR_CYAN                       \
-  "{ key = value }" ANSI_COLOR_MAGENTA "\t# A record\n" ANSI_COLOR_RESET "  "  \
-  "(" ANSI_COLOR_YELLOW "-1.23" ANSI_COLOR_RESET ", " ANSI_COLOR_GREEN         \
-  ".true" ANSI_COLOR_RESET ")" ANSI_COLOR_MAGENTA                              \
-  "\t# A tuple\n" ANSI_COLOR_RESET "  "                                        \
-  "a_variable" ANSI_COLOR_MAGENTA "\t\t# Or a variable!\n" ANSI_COLOR_RESET
+  "  " GAB_YELLOW "-1.23" GAB_MAGENTA "\t\t\t# A number \n" GAB_RESET          \
+  "  " GAB_GREEN ".true" GAB_MAGENTA "\t\t\t# A sigil \n" GAB_RESET            \
+  "  " GAB_GREEN "'hello, Joe!'" GAB_MAGENTA "\t\t# A string \n" GAB_RESET     \
+  "  " GAB_RED "\\greet" GAB_MAGENTA "\t\t# A message\n" GAB_RESET             \
+  "  " GAB_BLUE "do x; x + 1 end" GAB_MAGENTA "\t# A block \n" GAB_RESET       \
+  "  " GAB_CYAN "{ key = value }" GAB_MAGENTA "\t# A record\n" GAB_RESET "  "  \
+  "(" GAB_YELLOW "-1.23" GAB_RESET ", " GAB_GREEN ".true" GAB_RESET            \
+  ")" GAB_MAGENTA "\t# A tuple\n" GAB_RESET "  "                               \
+  "a_variable" GAB_MAGENTA "\t\t# Or a variable!\n" GAB_RESET
 
 #define FMT_CLOSING_RBRACE                                                     \
   "Expected a closing $ to define a rest assignment target."
@@ -181,10 +177,9 @@ enum comp_status {
   "This assignment expression is incomplete.\n\n"                              \
   "Assignments consist of a list of targets and a list of values, separated "  \
   "by an $.\n\n"                                                               \
-  "  a, b = " ANSI_COLOR_YELLOW "1" ANSI_COLOR_RESET ", " ANSI_COLOR_YELLOW    \
-  "2\n" ANSI_COLOR_RESET "  a:put!(" ANSI_COLOR_GREEN ".key" ANSI_COLOR_RESET  \
-  "), b = " ANSI_COLOR_YELLOW "1" ANSI_COLOR_RESET ", " ANSI_COLOR_YELLOW      \
-  "2\n" ANSI_COLOR_RESET
+  "  a, b = " GAB_YELLOW "1" GAB_RESET ", " GAB_YELLOW "2\n" GAB_RESET         \
+  "  a:put!(" GAB_GREEN ".key" GAB_RESET "), b = " GAB_YELLOW "1" GAB_RESET    \
+  ", " GAB_YELLOW "2\n" GAB_RESET
 
 static int vcompiler_error(struct bc *bc, enum gab_status e, const char *fmt,
                            va_list args);
@@ -1071,8 +1066,8 @@ static mv compile_tuple(struct bc *bc, uint8_t want);
 
 static bool curr_prefix(struct bc *bc, enum prec_k prec) {
   struct compile_rule rule = get_rule(curr_tok(bc));
-  bool has_prefix = rule.prefix != NULL;
-  bool has_infix = rule.infix != NULL;
+  bool has_prefix = rule.prefix != nullptr;
+  bool has_infix = rule.infix != nullptr;
   bool result = has_prefix && (!has_infix || rule.prec > prec);
   return result;
 }
@@ -1177,7 +1172,7 @@ static a_char *parse_raw_str(struct bc *bc, s_char raw_str) {
         i += 2;
 
         if (raw_str.data[i] != '[') {
-          return NULL;
+          return nullptr;
         }
 
         i++;
@@ -1188,14 +1183,14 @@ static a_char *parse_raw_str(struct bc *bc, s_char raw_str) {
         while (raw_str.data[i] != ']') {
 
           if (cpl == 7)
-            return NULL;
+            return nullptr;
 
           codepoint[cpl++] = raw_str.data[i++];
         }
 
         i++;
 
-        long cp = strtol(codepoint, NULL, 16);
+        long cp = strtol(codepoint, nullptr, 16);
 
         int result = encode_codepoint(buffer + buf_end, cp);
 
@@ -1224,18 +1219,17 @@ static mv compile_strlit(struct bc *bc) {
   a_char *parsed = parse_raw_str(bc, prev_src(bc));
 
   if (parsed == NULL) {
-    compiler_error(
-        bc, GAB_MALFORMED_STRING,
-        "Single quoted strings can contain interpolations.\n"
-        "\n   " ANSI_COLOR_GREEN "'answer is: { " ANSI_COLOR_YELLOW
-        "42" ANSI_COLOR_GREEN " }'\n" ANSI_COLOR_RESET
-        "\nBoth single and double quoted strings can contain escape "
-        "sequences.\n"
-        "\n   " ANSI_COLOR_GREEN "'a newline -> " ANSI_COLOR_MAGENTA
-        "\\n" ANSI_COLOR_GREEN ", or a forward slash -> " ANSI_COLOR_MAGENTA
-        "\\\\" ANSI_COLOR_GREEN "'" ANSI_COLOR_RESET "\n   " ANSI_COLOR_GREEN
-        "\"arbitrary unicode: " ANSI_COLOR_MAGENTA "\\u[" ANSI_COLOR_YELLOW
-        "2502" ANSI_COLOR_MAGENTA "]" ANSI_COLOR_GREEN "\"" ANSI_COLOR_RESET);
+    compiler_error(bc, GAB_MALFORMED_STRING,
+                   "Single quoted strings can contain interpolations.\n"
+                   "\n   " GAB_GREEN "'answer is: { " GAB_YELLOW "42" GAB_GREEN
+                   " }'\n" GAB_RESET
+                   "\nBoth single and double quoted strings can contain escape "
+                   "sequences.\n"
+                   "\n   " GAB_GREEN "'a newline -> " GAB_MAGENTA
+                   "\\n" GAB_GREEN ", or a forward slash -> " GAB_MAGENTA
+                   "\\\\" GAB_GREEN "'" GAB_RESET "\n   " GAB_GREEN
+                   "\"arbitrary unicode: " GAB_MAGENTA "\\u[" GAB_YELLOW
+                   "2502" GAB_MAGENTA "]" GAB_GREEN "\"" GAB_RESET);
     return MV_ERR;
   }
 
@@ -1946,17 +1940,14 @@ err:
   return compiler_error(
       bc, GAB_MALFORMED_RECORD_KEY,
       "A valid key is one of:\n\n"
-      "   " ANSI_COLOR_BLUE "{ " ANSI_COLOR_RESET
-      "an_identifier " ANSI_COLOR_BLUE "}\n" ANSI_COLOR_RESET
-      "   " ANSI_COLOR_BLUE "{ " ANSI_COLOR_GREEN
-      "\"a string\"" ANSI_COLOR_RESET ", " ANSI_COLOR_MAGENTA
-      ".a_sigil" ANSI_COLOR_RESET ", " ANSI_COLOR_GREEN "'or' " ANSI_COLOR_BLUE
-      "}\n" ANSI_COLOR_RESET "   " ANSI_COLOR_BLUE "{ [" ANSI_COLOR_YELLOW
-      "42" ANSI_COLOR_BLUE "] }\n\n" ANSI_COLOR_RESET
-      "A key may be followed by an " ANSI_COLOR_GREEN "EQUAL" ANSI_COLOR_RESET
+      "   " GAB_BLUE "{ " GAB_RESET "an_identifier " GAB_BLUE "}\n" GAB_RESET
+      "   " GAB_BLUE "{ " GAB_GREEN "\"a string\"" GAB_RESET ", " GAB_MAGENTA
+      ".a_sigil" GAB_RESET ", " GAB_GREEN "'or' " GAB_BLUE "}\n" GAB_RESET
+      "   " GAB_BLUE "{ [" GAB_YELLOW "42" GAB_BLUE "] }\n\n" GAB_RESET
+      "A key may be followed by an " GAB_GREEN "EQUAL" GAB_RESET
       ", then an expression.\n"
-      "If a value is not set this way, it is set to " ANSI_COLOR_MAGENTA
-      ".true" ANSI_COLOR_RESET ".\n");
+      "If a value is not set this way, it is set to " GAB_MAGENTA
+      ".true" GAB_RESET ".\n");
 }
 
 static int compile_rec_internals(struct bc *bc) {
@@ -2094,7 +2085,6 @@ mv compile_send(struct bc *bc, mv lhs, bool assignable) {
               });
     }
 
-    // TODO: Can i hit this?
     if (match_ctx(bc, kASSIGNMENT_TARGET)) {
       eat_token(bc);
       compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, FMT_ASSIGNMENT_ABANDONED,
@@ -2166,7 +2156,7 @@ static mv compile_exp_tup(struct bc *bc, mv, bool) {
 }
 
 static mv compile_exp_num(struct bc *bc, mv, bool) {
-  double num = strtod((char *)prev_src(bc).data, NULL);
+  double num = strtod((char *)prev_src(bc).data, nullptr);
   push_loadk((bc), gab_number(num), bc->offset - 1);
   push_slot(bc, 1);
   return MV_OK;
@@ -2210,7 +2200,6 @@ static mv compile_exp_idn(struct bc *bc, mv lhs, bool assignable) {
     return MV_OK;
 
   case COMP_ID_NOT_FOUND:
-    // TODO: Improve this error message.
     return compiler_error(bc, GAB_MISSING_IDENTIFIER, FMT_ID_NOT_FOUND, id),
            MV_ERR;
 
@@ -2236,7 +2225,7 @@ static mv compile_exp_send(struct bc *bc, mv lhs, bool assignable) {
 static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
   struct compile_rule rule = get_rule(tok);
 
-  if (rule.prefix == NULL)
+  if (rule.prefix == nullptr)
     return compiler_error(bc, GAB_UNEXPECTED_TOKEN, FMT_EXPECTED_EXPRESSION),
            MV_ERR;
 
@@ -2298,11 +2287,11 @@ static mv compile_expression_prec(struct bc *bc, enum prec_k prec) {
 // All of the expression compiling functions follow the naming convention
 // compile_exp_<name>.
 #define NONE()                                                                 \
-  { NULL, NULL, kNONE }
+  { nullptr, nullptr, kNONE }
 #define PREFIX(fnc)                                                            \
-  { compile_exp_##fnc, NULL, kPRIMARY }
+  { compile_exp_##fnc, nullptr, kPRIMARY }
 #define INFIX(fnc, prec)                                                       \
-  { NULL, compile_exp_##fnc, k##prec }
+  { nullptr, compile_exp_##fnc, k##prec }
 
 // ----------------Pratt Parsing Table ----------------------
 const struct compile_rule rules[] = {
@@ -2470,9 +2459,9 @@ static uint64_t dumpSendInstruction(FILE *stream,
   uint8_t tail = have & fHAVE_TAIL;
   have = have >> 2;
 
-  fprintf(stream, "%-25s" ANSI_COLOR_BLUE, name);
+  fprintf(stream, "%-25s" GAB_BLUE, name);
   gab_fvalinspect(stream, msg, 0);
-  fprintf(stream, ANSI_COLOR_RESET " (%d%s)%s\n", have, var ? " & more" : "",
+  fprintf(stream, GAB_RESET " (%d%s)%s\n", have, var ? " & more" : "",
           tail ? " [TAILCALL]" : "");
 
   return offset + 4;
@@ -2655,7 +2644,7 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
 
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(pval);
 
-    printf("%-25s" ANSI_COLOR_CYAN "%-20s\n" ANSI_COLOR_RESET, "OP_BLOCK",
+    printf("%-25s" GAB_CYAN "%-20s\n" GAB_RESET, "OP_BLOCK",
            gab_strdata(&p->src->name));
 
     for (int j = 0; j < p->nupvalues; j++) {
@@ -2717,7 +2706,7 @@ int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *proto) {
   uint64_t end = proto->offset + proto->len;
 
   while (offset < end) {
-    fprintf(stream, ANSI_COLOR_YELLOW "%04lu " ANSI_COLOR_RESET, offset);
+    fprintf(stream, GAB_YELLOW "%04lu " GAB_RESET, offset);
     offset = dumpInstruction(stream, proto, offset);
   }
 

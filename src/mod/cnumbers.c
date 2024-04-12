@@ -9,7 +9,7 @@ typedef struct {
 } Well512;
 
 static void random_seed(Well512 *well) {
-  srand((uint32_t)time(NULL));
+  srand((uint32_t)time(nullptr));
   for (int i = 0; i < 16; i++) {
     well->state[i] = rand();
   }
@@ -96,7 +96,7 @@ a_gab_value *gab_lib_between(struct gab_triple gab, size_t argc,
   gab_value res = gab_number(num);
 
   gab_vmpush(gab.vm, res);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_floor(struct gab_triple gab, size_t argc,
@@ -110,17 +110,17 @@ a_gab_value *gab_lib_floor(struct gab_triple gab, size_t argc,
   gab_value res = gab_number(int_num + (float_num < 0));
 
   gab_vmpush(gab.vm, res);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_to_n(struct gab_triple gab, size_t argc,
                           gab_value argv[argc]) {
   const char *str = gab_valintocs(gab, argv[0]);
 
-  gab_value res = gab_number(strtod(str, NULL));
+  gab_value res = gab_number(strtod(str, nullptr));
 
   gab_vmpush(gab.vm, res);
-  return NULL;
+  return nullptr;
 };
 
 a_gab_value *gab_lib(struct gab_triple gab) {

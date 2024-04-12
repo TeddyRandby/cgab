@@ -8,7 +8,7 @@ a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
     gab_value list = list_create_empty(gab, 8);
 
     gab_vmpush(gab.vm, list);
-    return NULL;
+    return nullptr;
   }
   case 2: {
     if (gab_valkind(argv[1]) != kGAB_NUMBER) {
@@ -23,7 +23,7 @@ a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
       v_gab_value_push(gab_boxdata(list), gab_nil);
 
     gab_vmpush(gab.vm, list);
-    return NULL;
+    return nullptr;
   }
   default:
     return gab_panic(gab, "Invalid call to gab_lib_new");
@@ -56,7 +56,7 @@ a_gab_value *gab_lib_to_bytes(struct gab_triple gab, size_t argc,
 
   gab_value result = gab_nstring(gab, bytes->len, buffer);
   gab_vmpush(gab.vm, result);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
@@ -68,7 +68,7 @@ a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
   gab_value result = gab_number(((v_gab_value *)gab_boxdata(argv[0]))->len);
 
   gab_vmpush(gab.vm, result);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_pop(struct gab_triple gab, size_t argc,
@@ -80,7 +80,7 @@ a_gab_value *gab_lib_pop(struct gab_triple gab, size_t argc,
   gab_value result = list_pop(gab, argv[0]);
 
   gab_vmpush(gab.vm, result);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
@@ -92,7 +92,7 @@ a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
   list_push(gab, argv[0], argc - 1, argv + 1);
 
   gab_vmpush(gab.vm, *argv);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
@@ -111,7 +111,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
     return gab_panic(gab, "Index $ is out of bounds", voffset);
 
   gab_vmpush(gab.vm, res);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_del(struct gab_triple gab, size_t argc,
@@ -125,14 +125,14 @@ a_gab_value *gab_lib_del(struct gab_triple gab, size_t argc,
   v_gab_value_del(gab_boxdata(argv[0]), index);
 
   gab_vmpush(gab.vm, *argv);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_splat(struct gab_triple gab, size_t argc,
                            gab_value argv[argc]) {
   v_gab_value *v = gab_boxdata(argv[0]);
   gab_nvmpush(gab.vm, v->len, v->data);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_set(struct gab_triple gab, size_t argc,
@@ -155,7 +155,7 @@ a_gab_value *gab_lib_set(struct gab_triple gab, size_t argc,
   }
 
   gab_vmpush(gab.vm, *argv);
-  return NULL;
+  return nullptr;
 }
 
 a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
@@ -175,7 +175,7 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
   }
 
   gab_vmpush(gab.vm, *argv);
-  return NULL;
+  return nullptr;
 }
 
 // Boy do NOT put side effects in here
@@ -224,7 +224,7 @@ a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
   gab_value result = gab_tuple(gab, result_len, data->data + start);
 
   gab_vmpush(gab.vm, result);
-  return NULL;
+  return nullptr;
 }
 #undef MIN
 #undef MAX

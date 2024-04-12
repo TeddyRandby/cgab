@@ -212,26 +212,6 @@ end)
   end
 }
 
-transducers = {
-  [\map] = do f
-    do rf
-      do acc, xs[]
-        rf:reduce.step(acc, f (xs**))
-      end
-    end
-  end,
-}
-
-.td :defmodule transducers
-
-\def.enumerable!:def!([], do acc, rf
-  transducers:reduce(\pairs, self, do m, td
-    m:def!([self], do m, args[]
-      self:transduce(m, acc, rf, td (args**))
-    end)
-  end)
-end)
-
 \map :def.transducer! do f
   do rf
     do acc, xs[]

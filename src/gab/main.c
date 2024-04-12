@@ -25,11 +25,11 @@ void throw_err(const char *msg) {
   exit(1);
 }
 
-bool execute_arg(const char *flags) { return strchr(flags, 'e') != NULL; }
+bool execute_arg(const char *flags) { return strchr(flags, 'e') != nullptr; }
 
-bool module_arg(const char *flags) { return strchr(flags, 'r') != NULL; }
+bool module_arg(const char *flags) { return strchr(flags, 'r') != nullptr; }
 
-bool delimit_arg(const char *flags) { return strchr(flags, 'd') != NULL; }
+bool delimit_arg(const char *flags) { return strchr(flags, 'd') != nullptr; }
 
 uint8_t parse_flags(const char *arg) {
   uint8_t flags = fGAB_DUMP_ERROR;
@@ -78,7 +78,7 @@ int32_t run_3_args(const char *arg_flags, const char *arg1) {
     if (module_arg(arg_flags))
       throw_err("Too few arguments for e and d flags");
 
-    run_string(arg1, NULL, 0, flags);
+    run_string(arg1, nullptr, 0, flags);
     return 0;
   }
 
@@ -87,7 +87,7 @@ int32_t run_3_args(const char *arg_flags, const char *arg1) {
     return 0;
   }
 
-  run_file(arg1, NULL, 0, flags);
+  run_file(arg1, nullptr, 0, flags);
   return 0;
 }
 
@@ -108,7 +108,7 @@ int32_t run_4_args(const char *arg_flags, const char *arg1, const char *arg2) {
       if (module_arg(arg_flags))
         throw_err("Too few arguments for e, r, and d flags");
 
-      run_string(arg2, NULL, arg1[0], flags);
+      run_string(arg2, nullptr, arg1[0], flags);
       return 0;
     }
 
@@ -130,7 +130,7 @@ int32_t main(int32_t argc, const char **argv) {
 
   switch (argc) {
   case 1:
-    repl(NULL, fGAB_DUMP_ERROR);
+    repl(nullptr, fGAB_DUMP_ERROR);
     return 0;
 
   case 2:
@@ -145,11 +145,11 @@ int32_t main(int32_t argc, const char **argv) {
         throw_err("Not enough arguments for -d flag");
 
       uint8_t flags = parse_flags(argv[1]);
-      repl(NULL, flags);
+      repl(nullptr, flags);
       return 0;
     }
 
-    run_file(argv[1], NULL, 0, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC);
+    run_file(argv[1], nullptr, 0, fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC);
     return 0;
 
   case 3:
