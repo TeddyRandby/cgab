@@ -2142,7 +2142,7 @@ static mv compile_exp_tup(struct bc *bc, mv, bool) {
     return MV_ERR;
 
   if (match_and_eat_token(bc, TOKEN_RPAREN))
-    return push_loadi(bc, gab_nil, bc->offset - 1), push_slot(bc, 1), MV_OK;
+    return MV_OK_WITH(0);
 
   mv result = compile_tuple(bc, VAR_EXP);
 

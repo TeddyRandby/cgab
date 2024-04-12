@@ -16,7 +16,7 @@ bool can_continue_identifier(uint8_t c) {
   return can_start_identifier(c) || c == '.';
 }
 
-bool can_end_identifier(uint8_t c) { return c == '?' || c == '!'; }
+bool can_end_message(uint8_t c) { return c == '?' || c == '!'; }
 
 bool can_start_operator(uint8_t c) {
   switch (c) {
@@ -181,9 +181,6 @@ gab_token identifier(gab_lx *self) {
   while (can_continue_identifier(peek(self)))
     advance(self);
 
-  if (can_end_identifier(peek(self)))
-    advance(self);
-
   for (int i = 0; i < sizeof(keywords) / sizeof(keyword); i++) {
     keyword k = keywords[i];
     s_char lit = s_char_create(k.literal, strlen(k.literal));
@@ -268,8 +265,13 @@ gab_token other(gab_lx *self) {
 
     if (can_start_identifier(peek(self))) {
       advance(self);
-      if (identifier(self) == TOKEN_IDENTIFIER)
+
+      if (identifier(self) == TOKEN_IDENTIFIER) {
+        if (can_end_message(peek(self)))
+          advance(self);
+
         return TOKEN_MESSAGE;
+      }
     }
 
     return TOKEN_MESSAGE;
@@ -285,8 +287,13 @@ gab_token other(gab_lx *self) {
 
     if (can_start_identifier(peek(self))) {
       advance(self);
-      if (identifier(self) == TOKEN_IDENTIFIER)
+
+      if (identifier(self) == TOKEN_IDENTIFIER) {
+        if (can_end_message(peek(self)))
+          advance(self);
+
         return TOKEN_SEND;
+      }
     }
 
     return lexer_error(self, GAB_MALFORMED_TOKEN);

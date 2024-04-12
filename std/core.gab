@@ -8,6 +8,8 @@
 \first :def! ([], do x; x end)
 \second :def! ([], do _, x; x end)
 
+\is? :def! ([], do other; (self?) == (other?) end)
+
 [] :defmodule! {
   [\and] = do alt[]
     alt**

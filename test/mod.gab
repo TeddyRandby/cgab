@@ -1,4 +1,3 @@
-'any' :use
 'tests' :use
 'numbers' :use
 
@@ -378,7 +377,7 @@ end
 
     \at! :def! ([Vector], do key
       v = self
-      (key == 'mag') :and do
+      (key == 'mag') :then do
         ((v:x) * (v:x)) + ((v:y) * (v:y))
       end
     end)

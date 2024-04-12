@@ -1,8 +1,5 @@
 records = 'records' :use
 lists = 'lists' :use
-'conditionals' :use
-'transducers' :use
-'iter':use
 
 TestState = { fails, errs }
 
@@ -10,12 +7,12 @@ testing.t = TestState ?
 
 \reset :def! ([testing.t], do
   self:fails = 0
-  self:errs = .gab.list :make
+  self:errs = .gab.list()
 
   self
 end)
 
-T = .gab.record :make(TestState ?) :reset 
+T = .gab.record(TestState ?) :reset 
 
 \tests.push_result :defcase! {
 
