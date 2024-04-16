@@ -12,3 +12,11 @@ td = .td:compose (
 )
 
 record:transduce(\pairs, '', \+, td):print
+
+'until':print(record:until(\values, 0, \+, do x
+  x > 2
+end))
+
+10:until(\upto, 0, \+, do x
+  x > 5
+end):print

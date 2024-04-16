@@ -31,18 +31,18 @@ explain_strings = do strings, separator
 end
 
 ## Registry of qualified name -> spec
-registry.spec = .gab.map{}
+registry.spec = .gab.map {}
 
 ## Registry of spec -> qualified name
-registry.name = .gab.map{}
+registry.name = .gab.map {}
 
 ## Registry of qualified name -> help text
-registry.help = .gab.map{}
+registry.help = .gab.map {}
 
 ## Registry of receiver -> list of spec'd messages
-registry.messages = .gab.map{}
+registry.messages = .gab.map {}
 
-register! = do registry, name, value
+register = do registry, name, value
   # Add a new specification to the registry.
   # If this key already existed, panic.
   registry:add!(name, value):unwrap!
@@ -51,22 +51,22 @@ end
 
 \spec.register! :defcase! {
   [{ spec }?] = do name
-    register!(registry.spec, name, self:spec)
-    register!(registry.name, self:spec, name)
+    register(registry.spec, name, self:spec)
+    register(registry.name, self:spec, name)
 
     self:spec
   end,
   [{ help, spec }?] = do name
-    register!(registry.spec, name, self:spec)
-    register!(registry.name, self:spec, name)
-    register!(registry.help, self:spec, self:help)
+    register(registry.spec, name, self:spec)
+    register(registry.name, self:spec, name)
+    register(registry.help, self:spec, self:help)
 
     self:spec
   end,
   [{ spec, help }?] = do name
-    register!(registry.spec, name, self:spec)
-    register!(registry.name, self:spec, name)
-    register!(registry.help, self:spec, self:help)
+    register(registry.spec, name, self:spec)
+    register(registry.name, self:spec, name)
+    register(registry.help, self:spec, self:help)
 
     self:spec
   end,
@@ -126,7 +126,7 @@ end)
 unknown_values = [ .nil, 0, 1, 'test', .true ]
 
 \spec.gen :def! ([unknown.predicate], do
-  idx = .int:between(0, unknown_values:len - 1)
+  idx = .int.between(0, unknown_values:len - 1)
 
   unknown_values:at!(idx)
 end)
@@ -145,7 +145,7 @@ int.predicate = .predicate.int
 end)
 
 \spec.gen :def! ([int.predicate], do
-  .int:between(-10000, 10000)
+  .int.between(-10000, 10000)
 end)
 
 \spec.explain :def! ([int.predicate], 'Int')
@@ -163,7 +163,7 @@ float.predicate = .predicate.float
 end)
 
 \spec.gen :def! ([float.predicate], do
-  .float:between(-10000, 10000)
+  .float.between(-10000, 10000)
 end)
 
 \spec.explain :def! ([float.predicate], 'Float')
@@ -181,7 +181,7 @@ end)
 
 \spec.gen :def! ([string.predicate], do
   len  = .int:between(1, 100)
-  list = .gab.list :make
+  list = .gab.list()
 
   len:times => list:push!(.int:between(0, 127))
   
@@ -270,7 +270,7 @@ end)
   end)
 
   \spec.gen :def! ([map.predicate], do
-    .gab.map :make { [k_spec:spec.gen] =  v_spec:spec.gen }
+    .gab.map { [k_spec:spec.gen] =  v_spec:spec.gen }
   end)
 
   \spec.explain :def! ([map.predicate], do
@@ -289,7 +289,7 @@ end)
   end)
 
   \spec.gen :def! ([list.predicate], do
-    .gab.list:make:push!(spec:spec.gen)
+    .gab.list():push!(spec:spec.gen)
   end)
 
   \spec.explain :def! ([list.predicate], do
@@ -301,13 +301,14 @@ end)
 
 ## predicate for a type which implements a set of messages
 \ :def! ([.spec.protocol], do protocol
+  protocol_shape = protocol?
   protocol.predicate = 'predicate:protocol:{protocol}' :sigil.into
 # Return a predicate which returns true if the given value
 # has all the keys of the record
   \spec.fits? :def! ([protocol.predicate], do value
     protocol:spec.fits_each?(\keys, do k
 # If message doesn't specify for this value, then the spec doesn't fit
-      m = .gab.message :make k
+      m = .gab.message k
 
 # Check for a spec which corresponds to this message in the protocol
       m:has?(value) :and (.false, self, k, do
@@ -321,15 +322,16 @@ end)
   end)
 
   \spec.gen :def! ([protocol.predicate], do
-    gen = .gab.record :make protocol
+    gen = .gab.record protocol_shape
 
-    protocol:for(\keys, do k
-      found = registry.spec:at!(k)
+    protocol:map(\keys, gen, \put!, do key
+      found = registry.spec:at(key):unwrap!
 
-      gen:put!(k, found:spec.gen)
-    end)
+      { key, found }:print
 
-    gen
+      (key, found:spec.gen)
+    end,
+    )
   end)
 
   \spec.explain :def! ([protocol.predicate], do
@@ -360,7 +362,7 @@ end)
   end)
 
   \spec.gen :def! ([values.predicate], do
-    res = .gab.tuple:make(specs:len)
+    res = .gab.tuple specs:len
 
     res:map! do k
       specs:at!(k):spec.gen
@@ -408,7 +410,7 @@ end)
   end)
 
   \spec.gen :def! ([or.predicate], do
-    specs:at!(.int:between(0, specs:len - 1)) :spec.gen
+    specs:at!(.int.between(0, specs:len - 1)) :spec.gen
   end)
 
   \spec.explain :def! ([or.predicate], do
@@ -435,15 +437,15 @@ end)
   end)
   
   \spec.gen :def! ([and.predicate], do
-    start = specs[0]
+    start = specs :at 0
 
-    100:first(\upto, do
+    100:until(\upto, 0, \self, do
       value = start:spec.gen
 
       specs:fold(\values, .true, do a, s
         a :and => s:spec.fits?(value)
       end)
-    end):unwrap!
+    end)
   end)
 
   \spec.explain :def! ([and.predicate], do
@@ -568,10 +570,6 @@ end)
 
 \spec.explain :def! ([general_message.predicate], 'Message')
 
-## TODO: Handle -
-##    - no arguments
-##    - no output
-##    - no receiver
 spec.message.Args = { receiver, message, input, output, semantics }?
 
 spec.message.Application = spec.message.Args :with .in :with .out :with .rec
@@ -599,12 +597,12 @@ end)
   message.predicate = 'predicate:message:{args}' :sigil.into
 
   registry.messages:at_or!(
-                      args:receiver,
-                      .gab.map {},
-                  ):add!(
-                      args:message,
-                      message.predicate,
-                  )
+      args:receiver,
+      .gab.map {},
+  ):add!(
+      args:message,
+      message.predicate,
+  )
 
   \spec.fits? :def! ([message.predicate], do rec, input, output
     v = args:with(.input_value, input):with(.output_value, output)

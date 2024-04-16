@@ -1,31 +1,51 @@
-nums.t = 'cnumbers' :use
+'core' :use
+numbers.t = 'cnumbers' :use
 
-\++ :def! ([nums.t], do
+\ :def! ([.int.between], do min, max
+  .float.between (min,max) :floor
+end)
+
+\++ :def! ([numbers.t], do
   self + 1
 end)
 
-\-- :def! ([nums.t], do
+\-- :def! ([numbers.t], do
   self - 1
 end)
 
-\even? :def! ([nums.t], do
+\even? :def! ([numbers.t], do
   (self % 2) == 0
 end)
 
-\odd? :def! ([nums.t], do
+\odd? :def! ([numbers.t], do
   (self % 2) == 1
 end)
 
-\pos? :def! ([nums.t], do
+\pos? :def! ([numbers.t], do
   self > 0
 end)
 
-\neg? :def! ([nums.t], do
+\neg? :def! ([numbers.t], do
   self < 0
 end)
 
-\numbers.into :def!([nums.t], do
+\numbers.into :def!([numbers.t], do
   self
 end)
 
 \numbers.into :def!([.nil, .false], 0)
+
+\next? :def! ([numbers.t], do x
+  { self, x }:print
+  (self > x, x + 1)
+end)
+
+\numbers.next? :def.iter.next! (numbers.t, \next?)
+
+\numbers.upto.step :def.iter.step! \first
+
+\upto :def.iter! (numbers.t, {
+  init = \numbers.into,
+  next = \numbers.next?,
+  step = \numbers.upto.step
+})

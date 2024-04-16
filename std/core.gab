@@ -14,8 +14,8 @@
   [\and] = do alt[]
     alt**
   end,
-  [\then] = do alt[], cb
-    cb (alt**)
+  [\then] = do alt[], f
+    f (alt**)
   end,
   [\or] = do 
     self
@@ -35,8 +35,8 @@
   [\or] = do alt[]
     alt**
   end,
-  [\else] = do alt[], cb
-    cb (alt**)
+  [\else] = do alt[], f
+    f (alt**)
   end,
 }
 
@@ -308,6 +308,21 @@ end
       end,
       reduce.done = do acc
         (self:n > 0) :do_partition (acc, self, rf)
+      end,
+    }
+  end
+end
+
+\until :def.transducer! do f
+  do rf
+    {
+      d = .false,
+      reduce.step = do acc, xs[]
+        self:d = self:d:else(xs:push f **)
+        self:d ! :td.conditionally (acc, xs, rf)
+      end,
+      reduce.done = do acc
+        acc
       end,
     }
   end

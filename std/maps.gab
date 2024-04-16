@@ -5,13 +5,21 @@ maps.t = 'cmaps' :use
   self:at key  == .ok
 end)
 
+\at_or :def! ([maps.t], do key, x
+  self:at key :unwrap :or x
+end)
+
 \at_or! :def! ([maps.t], do key, default
   self:at key :unwrap :else (self, do map
     map:put! (key, default)
   end)
 end)
 
-\at_pair! :def! ([maps.t], do key
+\at_else :def! ([maps.t], do key, f
+  self:at key :unwrap :else f
+end)
+
+\at_pair :def! ([maps.t], do key
   (key, self:at key)
 end)
 

@@ -1,3 +1,4 @@
+#include "core.h"
 #include "gab.h"
 #include <stdio.h>
 #include <time.h>
@@ -128,12 +129,12 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   struct gab_spec_argt specs[] = {
       {
-          "float_between",
-          gab_strtosig(type),
-          gab_snative(gab, "float_between", gab_lib_between),
+          mGAB_CALL,
+          gab_sigil(gab, "float.between"),
+          gab_snative(gab, "float.between", gab_lib_between),
       },
       {
-          "nums.floor",
+          "floor",
           type,
           gab_snative(gab, "floor", gab_lib_floor),
       },

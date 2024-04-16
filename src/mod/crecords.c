@@ -100,9 +100,9 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
   gab_value v = gab_arg(2);
 
   if (gab_recput(gab, r, k, v) == gab_undefined)
-    gab_vmpush(gab.vm, gab_nil);
+    return gab_panic(gab, "Failed to put $ in $", k, r);
   else
-    gab_vmpush(gab.vm, v);
+    gab_vmpush(gab.vm, r);
 
   return nullptr;
 }

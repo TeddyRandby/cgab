@@ -1,15 +1,10 @@
 'specs' :use
 
-## cars.gab
 Car = { car.make, car.model, car.year, car.color }
 
 'car.make' :def.spec! {
   help = "The car's manufacturer, ie 'Ford'",
   spec =  .spec.or  ('Ford', 'Chevy', 'Toyota', 'Honda'),
-}
-
-'car.year' :def.spec! {
-  spec =  .spec.and ( .spec.int (),  .spec.gt 2000 )
 }
 
 'car.color' :def.spec! {
@@ -20,7 +15,11 @@ Car = { car.make, car.model, car.year, car.color }
   spec =  .spec.or ('Mustang', 'Civic', 'Camry', 'Prius')
 }
 
-'car' :def.spec! {
+'car.year' :def.spec! {
+  spec =  .spec.and ( .spec.int (),  .spec.gt 2000 )
+}
+
+car.spec = 'car' :def.spec! {
   spec =  .spec.protocol Car
 }
 
@@ -43,7 +42,8 @@ car.paint.spec =  'car.paint' :def.spec! {
 }
 
 # Generate a mock car
-# test_car = car.spec spec.gen
+test_car = car.spec :spec.gen
+test_car :print
 
 # Test the mock coar with the mock implementation of car.paint
 # test_car car.paint('BLUE')  print # => 'BLUE'
