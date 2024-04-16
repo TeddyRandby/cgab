@@ -1,6 +1,5 @@
 #include "core.h"
 #include "gab.h"
-#include <stdio.h>
 #include <time.h>
 
 typedef struct {
@@ -59,7 +58,6 @@ static double random_float() {
 
 a_gab_value *gab_lib_between(struct gab_triple gab, size_t argc,
                              gab_value argv[argc]) {
-
   double min = 0, max = 1;
 
   switch (argc) {

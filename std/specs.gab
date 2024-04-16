@@ -327,8 +327,6 @@ end)
     protocol:map(\keys, gen, \put!, do key
       found = registry.spec:at(key):unwrap!
 
-      { key, found }:print
-
       (key, found:spec.gen)
     end,
     )
@@ -437,15 +435,24 @@ end)
   end)
   
   \spec.gen :def! ([and.predicate], do
-    start = specs :at 0
+    start = specs :at! 0
 
-    100:until(\upto, 0, \self, do
-      value = start:spec.gen
+    td = .td:compose (
+      .td:map do
+        value = start:spec.gen
 
-      specs:fold(\values, .true, do a, s
-        a :and => s:spec.fits?(value)
-      end)
-    end)
+        fits = specs:reduce(\values, .true, do a, s
+          a:then(s, value, \spec.fits?)
+        end)
+
+        (fits, value)
+      end,
+      .td:filter \self,
+      .td:map \first,
+      .td:take 1,
+    )
+
+    100:transduce(\upto, 0, \first, td):assert! "Failed to generate a value for all specs"
   end)
 
   \spec.explain :def! ([and.predicate], do
@@ -622,28 +629,32 @@ end)
   \spec.gen :def! ([message.predicate], do receiver
     args:message :def! ([receiver], do input[]
       args:input:spec.fits?(input**) :and(.false, do 
-        100:first(\upto, do
-    # Generate an output
-          output[] = args:output:spec.gen
+        td = .td:compose (
+          .td:map do
+            output[] = args:output:spec.gen
 
-          args:output:spec.fits?(output**) :and do
-            # If there are no semantics to satisfy, just return this output
-            (args:semantics :or do; output** end) :and do
-              rec = args:receiver:spec.gen
+            args:output:spec.fits?(output**) :then do
+              # If there are no semantics to satisfy, just return this output
+              (args:semantics :or do; output** end) :then do
+                rec = args:receiver:spec.gen
 
-              args:receiver:spec.fits?(rec) :and do 
-                # Otherwise, we need to continue generating until we
-                # find a receiver and output which satisfy the semantics.
-                args:semantics(rec, input, output) :and do
-                  # Woohoo! modify self to reflect the generated receiver
-                  self:spec.modify!(rec)
+                args:receiver:spec.fits?(rec) :then do 
+                  # Otherwise, we need to continue generating until we
+                  # find a receiver and output which satisfy the semantics.
+                  args:semantics(rec, input, output) :then do
+                    # Woohoo! modify self to reflect the generated receiver
+                    self:spec.modify!(rec)
 
-                  # Return the generated output
-                  output**
+                    # Return the generated output
+                    output**
+                  end
                 end
               end
             end
-          end
+          end,
+        )
+        100:first(\upto, do
+    # Generate an output
         end)
       end)
     end)

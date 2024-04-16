@@ -43,13 +43,14 @@ car.paint.spec =  'car.paint' :def.spec! {
 
 # Generate a mock car
 test_car = car.spec :spec.gen
-test_car :print
 
-# Test the mock coar with the mock implementation of car.paint
-# test_car car.paint('BLUE')  print # => 'BLUE'
+car.paint.spec:spec.explain:print
 
 # Generate a mock implementation of car.paint for Car
-# car.paint.spec spec.gen(Car)
+car.paint.spec:spec.gen(Car?)
+
+# Test the mock coar with the mock implementation of car.paint
+test_car :car.paint('BLUE'):print # => 'BLUE'
 
 # Define a faulty car.paint specialization
 \car.paint :def! ([Car], do color

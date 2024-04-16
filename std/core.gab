@@ -8,35 +8,41 @@
 \first :def! ([], do x; x end)
 \second :def! ([], do _, x; x end)
 
-\is? :def! ([], do other; (self?) == (other?) end)
+\is? :def! ([], do other; (self?) == (other) end)
 
 [] :defmodule! {
-  [\and] = do alt[]
+  \and = do alt[]
     alt**
   end,
-  [\then] = do alt[], f
+  \then = do alt[], f
     f (alt**)
   end,
-  [\or] = do 
+  \or = do 
     self
   end,
-  [\else] = do 
+  \else = do 
+    self
+  end,
+  \assert! = do
     self
   end,
 }
 
 [.nil, .false, .none, .err] :defmodule! {
-  [\and] = do
+  \and = do
     self
   end,
-  [\then] = do
+  \then = do
     self
   end,
-  [\or] = do alt[]
+  \or = do alt[]
     alt**
   end,
-  [\else] = do alt[], f
+  \else = do alt[], f
     f (alt**)
+  end,
+  \assert! = do msg
+    'Assert failed: {msg}':panic
   end,
 }
 
@@ -285,6 +291,21 @@ end
   end
 end
 
+\until :def.transducer! do f
+  do rf
+    {
+      d = .false,
+      reduce.step = do acc, xs[]
+        self:d = self:d:else(xs:push f **)
+        self:d ! :td.conditionally (acc, xs, rf)
+      end,
+      reduce.done = do acc
+        acc
+      end,
+    }
+  end
+end
+
 \do_partition :defcase! {
   .true = do acc, state, rf
     state:n, xs = 0, state:d:slice(state:n)
@@ -308,21 +329,6 @@ end
       end,
       reduce.done = do acc
         (self:n > 0) :do_partition (acc, self, rf)
-      end,
-    }
-  end
-end
-
-\until :def.transducer! do f
-  do rf
-    {
-      d = .false,
-      reduce.step = do acc, xs[]
-        self:d = self:d:else(xs:push f **)
-        self:d ! :td.conditionally (acc, xs, rf)
-      end,
-      reduce.done = do acc
-        acc
       end,
     }
   end

@@ -5,6 +5,9 @@ numbers.t = 'cnumbers' :use
   .float.between (min,max) :floor
 end)
 
+\is_n? :def! ([], .false)
+\is_n? :def! ([numbers.t], .true)
+
 \++ :def! ([numbers.t], do
   self + 1
 end)
@@ -36,7 +39,6 @@ end)
 \numbers.into :def!([.nil, .false], 0)
 
 \next? :def! ([numbers.t], do x
-  { self, x }:print
   (self > x, x + 1)
 end)
 
