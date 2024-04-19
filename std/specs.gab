@@ -306,18 +306,18 @@ end)
 # Return a predicate which returns true if the given value
 # has all the keys of the record
   \spec.fits? :def! ([protocol.predicate], do value
-    protocol:spec.fits_each?(\keys, do k
+    protocol:reduce(\keys, [.true, self, value], do acc, k
 # If message doesn't specify for this value, then the spec doesn't fit
       m = .gab.message k
 
 # Check for a spec which corresponds to this message in the protocol
-      m:has?(value) :and (.false, self, k, do
-       registry.spec:at(k) :unwrap:and (.false, self, value, k, do res, s
-          s:spec.fits?(value:at!(k))
-        end)
-      end)
-
-      (.true, self, value)
+     acc:at!(0) :and acc :else do
+      m :has? value :then do
+       registry.spec:at(k) :unwrap:then do s
+          s :spec.fits? (value :at! k)
+        end
+      end :or [.false, self, value, k]
+    end
     end)
   end)
 
@@ -400,9 +400,9 @@ end)
   # Return a predicate which returns true if the given value
   # fits any of the given specs
   \spec.fits? :def! ([or.predicate], do value
-    valid = specs:fold(\values, .false) do acc, s
-      acc :or => s:spec.fits?(value)
-    end
+    valid = specs:reduce(\values, .false, do acc, s
+      acc :else (s, value, \spec.fits?)
+    end)
     
     (valid, self, value)
   end)
@@ -527,7 +527,7 @@ end)
         \spec.block.output_fits?,
         \spec.semantic_fits?,
       ],
-      \option.into,
+      \options.into,
     )
   end)
 
@@ -546,7 +546,7 @@ end)
             \spec.block.output_fits?,
             \spec.semantic_fits?,
           ],
-          \option.into,
+          \options.into,
         )
       end):unwrap!
     end
@@ -622,20 +622,24 @@ end)
         \spec.message.receiver_fits?,
         \spec.message.semantics_fits?,
       ],
-      \option.into,
+      \options.into,
     )
   end)
 
   \spec.gen :def! ([message.predicate], do receiver
     args:message :def! ([receiver], do input[]
-      args:input:spec.fits?(input**) :and(.false, do 
+      # TODO: Maybe have a better syntax to avoid situations like this?
+      # FIXME: Putting a comment after self here breaks things?
+      me = self
+
+      args:input:spec.fits?(input**) :then do 
         td = .td:compose (
           .td:map do
             output[] = args:output:spec.gen
 
             args:output:spec.fits?(output**) :then do
               # If there are no semantics to satisfy, just return this output
-              (args:semantics :or do; output** end) :then do
+              (args:has? 'semantics' :else do; output** end) :then do
                 rec = args:receiver:spec.gen
 
                 args:receiver:spec.fits?(rec) :then do 
@@ -643,7 +647,7 @@ end)
                   # find a receiver and output which satisfy the semantics.
                   args:semantics(rec, input, output) :then do
                     # Woohoo! modify self to reflect the generated receiver
-                    self:spec.modify!(rec)
+                    me:spec.modify!(rec)
 
                     # Return the generated output
                     output**
@@ -652,11 +656,20 @@ end)
               end
             end
           end,
+          .td:map \options.into,
+          .td:map \unwrap,
+          .td:filter \self,
+          .td:map \first,
+          .td:take 1,
         )
-        100:first(\upto, do
-    # Generate an output
-        end)
-      end)
+
+        100:transduce(
+          \upto,
+          0,
+          \first,
+          td,
+        )
+      end
     end)
 
     args:message
@@ -740,18 +753,18 @@ end)
 end)
 
 # Since a spec is just a predicate, we can simply call it and return the result
-\spec.fits? :def! ([.gab.block], do value; self(value) end)
+\spec.fits? :def! (['gab.block'], do value; self(value) end)
 
 ## MODIFY
 # Because it is common for messages to modify `self`, spec
 # needs a way to emulate this in messages that it generates.
 # User types can define their own version of \spec.modify! If this
 # Doesn't satisfy their use case.
-\spec.modify! :def! ([.gab.record], do new_value
-    self:for(\keys, do k
+\spec.modify! :def! (['gab.record'], do new_value
+    self:tap(\keys, self, \self, do acc, k
       # If new_value has a corresponding value, modify self. Else, pass
-      v = new_value:at(k):unwrap:and do other
-        self:at!(k) = other
+      v = new_value:at(k):unwrap:then do other
+        acc:put!(k, other)
       end
   end)
 end)

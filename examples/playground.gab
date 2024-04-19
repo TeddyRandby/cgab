@@ -44,8 +44,6 @@ car.paint.spec =  'car.paint' :def.spec! {
 # Generate a mock car
 test_car = car.spec :spec.gen
 
-car.paint.spec:spec.explain:print
-
 # Generate a mock implementation of car.paint for Car
 car.paint.spec:spec.gen(Car?)
 
@@ -53,12 +51,9 @@ car.paint.spec:spec.gen(Car?)
 test_car :car.paint('BLUE'):print # => 'BLUE'
 
 # Define a faulty car.paint specialization
-\car.paint :def! ([Car], do color
-  self:car.color = 10
-end)
-
-car.paint.spec:spec.explain:print
-'car':spec:spec.explain:print
+#\car.paint :def! ([Car?], do color
+#  self:car.color = 10
+#end)
 
 # Check our faulty implementation
 # & spec.check yields a stream of predicate results.
@@ -66,5 +61,3 @@ car.paint.spec:spec.explain:print
 # And checks the output against the spec and semantics.
 # This code will run forever if the spec is always satisfied
 results[] = car.paint.spec:spec.check
-
-results :print

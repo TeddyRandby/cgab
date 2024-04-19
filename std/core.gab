@@ -28,6 +28,19 @@
   end,
 }
 
+\options.into :def! ([], do args[]
+  (.ok, self, args**)
+end)
+
+\ :def! ([.gab.option], do cond, data[]
+  (cond:options.into, data**)
+end)
+
+## NOTE::
+# How should \options.into work?
+# Should it eat the self?
+# Should it just appends .ok to the front, if it is successful?
+
 [.nil, .false, .none, .err] :defmodule! {
   \and = do
     self
@@ -44,33 +57,25 @@
   \assert! = do msg
     'Assert failed: {msg}':panic
   end,
+  \options.into = .none,
+  \results.into = .err,
 }
 
-# The successfull case, unwrap into all the arguments.
-\unwrap! :def! ([.ok], do args[]
-  args**
-end)
+[.ok] :defmodule! {
+  \unwrap! = do args[]
+    args**
+  end,
+  \unwrap = do args[]
+    (.true, args**)
+  end,
+}
 
-# All other types should panic when unwrapped
-\unwrap! :def! ([.none, .err], do args[]
-  'Cannot unwrap {self}':panic
-end)
-
-\unwrap :def! ([.ok], do args[]
-  (.true, args**)
-end)
-
-\unwrap :def! ([.none, .err], do
-  .false
-end)
-
-\options.into :def! ([.nil, .err, .false, .none], do args
-  .none
-end)
-
-\options.into :def! ([.true, .ok], do args[]
-  (.ok, args**)
-end)
+[.none, .err] :defmodule! {
+  \unwrap! = do
+    'Cannot unwrap {self}':panic
+  end,
+  \unwrap = .false,
+}
 
 ### The 'iter' module defines a protocol for producing an ordered sequence of values. 
 ### 
@@ -121,7 +126,7 @@ end)
   self :def! ([t], do n
     ok, nx = next (self, n)
 
-    (ok, n, nx) :options.into
+    .gab.option (ok, n, nx)
   end)
 end)
 
@@ -283,21 +288,6 @@ end
       reduce.step = do acc, xs[]
         self:n = self:n - 1
         (self:n < 0) :td.conditionally (acc, xs, rf)
-      end,
-      reduce.done = do acc
-        acc
-      end,
-    }
-  end
-end
-
-\until :def.transducer! do f
-  do rf
-    {
-      d = .false,
-      reduce.step = do acc, xs[]
-        self:d = self:d:else(xs:push f **)
-        self:d ! :td.conditionally (acc, xs, rf)
       end,
       reduce.done = do acc
         acc

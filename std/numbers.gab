@@ -6,6 +6,7 @@ numbers.t = 'cnumbers' :use
 end)
 
 \is_n? :def! ([], .false)
+
 \is_n? :def! ([numbers.t], .true)
 
 \++ :def! ([numbers.t], do
@@ -44,7 +45,7 @@ end)
 
 \numbers.next? :def.iter.next! (numbers.t, \next?)
 
-\numbers.upto.step :def.iter.step! \first
+\numbers.upto.step :def.iter.step! \next?
 
 \upto :def.iter! (numbers.t, {
   init = \numbers.into,

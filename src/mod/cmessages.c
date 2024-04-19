@@ -111,7 +111,7 @@ a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
-                          gab_value argv[static argc]) {
+                            gab_value argv[static argc]) {
   gab_value cases = gab_arg(0);
   gab_value messages = gab_arg(1);
 
@@ -160,7 +160,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   struct gab_spec_argt specs[] = {
       {
-          "make",
+          mGAB_CALL,
           gab_strtosig(type),
           gab_snative(gab, "message.new", gab_lib_message),
       },
