@@ -445,7 +445,7 @@ gab_value gab_vmframe(struct gab_triple gab, uint64_t depth) {
 void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t value) {
   uint64_t frame_count = vm->fp - vm->fb;
 
-  if (value >= frame_count)
+  if (value > frame_count)
     return;
 
   struct gab_vm_frame *f = vm->fp - value;

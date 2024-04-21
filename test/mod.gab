@@ -107,6 +107,74 @@
         e:should(\be, \==, 3)
     end
 
+    'should mix rest locals and properties' :tests.should do
+        a = { b, c }
+
+        a:b, d[], a:c = 1, 2, 3
+
+        d:at!(0):should(\be, \==, 2)
+        a:b:should(\be, \==, 1)
+        a:c:should(\be, \==, 3)
+
+        e[], a:b, a:c = 1, 2, 3
+
+        e:at!(0):should(\be, \==, 1)
+        a:b:should(\be, \==, 2)
+        a:c:should(\be, \==, 3)
+
+        a:c, a:b, e[] = 1, 2, 3
+
+        a:c:should(\be, \==, 1)
+        a:b:should(\be, \==, 2)
+        e:at!(0):should(\be, \==, 3)
+
+        a:b, d[], a:c = 1, 2, 4, 5, 3
+
+        d:at!(0):should(\be, \==, 2)
+        a:b:should(\be, \==, 1)
+        a:c:should(\be, \==, 3)
+
+        e[], a:b, a:c = 1, 4, 5, 2, 3
+
+        e:at!(0):should(\be, \==, 1)
+        a:b:should(\be, \==, 2)
+        a:c:should(\be, \==, 3)
+
+        a:c, a:b, e[] = 1, 2, 3, 4,5
+
+        a:c:should(\be, \==, 1)
+        a:b:should(\be, \==, 2)
+        e:at!(0):should(\be, \==, 3)
+
+        one_through_five = do; (1,2,3,4,5) end
+        one = do; 1 end
+
+        a:c, a:b, e[] = one_through_five(a:b, a:c)
+
+        a:c:should(\be, \==, 1)
+        a:b:should(\be, \==, 2)
+        e:at!(0):should(\be, \==, 3)
+
+        test = do i
+          i:b, i:c, xs[] = (i:m)(i:b, i:c)
+
+          (i:b, i:c, xs**)
+        end
+
+        a:c, a:b, e[] = test { m = \self, b = 1, c = 2 }
+
+        a:c:should(\be, \==, 1)
+        a:b:should(\be, \==, .nil)
+
+        test = { m = \self, b = 1, c = 2 }
+
+        a:c, a:b, e[] = (test:m)(test:b, test:c)
+
+        a:c:should(\be, \==, 1)
+        a:b:should(\be, \==, .nil)
+
+    end
+
     'should mix locals and sets' :tests.should do
         a = { b, c }
 

@@ -32,14 +32,13 @@
   (.ok, self, args**)
 end)
 
+\results.into :def! ([], do args[]
+  (.ok, self, args**)
+end)
+
 \ :def! ([.gab.option], do cond, data[]
   (cond:options.into, data**)
 end)
-
-## NOTE::
-# How should \options.into work?
-# Should it eat the self?
-# Should it just appends .ok to the front, if it is successful?
 
 [.nil, .false, .none, .err] :defmodule! {
   \and = do
@@ -164,6 +163,49 @@ end)
     step (s, self, n, nx)
   end)
 end)
+
+Iterator = {
+  i, # Invariant
+  m, # Message used to produce the next value
+  r, # The reducer
+  s, # The status
+  n, # The next 'key' to produce
+  acc, # The accumulator
+}?
+
+\ :def! ([.gab.iterator], do i, m, acc, r
+  {
+    i,
+    m,
+    r,
+    s = .ok,
+    n = .nil,
+    acc,
+  }
+end)
+
+\iter.reduce :defcase! {
+  .ok = do iter
+    iter:s, iter:n, xs[] = (iter:m)(iter:i , iter:n)
+
+    iter:acc = iter:r:reduce.step(iter:acc, xs**)
+
+    iter
+  end,
+  .none = do iter
+    iter:r:reduce.done(iter:acc)
+  end,
+}
+
+[Iterator] :defmodule! {
+  \iter.next = do
+    self:s :iter.reduce self
+  end,
+}
+
+#
+# .gab.iterator (list, \values, 0, \+)
+
 
 # The work of reducing
 \reduce :defcase! {

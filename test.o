@@ -1,0 +1,47 @@
+[33m0000 [0mTRIM                     3
+[33m0002 [0mCONSTANT                 core
+[33m0005 [0mSEND                     [34m\use[0m (1)
+[33m0009 [0mTRIM                     1
+[33m0011 [0mPOP                      
+[33m0012 [0mNCONSTANT                {a = true b = true m = \first}
+[33m0016 [0mPOPSTORE_LOCAL           1
+[33m0018 [0mLOAD_LOCAL               1
+[33m0020 [0mPOP                      
+[33m0021 [0mNLOAD_LOCAL              3: 1, 1, 1
+[33m0026 [0mSEND                     [34m\m[0m (1)
+[33m0030 [0mTRIM                     1
+[33m0032 [0mLOAD_LOCAL               1
+[33m0034 [0mSEND                     [34m\a[0m (1)
+[33m0038 [0mTRIM                     1
+[33m0040 [0mLOAD_LOCAL               1
+[33m0042 [0mSEND                     [34m\b[0m (1)
+[33m0046 [0mSEND                     [34m\[0m (2 & more)
+[33m0050 [0mPACK                     (0 & more) -> 2 0
+[33m0054 [0mPOPSTORE_LOCAL           2
+[33m0056 [0mSHIFT                    3
+[33m0058 [0mSHIFT                    4
+[33m0060 [0mSEND                     [34m\b[0m (2)
+[33m0064 [0mTRIM                     0
+[33m0066 [0mSEND                     [34m\a[0m (2)
+[33m0070 [0mRETURN                   1
+[32m 000[0m closure:[36m__main__            [0m 0 upvalues
+->[33m   8 [0m4.94066e-324
+  [33m   7 [0m{ ~ }
+  [33m   6 [0mnil
+  [33m   5 [0mtrue
+  [33m   4 [0m{a = true b = true m = \first}
+  [33m   3 [0m{a = true b = true m = \first}
+  [33m   2 [0mnil
+  [33m   1 [0m{a = true b = true m = \first}
+  [33m   0 [0m<gab.block __main__>
+VAR: 3
+[32m 000[0m closure:[36m__main__            [0m 0 upvalues
+->[33m   8 [0m1.4822e-323
+  [33m   7 [0m{ ~ }
+  [33m   6 [0mnil
+  [33m   5 [0mtrue
+  [33m   4 [0m{a = true b = true m = \first}
+  [33m   3 [0m{a = true b = true m = \first}
+  [33m   2 [0mnil
+  [33m   1 [0m{a = true b = true m = \first}
+  [33m   0 [0m<gab.block __main__>

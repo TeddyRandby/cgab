@@ -1637,14 +1637,6 @@ static void adjust_preceding_lvalues(struct bc *bc) {
   }
 }
 
-static uint8_t new_lvalues(v_lvalue *lvalues) {
-  uint8_t new = 0;
-  for (int i = 0; i < lvalues->len; i++)
-    new += lvalues->data[i].kind == kNEW_LOCAL ||
-           lvalues->data[i].kind == kNEW_REST_LOCAL;
-  return new;
-}
-
 static mv compile_assignment(struct bc *bc, struct lvalue target) {
   bool first = !match_ctx(bc, kASSIGNMENT_TARGET);
 
@@ -1681,7 +1673,6 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
            MV_ERR;
 
   uint8_t n_rest_values = count_rest_lvalues(lvalues);
-  uint8_t n_new_values = new_lvalues(lvalues);
 
   if (n_rest_values > 1) {
     struct lvalue target = v_lvalue_val_at(lvalues, first_rest_lvalue(lvalues));
@@ -1699,12 +1690,6 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
   if (rhs.status < 0)
     return MV_ERR;
 
-  // In the scenario where we want ALL possible values,
-  // compile_tuple will only push one slot. Here we know
-  // A minimum number of slots that we will have bc we call pack
-  if (n_rest_values && rhs.status < n_new_values)
-    push_slot(bc, n_new_values - rhs.status);
-
   if (rhs.status < 0)
     return MV_ERR;
 
@@ -1717,15 +1702,13 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
 
         push_pack(bc, rhs, before, after, t);
 
-        int slots = lvalues->len - rhs.status;
-
-        for (uint8_t j = i; j < lvalues->len; j++)
-          v_lvalue_ref_at(lvalues, j)->slot += slots;
+        int slots = lvalues->len - rhs.status - rhs.multi;
 
         if (slots > 0)
-          push_slot(bc, slots - 1);
-        else
-          pop_slot(bc, -slots + 1);
+          push_slot(bc, slots);
+
+        if (slots < 0)
+          pop_slot(bc, -slots);
       }
     }
   } else {
@@ -1772,10 +1755,11 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
     case kMESSAGE: {
       push_send(bc, lval.as.property.message, lval.as.property.args, t);
 
-      if (!is_last_assignment)
-        push_trim(bc, 0, t);
+      push_trim(bc, is_last_assignment, t);
 
-      pop_slot(bc, 1 + !is_last_assignment);
+      pop_slot(bc, lval.as.property.args.status);
+
+      push_slot(bc, is_last_assignment);
       break;
     }
     }

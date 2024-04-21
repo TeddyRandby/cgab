@@ -14,3 +14,10 @@ td = .td:compose (
 record:transduce(\pairs, '', \+, td):print
 
 10:tap(\upto, .nil, \self, \print)
+
+iter = .gab.iterator (record, \values, 0, \+)
+iter:print
+iter:iter.next:print
+iter:iter.next:print
+iter:iter.next:print
+iter:iter.next:print
