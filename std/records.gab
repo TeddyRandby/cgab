@@ -10,7 +10,7 @@ end)
 end)
 
 \records.init :def! ([.nil], do record
-  record:next?:first
+  record:next?:unwrap!
 end)
 
 \records.init :def! ([], do
