@@ -15,9 +15,7 @@ record:transduce(\pairs, '', \+, td):print
 
 10:tap(\upto, .nil, \self, \print)
 
-iter = .gab.iterator (record, \values, 0, \+)
-iter:print
-iter:iter.next:print
-iter:iter.next:print
-iter:iter.next:print
-iter:iter.next:print
+iter = .gab.iterator (10, \upto)
+
+sum = iter:reduce(\values, 0, \+)
+'reduce iter with \+: {sum}':print

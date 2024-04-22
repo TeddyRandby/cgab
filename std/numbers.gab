@@ -45,7 +45,7 @@ end)
 
 \numbers.next? :def.iter.next! (numbers.t, \next?)
 
-\numbers.upto.step :def.iter.step! \next?
+\numbers.upto.step :def.iter.step! \first
 
 \upto :def.iter! (numbers.t, {
   init = \numbers.into,
