@@ -9,15 +9,15 @@ end)
   (key, self:at! key)
 end)
 
-\records.init :def! ([.nil], do record
-  record:next?:unwrap!
+\records.init :def! ([.iterators.init], do record
+  record:next? self :unwrap!
 end)
 
 \records.init :def! ([], do
   self
 end)
 
-\records.next? :def.iter.next! (records.t, \next?)
+\records.next? :def.iter.next! ([records.t], \next?)
 
 \records.keys.step :def.iter.step! \first
 
@@ -25,19 +25,19 @@ end)
 
 \records.pairs.step :def.iter.step! \at_pair!
 
-\keys :def.iter! (records.t, {
+\keys :def.iter! ([records.t], {
   init = \records.init,
   next = \records.next?,
   step = \records.keys.step,
 })
 
-\values :def.iter! (records.t, {
+\values :def.iter! ([records.t], {
   init = \records.init,
   next = \records.next?,
   step = \records.values.step,
 })
 
-\pairs :def.iter! (records.t, {
+\pairs :def.iter! ([records.t], {
   init = \records.init,
   next = \records.next?,
   step = \records.pairs.step,

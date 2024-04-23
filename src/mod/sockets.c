@@ -13,7 +13,7 @@
 
 #define SOCKET_BOX_TYPE "Socket"
 
-void gab_container_socket_cb(size_t len, unsigned char data[static len]) {
+void gab_container_socket_cb(size_t len, char data[static len]) {
   shutdown((int64_t)data, SHUT_RDWR);
   close((int64_t)data);
 }

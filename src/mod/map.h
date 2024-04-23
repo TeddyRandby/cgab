@@ -8,13 +8,12 @@
 #define LOAD cGAB_DICT_MAX_LOAD
 #include "dict.h"
 
-
-void map_destroy(size_t len, unsigned char data[static len]) {
+void map_destroy(size_t len, char data[static len]) {
   d_gab_value_destroy((void *)data);
 }
 
 void map_visit(struct gab_triple gab, gab_gcvisit_f v, size_t len,
-               unsigned char data[static len]) {
+               char data[static len]) {
   d_gab_value *map = (void *)data;
   for (uint64_t i = 0; i < map->cap; i++) {
     if (d_gab_value_iexists(map, i)) {

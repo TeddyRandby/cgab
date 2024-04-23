@@ -157,14 +157,9 @@ struct primitive kind_primitives[] = {
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_SPLAT),
     },
     {
-        .name = mGAB_GET,
+        .name = mGAB_CALL,
         .kind = kGAB_RECORD,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_GET),
-    },
-    {
-        .name = mGAB_SET,
-        .kind = kGAB_RECORD,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_SET),
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_RECORD),
     },
     {
         .name = mGAB_CALL,
@@ -430,7 +425,7 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
 
   gab_value n = gab_string(gab, args.name);
   gab_value m = gab_message(gab, n);
-  gab_msgput(gab, m, args.receiver, args.specialization);
+  m = gab_msgput(gab, m, args.receiver, args.specialization);
 
   gab_gcunlock(gab.gc);
 
@@ -554,18 +549,16 @@ a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
 }
 
 size_t gab_egkeep(struct gab_eg *gab, gab_value v) {
-  if (gab_valiso(v))
-    v_gab_value_push(&gab->scratch, v);
-
-  return gab->scratch.len;
+  return gab_negkeep(gab, 1, &v);
 }
 
 size_t gab_negkeep(struct gab_eg *gab, size_t len,
                    gab_value values[static len]) {
   for (uint64_t i = 0; i < len; i++)
-    v_gab_value_push(&gab->scratch, values[i]);
+    if (gab_valiso(values[i]))
+      v_gab_value_push(&gab->scratch, values[i]);
 
-  return gab->scratch.len;
+  return len;
 }
 
 gab_value gab_valcpy(struct gab_triple gab, gab_value value) {

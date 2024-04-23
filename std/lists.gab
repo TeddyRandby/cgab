@@ -16,17 +16,17 @@ end)
   (n, self:at n)
 end)
 
-\lists.next? :def.iter.next! (lists.t, \next?)
+\lists.next? :def.iter.next! ([lists.t], \next?)
 
 \lists.values.step :def.iter.step! \at!
 
-\values :def.iter! (lists.t, {
+\values :def.iter! ([lists.t], {
   init = \numbers.into,
   next = \lists.next?,
   step = \lists.values.step,
 })
 
-\pairs :def.iter! (lists.t, {
+\pairs :def.iter! ([lists.t], {
   init = \numbers.into,
   next = \lists.next?,
   step = \lists.pairs.step,

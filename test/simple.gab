@@ -3,19 +3,27 @@
 'numbers' :use
 
 record = [1,2,3]
-sum = record:map(\values, 0, \+, \++)
-'map record with \++, reduce with \+: {sum}':print
+
+iter = .gab.iterator (record, \values)
 
 td = .td:compose (
-  .td:map do x; '{x}' end,
-  .td:interpose ',',
+ .td:map do x; '{x}' end,
+ .td:interpose ',',
 )
 
-record:transduce(\pairs, '', \+, td):print
+iter:transduce('', \+, td):print
 
-10:tap(\upto, .nil, \self, \print)
+#10:tap(\upto, .nil, \self, \print)
 
 iter = .gab.iterator (10, \upto)
 
-sum = iter:reduce(\values, 0, \+)
+sum = iter:reduce(0, \+)
 'reduce iter with \+: {sum}':print
+
+td = .td:take 4
+
+
+#.gab.iterator (10, \upto) :reduce (.nil, \print)
+
+tditer = .gab.iterator (10, \upto, 0, td \+)
+tditer:reduce(.nil, \print)

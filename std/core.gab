@@ -122,7 +122,7 @@ end)
 
 # Define an 'iter' message using 'next' to check for and produce the next key.
 \def.iter.next! :def! (['gab.message'], do t, next
-  self :def! ([t], do n
+  self :def! (t, do n
     ok, nx = next (self, n)
 
     .gab.option (ok, n, nx)
@@ -149,7 +149,7 @@ end)
 \def.iter! :def! (['gab.message'], do t, args
   init, next, step = args:at! ('init', 'next', 'step')
 
-  self :def! ([t], do n
+  self :def! (t, do n
     # Initialize the itererator with 'init'.
     # All next values will pass through 'init' as well,
     # so it should be designed to do nothing for that case.
@@ -164,45 +164,64 @@ end)
   end)
 end)
 
-Iterator = {
+iterators.t = {
   iter.i, # Invariant
-  iter.m, # Message used to produce the next value
+  iter.m, # The iterator message to send to Invariant
   iter.s, # The status
-  iter.n, # The next 'key' to produce
+  iter.n, # The next 'key' to produce the next value
 }?
 
-\ :def! ([.gab.iterator], do i, m
+reducing_iterators.t = {
+  iter.i, # Invariant
+  iter.m, # The iterator message to send to Invariant
+  iter.s, # The status
+  iter.n, # The next 'key' to produce the next value
+  iter.a, # The accumulator
+  iter.r, # The reducing function
+}?
+
+\ :def! ([.gab.iterator], do i, m, a, r
   {
     iter.i = i,
     iter.m = m,
     iter.s = .ok,
-    iter.n = .nil,
-  }
+    iter.n = .iterators.init,
+    iter.a = a,
+    iter.r = r,
+  } :compact
+end)
+
+\iter.curr :def! ([reducing_iterators.t, iterators.t], do
+    (self:iter.m)(self:iter.i, self:iter.n)
 end)
 
 \iter.step :defcase! {
   .ok = do iter
     iter:iter.s, iter:iter.n, xs[] = iter:iter.curr
     
-    xs**
+    xs
   end,
   .none = do iter
-    .none
+    ()
   end,
 }
 
-[Iterator] :defmodule! {
-  \iter.next = do
-    self:iter.s :iter.step self
+\iter.next :defcase! {
+  [reducing_iterators.t] = do
+    xs = self:iter.s :iter.step self
+
+    self:iter.a = (self:at! 'iter.r') :reduce.step (self:iter.a, xs**)
   end,
-  \iter.curr = do
-    (self:iter.m)(self:iter.i, self:iter.n)
-  end
+  [iterators.t] = do
+    (self:iter.s :iter.step self)**
+  end,
 }
 
-\iterators.next? :def.iter.next! (Iterator, \iter.curr)
+\iterators.next? :def.iter.next! ([reducing_iterators.t, iterators.t], \iter.curr)
+
 \iterators.values.step :def.iter.step! \iter.next
-\values :def.iter! (Iterator, {
+
+\values :def.iter! ([reducing_iterators.t, iterators.t], {
   init = \self,
   next = \iterators.next?,
   step = \iterators.values.step,
@@ -210,41 +229,40 @@ end)
 
 # The work of reducing
 \reduce :defcase! {
-  .ok = do i, m, n, acc, xs, r
+  .ok = do i, acc, xs, r
     # Apply the reducing function
-    acc = r :reduce.step (acc, xs**)
+    acc = r:reduce.step(acc, xs**)
     # Apply the producer, resolving new values for the next step
-    s, n, xs[] = m (i , n)
+    xs[] = i:iter.next
     # Tailcall to the next step
-    s :reduce (i, m, n, acc, xs, r)
+    i:iter.s:reduce(i, acc, xs, r)
   end,
-  .none = do _i, _m, _n, acc, _xs, r
-    r :reduce.done (acc)
+  .none = do _i, acc, _xs, r
+    r:reduce.done(acc)
   end,
 }
 
-# numbers:reduce(\values, 0, \+)
-\reduce :def! ([], do m, acc, r
-  s, n, xs[] = m self
-
-  s :reduce (self, m, n, acc, xs, r)
+\reduce :def! ([reducing_iterators.t, iterators.t], do acc, r
+  xs[] = self:iter.next
+  
+  self:iter.s:reduce(self, acc, xs, r)
 end)
 
-# numbers:transduce(\values, 0, \+, .td :map \++)
-\transduce :def! ([], do m, acc, r, td
-# Apply the transducer to the reducing function,
-# And then just call a normal reduce
-  self :reduce (m, acc, td r)
+\transduce :def! ([reducing_iterators.t, iterators.t], do acc, r, td
+  # Apply the transducer to the reducing function,
+  # And then just call a normal reduce
+  self:reduce(acc, td r)
 end)
 
 # Implement the reducer protocol for blocks and messages
-\reduce.step :def! (['gab.block', 'gab.message'], do acc, xs[]
-  self (acc, xs**)
-end)
-
-\reduce.done :def! (['gab.block', 'gab.message'], do acc
-  acc
-end)
+['gab.block', 'gab.message'] :defmodule! {
+  \reduce.step = do acc, xs[]
+    self (acc, xs**)
+  end,
+  \reduce.done = do acc
+    acc
+  end,
+}
 
 # A helper for declaring:
 #   - a transducer's constructor
@@ -253,10 +271,6 @@ end)
 #     ie: some_list :map (\values, 0, \+, \++)
 \def.transducer! :def!(['gab.message'], do td
   self :def! ([.td], td)
-
-  self :def! ([], do m, acc, rf, args[]
-    self :transduce (m, acc, rf, td (args**))
-  end)
 end)
 
 \td.conditionally :defcase! {
@@ -373,8 +387,9 @@ end
   end,
   gab.block = do g
 # The following snippet is a bug which
-# Caused the GC to overflow the stack for some reason.
+# Caused the GC to overflow the stack.
 # This definitely requires investigation.
+# Infinitely calls itself, allocating more and more.
 #    do args[]
 #      self(g(args**))
 #    end
@@ -386,5 +401,5 @@ end
 }
 
 \compose :def! ([.td], do fns[]
-  fns :reduce (\values, .nil, \compose)
+  .gab.iterator(fns, \values) :reduce(.nil, \compose)
 end)

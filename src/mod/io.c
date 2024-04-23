@@ -1,7 +1,7 @@
 #include "gab.h"
 #include <stdio.h>
 
-void file_cb(size_t len, unsigned char data[static len]) {
+void file_cb(size_t len, char data[static len]) {
   fclose(*(FILE **)data);
 }
 

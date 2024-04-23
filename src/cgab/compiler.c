@@ -1067,8 +1067,9 @@ static mv compile_tuple(struct bc *bc, uint8_t want);
 static bool curr_prefix(struct bc *bc, enum prec_k prec) {
   struct compile_rule rule = get_rule(curr_tok(bc));
   bool has_prefix = rule.prefix != nullptr;
-  bool has_infix = rule.infix != nullptr;
-  bool result = has_prefix && (!has_infix || rule.prec > prec);
+  // bool has_infix = rule.infix != nullptr;
+  // bool result = has_prefix && (!has_infix || rule.prec > prec);
+  bool result = has_prefix;
   return result;
 }
 
@@ -2025,11 +2026,46 @@ fin:
 }
 
 mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs,
-                          size_t t) {
+                          size_t t, bool assignable) {
   mv args = reconcile_send_args(lhs, rhs);
 
   if (args.status < 0)
     return MV_ERR;
+
+  if (assignable && !match_ctx(bc, kTUPLE)) {
+    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
+      /*
+       * Account for the one value that this assignment - will receive from the
+       * rhs of the assignment
+       * */
+      args.status++;
+
+      if (args.multi)
+        args = compile_mv_trim(bc, args, 1);
+
+      return compile_assignment(
+          bc, (struct lvalue){
+                  .tok = t,
+                  .kind = kMESSAGE,
+                  .slot = peek_slot(bc),
+                  .as.property.message = m,
+                  .as.property.args = args,
+              });
+    }
+
+    if (match_ctx(bc, kASSIGNMENT_TARGET)) {
+      eat_token(bc);
+      compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, FMT_ASSIGNMENT_ABANDONED,
+                     tok_id(bc, TOKEN_EQUAL));
+      return MV_ERR;
+    }
+  }
+
+  if (args.status < 0)
+    return MV_ERR;
+
+  if (args.status > GAB_ARG_MAX)
+    return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, ""), MV_ERR;
 
   push_send(bc, m, args, t);
 
@@ -2048,42 +2084,7 @@ mv compile_send(struct bc *bc, mv lhs, bool assignable) {
 
   mv rhs = compile_optional_expression_prec(bc, &lhs, kSEND + 1);
 
-  if (assignable && !match_ctx(bc, kTUPLE)) {
-    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
-      /*
-       * Account for the one value that this assignment - will receive from the
-       * rhs of the assignment
-       * */
-      rhs.status++;
-
-      if (rhs.multi)
-        rhs = compile_mv_trim(bc, rhs, 1);
-
-      return compile_assignment(
-          bc, (struct lvalue){
-                  .tok = t,
-                  .kind = kMESSAGE,
-                  .slot = peek_slot(bc),
-                  .as.property.message = name,
-                  .as.property.args = reconcile_send_args(lhs, rhs),
-              });
-    }
-
-    if (match_ctx(bc, kASSIGNMENT_TARGET)) {
-      eat_token(bc);
-      compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, FMT_ASSIGNMENT_ABANDONED,
-                     tok_id(bc, TOKEN_EQUAL));
-      return MV_ERR;
-    }
-  }
-
-  if (rhs.status < 0)
-    return MV_ERR;
-
-  if (rhs.status > GAB_ARG_MAX)
-    return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, ""), MV_ERR;
-
-  return compile_send_with_args(bc, name, lhs, rhs, t);
+  return compile_send_with_args(bc, name, lhs, rhs, t, assignable);
 }
 
 //---------------- Compiling Expressions ------------------
@@ -2102,7 +2103,7 @@ static mv compile_exp_bin(struct bc *bc, mv lhs, bool assignable) {
   if (rhs.status < 0)
     return MV_ERR;
 
-  return compile_send_with_args(bc, m, lhs, rhs, t);
+  return compile_send_with_args(bc, m, lhs, rhs, t, false);
 }
 
 static mv compile_exp_str(struct bc *bc, mv, bool) {
@@ -2206,6 +2207,25 @@ static mv compile_exp_send(struct bc *bc, mv lhs, bool assignable) {
   return compile_send(bc, lhs, assignable);
 }
 
+static mv compile_exp_prefixsend(struct bc *bc, mv lhs, bool assignable) {
+  size_t t = bc->offset - 1;
+
+  gab_value name = gab_string(gab(bc), mGAB_CALL);
+
+  if (lhs.multi)
+    lhs = compile_mv_trim(bc, lhs, 1);
+
+  mv rhs = compile_exp_startwith(bc, kPRIMARY, prev_tok(bc));
+
+  if (rhs.status < 0)
+    return MV_ERR;
+
+  if (rhs.status > GAB_ARG_MAX)
+    return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, ""), MV_ERR;
+
+  return compile_send_with_args(bc, name, lhs, rhs, t, true);
+}
+
 static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
   struct compile_rule rule = get_rule(tok);
 
@@ -2227,36 +2247,10 @@ static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
     rule = get_rule(prev_tok(bc));
 
     if (rule.infix != nullptr) {
-
       have = rule.infix(bc, have, assignable);
-
-      continue;
-    }
-
-    if (rule.prefix != nullptr) {
-      size_t t = bc->offset - 1;
-
-      gab_value name = gab_string(gab(bc), mGAB_CALL);
-
-      if (have.multi)
-        have = compile_mv_trim(bc, have, 1);
-
-      mv rhs = rule.prefix(bc, MV_ERR, assignable);
-
-      if (rhs.status < 0)
-        return MV_ERR;
-
-      if (rhs.status > GAB_ARG_MAX)
-        return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, ""), MV_ERR;
-
-      have = compile_send_with_args(bc, name, have, rhs, t);
-
       continue;
     }
   }
-
-  // if (!assignable && match_and_eat_token(bc, TOKEN_EQUAL))
-  //   return compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, ""), MV_ERR;
 
   return have;
 }
@@ -2273,7 +2267,7 @@ static mv compile_expression_prec(struct bc *bc, enum prec_k prec) {
 #define NONE()                                                                 \
   { nullptr, nullptr, kNONE }
 #define PREFIX(fnc)                                                            \
-  { compile_exp_##fnc, nullptr, kPRIMARY }
+  { compile_exp_##fnc, compile_exp_prefixsend, kPRIMARY }
 #define INFIX(fnc, prec)                                                       \
   { nullptr, compile_exp_##fnc, k##prec }
 
@@ -2355,6 +2349,7 @@ gab_value compile(struct bc *bc, uint8_t narguments,
 
 gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
   gab.flags = args.flags;
+  args.name = args.name ? args.name : "__main__";
 
   gab_value name = gab_string(gab, args.name);
 

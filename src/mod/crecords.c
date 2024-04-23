@@ -161,7 +161,7 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
 
   gab_value k = gab_arg(1);
 
-  if (k != gab_nil) {
+  if (k != gab_sigil(gab, "iterators.init")) {
     size_t current = gab_shpfind(shp, k);
 
     if (len > current)
@@ -247,6 +247,36 @@ a_gab_value *gab_lib_to_l(struct gab_triple gab, size_t argc,
 
   default:
     return gab_panic(gab, "Invalid call to gab_lib_to_l");
+  }
+}
+
+a_gab_value *gab_lib_compact(struct gab_triple gab, size_t argc,
+                             gab_value argv[argc]) {
+  gab_value rec = argv[0];
+  gab_value shp = gab_recshp(rec);
+
+  switch (argc) {
+  case 1: {
+    size_t keeplen = 0, len = gab_reclen(rec);
+    gab_value keepkeys[len] = {};
+    gab_value keepvalues[len] = {};
+    for (size_t i = 0; i < len; i++) {
+      if (gab_valintob(gab_urecat(rec, i))) {
+        keepkeys[keeplen] = gab_ushpat(shp, i);
+        keepvalues[keeplen] = gab_urecat(rec, i);
+        keeplen++;
+      }
+    }
+
+    gab_value result = gab_record(gab, keeplen, keepkeys, keepvalues);
+
+    gab_vmpush(gab.vm, result);
+
+    return nullptr;
+  }
+
+  default:
+    return gab_panic(gab, "Invalid call to gab_lib_to_m");
   }
 }
 
@@ -336,6 +366,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "clear!",
           type,
           gab_snative(gab, "clear", gab_lib_clear),
+      },
+      {
+          "compact",
+          type,
+          gab_snative(gab, "compact", gab_lib_compact),
       },
   };
 

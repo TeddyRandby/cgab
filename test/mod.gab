@@ -319,7 +319,7 @@ end
     pone = { x = 1, y = 2}
     ptwo = { x = 3, y = 4}
 
-    (pone ?):should(\be, \==, ptwo ?)
+    (pone?):should(\be, \==, ptwo?)
   end
 
   'should work for all kinds of keys' :tests.should do
@@ -328,8 +328,8 @@ end
         [.hi] = 4
     }
 
-    3:should(\be, \==, obj:at!({}?))
-    4:should(\be, \==, obj:at!(.hi))
+    3:should(\be, \==, obj({}?))
+    4:should(\be, \==, obj(.hi))
   end
 
   'should work when shapes change' :tests.should do
@@ -376,9 +376,9 @@ end
   'should make tuples' :tests.should do
     tup = [ 1, 2, 3 ]
 
-    tup:at!(0):should(\be, \==, 1)
-    tup:at!(1):should(\be, \==, 2)
-    tup:at!(2):should(\be, \==, 3)
+    tup(0):should(\be, \==, 1)
+    tup(1):should(\be, \==, 2)
+    tup(2):should(\be, \==, 3)
   end
 
   'should make var tuples' :tests.should do
@@ -387,14 +387,14 @@ end
     end
 
     tup = [ onetwothree() ]
-    tup:at!(0):should(\be, \==, 1)
-    tup:at!(1):should(\be, \==, 2)
-    tup:at!(2):should(\be, \==, 3)
+    tup(0):should(\be, \==, 1)
+    tup(1):should(\be, \==, 2)
+    tup(2):should(\be, \==, 3)
     tup:len:should(\be, \==, 3)
   end
 end
 
-'Overloads' :tests.should do
+'Overloads' :tests.covers do
     Vector = { x, y }?
 
     \+ :def! ([Vector], do other

@@ -1,12 +1,12 @@
 #include "gab.h"
 #include <stdio.h>
 
-static inline void list_destroy(size_t len, unsigned char data[static len]) {
+static inline void list_destroy(size_t len, char data[static len]) {
   v_gab_value_destroy((void *)data);
 }
 
 void list_visit(struct gab_triple gab, gab_gcvisit_f v, size_t len,
-                unsigned char data[static len]) {
+                char data[static len]) {
   v_gab_value *self = (void *)data;
 
   for (uint64_t i = 0; i < self->len; i++) {

@@ -486,13 +486,14 @@ static inline bool has_callspace(struct gab_vm *vm, size_t space_needed) {
   return true;
 }
 
-size_t gab_vmpush(struct gab_vm *vm, gab_value value) {
+inline size_t gab_vmpush(struct gab_vm *vm, gab_value value) {
   return gab_nvmpush(vm, 1, &value);
 }
 
-size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc, gab_value argv[argc]) {
-  if (__gab_unlikely(!has_callspace(vm, argc))) {
-    return -1;
+inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
+                          gab_value argv[argc]) {
+  if (__gab_unlikely(argc == 0 || !has_callspace(vm, argc))) {
+    return 0;
   }
 
   for (uint8_t n = 0; n < argc; n++) {
@@ -1126,7 +1127,7 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
   NEXT();
 }
 
-CASE_CODE(SEND_PRIMITIVE_GET) {
+CASE_CODE(SEND_PRIMITIVE_CALL_RECORD) {
   gab_value *ks = READ_CONSTANTS;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
@@ -1138,14 +1139,35 @@ CASE_CODE(SEND_PRIMITIVE_GET) {
   if (__gab_unlikely(have < 2))
     PUSH(gab_nil), have++;
 
-  gab_value res = gab_recat(r, PEEK_N(have - 1));
+  gab_value k = PEEK_N(have - 1);
 
-  DROP_N(have);
+  switch (have) {
+  case 2: {
+    /* This is a normal property access - load the value from the record. */
+    gab_value value = gab_recat(r, k);
+    DROP_N(have);
+    PUSH(value == gab_undefined ? gab_nil : value);
+    break;
+  }
 
-  PUSH(res == gab_undefined ? gab_none : gab_ok);
-  PUSH(res == gab_undefined ? gab_nil : res);
+  default:
+    /* This is a property assignment, but we have extra values. */
+    DROP_N(have - 3);
+  case 3: {
+    /* This is a property assignment, with the one value*/
+    gab_value value = PEEK();
 
-  SET_VAR(2);
+    DROP_N(3);
+
+    gab_recput(GAB(), r, k, value);
+
+    PUSH(r);
+
+    break;
+  }
+  }
+
+  SET_VAR(1);
 
   NEXT();
 }
@@ -1538,7 +1560,7 @@ CASE_CODE(SEND) {
           gab_valtype(EG(), r));
   }
 
-  gab_value spec = res.status == sGAB_IMPL_PROPERTY
+  gab_value spec = res.status == kGAB_IMPL_PROPERTY
                        ? gab_primitive(OP_SEND_PROPERTY)
                        : gab_umsgat(m, res.offset);
 
@@ -1614,7 +1636,7 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
 
   memmove(SP() - have, SP() - (have - 1), (have - 1) * sizeof(gab_value));
 
-  gab_value spec = res.status == sGAB_IMPL_PROPERTY
+  gab_value spec = res.status == kGAB_IMPL_PROPERTY
                        ? gab_primitive(OP_SEND_PROPERTY)
                        : gab_umsgat(m, res.offset);
 
