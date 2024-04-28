@@ -212,7 +212,6 @@ end)
   [reducing_iterators.t] = do
     xs = self:iter.s :iter.step self
     self:iter.a = self 'iter.r' :reduce.step (self:iter.a, xs**)
-
     xs
   end,
   [iterators.t] = do
@@ -220,37 +219,57 @@ end)
   end,
 }
 
-# The work of reducing
-\reduce :defcase! {
-  .ok = do i, acc, r, xs
-    # Apply the reducing function
-    acc = r:reduce.step(acc, xs**)
+\reduce.next :defcase! {
+  .nil = do i, acc, r
     # Apply the producer, resolving new values for the next step
     xs = i:iter.next
     # Tailcall to the next step
     i:iter.s:reduce(i, acc, r, xs)
+  end,
+  .stop = do _i, acc, r
+    r:reduce.done(acc)
+  end,
+}
+
+# The work of reducing
+\reduce :defcase! {
+  .ok = do i, acc, r, xs
+    # Apply the reducing function
+    acc, cmd = r:reduce.step(acc, xs**)
+    # proceed to the next sep
+    cmd:reduce.next(i, acc, r)
   end,
   .none = do _i, acc, r
     r:reduce.done(acc)
   end,
 }
 
-\reduce :def! ([reducing_iterators.t, iterators.t], do acc, r
-  xs = self:iter.next
+[reducing_iterators.t, iterators.t] :defmodule! {
+  \reduce = do acc, r
+    xs = self:iter.next
 
-  self:iter.s:reduce(self, acc, r, xs)
-end)
+    self:iter.s:reduce(self, acc, r, xs)
+  end,
 
-\transduce :def! ([reducing_iterators.t, iterators.t], do acc, r, td
-  # Apply the transducer to the reducing function,
-  # And then just call a normal reduce
-  self:reduce(acc, td r)
-end)
+  \transduce = do acc, r, td
+    # Apply the transducer to the reducing function,
+    # And then just call a normal reduce
+    self:reduce(acc, td r)
+  end,
+
+  \lists.into = do
+    .pass
+  end,
+
+  \tuples.into = do
+    .pass
+  end
+}
 
 # Implement the reducer protocol for blocks and messages
 ['gab.block', 'gab.message'] :defmodule! {
   \reduce.step = do acc, xs[]
-    self (acc, xs**)
+    acc = self (acc, xs**)
   end,
   \reduce.done = do acc
     acc
@@ -268,11 +287,20 @@ end)
 
 \td.conditionally :defcase! {
   .true = do acc, xs, rf
-    rf :reduce.step (acc, xs**)
+    rf:reduce.step (acc, xs**)
   end,
   .false = do acc
     acc
-  end
+  end,
+}
+
+\td.stop_conditionally :defcase! {
+  .true = do acc, xs, rf
+    rf:reduce.step(acc, xs**)
+  end,
+  .false = do acc
+    (acc, .stop)
+  end,
 }
 
 \map :def.transducer! do f
@@ -322,7 +350,7 @@ end
       n,
       reduce.step = do acc, xs[]
         self:n = self:n - 1
-        (self:n >= 0) :td.conditionally (acc, xs, rf)
+        (self:n >= 0) :td.stop_conditionally (acc, xs, rf)
       end,
       reduce.done = do acc
         acc

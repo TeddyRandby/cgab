@@ -22,7 +22,8 @@ iter = .gab.iterator (10, \upto)
 sum = iter:reduce(0, \+)
 'reduce iter with \+: {sum}':print
 
-td = .td:take 4
+iter = .gab.iterator (10, \upto)
+iter:transduce(.nil, \print, .td:take 4)
 
-tditer = .gab.iterator (10, \upto, 0, td \+)
-tditer:reduce(.nil, \print)
+iter = .gab.iterator (record, \pairs)
+iter:transduce(.nil, \print, .td:take 1)
