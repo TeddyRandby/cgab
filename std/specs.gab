@@ -306,30 +306,31 @@ end)
 # Return a predicate which returns true if the given value
 # has all the keys of the record
   \spec.fits? :def! ([protocol.predicate], do value
-    protocol:reduce(\keys, [.true, self, value], do acc, k
+    protocol :iterate \keys :reduce ([.true, self, value], do acc, k
 # If message doesn't specify for this value, then the spec doesn't fit
       m = .gab.message k
 
 # Check for a spec which corresponds to this message in the protocol
-     acc:at!(0) :and acc :else do
-      m :has? value :then do
-       registry.spec:at(k) :unwrap:then do s
-          s :spec.fits? (value :at! k)
-        end
-      end :or [.false, self, value, k]
-    end
+      acc:at!(0) :and acc :else do
+        m :has? value :then do
+        registry.spec:at(k) :unwrap:then do s
+            s :spec.fits? (value :at! k)
+          end
+        end :or [.false, self, value, k]
+      end
     end)
   end)
+
+  gentd = .td :map do key
+    found = registry.spec:at(key):unwrap!
+
+    (key, found:spec.gen)
+  end
 
   \spec.gen :def! ([protocol.predicate], do
     gen = .gab.record protocol_shape
 
-    protocol:map(\keys, gen, \put!, do key
-      found = registry.spec:at(key):unwrap!
-
-      (key, found:spec.gen)
-    end,
-    )
+    protocol :iterate \keys :transduce (gen, \put!, gentd)
   end)
 
   \spec.explain :def! ([protocol.predicate], do
@@ -400,7 +401,7 @@ end)
   # Return a predicate which returns true if the given value
   # fits any of the given specs
   \spec.fits? :def! ([or.predicate], do value
-    valid = specs:reduce(\values, .false, do acc, s
+    valid = specs:iterate \values :reduce(.false, do acc, s
       acc :else (s, value, \spec.fits?)
     end)
     
@@ -441,7 +442,7 @@ end)
       .td:map do
         value = start:spec.gen
 
-        fits = specs:reduce(\values, .true, do a, s
+        fits = specs:iterate \values :reduce(.true, do a, s
           a:then(s, value, \spec.fits?)
         end)
 
@@ -452,7 +453,7 @@ end)
       .td:take 1,
     )
 
-    100:transduce(\upto, 0, \first, td):assert! "Failed to generate a value for all specs"
+    100:iterate \upto :transduce(0, \first, td):assert! "Failed to generate a value for all specs"
   end)
 
   \spec.explain :def! ([and.predicate], do
@@ -533,7 +534,7 @@ end)
 
   \spec.gen :def! ([block.predicate], do
     block.gen = do input[]
-      100:first(\upto, do
+      100:iterate \upto :transduce(0, do
         # Generate an output
         output[] = args:output:spec.gen
 
@@ -663,8 +664,7 @@ end)
           .td:take 1,
         )
 
-        100:transduce(
-          \upto,
+        100:iterate \upto :transduce(
           0,
           \first,
           td,
@@ -676,7 +676,7 @@ end)
   end)
 
   \spec.check :def! ([message.predicate], do
-    100:first(\upto, do
+    100:iterate \upto :reduce(.nil, do
       receiver = args:receiver:spec.gen
 
       args:receiver:spec.fits?(receiver) :and do
@@ -761,10 +761,13 @@ end)
 # User types can define their own version of \spec.modify! If this
 # Doesn't satisfy their use case.
 \spec.modify! :def! (['gab.record'], do new_value
-    self:tap(\keys, self, \self, do acc, k
+    tapper = .td :tap do acc, k
       # If new_value has a corresponding value, modify self. Else, pass
       v = new_value:at(k):unwrap:then do other
         acc:put!(k, other)
       end
+    end
+
+    self:iterate \keys :transduce(self, \self, tapper)
   end)
 end)

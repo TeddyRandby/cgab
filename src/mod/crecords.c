@@ -68,11 +68,11 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
   gab_value result = gab_recat(argv[0], argv[1]);
 
   if (result == gab_undefined) {
-    gab_vmpush(gab.vm, gab_string(gab, "none"));
+    gab_vmpush(gab.vm, gab_sigil(gab, "none"));
     return nullptr;
   }
 
-  gab_vmpush(gab.vm, gab_string(gab, "ok"));
+  gab_vmpush(gab.vm, gab_sigil(gab, "ok"));
   gab_vmpush(gab.vm, result);
   return nullptr;
 }
@@ -164,7 +164,7 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
   if (k != gab_sigil(gab, "iterators.init")) {
     size_t current = gab_shpfind(shp, k);
 
-    if (len > current)
+    if (len >= current)
       res[0] = gab_ok;
 
     if (len > current + 1)

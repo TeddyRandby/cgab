@@ -27,19 +27,19 @@ end)
   self:put!(key, .nil)
 end)
 
-\maps.next? :def.iter.next! (maps.t, \next?)
+\maps.next? :def.iter.next! ([maps.t], \next?)
 
 \maps.values.step :def.iter.step! \at!
 
 \maps.pairs.step :def.iter.step! \at_pair!
 
-\values :def.iter! (maps.t, {
+\values :def.iter! ([maps.t], {
   init = \self,
   next = \maps.next?,
   step = \maps.values.step,
 })
 
-\pairs :def.iter! (maps.t, {
+\pairs :def.iter! ([maps.t], {
   init = \self,
   next = \maps.next?,
   step = \maps.pairs.step,

@@ -43,6 +43,7 @@ car.paint.spec =  'car.paint' :def.spec! {
 
 # Generate a mock car
 test_car = car.spec :spec.gen
+test_car:print
 
 # Generate a mock implementation of car.paint for Car
 car.paint.spec:spec.gen(Car?)

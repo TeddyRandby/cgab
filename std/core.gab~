@@ -28,6 +28,18 @@
   end,
 }
 
+\options.into :def! ([], do args[]
+  (.ok, self, args**)
+end)
+
+\results.into :def! ([], do args[]
+  (.ok, self, args**)
+end)
+
+\ :def! ([.gab.option], do cond, data[]
+  (cond:options.into, data**)
+end)
+
 [.nil, .false, .none, .err] :defmodule! {
   \and = do
     self
@@ -47,18 +59,6 @@
   \options.into = .none,
   \results.into = .err,
 }
-
-\options.into :def! ([], do args[]
-  (.ok, self, args**)
-end)
-
-\results.into :def! ([], do args[]
-  (.ok, self, args**)
-end)
-
-\ :def! ([.gab.option], do cond, data[]
-  (cond:options.into, data**)
-end)
 
 [.ok] :defmodule! {
   \unwrap! = do args[]
@@ -200,7 +200,7 @@ end)
 \iter.step :defcase! {
   .ok = do iter
     iter:iter.s, iter:iter.n, xs[] = iter:iter.curr
-
+    
     xs
   end,
   .none = do iter
@@ -211,40 +211,62 @@ end)
 \iter.next :defcase! {
   [reducing_iterators.t] = do
     xs = self:iter.s :iter.step self
-    self:iter.a = self 'iter.r' :reduce.step (self:iter.a, xs**)
 
-    xs
+    self:iter.a = (self:at! 'iter.r') :reduce.step (self:iter.a, xs**)
   end,
   [iterators.t] = do
-    self:iter.s :iter.step self
+    (self:iter.s :iter.step self)**
   end,
 }
 
+\iterators.next? :def.iter.next! ([reducing_iterators.t, iterators.t], \iter.curr)
+
+\iterators.values.step :def.iter.step! \iter.next
+
+\values :def.iter! ([reducing_iterators.t, iterators.t], {
+  init = \self,
+  next = \iterators.next?,
+  step = \iterators.values.step,
+})
+
 # The work of reducing
 \reduce :defcase! {
-  .ok = do i, acc, r, xs
+  .ok = do i, acc, xs, r
     # Apply the reducing function
     acc = r:reduce.step(acc, xs**)
     # Apply the producer, resolving new values for the next step
-    xs = i:iter.next
+    xs[] = i:iter.next
     # Tailcall to the next step
-    i:iter.s:reduce(i, acc, r, xs)
+    i:iter.s:reduce(i, acc, xs, r)
   end,
-  .none = do _i, acc, r
+  .none = do _i, acc, _xs, r
     r:reduce.done(acc)
   end,
 }
 
 \reduce :def! ([reducing_iterators.t, iterators.t], do acc, r
-  xs = self:iter.next
-
-  self:iter.s:reduce(self, acc, r, xs)
+  xs[] = self:iter.next
+  
+  self:iter.s:reduce(self, acc, xs, r)
 end)
 
 \transduce :def! ([reducing_iterators.t, iterators.t], do acc, r, td
   # Apply the transducer to the reducing function,
   # And then just call a normal reduce
   self:reduce(acc, td r)
+end)
+
+\take :defcase! {
+  gab.number = do
+  end,
+  .true = do
+  end,
+  .false = do
+  end,
+}
+
+\take :def! ([reducing_iterators.t, iterators.t], do n
+  n :take
 end)
 
 # Implement the reducer protocol for blocks and messages
