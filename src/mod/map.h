@@ -35,6 +35,10 @@ bool map_has(gab_value self, gab_value key) {
   return d_gab_value_exists(gab_boxdata(self), key);
 }
 
+size_t map_len(gab_value self) {
+  return ((d_gab_value *)gab_boxdata(self))->len;
+}
+
 gab_value map_put(struct gab_triple gab, gab_value self, gab_value key,
                   gab_value value) {
   d_gab_value *data = gab_boxdata(self);

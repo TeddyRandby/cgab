@@ -80,6 +80,36 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
+a_gab_value *gab_lib_at_index(struct gab_triple gab, size_t argc,
+                              gab_value argv[argc]) {
+  if (argc != 2) {
+    return gab_panic(gab, "Invalid call to  gab_lib_at");
+  }
+
+  gab_value rec = gab_arg(0);
+  gab_value idx = gab_arg(1);
+
+  if (gab_valkind(idx) != kGAB_NUMBER) {
+    return gab_pktypemismatch(gab, idx, kGAB_NUMBER);
+  }
+
+  size_t i = gab_valton(idx);
+
+  if (i >= gab_reclen(rec)) {
+    gab_vmpush(gab.vm, gab_none);
+    return nullptr;
+  }
+
+  gab_value results[3] = {
+      gab_ok,
+      gab_ushpat(gab_recshp(rec), i),
+      gab_urecat(rec, i),
+  };
+
+  gab_nvmpush(gab.vm, 3, results);
+  return nullptr;
+}
+
 a_gab_value *gab_lib_atn(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
@@ -147,42 +177,6 @@ a_gab_value *gab_lib_with(struct gab_triple gab, size_t argc,
 
   gab_vmpush(gab.vm, rec);
 
-  return nullptr;
-}
-
-a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
-                          gab_value argv[argc]) {
-  gab_value rec = argv[0];
-  gab_value shp = gab_recshp(rec);
-
-  gab_value res[] = {gab_none, gab_none};
-
-  size_t len = gab_reclen(rec);
-
-  if (len < 1)
-    goto fin;
-
-  gab_value k = gab_arg(1);
-
-  if (k != gab_sigil(gab, "seqs.init")) {
-    size_t current = gab_shpfind(shp, k);
-
-    if (len >= current)
-      res[0] = gab_ok;
-
-    if (len > current + 1)
-      res[1] = gab_ushpat(shp, current + 1);
-  } else {
-    res[0] = gab_ok;
-    res[1] = gab_shpdata(shp)[0];
-  }
-
-  goto fin;
-
-  return gab_panic(gab, "Invalid call to gab_lib_next");
-
-fin:
-  gab_nvmpush(gab.vm, LEN_CARRAY(res), res);
   return nullptr;
 }
 
@@ -341,14 +335,14 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "at", gab_lib_at),
       },
       {
+          "at_index",
+          type,
+          gab_snative(gab, "at_index", gab_lib_at_index),
+      },
+      {
           "at!",
           type,
           gab_snative(gab, "at!", gab_lib_atn),
-      },
-      {
-          "next?",
-          type,
-          gab_snative(gab, "next?", gab_lib_next),
       },
       {
           "slice",

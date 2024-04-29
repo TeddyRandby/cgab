@@ -1,48 +1,16 @@
 'core' :use
 maps.t = 'cmaps' :use
 
-\has? :def! ([maps.t], do key
-  self:at key  == .ok
-end)
+[maps.t] :defmodule! {
+  \has? = do
+    self:at key  == .ok
+  end,
+  \del! = do key
+    self:put!(key, .nil)
+  end,
+}
 
-\at_or :def! ([maps.t], do key, x
-  self:at key :unwrap :or x
-end)
-
-\at_or! :def! ([maps.t], do key, default
-  self:at key :unwrap :else (self, do map
-    map:put! (key, default)
-  end)
-end)
-
-\at_else :def! ([maps.t], do key, f
-  self:at key :unwrap :else f
-end)
-
-\at_pair :def! ([maps.t], do key
-  (key, self:at key)
-end)
-
-\del! :def!([maps.t], do key
-  self:put!(key, .nil)
-end)
-
-\maps.next? :def.iter.next! ([maps.t], \next?)
-
-\maps.values.step :def.iter.step! \at!
-
-\maps.pairs.step :def.iter.step! \at_pair!
-
-\values :def.iter! ([maps.t], {
-  init = \self,
-  next = \maps.next?,
-  step = \maps.values.step,
-})
-
-\pairs :def.iter! ([maps.t], {
-  init = \self,
-  next = \maps.next?,
-  step = \maps.pairs.step,
-})
+maps.t :def.seq! do
+end
 
 maps.t

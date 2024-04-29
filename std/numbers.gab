@@ -39,16 +39,4 @@ end)
 
 \numbers.into :def!([.nil, .false, .none, .seqs.init], 0)
 
-\next? :def! ([numbers.t], do x
-  (self > x, x + 1)
-end)
-
-\numbers.next? :def.iter.next! ([numbers.t], \next?)
-
-\numbers.upto.step :def.iter.step! \first
-
-\upto :def.iter! ([numbers.t], {
-  init = \numbers.into,
-  next = \numbers.next?,
-  step = \numbers.upto.step
-})
+numbers.t

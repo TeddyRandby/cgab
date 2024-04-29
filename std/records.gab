@@ -1,46 +1,23 @@
 'core' :use
+
 records.t = 'crecords' :use
 
-\has? :def! ([records.t], do key
-  self:at(key) == .ok
-end)
+[records.t] :defmodule! {
+  \has? = do key
+    self:at(key) == .ok
+  end,
+}
 
-\at_pair! :def! ([records.t], do key
-  (key, self:at! key)
-end)
-
-\records.init :def! ([.seqs.init], do record
-  record:next? self :unwrap!
-end)
-
-\records.init :def! ([], do
-  self
-end)
-
-\records.next? :def.iter.next! ([records.t], \next?)
-
-\records.keys.step :def.iter.step! \first
-
-\records.values.step :def.iter.step! \at!
-
-\records.pairs.step :def.iter.step! \at_pair!
-
-\keys :def.iter! ([records.t], {
-  init = \records.init,
-  next = \records.next?,
-  step = \records.keys.step,
-})
-
-\values :def.iter! ([records.t], {
-  init = \records.init,
-  next = \records.next?,
-  step = \records.values.step,
-})
-
-\pairs :def.iter! ([records.t], {
-  init = \records.init,
-  next = \records.next?,
-  step = \records.pairs.step,
-})
+records.t :def.seq! do
+  i = self
+  {
+    v = -1,
+    seq.next = do
+      nx = self:v + 1
+      self:v = nx
+      i :at_index nx
+    end,
+  }
+end
 
 records.t

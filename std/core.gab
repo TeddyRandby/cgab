@@ -48,13 +48,14 @@
   \results.into = .err,
 }
 
-\options.into :def! ([], do args[]
-  (.ok, self, args**)
-end)
-
-\results.into :def! ([], do args[]
-  (.ok, self, args**)
-end)
+[] :defmodule! {
+  \options.into = do args[]
+    (.ok, self, args**)
+  end,
+  \results.into = do args[]
+    (.ok, self, args**)
+  end,
+}
 
 \ :def! ([.gab.option], do cond, data[]
   (cond:options.into, data**)
@@ -76,168 +77,52 @@ end)
   \unwrap = .false,
 }
 
-### The 'iter' module defines a protocol for producing an ordered sequence of values. 
-### 
-### The protocol consists of three messages:
-###   - init
-###   - next
-###   - step
-###
-### The principle of the protocol is as follows:
-###   The 'next' message must:
-###     - Accept as the first argument the current 'key' into the sequence.
-###       For lists, this could be the index, for maps, a literal key.
-###     - Return a tuple of the form (<continue?>, <next-key>).
-###       <continue?> dictates whether or not the sequence has a next value.
-###         * [.nil, .false, .err, .none] all signal that the sequence is over.
-###         * [.true, .ok] signal that the iteruence has a next value. In this case,
-###           the second element of the tuple is the next 'key', which will produce that next value.
-###       
-###   The 'step' message must:
-###     - Accept as the first argument the current 'key' into the iteruence.
-###     - Return the value for that key.
-###
-###   The 'init' message must:
-###     - Accept as the first argument the current 'key' into the iteruence, or .nil.
-###     - Return the current 'key', or transform .nil into the first 'key' in the iteruence.
-###
-###
-### Using the helpers defined in this module, defining an itererator
-### looks like this:
-###
-### # Use the \next? builtin to determine if a list has a value after an index
-### \lists.next? :def.iter.next! (lists.t, \next?)
-### 
-### # Use the \at! builtin to get the value at an index. This will never crash because
-### #  it is never invoked with an index outside the bounds of the list.
-### \lists.values.step :def.iter.step! \at!
-### 
-### # Define the \values iter using these helpers.
-### \values :def.iter! (lists.t, {
-###   init = \numbers.into, # \numbers.into is a perfect init-message here because it converts .nil to 0.
-###   next = \lists.next?,
-###   step = \lists.values.step,
-### })
-###
-
-# Define an 'iter' message using 'next' to check for and produce the next key.
-\def.iter.next! :def! (['gab.message'], do t, next
-  self :def! (t, do n
-    ok, nx = next (self, n)
-
-    .gab.option (ok, n, nx)
-  end)
-end)
-
-# Define a 'step' message to produce values until the 'next' message returns .none
-\def.iter.step! :def! (['gab.message'], do step
-  # A step message dispatches
-  # on the option returned by the 'next' message.
-  self :defcase! {
-    # In the case where there is a next value,
-    # return a tuple:
-    #  (.ok, next-key, current-values)
-    .ok = do i, n, nx
-      (.ok, nx, step (i, n))
-    end,
-    # Otherwise, return .none
-    .none = .none,
-  }
-end)
-
-# Define an iter using the given 'init', 'next', and 'step' messages.
-\def.iter! :def! (['gab.message'], do t, args
-  init, next, step = args:at! ('init', 'next', 'step')
-
-  self :def! (t, do n
-    # Initialize the itererator with 'init'.
-    # All next values will pass through 'init' as well,
-    # so it should be designed to do nothing for that case.
-    n = init (n, self)
-
-    # Call 'next', with the invariant 'self' and the variant 'n'
-    s, n, nx = next (self, n)
-
-    # Dispatch to 'step', on 's'. This will terminate if
-    # 'next' returned the sigil .none
-    step (s, self, n, nx)
-  end)
-end)
-
-seqs.t = {
-  seq.i, # Invariant
-  seq.m, # The seq message to send to Invariant
-  seq.s, # The status
-  seq.n, # The next 'key' to produce the next value
-}?
-
-\ :def! ([.gab.seq], do i, m
-  {
-    seq.i = i,
-    seq.m = m,
-    seq.s = .ok,
-    seq.n = .seqs.init,
-  }
-end)
-
-\seq.into :def! ([], do m
-  .gab.seq (self, m)
-end)
-
-\seq.step :defcase! {
-  .ok = do seq
-    seq:seq.s, seq:seq.n, xs[] = (seq:seq.m)(seq:seq.i, seq:seq.n)
-    xs
-  end,
-  .none = do seq
-    ()
-  end,
-}
-
-\reduce.next :defcase! {
-  .nil = do i, acc, r
-    # Apply the producer, resolving new values for the next step
-    xs = i:seq.s:seq.step i
-    # Tailcall to the next step
-    i:seq.s:reduce(i, acc, r, xs)
-  end,
-  .stop = do _i, acc, r
-    r:reduce.done(acc)
-  end,
-}
-
-# The work of reducing
-\reduce :defcase! {
-  .ok = do s, acc, r, xs
+\doreduce :defcase! {
+  ## The sequence yielded a value
+  .ok = do seq, acc, r, xs
     # Apply the reducer
     acc, cmd = r:reduce.step(acc, xs**)
     # proceed to the next sep
-    cmd:reduce.next(s, acc, r)
+    cmd:doreduce(seq, acc, r)
   end,
-  .none = do s, acc, r
+  ## The sequence is done
+  .none = do seq, acc, r
+    r:reduce.done(acc)
+  end,
+  ## The reducer has no special command, continue
+  .nil = do seq, acc, r
+    # Apply the producer, resolving new values for the next step
+    ok, xs[] = seq:seq.next
+    # Tailcall to the next step
+    ok:doreduce(seq, acc, r, xs)
+  end,
+  ## The reducer is done
+  .stop = do seq, acc, r
     r:reduce.done(acc)
   end,
 }
 
-[seqs.t] :defmodule! {
-  \reduce = do acc, r
-    self:print
-    xs = self:seq.s:seq.step self
+\def.seq! :def! ([], do into
+  [self] :defmodule! {
+    \seqs.into = into,
+    \reduce = do acc, r
+      ok, xs[] = self:seq.next
+      ok:doreduce(self, acc, r, xs)
+    end,
+    \transduce = do acc, r, td
+      self:reduce(acc, td r)
+    end,
+    \lists.into = do
+      self:reduce(.gab.list(), \push!)
+    end,
+    \tuples.into = do
+      self:reduce({}, \push)
+    end,
+  }
+end)
 
-    self:seq.s:reduce(self, acc, r, xs)
-  end,
-  \transduce = do acc, r, td
-    xs = self:seq.next
+\seq.next :def! (['gab.block'], do; self() end)
 
-    self:seq.s:reduce(self, acc, td r, xs)
-  end,
-  \lists.into = do
-    self:reduce(.gab.list(), \push!)
-  end,
-  \tuples.into = do
-    self:reduce({}, \push)
-  end,
-}
 
 # Implement the reducer protocol for blocks and messages
 ['gab.block', 'gab.message'] :defmodule! {
@@ -395,5 +280,5 @@ end
 }
 
 \compose :def! ([.td], do fns[]
-  .gab.seq(fns, \values) :reduce(.nil, \compose)
+  fns:seqs.into:transduce(.nil, \compose, .td :map \first)
 end)
