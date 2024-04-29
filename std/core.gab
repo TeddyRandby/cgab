@@ -90,16 +90,16 @@ end)
 ###     - Return a tuple of the form (<continue?>, <next-key>).
 ###       <continue?> dictates whether or not the sequence has a next value.
 ###         * [.nil, .false, .err, .none] all signal that the sequence is over.
-###         * [.true, .ok] signal that the sequence has a next value. In this case,
+###         * [.true, .ok] signal that the iteruence has a next value. In this case,
 ###           the second element of the tuple is the next 'key', which will produce that next value.
 ###       
 ###   The 'step' message must:
-###     - Accept as the first argument the current 'key' into the sequence.
+###     - Accept as the first argument the current 'key' into the iteruence.
 ###     - Return the value for that key.
 ###
 ###   The 'init' message must:
-###     - Accept as the first argument the current 'key' into the sequence, or .nil.
-###     - Return the current 'key', or transform .nil into the first 'key' in the sequence.
+###     - Accept as the first argument the current 'key' into the iteruence, or .nil.
+###     - Return the current 'key', or transform .nil into the first 'key' in the iteruence.
 ###
 ###
 ### Using the helpers defined in this module, defining an itererator
@@ -112,7 +112,7 @@ end)
 ### #  it is never invoked with an index outside the bounds of the list.
 ### \lists.values.step :def.iter.step! \at!
 ### 
-### # Define the \values iterator using these helpers.
+### # Define the \values iter using these helpers.
 ### \values :def.iter! (lists.t, {
 ###   init = \numbers.into, # \numbers.into is a perfect init-message here because it converts .nil to 0.
 ###   next = \lists.next?,
@@ -136,7 +136,7 @@ end)
   self :defcase! {
     # In the case where there is a next value,
     # return a tuple:
-    #  (.ok, next-key, current-value[])
+    #  (.ok, next-key, current-values)
     .ok = do i, n, nx
       (.ok, nx, step (i, n))
     end,
@@ -145,7 +145,7 @@ end)
   }
 end)
 
-# Define an iterator using the given 'init', 'next', and 'step' messages.
+# Define an iter using the given 'init', 'next', and 'step' messages.
 \def.iter! :def! (['gab.message'], do t, args
   init, next, step = args:at! ('init', 'next', 'step')
 
@@ -164,67 +164,42 @@ end)
   end)
 end)
 
-iterators.t = {
-  iter.i, # Invariant
-  iter.m, # The iterator message to send to Invariant
-  iter.s, # The status
-  iter.n, # The next 'key' to produce the next value
+seqs.t = {
+  seq.i, # Invariant
+  seq.m, # The seq message to send to Invariant
+  seq.s, # The status
+  seq.n, # The next 'key' to produce the next value
 }?
 
-reducing_iterators.t = {
-  iter.i, # Invariant
-  iter.m, # The iterator message to send to Invariant
-  iter.s, # The status
-  iter.n, # The next 'key' to produce the next value
-  iter.a, # The accumulator
-  iter.r, # The reducing function
-}?
-
-\ :def! ([.gab.iterator], do i, m, a, r
+\ :def! ([.gab.seq], do i, m
   {
-    iter.i = i,
-    iter.m = m,
-    iter.s = .ok,
-    iter.n = .iterators.init,
-    iter.a = a,
-    iter.r = r,
-  } :compact
+    seq.i = i,
+    seq.m = m,
+    seq.s = .ok,
+    seq.n = .seqs.init,
+  }
 end)
 
-\iterate :def! ([], do m, a, r; .gab.iterator (self, m, a, r) end)
-
-\iter.curr :def! ([reducing_iterators.t, iterators.t], do
-    (self:iter.m)(self:iter.i, self:iter.n)
+\seq.into :def! ([], do m
+  .gab.seq (self, m)
 end)
 
-\iter.step :defcase! {
-  .ok = do iter
-    iter:iter.s, iter:iter.n, xs[] = iter:iter.curr
-
+\seq.step :defcase! {
+  .ok = do seq
+    seq:seq.s, seq:seq.n, xs[] = (seq:seq.m)(seq:seq.i, seq:seq.n)
     xs
   end,
-  .none = do iter
+  .none = do seq
     ()
-  end,
-}
-
-\iter.next :defcase! {
-  [reducing_iterators.t] = do
-    xs = self:iter.s :iter.step self
-    self:iter.a = self 'iter.r' :reduce.step (self:iter.a, xs**)
-    xs
-  end,
-  [iterators.t] = do
-    self:iter.s :iter.step self
   end,
 }
 
 \reduce.next :defcase! {
   .nil = do i, acc, r
     # Apply the producer, resolving new values for the next step
-    xs = i:iter.next
+    xs = i:seq.s:seq.step i
     # Tailcall to the next step
-    i:iter.s:reduce(i, acc, r, xs)
+    i:seq.s:reduce(i, acc, r, xs)
   end,
   .stop = do _i, acc, r
     r:reduce.done(acc)
@@ -233,37 +208,35 @@ end)
 
 # The work of reducing
 \reduce :defcase! {
-  .ok = do i, acc, r, xs
-    # Apply the reducing function
+  .ok = do s, acc, r, xs
+    # Apply the reducer
     acc, cmd = r:reduce.step(acc, xs**)
     # proceed to the next sep
-    cmd:reduce.next(i, acc, r)
+    cmd:reduce.next(s, acc, r)
   end,
-  .none = do _i, acc, r
+  .none = do s, acc, r
     r:reduce.done(acc)
   end,
 }
 
-[reducing_iterators.t, iterators.t] :defmodule! {
+[seqs.t] :defmodule! {
   \reduce = do acc, r
-    xs = self:iter.next
+    self:print
+    xs = self:seq.s:seq.step self
 
-    self:iter.s:reduce(self, acc, r, xs)
+    self:seq.s:reduce(self, acc, r, xs)
   end,
-
   \transduce = do acc, r, td
-    # Apply the transducer to the reducing function,
-    # And then just call a normal reduce
-    self:reduce(acc, td r)
-  end,
+    xs = self:seq.next
 
+    self:seq.s:reduce(self, acc, td r, xs)
+  end,
   \lists.into = do
-    .pass
+    self:reduce(.gab.list(), \push!)
   end,
-
   \tuples.into = do
-    .pass
-  end
+    self:reduce({}, \push)
+  end,
 }
 
 # Implement the reducer protocol for blocks and messages
@@ -422,5 +395,5 @@ end
 }
 
 \compose :def! ([.td], do fns[]
-  .gab.iterator(fns, \values) :reduce(.nil, \compose)
+  .gab.seq(fns, \values) :reduce(.nil, \compose)
 end)

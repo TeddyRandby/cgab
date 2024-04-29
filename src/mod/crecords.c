@@ -48,7 +48,10 @@ a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
 
   uint64_t result_len = end - start;
 
-  gab_value result = gab_tuple(gab, result_len, gab_recdata(rec) + start);
+  gab_value *keys = gab_shpdata(gab_recshp(rec)) + start;
+  gab_value *values = gab_recdata(rec) + start;
+
+  gab_value result = gab_record(gab, result_len, keys, values);
 
   gab_vmpush(gab.vm, result);
 
@@ -161,7 +164,7 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
 
   gab_value k = gab_arg(1);
 
-  if (k != gab_sigil(gab, "iterators.init")) {
+  if (k != gab_sigil(gab, "seqs.init")) {
     size_t current = gab_shpfind(shp, k);
 
     if (len >= current)

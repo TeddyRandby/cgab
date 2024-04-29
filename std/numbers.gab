@@ -37,7 +37,7 @@ end)
   self
 end)
 
-\numbers.into :def!([.nil, .false, .none, .iterators.init], 0)
+\numbers.into :def!([.nil, .false, .none, .seqs.init], 0)
 
 \next? :def! ([numbers.t], do x
   (self > x, x + 1)

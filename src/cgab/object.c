@@ -191,8 +191,8 @@ gab_value gab_shorstr(size_t len, const char data[static len]) {
 }
 
 gab_value gab_shortstrcat(gab_value _a, gab_value _b) {
-  assert(gab_valkind(_a) == kGAB_STRING);
-  assert(gab_valkind(_b) == kGAB_STRING);
+  assert(gab_valkind(_a) == kGAB_STRING || gab_valkind(_a) == kGAB_SIGIL);
+  assert(gab_valkind(_b) == kGAB_STRING || gab_valkind(_b) == kGAB_SIGIL);
 
   size_t alen = gab_strlen(_a);
   size_t blen = gab_strlen(_b);

@@ -4,26 +4,4 @@
 
 record = [1,2,3]
 
-.gab.iterator (10, \upto) :reduce(.nil, \print)
-
-iter = .gab.iterator (record, \pairs)
-
-iter:reduce(.nil, \print)
-
-td = .td:compose (
- .td:map do x, y; '{x}: {y}' end,
- .td:interpose ',',
-)
-
-iter:transduce('', \+, td):print
-
-iter = .gab.iterator (10, \upto)
-
-sum = iter:reduce(0, \+)
-'reduce iter with \+: {sum}':print
-
-iter = .gab.iterator (10, \upto)
-iter:transduce(.nil, \print, .td:take 4)
-
-iter = .gab.iterator (record, \pairs)
-iter:transduce(.nil, \print, .td:take 1)
+record :seq.into \pairs :reduce (.nil, \print)

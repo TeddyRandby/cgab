@@ -9,7 +9,7 @@ end)
   (key, self:at! key)
 end)
 
-\records.init :def! ([.iterators.init], do record
+\records.init :def! ([.seqs.init], do record
   record:next? self :unwrap!
 end)
 
