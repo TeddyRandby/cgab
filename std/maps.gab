@@ -2,15 +2,31 @@
 maps.t = 'cmaps' :use
 
 [maps.t] :defmodule! {
-  \has? = do
+  \has? = do key
     self:at key  == .ok
   end,
   \del! = do key
     self:put!(key, .nil)
   end,
+  \at! = do key, val?
+    self:at(key):else(self, key, val?, do i, k, v
+      i:put!(k, v)
+      v
+    end)
+  end,
 }
 
 maps.t :def.seq! do
+  i = self
+  {
+    v = .next.init,
+    seq.next = do
+      nx = i:next self:v
+      self:v = nx
+      ok, v = i :at nx
+      (ok, nx, v)
+    end
+  }
 end
 
 maps.t

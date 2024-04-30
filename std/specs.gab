@@ -301,7 +301,7 @@ end)
 
 ## predicate for a type which implements a set of messages
 \ :def! ([.spec.protocol], do protocol
-  protocol_shape = protocol?
+  protocol_shape = protocol:?
   protocol.predicate = 'predicate:protocol:{protocol}' :sigil.into
 # Return a predicate which returns true if the given value
 # has all the keys of the record
@@ -604,10 +604,7 @@ end)
   args = self
   message.predicate = 'predicate:message:{args}' :sigil.into
 
-  registry.messages:at_or!(
-      args:receiver,
-      .gab.map {},
-  ):add!(
+  registry.messages:at!(args:receiver, .gab.map()):add!(
       args:message,
       message.predicate,
   )
@@ -741,8 +738,11 @@ end)
 end)
 
 \spec.messages :def! ([], do
-  registry.messages:at(self):unwrap:and do a
-    a:for(\map, \values, \spec.doc, \print)
+  ok, m = registry.messages:at(self)
+  ok :then do
+    m:each do _, v
+      v:spec.explain:print
+    end
   end
 end)
 

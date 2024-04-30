@@ -16,7 +16,7 @@ bool can_continue_identifier(uint8_t c) {
   return can_start_identifier(c) || c == '.';
 }
 
-bool can_end_message(uint8_t c) { return c == '?' || c == '!'; }
+bool can_end_identifier(uint8_t c) { return c == '?' || c == '!'; }
 
 bool can_start_operator(uint8_t c) {
   switch (c) {
@@ -189,6 +189,9 @@ gab_token identifier(gab_lx *self) {
     }
   }
 
+  if (can_end_identifier(peek(self)))
+    advance(self);
+
   return TOKEN_IDENTIFIER;
 }
 
@@ -267,9 +270,6 @@ gab_token other(gab_lx *self) {
       advance(self);
 
       if (identifier(self) == TOKEN_IDENTIFIER) {
-        if (can_end_message(peek(self)))
-          advance(self);
-
         return TOKEN_MESSAGE;
       }
     }
@@ -289,9 +289,6 @@ gab_token other(gab_lx *self) {
       advance(self);
 
       if (identifier(self) == TOKEN_IDENTIFIER) {
-        if (can_end_message(peek(self)))
-          advance(self);
-
         return TOKEN_SEND;
       }
     }

@@ -34,7 +34,7 @@ This syntax might look more familiar to programmers in the c-family of languages
 ```
 This interpretation isn't wrong, but it _is_ shallow. More accurately:
 ```
-    Send the message '()' to the value '\print' with the argument 'Hello world!'
+    Send the empty message to the value '\print' with the argument 'Hello world!'
 ```
 This might explain the peculiar syntax `\print`. This is actually a *message literal*.
 To make an analogy to traditional classes, think of this as a generic value-representation for a method.

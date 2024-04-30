@@ -8,7 +8,7 @@
 \first :def! ([], do x; x end)
 \second :def! ([], do _, x; x end)
 
-\is? :def! ([], do other; (self?) == (other) end)
+\is? :def! ([], do other; (self:?) == (other) end)
 
 [] :defmodule! {
   \and = do alt[]
@@ -106,8 +106,9 @@ end)
   [self] :defmodule! {
     \seqs.into = into,
     \reduce = do acc, r
-      ok, xs[] = self:seq.next
-      ok:doreduce(self, acc, r, xs)
+      seq = self:seqs.into
+      ok, xs[] = seq:seq.next
+      ok:doreduce(seq, acc, r, xs)
     end,
     \transduce = do acc, r, td
       self:reduce(acc, td r)
@@ -118,11 +119,13 @@ end)
     \tuples.into = do
       self:reduce({}, \push)
     end,
+    \each = do f
+      self:transduce(.nil, \self, .td:map f)
+    end,
   }
 end)
 
 \seq.next :def! (['gab.block'], do; self() end)
-
 
 # Implement the reducer protocol for blocks and messages
 ['gab.block', 'gab.message'] :defmodule! {
