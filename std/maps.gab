@@ -21,10 +21,9 @@ maps.t :def.seq! do
   {
     v = .next.init,
     seq.next = do
-      nx = i:next self:v
+      ok, nx, nv = i:next(self:v)
       self:v = nx
-      ok, v = i :at nx
-      (ok, nx, v)
+      (ok, nx, nv)
     end
   }
 end

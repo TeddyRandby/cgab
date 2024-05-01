@@ -588,8 +588,6 @@ static inline void push_block(struct bc *bc, gab_value p, size_t t) {
 }
 
 static inline void push_record(struct bc *bc, size_t len, size_t t) {
-  assert(len < 16);
-
 #if cGAB_SUPERINSTRUCTIONS
   int ctx = peek_ctx(bc, kFRAME, 0);
   assert(ctx >= 0 && "Internal compiler error: no frame context");

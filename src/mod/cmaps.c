@@ -1,7 +1,8 @@
 #include "map.h"
 #include <stdio.h>
 
-a_gab_value* gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
   switch (argc) {
   case 1: {
     gab_value map = map_create(gab, 0, 0, nullptr, nullptr);
@@ -31,7 +32,8 @@ a_gab_value* gab_lib_new(struct gab_triple gab, size_t argc, gab_value argv[argc
   }
 }
 
-a_gab_value* gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
   if (argc != 1) {
     return gab_panic(gab, "&:len expects 1 argument");
   }
@@ -44,7 +46,8 @@ a_gab_value* gab_lib_len(struct gab_triple gab, size_t argc, gab_value argv[argc
   return nullptr;
 }
 
-a_gab_value* gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
+                        gab_value argv[argc]) {
   if (argc != 2) {
     return gab_panic(gab, "&:at expects 2 arguments");
   }
@@ -61,7 +64,8 @@ a_gab_value* gab_lib_at(struct gab_triple gab, size_t argc, gab_value argv[argc]
   return nullptr;
 }
 
-a_gab_value* gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
   if (argc != 3) {
     return gab_panic(gab, "&:put! expects 3 arguments");
   }
@@ -72,7 +76,8 @@ a_gab_value* gab_lib_put(struct gab_triple gab, size_t argc, gab_value argv[argc
   return nullptr;
 }
 
-a_gab_value* gab_lib_add(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_add(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
   if (argc != 3) {
     return gab_panic(gab, "&:add! expects 3 arguments");
   }
@@ -88,51 +93,34 @@ a_gab_value* gab_lib_add(struct gab_triple gab, size_t argc, gab_value argv[argc
   return nullptr;
 }
 
-a_gab_value* gab_lib_next(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
+                          gab_value argv[argc]) {
   d_uint64_t *map = gab_boxdata(argv[0]);
 
-  switch (argc) {
+  gab_value key = gab_arg(1);
 
-  case 1: {
-    uint64_t next_index = d_uint64_t_inext(map, 0);
+  uint64_t next_index;
 
-    if (next_index == -1) {
-      gab_value res = gab_nil;
-
-      gab_vmpush(gab.vm, res);
-      return nullptr;
-    }
-
-    gab_value res = d_uint64_t_ikey(map, next_index);
-
-    gab_vmpush(gab.vm, res);
-    return nullptr;
-  }
-
-  case 2: {
-
-    gab_value key = argv[1];
-
+  if (key == gab_sigil(gab, "next.init")) {
+    next_index = d_uint64_t_inext(map, 0);
+  } else {
     uint64_t index = d_uint64_t_index_of(map, key);
-
-    uint64_t next_index = d_uint64_t_inext(map, index + 1);
-
-    if (next_index == -1) {
-      gab_value res = gab_nil;
-
-      gab_vmpush(gab.vm, res);
-      return nullptr;
-    }
-
-    gab_value res = d_uint64_t_ikey(map, next_index);
-
-    gab_vmpush(gab.vm, res);
-    return nullptr;
+    next_index = d_uint64_t_inext(map, index + 1);
   }
 
-  default:
-    return gab_panic(gab, "&:next expects 1 or 2 arguments");
+  gab_value res[] = {gab_none, gab_nil, gab_nil};
+
+  if (next_index == -1) {
+    goto fin;
   }
+
+  res[0] = gab_ok;
+  res[1] = d_uint64_t_ikey(map, next_index);
+  res[1] = d_uint64_t_ival(map, next_index);
+
+fin:
+  gab_nvmpush(gab.vm, 3, res);
+  return nullptr;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
@@ -141,7 +129,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   struct gab_spec_argt specs[] = {
       {
           mGAB_CALL,
-          gab_strtosig(type),
+          gab_sigil(gab, "map"),
           gab_snative(gab, "map", gab_lib_new),
       },
       {

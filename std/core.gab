@@ -57,7 +57,7 @@
   end,
 }
 
-\ :def! ([.gab.option], do cond, data[]
+\ :def! ([.option], do cond, data[]
   (cond:options.into, data**)
 end)
 
@@ -114,7 +114,7 @@ end)
       self:reduce(acc, td r)
     end,
     \lists.into = do
-      self:reduce(.gab.list(), \push!)
+      self:reduce(.list(), \push!)
     end,
     \tuples.into = do
       self:reduce({}, \push)
@@ -250,7 +250,7 @@ end
   do rf
    {
       n = 0,
-      d = .gab.tuple(n),
+      d = .tuple(n),
       reduce.step = do acc, xs[]
         self:d:put!(self:n, xs**)
         self:n = self:n + 1
@@ -283,5 +283,5 @@ end
 }
 
 \compose :def! ([.td], do fns[]
-  fns:seqs.into:transduce(.nil, \compose, .td :map \first)
+  fns:transduce(.nil, \compose, .td :map \first)
 end)

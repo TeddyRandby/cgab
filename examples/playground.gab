@@ -1,39 +1,39 @@
-'specs' :use
+s = 'specs' :use
 
 Car = { car.make, car.model, car.year, car.color }
 
 'car.make' :def.spec! {
   help = "The car's manufacturer, ie 'Ford'",
-  spec =  .spec.or  ('Ford', 'Chevy', 'Toyota', 'Honda'),
+  spec =  s:any  ('Ford', 'Chevy', 'Toyota', 'Honda'),
 }
 
-'car.color' :def.spec! {
-  spec =  .spec.or ('RED', 'BLUE', 'WHITE', 'BLACK')
+car.color.spec = 'car.color' :def.spec! {
+  spec =  s:any ('RED', 'BLUE', 'WHITE', 'BLACK')
 }
 
 'car.model' :def.spec! {
-  spec =  .spec.or ('Mustang', 'Civic', 'Camry', 'Prius')
+  spec =  s:any ('Mustang', 'Civic', 'Camry', 'Prius')
 }
 
 'car.year' :def.spec! {
-  spec =  .spec.and ( .spec.int (),  .spec.gt 2000 )
+  spec =  s:all ( s:int (),  s:gt 1950 )
 }
 
 car.spec = 'car' :def.spec! {
-  spec =  .spec.protocol Car
+  spec =  s:protocol Car
 }
 
 car.paint.spec =  'car.paint' :def.spec! {
-    help = "Paint the car with the given color",
-    spec =  .spec.message {
+    help = "Paint the car the given color",
+    spec =  s:message {
       # The receiver's spec
-      receiver =  'car' :spec,
+      receiver =  car.spec,
       # The message we spec over
       message  = \car.paint,
       # Fetch the spec 'car.color' for the input
-      input    =  'car.color' :spec,
+      input    =  car.color.spec,
       # Fetch the spec 'car.color' for the output
-      output   =  'car.color' :spec,
+      output   =  car.color.spec,
       # Validate the implementation
       semantics = do receiver, input, output
         (input:at!(0) == receiver:car.color) & (input:at!(0) == output:at!(0))
@@ -51,6 +51,8 @@ car.paint.spec:spec.gen(Car ?)
 # Test the mock coar with the mock implementation of car.paint
 test_car :car.paint('BLUE'):print # => 'BLUE'
 
+car.spec :spec.messages
+
 # Define a faulty car.paint specialization
 #\car.paint :def! ([Car?], do color
 #  self:car.color = 10
@@ -61,4 +63,5 @@ test_car :car.paint('BLUE'):print # => 'BLUE'
 # It generates receivers and inputs, sends the message,
 # And checks the output against the spec and semantics.
 # This code will run forever if the spec is always satisfied
-results[] = car.paint.spec:spec.check
+#results[] = car.paint.spec:spec.check
+#results:print

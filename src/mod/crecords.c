@@ -301,12 +301,12 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   struct gab_spec_argt specs[] = {
       {
           mGAB_CALL,
-          gab_sigil(gab, "gab.tuple"),
+          gab_sigil(gab, "tuple"),
           gab_snative(gab, "tuple", gab_lib_tuple),
       },
       {
           mGAB_CALL,
-          gab_sigil(gab, "gab.record"),
+          gab_sigil(gab, "record"),
           gab_snative(gab, "record", gab_lib_shape),
       },
       {
