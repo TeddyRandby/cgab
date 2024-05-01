@@ -1,162 +1,122 @@
-:use 'specs'
+s = 'specs':use
 
-def receiver = :spec.def! .gab.record {
+record.spec = s:def! {
+  name = "gab.record",
   help = "An ordered, constant array of key-value pairs.",
-  spec = :spec.protocol {},
+  spec = s:protocol {},
 }
 
-:spec.def! .tuple.new {
+s:def! {
+  name = "tuple",
   help = "Construct an empty tuple with the given length.",
-  spec = :spec.message {
-    receiver = :spec.unknown,
-    message  = &:tuple.new,
-    input    = :spec.label(:spec.int) .len,
-    output   = receiver,
+  spec = s:message {
+    receiver  = .tuple,
+    message   = \,
+    input     = s:int :spec.label "N",
+    output    = record.spec :spec.label "Empty record with keys 0-N",
+    semantics = .nil,
   }
 }
 
-:spec.def! .record.new {
+s:def! {
+  name = "record",
   help = "Construct an empty record with the given shape.",
-  spec = :spec.message {
-    receiver = :spec.unknown,
-    message  = &:record.new,
-    input    = :spec.label(:spec.shape) .template,
-    output   = receiver,
+  spec = s:message {
+    receiver = .record,
+    message  = \,
+    input    = s:shape :spec.label "Template",
+    output   = record.spec,
+    semantics = .nil,
   }
 }
 
-:spec.def! .tuple.collect {
-  help = "Collect up to len vales from the given stream into a record.",
-  spec = :spec.message {
-    receiver = :spec.unknown,
-    message  = &:tuple.collect,
-    input    = :spec.values(:spec.message, [], :spec.int),
-    output   = receiver,
-  }
-}
 
-def KEY   = :spec.label(:spec.unknown) .key
-def VALUE = :spec.label(:spec.unknown) .value
+KEY   = s:unknown:spec.label "Key"
+VALUE = s:unknown:spec.label "Value"
 
-:spec.def! .gab.record.len {
+s:def! {
+  name = "gab.record\len",
   help = "Return the number of key-value pairs in the record.",
-  spec = :spec.message {
-    receiver,
-    message  = &:len,
-    input    = :spec.values,
-    output   = :spec.int,
+  spec = s:message {
+    receiver  = record.spec,
+    message   = \len,
+    input     = s:values,
+    output    = s:int,
+    semantics = .nil,
   },
 }
 
-:spec.def! .gab.record.at {
+s:def! {
+  name = "gab.record\at",
   help = "Return the value at the given key, if it exists.",
-  spec = :spec.message {
-    receiver,
-    message  = &:at,
-    input    = KEY,
-    output   = :spec.option(VALUE),
+  spec = s:message {
+    receiver    = record.spec,
+    message     = \at,
+    input       = KEY,
+    output      = s:option VALUE,
+    semantics  = .nil,
   },
 }
 
-:spec.def! .gab.record.to_l {
-  help = "Return a list of key, value pairs.",
-  spec = :spec.message {
-    receiver,
-    message  = &:to_l,
-    input    = :spec.values,
-    output   = :spec.list(VALUE),
-  },
-}
-
-:spec.def! .gab.record.to_m {
-  help = "Return a map, populated with the key-value pairs of the record.",
-  spec = :spec.message {
-    receiver,
-    message  = &:to_m,
-    input    = :spec.values,
-    output   = :spec.map(KEY, VALUE),
-  },
-}
-
-:spec.def! .gab.record.put! {
-  help = "Put a value in the record at the given key",
-  spec = :spec.message {
-    receiver,
-    message  = &:put!,
-    input    = :spec.values(KEY, VALUE),
-    output   = :spec.or(VALUE, :spec.nil),
+s:def! {
+  name = "gab.record\put!",
+  help = "Put a value in the record at the given key. Panics if the key isn't present.",
+  spec = s:message {
+    receiver   = record.spec,
+    message    = \put!,
+    input      = s:values(KEY, VALUE),
+    output     = VALUE,
+    semantics  = .nil,
   }
 }
 
-:spec.def! .gab.record.next {
-  help = "Return the key that appears after the given key in the record",
-  spec = :spec.message {
-    receiver,
-    message  = &:next,
-    input    = KEY,
-    output   = :spec.or(KEY, :spec.nil),
+s:def! {
+  name = "gab.record/next",
+  help = "Return the key that appears after the given key in the record. When .next.init is passed, return the first key.",
+  spec = s:message {
+    receiver   = record.spec,
+    message    = \next,
+    input      = KEY,
+    output     = s:option KEY,
+    semantics  = .nil,
   }
 }
 
-:spec.def! .gab.record.slice {
+s:def! {
+  name = "gab.record\slice",
   help = "Return a record with only the key-value pairs in the given range.",
-  spec = :spec.message {
-    receiver,
-    message  = &:slice,
-    input    = :spec.values(
-      :spec.or(:spec.int, :spec.nil),
-      :spec.or(:spec.int, :spec.nil),
+  spec = s:message {
+    receiver   = record.spec,
+    message    = \slice,
+    input      = s:values(
+      s:any(s:int, s:nil),
+      s:any(s:int, s:nil),
     ),
-    output   = receiver
+    output     = record.spec,
+    semantics  = .nil,
   }
 }
 
-:spec.def! .gab.record.push {
+s:def! {
+  name = "gab.record\push",
   help = "Return a record with an additional value. ",
-  spec = :spec.message {
-    receiver,
-    message  = &:push,
-    input    = VALUE,
-    output   = receiver
+  spec = s:message {
+    receiver  = record.spec,
+    message   = \push,
+    input     = VALUE,
+    output    = record.spec,
+    semantics = .nil,
   }
 }
 
-:spec.def! .gab.record.has? {
+s:def! {
+  name = "gab.record\has?",
   help = "Return true if the key exists in the record.",
-  spec = :spec.message {
-    receiver,
-    message  = &:has?,
+  spec = s:message {
+    receiver = record.spec,
+    message  = \has?,
     input    = KEY,
-    output   = :spec.boolean,
-  }
-}
-
-:spec.def! .gab.record.pairs {
-  help = "Yield each key-value pair in the record.",
-  spec = :spec.message {
-    receiver,
-    message  = &:pairs,
-    input    = :spec.values,
-    output   = :spec.generator(KEY, VALUE),
-  }
-}
-
-:spec.def! .gab.record.keys {
-  help = "Yield each key in the record.",
-  spec = :spec.message {
-    receiver,
-    message  = &:keys,
-    input    = :spec.values,
-    output   = :spec.generator(KEY),
-  }
-}
-
-:spec.def! .gab.record.values {
-  help = "Yield each value in the record.",
-  spec = :spec.message {
-    receiver,
-    message  = &:values,
-    input    = :spec.values,
-    output   = :spec.generator(VALUE),
+    output   = s:boolean,
+    semantics = .nil,
   }
 }

@@ -147,6 +147,11 @@ struct primitive kind_primitives[] = {
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CONCAT),
     },
     {
+        .name = mGAB_ADD,
+        .kind = kGAB_SIGIL,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CONCAT),
+    },
+    {
         .name = mGAB_EQ,
         .kind = kGAB_UNDEFINED,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),

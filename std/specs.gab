@@ -51,22 +51,15 @@ register = do registry, name, value
 end
 
 \spec.register! :defcase! {
-  [{ spec }?] = do name
-    register(registry.spec, name, self:spec)
-    register(registry.name, self:spec, name)
+  [{ name, spec }?] = do
+    register(registry.spec, self:name, self:spec)
+    register(registry.name, self:spec, self:name)
 
     self:spec
   end,
-  [{ help, spec }?] = do name
-    register(registry.spec, name, self:spec)
-    register(registry.name, self:spec, name)
-    register(registry.help, self:spec, self:help)
-
-    self:spec
-  end,
-  [{ spec, help }?] = do name
-    register(registry.spec, name, self:spec)
-    register(registry.name, self:spec, name)
+  [{ name, help, spec }?] = do
+    register(registry.spec, self:name, self:spec)
+    register(registry.name, self:spec, self:name)
     register(registry.help, self:spec, self:help)
 
     self:spec
@@ -74,8 +67,8 @@ end
 }
 
 ## Add a spec to the global registry under the given name.
-\def.spec! :def! (['gab.string'], do opts
-  opts :spec.register! self
+\def! :def! ([spec.t], do opts
+  opts :spec.register!
 end)
 
 \spec :def! ([], do
@@ -87,7 +80,7 @@ end)
 end)
 
 \spec.name :def! ([], do
-  registry.name:at(self):unwrap!
+  registry.name:at self :unwrap!
 end)
 
 ## PREDICATES
@@ -113,7 +106,7 @@ end)
   .nil
 end)
 
-\spec.explain :def! ([nil.predicate], 'Nil')
+\spec.explain :def! ([nil.predicate], 'nil')
 
 # UNKNOWN PREDICATE
 unknown.predicate = .predicate.unknown
@@ -130,7 +123,7 @@ unknown_values = [ .nil, 0, 1, 'test', .true ]
   unknown_values:at!(idx)
 end)
 
-\spec.explain :def! ([unknown.predicate], 'Unknown')
+\spec.explain :def! ([unknown.predicate], 'unknown')
 
 registry.name:put!(unknown.predicate, 'unknown')
 
@@ -145,7 +138,7 @@ end)
   .int.between(-10000, 10000)
 end)
 
-\spec.explain :def! ([int.predicate], 'Int')
+\spec.explain :def! ([int.predicate], 'int')
 
 #
 # FLOAT PREDICATE
@@ -161,7 +154,7 @@ end)
   .float.between(-10000, 10000)
 end)
 
-\spec.explain :def! ([float.predicate], 'Float')
+\spec.explain :def! ([float.predicate], 'float')
 
 #
 # STRING PREDICATE
@@ -181,7 +174,7 @@ end)
   list:to_bytes
 end)
 
-\spec.explain :def! ([string.predicate], 'String')
+\spec.explain :def! ([string.predicate], 'string')
 
 #
 # SHAPE PREDICATE
@@ -197,7 +190,7 @@ end)
   { a, b, c }?
 end)
 
-\spec.explain :def! ([shape.predicate], 'Shape')
+\spec.explain :def! ([shape.predicate], 'shape')
 
 #
 # BOOL PREDICATE
@@ -212,7 +205,7 @@ end)
   .float:between > 0.5
 end)
 
-\spec.explain :def! ([boolean.predicate], 'Boolean')
+\spec.explain :def! ([boolean.predicate], 'boolean')
 
 and.predicate = do specs[]
   specs:len > 0 :or do
@@ -316,7 +309,7 @@ values.predicate = do specs[]
   end)
 
   \spec.explain :def!([pred], do
-    explain_specs(specs, ', ')
+    '(' + explain_specs(specs, ', ') + ')'
   end)
 
   pred
@@ -519,7 +512,7 @@ end)
 
 \spec.gen :def! ([general_message.predicate], \+)
 
-\spec.explain :def! ([general_message.predicate], 'Message')
+\spec.explain :def! ([general_message.predicate], 'message')
 
 spec.message.Args = { receiver, message, input, output, semantics }?
 
@@ -547,10 +540,8 @@ end)
   args = self
   pred = 'predicate:message:{args}' :sigil.into
 
-  registry.messages:at!(args:receiver, .map()):add!(
-      args:message,
-      pred,
-  )
+  m = registry.messages:at!(args:receiver, .map())
+  m:add!(args:message, pred)
 
   \spec.fits? :def! ([pred], do rec, input, output
     v = args:with(.input_value, input):with(.output_value, output)
@@ -632,7 +623,7 @@ end)
   end)
 
   \spec.explain :def! ([pred], do
-    '{args:message}[{args:receiver:spec.name}]({args:input:spec.explain}) -> {args:output:spec.explain}'
+    '{args:receiver:spec.name}{args:message} {args:input:spec.explain} -> {args:output:spec.explain}'
   end)
 
   pred
@@ -644,8 +635,8 @@ end
 
 LabeledSpec = { spec.label, spec.spec }
 
-\spec.label :def! ([], do spec.spec, spec.label
-  { spec.label, spec.spec }
+\spec.label :def! ([], do spec.label
+  { spec.label, spec.spec = self }
 end)
 
 \spec.explain :def! ([LabeledSpec ?], do
@@ -684,7 +675,7 @@ end)
   ok, m = registry.messages:at(self)
 
   ok:then do
-    m:each do v
+    m:each do _, v
       v:spec.explain:print
     end
   end
@@ -732,13 +723,13 @@ end)
   \all      = and.predicate,
   \any      = or.predicate,
   \option   = do value
-    .spec:or(
+    .spec:any(
       .spec:values(.ok, value),
       .none,
     )
   end, 
   \result   = do value, err
-    .spec:or(
+    .spec:any(
       .spec:values(.ok, value),
       err,
     )

@@ -114,7 +114,7 @@ end)
       self:reduce(acc, td r)
     end,
     \lists.into = do
-      self:reduce(.list(), \push!)
+      self:reduce(.gab.list(), \push!)
     end,
     \tuples.into = do
       self:reduce({}, \push)
@@ -250,7 +250,7 @@ end
   do rf
    {
       n = 0,
-      d = .tuple(n),
+      d = .gab.tuple(n),
       reduce.step = do acc, xs[]
         self:d:put!(self:n, xs**)
         self:n = self:n + 1

@@ -116,7 +116,7 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
 
   res[0] = gab_ok;
   res[1] = d_uint64_t_ikey(map, next_index);
-  res[1] = d_uint64_t_ival(map, next_index);
+  res[2] = d_uint64_t_ival(map, next_index);
 
 fin:
   gab_nvmpush(gab.vm, 3, res);

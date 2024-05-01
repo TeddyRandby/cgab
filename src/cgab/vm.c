@@ -1079,14 +1079,17 @@ CASE_CODE(SEND_PRIMITIVE_CONCAT) {
   SKIP_SHORT;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
-  if (__gab_unlikely(gab_valkind(PEEK_N(have)) != kGAB_STRING))
+  enum gab_kind k = gab_valkind(PEEK_N(have));
+
+  if (__gab_unlikely(k != kGAB_STRING && k != kGAB_SIGIL))
     MISS_CACHED_SEND();
 
   if (__gab_unlikely(have < 2))
     PUSH(gab_nil), have++;
 
-  if (__gab_unlikely(gab_valkind(PEEK_N(have - 1)) != kGAB_STRING &&
-                     gab_valkind(PEEK_N(have - 1)) != kGAB_SIGIL)) {
+  k = gab_valkind(PEEK_N(have - 1));
+
+  if (__gab_unlikely(k != kGAB_STRING && k != kGAB_SIGIL)) {
     STORE_PRIMITIVE_ERROR_FRAME(1);
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK_N(have - 1),
           gab_valtype(EG(), PEEK_N(have - 1)), gab_valtype(EG(), PEEK_N(have)));

@@ -2,43 +2,49 @@ s = 'specs' :use
 
 Car = { car.make, car.model, car.year, car.color }
 
-'car.make' :def.spec! {
+s:def! {
+  name = 'car.make',
   help = "The car's manufacturer, ie 'Ford'",
   spec =  s:any  ('Ford', 'Chevy', 'Toyota', 'Honda'),
 }
 
-car.color.spec = 'car.color' :def.spec! {
+car.color.spec = s:def! {
+  name = 'car.color',
   spec =  s:any ('RED', 'BLUE', 'WHITE', 'BLACK')
 }
 
-'car.model' :def.spec! {
+s:def! {
+  name = 'car.model' ,
   spec =  s:any ('Mustang', 'Civic', 'Camry', 'Prius')
 }
 
-'car.year' :def.spec! {
+s:def! {
+  name = 'car.year' ,
   spec =  s:all ( s:int (),  s:gt 1950 )
 }
 
-car.spec = 'car' :def.spec! {
+car.spec = s:def! {
+  name = 'car',
   spec =  s:protocol Car
 }
 
-car.paint.spec =  'car.paint' :def.spec! {
-    help = "Paint the car the given color",
-    spec =  s:message {
-      # The receiver's spec
-      receiver =  car.spec,
-      # The message we spec over
-      message  = \car.paint,
-      # Fetch the spec 'car.color' for the input
-      input    =  car.color.spec,
-      # Fetch the spec 'car.color' for the output
-      output   =  car.color.spec,
-      # Validate the implementation
-      semantics = do receiver, input, output
-        (input:at!(0) == receiver:car.color) & (input:at!(0) == output:at!(0))
-      end,
-    }
+car.paint.spec = s:def! {
+  name = 'car.paint',
+  help = "Paint the car the given color",
+  spec =  s:message {
+    # The receiver's spec
+    receiver =  car.spec,
+    # The message we spec over
+    message  = \car.paint,
+    # Fetch the spec 'car.color' for the input
+    input    =  car.color.spec,
+    # Fetch the spec 'car.color' for the output
+    output   =  car.color.spec,
+    # Validate the implementation
+    semantics = do receiver, input, output
+      (input:at!(0) == receiver:car.color) & (input:at!(0) == output:at!(0))
+    end,
+  }
 }
 
 # Generate a mock car
