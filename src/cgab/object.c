@@ -68,7 +68,7 @@ int32_t rec_dump_properties(FILE *stream, struct gab_obj_record *rec,
     else
       bytes += gab_fvalinspect(stream, rec->data[i], depth - 1);
 
-    bytes += fprintf(stream, " ");
+    bytes += fprintf(stream, ", ");
   }
 
   bytes += gab_fvalinspect(stream, shape->data[rec->len - 1], depth - 1);

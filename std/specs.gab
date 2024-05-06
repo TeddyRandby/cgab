@@ -23,7 +23,7 @@ explain_strings = do strings, separator
   strings:transduce(
     '',
     \+,
-    .td:compose (
+    .td:compose(
       .td:map do _, name
         '{name} = {name:spec:spec.explain}'
       end,
@@ -33,16 +33,16 @@ explain_strings = do strings, separator
 end
 
 ## Registry of qualified name -> spec
-registry.spec = .map {}
+registry.spec = .map()
 
 ## Registry of spec -> qualified name
-registry.name = .map {}
+registry.name = .map()
 
 ## Registry of qualified name -> help text
-registry.help = .map {}
+registry.help = .map()
 
 ## Registry of receiver -> list of spec'd messages
-registry.messages = .map {}
+registry.messages = .map()
 
 register = do registry, name, value
   # Add a new specification to the registry.
@@ -328,7 +328,7 @@ protocol.predicate = do protocol
 # Check for a spec which corresponds to this message in the protocol
       acc:at!(0) :and acc :else do
         m :has? value :then do
-        registry.spec:at(k) :unwrap:then do s
+        registry.spec:at(k) :ok?:then do s
             s :spec.fits? (value :at! k)
           end
         end :or [.false, self, value, k]
@@ -589,8 +589,7 @@ end)
             end
           end,
           .td:map \options.into,
-          .td:map \unwrap,
-          .td:filter \self,
+          .td:filter \ok?,
           .td:map \first,
           .td:take 1,
         )

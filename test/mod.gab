@@ -319,7 +319,7 @@ end
     pone = { x = 1, y = 2}
     ptwo = { x = 3, y = 4}
 
-    (pone?):should(\be, \==, ptwo?)
+    (pone:?):should(\be, \==, ptwo:?)
   end
 
   'should work for all kinds of keys' :tests.should do

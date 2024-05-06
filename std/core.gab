@@ -62,20 +62,32 @@
 end)
 
 [.ok] :defmodule! {
-  \unwrap! = do args[]
-    args**
+  \ok? = do args[]
+    (.true, args**)
   end,
   \unwrap = do args[]
-    (.true, args**)
+    args**
+  end,
+  \unwrap! = do args[]
+    args**
   end,
 }
 
 [.none, .err] :defmodule! {
+  \ok? = .false,
+  \unwrap = .nil,
   \unwrap! = do
     'Cannot unwrap {self}':panic
   end,
-  \unwrap = .false,
 }
+
+# Generic implementation for commands. - basically ignore.
+\doreduce :def! ([], do seq, acc, r
+  # Apply the producer, resolving new values for the next step
+  ok, xs[] = seq:seq.next
+  # Tailcall to the next step
+  ok:doreduce(seq, acc, r, xs)
+end)
 
 \doreduce :defcase! {
   ## The sequence yielded a value
@@ -88,13 +100,6 @@ end)
   ## The sequence is done
   .none = do seq, acc, r
     r:reduce.done(acc)
-  end,
-  ## The reducer has no special command, continue
-  .nil = do seq, acc, r
-    # Apply the producer, resolving new values for the next step
-    ok, xs[] = seq:seq.next
-    # Tailcall to the next step
-    ok:doreduce(seq, acc, r, xs)
   end,
   ## The reducer is done
   .stop = do seq, acc, r
@@ -130,7 +135,7 @@ end)
 # Implement the reducer protocol for blocks and messages
 ['gab.block', 'gab.message'] :defmodule! {
   \reduce.step = do acc, xs[]
-    acc = self (acc, xs**)
+    self (acc, xs**)
   end,
   \reduce.done = do acc
     acc

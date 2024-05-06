@@ -10,7 +10,7 @@ maps.t = 'cmaps' :use
   end,
   \at! = do key, val?
     self:has? key :else (self, key, val?, \put!)
-    self:at(key):unwrap!
+    self:at key :unwrap!
   end,
 }
 
