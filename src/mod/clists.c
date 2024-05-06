@@ -236,7 +236,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   struct gab_spec_argt specs[] = {
       {
           mGAB_CALL,
-          gab_sigil(gab, "list"),
+          gab_sigil(gab, "gab.list"),
           gab_snative(gab, "list", gab_lib_new),
       },
       {

@@ -10,7 +10,7 @@ explain_specs = do specs, separator
   specs:transduce(
     '',
     \+,
-    .td:compose (
+    .td:compose(
       .td:map do _, s
         s:spec.explain
       end,
@@ -19,13 +19,13 @@ explain_specs = do specs, separator
   )
 end
 
-explain_strings = do strings, separator
+explain_keys = do strings, separator
   strings:transduce(
     '',
     \+,
     .td:compose(
-      .td:map do _, name
-        '{name} = {name:spec:spec.explain}'
+      .td:map do name
+        '{name}'
       end,
       .td:interpose separator,
     ),
@@ -33,16 +33,16 @@ explain_strings = do strings, separator
 end
 
 ## Registry of qualified name -> spec
-registry.spec = .map()
+registry.spec = .gab.map()
 
 ## Registry of spec -> qualified name
-registry.name = .map()
+registry.name = .gab.map()
 
 ## Registry of qualified name -> help text
-registry.help = .map()
+registry.help = .gab.map()
 
 ## Registry of receiver -> list of spec'd messages
-registry.messages = .map()
+registry.messages = .gab.map()
 
 register = do registry, name, value
   # Add a new specification to the registry.
@@ -343,13 +343,13 @@ protocol.predicate = do protocol
   end
 
   \spec.gen :def! ([pred], do
-    gen = .record protocol_shape
+    gen = .gab.record protocol_shape
 
     protocol:transduce (gen, \put!, gentd)
   end)
 
   \spec.explain :def! ([pred], do
-    (protocol:len == 0) :and "{}" :or ("{\n " + explain_strings(protocol, '\n ') + "\n}")
+    (protocol:len == 0) :and "{}" :or ("{ " + explain_keys(protocol, ', ') + " }")
   end)
 
   pred
@@ -540,7 +540,7 @@ end)
   args = self
   pred = 'predicate:message:{args}' :sigil.into
 
-  m = registry.messages:at!(args:receiver, .map())
+  m = registry.messages:at!(args:receiver, .gab.map())
   m:add!(args:message, pred)
 
   \spec.fits? :def! ([pred], do rec, input, output
