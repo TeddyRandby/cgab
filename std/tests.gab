@@ -7,12 +7,12 @@ testing.t = TestState ?
 
 \reset :def! ([testing.t], do
   self:fails = 0
-  self:errs = .list ()
+  self:errs = .gab.list ()
 
   self
 end)
 
-T = .record testing.t :reset 
+T = .gab.record testing.t :reset 
 
 \tests.push_result :defcase! {
 
