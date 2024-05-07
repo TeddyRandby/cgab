@@ -392,6 +392,16 @@ end
     tup(2):should(\be, \==, 3)
     tup:len:should(\be, \==, 3)
   end
+
+  'sending to records' :tests.should do
+    result = { hi = 2 } :hi
+
+    result:should(\be, \==, 2)
+
+    result = { hi = do; 4 end } :hi
+
+    result:should(\be, \==, 4)
+  end
 end
 
 'Overloads' :tests.covers do
@@ -502,5 +512,37 @@ end
       end
 
       takeOneTwo(oneTwo())
+    end
+
+    'sending constants' :tests.should do
+      \hi :def! (['gab.number'], .test)
+
+      1:hi:should(\be, \==, .test)
+    end
+
+    'calling messages' :tests.should do
+      sum = do a, b
+        \+ (a, b)
+      end
+
+      result = sum (1,1)
+
+      result:should(\be, \==, 2)
+
+      result = sum (2, 2)
+
+      result:should(\be, \==, 4)
+
+      result = sum ('hi', ' world')
+
+      result:should(\be, \==, 'hi world')
+
+      result = \hi { hi = 8 }
+
+      result:should(\be, \==, 8)
+
+      result = \hi ({ hi = 8 }, 2)
+
+      result:should(\be, \==, 2)
     end
 end

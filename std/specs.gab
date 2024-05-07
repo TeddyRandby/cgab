@@ -227,7 +227,7 @@ and.predicate = do specs[]
       end,
       .td:filter \self,
       .td:map \first,
-      .td:take 50,
+      .td:take 1,
     )
 
     .range 100 :transduce(0, \first, td):assert! "Failed to generate a value for all specs"
@@ -580,7 +580,7 @@ end)
           .td:map \options.into,
           .td:filter \ok?,
           .td:map \first,
-          .td:take 50,
+          .td:take 1,
         )
 
         .range 100 :transduce(

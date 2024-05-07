@@ -35,9 +35,9 @@ T = .gab.record testing.t :reset
 end)
 
 \show_errs :def! ([testing.t], do
-  self:errs:tap(\values, .nil, \self, do mismatch
+  self:errs:each do mismatch
       '     - got {mismatch:at!(0)}, expecting {mismatch:at!(1)}':print
-  end)
+  end
 end)
 
 \should :def! ([], do msg, comp, other
@@ -64,7 +64,7 @@ end)
 
   '  { T:passed? :and '✓' :or '×' } it { self }':print
 
-  T:passed?:or do
+  T:passed?:else do
     T:show_errs
   end
 

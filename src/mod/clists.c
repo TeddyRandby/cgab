@@ -1,5 +1,5 @@
-#include "list.h"
 #include "gab.h"
+#include "list.h"
 
 a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
@@ -97,6 +97,29 @@ a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
                         gab_value argv[argc]) {
+  gab_value list = gab_arg(0);
+  gab_value voffset = gab_arg(1);
+
+  if (gab_valkind(voffset) != kGAB_NUMBER)
+    return gab_pktypemismatch(gab, voffset, kGAB_NUMBER);
+
+  uint64_t offset = gab_valton(voffset);
+
+  gab_value res = list_at(list, offset);
+
+  gab_value values[] = { gab_none, gab_nil };
+
+  if (res != gab_undefined) {
+    values[0] = gab_ok;
+    values[1] = res;
+  }
+
+  gab_nvmpush(gab.vm, 2, values);
+  return nullptr;
+}
+
+a_gab_value *gab_lib_atpanic(struct gab_triple gab, size_t argc,
+                             gab_value argv[argc]) {
   gab_value list = gab_arg(0);
   gab_value voffset = gab_arg(1);
 
@@ -252,17 +275,17 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "push!",
           type,
-          gab_snative(gab, "list.push", gab_lib_push),
+          gab_snative(gab, "list.push!", gab_lib_push),
       },
       {
           "pop!",
           type,
-          gab_snative(gab, "list.pop", gab_lib_pop),
+          gab_snative(gab, "list.pop!", gab_lib_pop),
       },
       {
           "put!",
           type,
-          gab_snative(gab, "list.put", gab_lib_put),
+          gab_snative(gab, "list.put!", gab_lib_put),
       },
       {
           "replace!",
@@ -275,9 +298,14 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "list.splat", gab_lib_splat),
       },
       {
-          "at!",
+          "at",
           type,
           gab_snative(gab, "list.at", gab_lib_at),
+      },
+      {
+          "at!",
+          type,
+          gab_snative(gab, "list.at!", gab_lib_atpanic),
       },
       {
           "to_bytes",
