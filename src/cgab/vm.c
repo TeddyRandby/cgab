@@ -684,7 +684,7 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
                                                                                \
     size_t pass = message ? have : have - 1;                                   \
                                                                                \
-    a_gab_value *res = (*n->function)(GAB(), pass, SP() - pass);               \
+    a_gab_value *res = (*native->function)(GAB(), pass, SP() - pass);          \
     if (__gab_unlikely(res))                                                   \
       return res;                                                              \
                                                                                \
@@ -850,6 +850,33 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
     struct gab_obj_native *n = GAB_VAL_TO_NATIVE(r);                           \
                                                                                \
     PREFIX##CALL_NATIVE(n, have, false);                                       \
+  }
+
+#define IMPL_SEND_PRIMITIVE_CALL_MESSAGE_BLOCK(PREFIX)                         \
+  CASE_CODE(PREFIX##SEND_PRIMITIVE_CALL_MESSAGE_BLOCK) {                       \
+    gab_value *ks = READ_CONSTANTS;                                            \
+    uint64_t have = compute_arity(VAR(), READ_BYTE);                           \
+                                                                               \
+    gab_value m = PEEK_N(have);                                                \
+    gab_value r = PEEK_N(have - 1);                                            \
+                                                                               \
+    if (__gab_unlikely(gab_valkind(m) != kGAB_MESSAGE))                        \
+      MISS_CACHED_SEND();                                                      \
+                                                                               \
+    if (__gab_unlikely(!gab_valeq(GAB_VAL_TO_MESSAGE(m)->specs,                \
+                                  ks[GAB_SEND_KMESSAGE_CALL_SPECS])))          \
+      MISS_CACHED_SEND();                                                      \
+                                                                               \
+    if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))            \
+      MISS_CACHED_SEND();                                                      \
+                                                                               \
+    memmove(SP() - have, SP() - (have - 1), (have - 1) * sizeof(gab_value));   \
+    have--;                                                                    \
+    DROP();                                                                    \
+                                                                               \
+    struct gab_obj_block *spec = (void *)ks[GAB_SEND_KSPEC];                   \
+                                                                               \
+    PREFIX##CALL_BLOCK(spec, have);                                            \
   }
 
 CASE_CODE(MATCHTAILSEND_BLOCK) {
@@ -1617,6 +1644,92 @@ CASE_CODE(SEND) {
   NEXT();
 }
 
+IMPL_SEND_PRIMITIVE_CALL_MESSAGE_BLOCK();
+IMPL_SEND_PRIMITIVE_CALL_MESSAGE_BLOCK(TAIL);
+
+CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_NATIVE) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value m = PEEK_N(have);
+  gab_value r = PEEK_N(have - 1);
+
+  if (__gab_unlikely(gab_valkind(m) != kGAB_MESSAGE))
+    MISS_CACHED_SEND();
+
+  if (__gab_unlikely(!gab_valeq(GAB_VAL_TO_MESSAGE(m)->specs,
+                                ks[GAB_SEND_KMESSAGE_CALL_SPECS])))
+    MISS_CACHED_SEND();
+
+  if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))
+    MISS_CACHED_SEND();
+
+  memmove(SP() - have, SP() - (have - 1), (have - 1) * sizeof(gab_value));
+  have--;
+  DROP();
+
+  struct gab_obj_native *spec = (void *)ks[GAB_SEND_KSPEC];
+
+  CALL_NATIVE(spec, have, true);
+}
+
+CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_PRIMITIVE) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value m = PEEK_N(have);
+  gab_value r = PEEK_N(have - 1);
+
+  if (__gab_unlikely(gab_valkind(m) != kGAB_MESSAGE))
+    MISS_CACHED_SEND();
+
+  if (__gab_unlikely(!gab_valeq(GAB_VAL_TO_MESSAGE(m)->specs,
+                                ks[GAB_SEND_KMESSAGE_CALL_SPECS])))
+    MISS_CACHED_SEND();
+
+  if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))
+    MISS_CACHED_SEND();
+
+  memmove(SP() - have, SP() - (have - 1), (have - 1) * sizeof(gab_value));
+  PEEK() = gab_nil;
+
+  uint8_t spec = ks[GAB_SEND_KSPEC];
+
+  uint8_t op = gab_valtop(spec);
+
+  IP() -= SEND_CACHE_DIST - 1;
+
+  DISPATCH(op);
+}
+
+CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_CONSTANT) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value m = PEEK_N(have);
+  gab_value r = PEEK_N(have - 1);
+
+  if (__gab_unlikely(gab_valkind(m) != kGAB_MESSAGE))
+    MISS_CACHED_SEND();
+
+  if (__gab_unlikely(!gab_valeq(GAB_VAL_TO_MESSAGE(m)->specs,
+                                ks[GAB_SEND_KMESSAGE_CALL_SPECS])))
+    MISS_CACHED_SEND();
+
+  if (__gab_unlikely(!gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE])))
+    MISS_CACHED_SEND();
+
+  gab_value spec = ks[GAB_SEND_KSPEC];
+
+  DROP_N(have);
+  PUSH(spec);
+
+  SET_VAR(1);
+
+  NEXT();
+}
+
+// TODO: This doesn't need to be an intermediate-message-step
 CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   gab_value *ks = READ_CONSTANTS;
   uint8_t have_byte = READ_BYTE;
@@ -1637,52 +1750,45 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
           gab_valtype(EG(), r));
   }
 
-  memmove(SP() - have, SP() - (have - 1), (have - 1) * sizeof(gab_value));
-
   gab_value spec = res.status == kGAB_IMPL_PROPERTY
                        ? gab_primitive(OP_SEND_PROPERTY)
                        : gab_umsgat(m, res.offset);
 
-  ks[GAB_SEND_KOFFSET] = res.offset;
   ks[GAB_SEND_KTYPE] = t;
+  ks[GAB_SEND_KOFFSET] = res.offset;
+  ks[GAB_SEND_KMESSAGE_CALL_SPECS] = gab_msgrec(m);
 
   switch (gab_valkind(spec)) {
   case kGAB_PRIMITIVE: {
-    PEEK() = gab_nil;
-    uint8_t op = gab_valtop(spec);
+    ks[GAB_SEND_KSPEC] = gab_valtop(spec);
 
-    IP() -= SEND_CACHE_DIST - 1;
-
-    DISPATCH(op);
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_CALL_MESSAGE_PRIMITIVE);
+    break;
   }
   case kGAB_BLOCK: {
-    struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
+    ks[GAB_SEND_KSPEC] = (uintptr_t)GAB_VAL_TO_BLOCK(spec);
 
-    have--;
-    DROP();
+    uint8_t adjust = (have_byte & fHAVE_TAIL) >> 1;
 
-    if (have_byte & fHAVE_TAIL)
-      TAILCALL_BLOCK(blk, have);
-    else
-      CALL_BLOCK(blk, have);
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_CALL_MESSAGE_BLOCK + adjust);
+    break;
   }
   case kGAB_NATIVE: {
-    struct gab_obj_native *n = GAB_VAL_TO_NATIVE(spec);
+    ks[GAB_SEND_KSPEC] = (uintptr_t)GAB_VAL_TO_NATIVE(spec);
 
-    have--;
-    DROP();
-
-    CALL_NATIVE(n, have, true);
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_CALL_MESSAGE_NATIVE);
+    break;
   }
   default: {
-    DROP_N(have);
-    PUSH(spec);
+    ks[GAB_SEND_KSPEC] = spec;
 
-    SET_VAR(1);
-
-    NEXT();
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_CALL_MESSAGE_CONSTANT);
+    break;
   }
   }
+
+  IP() -= SEND_CACHE_DIST;
+  NEXT();
 }
 
 #undef READ_BYTE

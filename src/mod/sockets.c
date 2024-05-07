@@ -307,13 +307,13 @@ a_gab_value *gab_lib_send(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value container_type = gab_string(gab, "Socket");
+  gab_value container_type = gab_string(gab, "gab.socket");
 
   struct gab_spec_argt specs[] = {
       {
-          "socket.new",
+          "gab.socket",
           gab_undefined,
-          gab_snative(gab, "socket.new", gab_lib_sock),
+          gab_snative(gab, "gab.socket", gab_lib_sock),
       },
       {
           "bind",

@@ -1,0 +1,22 @@
+s = 'specs':use
+
+socket.spec = s:def! {
+  name = "gab.socket",
+  help = "A wrapper type for an OS socket.",
+  spec = s:unknown, # TODO: Replace with some c-user-data spec
+}
+
+s:def! {
+  name = "socket",
+  help = "Construct a new gab.socket",
+  spec = s:message {
+    receiver  = .gab.socket,
+    message   = \,
+    input     = s:option(s:protocol {
+      gab.socket.family = s:int,
+      gab.socket.type   = s:int,
+    }),
+    output    = socket.spec,
+    semantics = .nil
+  }
+}

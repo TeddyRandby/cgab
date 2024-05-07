@@ -7,8 +7,12 @@
 #define cGAB_SEND_CACHE_LEN 4
 #endif
 
-#if cGAB_SEND_CACHE_LEN < 1
-#error "cGAB_SEND_CACHE_LEN must be at least 1"
+#if cGAB_SEND_CACHE_LEN % 2 != 0
+#error "cGAB_SEND_CACHE_LEN must be a power of 2"
+#endif
+
+#if cGAB_SEND_CACHE_LEN < 4
+#error "cGAB_SEND_CACHE_LEN must be at least 4"
 #endif
 
 // Use __builtin_expect to aid the compiler
@@ -109,22 +113,34 @@
 // Maximum number of function return values.
 #define GAB_RET_MAX 128
 
-#define GAB_CALL_CACHE_SIZE 4
+// The size of a single line of cache.
+// This is enough for:
+//  - The type of the value
+//  - The specialization
+//  - The offset of the spec in the record/message
 #define GAB_SEND_CACHE_SIZE 3
+
+// These ks are always the first two elements, and are
+// necessary for tracking what message is sent
+// and if it has been changed
 #define GAB_SEND_KMESSAGE 0
 #define GAB_SEND_KSPECS 1
+
 #define GAB_SEND_KTYPE 2
 #define GAB_SEND_KSPEC 3
 #define GAB_SEND_KOFFSET 4
 
-#define GAB_CALL_CACHE_LEN ((cGAB_SEND_CACHE_LEN * GAB_SEND_CACHE_SIZE) / GAB_CALL_CACHE_SIZE)
+#define GAB_SEND_KMESSAGE_CALL_SPECS 5
 
-#if GAB_CALL_CACHE_LEN % GAB_CALL_CACHE_LEN != 0
-#error Invalid GAB_CALL_CACHE_LEN
-#endif
+// #define GAB_CALL_CACHE_SIZE 4
+// #define GAB_CALL_CACHE_LEN ((cGAB_SEND_CACHE_LEN * GAB_SEND_CACHE_SIZE) / GAB_CALL_CACHE_SIZE)
+
+// #if GAB_CALL_CACHE_LEN % 2 != 0
+// #error Invalid GAB_CALL_CACHE_SIZE
+// #endif
 
 #define GAB_SEND_HASH(t) (t & (cGAB_SEND_CACHE_LEN - 1))
-#define GAB_CALL_HASH(t) (t & (cGAB_CALL_CACHE_LEN - 1))
+// #define GAB_CALL_HASH(t) (t & (cGAB_CALL_CACHE_LEN - 1))
 
 #define VAR_EXP 255
 #define fHAVE_VAR (1 << 0)

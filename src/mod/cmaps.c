@@ -130,7 +130,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           mGAB_CALL,
           gab_sigil(gab, "gab.map"),
-          gab_snative(gab, "map", gab_lib_new),
+          gab_snative(gab, "gab.map", gab_lib_new),
       },
       {
           "len",

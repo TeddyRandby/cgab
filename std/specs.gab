@@ -35,9 +35,6 @@ end
 ## Registry of qualified name -> spec
 registry.spec = .gab.map()
 
-## Registry of spec -> qualified name
-registry.name = .gab.map()
-
 ## Registry of qualified name -> help text
 registry.help = .gab.map()
 
@@ -53,13 +50,11 @@ end
 \spec.register! :defcase! {
   [{ name, spec }?] = do
     register(registry.spec, self:name, self:spec)
-    register(registry.name, self:spec, self:name)
 
     self:spec
   end,
   [{ name, help, spec }?] = do
     register(registry.spec, self:name, self:spec)
-    register(registry.name, self:spec, self:name)
     register(registry.help, self:spec, self:help)
 
     self:spec
@@ -77,10 +72,6 @@ end)
 
 \spec.help :def! ([], do
   registry.help:at(self)
-end)
-
-\spec.name :def! ([], do
-  registry.name:at self :unwrap!
 end)
 
 ## PREDICATES
@@ -124,8 +115,6 @@ unknown_values = [ .nil, 0, 1, 'test', .true ]
 end)
 
 \spec.explain :def! ([unknown.predicate], 'unknown')
-
-registry.name:put!(unknown.predicate, 'unknown')
 
 # INT PREDICATE
 int.predicate = .predicate.int
@@ -238,7 +227,7 @@ and.predicate = do specs[]
       end,
       .td:filter \self,
       .td:map \first,
-      .td:take 1,
+      .td:take 50,
     )
 
     .range 100 :transduce(0, \first, td):assert! "Failed to generate a value for all specs"
@@ -591,7 +580,7 @@ end)
           .td:map \options.into,
           .td:filter \ok?,
           .td:map \first,
-          .td:take 1,
+          .td:take 50,
         )
 
         .range 100 :transduce(
@@ -622,7 +611,7 @@ end)
   end)
 
   \spec.explain :def! ([pred], do
-    '{args:receiver:spec.name}{args:message} {args:input:spec.explain} -> {args:output:spec.explain}'
+    '{args:receiver:spec.explain}{args:message} {args:input:spec.explain} -> {args:output:spec.explain}'
   end)
 
   pred
@@ -665,7 +654,7 @@ end)
 \spec.explain :def! ([], do; '{self}' end)
 
 \spec.doc :def! ([], do
-  name, help = registry.name:at!(self), registry.help:at!(self)
+  name, help = self, registry.help:at!(self)
 
   '## {name}\n{help}\n\n\t{self:spec.explain}\n'
 end)

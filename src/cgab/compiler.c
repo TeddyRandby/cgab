@@ -659,9 +659,9 @@ static inline void push_send(struct bc *bc, gab_value m, mv args, size_t t) {
   addk(bc, gab_undefined);
 
   for (int i = 0; i < cGAB_SEND_CACHE_LEN; i++) {
-    addk(bc, gab_undefined);
-    addk(bc, gab_undefined);
-    addk(bc, gab_undefined);
+    for (int j = 0; j < GAB_SEND_CACHE_SIZE; j++) {
+      addk(bc, gab_undefined);
+    }
   }
 
   push_op(bc, OP_SEND, t);
