@@ -14,7 +14,7 @@ a_gab_value *gab_lib_message(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
                         gab_value argv[static argc]) {
   switch (argc) {
   case 2: {
@@ -27,6 +27,24 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
   default:
     return gab_panic(gab, "INVALID_ARGUMENTS");
   }
+}
+
+a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
+                        gab_value argv[static argc]) {
+  gab_value m = gab_arg(0);
+  gab_value k = gab_arg(1);
+
+  struct gab_egimpl_rest res = gab_egimpl(gab.eg, m, k);
+
+  gab_value values[] = { gab_none, gab_nil };
+
+  if (res.status) {
+    values[0] = gab_ok;
+    values[1] = gab_umsgat(m, res.offset);
+  }
+
+  gab_nvmpush(gab.vm, 2, values);
+  return nullptr;
 }
 
 a_gab_value *gab_lib_name(struct gab_triple gab, size_t argc,
@@ -156,7 +174,7 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value type = gab_type(gab.eg, kGAB_MESSAGE);
+  gab_value type = gab_egtype(gab.eg, kGAB_MESSAGE);
 
   struct gab_spec_argt specs[] = {
       {
@@ -172,7 +190,12 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       {
           "has?",
           type,
-          gab_snative(gab, "has?", gab_lib_at),
+          gab_snative(gab, "has?", gab_lib_has),
+      },
+      {
+          "at",
+          type,
+          gab_snative(gab, "at", gab_lib_at),
       },
       {
           "put!",

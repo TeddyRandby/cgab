@@ -89,12 +89,13 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
 
   switch (gab_valkind(self)) {
   case kGAB_PRIMITIVE:
-    return fprintf(stream, "%s", gab_opcode_names[gab_valtop(self)]);
+    return fprintf(stream, "<gab.primitive %s>", gab_opcode_names[gab_valtop(self)]);
   case kGAB_NUMBER:
     return fprintf(stream, "%g", gab_valton(self));
   case kGAB_UNDEFINED:
     return fprintf(stream, "%s", "undefined");
   case kGAB_SIGIL:
+    return fprintf(stream, ".%s", gab_strdata(&self));
   case kGAB_STRING:
     return fprintf(stream, "%s", gab_strdata(&self));
   case kGAB_MESSAGE: {

@@ -825,7 +825,7 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value);
  * @param kind The type to retrieve the value for.
  * @return The runtime value corresponding to that type.
  */
-static inline gab_value gab_type(struct gab_eg *gab, enum gab_kind kind);
+static inline gab_value gab_egtype(struct gab_eg *eg, enum gab_kind kind);
 
 /**
  * @brief If fGAB_DUMP_ERROR is set, print an error message to stderr.
@@ -861,7 +861,7 @@ a_gab_value *gab_ptypemismatch(struct gab_triple gab, gab_value found,
 static inline a_gab_value *gab_pktypemismatch(struct gab_triple gab,
                                               gab_value found,
                                               enum gab_kind texpected) {
-  return gab_ptypemismatch(gab, found, gab_type(gab.eg, texpected));
+  return gab_ptypemismatch(gab, found, gab_egtype(gab.eg, texpected));
 };
 
 #if cGAB_LOG_GC
@@ -2022,7 +2022,7 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
     return gab_boxtype(value);
   /* Otherwise, return the value for that kind */
   default:
-    return gab_type(gab, k);
+    return gab_egtype(gab, k);
   }
 }
 
@@ -2081,7 +2081,7 @@ struct gab_eg {
   v_gab_value scratch;
 };
 
-static inline gab_value gab_type(struct gab_eg *gab, enum gab_kind k) {
+static inline gab_value gab_egtype(struct gab_eg *gab, enum gab_kind k) {
   return gab->types[k];
 }
 
@@ -2123,7 +2123,7 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
   }
 
   /* Check for the kind of the receiver. ie 'gab.record' */
-  type = gab_type(eg, gab_valkind(receiver));
+  type = gab_egtype(eg, gab_valkind(receiver));
   offset = gab_msgfind(message, type);
 
   if (offset != GAB_PROPERTY_NOT_FOUND)

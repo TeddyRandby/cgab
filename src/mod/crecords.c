@@ -297,7 +297,7 @@ a_gab_value *gab_lib_to_m(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value type = gab_type(gab.eg, kGAB_RECORD);
+  gab_value type = gab_egtype(gab.eg, kGAB_RECORD);
   struct gab_spec_argt specs[] = {
       {
           mGAB_CALL,

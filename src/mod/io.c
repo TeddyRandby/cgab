@@ -11,10 +11,10 @@ a_gab_value *gab_lib_open(struct gab_triple gab, size_t argc,
   gab_value perm = gab_arg(2);
 
   if (gab_valkind(path) != kGAB_STRING)
-    return gab_ptypemismatch(gab, path, gab_type(gab.eg, kGAB_STRING));
+    return gab_ptypemismatch(gab, path, gab_egtype(gab.eg, kGAB_STRING));
 
   if (gab_valkind(perm) != kGAB_STRING)
-    return gab_ptypemismatch(gab, perm, gab_type(gab.eg, kGAB_STRING));
+    return gab_ptypemismatch(gab, perm, gab_egtype(gab.eg, kGAB_STRING));
 
   const char *cpath = gab_valintocs(gab, path);
   const char *cperm = gab_valintocs(gab, perm);

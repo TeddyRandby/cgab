@@ -135,32 +135,32 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       },
       {
           "len",
-          gab_type(gab.eg, kGAB_SHAPE),
+          gab_egtype(gab.eg, kGAB_SHAPE),
           gab_snative(gab, "len", gab_lib_len),
       },
       {
           "to_l",
-          gab_type(gab.eg, kGAB_SHAPE),
+          gab_egtype(gab.eg, kGAB_SHAPE),
           gab_snative(gab, "to_l", gab_lib_to_l),
       },
       {
           "next",
-          gab_type(gab.eg, kGAB_SHAPE),
+          gab_egtype(gab.eg, kGAB_SHAPE),
           gab_snative(gab, "next", gab_lib_next),
       },
       {
           "slice",
-          gab_type(gab.eg, kGAB_SHAPE),
+          gab_egtype(gab.eg, kGAB_SHAPE),
           gab_snative(gab, "slice", gab_lib_slice),
       },
       {
           "splat",
-          gab_type(gab.eg, kGAB_SHAPE),
+          gab_egtype(gab.eg, kGAB_SHAPE),
           gab_snative(gab, "splat", gab_lib_splat),
       },
       {
           "with",
-          gab_type(gab.eg, kGAB_SHAPE),
+          gab_egtype(gab.eg, kGAB_SHAPE),
           gab_snative(gab, "with", gab_lib_with),
       },
   };

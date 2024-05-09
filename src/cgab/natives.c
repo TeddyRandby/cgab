@@ -268,7 +268,7 @@ void gab_setup_natives(struct gab_triple gab) {
       gab.eg,
       gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
                                       .name = "use",
-                                      .receiver = gab_type(gab.eg, kGAB_STRING),
+                                      .receiver = gab_egtype(gab.eg, kGAB_STRING),
                                       .specialization =
                                           gab_snative(gab, "use", gab_lib_use),
                                   })));
@@ -277,7 +277,7 @@ void gab_setup_natives(struct gab_triple gab) {
       gab.eg,
       gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
                                       .name = "panic",
-                                      .receiver = gab_type(gab.eg, kGAB_STRING),
+                                      .receiver = gab_egtype(gab.eg, kGAB_STRING),
                                       .specialization = gab_snative(
                                           gab, "panic", gab_lib_panic),
                                   })));
@@ -287,7 +287,7 @@ void gab_setup_natives(struct gab_triple gab) {
       gab_iref(gab,
                gab_spec(gab, (struct gab_spec_argt){
                                  .name = "print",
-                                 .receiver = gab_type(gab.eg, kGAB_UNDEFINED),
+                                 .receiver = gab_egtype(gab.eg, kGAB_UNDEFINED),
                                  .specialization =
                                      gab_snative(gab, "print", gab_lib_print),
                              })));

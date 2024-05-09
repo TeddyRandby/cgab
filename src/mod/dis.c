@@ -80,10 +80,10 @@ a_gab_value* gab_lib_disnative(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value receivers[] = {
-      gab_type(gab.eg, kGAB_BLOCK),
-      gab_type(gab.eg, kGAB_MESSAGE),
-      gab_type(gab.eg, kGAB_STRING),
-      gab_type(gab.eg, kGAB_NATIVE),
+      gab_egtype(gab.eg, kGAB_BLOCK),
+      gab_egtype(gab.eg, kGAB_MESSAGE),
+      gab_egtype(gab.eg, kGAB_STRING),
+      gab_egtype(gab.eg, kGAB_NATIVE),
   };
 
   gab_value values[] = {gab_snative(gab, "disblock", gab_lib_disblock),

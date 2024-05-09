@@ -242,7 +242,7 @@ struct gab_triple gab_create() {
             gab,
             gab_spec(gab, (struct gab_spec_argt){
                               .name = kind_primitives[i].name,
-                              .receiver = gab_type(eg, kind_primitives[i].kind),
+                              .receiver = gab_egtype(eg, kind_primitives[i].kind),
                               .specialization = kind_primitives[i].primitive,
                           })));
   }
@@ -264,7 +264,7 @@ struct gab_triple gab_create() {
           gab.eg,
           gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
                                           .name = all_primitives[i].name,
-                                          .receiver = gab_type(eg, t),
+                                          .receiver = gab_egtype(eg, t),
                                           .specialization =
                                               all_primitives[i].primitive,
                                       })));
