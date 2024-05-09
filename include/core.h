@@ -156,10 +156,11 @@ enum gab_status {
 // GAB optional flags
 enum gab_flags {
   fGAB_DUMP_BYTECODE = 1 << 0,
-  fGAB_DUMP_ERROR = 1 << 1,
+  fGAB_QUIET = 1 << 1,
   fGAB_EXIT_ON_PANIC = 1 << 2,
   fGAB_STREAM_INPUT = 1 << 3,
   fGAB_DELIMIT_INPUT = 1 << 4,
+  fGAB_USE = 1 << 5,
 };
 
 // VERSION

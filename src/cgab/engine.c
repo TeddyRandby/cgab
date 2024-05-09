@@ -390,7 +390,7 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
 }
 
 a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
-  gab_value main = gab_cmpl(gab, (struct gab_cmpl_argt){
+  gab_value main = gab_build(gab, (struct gab_build_argt){
                                      .name = args.name,
                                      .source = args.source,
                                      .flags = args.flags,
@@ -736,7 +736,7 @@ int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs) {
 
 void gab_vfpanic(struct gab_triple gab, FILE *stream, va_list varargs,
                  struct gab_err_argt args) {
-  if (!(gab.flags & fGAB_DUMP_ERROR))
+  if (!(gab.flags & fGAB_USE))
     goto fin;
 
   gab_value tok_name = gab_string(

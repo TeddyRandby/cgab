@@ -95,10 +95,10 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
     return gab_panic(gab, "Failed to load module");
 
   gab_value pkg =
-      gab_cmpl(gab, (struct gab_cmpl_argt){
+      gab_build(gab, (struct gab_build_argt){
                         .name = path,
                         .source = (const char *)src->data,
-                        .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
+                        .flags = fGAB_USE | fGAB_EXIT_ON_PANIC,
                     });
 
   a_char_destroy(src);
@@ -106,7 +106,7 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   a_gab_value *res =
       gab_run(gab, (struct gab_run_argt){
                        .main = pkg,
-                       .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
+                       .flags = fGAB_USE | fGAB_EXIT_ON_PANIC,
                    });
 
   if (res->data[0] != gab_string(gab, "ok"))

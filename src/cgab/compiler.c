@@ -2023,8 +2023,8 @@ fin:
   return MV_OK;
 }
 
-mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs,
-                          size_t t, bool assignable) {
+mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs, size_t t,
+                          bool assignable) {
   mv args = reconcile_send_args(lhs, rhs);
 
   if (args.status < 0)
@@ -2041,14 +2041,13 @@ mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs,
       if (args.multi)
         args = compile_mv_trim(bc, args, 1);
 
-      return compile_assignment(
-          bc, (struct lvalue){
-                  .tok = t,
-                  .kind = kMESSAGE,
-                  .slot = peek_slot(bc),
-                  .as.property.message = m,
-                  .as.property.args = args,
-              });
+      return compile_assignment(bc, (struct lvalue){
+                                        .tok = t,
+                                        .kind = kMESSAGE,
+                                        .slot = peek_slot(bc),
+                                        .as.property.message = m,
+                                        .as.property.args = args,
+                                    });
     }
 
     if (match_ctx(bc, kASSIGNMENT_TARGET)) {
@@ -2345,7 +2344,48 @@ gab_value compile(struct bc *bc, uint8_t narguments,
   return main;
 }
 
-gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args) {
+a_gab_value *gab_send(struct gab_triple gab, struct gab_send_argt args) {
+  gab.flags = args.flags;
+  gab_value name = gab_string(gab, "__send__");
+
+  struct gab_src *src = gab_src(gab, name, nullptr, 0);
+
+  struct bc bc;
+  bc_create(&bc, gab, src);
+
+  push_ctxframe(&bc);
+
+  push_loadk(&bc, args.receiver, 0);
+
+  for (int i = 0; i < args.len; i++) {
+    push_loadk(&bc, args.argv[i], 0);
+  }
+
+  gab_value m = args.vmessage
+                    ? args.vmessage
+                    : gab_message(gab, gab_string(gab, args.smessage));
+
+  push_send(&bc, m, MV_OK_WITH(args.len + 1), 0);
+
+  gab_value p = pop_ctxframe(&bc);
+
+  if (gab.flags & fGAB_DUMP_BYTECODE)
+    gab_fmodinspect(stdout, GAB_VAL_TO_PROTOTYPE(p));
+
+  gab_value main = gab_block(gab, p);
+
+  gab_iref(gab, main);
+  gab_egkeep(gab.eg, main);
+
+  bc_destroy(&bc);
+
+  return gab_run(gab, (struct gab_run_argt){
+                          .main = main,
+                          .flags = args.flags,
+                      });
+}
+
+gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
   gab.flags = args.flags;
   args.name = args.name ? args.name : "__main__";
 

@@ -67,11 +67,10 @@ void fiber_run(gab_value fiber) {
 
   f->status = fRUNNING;
 
-  a_gab_value *result =
-      gab_run(f->gab, (struct gab_run_argt){
-                          .main = f->runner,
-                          .flags = fGAB_DUMP_ERROR | fGAB_EXIT_ON_PANIC,
-                      });
+  a_gab_value *result = gab_run(f->gab, (struct gab_run_argt){
+                                            .main = f->runner,
+                                            .flags = fGAB_EXIT_ON_PANIC,
+                                        });
 
   f->runner = result->data[result->len - 1];
 

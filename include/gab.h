@@ -613,7 +613,7 @@ a_gab_value *gab_segmodat(struct gab_eg *eg, const char *name);
  * @see gab_cmpl.
  * @see enum gab_flags.
  */
-struct gab_cmpl_argt {
+struct gab_build_argt {
   /**
    * The name of the module, defaults to "__main__"
    */
@@ -647,7 +647,7 @@ struct gab_cmpl_argt {
  * @param args The arguments.
  * @returns A gab_value containing the compiled block, which can be called.
  */
-gab_value gab_cmpl(struct gab_triple gab, struct gab_cmpl_argt args);
+gab_value gab_build(struct gab_triple gab, struct gab_build_argt args);
 
 /**
  * @class gab_run_argt
@@ -726,6 +726,48 @@ struct gab_exec_argt {
  * @return A heap-allocated slice of values returned by the block.
  */
 a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args);
+
+/**
+ * @class gab_exec_argt
+ * @brief Arguments and options for executing a source string.
+ */
+struct gab_send_argt {
+  /**
+   * @brief The name of the message to send.
+   */
+  const char *smessage;
+  /**
+   * @brief The message to send, as a gab value. This is preferred to smessage, if present.
+   */
+  gab_value vmessage;
+  /**
+   * @brief The receiver of the message send.
+   */
+  gab_value receiver;
+  /**
+   * Optional flags for compilation AND execution.
+   */
+  int flags;
+  /**
+   * @brief The number of arguments to the message send.
+   */
+  size_t len;
+  /**
+   * @brief The values of the arguments to the message send.
+   */
+  gab_value *argv;
+};
+
+/**
+ * @brief Perform a single message send to a receiver.
+ *
+ * @see struct gab_send_argt
+ *
+ * @param gab The triple.
+ * @param args The arguments.
+ * @return A heap-allocated slice of values returned by the block.
+ */
+a_gab_value *gab_send(struct gab_triple gab, struct gab_send_argt args);
 
 /**
  * @brief Arguments and options for an interactive REPL.
@@ -828,7 +870,7 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value);
 static inline gab_value gab_egtype(struct gab_eg *eg, enum gab_kind kind);
 
 /**
- * @brief If fGAB_DUMP_ERROR is set, print an error message to stderr.
+ * @brief If fGAB_SILENT is not set, print an error message to stderr.
  * If fGAB_EXIT_ON_PANIC is set, then exit the program.
  *
  * @param gab The triple.

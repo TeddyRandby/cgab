@@ -10,6 +10,12 @@
 
 \is? :def! ([], do other; (self:?) == (other) end)
 
+\switch.value :def! (['gab.block'], do; self() end)
+\switch.value :def! ([], do; self end)
+\switch :def! ([], do table
+  table self :switch.value
+end)
+
 [] :defmodule! {
   \and = do alt[]
     alt**

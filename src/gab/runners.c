@@ -5,7 +5,7 @@
 
 #define MAIN_MODULE "__main__"
 
-void repl(const char *module, int flags) {
+void run_repl(const char *module, int flags) {
   struct gab_triple gab = gab_create();
 
   gab_repl(gab, (struct gab_repl_argt){
@@ -27,7 +27,7 @@ void run_src(struct gab_triple gab, s_char src, const char *module, char delim,
   //   a_gab_value_destroy(res);
   // }
 
-  gab_value main = gab_cmpl(gab, (struct gab_cmpl_argt){
+  gab_value main = gab_build(gab, (struct gab_build_argt){
                                      .name = MAIN_MODULE,
                                      .source = (char *)src.data,
                                      .flags = flags,
@@ -104,6 +104,27 @@ void run_string(const char *string, const char *module, char delim,
   gab_destroy(gab);
   return;
 }
+
+void run_send(const char* m, const char* r) {
+  struct gab_triple gab = gab_create();
+
+  a_gab_value* rec = gab_exec(gab, (struct gab_exec_argt){
+    .source = r,
+  });
+
+  assert(rec->len > 0);
+
+  gab_value vrec = rec->data[0];
+  a_gab_value_destroy(rec);
+
+  gab_send(gab, (struct gab_send_argt) {
+    .receiver = vrec,
+    .smessage = m,
+  });
+
+  gab_destroy(gab);
+  return;
+};
 
 void run_file(const char *path, const char *module, char delim, uint8_t flags) {
   struct gab_triple gab = gab_create();

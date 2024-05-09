@@ -1406,38 +1406,6 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY_NATIVE) {
   CALL_NATIVE(native, have, true);
 }
 
-CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY) {
-  gab_value *ks = READ_CONSTANTS;
-  uint8_t have_byte = READ_BYTE;
-  uint64_t have = compute_arity(VAR(), have_byte);
-
-  gab_value r = PEEK_N(have - 1);
-
-  gab_value spec = gab_urecat(r, ks[GAB_SEND_KOFFSET]);
-
-  switch (gab_valkind(spec)) {
-  case kGAB_PRIMITIVE:
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PROPERTY_PRIMITIVE);
-    break;
-  case kGAB_NATIVE:
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PROPERTY_NATIVE);
-    break;
-  case kGAB_BLOCK: {
-    uint8_t adjust = (have_byte & fHAVE_TAIL) >> 1;
-
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY_BLOCK + adjust);
-    break;
-  }
-  default:
-    WRITE_BYTE(SEND_CACHE_DIST,
-               OP_SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY_CONSTANT);
-    break;
-  }
-
-  IP() -= SEND_CACHE_DIST;
-  NEXT();
-}
-
 CASE_CODE(SEND_PROPERTY) {
   gab_value *ks = READ_CONSTANTS;
   uint8_t have_byte = READ_BYTE;
@@ -1933,8 +1901,28 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   ks[GAB_SEND_KMESSAGE_CALL_MESSAGE] = m;
 
   if (res.status == kGAB_IMPL_PROPERTY) {
-    // TODO
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY);
+    gab_value spec = gab_urecat(r, res.offset);
+
+    switch (gab_valkind(spec)) {
+    case kGAB_PRIMITIVE:
+      WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PROPERTY_PRIMITIVE);
+      break;
+    case kGAB_NATIVE:
+      WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PROPERTY_NATIVE);
+      break;
+    case kGAB_BLOCK: {
+      uint8_t adjust = (have_byte & fHAVE_TAIL) >> 1;
+
+      WRITE_BYTE(SEND_CACHE_DIST,
+                 OP_SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY_BLOCK + adjust);
+      break;
+    }
+    default:
+      WRITE_BYTE(SEND_CACHE_DIST,
+                 OP_SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY_CONSTANT);
+      break;
+    }
+
     IP() -= SEND_CACHE_DIST;
     NEXT();
   }
