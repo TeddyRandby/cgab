@@ -105,27 +105,6 @@ void run_string(const char *string, const char *module, char delim,
   return;
 }
 
-void run_send(const char* m, const char* r) {
-  struct gab_triple gab = gab_create();
-
-  a_gab_value* rec = gab_exec(gab, (struct gab_exec_argt){
-    .source = r,
-  });
-
-  assert(rec->len > 0);
-
-  gab_value vrec = rec->data[0];
-  a_gab_value_destroy(rec);
-
-  gab_send(gab, (struct gab_send_argt) {
-    .receiver = vrec,
-    .smessage = m,
-  });
-
-  gab_destroy(gab);
-  return;
-};
-
 void run_file(const char *path, const char *module, char delim, uint8_t flags) {
   struct gab_triple gab = gab_create();
 

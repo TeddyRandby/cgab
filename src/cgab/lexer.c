@@ -473,6 +473,9 @@ struct gab_src *gab_src(struct gab_triple gab, gab_value name,
 
   gab_egkeep(gab.eg, gab_iref(gab, name));
 
+  if (!len)
+    goto fin;
+
   gab_lx lex;
   gab_lexcreate(&lex, src);
 
@@ -482,6 +485,7 @@ struct gab_src *gab_src(struct gab_triple gab, gab_value name,
       break;
   }
 
+fin:
   d_gab_src_insert(&gab.eg->sources, name, src);
 
   return src;

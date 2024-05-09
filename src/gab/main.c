@@ -25,7 +25,6 @@ struct command {
 
 int run(int argc, const char **argv, int flags);
 int exec(int argc, const char **argv, int flags);
-int send(int argc, const char **argv, int flags);
 int repl(int argc, const char **argv, int flags);
 int help(int argc, const char **argv, int flags);
 
@@ -54,23 +53,26 @@ static struct command commands[] = {
                 'q',
                 fGAB_QUIET,
             },
-            // {
-            //   "use",
-            //   "Import the given module with \\use before running the file",
-            //   'u',
-            //   fGAB_USE,
-            // },
         },
     },
     {
         "exec",
         "Compile and run the string <arg>",
         .handler = exec,
-    },
-    {
-      "send",
-      "Send the message <arg 1> to the value <arg 2>",
-      .handler = send,
+        {
+            {
+                "dump",
+                "Dump compiled bytecode to stdout",
+                'd',
+                fGAB_DUMP_BYTECODE,
+            },
+            {
+                "quiet",
+                "Do not print errors to stderr",
+                'q',
+                fGAB_QUIET,
+            },
+        },
     },
     {
         "repl",
@@ -134,12 +136,6 @@ int exec(int argc, const char **argv, int flags) {
 
 int repl(int argc, const char **argv, int flags) {
   run_repl(nullptr, flags);
-  return 0;
-}
-
-int send(int argc, const char **argv, int flags) {
-  assert(argc > 1);
-  run_send(argv[0], argv[1]);
   return 0;
 }
 

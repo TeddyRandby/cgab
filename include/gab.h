@@ -599,7 +599,7 @@ a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
                            size_t len, gab_value values[len]);
 
 /**
- * @brief Check if an engine has an module by name.
+ * @brief Check if an engine has a module by name.
  *
  * @param eg The engine.
  * @param name The name of the import.
@@ -727,47 +727,6 @@ struct gab_exec_argt {
  */
 a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args);
 
-/**
- * @class gab_exec_argt
- * @brief Arguments and options for executing a source string.
- */
-struct gab_send_argt {
-  /**
-   * @brief The name of the message to send.
-   */
-  const char *smessage;
-  /**
-   * @brief The message to send, as a gab value. This is preferred to smessage, if present.
-   */
-  gab_value vmessage;
-  /**
-   * @brief The receiver of the message send.
-   */
-  gab_value receiver;
-  /**
-   * Optional flags for compilation AND execution.
-   */
-  int flags;
-  /**
-   * @brief The number of arguments to the message send.
-   */
-  size_t len;
-  /**
-   * @brief The values of the arguments to the message send.
-   */
-  gab_value *argv;
-};
-
-/**
- * @brief Perform a single message send to a receiver.
- *
- * @see struct gab_send_argt
- *
- * @param gab The triple.
- * @param args The arguments.
- * @return A heap-allocated slice of values returned by the block.
- */
-a_gab_value *gab_send(struct gab_triple gab, struct gab_send_argt args);
 
 /**
  * @brief Arguments and options for an interactive REPL.
