@@ -1,4 +1,4 @@
-'msg' :use
+'cmessages' :use
 
 \do_fib :defcase! {
   .true = do n
