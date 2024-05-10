@@ -573,7 +573,7 @@ size_t gab_nvmpush(struct gab_vm *vm, size_t len, gab_value argv[static len]);
  * @param vm The vm.
  * @param depth The depth of the callframe. '0' would be the topmost callframe.
  */
-void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t depth);
+void gab_fvminspect(FILE *stream, struct gab_vm *vm, int depth);
 
 /**
  * @brief Inspect the vm's callstack at the given depth, returning a value with

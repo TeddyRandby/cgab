@@ -1,5 +1,6 @@
 #include "core.h"
 #include "gab.h"
+#include <stdint.h>
 
 #define GAB_STATUS_NAMES_IMPL
 #include "engine.h"
@@ -11,8 +12,8 @@
 #include <string.h>
 
 #define OP_HANDLER_ARGS                                                        \
-  struct gab_triple __gab, uint8_t *__ip, gab_value *__kb,                     \
-      struct gab_obj_block *__b, gab_value *__fb, gab_value *__sp
+  struct gab_triple __gab, uint8_t *__ip, gab_value *__kb, gab_value *__fb,    \
+      gab_value *__sp
 
 typedef a_gab_value *(*handler)(OP_HANDLER_ARGS);
 
@@ -39,7 +40,7 @@ static handler handlers[] = {
 #define CASE_CODE(name)                                                        \
   ATTRIBUTES a_gab_value *OP_##name##_HANDLER(OP_HANDLER_ARGS)
 
-#define DISPATCH_ARGS() GAB(), IP(), KB(), BLOCK(), FB(), SP()
+#define DISPATCH_ARGS() GAB(), IP(), KB(), FB(), SP()
 
 #define DISPATCH(op)                                                           \
   ({                                                                           \
@@ -60,8 +61,8 @@ static handler handlers[] = {
 #define EG() (GAB().eg)
 #define GC() (GAB().gc)
 #define VM() (GAB().vm)
-#define FRAME() (VM()->fp)
-#define BLOCK() (__b)
+#define SET_BLOCK(b) (FB()[-3] = (uintptr_t)(b));
+#define BLOCK() ((struct gab_obj_block *)(uintptr_t)FB()[-3])
 #define BLOCK_PROTO() (GAB_VAL_TO_PROTOTYPE(BLOCK()->p))
 #define IP() (__ip)
 #define SP() (__sp)
@@ -241,63 +242,64 @@ static handler handlers[] = {
   }
 
 #define STORE_SP() (VM()->sp = SP())
-#define STORE_FRAME()                                                          \
+#define STORE_FP() (VM()->fp = FB())
+#define STORE_IP() (VM()->ip = IP())
+
+#define PUSH_FRAME(b, have)                                                    \
   ({                                                                           \
-    FRAME()->b = BLOCK();                                                      \
-    FRAME()->ip = IP();                                                        \
-    FRAME()->slots = FB();                                                     \
+    memmove(SP() - have + 3, SP() - have, have * sizeof(gab_value));           \
+    SP() += 3;                                                                 \
+    SP()[-have - 1] = (uintptr_t)FB();                                         \
+    SP()[-have - 2] = (uintptr_t)IP();                                         \
+    SP()[-have - 3] = (uintptr_t)b;                                            \
   })
 
-#define PUSH_FRAME()                                                           \
-  ({                                                                           \
-    FRAME()++;                                                                 \
-    STORE_FRAME();                                                             \
-  })
-
-#define PUSH_ERROR_FRAME(have)                                                 \
-  ({                                                                           \
-    FRAME()++;                                                                 \
-    FRAME()->b = nullptr;                                                      \
-    FRAME()->ip = IP();                                                        \
-    FRAME()->slots = SP() - have;                                              \
-  })
-
-#define POP_FRAME() ({ FRAME()--; })
+#define PUSH_ERROR_FRAME(have) ({})
 
 #define STORE_PRIMITIVE_ERROR_FRAME(have)                                      \
   ({                                                                           \
-    if (IP()[-1] & fHAVE_TAIL) {                                               \
-      ;                                                                        \
-    } else {                                                                   \
-      PUSH_FRAME();                                                            \
-    }                                                                          \
+    STORE_FP();                                                                \
+    STORE_SP();                                                                \
+    STORE_IP();                                                                \
     PUSH_ERROR_FRAME(have);                                                    \
   })
 
+#define RETURN_FB() ((gab_value *)(void *)FB()[-1])
+#define RETURN_IP() ((uint8_t *)(void *)FB()[-2])
+
 #define LOAD_FRAME()                                                           \
   ({                                                                           \
-    FB() = FRAME()->slots;                                                     \
-    IP() = FRAME()->ip;                                                        \
-    BLOCK() = FRAME()->b;                                                      \
+    IP() = RETURN_IP();                                                        \
+    FB() = RETURN_FB();                                                        \
     KB() = BLOCK_PROTO()->src->constants.data;                                 \
   })
 
 #define SEND_CACHE_DIST 4
 
-static inline size_t compute_token_from_ip(struct gab_vm_frame *f) {
-  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
+static inline gab_value *frame_parent(gab_value *f) { return (void *)f[-1]; }
 
-  size_t offset = f->ip - p->src->bytecode.data - 1;
+static inline struct gab_obj_block *frame_block(gab_value *f) {
+  return (void *)f[-3];
+}
+
+static inline uint8_t *frame_ip(gab_value *f) { return (void *)f[-2]; }
+
+static inline size_t compute_token_from_ip(struct gab_obj_block *b,
+                                           uint8_t *ip) {
+  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
+
+  size_t offset = ip - p->src->bytecode.data - 1;
 
   size_t token = v_uint64_t_val_at(&p->src->bytecode_toks, offset);
 
   return token;
 }
 
-static inline gab_value compute_message_from_ip(struct gab_vm_frame *f) {
-  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
+static inline gab_value compute_message_from_ip(struct gab_obj_block *b,
+                                                uint8_t *ip) {
+  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
 
-  uint16_t k = ((uint16_t)f->ip[-3] << 8) | f->ip[-2];
+  uint16_t k = ((uint16_t)ip[-3] << 8) | ip[-2];
 
   gab_value m = v_gab_value_val_at(&p->src->constants, k);
 
@@ -305,16 +307,17 @@ static inline gab_value compute_message_from_ip(struct gab_vm_frame *f) {
 }
 
 struct gab_err_argt vm_frame_build_err(struct gab_triple gab,
-                                       struct gab_vm_frame *fp, bool has_parent,
-                                       enum gab_status s, const char *fmt) {
+                                       struct gab_obj_block *b, uint8_t *ip,
+                                       bool has_parent, enum gab_status s,
+                                       const char *fmt) {
 
-  gab_value message = has_parent ? compute_message_from_ip(fp - 1) : gab_nil;
+  gab_value message = has_parent ? compute_message_from_ip(b, ip) : gab_nil;
 
-  if (fp->b) {
+  if (b) {
 
-    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(fp->b->p);
+    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
 
-    size_t tok = compute_token_from_ip(fp);
+    size_t tok = compute_token_from_ip(b, ip);
 
     return (struct gab_err_argt){
         .tok = tok,
@@ -334,19 +337,23 @@ struct gab_err_argt vm_frame_build_err(struct gab_triple gab,
 
 a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
                        const char *fmt, va_list va) {
-  struct gab_vm_frame *f = gab.vm->fb;
+  gab_value *f = gab.vm->fp;
+  uint8_t *ip = gab.vm->ip;
 
   struct gab_triple dont_exit = gab;
   dont_exit.flags &= ~fGAB_EXIT_ON_PANIC;
 
-  while (f < gab.vm->fp) {
+  while (frame_parent(f) > gab.vm->sb) {
     gab_vfpanic(dont_exit, stderr, nullptr,
-                vm_frame_build_err(gab, f, f > gab.vm->fb, GAB_NONE, ""));
-    f++;
+                vm_frame_build_err(gab, frame_block(f), ip,
+                                   frame_parent(f) > gab.vm->sb, GAB_NONE, ""));
+
+    ip = frame_ip(f);
+    f = frame_parent(f);
   }
 
   gab_vfpanic(gab, stderr, va,
-              vm_frame_build_err(gab, f, f > gab.vm->fb, s, fmt));
+              vm_frame_build_err(gab, frame_block(f), ip, false, s, fmt));
 
   gab_value results[] = {
       gab_string(gab, gab_status_names[s]),
@@ -400,64 +407,75 @@ a_gab_value *gab_ptypemismatch(struct gab_triple gab, gab_value found,
 }
 
 void gab_vmcreate(struct gab_vm *self, size_t argc, gab_value argv[argc]) {
-  self->fp = self->fb - 1;
-  self->sp = self->sb;
-  self->fp->slots = self->sp;
+  self->fp = self->sb + 3; // Is 4 too many?
+  self->sp = self->sb + 3;
 }
 
 void gab_vmdestroy(struct gab_eg *gab, struct gab_vm *self) {}
 
 gab_value gab_vmframe(struct gab_triple gab, uint64_t depth) {
-  uint64_t frame_count = gab.vm->fp - gab.vm->fb;
+  // uint64_t frame_count = gab.vm->fp - gab.vm->sb;
+  //
+  // if (depth >= frame_count)
+  return gab_undefined;
 
-  if (depth >= frame_count)
-    return gab_undefined;
-
-  struct gab_vm_frame *f = gab.vm->fp - depth;
-
-  const char *keys[] = {
-      "line",
-  };
-
-  gab_value line = gab_nil;
-
-  if (f->b) {
-    struct gab_src *src = GAB_VAL_TO_PROTOTYPE(f->b->p)->src;
-    size_t tok = compute_token_from_ip(f);
-    line = gab_number(v_uint64_t_val_at(&src->token_lines, tok));
-  }
-
-  gab_value values[] = {
-      line,
-  };
-
-  size_t len = sizeof(keys) / sizeof(keys[0]);
-
-  return gab_srecord(gab, len, keys, values);
+  // struct gab_vm_frame *f = gab.vm->fp - depth;
+  //
+  // const char *keys[] = {
+  //     "line",
+  // };
+  //
+  // gab_value line = gab_nil;
+  //
+  // if (f->b) {
+  //   struct gab_src *src = GAB_VAL_TO_PROTOTYPE(f->b->p)->src;
+  //   size_t tok = compute_token_from_ip(f);
+  //   line = gab_number(v_uint64_t_val_at(&src->token_lines, tok));
+  // }
+  //
+  // gab_value values[] = {
+  //     line,
+  // };
+  //
+  // size_t len = sizeof(keys) / sizeof(keys[0]);
+  //
+  // return gab_srecord(gab, len, keys, values);
 }
 
-void gab_fvminspect(FILE *stream, struct gab_vm *vm, uint64_t value) {
-  uint64_t frame_count = vm->fp - vm->fb;
+void gab_fvminspect(FILE *stream, struct gab_vm *vm, int depth) {
+  // uint64_t frame_count = vm->fp - vm->fb;
+  //
+  // if (value > frame_count)
+  // return;
 
-  if (value > frame_count)
-    return;
+  // struct gab_vm_frame *f = vm->fp - value;
+  //
+  // struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
+  //
+  // fprintf(stream,
+  //         GAB_GREEN " %03lu" GAB_RESET " closure:" GAB_CYAN "%-20s" GAB_RESET
+  //                   " %d upvalues\n",
+  //         frame_count - value, gab_strdata(&p->src->name), p->nupvalues);
 
-  struct gab_vm_frame *f = vm->fp - value;
+  gab_value *f = vm->fp;
+  gab_value *t = vm->sp - 1;
 
-  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(f->b->p);
+  while (depth > 0) {
+    if (frame_parent(f) > vm->sb) {
+      t = f - 3;
+      f = frame_parent(f);
+    }
+    depth--;
+  }
 
-  fprintf(stream,
-          GAB_GREEN " %03lu" GAB_RESET " closure:" GAB_CYAN "%-20s" GAB_RESET
-                    " %d upvalues\n",
-          frame_count - value, gab_strdata(&p->src->name), p->nupvalues);
+  gab_fvalinspect(stream, __gab_obj(frame_block(f)), 0);
 
-  size_t top = vm->sp - f->slots;
-
-  for (int32_t i = top; i >= 0; i--) {
-    fprintf(stream, "%2s" GAB_YELLOW "%4i " GAB_RESET,
-            vm->sp == f->slots + i ? "->" : "", i);
-    gab_fvalinspect(stream, f->slots[i], 0);
+  while (t >= f) {
+    fprintf(stream, "%2s" GAB_YELLOW "%4lu " GAB_RESET, vm->sp == t ? "->" : "",
+            t - f);
+    gab_fvalinspect(stream, *t, 0);
     fprintf(stream, "\n");
+    t--;
   }
 }
 
@@ -469,10 +487,6 @@ static inline size_t compute_arity(size_t var, uint8_t have) {
 }
 
 static inline bool has_callspace(struct gab_vm *vm, size_t space_needed) {
-  if (vm->fp - vm->fb + 1 >= cGAB_FRAMES_MAX) {
-    return false;
-  }
-
   if (vm->sp - vm->sb + space_needed >= cGAB_STACK_MAX) {
     return false;
   }
@@ -506,7 +520,7 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
 
 #define CALL_BLOCK(blk, have)                                                  \
   ({                                                                           \
-    PUSH_FRAME();                                                              \
+    PUSH_FRAME(blk, have);                                                     \
                                                                                \
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);                \
                                                                                \
@@ -515,7 +529,6 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
                                                                                \
     IP() = p->src->bytecode.data + p->offset;                                  \
     KB() = p->src->constants.data;                                             \
-    BLOCK() = blk;                                                             \
     FB() = SP() - have;                                                        \
                                                                                \
     SET_VAR(have);                                                             \
@@ -525,7 +538,7 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
 
 #define LOCALCALL_BLOCK(blk, have)                                             \
   ({                                                                           \
-    PUSH_FRAME();                                                              \
+    PUSH_FRAME(blk, have);                                                     \
                                                                                \
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);                \
                                                                                \
@@ -533,7 +546,6 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
       ERROR(GAB_OVERFLOW, "");                                                 \
                                                                                \
     IP() = ((void *)ks[GAB_SEND_KOFFSET]);                                     \
-    BLOCK() = blk;                                                             \
     FB() = SP() - have;                                                        \
                                                                                \
     SET_VAR(have);                                                             \
@@ -553,8 +565,8 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
                                                                                \
     IP() = p->src->bytecode.data + p->offset;                                  \
     KB() = p->src->constants.data;                                             \
-    BLOCK() = blk;                                                             \
                                                                                \
+    SET_BLOCK(blk);                                                            \
     SET_VAR(have);                                                             \
                                                                                \
     NEXT();                                                                    \
@@ -569,8 +581,8 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
     SP() = to + have;                                                          \
                                                                                \
     IP() = ((void *)ks[GAB_SEND_KOFFSET]);                                     \
-    BLOCK() = blk;                                                             \
                                                                                \
+    SET_BLOCK(blk);                                                            \
     SET_VAR(have);                                                             \
                                                                                \
     NEXT();                                                                    \
@@ -601,8 +613,6 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
 #define CALL_NATIVE(native, have, message)                                     \
   ({                                                                           \
     STORE_SP();                                                                \
-    PUSH_FRAME();                                                              \
-    PUSH_ERROR_FRAME(have);                                                    \
                                                                                \
     gab_value *to = SP() - have;                                               \
                                                                                \
@@ -624,9 +634,6 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
                                                                                \
     memmove(to, before, have * sizeof(gab_value));                             \
     SP() = to + have;                                                          \
-                                                                               \
-    POP_FRAME();                                                               \
-    POP_FRAME();                                                               \
                                                                                \
     SET_VAR(have);                                                             \
                                                                                \
@@ -704,8 +711,11 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   uint8_t *ip = p->src->bytecode.data + p->offset;
   uint8_t op = *ip++;
 
-  return handlers[op](gab, ip, p->src->constants.data, b, gab.vm->sb,
-                      gab.vm->sp);
+  gab.vm->fp[-1] = (uintptr_t)gab.vm->sb - 1;
+  gab.vm->fp[-2] = 0;
+  gab.vm->fp[-3] = (uintptr_t)b;
+
+  return handlers[op](gab, ip, p->src->constants.data, gab.vm->fp, gab.vm->sp);
 }
 
 #define ERROR_GUARD_KIND(value, kind)                                          \
@@ -769,9 +779,9 @@ CASE_CODE(MATCHTAILSEND_BLOCK) {
   memcpy(to, from, have * sizeof(gab_value));
 
   IP() = (void *)ks[GAB_SEND_KOFFSET + idx];
-  BLOCK() = b;
   SP() = to + have;
 
+  SET_BLOCK(b);
   SET_VAR(have);
 
   NEXT();
@@ -793,17 +803,16 @@ CASE_CODE(MATCHSEND_BLOCK) {
   if (__gab_unlikely(ks[GAB_SEND_KTYPE + idx] != t))
     MISS_CACHED_SEND();
 
-  struct gab_obj_block *b = (void *)ks[GAB_SEND_KSPEC + idx];
+  struct gab_obj_block *blk = (void *)ks[GAB_SEND_KSPEC + idx];
 
-  PUSH_FRAME();
+  PUSH_FRAME(blk, have);
 
-  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
+  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);
 
   if (__gab_unlikely(!has_callspace(VM(), p->nslots - have)))
     ERROR(GAB_OVERFLOW, "");
 
   IP() = (void *)ks[GAB_SEND_KOFFSET + idx];
-  BLOCK() = b;
   FB() = SP() - have;
 
   SET_VAR(have);
@@ -1445,17 +1454,15 @@ CASE_CODE(RETURN) {
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   gab_value *from = SP() - have;
-  gab_value *to = FB();
+  gab_value *to = FB() - 3;
 
-  memmove(to, from, have * sizeof(gab_value));
-  SP() = to + have;
-
-  if (__gab_unlikely(VM()->fp < VM()->fb))
+  if (__gab_unlikely(RETURN_FB() < VM()->sb))
     return STORE_SP(), SET_VAR(have), ok(DISPATCH_ARGS());
 
   LOAD_FRAME();
 
-  POP_FRAME();
+  memmove(to, from, have * sizeof(gab_value));
+  SP() = to + have;
 
   SET_VAR(have);
 
@@ -1711,7 +1718,8 @@ CASE_CODE(SEND) {
   struct gab_egimpl_rest res = gab_egimpl(EG(), m, r);
 
   if (__gab_unlikely(!res.status)) {
-    PUSH_FRAME();
+    STORE_IP();
+    STORE_SP();
     ERROR(GAB_IMPLEMENTATION_MISSING, FMT_MISSINGIMPL, m, r,
           gab_valtype(EG(), r));
   }
@@ -1890,7 +1898,8 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   struct gab_egimpl_rest res = gab_egimpl(EG(), m, r);
 
   if (__gab_unlikely(!res.status)) {
-    PUSH_FRAME();
+    STORE_IP();
+    STORE_SP();
     ERROR(GAB_IMPLEMENTATION_MISSING, FMT_MISSINGIMPL, m, r,
           gab_valtype(EG(), r));
   }

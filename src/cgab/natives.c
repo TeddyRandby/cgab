@@ -98,7 +98,7 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
       gab_build(gab, (struct gab_build_argt){
                         .name = path,
                         .source = (const char *)src->data,
-                        .flags = fGAB_USE | fGAB_EXIT_ON_PANIC,
+                        .flags = fGAB_EXIT_ON_PANIC,
                     });
 
   a_char_destroy(src);
@@ -106,7 +106,7 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   a_gab_value *res =
       gab_run(gab, (struct gab_run_argt){
                        .main = pkg,
-                       .flags = fGAB_USE | fGAB_EXIT_ON_PANIC,
+                       .flags = fGAB_EXIT_ON_PANIC,
                    });
 
   if (res->data[0] != gab_string(gab, "ok"))

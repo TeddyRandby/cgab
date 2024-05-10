@@ -3,8 +3,6 @@
 
 #include "gab.h"
 
-#include <stdarg.h>
-
 #ifdef GAB_STATUS_NAMES_IMPL
 static const char *gab_status_names[] = {
 #define STATUS(name, message) message,
@@ -55,27 +53,32 @@ enum variable_flag {
 
 /**
  * The run-time representation of a callframe.
+ *
+ * This could potentially be completely optimized away.
+ * When we call a function, copy the arguments down the stack,
+ * leaving 3 slots for data. (The block, the return ip, and the fb)
+ * FB[0] will be self, as usual
+ * FB[-1] is the return fb
+ * FB[-2] is the return ip
+ * FB[-3] is the return block
+ *
+ * When doing a return, 'pop' the frame by setting:
+ * FB = FB[-2]
+ * IP = FB[-1]
+ * This will reset fb, and set ip to execute the next instruction
  */
-struct gab_vm_frame {
-  struct gab_obj_block *b;
-
-  uint8_t *ip;
-
-  gab_value *slots;
-};
 
 /*
  * The gab virtual machine. This has all the state needed for executing
  * bytecode.
  */
 struct gab_vm {
-  struct gab_vm_frame *fp;
+  gab_value *fp;
+  uint8_t *ip;
 
   gab_value *sp;
 
   gab_value sb[cGAB_STACK_MAX];
-
-  struct gab_vm_frame fb[cGAB_FRAMES_MAX];
 };
 
 void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size);

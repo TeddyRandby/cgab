@@ -736,7 +736,7 @@ int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs) {
 
 void gab_vfpanic(struct gab_triple gab, FILE *stream, va_list varargs,
                  struct gab_err_argt args) {
-  if (!(gab.flags & fGAB_USE))
+  if (gab.flags & fGAB_QUIET)
     goto fin;
 
   gab_value tok_name = gab_string(
