@@ -480,10 +480,7 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, int depth) {
 }
 
 static inline size_t compute_arity(size_t var, uint8_t have) {
-  if (have & fHAVE_VAR)
-    return var + (have >> 2);
-  else
-    return have >> 2;
+  return var * (have & fHAVE_VAR) + (have >> 2);
 }
 
 static inline bool has_callspace(struct gab_vm *vm, size_t space_needed) {
@@ -1457,7 +1454,8 @@ CASE_CODE(RETURN) {
   gab_value *to = FB() - 3;
 
   if (__gab_unlikely(RETURN_FB() < VM()->sb))
-    return STORE_SP(), SET_VAR(have), ok(DISPATCH_ARGS());
+    return STORE_SP(), STORE_IP(), STORE_FP(), SET_VAR(have),
+           ok(DISPATCH_ARGS());
 
   LOAD_FRAME();
 
