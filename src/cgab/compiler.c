@@ -2333,7 +2333,7 @@ gab_value compile(struct bc *bc, uint8_t narguments,
   if (p == gab_undefined)
     return p;
 
-  if (gab(bc).flags & fGAB_DUMP_BYTECODE)
+  if (gab(bc).flags & fGAB_BUILD_DUMP)
     gab_fmodinspect(stdout, GAB_VAL_TO_PROTOTYPE(p));
 
   gab_value main = gab_block(gab(bc), p);

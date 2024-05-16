@@ -134,7 +134,8 @@
 #define GAB_SEND_KMESSAGE_CALL_MESSAGE 6
 
 // #define GAB_CALL_CACHE_SIZE 4
-// #define GAB_CALL_CACHE_LEN ((cGAB_SEND_CACHE_LEN * GAB_SEND_CACHE_SIZE) / GAB_CALL_CACHE_SIZE)
+// #define GAB_CALL_CACHE_LEN ((cGAB_SEND_CACHE_LEN * GAB_SEND_CACHE_SIZE) /
+// GAB_CALL_CACHE_SIZE)
 
 // #if GAB_CALL_CACHE_LEN % 2 != 0
 // #error Invalid GAB_CALL_CACHE_SIZE
@@ -155,11 +156,11 @@ enum gab_status {
 
 // GAB optional flags
 enum gab_flags {
-  fGAB_DUMP_BYTECODE = 1 << 0,
-  fGAB_QUIET = 1 << 1,
-  fGAB_EXIT_ON_PANIC = 1 << 2,
-  fGAB_STRUCTURED_ERR = 1 << 3,
-  fGAB_CHECK = 1 << 4,
+  fGAB_BUILD_DUMP = 1 << 0,
+  fGAB_BUILD_CHECK = 1 << 1,
+  fGAB_ERR_QUIET = 1 << 2,
+  fGAB_ERR_EXIT = 1 << 3,
+  fGAB_ERR_STRUCTURED = 1 << 4,
 };
 
 // VERSION

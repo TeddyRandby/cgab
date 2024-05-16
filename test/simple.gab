@@ -7,6 +7,8 @@ chan = .gab.channel()
 "Channel: $\n":printf chan
 
 fiber = .gab.fiber do
+  'format' :use
+  1 + 1
   'hi':print
 end
 

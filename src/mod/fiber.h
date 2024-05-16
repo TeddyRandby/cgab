@@ -40,7 +40,10 @@ gab_value fiber_create(struct gab_triple gab, gab_value runner) {
 
   f->rc = 1;
   f->status = fNONE;
-  f->gab = gab_create((struct gab_create_argt){});
+  f->gab = gab_create((struct gab_create_argt){
+      .os_dynopen = gab.eg->os_dynopen,
+      .os_dynsymbol = gab.eg->os_dynsymbol,
+  });
   f->parent = thrd_current();
   f->runner = gab_valcpy(f->gab, runner);
   f->last_result = nullptr;
@@ -70,7 +73,7 @@ void fiber_run(gab_value fiber) {
 
   a_gab_value *result = gab_run(f->gab, (struct gab_run_argt){
                                             .main = f->runner,
-                                            .flags = fGAB_QUIET,
+                                            .flags = fGAB_ERR_QUIET,
                                         });
 
   /* Decrement all the previous results */

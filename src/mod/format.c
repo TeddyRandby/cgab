@@ -18,6 +18,12 @@ a_gab_value *fmt_printf(struct gab_triple gab, size_t argc,
 a_gab_value *fmt_print(struct gab_triple gab, size_t argc,
                        gab_value argv[argc]) {
   gab_fvalinspect(stdout, gab_arg(0), 2);
+
+  for (size_t i = 1; i < argc; i++) {
+    fprintf(stdout, ", ");
+    gab_fvalinspect(stdout, gab_arg(i), 0);
+  }
+
   fputc('\n', stdout);
 
   return nullptr;

@@ -28,7 +28,7 @@ void *dynsymbol(void *handle, const char *path) {
 
 #define MAIN_MODULE "__main__"
 
-void run_repl(const char *module, int flags) {
+void run_repl(int flags) {
   struct gab_triple gab = gab_create((struct gab_create_argt){
       .os_dynopen = dynopen,
       .os_dynsymbol = dynsymbol,
@@ -132,25 +132,25 @@ static struct command commands[] = {
                 "dump",
                 "Dump compiled bytecode to stdout",
                 'd',
-                .flag = fGAB_DUMP_BYTECODE,
+                .flag = fGAB_BUILD_DUMP,
             },
             {
                 "quiet",
                 "Do not print errors to stderr",
                 'q',
-                .flag = fGAB_QUIET,
+                .flag = fGAB_ERR_QUIET,
             },
             {
                 "sterr",
                 "Instead of pretty-printing errors, use a structured output.",
                 's',
-                .flag = fGAB_STRUCTURED_ERR,
+                .flag = fGAB_ERR_STRUCTURED,
             },
             {
                 "check",
                 "Compile the file without running it.",
                 'c',
-                .flag = fGAB_CHECK,
+                .flag = fGAB_BUILD_CHECK,
             },
         },
     },
@@ -163,25 +163,25 @@ static struct command commands[] = {
                 "dump",
                 "Dump compiled bytecode to stdout",
                 'd',
-                .flag = fGAB_DUMP_BYTECODE,
+                .flag = fGAB_BUILD_DUMP,
             },
             {
                 "quiet",
                 "Do not print errors to stderr",
                 'q',
-                .flag = fGAB_QUIET,
+                .flag = fGAB_ERR_QUIET,
             },
             {
                 "sterr",
                 "Instead of pretty-printing errors, use a structured output.",
                 's',
-                .flag = fGAB_STRUCTURED_ERR,
+                .flag = fGAB_ERR_STRUCTURED,
             },
             {
                 "check",
                 "Compile the file without running it.",
                 'c',
-                .flag = fGAB_CHECK,
+                .flag = fGAB_BUILD_CHECK,
             },
         },
     },
@@ -250,7 +250,7 @@ int exec(int argc, const char **argv, int flags) {
 }
 
 int repl(int argc, const char **argv, int flags) {
-  run_repl(nullptr, flags);
+  run_repl(flags);
   return 0;
 }
 

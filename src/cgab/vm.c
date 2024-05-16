@@ -348,7 +348,7 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
   uint8_t *ip = gab.vm->ip;
 
   struct gab_triple dont_exit = gab;
-  dont_exit.flags &= ~fGAB_EXIT_ON_PANIC;
+  dont_exit.flags &= ~fGAB_ERR_EXIT;
 
   while (frame_parent(f) > gab.vm->sb) {
     gab_vfpanic(dont_exit, stderr, nullptr,
@@ -694,7 +694,7 @@ a_gab_value *ok(OP_HANDLER_ARGS) {
 a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   gab.flags = args.flags;
 
-  if (gab.flags & fGAB_CHECK)
+  if (gab.flags & fGAB_BUILD_CHECK)
     return nullptr;
 
   gab.vm = malloc(sizeof(struct gab_vm));

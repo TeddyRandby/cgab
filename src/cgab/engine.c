@@ -321,6 +321,10 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
 
     if (src->data[0] == EOF) {
       a_char_destroy(src);
+
+      if (prev)
+        a_gab_value_destroy(prev);
+
       return;
     }
 
@@ -389,6 +393,7 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
     if (prev)
       a_gab_value_destroy(prev);
 
+    a_char_destroy(src);
     prev = result;
   }
 }
@@ -402,7 +407,7 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
                                       .argv = args.sargv,
                                   });
 
-  if (main == gab_undefined || args.flags & fGAB_CHECK) {
+  if (main == gab_undefined || args.flags & fGAB_BUILD_CHECK) {
     return nullptr;
   }
 
@@ -864,16 +869,16 @@ void dump_structured_err(struct gab_triple gab, FILE *stream, va_list varargs,
 
 void gab_vfpanic(struct gab_triple gab, FILE *stream, va_list varargs,
                  struct gab_err_argt args) {
-  if (gab.flags & fGAB_QUIET)
+  if (gab.flags & fGAB_ERR_QUIET)
     goto fin;
 
-  if (gab.flags & fGAB_STRUCTURED_ERR)
+  if (gab.flags & fGAB_ERR_STRUCTURED)
     dump_structured_err(gab, stream, varargs, args);
   else
     dump_pretty_err(gab, stream, varargs, args);
 
 fin:
-  if (gab.flags & fGAB_EXIT_ON_PANIC)
+  if (gab.flags & fGAB_ERR_EXIT)
     exit(1);
 }
 
@@ -960,7 +965,7 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   gab_value pkg = gab_build(gab, (struct gab_build_argt){
                                      .name = path,
                                      .source = (const char *)src->data,
-                                     .flags = fGAB_EXIT_ON_PANIC,
+                                     .flags = gab.flags | fGAB_ERR_EXIT,
                                      .len = 0,
                                  });
 
@@ -968,7 +973,7 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
 
   a_gab_value *res = gab_run(gab, (struct gab_run_argt){
                                       .main = pkg,
-                                      .flags = fGAB_EXIT_ON_PANIC,
+                                      .flags = gab.flags | fGAB_ERR_EXIT,
                                       .len = 0,
                                   });
 
