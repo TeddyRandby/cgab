@@ -8,7 +8,6 @@
 #include "core.h"
 #include "gab.h"
 #include "lexer.h"
-#include "natives.h"
 #include "os.h"
 #include "types.h"
 
@@ -162,6 +161,11 @@ struct primitive kind_primitives[] = {
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_SPLAT),
     },
     {
+        .name = mGAB_USE,
+        .kind = kGAB_STRING,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_USE),
+    },
+    {
         .name = mGAB_CALL,
         .kind = kGAB_RECORD,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_RECORD),
@@ -183,7 +187,7 @@ struct primitive kind_primitives[] = {
     },
 };
 
-struct gab_triple gab_create() {
+struct gab_triple gab_create(struct gab_create_argt args) {
   struct gab_eg *eg = NEW(struct gab_eg);
   memset(eg, 0, sizeof(struct gab_eg));
 
@@ -233,18 +237,15 @@ struct gab_triple gab_create() {
 
   gab_negkeep(gab.eg, kGAB_NKINDS, eg->types);
 
-  gab_setup_natives(gab);
-
   for (int i = 0; i < LEN_CARRAY(kind_primitives); i++) {
-    gab_egkeep(
-        gab.eg,
-        gab_iref(
-            gab,
-            gab_spec(gab, (struct gab_spec_argt){
-                              .name = kind_primitives[i].name,
-                              .receiver = gab_egtype(eg, kind_primitives[i].kind),
-                              .specialization = kind_primitives[i].primitive,
-                          })));
+    gab_egkeep(gab.eg,
+               gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
+                                               .name = kind_primitives[i].name,
+                                               .receiver = gab_egtype(
+                                                   eg, kind_primitives[i].kind),
+                                               .specialization =
+                                                   kind_primitives[i].primitive,
+                                           })));
   }
 
   for (int i = 0; i < LEN_CARRAY(type_primitives); i++) {
@@ -391,12 +392,12 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
 
 a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
   gab_value main = gab_build(gab, (struct gab_build_argt){
-                                     .name = args.name,
-                                     .source = args.source,
-                                     .flags = args.flags,
-                                     .len = args.len,
-                                     .argv = args.sargv,
-                                 });
+                                      .name = args.name,
+                                      .source = args.source,
+                                      .flags = args.flags,
+                                      .len = args.len,
+                                      .argv = args.sargv,
+                                  });
 
   if (main == gab_undefined) {
     return nullptr;
@@ -830,4 +831,192 @@ int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
   }
 
   return 1;
+}
+
+#define MODULE_SYMBOL "gab_lib"
+
+typedef a_gab_value *(*handler_f)(struct gab_triple, const char *);
+
+typedef a_gab_value *(*module_f)(struct gab_triple);
+
+typedef struct {
+  handler_f handler;
+  const char *prefix;
+  const char *suffix;
+} resource;
+
+a_gab_value *gab_shared_object_handler(struct gab_triple gab,
+                                       const char *path) {
+  void *handle = gab.eg->os_dynopen(path);
+
+  if (!handle) {
+    gab_panic(gab, "Couldn't open module");
+    return nullptr;
+  }
+
+  module_f symbol = gab.eg->os_dynsymbol(handle, MODULE_SYMBOL);
+
+  if (!symbol) {
+    gab_panic(gab, "Missing symbol " MODULE_SYMBOL);
+    return nullptr;
+  }
+
+  gab_gclock(gab.gc);
+  a_gab_value *res = symbol(gab);
+  gab_gcunlock(gab.gc);
+
+  if (res) {
+    a_gab_value *final =
+        gab_segmodput(gab.eg, path, gab_nil, res->len, res->data);
+
+    free(res);
+
+    return final;
+  }
+
+  return gab_segmodput(gab.eg, path, gab_nil, 0, nullptr);
+}
+
+a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
+  a_char *src = gab_osread(path);
+
+  if (src == nullptr)
+    return gab_panic(gab, "Failed to load module");
+
+  gab_value pkg = gab_build(gab, (struct gab_build_argt){
+                                     .name = path,
+                                     .source = (const char *)src->data,
+                                     .flags = fGAB_EXIT_ON_PANIC,
+                                 });
+
+  a_char_destroy(src);
+
+  a_gab_value *res = gab_run(gab, (struct gab_run_argt){
+                                      .main = pkg,
+                                      .flags = fGAB_EXIT_ON_PANIC,
+                                  });
+
+  if (res->data[0] != gab_string(gab, "ok"))
+    return gab_panic(gab, "Failed to load module");
+
+  gab_negkeep(gab.eg, res->len - 1, res->data + 1);
+
+  a_gab_value *final =
+      gab_segmodput(gab.eg, path, pkg, res->len - 1, res->data + 1);
+
+  free(res);
+
+  return final;
+}
+
+#ifndef GAB_PREFIX
+#define GAB_PREFIX "."
+#endif
+
+resource resources[] = {
+    // Local resources
+    {
+        .prefix = "./mod/",
+        .suffix = ".gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = "./",
+        .suffix = "/mod/mod.gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = "./",
+        .suffix = ".gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = "./",
+        .suffix = "/mod.gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = "./libcgab",
+        .suffix = ".so",
+        .handler = gab_shared_object_handler,
+    },
+    // Installed resources
+    {
+        .prefix = GAB_PREFIX "/gab/modules/",
+        .suffix = ".gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = GAB_PREFIX "/gab/modules/",
+        .suffix = "/mod.gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = GAB_PREFIX "/gab/modules/",
+        .suffix = "/mod/mod.gab",
+        .handler = gab_source_file_handler,
+    },
+    {
+        .prefix = GAB_PREFIX "/gab/modules/libcgab",
+        .suffix = ".so",
+        .handler = gab_shared_object_handler,
+    },
+};
+
+a_char *match_resource(resource *res, const char *name, uint64_t len) {
+  const uint64_t p_len = strlen(res->prefix);
+  const uint64_t s_len = strlen(res->suffix);
+  const uint64_t total_len = p_len + len + s_len + 1;
+
+  char buffer[total_len];
+
+  memcpy(buffer, res->prefix, p_len);
+  memcpy(buffer + p_len, name, len);
+  memcpy(buffer + p_len + len, res->suffix, s_len + 1);
+
+  FILE *f = fopen(buffer, "r");
+
+  if (!f)
+    return nullptr;
+
+  fclose(f);
+  return a_char_create(buffer, total_len);
+}
+
+a_gab_value *gab_suse(struct gab_triple gab, const char *name) {
+  return gab_use(gab, gab_string(gab, name));
+}
+
+a_gab_value *gab_use(struct gab_triple gab, gab_value path) {
+  assert(gab_valkind(path) == kGAB_STRING);
+
+  const char *name = gab_valintocs(gab, path);
+
+  for (int j = 0; j < sizeof(resources) / sizeof(resource); j++) {
+    resource *res = resources + j;
+    a_char *path = match_resource(res, name, strlen(name));
+
+    if (path) {
+      a_gab_value *cached = gab_segmodat(gab.eg, (char *)path->data);
+
+      if (cached != nullptr) {
+        /* SKip the first argument, which is the module's data */
+        gab_nvmpush(gab.vm, cached->len - 1, cached->data + 1);
+        a_char_destroy(path);
+        return nullptr;
+      }
+
+      a_gab_value *result = res->handler(gab, (char *)path->data);
+
+      if (result != nullptr) {
+        /* SKip the first argument, which is the module's data */
+        gab_nvmpush(gab.vm, result->len - 1, result->data + 1);
+        a_char_destroy(path);
+
+        return nullptr;
+      }
+    }
+  }
+
+  return gab_panic(gab, "Could not locate module:\n\n | $", path);
 }

@@ -1,12 +1,35 @@
-#include "natives.h"
 #include "gab.h"
 #include "os.h"
 #include <stdio.h>
 
+#if GAB_OS_UNIX
+#include <unistd.h>
+#include <dlfcn.h>
+#endif
+
+void *dynopen(const char *path) {
+#if GAB_OS_UNIX
+  return dlopen(path, RTLD_NOW);
+#else
+#error Windows not supported
+#endif
+}
+
+void *dynsymbol(void *handle, const char *path) {
+#if GAB_OS_UNIX
+  return dlsym(handle, path);
+#else
+#error Windows not supported
+#endif
+}
+
 #define MAIN_MODULE "__main__"
 
 void run_repl(const char *module, int flags) {
-  struct gab_triple gab = gab_create();
+  struct gab_triple gab = gab_create((struct gab_create_argt) {
+    .os_dynopen = dynopen,
+    .os_dynsymbol = dynsymbol,
+  });
 
   gab_repl(gab, (struct gab_repl_argt){
                     .name = "repl",
@@ -94,7 +117,10 @@ void run_src(struct gab_triple gab, s_char src, const char *module, char delim,
 
 void run_string(const char *string, const char *module, char delim,
                 uint8_t flags) {
-  struct gab_triple gab = gab_create();
+  struct gab_triple gab = gab_create((struct gab_create_argt) {
+    .os_dynopen = dynopen,
+    .os_dynsymbol = dynsymbol,
+  });
 
   // This is a weird case where we actually want to include the null terminator
   s_char src = s_char_create(string, strlen(string) + 1);
@@ -106,7 +132,10 @@ void run_string(const char *string, const char *module, char delim,
 }
 
 void run_file(const char *path, const char *module, char delim, uint8_t flags) {
-  struct gab_triple gab = gab_create();
+  struct gab_triple gab = gab_create((struct gab_create_argt) {
+    .os_dynopen = dynopen,
+    .os_dynsymbol = dynsymbol,
+  });
 
   a_char *src = gab_osread(path);
 

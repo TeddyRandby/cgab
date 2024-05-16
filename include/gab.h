@@ -14,9 +14,9 @@
 #include "core.h"
 
 #if defined(_WIN32) || defined(_WIN64) || defined(Wint32_t)
-#define OS_UNIX 0
+#define GAB_OS_UNIX 0
 #else
-#define OS_UNIX 1
+#define GAB_OS_UNIX 1
 #endif
 
 #if cGAB_LIKELY
@@ -403,10 +403,25 @@ struct gab_obj {
 void gab_obj_destroy(struct gab_eg *eg, struct gab_obj *obj);
 
 /**
+ * @class gab_create_argt
+ */
+struct gab_create_argt {
+  /**
+   * @brief An os-specific hook for loading dynamic libraries.
+   * This is used to load native-c modules.
+   */
+  void *(*os_dynopen)(const char *path);
+  /**
+   * @brief A hook for pulling symbols out of dynamically loaded libraries.
+   */
+  void *(*os_dynsymbol)(void* os_dynhandle, const char *path);
+};
+
+/**
  * @brief Allocate data necessary for a runtime. This struct is lightweight and
  * should be passed by value.
  */
-struct gab_triple gab_create();
+struct gab_triple gab_create(struct gab_create_argt args);
 
 /**
  * @brief Free the memory owned by this triple.
@@ -585,6 +600,9 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, int depth);
  */
 gab_value gab_vmframe(struct gab_triple gab, uint64_t depth);
 
+a_gab_value *gab_suse(struct gab_triple gab, const char *name);
+a_gab_value *gab_use(struct gab_triple gab, gab_value name);
+
 /**
  * @brief Put a module into the engine's import table.
  *
@@ -726,7 +744,6 @@ struct gab_exec_argt {
  * @return A heap-allocated slice of values returned by the block.
  */
 a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args);
-
 
 /**
  * @brief Arguments and options for an interactive REPL.
@@ -1421,8 +1438,8 @@ struct gab_obj_record {
  *
  * @return The new record object.
  */
-gab_value gab_recordof(struct gab_triple gab, gab_value shape, size_t stride,
-                       gab_value values[static GAB_VAL_TO_SHAPE(shape)->len]);
+gab_value gab_recordof(struct gab_triple gab, gab_value shp, size_t stride,
+                       gab_value values[static GAB_VAL_TO_SHAPE(shp)->len]);
 
 /**
  * @brief extend a record with a key/value pair.
@@ -2064,8 +2081,14 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
 #define EQUAL(a, b) (a == b)
 #include "dict.h"
 
+/**
+ * @class The 'engine'. Stores the long-lived data
+ * needed for the gab environment.
+ */
 struct gab_eg {
   size_t hash_seed;
+
+  gab_value types[kGAB_NKINDS];
 
   d_gab_src sources;
 
@@ -2077,9 +2100,11 @@ struct gab_eg {
 
   d_messages messages;
 
-  gab_value types[kGAB_NKINDS];
-
   v_gab_value scratch;
+
+  void *(*os_dynopen)(const char *path);
+
+  void *(*os_dynsymbol)(void *os_dynhandle, const char *path);
 };
 
 static inline gab_value gab_egtype(struct gab_eg *gab, enum gab_kind k) {

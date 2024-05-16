@@ -51,23 +51,6 @@ enum variable_flag {
   fLOCAL_REST = 1 << 3,
 };
 
-/**
- * The run-time representation of a callframe.
- *
- * This could potentially be completely optimized away.
- * When we call a function, copy the arguments down the stack,
- * leaving 3 slots for data. (The block, the return ip, and the fb)
- * FB[0] will be self, as usual
- * FB[-1] is the return fb
- * FB[-2] is the return ip
- * FB[-3] is the return block
- *
- * When doing a return, 'pop' the frame by setting:
- * FB = FB[-2]
- * IP = FB[-1]
- * This will reset fb, and set ip to execute the next instruction
- */
-
 /*
  * The gab virtual machine. This has all the state needed for executing
  * bytecode.

@@ -184,16 +184,12 @@ enum gab_flags {
 #define mGAB_RSH ">>"
 #define mGAB_LTE "<="
 #define mGAB_GTE ">="
-#define mGAB_SET "put"
-#define mGAB_GET "at"
 #define mGAB_CALL ""
 #define mGAB_SPLAT "**"
 #define mGAB_TYPE "?"
 #define mGAB_BIN "~"
 #define mGAB_LIN "!"
-#define mGAB_AND "and"
-#define mGAB_OR "or"
-#define mGAB_DEF "def!"
+#define mGAB_USE "use"
 
 #define T char
 #include "slice.h"

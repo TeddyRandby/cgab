@@ -245,6 +245,13 @@ static handler handlers[] = {
 #define STORE_FP() (VM()->fp = FB())
 #define STORE_IP() (VM()->ip = IP())
 
+#define STORE()                                                                \
+  ({                                                                           \
+    STORE_SP();                                                                \
+    STORE_FP();                                                                \
+    STORE_IP();                                                                \
+  })
+
 #define PUSH_FRAME(b, have)                                                    \
   ({                                                                           \
     memmove(SP() - have + 3, SP() - have, have * sizeof(gab_value));           \
@@ -609,7 +616,7 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
 
 #define CALL_NATIVE(native, have, message)                                     \
   ({                                                                           \
-    STORE_SP();                                                                \
+    STORE();                                                                   \
                                                                                \
     gab_value *to = SP() - have;                                               \
                                                                                \
@@ -1118,6 +1125,29 @@ CASE_CODE(SEND_PRIMITIVE_CONCAT) {
   NEXT();
 }
 
+CASE_CODE(SEND_PRIMITIVE_USE) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value r = PEEK_N(have);
+
+  SEND_GUARD_CACHED_RECEIVER_TYPE(r);
+
+  SEND_GUARD_KIND(r, kGAB_STRING);
+
+  STORE();
+  a_gab_value *mod = gab_use(GAB(), r);
+
+  DROP_N(have);
+
+  for (size_t i = 0; i < mod->len; i++)
+    PUSH(mod->data[i]);
+
+  SET_VAR(mod->len);
+
+  NEXT();
+}
+
 CASE_CODE(SEND_PRIMITIVE_SPLAT) {
   gab_value *ks = READ_CONSTANTS;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
@@ -1126,11 +1156,7 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
 
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  if (__gab_unlikely(gab_valkind(r) != kGAB_RECORD)) {
-    STORE_PRIMITIVE_ERROR_FRAME(1);
-    ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, PEEK_N(have - 1),
-          gab_valtype(EG(), PEEK_N(have - 1)), gab_valtype(EG(), PEEK_N(have)));
-  }
+  SEND_GUARD_KIND(r, kGAB_RECORD);
 
   struct gab_obj_record *rec = GAB_VAL_TO_RECORD(r);
 
@@ -1454,8 +1480,7 @@ CASE_CODE(RETURN) {
   gab_value *to = FB() - 3;
 
   if (__gab_unlikely(RETURN_FB() < VM()->sb))
-    return STORE_SP(), STORE_IP(), STORE_FP(), SET_VAR(have),
-           ok(DISPATCH_ARGS());
+    return STORE(), SET_VAR(have), ok(DISPATCH_ARGS());
 
   LOAD_FRAME();
 
@@ -1896,8 +1921,7 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   struct gab_egimpl_rest res = gab_egimpl(EG(), m, r);
 
   if (__gab_unlikely(!res.status)) {
-    STORE_IP();
-    STORE_SP();
+    STORE();
     ERROR(GAB_IMPLEMENTATION_MISSING, FMT_MISSINGIMPL, m, r,
           gab_valtype(EG(), r));
   }

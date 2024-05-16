@@ -40,7 +40,7 @@ gab_value fiber_create(struct gab_triple gab, gab_value runner) {
 
   f->rc = 1;
   f->status = fNONE;
-  f->gab = gab_create();
+  f->gab = gab_create((struct gab_create_argt){});
   f->parent = thrd_current();
   f->runner = gab_valcpy(f->gab, runner);
 
