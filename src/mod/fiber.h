@@ -4,7 +4,6 @@
 enum {
   fNONE,
   fDONE,
-  fPAUSED,
   fRUNNING,
 };
 
@@ -15,10 +14,11 @@ struct fiber {
   thrd_t parent;
 
   gab_value runner;
+  a_gab_value *last_result;
   struct gab_triple gab;
 };
 
-void fiber_deref(size_t len, unsigned char data[static len]) {
+void fiber_deref(size_t len, char data[static len]) {
   struct fiber *f = *(struct fiber **)data;
   f->rc--;
   if (f->rc == 0) {
@@ -43,6 +43,7 @@ gab_value fiber_create(struct gab_triple gab, gab_value runner) {
   f->gab = gab_create((struct gab_create_argt){});
   f->parent = thrd_current();
   f->runner = gab_valcpy(f->gab, runner);
+  f->last_result = nullptr;
 
   gab_iref(gab, f->runner);
   gab_egkeep(f->gab.eg, f->runner);
@@ -50,7 +51,7 @@ gab_value fiber_create(struct gab_triple gab, gab_value runner) {
   gab_value fiber = gab_box(gab, (struct gab_box_argt){
                                      .data = &f,
                                      .size = sizeof(struct fiber *),
-                                     .type = gab_string(gab, "Fiber"),
+                                     .type = gab_string(gab, "gab.fiber"),
                                      .destructor = fiber_deref,
                                  });
 
@@ -69,26 +70,20 @@ void fiber_run(gab_value fiber) {
 
   a_gab_value *result = gab_run(f->gab, (struct gab_run_argt){
                                             .main = f->runner,
-                                            .flags = fGAB_EXIT_ON_PANIC,
+                                            .flags = fGAB_QUIET,
                                         });
 
-  f->runner = result->data[result->len - 1];
+  /* Decrement all the previous results */
+  if (f->last_result) {
+    gab_ndref(f->gab, 1, f->last_result->len, f->last_result->data);
+    free(f->last_result);
+  }
 
-  enum gab_kind runk = gab_valkind(f->runner);
-  bool continuing = runk == kGAB_BLOCK;
-
-  if (continuing)
-    gab_egkeep(f->gab.eg, f->runner);
-
-  /* Decrement all the results we didn't use. */
-  gab_ndref(f->gab, 1, result->len - continuing, result->data + continuing);
-
-  free(result);
-
-  f->status = continuing ? fPAUSED : fDONE;
+  f->last_result = result;
+  f->status = fDONE;
 
 fin:
-  fiber_deref(sizeof(struct fiber *), (unsigned char *)&f);
+  fiber_deref(sizeof(struct fiber *), (char *)&f);
 }
 
 int fiber_launch(void *d) {

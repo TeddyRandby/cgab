@@ -64,12 +64,7 @@ a_gab_value *gab_lib_read(struct gab_triple gab, size_t argc,
     return nullptr;
   }
 
-  gab_value res[2] = {
-      gab_string(gab, "ok"),
-      gab_nstring(gab, bytesRead, buffer),
-  };
-
-  gab_nvmpush(gab.vm, 2, res);
+  gab_vmpush(gab.vm, gab_ok, gab_nstring(gab, bytesRead, buffer));
 
   return nullptr;
 }

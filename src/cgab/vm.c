@@ -476,6 +476,7 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, int depth) {
   }
 
   gab_fvalinspect(stream, __gab_obj(frame_block(f)), 0);
+  fprintf(stream, "\n");
 
   while (t >= f) {
     fprintf(stream, "%2s" GAB_YELLOW "%4lu " GAB_RESET, vm->sp == t ? "->" : "",
@@ -496,10 +497,6 @@ static inline bool has_callspace(struct gab_vm *vm, size_t space_needed) {
   }
 
   return true;
-}
-
-inline size_t gab_vmpush(struct gab_vm *vm, gab_value value) {
-  return gab_nvmpush(vm, 1, &value);
 }
 
 inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
@@ -697,6 +694,9 @@ a_gab_value *ok(OP_HANDLER_ARGS) {
 a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   gab.flags = args.flags;
 
+  if (gab.flags & fGAB_CHECK)
+    return nullptr;
+
   gab.vm = malloc(sizeof(struct gab_vm));
   gab_vmcreate(gab.vm, args.len, args.argv);
 
@@ -704,7 +704,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   for (uint8_t i = 0; i < args.len; i++)
     *gab.vm->sp++ = args.argv[i];
 
-  *gab.vm->sp = args.len + 1;
+  *gab.vm->sp = args.len;
 
   if (gab_valkind(args.main) != kGAB_BLOCK)
     return nullptr;

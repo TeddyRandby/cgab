@@ -406,6 +406,7 @@ void gab_obj_destroy(struct gab_eg *eg, struct gab_obj *obj);
  * @class gab_create_argt
  */
 struct gab_create_argt {
+  int flags;
   /**
    * @brief An os-specific hook for loading dynamic libraries.
    * This is used to load native-c modules.
@@ -414,7 +415,7 @@ struct gab_create_argt {
   /**
    * @brief A hook for pulling symbols out of dynamically loaded libraries.
    */
-  void *(*os_dynsymbol)(void* os_dynhandle, const char *path);
+  void *(*os_dynsymbol)(void *os_dynhandle, const char *path);
 };
 
 /**
@@ -487,7 +488,8 @@ int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs);
  * @param argv The arguments
  * @return the number of bytes written to the stream.
  */
-int gab_afprintf(FILE *stream, const char* fmt, size_t argc, gab_value argv[argc]);
+int gab_afprintf(FILE *stream, const char *fmt, size_t argc,
+                 gab_value argv[argc]);
 
 /**
  * @brief Give the engine ownership of the values.
@@ -573,7 +575,7 @@ static inline struct gab_egimpl_rest
 gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver);
 
 /**
- * @brief Push a value onto the vm's internal stack.
+ * @brief Push any number of value onto the vm's internal stack.
  *
  * This is how c-natives return values to the runtime.
  *
@@ -581,7 +583,11 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver);
  * @param value the value to push.
  * @return The number of values pushed (always one), 0 on err.
  */
-size_t gab_vmpush(struct gab_vm *vm, gab_value value);
+#define gab_vmpush(vm, ...)                                                    \
+  ({                                                                           \
+    gab_value _args[] = {__VA_ARGS__};                                         \
+    gab_nvmpush(vm, sizeof(_args) / sizeof(gab_value), _args);                 \
+  })
 
 /**
  * @brief Push multiple values onto the vm's internal stack.

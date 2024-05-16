@@ -2346,6 +2346,7 @@ gab_value compile(struct bc *bc, uint8_t narguments,
 
 gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
   gab.flags = args.flags;
+
   args.name = args.name ? args.name : "__main__";
 
   gab_value name = gab_string(gab, args.name);

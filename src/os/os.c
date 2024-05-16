@@ -24,10 +24,8 @@ a_char *gab_fosread(FILE *fd) {
 a_char *gab_osread(const char *path) {
   FILE *file = fopen(path, "rb");
 
-  if (file == nullptr) {
-    fprintf(stderr, "Could not open file \"%s\".\n", path);
-    exit(74);
-  }
+  if (file == nullptr)
+    return nullptr;
 
   a_char *data = gab_fosread(file);
 

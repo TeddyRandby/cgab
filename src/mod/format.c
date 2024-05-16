@@ -18,13 +18,6 @@ a_gab_value *fmt_printf(struct gab_triple gab, size_t argc,
 a_gab_value *fmt_print(struct gab_triple gab, size_t argc,
                        gab_value argv[argc]) {
   gab_fvalinspect(stdout, gab_arg(0), 2);
-
-  return nullptr;
-}
-
-a_gab_value *fmt_println(struct gab_triple gab, size_t argc,
-                         gab_value argv[argc]) {
-  gab_fvalinspect(stdout, gab_arg(0), 2);
   fputc('\n', stdout);
 
   return nullptr;
@@ -41,11 +34,6 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "print",
           gab_undefined,
           gab_snative(gab, "print", fmt_print),
-      },
-      {
-          "println",
-          gab_undefined,
-          gab_snative(gab, "println", fmt_println),
       },
   };
 

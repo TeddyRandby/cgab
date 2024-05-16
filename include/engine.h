@@ -56,10 +56,9 @@ enum variable_flag {
  * bytecode.
  */
 struct gab_vm {
-  gab_value *fp;
   uint8_t *ip;
 
-  gab_value *sp;
+  gab_value *sp, *fp;
 
   gab_value sb[cGAB_STACK_MAX];
 };

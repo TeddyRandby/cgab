@@ -1,6 +1,15 @@
 'core':use
-1 + 2
+'fibers':use
+'channels':use
 
-'hi':print
+chan = .gab.channel()
 
-b
+"Channel: $\n":printf chan
+
+fiber = .gab.fiber do
+  'hi':print
+end
+
+"Fiber: $\n":printf fiber
+
+fiber:await:print

@@ -199,7 +199,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   struct gab_gc *gc = NEW(struct gab_gc);
   gab_gccreate(gc);
 
-  struct gab_triple gab = {.eg = eg, .gc = gc};
+  struct gab_triple gab = {.eg = eg, .gc = gc, .flags = args.flags};
 
   eg->hash_seed = time(nullptr);
 
@@ -595,9 +595,13 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
     return copy;
   }
 
+  case kGAB_SIGIL: {
+    return gab_strtosig(
+        gab_nstring(gab, gab_strlen(value), gab_strdata(&value)));
+  }
+
   case kGAB_STRING: {
-    struct gab_obj_string *self = GAB_VAL_TO_STRING(value);
-    return gab_nstring(gab, self->len, self->data);
+    return gab_nstring(gab, gab_strlen(value), gab_strdata(&value));
   }
 
   case kGAB_NATIVE: {
@@ -957,6 +961,7 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
                                      .name = path,
                                      .source = (const char *)src->data,
                                      .flags = fGAB_EXIT_ON_PANIC,
+                                     .len = 0,
                                  });
 
   a_char_destroy(src);
@@ -964,6 +969,7 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   a_gab_value *res = gab_run(gab, (struct gab_run_argt){
                                       .main = pkg,
                                       .flags = fGAB_EXIT_ON_PANIC,
+                                      .len = 0,
                                   });
 
   if (res->data[0] != gab_string(gab, "ok"))

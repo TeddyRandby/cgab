@@ -429,6 +429,8 @@ struct gab_src *gab_srccpy(struct gab_triple gab, struct gab_src *self) {
       gab_value cpy = gab_valcpy(gab, v);
       gab_egkeep(gab.eg, gab_iref(gab, cpy));
       v_gab_value_set(&copy->constants, i, cpy);
+    } else {
+      v_gab_value_set(&copy->constants, i, v);
     }
   }
 

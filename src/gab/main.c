@@ -81,13 +81,13 @@ void run_file(const char *path, int flags) {
   struct gab_triple gab = gab_create((struct gab_create_argt){
       .os_dynopen = dynopen,
       .os_dynsymbol = dynsymbol,
+      .flags = flags,
   });
 
-  a_char *src = gab_osread(path);
+  a_gab_value *result = gab_suse(gab, path);
 
-  run_src(gab, s_char_create(src->data, src->len), flags);
-
-  a_char_destroy(src);
+  if (!result)
+    fprintf(stdout, "[gab]: Module '%s' not found.\n", path);
 
   gab_destroy(gab);
   return;
@@ -125,7 +125,7 @@ static struct command commands[] = {
     },
     {
         "run",
-        "Compile and run the file at path <arg>",
+        "Compile and run the module at path <arg>",
         .handler = run,
         {
             {

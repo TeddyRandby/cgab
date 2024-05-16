@@ -7,7 +7,7 @@ struct channel {
   mtx_t mutex;
 };
 
-void channel_destroy(size_t len, unsigned char data[static len]) {
+void channel_destroy(size_t len, char data[static len]) {
   struct channel *c = *(struct channel **)data;
   c->rc--;
 
@@ -17,6 +17,12 @@ void channel_destroy(size_t len, unsigned char data[static len]) {
     free(c);
   }
 };
+
+void channel_iref(gab_value channel) {
+  assert(gab_valkind(channel) == kGAB_BOX);
+  struct channel *c = *(struct channel **)gab_boxdata(channel);
+  c->rc++;
+}
 
 void channel_send(struct gab_triple gab, gab_value self, size_t len,
                   gab_value values[static len]) {
@@ -64,7 +70,7 @@ gab_value channel_create(struct gab_triple gab) {
   return gab_box(gab, (struct gab_box_argt){
                           .data = &c,
                           .size = sizeof(struct channel*),
-                          .type = gab_string(gab, "Channel"),
+                          .type = gab_string(gab, "gab.channel"),
                           .destructor = channel_destroy,
                       });
 };
