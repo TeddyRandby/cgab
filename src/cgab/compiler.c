@@ -2681,6 +2681,10 @@ int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *proto) {
 
   uint64_t end = proto->offset + proto->len;
 
+  printf("     ");
+  gab_fvalinspect(stream, proto->src->name, 0);
+  printf("\n");
+
   while (offset < end) {
     fprintf(stream, GAB_YELLOW "%04lu " GAB_RESET, offset);
     offset = dumpInstruction(stream, proto, offset);

@@ -1140,14 +1140,13 @@ CASE_CODE(SEND_PRIMITIVE_USE) {
 
   DROP_N(have);
 
-  if (mod) {
-    for (size_t i = 1; i < mod->len; i++)
-      PUSH(mod->data[i]);
-    SET_VAR(mod->len - 1);
-  } else {
-    PUSH(gab_nil);
-    SET_VAR(1);
-  }
+  if (!mod)
+    ERROR(GAB_PANIC, "Couldn't locate module $.", r);
+
+  for (size_t i = 1; i < mod->len; i++)
+    PUSH(mod->data[i]);
+
+  SET_VAR(mod->len - 1);
 
   NEXT();
 }

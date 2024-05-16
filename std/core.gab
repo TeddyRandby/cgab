@@ -3,6 +3,7 @@
 'crecords':use
 'cshapes':use
 'cstrings':use
+'format':use
 
 \self :def! ([], do; self end)
 \first :def! ([], do x; x end)

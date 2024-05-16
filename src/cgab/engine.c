@@ -402,7 +402,7 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
                                       .argv = args.sargv,
                                   });
 
-  if (main == gab_undefined) {
+  if (main == gab_undefined || args.flags & fGAB_CHECK) {
     return nullptr;
   }
 
@@ -714,6 +714,32 @@ int gab_fprintf(FILE *stream, const char *fmt, ...) {
   return res;
 }
 
+// TODO: Bounds check this
+int gab_afprintf(FILE *stream, const char *fmt, size_t argc,
+                 gab_value argv[argc]) {
+  const char *c = fmt;
+  int bytes = 0;
+  size_t i = 0;
+
+  while (*c != '\0') {
+    switch (*c) {
+    case '$': {
+      gab_value arg = argv[i++];
+      int idx = gab_valkind(arg) % GAB_COLORS_LEN;
+      const char *color = ANSI_COLORS[idx];
+      bytes += fprintf(stream, "%s", color);
+      bytes += gab_fvalinspect(stream, arg, 1);
+      bytes += fprintf(stream, GAB_RESET);
+      break;
+    }
+    default:
+      bytes += fputc(*c, stream);
+    }
+    c++;
+  }
+
+  return bytes;
+}
 int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs) {
   const char *c = fmt;
   int bytes = 0;
@@ -738,11 +764,8 @@ int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs) {
   return bytes;
 }
 
-void gab_vfpanic(struct gab_triple gab, FILE *stream, va_list varargs,
-                 struct gab_err_argt args) {
-  if (gab.flags & fGAB_QUIET)
-    goto fin;
-
+void dump_pretty_err(struct gab_triple gab, FILE *stream, va_list varargs,
+                     struct gab_err_argt args) {
   gab_value tok_name = gab_string(
       gab,
       args.src
@@ -799,11 +822,55 @@ void gab_vfpanic(struct gab_triple gab, FILE *stream, va_list varargs,
   }
 
   fprintf(stream, "\n\n");
+};
+
+void dump_structured_err(struct gab_triple gab, FILE *stream, va_list varargs,
+                         struct gab_err_argt args) {
+  const char *tok_name =
+      args.src
+          ? gab_token_names[v_gab_token_val_at(&args.src->tokens, args.tok)]
+          : "C";
+
+  const char *src_name = args.src ? gab_valintocs(gab, args.src->name) : "C";
+
+  const char *msg_name = gab_valintocs(gab, args.message);
+
+  const char *status_name = gab_status_names[args.status];
+
+  fprintf(stream, "%s:%s:%s:%s", status_name, src_name, tok_name, msg_name);
+
+  if (args.src) {
+    size_t line = v_uint64_t_val_at(&args.src->token_lines, args.tok);
+
+    s_char line_src = v_s_char_val_at(&args.src->lines, line - 1);
+    s_char tok_src = v_s_char_val_at(&args.src->token_srcs, args.tok);
+    size_t line_relative_start = tok_src.data - line_src.data;
+    size_t line_relative_end = tok_src.data + tok_src.len - line_src.data;
+
+    size_t src_relative_start = tok_src.data - args.src->source->data;
+    size_t src_relative_end =
+        tok_src.data + tok_src.len - args.src->source->data;
+
+    fprintf(stream, ":%lu:%lu:%lu:%lu:%lu", line, line_relative_start,
+            line_relative_end, src_relative_start, src_relative_end);
+  }
+
+  fputc('\n', stream);
+}
+
+void gab_vfpanic(struct gab_triple gab, FILE *stream, va_list varargs,
+                 struct gab_err_argt args) {
+  if (gab.flags & fGAB_QUIET)
+    goto fin;
+
+  if (gab.flags & fGAB_STRUCTURED_ERR)
+    dump_structured_err(gab, stream, varargs, args);
+  else
+    dump_pretty_err(gab, stream, varargs, args);
 
 fin:
-  if (gab.flags & fGAB_EXIT_ON_PANIC) {
+  if (gab.flags & fGAB_EXIT_ON_PANIC)
     exit(1);
-  }
 }
 
 void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size) {

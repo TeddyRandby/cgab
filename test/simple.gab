@@ -1,17 +1,6 @@
-'core' :use
-'records':use
-'numbers':use
+'core':use
+1 + 2
 
-record = [1,2,3,4,5]
+'hi':print
 
-.td:print
-
-td = .td :compose (
-  .td :map \first,
-  .td :map do x; '{x}' end,
-  .td :interpose ',',
-)
-
-td:print
-
-record :seqs.into :transduce ('', \+, td) :print
+b

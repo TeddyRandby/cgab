@@ -478,6 +478,18 @@ int gab_fprintf(FILE *stream, const char *fmt, ...);
 int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs);
 
 /**
+ * @brief Format the given string to the given stream.
+ * @see gab_fprintf
+ *
+ * @param stream The stream to print to
+ * @param fmt The format string
+ * @param argc The number of arguments
+ * @param argv The arguments
+ * @return the number of bytes written to the stream.
+ */
+int gab_afprintf(FILE *stream, const char* fmt, size_t argc, gab_value argv[argc]);
+
+/**
  * @brief Give the engine ownership of the values.
  *
  * When in c-code, it can be useful to create gab_objects which should be global
