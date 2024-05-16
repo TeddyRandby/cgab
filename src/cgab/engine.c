@@ -191,6 +191,9 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   struct gab_eg *eg = NEW(struct gab_eg);
   memset(eg, 0, sizeof(struct gab_eg));
 
+  eg->os_dynsymbol = args.os_dynsymbol;
+  eg->os_dynopen = args.os_dynopen;
+
   d_gab_src_create(&eg->sources, 8);
 
   struct gab_gc *gc = NEW(struct gab_gc);
@@ -1001,22 +1004,19 @@ a_gab_value *gab_use(struct gab_triple gab, gab_value path) {
 
       if (cached != nullptr) {
         /* SKip the first argument, which is the module's data */
-        gab_nvmpush(gab.vm, cached->len - 1, cached->data + 1);
         a_char_destroy(path);
-        return nullptr;
+        return cached;
       }
 
       a_gab_value *result = res->handler(gab, (char *)path->data);
 
       if (result != nullptr) {
         /* SKip the first argument, which is the module's data */
-        gab_nvmpush(gab.vm, result->len - 1, result->data + 1);
         a_char_destroy(path);
-
-        return nullptr;
+        return result;
       }
     }
   }
 
-  return gab_panic(gab, "Could not locate module:\n\n | $", path);
+  return nullptr;
 }

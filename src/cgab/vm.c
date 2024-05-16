@@ -1140,10 +1140,14 @@ CASE_CODE(SEND_PRIMITIVE_USE) {
 
   DROP_N(have);
 
-  for (size_t i = 0; i < mod->len; i++)
-    PUSH(mod->data[i]);
-
-  SET_VAR(mod->len);
+  if (mod) {
+    for (size_t i = 1; i < mod->len; i++)
+      PUSH(mod->data[i]);
+    SET_VAR(mod->len - 1);
+  } else {
+    PUSH(gab_nil);
+    SET_VAR(1);
+  }
 
   NEXT();
 }
@@ -1741,8 +1745,7 @@ CASE_CODE(SEND) {
   struct gab_egimpl_rest res = gab_egimpl(EG(), m, r);
 
   if (__gab_unlikely(!res.status)) {
-    STORE_IP();
-    STORE_SP();
+    STORE();
     ERROR(GAB_IMPLEMENTATION_MISSING, FMT_MISSINGIMPL, m, r,
           gab_valtype(EG(), r));
   }
