@@ -3,7 +3,7 @@ s = 'specs':use
 socket.spec = s:def! {
   name = "gab.socket",
   help = "A wrapper type for an OS socket.",
-  spec = s:unknown, # TODO: Replace with some c-user-data spec
+  spec = .gab.socket, # TODO: Replace with some c-user-data spec
 }
 
 s:def! {
@@ -12,7 +12,7 @@ s:def! {
   spec = s:message {
     receiver  = .gab.socket,
     message   = \,
-    input     = s:option(s:protocol {
+    input     = s:nilable(s:protocol {
       gab.socket.family = s:int,
       gab.socket.type   = s:int,
     }),
@@ -101,3 +101,5 @@ s:def! {
     semantics = .nil,
   }
 }
+
+socket.spec

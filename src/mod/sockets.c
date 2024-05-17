@@ -105,12 +105,12 @@ a_gab_value *gab_lib_sock(struct gab_triple gab, size_t argc,
   int64_t sockfd = socket(domain, type, 0);
 
   if (sockfd < 0) {
-    gab_vmpush(gab.vm, gab_string(gab, "socket_open_failed"));
+    gab_vmpush(gab.vm, gab_sigil(gab, "socket_open_failed"));
     return nullptr;
   }
 
   gab_value res[2] = {
-      gab_string(gab, "ok"),
+      gab_ok,
       gab_box(gab,
               (struct gab_box_argt){
                   .type = gab_string(gab, SOCKET_BOX_TYPE),
@@ -172,9 +172,9 @@ fin: {
                     sizeof(struct sockaddr_in));
 
   if (result < 0)
-    gab_vmpush(gab.vm, gab_string(gab, "BIND_FAILED"));
+    gab_vmpush(gab.vm, gab_sigil(gab, "BIND_FAILED"));
   else
-    gab_vmpush(gab.vm, gab_string(gab, "ok"));
+    gab_vmpush(gab.vm, gab_ok);
 }
   return nullptr;
 }
@@ -191,9 +191,9 @@ a_gab_value *gab_lib_listen(struct gab_triple gab, size_t argc,
   int result = listen(socket, gab_valton(port));
 
   if (result < 0)
-    gab_vmpush(gab.vm, gab_string(gab, "LISTEN_FAILED"));
+    gab_vmpush(gab.vm, gab_sigil(gab, "LISTEN_FAILED"));
   else
-    gab_vmpush(gab.vm, gab_string(gab, "ok"));
+    gab_vmpush(gab.vm, gab_ok);
 
   return nullptr;
 }
@@ -213,7 +213,7 @@ a_gab_value *gab_lib_accept(struct gab_triple gab, size_t argc,
   }
 
   gab_value res[2] = {
-      gab_string(gab, "ok"),
+      gab_ok,
       gab_box(gab,
               (struct gab_box_argt){
                   .type = gab_string(gab, SOCKET_BOX_TYPE),
@@ -257,9 +257,9 @@ a_gab_value *gab_lib_connect(struct gab_triple gab, size_t argc,
   result = connect(sockfd, (struct sockaddr *)&addr, sizeof(addr));
 
   if (result < 0)
-    gab_vmpush(gab.vm, gab_string(gab, "CONNECT_FAILED"));
+    gab_vmpush(gab.vm, gab_sigil(gab, "CONNECT_FAILED"));
   else
-    gab_vmpush(gab.vm, gab_string(gab, "ok"));
+    gab_vmpush(gab.vm, gab_ok);
 
   return nullptr;
 }
@@ -273,10 +273,10 @@ a_gab_value *gab_lib_receive(struct gab_triple gab, size_t argc,
   int32_t result = recv(socket, buffer, 1024, 0);
 
   if (result < 0) {
-    gab_vmpush(gab.vm, gab_string(gab, "RECEIVE_FAILED"));
+    gab_vmpush(gab.vm, gab_sigil(gab, "RECEIVE_FAILED"));
   } else {
     gab_value vals[] = {
-        gab_string(gab, "ok"),
+        gab_ok,
         gab_nstring(gab, result, (char *)buffer),
     };
     gab_nvmpush(gab.vm, 2, vals);
@@ -298,9 +298,9 @@ a_gab_value *gab_lib_send(struct gab_triple gab, size_t argc,
   int32_t result = send(socket, gab_strdata(&msg), gab_strlen(msg), 0);
 
   if (result < 0) {
-    gab_vmpush(gab.vm, gab_string(gab, "SEND_FAILED"));
+    gab_vmpush(gab.vm, gab_sigil(gab, "SEND_FAILED"));
   } else {
-    gab_vmpush(gab.vm, gab_string(gab, "ok"));
+    gab_vmpush(gab.vm, gab_ok);
   }
 
   return nullptr;

@@ -62,38 +62,37 @@ struct BUCKET_T {
 
 typedef struct TYPENAME TYPENAME;
 struct TYPENAME {
-  uint64_t len;
-  uint64_t cap;
+  size_t len, cap;
   BUCKET_T *buckets;
 };
 
-LINKAGE K METHOD(ikey)(TYPENAME *self, uint64_t index) {
+LINKAGE K METHOD(ikey)(TYPENAME *self, size_t index) {
   return self->buckets[index].key;
 }
 
-LINKAGE V METHOD(ival)(TYPENAME *self, uint64_t index) {
+LINKAGE V METHOD(ival)(TYPENAME *self, size_t index) {
   return self->buckets[index].val;
 }
 
-LINKAGE void METHOD(iset_key)(TYPENAME *self, uint64_t index, K key) {
+LINKAGE void METHOD(iset_key)(TYPENAME *self, size_t index, K key) {
   assert(index < self->cap);
   self->buckets[index].key = key;
 }
 
-LINKAGE void METHOD(iset_val)(TYPENAME *self, uint64_t index, V val) {
+LINKAGE void METHOD(iset_val)(TYPENAME *self, size_t index, V val) {
   assert(index < self->cap);
   self->buckets[index].val = val;
 }
 
-LINKAGE bool METHOD(iexists)(TYPENAME *self, uint64_t index) {
+LINKAGE bool METHOD(iexists)(TYPENAME *self, size_t index) {
   return self->buckets[index].status == D_FULL;
 }
 
-LINKAGE d_status METHOD(istatus)(TYPENAME *self, uint64_t index) {
+LINKAGE d_status METHOD(istatus)(TYPENAME *self, size_t index) {
   return self->buckets[index].status;
 }
 
-LINKAGE bool METHOD(iremove)(TYPENAME *self, uint64_t index) {
+LINKAGE bool METHOD(iremove)(TYPENAME *self, size_t index) {
   if (self->len == 0)
     return false;
 
@@ -105,7 +104,7 @@ LINKAGE bool METHOD(iremove)(TYPENAME *self, uint64_t index) {
   return true;
 }
 
-LINKAGE uint64_t METHOD(inext)(TYPENAME *self, uint64_t index) {
+LINKAGE size_t METHOD(inext)(TYPENAME *self, size_t index) {
   if (index >= self->cap)
     return -1;
 
@@ -118,7 +117,7 @@ LINKAGE uint64_t METHOD(inext)(TYPENAME *self, uint64_t index) {
   return index;
 }
 
-LINKAGE void METHOD(create)(TYPENAME *self, uint64_t cap) {
+LINKAGE void METHOD(create)(TYPENAME *self, size_t cap) {
   assert(cap % 2 == 0);
 
   self->buckets = malloc(sizeof(BUCKET_T) * cap);
@@ -130,8 +129,8 @@ LINKAGE void METHOD(create)(TYPENAME *self, uint64_t cap) {
 
 LINKAGE void METHOD(destroy)(TYPENAME *self) { free(self->buckets); }
 
-LINKAGE uint64_t METHOD(index_of)(TYPENAME *self, K key) {
-  uint64_t index = HASH(key) & (self->cap - 1);
+LINKAGE size_t METHOD(index_of)(TYPENAME *self, K key) {
+  size_t index = HASH(key) & (self->cap - 1);
   int64_t tombstone = -1;
 
   for (;;) {
@@ -154,18 +153,18 @@ LINKAGE uint64_t METHOD(index_of)(TYPENAME *self, K key) {
   }
 }
 
-LINKAGE void METHOD(cap)(TYPENAME *self, uint64_t cap) {
+LINKAGE void METHOD(cap)(TYPENAME *self, size_t cap) {
   TYPENAME other;
   METHOD(create)(&other, cap);
 
   self->len = 0;
-  for (uint64_t i = 0; i < self->cap; i++) {
+  for (size_t i = 0; i < self->cap; i++) {
     BUCKET_T *bucket = self->buckets + i;
 
     if (!(bucket->status == D_FULL))
       continue;
 
-    uint64_t index = METHOD(index_of)(&other, bucket->key);
+    size_t index = METHOD(index_of)(&other, bucket->key);
     BUCKET_T *other_bucket = other.buckets + index;
 
     other_bucket->key = bucket->key;
@@ -184,7 +183,7 @@ LINKAGE bool METHOD(insert)(TYPENAME *self, K key, V val) {
   if (self->len >= (self->cap * LOAD))
     METHOD(cap)(self, MAX(self->cap * 2, 8));
 
-  uint64_t index = METHOD(index_of)(self, key);
+  size_t index = METHOD(index_of)(self, key);
 
   BUCKET_T *bucket = self->buckets + index;
 
@@ -204,7 +203,7 @@ LINKAGE bool METHOD(remove)(TYPENAME *self, K key) {
   if (self->len == 0)
     return false;
 
-  uint64_t index = METHOD(index_of)(self, key);
+  size_t index = METHOD(index_of)(self, key);
 
   BUCKET_T *bucket = self->buckets + index;
 
@@ -219,7 +218,7 @@ LINKAGE bool METHOD(exists)(TYPENAME *self, K key) {
   if (self->len == 0)
     return false;
 
-  uint64_t index = METHOD(index_of)(self, key);
+  size_t index = METHOD(index_of)(self, key);
 
   BUCKET_T *bucket = self->buckets + index;
 
@@ -230,7 +229,7 @@ LINKAGE V METHOD(read)(TYPENAME *self, K key) {
   if (self->len == 0)
     return DEF_V;
   
-  uint64_t index = METHOD(index_of)(self, key);
+  size_t index = METHOD(index_of)(self, key);
 
   BUCKET_T *bucket = self->buckets + index;
 

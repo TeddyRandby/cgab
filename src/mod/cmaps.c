@@ -55,11 +55,11 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
   gab_value res = map_at(argv[0], argv[1]);
 
   if (res == gab_undefined) {
-    gab_vmpush(gab.vm, gab_sigil(gab, "none"));
+    gab_vmpush(gab.vm, gab_none);
     return nullptr;
   }
 
-  gab_vmpush(gab.vm, gab_sigil(gab, "ok"));
+  gab_vmpush(gab.vm, gab_ok);
   gab_vmpush(gab.vm, res);
   return nullptr;
 }
@@ -83,13 +83,13 @@ a_gab_value *gab_lib_add(struct gab_triple gab, size_t argc,
   }
 
   if (map_has(argv[0], argv[1])) {
-    gab_vmpush(gab.vm, gab_string(gab, "KEY_ALREADY_EXISTS"));
+    gab_vmpush(gab.vm, gab_sigil(gab, "KEY_ALREADY_EXISTS"));
     return nullptr;
   }
 
   map_put(gab, argv[0], argv[1], argv[2]);
 
-  gab_vmpush(gab.vm, gab_sigil(gab, "ok"));
+  gab_vmpush(gab.vm, gab_ok);
   return nullptr;
 }
 

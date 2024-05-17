@@ -189,6 +189,14 @@ static struct command commands[] = {
         "repl",
         "Enter the read-eval-print loop.",
         .handler = repl,
+        {
+            {
+                "dump",
+                "Dump compiled bytecode to stdout",
+                'd',
+                .flag = fGAB_BUILD_DUMP,
+            },
+        },
     },
 };
 

@@ -71,11 +71,11 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
   gab_value result = gab_recat(argv[0], argv[1]);
 
   if (result == gab_undefined) {
-    gab_vmpush(gab.vm, gab_sigil(gab, "none"));
+    gab_vmpush(gab.vm, gab_none);
     return nullptr;
   }
 
-  gab_vmpush(gab.vm, gab_sigil(gab, "ok"));
+  gab_vmpush(gab.vm, gab_ok);
   gab_vmpush(gab.vm, result);
   return nullptr;
 }

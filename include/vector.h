@@ -1,6 +1,5 @@
 #include "assert.h"
 #include "string.h"
-#include "types.h"
 
 #ifndef T
 #error "Define a type T before including this header"
@@ -26,8 +25,8 @@
 typedef struct TYPENAME TYPENAME;
 struct TYPENAME {
   T *data;
-  uint64_t len;
-  uint64_t cap;
+  size_t len;
+  size_t cap;
 };
 
 LINKAGE void METHOD(create)(TYPENAME *self, uint64_t cap) {
@@ -45,13 +44,13 @@ LINKAGE void METHOD(copy)(TYPENAME *self, TYPENAME *other) {
 
 LINKAGE void METHOD(destroy)(TYPENAME *self) { free(self->data); }
 
-LINKAGE uint64_t METHOD(set)(TYPENAME *self, uint64_t index, T value) {
+LINKAGE size_t METHOD(set)(TYPENAME *self, size_t index, T value) {
   assert(index < self->len);
   self->data[index] = value;
   return index;
 }
 
-LINKAGE uint32_t METHOD(push)(TYPENAME *self, T value) {
+LINKAGE size_t METHOD(push)(TYPENAME *self, T value) {
   if (self->len >= self->cap) {
     self->cap = MAX(8, self->cap * 2);
     self->data = GROW(T, self->data, self->cap);
@@ -65,12 +64,12 @@ LINKAGE T METHOD(pop)(TYPENAME *self) {
   return self->data[--self->len];
 }
 
-LINKAGE T *METHOD(ref_at)(TYPENAME *self, uint64_t index) {
+LINKAGE T *METHOD(ref_at)(TYPENAME *self, size_t index) {
   assert(index < self->len);
   return self->data + index;
 }
 
-LINKAGE T METHOD(val_at)(TYPENAME *self, uint64_t index) {
+LINKAGE T METHOD(val_at)(TYPENAME *self, size_t index) {
   assert(index < self->len);
   return self->data[index];
 }
@@ -90,7 +89,7 @@ LINKAGE T *METHOD(emplace)(TYPENAME *self) {
   return self->data + (self->len++);
 }
 
-LINKAGE T METHOD(del)(TYPENAME *self, uint64_t index) {
+LINKAGE T METHOD(del)(TYPENAME *self, size_t index) {
   assert(index < self->len);
   if (index + 1 == self->len) {
     return METHOD(pop)(self);

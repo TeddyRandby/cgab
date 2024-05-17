@@ -39,7 +39,7 @@ registry.spec = .gab.map()
 registry.help = .gab.map()
 
 ## Registry of receiver -> list of spec'd messages
-registry.messages = .gab.map()
+registry.message = .gab.map()
 
 register = do registry, name, value
   # Add a new specification to the registry.
@@ -529,7 +529,7 @@ end)
   args = self
   pred = 'predicate:message:{args}' :sigil.into
 
-  m = registry.messages:at!(args:receiver, .gab.map())
+  m = registry.message:at!(args:receiver, .gab.map())
   m:add!(args:message, pred)
 
   \spec.fits? :def! ([pred], do rec, input, output
@@ -611,7 +611,7 @@ end)
   end)
 
   \spec.explain :def! ([pred], do
-    '{args:receiver:spec.explain}{args:message} {args:input:spec.explain} -> {args:output:spec.explain}'
+    '{args:receiver:spec.name:unwrap!}{args:message} {args:input:spec.explain} -> {args:output:spec.explain}'
   end)
 
   pred
@@ -654,19 +654,34 @@ end)
 \spec.explain :def! ([], do; '{self}' end)
 
 \spec.doc :def! ([], do
-  name, help = self, registry.help:at!(self)
+  name, help = self:spec.name:unwrap!, registry.help:at!(self)
 
-  '## {name}\n{help}\n\n\t{self:spec.explain}\n'
+  '## {name}\n{help}\n\n\t{self:spec.explain}\n\n'
 end)
 
 \spec.messages :def! ([], do
-  ok, m = registry.messages:at(self)
+  spec, ok, m = self, registry.message:at(self)
 
   ok:then do
+    '# {spec:spec.explain}':print
+
     m:each do _, v
       v:spec.doc:print
     end
   end
+end)
+
+\spec.name :def! ([], do
+  spec = self
+
+  td = .td:compose(
+    .td:filter do _, v
+      v == spec
+    end,
+    .td:take 1,
+  )
+
+  registry.spec:transduce(.nil, \first, td):options.into
 end)
 
 ## FITS
@@ -694,6 +709,20 @@ end)
   self:transduce(self, \self, tapper)
 end)
 
+\spec.option.into :defcase! {
+  .nil = do err
+    spec.t:any(.ok, err:or .err)    
+  end,
+}
+
+\spec.option.into :def! ([], do err
+  value = self
+  spec.t:any(
+    spec.t:values(.ok, value),
+    err:or .err,
+  )
+end)
+
 [spec.t] :defmodule! {
   \nil      = nil.predicate,
   \unknown  = unknown.predicate,
@@ -710,17 +739,20 @@ end)
   \protocol = protocol.predicate,
   \all      = and.predicate,
   \any      = or.predicate,
+  \nilable  = do spec
+    spec.t:any(
+      spec,
+      nil.predicate,
+    )
+  end,
   \option   = do value
-    .spec:any(
-      .spec:values(.ok, value),
+    spec.t:any(
+      spec.t:values(.ok, value),
       .none,
     )
   end, 
   \result   = do value, err
-    .spec:any(
-      .spec:values(.ok, value),
-      err,
-    )
+    value:spec.option.into err
   end,
   \gt = do min
     gt.predicate = 'predicate:gt:{min}' :sigil.into

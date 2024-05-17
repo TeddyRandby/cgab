@@ -373,7 +373,6 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
     if (result == nullptr)
       continue;
 
-    gab_niref(gab, 1, result->len, result->data);
     gab_negkeep(gab.eg, result->len, result->data);
 
     printf("%s", args.result_prefix);
@@ -583,13 +582,19 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
 
   case kGAB_BOX: {
     struct gab_obj_box *self = GAB_VAL_TO_BOX(value);
+
     gab_value copy = gab_box(gab, (struct gab_box_argt){
                                       .type = gab_valcpy(gab, self->type),
                                       .data = self->data,
                                       .size = self->len,
                                       .visitor = self->do_visit,
                                       .destructor = self->do_destroy,
+                                      .copier = self->do_copy,
                                   });
+
+    if (self->do_copy)
+      self->do_copy(gab_boxlen(copy), gab_boxdata(copy));
+
     return copy;
   }
 
@@ -977,7 +982,7 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
                                       .len = 0,
                                   });
 
-  if (res->data[0] != gab_string(gab, "ok"))
+  if (res->data[0] != gab_ok)
     return gab_panic(gab, "Failed to load module");
 
   gab_negkeep(gab.eg, res->len - 1, res->data + 1);
@@ -1081,7 +1086,7 @@ a_gab_value *gab_use(struct gab_triple gab, gab_value path) {
       a_gab_value *cached = gab_segmodat(gab.eg, (char *)path->data);
 
       if (cached != nullptr) {
-        /* SKip the first argument, which is the module's data */
+        /* Skip the first argument, which is the module's data */
         a_char_destroy(path);
         return cached;
       }
@@ -1089,7 +1094,7 @@ a_gab_value *gab_use(struct gab_triple gab, gab_value path) {
       a_gab_value *result = res->handler(gab, (char *)path->data);
 
       if (result != nullptr) {
-        /* SKip the first argument, which is the module's data */
+        /* Skip the first argument, which is the module's data */
         a_char_destroy(path);
         return result;
       }

@@ -1,4 +1,5 @@
 #include "channel.h"
+#include "gab.h"
 
 a_gab_value *gab_lib_channel(struct gab_triple gab, size_t argc,
                              gab_value argv[argc]) {
@@ -11,6 +12,12 @@ a_gab_value *gab_lib_channel(struct gab_triple gab, size_t argc,
 a_gab_value *gab_lib_send(struct gab_triple gab, size_t argc,
                           gab_value argv[argc]) {
   channel_send(gab, argv[0], argc - 1, argv + 1);
+  return nullptr;
+}
+
+a_gab_value *gab_lib_empty(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+  bool res = channel_isempty(gab_arg(0));
+  gab_vmpush(gab.vm, gab_bool(res));
   return nullptr;
 }
 
@@ -36,19 +43,19 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "gab.channel", gab_lib_channel),
       },
       {
-          mGAB_LSH,
+          "empty?",
           channel_t,
-          gab_snative(gab, mGAB_CALL, gab_lib_send),
+          gab_snative(gab, "empty?", gab_lib_empty),
       },
       {
-          "send",
+          "<-",
           channel_t,
-          gab_snative(gab, mGAB_CALL, gab_lib_send),
+          gab_snative(gab, "send", gab_lib_send),
       },
       {
-          "await",
+          "->",
           channel_t,
-          gab_snative(gab, "await", gab_lib_recv),
+          gab_snative(gab, "receive", gab_lib_recv),
       },
   };
 

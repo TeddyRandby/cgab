@@ -22,13 +22,13 @@ a_gab_value *gab_lib_open(struct gab_triple gab, size_t argc,
   FILE *file = fopen(cpath, cperm);
 
   if (file == nullptr) {
-    gab_value r = gab_string(gab, "FILE_COULD_NOT_OPEN");
+    gab_value r = gab_sigil(gab, "FILE_COULD_NOT_OPEN");
     gab_vmpush(gab.vm, r);
     return nullptr;
   }
 
   gab_value result[2] = {
-      gab_string(gab, "ok"),
+      gab_ok,
       gab_box(gab,
               (struct gab_box_argt){
                   .type = gab_string(gab, "File"),
@@ -82,11 +82,11 @@ a_gab_value *gab_lib_write(struct gab_triple gab, size_t argc,
   int32_t result = fputs(data, file);
 
   if (result > 0) {
-    gab_vmpush(gab.vm, gab_string(gab, "ok"));
+    gab_vmpush(gab.vm, gab_ok);
     return nullptr;
   }
 
-  gab_vmpush(gab.vm, gab_string(gab, "FILE_COULD_NOT_WRITE"));
+  gab_vmpush(gab.vm, gab_sigil(gab, "FILE_COULD_NOT_WRITE"));
   return nullptr;
 }
 

@@ -111,15 +111,13 @@
 
 */
 
-#define T uint64_t
-#define NAME gab_value
+typedef uint64_t gab_value;
+
+#define T gab_value
 #include "array.h"
 
-#define T uint64_t
-#define NAME gab_value
+#define T gab_value
 #include "vector.h"
-
-typedef uint64_t gab_value;
 
 enum gab_kind {
   kGAB_STRING = 0, // MUST_STAY_ZERO
@@ -360,6 +358,8 @@ typedef a_gab_value *(*gab_native_f)(struct gab_triple, size_t argc,
                                      gab_value argv[argc]);
 
 typedef void (*gab_boxdestroy_f)(size_t len, char data[static len]);
+
+typedef void (*gab_boxcopy_f)(size_t len, char data[static len]);
 
 typedef void (*gab_boxvisit_f)(struct gab_triple gab, gab_gcvisit_f visitor,
                                size_t len, char data[static len]);
@@ -1815,6 +1815,11 @@ struct gab_obj_box {
   struct gab_obj header;
 
   /**
+   * A callback called when the object is copied by `gab_valcpy`
+   */
+  gab_boxcopy_f do_copy;
+
+  /**
    * A callback called when the object is collected by the gc.
    *
    * This function should release all non-gab resources owned by the box.
@@ -1938,6 +1943,10 @@ struct gab_box_argt {
    * The type of the box.
    */
   gab_value type;
+  /**
+   * A callback called when the object is copied by `gab_valcpy`.
+   */
+  gab_boxcopy_f copier;
   /**
    * A callback called when the object is collected by the gc.
    */

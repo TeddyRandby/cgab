@@ -547,6 +547,7 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
 
   self->do_destroy = args.destructor;
   self->do_visit = args.visitor;
+  self->do_copy = args.copier;
   self->type = args.type;
   self->len = args.size;
 

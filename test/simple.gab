@@ -6,12 +6,20 @@ chan = .gab.channel()
 
 "Channel: $\n":printf chan
 
-fiber = .gab.fiber do
-  'format' :use
-  1 + 1
-  'hi':print
-end
+.gab.fiber do
+  'channels':use
 
-"Fiber: $\n":printf fiber
+  chan <- 'from: {self}'
+end:await
 
-fiber:await:print
+.gab.fiber do
+  'channels':use
+
+  chan <- 'from: {self}'
+end:await
+
+(\empty?, chan)() :print
+
+f = [\empty?, chan]
+(f**)():print
+ 

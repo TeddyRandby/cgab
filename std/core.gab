@@ -5,11 +5,32 @@
 'cstrings':use
 'format':use
 
+truthy_values = []
+falsey_values = [.nil, .false, .none, .err]
+
 \self :def! ([], do; self end)
 \first :def! ([], do x; x end)
 \second :def! ([], do _, x; x end)
 
-\is? :def! ([], do other; (self:?) == (other) end)
+\is? :def! ([], do other; self:? == other end)
+
+\until :def! (['gab.block'], do f[]
+  (f**)():until.branch (self, f)
+end)
+
+\until.recurse :def! (['gab.block'], do f
+  (f**)():until.branch (self, f)
+end)
+
+\until.branch :def! (truthy_values, do blk, f
+  blk
+end)
+
+\until.branch :def! (falsey_values, do blk, f
+  blk()
+
+  blk:until.recurse(f)
+end)
 
 \switch.value :def! (['gab.block'], do; self() end)
 \switch.value :def! ([], do; self end)
@@ -17,12 +38,12 @@
   table self :switch.value
 end)
 
-[] :defmodule! {
+truthy_values :defmodule! {
   \and = do alt[]
     alt**
   end,
-  \then = do alt[], f
-    f (alt**)
+  \then = do f[]
+    (f**)()
   end,
   \or = do 
     self
@@ -35,7 +56,7 @@ end)
   end,
 }
 
-[.nil, .false, .none, .err] :defmodule! {
+falsey_values :defmodule! {
   \and = do
     self
   end,
@@ -45,8 +66,8 @@ end)
   \or = do alt[]
     alt**
   end,
-  \else = do alt[], f
-    f (alt**)
+  \else = do f[]
+    (f**)()
   end,
   \assert! = do msg
     'Assert failed: {msg}':panic

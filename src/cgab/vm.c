@@ -678,7 +678,7 @@ a_gab_value *ok(OP_HANDLER_ARGS) {
   gab_value *from = VM()->sp - have;
 
   a_gab_value *results = a_gab_value_empty(have + 1);
-  results->data[0] = gab_string(GAB(), "ok");
+  results->data[0] = gab_ok;
   memcpy(results->data + 1, from, have * sizeof(gab_value));
 
   gab_niref(GAB(), 1, results->len, results->data);
@@ -780,7 +780,7 @@ CASE_CODE(MATCHTAILSEND_BLOCK) {
   gab_value *from = SP() - have;
   gab_value *to = FB();
 
-  memcpy(to, from, have * sizeof(gab_value));
+  memmove(to, from, have * sizeof(gab_value));
 
   IP() = (void *)ks[GAB_SEND_KOFFSET + idx];
   SP() = to + have;
@@ -1169,6 +1169,9 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
   SP() += rec->len;
 
   SET_VAR(rec->len);
+
+  STORE();
+  gab_fvminspect(stdout, VM(), 0);
 
   NEXT();
 }
@@ -1850,9 +1853,14 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_NATIVE) {
   gab_value m = PEEK_N(have);
   gab_value r = PEEK_N(have - 1);
 
+  printf("HAVE: %lu, M: %V, R: %V\n", have, m, r);
+
   SEND_GUARD_KIND(m, kGAB_MESSAGE);
   SEND_GUARD_CACHED_MESSAGE_CALL_SPECS(m);
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
+
+  STORE();
+  gab_fvminspect(stdout, VM(), 0);
 
   memmove(SP() - have, SP() - (have - 1), (have - 1) * sizeof(gab_value));
   have--;
@@ -1917,6 +1925,8 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   gab_value m = PEEK_N(have);
   gab_value r = PEEK_N(have - 1);
   gab_value t = gab_valtype(EG(), r);
+
+  printf("HAVE: %lu, M: %V, R: %V\n", have, m, r);
 
   SEND_GUARD_KIND(m, kGAB_MESSAGE);
 
