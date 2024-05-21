@@ -1853,8 +1853,6 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_NATIVE) {
   gab_value m = PEEK_N(have);
   gab_value r = PEEK_N(have - 1);
 
-  printf("HAVE: %lu, M: %V, R: %V\n", have, m, r);
-
   SEND_GUARD_KIND(m, kGAB_MESSAGE);
   SEND_GUARD_CACHED_MESSAGE_CALL_SPECS(m);
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
@@ -1925,8 +1923,6 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   gab_value m = PEEK_N(have);
   gab_value r = PEEK_N(have - 1);
   gab_value t = gab_valtype(EG(), r);
-
-  printf("HAVE: %lu, M: %V, R: %V\n", have, m, r);
 
   SEND_GUARD_KIND(m, kGAB_MESSAGE);
 
