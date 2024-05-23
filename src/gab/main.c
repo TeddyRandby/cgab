@@ -68,6 +68,8 @@ void run_string(const char *string, int flags) {
       .os_dynsymbol = dynsymbol,
   });
 
+  gab_suse(gab, "core");
+
   // This is a weird case where we actually want to include the null terminator
   s_char src = s_char_create(string, strlen(string) + 1);
 

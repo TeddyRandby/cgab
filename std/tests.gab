@@ -5,7 +5,7 @@ TestState = { fails, errs }
 
 testing.t = TestState ?
 
-\reset :def! ([testing.t], do
+\reset :def! ([testing.t], do:
   self:fails = 0
   self:errs = .gab.list ()
 
@@ -23,48 +23,48 @@ T = .gab.record testing.t :reset
 
 # When the result is false, The test failed.
 # Count it and add it to the list of fails.
-  .false = do actual, expected
+  .false = do actual, expected:
     T:fails = T:fails + 1
     T:errs:push! [actual, expected]
   end,
 
 }
 
-\passed? :def! ([testing.t], do
+\passed? :def! ([testing.t], do:
   self:fails == 0
 end)
 
-\show_errs :def! ([testing.t], do
-  self:errs:each do mismatch
+\show_errs :def! ([testing.t], do:
+  self:errs:each do mismatch:
       '     - got {mismatch:at!(0)}, expecting {mismatch:at!(1)}':print
   end
 end)
 
-\should :def! ([], do msg, comp, other
-   msg (self, comp, other) :tests.push_result(self, other)
+\should :def! ([], do msg, comp, other:
+   (self, msg, comp, other)() :tests.push_result(self, other)
 end)
 
-\be :def! ([], do comp, other
-  comp (self, other)
+\be :def! ([], do comp, other:
+  (self, comp, other)()
 end)
 
-\not.be :def! ([], do comp, other
-  comp (self, other) !
+\not.be :def! ([], do comp, other:
+  (self, comp, other)()!
 end)
 
-\tests.covers :def! (['gab.string'], do cb
+\tests.covers :def! (['gab.string'], do cb:
   '\n{self}:':print
   cb()
 end)
 
-\tests.should :def! (['gab.string'], do cb
+\tests.should :def! (['gab.string'], do cb:
   T:reset
 
   cb()
 
   '  { T:passed? :and '✓' :or '×' } it { self }':print
 
-  T:passed?:else do
+  T:passed?:else do:
     T:show_errs
   end
 

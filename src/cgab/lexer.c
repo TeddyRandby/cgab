@@ -293,7 +293,7 @@ gab_token other(gab_lx *self) {
       }
     }
 
-    return lexer_error(self, GAB_MALFORMED_TOKEN);
+    return TOKEN_COLON;
 
   case '.': {
     advance(self);
@@ -392,8 +392,7 @@ gab_token gab_lexnext(gab_lx *self) {
 fin:
   v_gab_token_push(&self->source->tokens, tok);
   v_s_char_push(&self->source->token_srcs, self->current_token_src);
-  v_uint64_t_push(&self->source->token_lines,
-                  self->row - (tok == TOKEN_NEWLINE));
+  v_uint64_t_push(&self->source->token_lines, self->row);
 
   return tok;
 }

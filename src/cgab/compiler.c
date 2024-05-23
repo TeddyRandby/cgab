@@ -1328,7 +1328,7 @@ static int compile_parameters_internal(struct bc *bc, int *below,
   *narguments = 0;
   int result = COMP_OK;
 
-  if (match_and_eat_token(bc, TOKEN_NEWLINE))
+  if (match_and_eat_token(bc, TOKEN_COLON))
     goto fin;
 
   do {
@@ -1341,7 +1341,7 @@ static int compile_parameters_internal(struct bc *bc, int *below,
 
     if (expect_token_hint(bc, TOKEN_IDENTIFIER,
                           "Expected a parameter name. Maybe you forgot a $?",
-                          tok_id(bc, TOKEN_NEWLINE)) < 0)
+                          tok_id(bc, TOKEN_COLON)) < 0)
       return COMP_ERR;
 
     gab_value name = prev_id(bc);
@@ -1385,9 +1385,9 @@ static int compile_parameters_internal(struct bc *bc, int *below,
 
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)) > 0);
 
-  if (expect_token_hint(bc, TOKEN_NEWLINE,
+  if (expect_token_hint(bc, TOKEN_COLON,
                         "Blocks require a $ after the parameter list.",
-                        tok_id(bc, TOKEN_NEWLINE)) < 0)
+                        tok_id(bc, TOKEN_COLON)) < 0)
     return COMP_ERR;
 
 fin:
@@ -2273,8 +2273,8 @@ const struct compile_rule rules[] = {
     PREFIX(blk),             // DO
     NONE(),                  // END
     NONE(),                  // COMMA
-    PREFIX(msg),             // MESSAGE
     NONE(),                  // EQUAL
+    NONE(),                  // COLON
     PREFIX(arr),             // LBRACE
     NONE(),                  // RBRACE
     PREFIX(rec),             // LBRACK
@@ -2290,6 +2290,7 @@ const struct compile_rule rules[] = {
     NONE(),                  // INTERPOLATION MIDDLE
     NONE(),                  // INTERPOLATION END
     PREFIX(num),             // NUMBER
+    PREFIX(msg),             // MESSAGE
     NONE(),                  // NEWLINE
     NONE(),                  // EOF
     NONE(),                  // ERROR
@@ -2569,7 +2570,17 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_SEND_PRIMITIVE_GTE:
   case OP_SEND_PRIMITIVE_CALL_BLOCK:
   case OP_SEND_PRIMITIVE_CALL_NATIVE:
-  case OP_SEND_PRIMITIVE_CALL_MESSAGE:
+  case OP_SEND_PRIMITIVE_CALL_GENERIC:
+  case OP_SEND_PRIMITIVE_CALL_GENERIC_PRIMITIVE:
+  case OP_SEND_PRIMITIVE_CALL_GENERIC_NATIVE:
+  case OP_SEND_PRIMITIVE_CALL_GENERIC_CONSTANT:
+  case OP_SEND_PRIMITIVE_CALL_GENERIC_BLOCK:
+  case OP_TAILSEND_PRIMITIVE_CALL_GENERIC_BLOCK:
+  case OP_SEND_PRIMITIVE_CALL_GENERIC_PROPERTY_PRIMITIVE:
+  case OP_SEND_PRIMITIVE_CALL_GENERIC_PROPERTY_NATIVE:
+  case OP_SEND_PRIMITIVE_CALL_GENERIC_PROPERTY_CONSTANT:
+  case OP_SEND_PRIMITIVE_CALL_GENERIC_PROPERTY_BLOCK:
+  case OP_TAILSEND_PRIMITIVE_CALL_GENERIC_PROPERTY_BLOCK:
   case OP_TAILSEND_BLOCK:
   case OP_TAILSEND_PRIMITIVE_CALL_BLOCK:
   case OP_LOCALSEND_BLOCK:

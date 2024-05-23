@@ -4,19 +4,19 @@ numbers.t = 'cnumbers' :use
 range.t = { from, to }?
 
 \range :defcase! {
-  gab.number = do from
+  gab.number = do from:
     { from, to = self }
   end,
-  .nil = do to
+  .nil = do to:
     { from = 0, to }
   end,
 }
 
-range.t :def.seq! do
+range.t :def.seq! do:
   i = self
   {
     v = i:from,
-    seq.next = do
+    seq.next = do:
       nx = self:v + 1
       self:v = nx
       .option (nx < i:to, nx)
@@ -25,11 +25,11 @@ range.t :def.seq! do
 end
 
 
-\ :def! ([.range], do min, max?
+\ :def! ([.range], do min, max?:
   max? :range min
 end)
 
-\ :def! ([.int.between], do min, max
+\ :def! ([.int.between], do min, max:
   .float.between (min,max) :floor
 end)
 
@@ -37,31 +37,31 @@ end)
 
 \is_n? :def! ([numbers.t], .true)
 
-\++ :def! ([numbers.t], do
+\++ :def! ([numbers.t], do:
   self + 1
 end)
 
-\-- :def! ([numbers.t], do
+\-- :def! ([numbers.t], do:
   self - 1
 end)
 
-\even? :def! ([numbers.t], do
+\even? :def! ([numbers.t], do:
   (self % 2) == 0
 end)
 
-\odd? :def! ([numbers.t], do
+\odd? :def! ([numbers.t], do:
   (self % 2) == 1
 end)
 
-\pos? :def! ([numbers.t], do
+\pos? :def! ([numbers.t], do:
   self > 0
 end)
 
-\neg? :def! ([numbers.t], do
+\neg? :def! ([numbers.t], do:
   self < 0
 end)
 
-\numbers.into :def!([numbers.t], do
+\numbers.into :def!([numbers.t], do:
   self
 end)
 

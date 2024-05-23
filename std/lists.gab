@@ -2,16 +2,16 @@
 lists.t = 'clists' :use
 
 [lists.t] :defmodule! {
-  \empty? = do
+  \empty? = do:
     self:len == 0
   end,
 }
 
-lists.t :def.seq! do
+lists.t :def.seq! do:
   i = self
   {
     v = -1,
-    seq.next = do
+    seq.next = do:
       nx = self:v + 1
       self:v = nx
       i:at nx

@@ -167,23 +167,18 @@ struct primitive kind_primitives[] = {
     },
     {
         .name = mGAB_CALL,
-        .kind = kGAB_RECORD,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_RECORD),
-    },
-    {
-        .name = mGAB_CALL,
         .kind = kGAB_NATIVE,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_NATIVE),
     },
     {
         .name = mGAB_CALL,
-        .kind = kGAB_MESSAGE,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_MESSAGE),
+        .kind = kGAB_BLOCK,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BLOCK),
     },
     {
         .name = mGAB_CALL,
-        .kind = kGAB_BLOCK,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BLOCK),
+        .kind = kGAB_UNDEFINED,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_GENERIC),
     },
 };
 

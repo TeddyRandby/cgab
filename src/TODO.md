@@ -23,3 +23,27 @@ gab exec [build_opts run_opts] <program>
     - silent
 
 gab repl [build_opts run_opts repl_opts]
+
+We want blocks and messages to have the same dispatch
+syntax so that they can be used interchangeably. I don't like using the traditional
+function-call syntax because this *is not* the focus of the language.
+```gab
+    sum = do a, b; a + b end
+
+    sum(1,2)
+    \+(1, 2)
+```
+
+```gab
+    sum = do a, b; a + b end
+
+    1 (sum, 2) :do
+```
+
+```gab
+    sum = [a, b: a:b]
+
+    .td:filter \pos?
+    .td:filter [a: a:pos?]
+    .td:filter sum
+```

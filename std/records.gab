@@ -3,16 +3,16 @@
 records.t = 'crecords' :use
 
 [records.t] :defmodule! {
-  \has? = do key
+  \has? = do key:
     self:at(key) == .ok
   end,
 }
 
-records.t :def.seq! do
+records.t :def.seq! do:
   i = self
   {
     v = -1,
-    seq.next = do
+    seq.next = do:
       nx = self:v + 1
       self:v = nx
       i :at_index nx
