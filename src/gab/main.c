@@ -34,8 +34,6 @@ void run_repl(int flags) {
       .os_dynsymbol = dynsymbol,
   });
 
-  gab_suse(gab, "core");
-
   gab_repl(gab, (struct gab_repl_argt){
                     .name = "repl",
                     .prompt_prefix =
@@ -67,8 +65,6 @@ void run_string(const char *string, int flags) {
       .os_dynopen = dynopen,
       .os_dynsymbol = dynsymbol,
   });
-
-  gab_suse(gab, "core");
 
   // This is a weird case where we actually want to include the null terminator
   s_char src = s_char_create(string, strlen(string) + 1);

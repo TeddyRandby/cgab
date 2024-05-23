@@ -41,7 +41,7 @@ car.paint.spec = s:def! {
     # Fetch the spec 'car.color' for the output
     output   =  car.color.spec,
     # Validate the implementation
-    semantics = do receiver, input, output
+    semantics = do receiver, input, output:
       (input:at!(0) == receiver:car.color) & (input:at!(0) == output:at!(0))
     end,
   }

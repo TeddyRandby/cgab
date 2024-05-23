@@ -29,6 +29,10 @@ struct primitive all_primitives[] = {
         .name = mGAB_TYPE,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_TYPE),
     },
+    {
+        .name = mGAB_SEND,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_SEND_GENERIC),
+    },
 };
 
 struct primitive type_primitives[] = {
@@ -177,8 +181,8 @@ struct primitive kind_primitives[] = {
     },
     {
         .name = mGAB_CALL,
-        .kind = kGAB_UNDEFINED,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_GENERIC),
+        .kind = kGAB_RECORD,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_RECORD),
     },
 };
 
@@ -268,6 +272,10 @@ struct gab_triple gab_create(struct gab_create_argt args) {
                                               all_primitives[i].primitive,
                                       })));
     }
+  }
+
+  if (!(gab.flags & fGAB_NO_CORE)) {
+    gab_suse(gab, "core");
   }
 
   return gab;

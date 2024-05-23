@@ -618,7 +618,20 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, int depth);
  */
 gab_value gab_vmframe(struct gab_triple gab, uint64_t depth);
 
+/*
+ * @brief Attempt to load the module named 'name', with the default semantics of \use
+ *
+ * @param gab The triple
+ * @param name The name of the module
+ * @return The values returned by the module, or nullptr if the module was not found.
+ */
 a_gab_value *gab_suse(struct gab_triple gab, const char *name);
+
+/*
+ * @param gab The triple
+ * @param name The name of the module, as a gab_value
+ * @return The values returned by the module, or nullptr if the module was not found.
+ */
 a_gab_value *gab_use(struct gab_triple gab, gab_value name);
 
 /**

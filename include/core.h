@@ -161,6 +161,7 @@ enum gab_flags {
   fGAB_ERR_QUIET = 1 << 2,
   fGAB_ERR_EXIT = 1 << 3,
   fGAB_ERR_STRUCTURED = 1 << 4,
+  fGAB_NO_CORE = 1 << 5,
 };
 
 // VERSION
@@ -184,12 +185,13 @@ enum gab_flags {
 #define mGAB_RSH ">>"
 #define mGAB_LTE "<="
 #define mGAB_GTE ">="
-#define mGAB_CALL ""
 #define mGAB_SPLAT "**"
 #define mGAB_TYPE "?"
 #define mGAB_BIN "~"
 #define mGAB_LIN "!"
+#define mGAB_CALL ""
 #define mGAB_USE "use"
+#define mGAB_SEND "send"
 
 #define T char
 #include "slice.h"
