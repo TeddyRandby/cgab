@@ -165,7 +165,7 @@ end)
 # Implement the reducer protocol for blocks and messages
 ['gab.block'] :defmodule! {
   \reduce.step = do acc, xs[]:
-    self (acc, xs**)
+    self(acc, xs**)
   end,
   \reduce.done = do acc:
     acc
@@ -174,7 +174,7 @@ end)
 
 ['gab.message'] :defmodule! {
   \reduce.step = do acc, xs[]:
-    acc (self, xs**)
+    acc:send(self, xs**)
   end,
   \reduce.done = do acc:
     acc
@@ -186,7 +186,7 @@ end)
     td = self
     m:def!([.td], do x, xs[]:
       (x, td, xs**):print
-      x(td, xs**)
+      x:send(td, xs**)
     end)
   end,
   gab.block = do m:
@@ -226,7 +226,7 @@ end)
     f = self
     do rf:
       do acc, x, xs[]:
-        rf:reduce.step(acc, x(f, xs**))
+        rf:reduce.step(acc, x:send(f, xs**))
       end
     end
   end,
@@ -247,7 +247,7 @@ end)
     f = self
     do rf:
       do acc, x, xs[]:
-        x(f, xs**):td.conditionally(acc, xs, rf)
+        x:send(f, xs**):td.conditionally(acc, xs, rf)
       end
     end
   end,
@@ -268,7 +268,7 @@ end)
     f = self
     do rf:
       do acc, x, xs[]:
-        x(f, xs**)
+        x:send(f, xs**)
         rf:reduce.step(acc, xs**)
       end
     end
@@ -382,8 +382,6 @@ end
 \compose :def! ([.td], do fns[]:
   fns:transduce(.nil, \compose, .td :map \first)
 end)
-
-records.t = 'crecords' :use
 
 [records.t] :defmodule! {
   \has? = do key:
