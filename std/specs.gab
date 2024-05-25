@@ -209,12 +209,12 @@ and.predicate = do specs[]:
   \spec.gen :def! ([pred], do:
     start = specs :at! 0
 
-    td = .td:compose (
+    td = .td:compose(
       .td:map do:
         value = start:spec.gen
 
         fits = specs:reduce(.true, do a, _, s:
-          a:then(s, value, \spec.fits?)
+          a:then do: s :spec.fits? value end
         end)
 
         (fits, value)
@@ -224,7 +224,7 @@ and.predicate = do specs[]:
       .td:take 1,
     )
 
-    .range 100 :transduce(0, \first, td):assert! "Failed to generate a value for all specs"
+    .range 100 :transduce(0, \first, td):assert!('Failed to generate a value for {specs}')
   end)
 
   \spec.explain :def! ([pred], do:
@@ -244,7 +244,7 @@ or.predicate = do specs[]:
   # fits any of the given specs
   \spec.fits? :def! ([pred], do value:
     valid = specs:reduce(.false, do acc, _, s:
-      acc :else (s, value, \spec.fits?)
+      acc :else do: s:spec.fits? value end
     end)
     
     (valid, self, value)

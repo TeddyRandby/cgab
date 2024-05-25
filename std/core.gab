@@ -38,8 +38,8 @@ truthy_values :defmodule! {
   \and = do alt[]:
     alt**
   end,
-  \then = do f[]:
-    (f**)()
+  \then = do f:
+    f()
   end,
   \or = do :
     self
@@ -62,8 +62,8 @@ falsey_values :defmodule! {
   \or = do alt[]:
     alt**
   end,
-  \else = do f[]:
-    (f**)()
+  \else = do f:
+    f()
   end,
   \assert! = do msg:
     'Assert failed: {msg}':panic
@@ -179,7 +179,6 @@ end)
   gab.message = do m:
     td = self
     m:def!([.td], do x, xs[]:
-      (x, td, xs**):print
       x:send(td, xs**)
     end)
   end,
@@ -241,7 +240,7 @@ end)
     f = self
     do rf:
       do acc, x, xs[]:
-        x:send(f, xs**):td.conditionally(acc, xs, rf)
+        x:send(f, xs**):td.conditionally(acc, [x, xs**], rf)
       end
     end
   end,
@@ -263,7 +262,7 @@ end)
     do rf:
       do acc, x, xs[]:
         x:send(f, xs**)
-        rf:reduce.step(acc, xs**)
+        rf:reduce.step(acc, x, xs**)
       end
     end
   end,
@@ -403,7 +402,8 @@ end
     self:put!(key, .nil)
   end,
   \at! = do key, val?:
-    self:has? key :else (\put!, self, key, val?)
+    map = self
+    self:has? key :else do: map:put!(key, val?) end
     self:at key :unwrap!
   end,
 }
