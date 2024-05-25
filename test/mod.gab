@@ -1,62 +1,61 @@
 'tests' :use
-'numbers' :use
 
 'Multiple Assignment' :tests.covers do:
     'declaring new variables' :tests.should do:
         a = 2
 
-        a:should(\be, \==, 2)
+        a:should.be(\==, 2)
 
         a = 3
 
-        a:should(\be, \==, 3)
+        a:should.be(\==, 3)
     end
 
     'should assign multiple variables' :tests.should do:
         a, b = 1, 2
 
-        a:should(\be, \==, 1)
-        b:should(\be, \==, 2)
+        a:should.be(\==, 1)
+        b:should.be(\==, 2)
 
         a, b = b, a
-        a:should(\be, \==, 2)
-        b:should(\be, \==, 1)
+        a:should.be(\==, 2)
+        b:should.be(\==, 1)
     end
 
     'should reassign' :tests.should do:
       a, b, c, d = 1, 2, 3, 4
 
-      a:should(\be, \==, 1)
-      b:should(\be, \==, 2)
-      c:should(\be, \==, 3)
-      d:should(\be, \==, 4)
+      a:should.be(\==, 1)
+      b:should.be(\==, 2)
+      c:should.be(\==, 3)
+      d:should.be(\==, 4)
 
       a, c, d, e = 5, 6, 7, 8
 
-      a:should(\be, \==, 5)
-      c:should(\be, \==, 6)
-      d:should(\be, \==, 7)
-      e:should(\be, \==, 8)
+      a:should.be(\==, 5)
+      c:should.be(\==, 6)
+      d:should.be(\==, 7)
+      e:should.be(\==, 8)
     end
 
     'should rest assign a constant multi value' :tests.should do:
         a, b, c[] = 1, 2, 3, 4, 5
 
-        a:should(\be, \==, 1)
-        b:should(\be, \==, 2)
-        c:at!(0):should(\be, \==, 3)
-        c:at!(1):should(\be, \==, 4)
-        c:at!(2):should(\be, \==, 5)
+        a:should.be(\==, 1)
+        b:should.be(\==, 2)
+        c:at!(0):should.be(\==, 3)
+        c:at!(1):should.be(\==, 4)
+        c:at!(2):should.be(\==, 5)
     end
 
     'should rest assign a constant multi value in middle' :tests.should do:
         a, b[], c = 1, 2, 3, 4, 5
 
-        a:should(\be, \==, 1)
-        c:should(\be, \==, 5)
-        b:at!(0):should(\be, \==, 2)
-        b:at!(1):should(\be, \==, 3)
-        b:at!(2):should(\be, \==, 4)
+        a:should.be(\==, 1)
+        c:should.be(\==, 5)
+        b:at!(0):should.be(\==, 2)
+        b:at!(1):should.be(\==, 3)
+        b:at!(2):should.be(\==, 4)
     end
 
     'should rest assign a runtime multi value' :tests.should do:
@@ -64,11 +63,11 @@
 
         a[], b, c = one_through_five ()
 
-        b:should(\be, \==, 4)
-        c:should(\be, \==, 5)
-        a:at!(0):should(\be, \==, 1)
-        a:at!(1):should(\be, \==, 2)
-        a:at!(2):should(\be, \==, 3)
+        b:should.be(\==, 4)
+        c:should.be(\==, 5)
+        a:at!(0):should.be(\==, 1)
+        a:at!(1):should.be(\==, 2)
+        a:at!(2):should.be(\==, 3)
     end
 
     'should rest assign to existing variables' :tests.should do:
@@ -78,11 +77,11 @@
 
         a, b[], c = one_through_five ()
 
-        a:should(\be, \==, 1)
-        c:should(\be, \==, 5)
-        b:at!(0):should(\be, \==, 2)
-        b:at!(1):should(\be, \==, 3)
-        b:at!(2):should(\be, \==, 4)
+        a:should.be(\==, 1)
+        c:should.be(\==, 5)
+        b:at!(0):should.be(\==, 2)
+        b:at!(1):should.be(\==, 3)
+        b:at!(2):should.be(\==, 4)
     end
 
     'should mix locals and properties' :tests.should do:
@@ -90,21 +89,21 @@
 
         a:b, d, a:c = 1, 2, 3
 
-        d:should(\be, \==, 2)
-        a:b:should(\be, \==, 1)
-        a:c:should(\be, \==, 3)
+        d:should.be(\==, 2)
+        a:b:should.be(\==, 1)
+        a:c:should.be(\==, 3)
 
         e, a:b, a:c = 1, 2, 3
 
-        e:should(\be, \==, 1)
-        a:b:should(\be, \==, 2)
-        a:c:should(\be, \==, 3)
+        e:should.be(\==, 1)
+        a:b:should.be(\==, 2)
+        a:c:should.be(\==, 3)
 
         a:c, a:b, e = 1, 2, 3
 
-        a:c:should(\be, \==, 1)
-        a:b:should(\be, \==, 2)
-        e:should(\be, \==, 3)
+        a:c:should.be(\==, 1)
+        a:b:should.be(\==, 2)
+        e:should.be(\==, 3)
     end
 
     'should mix rest locals and properties' :tests.should do:
@@ -112,66 +111,66 @@
 
         a:b, d[], a:c = 1, 2, 3
 
-        d:at!(0):should(\be, \==, 2)
-        a:b:should(\be, \==, 1)
-        a:c:should(\be, \==, 3)
+        d:at!(0):should.be(\==, 2)
+        a:b:should.be(\==, 1)
+        a:c:should.be(\==, 3)
 
         e[], a:b, a:c = 1, 2, 3
 
-        e:at!(0):should(\be, \==, 1)
-        a:b:should(\be, \==, 2)
-        a:c:should(\be, \==, 3)
+        e:at!(0):should.be(\==, 1)
+        a:b:should.be(\==, 2)
+        a:c:should.be(\==, 3)
 
         a:c, a:b, e[] = 1, 2, 3
 
-        a:c:should(\be, \==, 1)
-        a:b:should(\be, \==, 2)
-        e:at!(0):should(\be, \==, 3)
+        a:c:should.be(\==, 1)
+        a:b:should.be(\==, 2)
+        e:at!(0):should.be(\==, 3)
 
         a:b, d[], a:c = 1, 2, 4, 5, 3
 
-        d:at!(0):should(\be, \==, 2)
-        a:b:should(\be, \==, 1)
-        a:c:should(\be, \==, 3)
+        d:at!(0):should.be(\==, 2)
+        a:b:should.be(\==, 1)
+        a:c:should.be(\==, 3)
 
         e[], a:b, a:c = 1, 4, 5, 2, 3
 
-        e:at!(0):should(\be, \==, 1)
-        a:b:should(\be, \==, 2)
-        a:c:should(\be, \==, 3)
+        e:at!(0):should.be(\==, 1)
+        a:b:should.be(\==, 2)
+        a:c:should.be(\==, 3)
 
         a:c, a:b, e[] = 1, 2, 3, 4,5
 
-        a:c:should(\be, \==, 1)
-        a:b:should(\be, \==, 2)
-        e:at!(0):should(\be, \==, 3)
+        a:c:should.be(\==, 1)
+        a:b:should.be(\==, 2)
+        e:at!(0):should.be(\==, 3)
 
         one_through_five = do: (1,2,3,4,5) end
         one = do: 1 end
 
         a:c, a:b, e[] = one_through_five(a:b, a:c)
 
-        a:c:should(\be, \==, 1)
-        a:b:should(\be, \==, 2)
-        e:at!(0):should(\be, \==, 3)
+        a:c:should.be(\==, 1)
+        a:b:should.be(\==, 2)
+        e:at!(0):should.be(\==, 3)
 
         test = do i:
-          i:b, i:c, xs[] = (i:b, i:m, i:c)()
+          i:b, i:c, xs[] = i:b:send(i:m, i:c)
 
           (i:b, i:c, xs**)
         end
 
         a:c, a:b, e[] = test { m = \self, b = 1, c = 2 }
 
-        a:c:should(\be, \==, 1)
-        a:b:should(\be, \==, .nil)
+        a:c:should.be(\==, 1)
+        a:b:should.be(\==, .nil)
 
         test = { m = \self, b = 1, c = 2 }
 
-        a:c, a:b, e[] = (test:b)(test:m, test:c)
+        a:c, a:b, e[] = test:b:send(test:m, test:c)
 
-        a:c:should(\be, \==, 1)
-        a:b:should(\be, \==, .nil)
+        a:c:should.be(\==, 1)
+        a:b:should.be(\==, .nil)
 
     end
 
@@ -180,68 +179,68 @@
 
         a:put! 'b' , d, a:put! 'c'  = 1, 2, 3
 
-        a:b:should(\be, \==, 1)
-        d:should(\be, \==, 2)
-        a:c:should(\be, \==, 3)
+        a:b:should.be(\==, 1)
+        d:should.be(\==, 2)
+        a:c:should.be(\==, 3)
 
         e, a:put! 'b' , a:put! 'c'  = 1, 2, 3
 
-        e:should(\be, \==, 1)
-        a:b:should(\be, \==, 2)
-        a:c:should(\be, \==, 3)
+        e:should.be(\==, 1)
+        a:b:should.be(\==, 2)
+        a:c:should.be(\==, 3)
 
         a:put! 'c' , a:put! 'b' , e = 1, 2, 3
 
-        a:c:should(\be, \==, 1)
-        a:b:should(\be, \==, 2)
-        e:should(\be, \==, 3)
+        a:c:should.be(\==, 1)
+        a:b:should.be(\==, 2)
+        e:should.be(\==, 3)
     end
 end
 
 'Numbers' :tests.covers  do:
   'should be equal to itself' :tests.should do:
-    5 :should (\be, \==, 5)
+    5 :should.be(\==, 5)
   end
 
   'should do math' :tests.should do:
-    10:should (\be, \==, 5 * 2)
-    1 :should (\be, \==, 10 % 3)
-    8 :should (\be, \==, 1 << 3)
+    10:should.be(\==, 5 * 2)
+    1:should.be(\==, 10 % 3)
+    8:should.be(\==, 1 << 3)
   end
 
   'should compare' :tests.should do:
-    (5 < 10):should(\be, \==, .true)
-    (10 > 5):should(\be, \==, .true)
+    (5 < 10):should.be(\==, .true)
+    (10 > 5):should.be(\==, .true)
   end
 
   'should dynamically do arithemtic' :tests.should do:
-    (1, \+, 2)():should(\be, \==, 3)
-    (1 (\+,2, .ignore_me)):should(\be, \==, 3)
-    (1 (\-,2)):should(\be, \==, -1)
+    1:send(\+, 2):should.be(\==, 3)
+    1:send(\+,2, .ignore_me):should.be(\==, 3)
+    1:send(\-,2):should.be(\==, -1)
   end
 end
 
 'Strings' :tests.covers do:
   'should be equal to itself' :tests.should do:
-    'hello' :should (\be, \==, 'hello')
+    'hello' :should.be(\==, 'hello')
   end
 
   'should concatenate' :tests.should do:
-    'hello world':should(\be, \==, 'hello' + ' world')
+    'hello world':should.be(\==, 'hello' + ' world')
   end
 
   'should interpolate' :tests.should  do:
-    '{'hi'} {'world'}':should(\be, \==, 'hi world')
+    '{'hi'} {'world'}':should.be(\==, 'hi world')
   end
 
   'should dynamically concatenate' :tests.should do:
-    ('hi ',\+, 'world')() :should(\be, \==, 'hi world')
-    'hi ' (\+, 'world', .ignore_me) :should(\be, \==, 'hi world')
+    'hi ':send(\+, 'world'):should.be(\==, 'hi world')
+    'hi ':send(\+, 'world', .ignore_me):should.be(\==, 'hi world')
   end
 
   'should append a sigil' :tests.should do:
-    ('hi ', \+, .world)() :should(\be, \==, 'hi world')
-    ('hi ' + .world) :should(\be, \==, 'hi world')
+    'hi ':send(\+, .world):should.be(\==, 'hi world')
+    ('hi ' + .world) :should.be(\==, 'hi world')
   end
 end
 
@@ -249,20 +248,20 @@ end
     a = 1
 
     'should capture' :tests.should  do:
-        a:should(\be, \==, 1)
+        a:should.be(\==, 1)
 
         test = do:
-           a:should(\be, \==, 1)
+           a:should.be(\==, 1)
            a  
         end
 
-        test():should(\be, \==, 1)
+        test():should.be(\==, 1)
     end
 
    'should work with varargs' :tests.should  do:
       varfunc = do first, args[]:
-        first:should(\be, \==, 1)
-        args:at!(0):should(\be, \==, 2)
+        first:should.be(\==, 1)
+        args:at!(0):should.be(\==, 2)
       end
 
       varfunc(1,2)
@@ -274,9 +273,9 @@ end
 
    'should work more with varargs' :tests.should do:
       varfunc = do first, args[], last:
-        first:should(\be, \==, 1)
-        args:at!(0):should(\be, \==, 2)
-        last:should(\be, \==, 3)
+        first:should.be(\==, 1)
+        args:at!(0):should.be(\==, 2)
+        last:should.be(\==, 3)
       end
 
       varfunc(1,2,3)
@@ -288,10 +287,10 @@ end
 
    'should make var args empty when necessary' :tests.should do:
       varfunc = do first, args[], other, last:
-        first:should(\be, \==, 1)
-        args:len:should(\be, \==, 0)
-        other:should(\be, \==, 2)
-        last:should(\be, \==, .nil)
+        first:should.be(\==, 1)
+        args:len:should.be(\==, 0)
+        other:should.be(\==, 2)
+        last:should.be(\==, .nil)
       end
 
       varfunc(1,2)
@@ -312,15 +311,15 @@ end
       y = 2
     }
 
-    point:x:should(\be, \==, 1)
-    point:y:should(\be, \==, 2)
+    point:x:should.be(\==, 1)
+    point:y:should.be(\==, 2)
   end
 
   'should be structurally shaped' :tests.should do:
     pone = { x = 1, y = 2}
     ptwo = { x = 3, y = 4}
 
-    (pone:?):should(\be, \==, ptwo:?)
+    (pone:?):should.be(\==, ptwo:?)
   end
 
   'should work for all kinds of keys' :tests.should do:
@@ -329,8 +328,8 @@ end
         [.hi] = 4
     }
 
-    3:should(\be, \==, obj:at!({}?))
-    4:should(\be, \==, obj:at!(.hi))
+    3:should.be(\==, obj:at!({}?))
+    4:should.be(\==, obj:at!(.hi))
   end
 
   'should work when shapes change' :tests.should do:
@@ -351,7 +350,7 @@ end
     end)
 
     test_get_a = do obj, v:
-        obj:get_a:should(\be, \==, v)
+        obj:get_a:should.be(\==, v)
     end
 
 
@@ -377,9 +376,9 @@ end
   'should make tuples' :tests.should do:
     tup = [ 1, 2, 3 ]
 
-    tup:at!(0):should(\be, \==, 1)
-    tup:at!(1):should(\be, \==, 2)
-    tup:at!(2):should(\be, \==, 3)
+    tup:at!(0):should.be(\==, 1)
+    tup:at!(1):should.be(\==, 2)
+    tup:at!(2):should.be(\==, 3)
   end
 
   'should make var tuples' :tests.should do:
@@ -388,20 +387,20 @@ end
     end
 
     tup = [ onetwothree() ]
-    tup:at!(0):should(\be, \==, 1)
-    tup:at!(1):should(\be, \==, 2)
-    tup:at!(2):should(\be, \==, 3)
-    tup:len:should(\be, \==, 3)
+    tup:at!(0):should.be(\==, 1)
+    tup:at!(1):should.be(\==, 2)
+    tup:at!(2):should.be(\==, 3)
+    tup:len:should.be(\==, 3)
   end
 
   'sending to records' :tests.should do:
     result = { hi = 2 } :hi
 
-    result:should(\be, \==, 2)
+    result:should.be(\==, 2)
 
     result = { hi = do: 4 end } :hi
 
-    result:should(\be, \==, 4)
+    result:should.be(\==, 4)
   end
 end
 
@@ -422,8 +421,8 @@ end
     'should overload binary' :tests.should do:
         test = { x = 1, y = 2 } + { x = 2, y = 1 }
 
-        3:should(\be, \==, test:x)
-        3:should(\be, \==, test:y)
+        3:should.be(\==, test:x)
+        3:should.be(\==, test:y)
     end
 
     \< :def! ([Vector], do other:
@@ -442,8 +441,8 @@ end
     end)
 
     'should overload comparison' :tests.should do:
-        { x = 1, y =  1 }:should(\be, \==, { x = 1, y = 1})
-        ({ x = 1, y = 2 } < { x = 4, y = 4}):should(\be, \==, .true)
+        { x = 1, y =  1 }:should.be(\==, { x = 1, y = 1})
+        ({ x = 1, y = 2 } < { x = 4, y = 4}):should.be(\==, .true)
     end
 
     get = do obj, key:
@@ -451,7 +450,7 @@ end
     end
 
     'should get before overload' :tests.should do:
-        1:should(\be, \==, get({ x = 1, y = 2}, 'x'))
+        1:should.be(\==, get({ x = 1, y = 2}, 'x'))
     end
 
     \at! :def! ([Vector], do key:
@@ -462,7 +461,7 @@ end
     end)
 
     'should overload get' :tests.should do:
-        get({ x = 2, y = 2 },'mag'):should(\be, \==, 8)
+        get({ x = 2, y = 2 },'mag'):should.be(\==, 8)
     end
 
     'should behave when switching types' :tests.should do:
@@ -470,12 +469,12 @@ end
         a + b
       end
 
-      3:should(\be, \==, sum(1,2))
-      {x = 3, y = 3}:should(\be, \==, sum({x = 1, y = 2}, {x = 2, y = 1}))
-      'hi':should(\be, \==, sum('h','i'))
-      'hi':should(\be, \==, sum('h','i'))
-      {x = 3, y = 3}:should(\be, \==, sum({x = 1, y = 2}, {x = 2, y = 1}))
-      3:should(\be, \==, sum(1,2))
+      3:should.be(\==, sum(1,2))
+      {x = 3, y = 3}:should.be(\==, sum({x = 1, y = 2}, {x = 2, y = 1}))
+      'hi':should.be(\==, sum('h','i'))
+      'hi':should.be(\==, sum('h','i'))
+      {x = 3, y = 3}:should.be(\==, sum({x = 1, y = 2}, {x = 2, y = 1}))
+      3:should.be(\==, sum(1,2))
     end
 end
 
@@ -485,7 +484,7 @@ end
     end)
 
     'should send' :tests.should do:
-        1:should(\be, \==, 1:test)
+        1:should.be(\==, 1:test)
     end
 
     \test :def! (['gab.number'], do:
@@ -493,23 +492,23 @@ end
     end)
 
     'should use more specific' :tests.should do:
-        1:test:should(\be, \==, 2)
+        1:test:should.be(\==, 2)
     end
 
     repeat = do: 1:test end
 
     'should cache' :tests.should do:
-        repeat():should(\be, \==, 2)
-        repeat():should(\be, \==, 2)
-        repeat():should(\be, \==, 2)
+        repeat():should.be(\==, 2)
+        repeat():should.be(\==, 2)
+        repeat():should.be(\==, 2)
     end
 
     oneTwo = do: (1, 2) end
 
     'should send/receive var' :tests.should do:
       takeOneTwo = do a, b:
-        1:should(\be, \==, a)
-        2:should(\be, \==, b)
+        1:should.be(\==, a)
+        2:should.be(\==, b)
       end
 
       takeOneTwo(oneTwo())
@@ -518,44 +517,44 @@ end
     'sending constants' :tests.should do:
       \hi :def! (['gab.number'], .test)
 
-      1:hi:should(\be, \==, .test)
+      1:hi:should.be(\==, .test)
     end
 
-    'calling messages' :tests.should do:
+    'dynamic message sends' :tests.should do:
       sum = do a, b:
-        (a, \+, b)()
+        a:send(\+, b)
       end
 
       result = sum(1,1)
 
-      result:should(\be, \==, 2)
+      result:should.be(\==, 2)
 
       result = sum(2, 2)
 
-      result:should(\be, \==, 4)
+      result:should.be(\==, 4)
 
-      result = sum ('hi', ' world')
+      result = sum('hi', ' world')
 
-      result:should(\be, \==, 'hi world')
+      result:should.be(\==, 'hi world')
 
-      result = { hi = 8 } \hi
+      result = { hi = 8 }:send \hi
 
-      result:should(\be, \==, 8)
+      result:should.be(\==, 8)
 
-      result = ({ hi = 8 }, \put!, 'hi' , 2)()
+      result = { hi = 8 }:send(\put!, 'hi' , 2)
 
-      result:hi:should(\be, \==, 2)
+      result:hi:should.be(\==, 2)
 
-      result = ['hi'] \** 
+      result = ['hi']:send \** 
 
-      result:should(\be, \==, 'hi')
+      result:should.be(\==, 'hi')
 
-      result = { hi }(\hi, 4)
+      result = { hi }:send(\hi, 4)
 
-      result:should(\be, \==, 4)
+      result:should.be(\==, 4)
 
-      result = { hi = do: 8 end } \hi 
+      result = { hi = do: 8 end }:send \hi 
 
-      result:should(\be, \==, 8)
+      result:should.be(\==, 8)
     end
 end

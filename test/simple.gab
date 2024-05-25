@@ -1,4 +1,3 @@
-'core':use
 'fibers':use
 'channels':use
 
@@ -6,20 +5,16 @@ chan = .gab.channel()
 
 "Channel: $\n":printf chan
 
-.gab.fiber do
+.gab.fiber do:
   'channels':use
 
   chan <- 'from: {self}'
 end:await
 
-.gab.fiber do
+.gab.fiber do:
   'channels':use
 
   chan <- 'from: {self}'
 end:await
 
-(\empty?, chan)() :print
-
-f = [\empty?, chan]
-(f**)():print
- 
+do: chan->:print end :until do: chan:empty? end

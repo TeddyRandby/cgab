@@ -1,6 +1,3 @@
-records = 'records' :use
-lists = 'lists' :use
-
 TestState = { fails, errs }
 
 testing.t = TestState ?
@@ -15,19 +12,15 @@ end)
 T = .gab.record testing.t :reset 
 
 \tests.push_result :defcase! {
-
-
 # When the result is true, we do nothing.
 # The test passed.
   .true = .nil,
-
 # When the result is false, The test failed.
 # Count it and add it to the list of fails.
   .false = do actual, expected:
     T:fails = T:fails + 1
     T:errs:push! [actual, expected]
   end,
-
 }
 
 \passed? :def! ([testing.t], do:
@@ -40,16 +33,21 @@ end)
   end
 end)
 
-\should :def! ([], do msg, comp, other:
-   (self, msg, comp, other)() :tests.push_result(self, other)
+\test.comp.apply :defcase! {
+  gab.message = do x, y:
+    x:send(self, y)
+  end,
+  gab.block = do x, y:
+    self(x,y)
+  end,
+}
+
+\should.be :def! ([], do comp, other:
+   comp:test.comp.apply(self, other):tests.push_result(self, other)
 end)
 
-\be :def! ([], do comp, other:
-  (self, comp, other)()
-end)
-
-\not.be :def! ([], do comp, other:
-  (self, comp, other)()!
+\should.not.be :def! ([], do comp, other:
+   comp:test.comp.apply(self, other):!:tests.push_result(self, other)
 end)
 
 \tests.covers :def! (['gab.string'], do cb:

@@ -179,11 +179,6 @@ struct primitive kind_primitives[] = {
         .kind = kGAB_BLOCK,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BLOCK),
     },
-    {
-        .name = mGAB_CALL,
-        .kind = kGAB_RECORD,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_RECORD),
-    },
 };
 
 struct gab_triple gab_create(struct gab_create_argt args) {

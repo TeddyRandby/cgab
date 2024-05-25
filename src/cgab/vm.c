@@ -1168,50 +1168,6 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
   NEXT();
 }
 
-CASE_CODE(SEND_PRIMITIVE_CALL_RECORD) {
-  gab_value *ks = READ_CONSTANTS;
-  uint64_t have = compute_arity(VAR(), READ_BYTE);
-
-  gab_value r = PEEK_N(have);
-
-  SEND_GUARD_CACHED_RECEIVER_TYPE(r);
-
-  if (__gab_unlikely(have < 2))
-    PUSH(gab_nil), have++;
-
-  gab_value k = PEEK_N(have - 1);
-
-  switch (have) {
-  case 2: {
-    /* This is a normal property access - load the value from the record. */
-    gab_value value = gab_recat(r, k);
-    DROP_N(have);
-    PUSH(value == gab_undefined ? gab_nil : value);
-    break;
-  }
-
-  default:
-    /* This is a property assignment, but we have extra values. */
-    DROP_N(have - 3);
-  case 3: {
-    /* This is a property assignment, with the one value*/
-    gab_value value = PEEK();
-
-    DROP_N(3);
-
-    gab_recput(GAB(), r, k, value);
-
-    PUSH(r);
-
-    break;
-  }
-  }
-
-  SET_VAR(1);
-
-  NEXT();
-}
-
 CASE_CODE(SEND_CONSTANT) {
   gab_value *ks = READ_CONSTANTS;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
