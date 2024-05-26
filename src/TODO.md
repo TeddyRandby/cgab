@@ -24,26 +24,29 @@ gab exec [build_opts run_opts] <program>
 
 gab repl [build_opts run_opts repl_opts]
 
-We want blocks and messages to have the same dispatch
-syntax so that they can be used interchangeably. I don't like using the traditional
-function-call syntax because this *is not* the focus of the language.
-```gab
-    sum = do a, b; a + b end
+Potentially building in fibers/channels into the library more, introducing a sort of greenthread idea?
 
-    sum(1,2)
-    \+(1, 2)
-```
+This would require a scheduler, with yielding points in the VM. Which data should be global, and which should be thread-specific?
 
-```gab
-    sum = do a, b; a + b end
+```c
+    struct gab_eg {
+        size_t hash_seed;
 
-    1 (sum, 2) :do
-```
+        gab_value types[kGAB_NKINDS];
 
-```gab
-    sum = [a, b: a:b]
+        /* Compiled source files, and cached modules */
+        d_gab_src sources;
+        d_gab_modules modules;
 
-    .td:filter \pos?
-    .td:filter [a: a:pos?]
-    .td:filter sum
+        /* Interned, unique values stored here */
+        d_strings strings;
+        d_shapes shapes;
+        d_messages messages;
+
+        v_gab_value scratch;
+
+        void *(*os_dynopen)(const char *path);
+
+        void *(*os_dynsymbol)(void *os_dynhandle, const char *path);
+    }
 ```
