@@ -40,6 +40,26 @@ void repl(const char *module, int flags) {
 
   printf("with heagain: %V (at: %V)\n", with_heagain, gab_mapat(with_heagain, gab_string(gab, "he")));
 
+  gab_value without_he = gab_mapdel(gab, with_he, gab_string(gab, "he"));
+
+  printf("without he: %V (at: %V)\n", without_he, gab_mapat(without_he, gab_string(gab, "he")));
+
+  gab_value without_help = gab_mapdel(gab, without_he, gab_string(gab, "help"));
+
+  printf("without help: %V (at: %V)\n", without_help, gab_mapat(without_help, gab_string(gab, "help")));
+
+  gab_value without_hello = gab_mapdel(gab, without_help, gab_string(gab, "hello"));
+
+  printf("without hello: %V (at: %V)\n", without_hello, gab_mapat(without_hello, gab_string(gab, "hello")));
+
+  gab_value without_h = gab_mapdel(gab, without_hello, gab_string(gab, "h"));
+
+  printf("without h: %V (at: %V)\n", without_h, gab_mapat(without_h, gab_string(gab, "h")));
+
+  gab_value without_helpagain = gab_mapdel(gab, without_h, gab_string(gab, "help"));
+
+  printf("without help again: %V (at: %V)\n", without_helpagain, gab_mapat(without_helpagain, gab_string(gab, "help")));
+
   // gab_repl(gab, (struct gab_repl_argt){
   //                   .name = "repl",
   //                   .prompt_prefix =

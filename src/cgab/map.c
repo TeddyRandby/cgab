@@ -100,7 +100,7 @@ static inline int map_len(gab_value map) {
 }
 
 static inline gab_value *map_nodeleafat(gab_value map, size_t p) {
-  int idx = 2 * p;
+  size_t idx = 2 * p;
   // assert(idx < map_len(map));
   switch (gab_valkind(map)) {
   case kGAB_MAP:
@@ -114,14 +114,14 @@ static inline gab_value *map_nodeleafat(gab_value map, size_t p) {
 
 static inline void map_setbranch(gab_value map, size_t idx, size_t pos,
                                  gab_value v) {
-  int offset = 2 * pos;
+  size_t offset = 2 * pos;
   // assert(idx < map_len(map));
   switch (gab_valkind(map)) {
   case kGAB_MAP: {
     struct gab_obj_map *m = GAB_VAL_TO_MAP(map);
 
-    m->data[offset] = v;
-    m->data[offset + 1] = gab_undefined;
+    m->data[offset + kLEAF_KEY] = v;
+    m->data[offset + kLEAF_VALUE] = gab_undefined;
     m->mask |= (1 << idx);
     m->vmask &= ~(1 << pos);
     break;
@@ -129,10 +129,49 @@ static inline void map_setbranch(gab_value map, size_t idx, size_t pos,
   case kGAB_MAPNODE: {
     struct gab_obj_mapnode *m = GAB_VAL_TO_MAPNODE(map);
 
-    m->data[offset] = v;
-    m->data[offset + 1] = gab_undefined;
+    m->data[offset + kLEAF_KEY] = v;
+    m->data[offset + kLEAF_VALUE] = gab_undefined;
     m->mask |= (1 << idx);
     m->vmask &= ~(1 << pos);
+    break;
+  }
+  default:
+    assert(0 && "Only map and mapnodebranch can have indexes");
+  }
+}
+
+// This does unshifting and cleans up the mask.
+static inline void map_delleaf(gab_value map, size_t idx, size_t pos) {
+  size_t offset = 2 * pos;
+  switch (gab_valkind(map)) {
+  case kGAB_MAP: {
+    struct gab_obj_map *m = GAB_VAL_TO_MAP(map);
+
+    size_t nrows = popcount(m->mask);
+
+    memmove(m->data + (offset), m->data + (offset) + 2,
+            sizeof(gab_value) * (2 * (nrows - pos - 1)));
+
+    size_t above_vmask = m->vmask >> 1 & ~(pos - 1);
+    size_t below_vmask = (m->vmask & (pos - 1));
+    m->vmask = above_vmask | below_vmask;
+    m->mask &= ~(1 << idx);
+
+    break;
+  }
+  case kGAB_MAPNODE: {
+    struct gab_obj_mapnode *m = GAB_VAL_TO_MAPNODE(map);
+
+    size_t nrows = popcount(m->mask);
+
+    memmove(m->data + (offset), m->data + (offset) + 2,
+            sizeof(gab_value) * (2 * (nrows - pos - 1)));
+
+    size_t above_vmask = m->vmask >> 1 & (pos - 1);
+    size_t below_vmask = (m->vmask & (pos - 2));
+    m->vmask = above_vmask | below_vmask;
+    m->mask &= ~(1 << idx);
+
     break;
   }
   default:
@@ -165,8 +204,8 @@ static inline void map_shiftvalues(gab_value map, size_t pos) {
     struct gab_obj_map *m = GAB_VAL_TO_MAP(map);
     size_t nrows = popcount(m->mask);
 
-    memcpy(m->data + (offset) + 2, m->data + (offset),
-           sizeof(gab_value) * (2 * (nrows - pos)));
+    memmove(m->data + (offset) + 2, m->data + (offset),
+            sizeof(gab_value) * (2 * (nrows - pos)));
 
     size_t above_vmask = m->vmask << pos & (pos - 1);
     size_t below_vmask = (m->vmask & ~(pos - 1));
@@ -177,8 +216,8 @@ static inline void map_shiftvalues(gab_value map, size_t pos) {
     struct gab_obj_mapnode *m = GAB_VAL_TO_MAPNODE(map);
     size_t nrows = popcount(m->mask);
 
-    memcpy(m->data + (offset) + 2, m->data + (offset),
-           sizeof(gab_value) * (2 * (nrows - pos)));
+    memmove(m->data + (offset) + 2, m->data + (offset),
+            sizeof(gab_value) * (2 * (nrows - pos)));
 
     size_t above_vmask = m->vmask << pos & (pos - 1);
     size_t below_vmask = (m->vmask & ~(pos - 1));
@@ -379,6 +418,13 @@ gab_value gab_mapput(struct gab_triple gab, gab_value map, gab_value key,
 }
 
 gab_value gab_mapdel(struct gab_triple gab, gab_value map, gab_value key) {
+  assert(gab_valkind(map) == kGAB_MAP);
+
+  // There is nothing to remove - return the original map
+  if (gab_mapat(map, key) == gab_undefined) {
+    return map;
+  }
+
   size_t path_pos, path_idx, shift = 0;
 
   size_t idx = hash_index(key, shift);
@@ -392,20 +438,42 @@ gab_value gab_mapdel(struct gab_triple gab, gab_value map, gab_value key) {
 
     size_t pos = map_posat(map, idx);
 
-    if (!map_hasindex(map, idx))
-      return gab_undefined;
-
     switch (map_nodekat(map, pos)) {
     case kLEAF: {
       gab_value *kv = map_nodeleafat(map, pos);
 
-      return kv[kLEAF_KEY] == key ? kv[kLEAF_VALUE] : gab_undefined;
+      assert(map != path);
+
+      if (kv[kLEAF_KEY] == key) {
+        if (path == gab_undefined) {
+          map_delleaf(root, idx, pos);
+        } else {
+          gab_value n = mapcpy(gab, map, 0);
+          map_delleaf(n, idx, pos);
+          map_setbranch(path, path_idx, path_pos, n);
+        }
+
+        return root;
+      }
+
+      assert(false);
     }
     case kBRANCH:
+      if (path == gab_undefined) {
+        path = root;
+        map = mapcpy(gab, map_nodebranchat(map, pos), 0);
+      } else {
+        assert(map_mask(path) & (1 << path_idx));
+        gab_value nm = mapcpy(gab, map_nodebranchat(map, pos), 0);
+        map_setbranch(path, path_idx, path_pos, map);
+        path = map;
+        map = nm;
+      }
+
+      path_idx = idx;
+      path_pos = pos;
+
       shift = shift_next(shift);
-
-      map = map_nodebranchat(map, pos);
-
       assert(shift + GAB_HAMT_BITS <= GAB_HAMT_SIZE && "UH OH REHASH here");
       break;
     default:
