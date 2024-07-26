@@ -1625,13 +1625,11 @@ CASE_CODE(RECORD) {
 
   gab_gclock(GC());
 
-  gab_value shape = gab_shape(GAB(), 2, len, SP() - len * 2);
-
-  gab_value rec = gab_recordof(GAB(), shape, 2, SP() + 1 - (len * 2));
+  gab_value map = gab_map(GAB(), 2, len, SP() - len * 2, SP() + 1 - (len * 2));
 
   DROP_N(len * 2);
 
-  PUSH(rec);
+  PUSH(map);
 
   STORE_SP();
 

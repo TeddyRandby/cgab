@@ -223,6 +223,9 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->types[kGAB_RECORD] = gab_string(gab, "gab.record");
   gab_iref(gab, eg->types[kGAB_RECORD]);
 
+  eg->types[kGAB_MAP] = gab_string(gab, "gab.map");
+  gab_iref(gab, eg->types[kGAB_MAP]);
+
   eg->types[kGAB_SHAPE] = gab_string(gab, "gab.shape");
   gab_iref(gab, eg->types[kGAB_SHAPE]);
 

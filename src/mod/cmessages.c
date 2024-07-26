@@ -15,7 +15,7 @@ a_gab_value *gab_lib_message(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
-                        gab_value argv[static argc]) {
+                         gab_value argv[static argc]) {
   switch (argc) {
   case 2: {
 
@@ -36,7 +36,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
 
   struct gab_egimpl_rest res = gab_egimpl(gab.eg, m, k);
 
-  gab_value values[] = { gab_none, gab_nil };
+  gab_value values[] = {gab_none, gab_nil};
 
   if (res.status) {
     values[0] = gab_ok;
@@ -135,6 +135,9 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
 
   if (gab_valkind(cases) != kGAB_RECORD)
     return gab_pktypemismatch(gab, cases, kGAB_RECORD);
+
+  if (gab_valkind(messages) != kGAB_RECORD)
+    return gab_pktypemismatch(gab, messages, kGAB_RECORD);
 
   if (gab_reclen(cases) == 0) {
     gab_value t = gab_undefined;
