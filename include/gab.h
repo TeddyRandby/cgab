@@ -128,8 +128,6 @@ enum gab_kind {
   kGAB_MESSAGE,
   kGAB_NUMBER,
   kGAB_NATIVE,
-  kGAB_RECORD,
-  kGAB_SHAPE,
   kGAB_BLOCK,
   kGAB_BOX,
   kGAB_MAP,
@@ -352,8 +350,6 @@ struct gab_obj_prototype;
 struct gab_obj_native;
 struct gab_obj_block;
 struct gab_obj_message;
-struct gab_obj_shape;
-struct gab_obj_record;
 struct gab_obj_box;
 
 typedef void (*gab_gcvisit_f)(struct gab_triple, struct gab_obj *obj);
@@ -558,7 +554,7 @@ struct gab_egimpl_rest {
    * For properties (see sGAB_IMPL_PROPERTY), this will return the offset within
    * the record.
    */
-  size_t offset;
+  gab_value spec;
 
   /**
    * @brief The status of this implementation resolution.
@@ -623,18 +619,21 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, int depth);
 gab_value gab_vmframe(struct gab_triple gab, uint64_t depth);
 
 /*
- * @brief Attempt to load the module named 'name', with the default semantics of \use
+ * @brief Attempt to load the module named 'name', with the default semantics of
+ * \use
  *
  * @param gab The triple
  * @param name The name of the module
- * @return The values returned by the module, or nullptr if the module was not found.
+ * @return The values returned by the module, or nullptr if the module was not
+ * found.
  */
 a_gab_value *gab_suse(struct gab_triple gab, const char *name);
 
 /*
  * @param gab The triple
  * @param name The name of the module, as a gab_value
- * @return The values returned by the module, or nullptr if the module was not found.
+ * @return The values returned by the module, or nullptr if the module was not
+ * found.
  */
 a_gab_value *gab_use(struct gab_triple gab, gab_value name);
 
@@ -1053,17 +1052,6 @@ static inline enum gab_kind gab_valkind(gab_value value) {
 }
 
 /**
- * @brief Check if a value supports property-like message sends.
- *
- * @param value The value to check.
- * @return true if the value has properties.
- */
-static inline bool gab_valhasp(gab_value value) {
-  enum gab_kind k = gab_valkind(value);
-  return k == kGAB_RECORD;
-}
-
-/**
  * @brief Check if a value has a type *other than its kind* to check for message
  * sends.
  *
@@ -1074,7 +1062,6 @@ static inline bool gab_valhast(gab_value value) {
   enum gab_kind k = gab_valkind(value);
   switch (k) {
   case kGAB_SIGIL:
-  case kGAB_RECORD:
   case kGAB_BOX:
     return true;
   default:
@@ -1286,398 +1273,6 @@ struct gab_obj_block {
  */
 gab_value gab_block(struct gab_triple gab, gab_value prototype);
 
-/**
- * @brief A shape object, used to define the layout of a record.
- */
-struct gab_obj_shape {
-  struct gab_obj header;
-
-  /**
-   * The pre-computed hash, and length of data.
-   */
-  uint64_t hash, len;
-
-  /**
-   * The ordered list of keys in the shape.
-   */
-  gab_value data[];
-};
-
-/* Cast a value to a (gab_obj_shape*) */
-#define GAB_VAL_TO_SHAPE(v) ((struct gab_obj_shape *)gab_valtoo(v))
-
-/**
- * @brief Create a new shape object.
- *
- * @param gab The gab triple.
- * @param stride The stride of the keys in they key array.
- * @param len The length of the shape.
- * @param keys The key array.
- * @returns The new shape.
- */
-gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
-                    gab_value keys[static len]);
-
-/**
- * @brief Create a new shape object.
- *
- * @param gab The gab triple.
- * @param stride The stride of the keys in they key array.
- * @param len The length of the shape.
- * @param keys The key array.
- */
-gab_value gab_sshape(struct gab_triple gab, size_t stride, size_t len,
-                     const char *keys[static len]);
-
-/**
- * @brief Append a key to a shape, returning the new shape.
- *
- * @param gab The gab triple.
- * @param shape The shape to extend.
- * @param key The key to append.
- * @returns The new shape.
- */
-gab_value gab_shapewith(struct gab_triple gab, gab_value shape, gab_value key);
-
-/**
- * @brief Create a new shape for a tuple. The keys are increasing integers,
- * starting from 0.
- *
- * @param gab The gab engine.
- * @param vm The vm.
- * @param len The length of the tuple.
- * @return The new shape.
- */
-gab_value gab_nshape(struct gab_triple gab, uint64_t len);
-
-#define GAB_PROPERTY_NOT_FOUND (UINT64_MAX)
-
-/**
- * @brief Find the offset of a key in the shape.
- *
- * @param obj The shape object.
- * @param key The key to look for.
- * @return The offset of the key, or GAB_PROPERTY_NOT_FOUND if it doesn't exist.
- */
-static inline size_t gab_shpfind(gab_value shp, gab_value key) {
-  assert(gab_valkind(shp) == kGAB_SHAPE);
-  struct gab_obj_shape *obj = GAB_VAL_TO_SHAPE(shp);
-
-  size_t res = GAB_PROPERTY_NOT_FOUND;
-
-  // Linear search for the key in the shape
-  // Instead of early return, prefer
-  // This sort of result-storing strategy.
-  // It is trivially vectorized by the compiler.
-  for (size_t i = 0; i < obj->len; i++)
-    if (obj->data[i] == key)
-      res = i;
-
-  return res;
-};
-
-/**
- * @brief Get the length of a shape. This is constant-time.
- *
- * @param value The shape.
- * @return The length of the shape.
- */
-static inline size_t gab_shplen(gab_value shp) {
-  assert(gab_valkind(shp) == kGAB_SHAPE);
-  struct gab_obj_shape *obj = GAB_VAL_TO_SHAPE(shp);
-
-  return obj->len;
-};
-
-/**
- * @brief Get a pointer to the keys of a shape
- *
- * @param value The shape.
- * @return The keys
- */
-static inline gab_value *gab_shpdata(gab_value shp) {
-  assert(gab_valkind(shp) == kGAB_SHAPE);
-  struct gab_obj_shape *obj = GAB_VAL_TO_SHAPE(shp);
-
-  return obj->data;
-};
-
-/**
- * @brief Get the offset of the next key in the shape.
- *
- * @param obj The shape object.
- * @param key The key to look for.
- * @return The offset of the next key, 0 if the key is gab_undefined, or
- * GAB_PROPERTY_NOT_FOUND if it doesn't exist.
- */
-static inline size_t gab_shpnext(gab_value shp, gab_value key) {
-  assert(gab_valkind(shp) == kGAB_SHAPE);
-  if (key == gab_undefined)
-    return 0;
-
-  size_t offset = gab_shpfind(shp, key);
-
-  if (offset == GAB_PROPERTY_NOT_FOUND)
-    return GAB_PROPERTY_NOT_FOUND;
-
-  return offset + 1;
-};
-/**
- * @brief Get the value within the shape at the given offset.
- * This function is not bounds checked.
- *
- * @param shp The shape.
- * @param offset the offset.
- * @retunrs the value at the offset.
- */
-static inline gab_value gab_ushpat(gab_value shp, uint64_t offset) {
-  assert(gab_valkind(shp) == kGAB_SHAPE);
-  struct gab_obj_shape *obj = GAB_VAL_TO_SHAPE(shp);
-
-  assert(offset < obj->len);
-  return obj->data[offset];
-}
-
-/**
- * @brief The counterpart to shape, which holds the data.
- */
-struct gab_obj_record {
-  struct gab_obj header;
-
-  /**
-   * The shape of the record.
-   */
-  gab_value shape;
-
-  /**
-   * The number of values in the record (duplicate from shape, but necessary)
-   */
-  uint64_t len;
-
-  /**
-   * The data.
-   */
-  gab_value data[];
-};
-
-/* Cast a value to a (gab_obj_record*) */
-#define GAB_VAL_TO_RECORD(value) ((struct gab_obj_record *)gab_valtoo(value))
-
-/**
- * @brief Create a new record object.
- *
- * @param gab The gab triple.
- * @param shape The shape of the record.
- * @param stride The stride of the values in the values array.
- * @param values The values array. The length is inferred from shape.
- *
- * @return The new record object.
- */
-gab_value gab_recordof(struct gab_triple gab, gab_value shp, size_t stride,
-                       gab_value values[static GAB_VAL_TO_SHAPE(shp)->len]);
-
-/**
- * @brief extend a record with a key/value pair.
- *
- * @param gab The triple.
- * @param rec The record.
- * @param key The key.
- * @param value The value.
- * @return a new record, extended with key: value
- */
-gab_value gab_recordwith(struct gab_triple gab, gab_value rec, gab_value key,
-                         gab_value value);
-
-/**
- * @brief Create a nil-initialized record of shape shape.
- *
- * @param gab The triple.
- * @param shape The shape of the record.
- * @return the new record.
- */
-gab_value gab_erecordof(struct gab_triple gab, gab_value shape);
-
-/**
- * @brief Set a value within the record.
- * WARNING: This function is not bounds checked. For safe alternatives,
- * try @link gab_recput or @link gab_srecput
- *
- * @see gab_recput
- * @see gab_srecput
- *
- * @param gab The triple.
- * @param rec The record.
- * @param offset The offset within the record.
- * @param value The new value to put into the record.
- * @returns the new value
- */
-static inline gab_value gab_urecput(struct gab_triple gab, gab_value rec,
-                                    uint64_t offset, gab_value value) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
-
-  assert(offset < obj->len);
-
-  if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
-    gab_dref(gab, obj->data[offset]);
-
-  obj->data[offset] = value;
-
-  if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
-    gab_iref(gab, obj->data[offset]);
-
-  return value;
-}
-
-/**
- * @brief Get the value within the record at the given offset.
- * WARNING: This function is not bounds checked. For safe alternatives,
- * try @link gab_recat or @link gab_srecat
- *
- * @see gab_recat
- * @see gab_srecat
- *
- * @param rec The record.
- * @param offset the offset.
- * @retunrs the value at the offset.
- */
-static inline gab_value gab_urecat(gab_value rec, uint64_t offset) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
-
-  assert(offset < obj->len);
-  return obj->data[offset];
-}
-
-/**
- * @brief Get the value corresponding to the given key.
- *
- * @param obj The record object.
- * @param key The key.
- * @return The value at the key, or gab_undefined.
- */
-static inline gab_value gab_recat(gab_value rec, gab_value key) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
-
-  uint64_t offset = gab_shpfind(obj->shape, key);
-
-  if (offset >= obj->len)
-    return gab_undefined;
-
-  return obj->data[offset];
-}
-
-/**
- * @brief Get the offset of the given key in the record.
- *
- * @param rec The record object.
- * @param key The key.
- * @return The offset of the key, or UINT64_MAX if it doesn't exist.
- */
-static inline uint64_t gab_recfind(gab_value rec, gab_value key) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
-  return gab_shpfind(obj->shape, key);
-}
-
-static inline gab_value gab_srecat(struct gab_triple gab, gab_value value,
-                                   const char *key) {
-  return gab_recat(value, gab_string(gab, key));
-}
-
-/**
- * @brief Put a value in the record at the given key.
- *
- * @param gab The triple.
- * @param rec The record object.
- * @param key The key, as a value.
- * @param value The value.
- * @return the new value if a success, gab_undefined otherwise.
- */
-static inline gab_value gab_recput(struct gab_triple gab, gab_value rec,
-                                   gab_value key, gab_value value) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  struct gab_obj_record *obj = GAB_VAL_TO_RECORD(rec);
-
-  size_t offset = gab_shpfind(obj->shape, key);
-
-  if (offset == GAB_PROPERTY_NOT_FOUND)
-    return gab_undefined;
-
-  return gab_urecput(gab, rec, offset, value);
-}
-
-/**
- * @brief Put a value in the record at the given key.
- *
- * @param gab The triple.
- * @param rec The record object.
- * @param key The key, as a c string literal.
- * @param value The value.
- * @return the new value if a success, gab_undefined otherwise.
- */
-static inline gab_value gab_srecput(struct gab_triple gab, gab_value rec,
-                                    const char *key, gab_value value) {
-  return gab_recput(gab, rec, gab_string(gab, key), value);
-}
-
-/**
- * @brief Check if the record has a value at the given key.
- *
- * @param rec The record object.
- * @param key The key.
- * @return true if the key exists on the record, false otherwise.
- */
-static inline bool gab_rechas(gab_value rec, gab_value key) {
-  return gab_recat(rec, key) != gab_undefined;
-}
-
-/**
- * @brief Check if the record has a value at the given key.
- *
- * @param rec The record object.
- * @param key The key, as a c string literal.
- * @return true if the key exists on the record, false otherwise.
- */
-static inline bool gab_srechas(struct gab_triple gab, gab_value rec,
-                               const char *key) {
-  return gab_rechas(rec, gab_string(gab, key));
-}
-/**
- * @brief Get the shape of a record.
- *
- * @param rec The record.
- * @return The shape of the record.
- */
-static inline gab_value gab_recshp(gab_value rec) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  return GAB_VAL_TO_RECORD(rec)->shape;
-};
-
-/**
- * @brief Get the length of a record.
- *
- * @param rec The record.
- * @return The length of the record.
- */
-static inline size_t gab_reclen(gab_value rec) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  return GAB_VAL_TO_RECORD(rec)->len;
-};
-
-/**
- * @brief Get a pointer to the members of a record.
- *
- * @param rec The record.
- * @return The members of the record.
- *
- */
-static inline gab_value *gab_recdata(gab_value rec) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  return GAB_VAL_TO_RECORD(rec)->data;
-};
-
 struct gab_obj_mapnode {
   struct gab_obj header;
 
@@ -1721,17 +1316,21 @@ gab_value __gab_map(struct gab_triple gab, size_t len, size_t space,
 gab_value __gab_mapnode(struct gab_triple gab, size_t len, size_t space,
                         gab_value *data);
 
+bool gab_maphas(gab_value map, gab_value key);
+bool gab_umaphas(gab_value map, size_t i);
+
 gab_value gab_mapat(gab_value map, gab_value key);
+gab_value gab_smapat(struct gab_triple, gab_value map, const char* key);
+
+gab_value gab_ukmapat(gab_value map, size_t i);
+gab_value gab_uvmapat(gab_value map, size_t i);
 
 gab_value gab_mapput(struct gab_triple gab, gab_value map, gab_value key,
                      gab_value val);
 
 gab_value gab_mapdel(struct gab_triple gab, gab_value map, gab_value key);
 
-gab_value gab_maplen(gab_value map);
-gab_value gab_ukmapat(gab_value map, size_t i);
-gab_value gab_uvmapat(gab_value map, size_t i);
-gab_value gab_umaphas(gab_value map, size_t i);
+size_t gab_maplen(gab_value map);
 
 struct gab_obj_vecnode {
   struct gab_obj header;
@@ -1798,17 +1397,6 @@ struct gab_obj_message {
 gab_value gab_message(struct gab_triple gab, gab_value name);
 
 /**
- * @brief Get the shape of the message's spec record.
- *
- * @param msg The message.
- * @return the shape.
- */
-static inline gab_value gab_msgshp(gab_value msg) {
-  assert(gab_valkind(msg) == kGAB_MESSAGE);
-  return gab_recshp(GAB_VAL_TO_MESSAGE(msg)->specs);
-}
-
-/**
  * @brief Get a message's internal spec record.
  *
  * @param msg The message.
@@ -1831,20 +1419,6 @@ static inline gab_value gab_msgname(gab_value msg) {
 }
 
 /**
- * @brief Find the index of a receiver's specializtion in the message.
- *
- * @param msg The message object.
- * @param receiver The receiver to look for.
- * @return The index of the receiver's specialization, or GAB_PROPERTY_NOT_FOUND
- * if it doesn't exist.
- */
-static inline size_t gab_msgfind(gab_value msg, gab_value receiver) {
-  assert(gab_valkind(msg) == kGAB_MESSAGE);
-  struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
-  return gab_recfind(obj->specs, receiver);
-}
-
-/**
  * @brief Get the specialization at the given offset in the message.
  * WARNING: This function is not bounds checked. For a safe alternative, try
  * gab_msgat.
@@ -1858,7 +1432,7 @@ static inline size_t gab_msgfind(gab_value msg, gab_value receiver) {
 static inline gab_value gab_umsgat(gab_value msg, size_t offset) {
   assert(gab_valkind(msg) == kGAB_MESSAGE);
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
-  return gab_urecat(obj->specs, offset);
+  return gab_uvmapat(obj->specs, offset);
 }
 
 /**
@@ -1872,7 +1446,7 @@ static inline gab_value gab_umsgat(gab_value msg, size_t offset) {
 static inline gab_value gab_msgat(gab_value msg, gab_value receiver) {
   assert(gab_valkind(msg) == kGAB_MESSAGE);
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
-  return gab_recat(obj->specs, receiver);
+  return gab_mapat(obj->specs, receiver);
 }
 
 /**
@@ -1892,7 +1466,7 @@ static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg,
 
   struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
 
-  if (gab_rechas(obj->specs, receiver)) {
+  if (gab_maphas(obj->specs, receiver)) {
     gab_gcunlock(gab.gc);
     return gab_undefined;
   }
@@ -1900,7 +1474,7 @@ static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg,
   if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
     gab_dref(gab, obj->specs);
 
-  obj->specs = gab_recordwith(gab, obj->specs, receiver, spec);
+  obj->specs = gab_mapput(gab, obj->specs, receiver, spec);
 
   if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
     gab_iref(gab, obj->specs);
@@ -2108,31 +1682,6 @@ static inline gab_value gab_boxtype(gab_value value) {
 }
 
 /**
- * @brief Bundle a list of keys and values into a record.
- *
- * @param gab The triple.
- * @param len The length of keys and values arrays
- * @param keys The keys of the record to bundle.
- * @param values The values of the record to bundle.
- * @return The new record.
- */
-gab_value gab_record(struct gab_triple gab, size_t len,
-                     gab_value keys[static len], gab_value values[static len]);
-
-/**
- * @brief Bundle a list of keys and values into a record.
- *
- * @param gab The triple.
- * @param len The length of keys and values arrays
- * @param keys The keys of the record to bundle, as c-strings.
- * @param values The values of the record to bundle.
- * @return The new record.
- */
-gab_value gab_srecord(struct gab_triple gab, size_t len,
-                      const char *keys[static len],
-                      gab_value values[static len]);
-
-/**
  * @brief Bundle a list of values into a tuple.
  *
  * @param gab The engine
@@ -2142,15 +1691,6 @@ gab_value gab_srecord(struct gab_triple gab, size_t len,
  */
 gab_value gab_tuple(struct gab_triple gab, size_t len,
                     gab_value values[static len]);
-
-/**
- * @brief Bundle a list of values into a tuple.
- *
- * @param gab The engine
- * @param len The length of values array.
- * @return The new record.
- */
-gab_value gab_etuple(struct gab_triple gab, size_t len);
 
 /**
  * @brief Get the practical runtime type of a value.
@@ -2167,8 +1707,6 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
   case kGAB_UNDEFINED:
     return value;
   /* These are special cases for the practical type */
-  case kGAB_RECORD:
-    return gab_recshp(value);
   case kGAB_BOX:
     return gab_boxtype(value);
   /* Otherwise, return the value for that kind */
@@ -2179,13 +1717,6 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
 
 #define NAME strings
 #define K struct gab_obj_string *
-#define HASH(a) (a->hash)
-#define EQUAL(a, b) (a == b)
-#define LOAD cGAB_DICT_MAX_LOAD
-#include "dict.h"
-
-#define NAME shapes
-#define K struct gab_obj_shape *
 #define HASH(a) (a->hash)
 #define EQUAL(a, b) (a == b)
 #define LOAD cGAB_DICT_MAX_LOAD
@@ -2229,8 +1760,6 @@ struct gab_eg {
 
   d_strings strings;
 
-  d_shapes shapes;
-
   d_messages messages;
 
   v_gab_value scratch;
@@ -2259,42 +1788,38 @@ static inline bool gab_egvalisa(struct gab_eg *eg, gab_value value,
 
 static inline struct gab_egimpl_rest
 gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
-  size_t offset = GAB_PROPERTY_NOT_FOUND;
+  gab_value spec = gab_undefined;
   gab_value type = receiver;
 
-  /* Check if the receiver supports properties, and if there is a matching
-   * property */
-  if (gab_valhasp(receiver)) {
-    offset = gab_recfind(receiver, gab_msgname(message));
-
-    if (offset != GAB_PROPERTY_NOT_FOUND)
-      return (struct gab_egimpl_rest){type, offset, kGAB_IMPL_PROPERTY};
+  if (gab_valkind(receiver) == kGAB_MAP) {
+    spec = gab_mapat(receiver, (message));
+    if (spec != gab_undefined)
+      return (struct gab_egimpl_rest){type, spec, kGAB_IMPL_PROPERTY};
   }
 
   /* Check if the receiver has a supertype, and if that supertype implments the
    * message. ie <gab.shape 0 1>*/
   if (gab_valhast(receiver)) {
     type = gab_valtype(eg, receiver);
-    offset = gab_msgfind(message, type);
+    spec = gab_msgat(message, type);
 
-    if (offset != GAB_PROPERTY_NOT_FOUND)
-      return (struct gab_egimpl_rest){type, offset, kGAB_IMPL_TYPE};
+    if (spec != gab_undefined)
+      return (struct gab_egimpl_rest){type, spec, kGAB_IMPL_TYPE};
   }
 
   /* Check for the kind of the receiver. ie 'gab.record' */
   type = gab_egtype(eg, gab_valkind(receiver));
-  offset = gab_msgfind(message, type);
+  spec = gab_msgat(message, type);
 
-  if (offset != GAB_PROPERTY_NOT_FOUND)
-    return (struct gab_egimpl_rest){type, offset, kGAB_IMPL_KIND};
+  if (spec != gab_undefined)
+    return (struct gab_egimpl_rest){type, spec, kGAB_IMPL_KIND};
 
   /* Lastly, check for a generic implmentation.*/
   type = gab_undefined;
-  offset = gab_msgfind(message, type);
+  spec = gab_msgat(message, type);
 
   return (struct gab_egimpl_rest){
-      type, offset,
-      offset == GAB_PROPERTY_NOT_FOUND ? kGAB_IMPL_NONE : kGAB_IMPL_GENERAL};
+      type, spec, spec == gab_undefined ? kGAB_IMPL_NONE : kGAB_IMPL_GENERAL};
 }
 
 /**
@@ -2338,22 +1863,17 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
     snprintf(buffer, 128, "%lf", gab_valton(value));
     return gab_string(gab, buffer);
   }
+  case kGAB_MAP: {
+      struct gab_obj_map* m = GAB_VAL_TO_MAP(value);
+      snprintf(buffer, 128, "<Map %p>", m);
+      return gab_string(gab, buffer);
+    }
   case kGAB_BLOCK: {
     struct gab_obj_block *o = GAB_VAL_TO_BLOCK(value);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(o->p);
     snprintf(buffer, 128, "<Block %s:%lu>",
              gab_valintocs(gab, gab_srcname(p->src)),
              gab_srcline(p->src, p->offset));
-    return gab_string(gab, buffer);
-  }
-  case kGAB_RECORD: {
-    struct gab_obj_record *o = GAB_VAL_TO_RECORD(value);
-    snprintf(buffer, 128, "<Record %p>", o);
-    return gab_string(gab, buffer);
-  }
-  case kGAB_SHAPE: {
-    struct gab_obj_shape *o = GAB_VAL_TO_SHAPE(value);
-    snprintf(buffer, 128, "<Shape %p>", o);
     return gab_string(gab, buffer);
   }
   case kGAB_MESSAGE: {

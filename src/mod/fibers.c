@@ -1,7 +1,5 @@
-#include "core.h"
 #include "fiber.h"
 #include "gab.h"
-#include <threads.h>
 
 a_gab_value *gab_lib_fiber(struct gab_triple gab, size_t argc,
                            gab_value argv[argc]) {

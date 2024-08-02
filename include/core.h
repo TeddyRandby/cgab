@@ -147,7 +147,14 @@
 #define GAB_HAMT_BITS (6)
 #define GAB_HAMT_SIZE (1 << GAB_HAMT_BITS)
 #define GAB_HAMT_MASK (GAB_HAMT_SIZE - 1)
-#define GAB_HAMT_IDXMASK (0x3f)
+
+#if 64 % GAB_HAMT_BITS != 0
+// #error "GAB_HAMT_BITS must divide 64 evently"
+#endif
+
+#if GAB_HAMT_SIZE > 64
+#error "HAMT_SIZE is larger than is indexable by a size_t"
+#endif
 
 #define VAR_EXP 255
 #define fHAVE_VAR (1 << 0)

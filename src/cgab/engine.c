@@ -161,7 +161,7 @@ struct primitive kind_primitives[] = {
     },
     {
         .name = mGAB_SPLAT,
-        .kind = kGAB_RECORD,
+        .kind = kGAB_MAP,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_SPLAT),
     },
     {
@@ -220,14 +220,8 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->types[kGAB_BLOCK] = gab_string(gab, "gab.block");
   gab_iref(gab, eg->types[kGAB_BLOCK]);
 
-  eg->types[kGAB_RECORD] = gab_string(gab, "gab.record");
-  gab_iref(gab, eg->types[kGAB_RECORD]);
-
   eg->types[kGAB_MAP] = gab_string(gab, "gab.map");
   gab_iref(gab, eg->types[kGAB_MAP]);
-
-  eg->types[kGAB_SHAPE] = gab_string(gab, "gab.shape");
-  gab_iref(gab, eg->types[kGAB_SHAPE]);
 
   eg->types[kGAB_BOX] = gab_string(gab, "gab.box");
   gab_iref(gab, eg->types[kGAB_BOX]);
@@ -301,7 +295,6 @@ void gab_destroy(struct gab_triple gab) {
   }
 
   d_strings_destroy(&gab.eg->strings);
-  d_shapes_destroy(&gab.eg->shapes);
   d_messages_destroy(&gab.eg->messages);
   d_gab_modules_destroy(&gab.eg->modules);
   d_gab_src_destroy(&gab.eg->sources);
@@ -499,48 +492,6 @@ struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
   }
 }
 
-static inline bool shape_matches_keys(struct gab_obj_shape *self,
-                                      gab_value values[], uint64_t len,
-                                      uint64_t stride) {
-
-  if (self->len != len)
-    return false;
-
-  for (uint64_t i = 0; i < len; i++) {
-    gab_value key = values[i * stride];
-    if (self->data[i] != key)
-      return false;
-  }
-
-  return true;
-}
-
-struct gab_obj_shape *gab_egshpfind(struct gab_eg *self, uint64_t size,
-                                    uint64_t stride, uint64_t hash,
-                                    gab_value keys[size]) {
-  if (self->shapes.len == 0)
-    return nullptr;
-
-  uint64_t index = hash & (self->shapes.cap - 1);
-
-  for (;;) {
-    d_status status = d_shapes_istatus(&self->shapes, index);
-    struct gab_obj_shape *key = d_shapes_ikey(&self->shapes, index);
-
-    switch (status) {
-    case D_TOMBSTONE:
-      break;
-    case D_EMPTY:
-      return nullptr;
-    case D_FULL:
-      if (key->hash == hash && shape_matches_keys(key, keys, size, stride))
-        return key;
-    }
-
-    index = (index + 1) & (self->shapes.cap - 1);
-  }
-}
-
 a_gab_value *gab_segmodat(struct gab_eg *eg, const char *name) {
   size_t hash = s_char_hash(s_char_cstr(name), eg->hash_seed);
 
@@ -649,33 +600,6 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
 
     return copy;
   }
-
-  case kGAB_SHAPE: {
-    struct gab_obj_shape *self = GAB_VAL_TO_SHAPE(value);
-
-    gab_value keys[self->len];
-
-    for (uint64_t i = 0; i < self->len; i++) {
-      keys[i] = gab_valcpy(gab, self->data[i]);
-    }
-
-    gab_value copy = gab_shape(gab, 1, self->len, keys);
-
-    return copy;
-  }
-
-  case kGAB_RECORD: {
-    struct gab_obj_record *self = GAB_VAL_TO_RECORD(value);
-
-    gab_value s_copy = gab_valcpy(gab, self->shape);
-
-    gab_value values[self->len];
-
-    for (uint64_t i = 0; i < self->len; i++)
-      values[i] = gab_valcpy(gab, self->data[i]);
-
-    return gab_recordof(gab, s_copy, 1, values);
-  }
   }
 }
 
@@ -683,37 +607,16 @@ gab_value gab_string(struct gab_triple gab, const char data[static 1]) {
   return gab_nstring(gab, strlen(data), data);
 }
 
-gab_value gab_record(struct gab_triple gab, uint64_t size, gab_value keys[size],
-                     gab_value values[size]) {
-  gab_value bundle_shape = gab_shape(gab, 1, size, keys);
-  return gab_recordof(gab, bundle_shape, 1, values);
-}
-
-gab_value gab_srecord(struct gab_triple gab, uint64_t size,
-                      const char *keys[size], gab_value values[size]) {
-  gab_value value_keys[size];
-
-  for (uint64_t i = 0; i < size; i++)
-    value_keys[i] = gab_string(gab, keys[i]);
-
-  gab_value bundle_shape = gab_shape(gab, 1, size, value_keys);
-  return gab_recordof(gab, bundle_shape, 1, values);
-}
-
-gab_value gab_etuple(struct gab_triple gab, size_t len) {
-  gab_gclock(gab.gc);
-  gab_value bundle_shape = gab_nshape(gab, len);
-  gab_value v = gab_erecordof(gab, bundle_shape);
-  gab_gcunlock(gab.gc);
-  return v;
-}
-
 gab_value gab_tuple(struct gab_triple gab, uint64_t size,
                     gab_value values[size]) {
   gab_gclock(gab.gc);
 
-  gab_value bundle_shape = gab_nshape(gab, size);
-  gab_value v = gab_recordof(gab, bundle_shape, 1, values);
+  gab_value keys[size];
+  for (size_t i = 0; i < size; i++) {
+    keys[i] = gab_number(i);
+  }
+
+  gab_value v = gab_map(gab, 1, size, keys, values);
   gab_gcunlock(gab.gc);
   return v;
 }
@@ -934,7 +837,7 @@ a_gab_value *gab_shared_object_handler(struct gab_triple gab,
                                        const char *path) {
   void *handle = gab.eg->os_dynopen(path);
 
-  if (!handle) {
+  if (handle == nullptr) {
     gab_panic(gab, "Couldn't open module");
     return nullptr;
   }

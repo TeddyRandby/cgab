@@ -591,16 +591,15 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
 
 #define PROPERTY_RECORD(r, have)                                               \
   ({                                                                           \
-    gab_value spec = gab_urecat(r, ks[GAB_SEND_KOFFSET]);                      \
-                                                                               \
     switch (have) {                                                            \
     case 1:                                                                    \
-      PEEK() = spec;                                                           \
+      PEEK() = gab_mapat(r, (ks[GAB_SEND_KMESSAGE]));               \
       break;                                                                   \
     default:                                                                   \
       DROP_N((have) - 1);                                                      \
     case 2: {                                                                  \
-      gab_value value = gab_urecput(GAB(), r, ks[GAB_SEND_KOFFSET], POP());    \
+      gab_value value =                                                        \
+          gab_mapput(GAB(), r, (ks[GAB_SEND_KMESSAGE]), POP());     \
       PEEK() = value;                                                          \
       break;                                                                   \
     }                                                                          \
@@ -836,11 +835,11 @@ static inline bool try_setup_localmatch(gab_value m, gab_value *ks,
                                         struct gab_obj_prototype *p) {
   gab_value specs = gab_msgrec(m);
 
-  if (gab_reclen(specs) > 4 || gab_reclen(specs) < 2)
+  if (gab_maplen(specs) > 4 || gab_maplen(specs) < 2)
     return false;
 
-  for (size_t i = 0; i < gab_reclen(specs); i++) {
-    gab_value spec = gab_urecat(specs, i);
+  for (size_t i = 0; i < gab_maplen(specs); i++) {
+    gab_value spec = gab_uvmapat(specs, i);
 
     if (gab_valkind(spec) != kGAB_BLOCK)
       return false;
@@ -851,7 +850,7 @@ static inline bool try_setup_localmatch(gab_value m, gab_value *ks,
     if (spec_p->src != p->src)
       return false;
 
-    gab_value t = gab_ushpat(gab_recshp(specs), i);
+    gab_value t = gab_ukmapat(specs, i);
 
     uint8_t idx = GAB_SEND_HASH(t) * GAB_SEND_CACHE_SIZE;
 
@@ -1154,16 +1153,17 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
 
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  SEND_GUARD_KIND(r, kGAB_RECORD);
-
-  struct gab_obj_record *rec = GAB_VAL_TO_RECORD(r);
+  SEND_GUARD_KIND(r, kGAB_MAP);
 
   DROP_N(have);
 
-  memcpy(SP(), rec->data, rec->len * sizeof(gab_value));
-  SP() += rec->len;
+  size_t len = gab_maplen(r);
 
-  SET_VAR(rec->len);
+  for (size_t i = 0; i < len; i++) {
+    PUSH(gab_uvmapat(r, i));
+  }
+
+  SET_VAR(len);
 
   NEXT();
 }
@@ -1199,7 +1199,7 @@ CASE_CODE(SEND_PROPERTY_BLOCK) {
   SEND_GUARD_CACHED_MESSAGE_SPECS(m);
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  gab_value spec = gab_urecat(r, ks[GAB_SEND_KOFFSET]);
+  gab_value spec = gab_mapat(r, (ks[GAB_SEND_KMESSAGE]));
 
   SEND_GUARD_KIND(spec, kGAB_BLOCK);
 
@@ -1218,7 +1218,7 @@ CASE_CODE(TAILSEND_PROPERTY_BLOCK) {
   SEND_GUARD_CACHED_MESSAGE_SPECS(m);
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  gab_value spec = gab_urecat(r, ks[GAB_SEND_KOFFSET]);
+  gab_value spec = gab_mapat(r, (ks[GAB_SEND_KMESSAGE]));
 
   SEND_GUARD_KIND(spec, kGAB_BLOCK);
 
@@ -1235,9 +1235,9 @@ CASE_CODE(SEND_PROPERTY_NATIVE) {
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
   SEND_GUARD_CACHED_MESSAGE_SPECS(m);
-  SEND_GUARD_CACHED_RECEIVER_TYPE(r);
+  SEND_GUARD_CACHED_RECEIVER_TYPE(r);// These guards don't work now. Maps don't cache their keys
 
-  gab_value spec = gab_urecat(r, ks[GAB_SEND_KOFFSET]);
+  gab_value spec = gab_mapat(r, (ks[GAB_SEND_KMESSAGE]));
 
   SEND_GUARD_KIND(spec, kGAB_NATIVE);
 
@@ -1256,7 +1256,7 @@ CASE_CODE(SEND_PROPERTY_PRIMITIVE) {
   SEND_GUARD_CACHED_MESSAGE_SPECS(m);
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  gab_value spec = gab_urecat(r, ks[GAB_SEND_KOFFSET]);
+  gab_value spec = gab_mapat(r, (ks[GAB_SEND_KMESSAGE]));
 
   SEND_GUARD_KIND(spec, kGAB_PRIMITIVE);
 
@@ -1291,8 +1291,7 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_BLOCK) {
   SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m);
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  gab_value spec = gab_urecat(r, ks[GAB_SEND_KOFFSET]);
-
+  gab_value spec = gab_mapat(r, m);
   SEND_GUARD_KIND(spec, kGAB_BLOCK);
 
   struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
@@ -1313,10 +1312,9 @@ CASE_CODE(TAILSEND_PRIMITIVE_SEND_GENERIC_PROPERTY_BLOCK) {
 
   SEND_GUARD_KIND(m, kGAB_MESSAGE);
   SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m);
-  SEND_GUARD_CACHED_RECEIVER_TYPE(r);
+  SEND_GUARD_CACHED_RECEIVER_TYPE(r); // This isn't safe anymore. Receiver type is always 'map'. Values aren't given helpful 'shapes/types'
 
-  gab_value spec = gab_urecat(r, ks[GAB_SEND_KOFFSET]);
-
+  gab_value spec = gab_mapat(r, m);
   SEND_GUARD_KIND(spec, kGAB_BLOCK);
 
   struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(spec);
@@ -1357,8 +1355,7 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_PRIMITIVE) {
   SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m);
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  gab_value spec = gab_urecat(r, ks[GAB_SEND_KOFFSET]);
-
+  gab_value spec = gab_mapat(r, m);
   SEND_GUARD_KIND(spec, kGAB_PRIMITIVE);
 
   uint8_t op = gab_valtop(spec);
@@ -1381,7 +1378,7 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_NATIVE) {
   SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m);
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  gab_value spec = gab_urecat(r, ks[GAB_SEND_KOFFSET]);
+  gab_value spec = gab_mapat(r, m);
   SEND_GUARD_KIND(spec, kGAB_NATIVE);
 
   memmove(SP() - (have - 1), SP() - (have - 2), (have - 1) * sizeof(gab_value));
@@ -1404,7 +1401,7 @@ CASE_CODE(SEND_PROPERTY) {
   SEND_GUARD_CACHED_MESSAGE_SPECS(m);
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  gab_value spec = gab_urecat(r, ks[GAB_SEND_KOFFSET]);
+  gab_value spec = gab_mapat(r, (ks[GAB_SEND_KMESSAGE]));
 
   switch (gab_valkind(spec)) {
   case kGAB_PRIMITIVE:
@@ -1643,9 +1640,7 @@ CASE_CODE(TUPLE) {
 
   gab_gclock(GC());
 
-  gab_value shape = gab_nshape(GAB(), len);
-
-  gab_value rec = gab_recordof(GAB(), shape, 1, SP() - len);
+  gab_value rec = gab_tuple(GAB(), len, SP() - len);
 
   DROP_N(len);
 
@@ -1685,11 +1680,11 @@ CASE_CODE(SEND) {
 
   gab_value spec = res.status == kGAB_IMPL_PROPERTY
                        ? gab_primitive(OP_SEND_PROPERTY)
-                       : gab_umsgat(m, res.offset);
+                       : res.spec;
 
   ks[GAB_SEND_KSPECS] = GAB_VAL_TO_MESSAGE(m)->specs;
   ks[GAB_SEND_KTYPE] = gab_valtype(EG(), r);
-  ks[GAB_SEND_KOFFSET] = res.offset;
+  ks[GAB_SEND_KSPEC] = res.spec;
 
   switch (gab_valkind(spec)) {
   case kGAB_PRIMITIVE: {
@@ -1862,12 +1857,12 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC) {
   }
 
   ks[GAB_SEND_KTYPE] = t;
-  ks[GAB_SEND_KOFFSET] = res.offset;
+  ks[GAB_SEND_KSPEC] = res.spec;
   ks[GAB_SEND_KGENERIC_CALL_SPECS] = gab_msgrec(m);
   ks[GAB_SEND_KGENERIC_CALL_MESSAGE] = m;
 
   if (res.status == kGAB_IMPL_PROPERTY) {
-    gab_value spec = gab_urecat(r, res.offset);
+    gab_value spec = res.spec;
 
     switch (gab_valkind(spec)) {
     case kGAB_PRIMITIVE:
@@ -1891,7 +1886,7 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC) {
       break;
     }
   } else {
-    gab_value spec = gab_umsgat(m, res.offset);
+    gab_value spec = res.spec;
 
     switch (gab_valkind(spec)) {
     case kGAB_PRIMITIVE: {

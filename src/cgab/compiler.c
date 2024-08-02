@@ -234,12 +234,21 @@ static int eat_token(struct bc *bc) {
   return COMP_OK;
 }
 
-static inline int match_and_eat_token(struct bc *bc, gab_token tok) {
-  if (!match_token(bc, tok))
-    return COMP_TOKEN_NO_MATCH;
+static inline int match_and_eat_token_of(struct bc *bc, size_t len,
+                                         gab_token tok[len]) {
+  for (size_t i = 0; i < len; i++) {
+    if (match_token(bc, tok[i]))
+      return eat_token(bc);
+  }
 
-  return eat_token(bc);
+  return COMP_TOKEN_NO_MATCH;
 }
+
+#define match_and_eat_token(bc, ...)                                       \
+  ({                                                                           \
+    gab_token toks[] = {__VA_ARGS__};                                          \
+    match_and_eat_token_of(bc, sizeof(toks) / sizeof(gab_token), toks);        \
+  })
 
 static inline int expect_token_hint(struct bc *bc, gab_token tok,
                                     const char *fmt, ...) {
@@ -609,11 +618,9 @@ static inline void push_record(struct bc *bc, size_t len, size_t t) {
         stack[i] = ks[arg_k];
       }
 
-      gab_value shape = gab_shape(gab(bc), 2, len, stack);
+      gab_value map = gab_map(gab(bc), 2, len, stack, stack + 1);
 
-      gab_value rec = gab_recordof(gab(bc), shape, 2, stack + 1);
-
-      uint16_t new_k = addk(bc, rec);
+      uint16_t new_k = addk(bc, map);
 
       v_uint8_t_set(&f->bc, prev_local_arg, prev_n - len * 2 + 1);
 
@@ -1850,14 +1857,14 @@ static int compile_rec_internal_item(struct bc *bc) {
     return COMP_OK;
   }
 
-  if (match_and_eat_token(bc, TOKEN_IDENTIFIER)) {
+  if (match_and_eat_token(bc, TOKEN_IDENTIFIER, TOKEN_OPERATOR)) {
     gab_value val_name = prev_id(bc);
 
     size_t t = bc->offset - 1;
 
     push_slot(bc, 1);
 
-    push_loadk(bc, val_name, t);
+    push_loadk(bc, gab_message(gab(bc), val_name), t);
 
     switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
 

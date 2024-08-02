@@ -66,12 +66,11 @@ a_gab_value *gab_lib_sock(struct gab_triple gab, size_t argc,
     break;
 
   case 2: {
-    if (gab_valkind(argv[1]) != kGAB_RECORD)
-      return gab_ptypemismatch(gab, argv[1],
-                               gab_sshape(gab, 1, 2, sock_config_keys));
+    if (gab_valkind(argv[1]) != kGAB_MAP)
+      return gab_pktypemismatch(gab, argv[1], kGAB_MAP);
 
-    gab_value domain_val = gab_srecat(gab, argv[1], SOCKET_FAMILY);
-    gab_value type_val = gab_srecat(gab, argv[1], SOCKET_TYPE);
+    gab_value domain_val = gab_smapat(gab, argv[1], SOCKET_FAMILY);
+    gab_value type_val = gab_smapat(gab, argv[1], SOCKET_TYPE);
 
     if (gab_valkind(domain_val) != kGAB_NUMBER)
       return gab_panic(gab, "invalid_arguments");
@@ -138,14 +137,14 @@ a_gab_value *gab_lib_bind(struct gab_triple gab, size_t argc,
     family = AF_INET;
     port = htons(gab_valton(config));
     goto fin;
-  case kGAB_RECORD: {
-    gab_value family_value = gab_srecat(gab, config, SOCKET_FAMILY);
+  case kGAB_MAP: {
+    gab_value family_value = gab_smapat(gab, config, SOCKET_FAMILY);
 
     if (gab_valkind(family_value) != kGAB_NUMBER) {
       return gab_panic(gab, "invalid_arguments");
     }
 
-    gab_value port_value = gab_srecat(gab, config, "port");
+    gab_value port_value = gab_smapat(gab, config, "port");
 
     if (gab_valkind(port_value) != kGAB_NUMBER) {
       return gab_panic(gab, "invalid_arguments");
@@ -349,18 +348,18 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_nspec(gab, sizeof(specs) / sizeof(specs[0]), specs);
 
-  const char *constant_names[] = {
-      "AF_INET",
-      "SOCK_STREAM",
-  };
+  // const char *constant_names[] = {
+  //     "AF_INET",
+  //     "SOCK_STREAM",
+  // };
 
-  gab_value constant_values[] = {
-      gab_number(AF_INET),
-      gab_number(SOCK_STREAM),
-  };
+  // gab_value constant_values[] = {
+  //     gab_number(AF_INET),
+  //     gab_number(SOCK_STREAM),
+  // };
 
-  gab_value constants = gab_srecord(gab, LEN_CARRAY(constant_names),
-                                    constant_names, constant_values);
+  // gab_value constants = gab_srecord(gab, LEN_CARRAY(constant_names),
+  //                                   constant_names, constant_values);
 
-  return a_gab_value_one(constants);
+  return a_gab_value_one(gab_nil);
 }

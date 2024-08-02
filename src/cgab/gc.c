@@ -138,18 +138,6 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
     break;
   }
 
-  case kGAB_SHAPE: {
-    struct gab_obj_shape *shape = (struct gab_obj_shape *)obj;
-
-    for (uint64_t i = 0; i < shape->len; i++) {
-      if (gab_valiso(shape->data[i])) {
-        fnc(gab, gab_valtoo(shape->data[i]));
-      }
-    }
-
-    break;
-  }
-
   case kGAB_MAP: {
     struct gab_obj_map *map = (struct gab_obj_map *)obj;
     size_t len = __builtin_popcount(map->mask);
@@ -183,19 +171,6 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
           fnc(gab, gab_valtoo(map->data[offset + 1]));
       }
     }
-    break;
-  }
-
-  case kGAB_RECORD: {
-    struct gab_obj_record *rec = (struct gab_obj_record *)obj;
-
-    fnc(gab, gab_valtoo(rec->shape));
-
-    for (uint64_t i = 0; i < rec->len; i++) {
-      if (gab_valiso(rec->data[i]))
-        fnc(gab, gab_valtoo(rec->data[i]));
-    }
-
     break;
   }
   }

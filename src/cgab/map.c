@@ -16,14 +16,14 @@ enum map_result {
 };
 
 static inline size_t hash_index(size_t hash, size_t shift) {
-  return (hash >> shift) & GAB_HAMT_IDXMASK;
+  return (hash >> shift) & GAB_HAMT_MASK;
 }
 
 static inline size_t shift_next(size_t shift) {
   shift += GAB_HAMT_BITS;
 
   if (shift > GAB_HAMT_SIZE - GAB_HAMT_BITS)
-    shift = 0;
+    shift = shift - (GAB_HAMT_SIZE - GAB_HAMT_BITS);
 
   return shift;
 }
@@ -99,6 +99,17 @@ static inline int map_len(gab_value map) {
   }
 }
 
+static inline int map_vlen(gab_value map) {
+  switch (gab_valkind(map)) {
+  case kGAB_MAP:
+    return popcount(GAB_VAL_TO_MAP(map)->vmask);
+  case kGAB_MAPNODE:
+    return popcount(GAB_VAL_TO_MAPNODE(map)->vmask);
+  default:
+    assert(0 && "Only map and mapnodebranch can have len");
+  }
+}
+
 static inline gab_value *map_nodeleafat(gab_value map, size_t p) {
   size_t idx = 2 * p;
   // assert(idx < map_len(map));
@@ -107,6 +118,44 @@ static inline gab_value *map_nodeleafat(gab_value map, size_t p) {
     return GAB_VAL_TO_MAP(map)->data + idx;
   case kGAB_MAPNODE:
     return GAB_VAL_TO_MAPNODE(map)->data + idx;
+  default:
+    assert(0 && "Only map and mapnodebranch can have indexes");
+  }
+}
+
+static inline void map_unsetindices(gab_value map) {
+  switch (gab_valkind(map)) {
+  case kGAB_MAP: {
+    struct gab_obj_map *m = GAB_VAL_TO_MAP(map);
+
+    m->mask = 0;
+    break;
+  }
+  case kGAB_MAPNODE: {
+    struct gab_obj_mapnode *m = GAB_VAL_TO_MAPNODE(map);
+
+    m->mask = 0;
+    break;
+  }
+  default:
+    assert(0 && "Only map and mapnodebranch can have indexes");
+  }
+}
+
+static inline void map_setindex(gab_value map, size_t idx) {
+  switch (gab_valkind(map)) {
+  case kGAB_MAP: {
+    struct gab_obj_map *m = GAB_VAL_TO_MAP(map);
+
+    m->mask |= (1 << idx);
+    break;
+  }
+  case kGAB_MAPNODE: {
+    struct gab_obj_mapnode *m = GAB_VAL_TO_MAPNODE(map);
+
+    m->mask |= (1 << idx);
+    break;
+  }
   default:
     assert(0 && "Only map and mapnodebranch can have indexes");
   }
@@ -199,6 +248,8 @@ static inline void map_setleaf(gab_value map, size_t pos, gab_value v) {
 
 static inline void map_shiftvalues(gab_value map, size_t pos) {
   size_t offset = 2 * pos;
+  size_t ones_below = (1 << pos) - 1;
+  size_t ones_above = ~ones_below << 1;
   switch (gab_valkind(map)) {
   case kGAB_MAP: {
     struct gab_obj_map *m = GAB_VAL_TO_MAP(map);
@@ -207,8 +258,8 @@ static inline void map_shiftvalues(gab_value map, size_t pos) {
     memmove(m->data + (offset) + 2, m->data + (offset),
             sizeof(gab_value) * (2 * (nrows - pos)));
 
-    size_t above_vmask = m->vmask << pos & (pos - 1);
-    size_t below_vmask = (m->vmask & ~(pos - 1));
+    size_t above_vmask = m->vmask << 1 & ones_above;
+    size_t below_vmask = m->vmask & ones_below;
     m->vmask = above_vmask | below_vmask;
     break;
   }
@@ -219,14 +270,20 @@ static inline void map_shiftvalues(gab_value map, size_t pos) {
     memmove(m->data + (offset) + 2, m->data + (offset),
             sizeof(gab_value) * (2 * (nrows - pos)));
 
-    size_t above_vmask = m->vmask << pos & (pos - 1);
-    size_t below_vmask = (m->vmask & ~(pos - 1));
+    size_t above_vmask = m->vmask << 1 & ones_above;
+    size_t below_vmask = m->vmask & ones_below;
     m->vmask = above_vmask | below_vmask;
     break;
   }
   default:
     assert(0 && "Only map and mapnodebranch can have indexes");
   }
+}
+
+static inline void map_incrementlen(gab_value map) {
+  assert(gab_valkind(map) == kGAB_MAP);
+  struct gab_obj_map *m = GAB_VAL_TO_MAP(map);
+  m->len++;
 }
 
 static inline void map_insertleaf(gab_value map, size_t idx, size_t pos,
@@ -239,7 +296,6 @@ static inline void map_insertleaf(gab_value map, size_t idx, size_t pos,
     assert(!(m->mask & (1 << idx)));
     assert(!(m->vmask & (1 << pos)));
 
-    m->len++;
     m->data[offset] = k;
     m->data[offset + 1] = v;
     m->mask |= (1 << idx);
@@ -273,6 +329,19 @@ static inline gab_value map_nodebranchat(gab_value map, int pos) {
   default:
     assert(0 && "Only map and mapnodebranch can have indexes");
   }
+}
+
+static inline int map_vsublen(gab_value map) {
+  size_t sum = map_vlen(map);
+
+  for (size_t i = 0; i < map_len(map); i++) {
+    if (map_nodekat(map, i) == kBRANCH) {
+      gab_value submap = map_nodebranchat(map, i);
+      sum += map_vsublen(submap);
+    }
+  }
+
+  return sum;
 }
 
 gab_value mapcpy(struct gab_triple gab, gab_value m, size_t space) {
@@ -324,7 +393,6 @@ gab_value gab_mapput(struct gab_triple gab, gab_value map, gab_value key,
     size_t pos = map_posat(map, idx);
 
     if (!map_hasindex(map, idx)) {
-
       if (path == gab_undefined) {
         map_shiftvalues(root, pos);
         map_insertleaf(root, idx, pos, key, val);
@@ -335,6 +403,7 @@ gab_value gab_mapput(struct gab_triple gab, gab_value map, gab_value key,
         map_setbranch(path, path_idx, path_pos, n);
       }
 
+      map_incrementlen(root);
       return root;
     }
 
@@ -355,39 +424,52 @@ gab_value gab_mapput(struct gab_triple gab, gab_value map, gab_value key,
       }
 
       gab_value cpy = path == gab_undefined ? root : mapcpy(gab, map, 0);
+      if (path != gab_undefined) {
+        map_setbranch(path, path_idx, path_pos, cpy);
+      }
 
       path = cpy;
       path_idx = idx;
       path_pos = pos;
 
       shift += GAB_HAMT_BITS;
-      size_t hash_idx_a = hash_index(kv[kLEAF_KEY], shift),
-             hash_idx_b = hash_index(key, shift);
+      size_t hash_idx_existing = hash_index(kv[kLEAF_KEY], shift),
+             hash_idx_new = hash_index(key, shift);
 
-      while (hash_idx_a == hash_idx_b) {
+      while (hash_idx_existing == hash_idx_new) {
+
         gab_value intermediate = __gab_mapnode(gab, 0, 1, nullptr);
         map_setbranch(path, path_idx, path_pos, intermediate);
+
         path = intermediate;
-        path_idx = hash_idx_b;
+        path_idx = hash_idx_new;
         path_pos = 0;
 
         shift = shift_next(shift);
-        assert(shift + GAB_HAMT_BITS <= GAB_HAMT_SIZE && "UH OH REHASH here");
+        assert((shift + GAB_HAMT_BITS <= GAB_HAMT_SIZE) && "UH OH REHASH here");
 
-        hash_idx_a = hash_index(kv[kLEAF_KEY], shift);
-        hash_idx_b = hash_index(key, shift);
+        hash_idx_existing = hash_index(kv[kLEAF_KEY], shift);
+        hash_idx_new = hash_index(key, shift);
       }
 
       gab_value n = __gab_mapnode(gab, 0, 2, nullptr);
       map_setbranch(path, path_idx, path_pos, n);
 
-      size_t idx = hash_index(key, shift);
-      size_t pos = map_posat(n, idx);
-      map_insertleaf(n, idx, pos, key, val);
+      // Manually set indices before getting positions
+      map_setindex(n, hash_idx_existing);
+      map_setindex(n, hash_idx_new);
+      size_t pos_new = map_posat(n, hash_idx_new);
+      size_t pos_existing = map_posat(n, hash_idx_existing);
 
-      idx = hash_index(kv[kLEAF_KEY], shift);
-      pos = map_posat(n, idx);
-      map_insertleaf(n, idx, pos, kv[kLEAF_KEY], kv[kLEAF_VALUE]);
+      assert(hash_idx_new != hash_idx_existing);
+      assert(pos_new != pos_existing);
+      map_unsetindices(n);
+
+      map_insertleaf(n, hash_idx_new, pos_new, key, val);
+      map_insertleaf(n, hash_idx_existing, pos_existing, kv[kLEAF_KEY],
+                     kv[kLEAF_VALUE]);
+
+      map_incrementlen(root);
 
       return root;
     }
@@ -414,6 +496,7 @@ gab_value gab_mapput(struct gab_triple gab, gab_value map, gab_value key,
     }
   }
 
+  assert(false && "unreachable");
   return root;
 }
 
@@ -421,9 +504,8 @@ gab_value gab_mapdel(struct gab_triple gab, gab_value map, gab_value key) {
   assert(gab_valkind(map) == kGAB_MAP);
 
   // There is nothing to remove - return the original map
-  if (gab_mapat(map, key) == gab_undefined) {
+  if (gab_mapat(map, key) == gab_undefined)
     return map;
-  }
 
   size_t path_pos, path_idx, shift = 0;
 
@@ -482,7 +564,13 @@ gab_value gab_mapdel(struct gab_triple gab, gab_value map, gab_value key) {
   }
 }
 
+gab_value gab_smapat(struct gab_triple gab, gab_value map, const char *key) {
+  return gab_mapat(map, gab_string(gab, key));
+}
+
 gab_value gab_mapat(gab_value map, gab_value key) {
+  assert(gab_valkind(map) == kGAB_MAP);
+
   size_t shift = 0;
   for (;;) {
     size_t idx = hash_index(key, shift);
@@ -509,4 +597,66 @@ gab_value gab_mapat(gab_value map, gab_value key) {
       assert(false && "invalid nodek");
     }
   }
+}
+
+gab_value *_umap_at(gab_value map, size_t i) {
+  size_t remaining = i;
+  size_t len = map_len(map);
+
+  for (size_t p = 0; p < len; p++) {
+    switch (map_nodekat(map, p)) {
+    case kLEAF:
+      if (remaining == 0)
+        return map_nodeleafat(map, p);
+
+      remaining -= 1;
+      break;
+    case kBRANCH: {
+      gab_value branch = map_nodebranchat(map, p);
+      size_t nvals = map_vsublen(branch);
+
+      if (nvals > remaining)
+        return _umap_at(branch, remaining);
+
+      remaining -= nvals;
+      break;
+    }
+    }
+  }
+
+  assert(false && "unreachable");
+  return nullptr;
+}
+
+gab_value gab_ukmapat(gab_value map, size_t i) {
+  assert(gab_valkind(map) == kGAB_MAP);
+  assert(gab_umaphas(map, i));
+
+  return _umap_at(map, i)[kLEAF_KEY];
+}
+
+gab_value gab_uvmapat(gab_value map, size_t i) {
+  assert(gab_valkind(map) == kGAB_MAP);
+  assert(gab_umaphas(map, i));
+
+  return _umap_at(map, i)[kLEAF_VALUE];
+}
+
+bool gab_maphas(gab_value map, gab_value key) {
+  return gab_mapat(map, key) != gab_undefined;
+}
+
+bool gab_umaphas(gab_value map, size_t i) {
+  assert(gab_valkind(map) == kGAB_MAP);
+
+  struct gab_obj_map *m = GAB_VAL_TO_MAP(map);
+
+  return i < m->len;
+}
+
+size_t gab_maplen(gab_value map) {
+  assert(gab_valkind(map) == kGAB_MAP);
+  struct gab_obj_map *m = GAB_VAL_TO_MAP(map);
+
+  return m->len;
 }

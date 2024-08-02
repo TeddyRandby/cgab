@@ -1,10 +1,7 @@
 messages.t = 'cmessages':use
 numbers.t = 'cnumbers':use
-records.t = 'crecords':use
+maps.t = 'cmaps':use
 strings.t = 'cstrings':use
-shapes.t = 'cshapes':use
-lists.t = 'clists' :use
-maps.t = 'cmaps' :use
 'format':use
 
 truthy_values = []
@@ -176,13 +173,13 @@ end)
 }
 
 \dodef.transducer! :defcase! {
-  gab.message = do m:
+  'gab.message' = do m:
     td = self
     m:def!([.td], do x, xs[]:
       x:send(td, xs**)
     end)
   end,
-  gab.block = do m:
+  'gab.block' = do m:
     m:def!([.td], self)
   end,
 }
@@ -376,94 +373,31 @@ end
   fns:transduce(.nil, \compose, .td :map \first)
 end)
 
-[records.t] :defmodule! {
-  \has? = do key:
-    self:at(key) == .ok
-  end,
-}
-
-records.t :def.seq! do:
-  i = self
-  {
-    v = -1,
-    seq.next = do:
-      nx = self:v + 1
-      self:v = nx
-      i :at_index nx
-    end,
-  }
-end
-
-[maps.t] :defmodule! {
-  \has? = do key:
-    self:at key  == .ok
-  end,
-  \del! = do key:
-    self:put!(key, .nil)
-  end,
-  \at! = do key, val?:
-    map = self
-    self:has? key :else do: map:put!(key, val?) end
-    self:at key :unwrap!
-  end,
-}
-
-maps.t :def.seq! do:
-  i = self
-  {
-    v = .next.init,
-    seq.next = do:
-      ok, nx, nv = i:next(self:v)
-      self:v = nx
-      (ok, nx, nv)
-    end
-  }
-end
-
-[lists.t] :defmodule! {
-  \empty? = do:
-    self:len == 0
-  end,
-}
-
-lists.t :def.seq! do:
-  i = self
-  {
-    v = -1,
-    seq.next = do:
-      nx = self:v + 1
-      self:v = nx
-      i:at nx
-    end,
-  }
-end
-
-range.t = { from, to }?
-
-\range :defcase! {
-  gab.number = do from:
-    { from, to = self }
-  end,
-  .nil = do to:
-    { from = 0, to }
-  end,
-}
-
-range.t :def.seq! do:
-  i = self
-  {
-    v = i:from,
-    seq.next = do:
-      nx = self:v + 1
-      self:v = nx
-      .option (nx < i:to, nx)
-    end,
-  }
-end
-
-\ :def! ([.range], do min, max?:
-  max? :range min
-end)
+#[maps.t] :defmodule! {
+#  \has? = do key:
+#    self:at key  == .ok
+#  end,
+#  \del! = do key:
+#    self:put!(key, .nil)
+#  end,
+#  \at! = do key, val?:
+#    map = self
+#    self:has? key :else do: map:put!(key, val?) end
+#    self:at key :unwrap!
+#  end,
+#}
+#
+#maps.t :def.seq! do:
+#  i = self
+#  {
+#    v = .next.init,
+#    seq.next = do:
+#      ok, nx, nv = i:next(self:v)
+#      self:v = nx
+#      (ok, nx, nv)
+#    end
+#  }
+#end
 
 \ :def! ([.int.between], do min, max:
   .float.between (min,max) :floor

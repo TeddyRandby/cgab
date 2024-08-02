@@ -12,7 +12,11 @@
 
 void *dynopen(const char *path) {
 #if GAB_OS_UNIX
-  return dlopen(path, RTLD_NOW);
+  void *dl = dlopen(path, RTLD_NOW);
+  if (!dl) {
+    printf("Failed opening '%s'\nERROR: %s\n", path, dlerror());
+  }
+  return dl;
 #else
 #error Windows not supported
 #endif
