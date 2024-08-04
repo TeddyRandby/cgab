@@ -1,5 +1,6 @@
 #include "core.h"
 #include "gab.h"
+#include "hash.h"
 
 /*
  * Gab Maps are persistent HAMTs. These are a tried-and-true immutable data
@@ -280,10 +281,24 @@ static inline void map_shiftvalues(gab_value map, size_t pos) {
   }
 }
 
-static inline void map_incrementlen(gab_value map) {
+
+void map_computehash(struct gab_triple gab, gab_value m) {
+  assert(gab_valkind(m) == kGAB_MAP);
+  struct gab_obj_map* map = GAB_VAL_TO_MAP(m);
+  gab_value keys[map->len];
+  
+  for (size_t i = 0; i < map->len; i++) {
+    keys[i] = gab_ukmapat(m, i);
+  }
+
+  map->hash = hash_words(gab.eg->hash_seed, map->len, keys);
+}
+
+static inline void map_incrementlen(struct gab_triple gab, gab_value map) {
   assert(gab_valkind(map) == kGAB_MAP);
   struct gab_obj_map *m = GAB_VAL_TO_MAP(map);
   m->len++;
+  map_computehash(gab, map);
 }
 
 static inline void map_insertleaf(gab_value map, size_t idx, size_t pos,
@@ -377,6 +392,7 @@ gab_value mapcpy(struct gab_triple gab, gab_value m, size_t space) {
   }
 }
 
+
 gab_value gab_mapput(struct gab_triple gab, gab_value map, gab_value key,
                      gab_value val) {
   size_t path_pos, path_idx, shift = 0;
@@ -403,7 +419,7 @@ gab_value gab_mapput(struct gab_triple gab, gab_value map, gab_value key,
         map_setbranch(path, path_idx, path_pos, n);
       }
 
-      map_incrementlen(root);
+      map_incrementlen(gab, root);
       return root;
     }
 
@@ -469,7 +485,7 @@ gab_value gab_mapput(struct gab_triple gab, gab_value map, gab_value key,
       map_insertleaf(n, hash_idx_existing, pos_existing, kv[kLEAF_KEY],
                      kv[kLEAF_VALUE]);
 
-      map_incrementlen(root);
+      map_incrementlen(gab, root);
 
       return root;
     }

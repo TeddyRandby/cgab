@@ -282,7 +282,7 @@ end)
       started = .false,
       reduce.step = do acc, xs[]:
         acc = self:started:td.conditionally (acc, [sep], rf)
-        self:started = .true
+        #self:started = .true
         rf:reduce.step(acc, xs**)
       end,
       reduce.done = do acc:
@@ -297,7 +297,7 @@ end
     {
       n,
       reduce.step = do acc, xs[]:
-        self:n = self:n - 1
+        #self:n = self:n - 1
         (self:n >= 0) :td.stop_conditionally (acc, xs, rf)
       end,
       reduce.done = do acc:
@@ -312,7 +312,7 @@ end
     {
       n,
       reduce.step = do acc, xs[]:
-        self:n = self:n - 1
+        #self:n = self:n - 1
         (self:n < 0) :td.conditionally (acc, xs, rf)
       end,
       reduce.done = do acc:
@@ -324,7 +324,7 @@ end
 
 \do_partition :defcase! {
   .true = do acc, state, rf:
-    state:n, xs = 0, state:d:slice(state:n)
+    n, xs = 0, state:d:slice(state:n)
     state:d:clear!
     rf (acc, xs**)
   end,
@@ -340,7 +340,7 @@ end
       d = .gab.tuple(n),
       reduce.step = do acc, xs[]:
         self:d:put!(self:n, xs**)
-        self:n = self:n + 1
+        #self:n = self:n + 1
         (self:n == n) :do_partition (acc, self, rf)
       end,
       reduce.done = do acc:

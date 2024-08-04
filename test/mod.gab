@@ -83,118 +83,6 @@
         b:at!(1):should.be(\==, 3)
         b:at!(2):should.be(\==, 4)
     end
-
-    'mix locals and properties' :tests.should do:
-        a = { b, c }
-
-        a:b, d, a:c = 1, 2, 3
-
-        d:should.be(\==, 2)
-        a:b:should.be(\==, 1)
-        a:c:should.be(\==, 3)
-
-        e, a:b, a:c = 1, 2, 3
-
-        e:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        a:c:should.be(\==, 3)
-
-        a:c, a:b, e = 1, 2, 3
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        e:should.be(\==, 3)
-    end
-
-    'mix rest locals and properties' :tests.should do:
-        a = { b, c }
-
-        a:b, d[], a:c = 1, 2, 3
-
-        d:at!(0):should.be(\==, 2)
-        a:b:should.be(\==, 1)
-        a:c:should.be(\==, 3)
-
-        e[], a:b, a:c = 1, 2, 3
-
-        e:at!(0):should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        a:c:should.be(\==, 3)
-
-        a:c, a:b, e[] = 1, 2, 3
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        e:at!(0):should.be(\==, 3)
-
-        a:b, d[], a:c = 1, 2, 4, 5, 3
-
-        d:at!(0):should.be(\==, 2)
-        a:b:should.be(\==, 1)
-        a:c:should.be(\==, 3)
-
-        e[], a:b, a:c = 1, 4, 5, 2, 3
-
-        e:at!(0):should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        a:c:should.be(\==, 3)
-
-        a:c, a:b, e[] = 1, 2, 3, 4,5
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        e:at!(0):should.be(\==, 3)
-
-        one_through_five = do: (1,2,3,4,5) end
-        one = do: 1 end
-
-        a:c, a:b, e[] = one_through_five(a:b, a:c)
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        e:at!(0):should.be(\==, 3)
-
-        test = do i:
-          i:b, i:c, xs[] = i:b:send(i:m, i:c)
-
-          (i:b, i:c, xs**)
-        end
-
-        a:c, a:b, e[] = test { m = \self, b = 1, c = 2 }
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, .nil)
-
-        test = { m = \self, b = 1, c = 2 }
-
-        a:c, a:b, e[] = test:b:send(test:m, test:c)
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, .nil)
-
-    end
-
-    'mix locals and sets' :tests.should do:
-        a = { b, c }
-
-        a:put! 'b' , d, a:put! 'c'  = 1, 2, 3
-
-        a:b:should.be(\==, 1)
-        d:should.be(\==, 2)
-        a:c:should.be(\==, 3)
-
-        e, a:put! 'b' , a:put! 'c'  = 1, 2, 3
-
-        e:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        a:c:should.be(\==, 3)
-
-        a:put! 'c' , a:put! 'b' , e = 1, 2, 3
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        e:should.be(\==, 3)
-    end
 end
 
 'Numbers' :tests.covers  do:
@@ -441,10 +329,13 @@ end
       end
 
       3:should.be(\==, sum(1,2))
-      {x = 3, y = 3}:should.be(\==, sum({x = 1, y = 2}, {x = 2, y = 1}))
+      a = Vector:new(3,3)
+      b = Vector:new(1,2)
+      c = Vector:new(2,1)
+      a:should.be(\==, sum(b, c))
       'hi':should.be(\==, sum('h','i'))
       'hi':should.be(\==, sum('h','i'))
-      {x = 3, y = 3}:should.be(\==, sum({x = 1, y = 2}, {x = 2, y = 1}))
+      a:should.be(\==, sum(b, c))
       3:should.be(\==, sum(1,2))
     end
 end
@@ -512,7 +403,7 @@ end
 
       result:should.be(\==, 8)
 
-      result = { hi = 8 }:send(\put!, 'hi' , 2)
+      result = { hi = 8 }:send(\put!, \hi , 2)
 
       result:hi:should.be(\==, 2)
 
@@ -522,7 +413,7 @@ end
 
       result = { hi }:send(\hi, 4)
 
-      result:should.be(\==, 4)
+      result:hi:should.be(\==, 4)
 
       result = { hi = do: 8 end }:send \hi 
 

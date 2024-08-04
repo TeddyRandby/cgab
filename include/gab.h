@@ -1063,6 +1063,7 @@ static inline bool gab_valhast(gab_value value) {
   switch (k) {
   case kGAB_SIGIL:
   case kGAB_BOX:
+  case kGAB_MAP:
     return true;
   default:
     return false;
@@ -1709,6 +1710,8 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
   /* These are special cases for the practical type */
   case kGAB_BOX:
     return gab_boxtype(value);
+  case kGAB_MAP:
+    return GAB_VAL_TO_MAP(value)->hash;
   /* Otherwise, return the value for that kind */
   default:
     return gab_egtype(gab, k);

@@ -2037,33 +2037,33 @@ mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs, size_t t,
   if (args.status < 0)
     return MV_ERR;
 
-  if (assignable && !match_ctx(bc, kTUPLE)) {
-    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
-      /*
-       * Account for the one value that this assignment - will receive from the
-       * rhs of the assignment
-       * */
-      args.status++;
-
-      if (args.multi)
-        args = compile_mv_trim(bc, args, 1);
-
-      return compile_assignment(bc, (struct lvalue){
-                                        .tok = t,
-                                        .kind = kMESSAGE,
-                                        .slot = peek_slot(bc),
-                                        .as.property.message = m,
-                                        .as.property.args = args,
-                                    });
-    }
-
-    if (match_ctx(bc, kASSIGNMENT_TARGET)) {
-      eat_token(bc);
-      compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, FMT_ASSIGNMENT_ABANDONED,
-                     tok_id(bc, TOKEN_EQUAL));
-      return MV_ERR;
-    }
-  }
+  // if (assignable && !match_ctx(bc, kTUPLE)) {
+  //   if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
+  //     /*
+  //      * Account for the one value that this assignment - will receive from the
+  //      * rhs of the assignment
+  //      * */
+  //     args.status++;
+  //
+  //     if (args.multi)
+  //       args = compile_mv_trim(bc, args, 1);
+  //
+  //     return compile_assignment(bc, (struct lvalue){
+  //                                       .tok = t,
+  //                                       .kind = kMESSAGE,
+  //                                       .slot = peek_slot(bc),
+  //                                       .as.property.message = m,
+  //                                       .as.property.args = args,
+  //                                   });
+  //   }
+  //
+  //   if (match_ctx(bc, kASSIGNMENT_TARGET)) {
+  //     eat_token(bc);
+  //     compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, FMT_ASSIGNMENT_ABANDONED,
+  //                    tok_id(bc, TOKEN_EQUAL));
+  //     return MV_ERR;
+  //   }
+  // }
 
   if (args.status < 0)
     return MV_ERR;

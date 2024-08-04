@@ -589,17 +589,16 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
     NEXT();                                                                    \
   })
 
-#define PROPERTY_RECORD(r, have)                                               \
+#define PROPERTY_RECORD(r, m, have)                                            \
   ({                                                                           \
     switch (have) {                                                            \
     case 1:                                                                    \
-      PEEK() = gab_mapat(r, (ks[GAB_SEND_KMESSAGE]));               \
+      PEEK() = gab_mapat(r, m);                                                \
       break;                                                                   \
     default:                                                                   \
       DROP_N((have) - 1);                                                      \
     case 2: {                                                                  \
-      gab_value value =                                                        \
-          gab_mapput(GAB(), r, (ks[GAB_SEND_KMESSAGE]), POP());     \
+      gab_value value = gab_mapput(GAB(), r, m, POP());                        \
       PEEK() = value;                                                          \
       break;                                                                   \
     }                                                                          \
@@ -1196,10 +1195,9 @@ CASE_CODE(SEND_PROPERTY_BLOCK) {
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
-  SEND_GUARD_CACHED_MESSAGE_SPECS(m);
-  SEND_GUARD_CACHED_RECEIVER_TYPE(r);
+  SEND_GUARD_CACHED_RECEIVER_TYPE(r)
 
-  gab_value spec = gab_mapat(r, (ks[GAB_SEND_KMESSAGE]));
+  gab_value spec = gab_mapat(r, m);
 
   SEND_GUARD_KIND(spec, kGAB_BLOCK);
 
@@ -1215,10 +1213,9 @@ CASE_CODE(TAILSEND_PROPERTY_BLOCK) {
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
-  SEND_GUARD_CACHED_MESSAGE_SPECS(m);
-  SEND_GUARD_CACHED_RECEIVER_TYPE(r);
+  SEND_GUARD_CACHED_RECEIVER_TYPE(r)
 
-  gab_value spec = gab_mapat(r, (ks[GAB_SEND_KMESSAGE]));
+  gab_value spec = gab_mapat(r, m);
 
   SEND_GUARD_KIND(spec, kGAB_BLOCK);
 
@@ -1234,10 +1231,9 @@ CASE_CODE(SEND_PROPERTY_NATIVE) {
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
-  SEND_GUARD_CACHED_MESSAGE_SPECS(m);
-  SEND_GUARD_CACHED_RECEIVER_TYPE(r);// These guards don't work now. Maps don't cache their keys
+  SEND_GUARD_CACHED_RECEIVER_TYPE(r)
 
-  gab_value spec = gab_mapat(r, (ks[GAB_SEND_KMESSAGE]));
+  gab_value spec = gab_mapat(r, m);
 
   SEND_GUARD_KIND(spec, kGAB_NATIVE);
 
@@ -1253,10 +1249,9 @@ CASE_CODE(SEND_PROPERTY_PRIMITIVE) {
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
-  SEND_GUARD_CACHED_MESSAGE_SPECS(m);
-  SEND_GUARD_CACHED_RECEIVER_TYPE(r);
+  SEND_GUARD_CACHED_RECEIVER_TYPE(r)
 
-  gab_value spec = gab_mapat(r, (ks[GAB_SEND_KMESSAGE]));
+  gab_value spec = gab_mapat(r, m);
 
   SEND_GUARD_KIND(spec, kGAB_PRIMITIVE);
 
@@ -1274,10 +1269,9 @@ CASE_CODE(SEND_PROPERTY_CONSTANT) {
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
-  SEND_GUARD_CACHED_MESSAGE_SPECS(m);
-  SEND_GUARD_CACHED_RECEIVER_TYPE(r);
+  SEND_GUARD_CACHED_RECEIVER_TYPE(r)
 
-  PROPERTY_RECORD(r, have);
+  PROPERTY_RECORD(r, m, have);
 }
 
 CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_BLOCK) {
@@ -1312,7 +1306,8 @@ CASE_CODE(TAILSEND_PRIMITIVE_SEND_GENERIC_PROPERTY_BLOCK) {
 
   SEND_GUARD_KIND(m, kGAB_MESSAGE);
   SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m);
-  SEND_GUARD_CACHED_RECEIVER_TYPE(r); // This isn't safe anymore. Receiver type is always 'map'. Values aren't given helpful 'shapes/types'
+  SEND_GUARD_CACHED_RECEIVER_TYPE(
+      r); // This isn't safe anymore. Receiver type is always 'map'
 
   gab_value spec = gab_mapat(r, m);
   SEND_GUARD_KIND(spec, kGAB_BLOCK);
@@ -1341,7 +1336,7 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_CONSTANT) {
   have--;
   DROP();
 
-  PROPERTY_RECORD(r, have);
+  PROPERTY_RECORD(r, m, have);
 }
 
 CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_PRIMITIVE) {
@@ -1398,10 +1393,9 @@ CASE_CODE(SEND_PROPERTY) {
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
-  SEND_GUARD_CACHED_MESSAGE_SPECS(m);
-  SEND_GUARD_CACHED_RECEIVER_TYPE(r);
+  SEND_GUARD_CACHED_RECEIVER_TYPE(r)
 
-  gab_value spec = gab_mapat(r, (ks[GAB_SEND_KMESSAGE]));
+  gab_value spec = gab_mapat(r, m);
 
   switch (gab_valkind(spec)) {
   case kGAB_PRIMITIVE:
@@ -1684,7 +1678,8 @@ CASE_CODE(SEND) {
 
   ks[GAB_SEND_KSPECS] = GAB_VAL_TO_MESSAGE(m)->specs;
   ks[GAB_SEND_KTYPE] = gab_valtype(EG(), r);
-  ks[GAB_SEND_KSPEC] = res.spec;
+  ks[GAB_SEND_KSPEC] =
+      res.status == kGAB_IMPL_PROPERTY ? GAB_VAL_TO_MAP(r)->hash : res.spec;
 
   switch (gab_valkind(spec)) {
   case kGAB_PRIMITIVE: {
