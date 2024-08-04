@@ -35,7 +35,6 @@ enum lvalue_k {
   kNEW_REST_LOCAL,
   kEXISTING_LOCAL,
   kEXISTING_REST_LOCAL,
-  kMESSAGE,
 };
 
 typedef struct mv_t {
@@ -244,7 +243,7 @@ static inline int match_and_eat_token_of(struct bc *bc, size_t len,
   return COMP_TOKEN_NO_MATCH;
 }
 
-#define match_and_eat_token(bc, ...)                                       \
+#define match_and_eat_token(bc, ...)                                           \
   ({                                                                           \
     gab_token toks[] = {__VA_ARGS__};                                          \
     match_and_eat_token_of(bc, sizeof(toks) / sizeof(gab_token), toks);        \
@@ -1696,9 +1695,6 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
   if (rhs.status < 0)
     return MV_ERR;
 
-  if (rhs.status < 0)
-    return MV_ERR;
-
   if (n_rest_values) {
     for (uint8_t i = 0; i < lvalues->len; i++) {
       if (lvalues->data[i].kind == kEXISTING_REST_LOCAL ||
@@ -1737,37 +1733,22 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
       push_pop(bc, 1, t);
       pop_slot(bc, 1);
       break;
-
-    case kMESSAGE:
-      push_shift(bc, peek_slot(bc) - lval.slot, t);
-      break;
     }
-  }
 
-  for (uint8_t i = 0; i < lvalues->len; i++) {
-    struct lvalue lval = v_lvalue_val_at(lvalues, lvalues->len - 1 - i);
-    bool is_last_assignment = i + 1 == lvalues->len;
+    for (uint8_t i = 0; i < lvalues->len; i++) {
+      struct lvalue lval = v_lvalue_val_at(lvalues, lvalues->len - 1 - i);
+      bool is_last_assignment = i + 1 == lvalues->len;
 
-    switch (lval.kind) {
-    case kNEW_LOCAL:
-    case kNEW_REST_LOCAL:
-    case kEXISTING_LOCAL:
-    case kEXISTING_REST_LOCAL:
-      if (is_last_assignment)
-        push_loadl(bc, lval.as.local.index, t), push_slot(bc, 1);
+      switch (lval.kind) {
+      case kNEW_LOCAL:
+      case kNEW_REST_LOCAL:
+      case kEXISTING_LOCAL:
+      case kEXISTING_REST_LOCAL:
+        if (is_last_assignment)
+          push_loadl(bc, lval.as.local.index, t), push_slot(bc, 1);
 
-      break;
-
-    case kMESSAGE: {
-      push_send(bc, lval.as.property.message, lval.as.property.args, t);
-
-      push_trim(bc, is_last_assignment, t);
-
-      pop_slot(bc, lval.as.property.args.status);
-
-      push_slot(bc, is_last_assignment);
-      break;
-    }
+        break;
+      }
     }
   }
 
@@ -2033,37 +2014,6 @@ fin:
 mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs, size_t t,
                           bool assignable) {
   mv args = reconcile_send_args(lhs, rhs);
-
-  if (args.status < 0)
-    return MV_ERR;
-
-  // if (assignable && !match_ctx(bc, kTUPLE)) {
-  //   if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
-  //     /*
-  //      * Account for the one value that this assignment - will receive from the
-  //      * rhs of the assignment
-  //      * */
-  //     args.status++;
-  //
-  //     if (args.multi)
-  //       args = compile_mv_trim(bc, args, 1);
-  //
-  //     return compile_assignment(bc, (struct lvalue){
-  //                                       .tok = t,
-  //                                       .kind = kMESSAGE,
-  //                                       .slot = peek_slot(bc),
-  //                                       .as.property.message = m,
-  //                                       .as.property.args = args,
-  //                                   });
-  //   }
-  //
-  //   if (match_ctx(bc, kASSIGNMENT_TARGET)) {
-  //     eat_token(bc);
-  //     compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, FMT_ASSIGNMENT_ABANDONED,
-  //                    tok_id(bc, TOKEN_EQUAL));
-  //     return MV_ERR;
-  //   }
-  // }
 
   if (args.status < 0)
     return MV_ERR;
