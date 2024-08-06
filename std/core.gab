@@ -387,8 +387,7 @@ maps.t :def.seq! do:
     v = .next.init,
     seq.next = do:
       ok, nx, nv = i:next(self:v)
-      self:v = nx
-      (ok, nx, nv)
+      (ok, self:v(nx), nv)
     end
   }
 end

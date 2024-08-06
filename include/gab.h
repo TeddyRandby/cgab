@@ -1166,7 +1166,8 @@ static inline size_t gab_strlen(gab_value str) {
  * @return A pointer to the start of the string
  */
 static inline const char *gab_strdata(gab_value *str) {
-  assert(gab_valkind(*str) == kGAB_STRING || gab_valkind(*str) == kGAB_SIGIL);
+  assert(gab_valkind(*str) == kGAB_STRING || gab_valkind(*str) == kGAB_SIGIL ||
+         gab_valkind(*str) == kGAB_MESSAGE);
 
   if (gab_valiso(*str))
     return GAB_VAL_TO_STRING(*str)->data;
@@ -1416,7 +1417,8 @@ static inline gab_value gab_strtomsg(gab_value str) {
  * @param name The name of the message.
  * @return The new message object.
  */
-static inline gab_value gab_message(struct gab_triple gab, const char data[static 1]) {
+static inline gab_value gab_message(struct gab_triple gab,
+                                    const char data[static 1]) {
   return gab_strtomsg(gab_string(gab, data));
 }
 
@@ -1774,6 +1776,11 @@ static inline gab_value gab_egmsgat(struct gab_eg *eg, gab_value msg,
 static inline gab_value gab_egmsgput(struct gab_triple gab, gab_value msg,
                                      gab_value receiver, gab_value spec) {
   gab_value specs = d_messages_read(&gab.eg->messages, msg);
+
+  if (specs == gab_undefined) {
+    specs = gab_map(gab, 1, 0, nullptr, nullptr);
+  }
+
   assert(gab_valkind(specs) == kGAB_MAP);
 
   gab_value newspecs = gab_mapput(gab, specs, receiver, spec);

@@ -478,9 +478,9 @@ gab_value gab_record(struct gab_triple gab, gab_value shape, size_t stride,
 
   gab_value res = __gab_obj(self);
 
-  for (size_t i = 0; i < len; i++) {
-    res = gab_recpush(gab, res, data[i * stride]);
-  }
+  // for (size_t i = 0; i < len; i++) {
+  //   res = gab_recpush(gab, res, data[i * stride]);
+  // }
 
   return res;
 }
