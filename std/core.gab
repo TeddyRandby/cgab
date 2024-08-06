@@ -106,7 +106,6 @@ end)
 \doreduce :def! ([], do seq, acc, r:
   # Apply the producer, resolving new values for the next step
   ok, seq, xs[] = seq:seq.next
-  { ok, seq }:print
   # Tailcall to the next step
   ok:doreduce(seq, acc, r, xs)
 end)
