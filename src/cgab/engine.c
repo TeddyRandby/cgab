@@ -430,38 +430,12 @@ int gab_nspec(struct gab_triple gab, size_t len,
 gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
   gab_gclock(gab.gc);
 
-  gab_value n = gab_string(gab, args.name);
-  gab_value m = gab_message(gab, n);
-  m = gab_msgput(gab, m, args.receiver, args.specialization);
+  gab_value m = gab_message(gab, args.name);
+  m = gab_egmsgput(gab, m, args.receiver, args.specialization);
 
   gab_gcunlock(gab.gc);
 
   return m;
-}
-
-struct gab_obj_message *gab_egmsgfind(struct gab_eg *self, gab_value name,
-                                      uint64_t hash) {
-  if (self->messages.len == 0)
-    return nullptr;
-
-  uint64_t index = hash & (self->messages.cap - 1);
-
-  for (;;) {
-    d_status status = d_messages_istatus(&self->messages, index);
-    struct gab_obj_message *key = d_messages_ikey(&self->messages, index);
-
-    switch (status) {
-    case D_TOMBSTONE:
-      break;
-    case D_EMPTY:
-      return nullptr;
-    case D_FULL:
-      if (key->hash == hash && key->name == name)
-        return key;
-    }
-
-    index = (index + 1) & (self->messages.cap - 1);
-  }
 }
 
 struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
@@ -551,10 +525,8 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
   }
 
   case kGAB_MESSAGE: {
-    struct gab_obj_message *self = GAB_VAL_TO_MESSAGE(value);
-    gab_value copy = gab_message(gab, gab_valcpy(gab, self->name));
-
-    return copy;
+    return gab_strtomsg(
+        gab_nstring(gab, gab_strlen(value), gab_strdata(&value)));
   }
 
   case kGAB_SIGIL: {

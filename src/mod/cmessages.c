@@ -10,7 +10,7 @@ a_gab_value *gab_lib_message(struct gab_triple gab, size_t argc,
   if (gab_valkind(name) != kGAB_STRING)
     return gab_pktypemismatch(gab, name, kGAB_STRING);
 
-  gab_vmpush(gab.vm, gab_message(gab, name));
+  gab_vmpush(gab.vm, gab_strtomsg(name));
   return nullptr;
 }
 
@@ -51,7 +51,7 @@ a_gab_value *gab_lib_name(struct gab_triple gab, size_t argc,
                           gab_value argv[static argc]) {
   gab_value m = gab_arg(0);
 
-  gab_vmpush(gab.vm, gab_msgname(m));
+  gab_vmpush(gab.vm, gab_msgtostr(m));
 
   return nullptr;
 }
@@ -66,7 +66,7 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
       gab_valkind(b) != kGAB_NATIVE)
     return gab_pktypemismatch(gab, b, kGAB_BLOCK);
 
-  if (gab_msgput(gab, m, r, b) == gab_undefined)
+  if (gab_egmsgput(gab, m, r, b) == gab_undefined)
     return gab_panic(gab, "$ already specializes for type $", m, r);
 
   return nullptr;
@@ -89,7 +89,7 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
   if (len == 0) {
     gab_value t = gab_undefined;
 
-    if (gab_msgput(gab, m, t, b) == gab_undefined)
+    if (gab_egmsgput(gab, m, t, b) == gab_undefined)
       return gab_panic(gab, "$ already specializes for type $", m, t);
 
     return nullptr;
@@ -98,7 +98,7 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
   for (size_t i = 0; i < len; i++) {
     gab_value t = gab_uvmapat(r, i);
 
-    if (gab_msgput(gab, m, t, b) == gab_undefined)
+    if (gab_egmsgput(gab, m, t, b) == gab_undefined)
       return gab_panic(gab, "$ already specializes for type $", m, t);
   }
 
@@ -120,7 +120,7 @@ a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
     gab_value b = gab_uvmapat(cases, i);
     gab_value t = gab_ukmapat(cases, i);
 
-    if (gab_msgput(gab, m, t, b) == gab_undefined)
+    if (gab_egmsgput(gab, m, t, b) == gab_undefined)
       return gab_panic(gab, "$ already specializes for type $", m, t);
   }
 
@@ -148,7 +148,7 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
       if (gab_valkind(m) != kGAB_MESSAGE)
         return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
 
-      if (gab_msgput(gab, m, t, b) == gab_undefined)
+      if (gab_egmsgput(gab, m, t, b) == gab_undefined)
         return gab_panic(gab, "$ already specializes for type $", m, t);
     }
 
@@ -166,7 +166,7 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
       if (gab_valkind(messages) != kGAB_MAP)
         return gab_pktypemismatch(gab, m, kGAB_MAP);
 
-      if (gab_msgput(gab, m, t, b) == gab_undefined)
+      if (gab_egmsgput(gab, m, t, b) == gab_undefined)
         return gab_panic(gab, "$ already specializes for type $", m, t);
     }
   }

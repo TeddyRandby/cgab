@@ -63,19 +63,19 @@
  Pointers to objects with data on the heap set the highest bit.
 
  We are left with 51 bits of mantissa to store an address.
- That's more than enough room for a 32-bit address. Even 64-bit machines
- only actually use 48 bits for addresses.
+ Even 64-bit machines only actually use 48 bits for addresses.
 
   Pointer bit set       Pointer data
   |                     |
- [1][....NaN....1][--][------------------------------------------------]
+ [1][....NaN....1][---------------------------------------------------]
 
- Immediate values store a tag in the lowest three bits.
+ Immediate values *don't* have the pointer bit set.
+ They also store a tag in the 3 bits just below the NaN.
 
-                   kGAB_STRING, kGAB_SIGIL, kGAB_UNDEFINED, kGAB_PRIMITIVE
+                   kGAB_STRING, kGAB_SIGIL, kGAB_MESSAGE, kGAB_UNDEFINED,
+ kGAB_PRIMITIVE
                    |
- [0][....NaN....1][--][------------------------------------------------]
-
+ [0][....NaN....1][---][------------------------------------------------]
 
  'Primitives' are message specializtions which are implemented as an opcode in
  the vm. This covers things like '+' on numbers and strings, etc.
@@ -84,7 +84,7 @@
 
                    kPRIMITIVE                                   Opcode
                    |                                            |
- [0][....NaN....1][--]----------------------------------------[--------]
+ [0][....NaN....1][---]----------------------------------------[--------]
 
  Gab also employs a short string optimization. Lots of strings in a gab program
  are incredibly small, and incredibly common. values like '.some', '.none',
@@ -103,11 +103,11 @@
 
  This layout sneakily gives us an extra byte of storage in our small strings.
 
-                  kSTRING Remaining Length                              <- Data
-                     |    |                                                |
+                kSTRING Remaining Length                             <- Data
+                   |    |                                               |
  [0][....NaN....1][---][--------][----------------------------------------]
-                         [...0....][...e.......p.......a........h......s....]
-                         [...3....][-------------------------...k......o....]
+                       [...0....][...e.......p.......a........h......s....]
+                       [...3....][-------------------------...k......o....]
 
 */
 
@@ -122,18 +122,18 @@ typedef uint64_t gab_value;
 enum gab_kind {
   kGAB_STRING = 0, // MUST_STAY_ZERO
   kGAB_SIGIL = 1,
-  kGAB_UNDEFINED = 2,
+  kGAB_MESSAGE = 2,
   kGAB_PRIMITIVE = 3,
+  kGAB_UNDEFINED = 4,
   kGAB_PROTOTYPE,
-  kGAB_MESSAGE,
   kGAB_NUMBER,
   kGAB_NATIVE,
   kGAB_BLOCK,
   kGAB_BOX,
   kGAB_MAP,
   kGAB_MAPNODE,
-  kGAB_VEC,
-  kGAB_VECNODE,
+  kGAB_REC,
+  kGAB_RECNODE,
   kGAB_NKINDS,
 };
 
@@ -196,6 +196,9 @@ static inline gab_value __gab_dtoval(double value) {
                (uint64_t)2 << 40 | (uint64_t)'n' | (uint64_t)'i' << 8 |        \
                (uint64_t)'l' << 16))
 
+#define gab_undefined                                                          \
+  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_UNDEFINED << __GAB_TAGOFFSET))
+
 #define gab_false                                                              \
   ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET |          \
                (uint64_t)0 << 40 | (uint64_t)'f' | (uint64_t)'a' << 8 |        \
@@ -220,10 +223,6 @@ static inline gab_value __gab_dtoval(double value) {
   ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET |          \
                (uint64_t)2 << 40 | (uint64_t)'e' | (uint64_t)'r' << 8 |        \
                (uint64_t)'r' << 16)
-
-/* The gab value 'undefined'*/
-#define gab_undefined                                                          \
-  ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_UNDEFINED << __GAB_TAGOFFSET))
 
 /* Convert a c boolean into the corresponding gab value */
 #define gab_bool(val) ((val) ? gab_true : gab_false)
@@ -573,6 +572,23 @@ struct gab_egimpl_rest {
  */
 static inline struct gab_egimpl_rest
 gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver);
+
+/**
+ *
+ */
+static inline gab_value gab_egmsgput(struct gab_triple gab, gab_value message,
+                                     gab_value type, gab_value specialization);
+
+/**
+ *
+ */
+static inline gab_value gab_egmsgat(struct gab_eg *eg, gab_value message,
+                                    gab_value receiver);
+
+/**
+ *
+ */
+static inline gab_value gab_egmsgrec(struct gab_eg *eg, gab_value message);
 
 /**
  * @brief Push any number of value onto the vm's internal stack.
@@ -1181,7 +1197,6 @@ static inline size_t gab_strhash(gab_value str) {
  */
 static inline gab_value gab_strtosig(gab_value str) {
   assert(gab_valkind(str) == kGAB_STRING);
-
   return str | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET;
 }
 
@@ -1214,10 +1229,9 @@ static inline gab_value gab_nsigil(struct gab_triple gab, size_t len,
  * @param str The string
  * @return The sigil
  */
-static inline gab_value gab_sigtostr(gab_value str) {
-  assert(gab_valkind(str) == kGAB_SIGIL);
-
-  return str & ~((uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET);
+static inline gab_value gab_sigtostr(gab_value sigil) {
+  assert(gab_valkind(sigil) == kGAB_SIGIL);
+  return sigil & ~((uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET);
 }
 
 /**
@@ -1294,8 +1308,7 @@ struct gab_obj_mapnode {
 
 /*
  * The gab_obj_map serves as the root of a HAMT. All of the children are
- * mapnodes, and may be leaves or branches. The map is the value that is
- * interned, and so it caches the length and hash.
+ * mapnodes, and may be leaves or branches.
  */
 struct gab_obj_map {
   struct gab_obj header;
@@ -1321,7 +1334,7 @@ bool gab_maphas(gab_value map, gab_value key);
 bool gab_umaphas(gab_value map, size_t i);
 
 gab_value gab_mapat(gab_value map, gab_value key);
-gab_value gab_smapat(struct gab_triple, gab_value map, const char* key);
+gab_value gab_smapat(struct gab_triple, gab_value map, const char *key);
 
 gab_value gab_ukmapat(gab_value map, size_t i);
 gab_value gab_uvmapat(gab_value map, size_t i);
@@ -1333,60 +1346,68 @@ gab_value gab_mapdel(struct gab_triple gab, gab_value map, gab_value key);
 
 size_t gab_maplen(gab_value map);
 
-struct gab_obj_vecnode {
+struct gab_obj_recnode {
   struct gab_obj header;
 
-  gab_value nodes[GAB_HAMT_SIZE];
-  gab_value elems[GAB_HAMT_SIZE];
+  size_t len;
+
+  gab_value data[];
 };
 
-struct gab_obj_vec {
+struct gab_obj_rec {
   struct gab_obj header;
 
-  size_t depth, hlen, tlen;
+  size_t shift, len, size;
 
-  gab_value head, tail, shape;
+  gab_value shape;
+
+  gab_value data[];
 };
 
-gab_value gab_vector(struct gab_triple gab, size_t stride, size_t len,
-                     gab_value data[static len]);
+#define GAB_REC_BITS (6)
+#define GAB_REC_WIDTH (1 << GAB_REC_BITS)
+#define GAB_REC_MASK (GAB_REC_WIDTH - 1)
 
-gab_value gab_vecat(struct gab_triple gab, gab_value vec, gab_value key);
+#define GAB_VAL_TO_REC(value) ((struct gab_obj_rec *)gab_valtoo(value))
+#define GAB_VAL_TO_RECNODE(value) ((struct gab_obj_recnode *)gab_valtoo(value))
 
-gab_value gab_vecput(struct gab_triple gab, gab_value vec, size_t key,
+gab_value gab_record(struct gab_triple gab, gab_value shape, size_t stride,
+                     size_t len, gab_value data[static len]);
+
+gab_value __gab_rec(struct gab_triple gab, gab_value shape, size_t space,
+                    size_t len, gab_value *data);
+
+gab_value __gab_recnode(struct gab_triple gab, size_t len, size_t space,
+                        gab_value *data);
+
+gab_value gab_recat(struct gab_triple gab, gab_value rec, gab_value key);
+
+gab_value gab_recput(struct gab_triple gab, gab_value rec, size_t key,
                      gab_value val);
 
-gab_value gab_vecpush(struct gab_triple gab, gab_value vec, gab_value val);
+gab_value gab_recpush(struct gab_triple gab, gab_value rec, gab_value val);
 
-gab_value gab_vecpop(struct gab_triple gab, gab_value vec, gab_value *valout);
+gab_value gab_recpop(struct gab_triple gab, gab_value rec, gab_value *valout);
 
-void gab_mvecput(struct gab_triple gab, gab_value vec, size_t key,
+void gab_mrecput(struct gab_triple gab, gab_value rec, size_t key,
                  gab_value val);
 
-void gab_mvecpush(struct gab_triple gab, gab_value vec, gab_value val);
+void gab_mrecpush(struct gab_triple gab, gab_value rec, gab_value val);
 
-void gab_mvecpop(struct gab_triple gab, gab_value vec, gab_value *valout);
+void gab_mrecpop(struct gab_triple gab, gab_value rec, gab_value *valout);
 
 /**
- * @brief The message object, a collection of receivers and specializations,
- * under a name.
+ * @brief Convert a string into it's corresponding message. This is
+ * constant-time.
+ *
+ * @param str The string
+ * @return The message
  */
-struct gab_obj_message {
-  struct gab_obj header;
+static inline gab_value gab_strtomsg(gab_value str) {
+  assert(gab_valkind(str) == kGAB_STRING);
 
-  /**
-   * A precomputed hash.
-   */
-  uint64_t hash;
-
-  /**
-   * The name of the message, and its specializations.
-   */
-  gab_value name, specs;
-};
-
-/* Cast a value to a (gab_obj_message*) */
-#define GAB_VAL_TO_MESSAGE(value) ((struct gab_obj_message *)gab_valtoo(value))
+  return str | (uint64_t)kGAB_MESSAGE << __GAB_TAGOFFSET;
+}
 
 /**
  * @brief Create a new message object.
@@ -1395,17 +1416,8 @@ struct gab_obj_message {
  * @param name The name of the message.
  * @return The new message object.
  */
-gab_value gab_message(struct gab_triple gab, gab_value name);
-
-/**
- * @brief Get a message's internal spec record.
- *
- * @param msg The message.
- * @return the record.
- */
-static inline gab_value gab_msgrec(gab_value msg) {
-  assert(gab_valkind(msg) == kGAB_MESSAGE);
-  return GAB_VAL_TO_MESSAGE(msg)->specs;
+static inline gab_value gab_message(struct gab_triple gab, const char data[static 1]) {
+  return gab_strtomsg(gab_string(gab, data));
 }
 
 /**
@@ -1414,75 +1426,9 @@ static inline gab_value gab_msgrec(gab_value msg) {
  * @param msg The message.
  * @return the name.
  */
-static inline gab_value gab_msgname(gab_value msg) {
+static inline gab_value gab_msgtostr(gab_value msg) {
   assert(gab_valkind(msg) == kGAB_MESSAGE);
-  return GAB_VAL_TO_MESSAGE(msg)->name;
-}
-
-/**
- * @brief Get the specialization at the given offset in the message.
- * WARNING: This function is not bounds checked. For a safe alternative, try
- * gab_msgat.
- *
- * @see gab_msgat
- *
- * @param obj The message object.
- * @param offset The offset in the message.
- * @return The specialization at the offset.
- */
-static inline gab_value gab_umsgat(gab_value msg, size_t offset) {
-  assert(gab_valkind(msg) == kGAB_MESSAGE);
-  struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
-  return gab_uvmapat(obj->specs, offset);
-}
-
-/**
- * @brief Get the specialization for a given receiver.
- *
- * @param msg The message object.
- * @param receiver The receiver.
- * @return The specialization for the receiver, or gab_undefined if it did
- * not exist.
- */
-static inline gab_value gab_msgat(gab_value msg, gab_value receiver) {
-  assert(gab_valkind(msg) == kGAB_MESSAGE);
-  struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
-  return gab_mapat(obj->specs, receiver);
-}
-
-/**
- * @brief Add a specialization to a message.
- *
- * @param gab The gab triple.
- * @param msg The message.
- * @param receiver The receiver.
- * @param spec The specialization.
- * @return The message, or gab_undefined if it already had the spec.
- */
-static inline gab_value gab_msgput(struct gab_triple gab, gab_value msg,
-                                   gab_value receiver, gab_value spec) {
-  gab_gclock(gab.gc);
-
-  assert(gab_valkind(msg) == kGAB_MESSAGE);
-
-  struct gab_obj_message *obj = GAB_VAL_TO_MESSAGE(msg);
-
-  if (gab_maphas(obj->specs, receiver)) {
-    gab_gcunlock(gab.gc);
-    return gab_undefined;
-  }
-
-  if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
-    gab_dref(gab, obj->specs);
-
-  obj->specs = gab_mapput(gab, obj->specs, receiver, spec);
-
-  if (!GAB_OBJ_IS_NEW((struct gab_obj *)obj))
-    gab_iref(gab, obj->specs);
-
-  gab_gcunlock(gab.gc);
-
-  return msg;
+  return msg & ~((uint64_t)kGAB_MESSAGE << __GAB_TAGOFFSET);
 }
 
 /**
@@ -1705,7 +1651,6 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
   switch (k) {
   /* These values have a runtime type of themselves */
   case kGAB_SIGIL:
-  case kGAB_UNDEFINED:
     return value;
   /* These are special cases for the practical type */
   case kGAB_BOX:
@@ -1726,8 +1671,10 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
 #include "dict.h"
 
 #define NAME messages
-#define K struct gab_obj_message *
-#define HASH(a) (a->hash)
+#define K gab_value
+#define V gab_value
+#define DEF_V gab_undefined
+#define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
 #define LOAD cGAB_DICT_MAX_LOAD
 #include "dict.h"
@@ -1789,6 +1736,53 @@ static inline bool gab_egvalisa(struct gab_eg *eg, gab_value value,
   return gab_valeq(gab_valtype(eg, value), type);
 }
 
+/**
+ * @brief Get a message's internal spec record.
+ *
+ * @param msg The message.
+ * @return the record.
+ */
+static inline gab_value gab_egmsgrec(struct gab_eg *eg, gab_value msg) {
+  gab_value specs = d_messages_read(&eg->messages, msg);
+  return specs;
+}
+
+/**
+ * @brief Get the specialization for a given receiver.
+ *
+ * @param msg The message object.
+ * @param receiver The receiver.
+ * @return The specialization for the receiver, or gab_undefined if it did
+ * not exist.
+ */
+static inline gab_value gab_egmsgat(struct gab_eg *eg, gab_value msg,
+                                    gab_value receiver) {
+  gab_value specs = d_messages_read(&eg->messages, msg);
+  assert(gab_valkind(specs) == kGAB_MAP);
+  return gab_mapat(specs, receiver);
+};
+
+/**
+ * @brief Add a specialization to a message.
+ *
+ * @param gab The gab triple.
+ * @param msg The message.
+ * @param receiver The receiver.
+ * @param spec The specialization.
+ * @return The message, or gab_undefined if it already had the spec.
+ */
+static inline gab_value gab_egmsgput(struct gab_triple gab, gab_value msg,
+                                     gab_value receiver, gab_value spec) {
+  gab_value specs = d_messages_read(&gab.eg->messages, msg);
+  assert(gab_valkind(specs) == kGAB_MAP);
+
+  gab_value newspecs = gab_mapput(gab, specs, receiver, spec);
+
+  d_messages_insert(&gab.eg->messages, msg, newspecs);
+
+  return msg;
+}
+
 static inline struct gab_egimpl_rest
 gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
   gab_value spec = gab_undefined;
@@ -1804,7 +1798,7 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
    * message. ie <gab.shape 0 1>*/
   if (gab_valhast(receiver)) {
     type = gab_valtype(eg, receiver);
-    spec = gab_msgat(message, type);
+    spec = gab_egmsgat(eg, message, type);
 
     if (spec != gab_undefined)
       return (struct gab_egimpl_rest){type, spec, kGAB_IMPL_TYPE};
@@ -1812,14 +1806,14 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
 
   /* Check for the kind of the receiver. ie 'gab.record' */
   type = gab_egtype(eg, gab_valkind(receiver));
-  spec = gab_msgat(message, type);
+  spec = gab_egmsgat(eg, message, type);
 
   if (spec != gab_undefined)
     return (struct gab_egimpl_rest){type, spec, kGAB_IMPL_KIND};
 
   /* Lastly, check for a generic implmentation.*/
   type = gab_undefined;
-  spec = gab_msgat(message, type);
+  spec = gab_egmsgat(eg, message, type);
 
   return (struct gab_egimpl_rest){
       type, spec, spec == gab_undefined ? kGAB_IMPL_NONE : kGAB_IMPL_GENERAL};
@@ -1856,10 +1850,11 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
 
   switch (gab_valkind(value)) {
   case kGAB_SIGIL:
+    return gab_sigtostr(value);
+  case kGAB_MESSAGE:
+    return gab_msgtostr(value);
   case kGAB_STRING:
     return value;
-  case kGAB_UNDEFINED:
-    return gab_string(gab, "undefined");
   case kGAB_PRIMITIVE:
     return gab_string(gab, gab_opcode_names[gab_valtop(value)]);
   case kGAB_NUMBER: {
@@ -1867,22 +1862,16 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
     return gab_string(gab, buffer);
   }
   case kGAB_MAP: {
-      struct gab_obj_map* m = GAB_VAL_TO_MAP(value);
-      snprintf(buffer, 128, "<Map %p>", m);
-      return gab_string(gab, buffer);
-    }
+    struct gab_obj_map *m = GAB_VAL_TO_MAP(value);
+    snprintf(buffer, 128, "<Map %p>", m);
+    return gab_string(gab, buffer);
+  }
   case kGAB_BLOCK: {
     struct gab_obj_block *o = GAB_VAL_TO_BLOCK(value);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(o->p);
     snprintf(buffer, 128, "<Block %s:%lu>",
              gab_valintocs(gab, gab_srcname(p->src)),
              gab_srcline(p->src, p->offset));
-    return gab_string(gab, buffer);
-  }
-  case kGAB_MESSAGE: {
-    struct gab_obj_message *o = GAB_VAL_TO_MESSAGE(value);
-    snprintf(buffer, 128, "\\%s", gab_valintocs(gab, o->name));
-
     return gab_string(gab, buffer);
   }
   case kGAB_PROTOTYPE: {

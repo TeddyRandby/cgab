@@ -3,33 +3,33 @@ s = 'specs' :use
 Car = { car.make, car.model, car.year, car.color }
 
 s:def! {
-  name = 'car.make',
+  name = .car.make,
   help = "The car's manufacturer, ie 'Ford'",
   spec =  s:any  ('Ford', 'Chevy', 'Toyota', 'Honda'),
 }
 
 car.color.spec = s:def! {
-  name = 'car.color',
+  name = .car.color,
   spec =  s:any ('RED', 'BLUE', 'WHITE', 'BLACK')
 }
 
 s:def! {
-  name = 'car.model' ,
+  name = .car.model ,
   spec =  s:any ('Mustang', 'Civic', 'Camry', 'Prius')
 }
 
 s:def! {
-  name = 'car.year' ,
+  name = .car.year ,
   spec =  s:all ( s:int (),  s:gt 1950 )
 }
 
 car.spec = s:def! {
-  name = 'car',
+  name = .car,
   spec =  s:protocol Car
 }
 
 car.paint.spec = s:def! {
-  name = 'car.paint',
+  name = .car.paint,
   help = "Paint the car the given color",
   spec =  s:message {
     # The receiver's spec
@@ -48,6 +48,7 @@ car.paint.spec = s:def! {
 }
 
 # Generate a mock car
+car.spec:spec.explain
 test_car = car.spec :spec.gen
 test_car:print
 

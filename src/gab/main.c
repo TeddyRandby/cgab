@@ -86,10 +86,16 @@ void run_file(const char *path, int flags) {
       .flags = flags,
   });
 
-  a_gab_value *result = gab_suse(gab, path);
+  gab_value data[] = { gab_true, gab_false };
 
-  if (!result)
-    fprintf(stdout, "[gab]: Module '%s' not found.\n", path);
+  gab_value rec = gab_record(gab, gab_undefined, 1, 2, data);
+
+  gab_fprintf(stdout, "Test: $", rec);
+
+  // a_gab_value *result = gab_suse(gab, path);
+  //
+  // if (!result)
+  //   fprintf(stdout, "[gab]: Module '%s' not found.\n", path);
 
   gab_destroy(gab);
   return;

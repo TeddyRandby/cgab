@@ -105,7 +105,7 @@ end)
 # Generic implementation for commands. - basically ignore.
 \doreduce :def! ([], do seq, acc, r:
   # Apply the producer, resolving new values for the next step
-  ok, xs[] = seq:seq.next
+  ok, seq, xs[] = seq:seq.next
   # Tailcall to the next step
   ok:doreduce(seq, acc, r, xs)
 end)
@@ -133,14 +133,11 @@ end)
     \seqs.into = into,
     \reduce = do acc, r:
       seq = self:seqs.into
-      ok, xs[] = seq:seq.next
+      ok, seq, xs[] = seq:seq.next
       ok:doreduce(seq, acc, r, xs)
     end,
     \transduce = do acc, r, td:
       self:reduce(acc, td r)
-    end,
-    \lists.into = do:
-      self:reduce(.gab.list(), \push!)
     end,
     \tuples.into = do:
       self:reduce({}, \push)
@@ -151,12 +148,12 @@ end)
   }
 end)
 
-\seq.next :def! (['gab.block'], do: self() end)
+\seq.next :def! (['gab.block'], do: (self, self()) end)
 
 # Implement the reducer protocol for blocks and messages
 ['gab.block'] :defmodule! {
   \reduce.step = do acc, xs[]:
-    self(acc, xs**)
+    (self, self(acc, xs**))
   end,
   \reduce.done = do acc:
     acc
@@ -165,7 +162,7 @@ end)
 
 ['gab.message'] :defmodule! {
   \reduce.step = do acc, xs[]:
-    acc:send(self, xs**)
+    (self, acc:send(self, xs**))
   end,
   \reduce.done = do acc:
     acc
@@ -212,7 +209,7 @@ end)
 }
 
 \td.map.into :defcase! {
-  gab.message = do:
+  'gab.message' = do:
     f = self
     do rf:
       do acc, x, xs[]:
@@ -220,7 +217,7 @@ end)
       end
     end
   end,
-  gab.block = do:
+  'gab.block' = do:
     f = self
     do rf:
       do acc, xs[]:
@@ -233,7 +230,7 @@ end)
 \map :def.transducer! \td.map.into
 
 \td.filter.into :defcase! {
-  gab.message = do:
+  'gab.message' = do:
     f = self
     do rf:
       do acc, x, xs[]:
@@ -241,7 +238,7 @@ end)
       end
     end
   end,
-  gab.block = do:
+  'gab.block' = do:
     f = self
     do rf:
       do acc, xs[]:
@@ -254,7 +251,7 @@ end)
 \filter :def.transducer! \td.filter.into
 
 \td.tap.into :defcase! {
-  gab.message = do:
+  'gab.message' = do:
     f = self
     do rf:
       do acc, x, xs[]:
@@ -263,7 +260,7 @@ end)
       end
     end
   end,
-  gab.block = do:
+  'gab.block' = do:
     f = self
     do rf:
       do acc, xs[]:
@@ -282,8 +279,8 @@ end)
       started = .false,
       reduce.step = do acc, xs[]:
         acc = self:started:td.conditionally (acc, [sep], rf)
-        #self:started = .true
-        rf:reduce.step(acc, xs**)
+        nxt = self:started(.true)
+        (nxt, rf:reduce.step(acc, xs**))
       end,
       reduce.done = do acc:
         acc
@@ -297,7 +294,7 @@ end
     {
       n,
       reduce.step = do acc, xs[]:
-        #self:n = self:n - 1
+        nxt = self:n(self:n - 1)
         (self:n >= 0) :td.stop_conditionally (acc, xs, rf)
       end,
       reduce.done = do acc:
@@ -373,31 +370,28 @@ end
   fns:transduce(.nil, \compose, .td :map \first)
 end)
 
-#[maps.t] :defmodule! {
-#  \has? = do key:
-#    self:at key  == .ok
-#  end,
-#  \del! = do key:
-#    self:put!(key, .nil)
-#  end,
-#  \at! = do key, val?:
-#    map = self
-#    self:has? key :else do: map:put!(key, val?) end
-#    self:at key :unwrap!
-#  end,
-#}
-#
-#maps.t :def.seq! do:
-#  i = self
-#  {
-#    v = .next.init,
-#    seq.next = do:
-#      ok, nx, nv = i:next(self:v)
-#      self:v = nx
-#      (ok, nx, nv)
-#    end
-#  }
-#end
+[maps.t] :defmodule! {
+  \has? = do key:
+    self:at key :ok?
+  end,
+  \at! = do key, val?:
+    map = self
+    self:has? key :else do: map:put!(key, val?) end
+    self:at key :unwrap!
+  end,
+}
+
+maps.t :def.seq! do:
+  i = self
+  {
+    v = .next.init,
+    seq.next = do:
+      ok, nx, nv = i:next(self:v)
+      self:v = nx
+      (ok, nx, nv)
+    end
+  }
+end
 
 \ :def! ([.int.between], do min, max:
   .float.between (min,max) :floor

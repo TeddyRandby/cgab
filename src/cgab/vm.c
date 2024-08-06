@@ -756,14 +756,13 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 #define SEND_GUARD_KIND(r, k) SEND_GUARD(gab_valkind(r) == k)
 
 #define SEND_GUARD_CACHED_MESSAGE_SPECS(m)                                     \
-  SEND_GUARD(gab_valeq(GAB_VAL_TO_MESSAGE(m)->specs, ks[GAB_SEND_KSPECS]))
+  SEND_GUARD(gab_valeq(gab_egmsgrec(EG(), m), ks[GAB_SEND_KSPECS]))
 
 #define SEND_GUARD_CACHED_RECEIVER_TYPE(r)                                     \
   SEND_GUARD(gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE]))
 
 #define SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m)                                \
-  SEND_GUARD(gab_valeq(GAB_VAL_TO_MESSAGE(m)->specs,                           \
-                       ks[GAB_SEND_KGENERIC_CALL_SPECS]))
+  SEND_GUARD(gab_valeq(gab_egmsgrec(EG(), m), ks[GAB_SEND_KGENERIC_CALL_SPECS]))
 
 CASE_CODE(MATCHTAILSEND_BLOCK) {
   gab_value *ks = READ_CONSTANTS;
@@ -830,9 +829,9 @@ CASE_CODE(MATCHSEND_BLOCK) {
   NEXT();
 }
 
-static inline bool try_setup_localmatch(gab_value m, gab_value *ks,
+static inline bool try_setup_localmatch(struct gab_eg* eg, gab_value m, gab_value *ks,
                                         struct gab_obj_prototype *p) {
-  gab_value specs = gab_msgrec(m);
+  gab_value specs = gab_egmsgrec(eg, m);
 
   if (gab_maplen(specs) > 4 || gab_maplen(specs) < 2)
     return false;
@@ -1657,7 +1656,7 @@ CASE_CODE(SEND) {
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
-  if (try_setup_localmatch(m, ks, BLOCK_PROTO())) {
+  if (try_setup_localmatch(EG(), m, ks, BLOCK_PROTO())) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_MATCHSEND_BLOCK + adjust);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -1676,7 +1675,7 @@ CASE_CODE(SEND) {
                        ? gab_primitive(OP_SEND_PROPERTY)
                        : res.spec;
 
-  ks[GAB_SEND_KSPECS] = GAB_VAL_TO_MESSAGE(m)->specs;
+  ks[GAB_SEND_KSPECS] = gab_egmsgrec(EG(), m);
   ks[GAB_SEND_KTYPE] = gab_valtype(EG(), r);
   ks[GAB_SEND_KSPEC] =
       res.status == kGAB_IMPL_PROPERTY ? GAB_VAL_TO_MAP(r)->hash : res.spec;
@@ -1853,7 +1852,7 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC) {
 
   ks[GAB_SEND_KTYPE] = t;
   ks[GAB_SEND_KSPEC] = res.spec;
-  ks[GAB_SEND_KGENERIC_CALL_SPECS] = gab_msgrec(m);
+  ks[GAB_SEND_KGENERIC_CALL_SPECS] = gab_egmsgrec(EG(), m);
   ks[GAB_SEND_KGENERIC_CALL_MESSAGE] = m;
 
   if (res.status == kGAB_IMPL_PROPERTY) {

@@ -657,7 +657,7 @@ static inline void push_send(struct bc *bc, gab_value m, mv args, size_t t) {
   assert(args.status < 16);
 
   if (gab_valkind(m) == kGAB_STRING)
-    m = gab_message(gab(bc), m);
+    m = gab_strtomsg(m);
 
   assert(gab_valkind(m) == kGAB_MESSAGE);
 
@@ -1824,7 +1824,7 @@ static int compile_rec_internal_item(struct bc *bc) {
 
     gab_value m = trim_prev_id(bc);
 
-    push_loadk(bc, gab_message(gab(bc), m), t);
+    push_loadk(bc, gab_strtomsg(m), t);
     push_slot(bc, 1);
 
     if (match_and_eat_token(bc, TOKEN_EQUAL)) {
@@ -1845,7 +1845,7 @@ static int compile_rec_internal_item(struct bc *bc) {
 
     push_slot(bc, 1);
 
-    push_loadk(bc, gab_message(gab(bc), val_name), t);
+    push_loadk(bc, gab_strtomsg(val_name), t);
 
     switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
 
@@ -2150,7 +2150,7 @@ static mv compile_exp_idn(struct bc *bc, mv lhs, bool assignable) {
 static mv compile_exp_msg(struct bc *bc, mv, bool) {
   gab_value m = trim_prev_id(bc);
 
-  push_loadk(bc, gab_message(gab(bc), m), bc->offset - 1);
+  push_loadk(bc, gab_strtomsg(m), bc->offset - 1);
 
   push_slot(bc, 1);
 

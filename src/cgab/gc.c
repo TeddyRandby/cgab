@@ -128,16 +128,6 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
     break;
   }
 
-  case (kGAB_MESSAGE): {
-    struct gab_obj_message *msg = (struct gab_obj_message *)obj;
-    fnc(gab, gab_valtoo(msg->specs));
-
-    if (gab_valiso(msg->name))
-      fnc(gab, gab_valtoo(msg->name));
-
-    break;
-  }
-
   case kGAB_MAP: {
     struct gab_obj_map *map = (struct gab_obj_map *)obj;
     size_t len = __builtin_popcount(map->mask);

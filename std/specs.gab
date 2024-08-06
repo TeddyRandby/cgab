@@ -26,46 +26,11 @@ explain_keys = do strings, separator:
   )
 end
 
-## Registry of qualified name -> spec
-registry.spec = .gab.map()
-
-## Registry of qualified name -> help text
-registry.help = .gab.map()
-
-## Registry of receiver -> list of spec'd messages
-registry.message = .gab.map()
-
-register = do registry, name, value:
-  # Add a new specification to the registry.
-  # If this key already existed, panic.
-  registry:add!(name, value):unwrap!
-end
-
-\spec.register! :defcase! {
-  [{ name, spec }?] = do:
-    register(registry.spec, self:name, self:spec)
-
-    self:spec
-  end,
-  [{ name, help, spec }?] = do:
-    register(registry.spec, self:name, self:spec)
-    register(registry.help, self:spec, self:help)
-
-    self:spec
-  end,
-}
-
-## Add a spec to the global registry under the given name.
 \def! :def! ([spec.t], do opts:
-  opts :spec.register!
-end)
-
-\spec :def! ([], do:
-  registry.spec:at(self):unwrap!
-end)
-
-\spec.help :def! ([], do:
-  registry.help:at(self)
+  target = [opts:name]
+  \spec.help :def! (target, do: (.ok, opts:help) end)
+  \spec :def! (target, do: (.ok, opts:spec) end)
+  opts:spec
 end)
 
 ## PREDICATES
@@ -311,8 +276,8 @@ protocol.predicate = do protocol:
 # Check for a spec which corresponds to this message in the protocol
       acc:at!(0) :and acc :else do:
         m :has? value :then do:
-        registry.spec:at(k) :ok?:then do s:
-            s :spec.fits? (value :at! k)
+          k:spec:ok?:then do s:
+            s:spec.fits?(value :at! k)
           end
         end :or [.false, self, value, k]
       end
@@ -320,7 +285,7 @@ protocol.predicate = do protocol:
   end)
 
   gentd = .td :map do key:
-    found = registry.spec:at(key):unwrap!
+    found = key:spec:unwrap!
 
     (key, found:spec.gen)
   end
@@ -497,119 +462,113 @@ end)
 
 \spec.explain :def! ([general_message.predicate], 'message')
 
-spec.message.Args = { receiver, message, input, output, semantics }?
-
-spec.message.Application = spec.message.Args :with .in :with .out :with .rec
-
-\spec.message.input_fits? :def! ([spec.message.Application], do:
+\spec.message.input_fits? :def! (['gab.map'], do:
   self:input:spec.fits?(self:in**)
 end)
 
-\spec.message.output_fits? :def! ([spec.message.Application], do:
+\spec.message.output_fits? :def! (['gab.map'], do:
   self:output:spec.fits?(self:out**)
 end)
 
-\spec.message.receiver_fits? :def! ([spec.message.Application], do:
+\spec.message.receiver_fits? :def! (['gab.map'], do:
   self:receiver:spec.fits?(self:rec**)
 end)
 
-\spec.message.semantics_fits? :def! ([spec.message.Application], do input, output:
+\spec.message.semantics_fits? :def! (['gab.map'], do input, output:
   self:at!('semantics'):spec.semantic_fits?(input, output)
 end)
 
-\spec.message.define :def! ([.nil], general_message.predicate)
+\spec.message.define :defcase! {
+  .nil = general_message.predicate,
+  'gab.map' = do:
+    args = self
+    pred = 'predicate:message:{args}' :sigil.into
 
-\spec.message.define :def! ([spec.message.Args], do :
-  args = self
-  pred = 'predicate:message:{args}' :sigil.into
+    \spec.fits? :def! ([pred], do rec, input, output:
+      v = args:with(.input_value, input):with(.output_value, output)
 
-  m = registry.message:at!(args:receiver, .gab.map())
-  m:add!(args:message, pred)
+      v:first(
+        \apply,
+        [
+          \spec.message.input_fits?,
+          \spec.message.output_fits?,
+          \spec.message.receiver_fits?,
+          \spec.message.semantics_fits?,
+        ],
+        \options.into,
+      )
+    end)
 
-  \spec.fits? :def! ([pred], do rec, input, output:
-    v = args:with(.input_value, input):with(.output_value, output)
+    \spec.gen :def! ([pred], do receiver:
+      args:message :def! ([receiver], do input[]:
+        # TODO: Maybe have a better syntax to avoid situations like this?
+        # FIXME: Putting a comment after self here breaks things?
+        me = self
 
-    v:first(
-      \apply,
-      [
-        \spec.message.input_fits?,
-        \spec.message.output_fits?,
-        \spec.message.receiver_fits?,
-        \spec.message.semantics_fits?,
-      ],
-      \options.into,
-    )
-  end)
+        args:input:spec.fits?(input**) :then do :
+          td = .td:compose (
+            .td:map do:
+              output[] = args:output:spec.gen
 
-  \spec.gen :def! ([pred], do receiver:
-    args:message :def! ([receiver], do input[]:
-      # TODO: Maybe have a better syntax to avoid situations like this?
-      # FIXME: Putting a comment after self here breaks things?
-      me = self
+              args:output:spec.fits?(output**) :then do:
+                # If there are no semantics to satisfy, just return this output
+                (args:has? 'semantics' :else do: output** end) :then do:
+                  rec = args:receiver:spec.gen
 
-      args:input:spec.fits?(input**) :then do :
-        td = .td:compose (
-          .td:map do:
-            output[] = args:output:spec.gen
+                  args:receiver:spec.fits?(rec) :then do:
+                    # Otherwise, we need to continue generating until we
+                    # find a receiver and output which satisfy the semantics.
+                    args:semantics(rec, input, output) :then do:
+                      # Woohoo! modify self to reflect the generated receiver
+                      me:spec.modify!(rec)
 
-            args:output:spec.fits?(output**) :then do:
-              # If there are no semantics to satisfy, just return this output
-              (args:has? 'semantics' :else do: output** end) :then do:
-                rec = args:receiver:spec.gen
-
-                args:receiver:spec.fits?(rec) :then do:
-                  # Otherwise, we need to continue generating until we
-                  # find a receiver and output which satisfy the semantics.
-                  args:semantics(rec, input, output) :then do:
-                    # Woohoo! modify self to reflect the generated receiver
-                    me:spec.modify!(rec)
-
-                    # Return the generated output
-                    output**
+                      # Return the generated output
+                      output**
+                    end
                   end
                 end
               end
-            end
-          end,
-          .td:map \options.into,
-          .td:filter \ok?,
-          .td:map \first,
-          .td:take 1,
-        )
+            end,
+            .td:map \options.into,
+            .td:filter \ok?,
+            .td:map \first,
+            .td:take 1,
+          )
 
-        .range 100 :transduce(
-          0,
-          \first,
-          td,
-        )
-      end
-    end)
-
-    args:message
-  end)
-
-  \spec.check :def! ([pred], do:
-    .range 100 :reduce(.nil, do:
-      receiver = args:receiver:spec.gen
-
-      args:receiver:spec.fits?(receiver) :and do:
-        input[]  = args:input:spec.gen
-
-        args:input:spec.fits?(input**) :and do:
-          output[] = args:message(receiver, input**)
-          
-          self:spec.fits?(receiver, input, output)
+          .range 100 :transduce(
+            0,
+            \first,
+            td,
+          )
         end
-      end
+      end)
+
+      args:message
     end)
-  end)
 
-  \spec.explain :def! ([pred], do:
-    '{args:receiver:spec.name:unwrap!}{args:message} {args:input:spec.explain} -> {args:output:spec.explain}'
-  end)
+    \spec.check :def! ([pred], do:
+      .range 100 :reduce(.nil, do:
+        receiver = args:receiver:spec.gen
 
-  pred
-end)
+        args:receiver:spec.fits?(receiver) :and do:
+          input[]  = args:input:spec.gen
+
+          args:input:spec.fits?(input**) :and do:
+            output[] = args:message(receiver, input**)
+            
+            self:spec.fits?(receiver, input, output)
+          end
+        end
+      end)
+    end)
+
+    \spec.explain :def! ([pred], do:
+      '{args:receiver:spec.name:unwrap!}{args:message} {args:input:spec.explain} -> {args:output:spec.explain}'
+    end)
+
+    pred
+  end,
+}
 
 message.predicate = do args:
   args:spec.message.define
@@ -646,37 +605,6 @@ end)
 
 # A default explain implementation
 \spec.explain :def! ([], do: '{self}' end)
-
-\spec.doc :def! ([], do:
-  name, help = self:spec.name:unwrap!, registry.help:at!(self)
-
-  '## {name}\n{help}\n\n\t{self:spec.explain}\n\n'
-end)
-
-\spec.messages :def! ([], do:
-  spec, ok, m = self, registry.message:at(self)
-
-  ok:then do:
-    '# {spec:spec.explain}':print
-
-    m:each do _, v:
-      v:spec.doc:print
-    end
-  end
-end)
-
-\spec.name :def! ([], do:
-  spec = self
-
-  td = .td:compose(
-    .td:filter do _, v:
-      v == spec
-    end,
-    .td:take 1,
-  )
-
-  registry.spec:transduce(.nil, \first, td):options.into
-end)
 
 ## FITS
 # Default spec.fits? specializfation is just good ol' equality
