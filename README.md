@@ -85,14 +85,26 @@ Sigils are similar to strings (and interchangeable in some ways). However, they 
 
     'hello' ? # => gab.string
 ```
+Because sigil's have a different type, you can define how an *individual sigil* responds to a message. Here is an example:
+```gab
+# Define the message 'then' for the .true and .false sigil.
+\then :defcase! {
+    .true = do callback:
+        # In the true path, we call the callback
+        callback()
+    end,
+    .fase = do:
+        # In the false path, we return false
+        self
+    end,
+}
+```
 #### Messages
 Messages are polymorphic behavior which can be dispatched statically as an infix expression with `:` or via application with a message literal.
 ```gab
     \print # => \print
 
-    1 :print # => prints 1
-
-    \print (1, 2, 3) # => prints 1, 2, 3
+    1:print # => prints 1
 ```
 ### Behavior
 Behavior in Gab is dictated *exclusively* by polymorphic, infix messages. These infix messages always have one left-hand value and up to one right-hand value.
