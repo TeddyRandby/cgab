@@ -76,7 +76,7 @@ int map_dump_properties(FILE *stream, gab_value map, int depth) {
   switch (gab_valkind(map)) {
   case kGAB_MAP: {
     struct gab_obj_map *m = GAB_VAL_TO_MAP(map);
-    size_t len = __builtin_popcount(m->mask);
+    size_t len = __builtin_popcountl(m->mask);
 
     if (len == 0)
       return fprintf(stream, " ~ ");
@@ -87,7 +87,7 @@ int map_dump_properties(FILE *stream, gab_value map, int depth) {
     int32_t bytes = 0;
 
     for (uint64_t i = 0; i < len; i++) {
-      if (m->vmask & (1 << i)) {
+      if (m->vmask & ((size_t)1 << i)) {
         bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
         bytes += fprintf(stream, " = ");
         bytes += gab_fvalinspect(stream, m->data[i * 2 + 1], depth - 1);
@@ -104,7 +104,7 @@ int map_dump_properties(FILE *stream, gab_value map, int depth) {
   }
   case kGAB_MAPNODE: {
     struct gab_obj_mapnode *m = GAB_VAL_TO_MAPNODE(map);
-    size_t len = __builtin_popcount(m->mask);
+    size_t len = __builtin_popcountl(m->mask);
 
     if (len == 0)
       return fprintf(stream, "~ ");
@@ -115,7 +115,7 @@ int map_dump_properties(FILE *stream, gab_value map, int depth) {
     int32_t bytes = 0;
 
     for (uint64_t i = 0; i < len; i++) {
-      if (m->vmask & (1 << i)) {
+      if (m->vmask & ((size_t)1 << i)) {
         bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
         bytes += fprintf(stream, " = ");
         bytes += gab_fvalinspect(stream, m->data[i * 2 + 1], depth - 1);

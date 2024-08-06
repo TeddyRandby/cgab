@@ -829,9 +829,13 @@ CASE_CODE(MATCHSEND_BLOCK) {
   NEXT();
 }
 
-static inline bool try_setup_localmatch(struct gab_eg* eg, gab_value m, gab_value *ks,
+static inline bool try_setup_localmatch(struct gab_eg *eg, gab_value m,
+                                        gab_value *ks,
                                         struct gab_obj_prototype *p) {
   gab_value specs = gab_egmsgrec(eg, m);
+
+  if (specs == gab_undefined)
+    return false;
 
   if (gab_maplen(specs) > 4 || gab_maplen(specs) < 2)
     return false;

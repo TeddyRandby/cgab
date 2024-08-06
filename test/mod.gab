@@ -14,8 +14,6 @@
     'assign multiple variables' :tests.should do:
         a, b = 1, 2
 
-        { a, b }:print
-
         a:should.be(\==, 1)
         b:should.be(\==, 2)
 

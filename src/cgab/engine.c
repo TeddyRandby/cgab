@@ -197,6 +197,8 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->hash_seed = time(nullptr);
 
+  eg->messages = gab_map(gab, 0, 0, nullptr, nullptr);
+
   eg->types[kGAB_UNDEFINED] = gab_undefined;
 
   eg->types[kGAB_NUMBER] = gab_string(gab, "gab.number");
@@ -275,6 +277,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
 void gab_destroy(struct gab_triple gab) {
   gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
+  gab_dref(gab, gab.eg->messages);
 
   for (uint64_t i = 0; i < gab.eg->modules.cap; i++) {
     if (d_gab_modules_iexists(&gab.eg->modules, i)) {
@@ -295,7 +298,6 @@ void gab_destroy(struct gab_triple gab) {
   }
 
   d_strings_destroy(&gab.eg->strings);
-  d_messages_destroy(&gab.eg->messages);
   d_gab_modules_destroy(&gab.eg->modules);
   d_gab_src_destroy(&gab.eg->sources);
 

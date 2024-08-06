@@ -106,6 +106,7 @@ end)
 \doreduce :def! ([], do seq, acc, r:
   # Apply the producer, resolving new values for the next step
   ok, seq, xs[] = seq:seq.next
+  { ok, seq }:print
   # Tailcall to the next step
   ok:doreduce(seq, acc, r, xs)
 end)
@@ -374,9 +375,7 @@ end)
   \has? = do key:
     self:at key :ok?
   end,
-  \at! = do key, val?:
-    map = self
-    self:has? key :else do: map:put!(key, val?) end
+  \at! = do key:
     self:at key :unwrap!
   end,
 }

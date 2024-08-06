@@ -1672,15 +1672,6 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
 #define LOAD cGAB_DICT_MAX_LOAD
 #include "dict.h"
 
-#define NAME messages
-#define K gab_value
-#define V gab_value
-#define DEF_V gab_undefined
-#define HASH(a) (a)
-#define EQUAL(a, b) (a == b)
-#define LOAD cGAB_DICT_MAX_LOAD
-#include "dict.h"
-
 #define NAME gab_modules
 #define K size_t
 #define V a_gab_value *
@@ -1706,13 +1697,13 @@ struct gab_eg {
 
   gab_value types[kGAB_NKINDS];
 
+  gab_value messages;
+
   d_gab_src sources;
 
   d_gab_modules modules;
 
   d_strings strings;
-
-  d_messages messages;
 
   v_gab_value scratch;
 
@@ -1745,7 +1736,7 @@ static inline bool gab_egvalisa(struct gab_eg *eg, gab_value value,
  * @return the record.
  */
 static inline gab_value gab_egmsgrec(struct gab_eg *eg, gab_value msg) {
-  gab_value specs = d_messages_read(&eg->messages, msg);
+  gab_value specs = gab_mapat(eg->messages, msg);
   return specs;
 }
 
@@ -1759,8 +1750,11 @@ static inline gab_value gab_egmsgrec(struct gab_eg *eg, gab_value msg) {
  */
 static inline gab_value gab_egmsgat(struct gab_eg *eg, gab_value msg,
                                     gab_value receiver) {
-  gab_value specs = d_messages_read(&eg->messages, msg);
-  assert(gab_valkind(specs) == kGAB_MAP);
+  gab_value specs = gab_mapat(eg->messages, msg);
+
+  if (specs == gab_undefined)
+    return specs;
+
   return gab_mapat(specs, receiver);
 };
 
@@ -1775,17 +1769,15 @@ static inline gab_value gab_egmsgat(struct gab_eg *eg, gab_value msg,
  */
 static inline gab_value gab_egmsgput(struct gab_triple gab, gab_value msg,
                                      gab_value receiver, gab_value spec) {
-  gab_value specs = d_messages_read(&gab.eg->messages, msg);
+  gab_value specs = gab_mapat(gab.eg->messages, msg);
 
   if (specs == gab_undefined) {
-    specs = gab_map(gab, 1, 0, nullptr, nullptr);
+    specs = gab_map(gab, 0, 0, nullptr, nullptr);
   }
-
-  assert(gab_valkind(specs) == kGAB_MAP);
 
   gab_value newspecs = gab_mapput(gab, specs, receiver, spec);
 
-  d_messages_insert(&gab.eg->messages, msg, newspecs);
+  gab.eg->messages = gab_mapput(gab, gab.eg->messages, msg, newspecs);
 
   return msg;
 }

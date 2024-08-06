@@ -160,7 +160,6 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
 
     for (int i = 0; i < gab_maplen(messages); i++) {
       gab_value b = gab_uvmapat(messages, i);
-
       gab_value m = gab_ukmapat(messages, i);
 
       if (gab_valkind(messages) != kGAB_MAP)

@@ -190,6 +190,7 @@ static bool match_token(struct bc *bc, gab_token tok);
 static int eat_token(struct bc *bc);
 
 static gab_value tok_id(struct bc *bc, gab_token tok) {
+  // These can cause collections during compilation.
   return gab_string(gab(bc), gab_token_names[tok]);
 }
 
@@ -732,6 +733,7 @@ static inline void push_pack(struct bc *bc, mv rhs, uint8_t below,
 static gab_value prev_id(struct bc *bc) {
   s_char s = prev_src(bc);
 
+  // These can cause collections during compilation.
   return gab_nstring(gab(bc), s.len, s.data);
 }
 
@@ -741,6 +743,7 @@ static gab_value trim_prev_id(struct bc *bc) {
   s.data++;
   s.len--;
 
+  // These can cause collections during compilation.
   return gab_nstring(gab(bc), s.len, s.data);
 }
 
@@ -1734,21 +1737,21 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
       pop_slot(bc, 1);
       break;
     }
+  }
 
-    for (uint8_t i = 0; i < lvalues->len; i++) {
-      struct lvalue lval = v_lvalue_val_at(lvalues, lvalues->len - 1 - i);
-      bool is_last_assignment = i + 1 == lvalues->len;
+  for (uint8_t i = 0; i < lvalues->len; i++) {
+    struct lvalue lval = v_lvalue_val_at(lvalues, lvalues->len - 1 - i);
+    bool is_last_assignment = i + 1 == lvalues->len;
 
-      switch (lval.kind) {
-      case kNEW_LOCAL:
-      case kNEW_REST_LOCAL:
-      case kEXISTING_LOCAL:
-      case kEXISTING_REST_LOCAL:
-        if (is_last_assignment)
-          push_loadl(bc, lval.as.local.index, t), push_slot(bc, 1);
+    switch (lval.kind) {
+    case kNEW_LOCAL:
+    case kNEW_REST_LOCAL:
+    case kEXISTING_LOCAL:
+    case kEXISTING_REST_LOCAL:
+      if (is_last_assignment)
+        push_loadl(bc, lval.as.local.index, t), push_slot(bc, 1);
 
-        break;
-      }
+      break;
     }
   }
 
@@ -2031,7 +2034,6 @@ mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs, size_t t,
 }
 
 mv compile_send(struct bc *bc, mv lhs, bool assignable) {
-
   size_t t = bc->offset - 1;
 
   gab_value name = trim_prev_id(bc);

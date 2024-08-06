@@ -12,9 +12,9 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
   gab_value val = gab_mapat(map, key);
 
   if (val == gab_undefined)
-    return gab_panic(gab, "Map $ missing key $", map, key);
-
-  gab_vmpush(gab.vm, val);
+    gab_vmpush(gab.vm, gab_none);
+  else
+    gab_vmpush(gab.vm, gab_ok, val);
 
   return nullptr;
 }
@@ -102,5 +102,5 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_nspec(gab, sizeof(specs) / sizeof(specs[0]), specs);
 
-  return nullptr;
+  return a_gab_value_one(map_t);
 }

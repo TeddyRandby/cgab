@@ -28,6 +28,8 @@ car.spec = s:def! {
   spec =  s:protocol Car
 }
 
+car.spec:print
+
 car.paint.spec = s:def! {
   name = .car.paint,
   help = "Paint the car the given color",
@@ -46,6 +48,8 @@ car.paint.spec = s:def! {
     end,
   }
 }
+
+car.paint.spec:print
 
 # Generate a mock car
 car.spec:spec.explain

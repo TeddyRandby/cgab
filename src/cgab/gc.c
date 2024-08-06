@@ -130,7 +130,7 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
 
   case kGAB_MAP: {
     struct gab_obj_map *map = (struct gab_obj_map *)obj;
-    size_t len = __builtin_popcount(map->mask);
+    size_t len = __builtin_popcountl(map->mask);
 
     for (size_t i = 0; i < len; i++) {
       size_t offset = i * 2;
@@ -138,7 +138,7 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
       if (gab_valiso(map->data[offset]))
         fnc(gab, gab_valtoo(map->data[offset]));
 
-      if (map->vmask & (1 << i)) {
+      if (map->vmask & ((size_t)1 << i)) {
         if (gab_valiso(map->data[offset + 1]))
           fnc(gab, gab_valtoo(map->data[offset + 1]));
       }
@@ -148,7 +148,7 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
 
   case kGAB_MAPNODE: {
     struct gab_obj_mapnode *map = (struct gab_obj_mapnode *)obj;
-    size_t len = __builtin_popcount(map->mask);
+    size_t len = __builtin_popcountl(map->mask);
 
     for (size_t i = 0; i < len; i++) {
       size_t offset = i * 2;
@@ -156,7 +156,7 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
       if (gab_valiso(map->data[offset]))
         fnc(gab, gab_valtoo(map->data[offset]));
 
-      if (map->vmask & (1 << i)) {
+      if (map->vmask & ((size_t)1 << i)) {
         if (gab_valiso(map->data[offset + 1]))
           fnc(gab, gab_valtoo(map->data[offset + 1]));
       }
@@ -369,52 +369,51 @@ void gab_gcdestroy(struct gab_gc *gc) {
 }
 
 static inline void increment_reachable(struct gab_triple gab) {
-  size_t stack_size = gab.vm->sp - gab.vm->sb;
+  if (gab.vm != nullptr) {
+    size_t stack_size = gab.vm->sp - gab.vm->sb;
 
-  for (size_t i = 0; i < stack_size; i++) {
-    if (gab_valiso(gab.vm->sb[i])) {
-      struct gab_obj *o = gab_valtoo(gab.vm->sb[i]);
+    for (size_t i = 0; i < stack_size; i++) {
+      if (gab_valiso(gab.vm->sb[i])) {
+        struct gab_obj *o = gab_valtoo(gab.vm->sb[i]);
 #if cGAB_LOG_GC
-      printf("REACHINC\t%V\t%p\n", gab.vm->sb[i], o);
+        printf("REACHINC\t%V\t%p\n", gab.vm->sb[i], o);
 #endif
-      inc_obj_ref(gab, o);
+        inc_obj_ref(gab, o);
+      }
     }
   }
 
-  //   for (size_t i = 0; i < gab.eg->scratch.len; i++) {
-  //     if (gab_valiso(gab.eg->scratch.data[i])) {
-  //       struct gab_obj *o = gab_valtoo(gab.eg->scratch.data[i]);
-  // #if cGAB_LOG_GC
-  //       printf("REACHINC\t%V\t%p\n", gab.eg->scratch.data[i], o);
-  // #endif
-  //       inc_obj_ref(gab, o);
-  //     }
-  //   }
+  if (gab_valiso(gab.eg->messages)) {
+    struct gab_obj *o = gab_valtoo(gab.eg->messages);
+    inc_obj_ref(gab, o);
+#if cGAB_LOG_GC
+    printf("REACHINC\t%V\t%p\n", gab.eg->messages, o);
+#endif
+  }
 }
 
 static inline void decrement_reachable(struct gab_triple gab) {
-  size_t stack_size = gab.vm->sp - gab.vm->sb;
+  if (gab.vm != nullptr) {
+    size_t stack_size = gab.vm->sp - gab.vm->sb;
 
-  for (size_t i = 0; i < stack_size; i++) {
-    if (gab_valiso(gab.vm->sb[i])) {
-      struct gab_obj *o = gab_valtoo(gab.vm->sb[i]);
+    for (size_t i = 0; i < stack_size; i++) {
+      if (gab_valiso(gab.vm->sb[i])) {
+        struct gab_obj *o = gab_valtoo(gab.vm->sb[i]);
 #if cGAB_LOG_GC
-      printf("REACHDEC\t%V\t%p\n", gab.vm->sb[i], o);
+        printf("REACHDEC\t%V\t%p\n", gab.vm->sb[i], o);
 #endif
-      queue_decrement(gab, o);
+        queue_decrement(gab, o);
+      }
     }
   }
 
-  //   for (size_t i = 0; i < gab.eg->scratch.len; i++) {
-  //     if (gab_valiso(gab.eg->scratch.data[i])) {
-  //       struct gab_obj *o = gab_valtoo(gab.eg->scratch.data[i]);
-  // #if cGAB_LOG_GC
-  //       printf("REACHDEC\t%V\t%p\n", gab.eg->scratch.data[i], o);
-  // #endif
-  //
-  //       queue_decrement(gab, o);
-  //     }
-  //   }
+  if (gab_valiso(gab.eg->messages)) {
+    struct gab_obj *o = gab_valtoo(gab.eg->messages);
+    queue_decrement(gab, o);
+#if cGAB_LOG_GC
+    printf("REACHDEC\t%V\t%p\n", gab.eg->messages, o);
+#endif
+  }
 }
 
 static inline void process_increments(struct gab_triple gab) {
@@ -666,8 +665,7 @@ void gab_collect(struct gab_triple gab) {
 
   gab_gclock(gab.gc);
 
-  if (gab.vm != nullptr)
-    increment_reachable(gab);
+  increment_reachable(gab);
 
   process_increments(gab);
 
@@ -675,8 +673,7 @@ void gab_collect(struct gab_triple gab) {
 
   collect_cycles(gab);
 
-  if (gab.vm != nullptr)
-    decrement_reachable(gab);
+  decrement_reachable(gab);
 
   gab_gcunlock(gab.gc);
 }

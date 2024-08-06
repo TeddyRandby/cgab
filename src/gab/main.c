@@ -36,6 +36,7 @@ void run_repl(int flags) {
   struct gab_triple gab = gab_create((struct gab_create_argt){
       .os_dynopen = dynopen,
       .os_dynsymbol = dynsymbol,
+      .flags = flags,
   });
 
   gab_repl(gab, (struct gab_repl_argt){
@@ -109,7 +110,7 @@ struct option {
   int flag;
 };
 
-#define MAX_OPTIONS 4
+#define MAX_OPTIONS 5
 
 struct command {
   const char *name;
@@ -160,6 +161,12 @@ static struct command commands[] = {
                 'c',
                 .flag = fGAB_BUILD_CHECK,
             },
+            {
+                "ncore",
+                "Don't use the gab core module.",
+                'n',
+                .flag = fGAB_NO_CORE,
+            },
         },
     },
     {
@@ -191,6 +198,12 @@ static struct command commands[] = {
                 'c',
                 .flag = fGAB_BUILD_CHECK,
             },
+            {
+                "ncore",
+                "Don't use the gab core module.",
+                'n',
+                .flag = fGAB_NO_CORE,
+            },
         },
     },
     {
@@ -203,6 +216,12 @@ static struct command commands[] = {
                 "Dump compiled bytecode to stdout",
                 'd',
                 .flag = fGAB_BUILD_DUMP,
+            },
+            {
+                "ncore",
+                "Don't use the gab core module.",
+                'n',
+                .flag = fGAB_NO_CORE,
             },
         },
     },
@@ -233,16 +252,23 @@ struct parse_options_result parse_options(int argc, const char **argv,
         }
       }
 
+      printf("UNRECOGNIZED FLAG: %s\n", argv[i]);
+      exit(1);
       continue;
-    }
+    } else {
+      for (int j = 0; j < MAX_OPTIONS; j++) {
+        struct option opt = command.options[j];
 
-    for (int j = 0; j < MAX_OPTIONS; j++) {
-      struct option opt = command.options[j];
-
-      if (opt.name && argv[i][1] == opt.shorthand) {
-        flags |= opt.flag;
-        break;
+        if (opt.name && argv[i][1] == opt.shorthand) {
+          flags |= opt.flag;
+          break;
+        }
       }
+
+      continue;
+
+      printf("UNRECOGNIZED FLAG: %s\n", argv[i]);
+      exit(1);
     }
   }
 
