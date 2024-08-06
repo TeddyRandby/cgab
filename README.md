@@ -24,29 +24,7 @@ This code resembles Smalltalk somewhat, and can be transcribed in English as:
 ```
     Send the message 'print' to the value 'Hello world!'
 ```
-Here is an alternative, equally valid syntax:
-```gab
-    \print ('Hello world!')
-```
-This syntax might look more familiar to programmers in the c-family of languages (Besides the curious '\'). Said programmers might transcribe this block as:
-```
-    Call the function 'print' with the argument 'Hello world!'
-```
-This interpretation isn't wrong, but it _is_ shallow. More accurately:
-```
-    Send the empty message to the value '\print' with the argument 'Hello world!'
-```
-This might explain the peculiar syntax `\print`. This is actually a *message literal*.
-To make an analogy to traditional classes, think of this as a generic value-representation for a method.
-Polymorphism works as you'd expect. \+ behaves differently depending on the receiver:
-```gab
-    1 + 1 # => 2
-    \+ (1, 1) # => 2
-
-    'Hello ' + 'world!' # => 'Hello world!'
-    \+ ('Hello ', 'world!')  # => 'Hello world!'
-```
-To peel back another layer, lets define Gab's syntax a little more clearly:
+In the following section, we take a look at Gab's primitive values.
 #### Numbers
 Numbers are represented as IEEE 64-bit floats.
 ```gab
