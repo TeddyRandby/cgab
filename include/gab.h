@@ -1346,6 +1346,7 @@ gab_value gab_mapput(struct gab_triple gab, gab_value map, gab_value key,
 gab_value gab_mapdel(struct gab_triple gab, gab_value map, gab_value key);
 
 size_t gab_maplen(gab_value map);
+size_t gab_mapfind(gab_value map, gab_value key);
 
 struct gab_obj_recnode {
   struct gab_obj header;

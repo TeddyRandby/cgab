@@ -615,6 +615,45 @@ gab_value gab_mapat(gab_value map, gab_value key) {
   }
 }
 
+size_t _umap_find(gab_value map, gab_value key, size_t acc) {
+  size_t len = map_len(map);
+
+  for (size_t p = 0; p < len; p++) {
+    switch (map_nodekat(map, p)) {
+    case kLEAF: {
+      gab_value *kv = map_nodeleafat(map, p);
+      if (kv[kLEAF_KEY] == key)
+        return acc;
+
+      acc += 1;
+      break;
+    }
+    case kBRANCH: {
+      gab_value branch = map_nodebranchat(map, p);
+      size_t nvals = map_vsublen(branch);
+
+      size_t idx = _umap_find(branch, key, acc);
+
+      // It was found - return the idx
+      if (idx != -1)
+        return idx;
+
+      // It wasn't found - accumulate all the keys it wasn't
+      acc += nvals;
+      break;
+    }
+    }
+  }
+
+  return -1;
+}
+
+size_t gab_mapfind(gab_value map, gab_value key) {
+  assert(gab_valkind(map) == kGAB_MAP);
+
+  return _umap_find(map, key, 0);
+}
+
 gab_value *_umap_at(gab_value map, size_t i) {
   size_t remaining = i;
   size_t len = map_len(map);

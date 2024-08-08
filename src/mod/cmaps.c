@@ -19,7 +19,8 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_del(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_del(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
   gab_value map = gab_arg(0);
   gab_value key = gab_arg(1);
 
@@ -62,10 +63,31 @@ a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
 a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
                           gab_value argv[argc]) {
   gab_value map = gab_arg(0);
+  gab_value key = gab_arg(1);
 
   if (gab_valkind(map) != kGAB_MAP)
     return gab_pktypemismatch(gab, map, kGAB_MAP);
 
+  size_t len = gab_maplen(map);
+
+  if (len == 0)
+    goto fin;
+
+  if (key == gab_sigil(gab, "next.init")) {
+    gab_vmpush(gab.vm, gab_ok, gab_ukmapat(map, 0), gab_uvmapat(map, 0));
+    return nullptr;
+  }
+
+  size_t i = gab_mapfind(map, key);
+
+  if (i == -1 || i + 1 == len)
+    goto fin;
+
+  gab_vmpush(gab.vm, gab_ok, gab_ukmapat(map, i + 1), gab_uvmapat(map, i + 1));
+  return nullptr;
+
+fin:
+  gab_vmpush(gab.vm, gab_none);
   return nullptr;
 }
 
