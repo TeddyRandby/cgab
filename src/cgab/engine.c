@@ -198,7 +198,6 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->hash_seed = time(nullptr);
 
   eg->shapes = __gab_shape(gab, 0);
-  gab_iref(gab, eg->shapes);
   eg->messages = gab_record(gab, 0, 0, nullptr, nullptr);
 
   eg->types[kGAB_UNDEFINED] = gab_undefined;
@@ -283,7 +282,9 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 void gab_destroy(struct gab_triple gab) {
   gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
   gab_dref(gab, gab.eg->messages);
+  gab.eg->messages = gab_undefined;
   gab_dref(gab, gab.eg->shapes);
+  gab.eg->shapes = gab_undefined;
 
   for (uint64_t i = 0; i < gab.eg->modules.cap; i++) {
     if (d_gab_modules_iexists(&gab.eg->modules, i)) {

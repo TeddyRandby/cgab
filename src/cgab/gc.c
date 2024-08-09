@@ -150,8 +150,6 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
     struct gab_obj_rec *map = (struct gab_obj_rec *)obj;
     size_t len = __builtin_popcountl(map->mask);
 
-    fnc(gab, gab_valtoo(map->shape));
-
     for (size_t i = 0; i < len; i++) {
       size_t offset = i * 2;
 
@@ -403,6 +401,14 @@ static inline void increment_reachable(struct gab_triple gab) {
     }
   }
 
+  if (gab_valiso(gab.eg->shapes)) {
+    struct gab_obj *o = gab_valtoo(gab.eg->shapes);
+    inc_obj_ref(gab, o);
+#if cGAB_LOG_GC
+    printf("REACHINC\t%V\t%p\n", gab.eg->shapes, o);
+#endif
+  }
+
   if (gab_valiso(gab.eg->messages)) {
     struct gab_obj *o = gab_valtoo(gab.eg->messages);
     inc_obj_ref(gab, o);
@@ -425,6 +431,14 @@ static inline void decrement_reachable(struct gab_triple gab) {
         queue_decrement(gab, o);
       }
     }
+  }
+
+  if (gab_valiso(gab.eg->shapes)) {
+    struct gab_obj *o = gab_valtoo(gab.eg->shapes);
+    queue_decrement(gab, o);
+#if cGAB_LOG_GC
+    printf("REACHDEC\t%V\t%p\n", gab.eg->shapes, o);
+#endif
   }
 
   if (gab_valiso(gab.eg->messages)) {
