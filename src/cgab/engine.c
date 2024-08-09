@@ -282,9 +282,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 void gab_destroy(struct gab_triple gab) {
   gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
   gab_dref(gab, gab.eg->messages);
-  gab.eg->messages = gab_undefined;
   gab_dref(gab, gab.eg->shapes);
-  gab.eg->shapes = gab_undefined;
 
   for (uint64_t i = 0; i < gab.eg->modules.cap; i++) {
     if (d_gab_modules_iexists(&gab.eg->modules, i)) {
