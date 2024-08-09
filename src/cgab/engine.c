@@ -161,7 +161,7 @@ struct primitive kind_primitives[] = {
     },
     {
         .name = mGAB_SPLAT,
-        .kind = kGAB_MAP,
+        .kind = kGAB_RECORD,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_SPLAT),
     },
     {
@@ -197,7 +197,9 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->hash_seed = time(nullptr);
 
-  eg->messages = gab_map(gab, 0, 0, nullptr, nullptr);
+  eg->shapes = __gab_shape(gab, 0);
+  gab_iref(gab, eg->shapes);
+  eg->messages = gab_record(gab, 0, 0, nullptr, nullptr);
 
   eg->types[kGAB_UNDEFINED] = gab_undefined;
 
@@ -222,8 +224,11 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->types[kGAB_BLOCK] = gab_string(gab, "gab.block");
   gab_iref(gab, eg->types[kGAB_BLOCK]);
 
-  eg->types[kGAB_MAP] = gab_string(gab, "gab.map");
-  gab_iref(gab, eg->types[kGAB_MAP]);
+  eg->types[kGAB_SHAPE] = gab_string(gab, "gab.shape");
+  gab_iref(gab, eg->types[kGAB_SHAPE]);
+
+  eg->types[kGAB_RECORD] = gab_string(gab, "gab.record");
+  gab_iref(gab, eg->types[kGAB_RECORD]);
 
   eg->types[kGAB_BOX] = gab_string(gab, "gab.box");
   gab_iref(gab, eg->types[kGAB_BOX]);
@@ -278,6 +283,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 void gab_destroy(struct gab_triple gab) {
   gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
   gab_dref(gab, gab.eg->messages);
+  gab_dref(gab, gab.eg->shapes);
 
   for (uint64_t i = 0; i < gab.eg->modules.cap; i++) {
     if (d_gab_modules_iexists(&gab.eg->modules, i)) {
@@ -590,7 +596,7 @@ gab_value gab_tuple(struct gab_triple gab, uint64_t size,
     keys[i] = gab_number(i);
   }
 
-  gab_value v = gab_map(gab, 1, size, keys, values);
+  gab_value v = gab_record(gab, 1, size, keys, values);
   gab_gcunlock(gab.gc);
   return v;
 }

@@ -33,12 +33,12 @@
 
 // Collect as frequently as possible (on every RC push)
 #ifndef cGAB_DEBUG_GC
-#define cGAB_DEBUG_GC 0
+#define cGAB_DEBUG_GC 1
 #endif
 
 // Log what is happening during collection.
 #ifndef cGAB_LOG_GC
-#define cGAB_LOG_GC 0
+#define cGAB_LOG_GC 1
 #endif
 
 // Make sure functions don't break out of their frame

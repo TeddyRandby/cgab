@@ -10,7 +10,6 @@
 
 #define SOCKET_FAMILY "family"
 #define SOCKET_TYPE "type"
-
 #define SOCKET_BOX_TYPE "Socket"
 
 void gab_container_socket_cb(size_t len, char data[static len]) {
@@ -66,11 +65,11 @@ a_gab_value *gab_lib_sock(struct gab_triple gab, size_t argc,
     break;
 
   case 2: {
-    if (gab_valkind(argv[1]) != kGAB_MAP)
-      return gab_pktypemismatch(gab, argv[1], kGAB_MAP);
+    if (gab_valkind(argv[1]) != kGAB_RECORD)
+      return gab_pktypemismatch(gab, argv[1], kGAB_RECORD);
 
-    gab_value domain_val = gab_smapat(gab, argv[1], SOCKET_FAMILY);
-    gab_value type_val = gab_smapat(gab, argv[1], SOCKET_TYPE);
+    gab_value domain_val = gab_srecat(gab, argv[1], SOCKET_FAMILY);
+    gab_value type_val = gab_srecat(gab, argv[1], SOCKET_TYPE);
 
     if (gab_valkind(domain_val) != kGAB_NUMBER)
       return gab_panic(gab, "invalid_arguments");
@@ -137,14 +136,14 @@ a_gab_value *gab_lib_bind(struct gab_triple gab, size_t argc,
     family = AF_INET;
     port = htons(gab_valton(config));
     goto fin;
-  case kGAB_MAP: {
-    gab_value family_value = gab_smapat(gab, config, SOCKET_FAMILY);
+  case kGAB_RECORD: {
+    gab_value family_value = gab_srecat(gab, config, SOCKET_FAMILY);
 
     if (gab_valkind(family_value) != kGAB_NUMBER) {
       return gab_panic(gab, "invalid_arguments");
     }
 
-    gab_value port_value = gab_smapat(gab, config, "port");
+    gab_value port_value = gab_srecat(gab, config, "port");
 
     if (gab_valkind(port_value) != kGAB_NUMBER) {
       return gab_panic(gab, "invalid_arguments");

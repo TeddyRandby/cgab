@@ -28,6 +28,14 @@
 #endif
 
 /**
+ *===============================*
+ |                               |
+ |     Value Representation      |
+ |                               |
+ *===============================*
+
+ Gab values are nan-boxed.
+
  An IEEE 754 double-precision float is a 64-bit value with bits laid out like:
 
  1 Sign bit
@@ -125,15 +133,14 @@ enum gab_kind {
   kGAB_MESSAGE = 2,
   kGAB_PRIMITIVE = 3,
   kGAB_UNDEFINED = 4,
-  kGAB_PROTOTYPE,
   kGAB_NUMBER,
   kGAB_NATIVE,
+  kGAB_PROTOTYPE,
   kGAB_BLOCK,
   kGAB_BOX,
-  kGAB_MAP,
-  kGAB_MAPNODE,
-  kGAB_REC,
-  kGAB_RECNODE,
+  kGAB_RECORD,
+  kGAB_RECORDNODE,
+  kGAB_SHAPE,
   kGAB_NKINDS,
 };
 
@@ -1079,7 +1086,7 @@ static inline bool gab_valhast(gab_value value) {
   switch (k) {
   case kGAB_SIGIL:
   case kGAB_BOX:
-  case kGAB_MAP:
+  case kGAB_RECORD:
     return true;
   default:
     return false;
@@ -1289,7 +1296,57 @@ struct gab_obj_block {
  */
 gab_value gab_block(struct gab_triple gab, gab_value prototype);
 
-struct gab_obj_mapnode {
+struct gab_obj_shape {
+  struct gab_obj header;
+
+  size_t len;
+
+  v_gab_value transitions;
+
+  gab_value keys[];
+};
+
+#define GAB_VAL_TO_SHAPE(value) ((struct gab_obj_shape *)gab_valtoo(value))
+gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
+                    gab_value keys[static len]);
+
+gab_value __gab_shape(struct gab_triple gab, size_t len);
+
+static inline size_t gab_shplen(gab_value shp) {
+  assert(gab_valkind(shp) == kGAB_SHAPE);
+  struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
+  return s->len;
+}
+
+static inline size_t gab_shpfind(gab_value shp, gab_value key) {
+  assert(gab_valkind(shp) == kGAB_SHAPE);
+  struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
+
+  for (size_t i = 0; i < s->len; i++) {
+    if (gab_valeq(key, s->keys[i]))
+      return i;
+  }
+
+  return -1;
+}
+
+static inline size_t gab_shptfind(gab_value shp, gab_value key) {
+  assert(gab_valkind(shp) == kGAB_SHAPE);
+  struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
+
+  for (size_t i = 0; i < s->transitions.len / 2; i++) {
+    if (gab_valeq(key, v_gab_value_val_at(&s->transitions, i * 2)))
+      return i;
+  }
+
+  return -1;
+};
+
+gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key);
+
+gab_value gab_shpwithout(struct gab_triple gab, gab_value shp, gab_value key);
+
+struct gab_obj_recnode {
   struct gab_obj header;
 
   /*
@@ -1311,92 +1368,44 @@ struct gab_obj_mapnode {
  * The gab_obj_map serves as the root of a HAMT. All of the children are
  * mapnodes, and may be leaves or branches.
  */
-struct gab_obj_map {
-  struct gab_obj header;
-
-  size_t len, hash, mask, vmask;
-
-  gab_value data[];
-};
-
-#define GAB_VAL_TO_MAP(value) ((struct gab_obj_map *)gab_valtoo(value))
-#define GAB_VAL_TO_MAPNODE(value) ((struct gab_obj_mapnode *)gab_valtoo(value))
-
-gab_value gab_map(struct gab_triple gab, size_t stride, size_t len,
-                  gab_value keys[static len], gab_value vals[static len]);
-
-gab_value __gab_map(struct gab_triple gab, size_t len, size_t space,
-                    gab_value *data);
-
-gab_value __gab_mapnode(struct gab_triple gab, size_t len, size_t space,
-                        gab_value *data);
-
-bool gab_maphas(gab_value map, gab_value key);
-bool gab_umaphas(gab_value map, size_t i);
-
-gab_value gab_mapat(gab_value map, gab_value key);
-gab_value gab_smapat(struct gab_triple, gab_value map, const char *key);
-
-gab_value gab_ukmapat(gab_value map, size_t i);
-gab_value gab_uvmapat(gab_value map, size_t i);
-
-gab_value gab_mapput(struct gab_triple gab, gab_value map, gab_value key,
-                     gab_value val);
-
-gab_value gab_mapdel(struct gab_triple gab, gab_value map, gab_value key);
-
-size_t gab_maplen(gab_value map);
-size_t gab_mapfind(gab_value map, gab_value key);
-
-struct gab_obj_recnode {
-  struct gab_obj header;
-
-  size_t len;
-
-  gab_value data[];
-};
-
 struct gab_obj_rec {
   struct gab_obj header;
 
-  size_t shift, len, size;
+  size_t mask, vmask;
 
   gab_value shape;
 
   gab_value data[];
 };
 
-#define GAB_REC_BITS (6)
-#define GAB_REC_WIDTH (1 << GAB_REC_BITS)
-#define GAB_REC_MASK (GAB_REC_WIDTH - 1)
-
 #define GAB_VAL_TO_REC(value) ((struct gab_obj_rec *)gab_valtoo(value))
 #define GAB_VAL_TO_RECNODE(value) ((struct gab_obj_recnode *)gab_valtoo(value))
 
-gab_value gab_record(struct gab_triple gab, gab_value shape, size_t stride,
-                     size_t len, gab_value data[static len]);
+gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
+                     gab_value keys[static len], gab_value vals[static len]);
 
-gab_value __gab_rec(struct gab_triple gab, gab_value shape, size_t space,
-                    size_t len, gab_value *data);
+gab_value __gab_record(struct gab_triple gab, size_t len, size_t space,
+                       gab_value *data);
 
-gab_value __gab_recnode(struct gab_triple gab, size_t len, size_t space,
-                        gab_value *data);
+gab_value __gab_recordnode(struct gab_triple gab, size_t len, size_t space,
+                           gab_value *data);
 
-gab_value gab_recat(struct gab_triple gab, gab_value rec, gab_value key);
+bool gab_rechas(gab_value map, gab_value key);
+bool gab_urechas(gab_value map, size_t i);
 
-gab_value gab_recput(struct gab_triple gab, gab_value rec, size_t key,
+gab_value gab_recat(gab_value map, gab_value key);
+gab_value gab_srecat(struct gab_triple, gab_value map, const char *key);
+
+gab_value gab_ukrecat(gab_value map, size_t i);
+gab_value gab_uvrecat(gab_value map, size_t i);
+
+gab_value gab_recput(struct gab_triple gab, gab_value map, gab_value key,
                      gab_value val);
 
-gab_value gab_recpush(struct gab_triple gab, gab_value rec, gab_value val);
+gab_value gab_recdel(struct gab_triple gab, gab_value map, gab_value key);
 
-gab_value gab_recpop(struct gab_triple gab, gab_value rec, gab_value *valout);
-
-void gab_mrecput(struct gab_triple gab, gab_value rec, size_t key,
-                 gab_value val);
-
-void gab_mrecpush(struct gab_triple gab, gab_value rec, gab_value val);
-
-void gab_mrecpop(struct gab_triple gab, gab_value rec, gab_value *valout);
+size_t gab_reclen(gab_value map);
+size_t gab_recfind(gab_value map, gab_value key);
 
 /**
  * @brief Convert a string into it's corresponding message. This is
@@ -1658,8 +1667,8 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
   /* These are special cases for the practical type */
   case kGAB_BOX:
     return gab_boxtype(value);
-  case kGAB_MAP:
-    return GAB_VAL_TO_MAP(value)->hash;
+  case kGAB_RECORD:
+    return GAB_VAL_TO_REC(value)->shape;
   /* Otherwise, return the value for that kind */
   default:
     return gab_egtype(gab, k);
@@ -1700,6 +1709,8 @@ struct gab_eg {
 
   gab_value messages;
 
+  gab_value shapes;
+
   d_gab_src sources;
 
   d_gab_modules modules;
@@ -1737,7 +1748,7 @@ static inline bool gab_egvalisa(struct gab_eg *eg, gab_value value,
  * @return the record.
  */
 static inline gab_value gab_egmsgrec(struct gab_eg *eg, gab_value msg) {
-  gab_value specs = gab_mapat(eg->messages, msg);
+  gab_value specs = gab_recat(eg->messages, msg);
   return specs;
 }
 
@@ -1751,12 +1762,12 @@ static inline gab_value gab_egmsgrec(struct gab_eg *eg, gab_value msg) {
  */
 static inline gab_value gab_egmsgat(struct gab_eg *eg, gab_value msg,
                                     gab_value receiver) {
-  gab_value specs = gab_mapat(eg->messages, msg);
+  gab_value specs = gab_recat(eg->messages, msg);
 
   if (specs == gab_undefined)
     return specs;
 
-  return gab_mapat(specs, receiver);
+  return gab_recat(specs, receiver);
 };
 
 /**
@@ -1770,16 +1781,18 @@ static inline gab_value gab_egmsgat(struct gab_eg *eg, gab_value msg,
  */
 static inline gab_value gab_egmsgput(struct gab_triple gab, gab_value msg,
                                      gab_value receiver, gab_value spec) {
-  gab_value specs = gab_mapat(gab.eg->messages, msg);
+  gab_value specs = gab_recat(gab.eg->messages, msg);
+
+  gab_gclock(gab.gc);
 
   if (specs == gab_undefined) {
-    specs = gab_map(gab, 0, 0, nullptr, nullptr);
+    specs = gab_record(gab, 0, 0, nullptr, nullptr);
   }
 
-  gab_value newspecs = gab_mapput(gab, specs, receiver, spec);
+  gab_value newspecs = gab_recput(gab, specs, receiver, spec);
+  gab.eg->messages = gab_recput(gab, gab.eg->messages, msg, newspecs);
 
-  gab.eg->messages = gab_mapput(gab, gab.eg->messages, msg, newspecs);
-
+  gab_gcunlock(gab.gc);
   return msg;
 }
 
@@ -1788,8 +1801,8 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
   gab_value spec = gab_undefined;
   gab_value type = receiver;
 
-  if (gab_valkind(receiver) == kGAB_MAP) {
-    spec = gab_mapat(receiver, (message));
+  if (gab_valkind(receiver) == kGAB_RECORD) {
+    spec = gab_recat(receiver, (message));
     if (spec != gab_undefined)
       return (struct gab_egimpl_rest){type, spec, kGAB_IMPL_PROPERTY};
   }
@@ -1861,8 +1874,8 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
     snprintf(buffer, 128, "%lf", gab_valton(value));
     return gab_string(gab, buffer);
   }
-  case kGAB_MAP: {
-    struct gab_obj_map *m = GAB_VAL_TO_MAP(value);
+  case kGAB_RECORD: {
+    struct gab_obj_rec *m = GAB_VAL_TO_REC(value);
     snprintf(buffer, 128, "<Map %p>", m);
     return gab_string(gab, buffer);
   }

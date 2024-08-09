@@ -618,7 +618,7 @@ static inline void push_record(struct bc *bc, size_t len, size_t t) {
         stack[i] = ks[arg_k];
       }
 
-      gab_value map = gab_map(gab(bc), 2, len, stack, stack + 1);
+      gab_value map = gab_record(gab(bc), 2, len, stack, stack + 1);
 
       uint16_t new_k = addk(bc, map);
 
@@ -2309,6 +2309,8 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
 
   args.name = args.name ? args.name : "__main__";
 
+  gab_gclock(gab.gc);
+
   gab_value name = gab_string(gab, args.name);
 
   struct gab_src *src =
@@ -2333,6 +2335,8 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
   bc_destroy(&bc);
 
   assert(src->bytecode.len == src->bytecode_toks.len);
+
+  gab_gcunlock(gab.gc);
 
   return module;
 }

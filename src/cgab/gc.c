@@ -128,9 +128,29 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
     break;
   }
 
-  case kGAB_MAP: {
-    struct gab_obj_map *map = (struct gab_obj_map *)obj;
+  case kGAB_SHAPE: {
+    struct gab_obj_shape *s = (struct gab_obj_shape *)obj;
+
+    for (size_t i = 0; i < s->len; i++) {
+      gab_value v = s->keys[i];
+      if (gab_valiso(v))
+        fnc(gab, gab_valtoo(v));
+    }
+
+    for (size_t i = 0; i < s->transitions.len; i++) {
+      gab_value v = v_gab_value_val_at(&s->transitions, i);
+      if (gab_valiso(v))
+        fnc(gab, gab_valtoo(v));
+    }
+
+    break;
+  }
+
+  case kGAB_RECORD: {
+    struct gab_obj_rec *map = (struct gab_obj_rec *)obj;
     size_t len = __builtin_popcountl(map->mask);
+
+    fnc(gab, gab_valtoo(map->shape));
 
     for (size_t i = 0; i < len; i++) {
       size_t offset = i * 2;
@@ -146,8 +166,8 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
     break;
   }
 
-  case kGAB_MAPNODE: {
-    struct gab_obj_mapnode *map = (struct gab_obj_mapnode *)obj;
+  case kGAB_RECORDNODE: {
+    struct gab_obj_recnode *map = (struct gab_obj_recnode *)obj;
     size_t len = __builtin_popcountl(map->mask);
 
     for (size_t i = 0; i < len; i++) {

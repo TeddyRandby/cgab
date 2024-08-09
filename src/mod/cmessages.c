@@ -81,10 +81,10 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
   if (gab_valkind(m) != kGAB_MESSAGE)
     return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
 
-  if (gab_valkind(r) != kGAB_MAP)
-    return gab_pktypemismatch(gab, r, kGAB_MAP);
+  if (gab_valkind(r) != kGAB_RECORD)
+    return gab_pktypemismatch(gab, r, kGAB_RECORD);
 
-  size_t len = gab_maplen(r);
+  size_t len = gab_reclen(r);
 
   if (len == 0) {
     gab_value t = gab_undefined;
@@ -96,7 +96,7 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
   }
 
   for (size_t i = 0; i < len; i++) {
-    gab_value t = gab_uvmapat(r, i);
+    gab_value t = gab_uvrecat(r, i);
 
     if (gab_egmsgput(gab, m, t, b) == gab_undefined)
       return gab_panic(gab, "$ already specializes for type $", m, t);
@@ -113,12 +113,12 @@ a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
   if (gab_valkind(m) != kGAB_MESSAGE)
     return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
 
-  if (gab_valkind(cases) != kGAB_MAP)
-    return gab_pktypemismatch(gab, cases, kGAB_MAP);
+  if (gab_valkind(cases) != kGAB_RECORD)
+    return gab_pktypemismatch(gab, cases, kGAB_RECORD);
 
-  for (int i = 0; i < gab_maplen(cases); i++) {
-    gab_value b = gab_uvmapat(cases, i);
-    gab_value t = gab_ukmapat(cases, i);
+  for (int i = 0; i < gab_reclen(cases); i++) {
+    gab_value b = gab_uvrecat(cases, i);
+    gab_value t = gab_ukrecat(cases, i);
 
     if (gab_egmsgput(gab, m, t, b) == gab_undefined)
       return gab_panic(gab, "$ already specializes for type $", m, t);
@@ -132,18 +132,18 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
   gab_value cases = gab_arg(0);
   gab_value messages = gab_arg(1);
 
-  if (gab_valkind(cases) != kGAB_MAP)
-    return gab_pktypemismatch(gab, cases, kGAB_MAP);
+  if (gab_valkind(cases) != kGAB_RECORD)
+    return gab_pktypemismatch(gab, cases, kGAB_RECORD);
 
-  if (gab_valkind(messages) != kGAB_MAP)
-    return gab_pktypemismatch(gab, messages, kGAB_MAP);
+  if (gab_valkind(messages) != kGAB_RECORD)
+    return gab_pktypemismatch(gab, messages, kGAB_RECORD);
 
-  if (gab_maplen(cases) == 0) {
+  if (gab_reclen(cases) == 0) {
     gab_value t = gab_undefined;
 
-    for (size_t i = 0; i < gab_maplen(messages); i++) {
-      gab_value b = gab_uvmapat(messages, i);
-      gab_value m = gab_ukmapat(messages, i);
+    for (size_t i = 0; i < gab_reclen(messages); i++) {
+      gab_value b = gab_uvrecat(messages, i);
+      gab_value m = gab_ukrecat(messages, i);
 
       if (gab_valkind(m) != kGAB_MESSAGE)
         return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
@@ -155,15 +155,15 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
     return nullptr;
   }
 
-  for (int j = 0; j < gab_maplen(cases); j++) {
-    gab_value t = gab_uvmapat(cases, j);
+  for (int j = 0; j < gab_reclen(cases); j++) {
+    gab_value t = gab_uvrecat(cases, j);
 
-    for (int i = 0; i < gab_maplen(messages); i++) {
-      gab_value b = gab_uvmapat(messages, i);
-      gab_value m = gab_ukmapat(messages, i);
+    for (int i = 0; i < gab_reclen(messages); i++) {
+      gab_value b = gab_uvrecat(messages, i);
+      gab_value m = gab_ukrecat(messages, i);
 
-      if (gab_valkind(messages) != kGAB_MAP)
-        return gab_pktypemismatch(gab, m, kGAB_MAP);
+      if (gab_valkind(messages) != kGAB_RECORD)
+        return gab_pktypemismatch(gab, m, kGAB_RECORD);
 
       if (gab_egmsgput(gab, m, t, b) == gab_undefined)
         return gab_panic(gab, "$ already specializes for type $", m, t);
