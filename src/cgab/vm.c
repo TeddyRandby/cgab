@@ -52,7 +52,10 @@ static handler handlers[] = {
 #define NEXT() DISPATCH(*IP()++);
 
 #define ERROR(status, help, ...)                                               \
-  ({ return vm_error(GAB(), status, help __VA_OPT__(, ) __VA_ARGS__); })
+  ({                                                                           \
+    STORE();                                                             \
+    return vm_error(GAB(), status, help __VA_OPT__(, ) __VA_ARGS__);           \
+  })
 
 /*
   Lots of helper macros.
@@ -66,6 +69,7 @@ static handler handlers[] = {
 #define BLOCK_PROTO() (GAB_VAL_TO_PROTOTYPE(BLOCK()->p))
 #define IP() (__ip)
 #define SP() (__sp)
+#define SB() (VM()->sb)
 #define VAR() (*SP())
 #define FB() (__fb)
 #define KB() (__kb)
@@ -491,8 +495,9 @@ static inline size_t compute_arity(size_t var, uint8_t have) {
   return var * (have & fHAVE_VAR) + (have >> 2);
 }
 
-static inline bool has_callspace(struct gab_vm *vm, size_t space_needed) {
-  if (vm->sp - vm->sb + space_needed >= cGAB_STACK_MAX) {
+static inline bool has_callspace(gab_value *sp, gab_value *sb,
+                                 size_t space_needed) {
+  if ((sp - sb) + space_needed + 3 >= cGAB_STACK_MAX) {
     return false;
   }
 
@@ -501,7 +506,7 @@ static inline bool has_callspace(struct gab_vm *vm, size_t space_needed) {
 
 inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
                           gab_value argv[argc]) {
-  if (__gab_unlikely(argc == 0 || !has_callspace(vm, argc))) {
+  if (__gab_unlikely(argc == 0 || !has_callspace(vm->sp, vm->sb, argc))) {
     return 0;
   }
 
@@ -521,12 +526,12 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
 
 #define CALL_BLOCK(blk, have)                                                  \
   ({                                                                           \
-    PUSH_FRAME(blk, have);                                                     \
-                                                                               \
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);                \
                                                                                \
-    if (__gab_unlikely(!has_callspace(VM(), p->nslots - have)))                \
+    if (__gab_unlikely(!has_callspace(SP(), SB(), p->nslots - have)))          \
       ERROR(GAB_OVERFLOW, "");                                                 \
+                                                                               \
+    PUSH_FRAME(blk, have);                                                     \
                                                                                \
     IP() = p->src->bytecode.data + p->offset;                                  \
     KB() = p->src->constants.data;                                             \
@@ -539,12 +544,12 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
 
 #define LOCALCALL_BLOCK(blk, have)                                             \
   ({                                                                           \
-    PUSH_FRAME(blk, have);                                                     \
-                                                                               \
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);                \
                                                                                \
-    if (__gab_unlikely(!has_callspace(VM(), p->nslots - have)))                \
+    if (__gab_unlikely(!has_callspace(SP(), SB(), 3 + p->nslots - have)))      \
       ERROR(GAB_OVERFLOW, "");                                                 \
+                                                                               \
+    PUSH_FRAME(blk, have);                                                     \
                                                                                \
     IP() = ((void *)ks[GAB_SEND_KOFFSET]);                                     \
     FB() = SP() - have;                                                        \
@@ -818,7 +823,7 @@ CASE_CODE(MATCHSEND_BLOCK) {
 
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);
 
-  if (__gab_unlikely(!has_callspace(VM(), p->nslots - have)))
+  if (__gab_unlikely(!has_callspace(SP(), SB(), p->nslots - have)))
     ERROR(GAB_OVERFLOW, "");
 
   IP() = (void *)ks[GAB_SEND_KOFFSET + idx];

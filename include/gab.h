@@ -381,7 +381,7 @@ struct gab_obj {
    * @brief The number of live references to this object.
    *
    * If this number is overflowed, gab keeps track  of this object's references
-   * in a separate, slower map<gab_obj, uint64_t>. When the reference count
+   * in a separate, slower rec<gab_obj, uint64_t>. When the reference count
    * drops back under 255, rc returns to the fast path.
    */
   int8_t references;
@@ -1318,6 +1318,12 @@ static inline size_t gab_shplen(gab_value shp) {
   return s->len;
 }
 
+static inline gab_value gab_ushpat(gab_value shp, size_t idx) {
+  assert(gab_valkind(shp) == kGAB_SHAPE);
+  struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
+  return s->keys[idx];
+}
+
 static inline size_t gab_shpfind(gab_value shp, gab_value key) {
   assert(gab_valkind(shp) == kGAB_SHAPE);
   struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
@@ -1365,8 +1371,8 @@ struct gab_obj_recnode {
 };
 
 /*
- * The gab_obj_map serves as the root of a HAMT. All of the children are
- * mapnodes, and may be leaves or branches.
+ * The gab_obj_rec serves as the root of a HAMT. All of the children are
+ * recnodes, and may be leaves or branches.
  */
 struct gab_obj_rec {
   struct gab_obj header;
@@ -1390,22 +1396,30 @@ gab_value __gab_record(struct gab_triple gab, size_t len, size_t space,
 gab_value __gab_recordnode(struct gab_triple gab, size_t len, size_t space,
                            gab_value *data);
 
-bool gab_rechas(gab_value map, gab_value key);
-bool gab_urechas(gab_value map, size_t i);
+bool gab_rechas(gab_value rec, gab_value key);
+bool gab_urechas(gab_value rec, size_t i);
 
-gab_value gab_recat(gab_value map, gab_value key);
-gab_value gab_srecat(struct gab_triple, gab_value map, const char *key);
+gab_value gab_recat(gab_value rec, gab_value key);
+gab_value gab_srecat(struct gab_triple, gab_value rec, const char *key);
 
-gab_value gab_ukrecat(gab_value map, size_t i);
-gab_value gab_uvrecat(gab_value map, size_t i);
+gab_value gab_ukrecat(gab_value rec, size_t i);
+gab_value gab_uvrecat(gab_value rec, size_t i);
 
-gab_value gab_recput(struct gab_triple gab, gab_value map, gab_value key,
+gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
                      gab_value val);
 
-gab_value gab_recdel(struct gab_triple gab, gab_value map, gab_value key);
+gab_value gab_recdel(struct gab_triple gab, gab_value rec, gab_value key);
 
-size_t gab_reclen(gab_value map);
-size_t gab_recfind(gab_value map, gab_value key);
+static inline gab_value gab_recshp(gab_value rec) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  return GAB_VAL_TO_REC(rec)->shape;
+};
+
+size_t gab_reclen(gab_value rec);
+
+static inline size_t gab_recfind(gab_value rec, gab_value key) {
+  return gab_shpfind(gab_recshp(rec), key);
+}
 
 /**
  * @brief Convert a string into it's corresponding message. This is
@@ -1876,7 +1890,7 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
   }
   case kGAB_RECORD: {
     struct gab_obj_rec *m = GAB_VAL_TO_REC(value);
-    snprintf(buffer, 128, "<Map %p>", m);
+    snprintf(buffer, 128, "<gab.record %p>", m);
     return gab_string(gab, buffer);
   }
   case kGAB_BLOCK: {

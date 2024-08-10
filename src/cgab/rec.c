@@ -333,19 +333,6 @@ static inline gab_value rec_nodebranchat(gab_value rec, int pos) {
   }
 }
 
-static inline int rec_vsublen(gab_value rec) {
-  size_t sum = rec_vlen(rec);
-
-  for (size_t i = 0; i < rec_len(rec); i++) {
-    if (rec_nodekat(rec, i) == kBRANCH) {
-      gab_value subrec = rec_nodebranchat(rec, i);
-      sum += rec_vsublen(subrec);
-    }
-  }
-
-  return sum;
-}
-
 gab_value reccpy(struct gab_triple gab, gab_value m, size_t space) {
   switch (gab_valkind(m)) {
   case kGAB_RECORD: {
@@ -600,86 +587,19 @@ gab_value gab_recat(gab_value rec, gab_value key) {
   }
 }
 
-size_t _urec_find(gab_value rec, gab_value key, size_t acc) {
-  size_t len = rec_len(rec);
 
-  for (size_t p = 0; p < len; p++) {
-    switch (rec_nodekat(rec, p)) {
-    case kLEAF: {
-      gab_value *kv = rec_nodeleafat(rec, p);
-      if (kv[kLEAF_KEY] == key)
-        return acc;
-
-      acc += 1;
-      break;
-    }
-    case kBRANCH: {
-      gab_value branch = rec_nodebranchat(rec, p);
-      size_t nvals = rec_vsublen(branch);
-
-      size_t idx = _urec_find(branch, key, acc);
-
-      // It was found - return the idx
-      if (idx != -1)
-        return idx;
-
-      // It wasn't found - accumulate all the keys it wasn't
-      acc += nvals;
-      break;
-    }
-    }
-  }
-
-  return -1;
-}
-
-size_t gab_recfind(gab_value rec, gab_value key) {
+gab_value gab_ukrecat(gab_value rec, size_t idx) {
   assert(gab_valkind(rec) == kGAB_RECORD);
+  assert(gab_urechas(rec, idx));
 
-  return _urec_find(rec, key, 0);
-}
-
-gab_value *_urec_at(gab_value rec, size_t i) {
-  size_t remaining = i;
-  size_t len = rec_len(rec);
-
-  for (size_t p = 0; p < len; p++) {
-    switch (rec_nodekat(rec, p)) {
-    case kLEAF:
-      if (remaining == 0)
-        return rec_nodeleafat(rec, p);
-
-      remaining -= 1;
-      break;
-    case kBRANCH: {
-      gab_value branch = rec_nodebranchat(rec, p);
-      size_t nvals = rec_vsublen(branch);
-
-      if (nvals > remaining)
-        return _urec_at(branch, remaining);
-
-      remaining -= nvals;
-      break;
-    }
-    }
-  }
-
-  assert(false && "unreachable");
-  return nullptr;
-}
-
-gab_value gab_ukrecat(gab_value rec, size_t i) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  assert(gab_urechas(rec, i));
-
-  return _urec_at(rec, i)[kLEAF_KEY];
+  return gab_ushpat(gab_recshp(rec), idx);
 }
 
 gab_value gab_uvrecat(gab_value rec, size_t i) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   assert(gab_urechas(rec, i));
 
-  return _urec_at(rec, i)[kLEAF_VALUE];
+  return gab_recat(rec, gab_ushpat(gab_recshp(rec), i));
 }
 
 bool gab_rechas(gab_value rec, gab_value key) {

@@ -153,7 +153,7 @@ end)
 # Implement the reducer protocol for blocks and messages
 ['gab.block'] :defmodule! {
   \reduce.step = do acc, xs[]:
-    (self(acc, xs**))
+    self(acc, xs**)
   end,
   \reduce.done = do acc:
     acc
@@ -162,7 +162,7 @@ end)
 
 ['gab.message'] :defmodule! {
   \reduce.step = do acc, xs[]:
-    (acc:send(self, xs**))
+    acc:send(self, xs**)
   end,
   \reduce.done = do acc:
     acc
@@ -191,8 +191,8 @@ end)
 end)
 
 \td.conditionally :defcase! {
-  .true = do acc, xs, rf:
-    rf:reduce.step (acc, xs**)
+  .true = do acc, xs, r:
+    r:reduce.step (acc, xs**)
   end,
   .false = do acc:
     acc
@@ -200,8 +200,8 @@ end)
 }
 
 \td.stop_conditionally :defcase! {
-  .true = do acc, xs, rf:
-    rf:reduce.step(acc, xs**)
+  .true = do acc, xs, r:
+    r:reduce.step(acc, xs**)
   end,
   .false = do acc:
     (acc, .stop)
@@ -211,17 +211,17 @@ end)
 \td.map.into :defcase! {
   'gab.message' = do:
     f = self
-    do rf:
+    do r:
       do acc, x, xs[]:
-        rf:reduce.step(acc, x:send(f, xs**))
+        r:reduce.step(acc, x:send(f, xs**))
       end
     end
   end,
   'gab.block' = do:
     f = self
-    do rf:
+    do r:
       do acc, xs[]:
-        rf:reduce.step(acc, f(xs**))
+        r:reduce.step(acc, f(xs**))
       end
     end
   end
@@ -232,17 +232,17 @@ end)
 \td.filter.into :defcase! {
   'gab.message' = do:
     f = self
-    do rf:
+    do r:
       do acc, x, xs[]:
-        x:send(f, xs**):td.conditionally(acc, [x, xs**], rf)
+        x:send(f, xs**):td.conditionally(acc, [x, xs**], r)
       end
     end
   end,
   'gab.block' = do:
     f = self
-    do rf:
+    do r:
       do acc, xs[]:
-        f(xs**):td.conditionally(acc, xs, rf)
+        f(xs**):td.conditionally(acc, xs, r)
       end
     end
   end,
@@ -253,19 +253,19 @@ end)
 \td.tap.into :defcase! {
   'gab.message' = do:
     f = self
-    do rf:
+    do r:
       do acc, x, xs[]:
         x:send(f, xs**)
-        rf:reduce.step(acc, x, xs**)
+        r:reduce.step(acc, x, xs**)
       end
     end
   end,
   'gab.block' = do:
     f = self
-    do rf:
+    do r:
       do acc, xs[]:
         f(xs**)
-        rf:reduce.step(acc, xs**)
+        r:reduce.step(acc, xs**)
       end
     end
   end,
@@ -274,13 +274,12 @@ end)
 \tap :def.transducer! \td.tap.into
 
 \interpose :def.transducer! do sep:
-  do rf:
+  do r:
     {
       started = .false,
       reduce.step = do acc, xs[]:
-        acc = self:started:td.conditionally (acc, [sep], rf)
-        nxt = self:started(.true)
-        (nxt, rf:reduce.step(acc, xs**))
+        acc = self:started:td.conditionally (acc, [sep], r)
+        r:reduce.step(acc, xs**)
       end,
       reduce.done = do acc:
         acc
@@ -290,12 +289,12 @@ end)
 end
 
 \take :def.transducer! do n:
-  do rf:
+  do r:
     {
       n,
       reduce.step = do acc, xs[]:
         nxt = self:n(self:n - 1)
-        (self:n >= 0) :td.stop_conditionally (acc, xs, rf)
+        (self:n >= 0) :td.stop_conditionally (acc, xs, r)
       end,
       reduce.done = do acc:
         acc
@@ -305,12 +304,12 @@ end
 end
 
 \skip :def.transducer! do n:
-  do rf:
+  do r:
     {
       n,
       reduce.step = do acc, xs[]:
         #self:n = self:n - 1
-        (self:n < 0) :td.conditionally (acc, xs, rf)
+        (self:n < 0) :td.conditionally (acc, xs, r)
       end,
       reduce.done = do acc:
         acc
@@ -320,28 +319,28 @@ end
 end
 
 \do_partition :defcase! {
-  .true = do acc, state, rf:
+  .true = do acc, state, r:
     n, xs = 0, state:d:slice(state:n)
     state:d:clear!
-    rf (acc, xs**)
+    r (acc, xs**)
   end,
-  .false = do acc, state, rf, xs:
+  .false = do acc, state, r, xs:
       acc
   end,
 }
 
 \partition :def.transducer! do n:
-  do rf:
+  do r:
    {
       n = 0,
       d = .gab.tuple(n),
       reduce.step = do acc, xs[]:
         self:d:put!(self:n, xs**)
         #self:n = self:n + 1
-        (self:n == n) :do_partition (acc, self, rf)
+        (self:n == n) :do_partition (acc, self, r)
       end,
       reduce.done = do acc:
-        (self:n > 0) :do_partition (acc, self, rf)
+        (self:n > 0) :do_partition (acc, self, r)
       end,
     }
   end
@@ -353,7 +352,7 @@ end
   end,
   'gab.block' = do g:
 # The following snippet is a bug which
-# Caused the GC to overflow the stack.
+# Caused the GC to overlow the stack.
 # This definitely requires investigation.
 # Infinitely calls itself, allocating more and more.
 #    do args[]
@@ -392,6 +391,19 @@ end
 
 \ :def! ([.int.between], do min, max:
   .float.between (min,max) :floor
+end)
+
+\range.into :defcase! {
+  .nil = do to:
+    { from = 0, to }
+  end,
+  'gab.number' = do from:
+    { from, to = self }
+  end,
+}
+
+\ :def! ([.range], do from, to:
+  (to, from) :range.into
 end)
 
 \is_n? :def! ([], .false)

@@ -2,7 +2,7 @@
 
 cd "$CLIDE_PATH/../" || exit 1
 
-valgrind --tool=callgrind --callgrind-out-file=callgrind.out --dump-line=yes gab run "$file"
+valgrind --tool=callgrind --callgrind-out-file=callgrind.out --dump-line=yes gab run "${file:0:-4}"
 
 ~/pyenv/bin/gprof2dot --format=callgrind callgrind.out > dot.out
 

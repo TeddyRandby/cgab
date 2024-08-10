@@ -285,15 +285,12 @@ protocol.predicate = do protocol:
   end)
 
   gentd = .td :map do key:
-    found = key:spec:unwrap!
-
+    found = key:sigil.into:spec:unwrap!
     (key, found:spec.gen)
   end
 
   \spec.gen :def! ([pred], do:
-    gen = .gab.record protocol_shape
-
-    protocol:transduce (gen, \put!, gentd)
+    protocol:transduce(protocol, \put!, gentd)
   end)
 
   \spec.explain :def! ([pred], do:
@@ -505,7 +502,7 @@ end)
         # FIXME: Putting a comment after self here breaks things?
         me = self
 
-        args:input:spec.fits?(input**) :then do :
+        args:input:spec.fits?(input**) :then do:
           td = .td:compose (
             .td:map do:
               output[] = args:output:spec.gen

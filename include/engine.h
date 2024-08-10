@@ -1,6 +1,7 @@
 #ifndef GAB_ENGINE_H
 #define GAB_ENGINE_H
 
+#include "core.h"
 #include "gab.h"
 
 #ifdef GAB_STATUS_NAMES_IMPL
@@ -34,9 +35,12 @@ static const char *gab_token_names[] = {
 #include "dict.h"
 
 struct gab_gc {
-  v_gab_obj decrements, increments, roots, dead;
-  d_gab_obj overflow_rc;
   int locked;
+  d_gab_obj overflow_rc;
+  v_gab_obj dead;
+  size_t dlen, ilen;
+  struct gab_obj *decrements[cGAB_GC_DEC_BUFF_MAX];
+  struct gab_obj *increments[cGAB_GC_MOD_BUFF_MAX];
 };
 
 void gab_gccreate(struct gab_gc *gc);

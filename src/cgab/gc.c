@@ -39,10 +39,10 @@ void queue_decrement(struct gab_triple gab, struct gab_obj *obj) {
   }
 #endif
 
-  if (gab.gc->decrements.len + 1 >= cGAB_GC_DEC_BUFF_MAX)
+  if (gab.gc->dlen + 1 >= cGAB_GC_DEC_BUFF_MAX)
     gab_collect(gab);
 
-  v_gab_obj_push(&gab.gc->decrements, obj);
+  gab.gc->decrements[gab.gc->dlen++] = obj;
 
 #if cGAB_LOG_GC
   printf("QDEC\t%p\t%i\n", obj, obj->references);
@@ -57,17 +57,17 @@ void queue_increment(struct gab_triple gab, struct gab_obj *obj) {
   }
 #endif
 
-  if (gab.gc->increments.len + 1 >= cGAB_GC_DEC_BUFF_MAX)
+  if (gab.gc->ilen + 1 >= cGAB_GC_DEC_BUFF_MAX)
     gab_collect(gab);
 
-  v_gab_obj_push(&gab.gc->increments, obj);
+  gab.gc->increments[gab.gc->ilen++] = obj;
 
 #if cGAB_LOG_GC
   printf("QINC\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
 }
 
-void queue_root(struct gab_triple gab, struct gab_obj *obj) {
+void queue_destroy(struct gab_triple gab, struct gab_obj* obj) {
 #if cGAB_LOG_GC
   if (GAB_OBJ_IS_FREED(obj)) {
     printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, __FUNCTION__, __LINE__);
@@ -75,27 +75,10 @@ void queue_root(struct gab_triple gab, struct gab_obj *obj) {
   }
 #endif
 
-  if (GAB_OBJ_IS_GREEN(obj))
-    goto fin;
-
-  if (GAB_OBJ_IS_PURPLE(obj))
-    return;
-
-  GAB_OBJ_PURPLE(obj);
-
-fin:
-  if (GAB_OBJ_IS_BUFFERED(obj))
-    return;
-
-  GAB_OBJ_BUFFERED(obj);
-
-  if (gab.gc->roots.len + 1 >= cGAB_GC_DEC_BUFF_MAX)
-    gab_collect(gab);
-
-  v_gab_obj_push(&gab.gc->roots, obj);
+  v_gab_obj_push(&gab.gc->dead, obj);
 
 #if cGAB_LOG_GC
-  printf("QROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
+  printf("QDEAD\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
 #endif
 }
 
@@ -209,8 +192,6 @@ static inline void destroy(struct gab_triple gab, struct gab_obj *obj) {
 #endif
 }
 
-void collect_cycles(struct gab_triple gab);
-
 static inline void dec_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
 #if cGAB_LOG_GC
   if (GAB_OBJ_IS_FREED(obj)) {
@@ -222,14 +203,19 @@ static inline void dec_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
 
   do_decrement(gab.gc, obj);
 
-  queue_root(gab, obj);
-
   if (obj->references == 0) {
     if (!GAB_OBJ_IS_NEW(obj))
       for_child_do(obj, dec_obj_ref, gab);
 
     GAB_OBJ_BLACK(obj);
   }
+
+  if (GAB_OBJ_IS_BUFFERED(obj))
+    return;
+
+  GAB_OBJ_BUFFERED(obj);
+
+  queue_destroy(gab, obj);
 }
 
 static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
@@ -370,20 +356,16 @@ gab_value gab_dref(struct gab_triple gab, gab_value value) {
 }
 
 void gab_gccreate(struct gab_gc *gc) {
-  v_gab_obj_create(&gc->decrements, cGAB_GC_DEC_BUFF_MAX);
-  v_gab_obj_create(&gc->increments, cGAB_GC_MOD_BUFF_MAX);
-  v_gab_obj_create(&gc->roots, cGAB_GC_MOD_BUFF_MAX);
-  v_gab_obj_create(&gc->dead, cGAB_GC_MOD_BUFF_MAX);
-  d_gab_obj_create(&gc->overflow_rc, 8);
+  gc->ilen = 0;
+  gc->dlen = 0;
   gc->locked = 0;
+  d_gab_obj_create(&gc->overflow_rc, 8);
+  v_gab_obj_create(&gc->dead, 8);
 };
 
 void gab_gcdestroy(struct gab_gc *gc) {
-  v_gab_obj_destroy(&gc->increments);
-  v_gab_obj_destroy(&gc->decrements);
-  v_gab_obj_destroy(&gc->roots);
-  v_gab_obj_destroy(&gc->dead);
   d_gab_obj_destroy(&gc->overflow_rc);
+  v_gab_obj_destroy(&gc->dead);
 }
 
 static inline void increment_reachable(struct gab_triple gab) {
@@ -451,8 +433,8 @@ static inline void decrement_reachable(struct gab_triple gab) {
 }
 
 static inline void process_increments(struct gab_triple gab) {
-  while (gab.gc->increments.len) {
-    struct gab_obj *obj = v_gab_obj_pop(&gab.gc->increments);
+  while (gab.gc->ilen) {
+    struct gab_obj *obj = gab.gc->increments[--gab.gc->ilen];
 
 #if cGAB_LOG_GC
     printf("PROCINC\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
@@ -460,227 +442,26 @@ static inline void process_increments(struct gab_triple gab) {
 
     inc_obj_ref(gab, obj);
   }
-
-  gab.gc->increments.len = 0;
 }
 
 static inline void process_decrements(struct gab_triple gab) {
-  while (gab.gc->decrements.len) {
-    struct gab_obj *o = v_gab_obj_pop(&gab.gc->decrements);
+  while (gab.gc->dlen) {
+    struct gab_obj *o = gab.gc->decrements[--gab.gc->dlen];
+
 #if cGAB_LOG_GC
     printf("PROCDEC\t%V\t%p\t%d\n", __gab_obj(o), o, o->references);
 #endif
+
     dec_obj_ref(gab, o);
   }
-
-  gab.gc->increments.len = 0;
 }
 
-static inline void mark_gray(struct gab_triple gab, struct gab_obj *obj);
+static inline void collect_dead(struct gab_triple gab) {
+  while (gab.gc->dead.len) {
+    struct gab_obj* o = v_gab_obj_pop(&gab.gc->dead);
 
-static inline void dec_and_mark_gray(struct gab_triple gab,
-                                     struct gab_obj *child) {
-  do_decrement(gab.gc, child);
-  mark_gray(gab, child);
-
-#if cGAB_LOG_GC
-  printf("DECGRAY\t%V\t%p\t%d\n", __gab_obj(child), child, child->references);
-#endif
-}
-
-static inline void mark_gray(struct gab_triple gab, struct gab_obj *obj) {
-#if cGAB_LOG_GC
-  if (GAB_OBJ_IS_FREED(obj)) {
-    printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, __FUNCTION__, __LINE__);
-    exit(1);
+    destroy(gab, o);
   }
-#endif
-
-  if (!GAB_OBJ_IS_GRAY(obj)) {
-    GAB_OBJ_GRAY(obj);
-
-#if cGAB_LOG_GC
-    printf("GRAY\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
-
-    for_child_do(obj, &dec_and_mark_gray, gab);
-  }
-}
-
-static inline void mark_roots(struct gab_triple gab) {
-  size_t nroots = gab.gc->roots.len;
-  gab.gc->roots.len = 0;
-
-  for (uint64_t i = 0; i < nroots; i++) {
-    struct gab_obj *obj = gab.gc->roots.data[i];
-
-#if cGAB_LOG_GC
-    if (GAB_OBJ_IS_FREED(obj)) {
-      printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, __FUNCTION__,
-             __LINE__);
-      exit(1);
-    }
-#endif
-
-    if (GAB_OBJ_IS_PURPLE(obj) && obj->references > 0) {
-#if cGAB_LOG_GC
-      printf("MARKROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
-      assert(GAB_OBJ_IS_BUFFERED(obj));
-      v_gab_obj_push(&gab.gc->roots, obj);
-      mark_gray(gab, obj);
-      continue;
-    }
-
-    if (GAB_OBJ_IS_BLACK(obj) && obj->references <= 0) {
-#if cGAB_LOG_GC
-      printf("DEADROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
-      assert(GAB_OBJ_IS_BUFFERED(obj));
-      v_gab_obj_push(&gab.gc->roots, obj);
-      continue;
-    }
-
-    GAB_OBJ_NOT_BUFFERED(obj);
-
-#if cGAB_LOG_GC
-    printf("SKIPROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
-  }
-}
-
-static inline void scan_root_black(struct gab_triple gab, struct gab_obj *obj);
-static inline void inc_and_scan_black(struct gab_triple gab,
-                                      struct gab_obj *child) {
-#if cGAB_LOG_GC
-  if (GAB_OBJ_IS_FREED(child)) {
-    printf("UAF\t%V\t%p\t%i\t%s:%i\n", __gab_obj(child), child,
-           child->references, __FUNCTION__, __LINE__);
-    exit(1);
-  }
-#endif
-
-  do_increment(gab.gc, child);
-
-  if (!GAB_OBJ_IS_BLACK(child))
-    scan_root_black(gab, child);
-
-#if cGAB_LOG_GC
-  printf("INCBLK\t%V\t%p\t%d\n", __gab_obj(child), child, child->references);
-#endif
-}
-
-static inline void scan_root_black(struct gab_triple gab, struct gab_obj *obj) {
-  GAB_OBJ_BLACK(obj);
-  for_child_do(obj, &inc_and_scan_black, gab);
-}
-
-static inline void scan_root(struct gab_triple gab, struct gab_obj *obj) {
-#if cGAB_LOG_GC
-  if (GAB_OBJ_IS_FREED(obj)) {
-    printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, __FUNCTION__, __LINE__);
-    exit(1);
-  }
-  printf("SCAN\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
-
-  if (!GAB_OBJ_IS_GRAY(obj))
-    return;
-
-  if (obj->references > 0) {
-#if cGAB_LOG_GC
-    printf("LIVEROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
-    scan_root_black(gab, obj);
-    return;
-  }
-
-#if cGAB_LOG_GC
-  printf("WHITE\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
-
-  GAB_OBJ_WHITE(obj);
-  for_child_do(obj, scan_root, gab);
-}
-
-static inline void scan_roots(struct gab_triple gab) {
-  size_t nroots = gab.gc->roots.len;
-  gab.gc->roots.len = 0;
-
-  for (uint64_t i = 0; i < nroots; i++) {
-    struct gab_obj *obj = gab.gc->roots.data[i];
-
-#if cGAB_LOG_GC
-    if (GAB_OBJ_IS_FREED(obj)) {
-      printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, __FUNCTION__,
-             __LINE__);
-      exit(1);
-    }
-#endif
-
-    if (GAB_OBJ_IS_BLACK(obj) && obj->references <= 0) {
-#if cGAB_LOG_GC
-      printf("DEADROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
-      destroy(gab, obj);
-      continue;
-    }
-
-#if cGAB_LOG_GC
-    printf("SCANROOT\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
-
-    assert(GAB_OBJ_IS_BUFFERED(obj));
-    v_gab_obj_push(&gab.gc->roots, obj);
-    scan_root(gab, obj);
-  }
-}
-
-static inline void collect_white(struct gab_triple gab, struct gab_obj *obj) {
-#if cGAB_LOG_GC
-  if (GAB_OBJ_IS_FREED(obj)) {
-    printf("UAF\t%V\t%p\t%s:%i\n", __gab_obj(obj), obj, __FUNCTION__, __LINE__);
-    exit(1);
-  }
-#endif
-
-  if (GAB_OBJ_IS_WHITE(obj) && !GAB_OBJ_IS_BUFFERED(obj)) {
-    GAB_OBJ_BLACK(obj);
-    for_child_do(obj, collect_white, gab);
-    // destroy(gab, obj);
-    v_gab_obj_push(&gab.gc->dead, obj);
-#if cGAB_LOG_GC
-    // printf("QDESTROY\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
-  }
-}
-
-static inline void collect_roots(struct gab_triple gab) {
-  for (uint64_t i = 0; i < gab.gc->roots.len; i++) {
-    struct gab_obj *obj = gab.gc->roots.data[i];
-    assert(GAB_OBJ_IS_BUFFERED(obj));
-
-    GAB_OBJ_NOT_BUFFERED(obj);
-
-#if cGAB_LOG_GC
-    printf("COLLECTWHITE\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
-#endif
-    collect_white(gab, obj);
-  }
-
-  for (uint64_t i = 0; i < gab.gc->dead.len; i++) {
-    struct gab_obj *obj = gab.gc->dead.data[i];
-    destroy(gab, obj);
-  }
-
-  gab.gc->dead.len = 0;
-  gab.gc->roots.len = 0;
-}
-
-void collect_cycles(struct gab_triple gab) {
-  mark_roots(gab);
-  scan_roots(gab);
-  collect_roots(gab);
 }
 
 void gab_gclock(struct gab_gc *gc) {
@@ -705,9 +486,9 @@ void gab_collect(struct gab_triple gab) {
 
   process_decrements(gab);
 
-  collect_cycles(gab);
-
   decrement_reachable(gab);
+
+  collect_dead(gab);
 
   gab_gcunlock(gab.gc);
 }

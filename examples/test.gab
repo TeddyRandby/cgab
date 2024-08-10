@@ -1,0 +1,12 @@
+\tap :def!([], do: self:print; self end)
+
+\acc :def!(['gab.record'], do n:
+  acc = self
+  (n == 0) :then do:
+    acc
+ end :else do:
+    [n, acc:acc(n - 1)**]
+  end
+end)
+
+[] :acc 900 :len:print
