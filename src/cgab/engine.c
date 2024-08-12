@@ -181,12 +181,35 @@ struct primitive kind_primitives[] = {
     },
 };
 
+struct gab_obj *eg_defaultalloc(struct gab_triple gab, struct gab_obj *obj,
+                                uint64_t size) {
+  if (size == 0) {
+    assert(obj);
+
+    free(obj);
+
+    return nullptr;
+  }
+
+  assert(!obj);
+
+  return malloc(size);
+}
+
 struct gab_triple gab_create(struct gab_create_argt args) {
   struct gab_eg *eg = NEW(struct gab_eg);
   memset(eg, 0, sizeof(struct gab_eg));
 
+  assert(args.os_dynsymbol);
+  assert(args.os_dynopen);
+
   eg->os_dynsymbol = args.os_dynsymbol;
   eg->os_dynopen = args.os_dynopen;
+
+  if (args.os_objalloc)
+    eg->os_objalloc = args.os_objalloc;
+  else
+    eg->os_objalloc = eg_defaultalloc;
 
   d_gab_src_create(&eg->sources, 8);
 
@@ -198,7 +221,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->hash_seed = time(nullptr);
 
   eg->shapes = __gab_shape(gab, 0);
-  eg->messages = gab_record(gab, 0, 0, nullptr, nullptr);
+  eg->messages = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
 
   eg->types[kGAB_UNDEFINED] = gab_undefined;
 
@@ -281,8 +304,8 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
 void gab_destroy(struct gab_triple gab) {
   gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
-  gab_dref(gab, gab.eg->messages);
-  gab_dref(gab, gab.eg->shapes);
+  gab.eg->messages = gab_undefined;
+  gab.eg->shapes = gab_undefined;
 
   for (uint64_t i = 0; i < gab.eg->modules.cap; i++) {
     if (d_gab_modules_iexists(&gab.eg->modules, i)) {
@@ -768,20 +791,6 @@ void gab_vfpanic(struct gab_triple gab, FILE *stream, va_list varargs,
 fin:
   if (gab.flags & fGAB_ERR_EXIT)
     exit(1);
-}
-
-void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size) {
-  if (size == 0) {
-    assert(obj);
-
-    free(obj);
-
-    return nullptr;
-  }
-
-  assert(!obj);
-
-  return malloc(size);
 }
 
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,

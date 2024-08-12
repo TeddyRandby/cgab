@@ -46,14 +46,14 @@ static handler handlers[] = {
   ({                                                                           \
     uint8_t o = (op);                                                          \
     LOG(o)                                                                     \
-    return handlers[o](DISPATCH_ARGS());                                       \
+    return handlers[o](DISPATCH_ARGS());                   \
   })
 
 #define NEXT() DISPATCH(*IP()++);
 
 #define ERROR(status, help, ...)                                               \
   ({                                                                           \
-    STORE();                                                             \
+    STORE();                                                                   \
     return vm_error(GAB(), status, help __VA_OPT__(, ) __VA_ARGS__);           \
   })
 

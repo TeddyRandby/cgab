@@ -1,6 +1,5 @@
 #include "core.h"
 #include "gab.h"
-#include "hash.h"
 
 /*
  * Gab recs are persistent HAMTs. These are a tried-and-true immutable data
@@ -96,17 +95,6 @@ static inline int rec_len(gab_value rec) {
     return popcount(GAB_VAL_TO_REC(rec)->mask);
   case kGAB_RECORDNODE:
     return popcount(GAB_VAL_TO_RECNODE(rec)->mask);
-  default:
-    assert(0 && "Only rec and recnodebranch can have len");
-  }
-}
-
-static inline int rec_vlen(gab_value rec) {
-  switch (gab_valkind(rec)) {
-  case kGAB_RECORD:
-    return popcount(GAB_VAL_TO_REC(rec)->vmask);
-  case kGAB_RECORDNODE:
-    return popcount(GAB_VAL_TO_RECNODE(rec)->vmask);
   default:
     assert(0 && "Only rec and recnodebranch can have len");
   }

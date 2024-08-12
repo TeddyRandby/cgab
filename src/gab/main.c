@@ -1,6 +1,7 @@
 #include "core.h"
 #include "gab.h"
 #include "os.h"
+#include "alloc.h"
 #include <printf.h>
 #include <stdio.h>
 #include <string.h>
@@ -84,6 +85,7 @@ void run_file(const char *path, int flags) {
   struct gab_triple gab = gab_create((struct gab_create_argt){
       .os_dynopen = dynopen,
       .os_dynsymbol = dynsymbol,
+      .os_objalloc = chunkalloc,
       .flags = flags,
   });
 
@@ -331,7 +333,8 @@ int main(int argc, const char **argv) {
     }
   }
 
-fin:
+fin: {
   struct command cmd = DEFAULT_COMMAND;
   return cmd.handler(0, argv, 0);
+}
 }

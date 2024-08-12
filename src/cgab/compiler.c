@@ -355,14 +355,6 @@ static inline uint16_t addk(struct bc *bc, gab_value value) {
   return v_gab_value_push(&bc->src->constants, value);
 }
 
-static inline void push_shift(struct bc *bc, uint8_t n, size_t t) {
-  if (n <= 1)
-    return; // No op
-
-  push_op(bc, OP_SHIFT, t);
-  push_byte(bc, n, t);
-}
-
 static inline void push_k(struct bc *bc, uint16_t k, size_t t) {
 #if cGAB_SUPERINSTRUCTIONS
   int ctx = peek_ctx(bc, kFRAME, 0);

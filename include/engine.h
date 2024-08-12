@@ -37,10 +37,7 @@ static const char *gab_token_names[] = {
 struct gab_gc {
   int locked;
   d_gab_obj overflow_rc;
-  v_gab_obj dead;
-  size_t dlen, ilen;
-  struct gab_obj *decrements[cGAB_GC_DEC_BUFF_MAX];
-  struct gab_obj *increments[cGAB_GC_MOD_BUFF_MAX];
+  v_gab_obj increments, decrements, dead;
 };
 
 void gab_gccreate(struct gab_gc *gc);
@@ -67,17 +64,13 @@ struct gab_vm {
   gab_value sb[cGAB_STACK_MAX];
 };
 
-void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size);
+static inline void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj,
+                                uint64_t size) {
+  return gab.eg->os_objalloc(gab, obj, size);
+}
 
 struct gab_obj_string *gab_egstrfind(struct gab_eg *gab, s_char str,
                                      uint64_t hash);
-
-struct gab_obj_message *gab_egmsgfind(struct gab_eg *gab, gab_value name,
-                                      uint64_t hash);
-
-struct gab_obj_shape *gab_egshpfind(struct gab_eg *gab, uint64_t size,
-                                    uint64_t stride, uint64_t hash,
-                                    gab_value keys[size]);
 
 struct gab_err_argt {
   enum gab_status status;

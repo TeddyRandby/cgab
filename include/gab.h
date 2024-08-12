@@ -265,46 +265,19 @@ static inline gab_value __gab_dtoval(double value) {
  * The algorithm is described in this paper:
  * https://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon03Pure.pdf
  */
-#define fGAB_OBJ_BLACK (1 << 1)
-#define fGAB_OBJ_GRAY (1 << 2)
-#define fGAB_OBJ_WHITE (1 << 3)
-#define fGAB_OBJ_PURPLE (1 << 4)
-#define fGAB_OBJ_GREEN (1 << 5)
 #define fGAB_OBJ_BUFFERED (1 << 6)
 #define fGAB_OBJ_NEW (1 << 7)
 #define fGAB_OBJ_FREED (1 << 8) // Used for debug purposes
 
-#define GAB_OBJ_IS_BLACK(obj) ((obj)->flags & fGAB_OBJ_BLACK)
-#define GAB_OBJ_IS_GRAY(obj) ((obj)->flags & fGAB_OBJ_GRAY)
-#define GAB_OBJ_IS_WHITE(obj) ((obj)->flags & fGAB_OBJ_WHITE)
-#define GAB_OBJ_IS_PURPLE(obj) ((obj)->flags & fGAB_OBJ_PURPLE)
-#define GAB_OBJ_IS_GREEN(obj) ((obj)->flags & fGAB_OBJ_GREEN)
 #define GAB_OBJ_IS_BUFFERED(obj) ((obj)->flags & fGAB_OBJ_BUFFERED)
 #define GAB_OBJ_IS_NEW(obj) ((obj)->flags & fGAB_OBJ_NEW)
 #define GAB_OBJ_IS_FREED(obj) ((obj)->flags & fGAB_OBJ_FREED)
 
 #define GAB_OBJ_BUFFERED(obj) ((obj)->flags |= fGAB_OBJ_BUFFERED)
-
 #define GAB_OBJ_NEW(obj) ((obj)->flags |= fGAB_OBJ_NEW)
-
 #define GAB_OBJ_FREED(obj) ((obj)->flags |= fGAB_OBJ_FREED)
 
 #define __KEEP_FLAGS (fGAB_OBJ_BUFFERED | fGAB_OBJ_NEW | fGAB_OBJ_FREED)
-
-#define GAB_OBJ_GREEN(obj)                                                     \
-  ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_GREEN)
-
-#define GAB_OBJ_BLACK(obj)                                                     \
-  ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_BLACK)
-
-#define GAB_OBJ_GRAY(obj)                                                      \
-  ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_GRAY)
-
-#define GAB_OBJ_PURPLE(obj)                                                    \
-  ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_PURPLE)
-
-#define GAB_OBJ_WHITE(obj)                                                     \
-  ((obj)->flags = ((obj)->flags & __KEEP_FLAGS) | fGAB_OBJ_WHITE)
 
 #define GAB_OBJ_NOT_BUFFERED(obj) ((obj)->flags &= ~fGAB_OBJ_BUFFERED)
 #define GAB_OBJ_NOT_NEW(obj) ((obj)->flags &= ~fGAB_OBJ_NEW)
@@ -377,6 +350,7 @@ typedef void (*gab_boxvisit_f)(struct gab_triple gab, gab_gcvisit_f visitor,
  * All gab objects inherit (as far as c can do inheritance) from this struct.
  */
 struct gab_obj {
+  void* chunk;
   /**
    * @brief The number of live references to this object.
    *
@@ -409,12 +383,19 @@ struct gab_obj {
 void gab_obj_destroy(struct gab_eg *eg, struct gab_obj *obj);
 
 /**
+ * @brief Return the size of the object's allocation, in bytes.
+ *
+ * @param obj The object.
+ */
+size_t gab_obj_size(struct gab_obj *obj);
+
+/**
  * @class gab_create_argt
  */
 struct gab_create_argt {
   int flags;
   /**
-   * @brief An os-specific hook for loading dynamic libraries.
+   * @brief A hook for loading dynamic libraries.
    * This is used to load native-c modules.
    */
   void *(*os_dynopen)(const char *path);
@@ -422,6 +403,12 @@ struct gab_create_argt {
    * @brief A hook for pulling symbols out of dynamically loaded libraries.
    */
   void *(*os_dynsymbol)(void *os_dynhandle, const char *path);
+  /**
+   * @brief A hook for allocating gab objects. A default is used if this is not
+   * provided.
+   */
+  struct gab_obj *(*os_objalloc)(struct gab_triple gab, struct gab_obj *,
+                                 size_t new_size);
 };
 
 /**
@@ -1719,6 +1706,8 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
 struct gab_eg {
   size_t hash_seed;
 
+  v_gab_value scratch;
+
   gab_value types[kGAB_NKINDS];
 
   gab_value messages;
@@ -1731,11 +1720,12 @@ struct gab_eg {
 
   d_strings strings;
 
-  v_gab_value scratch;
-
   void *(*os_dynopen)(const char *path);
 
   void *(*os_dynsymbol)(void *os_dynhandle, const char *path);
+
+  struct gab_obj *(*os_objalloc)(struct gab_triple gab, struct gab_obj *,
+                                 size_t new_size);
 };
 
 static inline gab_value gab_egtype(struct gab_eg *gab, enum gab_kind k) {
@@ -1800,7 +1790,7 @@ static inline gab_value gab_egmsgput(struct gab_triple gab, gab_value msg,
   gab_gclock(gab.gc);
 
   if (specs == gab_undefined) {
-    specs = gab_record(gab, 0, 0, nullptr, nullptr);
+    specs = gab_record(gab, 0, 0, &specs, &specs);
   }
 
   gab_value newspecs = gab_recput(gab, specs, receiver, spec);

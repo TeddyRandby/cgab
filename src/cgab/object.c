@@ -25,6 +25,45 @@ struct gab_obj *gab_obj_create(struct gab_triple gab, size_t sz,
   return self;
 }
 
+size_t gab_obj_size(struct gab_obj *obj) {
+  switch (obj->kind) {
+  case kGAB_BOX: {
+    struct gab_obj_box *o = (struct gab_obj_box *)obj;
+    return sizeof(struct gab_obj_box) + o->len * sizeof(char);
+  }
+  case kGAB_RECORDNODE: {
+    struct gab_obj_recnode *o = (struct gab_obj_recnode *)obj;
+    size_t len = __builtin_popcountl(o->mask);
+    return sizeof(struct gab_obj_recnode) + len * 2 * sizeof(gab_value);
+  }
+  case kGAB_RECORD: {
+    struct gab_obj_rec *o = (struct gab_obj_rec *)obj;
+    size_t len = __builtin_popcountl(o->mask);
+    return sizeof(struct gab_obj_rec) + len * 2 * sizeof(gab_value);
+  }
+  case kGAB_BLOCK: {
+    struct gab_obj_block *o = (struct gab_obj_block *)obj;
+    return sizeof(struct gab_obj_block) + o->nupvalues * sizeof(gab_value);
+  }
+  case kGAB_PROTOTYPE: {
+    struct gab_obj_prototype *o = (struct gab_obj_prototype *)obj;
+    return sizeof(struct gab_obj_prototype) + o->nupvalues * sizeof(char);
+  }
+  case kGAB_SHAPE: {
+    struct gab_obj_shape *o = (struct gab_obj_shape *)obj;
+    return sizeof(struct gab_obj_shape) + o->len * sizeof(gab_value);
+  }
+  case kGAB_STRING: {
+    struct gab_obj_string *o = (struct gab_obj_string *)obj;
+    return sizeof(struct gab_obj_string) + (o->len + 1) * sizeof(char);
+  }
+  case kGAB_NATIVE:
+    return sizeof(struct gab_obj_native);
+  default:
+    assert(false && "unreachable");
+  }
+}
+
 int shape_dump_keys(FILE *stream, gab_value shape, int depth) {
   struct gab_obj_shape *shp = GAB_VAL_TO_SHAPE(shape);
   size_t len = shp->len;
@@ -253,8 +292,6 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
   self->hash = hash;
   self->data[str.len] = '\0';
 
-  GAB_OBJ_GREEN((struct gab_obj *)self);
-
   d_strings_insert(&gab.eg->strings, self, 0);
 
   return __gab_obj(self);
@@ -338,7 +375,6 @@ gab_value gab_prototype(struct gab_triple gab, struct gab_src *src,
     }
   }
 
-  GAB_OBJ_GREEN((struct gab_obj *)self);
   return __gab_obj(self);
 }
 
@@ -350,8 +386,6 @@ gab_value gab_native(struct gab_triple gab, gab_value name, gab_native_f f) {
   self->name = name;
   self->function = f;
 
-  // Builtins cannot reference other objects - mark them green.
-  GAB_OBJ_GREEN((struct gab_obj *)self);
   return __gab_obj(self);
 }
 
@@ -430,7 +464,7 @@ gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
 }
 
 gab_value __gab_record(struct gab_triple gab, size_t len, size_t space,
-                       gab_value data[static len]) {
+                       gab_value *data) {
   struct gab_obj_rec *self = GAB_CREATE_FLEX_OBJ(
       gab_obj_rec, gab_value, (space + len) * 2, kGAB_RECORD);
 
@@ -474,7 +508,7 @@ gab_value __gab_shape(struct gab_triple gab, size_t len) {
 
   self->len = len;
 
-  v_gab_value_create(&self->transitions, 8);
+  v_gab_value_create(&self->transitions, 16);
 
   return __gab_obj(self);
 }
@@ -496,7 +530,7 @@ gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
 
   // Set the keys on the new shape
   memcpy(self->keys, s->keys, sizeof(gab_value) * s->len);
-  self->keys[self->len - 1] = key;
+  self->keys[s->len] = key;
 
   // Push transition into parent shape
   v_gab_value_push(&s->transitions, key);

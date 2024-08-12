@@ -39,10 +39,10 @@ void queue_decrement(struct gab_triple gab, struct gab_obj *obj) {
   }
 #endif
 
-  if (gab.gc->dlen + 1 >= cGAB_GC_DEC_BUFF_MAX)
+  if (gab.gc->decrements.len + 1 >= cGAB_GC_DEC_BUFF_MAX)
     gab_collect(gab);
 
-  gab.gc->decrements[gab.gc->dlen++] = obj;
+  v_gab_obj_push(&gab.gc->decrements, obj);
 
 #if cGAB_LOG_GC
   printf("QDEC\t%p\t%i\n", obj, obj->references);
@@ -57,10 +57,10 @@ void queue_increment(struct gab_triple gab, struct gab_obj *obj) {
   }
 #endif
 
-  if (gab.gc->ilen + 1 >= cGAB_GC_DEC_BUFF_MAX)
+  if (gab.gc->increments.len + 1 >= cGAB_GC_DEC_BUFF_MAX)
     gab_collect(gab);
 
-  gab.gc->increments[gab.gc->ilen++] = obj;
+  v_gab_obj_push(&gab.gc->increments, obj);
 
 #if cGAB_LOG_GC
   printf("QINC\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
@@ -74,6 +74,11 @@ void queue_destroy(struct gab_triple gab, struct gab_obj* obj) {
     exit(1);
   }
 #endif
+
+  if (GAB_OBJ_IS_BUFFERED(obj))
+    return;
+
+  GAB_OBJ_BUFFERED(obj);
 
   v_gab_obj_push(&gab.gc->dead, obj);
 
@@ -206,14 +211,7 @@ static inline void dec_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
   if (obj->references == 0) {
     if (!GAB_OBJ_IS_NEW(obj))
       for_child_do(obj, dec_obj_ref, gab);
-
-    GAB_OBJ_BLACK(obj);
   }
-
-  if (GAB_OBJ_IS_BUFFERED(obj))
-    return;
-
-  GAB_OBJ_BUFFERED(obj);
 
   queue_destroy(gab, obj);
 }
@@ -228,9 +226,6 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
 #endif
 
   do_increment(gab.gc, obj);
-
-  if (!GAB_OBJ_IS_GREEN(obj))
-    GAB_OBJ_BLACK(obj);
 
   if (GAB_OBJ_IS_NEW(obj)) {
 #if cGAB_LOG_GC
@@ -356,16 +351,18 @@ gab_value gab_dref(struct gab_triple gab, gab_value value) {
 }
 
 void gab_gccreate(struct gab_gc *gc) {
-  gc->ilen = 0;
-  gc->dlen = 0;
   gc->locked = 0;
   d_gab_obj_create(&gc->overflow_rc, 8);
   v_gab_obj_create(&gc->dead, 8);
+  v_gab_obj_create(&gc->increments, 8);
+  v_gab_obj_create(&gc->decrements, 8);
 };
 
 void gab_gcdestroy(struct gab_gc *gc) {
   d_gab_obj_destroy(&gc->overflow_rc);
   v_gab_obj_destroy(&gc->dead);
+  v_gab_obj_destroy(&gc->increments);
+  v_gab_obj_destroy(&gc->decrements);
 }
 
 static inline void increment_reachable(struct gab_triple gab) {
@@ -433,8 +430,8 @@ static inline void decrement_reachable(struct gab_triple gab) {
 }
 
 static inline void process_increments(struct gab_triple gab) {
-  while (gab.gc->ilen) {
-    struct gab_obj *obj = gab.gc->increments[--gab.gc->ilen];
+  while (gab.gc->increments.len) {
+    struct gab_obj *obj = v_gab_obj_pop(&gab.gc->increments);
 
 #if cGAB_LOG_GC
     printf("PROCINC\t%V\t%p\t%d\n", __gab_obj(obj), obj, obj->references);
@@ -445,8 +442,8 @@ static inline void process_increments(struct gab_triple gab) {
 }
 
 static inline void process_decrements(struct gab_triple gab) {
-  while (gab.gc->dlen) {
-    struct gab_obj *o = gab.gc->decrements[--gab.gc->dlen];
+  while (gab.gc->decrements.len) {
+    struct gab_obj *o = v_gab_obj_pop(&gab.gc->decrements);
 
 #if cGAB_LOG_GC
     printf("PROCDEC\t%V\t%p\t%d\n", __gab_obj(o), o, o->references);
