@@ -9,11 +9,6 @@
  * This implemetnation is *HEAVILY* inspired by
  * https://github.com/mkirchner/hamt
  */
-enum rec_result {
-  kSEARCH_SUCCESS = 0,
-  kSEARCH_KEYMISMATCH,
-  kSEARCH_NOTFOUND,
-};
 
 static inline size_t hash_index(size_t hash, size_t shift) {
   return (hash >> shift) & GAB_HAMT_MASK;

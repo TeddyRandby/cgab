@@ -1,145 +1,161 @@
 #include "alloc.h"
 #include <stdint.h>
 
-#define MAX_CHUNKS 256
-#define CHUNK_MAX_SIZE 256
+#define MAX_poolS 256
+#define pool_MAX_SIZE 256
 
-#define CHUNKS_PER_PAGE 64
-#define OBJS_PER_PAGE 64
+#define LINES_PER_POOL 64
+#define OBJS_PER_LINE 64
 
-struct page {
+struct pos {
+  uint8_t line, idx;
+};
+
+struct pool {
   uint8_t size;
 
   uint64_t mask;
+
+  uint64_t lines[LINES_PER_POOL];
 
   uint8_t bytes[FLEXIBLE_ARRAY];
 };
 
 struct gab_allocator {
-  uint8_t npages[MAX_CHUNKS];
-  struct page *newest_pages[CHUNK_MAX_SIZE];
-  struct page *all_pages[MAX_CHUNKS][CHUNK_MAX_SIZE];
+  struct pool *free_pool[pool_MAX_SIZE];
+  struct pool *all_pools[pool_MAX_SIZE];
 };
 
 static struct gab_allocator allocator;
 
 #define ctz __builtin_ctzl
 
-static inline struct page *page_create(struct gab_allocator *s, uint8_t size) {
-  struct page *self = malloc(sizeof(struct page) + (OBJS_PER_PAGE * size));
+static inline struct pool *pool_create(struct gab_allocator *s, uint8_t size) {
+  struct pool *self =
+      malloc(sizeof(struct pool) + (LINES_PER_POOL * OBJS_PER_LINE * size));
 
   self->size = size;
-
   self->mask = 0;
+  memset(self->lines, 0, sizeof(self->lines[0]) * LINES_PER_POOL);
 
-  s->newest_pages[size] = self;
-  s->npages[size]++;
+  s->free_pool[size] = self;
   return self;
 }
 
-static inline void page_destroy(struct gab_allocator *s, struct page *c) {
-  uint8_t last_page = s->npages[c->size]--;
-
-  if (last_page < UINT8_MAX)
-    s->newest_pages[c->size] = s->all_pages[c->size][last_page];
-
+static inline void pool_destroy(struct gab_allocator *s, struct pool *c) {
   free(c);
 }
 
-static inline uint8_t *page_begin(struct page *chunk) { return chunk->bytes; }
+static inline uint8_t *pool_begin(struct pool *pool) { return pool->bytes; }
 
-static inline uint8_t *page_end(struct page *chunk) {
-  return chunk->bytes + chunk->size * OBJS_PER_PAGE;
+static inline uint8_t *pool_end(struct pool *pool) {
+  return pool->bytes + pool->size * OBJS_PER_LINE * LINES_PER_POOL;
 }
 
-static inline bool page_contains(struct page *chunk, uint8_t *addr) {
-  return (page_begin(chunk) <= addr) && (page_end(chunk) > addr);
+static inline bool pool_contains(struct pool *pool, uint8_t *addr) {
+  return (pool_begin(pool) <= addr) && (pool_end(pool) > addr);
 }
 
-static inline uint8_t page_indexof(struct page *chunk, void *addr) {
-  assert(page_contains(chunk, addr));
-  size_t idx = ((uint8_t *)addr - chunk->bytes) / chunk->size;
-  assert(idx < 64);
-  return idx;
+static inline struct pos pool_indexof(struct pool *pool, void *addr) {
+  assert(pool_contains(pool, addr));
+  size_t true_idx = ((uint8_t *)addr - pool->bytes) / pool->size;
+  size_t line_idx = true_idx / LINES_PER_POOL;
+  size_t obj_idx = true_idx % OBJS_PER_LINE;
+  assert(line_idx < 64);
+  assert(obj_idx < 64);
+  return (struct pos){line_idx, obj_idx};
 }
 
-static inline void page_set(struct page *chunk, uint8_t pos) {
-  assert(!(chunk->mask & ((uint64_t)1 << pos)));
-  chunk->mask |= (uint64_t)1 << pos;
+static inline void pool_set(struct pool *pool, struct pos pos) {
+  assert(!(pool->lines[pos.line] & ((uint64_t)1 << pos.idx)));
+  pool->lines[pos.line] |= (uint64_t)1 << pos.idx;
+
+  if (pool->lines[pos.line] == UINT64_MAX)
+    pool->mask |= (uint64_t)1 << pos.line;
 }
 
-static inline void page_unset(struct page *chunk, uint8_t pos) {
-  assert((chunk->mask & ((uint64_t)1 << pos)));
-  chunk->mask &= ~((uint64_t)1 << pos);
+static inline void pool_unset(struct pool *pool, struct pos pos) {
+  assert((pool->lines[pos.line] & ((uint64_t)1 << pos.idx)));
+  pool->lines[pos.line] &= ~((uint64_t)1 << pos.idx);
+  pool->mask &= ~((uint64_t)1 << pos.line);
 }
 
-static inline uint8_t page_next(struct page *chunk) {
-  uint8_t pos = ctz(~chunk->mask);
+static inline struct pos pool_next(struct pool *pool) {
+  uint8_t line = ctz(~pool->mask);
+  uint8_t pos = ctz(~pool->lines[line]);
   assert(pos < 64);
-  return pos;
+  return (struct pos){line,pos};
 }
 
-static inline void *page_at(struct page *chunk, uint8_t pos) {
-  size_t offset = pos * chunk->size;
-  void *result = chunk->bytes + offset;
-  assert(page_contains(chunk, result));
+static inline void *pool_at(struct pool *pool, struct pos pos) {
+  size_t offset = pos.line * OBJS_PER_LINE + pos.idx;
+  void *result = pool->bytes + offset * pool->size;
+  assert(pool_contains(pool, result));
   return result;
 }
 
-static inline bool page_mostlyempty(struct page *page) {
-  return __builtin_popcountl(page->mask) < 32;
+static inline bool pool_mostlyempty(struct pool *pool) {
+  return __builtin_popcountl(pool->mask) < 32;
 }
 
-static inline bool page_empty(struct page *page) {
-  return page->mask == 0;
+static inline bool pool_empty(struct pool *pool) {
+  if (pool->mask != 0)
+    return false;
+
+  for (size_t i = 0; i < LINES_PER_POOL; i++) {
+    if (pool->lines[i] != 0)
+      return false;
+  }
+
+  return true;
 }
 
-static inline bool chunk_full(struct page *chunk) {
-  return chunk->mask == UINT64_MAX;
+static inline bool pool_full(struct pool *pool) {
+  return pool->mask == UINT64_MAX;
 }
 
-static struct gab_obj *page_alloc(struct gab_allocator *s, uint64_t size) {
-  if (s->newest_pages[size] == nullptr)
-    page_create(s, size);
+static struct gab_obj *pool_alloc(struct gab_allocator *s, uint64_t size) {
+  if (s->free_pool[size] == nullptr)
+    pool_create(s, size);
 
-  struct page *page = s->newest_pages[size];
+  struct pool *pool = s->free_pool[size];
 
-  if (chunk_full(page))
-    page = page_create(s, size);
+  if (pool_full(pool))
+    pool = pool_create(s, size);
 
-  uint8_t pos = page_next(page);
+  struct pos pos = pool_next(pool);
 
-  page_set(page, pos);
+  pool_set(pool, pos);
 
-  struct gab_obj *ptr = page_at(page, pos);
-  ptr->chunk = page;
+  struct gab_obj *ptr = pool_at(pool, pos);
+  ptr->chunk = pool;
 
   return ptr;
 }
 
-void page_dealloc(struct gab_allocator *s, uint64_t size, struct gab_obj *ptr) {
-  struct page *chunk = ptr->chunk;
+void pool_dealloc(struct gab_allocator *s, uint64_t size, struct gab_obj *ptr) {
+  struct pool *pool = ptr->chunk;
 
-  uint8_t index = page_indexof(chunk, ptr);
+  struct pos index = pool_indexof(pool, ptr);
 
-  page_unset(chunk, index);
+  pool_unset(pool, index);
 
-  if (page_empty(chunk))
-    page_destroy(s, chunk);
-  else if (page_mostlyempty(chunk))
-    s->newest_pages[size] = chunk;
+  if (pool_empty(pool))
+    pool_destroy(s, pool);
+  else if (pool_mostlyempty(pool))
+    s->free_pool[size] = pool;
 }
 
 struct gab_obj *chunkalloc(struct gab_triple gab, struct gab_obj *obj,
-                           uint64_t size) {
+                          uint64_t size) {
   if (size == 0) {
     assert(obj);
 
 #if cGAB_CHUNK_ALLOCATOR
     uint64_t old_size = gab_obj_size(obj);
 
-    if (old_size < CHUNK_MAX_SIZE)
-      page_dealloc(&allocator, old_size, obj);
+    if (old_size < pool_MAX_SIZE)
+      pool_dealloc(&allocator, old_size, obj);
     else
       free(obj);
 #else
@@ -151,10 +167,9 @@ struct gab_obj *chunkalloc(struct gab_triple gab, struct gab_obj *obj,
 
   assert(!obj);
 
-
 #if cGAB_CHUNK_ALLOCATOR
-  if (size < CHUNK_MAX_SIZE) {
-    return page_alloc(&allocator, size);
+  if (size < pool_MAX_SIZE) {
+    return pool_alloc(&allocator, size);
   }
 #endif
 
