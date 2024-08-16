@@ -34,10 +34,9 @@ s:def! {
   #desc = "Given a reducer, return a new reducer with the transducer applied.",
 #}
 
-td = .td:map do x:
-  x++ end |> .td:map do x:
-  x-- end |> .td:map do x:
-  x-- end
+td = .td:map do x: x++ end
+  |> .td:map do x: x-- end
+  |> .td:map do x: x-- end
 
 res = [1,2,3]:transduce({}, \push, td)
 res:print
