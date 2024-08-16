@@ -265,9 +265,10 @@ static inline void rec_shiftvalues(gab_value rec, size_t pos) {
   }
 }
 
-static inline void rec_setshpwith(struct gab_triple gab, gab_value rec, gab_value key) {
+static inline void rec_setshpwith(struct gab_triple gab, gab_value rec,
+                                  gab_value key) {
   assert(gab_valkind(rec) == kGAB_RECORD);
-  struct gab_obj_rec* r = GAB_VAL_TO_REC(rec);
+  struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
   r->shape = gab_shpwith(gab, r->shape, key);
 }
 
@@ -364,7 +365,7 @@ gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
     size_t pos = rec_posat(rec, idx);
 
     if (!rec_hasindex(rec, idx)) {
-      if (path == gab_undefined) {
+      if (gab_valeq(path, gab_undefined)) {
         rec_shiftvalues(root, pos);
         rec_insertleaf(root, idx, pos, key, val);
       } else {
@@ -382,8 +383,8 @@ gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
     case kLEAF: {
       gab_value *kv = rec_nodeleafat(rec, pos);
 
-      if (kv[kLEAF_KEY] == key) {
-        if (path == gab_undefined) {
+      if (gab_valeq(kv[kLEAF_KEY], key)) {
+        if (gab_valeq(path, gab_undefined)) {
           rec_setleaf(root, pos, val);
         } else {
           gab_value n = reccpy(gab, rec, 0);
@@ -394,8 +395,10 @@ gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
         return root;
       }
 
-      gab_value cpy = path == gab_undefined ? root : reccpy(gab, rec, 0);
-      if (path != gab_undefined) {
+      gab_value cpy =
+          gab_valeq(path, gab_undefined) ? root : reccpy(gab, rec, 0);
+
+      if (!gab_valeq(path, gab_undefined)) {
         rec_setbranch(path, path_idx, path_pos, cpy);
       }
 
@@ -445,7 +448,7 @@ gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
       return root;
     }
     case kBRANCH:
-      if (path == gab_undefined) {
+      if (gab_valeq(path, gab_undefined)) {
         path = root;
         rec = reccpy(gab, rec_nodebranchat(rec, pos), 0);
       } else {
@@ -569,7 +572,6 @@ gab_value gab_recat(gab_value rec, gab_value key) {
     }
   }
 }
-
 
 gab_value gab_ukrecat(gab_value rec, size_t idx) {
   assert(gab_valkind(rec) == kGAB_RECORD);

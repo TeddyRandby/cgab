@@ -29,10 +29,6 @@ struct primitive all_primitives[] = {
         .name = mGAB_TYPE,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_TYPE),
     },
-    {
-        .name = mGAB_SEND,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_SEND_GENERIC),
-    },
 };
 
 struct primitive type_primitives[] = {
@@ -178,6 +174,11 @@ struct primitive kind_primitives[] = {
         .name = mGAB_CALL,
         .kind = kGAB_BLOCK,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BLOCK),
+    },
+    {
+        .name = mGAB_CALL,
+        .kind = kGAB_MESSAGE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_MESSAGE),
     },
 };
 

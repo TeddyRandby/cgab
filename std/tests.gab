@@ -9,14 +9,9 @@
   end,
 }
 
-\test.comp.apply :defcase! {
-  'gab.message' = do x, y:
-    x:send(self, y)
-  end,
-  'gab.block' = do x, y:
-    self(x,y)
-  end,
-}
+\test.comp.apply :def!(['gab.message', 'gab.block'], do x,y:
+  self(x,y)
+end)
 
 \should.be :def! ([], do comp, other:
    comp:test.comp.apply(self, other):tests.handle_result(self, other)

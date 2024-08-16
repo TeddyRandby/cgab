@@ -129,7 +129,7 @@ end)
 end)
 
 # Implement the reducer protocol for blocks and messages
-['gab.block'] :defmodule! {
+['gab.block', 'gab.message'] :defmodule! {
   \reduce.step = do acc, xs[]:
     self(acc, xs**)
   end,
@@ -138,21 +138,13 @@ end)
   end,
 }
 
-['gab.message'] :defmodule! {
-  \reduce.step = do acc, xs[]:
-    acc:send(self, xs**)
-  end,
-  \reduce.done = do acc:
-    acc
-  end,
-}
-
+# Implement the transducer protocol for blocks
 ['gab.block'] :defmodule! {
   \|> = do td:
     self :iter.compose td
   end,
   \iter.compose = do second:
-    first = self;
+    first = self
     do r:
       second:iter.apply(first:iter.apply r)
     end
@@ -166,7 +158,7 @@ end)
 #   - a transducer's constructor
 #     ie: (.td :map \++) constructs a mapping transducer, with \++
 \def.transducer! :def!(['gab.message'], do r:
- self :def!([.td], r)
+ self:def!([.td], r)
 end)
 
 \td.conditionally :defcase! {
@@ -195,72 +187,22 @@ end)
   end
 end
 
-\td.filter.into :defcase! {
-  'gab.message' = do:
-    f = self
-    do r:
-      do acc, x, xs[]:
-        x:send(f, xs**):td.conditionally(acc, [x, xs**], r)
-      end
+\filter :def.transducer! do f:
+  do r:
+    do acc, xs[]:
+      f(xs**):td.conditionally(acc, xs, r)
     end
-  end,
-  'gab.block' = do:
-    f = self
-    do r:
-      do acc, xs[]:
-        f(xs**):td.conditionally(acc, xs, r)
-      end
+  end
+end
+
+\tap :def.transducer! do f:
+  do r:
+    do acc, xs[]:
+      f(xs**)
+      r:reduce.step(acc, xs**)
     end
-  end,
-}
-
-\filter :def.transducer! \td.filter.into
-
-\td.tap.into :defcase! {
-  'gab.message' = do:
-    f = self
-    do r:
-      do acc, x, xs[]:
-        x:send(f, xs**)
-        r:reduce.step(acc, x, xs**)
-      end
-    end
-  end,
-  'gab.block' = do:
-    f = self
-    do r:
-      do acc, xs[]:
-        f(xs**)
-        r:reduce.step(acc, xs**)
-      end
-    end
-  end,
-}
-
-\tap :def.transducer! \td.tap.into
-
-\compose :defcase! {
-  .nil = do f:
-    f
-  end,
-  'gab.block' = do g:
-# The following snippet is a bug which
-# Caused the GC to overlow the stack.
-# This definitely requires investigation.
-# Infinitely calls itself, allocating more and more.
-#    do args[]
-#      self(g(args**))
-#    end
-    f = self
-    do args[]:
-      f(g(args**))
-    end
-  end,
-}
-
-\compose :def! ([.td], do fns[]:
-  fns:transduce(.nil, \compose, .td :map \first)
-end)
+  end
+end
 
 [maps.t] :defmodule! {
   \has? = do key:

@@ -1196,24 +1196,6 @@ CASE_CODE(SEND_CONSTANT) {
   NEXT();
 }
 
-CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_PROPERTY) {
-  gab_value *ks = READ_CONSTANTS;
-  uint64_t have = compute_arity(VAR(), READ_BYTE);
-
-  gab_value r = PEEK_N(have);
-  gab_value m = PEEK_N(have - 1);
-
-  SEND_GUARD_KIND(m, kGAB_MESSAGE);
-  SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m);
-  SEND_GUARD_CACHED_RECEIVER_TYPE(r);
-
-  memmove(SP() - (have - 1), SP() - (have - 2), (have - 1) * sizeof(gab_value));
-  have--;
-  DROP();
-
-  PROPERTY_RECORD(r, m, have);
-}
-
 CASE_CODE(SEND_PROPERTY) {
   gab_value *ks = READ_CONSTANTS;
   uint8_t have_byte = READ_BYTE;
@@ -1535,18 +1517,36 @@ CASE_CODE(SEND) {
   NEXT();
 }
 
-CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_BLOCK) {
+CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY) {
   gab_value *ks = READ_CONSTANTS;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
-  gab_value r = PEEK_N(have);
-  gab_value m = PEEK_N(have - 1);
+  gab_value m = PEEK_N(have);
+  gab_value r = PEEK_N(have - 1);
 
   SEND_GUARD_KIND(m, kGAB_MESSAGE);
   SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m);
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  memmove(SP() - (have - 1), SP() - (have - 2), (have - 1) * sizeof(gab_value));
+  memmove(SP() - (have), SP() - (have - 1), (have - 1) * sizeof(gab_value));
+  have--;
+  DROP();
+
+  PROPERTY_RECORD(r, m, have);
+}
+
+CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_BLOCK) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value m = PEEK_N(have);
+  gab_value r = PEEK_N(have - 1);
+
+  SEND_GUARD_KIND(m, kGAB_MESSAGE);
+  SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m);
+  SEND_GUARD_CACHED_RECEIVER_TYPE(r);
+
+  memmove(SP() - (have), SP() - (have - 1), (have - 1) * sizeof(gab_value));
   have--;
   DROP();
 
@@ -1555,18 +1555,18 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_BLOCK) {
   CALL_BLOCK(spec, have);
 }
 
-CASE_CODE(TAILSEND_PRIMITIVE_SEND_GENERIC_BLOCK) {
+CASE_CODE(TAILSEND_PRIMITIVE_CALL_MESSAGE_BLOCK) {
   gab_value *ks = READ_CONSTANTS;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
-  gab_value r = PEEK_N(have);
-  gab_value m = PEEK_N(have - 1);
+  gab_value m = PEEK_N(have);
+  gab_value r = PEEK_N(have - 1);
 
   SEND_GUARD_KIND(m, kGAB_MESSAGE);
   SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m);
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  memmove(SP() - (have - 1), SP() - (have - 2), (have - 1) * sizeof(gab_value));
+  memmove(SP() - (have), SP() - (have - 1), (have - 1) * sizeof(gab_value));
   have--;
   DROP();
 
@@ -1575,18 +1575,18 @@ CASE_CODE(TAILSEND_PRIMITIVE_SEND_GENERIC_BLOCK) {
   TAILCALL_BLOCK(spec, have);
 }
 
-CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_NATIVE) {
+CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_NATIVE) {
   gab_value *ks = READ_CONSTANTS;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
-  gab_value r = PEEK_N(have);
-  gab_value m = PEEK_N(have - 1);
+  gab_value m = PEEK_N(have);
+  gab_value r = PEEK_N(have - 1);
 
   SEND_GUARD_KIND(m, kGAB_MESSAGE);
   SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m);
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  memmove(SP() - (have - 1), SP() - (have - 2), (have - 1) * sizeof(gab_value));
+  memmove(SP() - (have), SP() - (have - 1), (have - 1) * sizeof(gab_value));
   have--;
   DROP();
 
@@ -1595,18 +1595,18 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_NATIVE) {
   CALL_NATIVE(spec, have, true);
 }
 
-CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_PRIMITIVE) {
+CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_PRIMITIVE) {
   gab_value *ks = READ_CONSTANTS;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
-  gab_value r = PEEK_N(have);
-  gab_value m = PEEK_N(have - 1);
+  gab_value m = PEEK_N(have);
+  gab_value r = PEEK_N(have - 1);
 
   SEND_GUARD_KIND(m, kGAB_MESSAGE);
   SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m);
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  memmove(SP() - (have - 1), SP() - (have - 2), (have - 1) * sizeof(gab_value));
+  memmove(SP() - (have), SP() - (have - 1), (have - 1) * sizeof(gab_value));
   PEEK() = gab_nil;
 
   uint8_t spec = ks[GAB_SEND_KSPEC];
@@ -1618,12 +1618,12 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_PRIMITIVE) {
   DISPATCH(op);
 }
 
-CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_CONSTANT) {
+CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_CONSTANT) {
   gab_value *ks = READ_CONSTANTS;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
-  gab_value r = PEEK_N(have);
-  gab_value m = PEEK_N(have - 1);
+  gab_value m = PEEK_N(have);
+  gab_value r = PEEK_N(have - 1);
 
   SEND_GUARD_KIND(m, kGAB_MESSAGE);
   SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m);
@@ -1640,13 +1640,13 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC_CONSTANT) {
   NEXT();
 }
 
-CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC) {
+CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   gab_value *ks = READ_CONSTANTS;
   uint8_t have_byte = READ_BYTE;
   uint64_t have = compute_arity(VAR(), have_byte);
 
-  gab_value r = PEEK_N(have);
-  gab_value m = PEEK_N(have - 1);
+  gab_value m = PEEK_N(have);
+  gab_value r = PEEK_N(have - 1);
   gab_value t = gab_valtype(EG(), r);
 
   ERROR_GUARD_KIND(m, kGAB_MESSAGE);
@@ -1665,7 +1665,7 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC) {
   ks[GAB_SEND_KGENERIC_CALL_MESSAGE] = m;
 
   if (res.status == kGAB_IMPL_PROPERTY) {
-    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_SEND_GENERIC_PROPERTY);
+    WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY);
   } else {
     gab_value spec = res.spec;
 
@@ -1673,7 +1673,7 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC) {
     case kGAB_PRIMITIVE: {
       ks[GAB_SEND_KSPEC] = gab_valtop(spec);
 
-      WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_SEND_GENERIC_PRIMITIVE);
+      WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_CALL_MESSAGE_PRIMITIVE);
       break;
     }
     case kGAB_BLOCK: {
@@ -1682,19 +1682,19 @@ CASE_CODE(SEND_PRIMITIVE_SEND_GENERIC) {
       uint8_t adjust = (have_byte & fHAVE_TAIL) >> 1;
 
       WRITE_BYTE(SEND_CACHE_DIST,
-                 OP_SEND_PRIMITIVE_SEND_GENERIC_BLOCK + adjust);
+                 OP_SEND_PRIMITIVE_CALL_MESSAGE_BLOCK + adjust);
       break;
     }
     case kGAB_NATIVE: {
       ks[GAB_SEND_KSPEC] = (uintptr_t)GAB_VAL_TO_NATIVE(spec);
 
-      WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_SEND_GENERIC_NATIVE);
+      WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_CALL_MESSAGE_NATIVE);
       break;
     }
     default: {
       ks[GAB_SEND_KSPEC] = spec;
 
-      WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_SEND_GENERIC_CONSTANT);
+      WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_CALL_MESSAGE_CONSTANT);
       break;
     }
     }

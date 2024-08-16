@@ -102,9 +102,9 @@ end
   end
 
   'should dynamically do arithemtic' :tests.should do:
-    1:send(\+, 2):should.be(\==, 3)
-    1:send(\+,2, .ignore_me):should.be(\==, 3)
-    1:send(\-,2):should.be(\==, -1)
+    \+(1, 2):should.be(\==, 3)
+    \+(1,2, .ignore_me):should.be(\==, 3)
+    \-(1,2):should.be(\==, -1)
   end
 end
 
@@ -122,12 +122,12 @@ end
   end
 
   'should dynamically concatenate' :tests.should do:
-    'hi ':send(\+, 'world'):should.be(\==, 'hi world')
-    'hi ':send(\+, 'world', .ignore_me):should.be(\==, 'hi world')
+    \+('hi ', 'world'):should.be(\==, 'hi world')
+    \+('hi ', 'world', .ignore_me):should.be(\==, 'hi world')
   end
 
   'should append a sigil' :tests.should do:
-    'hi ':send(\+, .world):should.be(\==, 'hi world')
+    \+('hi ', .world):should.be(\==, 'hi world')
     ('hi ' + .world) :should.be(\==, 'hi world')
   end
 end
@@ -359,7 +359,7 @@ end
 
     'dynamic message sends' :tests.should do:
       sum = do a, b:
-        a:send(\+, b)
+        \+(a, b)
       end
 
       result = sum(1,1)
@@ -374,24 +374,20 @@ end
 
       result:should.be(\==, 'hi world')
 
-      result = { hi = 8 }:send \hi
+      result = \hi { hi = 8 }
 
       result:should.be(\==, 8)
 
-      result = { hi = 8 }:send(\put, \hi , 2)
+      result = \put({ hi = 8 }, \hi , 2)
 
       result:hi:should.be(\==, 2)
 
-      result = ['hi']:send \** 
+      result = \** ['hi']
 
       result:should.be(\==, 'hi')
 
-      result = { hi }:send(\hi, 4)
+      result = \hi({ hi }, 4)
 
       result:hi:should.be(\==, 4)
-
-      result = { hi = do: 8 end }:send \hi 
-
-      result:should.be(\==, 8)
     end
 end

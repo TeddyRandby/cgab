@@ -282,22 +282,6 @@ static inline gab_value __gab_dtoval(double value) {
 #define GAB_OBJ_NOT_BUFFERED(obj) ((obj)->flags &= ~fGAB_OBJ_BUFFERED)
 #define GAB_OBJ_NOT_NEW(obj) ((obj)->flags &= ~fGAB_OBJ_NEW)
 
-#define NAME specs
-#define K gab_value
-#define V gab_value
-#define DEF_V gab_undefined
-#define HASH(a) (a)
-#define EQUAL(a, b) (gab_valeq(a, b))
-#include "dict.h"
-
-#define NAME helps
-#define K gab_value
-#define V s_char
-#define DEF_V ((s_char){0})
-#define HASH(a) (a)
-#define EQUAL(a, b) (gab_valeq(a, b))
-#include "dict.h"
-
 typedef enum gab_opcode {
 #define OP_CODE(name) OP_##name,
 #include "bytecode.h"
@@ -1714,11 +1698,11 @@ struct gab_eg {
 
   gab_value shapes;
 
+  d_strings strings;
+
   d_gab_src sources;
 
   d_gab_modules modules;
-
-  d_strings strings;
 
   void *(*os_dynopen)(const char *path);
 
