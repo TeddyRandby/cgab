@@ -1,7 +1,6 @@
 #include "core.h"
 #include "engine.h"
 #include "gab.h"
-#include <stdint.h>
 
 static inline size_t do_increment(struct gab_gc *gc, struct gab_obj *obj) {
   if (__gab_unlikely(obj->references == INT8_MAX)) {

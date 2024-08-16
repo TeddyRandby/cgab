@@ -23,7 +23,7 @@ struct pool {
 
 struct gab_allocator {
   struct pool *free_pool[pool_MAX_SIZE];
-  struct pool *all_pools[pool_MAX_SIZE];
+  struct pool *pools[pool_MAX_SIZE];
 };
 
 static struct gab_allocator allocator;
@@ -31,19 +31,32 @@ static struct gab_allocator allocator;
 #define ctz __builtin_ctzl
 
 static inline struct pool *pool_create(struct gab_allocator *s, uint8_t size) {
-  struct pool *self =
-      malloc(sizeof(struct pool) + (LINES_PER_POOL * OBJS_PER_LINE * size));
+  struct pool *self;
+
+  if (s->free_pool[size] != nullptr) {
+    self = s->free_pool[size];
+    s->free_pool[size] = nullptr;
+  } else {
+    self =
+        malloc(sizeof(struct pool) + (LINES_PER_POOL * OBJS_PER_LINE * size));
+    if (self == nullptr)
+      exit(1);
+  }
 
   self->size = size;
   self->mask = 0;
   memset(self->lines, 0, sizeof(self->lines[0]) * LINES_PER_POOL);
 
-  s->free_pool[size] = self;
+  s->pools[size] = self;
   return self;
 }
 
-static inline void pool_destroy(struct gab_allocator *s, struct pool *c) {
-  free(c);
+static inline void pool_destroy(struct gab_allocator *s, uint8_t size,
+                                struct pool *c) {
+  if (s->free_pool[size] == nullptr)
+    s->free_pool[size] = c;
+  else
+    free(c);
 }
 
 static inline uint8_t *pool_begin(struct pool *pool) { return pool->bytes; }
@@ -84,7 +97,7 @@ static inline struct pos pool_next(struct pool *pool) {
   uint8_t line = ctz(~pool->mask);
   uint8_t pos = ctz(~pool->lines[line]);
   assert(pos < 64);
-  return (struct pos){line,pos};
+  return (struct pos){line, pos};
 }
 
 static inline void *pool_at(struct pool *pool, struct pos pos) {
@@ -92,10 +105,6 @@ static inline void *pool_at(struct pool *pool, struct pos pos) {
   void *result = pool->bytes + offset * pool->size;
   assert(pool_contains(pool, result));
   return result;
-}
-
-static inline bool pool_mostlyempty(struct pool *pool) {
-  return __builtin_popcountl(pool->mask) < 32;
 }
 
 static inline bool pool_empty(struct pool *pool) {
@@ -115,10 +124,10 @@ static inline bool pool_full(struct pool *pool) {
 }
 
 static struct gab_obj *pool_alloc(struct gab_allocator *s, uint64_t size) {
-  if (s->free_pool[size] == nullptr)
-    pool_create(s, size);
+  if (s->pools[size] == nullptr)
+   pool_create(s, size);
 
-  struct pool *pool = s->free_pool[size];
+  struct pool *pool = s->pools[size];
 
   if (pool_full(pool))
     pool = pool_create(s, size);
@@ -141,13 +150,11 @@ void pool_dealloc(struct gab_allocator *s, uint64_t size, struct gab_obj *ptr) {
   pool_unset(pool, index);
 
   if (pool_empty(pool))
-    pool_destroy(s, pool);
-  else if (pool_mostlyempty(pool))
-    s->free_pool[size] = pool;
+    pool_destroy(s, size, pool);
 }
 
 struct gab_obj *chunkalloc(struct gab_triple gab, struct gab_obj *obj,
-                          uint64_t size) {
+                           uint64_t size) {
   if (size == 0) {
     assert(obj);
 

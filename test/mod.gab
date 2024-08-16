@@ -240,64 +240,42 @@ end
     tup:at!(2):should.be(\==, 3)
     tup:len:should.be(\==, 3)
   end
-
-  'sending to records' :tests.should do:
-    result = { hi = 2 } :hi
-
-    result:should.be(\==, 2)
-
-    result = { hi = do: 4 end } :hi
-
-    result:should.be(\==, 4)
-  end
 end
 
 'Overloads' :tests.covers do:
-    Vector = {
-      x,
-      y,
-      new = do x, y:
-        self:x(x):y(y)
-      end,
-      + = do other:
-        x = (self:x) + (other:x)
-        y = (self:y) + (other:y)
-        self:new(x, y)
-      end,
-    }
+    vec.t = { x, y }?
+
+    \+ :def!([vec.t], do other:
+      {
+        x = self:x + other:x,
+        y = self:y + other:y,
+      }
+    end)
 
     'should overload binary' :tests.should do:
-        a = Vector:new(1,2)
-        b = Vector:new(2,1)
+        a = { x = 1, y = 2 }
+        b = { x = 2, y = 1 }
         test = a + b
 
         test:x:should.be(\==, 3)
         test:y:should.be(\==, 3)
     end
 
-    Vector = Vector:put!(
-      \<,
-      do other:
+      \< :def!([vec.t], do other:
         mag = ((self:x) * (self:x)) + ((self:y) * (self:y))
         other_mag = ((other:x) * (other:x)) + ((other:y) * (other:y))
-
         mag < other_mag
-      end,
-    )
+      end)
 
-    Vector = Vector:put!(
-      \==,
-      do other:
+      \== :def!([vec.t], do other:
         (self:x == other:x) & (self:y == other:y)
-      end,
-    )
+      end)
 
     'should overload comparison' :tests.should do:
-        a = Vector:new(1,1)
-        b = Vector:new(1,1)
+        a = { x = 1, y = 1 }
+        b = { x = 1, y = 1 }
         a:should.be(\==, b)
-        a = Vector:new(1,2)
-        b = Vector:new(4,4)
+        b = { x = 4, y = 4 }
         (a < b):should.be(\==, .true)
     end
 
@@ -306,21 +284,18 @@ end
     end
 
     'should get before overload' :tests.should do:
-        1:should.be(\==, get(Vector:new(1,2), \x))
+        get({ x = 1, y = 2 }, \x):should.be(\==, 1)
     end
 
-    Vector = Vector:put!(
-      \at!,
-      do key:
+      \at! :def! ([vec.t], do key:
         v = self
         (key == 'mag') :then do:
           ((v:x) * (v:x)) + ((v:y) * (v:y))
         end
-      end,
-    )
+      end)
 
     'should overload get' :tests.should do:
-        get(Vector:new(2,2),'mag'):should.be(\==, 8)
+        get({ x = 2, y = 2 },'mag'):should.be(\==, 8)
     end
 
     'should behave when switching types' :tests.should do:
@@ -329,9 +304,9 @@ end
       end
 
       3:should.be(\==, sum(1,2))
-      a = Vector:new(3,3)
-      b = Vector:new(1,2)
-      c = Vector:new(2,1)
+      a = { x = 3, y = 3 }
+      b = { x = 1, y = 2 }
+      c = { x = 2, y = 1 }
       a:should.be(\==, sum(b, c))
       'hi':should.be(\==, sum('h','i'))
       'hi':should.be(\==, sum('h','i'))
@@ -403,7 +378,7 @@ end
 
       result:should.be(\==, 8)
 
-      result = { hi = 8 }:send(\put!, \hi , 2)
+      result = { hi = 8 }:send(\put, \hi , 2)
 
       result:hi:should.be(\==, 2)
 

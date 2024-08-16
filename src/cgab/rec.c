@@ -350,7 +350,7 @@ gab_value reccpy(struct gab_triple gab, gab_value m, size_t space) {
 
 gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
                      gab_value val) {
-  size_t path_pos, path_idx, shift = 0;
+  size_t path_pos = 0, path_idx = 0, shift = 0;
 
   size_t idx = hash_index(key, shift);
 

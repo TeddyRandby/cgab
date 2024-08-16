@@ -1,0 +1,43 @@
+s = 'specs':use
+
+s:def! {
+  name = .iter.producer,
+  spec = s :protocol {
+    iter.next,
+  },
+}
+
+s:def! {
+  name = .iter.reducer,
+  spec = s :protocol {
+    iter.step,
+    iter.done,
+  },
+}
+
+s:def! {
+  name = .iter.transducer,
+  spec = s:protocol {
+    \|>,
+    iter.compose,
+    iter.apply,
+  },
+}
+
+#s:def! {
+  #name = .iter.compose,
+  #desc = "Return a new transducer which combines this into the next.",
+#}
+
+#s:def! {
+  #name = .iter.apply,
+  #desc = "Given a reducer, return a new reducer with the transducer applied.",
+#}
+
+td = .td:map do x:
+  x++ end |> .td:map do x:
+  x-- end |> .td:map do x:
+  x-- end
+
+res = [1,2,3]:transduce({}, \push, td)
+res:print

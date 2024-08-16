@@ -28,8 +28,6 @@ car.spec = s:def! {
   spec =  s:protocol Car
 }
 
-car.spec:print
-
 car.paint.spec = s:def! {
   name = .car.paint,
   help = "Paint the car the given color",
@@ -49,10 +47,9 @@ car.paint.spec = s:def! {
   }
 }
 
-car.paint.spec:print
-
 # Generate a mock car
-car.spec:spec.explain
+car.spec:spec.explain:print
+
 test_car = car.spec :spec.gen
 test_car:print
 
@@ -61,8 +58,6 @@ car.paint.spec:spec.gen(Car ?)
 
 # Test the mock coar with the mock implementation of car.paint
 test_car :car.paint('BLUE'):print # => 'BLUE'
-
-car.spec :spec.messages
 
 # Define a faulty car.paint specialization
 #\car.paint :def! ([Car?], do color

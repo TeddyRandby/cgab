@@ -1064,12 +1064,7 @@ static mv compile_expression(struct bc *bc);
 static mv compile_tuple(struct bc *bc, uint8_t want);
 
 static bool curr_prefix(struct bc *bc, enum prec_k prec) {
-  struct compile_rule rule = get_rule(curr_tok(bc));
-  bool has_prefix = rule.prefix != nullptr;
-  // bool has_infix = rule.infix != nullptr;
-  // bool result = has_prefix && (!has_infix || rule.prec > prec);
-  bool result = has_prefix;
-  return result;
+  return get_rule(curr_tok(bc)).prefix != nullptr;
 }
 
 static mv compile_mv_trim(struct bc *bc, mv v, uint8_t want) {
@@ -2174,6 +2169,26 @@ static mv compile_exp_prefixsend(struct bc *bc, mv lhs, bool assignable) {
   return compile_send_with_args(bc, name, lhs, rhs, t, true);
 }
 
+static mv compile_exp_continued(struct bc *bc, int prec, mv have) {
+  struct compile_rule rule;
+  bool assignable = prec <= kASSIGNMENT;
+
+  while (prec <= get_rule(curr_tok(bc)).prec) {
+    if (have.status < 0)
+      return MV_ERR;
+
+    if (eat_token(bc) < 0)
+      return MV_ERR;
+
+    rule = get_rule(prev_tok(bc));
+
+    if (rule.infix != nullptr)
+      have = rule.infix(bc, have, assignable);
+  }
+
+  return have;
+}
+
 static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
   struct compile_rule rule = get_rule(tok);
 
@@ -2185,22 +2200,7 @@ static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
 
   mv have = rule.prefix(bc, MV_ERR, assignable);
 
-  while (prec <= get_rule(curr_tok(bc)).prec) {
-    if (have.status < 0)
-      return MV_ERR;
-
-    if (eat_token(bc) < 0)
-      return MV_ERR;
-
-    rule = get_rule(prev_tok(bc));
-
-    if (rule.infix != nullptr) {
-      have = rule.infix(bc, have, assignable);
-      continue;
-    }
-  }
-
-  return have;
+  return compile_exp_continued(bc, prec, have);
 }
 
 static mv compile_expression_prec(struct bc *bc, enum prec_k prec) {
@@ -2531,11 +2531,7 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_SEND_PRIMITIVE_SEND_GENERIC_CONSTANT:
   case OP_SEND_PRIMITIVE_SEND_GENERIC_BLOCK:
   case OP_TAILSEND_PRIMITIVE_SEND_GENERIC_BLOCK:
-  case OP_SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_PRIMITIVE:
-  case OP_SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_NATIVE:
-  case OP_SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_CONSTANT:
-  case OP_SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_BLOCK:
-  case OP_TAILSEND_PRIMITIVE_SEND_GENERIC_PROPERTY_BLOCK:
+  case OP_SEND_PRIMITIVE_SEND_GENERIC_PROPERTY:
   case OP_TAILSEND_BLOCK:
   case OP_TAILSEND_PRIMITIVE_CALL_BLOCK:
   case OP_LOCALSEND_BLOCK:
@@ -2548,7 +2544,6 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_POPSTORE_LOCAL:
   case OP_LOAD_UPVALUE:
   case OP_INTERPOLATE:
-  case OP_SHIFT:
   case OP_LOAD_LOCAL:
     return dumpByteInstruction(stream, self, offset);
   case OP_NPOPSTORE_STORE_LOCAL:

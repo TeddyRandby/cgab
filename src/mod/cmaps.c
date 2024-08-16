@@ -34,6 +34,21 @@ a_gab_value *gab_lib_del(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
+a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
+  gab_value rec = gab_arg(0);
+  gab_value key = gab_number(gab_reclen(rec));
+  gab_value val = gab_arg(1);
+
+  if (gab_valkind(rec) != kGAB_RECORD)
+    return gab_pktypemismatch(gab, rec, kGAB_RECORD);
+
+  gab_vmpush(gab.vm, gab_recput(gab, rec, key, val));
+
+  return nullptr;
+}
+
+
 a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
@@ -73,7 +88,7 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
   if (len == 0)
     goto fin;
 
-  if (key == gab_sigil(gab, "next.init")) {
+  if (key == gab_sigil(gab, "seqs.init")) {
     gab_vmpush(gab.vm, gab_ok, gab_ukrecat(rec, 0), gab_uvrecat(rec, 0));
     return nullptr;
   }
@@ -96,19 +111,24 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   struct gab_spec_argt specs[] = {
       {
-          "put!",
+          "put",
           rec_t,
-          gab_snative(gab, "gab.put!", gab_lib_put),
+          gab_snative(gab, "gab.put", gab_lib_put),
       },
       {
-          "del!",
+          "del",
           rec_t,
-          gab_snative(gab, "gab.del!", gab_lib_del),
+          gab_snative(gab, "gab.del", gab_lib_del),
       },
       {
           "at",
           rec_t,
           gab_snative(gab, "gab.at", gab_lib_at),
+      },
+      {
+          "push",
+          rec_t,
+          gab_snative(gab, "gab.push", gab_lib_push),
       },
       {
           "next",

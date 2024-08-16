@@ -171,8 +171,8 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
       gab_value b = gab_uvrecat(messages, i);
       gab_value m = gab_ukrecat(messages, i);
 
-      if (gab_valkind(messages) != kGAB_RECORD)
-        return gab_pktypemismatch(gab, m, kGAB_RECORD);
+      if (gab_valkind(m) != kGAB_MESSAGE)
+        return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
 
       if (gab_egmsgput(gab, m, t, b) == gab_undefined)
         return gab_panic(gab, "$ already specializes for type $", m, t);

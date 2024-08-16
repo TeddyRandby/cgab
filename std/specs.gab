@@ -269,17 +269,14 @@ protocol.predicate = do protocol:
 # Return a predicate which returns true if the given value
 # has all the keys of the record
   \spec.fits? :def! ([pred], do value:
-    protocol :reduce ([.true, self, value], do acc, k:
-# If message doesn't specify for this value, then the spec doesn't fit
-      m = .gab.message k
-
+    protocol :reduce ([.true, self, value], do acc, m:
 # Check for a spec which corresponds to this message in the protocol
       acc:at!(0) :and acc :else do:
         m :has? value :then do:
-          k:spec:ok?:then do s:
-            s:spec.fits?(value :at! k)
+          m:sigil.into:spec:ok?:then do s:
+            s:spec.fits?(value :at! m)
           end
-        end :or [.false, self, value, k]
+        end :or [.false, self, value, m]
       end
     end)
   end)

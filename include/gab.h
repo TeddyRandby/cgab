@@ -350,7 +350,7 @@ typedef void (*gab_boxvisit_f)(struct gab_triple gab, gab_gcvisit_f visitor,
  * All gab objects inherit (as far as c can do inheritance) from this struct.
  */
 struct gab_obj {
-  void* chunk;
+  void *chunk;
   /**
    * @brief The number of live references to this object.
    *
@@ -1669,7 +1669,7 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
   case kGAB_BOX:
     return gab_boxtype(value);
   case kGAB_RECORD:
-    return GAB_VAL_TO_REC(value)->shape;
+    return gab_recshp(value);
   /* Otherwise, return the value for that kind */
   default:
     return gab_egtype(gab, k);
@@ -1733,7 +1733,7 @@ static inline gab_value gab_egtype(struct gab_eg *gab, enum gab_kind k) {
 }
 
 /**
- * @brief Check if a value's runtime type matches a given value.
+ * @brief Check if a value's runtime id matches a given value.
  *
  * @param eg The engine
  * @param value The value
@@ -1807,6 +1807,7 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
 
   if (gab_valkind(receiver) == kGAB_RECORD) {
     spec = gab_recat(receiver, (message));
+    type = gab_recshp(type);
     if (spec != gab_undefined)
       return (struct gab_egimpl_rest){type, spec, kGAB_IMPL_PROPERTY};
   }

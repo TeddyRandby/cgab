@@ -13,24 +13,6 @@ falsey_values = [.nil, .false, .none, .err]
 
 \is? :def! ([], do other: self:? == other end)
 
-\until :def! (['gab.block'], do f[]:
-  (f**)():until.branch (self, f)
-end)
-
-\until.recurse :def! (['gab.block'], do f:
-  (f**)():until.branch (self, f)
-end)
-
-\until.branch :def! (truthy_values, do blk, f:
-  blk
-end)
-
-\until.branch :def! (falsey_values, do blk, f:
-  blk()
-
-  blk:until.recurse(f)
-end)
-
 truthy_values :defmodule! {
   \and = do alt[]:
     alt**
@@ -102,53 +84,49 @@ end)
   end,
 }
 
-# Generic implementation for commands. - basically ignore.
-\doreduce :def! ([], do seq, acc, r:
-  # Apply the producer, resolving new values for the next step
-  ok, seq, xs[] = seq:seq.next
-  # Tailcall to the next step
-  ok:doreduce(seq, acc, r, xs)
-end)
-
 \doreduce :defcase! {
-  ## The sequence yielded a value
-  .ok = do seq, acc, r, xs:
+  ## The sequence continues
+  .ok = do seq.i, seq.v, acc, r, xs:
     # Apply the reducer
     acc, cmd = r:reduce.step(acc, xs**)
     # proceed to the next sep
-    cmd:doreduce(seq, acc, r)
+    cmd:doreduce(seq.i, seq.v, acc, r)
   end,
   ## The sequence is done
-  .none = do seq, acc, r:
+  .none = do seq.i, seq.v, acc, r:
     r:reduce.done(acc)
   end,
+  ## The reducer continues
+  .nil = do seq.i, seq.v, acc, r:
+    # Apply the producer, resolving new values for the next step
+    ok, seq.v, xs[] = seq.i :seqs.next seq.v
+    # Tailcall to the next step
+    ok:doreduce(seq.i, seq.v, acc, r, xs)
+  end,
   ## The reducer is done
-  .stop = do seq, acc, r:
+  .stop = do seq.i, seq.v, acc, r:
     r:reduce.done(acc)
   end,
 }
 
-\def.seq! :def! ([], do into:
+\def.seq! :def! ([], do next:
   [self] :defmodule! {
-    \seqs.into = into,
+    \seqs.next = next,
     \reduce = do acc, r:
-      seq = self:seqs.into
-      ok, seq, xs[] = seq:seq.next
-      ok:doreduce(seq, acc, r, xs)
+      ok, seq.v, xs[] = self :seqs.next .seqs.init
+      ok:doreduce(self, seq.v, acc, r, xs)
     end,
     \transduce = do acc, r, td:
-      self:reduce(acc, td r)
+      self:reduce(acc, td :iter.apply r)
     end,
     \tuples.into = do:
       self:reduce({}, \push)
     end,
     \each = do f:
-      self:transduce(.nil, \self, .td:map f)
+      self:transduce(.nil, \self, .map f)
     end,
   }
 end)
-
-\seq.next :def! (['gab.block'], do: (self, self()) end)
 
 # Implement the reducer protocol for blocks and messages
 ['gab.block'] :defmodule! {
@@ -169,25 +147,26 @@ end)
   end,
 }
 
-\dodef.transducer! :defcase! {
-  'gab.message' = do m:
-    td = self
-    m:def!([.td], do x, xs[]:
-      x:send(td, xs**)
-    end)
+['gab.block'] :defmodule! {
+  \|> = do td:
+    self :iter.compose td
   end,
-  'gab.block' = do m:
-    m:def!([.td], self)
+  \iter.compose = do second:
+    first = self;
+    do r:
+      second:iter.apply(first:iter.apply r)
+    end
+  end,
+  \iter.apply = do r:
+    self r
   end,
 }
 
 # A helper for declaring:
 #   - a transducer's constructor
 #     ie: (.td :map \++) constructs a mapping transducer, with \++
-#   - a generic implementation for streams
-#     ie: some_list :map (\values, 0, \+, \++)
-\def.transducer! :def!(['gab.message'], do td:
-  td:dodef.transducer!(self)
+\def.transducer! :def!(['gab.message'], do r:
+ self :def!([.td], r)
 end)
 
 \td.conditionally :defcase! {
@@ -208,26 +187,13 @@ end)
   end,
 }
 
-\td.map.into :defcase! {
-  'gab.message' = do:
-    f = self
-    do r:
-      do acc, x, xs[]:
-        r:reduce.step(acc, x:send(f, xs**))
-      end
-    end
-  end,
-  'gab.block' = do:
-    f = self
-    do r:
-      do acc, xs[]:
-        r:reduce.step(acc, f(xs**))
-      end
+\map :def.transducer! do f:
+  do r:
+    do acc, xs[]:
+      r:reduce.step(acc, f(xs**))
     end
   end
-}
-
-\map :def.transducer! \td.map.into
+end
 
 \td.filter.into :defcase! {
   'gab.message' = do:
@@ -273,79 +239,6 @@ end)
 
 \tap :def.transducer! \td.tap.into
 
-\interpose :def.transducer! do sep:
-  do r:
-    {
-      started = .false,
-      reduce.step = do acc, xs[]:
-        acc = self:started:td.conditionally (acc, [sep], r)
-        r:reduce.step(acc, xs**)
-      end,
-      reduce.done = do acc:
-        acc
-      end,
-    }
-  end
-end
-
-\take :def.transducer! do n:
-  do r:
-    {
-      n,
-      reduce.step = do acc, xs[]:
-        nxt = self:n(self:n - 1)
-        (self:n >= 0) :td.stop_conditionally (acc, xs, r)
-      end,
-      reduce.done = do acc:
-        acc
-      end,
-    }
-  end
-end
-
-\skip :def.transducer! do n:
-  do r:
-    {
-      n,
-      reduce.step = do acc, xs[]:
-        #self:n = self:n - 1
-        (self:n < 0) :td.conditionally (acc, xs, r)
-      end,
-      reduce.done = do acc:
-        acc
-      end,
-    }
-  end
-end
-
-\do_partition :defcase! {
-  .true = do acc, state, r:
-    n, xs = 0, state:d:slice(state:n)
-    state:d:clear!
-    r (acc, xs**)
-  end,
-  .false = do acc, state, r, xs:
-      acc
-  end,
-}
-
-\partition :def.transducer! do n:
-  do r:
-   {
-      n = 0,
-      d = .gab.tuple(n),
-      reduce.step = do acc, xs[]:
-        self:d:put!(self:n, xs**)
-        #self:n = self:n + 1
-        (self:n == n) :do_partition (acc, self, r)
-      end,
-      reduce.done = do acc:
-        (self:n > 0) :do_partition (acc, self, r)
-      end,
-    }
-  end
-end
-
 \compose :defcase! {
   .nil = do f:
     f
@@ -378,15 +271,9 @@ end)
   end,
 }
 
-maps.t :def.seq! do:
-  i = self
-  {
-    v = .next.init,
-    seq.next = do:
-      ok, nx, nv = i:next(self:v)
-      (ok, self:v(nx), nx, nv)
-    end
-  }
+maps.t :def.seq! do v:
+  ok, nk, nv = self:next v
+  (ok, nk, nk, nv)
 end
 
 \ :def! ([.int.between], do min, max:
@@ -413,11 +300,11 @@ end)
 \numbers.into :def!(falsey_values, 0)
 
 [numbers.t] :defmodule! {
-  \++ = do: self + 1 end,
-  \-- = do: self - 1 end,
-  \even? = do: (self % 2) == 0 end,
-  \odd? = do: self:even?:! end,
-  \pos? = do: self > 0 end,
-  \neg? = do: self < 0 end,
-  \numbers.into = do: self end,
+  ++ = do: self + 1 end,
+  -- = do: self - 1 end,
+  even? = do: (self % 2) == 0 end,
+  odd? = do: self:even?:! end,
+  pos? = do: self > 0 end,
+  neg? = do: self < 0 end,
+  numbers.into = do: self end,
 }
