@@ -1058,6 +1058,7 @@ static gab_value pop_ctxframe(struct bc *bc) {
 }
 
 struct compile_rule get_rule(gab_token k);
+static mv compile_exp_continued(struct bc *bc, int prec, mv lhs);
 static mv compile_exp_startwith(struct bc *bc, int prec, gab_token rule);
 static mv compile_expression_prec(struct bc *bc, enum prec_k prec);
 static mv compile_expression(struct bc *bc);
@@ -2146,6 +2147,15 @@ static mv compile_exp_msg(struct bc *bc, mv, bool) {
   return MV_OK;
 }
 
+static mv compile_exp_dot(struct bc *bc, mv lhs, bool assignable) {
+  enum prec_k prec = get_rule(prev_tok(bc)).prec;
+
+  if (match_and_eat_token(bc, TOKEN_NEWLINE) < 0)
+    return MV_ERR;
+
+  return compile_exp_continued(bc, prec, lhs);
+}
+
 static mv compile_exp_send(struct bc *bc, mv lhs, bool assignable) {
   return compile_send(bc, lhs, assignable);
 }
@@ -2223,6 +2233,7 @@ static mv compile_expression_prec(struct bc *bc, enum prec_k prec) {
 const struct compile_rule rules[] = {
     PREFIX(blk),             // DO
     NONE(),                  // END
+    INFIX(dot, PRIMARY),     // DOT
     NONE(),                  // COMMA
     NONE(),                  // EQUAL
     NONE(),                  // COLON

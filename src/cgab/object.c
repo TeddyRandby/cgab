@@ -86,68 +86,31 @@ int shape_dump_keys(FILE *stream, gab_value shape, int depth) {
   return bytes;
 }
 
-int map_dump_properties(FILE *stream, gab_value map, int depth) {
-  switch (gab_valkind(map)) {
-  case kGAB_RECORD: {
-    struct gab_obj_rec *m = GAB_VAL_TO_REC(map);
-    size_t len = __builtin_popcountl(m->mask);
+int rec_dump_properties(FILE *stream, gab_value rec, int depth) {
+  size_t len = gab_reclen(rec);
+  gab_value shp = gab_recshp(rec);
 
-    if (len == 0)
-      return fprintf(stream, " ~ ");
+  if (len == 0)
+    return fprintf(stream, " ~ ");
 
-    if (len > 8)
-      return fprintf(stream, " ... ");
+  if (len > 8)
+    return fprintf(stream, " ... ");
 
-    int32_t bytes = 0;
+  int32_t bytes = 0;
 
-    for (uint64_t i = 0; i < len; i++) {
-      if (m->vmask & ((size_t)1 << i)) {
-        bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
-        bytes += fprintf(stream, " = ");
-        bytes += gab_fvalinspect(stream, m->data[i * 2 + 1], depth - 1);
+  for (size_t i = 0; i < len; i++) {
+    gab_value key = gab_ushpat(shp, i);
+    gab_value val = gab_recat(rec, key);
 
-      } else {
-        bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
-      }
+    bytes += gab_fvalinspect(stream, key, depth - 1);
+    bytes += fprintf(stream, " = ");
+    bytes += gab_fvalinspect(stream, val, depth - 1);
 
-      if (i + 1 < len)
-        bytes += fprintf(stream, ", ");
-    }
-
-    return bytes;
+    if (i + 1 < len)
+      bytes += fprintf(stream, ", ");
   }
-  case kGAB_RECORDNODE: {
-    struct gab_obj_recnode *m = GAB_VAL_TO_RECNODE(map);
-    size_t len = __builtin_popcountl(m->mask);
 
-    if (len == 0)
-      return fprintf(stream, "~ ");
-
-    if (len > 8)
-      return fprintf(stream, "... ");
-
-    int32_t bytes = 0;
-
-    for (uint64_t i = 0; i < len; i++) {
-      if (m->vmask & ((size_t)1 << i)) {
-        bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
-        bytes += fprintf(stream, " = ");
-        bytes += gab_fvalinspect(stream, m->data[i * 2 + 1], depth - 1);
-
-      } else {
-        bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
-      }
-
-      if (i + 1 < len)
-        bytes += fprintf(stream, ", ");
-    }
-
-    return bytes;
-    break;
-  }
-  default:
-    assert(false && "NOT A REC");
-  }
+  return bytes;
 }
 
 int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
@@ -172,11 +135,11 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
            shape_dump_keys(stream, self, depth) + fprintf(stream, ">");
   }
   case kGAB_RECORD: {
-    return fprintf(stream, "{") + map_dump_properties(stream, self, depth) +
+    return fprintf(stream, "{") + rec_dump_properties(stream, self, depth) +
            fprintf(stream, "}");
   }
   case kGAB_RECORDNODE: {
-    return map_dump_properties(stream, self, depth);
+    return rec_dump_properties(stream, self, depth);
   }
   case kGAB_BOX: {
     struct gab_obj_box *con = GAB_VAL_TO_BOX(self);

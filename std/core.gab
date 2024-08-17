@@ -20,7 +20,7 @@ truthy_values :defmodule! {
   \then = do f:
     f()
   end,
-  \or = do :
+  \or = do:
     self
   end,
   \else = do: 
@@ -88,7 +88,7 @@ end)
   ## The sequence continues
   .ok = do seq.i, seq.v, acc, r, xs:
     # Apply the reducer
-    acc, cmd = r:reduce.step(acc, xs**)
+    cmd, r, acc = r:reduce.step(acc, xs**)
     # proceed to the next sep
     cmd:doreduce(seq.i, seq.v, acc, r)
   end,
@@ -97,7 +97,7 @@ end)
     r:reduce.done(acc)
   end,
   ## The reducer continues
-  .nil = do seq.i, seq.v, acc, r:
+  .next = do seq.i, seq.v, acc, r:
     # Apply the producer, resolving new values for the next step
     ok, seq.v, xs[] = seq.i :seqs.next seq.v
     # Tailcall to the next step
@@ -109,11 +109,10 @@ end)
   end,
 }
 
-\def.seq! :def! ([], do next:
+\def.seq! :def! ([], do:
   [self] :defmodule! {
-    \seqs.next = next,
     \reduce = do acc, r:
-      ok, seq.v, xs[] = self :seqs.next .seqs.init
+      ok, seq.v, xs[] = self :seqs.init
       ok:doreduce(self, seq.v, acc, r, xs)
     end,
     \transduce = do acc, r, td:
@@ -131,7 +130,7 @@ end)
 # Implement the reducer protocol for blocks and messages
 ['gab.block', 'gab.message'] :defmodule! {
   \reduce.step = do acc, xs[]:
-    self(acc, xs**)
+    (.next, self, self(acc, xs**))
   end,
   \reduce.done = do acc:
     acc
@@ -140,69 +139,103 @@ end)
 
 # Implement the transducer protocol for blocks
 ['gab.block'] :defmodule! {
-  \|> = do td:
+  |> = do td:
     self :iter.compose td
   end,
-  \iter.compose = do second:
+  iter.compose = do second:
     first = self
     do r:
-      second:iter.apply(first:iter.apply r)
+      first:iter.apply(second:iter.apply r)
     end
   end,
-  \iter.apply = do r:
+  iter.apply = do r:
     self r
   end,
 }
 
-# A helper for declaring:
-#   - a transducer's constructor
-#     ie: (.td :map \++) constructs a mapping transducer, with \++
-\def.transducer! :def!(['gab.message'], do r:
- self:def!([.td], r)
+\iter.apply :def!([.true], do x: x end)
+
+\def.iter! :def!(['gab.sigil'], do cx, init:
+  t = { [self], s, c, r }?
+
+  \ :def!([self], do xs[]:
+    { [self], s = init, c, r = cx(xs**) }
+  end)
+
+  [t] :defmodule! {
+    |> = do td:
+      self:iter.compose td
+    end,
+    iter.compose = do second:
+      self:iter.apply second
+    end,
+    iter.apply = do c:
+      self:c(self:c:iter.apply c)
+    end,
+    \ = do acc, xs:
+      self:r . (self:c, acc, xs, self:s)
+    end,
+    reduce.step = do acc, xs[]:
+      s, cmd, c, acc = self(acc, xs)
+      (cmd, self:c c :s s, acc)
+    end,
+    reduce.done = do acc:
+      self:c:reduce.done acc
+    end,
+  }
 end)
 
 \td.conditionally :defcase! {
-  .true = do acc, xs, r:
-    r:reduce.step (acc, xs**)
+  .true = do r, acc, xs, s:
+    (s, r:reduce.step (acc, xs**))
   end,
-  .false = do acc:
-    acc
+  .false = do r, acc, xs, s:
+    (s, .next, r, acc)
   end,
 }
 
 \td.stop_conditionally :defcase! {
-  .true = do acc, xs, r:
-    r:reduce.step(acc, xs**)
+  .true = do r, acc, xs, s:
+    (s, r:reduce.step(acc, xs**))
   end,
-  .false = do acc:
-    (acc, .stop)
+  .false = do r, acc, xs, s:
+    (s, .stop, r, acc)
   end,
 }
 
-\map :def.transducer! do f:
-  do r:
-    do acc, xs[]:
-      r:reduce.step(acc, f(xs**))
-    end
+.map :def.iter! do f: 
+  do r, acc, xs:
+    (.nil, r:reduce.step(acc, f(xs**)))
   end
 end
 
-\filter :def.transducer! do f:
-  do r:
-    do acc, xs[]:
-      f(xs**):td.conditionally(acc, xs, r)
-    end
+.filter :def.iter! do f:
+  do r, acc, xs:
+    f(xs**) .
+      :td.conditionally(r, acc, xs)
   end
 end
 
-\tap :def.transducer! do f:
-  do r:
-    do acc, xs[]:
-      f(xs**)
-      r:reduce.step(acc, xs**)
-    end
+.take :def.iter!(do n:
+  do r, acc, xs, nth:
+    (nth < n) .
+      :td.stop_conditionally(r, acc, xs, nth + 1)
+  end
+end, 0)
+
+
+.take_while :def.iter! do f:
+  do r, acc, xs:
+    f(xs**):td.stop_conditionally(r, acc, xs)
   end
 end
+
+.drop :def.iter!(do n:
+  do r, acc, xs, nth:
+    (nth >= n) .
+      :td.conditionally(r, acc, xs, nth + 1)
+  end
+end, 0)
 
 [maps.t] :defmodule! {
   \has? = do key:
@@ -213,10 +246,7 @@ end
   end,
 }
 
-maps.t :def.seq! do v:
-  ok, nk, nv = self:next v
-  (ok, nk, nk, nv)
-end
+maps.t :def.seq!
 
 \ :def! ([.int.between], do min, max:
   .float.between (min,max) :floor

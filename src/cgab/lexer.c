@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "core.h"
 
 bool is_whitespace(uint8_t c) { return c == ' ' || c == '\t' || c == '\f'; }
 
@@ -260,18 +261,27 @@ gab_token other(gab_lx *self) {
 
   case '\\':
     advance(self);
+
     if (can_start_operator(peek(self))) {
       advance(self);
-      if (operator(self) == TOKEN_OPERATOR)
+
+      enum gab_token t = operator(self);
+
+      if (t == TOKEN_OPERATOR)
         return TOKEN_MESSAGE;
+
+      return lexer_error(self, GAB_MALFORMED_TOKEN);
     }
 
     if (can_start_identifier(peek(self))) {
       advance(self);
 
-      if (identifier(self) == TOKEN_IDENTIFIER) {
+      enum gab_token t = identifier(self);
+
+      if (t == TOKEN_IDENTIFIER)
         return TOKEN_MESSAGE;
-      }
+
+      return lexer_error(self, GAB_MALFORMED_TOKEN);
     }
 
     return TOKEN_MESSAGE;
@@ -281,16 +291,24 @@ gab_token other(gab_lx *self) {
 
     if (can_start_operator(peek(self))) {
       advance(self);
-      if (operator(self) == TOKEN_OPERATOR)
+
+      enum gab_token t = operator(self);
+
+      if (t == TOKEN_OPERATOR)
         return TOKEN_SEND;
+
+      return lexer_error(self, GAB_MALFORMED_SEND);
     }
 
     if (can_start_identifier(peek(self))) {
       advance(self);
 
-      if (identifier(self) == TOKEN_IDENTIFIER) {
+      enum gab_token t = identifier(self);
+
+      if (t == TOKEN_IDENTIFIER)
         return TOKEN_SEND;
-      }
+
+      return lexer_error(self, GAB_MALFORMED_SEND);
     }
 
     return TOKEN_COLON;
@@ -298,11 +316,16 @@ gab_token other(gab_lx *self) {
   case '.': {
     advance(self);
 
-    if (can_continue_identifier(peek(self)))
-      if (identifier(self) == TOKEN_IDENTIFIER)
+    if (can_continue_identifier(peek(self))) {
+      enum gab_token t = identifier(self);
+
+      if (t == TOKEN_IDENTIFIER)
         return TOKEN_SIGIL;
 
-    return lexer_error(self, GAB_MALFORMED_TOKEN);
+      return lexer_error(self, GAB_MALFORMED_TOKEN);
+    }
+
+    return TOKEN_DOT;
   }
 
   default: {

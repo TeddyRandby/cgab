@@ -1,42 +1,14 @@
-s = 'specs':use
+iter = .map \++       .
+    |> .map \++       .
+    |> .filter \even? .
+    |> .drop 2
+      
 
-s:def! {
-  name = .iter.producer,
-  spec = s :protocol {
-    iter.next,
-  },
-}
+res = [1,2,3,4,5,6,7,8]:transduce({}, \push, iter)
+res:print
 
-s:def! {
-  name = .iter.reducer,
-  spec = s :protocol {
-    iter.step,
-    iter.done,
-  },
-}
+iter = .map \first        .
+    |> .take_while \even?
 
-s:def! {
-  name = .iter.transducer,
-  spec = s:protocol {
-    \|>,
-    iter.compose,
-    iter.apply,
-  },
-}
-
-#s:def! {
-  #name = .iter.compose,
-  #desc = "Return a new transducer which combines this into the next.",
-#}
-
-#s:def! {
-  #name = .iter.apply,
-  #desc = "Given a reducer, return a new reducer with the transducer applied.",
-#}
-
-td = .td:map do x: x++ end
-  |> .td:map do x: x-- end
-  |> .td:map do x: x-- end
-
-res = [1,2,3]:transduce({}, \push, td)
+res = [2,2,2,2,3,2,2,2]:transduce({}, \push, iter)
 res:print
