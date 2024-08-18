@@ -137,106 +137,6 @@ end)
   end,
 }
 
-# Implement the transducer protocol for blocks
-['gab.block'] :defmodule! {
-  |> = do td:
-    self :iter.compose td
-  end,
-  iter.compose = do second:
-    first = self
-    do r:
-      first:iter.apply(second:iter.apply r)
-    end
-  end,
-  iter.apply = do r:
-    self r
-  end,
-}
-
-\iter.apply :def!([.true], do x: x end)
-
-\def.iter! :def!(['gab.sigil'], do cx, init:
-  t = { [self], s, c, r }?
-
-  \ :def!([self], do xs[]:
-    { [self], s = init, c, r = cx(xs**) }
-  end)
-
-  [t] :defmodule! {
-    |> = do td:
-      self:iter.compose td
-    end,
-    iter.compose = do second:
-      self:iter.apply second
-    end,
-    iter.apply = do c:
-      self:c(self:c:iter.apply c)
-    end,
-    \ = do acc, xs:
-      self:r . (self:c, acc, xs, self:s)
-    end,
-    reduce.step = do acc, xs[]:
-      s, cmd, c, acc = self(acc, xs)
-      (cmd, self:c c :s s, acc)
-    end,
-    reduce.done = do acc:
-      self:c:reduce.done acc
-    end,
-  }
-end)
-
-\td.conditionally :defcase! {
-  .true = do r, acc, xs, s:
-    (s, r:reduce.step (acc, xs**))
-  end,
-  .false = do r, acc, xs, s:
-    (s, .next, r, acc)
-  end,
-}
-
-\td.stop_conditionally :defcase! {
-  .true = do r, acc, xs, s:
-    (s, r:reduce.step(acc, xs**))
-  end,
-  .false = do r, acc, xs, s:
-    (s, .stop, r, acc)
-  end,
-}
-
-.map :def.iter! do f: 
-  do r, acc, xs:
-    (.nil, r:reduce.step(acc, f(xs**)))
-  end
-end
-
-.filter :def.iter! do f:
-  do r, acc, xs:
-    f(xs**) .
-      :td.conditionally(r, acc, xs)
-  end
-end
-
-.take :def.iter!(do n:
-  do r, acc, xs, nth:
-    (nth < n) .
-      :td.stop_conditionally(r, acc, xs, nth + 1)
-  end
-end, 0)
-
-
-.take_while :def.iter! do f:
-  do r, acc, xs:
-    f(xs**):td.stop_conditionally(r, acc, xs)
-  end
-end
-
-.drop :def.iter!(do n:
-  do r, acc, xs, nth:
-    (nth >= n) .
-      :td.conditionally(r, acc, xs, nth + 1)
-  end
-end, 0)
-
 [maps.t] :defmodule! {
   \has? = do key:
     self:at key :ok?
@@ -252,6 +152,18 @@ maps.t :def.seq!
   .float.between (min,max) :floor
 end)
 
+
+range.t = { from, to }?
+
+range.t :def.seq!
+[range.t] :defmodule! {
+  seqs.init = do: (.ok, self:from) end,
+  seqs.next = do n:
+    nx = n + 1
+    .option(n < self:to, nx, nx)
+  end,
+}
+
 \range.into :defcase! {
   .nil = do to:
     { from = 0, to }
@@ -261,12 +173,14 @@ end)
   end,
 }
 
+
+
+
 \ :def! ([.range], do from, to:
   (to, from) :range.into
 end)
 
 \is_n? :def! ([], .false)
-
 \is_n? :def! ([numbers.t], .true)
 
 \numbers.into :def!(falsey_values, 0)

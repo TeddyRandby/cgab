@@ -210,9 +210,9 @@ static inline void dec_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
   if (obj->references == 0) {
     if (!GAB_OBJ_IS_NEW(obj))
       for_child_do(obj, dec_obj_ref, gab);
-  }
 
-  queue_destroy(gab, obj);
+    queue_destroy(gab, obj);
+  }
 }
 
 static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {

@@ -875,7 +875,7 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
                                       .len = 0,
                                   });
 
-  if (res->data[0] != gab_ok)
+  if (res == nullptr || res->data[0] != gab_ok)
     return gab_panic(gab, "Failed to load module");
 
   gab_negkeep(gab.eg, res->len - 1, res->data + 1);

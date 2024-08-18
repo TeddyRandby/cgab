@@ -1,15 +1,13 @@
+i = 'std/iter' :use
 spec.t = .spec
 
 explain_specs = do specs, separator:
   specs:transduce(
     '',
     \+,
-    .td:compose(
-      .td:map do _, s:
-        s:spec.explain
-      end,
-      .td:interpose separator,
-    ),
+    i:map \first .
+    |> i:map \spec.explain .
+    |> i:interpose separator,
   )
 end
 
@@ -17,12 +15,8 @@ explain_keys = do strings, separator:
   strings:transduce(
     '',
     \+,
-    .td:compose(
-      .td:map do name:
-        '{name}'
-      end,
-      .td:interpose separator,
-    ),
+    i:map do x: '{x}' end .
+    |> i:interpose separator,
   )
 end
 
@@ -174,8 +168,7 @@ and.predicate = do specs[]:
   \spec.gen :def! ([pred], do:
     start = specs :at! 0
 
-    td = .td:compose(
-      .td:map do:
+    iter = i:map do:
         value = start:spec.gen
 
         fits = specs:reduce(.true, do a, _, s:
@@ -183,13 +176,12 @@ and.predicate = do specs[]:
         end)
 
         (fits, value)
-      end,
-      .td:filter \self,
-      .td:map \first,
-      .td:take 1,
-    )
+      end               .
+      |> i:filter \self .
+      |> i:map \first   .
+      |> i:take 1
 
-    .range 100 :transduce(0, \first, td):assert!('Failed to generate a value for {specs}')
+    .range 100 :transduce(0, \first, iter):assert!('Failed to generate a value for {specs}')
   end)
 
   \spec.explain :def! ([pred], do:
@@ -278,16 +270,16 @@ protocol.predicate = do protocol:
           end
         end :or [.false, self, value, m]
       end
-    end)
+    end):**
   end)
 
-  gentd = .td :map do key:
+  genit = i:map do key:
     found = key:sigil.into:spec:unwrap!
     (key, found:spec.gen)
   end
 
   \spec.gen :def! ([pred], do:
-    protocol:transduce(protocol, \put!, gentd)
+    protocol:transduce(protocol, \put, genit)
   end)
 
   \spec.explain :def! ([pred], do:
@@ -319,7 +311,7 @@ map.predicate = do k_spec, v_spec:
   pred = 'predicate:map:{k_spec}:{v_spec}' :sigil.into
 
   \spec.fits?:def! ([pred], do value:
-    (value ? == .map) :and do:
+    (value ? == .map) :then do:
       (.false, self, value)
     end :or do:
       value :for(
@@ -435,7 +427,7 @@ block.predicate = do args, semantics:
     .range 100:transduce(do:
       input[]  = args:input:spec.gen
 
-      args:input:spec.fits?(input**) :and do:
+      args:input:spec.fits?(input**) :then do:
         output[] = block(input**)
         
         (.some, pred(input, output))
@@ -500,8 +492,7 @@ end)
         me = self
 
         args:input:spec.fits?(input**) :then do:
-          td = .td:compose (
-            .td:map do:
+          iter = i:map do:
               output[] = args:output:spec.gen
 
               args:output:spec.fits?(output**) :then do:
@@ -522,17 +513,16 @@ end)
                   end
                 end
               end
-            end,
-            .td:map \options.into,
-            .td:filter \ok?,
-            .td:map \first,
-            .td:take 1,
-          )
+            end                    .
+            |> i:map \options.into .
+            |> i:filter \ok?       .
+            |> i:map \first        .
+            |> i:take 1
 
           .range 100 :transduce(
             0,
             \first,
-            td,
+            iter,
           )
         end
       end)
@@ -541,19 +531,23 @@ end)
     end)
 
     \spec.check :def! ([pred], do:
-      .range 100 :reduce(.nil, do:
+      iter = i:map do:
         receiver = args:receiver:spec.gen
 
-        args:receiver:spec.fits?(receiver) :and do:
+        args:receiver:spec.fits?(receiver) :then do:
           input[]  = args:input:spec.gen
 
-          args:input:spec.fits?(input**) :and do:
-            output[] = args:message(receiver, input**)
+          args:input:spec.fits?(input**) :then do:
+            output[] = args:message .(receiver, input**)
             
-            self:spec.fits?(receiver, input, output)
+            args:output:spec.fits?(output**)
           end
         end
-      end)
+      end .
+      |> i:take 1 .
+      |> i:map  .option
+
+      .range 100 :transduce(.nil, \self, iter)
     end)
 
     \spec.explain :def! ([pred], do:
@@ -615,10 +609,10 @@ end)
 # User types can define their own version of \spec.modify! If this
 # Doesn't satisfy their use case.
 \spec.modify! :def! (['gab.record'], do new_value:
-  tapper = .td :tap do acc, k:
+  tapper = i:tap do acc, k:
     # If new_value has a corresponding value, modify self. Else, pass
-    v = new_value:at(k):unwrap:then do other:
-      acc:put!(k, other)
+    new_value:at(k):unwrap:then do other:
+      acc:put(k, other)
     end
   end
 

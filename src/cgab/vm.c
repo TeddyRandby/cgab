@@ -184,6 +184,7 @@ static handler handlers[] = {
                                                                                \
     operation_type val = gab_valintob(PEEK_N(have));                           \
                                                                                \
+    DROP_N(have);                                                              \
     PUSH(value_type(operation val));                                           \
                                                                                \
     SET_VAR(1);                                                                \
@@ -204,9 +205,10 @@ static handler handlers[] = {
     ERROR_GUARD_ISB(PEEK_N(have));                                             \
     ERROR_GUARD_ISB(PEEK_N(have - 1));                                         \
                                                                                \
-    operation_type val_b = gab_valintob(POP());                                \
-    operation_type val_a = gab_valintob(POP());                                \
+    operation_type val_b = gab_valintob(PEEK_N(have));                         \
+    operation_type val_a = gab_valintob(PEEK_N(have - 1));                     \
                                                                                \
+    DROP_N(have);                                                              \
     PUSH(value_type(val_a operation val_b));                                   \
                                                                                \
     SET_VAR(1);                                                                \
@@ -402,6 +404,18 @@ a_gab_value *vm_error(struct gab_triple gab, enum gab_status s, const char *fmt,
 a_gab_value *gab_panic(struct gab_triple gab, const char *fmt, ...) {
   va_list va;
   va_start(va, fmt);
+
+  if (!gab.vm) {
+    gab_vfpanic(gab, stderr, va,
+                (struct gab_err_argt){
+                    .status = GAB_PANIC,
+                    .note_fmt = fmt,
+                });
+
+    va_end(va);
+
+    return nullptr;
+  }
 
   a_gab_value *res = vvm_error(gab, GAB_PANIC, fmt, va);
 
