@@ -10,6 +10,7 @@ falsey_values = [.nil, .false, .none, .err]
 \self :def! ([], do: self end)
 \first :def! ([], do x: x end)
 \second :def! ([], do _, x: x end)
+\all :def! ([], do xs[]: xs end)
 
 \is? :def! ([], do other: self:? == other end)
 

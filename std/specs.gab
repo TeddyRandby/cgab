@@ -544,10 +544,15 @@ end)
           end
         end
       end .
-      |> i:take 1 .
-      |> i:map  .option
+      |> i:filter do valid?, spec, value, path:
+        valid?:!
+      end .
+      |> i:map do valid?, spec, value, path:
+        .option(valid?:!, spec, value, path)
+      end .
+      |> i:take 1
 
-      .range 100 :transduce(.nil, \self, iter)
+      .range 100 :transduce([], \all, iter) **
     end)
 
     \spec.explain :def! ([pred], do:

@@ -617,7 +617,10 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
     default:                                                                   \
       DROP_N((have) - 1);                                                      \
     case 2: {                                                                  \
-      gab_value value = gab_recput(GAB(), r, m, POP());                        \
+      gab_gclock(GC());                                                        \
+      gab_value value = gab_recput(GAB(), r, m, PEEK());                       \
+      gab_gcunlock(GC());                                                      \
+      DROP();                                                                  \
       PEEK() = value;                                                          \
       break;                                                                   \
     }                                                                          \
