@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <threads.h>
 
 #include "core.h"
 
@@ -125,6 +126,10 @@ typedef uint64_t gab_value;
 #include "array.h"
 
 #define T gab_value
+#include "vector.h"
+
+#define T a_gab_value *
+#define NAME a_gab_value
 #include "vector.h"
 
 enum gab_kind {
@@ -301,9 +306,8 @@ struct gab_src;
 
 struct gab_triple {
   struct gab_eg *eg;
-  struct gab_gc *gc;
-  struct gab_vm *vm;
-  int flags;
+  struct gab_fb *fb;
+  int32_t flags;
 };
 
 struct gab_obj;
@@ -1683,6 +1687,55 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
 #define EQUAL(a, b) (a == b)
 #include "dict.h"
 
+#define GAB_NWORKERS 8
+
+/*
+ * A lightweight green-thread / coroutine / fiber.
+ *
+ * Execution can be paused and resumed.
+ */
+struct gab_fb {
+  gab_value messages;
+
+  struct gab_vm {
+    uint8_t *ip;
+
+    gab_value *sp, *fp;
+
+    gab_value sb[cGAB_STACK_MAX];
+  } vm;
+};
+
+/*
+ * A worker which runs gab code. This corresponds to an OS thread.
+ */
+struct gab_wk {
+  thrd_t td;
+
+  size_t pid;
+
+  struct gab_fb *fiber;
+};
+
+#define T struct gab_obj *
+#define NAME gab_obj
+#include "vector.h"
+
+#define NAME gab_obj
+#define K struct gab_obj *
+#define V size_t
+#define HASH(a) ((intptr_t)a)
+#define EQUAL(a, b) (a == b)
+#define DEF_V (UINT8_MAX)
+#include "dict.h"
+
+enum {
+  kGAB_BUF_STK = 0,
+  kGAB_BUF_INC = 1,
+  kGAB_BUF_DEC = 2,
+  kGAB_NBUF = 3,
+};
+
 /**
  * @class The 'engine'. Stores the long-lived data
  * needed for the gab environment.
@@ -1694,6 +1747,18 @@ struct gab_eg {
 
   gab_value types[kGAB_NKINDS];
 
+  struct gab_wk workers[GAB_NWORKERS + 1];
+
+  struct gab_gc {
+    int locked;
+    size_t epoch;
+    d_gab_obj overflow_rc;
+    v_gab_obj dead;
+
+    size_t buffer_len[kGAB_NBUF][2][GAB_NWORKERS];
+    struct gab_obj *buffers[kGAB_NBUF][2][GAB_NWORKERS][cGAB_GC_DEC_BUFF_MAX];
+  } gc;
+
   gab_value messages;
 
   gab_value shapes;
@@ -1703,6 +1768,9 @@ struct gab_eg {
   d_gab_src sources;
 
   d_gab_modules modules;
+
+  mtx_t queue_mtx;
+  v_a_gab_value queue;
 
   void *(*os_dynopen)(const char *path);
 
@@ -1714,6 +1782,10 @@ struct gab_eg {
 
 static inline gab_value gab_egtype(struct gab_eg *gab, enum gab_kind k) {
   return gab->types[k];
+}
+
+static inline struct gab_vm *gab_vm(struct gab_triple gab) {
+  return &gab.fb->vm;
 }
 
 /**
@@ -1771,7 +1843,7 @@ static inline gab_value gab_egmsgput(struct gab_triple gab, gab_value msg,
                                      gab_value receiver, gab_value spec) {
   gab_value specs = gab_recat(gab.eg->messages, msg);
 
-  gab_gclock(gab.gc);
+  gab_gclock(&gab.eg->gc);
 
   if (specs == gab_undefined) {
     specs = gab_record(gab, 0, 0, &specs, &specs);
@@ -1780,7 +1852,7 @@ static inline gab_value gab_egmsgput(struct gab_triple gab, gab_value msg,
   gab_value newspecs = gab_recput(gab, specs, receiver, spec);
   gab.eg->messages = gab_recput(gab, gab.eg->messages, msg, newspecs);
 
-  gab_gcunlock(gab.gc);
+  gab_gcunlock(&gab.eg->gc);
   return msg;
 }
 

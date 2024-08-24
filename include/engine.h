@@ -3,6 +3,7 @@
 
 #include "core.h"
 #include "gab.h"
+#include <threads.h>
 
 #ifdef GAB_STATUS_NAMES_IMPL
 static const char *gab_status_names[] = {
@@ -22,26 +23,21 @@ static const char *gab_token_names[] = {
 #undef TOKEN_NAMES
 #endif
 
-#define T struct gab_obj *
-#define NAME gab_obj
-#include "vector.h"
-
-#define NAME gab_obj
-#define K struct gab_obj *
-#define V size_t
-#define HASH(a) ((intptr_t)a)
-#define EQUAL(a, b) (a == b)
-#define DEF_V (UINT8_MAX)
-#include "dict.h"
-
-struct gab_gc {
-  int locked;
-  d_gab_obj overflow_rc;
-  v_gab_obj increments, decrements, dead;
-};
 
 void gab_gccreate(struct gab_gc *gc);
+
 void gab_gcdestroy(struct gab_gc *gc);
+
+/*
+ * Check if collection is necessary, and unblock the collection
+ * thread if necessary
+ */
+void gab_gctrigger(struct gab_gc *gc);
+
+/*
+ * Begin the next epoch for the given pid
+ */
+void gab_gcepochnext(struct gab_triple gab, size_t pid);
 
 typedef void (*gab_gc_visitor)(struct gab_triple gab, struct gab_obj *obj);
 
@@ -50,18 +46,6 @@ enum variable_flag {
   fLOCAL_CAPTURED = 1 << 1,
   fLOCAL_INITIALIZED = 1 << 2,
   fLOCAL_REST = 1 << 3,
-};
-
-/*
- * The gab virtual machine. This has all the state needed for executing
- * bytecode.
- */
-struct gab_vm {
-  uint8_t *ip;
-
-  gab_value *sp, *fp;
-
-  gab_value sb[cGAB_STACK_MAX];
 };
 
 static inline void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj,

@@ -62,8 +62,8 @@ static handler handlers[] = {
 */
 #define GAB() (__gab)
 #define EG() (GAB().eg)
-#define GC() (GAB().gc)
-#define VM() (GAB().vm)
+#define GC() (&GAB().eg->gc)
+#define VM() (gab_vm(GAB()))
 #define SET_BLOCK(b) (FB()[-3] = (uintptr_t)(b));
 #define BLOCK() ((struct gab_obj_block *)(uintptr_t)FB()[-3])
 #define BLOCK_PROTO() (GAB_VAL_TO_PROTOTYPE(BLOCK()->p))
@@ -350,16 +350,17 @@ struct gab_err_argt vm_frame_build_err(struct gab_triple gab,
 
 a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
                        const char *fmt, va_list va) {
-  gab_value *f = gab.vm->fp;
-  uint8_t *ip = gab.vm->ip;
+  struct gab_vm* vm = gab_vm(gab);
+  gab_value *f = vm->fp;
+  uint8_t *ip = vm->ip;
 
   struct gab_triple dont_exit = gab;
   dont_exit.flags &= ~fGAB_ERR_EXIT;
 
-  while (frame_parent(f) > gab.vm->sb) {
+  while (frame_parent(f) > vm->sb) {
     gab_vfpanic(dont_exit, stderr, nullptr,
                 vm_frame_build_err(gab, frame_block(f), ip,
-                                   frame_parent(f) > gab.vm->sb, GAB_NONE, ""));
+                                   frame_parent(f) > vm->sb, GAB_NONE, ""));
 
     ip = frame_ip(f);
     f = frame_parent(f);
@@ -373,7 +374,7 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
       gab_box(gab,
               (struct gab_box_argt){
                   .size = sizeof(struct gab_vm *),
-                  .data = &gab.vm,
+                  .data = vm,
                   .type = gab_string(gab, "gab.vm"),
               }),
   };
@@ -405,7 +406,7 @@ a_gab_value *gab_panic(struct gab_triple gab, const char *fmt, ...) {
   va_list va;
   va_start(va, fmt);
 
-  if (!gab.vm) {
+  if (!gab.fb) {
     gab_vfpanic(gab, stderr, va,
                 (struct gab_err_argt){
                     .status = GAB_PANIC,
@@ -717,14 +718,15 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   if (gab.flags & fGAB_BUILD_CHECK)
     return nullptr;
 
-  gab.vm = malloc(sizeof(struct gab_vm));
-  gab_vmcreate(gab.vm, args.len, args.argv);
+  struct gab_vm* vm = gab_vm(gab);
 
-  *gab.vm->sp++ = args.main;
+  gab_vmcreate(vm, args.len, args.argv);
+
+  *vm->sp++ = args.main;
   for (uint8_t i = 0; i < args.len; i++)
-    *gab.vm->sp++ = args.argv[i];
+    *vm->sp++ = args.argv[i];
 
-  *gab.vm->sp = args.len;
+  *vm->sp = args.len;
 
   if (gab_valkind(args.main) != kGAB_BLOCK)
     return nullptr;
@@ -735,11 +737,11 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   uint8_t *ip = p->src->bytecode.data + p->offset;
   uint8_t op = *ip++;
 
-  gab.vm->fp[-1] = (uintptr_t)gab.vm->sb - 1;
-  gab.vm->fp[-2] = 0;
-  gab.vm->fp[-3] = (uintptr_t)b;
+  vm->fp[-1] = (uintptr_t)vm->sb - 1;
+  vm->fp[-2] = 0;
+  vm->fp[-3] = (uintptr_t)b;
 
-  return handlers[op](gab, ip, p->src->constants.data, gab.vm->fp, gab.vm->sp);
+  return handlers[op](gab, ip, p->src->constants.data, vm->fp, vm->sp);
 }
 
 #define ERROR_GUARD_KIND(value, kind)                                          \
