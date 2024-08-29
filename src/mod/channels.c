@@ -99,7 +99,7 @@ a_gab_value *gab_lib_channel(struct gab_triple gab, size_t argc,
                              gab_value argv[argc]) {
   gab_value c = channel_create(gab);
   channel_iref(c);
-  gab_vmpush(gab.vm, c);
+  gab_vmpush(gab_vm(gab), c);
   return nullptr;
 }
 
@@ -111,7 +111,7 @@ a_gab_value *gab_lib_send(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib_empty(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   bool res = channel_isempty(gab_arg(0));
-  gab_vmpush(gab.vm, gab_bool(res));
+  gab_vmpush(gab_vm(gab), gab_bool(res));
   return nullptr;
 }
 
@@ -119,9 +119,9 @@ a_gab_value *gab_lib_recv(struct gab_triple gab, size_t argc,
                           gab_value argv[argc]) {
   gab_value v = channel_recv(gab, argv[0]);
   if (v == gab_undefined) {
-    gab_vmpush(gab.vm, gab_none);
+    gab_vmpush(gab_vm(gab), gab_none);
   } else {
-    gab_vmpush(gab.vm, gab_ok, v);
+    gab_vmpush(gab_vm(gab), gab_ok, v);
   }
 
   return nullptr;

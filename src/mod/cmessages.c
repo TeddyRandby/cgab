@@ -10,7 +10,7 @@ a_gab_value *gab_lib_message(struct gab_triple gab, size_t argc,
   if (gab_valkind(name) != kGAB_STRING)
     return gab_pktypemismatch(gab, name, kGAB_STRING);
 
-  gab_vmpush(gab.vm, gab_strtomsg(name));
+  gab_vmpush(gab_vm(gab), gab_strtomsg(name));
   return nullptr;
 }
 
@@ -21,7 +21,7 @@ a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
 
     struct gab_egimpl_rest res = gab_egimpl(gab.eg, argv[0], argv[1]);
 
-    gab_vmpush(gab.vm, gab_bool(res.status));
+    gab_vmpush(gab_vm(gab), gab_bool(res.status));
     return nullptr;
   }
   default:
@@ -43,7 +43,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
     values[1] = res.spec;
   }
 
-  gab_nvmpush(gab.vm, 2, values);
+  gab_nvmpush(gab_vm(gab), 2, values);
   return nullptr;
 }
 
@@ -51,7 +51,7 @@ a_gab_value *gab_lib_sigil_into(struct gab_triple gab, size_t argc,
                           gab_value argv[static argc]) {
   gab_value m = gab_arg(0);
 
-  gab_vmpush(gab.vm, gab_strtosig(gab_msgtostr(m)));
+  gab_vmpush(gab_vm(gab), gab_strtosig(gab_msgtostr(m)));
 
   return nullptr;
 }
@@ -60,7 +60,7 @@ a_gab_value *gab_lib_string_into(struct gab_triple gab, size_t argc,
                           gab_value argv[static argc]) {
   gab_value m = gab_arg(0);
 
-  gab_vmpush(gab.vm, gab_msgtostr(m));
+  gab_vmpush(gab_vm(gab), gab_msgtostr(m));
 
   return nullptr;
 }

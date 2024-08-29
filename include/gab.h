@@ -128,8 +128,8 @@ typedef uint64_t gab_value;
 #define T gab_value
 #include "vector.h"
 
-#define T a_gab_value *
-#define NAME a_gab_value
+#define T struct gab_fb *
+#define NAME gab_fb
 #include "vector.h"
 
 enum gab_kind {
@@ -308,6 +308,7 @@ struct gab_triple {
   struct gab_eg *eg;
   struct gab_fb *fb;
   int32_t flags;
+  int32_t wkid;
 };
 
 struct gab_obj;
@@ -471,6 +472,9 @@ int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs);
  */
 int gab_afprintf(FILE *stream, const char *fmt, size_t argc,
                  gab_value argv[argc]);
+
+struct gab_fb *gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
+                         gab_value argv[argc]);
 
 /**
  * @brief Give the engine ownership of the values.
@@ -724,14 +728,26 @@ struct gab_run_argt {
 };
 
 /**
- * @brief Call a block
+ * @brief Call a block. Under the hood, this creates and queues a fiber, then
+ * block the caller until that fiber is completed.
  * @see struct gab_run_argt
  *
  * @param  gab The triple.
  * @param args The arguments.
- * @return A heap-allocated slice of values returned by the block.
+ * @return A heap-allocated slice of values returned by the fiber.
  */
 a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args);
+
+/**
+ * @brief Asynchronously call a block. This will create and queue a fiber,
+ * returning a handle to the fiber.
+ * @see struct gab_run_argt
+ *
+ * @param  gab The triple.
+ * @param args The arguments.
+ * @return The fiber that was queued.
+ */
+struct gab_fb *gab_arun(struct gab_triple gab, struct gab_run_argt args);
 
 /**
  * @class gab_exec_argt
@@ -776,6 +792,19 @@ struct gab_exec_argt {
  * @return A heap-allocated slice of values returned by the block.
  */
 a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args);
+
+/**
+ * @brief Compile a source string to a block and run it asynchronously.
+ * This is equivalent to calling @link gab_cmpl and then @link gab_arun on the
+ * result.
+ *
+ * @see struct gab_exec_argt
+ *
+ * @param gab The triple.
+ * @param args The arguments.
+ * @return A heap-allocated slice of values returned by the block.
+ */
+struct gab_fb *gab_aexec(struct gab_triple gab, struct gab_exec_argt args);
 
 /**
  * @brief Arguments and options for an interactive REPL.
@@ -1697,6 +1726,14 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
 struct gab_fb {
   gab_value messages;
 
+  enum {
+    kGAB_FIBER_WAITING,
+    kGAB_FIBER_RUNNING,
+    kGAB_FIBER_DONE,
+  } status;
+
+  a_gab_value* res;
+
   struct gab_vm {
     uint8_t *ip;
 
@@ -1705,6 +1742,14 @@ struct gab_fb {
     gab_value sb[cGAB_STACK_MAX];
   } vm;
 };
+
+/**
+ * @brief Block the caller until this fiber is completed, then return the
+ * result.
+ * @param fiber The fiber
+ * @return A heap-allocated slice of values returned by the fiber.
+ */
+a_gab_value *gab_fibawait(struct gab_fb *fiber);
 
 /*
  * A worker which runs gab code. This corresponds to an OS thread.
@@ -1747,9 +1792,12 @@ struct gab_eg {
 
   gab_value types[kGAB_NKINDS];
 
+  bool alive;
+  _Atomic uint8_t nworkers;
   struct gab_wk workers[GAB_NWORKERS + 1];
 
   struct gab_gc {
+    _Atomic int8_t schedule;
     int locked;
     size_t epoch;
     d_gab_obj overflow_rc;
@@ -1760,17 +1808,14 @@ struct gab_eg {
   } gc;
 
   gab_value messages;
-
   gab_value shapes;
 
   d_strings strings;
-
   d_gab_src sources;
-
   d_gab_modules modules;
 
   mtx_t queue_mtx;
-  v_a_gab_value queue;
+  v_gab_fb queue;
 
   void *(*os_dynopen)(const char *path);
 
@@ -1782,6 +1827,10 @@ struct gab_eg {
 
 static inline gab_value gab_egtype(struct gab_eg *gab, enum gab_kind k) {
   return gab->types[k];
+}
+
+static inline struct gab_gc *gab_gc(struct gab_triple gab) {
+  return &gab.eg->gc;
 }
 
 static inline struct gab_vm *gab_vm(struct gab_triple gab) {

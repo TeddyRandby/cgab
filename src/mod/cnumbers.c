@@ -94,7 +94,7 @@ a_gab_value *gab_lib_between(struct gab_triple gab, size_t argc,
 
   gab_value res = gab_number(num);
 
-  gab_vmpush(gab.vm, res);
+  gab_vmpush(gab_vm(gab), res);
   return nullptr;
 }
 
@@ -108,7 +108,7 @@ a_gab_value *gab_lib_floor(struct gab_triple gab, size_t argc,
 
   gab_value res = gab_number(int_num + (float_num < 0));
 
-  gab_vmpush(gab.vm, res);
+  gab_vmpush(gab_vm(gab), res);
   return nullptr;
 }
 
@@ -118,7 +118,7 @@ a_gab_value *gab_lib_to_n(struct gab_triple gab, size_t argc,
 
   gab_value res = gab_number(strtod(str, nullptr));
 
-  gab_vmpush(gab.vm, res);
+  gab_vmpush(gab_vm(gab), res);
   return nullptr;
 };
 

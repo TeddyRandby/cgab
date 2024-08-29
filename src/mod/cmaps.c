@@ -12,9 +12,9 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
   gab_value val = gab_recat(rec, key);
 
   if (val == gab_undefined)
-    gab_vmpush(gab.vm, gab_none);
+    gab_vmpush(gab_vm(gab), gab_none);
   else
-    gab_vmpush(gab.vm, gab_ok, val);
+    gab_vmpush(gab_vm(gab), gab_ok, val);
 
   return nullptr;
 }
@@ -29,7 +29,7 @@ a_gab_value *gab_lib_del(struct gab_triple gab, size_t argc,
 
   gab_value new_rec = gab_recdel(gab, rec, key);
 
-  gab_vmpush(gab.vm, new_rec);
+  gab_vmpush(gab_vm(gab), new_rec);
 
   return nullptr;
 }
@@ -43,7 +43,7 @@ a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
   if (gab_valkind(rec) != kGAB_RECORD)
     return gab_pktypemismatch(gab, rec, kGAB_RECORD);
 
-  gab_vmpush(gab.vm, gab_recput(gab, rec, key, val));
+  gab_vmpush(gab_vm(gab), gab_recput(gab, rec, key, val));
 
   return nullptr;
 }
@@ -57,7 +57,7 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
   if (gab_valkind(rec) != kGAB_RECORD)
     return gab_pktypemismatch(gab, rec, kGAB_RECORD);
 
-  gab_vmpush(gab.vm, gab_recput(gab, rec, key, val));
+  gab_vmpush(gab_vm(gab), gab_recput(gab, rec, key, val));
 
   return nullptr;
 }
@@ -69,7 +69,7 @@ a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
   if (gab_valkind(rec) != kGAB_RECORD)
     return gab_pktypemismatch(gab, rec, kGAB_RECORD);
 
-  gab_vmpush(gab.vm, gab_number(gab_reclen(rec)));
+  gab_vmpush(gab_vm(gab), gab_number(gab_reclen(rec)));
 
   return nullptr;
 }
@@ -84,14 +84,14 @@ a_gab_value *gab_lib_init(struct gab_triple gab, size_t argc,
   size_t len = gab_reclen(rec);
 
   if (len == 0) {
-    gab_vmpush(gab.vm, gab_none);
+    gab_vmpush(gab_vm(gab), gab_none);
     return nullptr;
   }
 
   gab_value key = gab_ukrecat(rec, 0);
   gab_value val = gab_uvrecat(rec, 0);
 
-  gab_vmpush(gab.vm, gab_ok, key, key, val);
+  gab_vmpush(gab_vm(gab), gab_ok, key, key, val);
   return nullptr;
 }
 
@@ -116,11 +116,11 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
   gab_value key = gab_ukrecat(rec, i + 1);
   gab_value val = gab_uvrecat(rec, i + 1);
 
-  gab_vmpush(gab.vm, gab_ok, key, key, val);
+  gab_vmpush(gab_vm(gab), gab_ok, key, key, val);
   return nullptr;
 
 fin:
-  gab_vmpush(gab.vm, gab_none);
+  gab_vmpush(gab_vm(gab), gab_none);
   return nullptr;
 }
 

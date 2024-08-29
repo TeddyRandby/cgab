@@ -46,6 +46,8 @@ static handler handlers[] = {
   ({                                                                           \
     uint8_t o = (op);                                                          \
     LOG(o)                                                                     \
+    if (EG()->gc.schedule == GAB().wkid)                                       \
+      gab_gcepochnext(GAB(), GAB().wkid);                                      \
     return handlers[o](DISPATCH_ARGS());                                       \
   })
 
@@ -350,7 +352,7 @@ struct gab_err_argt vm_frame_build_err(struct gab_triple gab,
 
 a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
                        const char *fmt, va_list va) {
-  struct gab_vm* vm = gab_vm(gab);
+  struct gab_vm *vm = gab_vm(gab);
   gab_value *f = vm->fp;
   uint8_t *ip = vm->ip;
 
@@ -432,20 +434,55 @@ a_gab_value *gab_ptypemismatch(struct gab_triple gab, gab_value found,
                   gab_valtype(gab.eg, found), texpected);
 }
 
-void gab_vmcreate(struct gab_vm *self, size_t argc, gab_value argv[argc]) {
-  self->fp = self->sb + 3; // Is 4 too many?
-  self->sp = self->sb + 3;
+struct gab_fb *gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
+                         gab_value argv[argc]) {
+  if (gab_valkind(main) != kGAB_BLOCK)
+    return nullptr;
+
+  struct gab_obj_block *b = GAB_VAL_TO_BLOCK(main);
+  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
+
+  struct gab_fb *self = malloc(sizeof(struct gab_fb));
+  self->res = nullptr;
+  self->status = kGAB_FIBER_WAITING;
+
+  self->messages = gab.eg->messages;
+  self->vm.fp = self->vm.sb + 3; // Is 4 too many?
+  self->vm.sp = self->vm.sb + 3;
+
+  // Setup main and args
+  *self->vm.sp++ = main;
+  for (uint8_t i = 0; i < argc; i++)
+    *self->vm.sp++ = argv[i];
+
+  *self->vm.sp = argc;
+
+  // Setup the return frame
+  self->vm.fp[-1] = (uintptr_t)self->vm.sb - 1;
+  self->vm.fp[-2] = 0;
+  self->vm.fp[-3] = (uintptr_t)b;
+
+  // Setup ip
+  self->vm.ip = p->src->bytecode.data + p->offset;
+
+  return self;
 }
 
-void gab_vmdestroy(struct gab_eg *gab, struct gab_vm *self) {}
+void dumpstack(struct gab_vm *vm) {
+  gab_value *ptr = vm->sp;
+  while (ptr > vm->sb) {
+    printf("\t| %V\n", *ptr);
+    ptr--;
+  }
+}
 
 gab_value gab_vmframe(struct gab_triple gab, uint64_t depth) {
-  // uint64_t frame_count = gab.vm->fp - gab.vm->sb;
+  // uint64_t frame_count = gab_vm(gab)->fp - gab_vm(gab)->sb;
   //
   // if (depth >= frame_count)
   return gab_undefined;
 
-  // struct gab_vm_frame *f = gab.vm->fp - depth;
+  // struct gab_vm_frame *f = gab_vm(gab)->fp - depth;
   //
   // const char *keys[] = {
   //     "line",
@@ -706,10 +743,22 @@ a_gab_value *ok(OP_HANDLER_ARGS) {
 
   VM()->sp = VM()->sb;
 
-  gab_vmdestroy(EG(), VM());
-  free(VM());
-
   return results;
+}
+
+a_gab_value *gab_vmexec(struct gab_triple gab, struct gab_fb *fiber) {
+  fiber->status = kGAB_FIBER_RUNNING;
+  gab.fb = fiber;
+
+  struct gab_vm *vm = gab_vm(gab);
+
+  struct gab_obj_block *b = GAB_VAL_TO_BLOCK(vm->fp[-3]);
+  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
+
+  uint8_t *ip = vm->ip;
+  uint8_t op = *ip++;
+
+  return handlers[op](gab, ip, p->src->constants.data, vm->fp, vm->sp);
 }
 
 a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
@@ -718,30 +767,15 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   if (gab.flags & fGAB_BUILD_CHECK)
     return nullptr;
 
-  struct gab_vm* vm = gab_vm(gab);
+  struct gab_fb *fb = gab_fiber(gab, args.main, args.len, args.argv);
 
-  gab_vmcreate(vm, args.len, args.argv);
+  gab_egqpush(gab.eg, fb);
 
-  *vm->sp++ = args.main;
-  for (uint8_t i = 0; i < args.len; i++)
-    *vm->sp++ = args.argv[i];
+  a_gab_value *res = gab_fibawait(fb);
 
-  *vm->sp = args.len;
+  free(fb);
 
-  if (gab_valkind(args.main) != kGAB_BLOCK)
-    return nullptr;
-
-  struct gab_obj_block *b = GAB_VAL_TO_BLOCK(args.main);
-  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
-
-  uint8_t *ip = p->src->bytecode.data + p->offset;
-  uint8_t op = *ip++;
-
-  vm->fp[-1] = (uintptr_t)vm->sb - 1;
-  vm->fp[-2] = 0;
-  vm->fp[-3] = (uintptr_t)b;
-
-  return handlers[op](gab, ip, p->src->constants.data, vm->fp, vm->sp);
+  return res;
 }
 
 #define ERROR_GUARD_KIND(value, kind)                                          \

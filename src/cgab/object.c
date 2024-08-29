@@ -139,7 +139,7 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
            fprintf(stream, "}");
   }
   case kGAB_RECORDNODE: {
-    return rec_dump_properties(stream, self, depth);
+    return fprintf(stream, "<gab.recnode>");
   }
   case kGAB_BOX: {
     struct gab_obj_box *con = GAB_VAL_TO_BOX(self);
@@ -149,9 +149,10 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
   case kGAB_BLOCK: {
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(self);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);
+    size_t line = gab_srcline(p->src, p->offset + 2);
     return fprintf(stream, "<gab.block ") +
            gab_fvalinspect(stream, gab_srcname(p->src), depth) +
-           fprintf(stream, ">");
+           fprintf(stream, ":%lu>", line);
   }
   case kGAB_NATIVE: {
     struct gab_obj_native *n = GAB_VAL_TO_NATIVE(self);
@@ -415,13 +416,13 @@ gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
 
   gab_value res = __gab_obj(self);
 
-  gab_gclock(gab.gc);
+  gab_gclock(gab_gc(gab));
 
   for (size_t i = 0; i < len; i++) {
     res = gab_recput(gab, res, keys[i * stride], vals[i * stride]);
   }
 
-  gab_gcunlock(gab.gc);
+  gab_gcunlock(gab_gc(gab));
 
   return res;
 }
@@ -455,12 +456,12 @@ gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
                     gab_value keys[static len]) {
   gab_value shp = gab.eg->shapes;
 
-  gab_gclock(gab.gc);
+  gab_gclock(gab_gc(gab));
 
   for (size_t i = 0; i < len; i++)
     shp = gab_shpwith(gab, shp, keys[i * stride]);
 
-  gab_gcunlock(gab.gc);
+  gab_gcunlock(gab_gc(gab));
 
   return shp;
 }
@@ -488,6 +489,8 @@ gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
   if (idx != -1)
     return v_gab_value_val_at(&s->transitions, idx * 2 + 1);
 
+  /*mtx_lock(&gab.eg->queue_mtx);*/
+
   gab_value new_shape = __gab_shape(gab, s->len + 1);
   struct gab_obj_shape *self = GAB_VAL_TO_SHAPE(new_shape);
 
@@ -498,6 +501,8 @@ gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
   // Push transition into parent shape
   v_gab_value_push(&s->transitions, key);
   v_gab_value_push(&s->transitions, new_shape);
+
+  /*mtx_unlock(&gab.eg->queue_mtx);*/
 
   return new_shape;
 }

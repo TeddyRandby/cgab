@@ -119,7 +119,7 @@ a_gab_value *gab_lib_fiber(struct gab_triple gab, size_t argc,
 
   gab_value fiber = fiber_create(gab, argv[1]);
 
-  gab_vmpush(gab.vm, fiber);
+  gab_vmpush(gab_vm(gab), fiber);
 
   fiber_iref(fiber);
 
@@ -138,7 +138,7 @@ a_gab_value *gab_lib_call(struct gab_triple gab, size_t argc,
     fiber_iref(argv[0]);
     fiber_run(argv[0]);
 
-    gab_vmpush(gab.vm, gab_ok, argv[0]);
+    gab_vmpush(gab_vm(gab), gab_ok, argv[0]);
     return nullptr;
   }
 
@@ -151,7 +151,7 @@ a_gab_value *gab_lib_await(struct gab_triple gab, size_t argc,
 
   for (;;) {
     if (f->status == fDONE) {
-      gab_nvmpush(gab.vm, f->last_result->len, f->last_result->data);
+      gab_nvmpush(gab_vm(gab), f->last_result->len, f->last_result->data);
       return nullptr;
     }
   }
