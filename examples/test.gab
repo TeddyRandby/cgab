@@ -1,12 +1,19 @@
-\tap :def!([], do: self:print; self end)
+
+\do_acc :defcase! {
+  .true  = do acc: acc end,
+  .false = do acc, n: [n, acc:acc(n - 1)**] end, 
+}
 
 \acc :def!(['gab.record'], do n:
-  acc = self
-  (n == 0) :then do:
-    acc
- end :else do:
-    [n, acc:acc(n - 1)**]
-  end
+  n :== 0 :do_acc (self, n)
 end)
 
-[] :acc 900 :len:print
+\go :def!(['gab.block'], do: .gab.fiber self end)
+
+work = do: [] :acc 950 :len:print end
+
+work :go
+work :go
+work :go
+work :go
+work :go

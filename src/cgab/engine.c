@@ -307,6 +307,8 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   struct gab_triple gab = {.eg = eg, .flags = args.flags, .wkid = GAB_NWORKERS};
 
+  mtx_init(&eg->shapes_mtx, mtx_plain);
+
   struct gab_wk *gc_wk = &gab.eg->workers[GAB_NWORKERS];
   gc_wk->epoch = 0;
   v_gab_obj_create(&gc_wk->lock_keep, 8);
@@ -415,6 +417,22 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 }
 
 void gab_destroy(struct gab_triple gab) {
+
+  while (1) {
+    // Wait for the workers to not be working
+    for (int i = 0; i < GAB_NWORKERS; i++) {
+      if (gab.eg->workers[i].fiber != nullptr)
+        goto nxt;
+    }
+
+    goto fin;
+
+  nxt:
+    thrd_yield();
+  }
+
+fin:
+
   gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
   gab.eg->messages = gab_undefined;
   gab.eg->shapes = gab_undefined;
@@ -452,6 +470,7 @@ void gab_destroy(struct gab_triple gab) {
   v_gab_value_destroy(&gab.eg->scratch);
   v_gab_fb_destroy(&gab.eg->queue);
   mtx_destroy(&gab.eg->queue_mtx);
+  mtx_destroy(&gab.eg->shapes_mtx);
   free(gab.eg);
 }
 

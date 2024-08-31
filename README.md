@@ -4,7 +4,7 @@ Gab is a dynamic scripting language. It's goals are:
 - be *fast*. Performance is a feature.
 - be *embeddable*. The c-api should be stable, simple, and productive.
 ## Inspiration and zen
-Gab is heavily inspired by [Clojure](https://clojure.org), [Self](https://selflanguage.org/), and [Lua](https://www.lua.org/).
+Gab is heavily inspired by [Clojure](https://clojure.org), [Self](https://selflanguage.org/), [Lua](https://www.lua.org/), and [Erlang](https://www.erlang.org/).
 Principles:
 1. data are data are values are values.
 2. control flow via polymorphism via messages.
@@ -32,7 +32,7 @@ This syntax might look more familiar to programmers in the c-family of languages
 ```
     Call the function 'print' with the argument 'Hello world!'
 ```
-This interpretation isn't wrong, but it _is_ shallow. More accurately:
+This interpretation isn't wrong, but it __more__ accurate:
 ```
     Send the empty message to the value '\print' with the argument 'Hello world!'
 ```
@@ -40,11 +40,11 @@ This might explain the peculiar syntax `\print`. This is actually a *message lit
 To make an analogy to traditional classes, think of this as a generic value-representation for a method.
 Polymorphism works as you'd expect. \+ behaves differently depending on the receiver:
 ```gab
-    1 + 1 # => 2
-    \+ (1, 1) # => 2
+    1 + 1                       # => 2
+    \+ (1, 1)                   # => 2
 
-    'Hello ' + 'world!' # => 'Hello world!'
-    \+ ('Hello ', 'world!')  # => 'Hello world!'
+    'Hello ' + 'world!'         # => 'Hello world!'
+    \+ ('Hello ', 'world!')     # => 'Hello world!'
 ```
 To peel back another layer, lets define Gab's syntax a little more clearly:
 #### Numbers
@@ -66,7 +66,7 @@ Strings are utf8-encoded byte arrays. Single-quoted strings support interpolatio
 Blocks are functions. They always include an implicit variable `self`.
 Depending on the context that the block is called in, `self` will have different values.
 ```gab
-    add = do a, b
+    add = do a, b:
         a + b
     end
 
@@ -77,44 +77,65 @@ Records are collections of key-value pairs. They are ordered, and structurally t
 ```gab
     a_record = {
         work = 'value',
-        more_complex_work = do
-            'do some work':print
-            42
-        end,
     }
 
-    a_record # => { work = 'value', more_complex_work = <gab.block ...> }
+    a_record                    # => { work = 'value', more_complex_work = <gab.block ...> }
 
-    a_record :work # => 'value'
+    a_record :work              # => 'value'
 
-    a_record :more_complex_work # => prints 'do some work' and returns 42
+    a_tuple = [1, 2, 3]         # => A record as above, but the keys are ascending integers (starting from 0)
 
-    a_tuple = [1, 2, 3] # => A record as above, but the keys are ascending integers (starting from 0)
-
-    a_tuple # => { 0 = 1, 1 = 2, 2 = 3 }
+    a_tuple                     # => { 0 = 1, 1 = 2, 2 = 3 }
 ```
+Records, like all values, are __immutable__. This means that setting values in records returns a *new record*.
+```gab
+    a_record = { work = 'value' }
+
+    a_record = a_record :work 'another value'   # => When an argument is provided, this message serves as a 'set' instead of a 'get'.
+
+    a_record :print                             # => { work = 'another value' }
+```
+Normally this would be incredibly expensive, copying entire datastructures just to make a single mutation.
+Gab's records are implemented using Hash-Array-Mapped-Tries, which use structural sharing to reduce memory impact and reduce the cost of copying.
 #### Sigils
 Sigils are similar to strings (and interchangeable in some ways). However, they respond to messages differently.
 ```gab
-    .hello # => hello (as a sigil)
+    .hello                  # => .hello (as a sigil)
 
-    'hello' # => hello (as a string)
+    'hello'                 # => hello (as a string)
     
-    .hello == 'hello' # => false
+    .hello == 'hello'       # => false
 
     # \? is the message for getting the type of a value
-    .hello ? # => hello
+    .hello ?                # => .hello
 
-    'hello' ? # => gab.string
+    'hello' ?               # => gab.string
 ```
 #### Messages
-Messages are polymorphic behavior which can be dispatched statically as an infix expression with `:` or via application with a message literal.
+Messages are the *only* mechanism for defining behavior or control flow in gab.
 ```gab
-    \print # => \print
+    \print                  # => \print
 
-    1 :print # => prints 1
+    1 :print                # => prints 1
 
-    \print (1, 2, 3) # => prints 1, 2, 3
+    \print (1, 2, 3)        # => prints 1, 2, 3
+```
+The core library provides some messages for defining messages. This might feel a little lispy:
+```gab
+\say_hello :def!(['gab.string', 'gab.sigil'], do: 'Hello, {self}!' :print end)
+
+'Joe' :say_hello    # => Hello, Joe!
+
+.Rich :say_hello    # => Hello, Rich!
+
+\meet :defcase! {
+    .Joe    = do: 'Nice to meet you Joe!' :print end,
+    .Rich   = do: 'Its a pleasure, Rich!' :print end, 
+}
+
+.Joe  :meet         # => Nice to meet you Joe!
+
+.Rich :meet         # => Its a pleasure, Rich!
 ```
 ### Behavior
 Behavior in Gab is dictated *exclusively* by polymorphic, infix messages. These infix messages always have one left-hand value and up to one right-hand value.
@@ -128,6 +149,41 @@ However, the tuple syntax (eg: `(3, 4)`) allows multiple values to be wrapped in
 
     ok, result = val :might_fail 'something'
 ```
+### Concurrency???
+New programming languages that don't consider concurrency are boring! Everyones walking around with 8+ cores on them at all times, might as well use em!
+Gab's runtime uses something similar to goroutines or processes. A `gab.fiber` is a lightweight thread of execution, which are quick to create/destroy.
+Currently, they are mapped on to 8 (arbitrarily chosen at compile time) os threads from a global run-queue. There are many opportunities for improvement on this model.
+```gab
+
+# Define a message here that will do a good amount of work. In this case, creating a big list in a very silly way.
+\do_acc :defcase! {
+  .true  = do acc: acc end,
+  .false = do acc, n: [n, acc:acc(n - 1)**] end, 
+}
+
+\acc :def!(['gab.record'], do n:
+  n :== 0 :do_acc (self, n)
+end)
+
+# Define the \go message for blocks! This launches a new gab.fiber with the block as its argument.
+\go :def!(['gab.block'], do: .gab.fiber(self) end)
+
+# Here is our block that does a lot of work
+work = do: [] :acc 950 :len:print end
+
+# Send off all these workers to do their work in parallel!
+work :go
+work :go
+work :go
+work :go
+work :go
+
+    # => will wait a couple seconds, then print 950 5 times right next to each other.
+```
+A neat feature built on top of the concurrency model is *concurrent* garbage collection. There is a secret extra thread dedicated to garbage collection, which when triggered
+briefly interrupts each running thread to track its live objects. After the brief interruption, each running thread is returned to its work and the collecting thread finishes the collection.
+#### TODO:
+Remaining work for concurrency is implementing a way to send messages. I'm still unsure if I want to use the actor model (erlang) or CSP (go, clojure's core.async).
 #### Note about tuples
 Tuples are *NOT* records - they don't even allocate memory. Think of them as a statically sized array, which use the stack for storage.
 # What about imports?

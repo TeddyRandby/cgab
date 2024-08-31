@@ -2,6 +2,7 @@ messages.t = 'cmessages':use
 numbers.t = 'cnumbers':use
 maps.t = 'cmaps':use
 strings.t = 'cstrings':use
+'fibers':use
 'format':use
 
 truthy_values = []

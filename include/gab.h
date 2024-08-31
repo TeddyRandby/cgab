@@ -1826,6 +1826,7 @@ struct gab_eg {
   } gc;
 
   gab_value messages;
+  mtx_t shapes_mtx;
   gab_value shapes;
 
   d_strings strings;

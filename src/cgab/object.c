@@ -526,20 +526,20 @@ gab_value __gab_shape(struct gab_triple gab, size_t len) {
 }
 
 gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
-  mtx_lock(&gab.eg->queue_mtx);
+  mtx_lock(&gab.eg->shapes_mtx);
 
   assert(gab_valkind(shp) == kGAB_SHAPE);
   struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
 
   size_t idx = gab_shpfind(shp, key);
   if (idx != -1) {
-    mtx_unlock(&gab.eg->queue_mtx);
+    mtx_unlock(&gab.eg->shapes_mtx);
     return shp;
   }
 
   idx = gab_shptfind(shp, key);
   if (idx != -1) {
-    mtx_unlock(&gab.eg->queue_mtx);
+    mtx_unlock(&gab.eg->shapes_mtx);
     return v_gab_value_val_at(&s->transitions, idx * 2 + 1);
   }
 
@@ -559,7 +559,7 @@ gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
   v_gab_value_push(&s->transitions, key);
   v_gab_value_push(&s->transitions, new_shape);
 
-  mtx_unlock(&gab.eg->queue_mtx);
+  mtx_unlock(&gab.eg->shapes_mtx);
   return new_shape;
 }
 
