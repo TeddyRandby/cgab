@@ -196,6 +196,8 @@ work :go
 ```
 A neat feature built on top of the concurrency model is *concurrent* garbage collection. There is a secret extra thread dedicated to garbage collection, which when triggered
 briefly interrupts each running thread to track its live objects. After the brief interruption, each running thread is returned to its work and the collecting thread finishes the collection.
+Because the threads all share a single collector, and all gab values are immutable, this means that gab can implement message sends *without any serialization or copying*.
+Other models, such as in both Go and Erlang, copy/serialize messages into/out of channels and mailboxes. Gab's model doesn't have this restriction - we can pass values between fibers freely.
 #### TODO:
 Remaining work for concurrency is implementing a way to send messages. I'm still unsure if I want to use the actor model (erlang) or CSP (go, clojure's core.async).
 #### Note about tuples
