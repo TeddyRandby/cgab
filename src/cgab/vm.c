@@ -780,6 +780,19 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   return res;
 }
 
+struct gab_fb *gab_arun(struct gab_triple gab, struct gab_run_argt args) {
+  gab.flags = args.flags;
+
+  if (gab.flags & fGAB_BUILD_CHECK)
+    return nullptr;
+
+  struct gab_fb *fb = gab_fiber(gab, args.main, args.len, args.argv);
+
+  gab_egqpush(gab.eg, fb);
+
+  return fb;
+}
+
 #define ERROR_GUARD_KIND(value, kind)                                          \
   if (__gab_unlikely(gab_valkind(value) != kind)) {                            \
     STORE_PRIMITIVE_ERROR_FRAME(1);                                            \

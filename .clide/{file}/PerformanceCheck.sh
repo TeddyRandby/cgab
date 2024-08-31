@@ -2,12 +2,8 @@
 
 cd "$CLIDE_PATH/../" || exit 1
 
-valgrind --tool=callgrind --callgrind-out-file=callgrind.out --dump-line=yes gab run "${file:0:-4}"
+perf record gab run "${file:0:-4}"
 
-~/pyenv/bin/gprof2dot --format=callgrind callgrind.out > dot.out
+perf report
 
-dot -Tpng dot.out -o graph.out.png
-
-feh graph.out.png
-
-rm *.out*
+rm perf.data

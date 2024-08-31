@@ -32,8 +32,10 @@ static inline bool rec_hasindex(gab_value rec, size_t idx) {
   case kGAB_RECORDNODE:
     return GAB_VAL_TO_RECNODE(rec)->mask & ((size_t)1 << idx);
   default:
-    assert(0 && "Only rec and recnode can have indexes");
+    break;
   }
+  assert(0 && "Only rec and recnode can have indexes");
+  return false;
 }
 
 static inline size_t rec_mask(gab_value rec) {
@@ -43,8 +45,10 @@ static inline size_t rec_mask(gab_value rec) {
   case kGAB_RECORDNODE:
     return GAB_VAL_TO_RECNODE(rec)->mask;
   default:
-    assert(0 && "Only rec and recnode can have indexes");
+    break;
   }
+  assert(0 && "Only rec and recnode can have indexes");
+  return false;
 }
 
 enum node_k {
@@ -67,8 +71,10 @@ static inline enum node_k rec_nodekat(gab_value rec, size_t pos) {
     return (GAB_VAL_TO_RECNODE(rec)->vmask & ((size_t)1 << pos)) ? kLEAF
                                                                  : kBRANCH;
   default:
-    assert(0 && "INVALID NODE K");
+    break;
   }
+  assert(0 && "INVALID NODE K");
+  return 0;
 }
 
 #define popcount(n) __builtin_popcountl(n)
@@ -80,8 +86,10 @@ static inline size_t rec_posat(gab_value rec, size_t index) {
   case kGAB_RECORDNODE:
     return popcount(GAB_VAL_TO_RECNODE(rec)->mask & (((size_t)1 << index) - 1));
   default:
-    assert(0 && "Only rec and recnodebranch can have indexes");
+    break;
   }
+  assert(0 && "Only rec and recnodebranch can have indexes");
+  return 0;
 }
 
 static inline int rec_len(gab_value rec) {
@@ -91,8 +99,10 @@ static inline int rec_len(gab_value rec) {
   case kGAB_RECORDNODE:
     return popcount(GAB_VAL_TO_RECNODE(rec)->mask);
   default:
-    assert(0 && "Only rec and recnodebranch can have len");
+    break;
   }
+  assert(0 && "Only rec and recnodebranch can have len");
+  return 0;
 }
 
 static inline gab_value *rec_nodeleafat(gab_value rec, size_t p) {
@@ -104,8 +114,10 @@ static inline gab_value *rec_nodeleafat(gab_value rec, size_t p) {
   case kGAB_RECORDNODE:
     return GAB_VAL_TO_RECNODE(rec)->data + idx;
   default:
-    assert(0 && "Only rec and recnodebranch can have indexes");
+    break;
   }
+  assert(0 && "Only rec and recnodebranch can have indexes");
+  return 0;
 }
 
 static inline void rec_unsetindices(gab_value rec) {
@@ -114,17 +126,18 @@ static inline void rec_unsetindices(gab_value rec) {
     struct gab_obj_rec *m = GAB_VAL_TO_REC(rec);
 
     m->mask = 0;
-    break;
+    return;
   }
   case kGAB_RECORDNODE: {
     struct gab_obj_recnode *m = GAB_VAL_TO_RECNODE(rec);
 
     m->mask = 0;
-    break;
+    return;
   }
   default:
-    assert(0 && "Only rec and recnodebranch can have indexes");
+    break;
   }
+  assert(0 && "Only rec and recnodebranch can have indexes");
 }
 
 static inline void rec_setindex(gab_value rec, size_t idx) {
@@ -133,17 +146,18 @@ static inline void rec_setindex(gab_value rec, size_t idx) {
     struct gab_obj_rec *m = GAB_VAL_TO_REC(rec);
 
     m->mask |= ((size_t)1 << idx);
-    break;
+    return;
   }
   case kGAB_RECORDNODE: {
     struct gab_obj_recnode *m = GAB_VAL_TO_RECNODE(rec);
 
     m->mask |= ((size_t)1 << idx);
-    break;
+    return;
   }
   default:
-    assert(0 && "Only rec and recnodebranch can have indexes");
+    break;
   }
+  assert(0 && "Only rec and recnodebranch can have indexes");
 }
 
 static inline void rec_setbranch(gab_value rec, size_t idx, size_t pos,
@@ -158,7 +172,7 @@ static inline void rec_setbranch(gab_value rec, size_t idx, size_t pos,
     m->data[offset + kLEAF_VALUE] = gab_undefined;
     m->mask |= ((size_t)1 << idx);
     m->vmask &= ~((size_t)1 << pos);
-    break;
+    return;
   }
   case kGAB_RECORDNODE: {
     struct gab_obj_recnode *m = GAB_VAL_TO_RECNODE(rec);
@@ -167,11 +181,12 @@ static inline void rec_setbranch(gab_value rec, size_t idx, size_t pos,
     m->data[offset + kLEAF_VALUE] = gab_undefined;
     m->mask |= ((size_t)1 << idx);
     m->vmask &= ~((size_t)1 << pos);
-    break;
+    return;
   }
   default:
-    assert(0 && "Only rec and recnodebranch can have indexes");
+    break;
   }
+  assert(0 && "Only rec and recnodebranch can have indexes");
 }
 
 // This does unshifting and cleans up the mask.
@@ -191,7 +206,7 @@ static inline void rec_delleaf(gab_value rec, size_t idx, size_t pos) {
     m->vmask = above_vmask | below_vmask;
     m->mask &= ~((size_t)1 << idx);
 
-    break;
+    return;
   }
   case kGAB_RECORDNODE: {
     struct gab_obj_recnode *m = GAB_VAL_TO_RECNODE(rec);
@@ -206,11 +221,12 @@ static inline void rec_delleaf(gab_value rec, size_t idx, size_t pos) {
     m->vmask = above_vmask | below_vmask;
     m->mask &= ~((size_t)1 << idx);
 
-    break;
+    return;
   }
   default:
-    assert(0 && "Only rec and recnodebranch can have indexes");
+    break;
   }
+  assert(0 && "Only rec and recnodebranch can have indexes");
 }
 
 static inline void rec_setleaf(gab_value rec, size_t pos, gab_value v) {
@@ -313,8 +329,10 @@ static inline gab_value rec_nodebranchat(gab_value rec, int pos) {
   case kGAB_RECORDNODE:
     return GAB_VAL_TO_RECNODE(rec)->data[offset];
   default:
-    assert(0 && "Only rec and recnodebranch can have indexes");
+    break;
   }
+  assert(0 && "Only rec and recnodebranch can have indexes");
+  return gab_undefined;
 }
 
 gab_value reccpy(struct gab_triple gab, gab_value m, size_t space) {
@@ -345,8 +363,10 @@ gab_value reccpy(struct gab_triple gab, gab_value m, size_t space) {
     return __gab_obj(nm);
   }
   default:
-    assert(0 && "Only rec and recnodebranch cpy");
+    break;
   }
+  assert(0 && "Only rec and recnodebranch cpy");
+  return gab_undefined;
 }
 
 gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,

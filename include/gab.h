@@ -258,7 +258,7 @@ static inline gab_value __gab_dtoval(double value) {
         (struct gab_obj *)(uintptr_t)((val) & ~(__GAB_SIGN_BIT | __GAB_QNAN |  \
                                                 __GAB_TAGBITS));               \
     if (GAB_OBJ_IS_FREED(__o)) {                                               \
-      printf("UAF\t%p\t%s:%i", __o, __FUNCTION__, __LINE__);                                                       \
+      printf("UAF\t%p\t%s:%i", __o, __FUNCTION__, __LINE__);                   \
       exit(1);                                                                 \
     }                                                                          \
     __o;                                                                       \
@@ -1769,22 +1769,6 @@ struct gab_fb {
  */
 a_gab_value *gab_fibawait(struct gab_fb *fiber);
 
-/*
- * A worker which runs gab code. This corresponds to an OS thread.
- */
-struct gab_wk {
-  thrd_t td;
-
-  size_t pid;
-
-  struct gab_fb *fiber;
-
-  _Atomic uint32_t epoch;
-  _Atomic int32_t locked;
-  _Atomic uint32_t gc_keeplen;
-  struct gab_obj *gc_keep[cGAB_GCLOCKBUF_LEN];
-};
-
 #define T struct gab_obj *
 #define NAME gab_obj
 #include "vector.h"
@@ -1818,7 +1802,18 @@ struct gab_eg {
 
   bool alive;
   _Atomic uint8_t nworkers;
-  struct gab_wk workers[GAB_NWORKERS + 1];
+
+  struct gab_wk {
+    thrd_t td;
+
+    size_t pid;
+
+    struct gab_fb *fiber;
+
+    _Atomic uint32_t epoch;
+    _Atomic int32_t locked;
+    v_gab_obj lock_keep;
+  } workers[GAB_NWORKERS + 1];
 
   struct gab_gc {
     _Atomic int8_t schedule;

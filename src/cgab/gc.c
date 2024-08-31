@@ -445,12 +445,12 @@ void gab_gcunlock(struct gab_triple gab) {
 
   if (!wk->locked) {
 #if cGAB_LOG_GC
-    for (size_t i = 0; i < wk->gc_keeplen; i++) {
-      struct gab_obj *o = wk->gc_keep[i];
+    for (size_t i = 0; i < wk->lock_keep.len; i++) {
+      struct gab_obj *o = v_gab_obj_val_at(&wk->lock_keep, i);
       printf("UNLOCK\t%i\t%p\n", epochget(gab), o);
     }
 #endif
-    wk->gc_keeplen = 0;
+    wk->lock_keep.len = 0;
   }
 }
 
@@ -506,7 +506,7 @@ void processepoch(struct gab_triple gab) {
 #endif
 
   if (!fb) {
-    assert(wk->gc_keeplen == 0);
+    assert(wk->lock_keep.len == 0);
     goto fin;
   }
 
@@ -526,8 +526,8 @@ void processepoch(struct gab_triple gab) {
     }
   }
 
-  for (size_t i = 0; i < wk->gc_keeplen; i++) {
-    struct gab_obj *o = wk->gc_keep[i];
+  for (size_t i = 0; i < wk->lock_keep.len; i++) {
+    struct gab_obj *o = v_gab_obj_val_at(&wk->lock_keep, i);
 #if cGAB_LOG_GC
     printf("LOCK\t%i\t%p\t%d\n", epochget(gab), (void *)o, o->kind);
 #endif
@@ -535,7 +535,8 @@ void processepoch(struct gab_triple gab) {
   }
 
 fin:
-  epochinc(gab);
+  if (gab.wkid < GAB_NWORKERS)
+    epochinc(gab);
 #if cGAB_LOG_GC
   printf("PEPOCH!\t%i\t%i\n", epochget(gab), gab.wkid);
 #endif
@@ -578,6 +579,7 @@ fin:
 }
 
 void gab_gcdocollect(struct gab_triple gab) {
+  processepoch(gab);
 #if cGAB_LOG_GC
   printf("CEPOCH %i\n", epochget(gab));
 #endif

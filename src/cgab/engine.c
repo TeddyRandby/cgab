@@ -309,10 +309,14 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   struct gab_wk *gc_wk = &gab.eg->workers[GAB_NWORKERS];
   gc_wk->epoch = 0;
-  gc_wk->gc_keeplen = 0;
+  v_gab_obj_create(&gc_wk->lock_keep, 8);
   gc_wk->locked = 0;
   size_t res = thrd_create(&gc_wk->td, gc_thread, gab.eg);
-  assert(res == thrd_success);
+
+  if (res != thrd_success) {
+    printf("UHOH\n");
+    exit(1);
+  }
 
   eg->shapes = __gab_shape(gab, 0);
   eg->messages = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
@@ -394,11 +398,14 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   for (int i = 0; i < GAB_NWORKERS; i++) {
     struct gab_wk *wk = &gab.eg->workers[i];
-    wk->gc_keeplen = 0;
+    v_gab_obj_create(&wk->lock_keep, 8);
     wk->epoch = 0;
     size_t res = thrd_create(&wk->td, worker_thread, gab.eg);
+    if (res != thrd_success) {
+      printf("UHOH\n");
+      exit(1);
+    }
     gab.eg->nworkers++;
-    assert(res == thrd_success);
   }
 
   if (!(gab.flags & fGAB_NO_CORE))

@@ -20,12 +20,11 @@ struct gab_obj *gab_obj_create(struct gab_triple gab, size_t sz,
   printf("CREATE\t%p\t%lu\t%d\n", (void *)self, sz, k);
 #endif
 
-  struct gab_wk* wk = gab.eg->workers + gab.wkid;
+  struct gab_wk *wk = gab.eg->workers + gab.wkid;
   if (wk->locked) {
-    assert(wk->gc_keeplen < cGAB_GCLOCKBUF_LEN);
-    wk->gc_keep[wk->gc_keeplen++] = self;
+    v_gab_obj_push(&wk->lock_keep, self);
 #if cGAB_LOG_GC
-  printf("QLOCK\t%p\n", (void *)self);
+    printf("QLOCK\t%p\n", (void *)self);
 #endif
   }
 
@@ -69,8 +68,10 @@ size_t gab_obj_size(struct gab_obj *obj) {
   case kGAB_NATIVE:
     return sizeof(struct gab_obj_native);
   default:
-    assert(false && "unreachable");
+    break;
   }
+  assert(false && "unreachable");
+  return 0;
 }
 
 int shape_dump_keys(FILE *stream, gab_value shape, int depth) {
@@ -155,8 +156,10 @@ int rec_dump_properties(FILE *stream, gab_value rec, int depth) {
     break;
   }
   default:
-    assert(false && "NOT A REC");
+    break;
   }
+  assert(false && "NOT A REC");
+  return 0;
 }
 
 int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
@@ -211,10 +214,11 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
            gab_fvalinspect(stream, gab_srcname(proto->src), depth) +
            fprintf(stream, ">");
   }
-  default: {
-    assert(false && "NOT AN OBJECT");
+  default:
+    break;
   }
-  }
+  assert(false && "NOT AN OBJECT");
+  return 0;
 }
 
 void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
@@ -524,10 +528,6 @@ gab_value __gab_shape(struct gab_triple gab, size_t len) {
 gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
   mtx_lock(&gab.eg->queue_mtx);
 
-  if (gab_valtoo(shp)->kind != kGAB_SHAPE) {
-    printf("BADSHP: %p\n", gab_valtoo(shp));
-  }
-
   assert(gab_valkind(shp) == kGAB_SHAPE);
   struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
 
@@ -549,6 +549,11 @@ gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
   // Set the keys on the new shape
   memcpy(self->keys, s->keys, sizeof(gab_value) * s->len);
   self->keys[s->len] = key;
+
+  if (!GAB_OBJ_IS_NEW((struct gab_obj *)s)) {
+    gab_iref(gab, new_shape);
+    gab_iref(gab, key);
+  }
 
   // Push transition into parent shape
   v_gab_value_push(&s->transitions, key);
