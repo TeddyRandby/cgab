@@ -238,6 +238,13 @@ a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
+a_gab_value *gab_lib_string_into(struct gab_triple gab, size_t argc,
+                                gab_value argv[argc]) {
+  gab_vmpush(gab_vm(gab), gab_arg(0));
+  return nullptr;
+}
+
+
 a_gab_value *gab_lib_sigil_into(struct gab_triple gab, size_t argc,
                                 gab_value argv[argc]) {
   gab_vmpush(gab_vm(gab), gab_strtosig(argv[0]));
@@ -285,9 +292,14 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "string.new", gab_lib_new),
       },
       {
-          "sigil.into",
+          "strings.into",
           string_type,
-          gab_snative(gab, "sigil.into", gab_lib_sigil_into),
+          gab_snative(gab, "strings.into", gab_lib_string_into),
+      },
+      {
+          "sigils.into",
+          string_type,
+          gab_snative(gab, "sigils.into", gab_lib_sigil_into),
       },
       {
           "len",

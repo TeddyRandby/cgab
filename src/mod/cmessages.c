@@ -192,14 +192,14 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "message.new", gab_lib_message),
       },
       {
-          "sigil.into",
+          "sigils.into",
           type,
-          gab_snative(gab, "sigil.into", gab_lib_sigil_into),
+          gab_snative(gab, "sigils.into", gab_lib_sigil_into),
       },
       {
-          "string.into",
+          "strings.into",
           type,
-          gab_snative(gab, "string.into", gab_lib_string_into),
+          gab_snative(gab, "strings.into", gab_lib_string_into),
       },
       {
           "has?",

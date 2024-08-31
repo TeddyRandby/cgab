@@ -1,7 +1,7 @@
 s = 'specs':use
 
 record.spec = s:def! {
-  name = "gab.record",
+  name = .gab.record,
   help = "An ordered, constant array of key-value pairs.",
   spec = s:protocol {},
 }
@@ -30,13 +30,12 @@ s:def! {
   }
 }
 
-
 KEY   = s:unknown:spec.label "Key"
 VALUE = s:unknown:spec.label "Value"
 INDEX = s:int:spec.label "Index"
 
 s:def! {
-  name = "len",
+  name = .gab.record.len,
   help = "Return the number of key-value pairs in the record.",
   spec = s:message {
     receiver  = record.spec,
@@ -48,7 +47,7 @@ s:def! {
 }
 
 s:def! {
-  name = "at",
+  name = .gab.record.at,
   help = "Return the value at the given key, if it exists.",
   spec = s:message {
     receiver   = record.spec,

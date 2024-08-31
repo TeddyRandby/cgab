@@ -21,9 +21,9 @@ explain_keys = do strings, separator:
 end
 
 \def! :def! ([spec.t], do opts:
-  target = [opts:name]
-  \spec.help :def! (target, do: (.ok, opts:help) end)
-  \spec :def! (target, do: (.ok, opts:spec) end)
+  \spec.help :def! ([opts:spec], do: (.ok, opts:help) end)
+  \spec.name :def! ([opts:spec], opts:name:strings.into)
+  \spec :def! ([opts:name], do: (.ok, opts:spec) end)
   opts:spec
 end)
 
@@ -154,7 +154,7 @@ and.predicate = do specs[]:
     'INVALID_ARGUMENTS':panic
   end
 
-  pred = 'predicate:and:{specs}' :sigil.into
+  pred = 'predicate:and:{specs}' :sigils.into
   # Return a predicate which returns true iff the given value
   # fits all of the given specs
   \spec.fits? :def! ([pred], do value:
@@ -196,7 +196,7 @@ or.predicate = do specs[]:
     'INVALID_ARGUMENTS':panic
   end
   
-  pred = 'predicate:or:{specs}' :sigil.into
+  pred = 'predicate:or:{specs}' :sigils.into
   # Return a predicate which returns true if the given value
   # fits any of the given specs
   \spec.fits? :def! ([pred], do value:
@@ -219,7 +219,7 @@ or.predicate = do specs[]:
 end
 
 values.predicate = do specs[]:
-  pred = 'predicate:values:{specs}' :sigil.into
+  pred = 'predicate:values:{specs}' :sigils.into
 
   \spec.fits? :def! ([pred], do values[]:
     specs:reduce(
@@ -257,7 +257,7 @@ end
 
 protocol.predicate = do protocol:
   protocol_shape = protocol ?
-  pred = 'predicate:protocol:{protocol}' :sigil.into
+  pred = 'predicate:protocol:{protocol}' :sigils.into
 # Return a predicate which returns true if the given value
 # has all the keys of the record
   \spec.fits? :def! ([pred], do value:
@@ -265,7 +265,7 @@ protocol.predicate = do protocol:
 # Check for a spec which corresponds to this message in the protocol
       acc:at!(0) :and acc :else do:
         m :has? value :then do:
-          m:sigil.into:spec:ok?:then do s:
+          m:sigils.into:spec:ok?:then do s:
             s:spec.fits?(value :at! m)
           end
         end :or [.false, self, value, m]
@@ -274,7 +274,7 @@ protocol.predicate = do protocol:
   end)
 
   genit = i:map do key:
-    found = key:sigil.into:spec:unwrap!
+    found = key:sigils.into:spec:unwrap!
     (key, found:spec.gen)
   end
 
@@ -290,7 +290,7 @@ protocol.predicate = do protocol:
 end
 
 list.predicate = do spec:
-  pred = 'predicate:list:{spec}' :sigil.into
+  pred = 'predicate:list:{spec}' :sigils.into
 
   \spec.fits? :def! ([pred], do value:
     value:spec.fits_each?(\values)
@@ -308,7 +308,7 @@ list.predicate = do spec:
 end
 
 map.predicate = do k_spec, v_spec:
-  pred = 'predicate:map:{k_spec}:{v_spec}' :sigil.into
+  pred = 'predicate:map:{k_spec}:{v_spec}' :sigils.into
 
   \spec.fits?:def! ([pred], do value:
     (value ? == .map) :then do:
@@ -386,7 +386,7 @@ end)
 block.predicate = do args, semantics:
   args:assert.is?(spec.block.Args)
 
-  pred = 'predicate:block:{args}:{semantics}' :sigil.into
+  pred = 'predicate:block:{args}:{semantics}' :sigils.into
 
   \spec.fits? :def! ([pred], do input, output:
     v = args:with(.input_value, input):with(.output_value, output)
@@ -438,7 +438,7 @@ block.predicate = do args, semantics:
   pred
 end
 
-general_message.predicate = 'predicate:message' :sigil.into
+general_message.predicate = 'predicate:message' :sigils.into
 
 \spec.fits? :def! ([general_message.predicate], do value:
   (value:is_m?, self, value)
@@ -468,7 +468,7 @@ end)
   .nil = general_message.predicate,
   'gab.record' = do:
     args = self
-    pred = 'predicate:message:{args}' :sigil.into
+    pred = 'predicate:message:{args}' :sigils.into
 
     \spec.fits? :def! ([pred], do rec, input, output:
       v = args:with(.input_value, input):with(.output_value, output)
@@ -556,7 +556,7 @@ end)
     end)
 
     \spec.explain :def! ([pred], do:
-      '{args:receiver:spec.name:unwrap!}{args:message} {args:input:spec.explain} -> {args:output:spec.explain}'
+      '{args:receiver:spec.name}{args:message} {args:input:spec.explain} -> {args:output:spec.explain}'
     end)
 
     pred
@@ -670,7 +670,7 @@ end)
     value:spec.option.into err
   end,
   \gt = do min:
-    gt.predicate = 'predicate:gt:{min}' :sigil.into
+    gt.predicate = 'predicate:gt:{min}' :sigils.into
 
     \spec.fits? :def! ([gt.predicate], do value:
       (value > min, self, value)
@@ -681,7 +681,7 @@ end)
     gt.predicate
   end,
   \lt = do max:
-    lt.predicate = 'predicate:lt:{max}' :sigil.into
+    lt.predicate = 'predicate:lt:{max}' :sigils.into
 
     \spec.fits? :def! ([lt.predicate], do value:
       (value < max, self, value)

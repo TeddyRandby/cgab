@@ -28,16 +28,16 @@ Here is an alternative, equally valid syntax:
 ```gab
     \print ('Hello world!')
 ```
-This syntax might look more familiar to programmers in the c-family of languages (Besides the curious '\'). Said programmers might transcribe this block as:
+This syntax might look more familiar to programmers in the c-family of languages (Besides the curious '\\'). Said programmers might transcribe this block as:
 ```
     Call the function 'print' with the argument 'Hello world!'
 ```
-This interpretation isn't wrong, but it __more__ accurate:
+This interpretation isn't wrong, but this is __more__ accurate:
 ```
     Send the empty message to the value '\print' with the argument 'Hello world!'
 ```
 This might explain the peculiar syntax `\print`. This is actually a *message literal*.
-To make an analogy to traditional classes, think of this as a generic value-representation for a method.
+To make an analogy to traditional classes and OOP, think of this as a generic value-representation for a method.
 Polymorphism works as you'd expect. \+ behaves differently depending on the receiver:
 ```gab
     1 + 1                       # => 2
@@ -55,11 +55,11 @@ Numbers are represented as IEEE 64-bit floats.
     5.9
 ```
 #### Strings
-Strings are utf8-encoded byte arrays. Single-quoted strings support interpolation, and both support escape sequences.
+Strings are just byte arrays. Single-quoted strings support interpolation, and both support escape sequences.
 ```gab
     'Hello'
     "world!"
-    'My name is { 'joe' }!'
+    'My name is { 'Joe' }!'
     'Escape unicode: \u[2502]'
 ```
 #### Blocks
@@ -75,9 +75,7 @@ Depending on the context that the block is called in, `self` will have different
 #### Records
 Records are collections of key-value pairs. They are ordered, and structurally typed.
 ```gab
-    a_record = {
-        work = 'value',
-    }
+    a_record = { work = 'value' }
 
     a_record                    # => { work = 'value', more_complex_work = <gab.block ...> }
 
@@ -168,7 +166,6 @@ New programming languages that don't consider concurrency are boring! Everyones 
 Gab's runtime uses something similar to goroutines or processes. A `gab.fiber` is a lightweight thread of execution, which are quick to create/destroy.
 Currently, they are mapped on to 8 (arbitrarily chosen at compile time) os threads from a global run-queue. There are many opportunities for improvement on this model.
 ```gab
-
 # Define a message here that will do a good amount of work. In this case, creating a big list in a very silly way.
 \do_acc :defcase! {
   .true  = do acc: acc end,
@@ -191,7 +188,6 @@ work :go
 work :go
 work :go
 work :go
-
     # => will wait a couple seconds, then print 950 5 times right next to each other.
 ```
 A neat feature built on top of the concurrency model is *concurrent* garbage collection. There is a secret extra thread dedicated to garbage collection, which when triggered
@@ -200,8 +196,6 @@ Because the threads all share a single collector, and all gab values are immutab
 Other models, such as in both Go and Erlang, copy/serialize messages into/out of channels and mailboxes. Gab's model doesn't have this restriction - we can pass values between fibers freely.
 #### TODO:
 Remaining work for concurrency is implementing a way to send messages. I'm still unsure if I want to use the actor model (erlang) or CSP (go, clojure's core.async).
-#### Note about tuples
-Tuples are *NOT* records - they don't even allocate memory. Think of them as a statically sized array, which use the stack for storage.
 # What about imports?
 Gab defines several native messages. `:print` is one you should be familiar with by now - `:use` is another!
 It is used like this:
