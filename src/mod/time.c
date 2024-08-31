@@ -10,7 +10,7 @@ a_gab_value* gab_lib_now(struct gab_triple gab, size_t argc, gab_value argv[argc
 
   gab_value res = gab_number((double)t / CLOCKS_PER_SEC);
 
-  gab_vmpush(gab.vm, res);
+  gab_vmpush(gab_vm(gab), res);
   return nullptr;
 };
 

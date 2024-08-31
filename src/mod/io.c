@@ -23,7 +23,7 @@ a_gab_value *gab_lib_open(struct gab_triple gab, size_t argc,
 
   if (file == nullptr) {
     gab_value r = gab_sigil(gab, "FILE_COULD_NOT_OPEN");
-    gab_vmpush(gab.vm, r);
+    gab_vmpush(gab_vm(gab), r);
     return nullptr;
   }
 
@@ -39,7 +39,7 @@ a_gab_value *gab_lib_open(struct gab_triple gab, size_t argc,
               }),
   };
 
-  gab_nvmpush(gab.vm, 2, result);
+  gab_nvmpush(gab_vm(gab), 2, result);
 
   return nullptr;
 }
@@ -60,11 +60,11 @@ a_gab_value *gab_lib_read(struct gab_triple gab, size_t argc,
   size_t bytesRead = fread(buffer, sizeof(char), fileSize, file);
 
   if (bytesRead < fileSize) {
-    gab_vmpush(gab.vm, gab_string(gab, "FILE_COULD_NOT_READ"));
+    gab_vmpush(gab_vm(gab), gab_string(gab, "FILE_COULD_NOT_READ"));
     return nullptr;
   }
 
-  gab_vmpush(gab.vm, gab_ok, gab_nstring(gab, bytesRead, buffer));
+  gab_vmpush(gab_vm(gab), gab_ok, gab_nstring(gab, bytesRead, buffer));
 
   return nullptr;
 }
@@ -82,11 +82,11 @@ a_gab_value *gab_lib_write(struct gab_triple gab, size_t argc,
   int32_t result = fputs(data, file);
 
   if (result > 0) {
-    gab_vmpush(gab.vm, gab_ok);
+    gab_vmpush(gab_vm(gab), gab_ok);
     return nullptr;
   }
 
-  gab_vmpush(gab.vm, gab_sigil(gab, "FILE_COULD_NOT_WRITE"));
+  gab_vmpush(gab_vm(gab), gab_sigil(gab, "FILE_COULD_NOT_WRITE"));
   return nullptr;
 }
 

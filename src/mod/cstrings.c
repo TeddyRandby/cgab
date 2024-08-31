@@ -9,7 +9,7 @@ a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
 
   gab_value result = gab_number(gab_strlen(argv[0]));
 
-  gab_vmpush(gab.vm, result);
+  gab_vmpush(gab_vm(gab), result);
   return nullptr;
 };
 
@@ -41,7 +41,7 @@ a_gab_value *gab_lib_ends(struct gab_triple gab, size_t argc,
     const char *pat = gab_valintocs(gab, argv[0]);
     const char *str = gab_valintocs(gab, argv[1]);
 
-    gab_vmpush(gab.vm, gab_bool(ends(str, pat, 0)));
+    gab_vmpush(gab_vm(gab), gab_bool(ends(str, pat, 0)));
     return nullptr;
   }
 
@@ -56,7 +56,7 @@ a_gab_value *gab_lib_ends(struct gab_triple gab, size_t argc,
     const char *pat = gab_valintocs(gab, argv[0]);
     const char *str = gab_valintocs(gab, argv[1]);
 
-    gab_vmpush(gab.vm, gab_bool(ends(str, pat, gab_valton(argv[2]))));
+    gab_vmpush(gab_vm(gab), gab_bool(ends(str, pat, gab_valton(argv[2]))));
     return nullptr;
   }
   }
@@ -75,7 +75,7 @@ a_gab_value *gab_lib_begins(struct gab_triple gab, size_t argc,
     const char *pat = gab_valintocs(gab, argv[0]);
     const char *str = gab_valintocs(gab, argv[1]);
 
-    gab_vmpush(gab.vm, gab_bool(begins(str, pat, 0)));
+    gab_vmpush(gab_vm(gab), gab_bool(begins(str, pat, 0)));
     return nullptr;
   }
   case 3: {
@@ -89,7 +89,7 @@ a_gab_value *gab_lib_begins(struct gab_triple gab, size_t argc,
     const char *pat = gab_valintocs(gab, argv[0]);
     const char *str = gab_valintocs(gab, argv[1]);
 
-    gab_vmpush(gab.vm, gab_bool(begins(str, pat, gab_valton(argv[2]))));
+    gab_vmpush(gab_vm(gab), gab_bool(begins(str, pat, gab_valton(argv[2]))));
     return nullptr;
   }
   }
@@ -119,7 +119,7 @@ a_gab_value *gab_lib_is_digit(struct gab_triple gab, size_t argc,
 
   int byte = gab_valintocs(gab, argv[0])[index];
 
-  gab_vmpush(gab.vm, gab_bool(isdigit(byte)));
+  gab_vmpush(gab_vm(gab), gab_bool(isdigit(byte)));
   return nullptr;
 }
 
@@ -146,7 +146,7 @@ a_gab_value *gab_lib_to_byte(struct gab_triple gab, size_t argc,
 
   char byte = gab_valintocs(gab, argv[0])[index];
 
-  gab_vmpush(gab.vm, gab_number(byte));
+  gab_vmpush(gab_vm(gab), gab_number(byte));
   return nullptr;
 }
 
@@ -169,7 +169,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
 
   char byte = gab_valintocs(gab, argv[0])[index];
 
-  gab_vmpush(gab.vm, gab_nstring(gab, 1, &byte));
+  gab_vmpush(gab_vm(gab), gab_nstring(gab, 1, &byte));
   return nullptr;
 }
 
@@ -221,7 +221,7 @@ a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
 
   gab_value res = gab_nstring(gab, size, str + start);
 
-  gab_vmpush(gab.vm, res);
+  gab_vmpush(gab_vm(gab), res);
   return nullptr;
 }
 
@@ -234,39 +234,39 @@ a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
   const char *str = gab_valintocs(gab, argv[0]);
   const char *pat = gab_valintocs(gab, argv[1]);
 
-  gab_vmpush(gab.vm, gab_bool(strstr(str, pat)));
+  gab_vmpush(gab_vm(gab), gab_bool(strstr(str, pat)));
   return nullptr;
 }
 
 a_gab_value *gab_lib_sigil_into(struct gab_triple gab, size_t argc,
                                 gab_value argv[argc]) {
-  gab_vmpush(gab.vm, gab_strtosig(argv[0]));
+  gab_vmpush(gab_vm(gab), gab_strtosig(argv[0]));
   return nullptr;
 }
 
 a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
   if (argc < 2) {
-    gab_vmpush(gab.vm, gab_string(gab, ""));
+    gab_vmpush(gab_vm(gab), gab_string(gab, ""));
     return nullptr;
   }
 
   gab_value str = gab_valintos(gab, argv[1]);
 
   if (argc == 2) {
-    gab_vmpush(gab.vm, str);
+    gab_vmpush(gab_vm(gab), str);
     return nullptr;
   }
 
-  gab_gclock(gab.gc);
+  gab_gclock(gab);
 
   for (uint8_t i = 2; i < argc; i++) {
     gab_value curr = gab_valintos(gab, argv[i]);
     str = gab_strcat(gab, str, curr);
   }
 
-  gab_vmpush(gab.vm, str);
-  gab_gcunlock(gab.gc);
+  gab_vmpush(gab_vm(gab), str);
+  gab_gcunlock(gab);
   return nullptr;
 }
 

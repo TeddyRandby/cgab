@@ -1,8 +1,11 @@
 #ifndef GAB_COMMON_H
 #define GAB_COMMON_H
 
+#ifndef cGAB_CHUNK_ALLOCATOR
+#define cGAB_CHUNK_ALLOCATOR 0
+#endif
+
 // The number of cache slots, mostly used for
-// Note - it must be a power of 2
 #ifndef cGAB_SEND_CACHE_LEN
 #define cGAB_SEND_CACHE_LEN 4
 #endif
@@ -143,6 +146,18 @@
 
 #define GAB_SEND_HASH(t) (t & (cGAB_SEND_CACHE_LEN - 1))
 // #define GAB_CALL_HASH(t) (t & (cGAB_CALL_CACHE_LEN - 1))
+
+#define GAB_HAMT_BITS (6)
+#define GAB_HAMT_SIZE (1 << GAB_HAMT_BITS)
+#define GAB_HAMT_MASK (GAB_HAMT_SIZE - 1)
+
+#if 64 % GAB_HAMT_BITS != 0
+// #error "GAB_HAMT_BITS must divide 64 evently"
+#endif
+
+#if GAB_HAMT_SIZE > 64
+#error "HAMT_SIZE is larger than is indexable by a size_t"
+#endif
 
 #define VAR_EXP 255
 #define fHAVE_VAR (1 << 0)

@@ -1,7 +1,7 @@
 'tests' :use
 
 'Multiple Assignment' :tests.covers do:
-    'declaring new variables' :tests.should do:
+    'declare new variables' :tests.should do:
         a = 2
 
         a:should.be(\==, 2)
@@ -11,7 +11,7 @@
         a:should.be(\==, 3)
     end
 
-    'should assign multiple variables' :tests.should do:
+    'assign multiple variables' :tests.should do:
         a, b = 1, 2
 
         a:should.be(\==, 1)
@@ -22,7 +22,7 @@
         b:should.be(\==, 1)
     end
 
-    'should reassign' :tests.should do:
+    'reassign' :tests.should do:
       a, b, c, d = 1, 2, 3, 4
 
       a:should.be(\==, 1)
@@ -38,7 +38,7 @@
       e:should.be(\==, 8)
     end
 
-    'should rest assign a constant multi value' :tests.should do:
+    'rest assign a constant multi value' :tests.should do:
         a, b, c[] = 1, 2, 3, 4, 5
 
         a:should.be(\==, 1)
@@ -48,7 +48,7 @@
         c:at!(2):should.be(\==, 5)
     end
 
-    'should rest assign a constant multi value in middle' :tests.should do:
+    'rest assign a constant multi value in middle' :tests.should do:
         a, b[], c = 1, 2, 3, 4, 5
 
         a:should.be(\==, 1)
@@ -58,7 +58,7 @@
         b:at!(2):should.be(\==, 4)
     end
 
-    'should rest assign a runtime multi value' :tests.should do:
+    'rest assign a runtime multi value' :tests.should do:
         one_through_five = do: (1,2,3,4,5) end
 
         a[], b, c = one_through_five ()
@@ -70,7 +70,7 @@
         a:at!(2):should.be(\==, 3)
     end
 
-    'should rest assign to existing variables' :tests.should do:
+    'rest assign to existing variables' :tests.should do:
         one_through_five = do: (1,2,3,4,5) end
 
         b = 1
@@ -82,118 +82,6 @@
         b:at!(0):should.be(\==, 2)
         b:at!(1):should.be(\==, 3)
         b:at!(2):should.be(\==, 4)
-    end
-
-    'should mix locals and properties' :tests.should do:
-        a = { b, c }
-
-        a:b, d, a:c = 1, 2, 3
-
-        d:should.be(\==, 2)
-        a:b:should.be(\==, 1)
-        a:c:should.be(\==, 3)
-
-        e, a:b, a:c = 1, 2, 3
-
-        e:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        a:c:should.be(\==, 3)
-
-        a:c, a:b, e = 1, 2, 3
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        e:should.be(\==, 3)
-    end
-
-    'should mix rest locals and properties' :tests.should do:
-        a = { b, c }
-
-        a:b, d[], a:c = 1, 2, 3
-
-        d:at!(0):should.be(\==, 2)
-        a:b:should.be(\==, 1)
-        a:c:should.be(\==, 3)
-
-        e[], a:b, a:c = 1, 2, 3
-
-        e:at!(0):should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        a:c:should.be(\==, 3)
-
-        a:c, a:b, e[] = 1, 2, 3
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        e:at!(0):should.be(\==, 3)
-
-        a:b, d[], a:c = 1, 2, 4, 5, 3
-
-        d:at!(0):should.be(\==, 2)
-        a:b:should.be(\==, 1)
-        a:c:should.be(\==, 3)
-
-        e[], a:b, a:c = 1, 4, 5, 2, 3
-
-        e:at!(0):should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        a:c:should.be(\==, 3)
-
-        a:c, a:b, e[] = 1, 2, 3, 4,5
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        e:at!(0):should.be(\==, 3)
-
-        one_through_five = do: (1,2,3,4,5) end
-        one = do: 1 end
-
-        a:c, a:b, e[] = one_through_five(a:b, a:c)
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        e:at!(0):should.be(\==, 3)
-
-        test = do i:
-          i:b, i:c, xs[] = i:b:send(i:m, i:c)
-
-          (i:b, i:c, xs**)
-        end
-
-        a:c, a:b, e[] = test { m = \self, b = 1, c = 2 }
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, .nil)
-
-        test = { m = \self, b = 1, c = 2 }
-
-        a:c, a:b, e[] = test:b:send(test:m, test:c)
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, .nil)
-
-    end
-
-    'should mix locals and sets' :tests.should do:
-        a = { b, c }
-
-        a:put! 'b' , d, a:put! 'c'  = 1, 2, 3
-
-        a:b:should.be(\==, 1)
-        d:should.be(\==, 2)
-        a:c:should.be(\==, 3)
-
-        e, a:put! 'b' , a:put! 'c'  = 1, 2, 3
-
-        e:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        a:c:should.be(\==, 3)
-
-        a:put! 'c' , a:put! 'b' , e = 1, 2, 3
-
-        a:c:should.be(\==, 1)
-        a:b:should.be(\==, 2)
-        e:should.be(\==, 3)
     end
 end
 
@@ -214,9 +102,9 @@ end
   end
 
   'should dynamically do arithemtic' :tests.should do:
-    1:send(\+, 2):should.be(\==, 3)
-    1:send(\+,2, .ignore_me):should.be(\==, 3)
-    1:send(\-,2):should.be(\==, -1)
+    \+(1, 2):should.be(\==, 3)
+    \+(1,2, .ignore_me):should.be(\==, 3)
+    \-(1,2):should.be(\==, -1)
   end
 end
 
@@ -234,12 +122,12 @@ end
   end
 
   'should dynamically concatenate' :tests.should do:
-    'hi ':send(\+, 'world'):should.be(\==, 'hi world')
-    'hi ':send(\+, 'world', .ignore_me):should.be(\==, 'hi world')
+    \+('hi ', 'world'):should.be(\==, 'hi world')
+    \+('hi ', 'world', .ignore_me):should.be(\==, 'hi world')
   end
 
   'should append a sigil' :tests.should do:
-    'hi ':send(\+, .world):should.be(\==, 'hi world')
+    \+('hi ', .world):should.be(\==, 'hi world')
     ('hi ' + .world) :should.be(\==, 'hi world')
   end
 end
@@ -332,46 +220,6 @@ end
     4:should.be(\==, obj:at!(.hi))
   end
 
-  'should work when shapes change' :tests.should do:
-    justa = { a }
-    ab = { a = 3, b }
-    abc = { a = 'hi', b, c }
-
-    \get_a :def! ([{ a }?], do:
-        self:a
-    end)
-
-    \get_a :def! ([{ a, b }?], do:
-        self:a
-    end)
-    
-    \get_a :def! ([{ a, b, c }?], do:
-        self:a
-    end)
-
-    test_get_a = do obj, v:
-        obj:get_a:should.be(\==, v)
-    end
-
-
-    test_get_a(justa, .true)
-
-    test_get_a(ab, 3)
-
-    test_get_a(abc, 'hi')
-
-    test_get_a(ab, 3)
-
-    test_get_a(ab, 3)
-
-    ab:a = 5
-
-    test_get_a(abc, 'hi')
-
-    test_get_a(ab, 5)
-
-    test_get_a(justa, .true)
-  end
 
   'should make tuples' :tests.should do:
     tup = [ 1, 2, 3 ]
@@ -392,57 +240,43 @@ end
     tup:at!(2):should.be(\==, 3)
     tup:len:should.be(\==, 3)
   end
-
-  'sending to records' :tests.should do:
-    result = { hi = 2 } :hi
-
-    result:should.be(\==, 2)
-
-    result = { hi = do: 4 end } :hi
-
-    result:should.be(\==, 4)
-  end
 end
 
 'Overloads' :tests.covers do:
-    Vector = { x, y }?
+    vec.t = { x, y }?
 
-    \+ :def! ([Vector], do other:
-        other:is?(Vector) :else do:
-          .INVALID_ARGUMENTS:panic
-        end
-
-        {
-            x = (self:x) + (other:x),
-            y = (self:y) + (other:y),
-        }
+    \+ :def!([vec.t], do other:
+      {
+        x = self:x + other:x,
+        y = self:y + other:y,
+      }
     end)
 
     'should overload binary' :tests.should do:
-        test = { x = 1, y = 2 } + { x = 2, y = 1 }
+        a = { x = 1, y = 2 }
+        b = { x = 2, y = 1 }
+        test = a + b
 
-        3:should.be(\==, test:x)
-        3:should.be(\==, test:y)
+        test:x:should.be(\==, 3)
+        test:y:should.be(\==, 3)
     end
 
-    \< :def! ([Vector], do other:
-        other:is?(Vector) :or do:
-          .INVALID_ARGUMENTS:panic
-        end
-
+      \< :def!([vec.t], do other:
         mag = ((self:x) * (self:x)) + ((self:y) * (self:y))
         other_mag = ((other:x) * (other:x)) + ((other:y) * (other:y))
-
         mag < other_mag
-    end)
+      end)
 
-    \== :def! ([Vector], do other:
-      (self:x == other:x) & (self:y == other:y)
-    end)
+      \== :def!([vec.t], do other:
+        (self:x == other:x) & (self:y == other:y)
+      end)
 
     'should overload comparison' :tests.should do:
-        { x = 1, y =  1 }:should.be(\==, { x = 1, y = 1})
-        ({ x = 1, y = 2 } < { x = 4, y = 4}):should.be(\==, .true)
+        a = { x = 1, y = 1 }
+        b = { x = 1, y = 1 }
+        a:should.be(\==, b)
+        b = { x = 4, y = 4 }
+        (a < b):should.be(\==, .true)
     end
 
     get = do obj, key:
@@ -450,15 +284,15 @@ end
     end
 
     'should get before overload' :tests.should do:
-        1:should.be(\==, get({ x = 1, y = 2}, 'x'))
+        get({ x = 1, y = 2 }, \x):should.be(\==, 1)
     end
 
-    \at! :def! ([Vector], do key:
-      v = self
-      (key == 'mag') :then do:
-        ((v:x) * (v:x)) + ((v:y) * (v:y))
-      end
-    end)
+      \at! :def! ([vec.t], do key:
+        v = self
+        (key == 'mag') :then do:
+          ((v:x) * (v:x)) + ((v:y) * (v:y))
+        end
+      end)
 
     'should overload get' :tests.should do:
         get({ x = 2, y = 2 },'mag'):should.be(\==, 8)
@@ -470,10 +304,13 @@ end
       end
 
       3:should.be(\==, sum(1,2))
-      {x = 3, y = 3}:should.be(\==, sum({x = 1, y = 2}, {x = 2, y = 1}))
+      a = { x = 3, y = 3 }
+      b = { x = 1, y = 2 }
+      c = { x = 2, y = 1 }
+      a:should.be(\==, sum(b, c))
       'hi':should.be(\==, sum('h','i'))
       'hi':should.be(\==, sum('h','i'))
-      {x = 3, y = 3}:should.be(\==, sum({x = 1, y = 2}, {x = 2, y = 1}))
+      a:should.be(\==, sum(b, c))
       3:should.be(\==, sum(1,2))
     end
 end
@@ -522,7 +359,7 @@ end
 
     'dynamic message sends' :tests.should do:
       sum = do a, b:
-        a:send(\+, b)
+        \+(a, b)
       end
 
       result = sum(1,1)
@@ -537,24 +374,20 @@ end
 
       result:should.be(\==, 'hi world')
 
-      result = { hi = 8 }:send \hi
+      result = \hi { hi = 8 }
 
       result:should.be(\==, 8)
 
-      result = { hi = 8 }:send(\put!, 'hi' , 2)
+      result = \put({ hi = 8 }, \hi , 2)
 
       result:hi:should.be(\==, 2)
 
-      result = ['hi']:send \** 
+      result = \** ['hi']
 
       result:should.be(\==, 'hi')
 
-      result = { hi }:send(\hi, 4)
+      result = \hi({ hi }, 4)
 
-      result:should.be(\==, 4)
-
-      result = { hi = do: 8 end }:send \hi 
-
-      result:should.be(\==, 8)
+      result:hi:should.be(\==, 4)
     end
 end

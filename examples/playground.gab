@@ -3,33 +3,33 @@ s = 'specs' :use
 Car = { car.make, car.model, car.year, car.color }
 
 s:def! {
-  name = 'car.make',
+  name = .car.make,
   help = "The car's manufacturer, ie 'Ford'",
   spec =  s:any  ('Ford', 'Chevy', 'Toyota', 'Honda'),
 }
 
 car.color.spec = s:def! {
-  name = 'car.color',
+  name = .car.color,
   spec =  s:any ('RED', 'BLUE', 'WHITE', 'BLACK')
 }
 
 s:def! {
-  name = 'car.model' ,
+  name = .car.model ,
   spec =  s:any ('Mustang', 'Civic', 'Camry', 'Prius')
 }
 
 s:def! {
-  name = 'car.year' ,
+  name = .car.year ,
   spec =  s:all ( s:int (),  s:gt 1950 )
 }
 
 car.spec = s:def! {
-  name = 'car',
+  name = .car,
   spec =  s:protocol Car
 }
 
 car.paint.spec = s:def! {
-  name = 'car.paint',
+  name = .car.paint,
   help = "Paint the car the given color",
   spec =  s:message {
     # The receiver's spec
@@ -48,20 +48,19 @@ car.paint.spec = s:def! {
 }
 
 # Generate a mock car
+car.spec:spec.explain:print
+
 test_car = car.spec :spec.gen
-test_car:print
 
 # Generate a mock implementation of car.paint for Car
 car.paint.spec:spec.gen(Car ?)
 
 # Test the mock coar with the mock implementation of car.paint
-test_car :car.paint('BLUE'):print # => 'BLUE'
-
-car.spec :spec.messages
+#test_car :car.paint('BLUE'):print # => 'BLUE'
 
 # Define a faulty car.paint specialization
-#\car.paint :def! ([Car?], do color
-#  self:car.color = 10
+#\car.paint :def! ([Car ?], do color:
+  #self:car.color 10
 #end)
 
 # Check our faulty implementation
@@ -69,5 +68,4 @@ car.spec :spec.messages
 # It generates receivers and inputs, sends the message,
 # And checks the output against the spec and semantics.
 # This code will run forever if the spec is always satisfied
-#results[] = car.paint.spec:spec.check
-#results:print
+car.paint.spec:spec.check:print

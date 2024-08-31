@@ -1,69 +1,33 @@
-TestState = { fails, errs }
-
-testing.t = TestState ?
-
-\reset :def! ([testing.t], do:
-  self:fails = 0
-  self:errs = .gab.list ()
-
-  self
-end)
-
-T = .gab.record testing.t :reset 
-
-\tests.push_result :defcase! {
+\tests.handle_result :defcase! {
 # When the result is true, we do nothing.
 # The test passed.
   .true = .nil,
 # When the result is false, The test failed.
 # Count it and add it to the list of fails.
   .false = do actual, expected:
-    T:fails = T:fails + 1
-    T:errs:push! [actual, expected]
+    '  × got {actual}, expecting {expected}':print
   end,
 }
 
-\passed? :def! ([testing.t], do:
-  self:fails == 0
+\test.comp.apply :def!(['gab.message', 'gab.block'], do x,y:
+  self(x,y)
 end)
-
-\show_errs :def! ([testing.t], do:
-  self:errs:each do mismatch:
-      '     - got {mismatch:at!(0)}, expecting {mismatch:at!(1)}':print
-  end
-end)
-
-\test.comp.apply :defcase! {
-  gab.message = do x, y:
-    x:send(self, y)
-  end,
-  gab.block = do x, y:
-    self(x,y)
-  end,
-}
 
 \should.be :def! ([], do comp, other:
-   comp:test.comp.apply(self, other):tests.push_result(self, other)
+   comp:test.comp.apply(self, other):tests.handle_result(self, other)
 end)
 
 \should.not.be :def! ([], do comp, other:
-   comp:test.comp.apply(self, other):!:tests.push_result(self, other)
+   comp:test.comp.apply(self, other):!:tests.handle_result(self, other)
 end)
 
 \tests.covers :def! (['gab.string'], do cb:
-  '\n{self}:':print
+  '\n{self} covers:':print
   cb()
 end)
 
 \tests.should :def! (['gab.string'], do cb:
-  T:reset
-
   cb()
 
-  '  { T:passed? :and '✓' :or '×' } it { self }':print
-
-  T:passed?:else do:
-    T:show_errs
-  end
-
+  '  ✓ it should { self }':print
 end)

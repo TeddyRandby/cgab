@@ -1,7 +1,9 @@
 #ifndef GAB_ENGINE_H
 #define GAB_ENGINE_H
 
+#include "core.h"
 #include "gab.h"
+#include <threads.h>
 
 #ifdef GAB_STATUS_NAMES_IMPL
 static const char *gab_status_names[] = {
@@ -21,26 +23,26 @@ static const char *gab_token_names[] = {
 #undef TOKEN_NAMES
 #endif
 
-#define T struct gab_obj *
-#define NAME gab_obj
-#include "vector.h"
+void gab_egqpush(struct gab_eg *eg, struct gab_fb* fiber);
 
-#define NAME gab_obj
-#define K struct gab_obj *
-#define V size_t
-#define HASH(a) ((intptr_t)a)
-#define EQUAL(a, b) (a == b)
-#define DEF_V (UINT8_MAX)
-#include "dict.h"
-
-struct gab_gc {
-  v_gab_obj decrements, increments, roots, dead;
-  d_gab_obj overflow_rc;
-  int locked;
-};
+a_gab_value* gab_vmexec(struct gab_triple gab, struct gab_fb* fiber);
 
 void gab_gccreate(struct gab_gc *gc);
+
 void gab_gcdestroy(struct gab_gc *gc);
+
+/*
+ * Check if collection is necessary, and unblock the collection
+ * thread if necessary
+ */
+bool gab_gctrigger(struct gab_triple gab);
+
+/*
+ * Begin the next epoch for the given pid
+ */
+void gab_gcepochnext(struct gab_triple gab);
+
+void gab_gcdocollect(struct gab_triple gab);
 
 typedef void (*gab_gc_visitor)(struct gab_triple gab, struct gab_obj *obj);
 
@@ -51,29 +53,13 @@ enum variable_flag {
   fLOCAL_REST = 1 << 3,
 };
 
-/*
- * The gab virtual machine. This has all the state needed for executing
- * bytecode.
- */
-struct gab_vm {
-  uint8_t *ip;
-
-  gab_value *sp, *fp;
-
-  gab_value sb[cGAB_STACK_MAX];
-};
-
-void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size);
+static inline void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj,
+                                uint64_t size) {
+  return gab.eg->os_objalloc(gab, obj, size);
+}
 
 struct gab_obj_string *gab_egstrfind(struct gab_eg *gab, s_char str,
                                      uint64_t hash);
-
-struct gab_obj_message *gab_egmsgfind(struct gab_eg *gab, gab_value name,
-                                      uint64_t hash);
-
-struct gab_obj_shape *gab_egshpfind(struct gab_eg *gab, uint64_t size,
-                                    uint64_t stride, uint64_t hash,
-                                    gab_value keys[size]);
 
 struct gab_err_argt {
   enum gab_status status;

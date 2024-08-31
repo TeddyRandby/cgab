@@ -1,3 +1,4 @@
+#include <threads.h>
 #define GAB_STATUS_NAMES_IMPL
 #define GAB_TOKEN_NAMES_IMPL
 #include "engine.h"
@@ -28,10 +29,6 @@ struct primitive all_primitives[] = {
     {
         .name = mGAB_TYPE,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_TYPE),
-    },
-    {
-        .name = mGAB_SEND,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_SEND_GENERIC),
     },
 };
 
@@ -179,23 +176,152 @@ struct primitive kind_primitives[] = {
         .kind = kGAB_BLOCK,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_BLOCK),
     },
+    {
+        .name = mGAB_CALL,
+        .kind = kGAB_MESSAGE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_MESSAGE),
+    },
 };
+
+struct gab_fb *gab_egqpop(struct gab_eg *eg) {
+  mtx_lock(&eg->queue_mtx);
+
+  if (eg->queue.len == 0) {
+    mtx_unlock(&eg->queue_mtx);
+    return nullptr;
+  }
+
+  struct gab_fb *fiber = v_gab_fb_pop(&eg->queue);
+
+  mtx_unlock(&eg->queue_mtx);
+  return fiber;
+}
+
+void gab_egqpush(struct gab_eg *eg, struct gab_fb *fiber) {
+  mtx_lock(&eg->queue_mtx);
+  v_gab_fb_push(&eg->queue, fiber);
+  mtx_unlock(&eg->queue_mtx);
+}
+
+int32_t wkid(struct gab_eg *eg) {
+  for (size_t i = 0; i < GAB_NWORKERS; i++) {
+    struct gab_wk *wk = &eg->workers[i];
+    if (wk->td == thrd_current())
+      return i;
+  }
+
+  return -1;
+}
+
+a_gab_value *gab_fibawait(struct gab_fb *fiber) {
+  while (fiber->status != kGAB_FIBER_DONE)
+    thrd_yield();
+
+  return fiber->res;
+}
+
+int32_t gc_thread(void *data) {
+  struct gab_eg *eg = data;
+  struct gab_triple gab = {.eg = eg, .wkid = GAB_NWORKERS};
+
+  while (eg->alive) {
+    if (eg->gc.schedule == gab.wkid)
+      gab_gcdocollect(gab);
+  }
+
+  return 0;
+}
+
+int32_t worker_thread(void *data) {
+  struct gab_eg *eg = data;
+  int32_t id = wkid(eg);
+
+  struct gab_triple gab = {.eg = eg, .wkid = id};
+
+  while (gab.eg->alive) {
+    struct gab_fb *fiber = gab_egqpop(eg);
+
+    if (gab.eg->gc.schedule == gab.wkid)
+      gab_gcepochnext(gab);
+
+    if (!fiber) {
+      thrd_yield();
+      continue;
+    }
+
+    gab.eg->workers[id].fiber = fiber;
+
+    a_gab_value *res = gab_vmexec(gab, fiber);
+    fiber->res = res;
+    fiber->status = kGAB_FIBER_DONE;
+    assert(res);
+
+    gab.eg->workers[id].fiber = nullptr;
+
+    if (!res)
+      goto fin;
+  }
+
+fin:
+  gab.eg->workers[id].fiber = nullptr;
+  gab.eg->nworkers--;
+  return 0;
+}
+
+struct gab_obj *eg_defaultalloc(struct gab_triple gab, struct gab_obj *obj,
+                                uint64_t size) {
+  if (size == 0) {
+    assert(obj);
+
+    free(obj);
+
+    return nullptr;
+  }
+
+  assert(!obj);
+
+  return malloc(size);
+}
 
 struct gab_triple gab_create(struct gab_create_argt args) {
   struct gab_eg *eg = NEW(struct gab_eg);
   memset(eg, 0, sizeof(struct gab_eg));
 
+  assert(args.os_dynsymbol);
+  assert(args.os_dynopen);
+
   eg->os_dynsymbol = args.os_dynsymbol;
   eg->os_dynopen = args.os_dynopen;
 
+  eg->alive = true;
+  eg->hash_seed = time(nullptr);
+
+  if (args.os_objalloc)
+    eg->os_objalloc = args.os_objalloc;
+  else
+    eg->os_objalloc = eg_defaultalloc;
+
   d_gab_src_create(&eg->sources, 8);
 
-  struct gab_gc *gc = NEW(struct gab_gc);
-  gab_gccreate(gc);
+  gab_gccreate(&eg->gc);
 
-  struct gab_triple gab = {.eg = eg, .gc = gc, .flags = args.flags};
+  struct gab_triple gab = {.eg = eg, .flags = args.flags, .wkid = GAB_NWORKERS};
 
-  eg->hash_seed = time(nullptr);
+  mtx_init(&eg->shapes_mtx, mtx_plain);
+
+  struct gab_wk *gc_wk = &gab.eg->workers[GAB_NWORKERS];
+  gc_wk->epoch = 0;
+  v_gab_obj_create(&gc_wk->lock_keep, 8);
+  gc_wk->locked = 0;
+  size_t res = thrd_create(&gc_wk->td, gc_thread, gab.eg);
+
+  if (res != thrd_success) {
+    printf("UHOH\n");
+    exit(1);
+  }
+
+  eg->shapes = __gab_shape(gab, 0);
+  eg->messages = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
 
   eg->types[kGAB_UNDEFINED] = gab_undefined;
 
@@ -220,11 +346,11 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->types[kGAB_BLOCK] = gab_string(gab, "gab.block");
   gab_iref(gab, eg->types[kGAB_BLOCK]);
 
-  eg->types[kGAB_RECORD] = gab_string(gab, "gab.record");
-  gab_iref(gab, eg->types[kGAB_RECORD]);
-
   eg->types[kGAB_SHAPE] = gab_string(gab, "gab.shape");
   gab_iref(gab, eg->types[kGAB_SHAPE]);
+
+  eg->types[kGAB_RECORD] = gab_string(gab, "gab.record");
+  gab_iref(gab, eg->types[kGAB_RECORD]);
 
   eg->types[kGAB_BOX] = gab_string(gab, "gab.box");
   gab_iref(gab, eg->types[kGAB_BOX]);
@@ -269,15 +395,47 @@ struct gab_triple gab_create(struct gab_create_argt args) {
     }
   }
 
-  if (!(gab.flags & fGAB_NO_CORE)) {
-    gab_suse(gab, "core");
+  v_gab_fb_create(&gab.eg->queue, 32);
+  mtx_init(&gab.eg->queue_mtx, mtx_plain);
+
+  for (int i = 0; i < GAB_NWORKERS; i++) {
+    struct gab_wk *wk = &gab.eg->workers[i];
+    v_gab_obj_create(&wk->lock_keep, 8);
+    wk->epoch = 0;
+    size_t res = thrd_create(&wk->td, worker_thread, gab.eg);
+    if (res != thrd_success) {
+      printf("UHOH\n");
+      exit(1);
+    }
+    gab.eg->nworkers++;
   }
+
+  if (!(gab.flags & fGAB_NO_CORE))
+    gab_suse(gab, "core");
 
   return gab;
 }
 
 void gab_destroy(struct gab_triple gab) {
+
+  while (1) {
+    // Wait for the workers to not be working
+    for (int i = 0; i < GAB_NWORKERS; i++) {
+      if (gab.eg->workers[i].fiber != nullptr)
+        goto nxt;
+    }
+
+    goto fin;
+
+  nxt:
+    thrd_yield();
+  }
+
+fin:
+
   gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
+  gab.eg->messages = gab_undefined;
+  gab.eg->shapes = gab_undefined;
 
   for (uint64_t i = 0; i < gab.eg->modules.cap; i++) {
     if (d_gab_modules_iexists(&gab.eg->modules, i)) {
@@ -287,8 +445,16 @@ void gab_destroy(struct gab_triple gab) {
   }
 
   gab_collect(gab);
+  while (gab.eg->gc.schedule >= 0)
+    ;
 
-  gab_gcdestroy(gab.gc);
+  gab.eg->alive = false;
+  while (gab.eg->nworkers > 0)
+    continue;
+
+  thrd_join(gab.eg->workers[GAB_NWORKERS].td, nullptr);
+
+  gab_gcdestroy(&gab.eg->gc);
 
   for (uint64_t i = 0; i < gab.eg->sources.cap; i++) {
     if (d_gab_src_iexists(&gab.eg->sources, i)) {
@@ -298,13 +464,13 @@ void gab_destroy(struct gab_triple gab) {
   }
 
   d_strings_destroy(&gab.eg->strings);
-  d_shapes_destroy(&gab.eg->shapes);
-  d_messages_destroy(&gab.eg->messages);
   d_gab_modules_destroy(&gab.eg->modules);
   d_gab_src_destroy(&gab.eg->sources);
 
   v_gab_value_destroy(&gab.eg->scratch);
-  free(gab.gc);
+  v_gab_fb_destroy(&gab.eg->queue);
+  mtx_destroy(&gab.eg->queue_mtx);
+  mtx_destroy(&gab.eg->shapes_mtx);
   free(gab.eg);
 }
 
@@ -418,54 +584,28 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
 
 int gab_nspec(struct gab_triple gab, size_t len,
               struct gab_spec_argt args[static len]) {
-  gab_gclock(gab.gc);
+  gab_gclock(gab);
 
   for (size_t i = 0; i < len; i++) {
     if (gab_spec(gab, args[i]) == gab_undefined) {
-      gab_gcunlock(gab.gc);
+      gab_gcunlock(gab);
       return i;
     }
   }
 
-  gab_gcunlock(gab.gc);
+  gab_gcunlock(gab);
   return -1;
 }
 
 gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
-  gab_gclock(gab.gc);
+  gab_gclock(gab);
 
-  gab_value n = gab_string(gab, args.name);
-  gab_value m = gab_message(gab, n);
-  m = gab_msgput(gab, m, args.receiver, args.specialization);
+  gab_value m = gab_message(gab, args.name);
+  m = gab_egmsgput(gab, m, args.receiver, args.specialization);
 
-  gab_gcunlock(gab.gc);
+  gab_gcunlock(gab);
 
   return m;
-}
-
-struct gab_obj_message *gab_egmsgfind(struct gab_eg *self, gab_value name,
-                                      uint64_t hash) {
-  if (self->messages.len == 0)
-    return nullptr;
-
-  uint64_t index = hash & (self->messages.cap - 1);
-
-  for (;;) {
-    d_status status = d_messages_istatus(&self->messages, index);
-    struct gab_obj_message *key = d_messages_ikey(&self->messages, index);
-
-    switch (status) {
-    case D_TOMBSTONE:
-      break;
-    case D_EMPTY:
-      return nullptr;
-    case D_FULL:
-      if (key->hash == hash && key->name == name)
-        return key;
-    }
-
-    index = (index + 1) & (self->messages.cap - 1);
-  }
 }
 
 struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
@@ -493,48 +633,6 @@ struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
     }
 
     index = (index + 1) & (self->strings.cap - 1);
-  }
-}
-
-static inline bool shape_matches_keys(struct gab_obj_shape *self,
-                                      gab_value values[], uint64_t len,
-                                      uint64_t stride) {
-
-  if (self->len != len)
-    return false;
-
-  for (uint64_t i = 0; i < len; i++) {
-    gab_value key = values[i * stride];
-    if (self->data[i] != key)
-      return false;
-  }
-
-  return true;
-}
-
-struct gab_obj_shape *gab_egshpfind(struct gab_eg *self, uint64_t size,
-                                    uint64_t stride, uint64_t hash,
-                                    gab_value keys[size]) {
-  if (self->shapes.len == 0)
-    return nullptr;
-
-  uint64_t index = hash & (self->shapes.cap - 1);
-
-  for (;;) {
-    d_status status = d_shapes_istatus(&self->shapes, index);
-    struct gab_obj_shape *key = d_shapes_ikey(&self->shapes, index);
-
-    switch (status) {
-    case D_TOMBSTONE:
-      break;
-    case D_EMPTY:
-      return nullptr;
-    case D_FULL:
-      if (key->hash == hash && shape_matches_keys(key, keys, size, stride))
-        return key;
-    }
-
-    index = (index + 1) & (self->shapes.cap - 1);
   }
 }
 
@@ -597,10 +695,8 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
   }
 
   case kGAB_MESSAGE: {
-    struct gab_obj_message *self = GAB_VAL_TO_MESSAGE(value);
-    gab_value copy = gab_message(gab, gab_valcpy(gab, self->name));
-
-    return copy;
+    return gab_strtomsg(
+        gab_nstring(gab, gab_strlen(value), gab_strdata(&value)));
   }
 
   case kGAB_SIGIL: {
@@ -646,33 +742,6 @@ gab_value gab_valcpy(struct gab_triple gab, gab_value value) {
 
     return copy;
   }
-
-  case kGAB_SHAPE: {
-    struct gab_obj_shape *self = GAB_VAL_TO_SHAPE(value);
-
-    gab_value keys[self->len];
-
-    for (uint64_t i = 0; i < self->len; i++) {
-      keys[i] = gab_valcpy(gab, self->data[i]);
-    }
-
-    gab_value copy = gab_shape(gab, 1, self->len, keys);
-
-    return copy;
-  }
-
-  case kGAB_RECORD: {
-    struct gab_obj_record *self = GAB_VAL_TO_RECORD(value);
-
-    gab_value s_copy = gab_valcpy(gab, self->shape);
-
-    gab_value values[self->len];
-
-    for (uint64_t i = 0; i < self->len; i++)
-      values[i] = gab_valcpy(gab, self->data[i]);
-
-    return gab_recordof(gab, s_copy, 1, values);
-  }
   }
 }
 
@@ -680,38 +749,17 @@ gab_value gab_string(struct gab_triple gab, const char data[static 1]) {
   return gab_nstring(gab, strlen(data), data);
 }
 
-gab_value gab_record(struct gab_triple gab, uint64_t size, gab_value keys[size],
-                     gab_value values[size]) {
-  gab_value bundle_shape = gab_shape(gab, 1, size, keys);
-  return gab_recordof(gab, bundle_shape, 1, values);
-}
-
-gab_value gab_srecord(struct gab_triple gab, uint64_t size,
-                      const char *keys[size], gab_value values[size]) {
-  gab_value value_keys[size];
-
-  for (uint64_t i = 0; i < size; i++)
-    value_keys[i] = gab_string(gab, keys[i]);
-
-  gab_value bundle_shape = gab_shape(gab, 1, size, value_keys);
-  return gab_recordof(gab, bundle_shape, 1, values);
-}
-
-gab_value gab_etuple(struct gab_triple gab, size_t len) {
-  gab_gclock(gab.gc);
-  gab_value bundle_shape = gab_nshape(gab, len);
-  gab_value v = gab_erecordof(gab, bundle_shape);
-  gab_gcunlock(gab.gc);
-  return v;
-}
-
 gab_value gab_tuple(struct gab_triple gab, uint64_t size,
                     gab_value values[size]) {
-  gab_gclock(gab.gc);
+  gab_gclock(gab);
 
-  gab_value bundle_shape = gab_nshape(gab, size);
-  gab_value v = gab_recordof(gab, bundle_shape, 1, values);
-  gab_gcunlock(gab.gc);
+  gab_value keys[size];
+  for (size_t i = 0; i < size; i++) {
+    keys[i] = gab_number(i);
+  }
+
+  gab_value v = gab_record(gab, 1, size, keys, values);
+  gab_gcunlock(gab);
   return v;
 }
 
@@ -885,20 +933,6 @@ fin:
     exit(1);
 }
 
-void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj, uint64_t size) {
-  if (size == 0) {
-    assert(obj);
-
-    free(obj);
-
-    return nullptr;
-  }
-
-  assert(!obj);
-
-  return malloc(size);
-}
-
 int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
                            const void *const *args) {
   const gab_value value = *(const gab_value *const)args[0];
@@ -931,7 +965,7 @@ a_gab_value *gab_shared_object_handler(struct gab_triple gab,
                                        const char *path) {
   void *handle = gab.eg->os_dynopen(path);
 
-  if (!handle) {
+  if (handle == nullptr) {
     gab_panic(gab, "Couldn't open module");
     return nullptr;
   }
@@ -943,9 +977,9 @@ a_gab_value *gab_shared_object_handler(struct gab_triple gab,
     return nullptr;
   }
 
-  gab_gclock(gab.gc);
+  gab_gclock(gab);
   a_gab_value *res = symbol(gab);
-  gab_gcunlock(gab.gc);
+  gab_gcunlock(gab);
 
   if (res) {
     a_gab_value *final =
@@ -980,7 +1014,7 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
                                       .len = 0,
                                   });
 
-  if (res->data[0] != gab_ok)
+  if (res == nullptr || res->data[0] != gab_ok)
     return gab_panic(gab, "Failed to load module");
 
   gab_negkeep(gab.eg, res->len - 1, res->data + 1);

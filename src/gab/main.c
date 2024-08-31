@@ -1,6 +1,7 @@
 #include "core.h"
 #include "gab.h"
 #include "os.h"
+#include "alloc.h"
 #include <printf.h>
 #include <stdio.h>
 #include <string.h>
@@ -12,7 +13,11 @@
 
 void *dynopen(const char *path) {
 #if GAB_OS_UNIX
-  return dlopen(path, RTLD_NOW);
+  void *dl = dlopen(path, RTLD_NOW);
+  if (!dl) {
+    printf("Failed opening '%s'\nERROR: %s\n", path, dlerror());
+  }
+  return dl;
 #else
 #error Windows not supported
 #endif
@@ -32,6 +37,7 @@ void run_repl(int flags) {
   struct gab_triple gab = gab_create((struct gab_create_argt){
       .os_dynopen = dynopen,
       .os_dynsymbol = dynsymbol,
+      .flags = flags,
   });
 
   gab_repl(gab, (struct gab_repl_argt){
@@ -79,8 +85,15 @@ void run_file(const char *path, int flags) {
   struct gab_triple gab = gab_create((struct gab_create_argt){
       .os_dynopen = dynopen,
       .os_dynsymbol = dynsymbol,
+      .os_objalloc = chunkalloc,
       .flags = flags,
   });
+
+  // gab_value data[] = { gab_true, gab_false };
+
+  // gab_value rec = gab_record(gab, gab_undefined, 1, 2, data);
+  //
+  // gab_fprintf(stdout, "Test: $", rec);
 
   a_gab_value *result = gab_suse(gab, path);
 
@@ -99,7 +112,7 @@ struct option {
   int flag;
 };
 
-#define MAX_OPTIONS 4
+#define MAX_OPTIONS 5
 
 struct command {
   const char *name;
@@ -150,6 +163,12 @@ static struct command commands[] = {
                 'c',
                 .flag = fGAB_BUILD_CHECK,
             },
+            {
+                "ncore",
+                "Don't use the gab core module.",
+                'n',
+                .flag = fGAB_NO_CORE,
+            },
         },
     },
     {
@@ -181,6 +200,12 @@ static struct command commands[] = {
                 'c',
                 .flag = fGAB_BUILD_CHECK,
             },
+            {
+                "ncore",
+                "Don't use the gab core module.",
+                'n',
+                .flag = fGAB_NO_CORE,
+            },
         },
     },
     {
@@ -193,6 +218,12 @@ static struct command commands[] = {
                 "Dump compiled bytecode to stdout",
                 'd',
                 .flag = fGAB_BUILD_DUMP,
+            },
+            {
+                "ncore",
+                "Don't use the gab core module.",
+                'n',
+                .flag = fGAB_NO_CORE,
             },
         },
     },
@@ -223,16 +254,23 @@ struct parse_options_result parse_options(int argc, const char **argv,
         }
       }
 
+      printf("UNRECOGNIZED FLAG: %s\n", argv[i]);
+      exit(1);
       continue;
-    }
+    } else {
+      for (int j = 0; j < MAX_OPTIONS; j++) {
+        struct option opt = command.options[j];
 
-    for (int j = 0; j < MAX_OPTIONS; j++) {
-      struct option opt = command.options[j];
-
-      if (opt.name && argv[i][1] == opt.shorthand) {
-        flags |= opt.flag;
-        break;
+        if (opt.name && argv[i][1] == opt.shorthand) {
+          flags |= opt.flag;
+          break;
+        }
       }
+
+      continue;
+
+      printf("UNRECOGNIZED FLAG: %s\n", argv[i]);
+      exit(1);
     }
   }
 
@@ -295,7 +333,8 @@ int main(int argc, const char **argv) {
     }
   }
 
-fin:
+fin: {
   struct command cmd = DEFAULT_COMMAND;
   return cmd.handler(0, argv, 0);
+}
 }

@@ -35,7 +35,6 @@ enum lvalue_k {
   kNEW_REST_LOCAL,
   kEXISTING_LOCAL,
   kEXISTING_REST_LOCAL,
-  kMESSAGE,
 };
 
 typedef struct mv_t {
@@ -102,7 +101,7 @@ struct bc {
 
 // static inline struct gab_gc *gc(struct bc *bc) { return bc->gab.gc; }
 static inline struct gab_eg *eg(struct bc *bc) { return bc->gab.eg; }
-// static inline struct gab_vm *vm(struct bc *bc) { return bc->gab.vm; }
+// static inline struct gab_vm *vm(struct bc *bc) { return bc->gab_vm(gab); }
 static inline struct gab_triple gab(struct bc *bc) { return bc->gab; }
 
 enum prec_k { kNONE, kASSIGNMENT, kBINARY_SEND, kSEND, kPRIMARY };
@@ -191,6 +190,7 @@ static bool match_token(struct bc *bc, gab_token tok);
 static int eat_token(struct bc *bc);
 
 static gab_value tok_id(struct bc *bc, gab_token tok) {
+  // These can cause collections during compilation.
   return gab_string(gab(bc), gab_token_names[tok]);
 }
 
@@ -234,12 +234,21 @@ static int eat_token(struct bc *bc) {
   return COMP_OK;
 }
 
-static inline int match_and_eat_token(struct bc *bc, gab_token tok) {
-  if (!match_token(bc, tok))
-    return COMP_TOKEN_NO_MATCH;
+static inline int match_and_eat_token_of(struct bc *bc, size_t len,
+                                         gab_token tok[len]) {
+  for (size_t i = 0; i < len; i++) {
+    if (match_token(bc, tok[i]))
+      return eat_token(bc);
+  }
 
-  return eat_token(bc);
+  return COMP_TOKEN_NO_MATCH;
 }
+
+#define match_and_eat_token(bc, ...)                                           \
+  ({                                                                           \
+    gab_token toks[] = {__VA_ARGS__};                                          \
+    match_and_eat_token_of(bc, sizeof(toks) / sizeof(gab_token), toks);        \
+  })
 
 static inline int expect_token_hint(struct bc *bc, gab_token tok,
                                     const char *fmt, ...) {
@@ -344,14 +353,6 @@ static inline uint16_t addk(struct bc *bc, gab_value value) {
   assert(bc->src->constants.len < UINT16_MAX);
 
   return v_gab_value_push(&bc->src->constants, value);
-}
-
-static inline void push_shift(struct bc *bc, uint8_t n, size_t t) {
-  if (n <= 1)
-    return; // No op
-
-  push_op(bc, OP_SHIFT, t);
-  push_byte(bc, n, t);
 }
 
 static inline void push_k(struct bc *bc, uint16_t k, size_t t) {
@@ -609,11 +610,9 @@ static inline void push_record(struct bc *bc, size_t len, size_t t) {
         stack[i] = ks[arg_k];
       }
 
-      gab_value shape = gab_shape(gab(bc), 2, len, stack);
+      gab_value map = gab_record(gab(bc), 2, len, stack, stack + 1);
 
-      gab_value rec = gab_recordof(gab(bc), shape, 2, stack + 1);
-
-      uint16_t new_k = addk(bc, rec);
+      uint16_t new_k = addk(bc, map);
 
       v_uint8_t_set(&f->bc, prev_local_arg, prev_n - len * 2 + 1);
 
@@ -651,7 +650,7 @@ static inline void push_send(struct bc *bc, gab_value m, mv args, size_t t) {
   assert(args.status < 16);
 
   if (gab_valkind(m) == kGAB_STRING)
-    m = gab_message(gab(bc), m);
+    m = gab_strtomsg(m);
 
   assert(gab_valkind(m) == kGAB_MESSAGE);
 
@@ -726,6 +725,7 @@ static inline void push_pack(struct bc *bc, mv rhs, uint8_t below,
 static gab_value prev_id(struct bc *bc) {
   s_char s = prev_src(bc);
 
+  // These can cause collections during compilation.
   return gab_nstring(gab(bc), s.len, s.data);
 }
 
@@ -735,6 +735,7 @@ static gab_value trim_prev_id(struct bc *bc) {
   s.data++;
   s.len--;
 
+  // These can cause collections during compilation.
   return gab_nstring(gab(bc), s.len, s.data);
 }
 
@@ -1057,18 +1058,14 @@ static gab_value pop_ctxframe(struct bc *bc) {
 }
 
 struct compile_rule get_rule(gab_token k);
+static mv compile_exp_continued(struct bc *bc, int prec, mv lhs);
 static mv compile_exp_startwith(struct bc *bc, int prec, gab_token rule);
 static mv compile_expression_prec(struct bc *bc, enum prec_k prec);
 static mv compile_expression(struct bc *bc);
 static mv compile_tuple(struct bc *bc, uint8_t want);
 
 static bool curr_prefix(struct bc *bc, enum prec_k prec) {
-  struct compile_rule rule = get_rule(curr_tok(bc));
-  bool has_prefix = rule.prefix != nullptr;
-  // bool has_infix = rule.infix != nullptr;
-  // bool result = has_prefix && (!has_infix || rule.prec > prec);
-  bool result = has_prefix;
-  return result;
+  return get_rule(curr_tok(bc)).prefix != nullptr;
 }
 
 static mv compile_mv_trim(struct bc *bc, mv v, uint8_t want) {
@@ -1689,9 +1686,6 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
   if (rhs.status < 0)
     return MV_ERR;
 
-  if (rhs.status < 0)
-    return MV_ERR;
-
   if (n_rest_values) {
     for (uint8_t i = 0; i < lvalues->len; i++) {
       if (lvalues->data[i].kind == kEXISTING_REST_LOCAL ||
@@ -1730,10 +1724,6 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
       push_pop(bc, 1, t);
       pop_slot(bc, 1);
       break;
-
-    case kMESSAGE:
-      push_shift(bc, peek_slot(bc) - lval.slot, t);
-      break;
     }
   }
 
@@ -1750,17 +1740,6 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
         push_loadl(bc, lval.as.local.index, t), push_slot(bc, 1);
 
       break;
-
-    case kMESSAGE: {
-      push_send(bc, lval.as.property.message, lval.as.property.args, t);
-
-      push_trim(bc, is_last_assignment, t);
-
-      pop_slot(bc, lval.as.property.args.status);
-
-      push_slot(bc, is_last_assignment);
-      break;
-    }
     }
   }
 
@@ -1836,7 +1815,7 @@ static int compile_rec_internal_item(struct bc *bc) {
 
     gab_value m = trim_prev_id(bc);
 
-    push_loadk(bc, gab_message(gab(bc), m), t);
+    push_loadk(bc, gab_strtomsg(m), t);
     push_slot(bc, 1);
 
     if (match_and_eat_token(bc, TOKEN_EQUAL)) {
@@ -1850,14 +1829,14 @@ static int compile_rec_internal_item(struct bc *bc) {
     return COMP_OK;
   }
 
-  if (match_and_eat_token(bc, TOKEN_IDENTIFIER)) {
+  if (match_and_eat_token(bc, TOKEN_IDENTIFIER, TOKEN_OPERATOR)) {
     gab_value val_name = prev_id(bc);
 
     size_t t = bc->offset - 1;
 
     push_slot(bc, 1);
 
-    push_loadk(bc, val_name, t);
+    push_loadk(bc, gab_strtomsg(val_name), t);
 
     switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
 
@@ -2030,37 +2009,6 @@ mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs, size_t t,
   if (args.status < 0)
     return MV_ERR;
 
-  if (assignable && !match_ctx(bc, kTUPLE)) {
-    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL)) {
-      /*
-       * Account for the one value that this assignment - will receive from the
-       * rhs of the assignment
-       * */
-      args.status++;
-
-      if (args.multi)
-        args = compile_mv_trim(bc, args, 1);
-
-      return compile_assignment(bc, (struct lvalue){
-                                        .tok = t,
-                                        .kind = kMESSAGE,
-                                        .slot = peek_slot(bc),
-                                        .as.property.message = m,
-                                        .as.property.args = args,
-                                    });
-    }
-
-    if (match_ctx(bc, kASSIGNMENT_TARGET)) {
-      eat_token(bc);
-      compiler_error(bc, GAB_MALFORMED_ASSIGNMENT, FMT_ASSIGNMENT_ABANDONED,
-                     tok_id(bc, TOKEN_EQUAL));
-      return MV_ERR;
-    }
-  }
-
-  if (args.status < 0)
-    return MV_ERR;
-
   if (args.status > GAB_ARG_MAX)
     return compiler_error(bc, GAB_TOO_MANY_ARGUMENTS, ""), MV_ERR;
 
@@ -2074,7 +2022,6 @@ mv compile_send_with_args(struct bc *bc, gab_value m, mv lhs, mv rhs, size_t t,
 }
 
 mv compile_send(struct bc *bc, mv lhs, bool assignable) {
-
   size_t t = bc->offset - 1;
 
   gab_value name = trim_prev_id(bc);
@@ -2193,11 +2140,20 @@ static mv compile_exp_idn(struct bc *bc, mv lhs, bool assignable) {
 static mv compile_exp_msg(struct bc *bc, mv, bool) {
   gab_value m = trim_prev_id(bc);
 
-  push_loadk(bc, gab_message(gab(bc), m), bc->offset - 1);
+  push_loadk(bc, gab_strtomsg(m), bc->offset - 1);
 
   push_slot(bc, 1);
 
   return MV_OK;
+}
+
+static mv compile_exp_dot(struct bc *bc, mv lhs, bool assignable) {
+  enum prec_k prec = get_rule(prev_tok(bc)).prec;
+
+  if (match_and_eat_token(bc, TOKEN_NEWLINE) < 0)
+    return MV_ERR;
+
+  return compile_exp_continued(bc, prec, lhs);
 }
 
 static mv compile_exp_send(struct bc *bc, mv lhs, bool assignable) {
@@ -2223,6 +2179,26 @@ static mv compile_exp_prefixsend(struct bc *bc, mv lhs, bool assignable) {
   return compile_send_with_args(bc, name, lhs, rhs, t, true);
 }
 
+static mv compile_exp_continued(struct bc *bc, int prec, mv have) {
+  struct compile_rule rule;
+  bool assignable = prec <= kASSIGNMENT;
+
+  while (prec <= get_rule(curr_tok(bc)).prec) {
+    if (have.status < 0)
+      return MV_ERR;
+
+    if (eat_token(bc) < 0)
+      return MV_ERR;
+
+    rule = get_rule(prev_tok(bc));
+
+    if (rule.infix != nullptr)
+      have = rule.infix(bc, have, assignable);
+  }
+
+  return have;
+}
+
 static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
   struct compile_rule rule = get_rule(tok);
 
@@ -2234,22 +2210,7 @@ static mv compile_exp_startwith(struct bc *bc, int prec, gab_token tok) {
 
   mv have = rule.prefix(bc, MV_ERR, assignable);
 
-  while (prec <= get_rule(curr_tok(bc)).prec) {
-    if (have.status < 0)
-      return MV_ERR;
-
-    if (eat_token(bc) < 0)
-      return MV_ERR;
-
-    rule = get_rule(prev_tok(bc));
-
-    if (rule.infix != nullptr) {
-      have = rule.infix(bc, have, assignable);
-      continue;
-    }
-  }
-
-  return have;
+  return compile_exp_continued(bc, prec, have);
 }
 
 static mv compile_expression_prec(struct bc *bc, enum prec_k prec) {
@@ -2272,6 +2233,7 @@ static mv compile_expression_prec(struct bc *bc, enum prec_k prec) {
 const struct compile_rule rules[] = {
     PREFIX(blk),             // DO
     NONE(),                  // END
+    INFIX(dot, PRIMARY),     // DOT
     NONE(),                  // COMMA
     NONE(),                  // EQUAL
     NONE(),                  // COLON
@@ -2350,6 +2312,8 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
 
   args.name = args.name ? args.name : "__main__";
 
+  gab_gclock(gab);
+
   gab_value name = gab_string(gab, args.name);
 
   struct gab_src *src =
@@ -2374,6 +2338,8 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
   bc_destroy(&bc);
 
   assert(src->bytecode.len == src->bytecode_toks.len);
+
+  gab_gcunlock(gab);
 
   return module;
 }
@@ -2570,17 +2536,13 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_SEND_PRIMITIVE_GTE:
   case OP_SEND_PRIMITIVE_CALL_BLOCK:
   case OP_SEND_PRIMITIVE_CALL_NATIVE:
-  case OP_SEND_PRIMITIVE_SEND_GENERIC:
-  case OP_SEND_PRIMITIVE_SEND_GENERIC_PRIMITIVE:
-  case OP_SEND_PRIMITIVE_SEND_GENERIC_NATIVE:
-  case OP_SEND_PRIMITIVE_SEND_GENERIC_CONSTANT:
-  case OP_SEND_PRIMITIVE_SEND_GENERIC_BLOCK:
-  case OP_TAILSEND_PRIMITIVE_SEND_GENERIC_BLOCK:
-  case OP_SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_PRIMITIVE:
-  case OP_SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_NATIVE:
-  case OP_SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_CONSTANT:
-  case OP_SEND_PRIMITIVE_SEND_GENERIC_PROPERTY_BLOCK:
-  case OP_TAILSEND_PRIMITIVE_SEND_GENERIC_PROPERTY_BLOCK:
+  case OP_SEND_PRIMITIVE_CALL_MESSAGE:
+  case OP_SEND_PRIMITIVE_CALL_MESSAGE_PRIMITIVE:
+  case OP_SEND_PRIMITIVE_CALL_MESSAGE_NATIVE:
+  case OP_SEND_PRIMITIVE_CALL_MESSAGE_CONSTANT:
+  case OP_SEND_PRIMITIVE_CALL_MESSAGE_BLOCK:
+  case OP_TAILSEND_PRIMITIVE_CALL_MESSAGE_BLOCK:
+  case OP_SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY:
   case OP_TAILSEND_BLOCK:
   case OP_TAILSEND_PRIMITIVE_CALL_BLOCK:
   case OP_LOCALSEND_BLOCK:
@@ -2593,7 +2555,6 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_POPSTORE_LOCAL:
   case OP_LOAD_UPVALUE:
   case OP_INTERPOLATE:
-  case OP_SHIFT:
   case OP_LOAD_LOCAL:
     return dumpByteInstruction(stream, self, offset);
   case OP_NPOPSTORE_STORE_LOCAL:

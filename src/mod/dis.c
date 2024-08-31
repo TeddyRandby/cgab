@@ -9,7 +9,7 @@ void dis_block(gab_value blk) {
 }
 
 void dis_message(struct gab_triple gab, gab_value msg, gab_value rec) {
-  gab_value spec = gab_msgat(msg, rec);
+  gab_value spec = gab_egmsgat(gab.eg, msg, rec);
 
   switch (gab_valkind(spec)) {
   case kGAB_BLOCK:
@@ -31,7 +31,7 @@ a_gab_value* gab_lib_disstring(struct gab_triple gab, size_t argc,
   if (argc < 1)
     return gab_panic(gab, "Invalid call to gab_lib_dis");
 
-  gab_value msg = gab_message(gab, argv[0]);
+  gab_value msg = gab_strtomsg(argv[0]);
 
   dis_message(gab, msg, argc == 1 ? gab_undefined : argv[1]);
 

@@ -1,10 +1,8 @@
 messages.t = 'cmessages':use
 numbers.t = 'cnumbers':use
-records.t = 'crecords':use
+maps.t = 'cmaps':use
 strings.t = 'cstrings':use
-shapes.t = 'cshapes':use
-lists.t = 'clists' :use
-maps.t = 'cmaps' :use
+'fibers':use
 'format':use
 
 truthy_values = []
@@ -13,26 +11,9 @@ falsey_values = [.nil, .false, .none, .err]
 \self :def! ([], do: self end)
 \first :def! ([], do x: x end)
 \second :def! ([], do _, x: x end)
+\all :def! ([], do xs[]: xs end)
 
 \is? :def! ([], do other: self:? == other end)
-
-\until :def! (['gab.block'], do f[]:
-  (f**)():until.branch (self, f)
-end)
-
-\until.recurse :def! (['gab.block'], do f:
-  (f**)():until.branch (self, f)
-end)
-
-\until.branch :def! (truthy_values, do blk, f:
-  blk
-end)
-
-\until.branch :def! (falsey_values, do blk, f:
-  blk()
-
-  blk:until.recurse(f)
-end)
 
 truthy_values :defmodule! {
   \and = do alt[]:
@@ -41,7 +22,7 @@ truthy_values :defmodule! {
   \then = do f:
     f()
   end,
-  \or = do :
+  \or = do:
     self
   end,
   \else = do: 
@@ -105,382 +86,113 @@ end)
   end,
 }
 
-# Generic implementation for commands. - basically ignore.
-\doreduce :def! ([], do seq, acc, r:
-  # Apply the producer, resolving new values for the next step
-  ok, xs[] = seq:seq.next
-  # Tailcall to the next step
-  ok:doreduce(seq, acc, r, xs)
-end)
-
 \doreduce :defcase! {
-  ## The sequence yielded a value
-  .ok = do seq, acc, r, xs:
+  ## The sequence continues
+  .ok = do seq.i, seq.v, acc, r, xs:
     # Apply the reducer
-    acc, cmd = r:reduce.step(acc, xs**)
+    cmd, r, acc = r:reduce.step(acc, xs**)
     # proceed to the next sep
-    cmd:doreduce(seq, acc, r)
+    cmd:doreduce(seq.i, seq.v, acc, r)
   end,
   ## The sequence is done
-  .none = do seq, acc, r:
+  .none = do seq.i, seq.v, acc, r:
     r:reduce.done(acc)
   end,
+  ## The reducer continues
+  .next = do seq.i, seq.v, acc, r:
+    # Apply the producer, resolving new values for the next step
+    ok, seq.v, xs[] = seq.i :seqs.next seq.v
+    # Tailcall to the next step
+    ok:doreduce(seq.i, seq.v, acc, r, xs)
+  end,
   ## The reducer is done
-  .stop = do seq, acc, r:
+  .stop = do seq.i, seq.v, acc, r:
     r:reduce.done(acc)
   end,
 }
 
-\def.seq! :def! ([], do into:
+\def.seq! :def! ([], do:
   [self] :defmodule! {
-    \seqs.into = into,
     \reduce = do acc, r:
-      seq = self:seqs.into
-      ok, xs[] = seq:seq.next
-      ok:doreduce(seq, acc, r, xs)
+      ok, seq.v, xs[] = self :seqs.init
+      ok:doreduce(self, seq.v, acc, r, xs)
     end,
     \transduce = do acc, r, td:
-      self:reduce(acc, td r)
-    end,
-    \lists.into = do:
-      self:reduce(.gab.list(), \push!)
+      self:reduce(acc, td :iter.apply r)
     end,
     \tuples.into = do:
       self:reduce({}, \push)
     end,
     \each = do f:
-      self:transduce(.nil, \self, .td:map f)
+      self:transduce(.nil, \self, .map f)
     end,
   }
 end)
-
-\seq.next :def! (['gab.block'], do: self() end)
 
 # Implement the reducer protocol for blocks and messages
-['gab.block'] :defmodule! {
+['gab.block', 'gab.message'] :defmodule! {
   \reduce.step = do acc, xs[]:
-    self(acc, xs**)
+    (.next, self, self(acc, xs**))
   end,
   \reduce.done = do acc:
     acc
   end,
 }
-
-['gab.message'] :defmodule! {
-  \reduce.step = do acc, xs[]:
-    acc:send(self, xs**)
-  end,
-  \reduce.done = do acc:
-    acc
-  end,
-}
-
-\dodef.transducer! :defcase! {
-  gab.message = do m:
-    td = self
-    m:def!([.td], do x, xs[]:
-      x:send(td, xs**)
-    end)
-  end,
-  gab.block = do m:
-    m:def!([.td], self)
-  end,
-}
-
-# A helper for declaring:
-#   - a transducer's constructor
-#     ie: (.td :map \++) constructs a mapping transducer, with \++
-#   - a generic implementation for streams
-#     ie: some_list :map (\values, 0, \+, \++)
-\def.transducer! :def!(['gab.message'], do td:
-  td:dodef.transducer!(self)
-end)
-
-\td.conditionally :defcase! {
-  .true = do acc, xs, rf:
-    rf:reduce.step (acc, xs**)
-  end,
-  .false = do acc:
-    acc
-  end,
-}
-
-\td.stop_conditionally :defcase! {
-  .true = do acc, xs, rf:
-    rf:reduce.step(acc, xs**)
-  end,
-  .false = do acc:
-    (acc, .stop)
-  end,
-}
-
-\td.map.into :defcase! {
-  gab.message = do:
-    f = self
-    do rf:
-      do acc, x, xs[]:
-        rf:reduce.step(acc, x:send(f, xs**))
-      end
-    end
-  end,
-  gab.block = do:
-    f = self
-    do rf:
-      do acc, xs[]:
-        rf:reduce.step(acc, f(xs**))
-      end
-    end
-  end
-}
-
-\map :def.transducer! \td.map.into
-
-\td.filter.into :defcase! {
-  gab.message = do:
-    f = self
-    do rf:
-      do acc, x, xs[]:
-        x:send(f, xs**):td.conditionally(acc, [x, xs**], rf)
-      end
-    end
-  end,
-  gab.block = do:
-    f = self
-    do rf:
-      do acc, xs[]:
-        f(xs**):td.conditionally(acc, xs, rf)
-      end
-    end
-  end,
-}
-
-\filter :def.transducer! \td.filter.into
-
-\td.tap.into :defcase! {
-  gab.message = do:
-    f = self
-    do rf:
-      do acc, x, xs[]:
-        x:send(f, xs**)
-        rf:reduce.step(acc, x, xs**)
-      end
-    end
-  end,
-  gab.block = do:
-    f = self
-    do rf:
-      do acc, xs[]:
-        f(xs**)
-        rf:reduce.step(acc, xs**)
-      end
-    end
-  end,
-}
-
-\tap :def.transducer! \td.tap.into
-
-\interpose :def.transducer! do sep:
-  do rf:
-    {
-      started = .false,
-      reduce.step = do acc, xs[]:
-        acc = self:started:td.conditionally (acc, [sep], rf)
-        self:started = .true
-        rf:reduce.step(acc, xs**)
-      end,
-      reduce.done = do acc:
-        acc
-      end,
-    }
-  end
-end
-
-\take :def.transducer! do n:
-  do rf:
-    {
-      n,
-      reduce.step = do acc, xs[]:
-        self:n = self:n - 1
-        (self:n >= 0) :td.stop_conditionally (acc, xs, rf)
-      end,
-      reduce.done = do acc:
-        acc
-      end,
-    }
-  end
-end
-
-\skip :def.transducer! do n:
-  do rf:
-    {
-      n,
-      reduce.step = do acc, xs[]:
-        self:n = self:n - 1
-        (self:n < 0) :td.conditionally (acc, xs, rf)
-      end,
-      reduce.done = do acc:
-        acc
-      end,
-    }
-  end
-end
-
-\do_partition :defcase! {
-  .true = do acc, state, rf:
-    state:n, xs = 0, state:d:slice(state:n)
-    state:d:clear!
-    rf (acc, xs**)
-  end,
-  .false = do acc, state, rf, xs:
-      acc
-  end,
-}
-
-\partition :def.transducer! do n:
-  do rf:
-   {
-      n = 0,
-      d = .gab.tuple(n),
-      reduce.step = do acc, xs[]:
-        self:d:put!(self:n, xs**)
-        self:n = self:n + 1
-        (self:n == n) :do_partition (acc, self, rf)
-      end,
-      reduce.done = do acc:
-        (self:n > 0) :do_partition (acc, self, rf)
-      end,
-    }
-  end
-end
-
-\compose :defcase! {
-  .nil = do f:
-    f
-  end,
-  gab.block = do g:
-# The following snippet is a bug which
-# Caused the GC to overflow the stack.
-# This definitely requires investigation.
-# Infinitely calls itself, allocating more and more.
-#    do args[]
-#      self(g(args**))
-#    end
-    f = self
-    do args[]:
-      f(g(args**))
-    end
-  end,
-}
-
-\compose :def! ([.td], do fns[]:
-  fns:transduce(.nil, \compose, .td :map \first)
-end)
-
-[records.t] :defmodule! {
-  \has? = do key:
-    self:at(key) == .ok
-  end,
-}
-
-records.t :def.seq! do:
-  i = self
-  {
-    v = -1,
-    seq.next = do:
-      nx = self:v + 1
-      self:v = nx
-      i :at_index nx
-    end,
-  }
-end
 
 [maps.t] :defmodule! {
   \has? = do key:
-    self:at key  == .ok
+    self:at key :ok?
   end,
-  \del! = do key:
-    self:put!(key, .nil)
-  end,
-  \at! = do key, val?:
-    map = self
-    self:has? key :else do: map:put!(key, val?) end
+  \at! = do key:
     self:at key :unwrap!
   end,
 }
 
-maps.t :def.seq! do:
-  i = self
-  {
-    v = .next.init,
-    seq.next = do:
-      ok, nx, nv = i:next(self:v)
-      self:v = nx
-      (ok, nx, nv)
-    end
-  }
-end
-
-[lists.t] :defmodule! {
-  \empty? = do:
-    self:len == 0
-  end,
-}
-
-lists.t :def.seq! do:
-  i = self
-  {
-    v = -1,
-    seq.next = do:
-      nx = self:v + 1
-      self:v = nx
-      i:at nx
-    end,
-  }
-end
-
-range.t = { from, to }?
-
-\range :defcase! {
-  gab.number = do from:
-    { from, to = self }
-  end,
-  .nil = do to:
-    { from = 0, to }
-  end,
-}
-
-range.t :def.seq! do:
-  i = self
-  {
-    v = i:from,
-    seq.next = do:
-      nx = self:v + 1
-      self:v = nx
-      .option (nx < i:to, nx)
-    end,
-  }
-end
-
-\ :def! ([.range], do min, max?:
-  max? :range min
-end)
+maps.t :def.seq!
 
 \ :def! ([.int.between], do min, max:
   .float.between (min,max) :floor
 end)
 
-\is_n? :def! ([], .false)
 
+range.t = { from, to }?
+
+range.t :def.seq!
+[range.t] :defmodule! {
+  seqs.init = do: (.ok, self:from) end,
+  seqs.next = do n:
+    nx = n + 1
+    .option(n < self:to, nx, nx)
+  end,
+}
+
+\range.into :defcase! {
+  .nil = do to:
+    { from = 0, to }
+  end,
+  'gab.number' = do from:
+    { from, to = self }
+  end,
+}
+
+
+
+
+\ :def! ([.range], do from, to:
+  (to, from) :range.into
+end)
+
+\is_n? :def! ([], .false)
 \is_n? :def! ([numbers.t], .true)
 
 \numbers.into :def!(falsey_values, 0)
 
 [numbers.t] :defmodule! {
-  \++ = do: self + 1 end,
-  \-- = do: self - 1 end,
-  \even? = do: (self % 2) == 0 end,
-  \odd? = do: self:even?:! end,
-  \pos? = do: self > 0 end,
-  \neg? = do: self < 0 end,
-  \numbers.into = do: self end,
+  ++ = do: self + 1 end,
+  -- = do: self - 1 end,
+  even? = do: (self % 2) == 0 end,
+  odd? = do: self:even?:! end,
+  pos? = do: self > 0 end,
+  neg? = do: self < 0 end,
+  numbers.into = do: self end,
 }
