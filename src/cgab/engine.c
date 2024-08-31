@@ -222,10 +222,10 @@ a_gab_value *gab_fibawait(struct gab_fb *fiber) {
 
 int32_t gc_thread(void *data) {
   struct gab_eg *eg = data;
-  struct gab_triple gab = {.eg = eg};
+  struct gab_triple gab = {.eg = eg, .wkid = GAB_NWORKERS};
 
   while (eg->alive) {
-    if (eg->gc.schedule == GAB_NWORKERS)
+    if (eg->gc.schedule == gab.wkid)
       gab_gcdocollect(gab);
   }
 
@@ -242,7 +242,7 @@ int32_t worker_thread(void *data) {
     struct gab_fb *fiber = gab_egqpop(eg);
 
     if (gab.eg->gc.schedule == gab.wkid)
-      gab_gcepochnext(gab, gab.wkid);
+      gab_gcepochnext(gab);
 
     if (!fiber) {
       thrd_yield();
@@ -305,9 +305,12 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   gab_gccreate(&eg->gc);
 
-  struct gab_triple gab = {.eg = eg, .flags = args.flags};
+  struct gab_triple gab = {.eg = eg, .flags = args.flags, .wkid = GAB_NWORKERS};
 
   struct gab_wk *gc_wk = &gab.eg->workers[GAB_NWORKERS];
+  gc_wk->epoch = 0;
+  gc_wk->gc_keeplen = 0;
+  gc_wk->locked = 0;
   size_t res = thrd_create(&gc_wk->td, gc_thread, gab.eg);
   assert(res == thrd_success);
 
@@ -391,6 +394,8 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   for (int i = 0; i < GAB_NWORKERS; i++) {
     struct gab_wk *wk = &gab.eg->workers[i];
+    wk->gc_keeplen = 0;
+    wk->epoch = 0;
     size_t res = thrd_create(&wk->td, worker_thread, gab.eg);
     gab.eg->nworkers++;
     assert(res == thrd_success);
@@ -553,26 +558,26 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
 
 int gab_nspec(struct gab_triple gab, size_t len,
               struct gab_spec_argt args[static len]) {
-  gab_gclock(&gab.eg->gc);
+  gab_gclock(gab);
 
   for (size_t i = 0; i < len; i++) {
     if (gab_spec(gab, args[i]) == gab_undefined) {
-      gab_gcunlock(&gab.eg->gc);
+      gab_gcunlock(gab);
       return i;
     }
   }
 
-  gab_gcunlock(&gab.eg->gc);
+  gab_gcunlock(gab);
   return -1;
 }
 
 gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
-  gab_gclock(&gab.eg->gc);
+  gab_gclock(gab);
 
   gab_value m = gab_message(gab, args.name);
   m = gab_egmsgput(gab, m, args.receiver, args.specialization);
 
-  gab_gcunlock(&gab.eg->gc);
+  gab_gcunlock(gab);
 
   return m;
 }
@@ -720,7 +725,7 @@ gab_value gab_string(struct gab_triple gab, const char data[static 1]) {
 
 gab_value gab_tuple(struct gab_triple gab, uint64_t size,
                     gab_value values[size]) {
-  gab_gclock(&gab.eg->gc);
+  gab_gclock(gab);
 
   gab_value keys[size];
   for (size_t i = 0; i < size; i++) {
@@ -728,7 +733,7 @@ gab_value gab_tuple(struct gab_triple gab, uint64_t size,
   }
 
   gab_value v = gab_record(gab, 1, size, keys, values);
-  gab_gcunlock(&gab.eg->gc);
+  gab_gcunlock(gab);
   return v;
 }
 
@@ -946,9 +951,9 @@ a_gab_value *gab_shared_object_handler(struct gab_triple gab,
     return nullptr;
   }
 
-  gab_gclock(&gab.eg->gc);
+  gab_gclock(gab);
   a_gab_value *res = symbol(gab);
-  gab_gcunlock(&gab.eg->gc);
+  gab_gcunlock(gab);
 
   if (res) {
     a_gab_value *final =

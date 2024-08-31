@@ -20,6 +20,15 @@ struct gab_obj *gab_obj_create(struct gab_triple gab, size_t sz,
   printf("CREATE\t%p\t%lu\t%d\n", (void *)self, sz, k);
 #endif
 
+  struct gab_wk* wk = gab.eg->workers + gab.wkid;
+  if (wk->locked) {
+    assert(wk->gc_keeplen < cGAB_GCLOCKBUF_LEN);
+    wk->gc_keep[wk->gc_keeplen++] = self;
+#if cGAB_LOG_GC
+  printf("QLOCK\t%p\n", (void *)self);
+#endif
+  }
+
   gab_dref(gab, __gab_obj(self));
 
   return self;
@@ -87,30 +96,67 @@ int shape_dump_keys(FILE *stream, gab_value shape, int depth) {
 }
 
 int rec_dump_properties(FILE *stream, gab_value rec, int depth) {
-  size_t len = gab_reclen(rec);
-  gab_value shp = gab_recshp(rec);
+  switch (gab_valkind(rec)) {
+  case kGAB_RECORD: {
+    struct gab_obj_rec *m = GAB_VAL_TO_REC(rec);
+    size_t len = __builtin_popcountl(m->mask);
 
-  if (len == 0)
-    return fprintf(stream, " ~ ");
+    if (len == 0)
+      return fprintf(stream, " ~ ");
 
-  if (len > 8)
-    return fprintf(stream, " ... ");
+    if (len > 8)
+      return fprintf(stream, " ... ");
 
-  int32_t bytes = 0;
+    int32_t bytes = 0;
 
-  for (size_t i = 0; i < len; i++) {
-    gab_value key = gab_ushpat(shp, i);
-    gab_value val = gab_recat(rec, key);
+    for (uint64_t i = 0; i < len; i++) {
+      if (m->vmask & ((size_t)1 << i)) {
+        bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
+        bytes += fprintf(stream, " = ");
+        bytes += gab_fvalinspect(stream, m->data[i * 2 + 1], depth - 1);
 
-    bytes += gab_fvalinspect(stream, key, depth - 1);
-    bytes += fprintf(stream, " = ");
-    bytes += gab_fvalinspect(stream, val, depth - 1);
+      } else {
+        bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
+      }
 
-    if (i + 1 < len)
-      bytes += fprintf(stream, ", ");
+      if (i + 1 < len)
+        bytes += fprintf(stream, ", ");
+    }
+
+    return bytes;
   }
+  case kGAB_RECORDNODE: {
+    struct gab_obj_recnode *m = GAB_VAL_TO_RECNODE(rec);
+    size_t len = __builtin_popcountl(m->mask);
 
-  return bytes;
+    if (len == 0)
+      return fprintf(stream, "~ ");
+
+    if (len > 8)
+      return fprintf(stream, "... ");
+
+    int32_t bytes = 0;
+
+    for (uint64_t i = 0; i < len; i++) {
+      if (m->vmask & ((size_t)1 << i)) {
+        bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
+        bytes += fprintf(stream, " = ");
+        bytes += gab_fvalinspect(stream, m->data[i * 2 + 1], depth - 1);
+
+      } else {
+        bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
+      }
+
+      if (i + 1 < len)
+        bytes += fprintf(stream, ", ");
+    }
+
+    return bytes;
+    break;
+  }
+  default:
+    assert(false && "NOT A REC");
+  }
 }
 
 int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
@@ -139,7 +185,7 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
            fprintf(stream, "}");
   }
   case kGAB_RECORDNODE: {
-    return fprintf(stream, "<gab.recnode>");
+    return rec_dump_properties(stream, self, depth);
   }
   case kGAB_BOX: {
     struct gab_obj_box *con = GAB_VAL_TO_BOX(self);
@@ -172,8 +218,6 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
 }
 
 void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
-  GAB_OBJ_FREED(self);
-
   switch (self->kind) {
   case kGAB_SHAPE: {
     struct gab_obj_shape *shp = (struct gab_obj_shape *)self;
@@ -407,6 +451,8 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
 
 gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
                      gab_value keys[static len], gab_value vals[static len]) {
+  gab_gclock(gab);
+
   struct gab_obj_rec *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_rec, gab_value, 0, kGAB_RECORD);
 
@@ -416,13 +462,11 @@ gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
 
   gab_value res = __gab_obj(self);
 
-  gab_gclock(gab_gc(gab));
-
   for (size_t i = 0; i < len; i++) {
     res = gab_recput(gab, res, keys[i * stride], vals[i * stride]);
   }
 
-  gab_gcunlock(gab_gc(gab));
+  gab_gcunlock(gab);
 
   return res;
 }
@@ -456,12 +500,12 @@ gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
                     gab_value keys[static len]) {
   gab_value shp = gab.eg->shapes;
 
-  gab_gclock(gab_gc(gab));
+  gab_gclock(gab);
 
   for (size_t i = 0; i < len; i++)
     shp = gab_shpwith(gab, shp, keys[i * stride]);
 
-  gab_gcunlock(gab_gc(gab));
+  gab_gcunlock(gab);
 
   return shp;
 }
@@ -478,18 +522,26 @@ gab_value __gab_shape(struct gab_triple gab, size_t len) {
 }
 
 gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
+  mtx_lock(&gab.eg->queue_mtx);
+
+  if (gab_valtoo(shp)->kind != kGAB_SHAPE) {
+    printf("BADSHP: %p\n", gab_valtoo(shp));
+  }
+
   assert(gab_valkind(shp) == kGAB_SHAPE);
   struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
 
   size_t idx = gab_shpfind(shp, key);
-  if (idx != -1)
+  if (idx != -1) {
+    mtx_unlock(&gab.eg->queue_mtx);
     return shp;
+  }
 
   idx = gab_shptfind(shp, key);
-  if (idx != -1)
+  if (idx != -1) {
+    mtx_unlock(&gab.eg->queue_mtx);
     return v_gab_value_val_at(&s->transitions, idx * 2 + 1);
-
-  /*mtx_lock(&gab.eg->queue_mtx);*/
+  }
 
   gab_value new_shape = __gab_shape(gab, s->len + 1);
   struct gab_obj_shape *self = GAB_VAL_TO_SHAPE(new_shape);
@@ -502,8 +554,7 @@ gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
   v_gab_value_push(&s->transitions, key);
   v_gab_value_push(&s->transitions, new_shape);
 
-  /*mtx_unlock(&gab.eg->queue_mtx);*/
-
+  mtx_unlock(&gab.eg->queue_mtx);
   return new_shape;
 }
 

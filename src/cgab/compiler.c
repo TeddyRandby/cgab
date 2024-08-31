@@ -2312,7 +2312,7 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
 
   args.name = args.name ? args.name : "__main__";
 
-  gab_gclock(gab_gc(gab));
+  gab_gclock(gab);
 
   gab_value name = gab_string(gab, args.name);
 
@@ -2339,7 +2339,7 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
 
   assert(src->bytecode.len == src->bytecode_toks.len);
 
-  gab_gcunlock(gab_gc(gab));
+  gab_gcunlock(gab);
 
   return module;
 }

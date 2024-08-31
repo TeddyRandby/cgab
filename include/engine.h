@@ -35,12 +35,12 @@ void gab_gcdestroy(struct gab_gc *gc);
  * Check if collection is necessary, and unblock the collection
  * thread if necessary
  */
-void gab_gctrigger(struct gab_eg *gc);
+bool gab_gctrigger(struct gab_triple gab);
 
 /*
  * Begin the next epoch for the given pid
  */
-void gab_gcepochnext(struct gab_triple gab, size_t pid);
+void gab_gcepochnext(struct gab_triple gab);
 
 void gab_gcdocollect(struct gab_triple gab);
 

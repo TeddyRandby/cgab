@@ -46,8 +46,10 @@ static handler handlers[] = {
   ({                                                                           \
     uint8_t o = (op);                                                          \
     LOG(o)                                                                     \
-    if (EG()->gc.schedule == GAB().wkid)                                       \
-      gab_gcepochnext(GAB(), GAB().wkid);                                      \
+    if (EG()->gc.schedule == GAB().wkid) {                                     \
+      STORE_SP();                                                                 \
+      gab_gcepochnext(GAB());                                                  \
+    }                                                                          \
     return handlers[o](DISPATCH_ARGS());                                       \
   })
 
@@ -655,9 +657,9 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
     default:                                                                   \
       DROP_N((have) - 1);                                                      \
     case 2: {                                                                  \
-      gab_gclock(GC());                                                        \
+      gab_gclock(GAB());                                                       \
       gab_value value = gab_recput(GAB(), r, m, PEEK());                       \
-      gab_gcunlock(GC());                                                      \
+      gab_gcunlock(GAB());                                                     \
       DROP();                                                                  \
       PEEK() = value;                                                          \
       break;                                                                   \
@@ -1457,7 +1459,7 @@ CASE_CODE(PACK) {
 CASE_CODE(RECORD) {
   uint8_t len = READ_BYTE;
 
-  gab_gclock(GC());
+  gab_gclock(GAB());
 
   gab_value map =
       gab_record(GAB(), 2, len, SP() - len * 2, SP() + 1 - (len * 2));
@@ -1468,7 +1470,7 @@ CASE_CODE(RECORD) {
 
   STORE_SP();
 
-  gab_gcunlock(GC());
+  gab_gcunlock(GAB());
 
   NEXT();
 }
@@ -1476,7 +1478,7 @@ CASE_CODE(RECORD) {
 CASE_CODE(TUPLE) {
   uint64_t len = compute_arity(VAR(), READ_BYTE);
 
-  gab_gclock(GC());
+  gab_gclock(GAB());
 
   gab_value rec = gab_tuple(GAB(), len, SP() - len);
 
@@ -1486,7 +1488,7 @@ CASE_CODE(TUPLE) {
 
   STORE_SP();
 
-  gab_gcunlock(GC());
+  gab_gcunlock(GAB());
 
   NEXT();
 }

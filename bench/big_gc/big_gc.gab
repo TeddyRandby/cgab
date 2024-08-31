@@ -11,4 +11,4 @@
   n :== 0 :doacc(self, n)
 end)
 
-[] :acc 950 :len:print
+[] :acc 150 :len:print

@@ -105,6 +105,10 @@
 #error "cGAB_GC_DEC_BUFF_MAX must be less than or equal to STACK_MAX"
 #endif
 
+#ifndef cGAB_GCLOCKBUF_LEN
+#define cGAB_GCLOCKBUF_LEN 512
+#endif
+
 // Not configurable, just constants
 #define GAB_CONSTANTS_MAX (UINT16_MAX + 1)
 // Maximum value of a local.

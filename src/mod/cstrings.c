@@ -258,7 +258,7 @@ a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
     return nullptr;
   }
 
-  gab_gclock(gab_gc(gab));
+  gab_gclock(gab);
 
   for (uint8_t i = 2; i < argc; i++) {
     gab_value curr = gab_valintos(gab, argv[i]);
@@ -266,7 +266,7 @@ a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
   }
 
   gab_vmpush(gab_vm(gab), str);
-  gab_gcunlock(gab_gc(gab));
+  gab_gcunlock(gab);
   return nullptr;
 }
 

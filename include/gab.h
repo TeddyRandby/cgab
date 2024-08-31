@@ -250,10 +250,25 @@ static inline gab_value __gab_dtoval(double value) {
 /* Cast a gab value to a number */
 #define gab_valton(val) (__gab_valtod(val))
 
+#if cGAB_LOG_GC
+/* Cast a gab value to the generic object pointer */
+#define gab_valtoo(val)                                                        \
+  ({                                                                           \
+    struct gab_obj *__o =                                                      \
+        (struct gab_obj *)(uintptr_t)((val) & ~(__GAB_SIGN_BIT | __GAB_QNAN |  \
+                                                __GAB_TAGBITS));               \
+    if (GAB_OBJ_IS_FREED(__o)) {                                               \
+      printf("UAF\t%p\t%s:%i", __o, __FUNCTION__, __LINE__);                                                       \
+      exit(1);                                                                 \
+    }                                                                          \
+    __o;                                                                       \
+  })
+#else
 /* Cast a gab value to the generic object pointer */
 #define gab_valtoo(val)                                                        \
   ((struct gab_obj *)(uintptr_t)((val) & ~(__GAB_SIGN_BIT | __GAB_QNAN |       \
                                            __GAB_TAGBITS)))
+#endif
 
 /* Cast a gab value to a primitive operation */
 #define gab_valtop(val) ((uint8_t)((val) & 0xff))
@@ -1034,14 +1049,14 @@ void gab_collect(struct gab_triple gab);
  *
  * @param gc The gc to lock
  */
-void gab_gclock(struct gab_gc *gc);
+void gab_gclock(struct gab_triple gab);
 
 /**
  * @brief Unlock the given collector.
  *
  * @param gc The gc to unlock
  */
-void gab_gcunlock(struct gab_gc *gc);
+void gab_gcunlock(struct gab_triple gab);
 
 /**
  * @brief Get the name of a source file - aka the fully qualified path.
@@ -1678,6 +1693,9 @@ gab_value gab_tuple(struct gab_triple gab, size_t len,
  */
 static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
   enum gab_kind k = gab_valkind(value);
+#if cGAB_LOG_GC
+  assert(!gab_valiso(value) || !(gab_valtoo(value)->flags & fGAB_OBJ_FREED));
+#endif
   switch (k) {
   /* These values have a runtime type of themselves */
   case kGAB_SIGIL:
@@ -1732,7 +1750,7 @@ struct gab_fb {
     kGAB_FIBER_DONE,
   } status;
 
-  a_gab_value* res;
+  a_gab_value *res;
 
   struct gab_vm {
     uint8_t *ip;
@@ -1760,6 +1778,11 @@ struct gab_wk {
   size_t pid;
 
   struct gab_fb *fiber;
+
+  _Atomic uint32_t epoch;
+  _Atomic int32_t locked;
+  _Atomic uint32_t gc_keeplen;
+  struct gab_obj *gc_keep[cGAB_GCLOCKBUF_LEN];
 };
 
 #define T struct gab_obj *
@@ -1781,6 +1804,7 @@ enum {
   kGAB_NBUF = 3,
 };
 
+#define GAB_GCNEPOCHS 3
 /**
  * @class The 'engine'. Stores the long-lived data
  * needed for the gab environment.
@@ -1798,13 +1822,12 @@ struct gab_eg {
 
   struct gab_gc {
     _Atomic int8_t schedule;
-    int locked;
-    size_t epoch;
     d_gab_obj overflow_rc;
     v_gab_obj dead;
 
-    size_t buffer_len[kGAB_NBUF][2][GAB_NWORKERS];
-    struct gab_obj *buffers[kGAB_NBUF][2][GAB_NWORKERS][cGAB_GC_DEC_BUFF_MAX];
+    size_t buffer_len[kGAB_NBUF][GAB_GCNEPOCHS][GAB_NWORKERS + 1];
+    struct gab_obj *buffers[kGAB_NBUF][GAB_GCNEPOCHS][GAB_NWORKERS + 1]
+                           [cGAB_GC_DEC_BUFF_MAX];
   } gc;
 
   gab_value messages;
@@ -1892,7 +1915,7 @@ static inline gab_value gab_egmsgput(struct gab_triple gab, gab_value msg,
                                      gab_value receiver, gab_value spec) {
   gab_value specs = gab_recat(gab.eg->messages, msg);
 
-  gab_gclock(&gab.eg->gc);
+  gab_gclock(gab);
 
   if (specs == gab_undefined) {
     specs = gab_record(gab, 0, 0, &specs, &specs);
@@ -1901,7 +1924,7 @@ static inline gab_value gab_egmsgput(struct gab_triple gab, gab_value msg,
   gab_value newspecs = gab_recput(gab, specs, receiver, spec);
   gab.eg->messages = gab_recput(gab, gab.eg->messages, msg, newspecs);
 
-  gab_gcunlock(&gab.eg->gc);
+  gab_gcunlock(gab);
   return msg;
 }
 
