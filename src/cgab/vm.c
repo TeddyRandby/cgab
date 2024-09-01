@@ -47,7 +47,7 @@ static handler handlers[] = {
     uint8_t o = (op);                                                          \
     LOG(o)                                                                     \
     if (EG()->gc.schedule == GAB().wkid) {                                     \
-      STORE_SP();                                                                 \
+      STORE_SP();                                                              \
       gab_gcepochnext(GAB());                                                  \
     }                                                                          \
     return handlers[o](DISPATCH_ARGS());                                       \
@@ -771,7 +771,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
   struct gab_fb *fb = gab_fiber(gab, args.main, args.len, args.argv);
 
-  gab_egqpush(gab.eg, fb);
+  gab_queue(gab, fb);
 
   a_gab_value *res = gab_fibawait(fb);
 
@@ -788,7 +788,7 @@ struct gab_fb *gab_arun(struct gab_triple gab, struct gab_run_argt args) {
 
   struct gab_fb *fb = gab_fiber(gab, args.main, args.len, args.argv);
 
-  gab_egqpush(gab.eg, fb);
+  gab_queue(gab, fb);
 
   return fb;
 }

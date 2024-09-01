@@ -197,10 +197,17 @@ struct gab_fb *gab_egqpop(struct gab_eg *eg) {
   return fiber;
 }
 
-void gab_egqpush(struct gab_eg *eg, struct gab_fb *fiber) {
-  mtx_lock(&eg->queue_mtx);
-  v_gab_fb_push(&eg->queue, fiber);
-  mtx_unlock(&eg->queue_mtx);
+void gab_queue(struct gab_triple gab, struct gab_fb *fiber) {
+  while (gab.eg->queue.len > 0) {
+    if (gab.eg->gc.schedule == gab.wkid)
+      gab_gcepochnext(gab);
+
+    thrd_yield();
+  }
+
+  mtx_lock(&gab.eg->queue_mtx);
+  v_gab_fb_push(&gab.eg->queue, fiber);
+  mtx_unlock(&gab.eg->queue_mtx);
 }
 
 int32_t wkid(struct gab_eg *eg) {

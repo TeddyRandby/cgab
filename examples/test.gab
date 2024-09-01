@@ -8,10 +8,29 @@
   n :== 0 :do_acc (self, n)
 end)
 
-\go :def!(['gab.block'], do: .gab.fiber self end)
+\go :def!(['gab.block'], do:
+  blk = self
+  .gab.fiber do: blk() end
+end)
 
 work = do: [] :acc 950 :len:print end
 
+work :go
+work :go
+work :go
+work :go
+work :go
+work :go
+work :go
+work :go
+work :go
+work :go
+work :go
+work :go
+work :go
+work :go
+work :go
+work :go
 work :go
 work :go
 work :go
