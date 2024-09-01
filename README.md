@@ -234,3 +234,5 @@ If clide is unavailable, it is simple to just use make. To install a release bui
   2. `sudo make install`
 # C-API Documentation
 The c-api is contained in the single header file `gab.h`. You can generate documentation with `clide docs`, or by just running `doxygen`.
+# KNOWN ISSUE
+Thread migration is currently an issue, as its not handled in the paper used to implement the GC. This includes migration *in and out* of the global run queue.
