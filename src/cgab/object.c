@@ -1,5 +1,7 @@
 #include "engine.h"
 #include "gab.h"
+#include "lexer.h"
+#include <threads.h>
 
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \
   ((struct obj_type *)gab_obj_create(gab, sizeof(struct obj_type), kind))
@@ -20,7 +22,7 @@ struct gab_obj *gab_obj_create(struct gab_triple gab, size_t sz,
   printf("CREATE\t%p\t%lu\t%d\n", (void *)self, sz, k);
 #endif
 
-  struct gab_wk *wk = gab.eg->workers + gab.wkid;
+  struct gab_jb *wk = gab.eg->jobs + gab.wkid;
   if (wk->locked) {
     v_gab_obj_push(&wk->lock_keep, self);
 #if cGAB_LOG_GC
@@ -35,6 +37,10 @@ struct gab_obj *gab_obj_create(struct gab_triple gab, size_t sz,
 
 size_t gab_obj_size(struct gab_obj *obj) {
   switch (obj->kind) {
+  case kGAB_CHANNEL: {
+    struct gab_obj_channel *o = (struct gab_obj_channel *)obj;
+    return sizeof(struct gab_obj_channel) + o->cap * sizeof(gab_value);
+  }
   case kGAB_BOX: {
     struct gab_obj_box *o = (struct gab_obj_box *)obj;
     return sizeof(struct gab_obj_box) + o->len * sizeof(char);
@@ -65,6 +71,8 @@ size_t gab_obj_size(struct gab_obj *obj) {
     struct gab_obj_string *o = (struct gab_obj_string *)obj;
     return sizeof(struct gab_obj_string) + (o->len + 1) * sizeof(char);
   }
+  case kGAB_FIBER:
+    return sizeof(struct gab_obj_fiber);
   case kGAB_NATIVE:
     return sizeof(struct gab_obj_native);
   default:
@@ -183,6 +191,14 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
     return fprintf(stream, "<gab.shape ") +
            shape_dump_keys(stream, self, depth) + fprintf(stream, ">");
   }
+  case kGAB_CHANNEL:
+  case kGAB_CHANNELCLOSED:
+  case kGAB_CHANNELBUFFERED: {
+    return fprintf(stream, "<gab.channel %p>", GAB_VAL_TO_CHANNEL(self));
+  }
+  case kGAB_FIBER: {
+    return fprintf(stream, "<gab.fiber %p>", GAB_VAL_TO_FIBER(self));
+  }
   case kGAB_RECORD: {
     return fprintf(stream, "{") + rec_dump_properties(stream, self, depth) +
            fprintf(stream, "}");
@@ -223,6 +239,19 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
 
 void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
   switch (self->kind) {
+  case kGAB_CHANNELBUFFERED:
+  case kGAB_CHANNELCLOSED:
+  case kGAB_CHANNEL: {
+    struct gab_obj_channel *chn = (struct gab_obj_channel *)self;
+    mtx_destroy(&chn->mtx);
+    cnd_destroy(&chn->p_cnd);
+    cnd_destroy(&chn->t_cnd);
+    break;
+  }
+  case kGAB_FIBER: {
+      printf("DESTROYING FIBER %p\n", self);
+    break;
+  }
   case kGAB_SHAPE: {
     struct gab_obj_shape *shp = (struct gab_obj_shape *)self;
     v_gab_value_destroy(&shp->transitions);
@@ -564,6 +593,153 @@ gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
 }
 
 gab_value gab_shpwithout(struct gab_triple gab, gab_value shp, gab_value key);
+
+gab_value gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
+                    gab_value argv[argc]) {
+  assert(gab_valkind(main) == kGAB_BLOCK);
+
+  struct gab_obj_fiber *self =
+      GAB_CREATE_FLEX_OBJ(gab_obj_fiber, gab_value, argc + 1, kGAB_FIBER);
+
+  struct gab_obj_block *b = GAB_VAL_TO_BLOCK(main);
+  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
+
+  self->res = nullptr;
+  self->status = kGAB_FIBER_WAITING;
+
+  self->vm.fp = self->vm.sb + 3;
+  self->vm.sp = self->vm.sb + 3;
+
+  // Setup main and args
+  *self->vm.sp++ = main;
+  for (uint8_t i = 0; i < argc; i++)
+    *self->vm.sp++ = argv[i];
+
+  *self->vm.sp = argc;
+
+  // Setup the return frame
+  self->vm.fp[-1] = (uintptr_t)self->vm.sb - 1;
+  self->vm.fp[-2] = 0;
+  self->vm.fp[-3] = (uintptr_t)b;
+
+  // Setup ip
+  self->vm.ip = p->src->bytecode.data + p->offset;
+
+  return __gab_obj(self);
+}
+
+a_gab_value *gab_fibawait(gab_value f) {
+  assert(gab_valkind(f) == kGAB_FIBER);
+  struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
+
+  while (fiber->status != kGAB_FIBER_DONE)
+    thrd_yield();
+
+  return fiber->res;
+}
+
+gab_value gab_channel(struct gab_triple gab, size_t cap) {
+  enum gab_kind k = cap ? kGAB_CHANNELBUFFERED : kGAB_CHANNEL;
+  cap = cap ? cap : 1;
+  struct gab_obj_channel *self =
+      GAB_CREATE_FLEX_OBJ(gab_obj_channel, gab_value, cap, k);
+
+  self->len = 0;
+  self->cap = cap;
+  mtx_init(&self->mtx, mtx_plain);
+  cnd_init(&self->p_cnd);
+  cnd_init(&self->t_cnd);
+
+  return __gab_obj(self);
+}
+
+static const struct timespec t = {.tv_nsec = 500};
+
+void gab_chnclose(gab_value c) {
+  assert(gab_valkind(c) == kGAB_CHANNEL ||
+         gab_valkind(c) == kGAB_CHANNELCLOSED ||
+         gab_valkind(c) == kGAB_CHANNELBUFFERED);
+
+  struct gab_obj_channel *channel = GAB_VAL_TO_CHANNEL(c);
+  mtx_lock(&channel->mtx);
+
+  channel->header.kind = kGAB_CHANNELCLOSED;
+
+  mtx_unlock(&channel->mtx);
+}
+
+bool gab_chnisclosed(gab_value c) {
+  assert(gab_valkind(c) == kGAB_CHANNEL ||
+         gab_valkind(c) == kGAB_CHANNELCLOSED ||
+         gab_valkind(c) == kGAB_CHANNELBUFFERED);
+
+  return GAB_VAL_TO_CHANNEL(c)->header.kind == kGAB_CHANNELCLOSED;
+};
+
+void gab_chnput(struct gab_triple gab, gab_value c, gab_value value) {
+  assert(gab_valkind(c) == kGAB_CHANNEL);
+  struct gab_obj_channel *channel = GAB_VAL_TO_CHANNEL(c);
+
+  switch (channel->header.kind) {
+  case kGAB_CHANNEL:
+    mtx_lock(&channel->mtx);
+
+    while (channel->len >= channel->cap) {
+      gab_yield(gab);
+
+      cnd_timedwait(&channel->t_cnd, &channel->mtx, &t);
+
+      if (gab_chnisclosed(c)) {
+        mtx_unlock(&channel->mtx);
+        return;
+      }
+    }
+
+    channel->data[channel->len] = value;
+    channel->len++;
+
+    cnd_signal(&channel->p_cnd);
+
+    mtx_unlock(&channel->mtx);
+    break;
+  default:
+    break;
+  }
+}
+
+gab_value gab_chntake(struct gab_triple gab, gab_value c) {
+  assert(gab_valkind(c) == kGAB_CHANNEL);
+  struct gab_obj_channel *channel = GAB_VAL_TO_CHANNEL(c);
+
+  switch (channel->header.kind) {
+  case kGAB_CHANNEL:
+    mtx_lock(&channel->mtx);
+
+    while (channel->len == 0) {
+      gab_yield(gab);
+
+      cnd_timedwait(&channel->p_cnd, &channel->mtx, &t);
+
+      if (gab_chnisclosed(c)) {
+        mtx_unlock(&channel->mtx);
+        return gab_undefined;
+      }
+    }
+
+    gab_value res = channel->data[channel->len - 1];
+    channel->len--;
+
+    cnd_signal(&channel->t_cnd);
+
+    mtx_unlock(&channel->mtx);
+    return res;
+  default:
+    break;
+  }
+
+  assert(false && "NOT A CHANNEL");
+  return gab_undefined;
+}
 
 #undef CREATE_GAB_FLEX_OBJ
 #undef CREATE_GAB_OBJ

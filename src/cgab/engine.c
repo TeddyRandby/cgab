@@ -183,36 +183,16 @@ struct primitive kind_primitives[] = {
     },
 };
 
-struct gab_fb *gab_egqpop(struct gab_eg *eg) {
-  mtx_lock(&eg->queue_mtx);
+void gab_yield(struct gab_triple gab) {
+  if (gab.eg->gc->schedule == gab.wkid)
+    gab_gcepochnext(gab);
 
-  if (eg->queue.len == 0) {
-    mtx_unlock(&eg->queue_mtx);
-    return nullptr;
-  }
-
-  struct gab_fb *fiber = v_gab_fb_pop(&eg->queue);
-
-  mtx_unlock(&eg->queue_mtx);
-  return fiber;
-}
-
-void gab_queue(struct gab_triple gab, struct gab_fb *fiber) {
-  while (gab.eg->queue.len > 0) {
-    if (gab.eg->gc.schedule == gab.wkid)
-      gab_gcepochnext(gab);
-
-    thrd_yield();
-  }
-
-  mtx_lock(&gab.eg->queue_mtx);
-  v_gab_fb_push(&gab.eg->queue, fiber);
-  mtx_unlock(&gab.eg->queue_mtx);
+  thrd_yield();
 }
 
 int32_t wkid(struct gab_eg *eg) {
-  for (size_t i = 0; i < GAB_NWORKERS; i++) {
-    struct gab_wk *wk = &eg->workers[i];
+  for (size_t i = 0; i < eg->njobs; i++) {
+    struct gab_jb *wk = &eg->jobs[i];
     if (wk->td == thrd_current())
       return i;
   }
@@ -220,19 +200,12 @@ int32_t wkid(struct gab_eg *eg) {
   return -1;
 }
 
-a_gab_value *gab_fibawait(struct gab_fb *fiber) {
-  while (fiber->status != kGAB_FIBER_DONE)
-    thrd_yield();
-
-  return fiber->res;
-}
-
 int32_t gc_thread(void *data) {
   struct gab_eg *eg = data;
-  struct gab_triple gab = {.eg = eg, .wkid = GAB_NWORKERS};
+  struct gab_triple gab = {.eg = eg, .wkid = eg->njobs};
 
-  while (eg->alive) {
-    if (eg->gc.schedule == gab.wkid)
+  while (eg->njobs >= 0) {
+    if (eg->gc->schedule == gab.wkid)
       gab_gcdocollect(gab);
   }
 
@@ -245,33 +218,37 @@ int32_t worker_thread(void *data) {
 
   struct gab_triple gab = {.eg = eg, .wkid = id};
 
-  while (gab.eg->alive) {
-    struct gab_fb *fiber = gab_egqpop(eg);
+  while (!gab_chnisclosed(eg->work_channel)) {
+    // This chntake blocks, and we never see if the engine is dead.
+    gab_value fiber = gab_chntake(gab, gab.eg->work_channel);
 
-    if (gab.eg->gc.schedule == gab.wkid)
-      gab_gcepochnext(gab);
-
-    if (!fiber) {
-      thrd_yield();
+    // If the channel closes while we're blocking on it,
+    // we get undefined.
+    if (fiber == gab_undefined)
       continue;
-    }
 
-    gab.eg->workers[id].fiber = fiber;
+    gab.eg->jobs[id].fiber = fiber;
 
     a_gab_value *res = gab_vmexec(gab, fiber);
-    fiber->res = res;
-    fiber->status = kGAB_FIBER_DONE;
+
+    GAB_VAL_TO_FIBER(fiber)->status = kGAB_FIBER_DONE;
+    GAB_VAL_TO_FIBER(fiber)->res = res;
     assert(res);
 
-    gab.eg->workers[id].fiber = nullptr;
+    gab.eg->jobs[id].fiber = gab_undefined;
 
     if (!res)
       goto fin;
   }
 
 fin:
-  gab.eg->workers[id].fiber = nullptr;
-  gab.eg->nworkers--;
+  gab.eg->jobs[id].fiber = gab_undefined;
+  gab.eg->njobs--;
+
+  while (gab.eg->njobs >= 0) {
+    gab_yield(gab);
+  }
+
   return 0;
 }
 
@@ -291,16 +268,19 @@ struct gab_obj *eg_defaultalloc(struct gab_triple gab, struct gab_obj *obj,
 }
 
 struct gab_triple gab_create(struct gab_create_argt args) {
-  struct gab_eg *eg = NEW(struct gab_eg);
-  memset(eg, 0, sizeof(struct gab_eg));
+  size_t njobs = args.jobs ? args.jobs : 8;
+
+  struct gab_eg *eg = NEW_FLEX(struct gab_eg, struct gab_jb, njobs + 1);
+
+  memset(eg, 0, sizeof(struct gab_eg) + sizeof(struct gab_jb) * (njobs + 1));
 
   assert(args.os_dynsymbol);
   assert(args.os_dynopen);
 
+  eg->len = njobs + 1;
+  eg->njobs = njobs;
   eg->os_dynsymbol = args.os_dynsymbol;
   eg->os_dynopen = args.os_dynopen;
-
-  eg->alive = true;
   eg->hash_seed = time(nullptr);
 
   if (args.os_objalloc)
@@ -310,16 +290,24 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   d_gab_src_create(&eg->sources, 8);
 
-  gab_gccreate(&eg->gc);
+  struct gab_triple gab = {.eg = eg, .flags = args.flags, .wkid = eg->njobs};
 
-  struct gab_triple gab = {.eg = eg, .flags = args.flags, .wkid = GAB_NWORKERS};
+  eg->gc = NEW_FLEX(struct gab_gc, struct gab_gcbuf[kGAB_NBUF][GAB_GCNEPOCHS],
+                    njobs + 1);
+  gab_gccreate(gab);
 
   mtx_init(&eg->shapes_mtx, mtx_plain);
 
-  struct gab_wk *gc_wk = &gab.eg->workers[GAB_NWORKERS];
+  struct gab_jb *gc_wk = &gab.eg->jobs[gab.eg->njobs];
   gc_wk->epoch = 0;
-  v_gab_obj_create(&gc_wk->lock_keep, 8);
   gc_wk->locked = 0;
+  gc_wk->fiber = gab_undefined;
+  v_gab_obj_create(&gc_wk->lock_keep, 8);
+
+  eg->shapes = __gab_shape(gab, 0);
+  eg->messages = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
+  eg->work_channel = gab_channel(gab, 0);
+
   size_t res = thrd_create(&gc_wk->td, gc_thread, gab.eg);
 
   if (res != thrd_success) {
@@ -327,8 +315,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
     exit(1);
   }
 
-  eg->shapes = __gab_shape(gab, 0);
-  eg->messages = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
+  gab_iref(gab, eg->work_channel);
 
   eg->types[kGAB_UNDEFINED] = gab_undefined;
 
@@ -361,6 +348,15 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->types[kGAB_BOX] = gab_string(gab, "gab.box");
   gab_iref(gab, eg->types[kGAB_BOX]);
+
+  eg->types[kGAB_CHANNEL] = gab_string(gab, "gab.channel");
+  gab_iref(gab, eg->types[kGAB_CHANNEL]);
+
+  eg->types[kGAB_CHANNELCLOSED] = gab_string(gab, "gab.channel");
+  gab_iref(gab, eg->types[kGAB_CHANNELCLOSED]);
+
+  eg->types[kGAB_CHANNELBUFFERED] = gab_string(gab, "gab.channel");
+  gab_iref(gab, eg->types[kGAB_CHANNELBUFFERED]);
 
   eg->types[kGAB_PRIMITIVE] = gab_string(gab, "gab.primitive");
   gab_iref(gab, eg->types[kGAB_PRIMITIVE]);
@@ -402,19 +398,16 @@ struct gab_triple gab_create(struct gab_create_argt args) {
     }
   }
 
-  v_gab_fb_create(&gab.eg->queue, 32);
-  mtx_init(&gab.eg->queue_mtx, mtx_plain);
-
-  for (int i = 0; i < GAB_NWORKERS; i++) {
-    struct gab_wk *wk = &gab.eg->workers[i];
+  for (int i = 0; i < gab.eg->njobs; i++) {
+    struct gab_jb *wk = &gab.eg->jobs[i];
     v_gab_obj_create(&wk->lock_keep, 8);
     wk->epoch = 0;
+    wk->fiber = gab_undefined;
     size_t res = thrd_create(&wk->td, worker_thread, gab.eg);
     if (res != thrd_success) {
       printf("UHOH\n");
       exit(1);
     }
-    gab.eg->nworkers++;
   }
 
   if (!(gab.flags & fGAB_NO_CORE))
@@ -424,25 +417,25 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 }
 
 void gab_destroy(struct gab_triple gab) {
+  gab_chnclose(gab.eg->work_channel);
 
-  while (1) {
-    // Wait for the workers to not be working
-    for (int i = 0; i < GAB_NWORKERS; i++) {
-      if (gab.eg->workers[i].fiber != nullptr)
-        goto nxt;
-    }
-
-    goto fin;
-
-  nxt:
-    thrd_yield();
-  }
-
-fin:
+  while (gab.eg->njobs > 0)
+    continue;
 
   gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
   gab.eg->messages = gab_undefined;
   gab.eg->shapes = gab_undefined;
+  gab_dref(gab, gab.eg->work_channel);
+
+  gab_collect(gab);
+  while (gab.eg->gc->schedule >= 0)
+    ;
+
+  gab.eg->njobs = -1;
+
+  thrd_join(gab.eg->jobs[gab.eg->len - 1].td, nullptr);
+  gab_gcdestroy(gab);
+  free(gab.eg->gc);
 
   for (uint64_t i = 0; i < gab.eg->modules.cap; i++) {
     if (d_gab_modules_iexists(&gab.eg->modules, i)) {
@@ -451,18 +444,6 @@ fin:
     }
   }
 
-  gab_collect(gab);
-  while (gab.eg->gc.schedule >= 0)
-    ;
-
-  gab.eg->alive = false;
-  while (gab.eg->nworkers > 0)
-    continue;
-
-  thrd_join(gab.eg->workers[GAB_NWORKERS].td, nullptr);
-
-  gab_gcdestroy(&gab.eg->gc);
-
   for (uint64_t i = 0; i < gab.eg->sources.cap; i++) {
     if (d_gab_src_iexists(&gab.eg->sources, i)) {
       struct gab_src *s = d_gab_src_ival(&gab.eg->sources, i);
@@ -470,13 +451,16 @@ fin:
     }
   }
 
+  for (int i = 0; i < gab.eg->len; i++) {
+    struct gab_jb *wk = &gab.eg->jobs[i];
+    v_gab_obj_destroy(&wk->lock_keep);
+  }
+
   d_strings_destroy(&gab.eg->strings);
   d_gab_modules_destroy(&gab.eg->modules);
   d_gab_src_destroy(&gab.eg->sources);
 
   v_gab_value_destroy(&gab.eg->scratch);
-  v_gab_fb_destroy(&gab.eg->queue);
-  mtx_destroy(&gab.eg->queue_mtx);
   mtx_destroy(&gab.eg->shapes_mtx);
   free(gab.eg);
 }

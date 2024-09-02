@@ -90,7 +90,7 @@
 
 // Garbage collection increment/decrement buffer size
 #ifndef cGAB_GC_DEC_BUFF_MAX
-#define cGAB_GC_DEC_BUFF_MAX (cGAB_STACK_MAX)
+#define cGAB_GC_DEC_BUFF_MAX (cGAB_STACK_MAX * 4)
 #endif
 
 #if cGAB_GC_DEC_BUFF_MAX < STACK_MAX

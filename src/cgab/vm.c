@@ -46,7 +46,7 @@ static handler handlers[] = {
   ({                                                                           \
     uint8_t o = (op);                                                          \
     LOG(o)                                                                     \
-    if (EG()->gc.schedule == GAB().wkid) {                                     \
+    if (GC()->schedule == GAB().wkid) {                                     \
       STORE_SP();                                                              \
       gab_gcepochnext(GAB());                                                  \
     }                                                                          \
@@ -66,7 +66,7 @@ static handler handlers[] = {
 */
 #define GAB() (__gab)
 #define EG() (GAB().eg)
-#define GC() (&GAB().eg->gc)
+#define GC() (GAB().eg->gc)
 #define VM() (gab_vm(GAB()))
 #define SET_BLOCK(b) (FB()[-3] = (uintptr_t)(b));
 #define BLOCK() ((struct gab_obj_block *)(uintptr_t)FB()[-3])
@@ -410,7 +410,7 @@ a_gab_value *gab_panic(struct gab_triple gab, const char *fmt, ...) {
   va_list va;
   va_start(va, fmt);
 
-  if (!gab.fb) {
+  if (!gab_vm(gab)) {
     gab_vfpanic(gab, stderr, va,
                 (struct gab_err_argt){
                     .status = GAB_PANIC,
@@ -434,40 +434,6 @@ a_gab_value *gab_ptypemismatch(struct gab_triple gab, gab_value found,
 
   return vm_error(gab, GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, found,
                   gab_valtype(gab.eg, found), texpected);
-}
-
-struct gab_fb *gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
-                         gab_value argv[argc]) {
-  if (gab_valkind(main) != kGAB_BLOCK)
-    return nullptr;
-
-  struct gab_obj_block *b = GAB_VAL_TO_BLOCK(main);
-  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
-
-  struct gab_fb *self = malloc(sizeof(struct gab_fb));
-  self->res = nullptr;
-  self->status = kGAB_FIBER_WAITING;
-
-  self->messages = gab.eg->messages;
-  self->vm.fp = self->vm.sb + 3; // Is 4 too many?
-  self->vm.sp = self->vm.sb + 3;
-
-  // Setup main and args
-  *self->vm.sp++ = main;
-  for (uint8_t i = 0; i < argc; i++)
-    *self->vm.sp++ = argv[i];
-
-  *self->vm.sp = argc;
-
-  // Setup the return frame
-  self->vm.fp[-1] = (uintptr_t)self->vm.sb - 1;
-  self->vm.fp[-2] = 0;
-  self->vm.fp[-3] = (uintptr_t)b;
-
-  // Setup ip
-  self->vm.ip = p->src->bytecode.data + p->offset;
-
-  return self;
 }
 
 void dumpstack(struct gab_vm *vm) {
@@ -748,9 +714,12 @@ a_gab_value *ok(OP_HANDLER_ARGS) {
   return results;
 }
 
-a_gab_value *gab_vmexec(struct gab_triple gab, struct gab_fb *fiber) {
+a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
+  if (gab_valkind(f) != kGAB_FIBER)
+    printf("uhoh, not fiber: %p\n", GAB_VAL_TO_FIBER(f));
+  assert(gab_valkind(f) == kGAB_FIBER);
+  struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
   fiber->status = kGAB_FIBER_RUNNING;
-  gab.fb = fiber;
 
   struct gab_vm *vm = gab_vm(gab);
 
@@ -769,26 +738,29 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   if (gab.flags & fGAB_BUILD_CHECK)
     return nullptr;
 
-  struct gab_fb *fb = gab_fiber(gab, args.main, args.len, args.argv);
 
-  gab_queue(gab, fb);
+  gab_value fb = gab_fiber(gab, args.main, args.len, args.argv);
+
+  gab_iref(gab, fb);
+
+  gab_chnput(gab, gab.eg->work_channel, fb);
 
   a_gab_value *res = gab_fibawait(fb);
-
-  free(fb);
 
   return res;
 }
 
-struct gab_fb *gab_arun(struct gab_triple gab, struct gab_run_argt args) {
+gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
   gab.flags = args.flags;
 
   if (gab.flags & fGAB_BUILD_CHECK)
-    return nullptr;
+    return gab_undefined;
 
-  struct gab_fb *fb = gab_fiber(gab, args.main, args.len, args.argv);
+  gab_value fb = gab_fiber(gab, args.main, args.len, args.argv);
 
-  gab_queue(gab, fb);
+  gab_iref(gab, fb);
+
+  gab_chnput(gab, gab.eg->work_channel, fb);
 
   return fb;
 }

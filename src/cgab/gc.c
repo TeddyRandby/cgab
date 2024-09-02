@@ -6,50 +6,47 @@
 #include <unistd.h>
 
 static inline void epochinc(struct gab_triple gab) {
-  gab.eg->workers[gab.wkid].epoch++;
+  gab.eg->jobs[gab.wkid].epoch++;
 }
 
 static inline int32_t epochget(struct gab_triple gab) {
-  return gab.eg->workers[gab.wkid].epoch % GAB_GCNEPOCHS;
+  return gab.eg->jobs[gab.wkid].epoch % GAB_GCNEPOCHS;
 }
 
 static inline int32_t epochgetlast(struct gab_triple gab) {
-  return (gab.eg->workers[gab.wkid].epoch - 1) % GAB_GCNEPOCHS;
+  return (gab.eg->jobs[gab.wkid].epoch - 1) % GAB_GCNEPOCHS;
 }
 
 static inline struct gab_obj **bufdata(struct gab_triple gab, uint8_t b,
                                        uint8_t wkid, uint8_t epoch) {
   assert(epoch < GAB_GCNEPOCHS);
   assert(b < kGAB_NBUF);
-  assert(wkid < GAB_NWORKERS + 1);
-  return gab.eg->gc.buffers[b][epoch][wkid];
+  return gab.eg->gc->buffers[wkid][b][epoch].data;
 }
 
 static inline size_t buflen(struct gab_triple gab, uint8_t b, uint8_t wkid,
                             uint8_t epoch) {
   assert(epoch < GAB_GCNEPOCHS);
   assert(b < kGAB_NBUF);
-  assert(wkid < GAB_NWORKERS + 1);
-  return gab.eg->gc.buffer_len[b][epoch][wkid];
+  return gab.eg->gc->buffers[wkid][b][epoch].len;
 }
 
 static inline void bufpush(struct gab_triple gab, uint8_t b, uint8_t wkid,
                            uint8_t epoch, struct gab_obj *o) {
   assert(epoch < GAB_GCNEPOCHS);
   assert(b < kGAB_NBUF);
-  assert(wkid < GAB_NWORKERS + 1);
   auto len = buflen(gab, b, wkid, epoch);
   auto buf = bufdata(gab, b, wkid, epoch);
   buf[len] = o;
-  gab.eg->gc.buffer_len[b][epoch][wkid] = len + 1;
+  gab.eg->gc->buffers[wkid][b][epoch].len = len + 1;
 }
 
 static inline void bufclear(struct gab_triple gab, uint8_t b, uint8_t wkid,
                             uint8_t epoch) {
   assert(epoch < GAB_GCNEPOCHS);
   assert(b < kGAB_NBUF);
-  assert(wkid < GAB_NWORKERS + 1);
-  gab.eg->gc.buffer_len[b][epoch][wkid] = 0;
+  assert(wkid < gab.eg->len);
+  gab.eg->gc->buffers[wkid][b][epoch].len = 0;
 }
 
 static inline size_t do_increment(struct gab_gc *gc, struct gab_obj *obj) {
@@ -94,7 +91,7 @@ void queue_decrement(struct gab_triple gab, struct gab_obj *obj) {
   while (buflen(gab, kGAB_BUF_DEC, gab.wkid, e) >= cGAB_GC_DEC_BUFF_MAX) {
     gab_gctrigger(gab);
 
-    if (gab.eg->gc.schedule == gab.wkid) {
+    if (gab.eg->gc->schedule == gab.wkid) {
       gab_gcepochnext(gab);
       e = epochget(gab);
     }
@@ -117,7 +114,7 @@ void queue_increment(struct gab_triple gab, struct gab_obj *obj) {
 
   while (buflen(gab, kGAB_BUF_INC, gab.wkid, e) >= cGAB_GC_DEC_BUFF_MAX) {
     /*printf("WORKER %i WAITING EPOCH %i\n", gab.wkid, e);*/
-    if (gab.eg->gc.schedule == gab.wkid)
+    if (gab.eg->gc->schedule == gab.wkid)
       gab_gcepochnext(gab);
 
     e = epochget(gab);
@@ -138,7 +135,7 @@ void queue_destroy(struct gab_triple gab, struct gab_obj *obj) {
 
   GAB_OBJ_BUFFERED(obj);
 
-  v_gab_obj_push(&gab.eg->gc.dead, obj);
+  v_gab_obj_push(&gab.eg->gc->dead, obj);
 
 #if cGAB_LOG_GC
   printf("QDEAD\t%i\t%p\t%d\n", epochget(gab), obj, obj->references);
@@ -161,6 +158,19 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
   switch (obj->kind) {
   default:
     break;
+
+  case kGAB_FIBER: {
+    struct gab_obj_fiber *fib = (struct gab_obj_fiber *)obj;
+
+    for (size_t i = 0; i < fib->len; i++) {
+      gab_value o = fib->data[i];
+
+      if (gab_valiso(o))
+        fnc(gab, gab_valtoo(o));
+    }
+
+    break;
+  }
 
   case kGAB_BOX: {
     struct gab_obj_box *box = (struct gab_obj_box *)obj;
@@ -281,7 +291,7 @@ static inline void dec_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
   printf("DEC\t%i\t%p\t%d\n", epochget(gab), obj, obj->references - 1);
 #endif
 
-  do_decrement(&gab.eg->gc, obj);
+  do_decrement(gab.eg->gc, obj);
 
   if (obj->references == 0) {
     if (!GAB_OBJ_IS_NEW(obj))
@@ -296,7 +306,7 @@ static inline void inc_obj_ref(struct gab_triple gab, struct gab_obj *obj) {
   printf("INC\t%i\t%p\t%d\n", epochget(gab), obj, obj->references + 1);
 #endif
 
-  do_increment(&gab.eg->gc, obj);
+  do_increment(gab.eg->gc, obj);
 
   if (GAB_OBJ_IS_NEW(obj)) {
 #if cGAB_LOG_GC
@@ -412,34 +422,41 @@ gab_value gab_dref(struct gab_triple gab, gab_value value) {
   return value;
 }
 
-void gab_gccreate(struct gab_gc *gc) {
-  gc->schedule = -1;
-  memset(gc->buffer_len, 0, sizeof(gc->buffer_len));
-  d_gab_obj_create(&gc->overflow_rc, 8);
-  v_gab_obj_create(&gc->dead, 8);
+void gab_gccreate(struct gab_triple gab) {
+  gab.eg->gc->schedule = -1;
+  d_gab_obj_create(&gab.eg->gc->overflow_rc, 8);
+  v_gab_obj_create(&gab.eg->gc->dead, 8);
+
+  for (int i = 0; i < gab.eg->len; i++) {
+    for (int b = 0; b < kGAB_NBUF; b++) {
+      for (int e = 0; e < GAB_GCNEPOCHS; e++) {
+        bufclear(gab, b, i, e);
+      }
+    }
+  }
 };
 
-void gab_gcdestroy(struct gab_gc *gc) {
-  d_gab_obj_destroy(&gc->overflow_rc);
-  v_gab_obj_destroy(&gc->dead);
+void gab_gcdestroy(struct gab_triple gab) {
+  d_gab_obj_destroy(&gab.eg->gc->overflow_rc);
+  v_gab_obj_destroy(&gab.eg->gc->dead);
 }
 
 static inline void collect_dead(struct gab_triple gab) {
-  while (gab.eg->gc.dead.len) {
-    struct gab_obj *o = v_gab_obj_pop(&gab.eg->gc.dead);
+  while (gab.eg->gc->dead.len) {
+    struct gab_obj *o = v_gab_obj_pop(&gab.eg->gc->dead);
 
     destroy(gab, o);
   }
 }
 
 void gab_gclock(struct gab_triple gab) {
-  struct gab_wk *wk = gab.eg->workers + gab.wkid;
+  struct gab_jb *wk = gab.eg->jobs + gab.wkid;
   assert(wk->locked < UINT8_MAX);
   wk->locked += 1;
 }
 
 void gab_gcunlock(struct gab_triple gab) {
-  struct gab_wk *wk = gab.eg->workers + gab.wkid;
+  struct gab_jb *wk = gab.eg->jobs + gab.wkid;
   assert(wk->locked > 0);
   wk->locked -= 1;
 
@@ -461,7 +478,7 @@ void processincrements(struct gab_triple gab) {
   printf("IEPOCH\t%i\n", epoch);
 #endif
 
-  for (uint8_t wkid = 0; wkid < GAB_NWORKERS + 1; wkid++) {
+  for (uint8_t wkid = 0; wkid < gab.eg->len; wkid++) {
     // For the stack and increment buffers, increment the object
     for_buf_do(kGAB_BUF_STK, wkid, epoch, inc_obj_ref, gab);
     for_buf_do(kGAB_BUF_INC, wkid, epoch, inc_obj_ref, gab);
@@ -481,7 +498,7 @@ void processdecrements(struct gab_triple gab) {
   printf("DEPOCH\t%i\n", epoch);
 #endif
 
-  for (uint8_t wkid = 0; wkid < GAB_NWORKERS + 1; wkid++) {
+  for (uint8_t wkid = 0; wkid < gab.eg->len; wkid++) {
     // For the stack and increment buffers, increment the object
     for_buf_do(kGAB_BUF_STK, wkid, epoch, dec_obj_ref, gab);
     for_buf_do(kGAB_BUF_DEC, wkid, epoch, dec_obj_ref, gab);
@@ -496,25 +513,28 @@ void processdecrements(struct gab_triple gab) {
 }
 
 void processepoch(struct gab_triple gab) {
-  struct gab_wk *wk = &gab.eg->workers[gab.wkid];
-  struct gab_fb *fb = wk->fiber;
-
+  struct gab_jb *wk = &gab.eg->jobs[gab.wkid];
   int32_t e = epochget(gab);
 
 #if cGAB_LOG_GC
   printf("PEPOCH\t%i\t%i\n", e, gab.wkid);
 #endif
 
-  if (!fb) {
+  if (wk->fiber == gab_undefined) {
     assert(wk->lock_keep.len == 0);
     goto fin;
   }
+
+  assert(gab_valkind(wk->fiber) == kGAB_FIBER);
+  struct gab_obj_fiber *fb = GAB_VAL_TO_FIBER(wk->fiber);
 
   struct gab_vm *vm = &fb->vm;
 
   size_t stack_size = vm->sp - vm->sb;
 
-  assert(stack_size + 1 < cGAB_GC_DEC_BUFF_MAX);
+  assert(stack_size + wk->lock_keep.len + 1 < cGAB_GC_DEC_BUFF_MAX);
+
+  bufpush(gab, kGAB_BUF_STK, gab.wkid, e, gab_valtoo(wk->fiber));
 
   for (size_t i = 0; i < stack_size; i++) {
     if (gab_valiso(vm->sb[i])) {
@@ -535,7 +555,7 @@ void processepoch(struct gab_triple gab) {
   }
 
 fin:
-  if (gab.wkid < GAB_NWORKERS)
+  if (gab.wkid < gab.eg->len - 1)
     epochinc(gab);
 #if cGAB_LOG_GC
   printf("PEPOCH!\t%i\t%i\n", epochget(gab), gab.wkid);
@@ -546,23 +566,23 @@ void schedule(struct gab_triple gab, size_t wkid) {
 #if cGAB_LOG_GC
   printf("SCHEDULE %lu\n", wkid);
 #endif
-  gab.eg->gc.schedule = wkid;
+  gab.eg->gc->schedule = wkid;
 }
 
 void gab_gcepochnext(struct gab_triple gab) {
-  if (gab.wkid < GAB_NWORKERS)
+  if (gab.wkid < gab.eg->len - 1)
     processepoch(gab);
 
   schedule(gab, gab.wkid + 1);
 }
 
 bool gab_gctrigger(struct gab_triple gab) {
-  if (gab.eg->gc.schedule >= 0)
+  if (gab.eg->gc->schedule >= 0)
     goto fin; // Already collecting
 
   size_t e = epochget(gab);
 
-  for (size_t i = 0; i < GAB_NWORKERS; i++) {
+  for (size_t i = 0; i < gab.eg->len; i++) {
     if (buflen(gab, kGAB_BUF_DEC, i, e) < cGAB_GC_DEC_BUFF_MAX &&
         buflen(gab, kGAB_BUF_INC, i, e) < cGAB_GC_DEC_BUFF_MAX)
       continue;
@@ -591,9 +611,11 @@ void gab_gcdocollect(struct gab_triple gab) {
     inc_obj_ref(gab, gab_valtoo(gab.eg->shapes));
 
   processincrements(gab);
+
   processdecrements(gab);
 
   collect_dead(gab);
+
   epochinc(gab);
 
   if (gab_valiso(gab.eg->messages))
@@ -602,11 +624,11 @@ void gab_gcdocollect(struct gab_triple gab) {
   if (gab_valiso(gab.eg->shapes))
     queue_decrement(gab, gab_valtoo(gab.eg->shapes));
 
-  gab.eg->gc.schedule = -1;
+  gab.eg->gc->schedule = -1;
 }
 
 void gab_collect(struct gab_triple gab) {
-  if (gab.eg->gc.schedule >= 0)
+  if (gab.eg->gc->schedule >= 0)
     return; // Already collecting
 
   schedule(gab, 0);

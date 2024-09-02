@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <threads.h>
+#include <types.h>
 
 #include "core.h"
 
@@ -128,10 +129,6 @@ typedef uint64_t gab_value;
 #define T gab_value
 #include "vector.h"
 
-#define T struct gab_fb *
-#define NAME gab_fb
-#include "vector.h"
-
 enum gab_kind {
   kGAB_STRING = 0, // MUST_STAY_ZERO
   kGAB_SIGIL = 1,
@@ -146,6 +143,10 @@ enum gab_kind {
   kGAB_RECORD,
   kGAB_RECORDNODE,
   kGAB_SHAPE,
+  kGAB_FIBER,
+  kGAB_CHANNEL,
+  kGAB_CHANNELCLOSED,
+  kGAB_CHANNELBUFFERED,
   kGAB_NKINDS,
 };
 
@@ -321,7 +322,6 @@ struct gab_src;
 
 struct gab_triple {
   struct gab_eg *eg;
-  struct gab_fb *fb;
   int32_t flags;
   int32_t wkid;
 };
@@ -334,6 +334,7 @@ struct gab_obj_native;
 struct gab_obj_block;
 struct gab_obj_message;
 struct gab_obj_box;
+struct gab_obj_fiber;
 
 typedef void (*gab_gcvisit_f)(struct gab_triple, struct gab_obj *obj);
 
@@ -397,7 +398,7 @@ size_t gab_obj_size(struct gab_obj *obj);
  * @class gab_create_argt
  */
 struct gab_create_argt {
-  int flags;
+  size_t flags, jobs;
   /**
    * @brief A hook for loading dynamic libraries.
    * This is used to load native-c modules.
@@ -487,9 +488,6 @@ int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs);
  */
 int gab_afprintf(FILE *stream, const char *fmt, size_t argc,
                  gab_value argv[argc]);
-
-struct gab_fb *gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
-                         gab_value argv[argc]);
 
 /**
  * @brief Give the engine ownership of the values.
@@ -762,7 +760,7 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args);
  * @param args The arguments.
  * @return The fiber that was queued.
  */
-struct gab_fb *gab_arun(struct gab_triple gab, struct gab_run_argt args);
+gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args);
 
 /**
  * @class gab_exec_argt
@@ -1281,6 +1279,73 @@ struct gab_obj_native {
 /* Cast a value to a (gab_obj_native*) */
 #define GAB_VAL_TO_NATIVE(value) ((struct gab_obj_native *)gab_valtoo(value))
 
+/*
+ * @brief A lightweight green-thread / coroutine / fiber.
+ *
+ * Execution can be paused and resumed.
+ */
+struct gab_obj_fiber {
+  struct gab_obj header;
+
+  enum {
+    kGAB_FIBER_WAITING,
+    kGAB_FIBER_RUNNING,
+    kGAB_FIBER_DONE,
+  } status;
+
+  struct gab_vm {
+    uint8_t *ip;
+
+    gab_value *sp, *fp;
+
+    gab_value sb[cGAB_STACK_MAX];
+  } vm;
+
+  a_gab_value *res;
+
+  size_t len;
+
+  gab_value data[FLEXIBLE_ARRAY];
+};
+
+gab_value gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
+                    gab_value argv[argc]);
+
+/**
+ * @brief Block the caller until this fiber is completed.
+ *
+ * @param fiber The fiber
+ */
+a_gab_value *gab_fibawait(gab_value fiber);
+
+/* Cast a value to a (gab_obj_native*) */
+#define GAB_VAL_TO_FIBER(value) ((struct gab_obj_fiber *)gab_valtoo(value))
+
+struct gab_obj_channel {
+  struct gab_obj header;
+
+  mtx_t mtx;
+  cnd_t t_cnd;
+  cnd_t p_cnd;
+
+  size_t cap;
+  _Atomic size_t len;
+  gab_value data[FLEXIBLE_ARRAY];
+};
+
+gab_value gab_channel(struct gab_triple gab, size_t cap);
+
+void gab_chnput(struct gab_triple gab, gab_value channel, gab_value value);
+
+gab_value gab_chntake(struct gab_triple gab, gab_value channel);
+
+void gab_chnclose(gab_value channel);
+
+bool gab_chnisclosed(gab_value channel);
+
+/* Cast a value to a (gab_obj_channel*) */
+#define GAB_VAL_TO_CHANNEL(value) ((struct gab_obj_channel *)gab_valtoo(value))
+
 /**
  * @brief A block - aka a prototype and it's captures.
  */
@@ -1734,41 +1799,6 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
 #define EQUAL(a, b) (a == b)
 #include "dict.h"
 
-#define GAB_NWORKERS 8
-
-/*
- * A lightweight green-thread / coroutine / fiber.
- *
- * Execution can be paused and resumed.
- */
-struct gab_fb {
-  gab_value messages;
-
-  enum {
-    kGAB_FIBER_WAITING,
-    kGAB_FIBER_RUNNING,
-    kGAB_FIBER_DONE,
-  } status;
-
-  a_gab_value *res;
-
-  struct gab_vm {
-    uint8_t *ip;
-
-    gab_value *sp, *fp;
-
-    gab_value sb[cGAB_STACK_MAX];
-  } vm;
-};
-
-/**
- * @brief Block the caller until this fiber is completed, then return the
- * result.
- * @param fiber The fiber
- * @return A heap-allocated slice of values returned by the fiber.
- */
-a_gab_value *gab_fibawait(struct gab_fb *fiber);
-
 #define T struct gab_obj *
 #define NAME gab_obj
 #include "vector.h"
@@ -1800,32 +1830,22 @@ struct gab_eg {
 
   gab_value types[kGAB_NKINDS];
 
-  bool alive;
-  _Atomic uint8_t nworkers;
-
-  struct gab_wk {
-    thrd_t td;
-
-    size_t pid;
-
-    struct gab_fb *fiber;
-
-    _Atomic uint32_t epoch;
-    _Atomic int32_t locked;
-    v_gab_obj lock_keep;
-  } workers[GAB_NWORKERS + 1];
+  _Atomic int8_t njobs;
 
   struct gab_gc {
     _Atomic int8_t schedule;
     d_gab_obj overflow_rc;
     v_gab_obj dead;
 
-    size_t buffer_len[kGAB_NBUF][GAB_GCNEPOCHS][GAB_NWORKERS + 1];
-    struct gab_obj *buffers[kGAB_NBUF][GAB_GCNEPOCHS][GAB_NWORKERS + 1]
-                           [cGAB_GC_DEC_BUFF_MAX];
-  } gc;
+    struct gab_gcbuf {
+      size_t len;
+      struct gab_obj *data[cGAB_GC_DEC_BUFF_MAX];
+    } buffers[FLEXIBLE_ARRAY][kGAB_NBUF][GAB_GCNEPOCHS];
+  } *gc;
 
-  gab_value messages;
+  _Atomic gab_value messages;
+  gab_value work_channel;
+
   mtx_t shapes_mtx;
   gab_value shapes;
 
@@ -1833,15 +1853,25 @@ struct gab_eg {
   d_gab_src sources;
   d_gab_modules modules;
 
-  mtx_t queue_mtx;
-  v_gab_fb queue;
-
   void *(*os_dynopen)(const char *path);
 
   void *(*os_dynsymbol)(void *os_dynhandle, const char *path);
 
   struct gab_obj *(*os_objalloc)(struct gab_triple gab, struct gab_obj *,
                                  size_t new_size);
+
+  size_t len;
+  struct gab_jb {
+    thrd_t td;
+
+    size_t pid;
+
+    gab_value fiber;
+
+    _Atomic uint32_t epoch;
+    _Atomic int32_t locked;
+    v_gab_obj lock_keep;
+  } jobs[FLEXIBLE_ARRAY];
 };
 
 static inline gab_value gab_egtype(struct gab_eg *gab, enum gab_kind k) {
@@ -1849,12 +1879,19 @@ static inline gab_value gab_egtype(struct gab_eg *gab, enum gab_kind k) {
 }
 
 static inline struct gab_gc *gab_gc(struct gab_triple gab) {
-  return &gab.eg->gc;
+  return gab.eg->gc;
 }
 
 static inline struct gab_vm *gab_vm(struct gab_triple gab) {
-  return &gab.fb->vm;
+  gab_value fiber = gab.eg->jobs[gab.wkid].fiber;
+
+  if (fiber == gab_undefined)
+    return nullptr;
+
+  return &GAB_VAL_TO_FIBER(fiber)->vm;
 }
+
+void gab_yield(struct gab_triple gab);
 
 /**
  * @brief Check if a value's runtime id matches a given value.

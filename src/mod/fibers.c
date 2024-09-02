@@ -7,9 +7,11 @@ a_gab_value *gab_lib_fiber(struct gab_triple gab, size_t argc,
   if (!gab_egvalisa(gab.eg, block, gab_egtype(gab.eg, kGAB_BLOCK)))
     return gab_pktypemismatch(gab, block, kGAB_BLOCK);
 
-  gab_arun(gab, (struct gab_run_argt){
+  gab_value fib = gab_arun(gab, (struct gab_run_argt){
                    .main = block,
                });
+
+  gab_vmpush(gab_vm(gab), fib);
 
   return nullptr;
 }
