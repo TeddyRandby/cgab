@@ -13,7 +13,11 @@ end)
   .gab.fiber do: blk() end
 end)
 
-work = do: [] :acc 950 :len:print end
+c = .gab.channel()
+
+work = do:
+  [] :acc 950 :len:print
+end
 
 work :go
 work :go

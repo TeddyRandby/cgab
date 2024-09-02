@@ -89,6 +89,8 @@
 #endif
 
 // Garbage collection increment/decrement buffer size
+// I don't love having these just be static buffers, its very possible
+// for them to overflow
 #ifndef cGAB_GC_DEC_BUFF_MAX
 #define cGAB_GC_DEC_BUFF_MAX (cGAB_STACK_MAX * 4)
 #endif
@@ -206,7 +208,8 @@ enum gab_flags {
 #define mGAB_LIN "!"
 #define mGAB_CALL ""
 #define mGAB_USE "use"
-#define mGAB_SEND "send"
+#define mGAB_TAKE ">!"
+#define mGAB_PUT "<!"
 
 #define T char
 #include "slice.h"

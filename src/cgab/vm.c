@@ -46,7 +46,7 @@ static handler handlers[] = {
   ({                                                                           \
     uint8_t o = (op);                                                          \
     LOG(o)                                                                     \
-    if (GC()->schedule == GAB().wkid) {                                     \
+    if (GC()->schedule == GAB().wkid) {                                        \
       STORE_SP();                                                              \
       gab_gcepochnext(GAB());                                                  \
     }                                                                          \
@@ -436,14 +436,6 @@ a_gab_value *gab_ptypemismatch(struct gab_triple gab, gab_value found,
                   gab_valtype(gab.eg, found), texpected);
 }
 
-void dumpstack(struct gab_vm *vm) {
-  gab_value *ptr = vm->sp;
-  while (ptr > vm->sb) {
-    printf("\t| %V\n", *ptr);
-    ptr--;
-  }
-}
-
 gab_value gab_vmframe(struct gab_triple gab, uint64_t depth) {
   // uint64_t frame_count = gab_vm(gab)->fp - gab_vm(gab)->sb;
   //
@@ -737,7 +729,6 @@ a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
 
   if (gab.flags & fGAB_BUILD_CHECK)
     return nullptr;
-
 
   gab_value fb = gab_fiber(gab, args.main, args.len, args.argv);
 
@@ -1238,8 +1229,7 @@ CASE_CODE(SEND_CONSTANT) {
 
 CASE_CODE(SEND_PROPERTY) {
   gab_value *ks = READ_CONSTANTS;
-  uint8_t have_byte = READ_BYTE;
-  uint64_t have = compute_arity(VAR(), have_byte);
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
@@ -1741,6 +1731,47 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   }
 
   IP() -= SEND_CACHE_DIST;
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_TAKE) {
+  SKIP_SHORT;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value c = PEEK_N(have);
+
+  SEND_GUARD_KIND(c, kGAB_CHANNEL);
+
+  gab_value v = gab_chntake(GAB(), c);
+
+  DROP_N(have);
+
+  PUSH(v);
+
+  SET_VAR(1);
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_PUT) {
+  SKIP_SHORT;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value c = PEEK_N(have);
+
+  SEND_GUARD_KIND(c, kGAB_CHANNEL);
+
+  if (__gab_unlikely(have < 2))                                              \
+    PUSH(gab_nil), have++;                                                   \
+
+  gab_value v = PEEK_N(have - 1);
+
+  gab_chnput(GAB(), c, v);
+
+  DROP_N(have - 1);
+
+  SET_VAR(1);
+
   NEXT();
 }
 
