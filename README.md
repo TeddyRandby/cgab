@@ -195,7 +195,8 @@ briefly interrupts each running thread to track its live objects. After the brie
 Because the threads all share a single collector, and all gab values are immutable, this means that gab can implement message sends *without any serialization or copying*.
 Other models, such as in both Go and Erlang, copy/serialize messages into/out of channels and mailboxes. Gab's model doesn't have this restriction - we can pass values between fibers freely.
 #### TODO:
-Remaining work for concurrency is implementing a way to send messages. I'm still unsure if I want to use the actor model (erlang) or CSP (go, clojure's core.async).
+Gab uses CSP as its model for communicating between fibers. This is the `go` or `clojure.core.async` model, using channels and operations like `put`, `take`, and `alt/select`.
+Gab has an initial implementation of this, and actually uses a `gab.channel` of `gab.fibers` at the runtime level to queue fibers for running.
 # What about imports?
 Gab defines several native messages. `:print` is one you should be familiar with by now - `:use` is another!
 It is used like this:

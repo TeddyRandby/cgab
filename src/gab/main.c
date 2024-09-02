@@ -1,7 +1,7 @@
+#include "alloc.h"
 #include "core.h"
 #include "gab.h"
 #include "os.h"
-#include "alloc.h"
 #include <printf.h>
 #include <stdio.h>
 #include <string.h>
@@ -52,7 +52,7 @@ void run_repl(int flags) {
   return;
 }
 
-void run_src(struct gab_triple gab, s_char src, int flags) {
+void run_src(struct gab_triple gab, s_char src, int flags, size_t jobs) {
   a_gab_value *result = gab_exec(gab, (struct gab_exec_argt){
                                           .name = MAIN_MODULE,
                                           .source = (char *)src.data,
@@ -66,7 +66,7 @@ void run_src(struct gab_triple gab, s_char src, int flags) {
   }
 }
 
-void run_string(const char *string, int flags) {
+void run_string(const char *string, int flags, size_t jobs) {
   struct gab_triple gab = gab_create((struct gab_create_argt){
       .os_dynopen = dynopen,
       .os_dynsymbol = dynsymbol,
@@ -75,25 +75,20 @@ void run_string(const char *string, int flags) {
   // This is a weird case where we actually want to include the null terminator
   s_char src = s_char_create(string, strlen(string) + 1);
 
-  run_src(gab, src, flags);
+  run_src(gab, src, flags, 8);
 
   gab_destroy(gab);
   return;
 }
 
-void run_file(const char *path, int flags) {
+void run_file(const char *path, int flags, size_t jobs) {
   struct gab_triple gab = gab_create((struct gab_create_argt){
       .os_dynopen = dynopen,
       .os_dynsymbol = dynsymbol,
       .os_objalloc = chunkalloc,
       .flags = flags,
+      .jobs = jobs,
   });
-
-  // gab_value data[] = { gab_true, gab_false };
-
-  // gab_value rec = gab_record(gab, gab_undefined, 1, 2, data);
-  //
-  // gab_fprintf(stdout, "Test: $", rec);
 
   a_gab_value *result = gab_suse(gab, path);
 
@@ -112,7 +107,7 @@ struct option {
   int flag;
 };
 
-#define MAX_OPTIONS 5
+#define MAX_OPTIONS 6
 
 struct command {
   const char *name;
@@ -167,7 +162,14 @@ static struct command commands[] = {
                 "ncore",
                 "Don't use the gab core module.",
                 'n',
-                .flag = fGAB_NO_CORE,
+                .flag = fGAB_ENV_EMPTY,
+            },
+            {
+                "jobs",
+                "Specify the number of os threads which should serve as "
+                "workers for running gab fibers.",
+                'j',
+                .flag = fGAB_JOB_RUNNERS,
             },
         },
     },
@@ -201,10 +203,11 @@ static struct command commands[] = {
                 .flag = fGAB_BUILD_CHECK,
             },
             {
-                "ncore",
-                "Don't use the gab core module.",
-                'n',
-                .flag = fGAB_NO_CORE,
+                "eenv",
+                "Don't use gab's core module - start with a mostly-empty "
+                "environment.",
+                'e',
+                .flag = fGAB_ENV_EMPTY,
             },
         },
     },
@@ -223,7 +226,7 @@ static struct command commands[] = {
                 "ncore",
                 "Don't use the gab core module.",
                 'n',
-                .flag = fGAB_NO_CORE,
+                .flag = fGAB_ENV_EMPTY,
             },
         },
     },
@@ -280,7 +283,18 @@ struct parse_options_result parse_options(int argc, const char **argv,
 int run(int argc, const char **argv, int flags) {
   assert(argc > 0);
 
-  run_file(argv[0], flags);
+  const char *path = argv[0];
+  size_t jobs = 8;
+
+  if (flags & fGAB_JOB_RUNNERS) {
+    const char *njobs = argv[0];
+    assert(argc > 1);
+
+    jobs = atoi(njobs);
+    path = argv[1];
+  }
+
+  run_file(path, flags, jobs);
 
   return 0;
 }
@@ -288,7 +302,7 @@ int run(int argc, const char **argv, int flags) {
 int exec(int argc, const char **argv, int flags) {
   assert(argc > 0);
 
-  run_string(argv[0], flags);
+  run_string(argv[0], flags, 8);
 
   return 0;
 }

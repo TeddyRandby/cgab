@@ -178,7 +178,8 @@ enum gab_flags {
   fGAB_ERR_QUIET = 1 << 2,
   fGAB_ERR_EXIT = 1 << 3,
   fGAB_ERR_STRUCTURED = 1 << 4,
-  fGAB_NO_CORE = 1 << 5,
+  fGAB_ENV_EMPTY = 1 << 5,
+  fGAB_JOB_RUNNERS = 1 << 6,
 };
 
 // VERSION

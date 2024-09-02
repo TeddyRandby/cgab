@@ -410,7 +410,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
     }
   }
 
-  if (!(gab.flags & fGAB_NO_CORE))
+  if (!(gab.flags & fGAB_ENV_EMPTY))
     gab_suse(gab, "core");
 
   return gab;
