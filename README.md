@@ -169,7 +169,7 @@ are always blocking.
 - When putting to a channel, the putting fiber must block until a receiving fiber is available on the other end.
 - The same applies when taking from a channel.
 
-Unbufferd channels are especially unique because _they never own a value_. They are cheaper to manage with garbage collection as a result!
+Unbuffered channels are especially unique because _they never own a value_. They are cheaper to manage with garbage collection as a result!
 Gab's scheduler/runtime is actually implemented using an unbuffered _channel of fibers_.
 When a user creates a fiber (like with `gab.fiber do: ... end`), the runtime does something like this:
 ```js
@@ -254,6 +254,8 @@ Gab has an initial implementation of this, and actually uses a `gab.channel` of 
     - Building big shapes (like for tuples) is basically traversing a linked list in O(n) time (ugly)
 - Optimize string interning datastructure.
     - Hashmap works well enough, but copies a lot of data and makes concat/slice slow.
+- Potentially refactor `OP_RECORD` and `OP_TUPLE` to be sends, something like `.gab.record(<args>)`. This
+would be more uniform with the rest of the language, using message sends. Constant folding?
 - Of course, lots of library work can be done.
     - More iterators
     - Improve spec
