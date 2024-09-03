@@ -35,8 +35,8 @@ static inline void bufpush(struct gab_triple gab, uint8_t b, uint8_t wkid,
                            uint8_t epoch, struct gab_obj *o) {
   assert(epoch < GAB_GCNEPOCHS);
   assert(b < kGAB_NBUF);
-  auto len = buflen(gab, b, wkid, epoch);
-  auto buf = bufdata(gab, b, wkid, epoch);
+  size_t len = buflen(gab, b, wkid, epoch);
+  struct gab_obj **buf = bufdata(gab, b, wkid, epoch);
   buf[len] = o;
   gab.eg->gc->buffers[wkid][b][epoch].len = len + 1;
 }
@@ -144,8 +144,8 @@ void queue_destroy(struct gab_triple gab, struct gab_obj *obj) {
 
 static inline void for_buf_do(uint8_t b, uint8_t wkid, uint8_t epoch,
                               gab_gc_visitor fnc, struct gab_triple gab) {
-  auto buf = bufdata(gab, b, wkid, epoch);
-  auto len = buflen(gab, b, wkid, epoch);
+  struct gab_obj **buf = bufdata(gab, b, wkid, epoch);
+  size_t len = buflen(gab, b, wkid, epoch);
 
   for (size_t i = 0; i < len; i++) {
     struct gab_obj *obj = buf[i];
@@ -566,7 +566,7 @@ void schedule(struct gab_triple gab, size_t wkid) {
 #if cGAB_LOG_GC
   printf("SCHEDULE %lu\t%hhd\n", wkid, gab.eg->gc->schedule);
 #endif
-  if (gab.eg->gc->schedule < (int8_t) wkid)
+  if (gab.eg->gc->schedule < (int8_t)wkid)
     gab.eg->gc->schedule = wkid;
 }
 
