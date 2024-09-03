@@ -168,7 +168,8 @@ For communication between fibers, Gab provides the `gab.channel`. Currently, the
 are always blocking.
 - When putting to a channel, the putting fiber must block until a receiving fiber is available on the other end.
 - The same applies when taking from a channel.
-Unblocking channels are especially unique because _they never own a value_. They are cheaper to manage with garbage collection as a result!
+
+Unbufferd channels are especially unique because _they never own a value_. They are cheaper to manage with garbage collection as a result!
 Gab's scheduler/runtime is actually implemented using an unbuffered _channel of fibers_.
 When a user creates a fiber (like with `gab.fiber do: ... end`), the runtime does something like this:
 ```js
