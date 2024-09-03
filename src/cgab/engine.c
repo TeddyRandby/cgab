@@ -180,6 +180,16 @@ struct primitive kind_primitives[] = {
         .kind = kGAB_MESSAGE,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CALL_MESSAGE),
     },
+    {
+        .name = mGAB_PUT,
+        .kind = kGAB_CHANNEL,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_PUT),
+    },
+    {
+        .name = mGAB_TAKE,
+        .kind = kGAB_CHANNEL,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_TAKE),
+    },
 };
 
 void gab_yield(struct gab_triple gab) {

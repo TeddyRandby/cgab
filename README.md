@@ -166,7 +166,7 @@ New programming languages that don't consider concurrency are boring! Everyones 
 Gab's runtime uses something similar to goroutines or processes. A `gab.fiber` is a lightweight thread of execution, which are quick to create/destroy.
 Currently, they are mapped on to 8 (arbitrarily chosen at compile time) os threads from a global run-queue. There are many opportunities for improvement on this model.
 ```gab
-# Define a message here that will do a good amount of work. In this case, creating a big list in a very silly way.
+# Define a message for doing some work. This builds a list in a silly way.
 \do_acc :defcase! {
   .true  = do acc: acc end,
   .false = do acc, n: [n, acc:acc(n - 1)**] end, 
@@ -176,19 +176,40 @@ Currently, they are mapped on to 8 (arbitrarily chosen at compile time) os threa
   n :== 0 :do_acc (self, n)
 end)
 
-# Define the \go message for blocks! This launches a new gab.fiber with the block as its argument.
-\go :def!(['gab.block'], do: .gab.fiber(self) end)
+# Define a message for launching blocks in a fiber.
+# This just calls the .gab.fiber constructer with
+#   a single argument - the block
+\go :def!(['gab.block'], do: .gab.fiber self end)
 
-# Here is our block that does a lot of work
-work = do: [] :acc 950 :len :print end
+# Define some input and output channels
+in, out = .gab.channel(), .gab.channel()
 
-# Send off all these workers to do their work in parallel!
+# Here is our block that will do the work.
+# Send \acc to the empty list [] with an
+# argument we pull from the in channel. Then
+# take the length of that result list, and put it
+# on the out channel.
+work = do:
+    n = in >!
+    res = [] :acc n :len
+    out <! res
+end
+
+# Dispatch some routines to work
 work :go
 work :go
 work :go
-work :go
-work :go
-    # => will wait a couple seconds, then print 950 5 times right next to each other.
+
+# Dispatch a routine to add work on the in channel
+fib = do:
+  in <! 400
+  in <! 500
+  in <! 600
+end :go
+
+fib:print                       # => <gab.fiber 0x...>
+
+(out >!, out >!, out >!) :print # => 400, 500, 600
 ```
 A neat feature built on top of the concurrency model is *concurrent* garbage collection. There is a secret extra thread dedicated to garbage collection, which when triggered
 briefly interrupts each running thread to track its live objects. After the brief interruption, each running thread is returned to its work and the collecting thread finishes the collection.
