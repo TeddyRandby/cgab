@@ -1031,6 +1031,11 @@ resource resources[] = {
         .suffix = ".so",
         .handler = gab_shared_object_handler,
     },
+    {
+        .prefix = "./build/libcgab",
+        .suffix = ".so",
+        .handler = gab_shared_object_handler,
+    },
     // Installed resources
     {
         .prefix = GAB_PREFIX "/gab/modules/",

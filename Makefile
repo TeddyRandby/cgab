@@ -20,7 +20,7 @@ GAB_OBJ = $(GAB_SRC:src/gab/%.c=$(BUILD_PREFIX)/%.o)
 MOD_SRC 	 = $(wildcard src/mod/*.c)
 MOD_SHARED = $(MOD_SRC:src/mod/%.c=$(BUILD_PREFIX)/libcgab%.so)
 
-STD_SRC = $(wildcard std/*.gab)
+STD_SRC = $(wildcard mod/*.gab)
 
 all: $(BUILD_PREFIX)/gab modules
 
@@ -60,6 +60,9 @@ uninstall:
 	rm -rf $(INSTALL_PREFIX)/include/gab
 	rm $(INSTALL_PREFIX)/lib/libcgab.so
 	rm $(INSTALL_PREFIX)/bin/gab
+
+test: $(BUILD_PREFIX)/gab modules
+	$(BUILD_PREFIX)/gab run test
 
 compile_commands:
 	make clean
