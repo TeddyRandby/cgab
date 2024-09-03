@@ -10,7 +10,6 @@
 #include "gab.h"
 #include "lexer.h"
 #include "os.h"
-#include "types.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -204,7 +203,6 @@ int32_t gc_thread(void *data) {
   struct gab_eg *eg = data;
   struct gab_triple gab = {.eg = eg, .wkid = wkid(eg)};
 
-
   assert(gab.wkid == eg->njobs);
 
   while (eg->njobs >= 0) {
@@ -257,9 +255,10 @@ fin:
 struct gab_triple gab_create(struct gab_create_argt args) {
   size_t njobs = args.jobs ? args.jobs : 8;
 
-  struct gab_eg *eg = NEW_FLEX(struct gab_eg, struct gab_jb, njobs + 1);
+  size_t egsize = sizeof(struct gab_eg) + sizeof(struct gab_jb) * (njobs + 1);
 
-  memset(eg, 0, sizeof(struct gab_eg) + sizeof(struct gab_jb) * (njobs + 1));
+  struct gab_eg *eg = malloc(egsize);
+  memset(eg, 0, egsize);
 
   assert(args.os_dynsymbol);
   assert(args.os_dynopen);
@@ -274,8 +273,11 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   struct gab_triple gab = {.eg = eg, .flags = args.flags, .wkid = eg->njobs};
 
-  eg->gc = NEW_FLEX(struct gab_gc, struct gab_gcbuf[kGAB_NBUF][GAB_GCNEPOCHS],
-                    njobs + 1);
+  size_t gcsize =
+      sizeof(struct gab_gc) +
+      sizeof(struct gab_gcbuf[kGAB_NBUF][GAB_GCNEPOCHS]) * (njobs + 1);
+
+  eg->gc = malloc(gcsize);
   gab_gccreate(gab);
 
   mtx_init(&eg->shapes_mtx, mtx_plain);

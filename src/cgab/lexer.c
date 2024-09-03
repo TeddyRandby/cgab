@@ -427,7 +427,7 @@ struct gab_src *gab_srccpy(struct gab_triple gab, struct gab_src *self) {
   if (d_gab_src_exists(&gab.eg->sources, name))
     return d_gab_src_read(&gab.eg->sources, name);
 
-  struct gab_src *copy = NEW(struct gab_src);
+  struct gab_src *copy = malloc(sizeof(struct gab_src));
   memset(copy, 0, sizeof(struct gab_src));
 
   d_gab_src_insert(&gab.eg->sources, name, copy);
@@ -490,7 +490,7 @@ struct gab_src *gab_src(struct gab_triple gab, gab_value name,
   if (d_gab_src_exists(&gab.eg->sources, name))
     return  d_gab_src_read(&gab.eg->sources, name);
 
-  struct gab_src *src = NEW(struct gab_src);
+  struct gab_src *src = malloc(sizeof(struct gab_src));
   memset(src, 0, sizeof(struct gab_src));
 
   src->source = a_char_create(source, len);

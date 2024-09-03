@@ -18,7 +18,7 @@ struct pool {
 
   uint64_t lines[LINES_PER_POOL];
 
-  uint8_t bytes[FLEXIBLE_ARRAY];
+  uint8_t bytes[];
 };
 
 struct gab_allocator {

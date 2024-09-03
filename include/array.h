@@ -1,6 +1,6 @@
-#include "hash.h"
-#include "string.h"
-#include "types.h"
+#include <string.h>
+#include <stdlib.h>
+#include <stdint.h>
 
 #ifndef T
 #error "Define a type T before including this header"

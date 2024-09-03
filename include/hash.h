@@ -1,6 +1,7 @@
 #ifndef CORE_HASH_H
 #define CORE_HASH_H
-#include "types.h"
+
+#include <stdint.h>
 
 /*
    https://github.com/ztanml/fast-hash/blob/master/fasthash.c

@@ -11,7 +11,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <threads.h>
-#include <types.h>
 
 #include "core.h"
 
@@ -1305,7 +1304,7 @@ struct gab_obj_fiber {
 
   size_t len;
 
-  gab_value data[FLEXIBLE_ARRAY];
+  gab_value data[];
 };
 
 gab_value gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
@@ -1330,7 +1329,7 @@ struct gab_obj_channel {
 
   size_t cap;
   _Atomic size_t len;
-  gab_value data[FLEXIBLE_ARRAY];
+  gab_value data[];
 };
 
 gab_value gab_channel(struct gab_triple gab, size_t cap);
@@ -1840,7 +1839,7 @@ struct gab_eg {
     struct gab_gcbuf {
       size_t len;
       struct gab_obj *data[cGAB_GC_DEC_BUFF_MAX];
-    } buffers[FLEXIBLE_ARRAY][kGAB_NBUF][GAB_GCNEPOCHS];
+    } buffers[][kGAB_NBUF][GAB_GCNEPOCHS];
   } *gc;
 
   _Atomic gab_value messages;
@@ -1871,7 +1870,7 @@ struct gab_eg {
     _Atomic uint32_t epoch;
     _Atomic int32_t locked;
     v_gab_obj lock_keep;
-  } jobs[FLEXIBLE_ARRAY];
+  } jobs[];
 };
 
 static inline gab_value gab_egtype(struct gab_eg *gab, enum gab_kind k) {
