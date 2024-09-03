@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <threads.h>
+#define nullptr NULL
 
 #include "core.h"
 
