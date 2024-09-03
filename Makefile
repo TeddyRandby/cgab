@@ -38,7 +38,7 @@ $(BUILD_PREFIX)/%.o: $(SRC_PREFIX)/%.c
 	$(CC) $(CFLAGS) $(INCLUDE) $< -c -o $@
 
 $(BUILD_PREFIX)/libcgab%.so: $(SRC_PREFIX)/%.c
-	$(CC) $(CFLAGS) $(INCLUDE) $(LD_CGAB) $< --shared -o $@
+	$(CC) $(CFLAGS) $(INCLUDE) $< $(LD_CGAB) --shared -o $@
 
 INSTALL_PREFIX 	= ${GAB_INSTALLPREFIX}
 GAB_PATH 			= ${GAB_PREFIX}/gab
