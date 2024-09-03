@@ -258,6 +258,7 @@ enum gab_flags {
 #define EQUAL(a, b) (a == b)
 #define LOAD cGAB_DICT_MAX_LOAD
 #include "dict.h"
+#define nullptr NULL
 
 static inline s_char s_char_cstr(const char *str) {
   return (s_char){.data = str, .len = strlen(str)};
