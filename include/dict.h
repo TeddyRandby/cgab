@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <string.h>
+#include <stdbool.h>
 
 #ifndef K
 #error "Define a type K before including this header"
