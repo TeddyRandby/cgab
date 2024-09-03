@@ -246,6 +246,8 @@ Gab has an initial implementation of this, and actually uses a `gab.channel` of 
     - Because Gab doesn't do this currenty, gab code actually can't run on just one thread. Try `gab run -j 1 test`. It will just hang.
     - This can't be implemented without changing the main work-channel to be buffered. 
     - This requires finding a sound strategy for handling thread-migration in the gc.
+- Lazily create up to `njobs` threads, instead of immediately creating all `njobs`. This just makes sense to do.
+    - Maybe there is a way to scale back down, after n amount of downtime?
 - Optimize shape datastructure.
     - Shapes are mutable because of their ugly transition vector
     - Building big shapes (like for tuples) is basically traversing a linked list in O(n) time (ugly)
