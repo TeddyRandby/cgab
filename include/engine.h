@@ -40,7 +40,12 @@ bool gab_gctrigger(struct gab_triple gab);
 /*
  * Begin the next epoch for the given pid
  */
+#if cGAB_LOG_GC
+#define gab_gcepochnext(gab) (__gab_gcepochnext(gab, __FUNCTION__, __LINE__))
+void __gab_gcepochnext(struct gab_triple gab, const char* func, int line);
+#else
 void gab_gcepochnext(struct gab_triple gab);
+#endif
 
 void gab_gcdocollect(struct gab_triple gab);
 
@@ -55,7 +60,17 @@ enum variable_flag {
 
 static inline void *gab_egalloc(struct gab_triple gab, struct gab_obj *obj,
                                 uint64_t size) {
-  return gab.eg->os_objalloc(gab, obj, size);
+if (size == 0) {
+    assert(obj);
+
+    free(obj);
+
+    return nullptr;
+  }
+
+  assert(!obj);
+
+  return malloc(size);
 }
 
 struct gab_obj_string *gab_egstrfind(struct gab_eg *gab, s_char str,

@@ -191,7 +191,7 @@ void gab_yield(struct gab_triple gab) {
 }
 
 int32_t wkid(struct gab_eg *eg) {
-  for (size_t i = 0; i < eg->njobs; i++) {
+  for (size_t i = 0; i < eg->len; i++) {
     struct gab_jb *wk = &eg->jobs[i];
     if (wk->td == thrd_current())
       return i;
@@ -202,7 +202,10 @@ int32_t wkid(struct gab_eg *eg) {
 
 int32_t gc_thread(void *data) {
   struct gab_eg *eg = data;
-  struct gab_triple gab = {.eg = eg, .wkid = eg->njobs};
+  struct gab_triple gab = {.eg = eg, .wkid = wkid(eg)};
+
+
+  assert(gab.wkid == eg->njobs);
 
   while (eg->njobs >= 0) {
     if (eg->gc->schedule == gab.wkid)
@@ -219,7 +222,6 @@ int32_t worker_thread(void *data) {
   struct gab_triple gab = {.eg = eg, .wkid = id};
 
   while (!gab_chnisclosed(eg->work_channel)) {
-    // This chntake blocks, and we never see if the engine is dead.
     gab_value fiber = gab_chntake(gab, gab.eg->work_channel);
 
     // If the channel closes while we're blocking on it,
@@ -252,21 +254,6 @@ fin:
   return 0;
 }
 
-struct gab_obj *eg_defaultalloc(struct gab_triple gab, struct gab_obj *obj,
-                                uint64_t size) {
-  if (size == 0) {
-    assert(obj);
-
-    free(obj);
-
-    return nullptr;
-  }
-
-  assert(!obj);
-
-  return malloc(size);
-}
-
 struct gab_triple gab_create(struct gab_create_argt args) {
   size_t njobs = args.jobs ? args.jobs : 8;
 
@@ -282,11 +269,6 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->os_dynsymbol = args.os_dynsymbol;
   eg->os_dynopen = args.os_dynopen;
   eg->hash_seed = time(nullptr);
-
-  if (args.os_objalloc)
-    eg->os_objalloc = args.os_objalloc;
-  else
-    eg->os_objalloc = eg_defaultalloc;
 
   d_gab_src_create(&eg->sources, 8);
 

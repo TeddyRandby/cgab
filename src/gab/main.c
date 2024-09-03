@@ -288,7 +288,11 @@ int run(int argc, const char **argv, int flags) {
 
   if (flags & fGAB_JOB_RUNNERS) {
     const char *njobs = argv[0];
-    assert(argc > 1);
+
+    if (argc < 2) {
+      printf("ERROR: Not enough arguments\n");
+      return 1;
+    }
 
     jobs = atoi(njobs);
     path = argv[1];

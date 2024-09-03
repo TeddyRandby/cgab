@@ -604,6 +604,10 @@ gab_value gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
   struct gab_obj_block *b = GAB_VAL_TO_BLOCK(main);
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
 
+  self->len = argc + 1;
+  memcpy(self->data, argv, argc * sizeof(gab_value));
+  self->data[argc] = main;
+
   self->res = nullptr;
   self->status = kGAB_FIBER_WAITING;
 

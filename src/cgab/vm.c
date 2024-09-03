@@ -707,8 +707,6 @@ a_gab_value *ok(OP_HANDLER_ARGS) {
 }
 
 a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
-  if (gab_valkind(f) != kGAB_FIBER)
-    printf("uhoh, not fiber: %p\n", GAB_VAL_TO_FIBER(f));
   assert(gab_valkind(f) == kGAB_FIBER);
   struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
   fiber->status = kGAB_FIBER_RUNNING;
@@ -1248,7 +1246,19 @@ CASE_CODE(RETURN) {
   if (__gab_unlikely(RETURN_FB() < VM()->sb))
     return STORE(), SET_VAR(have), ok(DISPATCH_ARGS());
 
-  LOAD_FRAME();
+  ({
+    (__ip) = ((uint8_t *)(void *)(__fb)[-2]);
+    (__fb) = ((gab_value *)(void *)(__fb)[-1]);
+    (__kb) =
+        (((struct gab_obj_prototype *)((
+             struct gab_obj
+                 *)(uintptr_t)((((struct gab_obj_block *)(uintptr_t)(__fb)[-3])
+                                    ->p) &
+                               ~(((uint64_t)1 << 63) |
+                                 ((uint64_t)0x7ffc000000000000) |
+                                 ((uint64_t)(3) << (48)))))))
+            ->src->constants.data;
+  });
 
   memmove(to, from, have * sizeof(gab_value));
   SP() = to + have;

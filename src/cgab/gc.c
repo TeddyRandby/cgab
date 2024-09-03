@@ -569,7 +569,12 @@ void schedule(struct gab_triple gab, size_t wkid) {
   gab.eg->gc->schedule = wkid;
 }
 
+#if cGAB_LOG_GC
+void __gab_gcepochnext(struct gab_triple gab, const char *func, int line) {
+  printf("EPOCH\t%i\t%i\t%s:%i\n", epochget(gab), gab.wkid, func, line);
+#else
 void gab_gcepochnext(struct gab_triple gab) {
+#endif
   if (gab.wkid < gab.eg->len - 1)
     processepoch(gab);
 
@@ -590,6 +595,8 @@ bool gab_gctrigger(struct gab_triple gab) {
 #if cGAB_LOG_GC
     printf("TRIGGERED\n");
 #endif
+    if (gab.eg->gc->schedule >= 0)
+      goto fin; // Already collecting
     schedule(gab, 0);
     return true;
   }
@@ -600,6 +607,15 @@ fin:
 
 void gab_gcdocollect(struct gab_triple gab) {
   processepoch(gab);
+
+  int32_t expected_e = (gab.eg->jobs[gab.wkid].epoch + 1) % 3;
+  for (size_t i = 0; i < gab.eg->njobs; i++) {
+    int32_t this_e = epochget((struct gab_triple){gab.eg, .wkid = i});
+    if (expected_e != this_e) {
+      assert(false);
+    }
+  }
+
 #if cGAB_LOG_GC
   printf("CEPOCH %i\n", epochget(gab));
 #endif
