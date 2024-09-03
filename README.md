@@ -180,7 +180,7 @@ end)
 \go :def!(['gab.block'], do: .gab.fiber(self) end)
 
 # Here is our block that does a lot of work
-work = do: [] :acc 950 :len:print end
+work = do: [] :acc 950 :len :print end
 
 # Send off all these workers to do their work in parallel!
 work :go
@@ -197,25 +197,25 @@ Other models, such as in both Go and Erlang, copy/serialize messages into/out of
 Gab uses CSP as its model for communicating between fibers. This is the `go` or `clojure.core.async` model, using channels and operations like `put`, `take`, and `alt/select`.
 Gab has an initial implementation of this, and actually uses a `gab.channel` of `gab.fibers` at the runtime level to queue fibers for running.
 #### TODO:
-    - Instead of malloc/free, write a custom per-job allocator. This can function like a bump allocator, and can enable further optimizations:
-        - allocate-as-dead. Objects that *survive* their first collection are *moved* out of the bump allocator, and into long term storage.
-            This can work because we are __guaranteed__ to visit all the roots that kept this object alive in that first collection.
-    - Implement buffered channels.
-        - Because channels are mutable and require locking, their ownership is a bit funky. To simplify, just *increment* all values that go into a channel, and decrement all that come out.
-        - This means that when channels are destroyed that still have references to objects, we need to dref them.
-    - Implement *yielding/descheduling*. When a fiber blocks (like on a channel put/take), that fiber should *yield* to the back of some queue, so that the OS thread can continue work on another fiber.
-        - Because Gab doesn't do this currenty, gab code actually can't run on just one thread. Try `gab run -j 1 test`. It will just hang.
-        - This can't be implemented without changing the main work-channel to be buffered. 
-        - This requires finding a sound strategy for handling thread-migration in the gc.
-    - Optimize shape datastructure.
-        - Shapes are mutable because of their ugly transition vector
-        - Building big shapes (like for tuples) is basically traversing a linked list in O(n) time (ugly)
-    - Optimize string interning datastructure.
-        - Hashmap works well enough, but copies a lot of data and makes concat/slice slow.
-    - Of course, lots of library work can be done.
-        - More iterators
-        - Improve spec
-        - Wrappers for c-libraries for data parsing, http, sockets, number stuff
+- Instead of malloc/free, write a custom per-job allocator. This can function like a bump allocator, and can enable further optimizations:
+    - allocate-as-dead. Objects that *survive* their first collection are *moved* out of the bump allocator, and into long term storage.
+        This can work because we are __guaranteed__ to visit all the roots that kept this object alive in that first collection.
+- Implement buffered channels.
+    - Because channels are mutable and require locking, their ownership is a bit funky. To simplify, just *increment* all values that go into a channel, and decrement all that come out.
+    - This means that when channels are destroyed that still have references to objects, we need to dref them.
+- Implement *yielding/descheduling*. When a fiber blocks (like on a channel put/take), that fiber should *yield* to the back of some queue, so that the OS thread can continue work on another fiber.
+    - Because Gab doesn't do this currenty, gab code actually can't run on just one thread. Try `gab run -j 1 test`. It will just hang.
+    - This can't be implemented without changing the main work-channel to be buffered. 
+    - This requires finding a sound strategy for handling thread-migration in the gc.
+- Optimize shape datastructure.
+    - Shapes are mutable because of their ugly transition vector
+    - Building big shapes (like for tuples) is basically traversing a linked list in O(n) time (ugly)
+- Optimize string interning datastructure.
+    - Hashmap works well enough, but copies a lot of data and makes concat/slice slow.
+- Of course, lots of library work can be done.
+    - More iterators
+    - Improve spec
+    - Wrappers for c-libraries for data parsing, http, sockets, number stuff
 # What about imports?
 Gab defines several native messages. `:print` is one you should be familiar with by now - `:use` is another!
 It is used like this:
@@ -230,14 +230,8 @@ The implementation searches for the following, in order:
  - `~/gab/(name)/.gab`
  - `~/gab/(name)/mod.gab`
  - `~/gab/std/(name)/.gab`
- - `~/gab/lib//libcgab(name).so`
+ - `~/gab/lib/libcgab(name).so`
  Files ending in the `.gab` extension are evaluated, and the result of the last top-level expression is returned to the caller of `:use`. Files ending in the `.so` extension are opened dynamically, and searched for the symbol `gab_lib`. The result of this function is returned to the caller.
-
-Most of the time, the return value of the `:use` call can be ignored. It is just called once to define the messages in the module. For example, the `io` module defines three messages:
- - `\open`, which returns a `<File>` handle
- - `\read`
- - `\write`
-And thats it!
 # Dependencies
 libc is the only dependency for the interpreter. However, some libraries (such as http and term) depend on some c libraries. 
 # Installation
@@ -253,5 +247,3 @@ If clide is unavailable, it is simple to just use make. To install a release bui
   2. `sudo make install`
 # C-API Documentation
 The c-api is contained in the single header file `gab.h`. You can generate documentation with `clide docs`, or by just running `doxygen`.
-# KNOWN ISSUE
-Thread migration is currently an issue, as its not handled in the paper used to implement the GC. This includes migration *in and out* of the global run queue.
