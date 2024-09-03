@@ -11,6 +11,9 @@
 #include <unistd.h>
 #endif
 
+#define TOSTRING(x) #x
+#define STR(x) TOSTRING(x)
+
 void *dynopen(const char *path) {
 #if GAB_OS_UNIX
   void *dl = dlopen(path, RTLD_NOW);
@@ -70,6 +73,8 @@ void run_string(const char *string, int flags, size_t jobs) {
   struct gab_triple gab = gab_create((struct gab_create_argt){
       .os_dynopen = dynopen,
       .os_dynsymbol = dynsymbol,
+      .flags = flags,
+      .jobs = jobs,
   });
 
   // This is a weird case where we actually want to include the null terminator
@@ -131,7 +136,7 @@ static struct command commands[] = {
     },
     {
         "run",
-        "Compile and run the module at path <arg>",
+        "Compile and run the module at path <args>",
         .handler = run,
         {
             {
@@ -159,15 +164,17 @@ static struct command commands[] = {
                 .flag = fGAB_BUILD_CHECK,
             },
             {
-                "ncore",
-                "Don't use the gab core module.",
-                'n',
+                "eenv",
+                "Don't use gab's core module - start with a mostly-empty "
+                "environment.",
+                'e',
                 .flag = fGAB_ENV_EMPTY,
             },
             {
                 "jobs",
                 "Specify the number of os threads which should serve as "
-                "workers for running gab fibers.",
+                "workers for running gab fibers. Default is " STR(
+                    cGAB_DEFAULT_NJOBS) ".",
                 'j',
                 .flag = fGAB_JOB_RUNNERS,
             },
@@ -175,7 +182,7 @@ static struct command commands[] = {
     },
     {
         "exec",
-        "Compile and run the string <arg>",
+        "Compile and run the string <args>",
         .handler = exec,
         {
             {
@@ -223,9 +230,10 @@ static struct command commands[] = {
                 .flag = fGAB_BUILD_DUMP,
             },
             {
-                "ncore",
-                "Don't use the gab core module.",
-                'n',
+                "eenv",
+                "Don't use gab's core module - start with a mostly-empty "
+                "environment.",
+                'e',
                 .flag = fGAB_ENV_EMPTY,
             },
         },
@@ -319,7 +327,7 @@ int repl(int argc, const char **argv, int flags) {
 int help(int argc, const char **argv, int flags) {
   for (int i = 0; i < N_COMMANDS; i++) {
     struct command cmd = commands[i];
-    printf("\ngab %4s [opts] <arg>\t%s\n", cmd.name, cmd.desc);
+    printf("\ngab %4s [opts] <args>\t%s\n", cmd.name, cmd.desc);
 
     for (int j = 0; j < MAX_OPTIONS; j++) {
       struct option opt = cmd.options[j];

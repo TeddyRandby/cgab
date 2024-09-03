@@ -375,12 +375,7 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
 
   gab_value results[] = {
       gab_string(gab, gab_status_names[s]),
-      gab_box(gab,
-              (struct gab_box_argt){
-                  .size = sizeof(struct gab_vm *),
-                  .data = vm,
-                  .type = gab_string(gab, "gab.vm"),
-              }),
+      gab_fb(gab),
   };
 
   gab_niref(gab, 1, 2, results);

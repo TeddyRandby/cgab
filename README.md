@@ -161,10 +161,28 @@ However, the tuple syntax (eg: `(3, 4)`) allows multiple values to be wrapped in
 
     ok, result = val :might_fail 'something'
 ```
-### Concurrency???
+### Concurrency
 New programming languages that don't consider concurrency are boring! Everyones walking around with 8+ cores on them at all times, might as well use em!
 Gab's runtime uses something similar to goroutines or processes. A `gab.fiber` is a lightweight thread of execution, which are quick to create/destroy.
-Currently, they are mapped on to 8 (arbitrarily chosen at compile time) os threads from a global run-queue. There are many opportunities for improvement on this model.
+For communication between fibers, Gab provides the `gab.channel`. Currently, these are unbuffered channels. This means that both `put` and `take` operations
+are always blocking.
+- When putting to a channel, the putting fiber must block until a receiving fiber is available on the other end.
+- The same applies when taking from a channel.
+Unblocking channels are especially unique because _they never own a value_. They are cheaper to manage with garbage collection as a result!
+Gab's scheduler/runtime is actually implemented using an unbuffered _channel of fibers_.
+When a user creates a fiber (like with `gab.fiber do: ... end`), the runtime does something like this:
+```js
+    const fiber = new Fiber(block_to_run) // Create a new fiber, which is going to run the block
+    global_work_channel.put!(fiber)       // Blocking put the new fiber into the work channel. This will block until another thread is available to take it.
+```
+And the worker threads look something like this:
+```js
+    while (true) {
+        const fiber_to_run = global_work_channel.take()
+        fiber_to_run.execute()
+    }
+```
+This implementation has some problems, but it works well enough as a simple example.
 ```gab
 # Define a message for doing some work. This builds a list in a silly way.
 \do_acc :defcase! {
@@ -254,15 +272,13 @@ The implementation searches for the following, in order:
  - `~/gab/lib/libcgab(name).so`
  Files ending in the `.gab` extension are evaluated, and the result of the last top-level expression is returned to the caller of `:use`. Files ending in the `.so` extension are opened dynamically, and searched for the symbol `gab_lib`. The result of this function is returned to the caller.
 # Dependencies
-libc is the only dependency for the interpreter. However, some libraries (such as http and term) depend on some c libraries. 
+libc is the only dependency.
 # Installation
 This project is built with `Make`. The `Makefile` expects some environment variables to be present. Specifically:
   - `GAB_PREFIX`: A place for gab to install data without root. This is for packages and other kinds of things. Something like `/home/<user>`
   - `GAB_INSTALLPREFIX`: Where gab should install itself - the executable, header files, libcgab, etc. Something like `/usr/local`
   - `GAB_CCFLAGS`: Additional flags ot pass to the c compiler.
-
 [Clide](https://github.com/TeddyRandby/clide) is a tool for managing shell scripts within projects. cgab uses it to manage useful scripts and build configuration. To configure and install with clide, run `clide install` and complete the prompts.
-
 If clide is unavailable, it is simple to just use make. To install a release build:
   1. `GAB_PREFIX="<path>" GAB_INSTALL_PREFIX="<path>" GAB_CCFLAGS="-O3" make build`
   2. `sudo make install`

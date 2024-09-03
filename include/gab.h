@@ -1882,6 +1882,10 @@ static inline struct gab_gc *gab_gc(struct gab_triple gab) {
   return gab.eg->gc;
 }
 
+static inline gab_value gab_fb(struct gab_triple gab) {
+  return gab.eg->jobs[gab.wkid].fiber;
+}
+
 static inline struct gab_vm *gab_vm(struct gab_triple gab) {
   gab_value fiber = gab.eg->jobs[gab.wkid].fiber;
 

@@ -22,6 +22,7 @@ work :go
 
 fib = do:
   in <! 400
+
   in <! 500
   in <! 600
 end :go

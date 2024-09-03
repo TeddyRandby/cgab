@@ -1,4 +1,4 @@
-i = 'std/iter' :use
+i = 'iter' :use
 spec.t = .spec
 
 explain_specs = do specs, separator:

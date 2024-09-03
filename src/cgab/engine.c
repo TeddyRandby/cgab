@@ -209,27 +209,28 @@ int32_t wkid(struct gab_eg *eg) {
   return -1;
 }
 
-int32_t gc_thread(void *data) {
-  struct gab_eg *eg = data;
-  struct gab_triple gab = {.eg = eg, .wkid = wkid(eg)};
+int32_t gc_job(void *data) {
+  struct gab_triple *g = data;
+  struct gab_triple gab = *g;
+  gab.wkid = gab.eg->len - 1;
 
-  assert(gab.wkid == eg->njobs);
+  assert(gab.wkid == gab.eg->njobs);
 
-  while (eg->njobs >= 0) {
-    if (eg->gc->schedule == gab.wkid)
+  while (gab.eg->njobs >= 0) {
+    if (gab.eg->gc->schedule == gab.wkid)
       gab_gcdocollect(gab);
   }
 
+  free(g);
   return 0;
 }
 
 int32_t worker_thread(void *data) {
-  struct gab_eg *eg = data;
-  int32_t id = wkid(eg);
+  struct gab_triple *g = data;
+  struct gab_triple gab = *g;
+  gab.wkid = wkid(gab.eg);
 
-  struct gab_triple gab = {.eg = eg, .wkid = id};
-
-  while (!gab_chnisclosed(eg->work_channel)) {
+  while (!gab_chnisclosed(gab.eg->work_channel)) {
     gab_value fiber = gab_chntake(gab, gab.eg->work_channel);
 
     // If the channel closes while we're blocking on it,
@@ -237,7 +238,7 @@ int32_t worker_thread(void *data) {
     if (fiber == gab_undefined)
       continue;
 
-    gab.eg->jobs[id].fiber = fiber;
+    gab.eg->jobs[gab.wkid].fiber = fiber;
 
     a_gab_value *res = gab_vmexec(gab, fiber);
 
@@ -245,21 +246,39 @@ int32_t worker_thread(void *data) {
     GAB_VAL_TO_FIBER(fiber)->res = res;
     assert(res);
 
-    gab.eg->jobs[id].fiber = gab_undefined;
+    gab.eg->jobs[gab.wkid].fiber = gab_undefined;
 
     if (!res)
       goto fin;
   }
 
 fin:
-  gab.eg->jobs[id].fiber = gab_undefined;
+  gab.eg->jobs[gab.wkid].fiber = gab_undefined;
   gab.eg->njobs--;
 
-  while (gab.eg->njobs >= 0) {
+  while (gab.eg->njobs >= 0)
     gab_yield(gab);
-  }
+
+  free(g);
 
   return 0;
+}
+
+void gab_jbcreate(struct gab_triple gab, struct gab_jb *job, int(fn)(void *)) {
+  job->epoch = 0;
+  job->locked = 0;
+  job->fiber = gab_undefined;
+  v_gab_obj_create(&job->lock_keep, 8);
+
+  struct gab_triple *gabcpy = malloc(sizeof(struct gab_triple));
+  memcpy(gabcpy, &gab, sizeof(struct gab_triple));
+
+  size_t res = thrd_create(&job->td, fn, gabcpy);
+
+  if (res != thrd_success) {
+    printf("UHOH\n");
+    exit(1);
+  }
 }
 
 struct gab_triple gab_create(struct gab_create_argt args) {
@@ -292,22 +311,11 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   mtx_init(&eg->shapes_mtx, mtx_plain);
 
-  struct gab_jb *gc_wk = &gab.eg->jobs[gab.eg->njobs];
-  gc_wk->epoch = 0;
-  gc_wk->locked = 0;
-  gc_wk->fiber = gab_undefined;
-  v_gab_obj_create(&gc_wk->lock_keep, 8);
+  gab_jbcreate(gab, gab.eg->jobs + gab.eg->njobs, gc_job);
 
   eg->shapes = __gab_shape(gab, 0);
   eg->messages = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
   eg->work_channel = gab_channel(gab, 0);
-
-  size_t res = thrd_create(&gc_wk->td, gc_thread, gab.eg);
-
-  if (res != thrd_success) {
-    printf("UHOH\n");
-    exit(1);
-  }
 
   gab_iref(gab, eg->work_channel);
 
@@ -342,6 +350,9 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->types[kGAB_BOX] = gab_string(gab, "gab.box");
   gab_iref(gab, eg->types[kGAB_BOX]);
+
+  eg->types[kGAB_FIBER] = gab_string(gab, "gab.fiber");
+  gab_iref(gab, eg->types[kGAB_FIBER]);
 
   eg->types[kGAB_CHANNEL] = gab_string(gab, "gab.channel");
   gab_iref(gab, eg->types[kGAB_CHANNEL]);
@@ -392,17 +403,8 @@ struct gab_triple gab_create(struct gab_create_argt args) {
     }
   }
 
-  for (int i = 0; i < gab.eg->njobs; i++) {
-    struct gab_jb *wk = &gab.eg->jobs[i];
-    v_gab_obj_create(&wk->lock_keep, 8);
-    wk->epoch = 0;
-    wk->fiber = gab_undefined;
-    size_t res = thrd_create(&wk->td, worker_thread, gab.eg);
-    if (res != thrd_success) {
-      printf("UHOH\n");
-      exit(1);
-    }
-  }
+  for (int i = 0; i < gab.eg->njobs; i++)
+    gab_jbcreate(gab, gab.eg->jobs + i, worker_thread);
 
   if (!(gab.flags & fGAB_ENV_EMPTY))
     gab_suse(gab, "core");
@@ -824,7 +826,7 @@ void dump_pretty_err(struct gab_triple gab, FILE *stream, va_list varargs,
 
   if (args.status != GAB_NONE) {
     gab_value status_name = gab_string(gab, gab_status_names[args.status]);
-    gab_fprintf(stream, ": $.\n", status_name);
+    gab_fprintf(stream, ": $.", status_name);
   }
 
   if (args.src) {
