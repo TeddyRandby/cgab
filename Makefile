@@ -6,7 +6,7 @@ BUILD_PREFIX 	 	= build
 INCLUDE_PREFIX 	= include
 
 INCLUDE	= -I$(INCLUDE_PREFIX)
-LD_CGAB	= -L$(BUILD_PREFIX) -L/usr/lib -lcgab 
+LD_CGAB	= $(BUILD_PREFIX)/libcgab.a
 
 OS_SRC = $(wildcard src/os/*.c)
 OS_OBJ = $(OS_SRC:src/os/%.c=$(BUILD_PREFIX)/%.o)
@@ -28,11 +28,11 @@ all: $(BUILD_PREFIX)/gab modules
 
 modules: $(MOD_SHARED)
 
-$(BUILD_PREFIX)/gab: $(GAB_OBJ) $(BUILD_PREFIX)/libcgab.so
-	$(CC) $(CFLAGS) $(INCLUDE) $(LD_CGAB) $(GAB_OBJ) -o $@
+$(BUILD_PREFIX)/gab: $(GAB_OBJ) $(BUILD_PREFIX)/libcgab.a
+	$(CC) $(CFLAGS) $(INCLUDE) $(GAB_OBJ) $(LD_CGAB) -o $@
 
-$(BUILD_PREFIX)/libcgab.so: $(OS_OBJ) $(CGAB_OBJ)
-	$(CC) $(CFLAGS) $(INCLUDE) $(CGAB_OBJ) $(OS_OBJ) --shared -o $@
+$(BUILD_PREFIX)/libcgab.a: $(OS_OBJ) $(CGAB_OBJ)
+	ar rcs $@ $^
 
 $(BUILD_PREFIX)/%.o: $(SRC_PREFIX)/%.c
 	$(CC) $(CFLAGS) $(INCLUDE) $< -c -o $@
@@ -54,7 +54,7 @@ install_modules: modules
 
 install_gab: $(BUILD_PREFIX)/gab
 	install -vC $(BUILD_PREFIX)/gab $(INSTALL_PREFIX)/bin
-	install -vC $(BUILD_PREFIX)/libcgab.so $(INSTALL_PREFIX)/lib
+	install -vC $(BUILD_PREFIX)/libcgab.a $(INSTALL_PREFIX)/lib
 
 uninstall:
 	rm -rf $(INSTALL_PREFIX)/include/gab

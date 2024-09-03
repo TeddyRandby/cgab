@@ -58,6 +58,11 @@
 #define cGAB_LOG_VM 0
 #endif
 
+// Define how many jobs should be used, default to 8.
+#ifndef cGAB_DEFAULT_NJOBS
+#define cGAB_DEFAULT_NJOBS 8
+#endif
+
 // Capacity at which point dictionaries are resized
 #ifndef cGAB_DICT_MAX_LOAD
 #define cGAB_DICT_MAX_LOAD 0.6

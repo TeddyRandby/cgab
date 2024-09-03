@@ -564,9 +564,10 @@ fin:
 
 void schedule(struct gab_triple gab, size_t wkid) {
 #if cGAB_LOG_GC
-  printf("SCHEDULE %lu\n", wkid);
+  printf("SCHEDULE %lu\t%hhd\n", wkid, gab.eg->gc->schedule);
 #endif
-  gab.eg->gc->schedule = wkid;
+  if (gab.eg->gc->schedule < (int8_t) wkid)
+    gab.eg->gc->schedule = wkid;
 }
 
 #if cGAB_LOG_GC
@@ -595,8 +596,6 @@ bool gab_gctrigger(struct gab_triple gab) {
 #if cGAB_LOG_GC
     printf("TRIGGERED\n");
 #endif
-    if (gab.eg->gc->schedule >= 0)
-      goto fin; // Already collecting
     schedule(gab, 0);
     return true;
   }
