@@ -21,11 +21,19 @@ explain_keys = do strings, separator:
 end
 
 \def! :def! ([spec.t], do opts:
-  \spec.help :def! ([opts:spec], do: (.ok, opts:help) end)
+  \spec.help :def! ([opts:spec], do: opts:at \help end)
   \spec.name :def! ([opts:spec], opts:name:strings.into)
   \spec :def! ([opts:name], do: (.ok, opts:spec) end)
   opts:spec
 end)
+
+['gab.sigil'] :defmodule! {
+  \spec.help!    = do: self:spec:unwrap!:spec.help:unwrap! end,
+  \spec.explain! = do: self:spec:unwrap!:spec.explain end,
+  \spec.doc!     = do: (self:spec.help!, self:spec.explain!) end,
+  \spec.gen!     = do: self:spec:unwrap!:spec.gen end,
+}
+
 
 ## PREDICATES
 # A spec predicate is a function which:
@@ -556,7 +564,7 @@ end)
     end)
 
     \spec.explain :def! ([pred], do:
-      '{args:receiver:spec.name}{args:message} {args:input:spec.explain} -> {args:output:spec.explain}'
+      '{args:receiver:spec.name} \\{args:message} {args:input:spec.explain} -> {args:output:spec.explain}'
     end)
 
     pred

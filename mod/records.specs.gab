@@ -6,33 +6,9 @@ record.spec = s:def! {
   spec = s:protocol {},
 }
 
-s:def! {
-  name = "tuple",
-  help = "Construct an empty tuple with the given length.",
-  spec = s:message {
-    receiver  = .gab.tuple,
-    message   = \,
-    input     = s:int :spec.label "N",
-    output    = record.spec :spec.label "Empty record with keys 0-N",
-    semantics = .nil,
-  }
-}
-
-s:def! {
-  name = "record",
-  help = "Construct an empty record with the given shape.",
-  spec = s:message {
-    receiver  = .gab.record,
-    message   = \,
-    input     = s:shape :spec.label "Template",
-    output    = record.spec,
-    semantics = .nil,
-  }
-}
-
-KEY   = s:unknown:spec.label "Key"
-VALUE = s:unknown:spec.label "Value"
-INDEX = s:int:spec.label "Index"
+KEY   = s:unknown:spec.label "key"
+VALUE = s:unknown:spec.label "value"
+INDEX = s:int:spec.label "index"
 
 s:def! {
   name = .gab.record.len,
@@ -59,8 +35,8 @@ s:def! {
 }
 
 s:def! {
-  name = "at!",
-  help = "Return the value at each of the given keys, or panic.",
+  name = .gab.record.at!,
+  help = "Return the value at each of the given keys. Panics if any are missing.",
   spec = s:message {
     receiver   = record.spec,
     message    = \at!,
@@ -71,23 +47,23 @@ s:def! {
 }
 
 s:def! {
-  name = "put!",
-  help = "Put a value in the record at the given key. Panics if the key isn't present.",
+  name = .gab.record.put,
+  help = "Return a new record with the additional key-value pair, or an updated value for an existing key.",
   spec = s:message {
     receiver   = record.spec,
-    message    = \put!,
+    message    = \put,
     input      = s:values(KEY, VALUE),
-    output     = VALUE,
+    output     = record.spec,
     semantics  = .nil,
   }
 }
 
 s:def! {
-  name = "next",
-  help = "Return the key that appears after the given key in the record. When .next.init is passed, return the first key.",
+  name = .gab.record.seqs.next,
+  help = "Return the key that appears after the given key in the record.",
   spec = s:message {
     receiver   = record.spec,
-    message    = \next,
+    message    = \seqs.next,
     input      = KEY,
     output     = s:option KEY,
     semantics  = .nil,
@@ -95,102 +71,15 @@ s:def! {
 }
 
 s:def! {
-  name = "slice",
-  help = "Return a record with only the key-value pairs in the given range.",
+  name = .gab.record.seqs.init,
+  help = "Return the first key in the record, if any.",
   spec = s:message {
     receiver   = record.spec,
-    message    = \slice,
-    input      = s:values(
-      s:any(INDEX, s:nil),
-      s:any(INDEX, s:nil),
-    ),
-    output     = record.spec,
+    message    = \seqs.init,
+    input      = s:values,
+    output     = s:option KEY,
     semantics  = .nil,
   }
-}
-
-s:def! {
-  name = "push",
-  help = "Return a record with an additional value. ",
-  spec = s:message {
-    receiver  = record.spec,
-    message   = \push,
-    input     = VALUE,
-    output    = record.spec,
-    semantics = .nil,
-  }
-}
-
-s:def! {
-  name = "has?",
-  help = "Return true if the key exists in the record.",
-  spec = s:message {
-    receiver = record.spec,
-    message  = \has?,
-    input    = KEY,
-    output   = s:boolean,
-    semantics = .nil,
-  }
-}
-
-s:def! {
-  name = "compact",
-  help = "Return a new record, where all keys with falsey values have been dropped.",
-  spec = s:message {
-    receiver = record.spec,
-    message  = \compact,
-    input    = s:values,
-    output   = record.spec,
-    semantics = .nil,
-  }
-}
-
-s:def! {
-  name = "clear!",
-  help = "Set all the values in a record to .nil",
-  spec = s:message {
-    receiver = record.spec,
-    message  = \clear!,
-    input    = s:values,
-    output   = s:values,
-    semantics = .nil,
-  }
-}
-
-s:def! {
-  name = "with",
-  help = "Return a new record, with an additional key-value pair.",
-  spec = s:message {
-    receiver = record.spec,
-    message  = \with,
-    input    = s:values(KEY, VALUE),
-    output   = record.spec,
-    semantics = .nil,
-  }
-}
-
-s:def! {
-  name = "at_index",
-  help = "Return the key-value pair at an index in the record.",
-  spec = s:message {
-    receiver  = record.spec,
-    message   = \at_index,
-    input     = INDEX,
-    output    = s:option (KEY, VALUE),
-    semantics = .nil,
-  }
-}
-
-s:def! {
-  name = "seqs.into",
-  help = "Return a lazy seq over the key value pairs in the record",
-  spec = s:message {
-    receiver  = record.spec,
-    message   = \seqs.into,
-    input     = s:values,
-    output    = s:protocol { \seq.next },
-    semantics = .nil,
-  },
 }
 
 record.spec
