@@ -1849,8 +1849,13 @@ struct gab_eg {
   mtx_t shapes_mtx;
   gab_value shapes;
 
+  mtx_t strings_mtx;
   d_strings strings;
+
+  mtx_t sources_mtx;
   d_gab_src sources;
+
+  mtx_t modules_mtx;
   d_gab_modules modules;
 
   void *(*os_dynopen)(const char *path);

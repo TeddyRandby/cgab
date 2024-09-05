@@ -124,11 +124,25 @@ end)
     \tuples.into = do:
       self:reduce({}, \push)
     end,
-    \each = do f:
-      self:transduce(.nil, \self, .map f)
-    end,
   }
 end)
+
+# Channel's implementation of the seq protocol.
+# It isn't totally true to the requirements - 
+# The keys aren't a pure function, because channels
+# Forget about their values as soon as their taken
+['gab.channel'] :defmodule! {
+  seqs.init = do:
+    ok, v = self >!
+    (ok, v, v)
+  end,
+  seqs.next = do k:
+    ok, v = self >!
+    (ok, v, v)
+  end,
+}
+
+'gab.channel' :def.seq!
 
 # Implement the reducer protocol for blocks and messages
 ['gab.block', 'gab.message'] :defmodule! {
@@ -160,10 +174,10 @@ range.t = { from, to }?
 
 range.t :def.seq!
 [range.t] :defmodule! {
-  seqs.init = do: (.ok, self:from) end,
+  seqs.init = do: (.ok, self:from, self:from) end,
   seqs.next = do n:
     nx = n + 1
-    .option(n < self:to, nx, nx)
+    .option (n < self:to, nx, nx)
   end,
 }
 
@@ -175,9 +189,6 @@ range.t :def.seq!
     { from, to = self }
   end,
 }
-
-
-
 
 \ :def! ([.range], do from, to:
   (to, from) :range.into

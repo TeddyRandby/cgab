@@ -1,3 +1,5 @@
+iter = 'iter' :use
+
 \do_acc :defcase! {
   .true  = do acc: acc end,
   .false = do acc, n: [n, acc:acc(n - 1)**] end, 
@@ -14,19 +16,44 @@ end)
 
 in, out = .gab.channel(), .gab.channel()
 
-work = do: out <! [] :acc (in >!) :len end
+work = do:
+  n = in >! :unwrap!
 
-work :go
-work :go
-work :go
+  out <! [] :acc n :len
+end
 
+# Insert 100 values into the channel 
 fib = do:
-  in <! 400
-
-  in <! 500
-  in <! 600
+  .range      .
+  (100, 200)  .
+    :transduce(
+      100,
+      \first,
+      iter:tap do x:
+        in <! x
+      end,
+    )
 end :go
 
-fib:print
+{ fib } :print
 
-(out >!, out >!, out >!) :print
+# Take a hundred values from the out channel
+res = do:
+  xf = iter:take 100    .
+    |> iter:tap \print
+
+  out :transduce(.nil, \first, xf)
+end :go
+
+{ res } :print
+
+# Spawn 100 workers
+.range      .
+  (100,200) .
+  :transduce(
+    100,
+    \first,
+    iter:tap do:
+      worker = work:go
+    end,
+  )

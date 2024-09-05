@@ -1,4 +1,5 @@
 #include <threads.h>
+#include <errno.h>
 #define GAB_STATUS_NAMES_IMPL
 #define GAB_TOKEN_NAMES_IMPL
 #include "engine.h"
@@ -242,9 +243,10 @@ int32_t worker_thread(void *data) {
 
     a_gab_value *res = gab_vmexec(gab, fiber);
 
-    GAB_VAL_TO_FIBER(fiber)->status = kGAB_FIBER_DONE;
+    assert(res != nullptr);
+
     GAB_VAL_TO_FIBER(fiber)->res = res;
-    assert(res);
+    GAB_VAL_TO_FIBER(fiber)->status = kGAB_FIBER_DONE;
 
     gab.eg->jobs[gab.wkid].fiber = gab_undefined;
 
@@ -298,6 +300,11 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->os_dynopen = args.os_dynopen;
   eg->hash_seed = time(nullptr);
 
+  mtx_init(&eg->shapes_mtx, mtx_plain);
+  mtx_init(&eg->sources_mtx, mtx_plain);
+  mtx_init(&eg->strings_mtx, mtx_plain);
+  mtx_init(&eg->modules_mtx, mtx_plain);
+
   d_gab_src_create(&eg->sources, 8);
 
   struct gab_triple gab = {.eg = eg, .flags = args.flags, .wkid = eg->njobs};
@@ -308,8 +315,6 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->gc = malloc(gcsize);
   gab_gccreate(gab);
-
-  mtx_init(&eg->shapes_mtx, mtx_plain);
 
   gab_jbcreate(gab, gab.eg->jobs + gab.eg->njobs, gc_job);
 
@@ -418,10 +423,10 @@ void gab_destroy(struct gab_triple gab) {
   while (gab.eg->njobs > 0)
     continue;
 
+  gab_dref(gab, gab.eg->work_channel);
   gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
   gab.eg->messages = gab_undefined;
   gab.eg->shapes = gab_undefined;
-  gab_dref(gab, gab.eg->work_channel);
 
   gab_collect(gab);
   while (gab.eg->gc->schedule >= 0)
@@ -457,7 +462,12 @@ void gab_destroy(struct gab_triple gab) {
   d_gab_src_destroy(&gab.eg->sources);
 
   v_gab_value_destroy(&gab.eg->scratch);
+
   mtx_destroy(&gab.eg->shapes_mtx);
+  mtx_destroy(&gab.eg->strings_mtx);
+  mtx_destroy(&gab.eg->sources_mtx);
+  mtx_destroy(&gab.eg->modules_mtx);
+
   free(gab.eg);
 }
 
@@ -626,22 +636,30 @@ struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
 a_gab_value *gab_segmodat(struct gab_eg *eg, const char *name) {
   size_t hash = s_char_hash(s_char_cstr(name), eg->hash_seed);
 
-  return d_gab_modules_read(&eg->modules, hash);
+  mtx_lock(&eg->modules_mtx);
+
+  a_gab_value* module = d_gab_modules_read(&eg->modules, hash);
+
+  mtx_unlock(&eg->modules_mtx);
+
+  return module;
 }
 
 a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
                            size_t len, gab_value values[len]) {
   size_t hash = s_char_hash(s_char_cstr(name), eg->hash_seed);
 
+  mtx_lock(&eg->modules_mtx);
+
   if (d_gab_modules_exists(&eg->modules, hash))
-    return nullptr;
+    return mtx_unlock(&eg->modules_mtx), nullptr;
 
   a_gab_value *module = a_gab_value_empty(len + 1);
   module->data[0] = mod;
   memcpy(module->data + 1, values, len * sizeof(gab_value));
 
   d_gab_modules_insert(&eg->modules, hash, module);
-  return module;
+  return mtx_unlock(&eg->modules_mtx), module;
 }
 
 size_t gab_egkeep(struct gab_eg *gab, gab_value v) {
@@ -983,8 +1001,10 @@ a_gab_value *gab_shared_object_handler(struct gab_triple gab,
 a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   a_char *src = gab_osread(path);
 
-  if (src == nullptr)
-    return gab_panic(gab, "Failed to load module");
+  if (src == nullptr) {
+    gab_value reason = gab_string(gab, strerror(errno));
+    return gab_panic(gab, "Failed to load module: $", reason);
+  }
 
   gab_value pkg = gab_build(gab, (struct gab_build_argt){
                                      .name = path,
@@ -1001,8 +1021,13 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
                                       .len = 0,
                                   });
 
-  if (res == nullptr || res->data[0] != gab_ok)
-    return gab_panic(gab, "Failed to load module");
+  if (res == nullptr) {
+    return gab_panic(gab, "Failed to load module: module did not run");
+  }
+
+  if (res->data[0] != gab_ok) {
+    return gab_panic(gab, "Failed to load module: module returned $, expected $", res->data[0], gab_ok);
+  }
 
   gab_negkeep(gab.eg, res->len - 1, res->data + 1);
 

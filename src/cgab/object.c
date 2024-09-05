@@ -248,10 +248,6 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
     cnd_destroy(&chn->t_cnd);
     break;
   }
-  case kGAB_FIBER: {
-      printf("DESTROYING FIBER %p\n", self);
-    break;
-  }
   case kGAB_SHAPE: {
     struct gab_obj_shape *shp = (struct gab_obj_shape *)self;
     v_gab_value_destroy(&shp->transitions);
@@ -316,6 +312,8 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
   if (len <= 5)
     return gab_shorstr(len, data);
 
+  mtx_lock(&gab.eg->strings_mtx);
+
   s_char str = s_char_create(data, len);
 
   uint64_t hash = s_char_hash(str, gab.eg->hash_seed);
@@ -323,7 +321,7 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
   struct gab_obj_string *interned = gab_egstrfind(gab.eg, str, hash);
 
   if (interned)
-    return __gab_obj(interned);
+    return mtx_unlock(&gab.eg->strings_mtx), __gab_obj(interned);
 
   struct gab_obj_string *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_string, char, str.len + 1, kGAB_STRING);
@@ -335,7 +333,7 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
 
   d_strings_insert(&gab.eg->strings, self, 0);
 
-  return __gab_obj(self);
+  return mtx_unlock(&gab.eg->strings_mtx), __gab_obj(self);
 };
 
 /*

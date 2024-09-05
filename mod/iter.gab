@@ -47,6 +47,16 @@ end)
   end,
 }
 
+\iter.stop_conditionally_inclusive :defcase! {
+  .true = do r, acc, xs, s:
+    (s, r:reduce.step(acc, xs**))
+  end,
+  .false = do r, acc, xs, s:
+    cmd, r, acc = r:reduce.step(acc, xs**)
+    (s, .stop, r, acc)
+  end,
+}
+
 \iter.stop_conditionally :defcase! {
   .true = do r, acc, xs, s:
     (s, r:reduce.step(acc, xs**))
@@ -78,8 +88,9 @@ end
 
 \take :defiter!(do n:
   do r, acc, xs, nth:
-    (nth < n) .
-      :iter.stop_conditionally(r, acc, xs, nth + 1)
+    nxth = nth + 1
+    (nxth < n) .
+      :iter.stop_conditionally_inclusive(r, acc, xs, nxth)
   end
 end, 0)
 

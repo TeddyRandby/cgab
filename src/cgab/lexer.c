@@ -487,8 +487,15 @@ void gab_srcdestroy(struct gab_src *self) {
 
 struct gab_src *gab_src(struct gab_triple gab, gab_value name,
                         const char *source, size_t len) {
-  if (d_gab_src_exists(&gab.eg->sources, name))
-    return  d_gab_src_read(&gab.eg->sources, name);
+  mtx_lock(&gab.eg->sources_mtx);
+
+  if (d_gab_src_exists(&gab.eg->sources, name)) {
+    struct gab_src* src =  d_gab_src_read(&gab.eg->sources, name);
+
+    mtx_unlock(&gab.eg->sources_mtx);
+
+    return src;
+  }
 
   struct gab_src *src = malloc(sizeof(struct gab_src));
   memset(src, 0, sizeof(struct gab_src));
@@ -512,6 +519,8 @@ struct gab_src *gab_src(struct gab_triple gab, gab_value name,
 
 fin:
   d_gab_src_insert(&gab.eg->sources, name, src);
+
+  mtx_unlock(&gab.eg->sources_mtx);
 
   return src;
 }
