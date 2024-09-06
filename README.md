@@ -289,3 +289,10 @@ If clide is unavailable, it is simple to just use make. To install a release bui
   2. `sudo make install`
 # C-API Documentation
 The c-api is contained in the single header file `gab.h`. You can generate documentation with `clide docs`, or by just running `doxygen`.
+# BUG
+Gab uses self-modifying bytecode and inline caches in order to increase the performance of the VM.
+This can be problematic, because the same block can be executed in parallel on multiple cores.
+In this case, the same bytecode or inline cache is modified by multiple cores at the same time. 
+Solution: Copy bytecode and constants __per thread__?
+    - The first time a send resolves in a new src, lookup a local cpy of the src
+    - 

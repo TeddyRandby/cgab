@@ -2341,6 +2341,8 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
 
   gab_gcunlock(gab);
 
+  gab_srccomplete(gab, src);
+
   return module;
 }
 

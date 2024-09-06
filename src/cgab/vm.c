@@ -288,10 +288,25 @@ static handler handlers[] = {
   ({                                                                           \
     IP() = RETURN_IP();                                                        \
     FB() = RETURN_FB();                                                        \
-    KB() = BLOCK_PROTO()->src->constants.data;                                 \
+    KB() = proto_ks(GAB(), BLOCK_PROTO());                                     \
   })
 
 #define SEND_CACHE_DIST 4
+
+static inline uint8_t *proto_srcbegin(struct gab_triple gab,
+                                      struct gab_obj_prototype *p) {
+  return p->src->thread_bytecode[gab.wkid].bytecode;
+}
+
+static inline uint8_t *proto_ip(struct gab_triple gab,
+                                struct gab_obj_prototype *p) {
+  return proto_srcbegin(gab, p) + p->offset;
+}
+
+static inline gab_value *proto_ks(struct gab_triple gab,
+                                  struct gab_obj_prototype *p) {
+  return p->src->thread_bytecode[gab.wkid].constants;
+}
 
 static inline gab_value *frame_parent(gab_value *f) { return (void *)f[-1]; }
 
@@ -301,11 +316,12 @@ static inline struct gab_obj_block *frame_block(gab_value *f) {
 
 static inline uint8_t *frame_ip(gab_value *f) { return (void *)f[-2]; }
 
-static inline size_t compute_token_from_ip(struct gab_obj_block *b,
+static inline size_t compute_token_from_ip(struct gab_triple gab,
+                                           struct gab_obj_block *b,
                                            uint8_t *ip) {
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
 
-  size_t offset = ip - p->src->bytecode.data - 1;
+  size_t offset = ip - proto_srcbegin(gab, p) - 1;
 
   size_t token = v_uint64_t_val_at(&p->src->bytecode_toks, offset);
 
@@ -334,7 +350,7 @@ struct gab_err_argt vm_frame_build_err(struct gab_triple gab,
 
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
 
-    size_t tok = compute_token_from_ip(b, ip);
+    size_t tok = compute_token_from_ip(gab, b, ip);
 
     return (struct gab_err_argt){
         .tok = tok,
@@ -526,9 +542,6 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
 
 #define OP_TRIM_N(n) ((uint16_t)OP_TRIM << 8 | (n))
 
-/* Branchlessley skip the next instruction if the trim amount is matched */
-// IP() += 2 * (n < 255 && PREVIEW_SHORT == OP_TRIM_N(n));
-
 #define SET_VAR(n) ({ VAR() = n; })
 
 #define CALL_BLOCK(blk, have)                                                  \
@@ -540,8 +553,8 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
                                                                                \
     PUSH_FRAME(blk, have);                                                     \
                                                                                \
-    IP() = p->src->bytecode.data + p->offset;                                  \
-    KB() = p->src->constants.data;                                             \
+    IP() = proto_ip(GAB(), p);                                                 \
+    KB() = proto_ks(GAB(), p);                                                 \
     FB() = SP() - have;                                                        \
                                                                                \
     SET_VAR(have);                                                             \
@@ -576,8 +589,8 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
                                                                                \
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);                \
                                                                                \
-    IP() = p->src->bytecode.data + p->offset;                                  \
-    KB() = p->src->constants.data;                                             \
+    IP() = proto_ip(GAB(), p);                                                 \
+    KB() = proto_ks(GAB(), p);                                                 \
                                                                                \
     SET_BLOCK(blk);                                                            \
     SET_VAR(have);                                                             \
@@ -859,10 +872,10 @@ CASE_CODE(MATCHSEND_BLOCK) {
   NEXT();
 }
 
-static inline bool try_setup_localmatch(struct gab_eg *eg, gab_value m,
+static inline bool try_setup_localmatch(struct gab_triple gab, gab_value m,
                                         gab_value *ks,
                                         struct gab_obj_prototype *p) {
-  gab_value specs = gab_egmsgrec(eg, m);
+  gab_value specs = gab_egmsgrec(gab.eg, m);
 
   if (specs == gab_undefined)
     return false;
@@ -890,7 +903,7 @@ static inline bool try_setup_localmatch(struct gab_eg *eg, gab_value m,
     if (ks[GAB_SEND_KSPEC + idx] != gab_undefined)
       return false;
 
-    uint8_t *ip = p->src->bytecode.data + spec_p->offset;
+    uint8_t *ip = proto_ip(gab, p) + spec_p->offset;
 
     ks[GAB_SEND_KTYPE + idx] = t;
     ks[GAB_SEND_KSPEC + idx] = (intptr_t)b;
@@ -1465,7 +1478,7 @@ CASE_CODE(SEND) {
   gab_value r = PEEK_N(have);
   gab_value m = ks[GAB_SEND_KMESSAGE];
 
-  if (try_setup_localmatch(EG(), m, ks, BLOCK_PROTO())) {
+  if (try_setup_localmatch(GAB(), m, ks, BLOCK_PROTO())) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_MATCHSEND_BLOCK + adjust);
     IP() -= SEND_CACHE_DIST;
     NEXT();
@@ -1507,7 +1520,7 @@ CASE_CODE(SEND) {
     adjust |= (local << 1);
 
     if (local) {
-      ks[GAB_SEND_KOFFSET] = (intptr_t)p->src->bytecode.data + p->offset;
+      ks[GAB_SEND_KOFFSET] = (intptr_t)proto_ip(GAB(), p);
     }
 
     ks[GAB_SEND_KSPEC] = (intptr_t)b;

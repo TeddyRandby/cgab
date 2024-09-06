@@ -482,6 +482,11 @@ void gab_srcdestroy(struct gab_src *self) {
   v_uint8_t_destroy(&self->bytecode);
   v_uint64_t_destroy(&self->bytecode_toks);
 
+  for (size_t i = 0; i < self->len; i++) {
+    free(self->thread_bytecode[i].constants);
+    free(self->thread_bytecode[i].bytecode);
+  }
+
   free(self);
 }
 
@@ -490,16 +495,18 @@ struct gab_src *gab_src(struct gab_triple gab, gab_value name,
   mtx_lock(&gab.eg->sources_mtx);
 
   if (d_gab_src_exists(&gab.eg->sources, name)) {
-    struct gab_src* src =  d_gab_src_read(&gab.eg->sources, name);
+    struct gab_src *src = d_gab_src_read(&gab.eg->sources, name);
 
     mtx_unlock(&gab.eg->sources_mtx);
 
     return src;
   }
 
-  struct gab_src *src = malloc(sizeof(struct gab_src));
+  struct gab_src *src = malloc(sizeof(struct gab_src) +
+                               (gab.eg->len - 1) * sizeof(struct src_bytecode));
   memset(src, 0, sizeof(struct gab_src));
 
+  src->len = gab.eg->len - 1;
   src->source = a_char_create(source, len);
   src->name = name;
 
