@@ -150,11 +150,11 @@ enum gab_kind {
   kGAB_NKINDS,
 };
 
-#define __GAB_QNAN ((uint64_t)0x7ffc000000000000)
+#define __GAB_QNAN ((uint64_t)0x7ff8000000000000)
 
 #define __GAB_SIGN_BIT ((uint64_t)1 << 63)
 
-#define __GAB_TAGMASK (3)
+#define __GAB_TAGMASK (7)
 
 #define __GAB_TAGOFFSET (48)
 
