@@ -249,13 +249,15 @@ Gab has an initial implementation of this, and actually uses a `gab.channel` of 
     - This requires finding a sound strategy for handling thread-migration in the gc.
 - Lazily create up to `njobs` threads, instead of immediately creating all `njobs`. This just makes sense to do.
     - Maybe there is a way to scale back down, after n amount of downtime?
+- Change records to use a datastructure similar to clojure's persistent vectors.
+    - Shapes mean we can still cache lookup indices.
+    - a more predictible tree structure means we can pre-allocate records of any size, and fill them up quickly in a mutable fashion.
 - Optimize shape datastructure.
     - Shapes are mutable because of their ugly transition vector
     - Building big shapes (like for tuples) is basically traversing a linked list in O(n) time (ugly)
 - Optimize string interning datastructure.
     - Hashmap works well enough, but copies a lot of data and makes concat/slice slow.
-- Potentially refactor `OP_RECORD` and `OP_TUPLE` to be sends, something like `.gab.record(<args>)`. This
-would be more uniform with the rest of the language, using message sends. Constant folding?
+- Potentially refactor `OP_RECORD` and `OP_TUPLE` to be sends, something like `.gab.record(<args>)`. This would be more uniform with the rest of the language, using message sends. Constant folding?
 - Of course, lots of library work can be done.
     - More iterators
     - Improve spec
