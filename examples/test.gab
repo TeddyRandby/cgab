@@ -24,7 +24,7 @@ end
 
 # Insert 100 values into the channel 
 fib = do:
-  .range      .
+  .gab.range      .
   (100, 200)  .
     :transduce(
       100,
@@ -48,7 +48,7 @@ end :go
 { res } :print
 
 # Spawn 100 workers
-.range      .
+.gab.range      .
   (100,200) .
   :transduce(
     100,

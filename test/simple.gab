@@ -1,20 +1,7 @@
-'fibers':use
-'channels':use
+spawn_task = do i: 
+    .gab.fiber do:
+        'Hello from {i}' :print
+    end
+end
 
-chan = .gab.channel()
-
-"Channel: $\n":printf chan
-
-.gab.fiber do:
-  'channels':use
-
-  chan <- 'from: {self}'
-end:await
-
-.gab.fiber do:
-  'channels':use
-
-  chan <- 'from: {self}'
-end:await
-
-do: chan->:print end :until do: chan:empty? end
+.gab.range(0,200000) :each spawn_task

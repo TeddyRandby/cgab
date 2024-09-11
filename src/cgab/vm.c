@@ -724,6 +724,7 @@ a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
   struct gab_obj_block *b = GAB_VAL_TO_BLOCK(vm->fp[-3]);
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
 
+  vm->ip = proto_ip(gab, p);
   uint8_t *ip = vm->ip;
   uint8_t op = *ip++;
 

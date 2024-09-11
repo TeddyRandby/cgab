@@ -594,7 +594,6 @@ gab_value gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
       GAB_CREATE_FLEX_OBJ(gab_obj_fiber, gab_value, argc + 1, kGAB_FIBER);
 
   struct gab_obj_block *b = GAB_VAL_TO_BLOCK(main);
-  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
 
   self->len = argc + 1;
   memcpy(self->data, argv, argc * sizeof(gab_value));
@@ -618,8 +617,7 @@ gab_value gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
   self->vm.fp[-2] = 0;
   self->vm.fp[-3] = (uintptr_t)b;
 
-  // Setup ip
-  self->vm.ip = p->src->bytecode.data + p->offset;
+  self->vm.ip = nullptr;
 
   return __gab_obj(self);
 }

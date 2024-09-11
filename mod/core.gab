@@ -3,6 +3,7 @@ numbers.t = 'cnumbers':use
 maps.t = 'cmaps':use
 strings.t = 'cstrings':use
 sigils.t = 'csigils' :use
+iter = 'iter':use
 'fibers':use
 'format':use
 
@@ -121,6 +122,10 @@ end)
     \transduce = do acc, r, td:
       self:reduce(acc, td :iter.apply r)
     end,
+    \each = do f:
+      self:transduce(.nil, \all, iter:tap f)
+      .nil
+    end,
     \tuples.into = do:
       self:reduce({}, \push)
     end,
@@ -190,7 +195,7 @@ range.t :def.seq!
   end,
 }
 
-\ :def! ([.range], do from, to:
+\ :def! ([.gab.range], do from, to:
   (to, from) :range.into
 end)
 

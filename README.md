@@ -5,6 +5,15 @@ Gab is a dynamic scripting language. It's goals are:
 - be *embeddable*. The c-api should be stable, simple, and productive.
 ## Inspiration
 Gab is heavily inspired by [Clojure](https://clojure.org), [Self](https://selflanguage.org/), [Lua](https://www.lua.org/), and [Erlang](https://www.erlang.org/).
+```gab
+spawn_task = do i: 
+    .gab.fiber do:
+        'Hello from {i}' :print
+    end
+end
+
+.gab.range(0,200000) :each spawn_task
+```
 # TOC
 - Language Tour
 - Imports

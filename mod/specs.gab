@@ -189,7 +189,7 @@ and.predicate = do specs[]:
       |> i:map \first   .
       |> i:take 1
 
-    .range 100 :transduce(0, \first, iter):assert!('Failed to generate a value for {specs}')
+    .gab.range 100 :transduce(0, \first, iter):assert!('Failed to generate a value for {specs}')
   end)
 
   \spec.explain :def! ([pred], do:
@@ -412,7 +412,7 @@ block.predicate = do args, semantics:
 
   \spec.gen :def! ([pred], do:
     block.gen = do input[]:
-      .range 100 :transduce(0, do:
+      .gab.range 100 :transduce(0, do:
         # Generate an output
         output[] = args:output:spec.gen
 
@@ -432,7 +432,7 @@ block.predicate = do args, semantics:
   end)
 
   \spec.check :def! ([pred], do block:
-    .range 100:transduce(do:
+    .gab.range 100:transduce(do:
       input[]  = args:input:spec.gen
 
       args:input:spec.fits?(input**) :then do:
@@ -527,7 +527,7 @@ end)
             |> i:map \first        .
             |> i:take 1
 
-          .range 100 :transduce(
+          .gab.range 100 :transduce(
             0,
             \first,
             iter,
@@ -560,7 +560,7 @@ end)
       end .
       |> i:take 1
 
-      .range 100 :transduce([], \all, iter) **
+      .gab.range 100 :transduce([], \all, iter) **
     end)
 
     \spec.explain :def! ([pred], do:
