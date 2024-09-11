@@ -31,15 +31,15 @@ car.spec = s:def! {
 car.paint.spec = s:def! {
   name = .car.paint,
   help = "Paint the car the given color",
-  spec =  s:message {
+  spec = s:message {
     # The receiver's spec
-    receiver =  car.spec,
+    receiver  = car.spec,
     # The message we spec over
-    message  = \car.paint,
+    message   = \car.paint,
     # Fetch the spec 'car.color' for the input
-    input    =  car.color.spec,
+    input     = car.color.spec,
     # Fetch the spec 'car.color' for the output
-    output   =  car.color.spec,
+    output    = car.color.spec,
     # Validate the implementation
     semantics = do receiver, input, output:
       (input:at!(0) == receiver:car.color) & (input:at!(0) == output:at!(0))

@@ -3,11 +3,8 @@ Gab is a dynamic scripting language. It's goals are:
 - be *simple* - in design and implementation. 
 - be *fast*. Performance is a feature.
 - be *embeddable*. The c-api should be stable, simple, and productive.
-## Inspiration and zen
+## Inspiration
 Gab is heavily inspired by [Clojure](https://clojure.org), [Self](https://selflanguage.org/), [Lua](https://www.lua.org/), and [Erlang](https://www.erlang.org/).
-Principles:
-1. data are data are values are values.
-2. control flow via polymorphism via messages.
 # TOC
 - Language Tour
 - Imports
@@ -183,7 +180,7 @@ And the worker threads look something like this:
         fiber_to_run.execute()
     }
 ```
-This implementation has some problems, but it works well enough as a simple example.
+This implementation has some problems, but it works well enough as an initial prototype.
 ```gab
 # Define a message for doing some work. This builds a list in a silly way.
 \do_acc :defcase! {
@@ -237,28 +234,35 @@ Other models, such as in both Go and Erlang, copy/serialize messages into/out of
 Gab uses CSP as its model for communicating between fibers. This is the `go` or `clojure.core.async` model, using channels and operations like `put`, `take`, and `alt/select`.
 Gab has an initial implementation of this, and actually uses a `gab.channel` of `gab.fibers` at the runtime level to queue fibers for running.
 #### TODO:
-- Instead of malloc/free, write a custom per-job allocator. This can function like a bump allocator, and can enable further optimizations:
+- [ ] Instead of malloc/free, write a custom per-job allocator. This can function like a bump allocator, and can enable further optimizations:
     - allocate-as-dead. Objects that *survive* their first collection are *moved* out of the bump allocator, and into long term storage.
         This can work because we are __guaranteed__ to visit all the roots that kept this object alive in that first collection.
-- Implement buffered channels.
+    - Sometimes references are held to objects *outside* the scope of fibers. Source modules, for instance, hold values which will not be seen
+        during collections. If these objects are moved, then these modules will hold dangling pointers.
+    - Interestingly, it is known at object-creation time whether it is movable or not. Maybe this can be used to choose a specific allocation strategy.
+- [ ] Implement buffered channels.
     - Because channels are mutable and require locking, their ownership is a bit funky. To simplify, just *increment* all values that go into a channel, and decrement all that come out.
     - This means that when channels are destroyed that still have references to objects, we need to dref them.
-- Implement *yielding/descheduling*. When a fiber blocks (like on a channel put/take), that fiber should *yield* to the back of some queue, so that the OS thread can continue work on another fiber.
+- [ ] Implement *yielding/descheduling*. When a fiber blocks (like on a channel put/take), that fiber should *yield* to the back of some queue, so that the OS thread can continue work on another fiber.
     - Because Gab doesn't do this currenty, gab code actually can't run on just one thread. Try `gab run -j 1 test`. It will just hang.
     - This can't be implemented without changing the main work-channel to be buffered. 
     - This requires finding a sound strategy for handling thread-migration in the gc.
-- Lazily create up to `njobs` threads, instead of immediately creating all `njobs`. This just makes sense to do.
+- [ ] Lazily create up to `njobs` threads, instead of immediately creating all `njobs`. This just makes sense to do.
     - Maybe there is a way to scale back down, after n amount of downtime?
-- Change records to use a datastructure similar to clojure's persistent vectors.
+- [ ] Because of self-modifying bytecode and inline caches. gab copies each compiled module for each OS thread.
+    - Update this to happen lazily, when a worker actually needs a given module.
+    - However - this does introduce a *runtime* cost which is currently paid at *compile time*.
+- [X] Change records to use a datastructure similar to clojure's persistent vectors. 
     - Shapes mean we can still cache lookup indices.
-    - a more predictible tree structure means we can pre-allocate records of any size, and fill them up quickly in a mutable fashion.
-- Optimize shape datastructure.
+- [ ] Allocate records in their final state ahead of time, instead of creating n - 1 intermediate records.
+- [ ] Optimize shape datastructure.
     - Shapes are mutable because of their ugly transition vector
     - Building big shapes (like for tuples) is basically traversing a linked list in O(n) time (ugly)
-- Optimize string interning datastructure.
+- [ ] Optimize string interning datastructure.
     - Hashmap works well enough, but copies a lot of data and makes concat/slice slow.
-- Potentially refactor `OP_RECORD` and `OP_TUPLE` to be sends, something like `.gab.record(<args>)`. This would be more uniform with the rest of the language, using message sends. Constant folding?
-- Of course, lots of library work can be done.
+- [ ] Potentially refactor `OP_RECORD` and `OP_TUPLE` to be sends, something like `.gab.record(<args>)`. This would be more uniform with the rest of the language, using message sends. Constant folding?
+- [ ] JIT Compilation (need I say more)
+- [ ] Of course, lots of library work can be done.
     - More iterators
     - Improve spec
     - Wrappers for c-libraries for data parsing, http, sockets, number stuff
@@ -291,10 +295,3 @@ If clide is unavailable, it is simple to just use make. To install a release bui
   2. `sudo make install`
 # C-API Documentation
 The c-api is contained in the single header file `gab.h`. You can generate documentation with `clide docs`, or by just running `doxygen`.
-# BUG
-Gab uses self-modifying bytecode and inline caches in order to increase the performance of the VM.
-This can be problematic, because the same block can be executed in parallel on multiple cores.
-In this case, the same bytecode or inline cache is modified by multiple cores at the same time. 
-Solution: Copy bytecode and constants __per thread__?
-    - The first time a send resolves in a new src, lookup a local cpy of the src
-    - 
