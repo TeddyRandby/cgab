@@ -252,6 +252,7 @@ Gab has an initial implementation of this, and actually uses a `gab.channel` of 
 - [ ] Implement buffered channels.
     - Because channels are mutable and require locking, their ownership is a bit funky. To simplify, just *increment* all values that go into a channel, and decrement all that come out.
     - This means that when channels are destroyed that still have references to objects, we need to dref them.
+- [ ] Fix memory leak of fibers
 - [ ] Implement *yielding/descheduling*. When a fiber blocks (like on a channel put/take), that fiber should *yield* to the back of some queue, so that the OS thread can continue work on another fiber.
     - Because Gab doesn't do this currenty, gab code actually can't run on just one thread. Try `gab run -j 1 test`. It will just hang.
     - This can't be implemented without changing the main work-channel to be buffered. 
@@ -263,7 +264,7 @@ Gab has an initial implementation of this, and actually uses a `gab.channel` of 
     - However - this does introduce a *runtime* cost which is currently paid at *compile time*.
 - [X] Change records to use a datastructure similar to clojure's persistent vectors. 
     - Shapes mean we can still cache lookup indices.
-- [ ] Allocate records in their final state ahead of time, instead of creating n - 1 intermediate records.
+- [X] Allocate records in their final state ahead of time, instead of creating n - 1 intermediate records.
 - [ ] Optimize shape datastructure.
     - Shapes are mutable because of their ugly transition vector
     - Building big shapes (like for tuples) is basically traversing a linked list in O(n) time (ugly)
