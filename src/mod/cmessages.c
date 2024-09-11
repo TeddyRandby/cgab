@@ -40,7 +40,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
 
   if (res.status) {
     values[0] = gab_ok;
-    values[1] = res.spec;
+    values[1] = res.as.spec;
   }
 
   gab_nvmpush(gab_vm(gab), 2, values);

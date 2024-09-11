@@ -94,7 +94,7 @@ Records, like all values, are __immutable__. This means that setting values in r
     a_record :print                             # => { work = 'another value' }
 ```
 Normally this would be incredibly expensive, copying entire datastructures just to make a single mutation.
-Gab's records are implemented using Hash-Array-Mapped-Tries, which use structural sharing to reduce memory impact and reduce the cost of copying.
+Gab's records are implemented using Bit-Partitioned Persistent Vectors, which use structural sharing to reduce memory impact and reduce the cost of copying.
 #### Sigils
 Sigils are similar to strings (and interchangeable in some ways). However, they respond to messages differently.
 ```gab
@@ -174,12 +174,12 @@ Gab's scheduler/runtime is actually implemented using an unbuffered _channel of 
 When a user creates a fiber (like with `gab.fiber do: ... end`), the runtime does something like this:
 ```js
     const fiber = new Fiber(block_to_run) // Create a new fiber, which is going to run the block
-    global_work_channel.put!(fiber)       // Blocking put the new fiber into the work channel. This will block until another thread is available to take it.
+    global_work_channel.blockingPut(fiber)       // Blocking put the new fiber into the work channel. This will block until another thread is available to take it.
 ```
 And the worker threads look something like this:
 ```js
     while (true) {
-        const fiber_to_run = global_work_channel.take()
+        const fiber_to_run = global_work_channel.blockingTake()
         fiber_to_run.execute()
     }
 ```

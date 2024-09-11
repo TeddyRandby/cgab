@@ -203,6 +203,14 @@ gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
     return assoc(gab, reccpy(gab, rec, recneedsspace(rec, idx)), val, idx);
 }
 
+gab_value gab_urecput(struct gab_triple gab, gab_value rec, size_t i,
+                      gab_value v) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  assert(i < reclen(rec));
+
+  return assoc(gab, reccpy(gab, rec, 0), v, i);
+}
+
 gab_value gab_recdel(struct gab_triple gab, gab_value rec, gab_value key) {
   return rec;
 }

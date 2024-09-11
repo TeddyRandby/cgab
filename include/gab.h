@@ -8,8 +8,8 @@
 #define GAB_H
 
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <threads.h>
 
@@ -547,7 +547,10 @@ struct gab_egimpl_rest {
    * For properties (see sGAB_IMPL_PROPERTY), this will return the offset within
    * the record.
    */
-  gab_value spec;
+  union {
+    gab_value spec;
+    size_t offset;
+  } as;
 
   /**
    * @brief The status of this implementation resolution.
@@ -1511,6 +1514,9 @@ static inline gab_value gab_ukrecat(gab_value rec, size_t idx) {
 
 gab_value gab_uvrecat(gab_value rec, size_t i);
 
+gab_value gab_urecput(struct gab_triple gab, gab_value rec, size_t i,
+                      gab_value v);
+
 static inline gab_value gab_recat(gab_value rec, gab_value key) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   size_t i = gab_recfind(rec, key);
@@ -1999,10 +2005,14 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
   gab_value type = receiver;
 
   if (gab_valkind(receiver) == kGAB_RECORD) {
-    spec = gab_recat(receiver, (message));
+    spec = gab_recat(receiver, message);
     type = gab_recshp(type);
     if (spec != gab_undefined)
-      return (struct gab_egimpl_rest){type, spec, kGAB_IMPL_PROPERTY};
+      return (struct gab_egimpl_rest){
+          type,
+          .as.offset = gab_recfind(receiver, message),
+          kGAB_IMPL_PROPERTY,
+      };
   }
 
   /* Check if the receiver has a supertype, and if that supertype implments the
@@ -2012,7 +2022,11 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
     spec = gab_egmsgat(eg, message, type);
 
     if (spec != gab_undefined)
-      return (struct gab_egimpl_rest){type, spec, kGAB_IMPL_TYPE};
+      return (struct gab_egimpl_rest){
+          type,
+          .as.spec = spec,
+          kGAB_IMPL_TYPE,
+      };
   }
 
   /* Check for the kind of the receiver. ie 'gab.record' */
@@ -2020,14 +2034,21 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
   spec = gab_egmsgat(eg, message, type);
 
   if (spec != gab_undefined)
-    return (struct gab_egimpl_rest){type, spec, kGAB_IMPL_KIND};
+    return (struct gab_egimpl_rest){
+        type,
+        .as.spec = spec,
+        kGAB_IMPL_KIND,
+    };
 
   /* Lastly, check for a generic implmentation.*/
   type = gab_undefined;
   spec = gab_egmsgat(eg, message, type);
 
   return (struct gab_egimpl_rest){
-      type, spec, spec == gab_undefined ? kGAB_IMPL_NONE : kGAB_IMPL_GENERAL};
+      type,
+      .as.spec = spec,
+      spec == gab_undefined ? kGAB_IMPL_NONE : kGAB_IMPL_GENERAL,
+  };
 }
 
 /**

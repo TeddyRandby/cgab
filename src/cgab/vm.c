@@ -614,17 +614,17 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
     NEXT();                                                                    \
   })
 
-#define PROPERTY_RECORD(r, m, have)                                            \
+#define PROPERTY_RECORD(r, have)                                            \
   ({                                                                           \
     switch (have) {                                                            \
     case 1:                                                                    \
-      PEEK() = gab_recat(r, m);                                                \
+      PEEK() = gab_uvrecat(r, ks[GAB_SEND_KSPEC]);                             \
       break;                                                                   \
     default:                                                                   \
       DROP_N((have) - 1);                                                      \
     case 2: {                                                                  \
       gab_gclock(GAB());                                                       \
-      gab_value value = gab_recput(GAB(), r, m, PEEK());                       \
+      gab_value value = gab_urecput(GAB(), r, ks[GAB_SEND_KSPEC], PEEK());                       \
       gab_gcunlock(GAB());                                                     \
       DROP();                                                                  \
       PEEK() = value;                                                          \
@@ -1232,11 +1232,10 @@ CASE_CODE(SEND_PROPERTY) {
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   gab_value r = PEEK_N(have);
-  gab_value m = ks[GAB_SEND_KMESSAGE];
 
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
 
-  PROPERTY_RECORD(r, m, have);
+  PROPERTY_RECORD(r, have);
 }
 
 CASE_CODE(RETURN) {
@@ -1495,11 +1494,11 @@ CASE_CODE(SEND) {
 
   gab_value spec = res.status == kGAB_IMPL_PROPERTY
                        ? gab_primitive(OP_SEND_PROPERTY)
-                       : res.spec;
+                       : res.as.spec;
 
   ks[GAB_SEND_KSPECS] = EG()->messages;
   ks[GAB_SEND_KTYPE] = gab_valtype(EG(), r);
-  ks[GAB_SEND_KSPEC] = res.spec;
+  ks[GAB_SEND_KSPEC] = res.as.spec;
 
   switch (gab_valkind(spec)) {
   case kGAB_PRIMITIVE: {
@@ -1562,7 +1561,7 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY) {
   have--;
   DROP();
 
-  PROPERTY_RECORD(r, m, have);
+  PROPERTY_RECORD(r, have);
 }
 
 CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE_BLOCK) {
@@ -1690,14 +1689,14 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
   }
 
   ks[GAB_SEND_KTYPE] = t;
-  ks[GAB_SEND_KSPEC] = res.spec;
+  ks[GAB_SEND_KSPEC] = res.as.spec;
   ks[GAB_SEND_KGENERIC_CALL_SPECS] = EG()->messages;
   ks[GAB_SEND_KGENERIC_CALL_MESSAGE] = m;
 
   if (res.status == kGAB_IMPL_PROPERTY) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY);
   } else {
-    gab_value spec = res.spec;
+    gab_value spec = res.as.spec;
 
     switch (gab_valkind(spec)) {
     case kGAB_PRIMITIVE: {
