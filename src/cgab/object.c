@@ -47,13 +47,11 @@ size_t gab_obj_size(struct gab_obj *obj) {
   }
   case kGAB_RECORDNODE: {
     struct gab_obj_recnode *o = (struct gab_obj_recnode *)obj;
-    size_t len = __builtin_popcountl(o->mask);
-    return sizeof(struct gab_obj_recnode) + len * 2 * sizeof(gab_value);
+    return sizeof(struct gab_obj_recnode) + o->len * sizeof(gab_value);
   }
   case kGAB_RECORD: {
     struct gab_obj_rec *o = (struct gab_obj_rec *)obj;
-    size_t len = __builtin_popcountl(o->mask);
-    return sizeof(struct gab_obj_rec) + len * 2 * sizeof(gab_value);
+    return sizeof(struct gab_obj_rec) + o->len * sizeof(gab_value);
   }
   case kGAB_BLOCK: {
     struct gab_obj_block *o = (struct gab_obj_block *)obj;
@@ -107,8 +105,7 @@ int shape_dump_keys(FILE *stream, gab_value shape, int depth) {
 int rec_dump_properties(FILE *stream, gab_value rec, int depth) {
   switch (gab_valkind(rec)) {
   case kGAB_RECORD: {
-    struct gab_obj_rec *m = GAB_VAL_TO_REC(rec);
-    size_t len = __builtin_popcountl(m->mask);
+    size_t len = gab_reclen(rec);
 
     if (len == 0)
       return fprintf(stream, " ~ ");
@@ -119,14 +116,9 @@ int rec_dump_properties(FILE *stream, gab_value rec, int depth) {
     int32_t bytes = 0;
 
     for (uint64_t i = 0; i < len; i++) {
-      if (m->vmask & ((size_t)1 << i)) {
-        bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
-        bytes += fprintf(stream, " = ");
-        bytes += gab_fvalinspect(stream, m->data[i * 2 + 1], depth - 1);
-
-      } else {
-        bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
-      }
+      bytes += gab_fvalinspect(stream, gab_ukrecat(rec, i), depth - 1);
+      bytes += fprintf(stream, " = ");
+      bytes += gab_fvalinspect(stream, gab_uvrecat(rec, i), depth - 1);
 
       if (i + 1 < len)
         bytes += fprintf(stream, ", ");
@@ -136,7 +128,7 @@ int rec_dump_properties(FILE *stream, gab_value rec, int depth) {
   }
   case kGAB_RECORDNODE: {
     struct gab_obj_recnode *m = GAB_VAL_TO_RECNODE(rec);
-    size_t len = __builtin_popcountl(m->mask);
+    size_t len = m->len;
 
     if (len == 0)
       return fprintf(stream, "~ ");
@@ -147,14 +139,7 @@ int rec_dump_properties(FILE *stream, gab_value rec, int depth) {
     int32_t bytes = 0;
 
     for (uint64_t i = 0; i < len; i++) {
-      if (m->vmask & ((size_t)1 << i)) {
-        bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
-        bytes += fprintf(stream, " = ");
-        bytes += gab_fvalinspect(stream, m->data[i * 2 + 1], depth - 1);
-
-      } else {
-        bytes += gab_fvalinspect(stream, m->data[i * 2], depth - 1);
-      }
+      bytes += gab_fvalinspect(stream, m->data[i], depth - 1);
 
       if (i + 1 < len)
         bytes += fprintf(stream, ", ");
@@ -178,6 +163,8 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
   case kGAB_PRIMITIVE:
     return fprintf(stream, "<gab.primitive %s>",
                    gab_opcode_names[gab_valtop(self)]);
+  case kGAB_UNDEFINED:
+    return fprintf(stream, "undefined");
   case kGAB_NUMBER:
     return fprintf(stream, "%g", gab_valton(self));
   case kGAB_SIGIL:
@@ -204,7 +191,8 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
            fprintf(stream, "}");
   }
   case kGAB_RECORDNODE: {
-    return rec_dump_properties(stream, self, depth);
+    return fprintf(stream, "[") + rec_dump_properties(stream, self, depth) +
+           fprintf(stream, "]");
   }
   case kGAB_BOX: {
     struct gab_obj_box *con = GAB_VAL_TO_BOX(self);
@@ -488,8 +476,8 @@ gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
       GAB_CREATE_FLEX_OBJ(gab_obj_rec, gab_value, 0, kGAB_RECORD);
 
   self->shape = gab_shape(gab, stride, len, keys);
-  self->mask = 0;
-  self->vmask = 0;
+  self->shift = 0;
+  self->len = 0;
 
   gab_value res = __gab_obj(self);
 
@@ -505,24 +493,30 @@ gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
 gab_value __gab_record(struct gab_triple gab, size_t len, size_t space,
                        gab_value *data) {
   struct gab_obj_rec *self = GAB_CREATE_FLEX_OBJ(
-      gab_obj_rec, gab_value, (space + len) * 2, kGAB_RECORD);
+      gab_obj_rec, gab_value, space + len, kGAB_RECORD);
 
-  self->mask = 0;
-  self->vmask = 0;
+  self->len = len + space;
+  self->shift = 0;
   self->shape = gab_undefined;
-  memcpy(self->data, data, sizeof(gab_value) * len * 2);
+  memcpy(self->data, data, sizeof(gab_value) * len);
+  
+  for (size_t i = len; i < self->len; i++)
+    self->data[i] = gab_undefined;
 
   return __gab_obj(self);
 }
 
 gab_value __gab_recordnode(struct gab_triple gab, size_t len, size_t space,
                            gab_value *data) {
+  assert(space + len > 0);
   struct gab_obj_recnode *self = GAB_CREATE_FLEX_OBJ(
-      gab_obj_recnode, gab_value, (space + len) * 2, kGAB_RECORDNODE);
+      gab_obj_recnode, gab_value, space + len, kGAB_RECORDNODE);
 
-  self->mask = 0;
-  self->vmask = 0;
-  memcpy(self->data, data, sizeof(gab_value) * len * 2);
+  self->len = len + space;
+  memcpy(self->data, data, sizeof(gab_value) * len);
+  
+  for (size_t i = len; i < self->len; i++)
+    self->data[i] = gab_undefined;
 
   return __gab_obj(self);
 }

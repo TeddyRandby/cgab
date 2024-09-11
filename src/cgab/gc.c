@@ -214,38 +214,24 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
   }
 
   case kGAB_RECORD: {
-    struct gab_obj_rec *map = (struct gab_obj_rec *)obj;
-    size_t len = __builtin_popcountl(map->mask);
+    struct gab_obj_rec *rec = (struct gab_obj_rec *)obj;
+    size_t len = (rec->len);
 
-    for (size_t i = 0; i < len; i++) {
-      size_t offset = i * 2;
+    for (size_t i = 0; i < len; i++)
+      if (gab_valiso(rec->data[i]))
+        fnc(gab, gab_valtoo(rec->data[i]));
 
-      if (gab_valiso(map->data[offset]))
-        fnc(gab, gab_valtoo(map->data[offset]));
-
-      if (map->vmask & ((size_t)1 << i)) {
-        if (gab_valiso(map->data[offset + 1]))
-          fnc(gab, gab_valtoo(map->data[offset + 1]));
-      }
-    }
     break;
   }
 
   case kGAB_RECORDNODE: {
-    struct gab_obj_recnode *map = (struct gab_obj_recnode *)obj;
-    size_t len = __builtin_popcountl(map->mask);
+    struct gab_obj_recnode *rec = (struct gab_obj_recnode *)obj;
+    size_t len = rec->len;
 
-    for (size_t i = 0; i < len; i++) {
-      size_t offset = i * 2;
+    for (size_t i = 0; i < len; i++)
+      if (gab_valiso(rec->data[i]))
+        fnc(gab, gab_valtoo(rec->data[i]));
 
-      if (gab_valiso(map->data[offset]))
-        fnc(gab, gab_valtoo(map->data[offset]));
-
-      if (map->vmask & ((size_t)1 << i)) {
-        if (gab_valiso(map->data[offset + 1]))
-          fnc(gab, gab_valtoo(map->data[offset + 1]));
-      }
-    }
     break;
   }
   }

@@ -355,7 +355,6 @@ typedef void (*gab_boxvisit_f)(struct gab_triple gab, gab_gcvisit_f visitor,
  * All gab objects inherit (as far as c can do inheritance) from this struct.
  */
 struct gab_obj {
-  void *chunk;
   /**
    * @brief The number of live references to this object.
    *
@@ -363,15 +362,11 @@ struct gab_obj {
    * in a separate, slower rec<gab_obj, uint64_t>. When the reference count
    * drops back under 255, rc returns to the fast path.
    */
-  int8_t references;
+  uint8_t references;
   /**
    * @brief Flags used by garbage collection and for debug information.
    */
-#if cGAB_LOG_GC
-  uint16_t flags;
-#else
   uint8_t flags;
-#endif
   /**
    * @brief a flag denoting the kind of object referenced by this pointer -
    * defines how to interpret the remaining bytes of this allocation.
@@ -1442,7 +1437,7 @@ struct gab_obj_recnode {
   /*
    * Masks for describing 'data'
    */
-  size_t mask, vmask;
+  size_t len;
 
   /*
    * Dense array of children. Each child has 2 slots in the array.
@@ -1461,7 +1456,8 @@ struct gab_obj_recnode {
 struct gab_obj_rec {
   struct gab_obj header;
 
-  size_t mask, vmask;
+  int64_t shift;
+  size_t len;
 
   gab_value shape;
 
@@ -1480,30 +1476,57 @@ gab_value __gab_record(struct gab_triple gab, size_t len, size_t space,
 gab_value __gab_recordnode(struct gab_triple gab, size_t len, size_t space,
                            gab_value *data);
 
-bool gab_rechas(gab_value rec, gab_value key);
-bool gab_urechas(gab_value rec, size_t i);
-
-gab_value gab_recat(gab_value rec, gab_value key);
-gab_value gab_srecat(struct gab_triple, gab_value rec, const char *key);
-
-gab_value gab_ukrecat(gab_value rec, size_t i);
-gab_value gab_uvrecat(gab_value rec, size_t i);
-
-gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
-                     gab_value val);
-
-gab_value gab_recdel(struct gab_triple gab, gab_value rec, gab_value key);
-
 static inline gab_value gab_recshp(gab_value rec) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   return GAB_VAL_TO_REC(rec)->shape;
 };
 
-size_t gab_reclen(gab_value rec);
+static inline size_t gab_reclen(gab_value rec) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
+  return gab_shplen(r->shape);
+}
 
 static inline size_t gab_recfind(gab_value rec, gab_value key) {
   return gab_shpfind(gab_recshp(rec), key);
 }
+
+static inline bool gab_rechas(gab_value rec, gab_value key) {
+  return gab_recfind(rec, key) != -1;
+}
+
+static inline bool gab_urechas(gab_value rec, size_t i) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  struct gab_obj_rec *m = GAB_VAL_TO_REC(rec);
+
+  return i < gab_shplen(m->shape);
+}
+
+static inline gab_value gab_ukrecat(gab_value rec, size_t idx) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  assert(gab_urechas(rec, idx));
+
+  return gab_ushpat(gab_recshp(rec), idx);
+}
+
+gab_value gab_uvrecat(gab_value rec, size_t i);
+
+static inline gab_value gab_recat(gab_value rec, gab_value key) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  size_t i = gab_recfind(rec, key);
+
+  if (i == -1)
+    return gab_undefined;
+
+  return gab_uvrecat(rec, i);
+}
+
+gab_value gab_srecat(struct gab_triple, gab_value rec, const char *key);
+
+gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
+                     gab_value val);
+
+gab_value gab_recdel(struct gab_triple gab, gab_value rec, gab_value key);
 
 /**
  * @brief Convert a string into it's corresponding message. This is
