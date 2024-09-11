@@ -468,21 +468,300 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
   return __gab_obj(self);
 }
 
+#define BITS (5)
+#define WIDTH (1 << BITS)
+#define MASK (WIDTH - 1)
+
+gab_value reccpy(struct gab_triple gab, gab_value r, size_t space) {
+  switch (gab_valkind(r)) {
+  case kGAB_RECORD: {
+    struct gab_obj_rec *n = GAB_VAL_TO_REC(r);
+
+    struct gab_obj_rec *nm =
+        GAB_VAL_TO_REC(__gab_record(gab, n->len, space, n->data));
+
+    nm->shift = n->shift;
+    nm->shape = n->shape;
+
+    return __gab_obj(nm);
+  }
+  case kGAB_RECORDNODE: {
+    struct gab_obj_recnode *n = GAB_VAL_TO_RECNODE(r);
+
+    return __gab_recordnode(gab, n->len, space, n->data);
+  }
+  case kGAB_UNDEFINED: {
+    return __gab_recordnode(gab, 0, 1, nullptr);
+  }
+  default:
+    break;
+  }
+
+  assert(0 && "Only rec and recnodebranch cpy");
+  return gab_undefined;
+}
+
+void recassoc(gab_value rec, gab_value v, size_t i) {
+  switch (gab_valkind(rec)) {
+  case kGAB_RECORDNODE: {
+    struct gab_obj_recnode *r = GAB_VAL_TO_RECNODE(rec);
+    assert(i < r->len);
+    r->data[i] = v;
+    return;
+  }
+  case kGAB_RECORD: {
+    struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
+    assert(i < r->len);
+    r->data[i] = v;
+    return;
+  }
+  default:
+    break;
+  }
+  assert(false && "UNREACHABLE");
+}
+
+gab_value recnth(gab_value rec, size_t n) {
+  switch (gab_valkind(rec)) {
+  case kGAB_RECORDNODE: {
+    struct gab_obj_recnode *r = GAB_VAL_TO_RECNODE(rec);
+    assert(n < r->len);
+    return r->data[n];
+  }
+  case kGAB_RECORD: {
+    struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
+    assert(n < r->len);
+    return r->data[n];
+  }
+  default:
+    break;
+  }
+
+  assert(false && "UNREACHABLE");
+  return gab_undefined;
+}
+
+size_t reclen(gab_value rec) {
+  switch (gab_valkind(rec)) {
+  case kGAB_RECORDNODE: {
+    struct gab_obj_recnode *r = GAB_VAL_TO_RECNODE(rec);
+    return r->len;
+  }
+  case kGAB_RECORD: {
+    struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
+    return r->len;
+  }
+  case kGAB_UNDEFINED: {
+    return 0;
+  }
+  default:
+    break;
+  }
+
+  assert(false && "UNREACHABLE");
+  return 0;
+}
+
+gab_value gab_uvrecat(gab_value rec, size_t i) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+
+  if (i > gab_reclen(rec))
+    return gab_undefined;
+
+  struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
+
+  gab_value node = rec;
+
+  for (size_t level = r->shift; level > 0; level -= BITS) {
+    size_t idx = (i >> level) & MASK;
+    gab_value next_node = recnth(rec, idx);
+    assert(gab_valkind(next_node) == kGAB_RECORDNODE ||
+           gab_valkind(next_node) == kGAB_RECORD);
+    node = next_node;
+  }
+
+  return recnth(node, i & MASK);
+}
+
+bool recneedsspace(gab_value rec, size_t i) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
+  size_t idx = (i >> r->shift) & MASK;
+  return idx >= r->len;
+}
+
+gab_value recsetshp(gab_value rec, gab_value shp) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
+  r->shape = shp;
+  return rec;
+}
+
+gab_value assoc(struct gab_triple gab, gab_value rec, gab_value v, size_t i) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
+
+  if (i > gab_reclen(rec))
+    return gab_undefined;
+
+  gab_value node = rec;
+  gab_value root = node;
+  gab_value path = root;
+
+  for (int64_t level = r->shift; level > 0; level -= BITS) {
+    size_t idx = (i >> level) & MASK;
+
+    size_t nidx = (i >> (level - BITS)) & MASK;
+
+    if (idx < reclen(node))
+      node = reccpy(gab, recnth(node, idx), nidx >= reclen(recnth(node, idx)));
+    else
+      node = __gab_recordnode(gab, 0, 1, nullptr);
+
+    recassoc(path, node, idx);
+    path = node;
+  }
+
+  assert(node != gab_undefined);
+  recassoc(node, v, i & MASK);
+  return root;
+}
+
+void massoc(struct gab_triple gab, gab_value rec, gab_value v, size_t i) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
+
+  assert(i < gab_reclen(rec));
+
+  gab_value node = rec;
+
+  for (int64_t level = r->shift; level > 0; level -= BITS) {
+    size_t idx = (i >> level) & MASK;
+
+    assert(idx < reclen(node));
+    node = recnth(node, idx);
+  }
+
+  assert(node != gab_undefined);
+  recassoc(node, v, i & MASK);
+
+  return;
+}
+
+gab_value cons(struct gab_triple gab, gab_value rec, gab_value v,
+               gab_value shp) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
+
+  size_t i = gab_reclen(rec);
+  gab_value new_root;
+
+  // overflow root
+  if ((i >> BITS) >= ((size_t)1 << r->shift)) {
+    new_root = __gab_record(gab, 1, 1, &rec);
+    struct gab_obj_rec *new_r = GAB_VAL_TO_REC(new_root);
+    new_r->shape = shp;
+    new_r->shift = r->shift + 5;
+    new_root = assoc(gab, new_root, v, i);
+  } else {
+    new_root = recsetshp(
+        assoc(gab, reccpy(gab, rec, recneedsspace(rec, i)), v, i), shp);
+  }
+
+  return new_root;
+}
+
+gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
+                     gab_value val) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+
+  size_t idx = gab_recfind(rec, key);
+
+  if (idx == -1)
+    return cons(gab, rec, val, gab_shpwith(gab, gab_recshp(rec), key));
+  else
+    return assoc(gab, reccpy(gab, rec, recneedsspace(rec, idx)), val, idx);
+}
+
+gab_value gab_urecput(struct gab_triple gab, gab_value rec, size_t i,
+                      gab_value v) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  assert(i < reclen(rec));
+
+  return assoc(gab, reccpy(gab, rec, 0), v, i);
+}
+
+gab_value gab_recdel(struct gab_triple gab, gab_value rec, gab_value key) {
+  return rec;
+}
+
+size_t getlen(size_t n, size_t shift) {
+  if (n)
+    n--;
+
+  return ((n >> shift) & MASK) + 1;
+}
+
+void recfillchildren(struct gab_triple gab, gab_value rec, size_t shift,
+                     size_t n, size_t len) {
+  assert(len > 0);
+
+  if (shift == 0)
+    return;
+
+  for (size_t l = 0; l < len - 1; l++) {
+    gab_value lhs_child = __gab_recordnode(gab, 0, WIDTH, nullptr);
+
+    recfillchildren(gab, lhs_child, shift - 5, n, 32);
+
+    recassoc(rec, lhs_child, l);
+  }
+
+  size_t rhs_childlen = getlen(n, shift - 5);
+
+  gab_value rhs_child = __gab_recordnode(gab, 0, rhs_childlen, nullptr);
+
+  recfillchildren(gab, rhs_child, shift - 5, n, rhs_childlen);
+
+  recassoc(rec, rhs_child, len - 1);
+}
+
+size_t getshift(size_t n) {
+  size_t shift = 0;
+
+  if (n)
+    n--;
+
+  while ((n >> BITS) >= (1 << shift)) {
+    shift += 5;
+  }
+
+  return shift;
+}
+
 gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
                      gab_value keys[static len], gab_value vals[static len]) {
   gab_gclock(gab);
 
+  size_t shift = getshift(len);
+
+  size_t rootlen = getlen(len, shift);
+
   struct gab_obj_rec *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_rec, gab_value, 0, kGAB_RECORD);
+      GAB_CREATE_FLEX_OBJ(gab_obj_rec, gab_value, rootlen, kGAB_RECORD);
 
   self->shape = gab_shape(gab, stride, len, keys);
-  self->shift = 0;
-  self->len = 0;
+  self->shift = shift;
+  self->len = rootlen;
 
   gab_value res = __gab_obj(self);
 
-  for (size_t i = 0; i < len; i++) {
-    res = gab_recput(gab, res, keys[i * stride], vals[i * stride]);
+  if (len) {
+    recfillchildren(gab, res, shift, len, rootlen);
+
+    for (size_t i = 0; i < len; i++) {
+      massoc(gab, res, vals[i * stride], i);
+    }
   }
 
   gab_gcunlock(gab);
@@ -492,14 +771,14 @@ gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
 
 gab_value __gab_record(struct gab_triple gab, size_t len, size_t space,
                        gab_value *data) {
-  struct gab_obj_rec *self = GAB_CREATE_FLEX_OBJ(
-      gab_obj_rec, gab_value, space + len, kGAB_RECORD);
+  struct gab_obj_rec *self =
+      GAB_CREATE_FLEX_OBJ(gab_obj_rec, gab_value, space + len, kGAB_RECORD);
 
   self->len = len + space;
   self->shift = 0;
   self->shape = gab_undefined;
   memcpy(self->data, data, sizeof(gab_value) * len);
-  
+
   for (size_t i = len; i < self->len; i++)
     self->data[i] = gab_undefined;
 
@@ -514,7 +793,7 @@ gab_value __gab_recordnode(struct gab_triple gab, size_t len, size_t space,
 
   self->len = len + space;
   memcpy(self->data, data, sizeof(gab_value) * len);
-  
+
   for (size_t i = len; i < self->len; i++)
     self->data[i] = gab_undefined;
 
