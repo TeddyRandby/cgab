@@ -1763,8 +1763,6 @@ CASE_CODE(SEND_PRIMITIVE_FIBER) {
   SET_VAR(1);
   STORE_SP();
 
-  gab_gcunlock(GAB());
-
   NEXT();
 }
 
@@ -1780,8 +1778,6 @@ CASE_CODE(SEND_PRIMITIVE_CHANNEL) {
   PUSH(chan);
   SET_VAR(1);
   STORE_SP();
-
-  gab_gcunlock(GAB());
 
   NEXT();
 }
