@@ -900,15 +900,6 @@ int gab_nspec(struct gab_triple gab, size_t len,
 gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args);
 
 /**
- * @brief Deep copy a value.
- *
- * @param gab The engine.
- * @param value The value to copy.
- * @return The copy.
- */
-gab_value gab_valcpy(struct gab_triple gab, gab_value value);
-
-/**
  * @brief Get the runtime value that corresponds to the given kind.
  *
  * @param gab The engine
@@ -1224,6 +1215,55 @@ static inline gab_value gab_strtosig(gab_value str) {
 }
 
 /**
+ * @brief Convert a string into it's corresponding message. This is
+ * constant-time.
+ *
+ * @param str The string
+ * @return The message
+ */
+static inline gab_value gab_strtomsg(gab_value str) {
+  assert(gab_valkind(str) == kGAB_STRING);
+
+  return str | (uint64_t)kGAB_MESSAGE << __GAB_TAGOFFSET;
+}
+
+/**
+ * @brief Create a new message object.
+ *
+ * @param gab The gab engine.
+ * @param len The number of bytes in data.
+ * @param data The name of the message.
+ * @return The new message object.
+ */
+static inline gab_value gab_nmessage(struct gab_triple gab, size_t len,
+                                     const char data[static len]) {
+  return gab_strtomsg(gab_nstring(gab, len, data));
+}
+
+/**
+ * @brief Create a new message object.
+ *
+ * @param gab The gab engine.
+ * @param data The name of the message.
+ * @return The new message object.
+ */
+static inline gab_value gab_message(struct gab_triple gab,
+                                    const char data[static 1]) {
+  return gab_strtomsg(gab_string(gab, data));
+}
+
+/**
+ * @brief get the name of the message.
+ *
+ * @param msg The message.
+ * @return the name.
+ */
+static inline gab_value gab_msgtostr(gab_value msg) {
+  assert(gab_valkind(msg) == kGAB_MESSAGE);
+  return msg & ~((uint64_t)kGAB_MESSAGE << __GAB_TAGOFFSET);
+}
+
+/**
  * @brief Create a sigil value from a cstring.
  *
  * @param data The cstring
@@ -1279,18 +1319,22 @@ struct gab_obj_native {
 
 /*
  * @brief A lightweight green-thread / coroutine / fiber.
- *
- * Execution can be paused and resumed.
  */
 struct gab_obj_fiber {
   struct gab_obj header;
 
+  /**
+   * Status of the fiber - move into part of object type
+   */
   enum {
     kGAB_FIBER_WAITING,
     kGAB_FIBER_RUNNING,
     kGAB_FIBER_DONE,
   } status;
 
+  /**
+   * Structure used to actually execute bytecode
+   */
   struct gab_vm {
     uint8_t *ip;
 
@@ -1299,13 +1343,31 @@ struct gab_obj_fiber {
     gab_value sb[cGAB_STACK_MAX];
   } vm;
 
+  /**
+   * Result of execution
+   */
   a_gab_value *res;
 
+  /**
+   * Length of data array member
+   */
   size_t len;
 
+  /**
+   * Holds the main block, and any arguments passed to it
+   */
   gab_value data[];
 };
 
+/**
+ * @brief Create a fiber.
+ *
+ * @param gab The engine
+ * @param main The block to run
+ * @param argc The number of arguments to the block
+ * @param argv The arguments to the block
+ * @return A fiber, ready to be run
+ */
 gab_value gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
                     gab_value argv[argc]);
 
@@ -1319,26 +1381,76 @@ a_gab_value *gab_fibawait(gab_value fiber);
 /* Cast a value to a (gab_obj_native*) */
 #define GAB_VAL_TO_FIBER(value) ((struct gab_obj_fiber *)gab_valtoo(value))
 
+/**
+ * @brief A primitive for sending data between fibers.
+ */
 struct gab_obj_channel {
   struct gab_obj header;
 
+  /* Synchronization primitives  */
   mtx_t mtx;
   cnd_t t_cnd;
   cnd_t p_cnd;
 
+  /**
+   * @brief Capacity of the channel's buffer.
+   */
   size_t cap;
+
+  /**
+   * @brief number of values in the channel.
+   */
   _Atomic size_t len;
+
+  /**
+   * @brief The channel's buffer.
+   */
   gab_value data[];
 };
 
+/**
+ * @brief Create a channel with the given buffer capacity.
+ *
+ * @param gab The engine
+ * @param cap The capacity of the channel's buffer
+ * @return The Channel
+ */
 gab_value gab_channel(struct gab_triple gab, size_t cap);
 
+/**
+ * @brief Put a value on the given channel.
+ *  In unbuffered channels, this will block the caller until the value is taken
+ * by another fiber.
+ *
+ * @param gab The engine
+ * @param channel The channel
+ * @param value The value to put
+ */
 void gab_chnput(struct gab_triple gab, gab_value channel, gab_value value);
 
+/**
+ * @brief Take a value from the given channel. This will block the caller until
+ * a value is available to take.
+ *
+ * @param gab The engine
+ * @param channel The channel
+ * @return The value taken
+ */
 gab_value gab_chntake(struct gab_triple gab, gab_value channel);
 
+/**
+ * @brief Close the given channel. A closed channel cannot receive new values.
+ *
+ * @param channel The channel
+ */
 void gab_chnclose(gab_value channel);
 
+/**
+ * @brief Return true if the given channel is closed
+ *
+ * @param channel The channel
+ * @return whetehr or not the channel is closed
+ */
 bool gab_chnisclosed(gab_value channel);
 
 /* Cast a value to a (gab_obj_channel*) */
@@ -1434,141 +1546,247 @@ gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key);
 
 gab_value gab_shpwithout(struct gab_triple gab, gab_value shp, gab_value key);
 
+/**
+ * @brief A record node.
+ */
 struct gab_obj_recnode {
   struct gab_obj header;
 
-  /*
-   * Masks for describing 'data'
+  /**
+   * @brief Length of data member. Each node has a maximum of 32 children, so 1
+   * byte is plenty.
    */
-  size_t len;
+  uint8_t len;
 
-  /*
-   * Dense array of children. Each child has 2 slots in the array.
-   * This optimizes for the common case of a node being a 'leaf'.
-   * Instead of separately allocating the leaves as nodes,
-   * they are stored directly in this array as [K | V].
-   * The pairs which are leaves are denoted in the mask 'vmask'.
+  /**
+   * @brief The children of this node. If this node is a leaf, then this will
+   * hold values. Otherwise, it holds other recs or recnodes.
    */
   gab_value data[];
 };
 
-/*
- * The gab_obj_rec serves as the root of a HAMT. All of the children are
- * recnodes, and may be leaves or branches.
+/**
+ * @brief A record, gab's aggregate type. Implemented as a persistent vector,
+ * with a shape for indexing.
+ *
+ * Records are trees of recs and recnodes.
+ *  - The root of the record is guaranteed to be a gab_obj_rec. This is
+ * necessary because it holds the shift and shape.
+ *  - Any branches may be either gab_obj_recnode or gab_obj_rec.
+ *  - The children of leaves are the values of the record itself.
+ *  - A root can *also* be a leaf - this is the case when length <= 32.
+ *
+ * The implementation itself is based off of clojure's persistent vector. This
+ * implementation is simpler than a HAMT. It also benefits from the fact that
+ * hash-collisions are impossible (That is, they are the responsibility of the
+ * shape)
+ *
+ * Benefits:
+ *  - All records with len <= 32 are a *single* allocation.
+ *  - Key -> Index lookup can be cached, so lookup is simple bit masking and
+ * indexing.
  */
 struct gab_obj_rec {
   struct gab_obj header;
 
-  int64_t shift;
-  size_t len;
+  /**
+   * @brief length of data member. Nodes have a maximum width of 32 data
+   * members, so 1 byte is plenty.
+   */
+  uint8_t len;
 
+  /**
+   * @brief The shape of this record. This determines the length of the record
+   * as a whole, and the keys which are available.
+   */
   gab_value shape;
 
+  /**
+   * @brief shift value used to index tree as depth increases.
+   */
+  int64_t shift;
+
+  /**
+   * @brief the children of this node. If this node is a leaf, then this will
+   * hold the record's actual values.
+   */
   gab_value data[];
 };
 
 #define GAB_VAL_TO_REC(value) ((struct gab_obj_rec *)gab_valtoo(value))
 #define GAB_VAL_TO_RECNODE(value) ((struct gab_obj_recnode *)gab_valtoo(value))
 
+/**
+ * @brief Create a record.
+ *
+ * @param gab The engine
+ * @param stride Stride between key-value pairs in keys and vals.
+ * @param len Number of key-value pairs.
+ * @param keys The keys
+ * @param vals The vals
+ * @return The new record
+ */
 gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
                      gab_value keys[static len], gab_value vals[static len]);
 
-gab_value __gab_record(struct gab_triple gab, size_t len, size_t space,
-                       gab_value *data);
-
-gab_value __gab_recordnode(struct gab_triple gab, size_t len, size_t space,
-                           gab_value *data);
-
-static inline gab_value gab_recshp(gab_value rec) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  return GAB_VAL_TO_REC(rec)->shape;
+/**
+ * @brief Get the shape of a record
+ *
+ * @param rec The record
+ * @return The shape of the record
+ */
+static inline gab_value gab_recshp(gab_value record) {
+  assert(gab_valkind(record) == kGAB_RECORD);
+  return GAB_VAL_TO_REC(record)->shape;
 };
 
-static inline size_t gab_reclen(gab_value rec) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
+/**
+ * @brief Get the length of a record
+ *
+ * @param rec The record
+ * @return The number of key-value pairs in the record
+ */
+static inline size_t gab_reclen(gab_value record) {
+  assert(gab_valkind(record) == kGAB_RECORD);
+  struct gab_obj_rec *r = GAB_VAL_TO_REC(record);
   return gab_shplen(r->shape);
 }
 
-static inline size_t gab_recfind(gab_value rec, gab_value key) {
-  return gab_shpfind(gab_recshp(rec), key);
+/**
+ * @brief Find the offset of a key in the record
+ *
+ * @param record The record to look in
+ * @param key The key to search for
+ * @return The offset, or -1 if not found
+ */
+static inline size_t gab_recfind(gab_value record, gab_value key) {
+  return gab_shpfind(gab_recshp(record), key);
 }
 
-static inline bool gab_rechas(gab_value rec, gab_value key) {
-  return gab_recfind(rec, key) != -1;
+/**
+ * @brief Check if a record has a given key
+ *
+ * @param record The record to look in
+ * @param key The key to check for
+ * @return true if the key exists in the record.
+ */
+static inline bool gab_rechas(gab_value record, gab_value key) {
+  return gab_recfind(record, key) != -1;
 }
 
-static inline bool gab_urechas(gab_value rec, size_t i) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  struct gab_obj_rec *m = GAB_VAL_TO_REC(rec);
-
-  return i < gab_shplen(m->shape);
+/**
+ * @brief Check if an index is within a record
+ *
+ * @param record The record to look in
+ * @param idx The index to check
+ * @return true if the index is valid within the record
+ */
+static inline bool gab_urechas(gab_value record, size_t index) {
+  assert(gab_valkind(record) == kGAB_RECORD);
+  struct gab_obj_rec *m = GAB_VAL_TO_REC(record);
+  return index < gab_shplen(m->shape);
 }
 
-static inline gab_value gab_ukrecat(gab_value rec, size_t idx) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  assert(gab_urechas(rec, idx));
-
-  return gab_ushpat(gab_recshp(rec), idx);
+/**
+ * @brief Get the key at a given index in the record. Does no bounds checking.
+ *
+ * @param record The record to look in
+ * @param index The index of the key
+ *
+ * @return The key at that index
+ */
+static inline gab_value gab_ukrecat(gab_value record, size_t index) {
+  assert(gab_valkind(record) == kGAB_RECORD);
+  assert(gab_urechas(record, index));
+  return gab_ushpat(gab_recshp(record), index);
 }
 
-gab_value gab_uvrecat(gab_value rec, size_t i);
+/**
+ * @brief Get the value at a given index in the record. Does no bounds checking.
+ *
+ * @param record The record to look in
+ * @param index The index of the value to get
+ * @return the value at index
+ */
+gab_value gab_uvrecat(gab_value record, size_t index);
 
-gab_value gab_urecput(struct gab_triple gab, gab_value rec, size_t i,
-                      gab_value v);
+/**
+ * @brief Return a new record with the new value at the given index. Does no
+ * bounds checking.
+ *
+ * @param record The record to begin with
+ * @param index The index to replace
+ * @param value The new value
+ * @return a new record, with value at index.
+ */
+gab_value gab_urecput(struct gab_triple gab, gab_value record, size_t index,
+                      gab_value value);
 
-static inline gab_value gab_recat(gab_value rec, gab_value key) {
-  assert(gab_valkind(rec) == kGAB_RECORD);
-  size_t i = gab_recfind(rec, key);
+/**
+ * @brief Get the value at a given key in the record. If the key doesn't exist,
+ * returns undefined.
+ *
+ * @param record The record to check
+ * @param key The key to look for
+ * @return the value associated with key, or undefined.
+ */
+static inline gab_value gab_recat(gab_value record, gab_value key) {
+  assert(gab_valkind(record) == kGAB_RECORD);
+  size_t i = gab_recfind(record, key);
 
   if (i == -1)
     return gab_undefined;
 
-  return gab_uvrecat(rec, i);
-}
-
-gab_value gab_srecat(struct gab_triple, gab_value rec, const char *key);
-
-gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
-                     gab_value val);
-
-gab_value gab_recdel(struct gab_triple gab, gab_value rec, gab_value key);
-
-/**
- * @brief Convert a string into it's corresponding message. This is
- * constant-time.
- *
- * @param str The string
- * @return The message
- */
-static inline gab_value gab_strtomsg(gab_value str) {
-  assert(gab_valkind(str) == kGAB_STRING);
-
-  return str | (uint64_t)kGAB_MESSAGE << __GAB_TAGOFFSET;
+  return gab_uvrecat(record, i);
 }
 
 /**
- * @brief Create a new message object.
+ * @brief Get the value at a given string in the record.
  *
- * @param gab The gab engine.
- * @param name The name of the message.
- * @return The new message object.
+ * @param gab The engine
+ * @param record The record to look in
+ * @param key A c-string to convert into a gab string
+ * @return the value at gab_string(key)
  */
-static inline gab_value gab_message(struct gab_triple gab,
-                                    const char data[static 1]) {
-  return gab_strtomsg(gab_string(gab, data));
+static inline gab_value gab_srecat(struct gab_triple gab, gab_value record,
+                                   const char *key) {
+  return gab_recat(record, gab_string(gab, key));
 }
 
 /**
- * @brief get the name of the message.
+ * @brief Get the value at a given message in the record.
  *
- * @param msg The message.
- * @return the name.
+ * @param gab The engine
+ * @param record The record to look in
+ * @param key A c-string to convert into a gab message
+ * @return the value at gab_message(key)
  */
-static inline gab_value gab_msgtostr(gab_value msg) {
-  assert(gab_valkind(msg) == kGAB_MESSAGE);
-  return msg & ~((uint64_t)kGAB_MESSAGE << __GAB_TAGOFFSET);
+static inline gab_value gab_mrecat(struct gab_triple gab, gab_value rec,
+                                   const char *key) {
+  return gab_recat(rec, gab_message(gab, key));
 }
+
+/**
+ * @brief Get a new record with value put at key.
+ *
+ * @param gab The engine
+ * @param record The record to start with
+ * @param key The key
+ * @param value The value
+ * @return a new record with value at key
+ */
+gab_value gab_recput(struct gab_triple gab, gab_value record, gab_value key,
+                     gab_value value);
+
+/**
+ * @brief Return a new record without key. TODO: Not Implemented
+ *
+ * @param gab The engine
+ * @param record The record
+ * @param key The key
+ * @return a record without key
+ */
+gab_value gab_recdel(struct gab_triple gab, gab_value record, gab_value key);
 
 /**
  * @brief A container object, which holds arbitrary data.
@@ -1579,11 +1797,6 @@ static inline gab_value gab_msgtostr(gab_value msg) {
  */
 struct gab_obj_box {
   struct gab_obj header;
-
-  /**
-   * A callback called when the object is copied by `gab_valcpy`
-   */
-  gab_boxcopy_f do_copy;
 
   /**
    * A callback called when the object is collected by the gc.
@@ -1617,6 +1830,76 @@ struct gab_obj_box {
 };
 
 #define GAB_VAL_TO_BOX(value) ((struct gab_obj_box *)gab_valtoo(value))
+
+/**
+ * The arguments for creating a box.
+ */
+struct gab_box_argt {
+  /**
+   * The number of bytes in 'data'.
+   */
+  size_t size;
+  /**
+   * The user data.
+   */
+  void *data;
+  /**
+   * The type of the box.
+   */
+  gab_value type;
+  /**
+   * A callback called when the object is collected by the gc.
+   */
+  gab_boxdestroy_f destructor;
+  /**
+   * A callback called when the object is visited during gc.
+   */
+  gab_boxvisit_f visitor;
+};
+
+/**
+ * @brief Create a gab value which wraps some user data.
+ * @see struct gab_box_argt
+ *
+ * @param gab The engine.
+ * @param args The arguments.
+ *
+ * @return The value.
+ */
+gab_value gab_box(struct gab_triple gab, struct gab_box_argt args);
+
+/**
+ * @brief Get the length of the user data from a boxed value.
+ *
+ * @param box The box.
+ * @return The user data.
+ */
+static inline size_t gab_boxlen(gab_value box) {
+  assert(gab_valkind(box) == kGAB_BOX);
+  return GAB_VAL_TO_BOX(box)->len;
+}
+
+/**
+ * @brief Get the user data from a boxed value.
+ *
+ * @param box The box.
+ * @return The user data.
+ */
+static inline void *gab_boxdata(gab_value box) {
+  assert(gab_valkind(box) == kGAB_BOX);
+  return GAB_VAL_TO_BOX(box)->data;
+}
+
+/**
+ * @brief Get the user type from a boxed value.
+ *
+ * @param box The box.
+ * @return The user type.
+ */
+static inline gab_value gab_boxtype(gab_value value) {
+  assert(gab_valkind(value) == kGAB_BOX);
+  return GAB_VAL_TO_BOX(value)->type;
+}
 
 /**
  * @brief The prototype of a block. Encapsulates everything known about a block
@@ -1692,80 +1975,6 @@ gab_value gab_native(struct gab_triple gab, gab_value name, gab_native_f f);
  * @return The value.
  */
 gab_value gab_snative(struct gab_triple gab, const char *name, gab_native_f f);
-
-/**
- * The arguments for creating a box.
- */
-struct gab_box_argt {
-  /**
-   * The number of bytes in 'data'.
-   */
-  size_t size;
-  /**
-   * The user data.
-   */
-  void *data;
-  /**
-   * The type of the box.
-   */
-  gab_value type;
-  /**
-   * A callback called when the object is copied by `gab_valcpy`.
-   */
-  gab_boxcopy_f copier;
-  /**
-   * A callback called when the object is collected by the gc.
-   */
-  gab_boxdestroy_f destructor;
-  /**
-   * A callback called when the object is visited during gc.
-   */
-  gab_boxvisit_f visitor;
-};
-
-/**
- * @brief Create a gab value which wraps some user data.
- * @see struct gab_box_argt
- *
- * @param gab The engine.
- * @param args The arguments.
- *
- * @return The value.
- */
-gab_value gab_box(struct gab_triple gab, struct gab_box_argt args);
-
-/**
- * @brief Get the length of the user data from a boxed value.
- *
- * @param box The box.
- * @return The user data.
- */
-static inline size_t gab_boxlen(gab_value box) {
-  assert(gab_valkind(box) == kGAB_BOX);
-  return GAB_VAL_TO_BOX(box)->len;
-}
-
-/**
- * @brief Get the user data from a boxed value.
- *
- * @param box The box.
- * @return The user data.
- */
-static inline void *gab_boxdata(gab_value box) {
-  assert(gab_valkind(box) == kGAB_BOX);
-  return GAB_VAL_TO_BOX(box)->data;
-}
-
-/**
- * @brief Get the user type from a boxed value.
- *
- * @param box The box.
- * @return The user type.
- */
-static inline gab_value gab_boxtype(gab_value value) {
-  assert(gab_valkind(value) == kGAB_BOX);
-  return GAB_VAL_TO_BOX(value)->type;
-}
 
 /**
  * @brief Bundle a list of values into a tuple.

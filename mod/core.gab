@@ -1,6 +1,6 @@
 messages.t = 'cmessages':use
 numbers.t = 'cnumbers':use
-maps.t = 'cmaps':use
+records.t = 'crecords':use
 strings.t = 'cstrings':use
 sigils.t = 'csigils' :use
 iter = 'iter':use
@@ -159,7 +159,7 @@ end)
   end,
 }
 
-[maps.t] :defmodule! {
+[records.t] :defmodule! {
   \has? = do key:
     self:at key :ok?
   end,
@@ -168,7 +168,7 @@ end)
   end,
 }
 
-maps.t :def.seq!
+records.t :def.seq!
 
 \ :def! ([.int.between], do min, max:
   .float.between (min,max) :floor
@@ -205,6 +205,7 @@ end)
 \numbers.into :def!(falsey_values, 0)
 
 [numbers.t] :defmodule! {
+  -> = do to: (to, self) :range.into end, 
   ++ = do: self + 1 end,
   -- = do: self - 1 end,
   even? = do: (self % 2) == 0 end,

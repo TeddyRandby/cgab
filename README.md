@@ -272,6 +272,7 @@ Gab has an initial implementation of this, and actually uses a `gab.channel` of 
     - Hashmap works well enough, but copies a lot of data and makes concat/slice slow.
 - [ ] Potentially refactor `OP_RECORD` and `OP_TUPLE` to be sends, something like `.gab.record(<args>)`. This would be more uniform with the rest of the language, using message sends. Constant folding?
 - [ ] JIT Compilation (need I say more)
+- [ ] String interpolation should use a `strings.into` message to convert values before concatenating
 - [ ] Of course, lots of library work can be done.
     - More iterators
     - Improve spec

@@ -455,7 +455,6 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
 
   self->do_destroy = args.destructor;
   self->do_visit = args.visitor;
-  self->do_copy = args.copier;
   self->type = args.type;
   self->len = args.size;
 
@@ -471,6 +470,37 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
 #define BITS (5)
 #define WIDTH (1 << BITS)
 #define MASK (WIDTH - 1)
+
+gab_value __gab_record(struct gab_triple gab, size_t len, size_t space,
+                       gab_value *data) {
+  struct gab_obj_rec *self =
+      GAB_CREATE_FLEX_OBJ(gab_obj_rec, gab_value, space + len, kGAB_RECORD);
+
+  self->len = len + space;
+  self->shift = 0;
+  self->shape = gab_undefined;
+  memcpy(self->data, data, sizeof(gab_value) * len);
+
+  for (size_t i = len; i < self->len; i++)
+    self->data[i] = gab_undefined;
+
+  return __gab_obj(self);
+}
+
+gab_value __gab_recordnode(struct gab_triple gab, size_t len, size_t space,
+                           gab_value *data) {
+  assert(space + len > 0);
+  struct gab_obj_recnode *self = GAB_CREATE_FLEX_OBJ(
+      gab_obj_recnode, gab_value, space + len, kGAB_RECORDNODE);
+
+  self->len = len + space;
+  memcpy(self->data, data, sizeof(gab_value) * len);
+
+  for (size_t i = len; i < self->len; i++)
+    self->data[i] = gab_undefined;
+
+  return __gab_obj(self);
+}
 
 gab_value reccpy(struct gab_triple gab, gab_value r, size_t space) {
   switch (gab_valkind(r)) {
@@ -565,9 +595,6 @@ size_t reclen(gab_value rec) {
 gab_value gab_uvrecat(gab_value rec, size_t i) {
   assert(gab_valkind(rec) == kGAB_RECORD);
 
-  if (i > gab_reclen(rec))
-    return gab_undefined;
-
   struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
 
   gab_value node = rec;
@@ -600,9 +627,6 @@ gab_value recsetshp(gab_value rec, gab_value shp) {
 gab_value assoc(struct gab_triple gab, gab_value rec, gab_value v, size_t i) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
-
-  if (i > gab_reclen(rec))
-    return gab_undefined;
 
   gab_value node = rec;
   gab_value root = node;
@@ -767,37 +791,6 @@ gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
   gab_gcunlock(gab);
 
   return res;
-}
-
-gab_value __gab_record(struct gab_triple gab, size_t len, size_t space,
-                       gab_value *data) {
-  struct gab_obj_rec *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_rec, gab_value, space + len, kGAB_RECORD);
-
-  self->len = len + space;
-  self->shift = 0;
-  self->shape = gab_undefined;
-  memcpy(self->data, data, sizeof(gab_value) * len);
-
-  for (size_t i = len; i < self->len; i++)
-    self->data[i] = gab_undefined;
-
-  return __gab_obj(self);
-}
-
-gab_value __gab_recordnode(struct gab_triple gab, size_t len, size_t space,
-                           gab_value *data) {
-  assert(space + len > 0);
-  struct gab_obj_recnode *self = GAB_CREATE_FLEX_OBJ(
-      gab_obj_recnode, gab_value, space + len, kGAB_RECORDNODE);
-
-  self->len = len + space;
-  memcpy(self->data, data, sizeof(gab_value) * len);
-
-  for (size_t i = len; i < self->len; i++)
-    self->data[i] = gab_undefined;
-
-  return __gab_obj(self);
 }
 
 gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,

@@ -1,5 +1,0 @@
-'core' :use
-maps.t = 'cmaps' :use
-
-
-maps.t

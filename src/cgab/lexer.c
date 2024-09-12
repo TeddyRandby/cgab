@@ -421,53 +421,6 @@ fin:
   return tok;
 }
 
-struct gab_src *gab_srccpy(struct gab_triple gab, struct gab_src *self) {
-  gab_value name = gab_valcpy(gab, self->name);
-
-  if (d_gab_src_exists(&gab.eg->sources, name))
-    return d_gab_src_read(&gab.eg->sources, name);
-
-  struct gab_src *copy = malloc(sizeof(struct gab_src));
-  memset(copy, 0, sizeof(struct gab_src));
-
-  d_gab_src_insert(&gab.eg->sources, name, copy);
-
-  copy->name = name;
-  copy->source = a_char_create(self->source->data, self->source->len);
-
-  v_s_char_copy(&copy->lines, &self->lines);
-
-  v_gab_token_copy(&copy->tokens, &self->tokens);
-  v_s_char_copy(&copy->token_srcs, &self->token_srcs);
-  v_uint64_t_copy(&copy->token_lines, &self->token_lines);
-
-  v_uint8_t_copy(&copy->bytecode, &self->bytecode);
-  v_uint64_t_copy(&copy->bytecode_toks, &self->bytecode_toks);
-  v_gab_value_copy(&copy->constants, &self->constants);
-
-  // Reconcile the constant array by copying the non trivial values
-  for (size_t i = 0; i < self->constants.len; i++) {
-    gab_value v = v_gab_value_val_at(&self->constants, i);
-    if (gab_valiso(v)) {
-      gab_value cpy = gab_valcpy(gab, v);
-      gab_egkeep(gab.eg, gab_iref(gab, cpy));
-      v_gab_value_set(&copy->constants, i, cpy);
-    } else {
-      v_gab_value_set(&copy->constants, i, v);
-    }
-  }
-
-  // Reconcile the copied slices to point to the new source
-  for (uint64_t i = 0; i < copy->lines.len; i++) {
-    s_char *copy_src = v_s_char_ref_at(&copy->lines, i);
-    s_char *src_src = v_s_char_ref_at(&self->lines, i);
-
-    copy_src->data = copy->source->data + (src_src->data - self->source->data);
-  }
-
-  return copy;
-}
-
 void gab_srcdestroy(struct gab_src *self) {
   a_char_destroy(self->source);
 
