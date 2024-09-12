@@ -775,14 +775,14 @@ gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
 
 #define ERROR_GUARD_ISB(value)                                                 \
   if (__gab_unlikely(!__gab_valisb(value))) {                                  \
-    STORE_PRIMITIVE_ERROR_FRAME(have);                                        \
+    STORE_PRIMITIVE_ERROR_FRAME(have);                                         \
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, value,                          \
           gab_valtype(EG(), value), gab_egtype(EG(), kGAB_SIGIL));             \
   }
 
 #define ERROR_GUARD_ISN(value)                                                 \
   if (__gab_unlikely(!__gab_valisn(value))) {                                  \
-    STORE_PRIMITIVE_ERROR_FRAME(have);                                        \
+    STORE_PRIMITIVE_ERROR_FRAME(have);                                         \
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, value,                          \
           gab_valtype(EG(), value), gab_egtype(EG(), kGAB_NUMBER));            \
   }
@@ -1753,10 +1753,13 @@ CASE_CODE(SEND_PRIMITIVE_FIBER) {
 
   ERROR_GUARD_KIND(block, kGAB_BLOCK);
 
-  gab_value chan = gab_channel(GAB(), 0);
+  gab_value fib = gab_arun(GAB(), (struct gab_run_argt){
+                                       .main = block,
+                                       .flags = GAB().flags,
+                                   });
 
   DROP_N(have);
-  PUSH(chan);
+  PUSH(fib);
   SET_VAR(1);
   STORE_SP();
 
@@ -1796,8 +1799,7 @@ CASE_CODE(SEND_PRIMITIVE_RECORD) {
   if (len % 2 == 1)
     PUSH(gab_nil), len++, have++;
 
-  gab_value map =
-      gab_record(GAB(), 2, len / 2, SP() - len, SP() + 1 - len);
+  gab_value map = gab_record(GAB(), 2, len / 2, SP() - len, SP() + 1 - len);
 
   DROP_N(have);
   PUSH(map);
