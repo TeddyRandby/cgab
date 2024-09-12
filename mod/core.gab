@@ -4,7 +4,6 @@ records.t = 'crecords':use
 strings.t = 'cstrings':use
 sigils.t = 'csigils' :use
 iter = 'iter':use
-'fibers':use
 'format':use
 
 truthy_values = []

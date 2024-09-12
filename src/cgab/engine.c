@@ -1,5 +1,5 @@
-#include <threads.h>
 #include <errno.h>
+#include <threads.h>
 #define GAB_STATUS_NAMES_IMPL
 #define GAB_TOKEN_NAMES_IMPL
 #include "engine.h"
@@ -20,7 +20,7 @@ struct primitive {
   const char *name;
   union {
     enum gab_kind kind;
-    gab_value type;
+    const char *sigil;
   };
   gab_value primitive;
 };
@@ -32,35 +32,55 @@ struct primitive all_primitives[] = {
     },
 };
 
-struct primitive type_primitives[] = {
+struct primitive sigil_primitives[] = {
+    {
+      .name = mGAB_CALL,
+      .sigil = "gab.list",
+      .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIST),
+    },
+    {
+      .name = mGAB_CALL,
+      .sigil = "gab.fiber",
+      .primitive = gab_primitive(OP_SEND_PRIMITIVE_FIBER),
+    },
+    {
+      .name = mGAB_CALL,
+      .sigil = "gab.record",
+      .primitive = gab_primitive(OP_SEND_PRIMITIVE_RECORD),
+    },
+    {
+      .name = mGAB_CALL,
+      .sigil = "gab.channel",
+      .primitive = gab_primitive(OP_SEND_PRIMITIVE_CHANNEL),
+    },
     {
         .name = mGAB_BND,
-        .type = gab_false,
+        .sigil = "false",
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
     },
     {
         .name = mGAB_BOR,
-        .type = gab_false,
+        .sigil = "false",
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
     },
     {
         .name = mGAB_LIN,
-        .type = gab_false,
+        .sigil = "false",
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIN),
     },
     {
         .name = mGAB_BND,
-        .type = gab_true,
+        .sigil = "true",
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
     },
     {
         .name = mGAB_BOR,
-        .type = gab_true,
+        .sigil = "true",
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_LOR),
     },
     {
         .name = mGAB_LIN,
-        .type = gab_true,
+        .sigil = "true",
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIN),
     },
 };
@@ -384,15 +404,17 @@ struct gab_triple gab_create(struct gab_create_argt args) {
                                            })));
   }
 
-  for (int i = 0; i < LEN_CARRAY(type_primitives); i++) {
+  for (int i = 0; i < LEN_CARRAY(sigil_primitives); i++) {
     gab_egkeep(
         gab.eg,
-        gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
-                                        .name = type_primitives[i].name,
-                                        .receiver = type_primitives[i].type,
-                                        .specialization =
-                                            type_primitives[i].primitive,
-                                    })));
+        gab_iref(
+            gab,
+            gab_spec(gab,
+                     (struct gab_spec_argt){
+                         .name = sigil_primitives[i].name,
+                         .receiver = gab_sigil(gab, sigil_primitives[i].sigil),
+                         .specialization = sigil_primitives[i].primitive,
+                     })));
   }
 
   for (int i = 0; i < LEN_CARRAY(all_primitives); i++) {
@@ -638,7 +660,7 @@ a_gab_value *gab_segmodat(struct gab_eg *eg, const char *name) {
 
   mtx_lock(&eg->modules_mtx);
 
-  a_gab_value* module = d_gab_modules_read(&eg->modules, hash);
+  a_gab_value *module = d_gab_modules_read(&eg->modules, hash);
 
   mtx_unlock(&eg->modules_mtx);
 
@@ -673,10 +695,6 @@ size_t gab_negkeep(struct gab_eg *gab, size_t len,
       v_gab_value_push(&gab->scratch, values[i]);
 
   return len;
-}
-
-gab_value gab_string(struct gab_triple gab, const char data[static 1]) {
-  return gab_nstring(gab, strlen(data), data);
 }
 
 gab_value gab_tuple(struct gab_triple gab, uint64_t size,
@@ -951,7 +969,9 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   }
 
   if (res->data[0] != gab_ok) {
-    return gab_panic(gab, "Failed to load module: module returned $, expected $", res->data[0], gab_ok);
+    return gab_panic(gab,
+                     "Failed to load module: module returned $, expected $",
+                     res->data[0], gab_ok);
   }
 
   gab_negkeep(gab.eg, res->len - 1, res->data + 1);

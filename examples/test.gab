@@ -16,6 +16,8 @@ end)
 
 in, out = .gab.channel(), .gab.channel()
 
+{in,out}:print
+
 work = do:
   n = in >! :unwrap!
 

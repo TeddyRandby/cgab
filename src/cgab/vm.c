@@ -614,7 +614,7 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
     NEXT();                                                                    \
   })
 
-#define PROPERTY_RECORD(r, have)                                            \
+#define PROPERTY_RECORD(r, have)                                               \
   ({                                                                           \
     switch (have) {                                                            \
     case 1:                                                                    \
@@ -624,7 +624,7 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
       DROP_N((have) - 1);                                                      \
     case 2: {                                                                  \
       gab_gclock(GAB());                                                       \
-      gab_value value = gab_urecput(GAB(), r, ks[GAB_SEND_KSPEC], PEEK());                       \
+      gab_value value = gab_urecput(GAB(), r, ks[GAB_SEND_KSPEC], PEEK());     \
       gab_gcunlock(GAB());                                                     \
       DROP();                                                                  \
       PEEK() = value;                                                          \
@@ -775,14 +775,14 @@ gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
 
 #define ERROR_GUARD_ISB(value)                                                 \
   if (__gab_unlikely(!__gab_valisb(value))) {                                  \
-    STORE_PRIMITIVE_ERROR_FRAME(have1);                                        \
+    STORE_PRIMITIVE_ERROR_FRAME(have);                                        \
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, value,                          \
           gab_valtype(EG(), value), gab_egtype(EG(), kGAB_SIGIL));             \
   }
 
 #define ERROR_GUARD_ISN(value)                                                 \
   if (__gab_unlikely(!__gab_valisn(value))) {                                  \
-    STORE_PRIMITIVE_ERROR_FRAME(have1);                                        \
+    STORE_PRIMITIVE_ERROR_FRAME(have);                                        \
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, value,                          \
           gab_valtype(EG(), value), gab_egtype(EG(), kGAB_NUMBER));            \
   }
@@ -1431,43 +1431,6 @@ CASE_CODE(PACK) {
   NEXT();
 }
 
-CASE_CODE(RECORD) {
-  uint8_t len = READ_BYTE;
-
-  gab_gclock(GAB());
-
-  gab_value map =
-      gab_record(GAB(), 2, len, SP() - len * 2, SP() + 1 - (len * 2));
-
-  DROP_N(len * 2);
-
-  PUSH(map);
-
-  STORE_SP();
-
-  gab_gcunlock(GAB());
-
-  NEXT();
-}
-
-CASE_CODE(TUPLE) {
-  uint64_t len = compute_arity(VAR(), READ_BYTE);
-
-  gab_gclock(GAB());
-
-  gab_value rec = gab_tuple(GAB(), len, SP() - len);
-
-  DROP_N(len);
-
-  PUSH(rec);
-
-  STORE_SP();
-
-  gab_gcunlock(GAB());
-
-  NEXT();
-}
-
 CASE_CODE(SEND) {
   gab_value *ks = READ_CONSTANTS;
   uint8_t have_byte = READ_BYTE;
@@ -1776,6 +1739,94 @@ CASE_CODE(SEND_PRIMITIVE_PUT) {
   DROP_N(have - 1);
 
   SET_VAR(1);
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_FIBER) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  SEND_GUARD_CACHED_RECEIVER_TYPE(PEEK_N(have));
+
+  gab_value block = PEEK_N(have - 1);
+
+  ERROR_GUARD_KIND(block, kGAB_BLOCK);
+
+  gab_value chan = gab_channel(GAB(), 0);
+
+  DROP_N(have);
+  PUSH(chan);
+  SET_VAR(1);
+  STORE_SP();
+
+  gab_gcunlock(GAB());
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_CHANNEL) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  SEND_GUARD_CACHED_RECEIVER_TYPE(PEEK_N(have));
+
+  gab_value chan = gab_channel(GAB(), 0);
+
+  DROP_N(have);
+  PUSH(chan);
+  SET_VAR(1);
+  STORE_SP();
+
+  gab_gcunlock(GAB());
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_RECORD) {
+  gab_value *ks = READ_CONSTANTS;
+  size_t have = compute_arity(VAR(), READ_BYTE);
+
+  SEND_GUARD_CACHED_RECEIVER_TYPE(PEEK_N(have));
+
+  gab_gclock(GAB());
+
+  size_t len = have - 1;
+
+  if (len % 2 == 1)
+    PUSH(gab_nil), len++, have++;
+
+  gab_value map =
+      gab_record(GAB(), 2, len / 2, SP() - len, SP() + 1 - len);
+
+  DROP_N(have);
+  PUSH(map);
+  SET_VAR(1);
+  STORE_SP();
+
+  gab_gcunlock(GAB());
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_LIST) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  SEND_GUARD_CACHED_RECEIVER_TYPE(PEEK_N(have));
+
+  gab_gclock(GAB());
+
+  size_t len = have - 1;
+
+  gab_value rec = gab_tuple(GAB(), len, SP() - len);
+
+  DROP_N(have);
+  PUSH(rec);
+  SET_VAR(1);
+  STORE_SP();
+
+  gab_gcunlock(GAB());
 
   NEXT();
 }

@@ -588,55 +588,6 @@ static inline void push_block(struct bc *bc, gab_value p, size_t t) {
   push_short(bc, addk(bc, p), t);
 }
 
-static inline void push_record(struct bc *bc, size_t len, size_t t) {
-#if cGAB_SUPERINSTRUCTIONS
-  int ctx = peek_ctx(bc, kFRAME, 0);
-  assert(ctx >= 0 && "Internal compiler error: no frame context");
-  struct frame *f = &bc->contexts[ctx].as.frame;
-
-  switch (f->prev_op) {
-  case OP_NCONSTANT: {
-    size_t prev_local_arg = f->prev_op_at + 1;
-    uint8_t prev_n = v_uint8_t_val_at(&f->bc, prev_local_arg);
-    if (prev_n >= len * 2) {
-      // We have a constant record - construct it!
-      uint8_t *byte_args =
-          v_uint8_t_ref_at(&f->bc, prev_local_arg + 1 + 2 * (prev_n - len * 2));
-
-      gab_value *ks = bc->src->constants.data;
-      gab_value stack[len * 2];
-      for (size_t i = 0; i < len * 2; i++) {
-        uint16_t arg_k = (uint16_t)byte_args[i * 2] << 8 | byte_args[i * 2 + 1];
-        stack[i] = ks[arg_k];
-      }
-
-      gab_value map = gab_record(gab(bc), 2, len, stack, stack + 1);
-
-      uint16_t new_k = addk(bc, map);
-
-      v_uint8_t_set(&f->bc, prev_local_arg, prev_n - len * 2 + 1);
-
-      f->bc.len -= (len * 4);
-      f->bc_toks.len -= (len * 4);
-
-      push_short(bc, new_k, bc->offset - 1);
-      return;
-    }
-  }
-  }
-#endif
-
-  push_op((bc), OP_RECORD, bc->offset - 1);
-  push_byte((bc), len, bc->offset - 1);
-}
-
-static inline void push_tuple(struct bc *bc, mv rhs, size_t t) {
-  assert(rhs.status < 16);
-
-  push_op(bc, OP_TUPLE, t);
-  push_byte(bc, encode_arity(rhs), t);
-}
-
 static inline mv reconcile_send_args(mv lhs, mv rhs) {
   assert(!(lhs.multi && rhs.multi) &&
          "Internal compiler error: cannot reconcile send args");
@@ -1954,6 +1905,8 @@ static mv compile_record(struct bc *bc) {
   if (push_ctx(bc, kTUPLE) < 0)
     return MV_ERR;
 
+  push_loadk(bc, gab_sigil(gab(bc), "gab.record"), bc->offset - 1);
+
   int size = compile_rec_internals(bc);
 
   if (pop_ctx(bc, kTUPLE) < 0)
@@ -1962,20 +1915,25 @@ static mv compile_record(struct bc *bc) {
   if (size < 0)
     return MV_ERR;
 
-  push_record(bc, size, bc->offset - 1);
+  int len = (size * 2) + 1;
 
-  pop_slot(bc, size * 2);
+  push_send(bc, gab_message(gab(bc), mGAB_CALL), MV_OK_WITH(len),
+            bc->offset - 1);
+
+  pop_slot(bc, len);
 
   push_slot(bc, 1);
 
   return MV_OK;
 }
 
-static mv compile_record_tuple(struct bc *bc) {
+static mv compile_list(struct bc *bc) {
   mv rhs = {0};
 
   if (skip_newlines(bc) < 0)
     return MV_ERR;
+
+  push_loadk(bc, gab_sigil(gab(bc), "gab.list"), bc->offset - 1);
 
   if (match_and_eat_token(bc, TOKEN_RBRACE))
     goto fin;
@@ -1993,7 +1951,8 @@ static mv compile_record_tuple(struct bc *bc) {
     return MV_ERR;
 
 fin:
-  push_tuple((bc), rhs, bc->offset - 1);
+  rhs.status++; // Include .gab.list
+  push_send(bc, gab_message(gab(bc), mGAB_CALL), rhs, bc->offset - 1);
 
   pop_slot(bc, rhs.status + rhs.multi);
 
@@ -2058,9 +2017,7 @@ static mv compile_exp_rec(struct bc *bc, mv, bool) {
   return compile_record(bc);
 }
 
-static mv compile_exp_arr(struct bc *bc, mv, bool) {
-  return compile_record_tuple(bc);
-}
+static mv compile_exp_arr(struct bc *bc, mv, bool) { return compile_list(bc); }
 
 static mv compile_exp_itp(struct bc *bc, mv, bool) {
   return compile_string(bc);
@@ -2457,15 +2414,6 @@ static uint64_t dumpPackInstruction(FILE *stream,
   return offset + 4;
 }
 
-static uint64_t dumpDictInstruction(FILE *stream,
-                                    struct gab_obj_prototype *self, uint8_t i,
-                                    uint64_t offset) {
-  uint8_t operand = v_uint8_t_val_at(&self->src->bytecode, offset + 1);
-  const char *name = gab_opcode_names[i];
-  fprintf(stream, "%-25s%hhx\n", name, operand);
-  return offset + 2;
-};
-
 static uint64_t dumpConstantInstruction(FILE *stream,
                                         struct gab_obj_prototype *self,
                                         uint64_t offset) {
@@ -2636,12 +2584,6 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_TRIM_EXACTLY9:
   case OP_TRIM: {
     return dumpTrimInstruction(stream, self, offset);
-  }
-  case OP_RECORD: {
-    return dumpDictInstruction(stream, self, op, offset);
-  }
-  case OP_TUPLE: {
-    return dumpDictInstruction(stream, self, op, offset);
   }
   default: {
     uint8_t code = v_uint8_t_val_at(&self->src->bytecode, offset);

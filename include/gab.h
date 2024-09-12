@@ -1125,15 +1125,6 @@ struct gab_obj_string {
 #define GAB_VAL_TO_STRING(value) ((struct gab_obj_string *)gab_valtoo(value))
 
 /**
- * @brief Create a gab_value from a c-string
- *
- * @param gab The engine.
- * @param data The data.
- * @return The value.
- */
-gab_value gab_string(struct gab_triple gab, const char data[static 1]);
-
-/**
  * @brief Create a gab_value from a bounded array of chars.
  *
  * @param gab The engine.
@@ -1143,6 +1134,17 @@ gab_value gab_string(struct gab_triple gab, const char data[static 1]);
  */
 gab_value gab_nstring(struct gab_triple gab, size_t len,
                       const char data[static len]);
+
+/**
+ * @brief Create a gab_value from a c-string
+ *
+ * @param gab The engine.
+ * @param data The data.
+ * @return The value.
+ */
+static inline gab_value gab_string(struct gab_triple gab, const char data[static 1]) {
+  return gab_nstring(gab, strlen(data), data);
+}
 
 /**
  * @brief Concatenate two gab strings
