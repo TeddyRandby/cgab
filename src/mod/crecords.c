@@ -125,7 +125,7 @@ fin:
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value rec_t = gab_egtype(gab.eg, kGAB_RECORD);
+  gab_value rec_t = gab_type(gab, kGAB_RECORD);
 
   struct gab_spec_argt specs[] = {
       {

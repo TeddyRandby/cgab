@@ -9,7 +9,7 @@ void dis_block(gab_value blk) {
 }
 
 void dis_message(struct gab_triple gab, gab_value msg, gab_value rec) {
-  gab_value spec = gab_egmsgat(gab.eg, msg, rec);
+  gab_value spec = gab_fibmsgat(gab_thisfiber(gab), msg, rec);
 
   switch (gab_valkind(spec)) {
   case kGAB_BLOCK:
@@ -80,10 +80,10 @@ a_gab_value* gab_lib_disnative(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value receivers[] = {
-      gab_egtype(gab.eg, kGAB_BLOCK),
-      gab_egtype(gab.eg, kGAB_MESSAGE),
-      gab_egtype(gab.eg, kGAB_STRING),
-      gab_egtype(gab.eg, kGAB_NATIVE),
+      gab_type(gab, kGAB_BLOCK),
+      gab_type(gab, kGAB_MESSAGE),
+      gab_type(gab, kGAB_STRING),
+      gab_type(gab, kGAB_NATIVE),
   };
 
   gab_value values[] = {gab_snative(gab, "disblock", gab_lib_disblock),

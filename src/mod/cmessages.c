@@ -19,7 +19,7 @@ a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
   switch (argc) {
   case 2: {
 
-    struct gab_egimpl_rest res = gab_egimpl(gab.eg, argv[0], argv[1]);
+    struct gab_impl_rest res = gab_impl(gab, argv[0], argv[1]);
 
     gab_vmpush(gab_vm(gab), gab_bool(res.status));
     return nullptr;
@@ -34,7 +34,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
   gab_value m = gab_arg(0);
   gab_value k = gab_arg(1);
 
-  struct gab_egimpl_rest res = gab_egimpl(gab.eg, m, k);
+  struct gab_impl_rest res = gab_impl(gab, m, k);
 
   gab_value values[] = {gab_none, gab_nil};
 
@@ -48,7 +48,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib_sigil_into(struct gab_triple gab, size_t argc,
-                          gab_value argv[static argc]) {
+                                gab_value argv[static argc]) {
   gab_value m = gab_arg(0);
 
   gab_vmpush(gab_vm(gab), gab_strtosig(gab_msgtostr(m)));
@@ -57,7 +57,7 @@ a_gab_value *gab_lib_sigil_into(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib_string_into(struct gab_triple gab, size_t argc,
-                          gab_value argv[static argc]) {
+                                 gab_value argv[static argc]) {
   gab_value m = gab_arg(0);
 
   gab_vmpush(gab_vm(gab), gab_msgtostr(m));
@@ -75,7 +75,7 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
       gab_valkind(b) != kGAB_NATIVE)
     return gab_pktypemismatch(gab, b, kGAB_BLOCK);
 
-  if (gab_egmsgput(gab, m, r, b) == gab_undefined)
+  if (gab_fibmsgput(gab, gab_thisfiber(gab), m, r, b) == gab_undefined)
     return gab_panic(gab, "$ already specializes for type $", m, r);
 
   return nullptr;
@@ -94,16 +94,16 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
   if (len == 0) {
     gab_value t = gab_undefined;
 
-    if (gab_egmsgput(gab, m, t, b) == gab_undefined)
+    if (gab_fibmsgput(gab, gab_thisfiber(gab), m, t, b) == gab_undefined)
       return gab_panic(gab, "$ already specializes for type $", m, t);
 
     return nullptr;
   }
 
-  for (size_t i = 0; i < len; i ++) {
+  for (size_t i = 0; i < len; i++) {
     gab_value t = gab_arg(i + 1);
 
-    if (gab_egmsgput(gab, m, t, b) == gab_undefined)
+    if (gab_fibmsgput(gab, gab_thisfiber(gab), m, t, b) == gab_undefined)
       return gab_panic(gab, "$ already specializes for type $", m, t);
   }
 
@@ -125,7 +125,7 @@ a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
     gab_value b = gab_uvrecat(cases, i);
     gab_value t = gab_ukrecat(cases, i);
 
-    if (gab_egmsgput(gab, m, t, b) == gab_undefined)
+    if (gab_fibmsgput(gab, gab_thisfiber(gab), m, t, b) == gab_undefined)
       return gab_panic(gab, "$ already specializes for type $", m, t);
   }
 
@@ -153,7 +153,7 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
       if (gab_valkind(m) != kGAB_MESSAGE)
         return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
 
-      if (gab_egmsgput(gab, m, t, b) == gab_undefined)
+      if (gab_fibmsgput(gab, gab_thisfiber(gab), m, t, b) == gab_undefined)
         return gab_panic(gab, "$ already specializes for type $", m, t);
     }
 
@@ -170,7 +170,7 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
       if (gab_valkind(m) != kGAB_MESSAGE)
         return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
 
-      if (gab_egmsgput(gab, m, t, b) == gab_undefined)
+      if (gab_fibmsgput(gab, gab_thisfiber(gab), m, t, b) == gab_undefined)
         return gab_panic(gab, "$ already specializes for type $", m, t);
     }
   }
@@ -179,7 +179,7 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value type = gab_egtype(gab.eg, kGAB_MESSAGE);
+  gab_value type = gab_type(gab, kGAB_MESSAGE);
 
   struct gab_spec_argt specs[] = {
       {

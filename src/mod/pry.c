@@ -50,7 +50,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       },
       {
           "dump",
-          gab_egtype(gab.eg, kGAB_FIBER),
+          gab_type(gab, kGAB_FIBER),
           gab_snative(gab, "pry.dump", gab_lib_prydumpframe),
       },
   };

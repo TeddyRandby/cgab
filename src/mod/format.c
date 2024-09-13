@@ -33,7 +33,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   struct gab_spec_argt specs[] = {
       {
           "printf",
-          gab_egtype(gab.eg, kGAB_STRING),
+          gab_type(gab, kGAB_STRING),
           gab_snative(gab, "write", fmt_printf),
       },
       {

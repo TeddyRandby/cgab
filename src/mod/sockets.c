@@ -288,7 +288,7 @@ a_gab_value *gab_lib_send(struct gab_triple gab, size_t argc,
   gab_value msg = gab_arg(1);
 
   if (gab_valkind(msg) != kGAB_STRING) {
-    return gab_ptypemismatch(gab, msg, gab_egtype(gab.eg, kGAB_STRING));
+    return gab_ptypemismatch(gab, msg, gab_type(gab, kGAB_STRING));
   }
 
   int64_t socket = (int64_t)GAB_VAL_TO_BOX(argv[0])->data;

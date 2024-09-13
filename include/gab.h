@@ -517,7 +517,7 @@ size_t gab_negkeep(struct gab_eg *eg, size_t len, gab_value argv[static len]);
  * @see gab_egimpl_rest
  * @see gab_egimpl
  */
-enum gab_egimpl_resk {
+enum gab_impl_resk {
   kGAB_IMPL_NONE = 0,
   kGAB_IMPL_TYPE,
   kGAB_IMPL_KIND,
@@ -530,7 +530,7 @@ enum gab_egimpl_resk {
  * @brief The result of gab_egimpl
  * @see gab_egimpl
  */
-struct gab_egimpl_rest {
+struct gab_impl_rest {
   /**
    * @brief The type of the relevant type of the receiver.
    *
@@ -556,7 +556,7 @@ struct gab_egimpl_rest {
    * @brief The status of this implementation resolution.
    * @see gab_egimpl_resk
    */
-  enum gab_egimpl_resk status;
+  enum gab_impl_resk status;
 };
 
 /**
@@ -567,25 +567,8 @@ struct gab_egimpl_rest {
  * @param receiver The receiver to find the implementation for.
  * @return The result of the implementation search.
  */
-static inline struct gab_egimpl_rest
-gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver);
-
-/**
- *
- */
-static inline gab_value gab_egmsgput(struct gab_triple gab, gab_value message,
-                                     gab_value type, gab_value specialization);
-
-/**
- *
- */
-static inline gab_value gab_egmsgat(struct gab_eg *eg, gab_value message,
-                                    gab_value receiver);
-
-/**
- *
- */
-static inline gab_value gab_egmsgrec(struct gab_eg *eg, gab_value message);
+static inline struct gab_impl_rest
+gab_impl(struct gab_triple gab, gab_value message, gab_value receiver);
 
 /**
  * @brief Push any number of value onto the vm's internal stack.
@@ -906,7 +889,7 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args);
  * @param kind The type to retrieve the value for.
  * @return The runtime value corresponding to that type.
  */
-static inline gab_value gab_egtype(struct gab_eg *eg, enum gab_kind kind);
+static inline gab_value gab_type(struct gab_triple gab, enum gab_kind kind);
 
 /**
  * @brief If fGAB_SILENT is not set, print an error message to stderr.
@@ -942,7 +925,7 @@ a_gab_value *gab_ptypemismatch(struct gab_triple gab, gab_value found,
 static inline a_gab_value *gab_pktypemismatch(struct gab_triple gab,
                                               gab_value found,
                                               enum gab_kind texpected) {
-  return gab_ptypemismatch(gab, found, gab_egtype(gab.eg, texpected));
+  return gab_ptypemismatch(gab, found, gab_type(gab, texpected));
 };
 
 #if cGAB_LOG_GC
@@ -1142,7 +1125,8 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
  * @param data The data.
  * @return The value.
  */
-static inline gab_value gab_string(struct gab_triple gab, const char data[static 1]) {
+static inline gab_value gab_string(struct gab_triple gab,
+                                   const char data[static 1]) {
   return gab_nstring(gab, strlen(data), data);
 }
 
@@ -1300,7 +1284,8 @@ static inline gab_value gab_sigtostr(gab_value sigil) {
 }
 
 /**
- * @brief Convert a sigil into it's corresponding message. This is constant-time.
+ * @brief Convert a sigil into it's corresponding message. This is
+ * constant-time.
  *
  * @param str The string
  * @return The sigil
@@ -1329,161 +1314,6 @@ struct gab_obj_native {
 
 /* Cast a value to a (gab_obj_native*) */
 #define GAB_VAL_TO_NATIVE(value) ((struct gab_obj_native *)gab_valtoo(value))
-
-/*
- * @brief A lightweight green-thread / coroutine / fiber.
- */
-struct gab_obj_fiber {
-  struct gab_obj header;
-
-  /**
-   * Status of the fiber - move into part of object type
-   */
-  enum {
-    kGAB_FIBER_WAITING,
-    kGAB_FIBER_RUNNING,
-    kGAB_FIBER_DONE,
-  } status;
-
-  /**
-   * Structure used to actually execute bytecode
-   */
-  struct gab_vm {
-    uint8_t *ip;
-
-    gab_value *sp, *fp;
-
-    gab_value sb[cGAB_STACK_MAX];
-  } vm;
-
-  /**
-   * Result of execution
-   */
-  a_gab_value *res;
-
-  /**
-   * Length of data array member
-   */
-  size_t len;
-
-  /**
-   * Holds the main block, and any arguments passed to it
-   */
-  gab_value data[];
-};
-
-/**
- * @brief Create a fiber.
- *
- * @param gab The engine
- * @param main The block to run
- * @param argc The number of arguments to the block
- * @param argv The arguments to the block
- * @return A fiber, ready to be run
- */
-gab_value gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
-                    gab_value argv[argc]);
-
-/**
- * @brief Block the caller until this fiber is completed.
- *
- * @param fiber The fiber
- */
-a_gab_value *gab_fibawait(gab_value fiber);
-
-/* Cast a value to a (gab_obj_native*) */
-#define GAB_VAL_TO_FIBER(value) ((struct gab_obj_fiber *)gab_valtoo(value))
-
-/**
- * @brief A primitive for sending data between fibers.
- */
-struct gab_obj_channel {
-  struct gab_obj header;
-
-  /* Synchronization primitives  */
-  mtx_t mtx;
-  cnd_t t_cnd;
-  cnd_t p_cnd;
-
-  /**
-   * @brief Capacity of the channel's buffer.
-   */
-  size_t len;
-
-  /**
-   * @brief head and tail for tracking channel's queue
-   */
-  _Atomic size_t head, tail;
-
-  /**
-   * @brief The channel's buffer.
-   */
-  gab_value data[];
-};
-
-/**
- * @brief Create a channel with the given buffer capacity.
- *
- * @param gab The engine
- * @param len The length of the channel's buffer
- * @return The channel
- */
-gab_value gab_channel(struct gab_triple gab, size_t len);
-
-/**
- * @brief Put a value on the given channel.
- *  In unbuffered channels, this will block the caller until the value is taken
- * by another fiber.
- *
- * @param gab The engine
- * @param channel The channel
- * @param value The value to put
- */
-void gab_chnput(struct gab_triple gab, gab_value channel, gab_value value);
-
-/**
- * @brief Take a value from the given channel. This will block the caller until
- * a value is available to take.
- *
- * @param gab The engine
- * @param channel The channel
- * @return The value taken
- */
-gab_value gab_chntake(struct gab_triple gab, gab_value channel);
-
-/**
- * @brief Close the given channel. A closed channel cannot receive new values.
- *
- * @param channel The channel
- */
-void gab_chnclose(gab_value channel);
-
-/**
- * @brief Return true if the given channel is closed
- *
- * @param channel The channel
- * @return whetehr or not the channel is closed
- */
-bool gab_chnisclosed(gab_value channel);
-
-/**
- * @brief Return true if the given channel is full
- *
- * @param channel The channel
- * @return whetehr or not the channel is full
- */
-bool gab_chnisfull(gab_value channel);
-
-/**
- * @brief Return true if the given channel is empty
- *
- * @param channel The channel
- * @return whetehr or not the channel is empty
- */
-bool gab_chnisempty(gab_value channel);
-
-/* Cast a value to a (gab_obj_channel*) */
-#define GAB_VAL_TO_CHANNEL(value) ((struct gab_obj_channel *)gab_valtoo(value))
 
 /**
  * @brief A block - aka a prototype and it's captures.
@@ -1817,6 +1647,236 @@ gab_value gab_recput(struct gab_triple gab, gab_value record, gab_value key,
  */
 gab_value gab_recdel(struct gab_triple gab, gab_value record, gab_value key);
 
+/*
+ * @brief A lightweight green-thread / coroutine / fiber.
+ */
+struct gab_obj_fiber {
+  struct gab_obj header;
+
+  /**
+   * Status of the fiber - move into part of object type
+   */
+  enum {
+    kGAB_FIBER_WAITING,
+    kGAB_FIBER_RUNNING,
+    kGAB_FIBER_DONE,
+  } status;
+
+  /**
+   * Structure used to actually execute bytecode
+   */
+  struct gab_vm {
+    uint8_t *ip;
+
+    gab_value *sp, *fp;
+
+    gab_value sb[cGAB_STACK_MAX];
+  } vm;
+
+  /**
+   * The messages available to the fiber
+   */
+  gab_value messages;
+
+  /**
+   * Result of execution
+   */
+  a_gab_value *res;
+
+  /**
+   * Length of data array member
+   */
+  size_t len;
+
+  /**
+   * Holds the main block, and any arguments passed to it
+   */
+  gab_value data[];
+};
+
+/* Cast a value to a (gab_obj_native*) */
+#define GAB_VAL_TO_FIBER(value) ((struct gab_obj_fiber *)gab_valtoo(value))
+
+/**
+ * @brief Create a fiber.
+ *
+ * @param gab The engine
+ * @param main The block to run
+ * @param argc The number of arguments to the block
+ * @param argv The arguments to the block
+ * @return A fiber, ready to be run
+ */
+gab_value gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
+                    gab_value argv[argc]);
+
+/**
+ * @brief Block the caller until this fiber is completed.
+ *
+ * @param fiber The fiber
+ */
+a_gab_value *gab_fibawait(gab_value fiber);
+
+/**
+ * @brief Get a fiber's internal record of messages.
+ *
+ * @param fiber The fiber
+ * @return the record
+ */
+static inline gab_value gab_fibmsg(gab_value fiber) {
+  assert(gab_valkind(fiber) == kGAB_FIBER);
+  struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fiber);
+  return f->messages;
+}
+
+/**
+ * @brief Get a message's record of specializations, within a given fiber.
+ *
+ * @param fiber The fiber
+ * @param message The message
+ * @return the record of specializations, or undefined
+ */
+static inline gab_value gab_fibmsgrec(gab_value fiber, gab_value message) {
+  return gab_recat(gab_fibmsg(fiber), message);
+}
+
+/**
+ * @brief Get the specialization for a given message and receiver within a
+ * fiber.
+ *
+ * @param fiber The fiber
+ * @param message The message
+ * @param receiver The receiver type to get
+ * @return the specialization, or undefined
+ */
+static inline gab_value gab_fibmsgat(gab_value fiber, gab_value message,
+                                     gab_value receiver) {
+  gab_value spec_rec = gab_recat(gab_fibmsg(fiber), message);
+  if (spec_rec == gab_undefined)
+    return gab_undefined;
+
+  return gab_recat(spec_rec, receiver);
+}
+
+/**
+ * @brief Add a specialization for a message within a fiber.
+ *
+ * @param fiber The fiber
+ * @param message The message
+ * @param receiver The receiver type to get
+ * @return the specialization, or undefined
+ */
+static inline gab_value gab_fibmsgput(struct gab_triple gab, gab_value fiber,
+                                        gab_value msg, gab_value receiver,
+                                        gab_value spec) {
+  assert(gab_valkind(fiber) == kGAB_FIBER);
+  struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fiber);
+
+  gab_value specs = gab_fibmsgrec(fiber, msg);
+
+  gab_gclock(gab);
+
+  if (specs == gab_undefined) {
+    specs = gab_record(gab, 0, 0, &specs, &specs);
+  }
+
+  gab_value newspecs = gab_recput(gab, specs, receiver, spec);
+  f->messages = gab_recput(gab, f->messages, msg, newspecs);
+
+  gab_gcunlock(gab);
+  return msg;
+}
+
+/**
+ * @brief A primitive for sending data between fibers.
+ */
+struct gab_obj_channel {
+  struct gab_obj header;
+
+  /* Synchronization primitives  */
+  mtx_t mtx;
+  cnd_t t_cnd;
+  cnd_t p_cnd;
+
+  /**
+   * @brief Capacity of the channel's buffer.
+   */
+  size_t len;
+
+  /**
+   * @brief head and tail for tracking channel's queue
+   */
+  _Atomic size_t head, tail;
+
+  /**
+   * @brief The channel's buffer.
+   */
+  gab_value data[];
+};
+
+/**
+ * @brief Create a channel with the given buffer capacity.
+ *
+ * @param gab The engine
+ * @param len The length of the channel's buffer
+ * @return The channel
+ */
+gab_value gab_channel(struct gab_triple gab, size_t len);
+
+/**
+ * @brief Put a value on the given channel.
+ *  In unbuffered channels, this will block the caller until the value is taken
+ * by another fiber.
+ *
+ * @param gab The engine
+ * @param channel The channel
+ * @param value The value to put
+ */
+void gab_chnput(struct gab_triple gab, gab_value channel, gab_value value);
+
+/**
+ * @brief Take a value from the given channel. This will block the caller until
+ * a value is available to take.
+ *
+ * @param gab The engine
+ * @param channel The channel
+ * @return The value taken
+ */
+gab_value gab_chntake(struct gab_triple gab, gab_value channel);
+
+/**
+ * @brief Close the given channel. A closed channel cannot receive new values.
+ *
+ * @param channel The channel
+ */
+void gab_chnclose(gab_value channel);
+
+/**
+ * @brief Return true if the given channel is closed
+ *
+ * @param channel The channel
+ * @return whetehr or not the channel is closed
+ */
+bool gab_chnisclosed(gab_value channel);
+
+/**
+ * @brief Return true if the given channel is full
+ *
+ * @param channel The channel
+ * @return whetehr or not the channel is full
+ */
+bool gab_chnisfull(gab_value channel);
+
+/**
+ * @brief Return true if the given channel is empty
+ *
+ * @param channel The channel
+ * @return whetehr or not the channel is empty
+ */
+bool gab_chnisempty(gab_value channel);
+
+/* Cast a value to a (gab_obj_channel*) */
+#define GAB_VAL_TO_CHANNEL(value) ((struct gab_obj_channel *)gab_valtoo(value))
+
 /**
  * @brief A container object, which holds arbitrary data.
  *
@@ -2014,7 +2074,7 @@ gab_value gab_snative(struct gab_triple gab, const char *name, gab_native_f f);
  * @return The new record.
  */
 gab_value gab_list(struct gab_triple gab, size_t len,
-                    gab_value values[static len]);
+                   gab_value values[static len]);
 
 /**
  * @brief Get the practical runtime type of a value.
@@ -2023,7 +2083,7 @@ gab_value gab_list(struct gab_triple gab, size_t len,
  * @param value The value
  * @return The runtime value corresponding to the type of the given value
  */
-static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
+static inline gab_value gab_valtype(struct gab_triple gab, gab_value value) {
   enum gab_kind k = gab_valkind(value);
 #if cGAB_LOG_GC
   assert(!gab_valiso(value) || !(gab_valtoo(value)->flags & fGAB_OBJ_FREED));
@@ -2039,7 +2099,7 @@ static inline gab_value gab_valtype(struct gab_eg *gab, gab_value value) {
     return gab_recshp(value);
   /* Otherwise, return the value for that kind */
   default:
-    return gab_egtype(gab, k);
+    return gab_type(gab, k);
   }
 }
 
@@ -2110,8 +2170,7 @@ struct gab_eg {
     } buffers[][kGAB_NBUF][GAB_GCNEPOCHS];
   } *gc;
 
-  _Atomic gab_value messages;
-  gab_value work_channel;
+  gab_value messages, work_channel;
 
   mtx_t shapes_mtx;
   gab_value shapes;
@@ -2146,8 +2205,8 @@ struct gab_eg {
   } jobs[];
 };
 
-static inline gab_value gab_egtype(struct gab_eg *gab, enum gab_kind k) {
-  return gab->types[k];
+static inline gab_value gab_type(struct gab_triple gab, enum gab_kind k) {
+  return gab.eg->types[k];
 }
 
 static inline struct gab_gc *gab_gc(struct gab_triple gab) {
@@ -2177,39 +2236,20 @@ void gab_yield(struct gab_triple gab);
  * @param type The type
  * @return true if the value's type matches the given type.
  */
-static inline bool gab_egvalisa(struct gab_eg *eg, gab_value value,
-                                gab_value type) {
-  return gab_valeq(gab_valtype(eg, value), type);
+static inline bool gab_valisa(struct gab_triple gab, gab_value value,
+                              gab_value type) {
+  return gab_valeq(gab_valtype(gab, value), type);
 }
 
 /**
- * @brief Get a message's internal spec record.
+ * @brief Get the running fiber of the current job.
  *
- * @param msg The message.
- * @return the record.
+ * @param gab The engine
+ * @return The fiber
  */
-static inline gab_value gab_egmsgrec(struct gab_eg *eg, gab_value msg) {
-  gab_value specs = gab_recat(eg->messages, msg);
-  return specs;
+static inline gab_value gab_thisfiber(struct gab_triple gab) {
+  return gab.eg->jobs[gab.wkid].fiber;
 }
-
-/**
- * @brief Get the specialization for a given receiver.
- *
- * @param msg The message object.
- * @param receiver The receiver.
- * @return The specialization for the receiver, or gab_undefined if it did
- * not exist.
- */
-static inline gab_value gab_egmsgat(struct gab_eg *eg, gab_value msg,
-                                    gab_value receiver) {
-  gab_value specs = gab_recat(eg->messages, msg);
-
-  if (specs == gab_undefined)
-    return specs;
-
-  return gab_recat(specs, receiver);
-};
 
 /**
  * @brief Add a specialization to a message.
@@ -2220,25 +2260,9 @@ static inline gab_value gab_egmsgat(struct gab_eg *eg, gab_value msg,
  * @param spec The specialization.
  * @return The message, or gab_undefined if it already had the spec.
  */
-static inline gab_value gab_egmsgput(struct gab_triple gab, gab_value msg,
-                                     gab_value receiver, gab_value spec) {
-  gab_value specs = gab_recat(gab.eg->messages, msg);
-
-  gab_gclock(gab);
-
-  if (specs == gab_undefined) {
-    specs = gab_record(gab, 0, 0, &specs, &specs);
-  }
-
-  gab_value newspecs = gab_recput(gab, specs, receiver, spec);
-  gab.eg->messages = gab_recput(gab, gab.eg->messages, msg, newspecs);
-
-  gab_gcunlock(gab);
-  return msg;
-}
-
-static inline struct gab_egimpl_rest
-gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
+static inline struct gab_impl_rest
+gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
+  gab_value fiber = gab_thisfiber(gab);
   gab_value spec = gab_undefined;
   gab_value type = receiver;
 
@@ -2246,7 +2270,7 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
     spec = gab_recat(receiver, message);
     type = gab_recshp(type);
     if (spec != gab_undefined)
-      return (struct gab_egimpl_rest){
+      return (struct gab_impl_rest){
           type,
           .as.offset = gab_recfind(receiver, message),
           kGAB_IMPL_PROPERTY,
@@ -2256,11 +2280,11 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
   /* Check if the receiver has a supertype, and if that supertype implments the
    * message. ie <gab.shape 0 1>*/
   if (gab_valhast(receiver)) {
-    type = gab_valtype(eg, receiver);
-    spec = gab_egmsgat(eg, message, type);
+    type = gab_valtype(gab, receiver);
+    spec = gab_fibmsgat(fiber, message, type);
 
     if (spec != gab_undefined)
-      return (struct gab_egimpl_rest){
+      return (struct gab_impl_rest){
           type,
           .as.spec = spec,
           kGAB_IMPL_TYPE,
@@ -2268,11 +2292,11 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
   }
 
   /* Check for the kind of the receiver. ie 'gab.record' */
-  type = gab_egtype(eg, gab_valkind(receiver));
-  spec = gab_egmsgat(eg, message, type);
+  type = gab_type(gab, gab_valkind(receiver));
+  spec = gab_fibmsgat(fiber, message, type);
 
   if (spec != gab_undefined)
-    return (struct gab_egimpl_rest){
+    return (struct gab_impl_rest){
         type,
         .as.spec = spec,
         kGAB_IMPL_KIND,
@@ -2280,9 +2304,9 @@ gab_egimpl(struct gab_eg *eg, gab_value message, gab_value receiver) {
 
   /* Lastly, check for a generic implmentation.*/
   type = gab_undefined;
-  spec = gab_egmsgat(eg, message, type);
+  spec = gab_fibmsgat(fiber, message, type);
 
-  return (struct gab_egimpl_rest){
+  return (struct gab_impl_rest){
       type,
       .as.spec = spec,
       spec == gab_undefined ? kGAB_IMPL_NONE : kGAB_IMPL_GENERAL,
@@ -2336,8 +2360,8 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
     snprintf(buffer, 128, "<gab.fiber %p>", m);
     return gab_string(gab, buffer);
   }
-  case kGAB_CHANNEL: 
-  case kGAB_CHANNELBUFFERED: 
+  case kGAB_CHANNEL:
+  case kGAB_CHANNELBUFFERED:
   case kGAB_CHANNELCLOSED: {
     struct gab_obj_channel *m = GAB_VAL_TO_CHANNEL(value);
     snprintf(buffer, 128, "<gab.channel %p>", m);

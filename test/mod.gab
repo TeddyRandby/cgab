@@ -240,16 +240,16 @@ t :tests.covers 'Records' .
 
 vec.t = { x, y }?
 
+\+ :def! (vec.t, do other:
+  {
+    x = self:x + other:x,
+    y = self:y + other:y,
+  }
+end)
 
 t :tests.covers 'Overloads' .
     :tests.should 'overload binary' .
     :tests.when do t:
-        \+ :def! (vec.t, do other:
-          {
-            x = self:x + other:x,
-            y = self:y + other:y,
-          }
-        end)
 
         a = { x = 1, y = 2 }
         b = { x = 2, y = 1 }
@@ -273,13 +273,14 @@ t :tests.covers 'Overloads' .
         a = { x = 1, y = 1 }
         b = { x = 1, y = 1 }
         t:tests.expect(a, \==, b)
+
         b = { x = 4, y = 4 }
         t:tests.expect(a, \<, b)
     end .
     :tests.should 'handle changing overloads' .
     :tests.when do t:
         get = do obj, key:
-            obj:at!(key)
+            obj:at! key
         end
 
         t:tests.expect(get({ x = 1, y = 2 }, \x), \==, 1)

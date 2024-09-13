@@ -14,7 +14,7 @@ a_gab_value *gab_lib_messages_into(struct gab_triple gab, size_t argc,
 
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value type = gab_egtype(gab.eg, kGAB_SIGIL);
+  gab_value type = gab_type(gab, kGAB_SIGIL);
 
   struct gab_spec_argt specs[] = {
       {

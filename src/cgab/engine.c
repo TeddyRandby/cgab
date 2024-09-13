@@ -349,6 +349,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   gab_jbcreate(gab, gab.eg->jobs + njobs, gc_job);
 
   eg->shapes = __gab_shape(gab, 0);
+
   eg->messages = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
   eg->work_channel = gab_channel(gab, 0);
 
@@ -404,14 +405,16 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   gab_negkeep(gab.eg, kGAB_NKINDS, eg->types);
 
   for (int i = 0; i < LEN_CARRAY(kind_primitives); i++) {
-    gab_egkeep(gab.eg,
-               gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
-                                               .name = kind_primitives[i].name,
-                                               .receiver = gab_egtype(
-                                                   eg, kind_primitives[i].kind),
-                                               .specialization =
-                                                   kind_primitives[i].primitive,
-                                           })));
+    gab_egkeep(
+        gab.eg,
+        gab_iref(
+            gab,
+            gab_spec(gab,
+                     (struct gab_spec_argt){
+                         .name = kind_primitives[i].name,
+                         .receiver = gab_type(gab, kind_primitives[i].kind),
+                         .specialization = kind_primitives[i].primitive,
+                     })));
   }
 
   for (int i = 0; i < LEN_CARRAY(sigil_primitives); i++) {
@@ -433,7 +436,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
           gab.eg,
           gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
                                           .name = all_primitives[i].name,
-                                          .receiver = gab_egtype(eg, t),
+                                          .receiver = gab_type(gab, t),
                                           .specialization =
                                               all_primitives[i].primitive,
                                       })));
@@ -627,7 +630,27 @@ gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
   gab_gclock(gab);
 
   gab_value m = gab_message(gab, args.name);
-  m = gab_egmsgput(gab, m, args.receiver, args.specialization);
+
+  // GLOBAL
+  if (gab.wkid == gab.eg->len - 1) {
+    gab_value specs = gab_recat(gab.eg->messages, m);
+
+    gab_gclock(gab);
+
+    if (specs == gab_undefined) {
+      specs = gab_record(gab, 0, 0, &specs, &specs);
+    }
+
+    gab_value newspecs =
+        gab_recput(gab, specs, args.receiver, args.specialization);
+
+    gab.eg->messages = gab_recput(gab, gab.eg->messages, m, newspecs);
+
+    gab_gcunlock(gab);
+  } else {
+    m = gab_fibmsgput(gab, gab_thisfiber(gab), m, args.receiver,
+                      args.specialization);
+  }
 
   gab_gcunlock(gab);
 

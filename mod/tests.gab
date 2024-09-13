@@ -1,4 +1,4 @@
-tests.results.out = .gab.channel()
+tests.results.in = .gab.channel()
 
 module = {
   tests.results.out,
@@ -7,9 +7,15 @@ module = {
 }
 
 \tests.when :def! (module ?, do cb:
-  t = self
+  t = self :tests.results.out .gab.channel()
 
-  .gab.fiber do: cb(t) end
+  .gab.fiber do:
+    tests.results.in <! t:tests.results.out
+
+    cb(t)
+
+    t:tests.results.out :close!
+  end
 
   self
 end)
@@ -18,10 +24,11 @@ tests.compare.results.t = { t, result, a, b, cmp }?
 
 \tests.compare.dodisplay :defcase! {
   .true = do result:
-    '{result:t:tests.covers} [PASS]: {result:t:tests.should} {result:a} {result:cmp} {result:b}':print
+    #'[PASS] {result:t:tests.covers} should {result:t:tests.should} {result:a} {result:cmp} {result:b}':print
+    .nil
   end,
   .false = do result:
-    '{result:t:tests.covers} [FAIL]: {result:t:tests.should} {result:a} {result:cmp} {result:b}':print
+    '[FAIL] {result:t:tests.covers} should {result:t:tests.should} {result:a} {result:cmp} {result:b}':print
   end,
 }
 
@@ -39,7 +46,9 @@ end)
 end)
 
 .gab.fiber do:
-  tests.results.out :each \tests.results.display
+  tests.results.in :each do chan:
+    chan :each \tests.results.display
+  end
 end
 
 module

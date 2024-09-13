@@ -1,4 +1,5 @@
 #include "gab.h"
+#include <ctype.h>
 
 a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
@@ -282,7 +283,7 @@ a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value string_type = gab_egtype(gab.eg, kGAB_STRING);
+  gab_value string_type = gab_type(gab, kGAB_STRING);
 
   struct gab_spec_argt specs[] = {
       {

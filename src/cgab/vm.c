@@ -66,6 +66,7 @@ static handler handlers[] = {
 */
 #define GAB() (__gab)
 #define EG() (GAB().eg)
+#define FIBER() (gab_thisfiber(GAB()))
 #define GC() (GAB().eg->gc)
 #define VM() (gab_vm(GAB()))
 #define SET_BLOCK(b) (FB()[-3] = (uintptr_t)(b));
@@ -444,7 +445,7 @@ a_gab_value *gab_ptypemismatch(struct gab_triple gab, gab_value found,
                                gab_value texpected) {
 
   return vm_error(gab, GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, found,
-                  gab_valtype(gab.eg, found), texpected);
+                  gab_valtype(gab, found), texpected);
 }
 
 gab_value gab_vmframe(struct gab_triple gab, uint64_t depth) {
@@ -734,21 +735,21 @@ a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
   if (__gab_unlikely(gab_valkind(value) != kind)) {                            \
     STORE_PRIMITIVE_ERROR_FRAME(1);                                            \
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, value,                          \
-          gab_valtype(EG(), value), gab_egtype(EG(), kind));                   \
+          gab_valtype(GAB(), value), gab_type(GAB(), kind));                   \
   }
 
 #define ERROR_GUARD_ISB(value)                                                 \
   if (__gab_unlikely(!__gab_valisb(value))) {                                  \
     STORE_PRIMITIVE_ERROR_FRAME(have);                                         \
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, value,                          \
-          gab_valtype(EG(), value), gab_egtype(EG(), kGAB_SIGIL));             \
+          gab_valtype(GAB(), value), gab_type(GAB(), kGAB_SIGIL));             \
   }
 
 #define ERROR_GUARD_ISN(value)                                                 \
   if (__gab_unlikely(!__gab_valisn(value))) {                                  \
     STORE_PRIMITIVE_ERROR_FRAME(have);                                         \
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, value,                          \
-          gab_valtype(EG(), value), gab_egtype(EG(), kGAB_NUMBER));            \
+          gab_valtype(GAB(), value), gab_type(GAB(), kGAB_NUMBER));            \
   }
 
 #define ERROR_GUARD_ISS(value)                                                 \
@@ -756,7 +757,7 @@ a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
                      gab_valkind(value) != kGAB_SIGIL)) {                      \
     STORE_PRIMITIVE_ERROR_FRAME(have);                                         \
     ERROR(GAB_TYPE_MISMATCH, FMT_TYPEMISMATCH, value,                          \
-          gab_valtype(EG(), value), gab_egtype(EG(), kGAB_STRING));            \
+          gab_valtype(GAB(), value), gab_type(GAB(), kGAB_STRING));            \
   }
 
 #define SEND_GUARD(clause)                                                     \
@@ -765,21 +766,26 @@ a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
 
 #define SEND_GUARD_KIND(r, k) SEND_GUARD(gab_valkind(r) == k)
 
+#define SEND_GUARD_ISC(r)                                                      \
+  SEND_GUARD(gab_valkind(r) == kGAB_CHANNEL ||                                 \
+             gab_valkind(r) == kGAB_CHANNELCLOSED ||                           \
+             gab_valkind(r) == kGAB_CHANNELBUFFERED)
+
 #define SEND_GUARD_CACHED_MESSAGE_SPECS()                                      \
-  SEND_GUARD(gab_valeq(EG()->messages, ks[GAB_SEND_KSPECS]))
+  SEND_GUARD(gab_valeq(gab_fibmsg(FIBER()), ks[GAB_SEND_KSPECS]))
 
 #define SEND_GUARD_CACHED_RECEIVER_TYPE(r)                                     \
-  SEND_GUARD(gab_egvalisa(EG(), r, ks[GAB_SEND_KTYPE]))
+  SEND_GUARD(gab_valisa(GAB(), r, ks[GAB_SEND_KTYPE]))
 
 #define SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m)                                \
-  SEND_GUARD(gab_valeq(EG()->messages, ks[GAB_SEND_KGENERIC_CALL_SPECS]))
+  SEND_GUARD(gab_valeq(gab_fibmsg(FIBER()), ks[GAB_SEND_KGENERIC_CALL_SPECS]))
 
 CASE_CODE(MATCHTAILSEND_BLOCK) {
   gab_value *ks = READ_CONSTANTS;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   gab_value r = PEEK_N(have);
-  gab_value t = gab_valtype(EG(), r);
+  gab_value t = gab_valtype(GAB(), r);
 
   SEND_GUARD_CACHED_MESSAGE_SPECS();
 
@@ -810,7 +816,7 @@ CASE_CODE(MATCHSEND_BLOCK) {
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   gab_value r = PEEK_N(have);
-  gab_value t = gab_valtype(EG(), r);
+  gab_value t = gab_valtype(GAB(), r);
 
   SEND_GUARD_CACHED_MESSAGE_SPECS();
 
@@ -840,7 +846,7 @@ CASE_CODE(MATCHSEND_BLOCK) {
 static inline bool try_setup_localmatch(struct gab_triple gab, gab_value m,
                                         gab_value *ks,
                                         struct gab_obj_prototype *p) {
-  gab_value specs = gab_egmsgrec(gab.eg, m);
+  gab_value specs = gab_fibmsg(gab_thisfiber(gab));
 
   if (specs == gab_undefined)
     return false;
@@ -1286,7 +1292,7 @@ CASE_CODE(SEND_PRIMITIVE_TYPE) {
   SKIP_SHORT;
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
-  PEEK_N(have) = gab_valtype(EG(), PEEK_N(have));
+  PEEK_N(have) = gab_valtype(GAB(), PEEK_N(have));
 
   DROP_N(have - 1);
 
@@ -1412,20 +1418,20 @@ CASE_CODE(SEND) {
   }
 
   /* Do the expensive lookup */
-  struct gab_egimpl_rest res = gab_egimpl(EG(), m, r);
+  struct gab_impl_rest res = gab_impl(GAB(), m, r);
 
   if (__gab_unlikely(!res.status)) {
     STORE();
     ERROR(GAB_IMPLEMENTATION_MISSING, FMT_MISSINGIMPL, m, r,
-          gab_valtype(EG(), r));
+          gab_valtype(GAB(), r));
   }
 
   gab_value spec = res.status == kGAB_IMPL_PROPERTY
                        ? gab_primitive(OP_SEND_PROPERTY)
                        : res.as.spec;
 
-  ks[GAB_SEND_KSPECS] = EG()->messages;
-  ks[GAB_SEND_KTYPE] = gab_valtype(EG(), r);
+  ks[GAB_SEND_KSPECS] = gab_fibmsg(FIBER());
+  ks[GAB_SEND_KTYPE] = gab_valtype(GAB(), r);
   ks[GAB_SEND_KSPEC] = res.as.spec;
 
   switch (gab_valkind(spec)) {
@@ -1604,21 +1610,21 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
 
   gab_value m = PEEK_N(have);
   gab_value r = PEEK_N(have - 1);
-  gab_value t = gab_valtype(EG(), r);
+  gab_value t = gab_valtype(GAB(), r);
 
   ERROR_GUARD_KIND(m, kGAB_MESSAGE);
 
-  struct gab_egimpl_rest res = gab_egimpl(EG(), m, r);
+  struct gab_impl_rest res = gab_impl(GAB(), m, r);
 
   if (__gab_unlikely(!res.status)) {
     STORE();
     ERROR(GAB_IMPLEMENTATION_MISSING, FMT_MISSINGIMPL, m, r,
-          gab_valtype(EG(), r));
+          gab_valtype(GAB(), r));
   }
 
   ks[GAB_SEND_KTYPE] = t;
   ks[GAB_SEND_KSPEC] = res.as.spec;
-  ks[GAB_SEND_KGENERIC_CALL_SPECS] = EG()->messages;
+  ks[GAB_SEND_KGENERIC_CALL_SPECS] = gab_fibmsg(FIBER());
   ks[GAB_SEND_KGENERIC_CALL_MESSAGE] = m;
 
   if (res.status == kGAB_IMPL_PROPERTY) {
@@ -1667,7 +1673,7 @@ CASE_CODE(SEND_PRIMITIVE_TAKE) {
 
   gab_value c = PEEK_N(have);
 
-  SEND_GUARD_KIND(c, kGAB_CHANNEL);
+  SEND_GUARD_ISC(c);
 
   gab_value v = gab_chntake(GAB(), c);
 
@@ -1691,7 +1697,7 @@ CASE_CODE(SEND_PRIMITIVE_PUT) {
 
   gab_value c = PEEK_N(have);
 
-  SEND_GUARD_KIND(c, kGAB_CHANNEL);
+  SEND_GUARD_ISC(c);
 
   if (__gab_unlikely(have < 2))
     PUSH(gab_nil), have++;
@@ -1718,9 +1724,9 @@ CASE_CODE(SEND_PRIMITIVE_FIBER) {
   ERROR_GUARD_KIND(block, kGAB_BLOCK);
 
   gab_value fib = gab_arun(GAB(), (struct gab_run_argt){
-                                       .main = block,
-                                       .flags = GAB().flags,
-                                   });
+                                      .main = block,
+                                      .flags = GAB().flags,
+                                  });
 
   DROP_N(have);
   PUSH(fib);

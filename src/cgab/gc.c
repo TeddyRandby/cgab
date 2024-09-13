@@ -518,9 +518,10 @@ void processepoch(struct gab_triple gab) {
 
   size_t stack_size = vm->sp - vm->sb;
 
-  assert(stack_size + wk->lock_keep.len + 1 < cGAB_GC_DEC_BUFF_MAX);
+  assert(stack_size + wk->lock_keep.len + 2 < cGAB_GC_DEC_BUFF_MAX);
 
   bufpush(gab, kGAB_BUF_STK, gab.wkid, e, gab_valtoo(wk->fiber));
+  bufpush(gab, kGAB_BUF_STK, gab.wkid, e, gab_valtoo(fb->messages));
 
   for (size_t i = 0; i < stack_size; i++) {
     if (gab_valiso(vm->sb[i])) {
