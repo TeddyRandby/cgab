@@ -1,8 +1,8 @@
 module = .gab.iter
 
-\iter.apply :def!([.none], do x: x end)
+\iter.apply :def!(.none, do x: x end)
 
-\defiter! :def!(['gab.message'], do cx, init:
+\defiter! :def! ('gab.message', do cx, init:
   mod = {
     [module],
     [self],
@@ -11,7 +11,7 @@ module = .gab.iter
     reducer,
   }
 
-  self :def!([module], do xs[]:
+  self :def!(module, do xs[]:
     mod :reducer cx(xs**)
   end)
 

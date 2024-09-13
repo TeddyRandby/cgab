@@ -1300,6 +1300,17 @@ static inline gab_value gab_sigtostr(gab_value sigil) {
 }
 
 /**
+ * @brief Convert a sigil into it's corresponding message. This is constant-time.
+ *
+ * @param str The string
+ * @return The sigil
+ */
+static inline gab_value gab_sigtomsg(gab_value sigil) {
+  assert(gab_valkind(sigil) == kGAB_SIGIL);
+  return gab_strtomsg(gab_sigtostr(sigil));
+}
+
+/**
  * @brief A wrapper for a native c function.
  */
 struct gab_obj_native {
@@ -1397,12 +1408,12 @@ struct gab_obj_channel {
   /**
    * @brief Capacity of the channel's buffer.
    */
-  size_t cap;
+  size_t len;
 
   /**
-   * @brief number of values in the channel.
+   * @brief head and tail for tracking channel's queue
    */
-  _Atomic size_t len;
+  _Atomic size_t head, tail;
 
   /**
    * @brief The channel's buffer.
@@ -1414,10 +1425,10 @@ struct gab_obj_channel {
  * @brief Create a channel with the given buffer capacity.
  *
  * @param gab The engine
- * @param cap The capacity of the channel's buffer
- * @return The Channel
+ * @param len The length of the channel's buffer
+ * @return The channel
  */
-gab_value gab_channel(struct gab_triple gab, size_t cap);
+gab_value gab_channel(struct gab_triple gab, size_t len);
 
 /**
  * @brief Put a value on the given channel.
@@ -1454,6 +1465,22 @@ void gab_chnclose(gab_value channel);
  * @return whetehr or not the channel is closed
  */
 bool gab_chnisclosed(gab_value channel);
+
+/**
+ * @brief Return true if the given channel is full
+ *
+ * @param channel The channel
+ * @return whetehr or not the channel is full
+ */
+bool gab_chnisfull(gab_value channel);
+
+/**
+ * @brief Return true if the given channel is empty
+ *
+ * @param channel The channel
+ * @return whetehr or not the channel is empty
+ */
+bool gab_chnisempty(gab_value channel);
 
 /* Cast a value to a (gab_obj_channel*) */
 #define GAB_VAL_TO_CHANNEL(value) ((struct gab_obj_channel *)gab_valtoo(value))
@@ -1986,7 +2013,7 @@ gab_value gab_snative(struct gab_triple gab, const char *name, gab_native_f f);
  * @param values The values of the record to bundle.
  * @return The new record.
  */
-gab_value gab_tuple(struct gab_triple gab, size_t len,
+gab_value gab_list(struct gab_triple gab, size_t len,
                     gab_value values[static len]);
 
 /**
@@ -2302,6 +2329,23 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
     return gab_string(gab, gab_opcode_names[gab_valtop(value)]);
   case kGAB_NUMBER: {
     snprintf(buffer, 128, "%lf", gab_valton(value));
+    return gab_string(gab, buffer);
+  }
+  case kGAB_FIBER: {
+    struct gab_obj_fiber *m = GAB_VAL_TO_FIBER(value);
+    snprintf(buffer, 128, "<gab.fiber %p>", m);
+    return gab_string(gab, buffer);
+  }
+  case kGAB_CHANNEL: 
+  case kGAB_CHANNELBUFFERED: 
+  case kGAB_CHANNELCLOSED: {
+    struct gab_obj_channel *m = GAB_VAL_TO_CHANNEL(value);
+    snprintf(buffer, 128, "<gab.channel %p>", m);
+    return gab_string(gab, buffer);
+  }
+  case kGAB_SHAPE: {
+    struct gab_obj_shape *m = GAB_VAL_TO_SHAPE(value);
+    snprintf(buffer, 128, "<gab.shape %p>", m);
     return gab_string(gab, buffer);
   }
   case kGAB_RECORD: {

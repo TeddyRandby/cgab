@@ -9,12 +9,12 @@ iter = 'iter':use
 truthy_values = []
 falsey_values = [.nil, .false, .none, .err]
 
-\self :def! ([], do: self end)
-\first :def! ([], do x: x end)
-\second :def! ([], do _, x: x end)
-\all :def! ([], do xs[]: xs end)
+\self :def! do: self end
+\first :def! do x: x end
+\second :def! do _, x: x end
+\all :def! do xs[]: xs end
 
-\is? :def! ([], do other: self:? == other end)
+\is? :def! do other: self ? == other end
 
 truthy_values :defmodule! {
   \and = do alt[]:
@@ -63,7 +63,7 @@ falsey_values :defmodule! {
   end,
 }
 
-\ :def! ([.option], do cond, data[]:
+\ :def! (.option, do cond, data[]:
   (cond:options.into, data**)
 end)
 
@@ -112,7 +112,7 @@ end)
   end,
 }
 
-\def.seq! :def! ([], do:
+\def.seq! :def! do:
   [self] :defmodule! {
     \reduce = do acc, r:
       ok, seq.v, xs[] = self :seqs.init
@@ -129,7 +129,7 @@ end)
       self:reduce({}, \push)
     end,
   }
-end)
+end
 
 # Channel's implementation of the seq protocol.
 # It isn't totally true to the requirements - 
@@ -169,7 +169,7 @@ end)
 
 records.t :def.seq!
 
-\ :def! ([.int.between], do min, max:
+\ :def! (.int.between, do min, max:
   .float.between (min,max) :floor
 end)
 
@@ -194,14 +194,14 @@ range.t :def.seq!
   end,
 }
 
-\ :def! ([.gab.range], do from, to:
+\ :def! (.gab.range, do from, to:
   (to, from) :range.into
 end)
 
-\is_n? :def! ([], .false)
-\is_n? :def! ([numbers.t], .true)
+\is_n? :def! .false
+\is_n? :def! (numbers.t, .true)
 
-\numbers.into :def!(falsey_values, 0)
+\numbers.into :def! (falsey_values, 0)
 
 [numbers.t] :defmodule! {
   -> = do to: (to, self) :range.into end, 

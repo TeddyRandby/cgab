@@ -84,16 +84,12 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
 a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
                          gab_value argv[static argc]) {
   gab_value m = gab_arg(0);
-  gab_value r = gab_arg(1);
-  gab_value b = gab_arg(2);
+  gab_value b = gab_arg(argc - 1);
 
   if (gab_valkind(m) != kGAB_MESSAGE)
     return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
 
-  if (gab_valkind(r) != kGAB_RECORD)
-    return gab_pktypemismatch(gab, r, kGAB_RECORD);
-
-  size_t len = gab_reclen(r);
+  size_t len = argc - 2;
 
   if (len == 0) {
     gab_value t = gab_undefined;
@@ -104,8 +100,8 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
     return nullptr;
   }
 
-  for (size_t i = 0; i < len; i++) {
-    gab_value t = gab_uvrecat(r, i);
+  for (size_t i = 0; i < len; i ++) {
+    gab_value t = gab_arg(i + 1);
 
     if (gab_egmsgput(gab, m, t, b) == gab_undefined)
       return gab_panic(gab, "$ already specializes for type $", m, t);

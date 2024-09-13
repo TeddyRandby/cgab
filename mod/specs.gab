@@ -20,18 +20,18 @@ explain_keys = do strings, separator:
   )
 end
 
-\def! :def! ([spec.t], do opts:
-  \spec.help :def! ([opts:spec], do: opts:at \help end)
-  \spec.name :def! ([opts:spec], opts:name:strings.into)
-  \spec :def! ([opts:name], do: (.ok, opts:spec) end)
+\def! :def! (spec.t, do opts:
+  \spec.help :def! (opts:spec, do: opts:at \help end)
+  \spec.name :def! (opts:spec, opts:name:strings.into)
+  \spec :def! (opts:name, do: (.ok, opts:spec) end)
   opts:spec
 end)
 
 ['gab.sigil'] :defmodule! {
-  \spec.help!    = do: self:spec:unwrap!:spec.help:unwrap! end,
-  \spec.explain! = do: self:spec:unwrap!:spec.explain end,
   \spec.doc!     = do: (self:spec.help!, self:spec.explain!) end,
+  \spec.help!    = do: self:spec:unwrap!:spec.help:unwrap! end,
   \spec.gen!     = do: self:spec:unwrap!:spec.gen end,
+  \spec.explain! = do: self:spec:unwrap!:spec.explain end,
 }
 
 
@@ -50,45 +50,45 @@ end)
 # NIL PREDICATE
 nil.predicate = .predicate.nil
 
-\spec.fits? :def! ([nil.predicate], do value:
+\spec.fits? :def! (nil.predicate, do value:
   (value == .nil, self, value)
 end)
 
-\spec.gen :def! ([nil.predicate], do:
+\spec.gen :def! (nil.predicate, do:
   .nil
 end)
 
-\spec.explain :def! ([nil.predicate], 'nil')
+\spec.explain :def! (nil.predicate, 'nil')
 
 # UNKNOWN PREDICATE
 unknown.predicate = .predicate.unknown
 
-\spec.fits? :def! ([unknown.predicate], do value:
+\spec.fits? :def! (unknown.predicate, do value:
   (.true, self, value)
 end)
 
 unknown_values = [ .nil, 0, 1, 'test', .true ]
 
-\spec.gen :def! ([unknown.predicate], do:
+\spec.gen :def! (unknown.predicate, do:
   idx = .int.between(0, unknown_values:len - 1)
 
   unknown_values:at!(idx)
 end)
 
-\spec.explain :def! ([unknown.predicate], 'unknown')
+\spec.explain :def! (unknown.predicate, 'unknown')
 
 # INT PREDICATE
 int.predicate = .predicate.int
 
-\spec.fits? :def! ([int.predicate], do value:
+\spec.fits? :def! (int.predicate, do value:
   (value:is_n?, self, value)
 end)
 
-\spec.gen :def! ([int.predicate], do:
+\spec.gen :def! (int.predicate, do:
   .int.between(-10000, 10000)
 end)
 
-\spec.explain :def! ([int.predicate], 'int')
+\spec.explain :def! (int.predicate, 'int')
 
 #
 # FLOAT PREDICATE
@@ -96,26 +96,26 @@ end)
 
 float.predicate = .predicate.float
 
-\spec.fits? :def! ([float.predicate], do value:
+\spec.fits? :def! (float.predicate, do value:
   (value:is_n?, self, value)
 end)
 
-\spec.gen :def! ([float.predicate], do:
+\spec.gen :def! (float.predicate, do:
   .float.between(-10000, 10000)
 end)
 
-\spec.explain :def! ([float.predicate], 'float')
+\spec.explain :def! (float.predicate, 'float')
 
 #
 # STRING PREDICATE
 #
 string.predicate = .predicate.string
 
-\spec.fits? :def! ([string.predicate], do value:
+\spec.fits? :def! (string.predicate, do value:
   (value:is_s?, self, value)
 end)
 
-\spec.gen :def! ([string.predicate], do:
+\spec.gen :def! (string.predicate, do:
   len  = .int:between(1, 100)
   list = .gab.list()
 
@@ -124,7 +124,7 @@ end)
   list:to_bytes
 end)
 
-\spec.explain :def! ([string.predicate], 'string')
+\spec.explain :def! (string.predicate, 'string')
 
 #
 # SHAPE PREDICATE
@@ -132,30 +132,30 @@ end)
 
 shape.predicate = .predicate.shape
 
-\spec.fits? :def! ([shape.predicate], do value:
+\spec.fits? :def! (shape.predicate, do value:
   (value:is_shape?, self, value)
 end)
 
-\spec.gen :def! ([shape.predicate], do:
+\spec.gen :def! (shape.predicate, do:
   { a, b, c }?
 end)
 
-\spec.explain :def! ([shape.predicate], 'shape')
+\spec.explain :def! (shape.predicate, 'shape')
 
 #
 # BOOL PREDICATE
 #
 boolean.predicate = .predicate.boolean
 
-\spec.fits? :def! ([boolean.predicate], do value:
+\spec.fits? :def! (boolean.predicate, do value:
   (value:is_b?, self, value)
 end)
 
-\spec.gen :def! ([boolean.predicate], do:
+\spec.gen :def! (boolean.predicate, do:
   .float:between > 0.5
 end)
 
-\spec.explain :def! ([boolean.predicate], 'boolean')
+\spec.explain :def! (boolean.predicate, 'boolean')
 
 and.predicate = do specs[]:
   specs:len > 0 :or do:
@@ -165,7 +165,7 @@ and.predicate = do specs[]:
   pred = 'predicate:and:{specs}' :sigils.into
   # Return a predicate which returns true iff the given value
   # fits all of the given specs
-  \spec.fits? :def! ([pred], do value:
+  \spec.fits? :def! (pred, do value:
     specs:for(\pairs, do k, spec:
       spec:spec.fits?(value) :or => (.false, spec, value, k)
     end)
@@ -173,7 +173,7 @@ and.predicate = do specs[]:
     (.true, self, value)
   end)
   
-  \spec.gen :def! ([pred], do:
+  \spec.gen :def! (pred, do:
     start = specs :at! 0
 
     iter = i:map do:
@@ -192,7 +192,7 @@ and.predicate = do specs[]:
     .gab.range 100 :transduce(0, \first, iter):assert!('Failed to generate a value for {specs}')
   end)
 
-  \spec.explain :def! ([pred], do:
+  \spec.explain :def! (pred, do:
     explain_specs(specs, ' & ')
   end)
 
@@ -207,7 +207,7 @@ or.predicate = do specs[]:
   pred = 'predicate:or:{specs}' :sigils.into
   # Return a predicate which returns true if the given value
   # fits any of the given specs
-  \spec.fits? :def! ([pred], do value:
+  \spec.fits? :def! (pred, do value:
     valid = specs:reduce(.false, do acc, _, s:
       acc :else do: s:spec.fits? value end
     end)
@@ -215,11 +215,11 @@ or.predicate = do specs[]:
     (valid, self, value)
   end)
 
-  \spec.gen :def! ([pred], do:
+  \spec.gen :def! (pred, do:
     specs:at!(.int.between(0, specs:len - 1)) :spec.gen
   end)
 
-  \spec.explain :def! ([pred], do:
+  \spec.explain :def! (pred, do:
     explain_specs(specs, ' | ')
   end)
 
@@ -229,7 +229,7 @@ end
 values.predicate = do specs[]:
   pred = 'predicate:values:{specs}' :sigils.into
 
-  \spec.fits? :def! ([pred], do values[]:
+  \spec.fits? :def! (pred, do values[]:
     specs:reduce(
               \pairs,
               [ .true, pred, values, .nil ],
@@ -246,7 +246,7 @@ values.predicate = do specs[]:
         )**
   end)
 
-  \spec.gen :def! ([pred], do:
+  \spec.gen :def! (pred, do:
     res = .gab.tuple specs:len
 
     res:map! do k:
@@ -256,7 +256,7 @@ values.predicate = do specs[]:
     res
   end)
 
-  \spec.explain :def!([pred], do:
+  \spec.explain :def!(pred, do:
     '(' + explain_specs(specs, ', ') + ')'
   end)
 
@@ -268,7 +268,7 @@ protocol.predicate = do protocol:
   pred = 'predicate:protocol:{protocol}' :sigils.into
 # Return a predicate which returns true if the given value
 # has all the keys of the record
-  \spec.fits? :def! ([pred], do value:
+  \spec.fits? :def! (pred, do value:
     protocol :reduce ([.true, self, value], do acc, m:
 # Check for a spec which corresponds to this message in the protocol
       acc:at!(0) :and acc :else do:
@@ -286,11 +286,11 @@ protocol.predicate = do protocol:
     (key, found:spec.gen)
   end
 
-  \spec.gen :def! ([pred], do:
+  \spec.gen :def! (pred, do:
     protocol:transduce(protocol, \put, genit)
   end)
 
-  \spec.explain :def! ([pred], do:
+  \spec.explain :def! (pred, do:
     (protocol:len == 0) :and "{}" :or ("{ " + explain_keys(protocol, ', ') + " }")
   end)
 
@@ -300,15 +300,15 @@ end
 list.predicate = do spec:
   pred = 'predicate:list:{spec}' :sigils.into
 
-  \spec.fits? :def! ([pred], do value:
+  \spec.fits? :def! (pred, do value:
     value:spec.fits_each?(\values)
   end)
 
-  \spec.gen :def! ([pred], do:
+  \spec.gen :def! (pred, do:
     .gab.list():push!(spec:spec.gen)
   end)
 
-  \spec.explain :def! ([pred], do:
+  \spec.explain :def! (pred, do:
     'list[{spec:spec.explain}]'
   end)
 
@@ -318,7 +318,7 @@ end
 map.predicate = do k_spec, v_spec:
   pred = 'predicate:map:{k_spec}:{v_spec}' :sigils.into
 
-  \spec.fits?:def! ([pred], do value:
+  \spec.fits?:def! (pred, do value:
     (value ? == .map) :then do:
       (.false, self, value)
     end :or do:
@@ -333,11 +333,11 @@ map.predicate = do k_spec, v_spec:
     end
   end)
 
-  \spec.gen :def! ([pred], do:
+  \spec.gen :def! (pred, do:
     .map { [k_spec:spec.gen] =  v_spec:spec.gen }
   end)
 
-  \spec.explain :def! ([pred], do:
+  \spec.explain :def! (pred, do:
     'Map[{k_spec:spec.explain}: {v_spec:spec.explain}]'
   end)
 
@@ -371,23 +371,23 @@ spec.block.Args = { input, output, semantics }?
 
 spec.block.Application = { input, output, semantics, in, out }?
 
-\spec.block.input_fits? :def! ([spec.block.Application], do:
+\spec.block.input_fits? :def! (spec.block.Application, do:
   self:input:spec.fits?(self:in**)
 end)
 
-\spec.block.output_fits? :def! ([spec.block.Application], do:
+\spec.block.output_fits? :def! (spec.block.Application, do:
   self:output:spec.fits?(self:out**)
 end)
 
-\spec.semantic_fits? :def! ([.nil], do input, output:
+\spec.semantic_fits? :def! (.nil, do input, output:
   (.true, .nil, [input, output])
 end)
 
-\spec.semantics_fits? :def! ([.gab.block], do input, output:
+\spec.semantics_fits? :def! (.gab.block, do input, output:
   (self(input, output), self, [input, output], .semantics)
 end)
 
-\spec.block.semantics_fits? :def! ([spec.block.Application], do input, output:
+\spec.block.semantics_fits? :def! (spec.block.Application, do input, output:
   self:at!(.semantics):spec.semantic_fits?(input, output)
 end)
 
@@ -396,7 +396,7 @@ block.predicate = do args, semantics:
 
   pred = 'predicate:block:{args}:{semantics}' :sigils.into
 
-  \spec.fits? :def! ([pred], do input, output:
+  \spec.fits? :def! (pred, do input, output:
     v = args:with(.input_value, input):with(.output_value, output)
 
     v:first(
@@ -410,7 +410,7 @@ block.predicate = do args, semantics:
     )
   end)
 
-  \spec.gen :def! ([pred], do:
+  \spec.gen :def! (pred, do:
     block.gen = do input[]:
       .gab.range 100 :transduce(0, do:
         # Generate an output
@@ -431,7 +431,7 @@ block.predicate = do args, semantics:
     end
   end)
 
-  \spec.check :def! ([pred], do block:
+  \spec.check :def! (pred, do block:
     .gab.range 100:transduce(do:
       input[]  = args:input:spec.gen
 
@@ -448,27 +448,27 @@ end
 
 general_message.predicate = 'predicate:message' :sigils.into
 
-\spec.fits? :def! ([general_message.predicate], do value:
+\spec.fits? :def! (general_message.predicate, do value:
   (value:is_m?, self, value)
 end)
 
-\spec.gen :def! ([general_message.predicate], \+)
+\spec.gen :def! (general_message.predicate, \+)
 
-\spec.explain :def! ([general_message.predicate], 'message')
+\spec.explain :def! (general_message.predicate, 'message')
 
-\spec.message.input_fits? :def! (['gab.record'], do:
+\spec.message.input_fits? :def! ('gab.record', do:
   self:input:spec.fits?(self:in**)
 end)
 
-\spec.message.output_fits? :def! (['gab.record'], do:
+\spec.message.output_fits? :def! ('gab.record', do:
   self:output:spec.fits?(self:out**)
 end)
 
-\spec.message.receiver_fits? :def! (['gab.record'], do:
+\spec.message.receiver_fits? :def! ('gab.record', do:
   self:receiver:spec.fits?(self:rec**)
 end)
 
-\spec.message.semantics_fits? :def! (['gab.record'], do input, output:
+\spec.message.semantics_fits? :def! ('gab.record', do input, output:
   self:at!('semantics'):spec.semantic_fits?(input, output)
 end)
 
@@ -478,7 +478,7 @@ end)
     args = self
     pred = 'predicate:message:{args}' :sigils.into
 
-    \spec.fits? :def! ([pred], do rec, input, output:
+    \spec.fits? :def! (pred, do rec, input, output:
       v = args:with(.input_value, input):with(.output_value, output)
 
       v:first(
@@ -493,8 +493,8 @@ end)
       )
     end)
 
-    \spec.gen :def! ([pred], do receiver:
-      args:message :def! ([receiver], do input[]:
+    \spec.gen :def! (pred, do receiver:
+      args:message :def! (receiver, do input[]:
         # TODO: Maybe have a better syntax to avoid situations like this?
         # FIXME: Putting a comment after self here breaks things?
         me = self
@@ -538,7 +538,7 @@ end)
       args:message
     end)
 
-    \spec.check :def! ([pred], do:
+    \spec.check :def! (pred, do:
       iter = i:map do:
         receiver = args:receiver:spec.gen
 
@@ -563,7 +563,7 @@ end)
       .gab.range 100 :transduce([], \all, iter) **
     end)
 
-    \spec.explain :def! ([pred], do:
+    \spec.explain :def! (pred, do:
       '{args:receiver:spec.name} \\{args:message} {args:input:spec.explain} -> {args:output:spec.explain}'
     end)
 
@@ -577,51 +577,51 @@ end
 
 LabeledSpec = { spec.label, spec.spec }
 
-\spec.label :def! ([], do spec.label:
+\spec.label :def! do spec.label:
   { spec.label, spec.spec = self }
-end)
+end
 
-\spec.explain :def! ([LabeledSpec ?], do:
+\spec.explain :def! (LabeledSpec ?, do:
   '{self:spec.label}: {self:spec.spec:spec.explain}'
 end)
 
-\spec.gen :def! ([LabeledSpec ?], do:
+\spec.gen :def! (LabeledSpec ?, do:
   self:spec.spec:spec.gen
 end)
 
-\spec.fits? :def! ([LabeledSpec ?], do:
+\spec.fits? :def! (LabeledSpec ?, do:
   self:spec.spec:spec.fits?
 end)
 
-\spec.check :def! ([LabeledSpec ?], do:
+\spec.check :def! (LabeledSpec ?, do:
   self:spec.spec:spec.check
 end)
 
-\spec.modify! :def! ([LabeledSpec ?], do:
+\spec.modify! :def! (LabeledSpec ?, do:
   self:spec.spec:spec.modify!
 end)
 
 # A default gen implementation is the identity function
-\spec.gen :def! ([], do: self end)
+\spec.gen :def! do: self end
 
 # A default explain implementation
-\spec.explain :def! ([], do: '{self}' end)
+\spec.explain :def! do: '{self}' end
 
 ## FITS
 # Default spec.fits? specializfation is just good ol' equality
-\spec.fits? :def! ([], do value:
+\spec.fits? :def! do value:
   (self == value, self, value)
-end)
+end
 
 # Since a spec is just a predicate, we can simply call it and return the result
-\spec.fits? :def! (['gab.block'], do value: self(value) end)
+\spec.fits? :def! ('gab.block', do value: self(value) end)
 
 ## MODIFY
 # Because it is common for messages to modify `self`, spec
 # needs a way to emulate this in messages that it generates.
 # User types can define their own version of \spec.modify! If this
 # Doesn't satisfy their use case.
-\spec.modify! :def! (['gab.record'], do new_value:
+\spec.modify! :def! ('gab.record', do new_value:
   tapper = i:tap do acc, k:
     # If new_value has a corresponding value, modify self. Else, pass
     new_value:at(k):unwrap:then do other:
@@ -638,13 +638,13 @@ end)
   end,
 }
 
-\spec.option.into :def! ([], do err:
+\spec.option.into :def! do err:
   value = self
   spec.t:any(
     spec.t:values(.ok, value),
     err:or .err,
   )
-end)
+end
 
 [spec.t] :defmodule! {
   \nil      = nil.predicate,
@@ -680,18 +680,18 @@ end)
   \gt = do min:
     gt.predicate = 'predicate:gt:{min}' :sigils.into
 
-    \spec.fits? :def! ([gt.predicate], do value:
+    \spec.fits? :def! (gt.predicate, do value:
       (value > min, self, value)
     end)
 
-    \spec.explain :def!([gt.predicate], '> {min}')
+    \spec.explain :def!(gt.predicate, '> {min}')
 
     gt.predicate
   end,
   \lt = do max:
     lt.predicate = 'predicate:lt:{max}' :sigils.into
 
-    \spec.fits? :def! ([lt.predicate], do value:
+    \spec.fits? :def! (lt.predicate, do value:
       (value < max, self, value)
     end)
 

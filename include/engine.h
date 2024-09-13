@@ -23,8 +23,6 @@ static const char *gab_token_names[] = {
 #undef TOKEN_NAMES
 #endif
 
-void gab_queue(struct gab_triple gab, struct gab_fb *fiber);
-
 a_gab_value *gab_vmexec(struct gab_triple gab, gab_value fiber);
 
 void gab_gccreate(struct gab_triple gab);

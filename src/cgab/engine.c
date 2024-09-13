@@ -34,24 +34,24 @@ struct primitive all_primitives[] = {
 
 struct primitive sigil_primitives[] = {
     {
-      .name = mGAB_CALL,
-      .sigil = "gab.list",
-      .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIST),
+        .name = mGAB_CALL,
+        .sigil = "gab.list",
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIST),
     },
     {
-      .name = mGAB_CALL,
-      .sigil = "gab.fiber",
-      .primitive = gab_primitive(OP_SEND_PRIMITIVE_FIBER),
+        .name = mGAB_CALL,
+        .sigil = "gab.fiber",
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_FIBER),
     },
     {
-      .name = mGAB_CALL,
-      .sigil = "gab.record",
-      .primitive = gab_primitive(OP_SEND_PRIMITIVE_RECORD),
+        .name = mGAB_CALL,
+        .sigil = "gab.record",
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_RECORD),
     },
     {
-      .name = mGAB_CALL,
-      .sigil = "gab.channel",
-      .primitive = gab_primitive(OP_SEND_PRIMITIVE_CHANNEL),
+        .name = mGAB_CALL,
+        .sigil = "gab.channel",
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CHANNEL),
     },
     {
         .name = mGAB_BND,
@@ -235,8 +235,6 @@ int32_t gc_job(void *data) {
   struct gab_triple gab = *g;
   gab.wkid = gab.eg->len - 1;
 
-  assert(gab.wkid == gab.eg->njobs);
-
   while (gab.eg->njobs >= 0) {
     if (gab.eg->gc->schedule == gab.wkid)
       gab_gcdocollect(gab);
@@ -286,7 +284,17 @@ fin:
   return 0;
 }
 
-void gab_jbcreate(struct gab_triple gab, struct gab_jb *job, int(fn)(void *)) {
+struct gab_jb *next_available_job(struct gab_triple gab) {
+  if (gab.eg->njobs + 1 >= gab.eg->len - 1)
+    return nullptr;
+
+  return gab.eg->jobs + gab.eg->njobs++;
+}
+
+bool gab_jbcreate(struct gab_triple gab, struct gab_jb *job, int(fn)(void *)) {
+  if (!job)
+    return false;
+
   job->epoch = 0;
   job->locked = 0;
   job->fiber = gab_undefined;
@@ -301,6 +309,8 @@ void gab_jbcreate(struct gab_triple gab, struct gab_jb *job, int(fn)(void *)) {
     printf("UHOH\n");
     exit(1);
   }
+
+  return true;
 }
 
 struct gab_triple gab_create(struct gab_create_argt args) {
@@ -315,7 +325,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   assert(args.os_dynopen);
 
   eg->len = njobs + 1;
-  eg->njobs = njobs;
+  eg->njobs = 0;
   eg->os_dynsymbol = args.os_dynsymbol;
   eg->os_dynopen = args.os_dynopen;
   eg->hash_seed = time(nullptr);
@@ -327,7 +337,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   d_gab_src_create(&eg->sources, 8);
 
-  struct gab_triple gab = {.eg = eg, .flags = args.flags, .wkid = eg->njobs};
+  struct gab_triple gab = {.eg = eg, .flags = args.flags, .wkid = njobs};
 
   size_t gcsize =
       sizeof(struct gab_gc) +
@@ -336,7 +346,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->gc = malloc(gcsize);
   gab_gccreate(gab);
 
-  gab_jbcreate(gab, gab.eg->jobs + gab.eg->njobs, gc_job);
+  gab_jbcreate(gab, gab.eg->jobs + njobs, gc_job);
 
   eg->shapes = __gab_shape(gab, 0);
   eg->messages = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
@@ -429,9 +439,6 @@ struct gab_triple gab_create(struct gab_create_argt args) {
                                       })));
     }
   }
-
-  for (int i = 0; i < gab.eg->njobs; i++)
-    gab_jbcreate(gab, gab.eg->jobs + i, worker_thread);
 
   if (!(gab.flags & fGAB_ENV_EMPTY))
     gab_suse(gab, "core");
@@ -697,8 +704,8 @@ size_t gab_negkeep(struct gab_eg *gab, size_t len,
   return len;
 }
 
-gab_value gab_tuple(struct gab_triple gab, uint64_t size,
-                    gab_value values[size]) {
+gab_value gab_list(struct gab_triple gab, uint64_t size,
+                   gab_value values[size]) {
   gab_gclock(gab);
 
   gab_value keys[size];
@@ -1096,4 +1103,32 @@ a_gab_value *gab_use(struct gab_triple gab, gab_value path) {
   }
 
   return nullptr;
+}
+
+a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
+  gab_value fb = gab_arun(gab, args);
+
+  a_gab_value *res = gab_fibawait(fb);
+  assert(res != nullptr);
+
+  return res;
+}
+
+gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
+  gab.flags = args.flags;
+
+  if (gab.flags & fGAB_BUILD_CHECK)
+    return gab_undefined;
+
+  gab_value fb = gab_fiber(gab, args.main, args.len, args.argv);
+
+  gab_iref(gab, fb);
+
+  // Somehow check if the put will block, and create a job in that case.
+  // Should check to see if the channel has takers waiting already.
+  gab_jbcreate(gab, next_available_job(gab), worker_thread);
+
+  gab_chnput(gab, gab.eg->work_channel, fb);
+
+  return fb;
 }

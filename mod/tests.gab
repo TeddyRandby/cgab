@@ -1,33 +1,45 @@
-\tests.handle_result :defcase! {
-# When the result is true, we do nothing.
-# The test passed.
-  .true = .nil,
-# When the result is false, The test failed.
-# Count it and add it to the list of fails.
-  .false = do actual, expected:
-    '  × got {actual}, expecting {expected}':print
+tests.results.out = .gab.channel()
+
+module = {
+  tests.results.out,
+  tests.covers,
+  tests.should,
+}
+
+\tests.when :def! (module ?, do cb:
+  t = self
+
+  .gab.fiber do: cb(t) end
+
+  self
+end)
+
+tests.compare.results.t = { t, result, a, b, cmp }?
+
+\tests.compare.dodisplay :defcase! {
+  .true = do result:
+    '{result:t:tests.covers} [PASS]: {result:t:tests.should} {result:a} {result:cmp} {result:b}':print
+  end,
+  .false = do result:
+    '{result:t:tests.covers} [FAIL]: {result:t:tests.should} {result:a} {result:cmp} {result:b}':print
   end,
 }
 
-\test.comp.apply :def!(['gab.message', 'gab.block'], do x,y:
-  self(x,y)
+\tests.results.display :def! (tests.compare.results.t, do:
+  self:result :tests.compare.dodisplay self
 end)
 
-\should.be :def! ([], do comp, other:
-   comp:test.comp.apply(self, other):tests.handle_result(self, other)
+\tests.compare :def!('gab.message', 'gab.block', do a, b, t:
+  result = self(a,b)
+  { t, result, a, b, cmp = self }
 end)
 
-\should.not.be :def! ([], do comp, other:
-   comp:test.comp.apply(self, other):!:tests.handle_result(self, other)
+\tests.expect :def! (module ?, do a, cmp, b:
+  self:tests.results.out <! cmp:tests.compare(a, b, self)
 end)
 
-\tests.covers :def! (['gab.string'], do cb:
-  '\n{self} covers:':print
-  cb()
-end)
+.gab.fiber do:
+  tests.results.out :each \tests.results.display
+end
 
-\tests.should :def! (['gab.string'], do cb:
-  cb()
-
-  '  ✓ it should { self }':print
-end)
+module

@@ -1,5 +1,4 @@
 #include "gab.h"
-#include <ctype.h>
 
 a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
@@ -239,15 +238,20 @@ a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib_string_into(struct gab_triple gab, size_t argc,
-                                gab_value argv[argc]) {
+                                 gab_value argv[argc]) {
   gab_vmpush(gab_vm(gab), gab_arg(0));
   return nullptr;
 }
 
-
 a_gab_value *gab_lib_sigil_into(struct gab_triple gab, size_t argc,
                                 gab_value argv[argc]) {
-  gab_vmpush(gab_vm(gab), gab_strtosig(argv[0]));
+  gab_vmpush(gab_vm(gab), gab_strtosig(gab_arg(0)));
+  return nullptr;
+}
+
+a_gab_value *gab_lib_messages_into(struct gab_triple gab, size_t argc,
+                                   gab_value argv[argc]) {
+  gab_vmpush(gab_vm(gab), gab_strtomsg(gab_arg(0)));
   return nullptr;
 }
 
@@ -258,7 +262,7 @@ a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
     return nullptr;
   }
 
-  gab_value str = gab_valintos(gab, argv[1]);
+  gab_value str = gab_valintos(gab, gab_arg(1));
 
   if (argc == 2) {
     gab_vmpush(gab_vm(gab), str);
@@ -268,7 +272,7 @@ a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
   gab_gclock(gab);
 
   for (uint8_t i = 2; i < argc; i++) {
-    gab_value curr = gab_valintos(gab, argv[i]);
+    gab_value curr = gab_valintos(gab, gab_arg(i));
     str = gab_strcat(gab, str, curr);
   }
 
@@ -287,9 +291,9 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "slice", gab_lib_slice),
       },
       {
-          "string.new",
-          gab_undefined,
-          gab_snative(gab, "string.new", gab_lib_new),
+          mGAB_CALL,
+          gab_strtosig(string_type),
+          gab_snative(gab, "strings.new", gab_lib_new),
       },
       {
           "strings.into",
@@ -300,6 +304,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "sigils.into",
           string_type,
           gab_snative(gab, "sigils.into", gab_lib_sigil_into),
+      },
+      {
+          "messages.into",
+          string_type,
+          gab_snative(gab, "messages.into", gab_lib_messages_into),
       },
       {
           "len",

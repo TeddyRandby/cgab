@@ -598,8 +598,6 @@ static inline mv reconcile_send_args(mv lhs, mv rhs) {
 }
 
 static inline void push_send(struct bc *bc, gab_value m, mv args, size_t t) {
-  assert(args.status < 16);
-
   if (gab_valkind(m) == kGAB_STRING)
     m = gab_strtomsg(m);
 
@@ -1906,6 +1904,7 @@ static mv compile_record(struct bc *bc) {
     return MV_ERR;
 
   push_loadk(bc, gab_sigil(gab(bc), "gab.record"), bc->offset - 1);
+  push_slot(bc, 1);
 
   int size = compile_rec_internals(bc);
 
@@ -1934,6 +1933,7 @@ static mv compile_list(struct bc *bc) {
     return MV_ERR;
 
   push_loadk(bc, gab_sigil(gab(bc), "gab.list"), bc->offset - 1);
+  push_slot(bc, 1);
 
   if (match_and_eat_token(bc, TOKEN_RBRACE))
     goto fin;

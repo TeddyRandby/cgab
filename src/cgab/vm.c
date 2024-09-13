@@ -730,42 +730,6 @@ a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
 
   return handlers[op](gab, ip, p->src->constants.data, vm->fp, vm->sp);
 }
-
-a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
-  gab.flags = args.flags;
-
-  if (gab.flags & fGAB_BUILD_CHECK) {
-    printf("======== BUILD ONLY FLAG =======\n");
-    return nullptr;
-  }
-
-  gab_value fb = gab_fiber(gab, args.main, args.len, args.argv);
-
-  gab_iref(gab, fb);
-
-  gab_chnput(gab, gab.eg->work_channel, fb);
-
-  a_gab_value *res = gab_fibawait(fb);
-  assert(res != nullptr);
-
-  return res;
-}
-
-gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
-  gab.flags = args.flags;
-
-  if (gab.flags & fGAB_BUILD_CHECK)
-    return gab_undefined;
-
-  gab_value fb = gab_fiber(gab, args.main, args.len, args.argv);
-
-  gab_iref(gab, fb);
-
-  gab_chnput(gab, gab.eg->work_channel, fb);
-
-  return fb;
-}
-
 #define ERROR_GUARD_KIND(value, kind)                                          \
   if (__gab_unlikely(gab_valkind(value) != kind)) {                            \
     STORE_PRIMITIVE_ERROR_FRAME(1);                                            \
@@ -1418,7 +1382,7 @@ CASE_CODE(PACK) {
 
   STORE_SP();
 
-  gab_value rec = gab_tuple(GAB(), len, ap - len);
+  gab_value rec = gab_list(GAB(), len, ap - len);
 
   DROP_N(len - 1);
 
@@ -1817,7 +1781,7 @@ CASE_CODE(SEND_PRIMITIVE_LIST) {
 
   size_t len = have - 1;
 
-  gab_value rec = gab_tuple(GAB(), len, SP() - len);
+  gab_value rec = gab_list(GAB(), len, SP() - len);
 
   DROP_N(have);
   PUSH(rec);

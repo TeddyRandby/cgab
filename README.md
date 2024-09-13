@@ -140,7 +140,7 @@ Messages are the *only* mechanism for defining behavior or control flow in gab.
 ```
 The core library provides some messages for defining messages. This might feel a little lispy:
 ```gab
-\say_hello :def!(['gab.string', 'gab.sigil'], do: 'Hello, {self}!' :print end)
+\say_hello :def!('gab.string', 'gab.sigil', do: 'Hello, {self}!' :print end)
 
 'Joe' :say_hello    # => Hello, Joe!
 
@@ -197,14 +197,14 @@ This implementation has some problems, but it works well enough as an initial pr
   .false = do acc, n: [n, acc:acc(n - 1)**] end, 
 }
 
-\acc :def!(['gab.record'], do n:
+\acc :def!('gab.record', do n:
   n :== 0 :do_acc (self, n)
 end)
 
 # Define a message for launching blocks in a fiber.
 # This just calls the .gab.fiber constructer with
 #   a single argument - the block
-\go :def!(['gab.block'], do: .gab.fiber self end)
+\go :def!('gab.block', do: .gab.fiber self end)
 
 # Define some input and output channels
 in, out = .gab.channel(), .gab.channel()
@@ -253,12 +253,15 @@ Gab has an initial implementation of this, and actually uses a `gab.channel` of 
     - Because channels are mutable and require locking, their ownership is a bit funky. To simplify, just *increment* all values that go into a channel, and decrement all that come out.
     - This means that when channels are destroyed that still have references to objects, we need to dref them.
 - [ ] Fix memory leak of fibers
+    - Currently we intenionally leak fiber objects, this was just a temporary hack
+- [ ] Refine module system and some ergonomic things for defining messages
 - [ ] Implement *yielding/descheduling*. When a fiber blocks (like on a channel put/take), that fiber should *yield* to the back of some queue, so that the OS thread can continue work on another fiber.
     - Because Gab doesn't do this currenty, gab code actually can't run on just one thread. Try `gab run -j 1 test`. It will just hang.
     - This can't be implemented without changing the main work-channel to be buffered. 
     - This requires finding a sound strategy for handling thread-migration in the gc.
-- [ ] Lazily create up to `njobs` threads, instead of immediately creating all `njobs`. This just makes sense to do.
-    - Maybe there is a way to scale back down, after n amount of downtime?
+- [X] Lazily create up to `njobs` threads, instead of immediately creating all `njobs`.
+    - Scale idle threads back down after some timeout
+    - Be smarter about creating these - check
 - [ ] Because of self-modifying bytecode and inline caches. gab copies each compiled module for each OS thread.
     - Update this to happen lazily, when a worker actually needs a given module.
     - However - this does introduce a *runtime* cost which is currently paid at *compile time*.
@@ -270,9 +273,19 @@ Gab has an initial implementation of this, and actually uses a `gab.channel` of 
     - Building big shapes (like for tuples) is basically traversing a linked list in O(n) time (ugly)
 - [ ] Optimize string interning datastructure.
     - Hashmap works well enough, but copies a lot of data and makes concat/slice slow.
-- [ ] Potentially refactor `OP_RECORD` and `OP_TUPLE` to be sends, something like `.gab.record(<args>)`. This would be more uniform with the rest of the language, using message sends. Constant folding?
+- [X] Refactor *OP_TUPLE* and *OP_RECORD* to be message sends. Include as builtins:
+    - `.gab.record(<args>)`
+    - `.gab.list(<args>)`
+    - `.gab.fiber(block)`
+    - `.gab.channel()`
+    - `\records.pack` -> Pack a tuple of values into a record
+    - `\lists.pack`   -> Pack a tuple of values into a list
+- [ ] QoL improvements to repl
+    - Multiline Editing
+    - History
 - [ ] JIT Compilation (need I say more)
 - [ ] String interpolation should use a `strings.into` message to convert values before concatenating
+- [ ] Compose channels with `|`, as opposed to `alt`.
 - [ ] Of course, lots of library work can be done.
     - More iterators
     - Improve spec

@@ -5,11 +5,11 @@ iter = 'iter' :use
   .false = do acc, n: [n, acc:acc(n - 1)**] end, 
 }
 
-\acc :def!(['gab.record'], do n:
+\acc :def!('gab.record', do n:
   n :== 0 :do_acc (self, n)
 end)
 
-\go :def!(['gab.block'], do:
+\go :def!('gab.block', do:
   blk = self
   .gab.fiber do: blk() end
 end)
