@@ -1,54 +1,68 @@
-tests.results.in = .gab.channel()
+i = 'iter':use
 
-module = {
-  tests.results.out,
-  tests.covers,
-  tests.should,
+implementations = .gab.message :impls
+
+xf = i:filter do m:
+        m:strings.into:ends? '.test'
+     end .
+     |> i:map do m, impls:
+        path[], _ = m:strings.into:split '.'
+
+        path = path:transduce({}, \push, i:map \first)
+
+        (path, { path, impls })
+     end
+
+# Collect all the implementations into a giant, nested map.
+tests.all = implementations:transduce({}, do t, p, i: t:put_via(i, p**) end, xf)
+
+suites.all = tests.all :reduce({}, do suites, suite: suites :put (suite, .gab.channel()) end)
+
+\test.compare :def! ('gab.block', 'gab.message', do lhs, rhs: self (lhs, rhs) end)
+
+test.result.t = { test.path, test.receiver }?
+test.result.pass.t = { test.path, test.receiver, test.meta,  .true }?
+test.result.fail.t = { test.path, test.receiver, test.meta, .false }?
+
+[test.result.t] :defmodule! {
+  \expect = do lhs, cmp, rhs:
+    # Run the comparison of the expect
+    test.outcome = cmp :test.compare (lhs, rhs)
+    # Get the suite we're executing
+    suite = self:test.path :at! 0
+    # Queue up the outcome of the comparison
+    suites.all :at! suite <! self :put (\test.meta, { lhs, cmp, rhs }) :put test.outcome
+  end,
 }
 
-\tests.when :def! (module ?, do cb:
-  t = self :tests.results.out .gab.channel()
-
-  .gab.fiber do:
-    tests.results.in <! t:tests.results.out
-
-    cb(t)
-
-    t:tests.results.out :close!
-  end
-
-  self
-end)
-
-tests.compare.results.t = { t, result, a, b, cmp }?
-
-\tests.compare.dodisplay :defcase! {
-  .true = do result:
-    #'[PASS] {result:t:tests.covers} should {result:t:tests.should} {result:a} {result:cmp} {result:b}':print
+\test.result.display :defcase! {
+  [test.result.pass.t] = do:
+    #" ✔ $ $ $\n" :printf (self:test.meta**)
     .nil
   end,
-  .false = do result:
-    '[FAIL] {result:t:tests.covers} should {result:t:tests.should} {result:a} {result:cmp} {result:b}':print
+  [test.result.fail.t] = do:
+    suite, behavior = self:test.path**
+    " ❌$ should $\n\t$ $ $\n" :printf (suite, behavior, self:test.meta**)
   end,
 }
 
-\tests.results.display :def! (tests.compare.results.t, do:
-  self:result :tests.compare.dodisplay self
-end)
-
-\tests.compare :def!('gab.message', 'gab.block', do a, b, t:
-  result = self(a,b)
-  { t, result, a, b, cmp = self }
-end)
-
-\tests.expect :def! (module ?, do a, cmp, b:
-  self:tests.results.out <! cmp:tests.compare(a, b, self)
-end)
-
 .gab.fiber do:
-  tests.results.in :each do chan:
-    chan :each \tests.results.display
+  suites.all :each do s, c:
+    "✔ $\n" :printf (s)
+    c :each \test.result.display
   end
 end
 
-module
+tests.all :each do suite, behaviors:
+  .gab.fiber do:
+    behaviors :each do _, runnable:
+      path, body = runnable**
+
+      body :each do r, t:
+        t { test.path = path, test.receiver = r }
+      end
+    end
+
+    suites.all :at! suite :close!
+  end
+end

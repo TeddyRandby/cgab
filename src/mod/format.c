@@ -8,7 +8,7 @@ a_gab_value *fmt_printf(struct gab_triple gab, size_t argc,
   if (gab_valkind(fmt) != kGAB_STRING)
     return gab_pktypemismatch(gab, fmt, kGAB_STRING);
 
-  const char *cfmt = gab_valintocs(gab, fmt);
+  const char *cfmt = gab_strdata(&fmt);
 
   gab_afprintf(stdout, cfmt, argc - 1, argv + 1);
 

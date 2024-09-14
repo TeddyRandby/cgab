@@ -869,9 +869,9 @@ void dump_structured_err(struct gab_triple gab, FILE *stream, va_list varargs,
           ? gab_token_names[v_gab_token_val_at(&args.src->tokens, args.tok)]
           : "C";
 
-  const char *src_name = args.src ? gab_valintocs(gab, args.src->name) : "C";
+  const char *src_name = args.src ? gab_strdata(&args.src->name) : "C";
 
-  const char *msg_name = gab_valintocs(gab, args.message);
+  const char *msg_name = gab_strdata(&args.message);
 
   const char *status_name = gab_status_names[args.status];
 
@@ -988,11 +988,20 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
 
   a_char_destroy(src);
 
-  a_gab_value *res = gab_run(gab, (struct gab_run_argt){
+  gab_value fb = gab_arun(gab,  (struct gab_run_argt){
                                       .main = pkg,
                                       .flags = gab.flags | fGAB_ERR_EXIT,
                                       .len = 0,
                                   });
+
+  a_gab_value *res = gab_fibawait(fb);
+
+  gab_value fbparent = gab_thisfiber(gab);
+  if (fbparent == gab_undefined) {
+    gab.eg->messages = gab_fibmsg(fb);
+  } else {
+    gab_fibmsgset(fbparent, gab_fibmsg(fb));
+  }
 
   if (res == nullptr) {
     return gab_panic(gab, "Failed to load module: module did not run");
@@ -1100,7 +1109,7 @@ a_gab_value *gab_suse(struct gab_triple gab, const char *name) {
 a_gab_value *gab_use(struct gab_triple gab, gab_value path) {
   assert(gab_valkind(path) == kGAB_STRING);
 
-  const char *name = gab_valintocs(gab, path);
+  const char *name = gab_strdata(&path);
 
   for (int j = 0; j < sizeof(resources) / sizeof(resource); j++) {
     resource *res = resources + j;

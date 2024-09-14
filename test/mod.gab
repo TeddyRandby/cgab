@@ -1,242 +1,225 @@
-t = 'tests' :use
+\variables.new_variables.test :def! do t:
+  a = 2
+  t:expect(a, \==, 2)
 
-t :tests.covers 'Multiple Assignment'     .
-    :tests.should 'declare new variables' .
-    :tests.when do t:
-        a = 2
+  a = 3
+  t:expect(a, \==, 3)
+end
 
-        t:tests.expect(a, \==, 2)
+\variables.mutltiple_variables.test :def! do t:
+  a, b = 1, 2
+  t:expect(a, \==, 1)
+  t:expect(b, \==, 2)
 
-        a = 3
+  a, b = b, a
+  t:expect(a, \==, 2)
+  t:expect(b, \==, 1)
+end
 
-        t:tests.expect(a, \==, 3)
-    end                                       .
-    :tests.should 'assign multiple variables' .
-    :tests.when do t:
-        a, b = 1, 2
+\variables.reassign_variables.test :def! do t:
+  a, b, c, d = 1, 2, 3, 4
+  t:expect(a, \==, 1)
+  t:expect(b, \==, 2)
+  t:expect(c, \==, 3)
+  t:expect(d, \==, 4)
 
-        t:tests.expect(a, \==, 1)
-        t:tests.expect(b, \==, 2)
+  a, c, d, e = 5, 6, 7, 8
+  t:expect(a, \==, 5)
+  t:expect(c, \==, 6)
+  t:expect(d, \==, 7)
+  t:expect(e, \==, 8)
+end
 
-        a, b = b, a
-        t:tests.expect(a, \==, 2)
-        t:tests.expect(b, \==, 1)
-    end                                .
-    :tests.should 'reassign variables' .
-    :tests.when do t:
-        a, b, c, d = 1, 2, 3, 4
+\variables.rest_assign_constant.test :def! do t:
+  a, b, c[] = 1, 2, 3, 4, 5
 
-        t:tests.expect(a, \==, 1)
-        t:tests.expect(b, \==, 2)
-        t:tests.expect(c, \==, 3)
-        t:tests.expect(d, \==, 4)
+  t:expect(a, \==, 1)
+  t:expect(b, \==, 2)
+  t:expect(c:at! 0, \==, 3)
+  t:expect(c:at! 1, \==, 4)
+  t:expect(c:at! 2, \==, 5)
+end
 
-        a, c, d, e = 5, 6, 7, 8
+\variables.rest_assign_middle.test :def! do t:
+  a, b[], c = 1, 2, 3, 4, 5
 
-        t:tests.expect(a, \==, 5)
-        t:tests.expect(c, \==, 6)
-        t:tests.expect(d, \==, 7)
-        t:tests.expect(e, \==, 8)
-    end .
-    :tests.should 'rest assign a constant multi value' .
-    :tests.when do t:
-        a, b, c[] = 1, 2, 3, 4, 5
+  t:expect(a, \==, 1)
+  t:expect(c, \==, 5)
+  t:expect(b:at! 0, \==, 2)
+  t:expect(b:at! 1, \==, 3)
+  t:expect(b:at! 2, \==, 4)
+end
 
-        t:tests.expect(a, \==, 1)
-        t:tests.expect(b, \==, 2)
-        t:tests.expect(c:at! 0, \==, 3)
-        t:tests.expect(c:at! 1, \==, 4)
-        t:tests.expect(c:at! 2, \==, 5)
-    end .
-    :tests.should 'rest assign a constant multi value in middle' .
-    :tests.when do t:
-        a, b[], c = 1, 2, 3, 4, 5
+\variables.rest_assign_runtime.test :def! do t:
+  one_through_five = do: (1,2,3,4,5) end
 
-        t:tests.expect(a, \==, 1)
-        t:tests.expect(c, \==, 5)
-        t:tests.expect(b:at! 0, \==, 2)
-        t:tests.expect(b:at! 1, \==, 3)
-        t:tests.expect(b:at! 2, \==, 4)
-    end .
-    :tests.should 'rest assign a runtime multi value' .
-    :tests.when do t:
-        one_through_five = do: (1,2,3,4,5) end
+  a[], b, c = one_through_five ()
 
-        a[], b, c = one_through_five ()
+  t:expect(b, \==, 4)
+  t:expect(c, \==, 5)
+  t:expect(a:at! 0, \==, 1)
+  t:expect(a:at! 1, \==, 2)
+  t:expect(a:at! 2, \==, 3)
+end
 
-        t:tests.expect(b, \==, 4)
-        t:tests.expect(c, \==, 5)
-        t:tests.expect(a:at! 0, \==, 1)
-        t:tests.expect(a:at! 1, \==, 2)
-        t:tests.expect(a:at! 2, \==, 3)
-    end .
-    :tests.should 'rest assign to existing variables' .
-    :tests.when do t:
-        one_through_five = do: (1,2,3,4,5) end
+\variables.rest_assign_existing_variable.test :def! do t:
+  one_through_five = do: (1,2,3,4,5) end
 
-        b = 1
+  b = 1
 
-        a, b[], c = one_through_five ()
+  a, b[], c = one_through_five ()
 
-        t:tests.expect(a, \==, 1)
-        t:tests.expect(c, \==, 5)
-        t:tests.expect(b:at! 0,\==, 2)
-        t:tests.expect(b:at! 1,\==, 3)
-        t:tests.expect(b:at! 2,\==, 4)
-    end
+  t:expect(a, \==, 1)
+  t:expect(c, \==, 5)
+  t:expect(b:at! 0,\==, 2)
+  t:expect(b:at! 1,\==, 3)
+  t:expect(b:at! 2,\==, 4)
+end
 
-t :tests.covers 'Numbers' .
-    :tests.should 'equal itself' .
-    :tests.when do t:
-        t:tests.expect(5, \==, 5)
-    end .
-    :tests.should 'do math' .
-    :tests.when do t:
-        t:tests.expect(10, \==, 5 * 2)
-        t:tests.expect(1, \==, 10 % 3)
-        t:tests.expect(8, \==, 1 << 3)
-    end .
-    :tests.should 'compare' .
-    :tests.when do t:
-        t:tests.expect(5 < 10, \==, .true)
-        t:tests.expect(10 > 5, \==, .true)
-    end .
-    :tests.should 'dynamically do arithmetic' .
-    :tests.when do t:
-        t:tests.expect(\+(1, 2), \==, 3)
-        t:tests.expect(\+(1,2, .ignore_me), \==, 3)
-        t:tests.expect(\-(1,2), \==, -1)
-    end
+\numbers.equal_itself.test :def! do t:
+  t:expect(5, \==, 5)
+end
 
-t :tests.covers 'Strings' .
-    :tests.should 'equal itself' .
-    :tests.when do t:
-        t:tests.expect('hello', \==, 'hello')
-    end .
-    :tests.should 'concatenate' .
-    :tests.when do t:
-        t:tests.expect('hello world', \==, 'hello' + ' world')
-    end .
-    :tests.should 'interpolate' .
-    :tests.when do t:
-        t:tests.expect('{'hi'} {'world'}', \==, 'hi world')
-    end .
-    :tests.should 'dynamically concatenate' .
-    :tests.when do t:
-        t:tests.expect(\+('hi ', 'world'), \==, 'hi world')
-        t:tests.expect(\+('hi ', 'world', .ignore_me), \==, 'hi world')
-    end .
-    :tests.should 'append sigils' .
-    :tests.when do t:
-        t:tests.expect(\+('hi ', .world), \==, 'hi world')
-        t:tests.expect(('hi ' + .world), \==, 'hi world')
-    end
+\numbers.do_math.test :def! do t:
+  t:expect(10, \==, 5 * 2)
+  t:expect(1, \==, 10 % 3)
+  t:expect(8, \==, 1 << 3)
+end
 
-capture_me = 1
+\numbers.compare.test :def! do t:
+  t:expect(5 < 10, \==, .true)
+  t:expect(10 > 5, \==, .true)
+end
 
-t :tests.covers 'Blocks' .
-    :tests.should 'capture' .
-    :tests.when do t:
-        t:tests.expect(capture_me, \==, 1)
+\numbers.dynamic_do_math.test :def! do t:
+  t:expect(\+(1, 2), \==, 3)
+  t:expect(\+(1,2, .ignore_me), \==, 3)
+  t:expect(\-(1,2), \==, -1)
+end
 
-        test = do:
-           t:tests.expect(capture_me, \==, 1)
-           capture_me  
-        end
+\strings.equal_itself.test :def! do t:
+  t:expect('hello', \==, 'hello')
+end
 
-        t:tests.expect(test(), \==, 1)
-    end .
-    :tests.should 'work with varargs' .
-    :tests.when do t:
-        varfunc = do first, args[]:
-          t:tests.expect(first, \==, 1)
-          t:tests.expect(args:at! 0, \==, 2)
-        end
+\strings.concatenate.test :def! do t:
+  t:expect('hello world', \==, 'hello' + ' world')
+end
 
-        varfunc(1,2)
+\strings.interpolate.test :def! do t:
+  t:expect('{'hi'} {'world'}', \==, 'hi world')
+end
 
-        onetwo = do: (1, 2) end
+\strings.dynamic_interpolate.test :def! do t:
+  t:expect(\+('hi ', 'world'), \==, 'hi world')
+  t:expect(\+('hi ', 'world', .ignore_me), \==, 'hi world')
+end
 
-        varfunc(onetwo())
+\strings.append_sigils.test :def! do t:
+  t:expect(\+('hi ', .world), \==, 'hi world')
+  t:expect(('hi ' + .world), \==, 'hi world')
+end
 
-        varfunc = do first, args[], last:
-          t:tests.expect(first, \==, 1)
-          t:tests.expect(args:at! 0, \==, 2)
-          t:tests.expect(last, \==, 3)
-        end
 
-        varfunc(1,2,3)
+\blocks.capture.test :def! do t:
+  capture_me = 1
+  t:expect(capture_me, \==, 1)
 
-        onetwothree = do: (1, 2, 3) end
+  test = do:
+      t:expect(capture_me, \==, 1)
+      capture_me  
+  end
 
-        varfunc(onetwothree())
-    end .
-    :tests.should 'make var args empty when necessary' .
-    :tests.when do t:
-        varfunc = do first, args[], other, last:
-          t:tests.expect(first, \==, 1)
-          t:tests.expect(args:len, \==, 0)
-          t:tests.expect(other, \==, 2)
-          t:tests.expect(last, \==, .nil)
-        end
+  t:expect(test(), \==, 1)
+end
 
-        varfunc(1,2)
+\blocks.work_with_varargs.test :def! do t:
+  varfunc = do first, args[]:
+    t:expect(first, \==, 1)
+    t:expect(args:at! 0, \==, 2)
+  end
 
-        onetwo = do: (1, 2) end
+  varfunc(1,2)
 
-        varfunc(onetwo())
-    end
+  onetwo = do: (1, 2) end
+
+  varfunc(onetwo())
+
+  varfunc = do first, args[], last:
+    t:expect(first, \==, 1)
+    t:expect(args:at! 0, \==, 2)
+    t:expect(last, \==, 3)
+  end
+
+  varfunc(1,2,3)
+
+  onetwothree = do: (1, 2, 3) end
+
+  varfunc(onetwothree())
+end
+
+\blocks.empty_varargs.test :def! do t:
+  varfunc = do first, args[], other, last:
+    t:expect(first, \==, 1)
+    t:expect(args:len, \==, 0)
+    t:expect(other, \==, 2)
+    t:expect(last, \==, .nil)
+  end
+
+  varfunc(1,2)
+
+  onetwo = do: (1, 2) end
+
+  varfunc(onetwo())
+end
 
 Point = { x, y }?
 
-t :tests.covers 'Records' .
-    :tests.should 'have properties' .
-    :tests.when do t:
-        point = {
-          x = 1,
-          y = 2
-        }
+\records.have_properties.test :def! do t:
+  point = {
+    x = 1,
+    y = 2
+  }
 
-        t:tests.expect(point:x, \==, 1)
-        t:tests.expect(point:y, \==, 2)
-    end .
-    :tests.should 'be structurally shaped' .
-    :tests.when do t:
-        pone = { x = 1, y = 2}
-        ptwo = { x = 3, y = 4}
+  t:expect(point:x, \==, 1)
+  t:expect(point:y, \==, 2)
+end
 
-        t:tests.expect(pone:?, \==, ptwo:?)
-    end .
-    :tests.should 'work for all kinds of keys' .
-    :tests.when do t:
-        obj = {
-            [{}?] = 3,
-            [.hi] = 4
-        }
+\records.structurally_type.test :def! do t:
+  pone = { x = 1, y = 2}
+  ptwo = { x = 3, y = 4}
 
-        t:tests.expect(3, \==, obj:at!({}?))
-        t:tests.expect(4, \==, obj:at!(.hi))
-    end .
-    :tests.should 'make tuples' .
-    :tests.when do t:
-        tup = [ 1, 2, 3 ]
+  t:expect(pone:?, \==, ptwo:?)
+end
 
-        t:tests.expect(tup:at! 0, \==, 1)
-        t:tests.expect(tup:at! 1, \==, 2)
-        t:tests.expect(tup:at! 2, \==, 3)
-    end .
-    :tests.should 'make var tuples' .
-    :tests.when do t:
-        onetwothree = do:
-          (1, 2, 3)
-        end
+\records.work_for_all_keys.test :def! do t:
+  obj = {
+      [{}?] = 3,
+      [.hi] = 4
+  }
 
-        tup = [ onetwothree() ]
-        t:tests.expect(tup:at! 0, \==, 1)
-        t:tests.expect(tup:at! 1, \==, 2)
-        t:tests.expect(tup:at! 2, \==, 3)
-        t:tests.expect(tup:len, \==, 3)
-    end
+  t:expect(3, \==, obj:at!({}?))
+  t:expect(4, \==, obj:at!(.hi))
+end
+
+\records.make_tuples.test :def! do t:
+  tup = [ 1, 2, 3 ]
+
+  t:expect(tup:at! 0, \==, 1)
+  t:expect(tup:at! 1, \==, 2)
+  t:expect(tup:at! 2, \==, 3)
+end
+
+\records.make_var_tuples.test :def! do t:
+  onetwothree = do:
+    (1, 2, 3)
+  end
+
+  tup = [ onetwothree() ]
+  t:expect(tup:at! 0, \==, 1)
+  t:expect(tup:at! 1, \==, 2)
+  t:expect(tup:at! 2, \==, 3)
+  t:expect(tup:len, \==, 3)
+end
 
 vec.t = { x, y }?
 
@@ -247,142 +230,139 @@ vec.t = { x, y }?
   }
 end)
 
-t :tests.covers 'Overloads' .
-    :tests.should 'overload binary' .
-    :tests.when do t:
+\== :def!(vec.t, do other:
+  (self:x == other:x) & (self:y == other:y)
+end)
 
-        a = { x = 1, y = 2 }
-        b = { x = 2, y = 1 }
-        test = a + b
+\overloads.overload_operators.test :def! do t:
+  a = { x = 1, y = 2 }
+  b = { x = 2, y = 1 }
+  test = a + b
 
-        t:tests.expect(test:x, \==, 3)
-        t:tests.expect(test:y, \==, 3)
-    end .
-    :tests.should 'overload comparison' .
-    :tests.when do t:
-        \< :def!(vec.t, do other:
-          mag = ((self:x) * (self:x)) + ((self:y) * (self:y))
-          other_mag = ((other:x) * (other:x)) + ((other:y) * (other:y))
-          mag < other_mag
-        end)
+  t:expect(test:x, \==, 3)
+  t:expect(test:y, \==, 3)
+end
 
-        \== :def!(vec.t, do other:
-          (self:x == other:x) & (self:y == other:y)
-        end)
+\overloads.overload_comparison.test :def! do t:
+  \< :def!(vec.t, do other:
+    mag = ((self:x) * (self:x)) + ((self:y) * (self:y))
+    other_mag = ((other:x) * (other:x)) + ((other:y) * (other:y))
+    mag < other_mag
+  end)
 
-        a = { x = 1, y = 1 }
-        b = { x = 1, y = 1 }
-        t:tests.expect(a, \==, b)
+  a = { x = 1, y = 1 }
+  b = { x = 1, y = 1 }
+  t:expect(a, \==, b)
 
-        b = { x = 4, y = 4 }
-        t:tests.expect(a, \<, b)
-    end .
-    :tests.should 'handle changing overloads' .
-    :tests.when do t:
-        get = do obj, key:
-            obj:at! key
-        end
+  b = { x = 4, y = 4 }
+  t:expect(a, \<, b)
+end
 
-        t:tests.expect(get({ x = 1, y = 2 }, \x), \==, 1)
+\overloads.handle_changing_overloads.test :def! do t:
+  get = do obj, key:
+      obj:at! key
+  end
 
-        \at! :def! (vec.t, do key:
-          v = self
-          (key == 'mag') :then do:
-            ((v:x) * (v:x)) + ((v:y) * (v:y))
-          end
-        end)
+  t:expect(get({ x = 1, y = 2 }, \x), \==, 1)
 
-        t:tests.expect(get({ x = 2, y = 2 }, 'mag'), \==, 8)
-    end .
-    :tests.should 'handle switching types' .
-    :tests.when do t:
-      sum = do a, b:
-        a + b
-      end
-
-      a = { x = 3, y = 3 }
-      b = { x = 1, y = 2 }
-      c = { x = 2, y = 1 }
-
-      t:tests.expect(3, \==, sum(1,2))
-      t:tests.expect(a, \==, sum(b, c))
-      t:tests.expect('hi', \==, sum('h','i'))
-      t:tests.expect('hi', \==, sum('h','i'))
-      t:tests.expect(a, \==, sum(b, c))
-      t:tests.expect(3, \==, sum(1,2))
+  \at! :def! (vec.t, do key:
+    v = self
+    (key == 'mag') :then do:
+      ((v:x) * (v:x)) + ((v:y) * (v:y))
     end
+  end)
+
+  t:expect(get({ x = 2, y = 2 }, 'mag'), \==, 8)
+end
+
+\overloads.handle_switching_types.test :def! do t:
+  sum = do a, b:
+    a + b
+  end
+
+  a = { x = 3, y = 3 }
+  b = { x = 1, y = 2 }
+  c = { x = 2, y = 1 }
+
+  t:expect(3, \==, sum(1,2))
+  t:expect(a, \==, sum(b, c))
+  t:expect('hi', \==, sum('h','i'))
+  t:expect('hi', \==, sum('h','i'))
+  t:expect(a, \==, sum(b, c))
+  t:expect(3, \==, sum(1,2))
+end
 
 \test :def! do: self end
 
-\test :def! ('gab.number', do:
-    self + 1
-end)
+\messages.send.test :def! do t:
+  t:expect(1, \==, 1:test)
+end
 
-t :tests.covers 'Messages' .
-    :tests.should 'send' .
-    :tests.when do t:
-        t:tests.expect(1, \==, 1:test)
-    end .
-    :tests.should 'use more specific spec' .
-    :tests.when do t:
-        t:tests.expect(1:test, \==, 2)
-    end .
-    :tests.should 'cache' .
-    :tests.when do t:
-        repeat = do: 1:test end
+\messages.cache.test :def! do t:
+  repeat = do: 1:test end
 
-        t:tests.expect(repeat(), \==, 2)
-        t:tests.expect(repeat(), \==, 2)
-        t:tests.expect(repeat(), \==, 2)
-    end .
-    :tests.should 'send/receive var tuples' .
-    :tests.when do t:
-        oneTwo = do: (1, 2) end
+  t:expect(repeat(), \==, 1)
+  t:expect(repeat(), \==, 1)
+  t:expect(repeat(), \==, 1)
+end
 
-        takeOneTwo = do a, b:
-          t:tests.expect(1, \==, a)
-          t:tests.expect(2, \==, b)
-        end
+\messages.use_more_specific_spec.test :def! do t:
+  \test :def! ('gab.number', do:
+      self + 1
+  end)
 
-        takeOneTwo(oneTwo())
-    end .
-    :tests.should 'send constants' .
-    :tests.when do t:
-        \hi :def! ('gab.number', .test)
+  t:expect(1:test, \==, 2)
+end
 
-        t:tests.expect(1:hi, \==, .test)
-    end .
-    :tests.should 'send messages dynamically' .
-    :tests.when do t:
-        sum = do a, b:
-          \+(a, b)
-        end
+\messages.send_receive_var.test :def! do t:
+  oneTwo = do: (1, 2) end
 
-        result = sum(1,1)
+  takeOneTwo = do a, b:
+    t:expect(1, \==, a)
+    t:expect(2, \==, b)
+  end
 
-        t:tests.expect(result, \==, 2)
+  takeOneTwo(oneTwo())
+end
 
-        result = sum(2, 2)
+\messages.send_constants.test :def! do t:
+  \hi :def! ('gab.number', .test)
 
-        t:tests.expect(result, \==, 4)
+  t:expect(1:hi, \==, .test)
+end
 
-        result = sum('hi', ' world')
+\messages.send_dynamically.test :def! do t:
+  sum = do a, b:
+    \+(a, b)
+  end
 
-        t:tests.expect(result, \==, 'hi world')
+  result = sum(1,1)
 
-        result = \hi { hi = 8 }
+  t:expect(result, \==, 2)
 
-        t:tests.expect(result, \==, 8)
+  result = sum(2, 2)
 
-        result = \put({ hi = 8 }, \hi , 2)
+  t:expect(result, \==, 4)
 
-        t:tests.expect(result:hi, \==, 2)
+  result = sum('hi', ' world')
 
-        result = \** ['hi']
+  t:expect(result, \==, 'hi world')
 
-        t:tests.expect(result, \==, 'hi')
+  result = \hi { hi = 8 }
 
-        result = \hi({ hi }, 4)
+  t:expect(result, \==, 8)
 
-        t:tests.expect(result:hi, \==, 4)
-    end
+  result = \put({ hi = 8 }, \hi , 2)
+
+  t:expect(result:hi, \==, 2)
+
+  result = \** ['hi']
+
+  t:expect(result, \==, 'hi')
+
+  result = \hi({ hi }, 4)
+
+  t:expect(result:hi, \==, 4)
+end
+
+'tests' :use

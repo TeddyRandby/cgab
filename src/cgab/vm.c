@@ -772,13 +772,15 @@ a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
              gab_valkind(r) == kGAB_CHANNELBUFFERED)
 
 #define SEND_GUARD_CACHED_MESSAGE_SPECS()                                      \
-  SEND_GUARD(gab_valeq(gab_fibmsg(FIBER()), ks[GAB_SEND_KSPECS]))
+  SEND_GUARD(gab_valeq(gab_fibmsgrec(FIBER(), ks[GAB_SEND_KMESSAGE]),          \
+                       ks[GAB_SEND_KSPECS]))
 
 #define SEND_GUARD_CACHED_RECEIVER_TYPE(r)                                     \
   SEND_GUARD(gab_valisa(GAB(), r, ks[GAB_SEND_KTYPE]))
 
 #define SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m)                                \
-  SEND_GUARD(gab_valeq(gab_fibmsg(FIBER()), ks[GAB_SEND_KGENERIC_CALL_SPECS]))
+  SEND_GUARD(                                                                  \
+      gab_valeq(gab_fibmsgrec(FIBER(), m), ks[GAB_SEND_KGENERIC_CALL_SPECS]))
 
 CASE_CODE(MATCHTAILSEND_BLOCK) {
   gab_value *ks = READ_CONSTANTS;
@@ -1430,7 +1432,7 @@ CASE_CODE(SEND) {
                        ? gab_primitive(OP_SEND_PROPERTY)
                        : res.as.spec;
 
-  ks[GAB_SEND_KSPECS] = gab_fibmsg(FIBER());
+  ks[GAB_SEND_KSPECS] = gab_fibmsgrec(FIBER(), m);
   ks[GAB_SEND_KTYPE] = gab_valtype(GAB(), r);
   ks[GAB_SEND_KSPEC] = res.as.spec;
 
@@ -1624,8 +1626,8 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
 
   ks[GAB_SEND_KTYPE] = t;
   ks[GAB_SEND_KSPEC] = res.as.spec;
-  ks[GAB_SEND_KGENERIC_CALL_SPECS] = gab_fibmsg(FIBER());
-  ks[GAB_SEND_KGENERIC_CALL_MESSAGE] = m;
+  ks[GAB_SEND_KGENERIC_CALL_SPECS] = gab_fibmsgrec(FIBER(), m);
+  // ks[GAB_SEND_KGENERIC_CALL_MESSAGE] = m;
 
   if (res.status == kGAB_IMPL_PROPERTY) {
     WRITE_BYTE(SEND_CACHE_DIST, OP_SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY);

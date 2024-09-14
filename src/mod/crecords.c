@@ -37,13 +37,19 @@ a_gab_value *gab_lib_del(struct gab_triple gab, size_t argc,
 a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
                           gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
-  gab_value key = gab_number(gab_reclen(rec));
-  gab_value val = gab_arg(1);
 
   if (gab_valkind(rec) != kGAB_RECORD)
     return gab_pktypemismatch(gab, rec, kGAB_RECORD);
 
-  gab_vmpush(gab_vm(gab), gab_recput(gab, rec, key, val));
+  size_t start = gab_reclen(rec) - 1;
+
+  for (size_t i = 1; i < argc; i++) {
+    gab_value key = gab_number(start + i);
+    gab_value val = gab_arg(i);
+    rec = gab_recput(gab, rec, key, val);
+  }
+
+  gab_vmpush(gab_vm(gab), rec);
 
   return nullptr;
 }
@@ -58,6 +64,48 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
     return gab_pktypemismatch(gab, rec, kGAB_RECORD);
 
   gab_vmpush(gab_vm(gab), gab_recput(gab, rec, key, val));
+
+  return nullptr;
+}
+
+gab_value doputvia(struct gab_triple gab, gab_value rec, gab_value val,
+                   size_t len, gab_value path[len]) {
+  gab_value key = path[0];
+
+  if (len == 1)
+    return gab_recput(gab, rec, key, val);
+
+  gab_value subrec = gab_recat(rec, key);
+
+  if (subrec == gab_undefined)
+    subrec = gab_record(gab, 0, 0, path, path);
+
+  if (gab_valkind(subrec) != kGAB_RECORD)
+    return gab_undefined;
+
+  gab_value subval = doputvia(gab, subrec, val, len - 1, path + 1);
+
+  if (subval == gab_undefined)
+    return gab_undefined;
+
+  return gab_recput(gab, rec, key, subval);
+}
+
+a_gab_value *gab_lib_putvia(struct gab_triple gab, size_t argc,
+                            gab_value argv[argc]) {
+  gab_value rec = gab_arg(0);
+  gab_value val = gab_arg(1);
+
+  if (gab_valkind(rec) != kGAB_RECORD)
+    return gab_pktypemismatch(gab, rec, kGAB_RECORD);
+
+  gab_value result = doputvia(gab, rec, val, argc - 2, argv + 2);
+
+  if (result == gab_undefined)
+    return gab_panic(gab, "Invalid path for $ on $", gab_message(gab, "putvia"),
+                     rec);
+
+  gab_vmpush(gab_vm(gab), result);
 
   return nullptr;
 }
@@ -162,6 +210,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "len",
           rec_t,
           gab_snative(gab, "gab.len", gab_lib_len),
+      },
+      {
+          "put_via",
+          rec_t,
+          gab_snative(gab, "gab.put_via", gab_lib_putvia),
       },
   };
 

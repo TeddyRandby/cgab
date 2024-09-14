@@ -112,16 +112,6 @@ a_gab_value *gab_lib_floor(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_to_n(struct gab_triple gab, size_t argc,
-                          gab_value argv[argc]) {
-  const char *str = gab_valintocs(gab, argv[0]);
-
-  gab_value res = gab_number(strtod(str, nullptr));
-
-  gab_vmpush(gab_vm(gab), res);
-  return nullptr;
-};
-
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value type = gab_type(gab, kGAB_NUMBER);
 
@@ -135,11 +125,6 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "floor",
           type,
           gab_snative(gab, "floor", gab_lib_floor),
-      },
-      {
-          "nums.into",
-          type,
-          gab_snative(gab, "to_n", gab_lib_to_n),
       },
   };
 

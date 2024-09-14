@@ -239,7 +239,7 @@ a_gab_value *gab_lib_connect(struct gab_triple gab, size_t argc,
 
   int sockfd = (intptr_t)gab_boxdata(argv[0]);
 
-  const char *ip = gab_valintocs(gab, argv[1]);
+  const char *ip = gab_strdata(argv + 1);
 
   int cport = htons(gab_valton(argv[2]));
 

@@ -1,6 +1,46 @@
 #include "gab.h"
 #include <ctype.h>
 
+a_gab_value *gab_lib_split(struct gab_triple gab, size_t argc,
+                           gab_value argv[argc]) {
+  gab_value str = gab_arg(0);
+  gab_value sep = gab_arg(1);
+
+  if (gab_valkind(sep) != kGAB_STRING)
+    return gab_pktypemismatch(gab, sep, kGAB_STRING);
+
+  size_t cstr_len = gab_strlen(str);
+  size_t csep_len = gab_strlen(sep);
+
+  if (cstr_len == 0 || csep_len == 0)
+    return nullptr;
+
+  const char *cstr = gab_strdata(&str);
+  const char *csep = gab_strdata(&sep);
+  const char sepstart = csep[0];
+
+  size_t offset = 0, begin = 0;
+  while (offset + csep_len < cstr_len) {
+
+    // Quick check to see if we should try memcmp
+    if (cstr[offset] == sepstart) {
+      // Memcmp to test for full sep match
+      if (!memcmp(cstr + offset, csep, csep_len)) {
+        // Full match found - push a string
+        gab_vmpush(gab_vm(gab), gab_nstring(gab, offset - begin, cstr + begin));
+        begin = offset + csep_len;
+        offset = begin;
+      }
+    }
+
+    offset++;
+  }
+
+  gab_vmpush(gab_vm(gab), gab_nstring(gab, cstr_len - begin, cstr + begin));
+
+  return nullptr;
+}
+
 a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
                          gab_value argv[argc]) {
   if (argc != 1) {
@@ -30,6 +70,7 @@ static inline bool ends(const char *str, const char *pat, size_t offset) {
 
   return !memcmp(str + strlen(str) - offset - len, pat, len);
 }
+
 a_gab_value *gab_lib_ends(struct gab_triple gab, size_t argc,
                           gab_value argv[argc]) {
   switch (argc) {
@@ -38,8 +79,8 @@ a_gab_value *gab_lib_ends(struct gab_triple gab, size_t argc,
       return gab_panic(gab, "&:ends? expects 1 string argument");
     }
 
-    const char *pat = gab_valintocs(gab, argv[0]);
-    const char *str = gab_valintocs(gab, argv[1]);
+    const char *str = gab_strdata(argv + 0);
+    const char *pat = gab_strdata(argv + 1);
 
     gab_vmpush(gab_vm(gab), gab_bool(ends(str, pat, 0)));
     return nullptr;
@@ -53,8 +94,8 @@ a_gab_value *gab_lib_ends(struct gab_triple gab, size_t argc,
     if (gab_valkind(argv[2]) != kGAB_NUMBER) {
       return gab_panic(gab, "&:ends? expects an optinal number argument");
     }
-    const char *pat = gab_valintocs(gab, argv[0]);
-    const char *str = gab_valintocs(gab, argv[1]);
+    const char *pat = gab_strdata(argv + 0);
+    const char *str = gab_strdata(argv + 1);
 
     gab_vmpush(gab_vm(gab), gab_bool(ends(str, pat, gab_valton(argv[2]))));
     return nullptr;
@@ -72,8 +113,8 @@ a_gab_value *gab_lib_begins(struct gab_triple gab, size_t argc,
       return gab_panic(gab, "&:begins? expects 1 string argument");
     }
 
-    const char *pat = gab_valintocs(gab, argv[0]);
-    const char *str = gab_valintocs(gab, argv[1]);
+    const char *pat = gab_strdata(argv + 0);
+    const char *str = gab_strdata(argv + 1);
 
     gab_vmpush(gab_vm(gab), gab_bool(begins(str, pat, 0)));
     return nullptr;
@@ -86,8 +127,8 @@ a_gab_value *gab_lib_begins(struct gab_triple gab, size_t argc,
     if (gab_valkind(argv[2]) != kGAB_NUMBER) {
       return gab_panic(gab, "&:begins? expects an optinal number argument");
     }
-    const char *pat = gab_valintocs(gab, argv[0]);
-    const char *str = gab_valintocs(gab, argv[1]);
+    const char *pat = gab_strdata(argv + 0);
+    const char *str = gab_strdata(argv + 1);
 
     gab_vmpush(gab_vm(gab), gab_bool(begins(str, pat, gab_valton(argv[2]))));
     return nullptr;
@@ -117,7 +158,7 @@ a_gab_value *gab_lib_is_digit(struct gab_triple gab, size_t argc,
     }
   }
 
-  int byte = gab_valintocs(gab, argv[0])[index];
+  int byte = gab_strdata(argv + 0)[index];
 
   gab_vmpush(gab_vm(gab), gab_bool(isdigit(byte)));
   return nullptr;
@@ -144,7 +185,7 @@ a_gab_value *gab_lib_to_byte(struct gab_triple gab, size_t argc,
     }
   }
 
-  char byte = gab_valintocs(gab, argv[0])[index];
+  char byte = gab_strdata(argv + 0)[index];
 
   gab_vmpush(gab_vm(gab), gab_number(byte));
   return nullptr;
@@ -167,7 +208,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
     index = gab_strlen(argv[0]) + index;
   }
 
-  char byte = gab_valintocs(gab, argv[0])[index];
+  char byte = gab_strdata(argv + 0)[index];
 
   gab_vmpush(gab_vm(gab), gab_nstring(gab, 1, &byte));
   return nullptr;
@@ -179,7 +220,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
                            gab_value argv[argc]) {
-  const char *str = gab_valintocs(gab, argv[0]);
+  const char *str = gab_strdata(argv + 0);
 
   uint64_t len = gab_strlen(argv[0]);
   uint64_t start = 0, end = len;
@@ -231,8 +272,8 @@ a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
     return gab_panic(gab, "&:has? expects one argument");
   }
 
-  const char *str = gab_valintocs(gab, argv[0]);
-  const char *pat = gab_valintocs(gab, argv[1]);
+  const char *str = gab_strdata(argv + 0);
+  const char *pat = gab_strdata(argv + 1);
 
   gab_vmpush(gab_vm(gab), gab_bool(strstr(str, pat)));
   return nullptr;
@@ -282,6 +323,16 @@ a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
+a_gab_value *gab_lib_numbers_into(struct gab_triple gab, size_t argc,
+                                  gab_value argv[argc]) {
+  const char *str = gab_strdata(argv + 0);
+
+  gab_value res = gab_number(strtod(str, nullptr));
+
+  gab_vmpush(gab_vm(gab), res);
+  return nullptr;
+};
+
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value string_type = gab_type(gab, kGAB_STRING);
 
@@ -312,6 +363,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "messages.into", gab_lib_messages_into),
       },
       {
+          "numbers.into",
+          string_type,
+          gab_snative(gab, "numbers.into", gab_lib_numbers_into),
+      },
+      {
           "len",
           string_type,
           gab_snative(gab, "len", gab_lib_len),
@@ -320,6 +376,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "at",
           string_type,
           gab_snative(gab, "at", gab_lib_at),
+      },
+      {
+          "split",
+          string_type,
+          gab_snative(gab, "split", gab_lib_split),
       },
       {
           "ends?",

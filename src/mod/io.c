@@ -1,9 +1,7 @@
 #include "gab.h"
 #include <stdio.h>
 
-void file_cb(size_t len, char data[static len]) {
-  fclose(*(FILE **)data);
-}
+void file_cb(size_t len, char data[static len]) { fclose(*(FILE **)data); }
 
 a_gab_value *gab_lib_open(struct gab_triple gab, size_t argc,
                           gab_value argv[argc]) {
@@ -16,8 +14,8 @@ a_gab_value *gab_lib_open(struct gab_triple gab, size_t argc,
   if (gab_valkind(perm) != kGAB_STRING)
     return gab_ptypemismatch(gab, perm, gab_type(gab, kGAB_STRING));
 
-  const char *cpath = gab_valintocs(gab, path);
-  const char *cperm = gab_valintocs(gab, perm);
+  const char *cpath = gab_strdata(&path);
+  const char *cperm = gab_strdata(&perm);
 
   FILE *file = fopen(cpath, cperm);
 
@@ -77,7 +75,7 @@ a_gab_value *gab_lib_write(struct gab_triple gab, size_t argc,
 
   FILE *file = gab_boxdata(argv[0]);
 
-  const char *data = gab_valintocs(gab, argv[1]);
+  const char *data = gab_strdata(argv + 1);
 
   int32_t result = fputs(data, file);
 

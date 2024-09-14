@@ -1757,6 +1757,13 @@ static inline gab_value gab_fibmsgat(gab_value fiber, gab_value message,
   return gab_recat(spec_rec, receiver);
 }
 
+static inline void gab_fibmsgset(gab_value fiber, gab_value messages) {
+  assert(gab_valkind(fiber) == kGAB_FIBER);
+  struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fiber);
+
+  f->messages = messages;
+}
+
 /**
  * @brief Add a specialization for a message within a fiber.
  *
@@ -1766,8 +1773,8 @@ static inline gab_value gab_fibmsgat(gab_value fiber, gab_value message,
  * @return the specialization, or undefined
  */
 static inline gab_value gab_fibmsgput(struct gab_triple gab, gab_value fiber,
-                                        gab_value msg, gab_value receiver,
-                                        gab_value spec) {
+                                      gab_value msg, gab_value receiver,
+                                      gab_value spec) {
   assert(gab_valkind(fiber) == kGAB_FIBER);
   struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fiber);
 
@@ -2266,23 +2273,11 @@ gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
   gab_value spec = gab_undefined;
   gab_value type = receiver;
 
-  if (gab_valkind(receiver) == kGAB_RECORD) {
-    spec = gab_recat(receiver, message);
-    type = gab_recshp(type);
-    if (spec != gab_undefined)
-      return (struct gab_impl_rest){
-          type,
-          .as.offset = gab_recfind(receiver, message),
-          kGAB_IMPL_PROPERTY,
-      };
-  }
-
   /* Check if the receiver has a supertype, and if that supertype implments the
    * message. ie <gab.shape 0 1>*/
   if (gab_valhast(receiver)) {
     type = gab_valtype(gab, receiver);
     spec = gab_fibmsgat(fiber, message, type);
-
     if (spec != gab_undefined)
       return (struct gab_impl_rest){
           type,
@@ -2294,13 +2289,23 @@ gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
   /* Check for the kind of the receiver. ie 'gab.record' */
   type = gab_type(gab, gab_valkind(receiver));
   spec = gab_fibmsgat(fiber, message, type);
-
   if (spec != gab_undefined)
     return (struct gab_impl_rest){
         type,
         .as.spec = spec,
         kGAB_IMPL_KIND,
     };
+
+  /* Check if the receiver is a record and has a matching property */
+  if (gab_valkind(receiver) == kGAB_RECORD) {
+    type = gab_recshp(receiver);
+    if (gab_rechas(receiver, message))
+      return (struct gab_impl_rest){
+          type,
+          .as.offset = gab_recfind(receiver, message),
+          kGAB_IMPL_PROPERTY,
+      };
+  }
 
   /* Lastly, check for a generic implmentation.*/
   type = gab_undefined;
@@ -2322,15 +2327,6 @@ gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
 static inline bool gab_valintob(gab_value value) {
   return !(gab_valeq(value, gab_false) || gab_valeq(value, gab_nil));
 }
-
-/**
- * @brief Coerce a value *into* a c-string.
- *
- * @param gab The engine
- * @param value The value to coerce
- * @return The c-string
- */
-static inline const char *gab_valintocs(struct gab_triple gab, gab_value value);
 
 /**
  * @brief Coerce the given value to a string.
@@ -2380,28 +2376,30 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
   case kGAB_BLOCK: {
     struct gab_obj_block *o = GAB_VAL_TO_BLOCK(value);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(o->p);
-    snprintf(buffer, 128, "<Block %s:%lu>",
-             gab_valintocs(gab, gab_srcname(p->src)),
+    gab_value str = gab_srcname(p->src);
+    snprintf(buffer, 128, "<Block %s:%lu>", gab_strdata(&str),
              gab_srcline(p->src, p->offset));
     return gab_string(gab, buffer);
   }
   case kGAB_PROTOTYPE: {
     struct gab_obj_prototype *o = GAB_VAL_TO_PROTOTYPE(value);
-    snprintf(buffer, 128, "<Prototype %s:%lu>",
-             gab_valintocs(gab, gab_srcname(o->src)),
+    gab_value str = gab_srcname(o->src);
+    snprintf(buffer, 128, "<Prototype %s:%lu>", gab_strdata(&str),
              gab_srcline(o->src, o->offset));
 
     return gab_string(gab, buffer);
   }
   case kGAB_NATIVE: {
     struct gab_obj_native *o = GAB_VAL_TO_NATIVE(value);
-    snprintf(buffer, 128, "<Native %s>", gab_valintocs(gab, o->name));
+    gab_value str = o->name;
+    snprintf(buffer, 128, "<Native %s>", gab_strdata(&str));
 
     return gab_string(gab, buffer);
   }
   case kGAB_BOX: {
     struct gab_obj_box *o = GAB_VAL_TO_BOX(value);
-    snprintf(buffer, 128, "<%s %p>", gab_valintocs(gab, o->type), o);
+    gab_value str = o->type;
+    snprintf(buffer, 128, "<%s %p>", gab_strdata(&str), o);
 
     return gab_string(gab, buffer);
   }
@@ -2409,19 +2407,6 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
     assert(false && "Unhandled type in gab_valtos");
     return gab_undefined;
   }
-}
-
-static inline const char *gab_valintocs(struct gab_triple gab,
-                                        gab_value value) {
-  gab_value str = gab_valintos(gab, value);
-
-  if (gab_valiso(str))
-    return GAB_VAL_TO_STRING(str)->data;
-
-  static char buffer[8]; // hacky
-  memcpy(buffer, gab_strdata(&str), gab_strlen(str) + 1);
-
-  return buffer;
 }
 
 #include <printf.h>

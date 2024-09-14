@@ -14,6 +14,26 @@ a_gab_value *gab_lib_message(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
+a_gab_value *gab_lib_impls(struct gab_triple gab, size_t argc,
+                           gab_value argv[static argc]) {
+  if (argc == 1) {
+    gab_value rec = gab_fibmsg(gab_thisfiber(gab));
+    gab_vmpush(gab_vm(gab), rec);
+
+    return nullptr;
+  }
+
+  gab_value msg = gab_arg(1);
+  gab_value rec = gab_fibmsgrec(gab_thisfiber(gab), msg);
+
+  if (rec == gab_undefined)
+    gab_vmpush(gab_vm(gab), gab_nil);
+  else
+    gab_vmpush(gab_vm(gab), rec);
+
+  return nullptr;
+}
+
 a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
                          gab_value argv[static argc]) {
   switch (argc) {
@@ -188,6 +208,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "message.new", gab_lib_message),
       },
       {
+          "impls",
+          gab_strtosig(type),
+          gab_snative(gab, "message.impls", gab_lib_impls),
+      },
+      {
           "sigils.into",
           type,
           gab_snative(gab, "sigils.into", gab_lib_sigil_into),
@@ -206,11 +231,6 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "at",
           type,
           gab_snative(gab, "at", gab_lib_at),
-      },
-      {
-          "put!",
-          type,
-          gab_snative(gab, "put!", gab_lib_put),
       },
       {
           "def!",
