@@ -252,9 +252,11 @@ Gab has an initial implementation of this, and actually uses a `gab.channel` of 
 - [ ] Implement buffered channels.
     - Because channels are mutable and require locking, their ownership is a bit funky. To simplify, just *increment* all values that go into a channel, and decrement all that come out.
     - This means that when channels are destroyed that still have references to objects, we need to dref them.
-- [ ] Fix memory leak of fibers
+- [X] Fix memory leak of fibers
     - Currently we intenionally leak fiber objects, this was just a temporary hack
-- [ ] Refine module system and some ergonomic things for defining messages
+- [X] Refine module system and some ergonomic things for defining messages
+    - Fibers store messages independantly of each other. \use runs source files in a separate fiber, so then has to replace
+    the calling fibers messages at the end of the call
 - [ ] Implement *yielding/descheduling*. When a fiber blocks (like on a channel put/take), that fiber should *yield* to the back of some queue, so that the OS thread can continue work on another fiber.
     - Because Gab doesn't do this currenty, gab code actually can't run on just one thread. Try `gab run -j 1 test`. It will just hang.
     - This can't be implemented without changing the main work-channel to be buffered. 
@@ -284,6 +286,7 @@ Gab has an initial implementation of this, and actually uses a `gab.channel` of 
     - Multiline Editing
     - History
 - [ ] JIT Compilation (need I say more)
+    - Copy-and-patch JIT compiler? Refactoring VM.c via macros to write into stencils
 - [ ] String interpolation should use a `strings.into` message to convert values before concatenating
 - [ ] Compose channels with `|`, as opposed to `alt`.
 - [ ] Of course, lots of library work can be done.

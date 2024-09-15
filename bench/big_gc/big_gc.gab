@@ -7,7 +7,7 @@
   end,
 }
 
-\acc :def!(['gab.record'], do n:
+\acc :def!('gab.record', do n:
   n :== 0 :doacc(self, n)
 end)
 

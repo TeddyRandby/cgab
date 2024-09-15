@@ -1162,5 +1162,7 @@ gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
 
   gab_chnput(gab, gab.eg->work_channel, fb);
 
+  gab_dref(gab, fb);
+
   return fb;
 }
