@@ -177,10 +177,6 @@ gab_token operator(gab_lx *self) {
   while (can_continue_operator(peek(self)))
     advance(self);
 
-  if (self->current_token_src.len == 1 &&
-      self->current_token_src.data[0] == '=')
-    return TOKEN_EQUAL;
-
   return TOKEN_OPERATOR;
 }
 
@@ -315,6 +311,11 @@ gab_token other(gab_lx *self) {
         return TOKEN_SEND;
 
       return lexer_error(self, GAB_MALFORMED_SEND);
+    }
+
+    if (peek(self) == ':') {
+      advance(self);
+      return TOKEN_COLON_COLON;
     }
 
     return TOKEN_COLON;

@@ -1,0 +1,31 @@
+sock :: 'os/sockets':use
+
+server :: .gab.socket(sock:family.af_inet, sock:type.stream):unwrap!
+
+port :: 8080
+
+server:bind port :unwrap!
+server:listen port :unwrap!
+
+'{server} is listening on {port}!' :print
+
+in :: .gab.channel()
+
+.gab.fiber do
+  # Spin up a fiber for our server to listen to new connections
+  server:each do conn
+    'Received a connection: {conn}':print
+    conn:each do msg
+      in <! msg
+    end
+  end
+end
+
+client :: .gab.socket(sock:family.af_inet, sock:type.stream):unwrap!
+
+client :: client :connect ('127.0.0.1', 8080) :unwrap!
+
+client :send "Test"
+client :send "Another test"
+
+in :each \print

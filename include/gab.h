@@ -1375,7 +1375,9 @@ static inline size_t gab_shpfind(gab_value shp, gab_value key) {
   assert(gab_valkind(shp) == kGAB_SHAPE);
   struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
 
-  for (size_t i = 0; i < s->len; i++) {
+  size_t len = s->len;
+
+  for (size_t i = 0; i < len; i++) {
     if (gab_valeq(key, s->keys[i]))
       return i;
   }
@@ -1387,7 +1389,9 @@ static inline size_t gab_shptfind(gab_value shp, gab_value key) {
   assert(gab_valkind(shp) == kGAB_SHAPE);
   struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
 
-  for (size_t i = 0; i < s->transitions.len / 2; i++) {
+  size_t len = s->transitions.len / 2;
+
+  for (size_t i = 0; i < len; i++) {
     if (gab_valeq(key, v_gab_value_val_at(&s->transitions, i * 2)))
       return i;
   }
@@ -1493,15 +1497,16 @@ gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
  * @return The new record
  */
 static inline gab_value gab_srecord(struct gab_triple gab, size_t len,
-                      const char *keys[static len], gab_value vals[static len]) {
+                                    const char *keys[static len],
+                                    gab_value vals[static len]) {
   gab_value vkeys[len];
 
   gab_gclock(gab);
 
   for (size_t i = 0; i < len; i++)
-    vkeys[i] = gab_string(gab, keys[i]);
+    vkeys[i] = gab_message(gab, keys[i]);
 
-  gab_value rec =  gab_record(gab, 1, len, vkeys, vals);
+  gab_value rec = gab_record(gab, 1, len, vkeys, vals);
 
   gab_gcunlock(gab);
 
@@ -2193,7 +2198,7 @@ struct gab_eg {
 
     struct gab_gcbuf {
       size_t len;
-      struct gab_obj *data[cGAB_GC_DEC_BUFF_MAX];
+      struct gab_obj *data[cGAB_GC_MOD_BUFF_MAX];
     } buffers[][kGAB_NBUF][GAB_GCNEPOCHS];
   } *gc;
 

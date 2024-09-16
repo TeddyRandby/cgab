@@ -1274,7 +1274,7 @@ static int compile_parameters_internal(struct bc *bc, int *below,
   *narguments = 0;
   int result = COMP_OK;
 
-  if (match_and_eat_token(bc, TOKEN_COLON))
+  if (match_and_eat_token(bc, TOKEN_NEWLINE))
     goto fin;
 
   do {
@@ -1287,7 +1287,7 @@ static int compile_parameters_internal(struct bc *bc, int *below,
 
     if (expect_token_hint(bc, TOKEN_IDENTIFIER,
                           "Expected a parameter name. Maybe you forgot a $?",
-                          tok_id(bc, TOKEN_COLON)) < 0)
+                          tok_id(bc, TOKEN_NEWLINE)) < 0)
       return COMP_ERR;
 
     gab_value name = prev_id(bc);
@@ -1331,9 +1331,9 @@ static int compile_parameters_internal(struct bc *bc, int *below,
 
   } while ((result = match_and_eat_token(bc, TOKEN_COMMA)) > 0);
 
-  if (expect_token_hint(bc, TOKEN_COLON,
+  if (expect_token_hint(bc, TOKEN_NEWLINE,
                         "Blocks require a $ after the parameter list.",
-                        tok_id(bc, TOKEN_COLON)) < 0)
+                        tok_id(bc, TOKEN_NEWLINE)) < 0)
     return COMP_ERR;
 
 fin:
@@ -1386,9 +1386,6 @@ static mv compile_expressions_body(struct bc *bc) {
   if (result.status < 0)
     return MV_ERR;
 
-  if (match_terminator(bc))
-    goto fin;
-
   if (expect_token_hint(bc, TOKEN_NEWLINE, "Expression statements end with $.",
                         tok_id(bc, TOKEN_NEWLINE)) < 0)
     return MV_ERR;
@@ -1409,9 +1406,6 @@ static mv compile_expressions_body(struct bc *bc) {
     if (result.status < 0)
       return MV_ERR;
 
-    if (match_terminator(bc))
-      goto fin;
-
     if (expect_token_hint(bc, TOKEN_NEWLINE,
                           "Expression statements end with $.",
                           tok_id(bc, TOKEN_NEWLINE)) < 0)
@@ -1421,7 +1415,6 @@ static mv compile_expressions_body(struct bc *bc) {
       return MV_ERR;
   }
 
-fin:
   return result;
 }
 
@@ -1609,7 +1602,7 @@ static mv compile_assignment(struct bc *bc, struct lvalue target) {
     targets++;
   }
 
-  if (expect_token(bc, TOKEN_EQUAL) < 0)
+  if (expect_token(bc, TOKEN_COLON_COLON) < 0)
     return MV_ERR;
 
   if (targets > lvalues->len)
@@ -1740,125 +1733,32 @@ static mv compile_lvalue(struct bc *bc, bool assignable, gab_value name,
 }
 
 static int compile_rec_internal_item(struct bc *bc) {
-  if (match_and_eat_token(bc, TOKEN_SIGIL) ||
-      match_and_eat_token(bc, TOKEN_STRING) ||
-      match_and_eat_token(bc, TOKEN_INTERPOLATION_BEGIN)) {
-    size_t t = bc->offset - 1;
+  if (compile_expression(bc).status < 0)
+    return COMP_ERR;
 
-    if (compile_string(bc).status < 0)
-      return COMP_ERR;
-
-    if (match_and_eat_token(bc, TOKEN_EQUAL)) {
-      if (compile_expression(bc).status < 0)
-        return COMP_ERR;
-    } else {
-      push_loadi(bc, gab_true, t);
-      push_slot(bc, 1);
-    }
-
+  if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_RBRACK)) {
+    push_loadi(bc, gab_true, bc->offset - 1);
     return COMP_OK;
   }
 
-  if (match_and_eat_token(bc, TOKEN_MESSAGE)) {
-    size_t t = bc->offset - 1;
-
-    gab_value m = trim_prev_id(bc);
-
-    push_loadk(bc, gab_strtomsg(m), t);
-    push_slot(bc, 1);
-
-    if (match_and_eat_token(bc, TOKEN_EQUAL)) {
-      if (compile_expression(bc).status < 0)
-        return COMP_ERR;
-    } else {
-      push_loadi(bc, gab_true, t);
-      push_slot(bc, 1);
-    }
-
-    return COMP_OK;
+  if (expect_token(bc, TOKEN_COLON) < 0) {
+    eat_token(bc);
+    return compiler_error(
+        bc, GAB_MALFORMED_RECORD_PAIR,
+        "A record is list of comma-separated expressions, delimited by newlines:\n\n"
+        "   " GAB_BLUE "{ " GAB_GREEN "\"a string\"" GAB_RESET ", " GAB_MAGENTA
+        ".a_sigil" GAB_RESET ", " GAB_GREEN "'or' " GAB_BLUE "}\n" GAB_RESET
+        "   " GAB_BLUE "{ [" GAB_YELLOW "42" GAB_BLUE "] }\n\n" GAB_RESET
+        "A key may be followed by an " GAB_GREEN "EQUAL" GAB_RESET
+        ", then an expression.\n"
+        "If a value is not set this way, it is set to " GAB_MAGENTA
+        ".true" GAB_RESET ".\n");
   }
 
-  if (match_and_eat_token(bc, TOKEN_IDENTIFIER, TOKEN_OPERATOR)) {
-    gab_value val_name = prev_id(bc);
+  if (compile_expression(bc).status < 0)
+    return COMP_ERR;
 
-    size_t t = bc->offset - 1;
-
-    push_slot(bc, 1);
-
-    push_loadk(bc, gab_strtomsg(val_name), t);
-
-    switch (match_and_eat_token(bc, TOKEN_EQUAL)) {
-
-    case COMP_OK: {
-      if (compile_expression(bc).status < 0)
-        return COMP_ERR;
-
-      return COMP_OK;
-    }
-
-    case COMP_TOKEN_NO_MATCH: {
-      uint8_t value_in = 0;
-      int result = resolve_id(bc, val_name, &value_in);
-
-      push_slot(bc, 1);
-
-      switch (result) {
-
-      case COMP_RESOLVED_TO_LOCAL:
-        push_loadl(bc, value_in, t);
-        return COMP_OK;
-
-      case COMP_RESOLVED_TO_UPVALUE:
-        push_loadu(bc, value_in, t);
-        return COMP_OK;
-
-      case COMP_ID_NOT_FOUND:
-        push_loadi(bc, gab_true, t);
-        return COMP_OK;
-
-      default:
-        goto err;
-      }
-    }
-
-    default:
-      goto err;
-    }
-  }
-
-  if (match_and_eat_token(bc, TOKEN_LBRACE)) {
-    size_t t = bc->offset - 1;
-
-    if (compile_expression(bc).status < 0)
-      return COMP_ERR;
-
-    if (expect_token(bc, TOKEN_RBRACE) < 0)
-      return COMP_ERR;
-
-    if (match_and_eat_token(bc, TOKEN_EQUAL)) {
-      if (compile_expression(bc).status < 0)
-        return COMP_ERR;
-    } else {
-      push_loadi(bc, gab_true, t);
-      push_slot(bc, 1);
-    }
-
-    return COMP_OK;
-  }
-
-err:
-  eat_token(bc);
-  return compiler_error(
-      bc, GAB_MALFORMED_RECORD_KEY,
-      "A valid key is one of:\n\n"
-      "   " GAB_BLUE "{ " GAB_RESET "an_identifier " GAB_BLUE "}\n" GAB_RESET
-      "   " GAB_BLUE "{ " GAB_GREEN "\"a string\"" GAB_RESET ", " GAB_MAGENTA
-      ".a_sigil" GAB_RESET ", " GAB_GREEN "'or' " GAB_BLUE "}\n" GAB_RESET
-      "   " GAB_BLUE "{ [" GAB_YELLOW "42" GAB_BLUE "] }\n\n" GAB_RESET
-      "A key may be followed by an " GAB_GREEN "EQUAL" GAB_RESET
-      ", then an expression.\n"
-      "If a value is not set this way, it is set to " GAB_MAGENTA
-      ".true" GAB_RESET ".\n");
+  return COMP_OK;
 }
 
 static int compile_rec_internals(struct bc *bc) {
@@ -2060,13 +1960,13 @@ static mv compile_exp_idn(struct bc *bc, mv lhs, bool assignable) {
                             tok_id(bc, TOKEN_RBRACE)) < 0)
         return MV_ERR;
 
-      if (expect_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL) < 0)
+      if (expect_tokoneof(bc, TOKEN_COMMA, TOKEN_COLON_COLON) < 0)
         return MV_ERR;
 
       return compile_lvalue(bc, assignable, id, fLOCAL_REST);
     }
 
-    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_EQUAL))
+    if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_COLON_COLON))
       return compile_lvalue(bc, assignable, id, 0);
   }
 

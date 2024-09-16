@@ -1,8 +1,8 @@
 \doacc :defcase! {
-  .true = do acc, n:
+  .true: do acc, n:
     acc
   end,
-  .false = do acc, n:
+  .false: do acc, n:
     [n, acc:acc(n - 1)**]
   end,
 }

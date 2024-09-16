@@ -1,147 +1,147 @@
-module = .gab.iter
+module :: .gab.iter
 
-\iter.apply :def!(.none, do x: x end)
+\iter.apply :def!(.none, do x; x; end)
 
-\defiter! :def! ('gab.message', do cx, init:
-  mod = {
-    [module],
-    [self],
-    state = init,
-    continuation = .none,
-    reducer,
+\defiter! :def! ('gab.message', do cx, init
+  mod :: {
+    module: .nil,
+    self: .nil,
+    \state: init,
+    \continuation: .none,
+    \reducer: .nil,
   }
 
-  self :def!(module, do xs[]:
+  self :def!(module, do xs[]
     mod :reducer cx(xs**)
   end)
 
   [mod ?] :defmodule! {
-    |> = do iter:
+    \|> : do iter
       self:iter.compose iter
     end,
-    iter.compose = do second:
+    \iter.compose: do second
       self:iter.apply second
     end,
-    iter.apply = do c:
+    \iter.apply: do c
       self:continuation(self:continuation:iter.apply c)
     end,
-    \ = do acc, xs:
+    \: do acc, xs
       self:reducer . (self:continuation, acc, xs, self:state)
     end,
-    reduce.step = do acc, xs[]:
-      s, cmd, c, acc = self(acc, xs)
+    \reduce.step: do acc, xs[]
+      s, cmd, c, acc :: self(acc, xs)
       (cmd, self:continuation c :state s, acc)
     end,
-    reduce.done = do acc:
+    \reduce.done: do acc
       self:continuation:reduce.done acc
     end,
   }
 end)
 
 \iter.conditionally :defcase! {
-  .true = do r, acc, xs, s:
+  .true: do r, acc, xs, s
     (s, r:reduce.step(acc, xs**))
   end,
-  .false = do r, acc, xs, s:
+  .false: do r, acc, xs, s
     (s, .next, r, acc)
   end,
 }
 
 \iter.stop_conditionally_inclusive :defcase! {
-  .true = do r, acc, xs, s:
+  .true: do r, acc, xs, s
     (s, r:reduce.step(acc, xs**))
   end,
-  .false = do r, acc, xs, s:
-    cmd, r, acc = r:reduce.step(acc, xs**)
+  .false: do r, acc, xs, s
+    cmd, r, acc :: r:reduce.step(acc, xs**)
     (s, .stop, r, acc)
   end,
 }
 
 \iter.stop_conditionally :defcase! {
-  .true = do r, acc, xs, s:
+  .true: do r, acc, xs, s
     (s, r:reduce.step(acc, xs**))
   end,
-  .false = do r, acc, xs, s:
+  .false: do r, acc, xs, s
     (s, .stop, r, acc)
   end,
 }
 
-\map :defiter! do f: 
-  do r, acc, xs:
+\map :defiter! do f
+  do r, acc, xs
     (.nil, r:reduce.step(acc, f(xs**)))
   end
 end
 
-\tap :defiter! do f: 
-  do r, acc, xs:
+\tap :defiter! do f
+  do r, acc, xs
     f(xs**)
     (.nil, r:reduce.step(acc, xs**))
   end
 end
 
-\filter :defiter! do f:
-  do r, acc, xs:
+\filter :defiter! do f
+  do r, acc, xs
     f(xs**) .
       :iter.conditionally(r, acc, xs)
   end
 end
 
-\take :defiter!(do n:
-  do r, acc, xs, nth:
-    nxth = nth + 1
+\take :defiter!(do n
+  do r, acc, xs, nth
+    nxth :: nth + 1
     (nxth < n) .
       :iter.stop_conditionally_inclusive(r, acc, xs, nxth)
   end
 end, 0)
 
 
-\take_while :defiter! do f:
-  do r, acc, xs:
+\take_while :defiter! do f
+  do r, acc, xs
     f(xs**):iter.stop_conditionally(r, acc, xs)
   end
 end
 
-\drop :defiter!(do n:
-  do r, acc, xs, nth:
+\drop :defiter!(do n
+  do r, acc, xs, nth
     (nth >= n) .
       :iter.conditionally(r, acc, xs, nth + 1)
   end
 end, 0)
 
 \iter.do_dropwhile :defcase! {
-  .true = do r, acc, xs, b, f:
+  .true: do r, acc, xs, b, f
     (.true, r:reduce.step(acc, xs**))
   end,
-  .false = do r, acc, xs, b, f:
-    new_b = b | f(xs**) !
+  .false: do r, acc, xs, b, f
+    new_b :: b | f(xs**) !
     new_b:iter.conditionally(r, acc, xs, new_b)
   end,
 }
 
-\drop_while :defiter!(do f:
-  do r, acc, xs, b:
+\drop_while :defiter!(do f
+  do r, acc, xs, b
     b:iter.do_dropwhile(r, acc, xs, b, f)
   end
 end, .false)
 
 \iter.do_interpose :defcase! {
-  .next = do r, acc, xs:
+  .next: do r, acc, xs
     (.true, r:reduce.step(acc, xs**))
   end,
-  .stop = do r, acc, xs:
+  .stop: do r, acc, xs
     (.true, .stop, r, acc)
   end,
-  .true = do r, acc, xs, sep:
-    cmd, r, acc = r:reduce.step(acc, sep)
+  .true: do r, acc, xs, sep
+    cmd, r, acc :: r:reduce.step(acc, sep)
     cmd:iter.do_interpose(r, acc, xs)
   end,
-  .false = do r, acc, xs:
+  .false: do r, acc, xs
     (.true, r:reduce.step(acc, xs**))
   end,
 }
 
-\interpose :defiter!(do sep:
-  do r, acc, xs, started:
+\interpose :defiter!(do sep
+  do r, acc, xs, started
     started:iter.do_interpose(r,acc,xs,sep)
   end
 end, .false)

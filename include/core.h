@@ -92,20 +92,12 @@
 // Garbage collection increment/decrement buffer size
 // I don't love having these just be static buffers, its very possible
 // for them to overflow
-#ifndef cGAB_GC_DEC_BUFF_MAX
-#define cGAB_GC_DEC_BUFF_MAX (cGAB_STACK_MAX * 4)
-#endif
-
-#if cGAB_GC_DEC_BUFF_MAX < STACK_MAX
-#error "cGAB_GC_DEC_BUFF_MAX must be less than or equal to STACK_MAX"
-#endif
-
 #ifndef cGAB_GC_MOD_BUFF_MAX
-#define cGAB_GC_MOD_BUFF_MAX (cGAB_STACK_MAX)
+#define cGAB_GC_MOD_BUFF_MAX (cGAB_STACK_MAX * 4)
 #endif
 
-#if cGAB_GC_DEC_BUFF_MAX < STACK_MAX
-#error "cGAB_GC_DEC_BUFF_MAX must be less than or equal to STACK_MAX"
+#if cGAB_GC_MOD_BUFF_MAX <= cGAB_STACK_MAX
+#error "cGAB_GC_MOD_BUFF_MAX must be greater than to cGAB_STACK_MAX"
 #endif
 
 // Not configurable, just constants
@@ -150,15 +142,11 @@
 #define GAB_SEND_HASH(t) (t & (cGAB_SEND_CACHE_LEN - 1))
 // #define GAB_CALL_HASH(t) (t & (cGAB_CALL_CACHE_LEN - 1))
 
-#define GAB_HAMT_BITS (6)
-#define GAB_HAMT_SIZE (1 << GAB_HAMT_BITS)
-#define GAB_HAMT_MASK (GAB_HAMT_SIZE - 1)
+#define GAB_PVEC_BITS (5)
+#define GAB_PVEC_SIZE (1 << GAB_PVEC_BITS)
+#define GAB_PVEC_MASK (GAB_PVEC_SIZE - 1)
 
-#if 64 % GAB_HAMT_BITS != 0
-// #error "GAB_HAMT_BITS must divide 64 evently"
-#endif
-
-#if GAB_HAMT_SIZE > 64
+#if GAB_PVEC_SIZE > 64
 #error "HAMT_SIZE is larger than is indexable by a size_t"
 #endif
 

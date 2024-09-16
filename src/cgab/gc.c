@@ -88,7 +88,7 @@ void queue_decrement(struct gab_triple gab, struct gab_obj *obj) {
 #endif
   int32_t e = epochget(gab);
 
-  while (buflen(gab, kGAB_BUF_DEC, gab.wkid, e) >= cGAB_GC_DEC_BUFF_MAX) {
+  while (buflen(gab, kGAB_BUF_DEC, gab.wkid, e) >= cGAB_GC_MOD_BUFF_MAX) {
     gab_gctrigger(gab);
 
     if (gab.eg->gc->schedule == gab.wkid) {
@@ -112,7 +112,7 @@ void queue_increment(struct gab_triple gab, struct gab_obj *obj) {
 
   gab_gctrigger(gab);
 
-  while (buflen(gab, kGAB_BUF_INC, gab.wkid, e) >= cGAB_GC_DEC_BUFF_MAX) {
+  while (buflen(gab, kGAB_BUF_INC, gab.wkid, e) >= cGAB_GC_MOD_BUFF_MAX) {
     /*printf("WORKER %i WAITING EPOCH %i\n", gab.wkid, e);*/
     if (gab.eg->gc->schedule == gab.wkid)
       gab_gcepochnext(gab);
@@ -518,7 +518,7 @@ void processepoch(struct gab_triple gab) {
 
   size_t stack_size = vm->sp - vm->sb;
 
-  assert(stack_size + wk->lock_keep.len + 2 < cGAB_GC_DEC_BUFF_MAX);
+  assert(stack_size + wk->lock_keep.len + 2 < cGAB_GC_MOD_BUFF_MAX);
 
   bufpush(gab, kGAB_BUF_STK, gab.wkid, e, gab_valtoo(wk->fiber));
   bufpush(gab, kGAB_BUF_STK, gab.wkid, e, gab_valtoo(fb->messages));
@@ -579,8 +579,8 @@ bool gab_gctrigger(struct gab_triple gab) {
   size_t e = epochget(gab);
 
   for (size_t i = 0; i < gab.eg->len; i++) {
-    if (buflen(gab, kGAB_BUF_DEC, i, e) < cGAB_GC_DEC_BUFF_MAX &&
-        buflen(gab, kGAB_BUF_INC, i, e) < cGAB_GC_DEC_BUFF_MAX)
+    if (buflen(gab, kGAB_BUF_DEC, i, e) < cGAB_GC_MOD_BUFF_MAX &&
+        buflen(gab, kGAB_BUF_INC, i, e) < cGAB_GC_MOD_BUFF_MAX)
       continue;
 
 #if cGAB_LOG_GC

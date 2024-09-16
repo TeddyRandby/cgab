@@ -467,10 +467,6 @@ gab_value gab_box(struct gab_triple gab, struct gab_box_argt args) {
   return __gab_obj(self);
 }
 
-#define BITS (5)
-#define WIDTH (1 << BITS)
-#define MASK (WIDTH - 1)
-
 gab_value __gab_record(struct gab_triple gab, size_t len, size_t space,
                        gab_value *data) {
   struct gab_obj_rec *self =
@@ -599,21 +595,21 @@ gab_value gab_uvrecat(gab_value rec, size_t i) {
 
   gab_value node = rec;
 
-  for (size_t level = r->shift; level > 0; level -= BITS) {
-    size_t idx = (i >> level) & MASK;
+  for (size_t level = r->shift; level > 0; level -= GAB_PVEC_BITS) {
+    size_t idx = (i >> level) & GAB_PVEC_MASK;
     gab_value next_node = recnth(rec, idx);
     assert(gab_valkind(next_node) == kGAB_RECORDNODE ||
            gab_valkind(next_node) == kGAB_RECORD);
     node = next_node;
   }
 
-  return recnth(node, i & MASK);
+  return recnth(node, i & GAB_PVEC_MASK);
 }
 
 bool recneedsspace(gab_value rec, size_t i) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
-  size_t idx = (i >> r->shift) & MASK;
+  size_t idx = (i >> r->shift) & GAB_PVEC_MASK;
   return idx >= r->len;
 }
 
@@ -632,10 +628,10 @@ gab_value assoc(struct gab_triple gab, gab_value rec, gab_value v, size_t i) {
   gab_value root = node;
   gab_value path = root;
 
-  for (int64_t level = r->shift; level > 0; level -= BITS) {
-    size_t idx = (i >> level) & MASK;
+  for (int64_t level = r->shift; level > 0; level -= GAB_PVEC_BITS) {
+    size_t idx = (i >> level) & GAB_PVEC_MASK;
 
-    size_t nidx = (i >> (level - BITS)) & MASK;
+    size_t nidx = (i >> (level - GAB_PVEC_BITS)) & GAB_PVEC_MASK;
 
     if (idx < reclen(node))
       node = reccpy(gab, recnth(node, idx), nidx >= reclen(recnth(node, idx)));
@@ -647,7 +643,7 @@ gab_value assoc(struct gab_triple gab, gab_value rec, gab_value v, size_t i) {
   }
 
   assert(node != gab_undefined);
-  recassoc(node, v, i & MASK);
+  recassoc(node, v, i & GAB_PVEC_MASK);
   return root;
 }
 
@@ -659,15 +655,15 @@ void massoc(struct gab_triple gab, gab_value rec, gab_value v, size_t i) {
 
   gab_value node = rec;
 
-  for (int64_t level = r->shift; level > 0; level -= BITS) {
-    size_t idx = (i >> level) & MASK;
+  for (int64_t level = r->shift; level > 0; level -= GAB_PVEC_BITS) {
+    size_t idx = (i >> level) & GAB_PVEC_MASK;
 
     assert(idx < reclen(node));
     node = recnth(node, idx);
   }
 
   assert(node != gab_undefined);
-  recassoc(node, v, i & MASK);
+  recassoc(node, v, i & GAB_PVEC_MASK);
 
   return;
 }
@@ -681,7 +677,7 @@ gab_value cons(struct gab_triple gab, gab_value rec, gab_value v,
   gab_value new_root;
 
   // overflow root
-  if ((i >> BITS) >= ((size_t)1 << r->shift)) {
+  if ((i >> GAB_PVEC_BITS) >= ((size_t)1 << r->shift)) {
     new_root = __gab_record(gab, 1, 1, &rec);
     struct gab_obj_rec *new_r = GAB_VAL_TO_REC(new_root);
     new_r->shape = shp;
@@ -723,7 +719,7 @@ size_t getlen(size_t n, size_t shift) {
   if (n)
     n--;
 
-  return ((n >> shift) & MASK) + 1;
+  return ((n >> shift) & GAB_PVEC_MASK) + 1;
 }
 
 void recfillchildren(struct gab_triple gab, gab_value rec, size_t shift,
@@ -734,7 +730,7 @@ void recfillchildren(struct gab_triple gab, gab_value rec, size_t shift,
     return;
 
   for (size_t l = 0; l < len - 1; l++) {
-    gab_value lhs_child = __gab_recordnode(gab, 0, WIDTH, nullptr);
+    gab_value lhs_child = __gab_recordnode(gab, 0, GAB_PVEC_SIZE, nullptr);
 
     recfillchildren(gab, lhs_child, shift - 5, n, 32);
 
@@ -756,7 +752,7 @@ size_t getshift(size_t n) {
   if (n)
     n--;
 
-  while ((n >> BITS) >= (1 << shift)) {
+  while ((n >> GAB_PVEC_BITS) >= (1 << shift)) {
     shift += 5;
   }
 

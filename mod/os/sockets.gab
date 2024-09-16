@@ -1,0 +1,29 @@
+sock, type, connected.type :: 'csockets' :use
+
+[type] :defmodule! {
+  \seqs.init: do
+    ok, cl :: self:accept
+    (ok, .nil, cl)
+  end,
+  \seqs.next: do
+    ok, cl :: self:accept
+    (ok, .nil, cl)
+  end,
+}
+
+[connected.type] :defmodule! {
+  \seqs.init: do
+    ok, msg :: self:recv
+    (ok, .nil, msg)
+  end,
+  \seqs.next:  do
+    ok, msg :: self:recv
+    (ok, .nil, msg)
+  end,
+}
+
+type :def.seq!
+
+connected.type :def.seq!
+
+sock

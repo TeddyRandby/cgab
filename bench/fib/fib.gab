@@ -1,10 +1,10 @@
 'cmessages' :use
 
 \do_fib :defcase! {
-  .true = do n:
+  .true: do n:
     n
   end,
-  .false = do n:
+  .false: do n:
     (n - 1):fib + (n - 2):fib
   end
 }

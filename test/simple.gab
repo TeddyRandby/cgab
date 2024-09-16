@@ -1,5 +1,5 @@
-spawn_task = do i: 
-    .gab.fiber do:
+spawn_task = do i
+    .gab.fiber do
         'Hello from {i}' :print
     end
 end

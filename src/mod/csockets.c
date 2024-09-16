@@ -1,6 +1,7 @@
 #include "gab.h"
 
 #include <arpa/inet.h>
+#include <errno.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <poll.h>
@@ -8,9 +9,11 @@
 #include <stdio.h>
 #include <unistd.h>
 
-#define SOCKET_FAMILY "family"
-#define SOCKET_TYPE "type"
-#define SOCKET_BOX_TYPE "Socket"
+#define SOCKET_FAMILY "socket.family"
+#define SOCKET_TYPE "socket.type"
+
+#define SOCKET_BOX_TYPE "gab.socket"
+#define CONNECTEDSOCKET_BOX_TYPE "gab.connected.socket"
 
 void gab_container_socket_cb(size_t len, char data[static len]) {
   shutdown((int64_t)data, SHUT_RDWR);
@@ -83,7 +86,7 @@ a_gab_value *gab_lib_sock(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib_bind(struct gab_triple gab, size_t argc,
                           gab_value argv[argc]) {
-  int sockfd = (intptr_t)gab_boxdata(argv[0]);
+  int socket = *(int *)gab_boxdata(gab_arg(0));
 
   int family, port;
 
@@ -93,7 +96,8 @@ a_gab_value *gab_lib_bind(struct gab_triple gab, size_t argc,
   case kGAB_NUMBER:
     family = AF_INET;
     port = htons(gab_valton(config));
-    goto fin;
+    break;
+
   case kGAB_RECORD: {
     gab_value family_value = gab_srecat(gab, config, SOCKET_FAMILY);
 
@@ -109,15 +113,14 @@ a_gab_value *gab_lib_bind(struct gab_triple gab, size_t argc,
 
     port = htons(gab_valton(port_value));
 
-    goto fin;
+    break;
   }
 
   default:
     return gab_pktypemismatch(gab, config, kGAB_NUMBER);
   }
 
-fin: {
-  int result = bind(sockfd,
+  int result = bind(socket,
                     (struct sockaddr *)(struct sockaddr_in[]){{
                         .sin_family = family,
                         .sin_addr = {.s_addr = INADDR_ANY},
@@ -126,10 +129,10 @@ fin: {
                     sizeof(struct sockaddr_in));
 
   if (result < 0)
-    gab_vmpush(gab_vm(gab), gab_sigil(gab, "BIND_FAILED"));
+    gab_vmpush(gab_vm(gab), gab_err, gab_string(gab, strerror(errno)));
   else
     gab_vmpush(gab_vm(gab), gab_ok);
-}
+
   return nullptr;
 }
 
@@ -140,12 +143,12 @@ a_gab_value *gab_lib_listen(struct gab_triple gab, size_t argc,
   if (gab_valkind(port) != kGAB_NUMBER)
     return gab_pktypemismatch(gab, port, kGAB_NUMBER);
 
-  int socket = (intptr_t)gab_boxdata(argv[0]);
+  int socket = *(int *)gab_boxdata(gab_arg(0));
 
   int result = listen(socket, gab_valton(port));
 
   if (result < 0)
-    gab_vmpush(gab_vm(gab), gab_sigil(gab, "LISTEN_FAILED"));
+    gab_vmpush(gab_vm(gab), gab_err, gab_string(gab, "LISTEN_FAILED"));
   else
     gab_vmpush(gab_vm(gab), gab_ok);
 
@@ -154,7 +157,7 @@ a_gab_value *gab_lib_listen(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib_accept(struct gab_triple gab, size_t argc,
                             gab_value argv[argc]) {
-  int socket = (intptr_t)gab_boxdata(argv[0]);
+  int socket = *(int *)gab_boxdata(gab_arg(0));
 
   struct sockaddr addr = {0};
   socklen_t addrlen = 0;
@@ -162,21 +165,18 @@ a_gab_value *gab_lib_accept(struct gab_triple gab, size_t argc,
   int64_t connfd = accept(socket, &addr, &addrlen);
 
   if (connfd < 0) {
-    gab_vmpush(gab_vm(gab), gab_string(gab, "ACCEPT_FAILED"));
+    gab_vmpush(gab_vm(gab), gab_err, gab_string(gab, strerror(errno)));
     return nullptr;
   }
 
-  gab_value res[2] = {
-      gab_ok,
-      gab_box(gab,
-              (struct gab_box_argt){
-                  .type = gab_string(gab, SOCKET_BOX_TYPE),
-                  .destructor = gab_container_socket_cb,
-                  .data = (void *)connfd,
-              }),
-  };
+  gab_vmpush(gab_vm(gab), gab_ok,
+             gab_box(gab, (struct gab_box_argt){
+                              .type = gab_string(gab, CONNECTEDSOCKET_BOX_TYPE),
+                              .destructor = gab_container_socket_cb,
+                              .size = sizeof(connfd),
+                              .data = &connfd,
+                          }));
 
-  gab_nvmpush(gab_vm(gab), 2, res);
   return nullptr;
 }
 
@@ -193,48 +193,50 @@ a_gab_value *gab_lib_connect(struct gab_triple gab, size_t argc,
     return gab_pktypemismatch(gab, port, kGAB_NUMBER);
   }
 
-  int sockfd = (intptr_t)gab_boxdata(argv[0]);
+  int socket = *(int *)gab_boxdata(gab_arg(0));
 
-  const char *ip = gab_strdata(argv + 1);
+  const char *ip = gab_strdata(&host);
 
-  int cport = htons(gab_valton(argv[2]));
+  int cport = htons(gab_valton(port));
 
   struct sockaddr_in addr = {.sin_family = AF_INET, .sin_port = cport};
 
   int result = inet_pton(AF_INET, ip, &addr.sin_addr);
 
   if (result <= 0) {
-    gab_vmpush(gab_vm(gab), gab_string(gab, "INET_PTON_FAILED"));
+    gab_vmpush(gab_vm(gab), gab_err, gab_string(gab, "INET_PTON_FAILED"));
     return nullptr;
   }
 
-  result = connect(sockfd, (struct sockaddr *)&addr, sizeof(addr));
+  result = connect(socket, (struct sockaddr *)&addr, sizeof(addr));
 
   if (result < 0)
-    gab_vmpush(gab_vm(gab), gab_sigil(gab, "CONNECT_FAILED"));
+    gab_vmpush(gab_vm(gab), gab_err, gab_string(gab, strerror(errno)));
   else
-    gab_vmpush(gab_vm(gab), gab_ok);
+    gab_vmpush(
+        gab_vm(gab), gab_ok,
+        gab_box(gab, (struct gab_box_argt){
+                         .type = gab_string(gab, CONNECTEDSOCKET_BOX_TYPE),
+                         .destructor = gab_container_socket_cb,
+                         .size = sizeof(socket),
+                         .data = &socket,
+                     }));
 
   return nullptr;
 }
 
 a_gab_value *gab_lib_receive(struct gab_triple gab, size_t argc,
                              gab_value argv[argc]) {
-  int8_t buffer[1024] = {0};
+  char buffer[1024] = {0};
 
-  int64_t socket = (int64_t)GAB_VAL_TO_BOX(argv[0])->data;
+  int socket = *(int *)gab_boxdata(gab_arg(0));
 
   int32_t result = recv(socket, buffer, 1024, 0);
 
-  if (result < 0) {
-    gab_vmpush(gab_vm(gab), gab_sigil(gab, "RECEIVE_FAILED"));
-  } else {
-    gab_value vals[] = {
-        gab_ok,
-        gab_nstring(gab, result, (char *)buffer),
-    };
-    gab_nvmpush(gab_vm(gab), 2, vals);
-  }
+  if (result < 0)
+    gab_vmpush(gab_vm(gab), gab_err, gab_string(gab, strerror(result)));
+  else
+    gab_vmpush(gab_vm(gab), gab_ok, gab_nstring(gab, result, buffer));
 
   return nullptr;
 }
@@ -243,30 +245,29 @@ a_gab_value *gab_lib_send(struct gab_triple gab, size_t argc,
                           gab_value argv[argc]) {
   gab_value msg = gab_arg(1);
 
-  if (gab_valkind(msg) != kGAB_STRING) {
-    return gab_ptypemismatch(gab, msg, gab_type(gab, kGAB_STRING));
-  }
+  if (gab_valkind(msg) != kGAB_STRING)
+    return gab_pktypemismatch(gab, msg, kGAB_STRING);
 
-  int64_t socket = (int64_t)GAB_VAL_TO_BOX(argv[0])->data;
+  int socket = *(int *)gab_boxdata(gab_arg(0));
 
   int32_t result = send(socket, gab_strdata(&msg), gab_strlen(msg), 0);
 
-  if (result < 0) {
-    gab_vmpush(gab_vm(gab), gab_sigil(gab, "SEND_FAILED"));
-  } else {
+  if (result < 0)
+    gab_vmpush(gab_vm(gab), gab_err, gab_string(gab, strerror(errno)));
+  else
     gab_vmpush(gab_vm(gab), gab_ok);
-  }
 
   return nullptr;
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value container_type = gab_string(gab, "gab.socket");
+  gab_value connected_container_type = gab_string(gab, "gab.connected.socket");
 
   struct gab_spec_argt specs[] = {
       {
           mGAB_CALL,
-          gab_sigil(gab, "gab.socket"),
+          gab_strtosig(container_type),
           gab_snative(gab, "gab.socket", gab_lib_sock),
       },
       {
@@ -285,27 +286,27 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           gab_snative(gab, "accept", gab_lib_accept),
       },
       {
-          "recv",
+          "connect",
           container_type,
+          gab_snative(gab, "connect", gab_lib_connect),
+      },
+      {
+          "recv",
+          connected_container_type,
           gab_snative(gab, "receive", gab_lib_receive),
       },
       {
           "send",
-          container_type,
+          connected_container_type,
           gab_snative(gab, "send", gab_lib_send),
-      },
-      {
-          "connect",
-          container_type,
-          gab_snative(gab, "connect", gab_lib_connect),
       },
   };
 
   gab_nspec(gab, sizeof(specs) / sizeof(specs[0]), specs);
 
   const char *constant_names[] = {
-      "AF_INET",
-      "SOCK_STREAM",
+      "family.af_inet",
+      "type.stream",
   };
 
   gab_value constant_values[] = {
@@ -316,5 +317,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value constants = gab_srecord(gab, LEN_CARRAY(constant_names),
                                     constant_names, constant_values);
 
-  return a_gab_value_one(constants);
+  gab_value res[] = {constants, container_type, connected_container_type};
+
+  return a_gab_value_create(res, 3);
 }
