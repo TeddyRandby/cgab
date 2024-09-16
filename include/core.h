@@ -1,10 +1,6 @@
 #ifndef GAB_COMMON_H
 #define GAB_COMMON_H
 
-#ifndef cGAB_CHUNK_ALLOCATOR
-#define cGAB_CHUNK_ALLOCATOR 0
-#endif
-
 // The number of cache slots, mostly used for
 #ifndef cGAB_SEND_CACHE_LEN
 #define cGAB_SEND_CACHE_LEN 4

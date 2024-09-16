@@ -1,4 +1,3 @@
-#include "alloc.h"
 #include "core.h"
 #include "gab.h"
 #include "os.h"
@@ -90,7 +89,6 @@ void run_file(const char *path, int flags, size_t jobs) {
   struct gab_triple gab = gab_create((struct gab_create_argt){
       .os_dynopen = dynopen,
       .os_dynsymbol = dynsymbol,
-      .os_objalloc = chunkalloc,
       .flags = flags,
       .jobs = jobs,
   });

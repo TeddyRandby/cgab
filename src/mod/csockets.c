@@ -17,43 +17,6 @@ void gab_container_socket_cb(size_t len, char data[static len]) {
   close((int64_t)data);
 }
 
-a_gab_value *gab_lib_poll(struct gab_triple gab, size_t argc,
-                          gab_value argv[argc]) {
-  int result, timeout;
-
-  struct pollfd fd = {
-      .fd = (intptr_t)gab_boxdata(argv[0]),
-      .events = POLLIN,
-  };
-
-  switch (argc) {
-  case 1:
-    timeout = -1;
-    break;
-
-  case 2:
-    if (gab_valkind(argv[1]) != kGAB_NUMBER) {
-      return gab_panic(gab, "invalid_arguments");
-    }
-
-    timeout = gab_valton(argv[1]);
-    break;
-
-  default:
-    return gab_panic(gab, "invalid_arguments");
-  }
-
-  result = poll(&fd, 1, timeout);
-
-  if (result < 0) {
-    gab_vmpush(gab_vm(gab), gab_string(gab, "poll_failed"));
-    return nullptr;
-  }
-
-  gab_vmpush(gab_vm(gab), gab_number(fd.revents));
-  return nullptr;
-}
-
 const char *sock_config_keys[] = {SOCKET_FAMILY, SOCKET_TYPE};
 
 a_gab_value *gab_lib_sock(struct gab_triple gab, size_t argc,
@@ -72,10 +35,10 @@ a_gab_value *gab_lib_sock(struct gab_triple gab, size_t argc,
     gab_value type_val = gab_srecat(gab, argv[1], SOCKET_TYPE);
 
     if (gab_valkind(domain_val) != kGAB_NUMBER)
-      return gab_panic(gab, "invalid_arguments");
+      return gab_pktypemismatch(gab, domain_val, kGAB_NUMBER);
 
     if (gab_valkind(type_val) != kGAB_NUMBER)
-      return gab_panic(gab, "invalid_arguments");
+      return gab_pktypemismatch(gab, type_val, kGAB_NUMBER);
 
     domain = gab_valton(domain_val);
     type = gab_valton(type_val);
@@ -100,25 +63,20 @@ a_gab_value *gab_lib_sock(struct gab_triple gab, size_t argc,
   }
   }
 
-  int64_t sockfd = socket(domain, type, 0);
+  int sockfd = socket(domain, type, 0);
 
   if (sockfd < 0) {
-    gab_vmpush(gab_vm(gab), gab_sigil(gab, "socket_open_failed"));
+    gab_vmpush(gab_vm(gab), gab_err, gab_string(gab, "socket failed to open"));
     return nullptr;
   }
 
-  gab_value res[2] = {
-      gab_ok,
-      gab_box(gab,
-              (struct gab_box_argt){
-                  .type = gab_string(gab, SOCKET_BOX_TYPE),
-                  .destructor = gab_container_socket_cb,
-                  .size = sizeof(int64_t),
-                  .data = &sockfd,
-              }),
-  };
-
-  gab_nvmpush(gab_vm(gab), 2, res);
+  gab_vmpush(gab_vm(gab), gab_ok,
+             gab_box(gab, (struct gab_box_argt){
+                              .type = gab_string(gab, SOCKET_BOX_TYPE),
+                              .destructor = gab_container_socket_cb,
+                              .size = sizeof(sockfd),
+                              .data = &sockfd,
+                          }));
 
   return nullptr;
 }
@@ -139,15 +97,13 @@ a_gab_value *gab_lib_bind(struct gab_triple gab, size_t argc,
   case kGAB_RECORD: {
     gab_value family_value = gab_srecat(gab, config, SOCKET_FAMILY);
 
-    if (gab_valkind(family_value) != kGAB_NUMBER) {
-      return gab_panic(gab, "invalid_arguments");
-    }
+    if (gab_valkind(family_value) != kGAB_NUMBER)
+      return gab_pktypemismatch(gab, family_value, kGAB_NUMBER);
 
     gab_value port_value = gab_srecat(gab, config, "port");
 
-    if (gab_valkind(port_value) != kGAB_NUMBER) {
-      return gab_panic(gab, "invalid_arguments");
-    }
+    if (gab_valkind(port_value) != kGAB_NUMBER)
+      return gab_pktypemismatch(gab, port_value, kGAB_NUMBER);
 
     family = gab_valton(family_value);
 
@@ -309,8 +265,8 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   struct gab_spec_argt specs[] = {
       {
-          "gab.socket",
-          gab_undefined,
+          mGAB_CALL,
+          gab_sigil(gab, "gab.socket"),
           gab_snative(gab, "gab.socket", gab_lib_sock),
       },
       {
@@ -347,18 +303,18 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_nspec(gab, sizeof(specs) / sizeof(specs[0]), specs);
 
-  // const char *constant_names[] = {
-  //     "AF_INET",
-  //     "SOCK_STREAM",
-  // };
+  const char *constant_names[] = {
+      "AF_INET",
+      "SOCK_STREAM",
+  };
 
-  // gab_value constant_values[] = {
-  //     gab_number(AF_INET),
-  //     gab_number(SOCK_STREAM),
-  // };
+  gab_value constant_values[] = {
+      gab_number(AF_INET),
+      gab_number(SOCK_STREAM),
+  };
 
-  // gab_value constants = gab_srecord(gab, LEN_CARRAY(constant_names),
-  //                                   constant_names, constant_values);
+  gab_value constants = gab_srecord(gab, LEN_CARRAY(constant_names),
+                                    constant_names, constant_values);
 
-  return a_gab_value_one(gab_nil);
+  return a_gab_value_one(constants);
 }

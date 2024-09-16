@@ -235,7 +235,7 @@ static inline gab_value __gab_dtoval(double value) {
 #define gab_err                                                                \
   ((gab_value)(__GAB_QNAN | (uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET |          \
                (uint64_t)2 << 40 | (uint64_t)'e' | (uint64_t)'r' << 8 |        \
-               (uint64_t)'r' << 16)
+               (uint64_t)'r' << 16))
 
 /* Convert a c boolean into the corresponding gab value */
 #define gab_bool(val) ((val) ? gab_true : gab_false)
@@ -371,7 +371,7 @@ struct gab_obj {
    * @brief a flag denoting the kind of object referenced by this pointer -
    * defines how to interpret the remaining bytes of this allocation.
    */
-  enum gab_kind kind;
+  uint8_t kind;
 };
 
 /**
@@ -403,12 +403,6 @@ struct gab_create_argt {
    * @brief A hook for pulling symbols out of dynamically loaded libraries.
    */
   void *(*os_dynsymbol)(void *os_dynhandle, const char *path);
-  /**
-   * @brief A hook for allocating gab objects. A default is used if this is not
-   * provided.
-   */
-  struct gab_obj *(*os_objalloc)(struct gab_triple gab, struct gab_obj *,
-                                 size_t new_size);
 };
 
 /**
@@ -1455,15 +1449,15 @@ struct gab_obj_rec {
   uint8_t len;
 
   /**
+   * @brief shift value used to index tree as depth increases.
+   */
+  int32_t shift;
+
+  /**
    * @brief The shape of this record. This determines the length of the record
    * as a whole, and the keys which are available.
    */
   gab_value shape;
-
-  /**
-   * @brief shift value used to index tree as depth increases.
-   */
-  int64_t shift;
 
   /**
    * @brief the children of this node. If this node is a leaf, then this will
@@ -1487,6 +1481,32 @@ struct gab_obj_rec {
  */
 gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
                      gab_value keys[static len], gab_value vals[static len]);
+
+/**
+ * @brief Create a record, with c-string keys..
+ *
+ * @param gab The engine
+ * @param stride Stride between key-value pairs in keys and vals.
+ * @param len Number of key-value pairs.
+ * @param keys The keys
+ * @param vals The vals
+ * @return The new record
+ */
+static inline gab_value gab_srecord(struct gab_triple gab, size_t len,
+                      const char *keys[static len], gab_value vals[static len]) {
+  gab_value vkeys[len];
+
+  gab_gclock(gab);
+
+  for (size_t i = 0; i < len; i++)
+    vkeys[i] = gab_string(gab, keys[i]);
+
+  gab_value rec =  gab_record(gab, 1, len, vkeys, vals);
+
+  gab_gcunlock(gab);
+
+  return rec;
+}
 
 /**
  * @brief Get the shape of a record
@@ -2005,6 +2025,11 @@ struct gab_obj_prototype {
   struct gab_obj header;
 
   /**
+   * The number of arguments, captures, slots (stack space) and locals.
+   */
+  unsigned char narguments, nupvalues, nslots, nlocals;
+
+  /**
    * The source file this prototype is from.
    */
   struct gab_src *src;
@@ -2013,11 +2038,6 @@ struct gab_obj_prototype {
    * The offset in the source's bytecode, and the length.
    */
   size_t offset, len;
-
-  /**
-   * The number of arguments, captures, slots (stack space) and locals.
-   */
-  unsigned char narguments, nupvalues, nslots, nlocals;
 
   /**
    * Flags providing additional metadata about the prototype.
@@ -2209,6 +2229,8 @@ struct gab_eg {
     _Atomic uint32_t epoch;
     _Atomic int32_t locked;
     v_gab_obj lock_keep;
+
+    uint8_t arena[cGAB_JOB_BUMPARENA_SIZE][GAB_GCNEPOCHS];
   } jobs[];
 };
 

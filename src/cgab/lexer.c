@@ -153,6 +153,11 @@ gab_token string(gab_lx *self) {
         return lexer_error(self, GAB_MALFORMED_STRING);
       }
 
+      if (peek(self) == '\\' && peek_next(self) == '{') {
+        advance(self);
+        advance(self);
+      }
+
       if (peek(self) == '{') {
         advance(self);
         self->nested_curly++;

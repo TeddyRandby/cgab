@@ -289,6 +289,7 @@ Gab has an initial implementation of this, and actually uses a `gab.channel` of 
     - Copy-and-patch JIT compiler? Refactoring VM.c via macros to write into stencils
 - [ ] String interpolation should use a `strings.into` message to convert values before concatenating
 - [ ] Compose channels with `|`, as opposed to `alt`.
+- [ ] Capture sig interrupt to gracefully print stacktraces of running fibers
 - [ ] Of course, lots of library work can be done.
     - More iterators
     - Improve spec
