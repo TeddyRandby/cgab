@@ -6,8 +6,8 @@ Gab is a dynamic scripting language. It's goals are:
 ## Inspiration
 Gab is heavily inspired by [Clojure](https://clojure.org), [Self](https://selflanguage.org/), [Lua](https://www.lua.org/), and [Erlang](https://www.erlang.org/).
 ```gab
-spawn_task = do i: 
-    .gab.fiber do:
+spawn_task :: do i
+    .gab.fiber do
         'Hello from {i}' :print
     end
 end
@@ -72,7 +72,7 @@ Strings are just byte arrays. Single-quoted strings support interpolation, and b
 Blocks are functions. They always include an implicit variable `self`.
 Depending on the context that the block is called in, `self` will have different values.
 ```gab
-    add = do a, b:
+    add :: do a, b
         a + b
     end
 
@@ -81,21 +81,21 @@ Depending on the context that the block is called in, `self` will have different
 #### Records
 Records are collections of key-value pairs. They are ordered, and structurally typed.
 ```gab
-    a_record = { work = 'value' }
+    a_record :: { \work: 'value' }
 
     a_record                    # => { work = 'value', more_complex_work = <gab.block ...> }
 
     a_record :work              # => 'value'
 
-    a_tuple = [1, 2, 3]         # => A record as above, but the keys are ascending integers (starting from 0)
+    a_tuple :: [1, 2, 3]         # => A record as above, but the keys are ascending integers (starting from 0)
 
     a_tuple                     # => { 0 = 1, 1 = 2, 2 = 3 }
 ```
 Records, like all values, are __immutable__. This means that setting values in records returns a *new record*.
 ```gab
-    a_record = { work = 'value' }
+    a_record :: { \work: 'value' }
 
-    a_record = a_record :work 'another value'   # => When an argument is provided, this message serves as a 'set' instead of a 'get'.
+    a_record :: a_record :work 'another value'   # => When an argument is provided, this message serves as a 'set' instead of a 'get'.
 
     a_record :print                             # => { work = 'another value' }
 ```
@@ -119,11 +119,11 @@ Because sigil's have a different type, you can define how an *individual sigil* 
 ```gab
 # Define the message 'then' for the .true and .false sigil.
 \then :defcase! {
-    .true = do callback:
+    .true = do callback
         # In the true path, we call the callback
         callback()
     end,
-    .fase = do:
+    .fase = do
         # In the false path, we return false
         self
     end,
@@ -147,8 +147,8 @@ The core library provides some messages for defining messages. This might feel a
 .Rich :say_hello    # => Hello, Rich!
 
 \meet :defcase! {
-    .Joe    = do: 'Nice to meet you Joe!' :print end,
-    .Rich   = do: 'Its a pleasure, Rich!' :print end, 
+    .Joe:  do; 'Nice to meet you Joe!' :print; end,
+    .Rich: do; 'Its a pleasure, Rich!' :print; end, 
 }
 
 .Joe  :meet         # => Nice to meet you Joe!
@@ -165,7 +165,7 @@ However, the tuple syntax (eg: `(3, 4)`) allows multiple values to be wrapped in
     # Send \do_work to val with an argument of (2, 3, 4)
     val :do_work (2, 3, 4)
 
-    ok, result = val :might_fail 'something'
+    ok, result :: val :might_fail 'something'
 ```
 ### Concurrency
 New programming languages that don't consider concurrency are boring! Everyones walking around with 8+ cores on them at all times, might as well use em!
@@ -193,30 +193,30 @@ This implementation has some problems, but it works well enough as an initial pr
 ```gab
 # Define a message for doing some work. This builds a list in a silly way.
 \do_acc :defcase! {
-  .true  = do acc: acc end,
-  .false = do acc, n: [n, acc:acc(n - 1)**] end, 
+  .true: do acc; acc; end,
+  .false: do acc, n; [n, acc:acc(n - 1)**]; end, 
 }
 
-\acc :def!('gab.record', do n:
+\acc :def!('gab.record', do n
   n :== 0 :do_acc (self, n)
 end)
 
 # Define a message for launching blocks in a fiber.
 # This just calls the .gab.fiber constructer with
 #   a single argument - the block
-\go :def!('gab.block', do: .gab.fiber self end)
+\go :def!('gab.block', do; .gab.fiber self; end)
 
 # Define some input and output channels
-in, out = .gab.channel(), .gab.channel()
+in, out :: .gab.channel(), .gab.channel()
 
 # Here is our block that will do the work.
 # Send \acc to the empty list [] with an
 # argument we pull from the in channel. Then
 # take the length of that result list, and put it
 # on the out channel.
-work = do:
-    n = in >!
-    res = [] :acc n :len
+work :: do
+    n :: in >!
+    res :: [] :acc n :len
     out <! res
 end
 
@@ -226,7 +226,7 @@ work :go
 work :go
 
 # Dispatch a routine to add work on the in channel
-fib = do:
+fib :: do
   in <! 400
   in <! 500
   in <! 600
