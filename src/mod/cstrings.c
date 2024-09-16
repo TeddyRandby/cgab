@@ -53,6 +53,20 @@ a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
   return nullptr;
 };
 
+a_gab_value *gab_lib_gabeval(struct gab_triple gab, size_t argc,
+                             gab_value argv[argc]) {
+  gab_value source = gab_arg(0);
+
+  a_gab_value *result = gab_exec(gab, (struct gab_exec_argt){
+                                          .flags = gab.flags,
+                                          .source = gab_strdata(&source),
+                                          .name = "eval",
+                                      });
+
+  gab_nvmpush(gab_vm(gab), result->len, result->data);
+  return nullptr;
+};
+
 static inline bool begins(const char *str, const char *pat, size_t offset) {
   size_t len = strlen(pat);
 
@@ -406,7 +420,13 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "has?",
           string_type,
           gab_snative(gab, "has?", gab_lib_has),
-      }};
+      },
+      {
+          "gab.eval",
+          string_type,
+          gab_snative(gab, "gab.eval", gab_lib_gabeval),
+      },
+  };
 
   gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
 

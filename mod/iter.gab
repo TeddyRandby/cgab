@@ -3,7 +3,7 @@ module :: .gab.iter
 \iter.apply :def!(.none, do x; x; end)
 
 \defiter! :def! ('gab.message', do cx, init
-  mod :: {
+  mod.t :: {
     module: .nil,
     self: .nil,
     \state: init,
@@ -12,10 +12,10 @@ module :: .gab.iter
   }
 
   self :def!(module, do xs[]
-    mod :reducer cx(xs**)
+    mod.t :reducer cx(xs**)
   end)
 
-  [mod ?] :defmodule! {
+  [mod.t ?] :defmodule! {
     \|> : do iter
       self:iter.compose iter
     end,

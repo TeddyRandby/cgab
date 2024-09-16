@@ -11,12 +11,23 @@ server:listen port :unwrap!
 
 in :: .gab.channel()
 
+lsp.message.t :: { \headers, \content }?
+
+(\lsp.messages.into, 'gab.string') :def! do
+  headers_str, content_str :: self:split '\r\n\r\n'
+
+  headers[] :: headers_str :split '\r\n' 
+  content   :: content_str :gab.eval :unwrap!
+
+  { \headers: headers, \content: content }
+end
+
 .gab.fiber do
   # Spin up a fiber for our server to listen to new connections
   server:each do conn
     'Received a connection: {conn}':print
     conn:each do msg
-      in <! msg
+      in <! msg :lsp.messages.into
     end
   end
 end
@@ -25,7 +36,16 @@ client :: .gab.socket(sock:family.af_inet, sock:type.stream):unwrap!
 
 client :: client :connect ('127.0.0.1', 8080) :unwrap!
 
-client :send "Test"
-client :send "Another test"
+example_message :: "
+Content-Length: ...\r\n\r\n
+{
+  'jsonrpc': '2.0',
+  'id': 1,
+  'method': 'textDocument/completion',
+  'params': {}
+}
+"
+
+client :send example_message
 
 in :each \print
