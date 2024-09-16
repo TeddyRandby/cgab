@@ -2229,8 +2229,6 @@ struct gab_eg {
     _Atomic uint32_t epoch;
     _Atomic int32_t locked;
     v_gab_obj lock_keep;
-
-    uint8_t arena[cGAB_JOB_BUMPARENA_SIZE][GAB_GCNEPOCHS];
   } jobs[];
 };
 
