@@ -223,10 +223,13 @@ struct primitive kind_primitives[] = {
     },
 };
 
+static const struct timespec t = { .tv_nsec = GAB_YIELD_SLEEPTIME_NS };
+
 void gab_yield(struct gab_triple gab) {
   if (gab.eg->gc->schedule == gab.wkid)
     gab_gcepochnext(gab);
 
+  thrd_sleep(&t, nullptr);
   thrd_yield();
 }
 
@@ -259,13 +262,17 @@ int32_t worker_thread(void *data) {
   struct gab_triple gab = *g;
   gab.wkid = wkid(gab.eg);
 
-  while (!gab_chnisclosed(gab.eg->work_channel)) {
-    gab_value fiber = gab_chntake(gab, gab.eg->work_channel);
+  gab.eg->njobs++;
 
-    // If the channel closes while we're blocking on it,
-    // we get undefined.
+  while (!gab_chnisclosed(gab.eg->work_channel)) {
+    gab_value fiber =
+        gab_tchntake(gab, gab.eg->work_channel, cGAB_WORKER_IDLEWAIT_MS);
+
+    // we get undefined if:
+    //  - the channel is closed
+    //  - we timed out
     if (fiber == gab_undefined)
-      continue;
+      break;
 
     gab.eg->jobs[gab.wkid].fiber = fiber;
 
@@ -279,15 +286,15 @@ int32_t worker_thread(void *data) {
     gab.eg->jobs[gab.wkid].fiber = gab_undefined;
 
     if (!res)
-      goto fin;
+      break;
   }
 
-fin:
+  gab.eg->jobs[gab.wkid].alive = false;
   gab.eg->jobs[gab.wkid].fiber = gab_undefined;
   gab.eg->njobs--;
 
-  while (gab.eg->njobs >= 0)
-    gab_yield(gab);
+  /*while (gab.eg->njobs >= 0)*/
+  /*  gab_yield(gab);*/
 
   free(g);
 
@@ -295,10 +302,16 @@ fin:
 }
 
 struct gab_jb *next_available_job(struct gab_triple gab) {
-  if (gab.eg->njobs + 1 >= gab.eg->len - 1)
-    return nullptr;
 
-  return gab.eg->jobs + gab.eg->njobs++;
+  // Try to reuse an existing job, thats exited after idling
+  for (size_t i = 0; i < gab.eg->len; i++) {
+    // If we have a dead thread, revive it
+    if (!gab.eg->jobs[i].alive)
+      return gab.eg->jobs + i;
+  }
+
+  // No room for new jobs
+  return nullptr;
 }
 
 bool gab_jbcreate(struct gab_triple gab, struct gab_jb *job, int(fn)(void *)) {
@@ -308,6 +321,7 @@ bool gab_jbcreate(struct gab_triple gab, struct gab_jb *job, int(fn)(void *)) {
   job->epoch = 0;
   job->locked = 0;
   job->fiber = gab_undefined;
+  job->alive = true;
   v_gab_obj_create(&job->lock_keep, 8);
 
   struct gab_triple *gabcpy = malloc(sizeof(struct gab_triple));
@@ -1021,8 +1035,8 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
 
   if (res->data[0] != gab_ok) {
     return gab_fpanic(gab,
-                     "Failed to load module: module returned $, expected $",
-                     res->data[0], gab_ok);
+                      "Failed to load module: module returned $, expected $",
+                      res->data[0], gab_ok);
   }
 
   gab_negkeep(gab.eg, res->len - 1, res->data + 1);

@@ -1,3 +1,4 @@
+#include "core.h"
 #include "engine.h"
 #include "gab.h"
 #include "lexer.h"
@@ -773,7 +774,6 @@ gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
 
   gab_value res = __gab_obj(self);
 
-
   if (len) {
     recfillchildren(gab, res, shift, len, rootlen);
 
@@ -924,7 +924,7 @@ gab_value gab_channel(struct gab_triple gab, size_t len) {
   return __gab_obj(self);
 }
 
-static const struct timespec t = {.tv_nsec = 500};
+static const struct timespec t = {.tv_nsec = GAB_CHANNEL_STEP_NS};
 
 void gab_chnclose(gab_value c) {
   assert(gab_valkind(c) == kGAB_CHANNEL ||
@@ -1033,11 +1033,17 @@ gab_value dotake(struct gab_obj_channel *channel) {
 }
 
 gab_value gab_chntake(struct gab_triple gab, gab_value c) {
+  return gab_tchntake(gab, c, -1);
+}
+
+gab_value gab_tchntake(struct gab_triple gab, gab_value c, size_t nms) {
   assert(gab_valkind(c) == kGAB_CHANNEL ||
          gab_valkind(c) == kGAB_CHANNELCLOSED ||
          gab_valkind(c) == kGAB_CHANNELBUFFERED);
 
   struct gab_obj_channel *channel = GAB_VAL_TO_CHANNEL(c);
+
+  size_t timeout = 0;
 
   switch (channel->header.kind) {
   case kGAB_CHANNEL: {
@@ -1046,9 +1052,15 @@ gab_value gab_chntake(struct gab_triple gab, gab_value c) {
     while (gab_chnisempty(c)) {
       gab_yield(gab);
 
-      cnd_timedwait(&channel->p_cnd, &channel->mtx, &t);
+      if (cnd_timedwait(&channel->p_cnd, &channel->mtx, &t) == thrd_timedout)
+        timeout += cGAB_CHANNEL_STEP_MS;
 
       if (gab_chnisclosed(c)) {
+        mtx_unlock(&channel->mtx);
+        return gab_undefined;
+      }
+
+      if (timeout > nms) {
         mtx_unlock(&channel->mtx);
         return gab_undefined;
       }

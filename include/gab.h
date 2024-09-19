@@ -1888,6 +1888,15 @@ void gab_chnput(struct gab_triple gab, gab_value channel, gab_value value);
 gab_value gab_chntake(struct gab_triple gab, gab_value channel);
 
 /**
+ * @brief Take a value from the given channel, with a timeout.
+ * 
+ * @param gab The engine
+ * @param channel The channel
+ * @return The value taken
+ */
+gab_value gab_tchntake(struct gab_triple gab, gab_value channel, size_t nms);
+
+/**
  * @brief Close the given channel. A closed channel cannot receive new values.
  *
  * @param channel The channel
@@ -2239,7 +2248,7 @@ struct gab_eg {
   struct gab_jb {
     thrd_t td;
 
-    size_t pid;
+    bool alive;
 
     gab_value fiber;
 

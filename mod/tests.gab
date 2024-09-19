@@ -37,7 +37,7 @@ test.result.fail.t :: { \test.path, \test.receiver, \test.meta, .false }?
     # Get the suite we're executing
     suite :: self:test.path :at! 0
     # Queue up the outcome of the comparison
-    suites.all :at! suite <! self :put (\test.meta, { lhs, cmp, rhs }) :put test.outcome
+    suites.all :at! suite <! self :put (\test.meta, { \lhs: lhs, \cmp: cmp, \rhs: rhs }) :put test.outcome
   end,
 }
 

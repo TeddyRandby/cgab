@@ -30,6 +30,35 @@
 #define cGAB_TAILCALL 1
 #endif
 
+// Step size in milliseconds for putting and taking on channels
+// This is how long each *attempt* to put/take will last.
+// put/take are still blocking - this is basically the resolution of the check.
+#ifndef cGAB_CHANNEL_STEP_MS
+#define cGAB_CHANNEL_STEP_MS ((size_t)500)
+#endif
+
+#define GAB_CHANNEL_STEP_NS ((size_t)(cGAB_CHANNEL_STEP_MS * 1000000))
+
+// Workers (os threads that can actually run gab code)
+// will wait this long before exiting, if they haven't received work.
+// New workers are spawned as needed up until a maximum is reached (specified at runtime)
+#ifndef cGAB_WORKER_IDLEWAIT_MS
+#define cGAB_WORKER_IDLEWAIT_MS ((size_t) 500)
+#endif
+
+// A worker (os thread) may need to yield at an arbitrary point.
+// This is done using the gab_yield function, which handles
+// sleeping, context switching, and checking if the worker needs
+// to participate in a garbage collection. 
+// A sleeptime of 0ms will result in *a lot* of context switching,
+// which is undesirable for the OS Scheduler. To help this, a small
+// amount of sleeping in the yield function is useful
+#ifndef cGAB_YIELD_SLEEPTIME_MS
+#define cGAB_YIELD_SLEEPTIME_MS ((size_t) 5)
+#endif
+
+#define GAB_YIELD_SLEEPTIME_NS ((size_t) cGAB_YIELD_SLEEPTIME_MS * 1000000)
+
 // Collect as frequently as possible (on every RC push)
 #ifndef cGAB_DEBUG_GC
 #define cGAB_DEBUG_GC 0

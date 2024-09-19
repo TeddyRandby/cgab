@@ -553,7 +553,8 @@ void schedule(struct gab_triple gab, size_t wkid) {
 #if cGAB_LOG_GC
   printf("SCHEDULE %lu\t%hhd\n", wkid, gab.eg->gc->schedule);
 #endif
-  if (wkid >= gab.eg->njobs && wkid < gab.eg->len - 1)
+  // If the worker we're scheduling for isn't alive, skip it
+  if (!gab.eg->jobs[wkid].alive)
     return schedule(gab, wkid + 1);
 
   if (gab.eg->gc->schedule < (int8_t)wkid)
