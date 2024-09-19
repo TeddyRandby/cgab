@@ -21,7 +21,7 @@ a_gab_value *gab_lib_prybreak(struct gab_triple gab, size_t argc,
 a_gab_value *gab_lib_prydumpframe(struct gab_triple gab, size_t argc,
                                   gab_value argv[argc]) {
   if (argc < 1)
-    return gab_panic(gab, "Invalid call to gab_lib_pryframes");
+    return gab_fpanic(gab, "Invalid call to gab_lib_pryframes");
 
   if (argc == 1) {
     struct gab_vm *vm = *(struct gab_vm **)gab_boxdata(argv[0]);

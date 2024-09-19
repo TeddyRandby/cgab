@@ -1,0 +1,121 @@
+_, stdin, stdout :: 'os.io' :use
+'data.json' :use
+
+log :: 'gab.lsp/logs':use
+
+'gab.lsp/messages':use
+
+lsp.server.t :: {
+  \server.in,
+  \server.out,
+  \server.data,
+}?
+
+(\, .lsp.server) :def! do in, out
+  {
+    \server.in: in :or stdin,
+    \server.out: out :or stdout,
+    \server.data: {},
+  }
+end
+
+\_read_header :defcase! {
+  .ok: do lsp, m
+    next_header :: lsp .
+      :server.in .
+      :until '\n'.
+      :unwrap!   .
+      :trim '\n'
+
+    blank?, name, value :: next_header:blank?, next_header:split ':'
+    
+    m :: blank? :and m :or(m:put(name, value))
+
+    .gab.option(blank?:!, lsp, m):_read_header
+  end,
+  .none: do lsp, m
+    m
+  end
+}
+
+[lsp.server.t] :defmodule! {
+  \_read_headers: do
+    .ok :_read_header(self, {})
+  end,
+  \_read_request: do
+    headers :: self:_read_headers
+
+    len :: headers .
+      :at "Content-Length" .
+      :unwrap! .
+      :trim .
+      :numbers.into
+
+    body :: self .
+      :server.in .
+      :scan len .
+      :unwrap!
+
+    msg :: body .
+      :json.decode .
+      :unwrap!
+
+    msg
+  end,
+  # Implement the lazy-sequence protocol
+  \seqs.init: do
+    msg :: self:_read_request
+    (.ok, .nil, msg)
+  end,
+  \seqs.next: do
+    msg :: self:_read_request
+    (.ok, .nil, msg)
+  end,
+  # Helpers for sending data to client
+  \respond!: do id, result
+    msg :: { "id": id, "result": result } :json.encode
+
+    content.length :: msg:len
+
+    res :: 'Content-Length: {content.length}\r\n\r\n{msg}'
+
+    log("Response", id, result ?)
+
+    self :server.out :write res
+  end,
+  \notify!: do method, params
+    msg :: { "method": method, "params": params } :json.encode
+
+    content.length :: msg:len
+
+    notif :: 'Content-Length: {content.length}\r\n\r\n{msg}'
+
+    log("Notification", method, params ?)
+
+    self :server.out :write notif
+  end,
+  # Run the server
+  \run!: do
+    log "Server started!"
+
+    self:reduce(self, do lsp, req
+      msg :: req :lsp.messages.into
+
+      log("Received Msg", msg:id, req:at "method")
+
+      ok, new_lsp :: msg :lsp.dispatch lsp
+
+      ok :else do
+        log("No handler found.")
+      end
+
+      (new_lsp ? == lsp.server.t) :else do
+        log:error("Invalid new_lsp", ok, new_lsp)
+      end
+
+      (ok, new_lsp) :unwrap:or lsp
+    end)
+  end,
+}
+
+(.lsp.server, lsp.server.t)

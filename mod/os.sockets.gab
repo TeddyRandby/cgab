@@ -1,6 +1,6 @@
-sock, type, connected.type :: 'csockets' :use
+socket.t, socket.connected.t, mod :: 'csockets' :use
 
-[type] :defmodule! {
+[socket.t] :defmodule! {
   \seqs.init: do
     ok, cl :: self:accept
     (ok, .nil, cl)
@@ -11,7 +11,7 @@ sock, type, connected.type :: 'csockets' :use
   end,
 }
 
-[connected.type] :defmodule! {
+[socket.connected.type] :defmodule! {
   \seqs.init: do
     ok, msg :: self:recv
     (ok, .nil, msg)
@@ -22,8 +22,8 @@ sock, type, connected.type :: 'csockets' :use
   end,
 }
 
-type :def.seq!
+socket.t :def.seq!
 
-connected.type :def.seq!
+socket.connected.type :def.seq!
 
-sock
+mod

@@ -54,6 +54,16 @@ struct primitive sigil_primitives[] = {
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CHANNEL),
     },
     {
+        .name = mGAB_CALL,
+        .sigil = "gab.channel",
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CHANNEL),
+    },
+    {
+        .name = mGAB_CALL,
+        .sigil = "gab.channel",
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CHANNEL),
+    },
+    {
         .name = mGAB_BND,
         .sigil = "false",
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_LND),
@@ -753,7 +763,7 @@ int gab_fprintf(FILE *stream, const char *fmt, ...) {
 }
 
 // TODO: Bounds check this
-int gab_afprintf(FILE *stream, const char *fmt, size_t argc,
+int gab_nfprintf(FILE *stream, const char *fmt, size_t argc,
                  gab_value argv[argc]) {
   const char *c = fmt;
   int bytes = 0;
@@ -762,13 +772,15 @@ int gab_afprintf(FILE *stream, const char *fmt, size_t argc,
   while (*c != '\0') {
     switch (*c) {
     case '$': {
-      gab_value arg = argv[i++];
-      int idx = gab_valkind(arg) % GAB_COLORS_LEN;
-      const char *color = ANSI_COLORS[idx];
-      bytes += fprintf(stream, "%s", color);
-      bytes += gab_fvalinspect(stream, arg, 1);
-      bytes += fprintf(stream, GAB_RESET);
-      break;
+      if (i < argc) {
+        gab_value arg = argv[i++];
+        int idx = gab_valkind(arg) % GAB_COLORS_LEN;
+        const char *color = ANSI_COLORS[idx];
+        bytes += fprintf(stream, "%s", color);
+        bytes += gab_fvalinspect(stream, arg, 1);
+        bytes += fprintf(stream, GAB_RESET);
+        break;
+      }
     }
     default:
       bytes += fputc(*c, stream);
@@ -944,14 +956,14 @@ a_gab_value *gab_shared_object_handler(struct gab_triple gab,
   void *handle = gab.eg->os_dynopen(path);
 
   if (handle == nullptr) {
-    gab_panic(gab, "Couldn't open module");
+    gab_fpanic(gab, "Couldn't open module");
     return nullptr;
   }
 
   module_f symbol = gab.eg->os_dynsymbol(handle, MODULE_SYMBOL);
 
   if (!symbol) {
-    gab_panic(gab, "Missing symbol " MODULE_SYMBOL);
+    gab_fpanic(gab, "Missing symbol " MODULE_SYMBOL);
     return nullptr;
   }
 
@@ -976,7 +988,7 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
 
   if (src == nullptr) {
     gab_value reason = gab_string(gab, strerror(errno));
-    return gab_panic(gab, "Failed to load module: $", reason);
+    return gab_fpanic(gab, "Failed to load module: $", reason);
   }
 
   gab_value pkg = gab_build(gab, (struct gab_build_argt){
@@ -988,13 +1000,13 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
 
   a_char_destroy(src);
 
-  gab_value fb = gab_arun(gab,  (struct gab_run_argt){
-                                      .main = pkg,
-                                      .flags = gab.flags | fGAB_ERR_EXIT,
-                                      .len = 0,
-                                  });
+  gab_value fb = gab_arun(gab, (struct gab_run_argt){
+                                   .main = pkg,
+                                   .flags = gab.flags | fGAB_ERR_EXIT,
+                                   .len = 0,
+                               });
 
-  a_gab_value *res = gab_fibawait(fb);
+  a_gab_value *res = gab_fibawait(gab, fb);
 
   gab_value fbparent = gab_thisfiber(gab);
   if (fbparent == gab_undefined) {
@@ -1004,11 +1016,11 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   }
 
   if (res == nullptr) {
-    return gab_panic(gab, "Failed to load module: module did not run");
+    return gab_fpanic(gab, "Failed to load module: module did not run");
   }
 
   if (res->data[0] != gab_ok) {
-    return gab_panic(gab,
+    return gab_fpanic(gab,
                      "Failed to load module: module returned $, expected $",
                      res->data[0], gab_ok);
   }
@@ -1140,7 +1152,7 @@ a_gab_value *gab_use(struct gab_triple gab, gab_value path) {
 a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   gab_value fb = gab_arun(gab, args);
 
-  a_gab_value *res = gab_fibawait(fb);
+  a_gab_value *res = gab_fibawait(gab, fb);
   assert(res != nullptr);
 
   return res;

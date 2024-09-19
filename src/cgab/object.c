@@ -85,9 +85,9 @@ int shape_dump_keys(FILE *stream, gab_value shape, int depth) {
   size_t len = shp->len;
 
   if (len == 0)
-    return fprintf(stream, "~ ");
+    return 0;
 
-  if (len > 8)
+  if (len > 8 && depth >= 0)
     return fprintf(stream, "... ");
 
   int bytes = 0;
@@ -108,20 +108,20 @@ int rec_dump_properties(FILE *stream, gab_value rec, int depth) {
     size_t len = gab_reclen(rec);
 
     if (len == 0)
-      return fprintf(stream, " ~ ");
+      return 0;
 
-    if (len > 8)
+    if (len > 8 && depth >= 0)
       return fprintf(stream, " ... ");
 
     int32_t bytes = 0;
 
     for (uint64_t i = 0; i < len; i++) {
       bytes += gab_fvalinspect(stream, gab_ukrecat(rec, i), depth - 1);
-      bytes += fprintf(stream, " = ");
+      bytes += fprintf(stream, ":");
       bytes += gab_fvalinspect(stream, gab_uvrecat(rec, i), depth - 1);
 
       if (i + 1 < len)
-        bytes += fprintf(stream, ", ");
+        bytes += fprintf(stream, ",");
     }
 
     return bytes;
@@ -156,9 +156,6 @@ int rec_dump_properties(FILE *stream, gab_value rec, int depth) {
 }
 
 int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
-  if (depth < 0)
-    depth = 1;
-
   switch (gab_valkind(self)) {
   case kGAB_PRIMITIVE:
     return fprintf(stream, "<gab.primitive %s>",
@@ -166,7 +163,7 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
   case kGAB_UNDEFINED:
     return fprintf(stream, "undefined");
   case kGAB_NUMBER:
-    return fprintf(stream, "%g", gab_valton(self));
+    return fprintf(stream, "%lg", gab_valton(self));
   case kGAB_SIGIL:
     return fprintf(stream, ".%s", gab_strdata(&self));
   case kGAB_STRING:
@@ -776,8 +773,11 @@ gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
 
   gab_value res = __gab_obj(self);
 
+
   if (len) {
     recfillchildren(gab, res, shift, len, rootlen);
+
+    assert(len == gab_shplen(self->shape));
 
     for (size_t i = 0; i < len; i++) {
       massoc(gab, res, vals[i * stride], i);
@@ -800,6 +800,7 @@ gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
 
   gab_gcunlock(gab);
 
+  assert(len == gab_shplen(shp));
   return shp;
 }
 
@@ -896,12 +897,12 @@ gab_value gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
   return __gab_obj(self);
 }
 
-a_gab_value *gab_fibawait(gab_value f) {
+a_gab_value *gab_fibawait(struct gab_triple gab, gab_value f) {
   assert(gab_valkind(f) == kGAB_FIBER);
   struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
 
   while (fiber->status != kGAB_FIBER_DONE)
-    thrd_yield();
+    gab_yield(gab);
 
   return fiber->res;
 }

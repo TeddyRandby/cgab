@@ -8,6 +8,8 @@ iter       :: 'iter':use
 
 'format':use
 
+\strings.into :def! do; '{self}'; end
+
 truthy_values :: []
 falsey_values :: [.nil, .false, .none, .err]
 
@@ -19,18 +21,18 @@ falsey_values :: [.nil, .false, .none, .err]
 \is? :def! do other; self ? == other; end
 
 truthy_values :defmodule! {
-  \and     : do alt[]; alt**; end,
-  \then    : do f; f(); end,
-  \or      : do; self; end,
-  \else    : do; self; end,
-  \assert! : do; self; end,
+  \and: do alt[]; alt**; end,
+  \then: do f; f(self); end,
+  \or: do; self; end,
+  \else: do; self; end,
+  \assert!: do; self; end,
 }
 
 falsey_values :defmodule! {
   \and: do; self; end,
   \then: do; self; end,
   \or: do alt[]; alt**; end,
-  \else: do f; f(); end,
+  \else: do f; f(self); end,
   \assert!: do msg; 'Assert failed: {msg}':panic; end,
   \options.into: .none,
   \results.into: .err,
@@ -43,6 +45,10 @@ falsey_values :defmodule! {
 
 \ :def! (.gab.option, do cond, data[]
   (cond:options.into, data**)
+end)
+
+\ :def! (.gab.result, do cond, data[]
+  (cond:results.into, data**)
 end)
 
 [.ok] :defmodule! {
@@ -101,10 +107,18 @@ end)
     end,
     \each: do f
       self:transduce(.nil, \all, iter:tap f)
-      .nil
     end,
-    \tuples.into: do
-      self:reduce({}, \push)
+    \map: do f
+      self:collect(iter:map f)
+    end,
+    \filter: do f
+      self:collect(iter:filter f)
+    end,
+    \join: do xf
+      self:transduce("", \+, xf)
+    end,
+    \collect: do xf
+      self:transduce({}, \push, xf)
     end,
   }
 end

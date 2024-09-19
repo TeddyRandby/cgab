@@ -1,0 +1,3 @@
+iostream.t, stdin, stdout, stderr :: 'cio' :use
+
+(iostream.t, stdin, stdout, stderr)

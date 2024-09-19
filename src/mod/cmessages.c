@@ -45,7 +45,7 @@ a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
     return nullptr;
   }
   default:
-    return gab_panic(gab, "INVALID_ARGUMENTS");
+    return gab_fpanic(gab, "INVALID_ARGUMENTS");
   }
 }
 
@@ -96,7 +96,7 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
     return gab_pktypemismatch(gab, b, kGAB_BLOCK);
 
   if (gab_fibmsgput(gab, gab_thisfiber(gab), m, r, b) == gab_undefined)
-    return gab_panic(gab, "$ already specializes for type $", m, r);
+    return gab_fpanic(gab, "$ already specializes for type $", m, r);
 
   return nullptr;
 }
@@ -115,7 +115,7 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
     gab_value t = gab_undefined;
 
     if (gab_fibmsgput(gab, gab_thisfiber(gab), m, t, b) == gab_undefined)
-      return gab_panic(gab, "$ already specializes for type $", m, t);
+      return gab_fpanic(gab, "$ already specializes for type $", m, t);
 
     return nullptr;
   }
@@ -124,7 +124,7 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
     gab_value t = gab_arg(i + 1);
 
     if (gab_fibmsgput(gab, gab_thisfiber(gab), m, t, b) == gab_undefined)
-      return gab_panic(gab, "$ already specializes for type $", m, t);
+      return gab_fpanic(gab, "$ already specializes for type $", m, t);
   }
 
   return nullptr;
@@ -146,7 +146,7 @@ a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
     gab_value t = gab_ukrecat(cases, i);
 
     if (gab_fibmsgput(gab, gab_thisfiber(gab), m, t, b) == gab_undefined)
-      return gab_panic(gab, "$ already specializes for type $", m, t);
+      return gab_fpanic(gab, "$ already specializes for type $", m, t);
   }
 
   return nullptr;
@@ -174,7 +174,7 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
         return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
 
       if (gab_fibmsgput(gab, gab_thisfiber(gab), m, t, b) == gab_undefined)
-        return gab_panic(gab, "$ already specializes for type $", m, t);
+        return gab_fpanic(gab, "$ already specializes for type $", m, t);
     }
 
     return nullptr;
@@ -191,7 +191,7 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
         return gab_pktypemismatch(gab, m, kGAB_MESSAGE);
 
       if (gab_fibmsgput(gab, gab_thisfiber(gab), m, t, b) == gab_undefined)
-        return gab_panic(gab, "$ already specializes for type $", m, t);
+        return gab_fpanic(gab, "$ already specializes for type $", m, t);
     }
   }
 

@@ -431,6 +431,8 @@ int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *proto);
  * @brief Print a gab_value to the given stream. Will prent nested values as
  * deep as depth.
  *
+ * If depth is negative, will print recursively without limit.
+ *
  * @param stream The stream to print to
  * @param value The value to inspect
  * @param depth The depth to recurse to
@@ -475,7 +477,7 @@ int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs);
  * @param argv The arguments
  * @return the number of bytes written to the stream.
  */
-int gab_afprintf(FILE *stream, const char *fmt, size_t argc,
+int gab_nfprintf(FILE *stream, const char *fmt, size_t argc,
                  gab_value argv[argc]);
 
 /**
@@ -893,7 +895,17 @@ static inline gab_value gab_type(struct gab_triple gab, enum gab_kind kind);
  * @param fmt The format string.
  * @returns An array of gab_values.
  */
-a_gab_value *gab_panic(struct gab_triple gab, const char *fmt, ...);
+a_gab_value *gab_fpanic(struct gab_triple gab, const char *fmt, ...);
+
+/**
+ * @brief If fGAB_SILENT is not set, print an error message to stderr.
+ * If fGAB_EXIT_ON_PANIC is set, then exit the program.
+ *
+ * @param gab The triple.
+ * @param fmt The format string.
+ * @returns An array of gab_values.
+ */
+/*a_gab_value *gab_nfpanic(struct gab_triple gab, const char *fmt, size_t argc, gab_value argv[static argc]);*/
 
 /**
  * @brief Panic the triple with an 'unexpected type' message.
@@ -1739,7 +1751,7 @@ gab_value gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
  *
  * @param fiber The fiber
  */
-a_gab_value *gab_fibawait(gab_value fiber);
+a_gab_value *gab_fibawait(struct gab_triple gab, gab_value fiber);
 
 /**
  * @brief Get a fiber's internal record of messages.
@@ -2373,7 +2385,7 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
   case kGAB_PRIMITIVE:
     return gab_string(gab, gab_opcode_names[gab_valtop(value)]);
   case kGAB_NUMBER: {
-    snprintf(buffer, 128, "%lf", gab_valton(value));
+    snprintf(buffer, 128, "%lg", gab_valton(value));
     return gab_string(gab, buffer);
   }
   case kGAB_FIBER: {

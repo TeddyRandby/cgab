@@ -348,7 +348,6 @@ struct gab_err_argt vm_frame_build_err(struct gab_triple gab,
   gab_value message = has_parent ? compute_message_from_ip(b, ip) : gab_nil;
 
   if (b) {
-
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
 
     size_t tok = compute_token_from_ip(gab, b, ip);
@@ -418,7 +417,11 @@ a_gab_value *vm_error(struct gab_triple gab, enum gab_status s, const char *fmt,
 #define FMT_MISSINGIMPL                                                        \
   "$ does not specialize for:\n\n >> $\n\nof type:\n\n >> $"
 
-a_gab_value *gab_panic(struct gab_triple gab, const char *fmt, ...) {
+/*a_gab_value *gab_nfpanic(struct gab_triple gab, const char *fmt, size_t argc, gab_value argv[static argc]) {*/
+/*  if (!gab_vm(gab)) {*/
+/*}*/
+
+a_gab_value *gab_fpanic(struct gab_triple gab, const char *fmt, ...) {
   va_list va;
   va_start(va, fmt);
 

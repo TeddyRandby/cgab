@@ -1,4 +1,5 @@
 #include "gab.h"
+#include <errno.h>
 #include <stdio.h>
 
 a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
@@ -68,6 +69,32 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
+a_gab_value *gab_lib_islist(struct gab_triple gab, size_t argc,
+                            gab_value argv[argc]) {
+  gab_value rec = gab_arg(0);
+
+  if (gab_valkind(rec) != kGAB_RECORD)
+    return gab_pktypemismatch(gab, rec, kGAB_RECORD);
+
+  gab_value shp = gab_recshp(rec);
+  size_t len = gab_shplen(shp);
+
+  if (len == 0) {
+    gab_vmpush(gab_vm(gab), gab_false);
+    return nullptr;
+  }
+
+  for (size_t i = 0; i < len; i++) {
+    if (gab_valkind(gab_ushpat(shp, i)) != kGAB_NUMBER) {
+      gab_vmpush(gab_vm(gab), gab_false);
+      return nullptr;
+    }
+  }
+
+  gab_vmpush(gab_vm(gab), gab_true);
+  return nullptr;
+}
+
 gab_value doputvia(struct gab_triple gab, gab_value rec, gab_value val,
                    size_t len, gab_value path[len]) {
   gab_value key = path[0];
@@ -102,8 +129,8 @@ a_gab_value *gab_lib_putvia(struct gab_triple gab, size_t argc,
   gab_value result = doputvia(gab, rec, val, argc - 2, argv + 2);
 
   if (result == gab_undefined)
-    return gab_panic(gab, "Invalid path for $ on $", gab_message(gab, "putvia"),
-                     rec);
+    return gab_fpanic(gab, "Invalid path for $ on $",
+                      gab_message(gab, "putvia"), rec);
 
   gab_vmpush(gab_vm(gab), result);
 
@@ -118,6 +145,36 @@ a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
     return gab_pktypemismatch(gab, rec, kGAB_RECORD);
 
   gab_vmpush(gab_vm(gab), gab_number(gab_reclen(rec)));
+
+  return nullptr;
+}
+
+a_gab_value *gab_lib_strings_into(struct gab_triple gab, size_t argc,
+                                  gab_value argv[argc]) {
+  gab_value rec = gab_arg(0);
+
+  if (gab_valkind(rec) != kGAB_RECORD)
+    return gab_pktypemismatch(gab, rec, kGAB_RECORD);
+
+  FILE *tmp = tmpfile();
+
+  if (tmp == NULL)
+    return gab_fpanic(gab, "Failed: $", gab_string(gab, strerror(errno)));
+
+  int bytes = gab_fvalinspect(tmp, rec, 3);
+
+  rewind(tmp);
+
+  uint8_t b[bytes];
+  if (fread(b, sizeof(uint8_t), bytes, tmp) != bytes)
+    return gab_fpanic(gab, "Failed: $", gab_string(gab, strerror(errno)));
+
+  if (fclose(tmp))
+    return gab_fpanic(gab, "Failed: $", gab_string(gab, strerror(errno)));
+
+  gab_value str = gab_nstring(gab, bytes, (char *)b);
+
+  gab_vmpush(gab_vm(gab), str);
 
   return nullptr;
 }
@@ -177,6 +234,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   struct gab_spec_argt specs[] = {
       {
+          "list?",
+          rec_t,
+          gab_snative(gab, "gab.list?", gab_lib_islist),
+      },
+      {
           "put",
           rec_t,
           gab_snative(gab, "gab.put", gab_lib_put),
@@ -215,6 +277,11 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           "put_via",
           rec_t,
           gab_snative(gab, "gab.put_via", gab_lib_putvia),
+      },
+      {
+          "strings.into",
+          rec_t,
+          gab_snative(gab, "gab.strings.into", gab_lib_strings_into),
       },
   };
 

@@ -1,0 +1,34 @@
+'cjson' :use
+iter :: 'iter' :use
+
+array_xf :: iter:map do _, v
+    v:json.encode
+  end .
+  |> iter:interpose ','
+
+object_xf :: iter:map do k, v
+    '{k:json.encode}:{v:json.encode}'
+  end .
+  |> iter:interpose ','
+
+\do_encode_record :defcase! {
+  .true: do array
+    contents :: array :join array_xf
+    '[{contents}]'
+  end,
+  .false: do object
+    contents :: object :join object_xf
+    '\{{contents}}'
+  end
+}
+
+\json.encode :defcase! {
+  .nil: 'nil',
+  .true: 'true',
+  .false: 'false',
+  'gab.string': do; '"{self}"'; end,
+  'gab.number': do; '{self}'; end,
+  'gab.record': do
+    self:list?:do_encode_record self 
+  end,
+}

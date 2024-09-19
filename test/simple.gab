@@ -1,7 +1,18 @@
-spawn_task :: do i
-    .gab.fiber do
-        'Hello from {i}' :print
-    end
-end
+'data.json':use
 
-.gab.range(0,200000) :each spawn_task
+'"test"' :json.decode :print
+
+'1':json.decode :print
+
+'["a", \{ 0: "b" } ]':json.decode :print
+
+'["a", \{"d": \{ "test": 0 }, "sync": \{ "willSave" : true, "didSave": true },  "c": "b"  } ]':json.decode :print
+
+'\{ "test": [0,1,2] }' :json.decode :print
+
+'\{ "test":1, [ ' :json.decode :print
+
+{ "test": [ 0, 1, 2 ] } :json.encode:print
+
+"hi":json.encode:print
+"hi":print

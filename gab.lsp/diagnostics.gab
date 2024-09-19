@@ -1,0 +1,46 @@
+log :: 'gab.lsp/logs':use
+
+diag.jobs.in :: .gab.channel()
+
+diag.job.t :: { \server, \uri, \text }?
+
+lsp.server.t :: {
+  \server.in,
+  \server.out,
+  \server.data,
+}?
+
+(\diagnostics.queue_all, lsp.server.t) :def! do
+  server :: self
+
+  server :server.data :each do uri, text
+    log("Queing Diagnostics", uri)
+    diag.jobs.in <! { \server: server, \uri: uri, \text: text }        
+  end
+end
+
+[diag.job.t] :defmodule! {
+  \notify.diagnostics!: do diagnostics
+    (self:server, "textDocument/publishDiagnostics") :notify! {
+      "uri": self:uri,
+      "diagnostics": diagnostics,
+    }
+  end,
+  \diag.check: do
+    text :: self:text
+
+    []
+  end,
+  \complete!: do
+    log("Diagnostics", self)
+    diagnostics :: self:diag.check
+
+    self:notify.diagnostics! diagnostics
+  end,
+}
+
+diag.worker :: do
+  diag.jobs.in :each \complete!
+end
+
+.gab.fiber diag.worker

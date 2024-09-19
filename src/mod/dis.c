@@ -29,7 +29,7 @@ void dis_message(struct gab_triple gab, gab_value msg, gab_value rec) {
 a_gab_value* gab_lib_disstring(struct gab_triple gab, size_t argc,
                       gab_value argv[argc]) {
   if (argc < 1)
-    return gab_panic(gab, "Invalid call to gab_lib_dis");
+    return gab_fpanic(gab, "Invalid call to gab_lib_dis");
 
   gab_value msg = gab_strtomsg(argv[0]);
 
@@ -41,7 +41,7 @@ a_gab_value* gab_lib_disstring(struct gab_triple gab, size_t argc,
 a_gab_value* gab_lib_dismessage(struct gab_triple gab, size_t argc,
                        gab_value argv[argc]) {
   if (gab_valkind(argv[0]) != kGAB_MESSAGE)
-    return gab_panic(gab, "Invalid call to gab_lib_dis");
+    return gab_fpanic(gab, "Invalid call to gab_lib_dis");
 
   switch (argc) {
   case 1:
@@ -51,7 +51,7 @@ a_gab_value* gab_lib_dismessage(struct gab_triple gab, size_t argc,
     dis_message(gab, argv[0], argv[1]);
     break;
   default:
-    gab_panic(gab, "Invalid call to gab_lib_dis");
+    gab_fpanic(gab, "Invalid call to gab_lib_dis");
   }
 
   return nullptr;
@@ -59,7 +59,7 @@ a_gab_value* gab_lib_dismessage(struct gab_triple gab, size_t argc,
 
 a_gab_value* gab_lib_disblock(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
   if (argc != 1) {
-    return gab_panic(gab, "Invalid call to gab_lib_dis");
+    return gab_fpanic(gab, "Invalid call to gab_lib_dis");
   }
 
   dis_block(argv[0]);
@@ -70,7 +70,7 @@ a_gab_value* gab_lib_disblock(struct gab_triple gab, size_t argc, gab_value argv
 a_gab_value* gab_lib_disnative(struct gab_triple gab, size_t argc,
                       gab_value argv[argc]) {
   if (argc != 1)
-    return gab_panic(gab, "Invalid call to gab_lib_dis");
+    return gab_fpanic(gab, "Invalid call to gab_lib_dis");
 
   gab_fvalinspect(stdout, argv[0], 0);
   printf("\n");

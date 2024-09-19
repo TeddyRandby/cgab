@@ -66,7 +66,7 @@ a_gab_value *gab_lib_between(struct gab_triple gab, size_t argc,
 
   case 2: {
     if (gab_valkind(argv[1]) != kGAB_NUMBER)
-      return gab_panic(gab, "Invalid call to gab_lib_random");
+      return gab_fpanic(gab, "Invalid call to gab_lib_random");
 
     max = gab_valton(argv[1]);
 
@@ -76,7 +76,7 @@ a_gab_value *gab_lib_between(struct gab_triple gab, size_t argc,
   case 3: {
     if (gab_valkind(argv[1]) != kGAB_NUMBER ||
         gab_valkind(argv[2]) != kGAB_NUMBER) {
-      return gab_panic(gab, "Invalid call to gab_lib_random");
+      return gab_fpanic(gab, "Invalid call to gab_lib_random");
     }
 
     min = gab_valton(argv[1]);
@@ -85,7 +85,7 @@ a_gab_value *gab_lib_between(struct gab_triple gab, size_t argc,
   }
 
   default:
-    return gab_panic(gab, "Invalid call to gab_lib_random");
+    return gab_fpanic(gab, "Invalid call to gab_lib_random");
   }
 
   double range = max - min;
@@ -101,7 +101,7 @@ a_gab_value *gab_lib_between(struct gab_triple gab, size_t argc,
 a_gab_value *gab_lib_floor(struct gab_triple gab, size_t argc,
                            gab_value argv[argc]) {
   if (argc != 1 || gab_valkind(argv[0]) != kGAB_NUMBER)
-    return gab_panic(gab, "Invalid call to gab_lib_floor");
+    return gab_fpanic(gab, "Invalid call to gab_lib_floor");
 
   double float_num = gab_valton(argv[0]);
   int64_t int_num = gab_valton(argv[0]);

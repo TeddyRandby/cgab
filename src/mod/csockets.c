@@ -12,7 +12,7 @@
 #define SOCKET_FAMILY "socket.family"
 #define SOCKET_TYPE "socket.type"
 
-#define SOCKET_BOX_TYPE "gab.socket"
+#define SOCKET_BOX_TYPE "gab.os.socket"
 #define CONNECTEDSOCKET_BOX_TYPE "gab.connected.socket"
 
 void gab_container_socket_cb(size_t len, char data[static len]) {
@@ -317,7 +317,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value constants = gab_srecord(gab, LEN_CARRAY(constant_names),
                                     constant_names, constant_values);
 
-  gab_value res[] = {constants, container_type, connected_container_type};
+  gab_value res[] = {container_type, connected_container_type, constants};
 
   return a_gab_value_create(res, 3);
 }

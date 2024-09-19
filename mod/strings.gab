@@ -1,0 +1,7 @@
+strings.t  :: 'cstrings':use
+
+[strings.t] :defmodule! {
+  \blank?: do
+    self:len == 0
+  end,
+}

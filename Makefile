@@ -17,16 +17,17 @@ CGAB_OBJ = $(CGAB_SRC:src/cgab/%.c=$(BUILD_PREFIX)/%.o)
 GAB_SRC = $(wildcard src/gab/*.c)
 GAB_OBJ = $(GAB_SRC:src/gab/%.c=$(BUILD_PREFIX)/%.o)
 
-MOD_SRC 	 = $(wildcard src/mod/*.c)
-MOD_SHARED = $(MOD_SRC:src/mod/%.c=$(BUILD_PREFIX)/libcgab%.so)
+CMOD_SRC 	 = $(wildcard src/mod/*.c)
+CMOD_SHARED = $(CMOD_SRC:src/mod/%.c=$(BUILD_PREFIX)/libcgab%.so)
 
-STD_SRC = $(wildcard mod/*.gab)
+GMOD_SRC = $(wildcard mod/*.gab)
+GABLSP_SRC = $(wildcard gab.lsp/*.gab)
 
-all: $(BUILD_PREFIX)/gab modules
+all: $(BUILD_PREFIX)/gab cmodules
 
--include $(OS_OBJ:.o=.d) $(CGAB_OBJ:.o=.d) $(GAB_OBJ:.o=.d) $(MOD_SHARED:.so=.d)
+-include $(OS_OBJ:.o=.d) $(CGAB_OBJ:.o=.d) $(GAB_OBJ:.o=.d) $(CMOD_SHARED:.so=.d)
 
-modules: $(MOD_SHARED)
+cmodules: $(CMOD_SHARED)
 
 $(BUILD_PREFIX)/gab: $(GAB_OBJ) $(BUILD_PREFIX)/libcgab.a
 	$(CC) $(CFLAGS) $(INCLUDE) $(GAB_OBJ) $(LD_CGAB) -o $@
@@ -46,15 +47,16 @@ GAB_PATH 			= ${GAB_PREFIX}/gab
 install_dev:
 	install -vCDt $(INSTALL_PREFIX)/include/gab $(INCLUDE_PREFIX)/*
 
-install_std:
-	install -CDt $(GAB_PATH)/modules $(STD_SRC)
-
-install_modules: modules
-	install -vCDt $(GAB_PATH)/modules $(MOD_SHARED)
-
 install_gab: $(BUILD_PREFIX)/gab
 	install -vC $(BUILD_PREFIX)/gab $(INSTALL_PREFIX)/bin
 	install -vC $(BUILD_PREFIX)/libcgab.a $(INSTALL_PREFIX)/lib
+
+install_gab.lsp:
+	install -CDt $(GAB_PATH)/modules/gab.lsp $(GABLSP_SRC)
+
+install_modules: cmodules
+	install -vCDt $(GAB_PATH)/modules $(CMOD_SHARED)
+	install -CDt $(GAB_PATH)/modules $(GMOD_SRC)
 
 uninstall:
 	rm -rf $(INSTALL_PREFIX)/include/gab

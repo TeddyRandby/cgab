@@ -1,6 +1,6 @@
 module :: .gab.iter
 
-\iter.apply :def!(.none, do x; x; end)
+\iter.apply :def!(.none, .nil, do x; x; end)
 
 \defiter! :def! ('gab.message', do cx, init
   mod.t :: {

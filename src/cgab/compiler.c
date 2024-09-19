@@ -1738,6 +1738,7 @@ static int compile_rec_internal_item(struct bc *bc) {
 
   if (match_tokoneof(bc, TOKEN_COMMA, TOKEN_RBRACK)) {
     push_loadi(bc, gab_true, bc->offset - 1);
+    push_slot(bc, 1);
     return COMP_OK;
   }
 
