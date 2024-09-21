@@ -681,10 +681,10 @@ struct gab_build_argt {
 };
 
 /**
- * @brief Compile a source string into a block.
+ * @brief Compile a source string into an ast.
  * Flag options are defined in @link enum gab_flags.
  *
- * @see struct gab_cmpl_argt.
+ * @see struct gab_build_argt.
  * @see enum gab_flags.
  *
  * @param gab The engine.
@@ -692,6 +692,13 @@ struct gab_build_argt {
  * @returns A gab_value containing the compiled block, which can be called.
  */
 gab_value gab_build(struct gab_triple gab, struct gab_build_argt args);
+
+gab_value gab_parse(struct gab_triple gab, struct gab_build_argt args);
+
+/**
+ * @brief Compile an AST into a block. 
+ */
+gab_value gab_unquote(struct gab_triple gab, gab_value ast, gab_value ctx);
 
 /**
  * @class gab_run_argt

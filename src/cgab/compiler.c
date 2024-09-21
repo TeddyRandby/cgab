@@ -5,6 +5,63 @@
 #include "gab.h"
 #include "lexer.h"
 
+/*
+ 
+ 
+ *******
+ * AST *
+ *******
+
+  The gab ast is built of two kinds of nodes:
+    - Sends  (behavior)
+    - Values (data)
+
+  VALUE NODE
+
+  1       => [ 1 ]
+  (1,2,3) => [1 2 3]
+
+  Simply a list of 0 or more values
+
+  SEND NODE
+
+  1 + 1   => { \ast.rec [ 1 1 ], \ast.msg \+ }
+
+  [ 1 2 ] => { \ast.rec [.gab.list 1 2 ], \ast.msg \make }
+
+  Simply a record with a receiver and a message
+
+  And thats it! All Gab code can be described here. There are some nuances though:
+
+  (1 + 2, 3):print =>
+    { [ { [ { [ 1 2 ], \+ } ], \gab.runtime.trim ] 3 ], \print }
+
+  a = 2 => { [this, \a, 2], \gab.runtime.put! }
+
+  Sometimes we need to call special messages in the runtime. There are three special cases so far:
+    
+    \gab.runtime.trim : This is a special message for trimming values up and down on the stack.
+      Since gab has multiple return values, any expression can return any number of values. At each callsite, we need to specify
+      how many values we need returned, and adjust accordingly
+
+    \gab.runtime.pack : Blocks and assignments can declare _rest_ parameters, which collect all extra values, like so:
+      In place of a call to \gab.runtime.trim, we emit a call to \gab.runtime.pack, and include special arguments for how to pack the values.
+
+      a, b[] = 1,2,3,4,5 => 1, [2 3 4 5]
+
+    \gab.runtime.put! : This one is still a little fuzzy / up for debate. We need to express variable assignment as a send. The following
+      changes describe this implementation:
+
+      - Blocks (more specifically, prototypes) are given a shape just like records have.
+      - gab_unquote() accepts a *shape* as an argument. This shape determines the environment available as the AST
+        is compiled into a block.
+          -> How does this handle nested scopes and chaining?
+          -> How do we implement load_local/load_upvalue
+
+
+
+ */
+
 struct frame {
   v_uint8_t bc;
   v_uint64_t bc_toks;
@@ -2171,6 +2228,8 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
   args.name = args.name ? args.name : "__main__";
 
   gab_gclock(gab);
+
+  gab_parse(gab, args);
 
   gab_value name = gab_string(gab, args.name);
 

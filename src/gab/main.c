@@ -110,7 +110,7 @@ struct option {
   int flag;
 };
 
-#define MAX_OPTIONS 6
+#define MAX_OPTIONS 7
 
 struct command {
   const char *name;
@@ -137,6 +137,12 @@ static struct command commands[] = {
         "Compile and run the module at path <args>",
         .handler = run,
         {
+            {
+                "dump",
+                "Dump compiled ast to stdout",
+                'a',
+                .flag = fGAB_AST_DUMP,
+            },
             {
                 "dump",
                 "Dump compiled bytecode to stdout",

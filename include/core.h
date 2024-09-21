@@ -191,13 +191,14 @@ enum gab_status {
 
 // GAB optional flags
 enum gab_flags {
-  fGAB_BUILD_DUMP = 1 << 0,
-  fGAB_BUILD_CHECK = 1 << 1,
-  fGAB_ERR_QUIET = 1 << 2,
-  fGAB_ERR_EXIT = 1 << 3,
-  fGAB_ERR_STRUCTURED = 1 << 4,
-  fGAB_ENV_EMPTY = 1 << 5,
-  fGAB_JOB_RUNNERS = 1 << 6,
+  fGAB_AST_DUMP = 1 << 0,
+  fGAB_BUILD_DUMP = 1 << 1,
+  fGAB_BUILD_CHECK = 1 << 2,
+  fGAB_ERR_QUIET = 1 << 3,
+  fGAB_ERR_EXIT = 1 << 4,
+  fGAB_ERR_STRUCTURED = 1 << 5,
+  fGAB_ENV_EMPTY = 1 << 6,
+  fGAB_JOB_RUNNERS = 1 << 7,
 };
 
 // VERSION
