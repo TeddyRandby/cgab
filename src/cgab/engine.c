@@ -405,6 +405,9 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->types[kGAB_SHAPE] = gab_string(gab, "gab.shape");
   gab_iref(gab, eg->types[kGAB_SHAPE]);
 
+  eg->types[kGAB_SHAPELIST] = gab_string(gab, "gab.shape");
+  gab_iref(gab, eg->types[kGAB_SHAPELIST]);
+
   eg->types[kGAB_RECORD] = gab_string(gab, "gab.record");
   gab_iref(gab, eg->types[kGAB_RECORD]);
 
@@ -751,20 +754,6 @@ size_t gab_negkeep(struct gab_eg *gab, size_t len,
   return len;
 }
 
-gab_value gab_list(struct gab_triple gab, uint64_t size,
-                   gab_value values[size]) {
-  gab_gclock(gab);
-
-  gab_value keys[size];
-  for (size_t i = 0; i < size; i++) {
-    keys[i] = gab_number(i);
-  }
-
-  gab_value v = gab_record(gab, 1, size, keys, values);
-  gab_gcunlock(gab);
-  return v;
-}
-
 int gab_fprintf(FILE *stream, const char *fmt, ...) {
   va_list va;
   va_start(va, fmt);
@@ -1020,6 +1009,9 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
                                    .len = 0,
                                });
 
+  if (fb == gab_undefined)
+    return nullptr;
+
   a_gab_value *res = gab_fibawait(gab, fb);
 
   gab_value fbparent = gab_thisfiber(gab);
@@ -1165,6 +1157,9 @@ a_gab_value *gab_use(struct gab_triple gab, gab_value path) {
 
 a_gab_value *gab_run(struct gab_triple gab, struct gab_run_argt args) {
   gab_value fb = gab_arun(gab, args);
+
+  if (fb == gab_undefined)
+    return nullptr;
 
   a_gab_value *res = gab_fibawait(gab, fb);
   assert(res != nullptr);

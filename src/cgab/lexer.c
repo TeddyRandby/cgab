@@ -231,7 +231,7 @@ gab_token other(gab_lx *self) {
     return TOKEN_NEWLINE;
   case ',':
     advance(self);
-    return TOKEN_COMMA;
+    return TOKEN_NEWLINE;
   case '(':
     advance(self);
     return TOKEN_LPAREN;
@@ -261,7 +261,7 @@ gab_token other(gab_lx *self) {
 
     return TOKEN_RBRACK;
 
-  case '\\':
+  case '.':
     advance(self);
 
     if (can_start_operator(peek(self))) {
@@ -270,9 +270,9 @@ gab_token other(gab_lx *self) {
       enum gab_token t = operator(self);
 
       if (t == TOKEN_OPERATOR)
-        return TOKEN_MESSAGE;
+        return TOKEN_SEND;
 
-      return lexer_error(self, GAB_MALFORMED_TOKEN);
+      return lexer_error(self, GAB_MALFORMED_SEND);
     }
 
     if (can_start_identifier(peek(self))) {
@@ -281,46 +281,14 @@ gab_token other(gab_lx *self) {
       enum gab_token t = identifier(self);
 
       if (t == TOKEN_IDENTIFIER)
-        return TOKEN_MESSAGE;
+        return TOKEN_SEND;
 
-      return lexer_error(self, GAB_MALFORMED_TOKEN);
+      return lexer_error(self, GAB_MALFORMED_SEND);
     }
 
-    return TOKEN_MESSAGE;
+    return TOKEN_SEND;
 
   case ':':
-    advance(self);
-
-    if (can_start_operator(peek(self))) {
-      advance(self);
-
-      enum gab_token t = operator(self);
-
-      if (t == TOKEN_OPERATOR)
-        return TOKEN_SEND;
-
-      return lexer_error(self, GAB_MALFORMED_SEND);
-    }
-
-    if (can_start_identifier(peek(self))) {
-      advance(self);
-
-      enum gab_token t = identifier(self);
-
-      if (t == TOKEN_IDENTIFIER)
-        return TOKEN_SEND;
-
-      return lexer_error(self, GAB_MALFORMED_SEND);
-    }
-
-    if (peek(self) == ':') {
-      advance(self);
-      return TOKEN_COLON_COLON;
-    }
-
-    return TOKEN_COLON;
-
-  case '.': {
     advance(self);
 
     if (can_continue_identifier(peek(self))) {
@@ -332,16 +300,14 @@ gab_token other(gab_lx *self) {
       return lexer_error(self, GAB_MALFORMED_TOKEN);
     }
 
-    return TOKEN_DOT;
-  }
+    return TOKEN_NEWLINE;
 
-  default: {
+  default:
     if (can_start_operator(peek(self)))
       return operator(self);
 
     advance(self);
     return lexer_error(self, GAB_MALFORMED_TOKEN);
-  }
   }
 }
 

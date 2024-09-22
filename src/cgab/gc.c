@@ -195,7 +195,8 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
     break;
   }
 
-  case kGAB_SHAPE: {
+  case kGAB_SHAPE:
+  case kGAB_SHAPELIST: {
     struct gab_obj_shape *s = (struct gab_obj_shape *)obj;
 
     for (size_t i = 0; i < s->len; i++) {

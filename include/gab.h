@@ -143,6 +143,7 @@ enum gab_kind {
   kGAB_RECORD,
   kGAB_RECORDNODE,
   kGAB_SHAPE,
+  kGAB_SHAPELIST,
   kGAB_FIBER,
   kGAB_CHANNEL,
   kGAB_CHANNELCLOSED,
@@ -696,7 +697,7 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args);
 gab_value gab_parse(struct gab_triple gab, struct gab_build_argt args);
 
 /**
- * @brief Compile an AST into a block. 
+ * @brief Compile an AST into a block.
  */
 gab_value gab_unquote(struct gab_triple gab, gab_value ast, gab_value ctx);
 
@@ -912,7 +913,8 @@ a_gab_value *gab_fpanic(struct gab_triple gab, const char *fmt, ...);
  * @param fmt The format string.
  * @returns An array of gab_values.
  */
-/*a_gab_value *gab_nfpanic(struct gab_triple gab, const char *fmt, size_t argc, gab_value argv[static argc]);*/
+/*a_gab_value *gab_nfpanic(struct gab_triple gab, const char *fmt, size_t argc,
+ * gab_value argv[static argc]);*/
 
 /**
  * @brief Panic the triple with an 'unexpected type' message.
@@ -1378,20 +1380,26 @@ gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
 
 gab_value __gab_shape(struct gab_triple gab, size_t len);
 
+static inline size_t gab_shpislist(gab_value shp) {
+  assert(gab_valkind(shp) == kGAB_SHAPE || gab_valkind(shp) == kGAB_SHAPELIST);
+  struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
+  return s->header.kind == kGAB_SHAPELIST;
+}
+
 static inline size_t gab_shplen(gab_value shp) {
-  assert(gab_valkind(shp) == kGAB_SHAPE);
+  assert(gab_valkind(shp) == kGAB_SHAPE || gab_valkind(shp) == kGAB_SHAPELIST);
   struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
   return s->len;
 }
 
 static inline gab_value gab_ushpat(gab_value shp, size_t idx) {
-  assert(gab_valkind(shp) == kGAB_SHAPE);
+  assert(gab_valkind(shp) == kGAB_SHAPE || gab_valkind(shp) == kGAB_SHAPELIST);
   struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
   return s->keys[idx];
 }
 
 static inline size_t gab_shpfind(gab_value shp, gab_value key) {
-  assert(gab_valkind(shp) == kGAB_SHAPE);
+  assert(gab_valkind(shp) == kGAB_SHAPE || gab_valkind(shp) == kGAB_SHAPELIST);
   struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
 
   size_t len = s->len;
@@ -1405,7 +1413,7 @@ static inline size_t gab_shpfind(gab_value shp, gab_value key) {
 }
 
 static inline size_t gab_shptfind(gab_value shp, gab_value key) {
-  assert(gab_valkind(shp) == kGAB_SHAPE);
+  assert(gab_valkind(shp) == kGAB_SHAPE || gab_valkind(shp) == kGAB_SHAPELIST);
   struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
 
   size_t len = s->transitions.len / 2;
@@ -1419,6 +1427,19 @@ static inline size_t gab_shptfind(gab_value shp, gab_value key) {
 };
 
 gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key);
+
+#define gab_shpcat(gab, ...)                                                   \
+  ({                                                                           \
+    gab_value __shps[] = {__VA_ARGS__};                                        \
+    gab_nshpcat(gab, sizeof(__shps) / sizeof(gab_value), __shps);              \
+  })
+
+/**
+ * @brief Concatenate n shpords, left to rate
+ *
+ */
+gab_value gab_nshpcat(struct gab_triple gab, size_t len,
+                      gab_value shapes[static len]);
 
 gab_value gab_shpwithout(struct gab_triple gab, gab_value shp, gab_value key);
 
@@ -1681,6 +1702,26 @@ static inline gab_value gab_mrecat(struct gab_triple gab, gab_value rec,
 gab_value gab_recput(struct gab_triple gab, gab_value record, gab_value key,
                      gab_value value);
 
+#define gab_reccat(gab, ...)                                                   \
+  ({                                                                           \
+    gab_value __recs[] = {__VA_ARGS__};                                        \
+    gab_nreccat(gab, sizeof(__recs) / sizeof(gab_value), __recs);              \
+  })
+
+/**
+ * @brief Concatenate n records, left to rate
+ *
+ */
+gab_value gab_nreccat(struct gab_triple gab, size_t len,
+                      gab_value records[static len]);
+
+static inline size_t gab_recislist(gab_value rec) {
+  gab_value shp = gab_recshp(rec);
+  assert(gab_valkind(shp) == kGAB_SHAPE || gab_valkind(shp) == kGAB_SHAPELIST);
+  struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);
+  return s->header.kind == kGAB_SHAPELIST;
+}
+
 /**
  * @brief Return a new record without key. TODO: Not Implemented
  *
@@ -1896,7 +1937,7 @@ gab_value gab_chntake(struct gab_triple gab, gab_value channel);
 
 /**
  * @brief Take a value from the given channel, with a timeout.
- * 
+ *
  * @param gab The engine
  * @param channel The channel
  * @return The value taken
@@ -2416,7 +2457,8 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
     snprintf(buffer, 128, "<gab.channel %p>", m);
     return gab_string(gab, buffer);
   }
-  case kGAB_SHAPE: {
+  case kGAB_SHAPE:
+  case kGAB_SHAPELIST: {
     struct gab_obj_shape *m = GAB_VAL_TO_SHAPE(value);
     snprintf(buffer, 128, "<gab.shape %p>", m);
     return gab_string(gab, buffer);
