@@ -9,7 +9,7 @@ void dis_block(gab_value blk) {
 }
 
 void dis_message(struct gab_triple gab, gab_value msg, gab_value rec) {
-  gab_value spec = gab_fibmsgat(gab_thisfiber(gab), msg, rec);
+  gab_value spec = gab_thisfibmsgat(gab, msg, rec);
 
   switch (gab_valkind(spec)) {
   case kGAB_BLOCK:
@@ -26,8 +26,8 @@ void dis_message(struct gab_triple gab, gab_value msg, gab_value rec) {
   }
 }
 
-a_gab_value* gab_lib_disstring(struct gab_triple gab, size_t argc,
-                      gab_value argv[argc]) {
+a_gab_value *gab_lib_disstring(struct gab_triple gab, size_t argc,
+                               gab_value argv[argc]) {
   if (argc < 1)
     return gab_fpanic(gab, "Invalid call to gab_lib_dis");
 
@@ -38,8 +38,8 @@ a_gab_value* gab_lib_disstring(struct gab_triple gab, size_t argc,
   return nullptr;
 };
 
-a_gab_value* gab_lib_dismessage(struct gab_triple gab, size_t argc,
-                       gab_value argv[argc]) {
+a_gab_value *gab_lib_dismessage(struct gab_triple gab, size_t argc,
+                                gab_value argv[argc]) {
   if (gab_valkind(argv[0]) != kGAB_MESSAGE)
     return gab_fpanic(gab, "Invalid call to gab_lib_dis");
 
@@ -57,7 +57,8 @@ a_gab_value* gab_lib_dismessage(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value* gab_lib_disblock(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_disblock(struct gab_triple gab, size_t argc,
+                              gab_value argv[argc]) {
   if (argc != 1) {
     return gab_fpanic(gab, "Invalid call to gab_lib_dis");
   }
@@ -67,8 +68,8 @@ a_gab_value* gab_lib_disblock(struct gab_triple gab, size_t argc, gab_value argv
   return nullptr;
 }
 
-a_gab_value* gab_lib_disnative(struct gab_triple gab, size_t argc,
-                      gab_value argv[argc]) {
+a_gab_value *gab_lib_disnative(struct gab_triple gab, size_t argc,
+                               gab_value argv[argc]) {
   if (argc != 1)
     return gab_fpanic(gab, "Invalid call to gab_lib_dis");
 
@@ -95,10 +96,10 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   for (uint8_t i = 0; i < LEN_CARRAY(values); i++) {
     gab_def(gab, (struct gab_def_argt){
-                      .name = "dis",
-                      .receiver = receivers[i],
-                      .specialization = values[i],
-                  });
+                     gab_message(gab, "dis"),
+                     receivers[i],
+                     values[i],
+                 });
   }
 
   return nullptr;

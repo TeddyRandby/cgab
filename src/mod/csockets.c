@@ -266,37 +266,37 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_def(gab,
           {
-              mGAB_CALL,
+              gab_message(gab, mGAB_CALL),
               gab_strtosig(container_type),
               gab_snative(gab, "gab.socket", gab_lib_sock),
           },
           {
-              "bind",
+              gab_message(gab, "bind"),
               container_type,
               gab_snative(gab, "bind", gab_lib_bind),
           },
           {
-              "listen",
+              gab_message(gab, "listen"),
               container_type,
               gab_snative(gab, "listen", gab_lib_listen),
           },
           {
-              "accept",
+              gab_message(gab, "accept"),
               container_type,
               gab_snative(gab, "accept", gab_lib_accept),
           },
           {
-              "connect",
+              gab_message(gab, "connect"),
               container_type,
               gab_snative(gab, "connect", gab_lib_connect),
           },
           {
-              "recv",
+              gab_message(gab, "recv"),
               connected_container_type,
               gab_snative(gab, "receive", gab_lib_receive),
           },
           {
-              "send",
+              gab_message(gab, "send"),
               connected_container_type,
               gab_snative(gab, "send", gab_lib_send),
           });

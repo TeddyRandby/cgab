@@ -977,8 +977,9 @@ gab_value gab_fiber(struct gab_triple gab, gab_value receiver, gab_value message
     self->messages = gab.eg->messages;
     self->macros = gab.eg->macros;
   } else {
-    self->messages = gab_fibmessages(gab_thisfiber(gab));
-    self->macros = gab_fibmacros(gab_thisfiber(gab));
+    struct gab_obj_fiber* parent = GAB_VAL_TO_FIBER(gab_thisfiber(gab));
+    self->messages = parent->messages;
+    self->macros = parent->macros;
   }
 
   self->len = argc + 2;

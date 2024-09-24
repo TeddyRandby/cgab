@@ -95,14 +95,6 @@ struct primitive sigil_primitives[] = {
     },
 };
 
-struct primitive kind_primitive_macros[] = {
-    {
-        .name = mGAB_ASSIGN,
-        .kind = kGAB_MESSAGE,
-        .primitive = gab_primitive(OP_SENDMACRO_PRIMITIVE_MESSAGE_ASSIGN),
-    },
-};
-
 struct primitive kind_primitives[] = {
     {
         .name = mGAB_BIN,
@@ -443,52 +435,40 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   for (int i = 0; i < LEN_CARRAY(kind_primitives); i++) {
     gab_egkeep(
         gab.eg,
-        gab_iref(
-            gab,
-            gab_def(gab, (struct gab_def_argt){
-                             .name = kind_primitives[i].name,
-                             .receiver = gab_type(gab, kind_primitives[i].kind),
-                             .specialization = kind_primitives[i].primitive,
-                         })));
-  }
-
-  for (int i = 0; i < LEN_CARRAY(kind_primitive_macros); i++) {
-    gab_egkeep(
-        gab.eg,
         gab_iref(gab,
-                 gab_defmacro(gab, (struct gab_def_argt){
-                                       .name = kind_primitive_macros[i].name,
-                                       .receiver = gab_type(
-                                           gab, kind_primitive_macros[i].kind),
-                                       .specialization =
-                                           kind_primitive_macros[i].primitive,
-                                   })));
+                 gab_def(gab, (struct gab_def_argt){
+                                  gab_message(gab, kind_primitives[i].name),
+                                  gab_type(gab, kind_primitives[i].kind),
+                                  kind_primitives[i].primitive,
+                              })));
   }
 
   for (int i = 0; i < LEN_CARRAY(sigil_primitives); i++) {
     gab_egkeep(
         gab.eg,
-        gab_iref(
-            gab,
-            gab_def(gab,
-                    (struct gab_def_argt){
-                        .name = sigil_primitives[i].name,
-                        .receiver = gab_sigil(gab, sigil_primitives[i].sigil),
-                        .specialization = sigil_primitives[i].primitive,
-                    })));
+        gab_iref(gab,
+                 gab_def(gab, (struct gab_def_argt){
+                                  gab_message(gab, sigil_primitives[i].name),
+                                  gab_sigil(gab, sigil_primitives[i].sigil),
+                                  sigil_primitives[i].primitive,
+                              })));
   }
 
   for (int i = 0; i < LEN_CARRAY(all_primitives); i++) {
     for (int t = 1; t < kGAB_NKINDS; t++) {
-      gab_egkeep(gab.eg,
-                 gab_iref(gab, gab_def(gab, (struct gab_def_argt){
-                                                .name = all_primitives[i].name,
-                                                .receiver = gab_type(gab, t),
-                                                .specialization =
-                                                    all_primitives[i].primitive,
-                                            })));
+      gab_egkeep(
+          gab.eg,
+          gab_iref(gab,
+                   gab_def(gab, (struct gab_def_argt){
+                                    gab_message(gab, all_primitives[i].name),
+                                    gab_type(gab, t),
+
+                                    all_primitives[i].primitive,
+                                })));
     }
   }
+
+  gab_suse(gab, "cassignment");
 
   if (!(gab.flags & fGAB_ENV_EMPTY))
     gab_suse(gab, "core");
@@ -666,9 +646,7 @@ gab_value dodef(struct gab_triple gab, gab_value messages, size_t len,
   for (size_t i = 0; i < len; i++) {
     struct gab_def_argt arg = args[i];
 
-    gab_value m = gab_message(gab, arg.name);
-
-    gab_value specs = gab_recat(messages, m);
+    gab_value specs = gab_recat(messages, arg.message);
 
     if (specs == gab_undefined)
       specs = gab_record(gab, 0, 0, &specs, &specs);
@@ -676,7 +654,7 @@ gab_value dodef(struct gab_triple gab, gab_value messages, size_t len,
     gab_value newspecs =
         gab_recput(gab, specs, arg.receiver, arg.specialization);
 
-    messages = gab_recput(gab, messages, m, newspecs);
+    messages = gab_recput(gab, messages, arg.message, newspecs);
   }
 
   return gab_gcunlock(gab), messages;
@@ -707,8 +685,6 @@ int gab_ndefmacro(struct gab_triple gab, size_t len,
     return false;
 
   gab.eg->macros = m;
-
-  printf("MACROS: %V\n", m);
 
   gab_gcunlock(gab);
   return true;
@@ -1042,16 +1018,19 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   if (fb == gab_undefined)
     return nullptr;
 
+  struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fb);
+
   a_gab_value *res = gab_fibawait(gab, fb);
 
   gab_value fbparent = gab_thisfiber(gab);
 
   if (fbparent == gab_undefined) {
-    gab.eg->messages = gab_fibmessages(fb);
-    gab.eg->macros = gab_fibmacros(fb);
+    gab.eg->messages = f->messages;
+    gab.eg->macros = f->macros;
   } else {
-    gab_fibmsgset(fbparent, gab_fibmessages(fb));
-    gab_fibmacroset(fbparent, gab_fibmacros(fb));
+    struct gab_obj_fiber *parent = GAB_VAL_TO_FIBER(fbparent);
+    parent->messages = f->messages;
+    parent->macros = f->macros;
   }
 
   if (res == nullptr) {
@@ -1226,9 +1205,6 @@ a_gab_value *gab_sendmacro(struct gab_triple gab, struct gab_send_argt args) {
   gab.flags = args.flags;
 
   struct gab_impl_rest res = gab_implmacro(gab, args.message, args.receiver);
-
-  printf("SENDING MACRO %V to %V: %lu\n", args.message, args.receiver,
-         res.status);
 
   if (res.status == kGAB_IMPL_NONE)
     return nullptr;

@@ -121,9 +121,10 @@ static handler handlers[] = {
 #define READ_CONSTANT (KB()[READ_SHORT])
 #define READ_CONSTANTS (KB() + READ_SHORT)
 
-#define MISS_CACHED_SEND()                                                     \
+#define MISS_CACHED_SEND(clause)                                               \
   ({                                                                           \
     IP() -= SEND_CACHE_DIST - 1;                                               \
+    printf("clause '%s' missed\n", #clause);                                   \
     return OP_SEND_HANDLER(DISPATCH_ARGS());                                   \
   })
 
@@ -736,12 +737,16 @@ a_gab_value *do_vmexecfiber(struct gab_triple gab, gab_value f,
   switch (gab_valkind(res.as.spec)) {
   case kGAB_PRIMITIVE: {
     struct gab_vm *vm = &fiber->vm;
-    gab.eg->jobs[gab.wkid].fiber = f;
     uint8_t op = gab_valtop(res.as.spec);
 
-    uint8_t ip[] = {0, 0, fiber->len << 2, OP_RETURN, 1};
+    uint8_t ip[] = {0, 0, 1, OP_RETURN, 1};
     gab_value ks[] = {
-        message, gab_fibmsgrec(f, message), gab_valtype(gab, receiver), 0, 0, 0,
+        message,
+        gab_thisfibmsgrec(gab, message),
+        gab_valtype(gab, receiver),
+        res.as.spec,
+        0,
+        0,
         0,
     };
 
@@ -750,9 +755,16 @@ a_gab_value *do_vmexecfiber(struct gab_triple gab, gab_value f,
   }
   case kGAB_NATIVE: {
     struct gab_vm *vm = &fiber->vm;
-    uint8_t ip[] = {0, 0, fiber->len << 2, OP_RETURN, 1};
+    gab.eg->jobs[gab.wkid].fiber = f;
+
+    uint8_t ip[] = {0, 0, 1, OP_RETURN, 1};
     gab_value ks[] = {
-        message, gab_fibmsgrec(f, message), gab_valtype(gab, receiver), 0, 0, 0,
+        message,
+        gab_thisfibmsgrec(gab, message),
+        gab_valtype(gab, receiver),
+        (uintptr_t)GAB_VAL_TO_NATIVE(res.as.spec),
+        0,
+        0,
         0,
     };
 
@@ -832,7 +844,7 @@ a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
 
 #define SEND_GUARD(clause)                                                     \
   if (__gab_unlikely(!(clause)))                                               \
-  MISS_CACHED_SEND()
+  MISS_CACHED_SEND(clause)
 
 #define SEND_GUARD_KIND(r, k) SEND_GUARD(gab_valkind(r) == k)
 
@@ -842,15 +854,15 @@ a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
              gab_valkind(r) == kGAB_CHANNELBUFFERED)
 
 #define SEND_GUARD_CACHED_MESSAGE_SPECS()                                      \
-  SEND_GUARD(gab_valeq(gab_fibmsgrec(FIBER(), ks[GAB_SEND_KMESSAGE]),          \
+  SEND_GUARD(gab_valeq(gab_thisfibmsgrec(GAB(), ks[GAB_SEND_KMESSAGE]),        \
                        ks[GAB_SEND_KSPECS]))
 
 #define SEND_GUARD_CACHED_RECEIVER_TYPE(r)                                     \
   SEND_GUARD(gab_valisa(GAB(), r, ks[GAB_SEND_KTYPE]))
 
 #define SEND_GUARD_CACHED_GENERIC_CALL_SPECS(m)                                \
-  SEND_GUARD(                                                                  \
-      gab_valeq(gab_fibmsgrec(FIBER(), m), ks[GAB_SEND_KGENERIC_CALL_SPECS]))
+  SEND_GUARD(gab_valeq(gab_thisfibmsgrec(GAB(), m),                            \
+                       ks[GAB_SEND_KGENERIC_CALL_SPECS]))
 
 CASE_CODE(MATCHTAILSEND_BLOCK) {
   gab_value *ks = READ_CONSTANTS;
@@ -918,7 +930,7 @@ CASE_CODE(MATCHSEND_BLOCK) {
 static inline bool try_setup_localmatch(struct gab_triple gab, gab_value m,
                                         gab_value *ks,
                                         struct gab_obj_prototype *p) {
-  gab_value specs = gab_fibmessages(gab_thisfiber(gab));
+  gab_value specs = gab_thisfibmsgrec(gab, m);
 
   if (specs == gab_undefined)
     return false;
@@ -1024,6 +1036,8 @@ CASE_CODE(SEND_NATIVE) {
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   gab_value r = PEEK_N(have);
+
+  printf("have, var: %lu, %lu -  %V, %V\n", have, VAR(), r, ks[GAB_SEND_KTYPE]);
 
   SEND_GUARD_CACHED_MESSAGE_SPECS();
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);
@@ -1502,7 +1516,7 @@ CASE_CODE(SEND) {
                        ? gab_primitive(OP_SEND_PROPERTY)
                        : res.as.spec;
 
-  ks[GAB_SEND_KSPECS] = gab_fibmsgrec(FIBER(), m);
+  ks[GAB_SEND_KSPECS] = gab_thisfibmsgrec(GAB(), m);
   ks[GAB_SEND_KTYPE] = gab_valtype(GAB(), r);
   ks[GAB_SEND_KSPEC] = res.as.spec;
 
@@ -1696,7 +1710,7 @@ CASE_CODE(SEND_PRIMITIVE_CALL_MESSAGE) {
 
   ks[GAB_SEND_KTYPE] = t;
   ks[GAB_SEND_KSPEC] = res.as.spec;
-  ks[GAB_SEND_KGENERIC_CALL_SPECS] = gab_fibmsgrec(FIBER(), m);
+  ks[GAB_SEND_KGENERIC_CALL_SPECS] = gab_thisfibmsgrec(GAB(), m);
   // ks[GAB_SEND_KGENERIC_CALL_MESSAGE] = m;
 
   if (res.status == kGAB_IMPL_PROPERTY) {
@@ -1867,60 +1881,6 @@ CASE_CODE(SEND_PRIMITIVE_LIST) {
   STORE_SP();
 
   gab_gcunlock(GAB());
-
-  NEXT();
-}
-
-CASE_CODE(SENDMACRO_PRIMITIVE_MESSAGE_ASSIGN) {
-  gab_value *ks = READ_CONSTANTS;
-  uint64_t have = compute_arity(VAR(), READ_BYTE);
-
-  // toDO: Make more robust
-  // TODO: FIx up *all* the broke-ass logic-doubling for macros, etc
-  // TODO: Deffing stuff is just to broke and distributed
-
-  gab_value LHS = PEEK3();
-  gab_value RHS = PEEK2();
-  gab_value ENV = PEEK();
-
-  printf("HELLO FROM MACRO:\n\tLHS: %V\n\tRHS: %V\n\tENV: %V\n", LHS, RHS, ENV);
-
-  size_t local_env_idx = gab_reclen(ENV) - 1;
-  gab_value local_env = gab_uvrecat(ENV, local_env_idx);
-
-  // Go through all the messages in the left side
-  // Look them up in the env, if they don't exist,
-  // extend the local env.
-  // emit a call to :gab.runtime/env.put!
-  size_t len = gab_reclen(LHS);
-  for (size_t i = 0; i < len; i++) {
-    gab_value id = gab_uvrecat(LHS, i);
-
-    if (gab_valkind(id) != kGAB_MESSAGE)
-      ERROR(GAB_PANIC, "Invalid assignment target");
-
-    local_env = gab_shpwith(GAB(), local_env, id);
-  }
-
-  // We reshape this node into a send for :gab.runtime/env.put!
-  /*
-   *[
-   *  { gab.lhs: [ ...ids ],
-   *    gab.msg: env.put!,
-   *    gab.rhs: [ ...rhs ]
-   *  }
-   *]
-   */
-
-  gab_value node = gab_recordof(GAB(), gab_message(GAB(), "gab.lhs"), LHS,
-                                gab_message(GAB(), "gab.msg"),
-                                gab_message(GAB(), "gab.runtime.env.put!"),
-                                gab_message(GAB(), "gab.rhs"), RHS);
-
-  PUSH(gab_listof(GAB(), node));
-  PUSH(gab_urecput(GAB(), ENV, local_env_idx, local_env));
-
-  SET_VAR(2);
 
   NEXT();
 }

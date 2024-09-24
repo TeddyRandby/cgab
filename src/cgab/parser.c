@@ -1621,6 +1621,27 @@ gab_value gab_unquote(struct gab_triple gab, gab_value ast, gab_value env) {
   // addk should add constant to source
   // addk should check for common immediates
   //  - :ok, :err, :nil, :none, 1, 2
+  //
+  // Move builtin macros from OP-CODES (unnecessary) into a c module
+  //  * cassignment  - macros for assignment and destructuring
+  //    * [a, b] should destructure a gab.list
+  //    * {a, b} should destructure a gab.record with messages a, b
+  //    * [a, { b, c }] should be able to nest
+  //    * (a, ..b, c) should collect all extras into b, with OP_PACK
+  //  * cfn          - macros for defining functions (a, b) => a + b is just a macro on '=>'
+  //    * => macro:
+  //      1. push a *new* environemnt onto stack with arguments from LHS.
+  //      2. unquote RHS (body) into a block with the new ENV stack.
+  //      3. emit a send { [proto], gab.runtime.block, [] }
+  //    * Arguments should apply same destructuring rules as in cassignment
+  //
+  // Update syntax
+  //  * '+' and 'plus' should be message literals in prefix, and message sends in infix.
+  //  * commas are new lines, which can separate these
+  //  * EG:
+  //    (+  +  +) -> { [+], +, [+] }
+  //    (+, +, +) -> [  +,  +,  +  ]
+  //
 
   uint64_t offset = 0;
 

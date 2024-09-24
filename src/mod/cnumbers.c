@@ -117,12 +117,12 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_def(gab,
           {
-              mGAB_CALL,
+              gab_message(gab, mGAB_CALL),
               gab_sigil(gab, "float.between"),
               gab_snative(gab, "float.between", gab_lib_between),
           },
           {
-              "floor",
+              gab_message(gab, "floor"),
               type,
               gab_snative(gab, "floor", gab_lib_floor),
           });

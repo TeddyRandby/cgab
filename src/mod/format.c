@@ -44,17 +44,17 @@ a_gab_value *fmt_print(struct gab_triple gab, size_t argc,
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_def(gab,
           {
-              "panic",
+              gab_message(gab, "panic"),
               gab_type(gab, kGAB_STRING),
               gab_snative(gab, "panic", fmt_panicf),
           },
           {
-              "printf",
+              gab_message(gab, "printf"),
               gab_type(gab, kGAB_STRING),
               gab_snative(gab, "printf", fmt_printf),
           },
           {
-              "print",
+              gab_message(gab, "print"),
               gab_undefined,
               gab_snative(gab, "print", fmt_print),
           });

@@ -234,52 +234,52 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_def(gab,
           {
-              "list?",
+              gab_message(gab, "list?"),
               rec_t,
               gab_snative(gab, "gab.list?", gab_lib_islist),
           },
           {
-              "put",
+              gab_message(gab, "put"),
               rec_t,
               gab_snative(gab, "gab.put", gab_lib_put),
           },
           {
-              "del",
+              gab_message(gab, "del"),
               rec_t,
               gab_snative(gab, "gab.del", gab_lib_del),
           },
           {
-              "at",
+              gab_message(gab, "at"),
               rec_t,
               gab_snative(gab, "gab.at", gab_lib_at),
           },
           {
-              "push",
+              gab_message(gab, "push"),
               rec_t,
               gab_snative(gab, "gab.push", gab_lib_push),
           },
           {
-              "seqs.next",
+              gab_message(gab, "seqs.next"),
               rec_t,
               gab_snative(gab, "gab.next", gab_lib_next),
           },
           {
-              "seqs.init",
+              gab_message(gab, "seqs.init"),
               rec_t,
               gab_snative(gab, "gab.init", gab_lib_init),
           },
           {
-              "len",
+              gab_message(gab, "len"),
               rec_t,
               gab_snative(gab, "gab.len", gab_lib_len),
           },
           {
-              "put_via",
+              gab_message(gab, "put_via"),
               rec_t,
               gab_snative(gab, "gab.put_via", gab_lib_putvia),
           },
           {
-              "strings.into",
+              gab_message(gab, "strings.into"),
               rec_t,
               gab_snative(gab, "gab.strings.into", gab_lib_strings_into),
           });

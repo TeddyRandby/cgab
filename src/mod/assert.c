@@ -15,7 +15,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   struct gab_def_argt specs[] = {
       {
-          "assert.is?",
+          gab_message(gab, "assert.is?"),
           gab_undefined,
           gab_snative(gab, "assert.is?", gab_lib_assertis),
       },

@@ -17,12 +17,12 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_def(gab,
           {
-              "strings.into",
+              gab_message(gab, "strings.into"),
               type,
               gab_snative(gab, "strings.into", gab_lib_string_into),
           },
           {
-              "messages.into",
+              gab_message(gab, "messages.into"),
               type,
               gab_snative(gab, "messages.into", gab_lib_messages_into),
           });

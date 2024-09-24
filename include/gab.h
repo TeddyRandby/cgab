@@ -878,13 +878,9 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args);
  */
 struct gab_def_argt {
   /**
-   * The name of the message to specialize on.
-   */
-  const char *name;
-  /**
    * The reciever and value of the specialization.
    */
-  gab_value receiver, specialization;
+  gab_value message, receiver, specialization;
 };
 
 /**
@@ -1575,7 +1571,8 @@ struct gab_obj_rec {
 #define gab_recordof(gab, ...)                                                 \
   ({                                                                           \
     gab_value kvps[] = {__VA_ARGS__};                                          \
-    gab_record(gab, 2, (sizeof(kvps) / sizeof(gab_value)) / 2, kvps, kvps + 1); \
+    gab_record(gab, 2, (sizeof(kvps) / sizeof(gab_value)) / 2, kvps,           \
+               kvps + 1);                                                      \
   })
 
 /**
@@ -1866,134 +1863,29 @@ gab_value gab_fiber(struct gab_triple gab, gab_value receiver,
  */
 a_gab_value *gab_fibawait(struct gab_triple gab, gab_value fiber);
 
-/**
- * @brief Get a fiber's internal record of messages.
- *
- * @param fiber The fiber
- * @return the record
- */
-static inline gab_value gab_fibmessages(gab_value fiber) {
-  assert(gab_valkind(fiber) == kGAB_FIBER);
-  struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fiber);
-  return f->messages;
-}
-
-static inline gab_value gab_fibmacros(gab_value fiber) {
-  assert(gab_valkind(fiber) == kGAB_FIBER);
-  struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fiber);
-  return f->macros;
-}
-
-/**
- * @brief Get a message's record of specializations, within a given fiber.
- *
- * @param fiber The fiber
- * @param message The message
- * @return the record of specializations, or undefined
- */
-static inline gab_value gab_fibmsgrec(gab_value fiber, gab_value message) {
-  return gab_recat(gab_fibmessages(fiber), message);
-}
-
-static inline gab_value gab_fibmacrorec(gab_value fiber, gab_value message) {
-  return gab_recat(gab_fibmacros(fiber), message);
-}
-
-/**
- * @brief Get the specialization for a given message and receiver within a
- * fiber.
- *
- * @param fiber The fiber
- * @param message The message
- * @param receiver The receiver type to get
- * @return the specialization, or undefined
- */
-static inline gab_value gab_fibmsgat(gab_value fiber, gab_value message,
-                                     gab_value receiver) {
-  gab_value spec_rec = gab_fibmsgrec(fiber, message);
-
-  if (spec_rec == gab_undefined)
-    return gab_undefined;
-
-  return gab_recat(spec_rec, receiver);
-}
-
-static inline gab_value gab_fibmacroat(gab_value fiber, gab_value message,
-                                       gab_value receiver) {
-  gab_value spec_rec = gab_fibmacrorec(fiber, message);
-
-  if (spec_rec == gab_undefined)
-    return gab_undefined;
-
-  return gab_recat(spec_rec, receiver);
-}
 static inline gab_value gab_thisfiber(struct gab_triple gab);
+
+/*
+ * @brief Return the specialization for a given message and receiver.
+ *
+ * @param gab The gab triple.
+ * @param message The message.
+ * @param receiver The receiver.
+ *
+ * @return The spec
+ */
+static inline gab_value gab_thisfibmsgat(struct gab_triple gab,
+                                         gab_value message, gab_value receiver);
 
 static inline gab_value gab_thisfibmacroat(struct gab_triple gab,
                                            gab_value message,
                                            gab_value receiver);
 
-static inline void gab_fibmsgset(gab_value fiber, gab_value messages) {
-  assert(gab_valkind(fiber) == kGAB_FIBER);
-  struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fiber);
+static inline gab_value gab_thisfibmsgrec(struct gab_triple gab,
+                                          gab_value message);
 
-  f->messages = messages;
-}
-
-static inline void gab_fibmacroset(gab_value fiber, gab_value macros) {
-  assert(gab_valkind(fiber) == kGAB_FIBER);
-  struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fiber);
-
-  f->macros = macros;
-}
-
-/**
- * @brief Add a specialization for a message within a fiber.
- *
- * @param fiber The fiber
- * @param message The message
- * @param receiver The receiver type to get
- * @return the specialization, or undefined
- */
-static inline gab_value gab_fibmsgput(struct gab_triple gab, gab_value fiber,
-                                      gab_value msg, gab_value receiver,
-                                      gab_value spec) {
-  assert(gab_valkind(fiber) == kGAB_FIBER);
-
-  gab_value specs = gab_fibmsgrec(fiber, msg);
-
-  gab_gclock(gab);
-
-  if (specs == gab_undefined) {
-    specs = gab_record(gab, 0, 0, &specs, &specs);
-  }
-
-  gab_value newspecs = gab_recput(gab, specs, receiver, spec);
-  gab_fibmsgset(fiber, newspecs);
-
-  gab_gcunlock(gab);
-  return msg;
-}
-
-static inline gab_value gab_fibmacroput(struct gab_triple gab, gab_value fiber,
-                                        gab_value msg, gab_value receiver,
-                                        gab_value spec) {
-  assert(gab_valkind(fiber) == kGAB_FIBER);
-
-  gab_value specs = gab_fibmacrorec(fiber, msg);
-
-  gab_gclock(gab);
-
-  if (specs == gab_undefined) {
-    specs = gab_record(gab, 0, 0, &specs, &specs);
-  }
-
-  gab_value newspecs = gab_recput(gab, specs, receiver, spec);
-  gab_fibmacroset(fiber, newspecs);
-
-  gab_gcunlock(gab);
-  return msg;
-}
+static inline gab_value gab_thisfibmacrorec(struct gab_triple gab,
+                                            gab_value message);
 
 /**
  * @brief A primitive for sending data between fibers.
@@ -2486,7 +2378,6 @@ static inline gab_value gab_thisfiber(struct gab_triple gab) {
  */
 static inline struct gab_impl_rest
 gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
-  gab_value fiber = gab_thisfiber(gab);
   gab_value spec = gab_undefined;
   gab_value type = receiver;
 
@@ -2494,7 +2385,7 @@ gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
    * message. ie <gab.shape 0 1>*/
   if (gab_valhast(receiver)) {
     type = gab_valtype(gab, receiver);
-    spec = gab_fibmsgat(fiber, message, type);
+    spec = gab_thisfibmsgat(gab, message, type);
     if (spec != gab_undefined)
       return (struct gab_impl_rest){
           type,
@@ -2505,7 +2396,7 @@ gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
 
   /* Check for the kind of the receiver. ie 'gab.record' */
   type = gab_type(gab, gab_valkind(receiver));
-  spec = gab_fibmsgat(fiber, message, type);
+  spec = gab_thisfibmsgat(gab, message, type);
   if (spec != gab_undefined)
     return (struct gab_impl_rest){
         type,
@@ -2526,7 +2417,7 @@ gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
 
   /* Lastly, check for a generic implmentation.*/
   type = gab_undefined;
-  spec = gab_fibmsgat(fiber, message, type);
+  spec = gab_thisfibmsgat(gab, message, type);
 
   return (struct gab_impl_rest){
       type,
@@ -2535,33 +2426,53 @@ gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
   };
 }
 
+static inline gab_value gab_thisfibmsgrec(struct gab_triple gab,
+                                          gab_value message) {
+  gab_value fiber = gab_thisfiber(gab);
+
+  if (fiber == gab_undefined)
+    return gab_recat(gab.eg->messages, message);
+
+  struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fiber);
+  return gab_recat(f->messages, message);
+}
+
+static inline gab_value gab_thisfibmacrorec(struct gab_triple gab,
+                                            gab_value message) {
+  gab_value fiber = gab_thisfiber(gab);
+
+  if (fiber == gab_undefined)
+    return gab_recat(gab.eg->macros, message);
+
+  struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fiber);
+  return gab_recat(f->macros, message);
+}
+
+static inline gab_value
+gab_thisfibmsgat(struct gab_triple gab, gab_value message, gab_value receiver) {
+  gab_value spec_rec = gab_thisfibmsgrec(gab, message);
+
+  if (spec_rec == gab_undefined)
+    return gab_undefined;
+
+  return gab_recat(spec_rec, receiver);
+}
+
 static inline gab_value gab_thisfibmacroat(struct gab_triple gab,
                                            gab_value message,
                                            gab_value receiver) {
-  gab_value fiber = gab_thisfiber(gab);
+  gab_value spec_rec = gab_thisfibmacrorec(gab, message);
 
-  printf("CHECKING FOR MACRO %V on %V in %V\n", message, receiver, fiber);
-  if (fiber == gab_undefined) {
-    printf("CHECKING %V for %V\n", gab.eg->macros, message);
-    gab_value spec_rec = gab_recat(gab.eg->macros, message);
+  if (spec_rec == gab_undefined)
+    return gab_undefined;
 
-    printf("FOUND SPECS: %V\n", spec_rec);
-
-    if (spec_rec == gab_undefined)
-      return gab_undefined;
-
-    return gab_recat(spec_rec, receiver);
-  }
-
-  return gab_fibmacroat(fiber, message, receiver);
+  return gab_recat(spec_rec, receiver);
 }
 
 static inline struct gab_impl_rest
 gab_implmacro(struct gab_triple gab, gab_value message, gab_value receiver) {
   gab_value spec = gab_undefined;
   gab_value type = receiver;
-
-  printf("CHECKING %V\n", gab.eg->macros);
 
   /* Check if the receiver has a supertype, and if that supertype implments the
    * message. ie <gab.shape 0 1>*/

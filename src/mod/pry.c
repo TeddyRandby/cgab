@@ -44,12 +44,12 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   struct gab_def_argt specs[] = {
       {
-          "break",
+          gab_message(gab, "break"),
           pry_t,
           gab_snative(gab, "pry.break", gab_lib_prybreak),
       },
       {
-          "dump",
+          gab_message(gab, "dump"),
           gab_type(gab, kGAB_FIBER),
           gab_snative(gab, "pry.dump", gab_lib_prydumpframe),
       },

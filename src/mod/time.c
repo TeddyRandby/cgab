@@ -1,7 +1,8 @@
 #include "gab.h"
 #include <time.h>
 
-a_gab_value* gab_lib_now(struct gab_triple gab, size_t argc, gab_value argv[argc]) {
+a_gab_value *gab_lib_now(struct gab_triple gab, size_t argc,
+                         gab_value argv[argc]) {
   if (argc != 1) {
     return gab_fpanic(gab, "Invalid call to gab_lib_clock");
   }
@@ -31,10 +32,10 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   for (int i = 0; i < LEN_CARRAY(names); i++) {
     gab_def(gab, (struct gab_def_argt){
-                      .name = names[i],
-                      .receiver = receivers[i],
-                      .specialization = specs[i],
-                  });
+                     gab_message(gab, names[i]),
+                     receivers[i],
+                     specs[i],
+                 });
   }
 
   return nullptr;

@@ -39,22 +39,22 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_def(gab,
           {
-              "close!",
+              gab_message(gab, "close!"),
               chan_type,
               gab_snative(gab, "close!", gab_lib_close),
           },
           {
-              "full?",
+              gab_message(gab, "full?"),
               chan_type,
               gab_snative(gab, "close?", gab_lib_isfull),
           },
           {
-              "empty?",
+              gab_message(gab, "empty?"),
               chan_type,
               gab_snative(gab, "empty?", gab_lib_isempty),
           },
           {
-              "closed?",
+              gab_message(gab, "closed?"),
               chan_type,
               gab_snative(gab, "closed?", gab_lib_isclosed),
           });

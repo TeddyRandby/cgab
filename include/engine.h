@@ -85,4 +85,5 @@ struct gab_err_argt {
 
 void gab_vfpanic(struct gab_triple gab, FILE *stream, va_list vastruct,
                  struct gab_err_argt args);
+
 #endif

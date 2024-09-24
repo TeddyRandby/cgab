@@ -129,7 +129,7 @@ a_gab_value *gab_lib_json_encode(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_def(gab, {
-                   "json.decode",
+                   gab_message(gab, "json.decode"),
                    gab_type(gab, kGAB_STRING),
                    gab_snative(gab, "json.decode", gab_lib_json_decode),
                });

@@ -164,27 +164,27 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_def(gab,
           {
-              mGAB_CALL,
+              gab_message(gab, mGAB_CALL),
               gab_strtosig(iostream_t),
               gab_snative(gab, "iostream.open", gab_lib_open),
           },
           {
-              "until",
+              gab_message(gab, "until"),
               iostream_t,
               gab_snative(gab, "until", gab_lib_until),
           },
           {
-              "scan",
+              gab_message(gab, "scan"),
               iostream_t,
               gab_snative(gab, "scan", gab_lib_scan),
           },
           {
-              "read",
+              gab_message(gab, "read"),
               iostream_t,
               gab_snative(gab, "read", gab_lib_read),
           },
           {
-              "write",
+              gab_message(gab, "write"),
               iostream_t,
               gab_snative(gab, "write", gab_lib_write),
           });
