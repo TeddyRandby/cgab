@@ -230,6 +230,7 @@ enum gab_flags {
 #define mGAB_USE "use"
 #define mGAB_TAKE ">!"
 #define mGAB_PUT "<!"
+#define mGAB_ASSIGN "="
 
 #define T char
 #include "slice.h"

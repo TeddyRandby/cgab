@@ -2175,7 +2175,6 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
 
   gab_gclock(gab);
 
-
   gab_value name = gab_string(gab, args.name);
 
   struct gab_src *src =

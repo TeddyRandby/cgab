@@ -42,7 +42,7 @@ a_gab_value *gab_lib_prydumpframe(struct gab_triple gab, size_t argc,
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value pry_t = gab_sigil(gab, "pry");
 
-  struct gab_spec_argt specs[] = {
+  struct gab_def_argt specs[] = {
       {
           "break",
           pry_t,
@@ -55,7 +55,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       },
   };
 
-  gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
+  gab_ndef(gab, sizeof(specs) / sizeof(struct gab_def_argt), specs);
 
   return a_gab_value_one(pry_t);
 }

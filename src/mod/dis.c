@@ -94,7 +94,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   static_assert(LEN_CARRAY(values) == LEN_CARRAY(receivers));
 
   for (uint8_t i = 0; i < LEN_CARRAY(values); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
+    gab_def(gab, (struct gab_def_argt){
                       .name = "dis",
                       .receiver = receivers[i],
                       .specialization = values[i],

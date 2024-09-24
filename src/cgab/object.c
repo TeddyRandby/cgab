@@ -966,24 +966,25 @@ gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
 
 gab_value gab_shpwithout(struct gab_triple gab, gab_value shp, gab_value key);
 
-gab_value gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
+gab_value gab_fiber(struct gab_triple gab, gab_value receiver, gab_value message, size_t argc,
                     gab_value argv[argc]) {
-  assert(gab_valkind(main) == kGAB_BLOCK);
+  assert(gab_valkind(message) == kGAB_MESSAGE);
 
   struct gab_obj_fiber *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_fiber, gab_value, argc + 1, kGAB_FIBER);
-
-  struct gab_obj_block *b = GAB_VAL_TO_BLOCK(main);
+      GAB_CREATE_FLEX_OBJ(gab_obj_fiber, gab_value, argc + 2, kGAB_FIBER);
 
   if (gab_thisfiber(gab) == gab_undefined) {
     self->messages = gab.eg->messages;
+    self->macros = gab.eg->macros;
   } else {
-    self->messages = gab_fibmsg(gab_thisfiber(gab));
+    self->messages = gab_fibmessages(gab_thisfiber(gab));
+    self->macros = gab_fibmacros(gab_thisfiber(gab));
   }
 
-  self->len = argc + 1;
-  memcpy(self->data, argv, argc * sizeof(gab_value));
-  self->data[argc] = main;
+  self->len = argc + 2;
+  memcpy(self->data + 2, argv, argc * sizeof(gab_value));
+  self->data[0] = message;
+  self->data[1] = receiver;
 
   self->res = nullptr;
   self->status = kGAB_FIBER_WAITING;
@@ -992,16 +993,16 @@ gab_value gab_fiber(struct gab_triple gab, gab_value main, size_t argc,
   self->vm.sp = self->vm.sb + 3;
 
   // Setup main and args
-  *self->vm.sp++ = main;
+  *self->vm.sp++ = receiver;
   for (uint8_t i = 0; i < argc; i++)
     *self->vm.sp++ = argv[i];
 
-  *self->vm.sp = argc;
+  *self->vm.sp = argc + 1;
 
   // Setup the return frame
-  self->vm.fp[-1] = (uintptr_t)self->vm.sb - 1;
+  self->vm.fp[-1] = (uintptr_t)nullptr;
   self->vm.fp[-2] = 0;
-  self->vm.fp[-3] = (uintptr_t)b;
+  self->vm.fp[-3] = (uintptr_t)nullptr;
 
   self->vm.ip = nullptr;
 

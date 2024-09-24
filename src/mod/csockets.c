@@ -264,45 +264,42 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value container_type = gab_string(gab, "gab.socket");
   gab_value connected_container_type = gab_string(gab, "gab.connected.socket");
 
-  struct gab_spec_argt specs[] = {
-      {
-          mGAB_CALL,
-          gab_strtosig(container_type),
-          gab_snative(gab, "gab.socket", gab_lib_sock),
-      },
-      {
-          "bind",
-          container_type,
-          gab_snative(gab, "bind", gab_lib_bind),
-      },
-      {
-          "listen",
-          container_type,
-          gab_snative(gab, "listen", gab_lib_listen),
-      },
-      {
-          "accept",
-          container_type,
-          gab_snative(gab, "accept", gab_lib_accept),
-      },
-      {
-          "connect",
-          container_type,
-          gab_snative(gab, "connect", gab_lib_connect),
-      },
-      {
-          "recv",
-          connected_container_type,
-          gab_snative(gab, "receive", gab_lib_receive),
-      },
-      {
-          "send",
-          connected_container_type,
-          gab_snative(gab, "send", gab_lib_send),
-      },
-  };
-
-  gab_nspec(gab, sizeof(specs) / sizeof(specs[0]), specs);
+  gab_def(gab,
+          {
+              mGAB_CALL,
+              gab_strtosig(container_type),
+              gab_snative(gab, "gab.socket", gab_lib_sock),
+          },
+          {
+              "bind",
+              container_type,
+              gab_snative(gab, "bind", gab_lib_bind),
+          },
+          {
+              "listen",
+              container_type,
+              gab_snative(gab, "listen", gab_lib_listen),
+          },
+          {
+              "accept",
+              container_type,
+              gab_snative(gab, "accept", gab_lib_accept),
+          },
+          {
+              "connect",
+              container_type,
+              gab_snative(gab, "connect", gab_lib_connect),
+          },
+          {
+              "recv",
+              connected_container_type,
+              gab_snative(gab, "receive", gab_lib_receive),
+          },
+          {
+              "send",
+              connected_container_type,
+              gab_snative(gab, "send", gab_lib_send),
+          });
 
   const char *constant_names[] = {
       "family.af_inet",

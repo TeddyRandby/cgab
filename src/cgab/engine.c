@@ -95,6 +95,14 @@ struct primitive sigil_primitives[] = {
     },
 };
 
+struct primitive kind_primitive_macros[] = {
+    {
+        .name = mGAB_ASSIGN,
+        .kind = kGAB_MESSAGE,
+        .primitive = gab_primitive(OP_SENDMACRO_PRIMITIVE_MESSAGE_ASSIGN),
+    },
+};
+
 struct primitive kind_primitives[] = {
     {
         .name = mGAB_BIN,
@@ -223,7 +231,7 @@ struct primitive kind_primitives[] = {
     },
 };
 
-static const struct timespec t = { .tv_nsec = GAB_YIELD_SLEEPTIME_NS };
+static const struct timespec t = {.tv_nsec = GAB_YIELD_SLEEPTIME_NS};
 
 void gab_yield(struct gab_triple gab) {
   if (gab.eg->gc->schedule == gab.wkid)
@@ -375,6 +383,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->shapes = __gab_shape(gab, 0);
 
   eg->messages = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
+  eg->macros = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
   eg->work_channel = gab_channel(gab, 0);
 
   gab_iref(gab, eg->work_channel);
@@ -436,12 +445,24 @@ struct gab_triple gab_create(struct gab_create_argt args) {
         gab.eg,
         gab_iref(
             gab,
-            gab_spec(gab,
-                     (struct gab_spec_argt){
-                         .name = kind_primitives[i].name,
-                         .receiver = gab_type(gab, kind_primitives[i].kind),
-                         .specialization = kind_primitives[i].primitive,
-                     })));
+            gab_def(gab, (struct gab_def_argt){
+                             .name = kind_primitives[i].name,
+                             .receiver = gab_type(gab, kind_primitives[i].kind),
+                             .specialization = kind_primitives[i].primitive,
+                         })));
+  }
+
+  for (int i = 0; i < LEN_CARRAY(kind_primitive_macros); i++) {
+    gab_egkeep(
+        gab.eg,
+        gab_iref(gab,
+                 gab_defmacro(gab, (struct gab_def_argt){
+                                       .name = kind_primitive_macros[i].name,
+                                       .receiver = gab_type(
+                                           gab, kind_primitive_macros[i].kind),
+                                       .specialization =
+                                           kind_primitive_macros[i].primitive,
+                                   })));
   }
 
   for (int i = 0; i < LEN_CARRAY(sigil_primitives); i++) {
@@ -449,24 +470,23 @@ struct gab_triple gab_create(struct gab_create_argt args) {
         gab.eg,
         gab_iref(
             gab,
-            gab_spec(gab,
-                     (struct gab_spec_argt){
-                         .name = sigil_primitives[i].name,
-                         .receiver = gab_sigil(gab, sigil_primitives[i].sigil),
-                         .specialization = sigil_primitives[i].primitive,
-                     })));
+            gab_def(gab,
+                    (struct gab_def_argt){
+                        .name = sigil_primitives[i].name,
+                        .receiver = gab_sigil(gab, sigil_primitives[i].sigil),
+                        .specialization = sigil_primitives[i].primitive,
+                    })));
   }
 
   for (int i = 0; i < LEN_CARRAY(all_primitives); i++) {
     for (int t = 1; t < kGAB_NKINDS; t++) {
-      gab_egkeep(
-          gab.eg,
-          gab_iref(gab, gab_spec(gab, (struct gab_spec_argt){
-                                          .name = all_primitives[i].name,
-                                          .receiver = gab_type(gab, t),
-                                          .specialization =
-                                              all_primitives[i].primitive,
-                                      })));
+      gab_egkeep(gab.eg,
+                 gab_iref(gab, gab_def(gab, (struct gab_def_argt){
+                                                .name = all_primitives[i].name,
+                                                .receiver = gab_type(gab, t),
+                                                .specialization =
+                                                    all_primitives[i].primitive,
+                                            })));
     }
   }
 
@@ -638,50 +658,60 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
                       });
 }
 
-int gab_nspec(struct gab_triple gab, size_t len,
-              struct gab_spec_argt args[static len]) {
+gab_value dodef(struct gab_triple gab, gab_value messages, size_t len,
+                struct gab_def_argt args[static len]) {
+
   gab_gclock(gab);
 
   for (size_t i = 0; i < len; i++) {
-    if (gab_spec(gab, args[i]) == gab_undefined) {
-      gab_gcunlock(gab);
-      return i;
-    }
-  }
+    struct gab_def_argt arg = args[i];
 
-  gab_gcunlock(gab);
-  return -1;
-}
+    gab_value m = gab_message(gab, arg.name);
 
-gab_value gab_spec(struct gab_triple gab, struct gab_spec_argt args) {
-  gab_gclock(gab);
+    gab_value specs = gab_recat(messages, m);
 
-  gab_value m = gab_message(gab, args.name);
-
-  // GLOBAL
-  if (gab.wkid == gab.eg->len - 1) {
-    gab_value specs = gab_recat(gab.eg->messages, m);
-
-    gab_gclock(gab);
-
-    if (specs == gab_undefined) {
+    if (specs == gab_undefined)
       specs = gab_record(gab, 0, 0, &specs, &specs);
-    }
 
     gab_value newspecs =
-        gab_recput(gab, specs, args.receiver, args.specialization);
+        gab_recput(gab, specs, arg.receiver, arg.specialization);
 
-    gab.eg->messages = gab_recput(gab, gab.eg->messages, m, newspecs);
-
-    gab_gcunlock(gab);
-  } else {
-    m = gab_fibmsgput(gab, gab_thisfiber(gab), m, args.receiver,
-                      args.specialization);
+    messages = gab_recput(gab, messages, m, newspecs);
   }
 
-  gab_gcunlock(gab);
+  return gab_gcunlock(gab), messages;
+}
 
-  return m;
+int gab_ndef(struct gab_triple gab, size_t len,
+             struct gab_def_argt args[static len]) {
+  gab_gclock(gab);
+
+  gab_value m = dodef(gab, gab.eg->messages, len, args);
+
+  if (m == gab_undefined)
+    return false;
+
+  gab.eg->messages = m;
+
+  gab_gcunlock(gab);
+  return true;
+}
+
+int gab_ndefmacro(struct gab_triple gab, size_t len,
+                  struct gab_def_argt args[static len]) {
+  gab_gclock(gab);
+
+  gab_value m = dodef(gab, gab.eg->macros, len, args);
+
+  if (m == gab_undefined)
+    return false;
+
+  gab.eg->macros = m;
+
+  printf("MACROS: %V\n", m);
+
+  gab_gcunlock(gab);
+  return true;
 }
 
 struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
@@ -1015,10 +1045,13 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
   a_gab_value *res = gab_fibawait(gab, fb);
 
   gab_value fbparent = gab_thisfiber(gab);
+
   if (fbparent == gab_undefined) {
-    gab.eg->messages = gab_fibmsg(fb);
+    gab.eg->messages = gab_fibmessages(fb);
+    gab.eg->macros = gab_fibmacros(fb);
   } else {
-    gab_fibmsgset(fbparent, gab_fibmsg(fb));
+    gab_fibmsgset(fbparent, gab_fibmessages(fb));
+    gab_fibmacroset(fbparent, gab_fibmacros(fb));
   }
 
   if (res == nullptr) {
@@ -1173,7 +1206,8 @@ gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
   if (gab.flags & fGAB_BUILD_CHECK)
     return gab_undefined;
 
-  gab_value fb = gab_fiber(gab, args.main, args.len, args.argv);
+  gab_value fb = gab_fiber(gab, args.main, gab_message(gab, mGAB_CALL),
+                           args.len, args.argv);
 
   gab_iref(gab, fb);
 
@@ -1187,3 +1221,23 @@ gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
 
   return fb;
 }
+
+a_gab_value *gab_sendmacro(struct gab_triple gab, struct gab_send_argt args) {
+  gab.flags = args.flags;
+
+  struct gab_impl_rest res = gab_implmacro(gab, args.message, args.receiver);
+
+  printf("SENDING MACRO %V to %V: %lu\n", args.message, args.receiver,
+         res.status);
+
+  if (res.status == kGAB_IMPL_NONE)
+    return nullptr;
+
+  if (res.status == kGAB_IMPL_PROPERTY)
+    return nullptr;
+
+  gab_value fb =
+      gab_fiber(gab, args.receiver, args.message, args.len, args.argv);
+
+  return gab_vmexecmacro(gab, fb);
+};

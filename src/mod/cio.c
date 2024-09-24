@@ -162,35 +162,32 @@ a_gab_value *gab_lib_write(struct gab_triple gab, size_t argc,
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value iostream_t = gab_string(gab, GAB_IOSTREAM);
 
-  struct gab_spec_argt specs[] = {
-      {
-          mGAB_CALL,
-          gab_strtosig(iostream_t),
-          gab_snative(gab, "iostream.open", gab_lib_open),
-      },
-      {
-          "until",
-          iostream_t,
-          gab_snative(gab, "until", gab_lib_until),
-      },
-      {
-          "scan",
-          iostream_t,
-          gab_snative(gab, "scan", gab_lib_scan),
-      },
-      {
-          "read",
-          iostream_t,
-          gab_snative(gab, "read", gab_lib_read),
-      },
-      {
-          "write",
-          iostream_t,
-          gab_snative(gab, "write", gab_lib_write),
-      },
-  };
-
-  gab_nspec(gab, sizeof(specs) / sizeof(specs[0]), specs);
+  gab_def(gab,
+          {
+              mGAB_CALL,
+              gab_strtosig(iostream_t),
+              gab_snative(gab, "iostream.open", gab_lib_open),
+          },
+          {
+              "until",
+              iostream_t,
+              gab_snative(gab, "until", gab_lib_until),
+          },
+          {
+              "scan",
+              iostream_t,
+              gab_snative(gab, "scan", gab_lib_scan),
+          },
+          {
+              "read",
+              iostream_t,
+              gab_snative(gab, "read", gab_lib_read),
+          },
+          {
+              "write",
+              iostream_t,
+              gab_snative(gab, "write", gab_lib_write),
+          });
 
   gab_value results[] = {
       gab_strtosig(iostream_t),

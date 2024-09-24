@@ -429,95 +429,92 @@ a_gab_value *gab_lib_numbers_into(struct gab_triple gab, size_t argc,
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value string_type = gab_type(gab, kGAB_STRING);
 
-  struct gab_spec_argt specs[] = {
-      {
-          "slice",
-          string_type,
-          gab_snative(gab, "slice", gab_lib_slice),
-      },
-      {
-          mGAB_CALL,
-          gab_strtosig(string_type),
-          gab_snative(gab, "strings.new", gab_lib_new),
-      },
-      {
-          "strings.into",
-          string_type,
-          gab_snative(gab, "strings.into", gab_lib_string_into),
-      },
-      {
-          "sigils.into",
-          string_type,
-          gab_snative(gab, "sigils.into", gab_lib_sigil_into),
-      },
-      {
-          "messages.into",
-          string_type,
-          gab_snative(gab, "messages.into", gab_lib_messages_into),
-      },
-      {
-          "numbers.into",
-          string_type,
-          gab_snative(gab, "numbers.into", gab_lib_numbers_into),
-      },
-      {
-          "len",
-          string_type,
-          gab_snative(gab, "len", gab_lib_len),
-      },
-      {
-          "at",
-          string_type,
-          gab_snative(gab, "at", gab_lib_at),
-      },
-      {
-          "trim",
-          string_type,
-          gab_snative(gab, "trim", gab_lib_trim),
-      },
-      {
-          "split",
-          string_type,
-          gab_snative(gab, "split", gab_lib_split),
-      },
-      {
-          "blank?",
-          string_type,
-          gab_snative(gab, "blank?", gab_lib_blank),
-      },
-      {
-          "ends?",
-          string_type,
-          gab_snative(gab, "ends?", gab_lib_ends),
-      },
-      {
-          "begins?",
-          string_type,
-          gab_snative(gab, "begins?", gab_lib_begins),
-      },
-      {
-          "to_byte",
-          string_type,
-          gab_snative(gab, "to_byte", gab_lib_to_byte),
-      },
-      {
-          "is_digit?",
-          string_type,
-          gab_snative(gab, "is_digit?", gab_lib_is_digit),
-      },
-      {
-          "has?",
-          string_type,
-          gab_snative(gab, "has?", gab_lib_has),
-      },
-      {
-          "gab.eval",
-          string_type,
-          gab_snative(gab, "gab.eval", gab_lib_gabeval),
-      },
-  };
-
-  gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
+  gab_def(gab,
+          {
+              "slice",
+              string_type,
+              gab_snative(gab, "slice", gab_lib_slice),
+          },
+          {
+              mGAB_CALL,
+              gab_strtosig(string_type),
+              gab_snative(gab, "strings.new", gab_lib_new),
+          },
+          {
+              "strings.into",
+              string_type,
+              gab_snative(gab, "strings.into", gab_lib_string_into),
+          },
+          {
+              "sigils.into",
+              string_type,
+              gab_snative(gab, "sigils.into", gab_lib_sigil_into),
+          },
+          {
+              "messages.into",
+              string_type,
+              gab_snative(gab, "messages.into", gab_lib_messages_into),
+          },
+          {
+              "numbers.into",
+              string_type,
+              gab_snative(gab, "numbers.into", gab_lib_numbers_into),
+          },
+          {
+              "len",
+              string_type,
+              gab_snative(gab, "len", gab_lib_len),
+          },
+          {
+              "at",
+              string_type,
+              gab_snative(gab, "at", gab_lib_at),
+          },
+          {
+              "trim",
+              string_type,
+              gab_snative(gab, "trim", gab_lib_trim),
+          },
+          {
+              "split",
+              string_type,
+              gab_snative(gab, "split", gab_lib_split),
+          },
+          {
+              "blank?",
+              string_type,
+              gab_snative(gab, "blank?", gab_lib_blank),
+          },
+          {
+              "ends?",
+              string_type,
+              gab_snative(gab, "ends?", gab_lib_ends),
+          },
+          {
+              "begins?",
+              string_type,
+              gab_snative(gab, "begins?", gab_lib_begins),
+          },
+          {
+              "to_byte",
+              string_type,
+              gab_snative(gab, "to_byte", gab_lib_to_byte),
+          },
+          {
+              "is_digit?",
+              string_type,
+              gab_snative(gab, "is_digit?", gab_lib_is_digit),
+          },
+          {
+              "has?",
+              string_type,
+              gab_snative(gab, "has?", gab_lib_has),
+          },
+          {
+              "gab.eval",
+              string_type,
+              gab_snative(gab, "gab.eval", gab_lib_gabeval),
+          });
 
   return nullptr;
 }

@@ -13,7 +13,7 @@ a_gab_value *gab_lib_assertis(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib(struct gab_triple gab) {
 
-  struct gab_spec_argt specs[] = {
+  struct gab_def_argt specs[] = {
       {
           "assert.is?",
           gab_undefined,
@@ -21,7 +21,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
       },
   };
 
-  gab_nspec(gab, sizeof(specs) / sizeof(specs[0]), specs);
+  gab_ndef(gab, sizeof(specs) / sizeof(specs[0]), specs);
 
   return nullptr;
 }

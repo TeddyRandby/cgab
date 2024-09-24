@@ -232,60 +232,57 @@ fin:
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value rec_t = gab_type(gab, kGAB_RECORD);
 
-  struct gab_spec_argt specs[] = {
-      {
-          "list?",
-          rec_t,
-          gab_snative(gab, "gab.list?", gab_lib_islist),
-      },
-      {
-          "put",
-          rec_t,
-          gab_snative(gab, "gab.put", gab_lib_put),
-      },
-      {
-          "del",
-          rec_t,
-          gab_snative(gab, "gab.del", gab_lib_del),
-      },
-      {
-          "at",
-          rec_t,
-          gab_snative(gab, "gab.at", gab_lib_at),
-      },
-      {
-          "push",
-          rec_t,
-          gab_snative(gab, "gab.push", gab_lib_push),
-      },
-      {
-          "seqs.next",
-          rec_t,
-          gab_snative(gab, "gab.next", gab_lib_next),
-      },
-      {
-          "seqs.init",
-          rec_t,
-          gab_snative(gab, "gab.init", gab_lib_init),
-      },
-      {
-          "len",
-          rec_t,
-          gab_snative(gab, "gab.len", gab_lib_len),
-      },
-      {
-          "put_via",
-          rec_t,
-          gab_snative(gab, "gab.put_via", gab_lib_putvia),
-      },
-      {
-          "strings.into",
-          rec_t,
-          gab_snative(gab, "gab.strings.into", gab_lib_strings_into),
-      },
-  };
-
-  gab_nspec(gab, sizeof(specs) / sizeof(specs[0]), specs);
+  gab_def(gab,
+          {
+              "list?",
+              rec_t,
+              gab_snative(gab, "gab.list?", gab_lib_islist),
+          },
+          {
+              "put",
+              rec_t,
+              gab_snative(gab, "gab.put", gab_lib_put),
+          },
+          {
+              "del",
+              rec_t,
+              gab_snative(gab, "gab.del", gab_lib_del),
+          },
+          {
+              "at",
+              rec_t,
+              gab_snative(gab, "gab.at", gab_lib_at),
+          },
+          {
+              "push",
+              rec_t,
+              gab_snative(gab, "gab.push", gab_lib_push),
+          },
+          {
+              "seqs.next",
+              rec_t,
+              gab_snative(gab, "gab.next", gab_lib_next),
+          },
+          {
+              "seqs.init",
+              rec_t,
+              gab_snative(gab, "gab.init", gab_lib_init),
+          },
+          {
+              "len",
+              rec_t,
+              gab_snative(gab, "gab.len", gab_lib_len),
+          },
+          {
+              "put_via",
+              rec_t,
+              gab_snative(gab, "gab.put_via", gab_lib_putvia),
+          },
+          {
+              "strings.into",
+              rec_t,
+              gab_snative(gab, "gab.strings.into", gab_lib_strings_into),
+          });
 
   return a_gab_value_one(rec_t);
 }

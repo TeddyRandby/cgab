@@ -17,7 +17,7 @@ a_gab_value *gab_lib_message(struct gab_triple gab, size_t argc,
 a_gab_value *gab_lib_impls(struct gab_triple gab, size_t argc,
                            gab_value argv[static argc]) {
   if (argc == 1) {
-    gab_value rec = gab_fibmsg(gab_thisfiber(gab));
+    gab_value rec = gab_fibmessages(gab_thisfiber(gab));
     gab_vmpush(gab_vm(gab), rec);
 
     return nullptr;
@@ -201,55 +201,52 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
 a_gab_value *gab_lib(struct gab_triple gab) {
   gab_value type = gab_type(gab, kGAB_MESSAGE);
 
-  struct gab_spec_argt specs[] = {
-      {
-          mGAB_CALL,
-          gab_strtosig(type),
-          gab_snative(gab, "message.new", gab_lib_message),
-      },
-      {
-          "impls",
-          gab_strtosig(type),
-          gab_snative(gab, "message.impls", gab_lib_impls),
-      },
-      {
-          "sigils.into",
-          type,
-          gab_snative(gab, "sigils.into", gab_lib_sigil_into),
-      },
-      {
-          "strings.into",
-          type,
-          gab_snative(gab, "strings.into", gab_lib_string_into),
-      },
-      {
-          "has?",
-          type,
-          gab_snative(gab, "has?", gab_lib_has),
-      },
-      {
-          "at",
-          type,
-          gab_snative(gab, "at", gab_lib_at),
-      },
-      {
-          "def!",
-          type,
-          gab_snative(gab, "def!", gab_lib_def),
-      },
-      {
-          "defcase!",
-          type,
-          gab_snative(gab, "defcase!", gab_lib_case),
-      },
-      {
-          "defmodule!",
-          gab_undefined,
-          gab_snative(gab, "defmodule!", gab_lib_module),
-      },
-  };
-
-  gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
+  gab_def(gab,
+          {
+              mGAB_CALL,
+              gab_strtosig(type),
+              gab_snative(gab, "message.new", gab_lib_message),
+          },
+          {
+              "impls",
+              gab_strtosig(type),
+              gab_snative(gab, "message.impls", gab_lib_impls),
+          },
+          {
+              "sigils.into",
+              type,
+              gab_snative(gab, "sigils.into", gab_lib_sigil_into),
+          },
+          {
+              "strings.into",
+              type,
+              gab_snative(gab, "strings.into", gab_lib_string_into),
+          },
+          {
+              "has?",
+              type,
+              gab_snative(gab, "has?", gab_lib_has),
+          },
+          {
+              "at",
+              type,
+              gab_snative(gab, "at", gab_lib_at),
+          },
+          {
+              "def!",
+              type,
+              gab_snative(gab, "def!", gab_lib_def),
+          },
+          {
+              "defcase!",
+              type,
+              gab_snative(gab, "defcase!", gab_lib_case),
+          },
+          {
+              "defmodule!",
+              gab_undefined,
+              gab_snative(gab, "defmodule!", gab_lib_module),
+          });
 
   return a_gab_value_one(type);
 }

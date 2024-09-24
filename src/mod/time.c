@@ -30,7 +30,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
   static_assert(LEN_CARRAY(names) == LEN_CARRAY(specs));
 
   for (int i = 0; i < LEN_CARRAY(names); i++) {
-    gab_spec(gab, (struct gab_spec_argt){
+    gab_def(gab, (struct gab_def_argt){
                       .name = names[i],
                       .receiver = receivers[i],
                       .specialization = specs[i],

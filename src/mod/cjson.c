@@ -128,15 +128,11 @@ a_gab_value *gab_lib_json_encode(struct gab_triple gab, size_t argc,
 }
 
 a_gab_value *gab_lib(struct gab_triple gab) {
-  struct gab_spec_argt specs[] = {
-      {
-          "json.decode",
-          gab_type(gab, kGAB_STRING),
-          gab_snative(gab, "json.decode", gab_lib_json_decode),
-      },
-  };
-
-  gab_nspec(gab, sizeof(specs) / sizeof(struct gab_spec_argt), specs);
+  gab_def(gab, {
+                   "json.decode",
+                   gab_type(gab, kGAB_STRING),
+                   gab_snative(gab, "json.decode", gab_lib_json_decode),
+               });
 
   return nullptr;
 }

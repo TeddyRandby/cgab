@@ -417,7 +417,8 @@ a_gab_value *vm_error(struct gab_triple gab, enum gab_status s, const char *fmt,
 #define FMT_MISSINGIMPL                                                        \
   "$ does not specialize for:\n\n >> $\n\nof type:\n\n >> $"
 
-/*a_gab_value *gab_nfpanic(struct gab_triple gab, const char *fmt, size_t argc, gab_value argv[static argc]) {*/
+/*a_gab_value *gab_nfpanic(struct gab_triple gab, const char *fmt, size_t argc,
+ * gab_value argv[static argc]) {*/
 /*  if (!gab_vm(gab)) {*/
 /*}*/
 
@@ -718,22 +719,88 @@ a_gab_value *ok(OP_HANDLER_ARGS) {
   return results;
 }
 
+a_gab_value *do_vmexecfiber(struct gab_triple gab, gab_value f,
+                            struct gab_impl_rest res) {
+  assert(gab_valkind(f) == kGAB_FIBER);
+  struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
+
+  gab_value receiver = fiber->data[1];
+  gab_value message = fiber->data[0];
+
+  if (res.status == kGAB_IMPL_NONE)
+    return nullptr;
+
+  if (res.status == kGAB_IMPL_PROPERTY)
+    return nullptr;
+
+  switch (gab_valkind(res.as.spec)) {
+  case kGAB_PRIMITIVE: {
+    struct gab_vm *vm = &fiber->vm;
+    gab.eg->jobs[gab.wkid].fiber = f;
+    uint8_t op = gab_valtop(res.as.spec);
+
+    uint8_t ip[] = {0, 0, fiber->len << 2, OP_RETURN, 1};
+    gab_value ks[] = {
+        message, gab_fibmsgrec(f, message), gab_valtype(gab, receiver), 0, 0, 0,
+        0,
+    };
+
+    fiber->status = kGAB_FIBER_RUNNING;
+    return handlers[op](gab, ip, ks, vm->fp, vm->sp);
+  }
+  case kGAB_NATIVE: {
+    struct gab_vm *vm = &fiber->vm;
+    uint8_t ip[] = {0, 0, fiber->len << 2, OP_RETURN, 1};
+    gab_value ks[] = {
+        message, gab_fibmsgrec(f, message), gab_valtype(gab, receiver), 0, 0, 0,
+        0,
+    };
+
+    fiber->status = kGAB_FIBER_RUNNING;
+    return OP_SEND_NATIVE_HANDLER(gab, ip, ks, vm->fp, vm->sp);
+  }
+  case kGAB_BLOCK: {
+    struct gab_vm *vm = &fiber->vm;
+
+    struct gab_obj_block *b = GAB_VAL_TO_BLOCK(res.as.spec);
+    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
+
+    vm->ip = proto_ip(gab, p);
+    uint8_t *ip = vm->ip;
+    uint8_t op = *ip++;
+
+    fiber->status = kGAB_FIBER_RUNNING;
+    return handlers[op](gab, ip, p->src->constants.data, vm->fp, vm->sp);
+  }
+  default:
+    return a_gab_value_create((gab_value[]){gab_ok, res.as.spec}, 2);
+  }
+};
+
+a_gab_value *gab_vmexecmacro(struct gab_triple gab, gab_value f) {
+  assert(gab_valkind(f) == kGAB_FIBER);
+  struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
+
+  gab_value receiver = fiber->data[1];
+  gab_value message = fiber->data[0];
+
+  struct gab_impl_rest res = gab_implmacro(gab, message, receiver);
+
+  return do_vmexecfiber(gab, f, res);
+};
+
 a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
   assert(gab_valkind(f) == kGAB_FIBER);
   struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
-  fiber->status = kGAB_FIBER_RUNNING;
 
-  struct gab_vm *vm = gab_vm(gab);
+  gab_value receiver = fiber->data[1];
+  gab_value message = fiber->data[0];
 
-  struct gab_obj_block *b = GAB_VAL_TO_BLOCK(vm->fp[-3]);
-  struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
+  struct gab_impl_rest res = gab_impl(gab, message, receiver);
 
-  vm->ip = proto_ip(gab, p);
-  uint8_t *ip = vm->ip;
-  uint8_t op = *ip++;
-
-  return handlers[op](gab, ip, p->src->constants.data, vm->fp, vm->sp);
+  return do_vmexecfiber(gab, f, res);
 }
+
 #define ERROR_GUARD_KIND(value, kind)                                          \
   if (__gab_unlikely(gab_valkind(value) != kind)) {                            \
     STORE_PRIMITIVE_ERROR_FRAME(1);                                            \
@@ -851,7 +918,7 @@ CASE_CODE(MATCHSEND_BLOCK) {
 static inline bool try_setup_localmatch(struct gab_triple gab, gab_value m,
                                         gab_value *ks,
                                         struct gab_obj_prototype *p) {
-  gab_value specs = gab_fibmsg(gab_thisfiber(gab));
+  gab_value specs = gab_fibmessages(gab_thisfiber(gab));
 
   if (specs == gab_undefined)
     return false;
@@ -1220,7 +1287,7 @@ CASE_CODE(RETURN) {
   gab_value *from = SP() - have;
   gab_value *to = FB() - 3;
 
-  if (__gab_unlikely(RETURN_FB() < VM()->sb))
+  if (__gab_unlikely(!RETURN_FB()))
     return STORE(), SET_VAR(have), ok(DISPATCH_ARGS());
 
   LOAD_FRAME();
@@ -1800,6 +1867,60 @@ CASE_CODE(SEND_PRIMITIVE_LIST) {
   STORE_SP();
 
   gab_gcunlock(GAB());
+
+  NEXT();
+}
+
+CASE_CODE(SENDMACRO_PRIMITIVE_MESSAGE_ASSIGN) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  // toDO: Make more robust
+  // TODO: FIx up *all* the broke-ass logic-doubling for macros, etc
+  // TODO: Deffing stuff is just to broke and distributed
+
+  gab_value LHS = PEEK3();
+  gab_value RHS = PEEK2();
+  gab_value ENV = PEEK();
+
+  printf("HELLO FROM MACRO:\n\tLHS: %V\n\tRHS: %V\n\tENV: %V\n", LHS, RHS, ENV);
+
+  size_t local_env_idx = gab_reclen(ENV) - 1;
+  gab_value local_env = gab_uvrecat(ENV, local_env_idx);
+
+  // Go through all the messages in the left side
+  // Look them up in the env, if they don't exist,
+  // extend the local env.
+  // emit a call to :gab.runtime/env.put!
+  size_t len = gab_reclen(LHS);
+  for (size_t i = 0; i < len; i++) {
+    gab_value id = gab_uvrecat(LHS, i);
+
+    if (gab_valkind(id) != kGAB_MESSAGE)
+      ERROR(GAB_PANIC, "Invalid assignment target");
+
+    local_env = gab_shpwith(GAB(), local_env, id);
+  }
+
+  // We reshape this node into a send for :gab.runtime/env.put!
+  /*
+   *[
+   *  { gab.lhs: [:gab.runtime],
+   *    gab.msg: env.put!,
+   *    gab.rhs: [ ids, ...rhs ]
+   *  }
+   *]
+   */
+
+  gab_value node = gab_recordof(GAB(), gab_message(GAB(), "gab.lhs"), LHS,
+                                gab_message(GAB(), "gab.msg"),
+                                gab_message(GAB(), "gab.runtime.env.put!"),
+                                gab_message(GAB(), "gab.rhs"), RHS);
+
+  PUSH(gab_listof(GAB(), node));
+  PUSH(gab_urecput(GAB(), ENV, local_env_idx, local_env));
+
+  SET_VAR(2);
 
   NEXT();
 }
