@@ -1905,9 +1905,9 @@ CASE_CODE(SENDMACRO_PRIMITIVE_MESSAGE_ASSIGN) {
   // We reshape this node into a send for :gab.runtime/env.put!
   /*
    *[
-   *  { gab.lhs: [:gab.runtime],
+   *  { gab.lhs: [ ...ids ],
    *    gab.msg: env.put!,
-   *    gab.rhs: [ ids, ...rhs ]
+   *    gab.rhs: [ ...rhs ]
    *  }
    *]
    */

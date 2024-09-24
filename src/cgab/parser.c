@@ -1610,6 +1610,18 @@ gab_value gab_unquote(struct gab_triple gab, gab_value ast, gab_value env) {
 
   unquote_tuple(gab, &bc, res.node, res.env);
 
+  // nupvalues: need to track what upvalues are captured, all the way up callstack
+  //   - environments need to track which values are captured, and capture them as well.
+  // nslots:    need to track at compile time while unquoting, can just be on bc
+  // nargs:     length of local env before expansion
+  // nlocals:   length of local env after expansion
+  //
+  // call srcappend to append bytecode to src module
+  // actually track bc_tok offset
+  // addk should add constant to source
+  // addk should check for common immediates
+  //  - :ok, :err, :nil, :none, 1, 2
+
   uint64_t offset = 0;
 
   uint64_t end = bc.bc.len;
