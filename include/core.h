@@ -132,11 +132,11 @@
 // Not configurable, just constants
 #define GAB_CONSTANTS_MAX (UINT16_MAX + 1)
 // Maximum value of a local.
-#define GAB_LOCAL_MAX 255
+#define GAB_LOCAL_MAX 256
 // Maximum value of an upvalues.
-#define GAB_UPVALUE_MAX 255
+#define GAB_UPVALUE_MAX (256 >> 1)
 // Maximum number of function arguments.
-#define GAB_ARG_MAX 128
+#define GAB_ARG_MAX (256 >> 2)
 // Maximum number of function return values.
 #define GAB_RET_MAX 128
 

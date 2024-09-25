@@ -367,7 +367,7 @@ gab_value node_value(struct gab_triple gab, gab_value node) {
 }
 
 gab_value node_empty(struct gab_triple gab) {
-  return gab_list(gab, 0, nullptr);
+  return gab_listof(gab);
 }
 
 bool node_isempty(gab_value node) {
@@ -450,7 +450,7 @@ static gab_value parse_expressions_body(struct gab_triple gab,
     if (rhs == gab_undefined)
       return gab_undefined;
 
-    result = gab_reccat(gab, result, node_value(gab, rhs));
+    result = gab_lstcat(gab, result, node_value(gab, rhs));
 
     skip_newlines(gab, parser);
   }
@@ -575,11 +575,11 @@ gab_value parse_exp_rec(struct gab_triple gab, struct parser *parser,
     if (rhs == gab_undefined)
       return gab_undefined;
 
-    result = gab_reccat(gab, result, rhs);
+    result = gab_lstcat(gab, result, rhs);
 
     skip_newlines(gab, parser);
 
-    result = gab_reccat(gab, result, rhs);
+    result = gab_lstcat(gab, result, rhs);
 
     skip_newlines(gab, parser);
 
@@ -604,7 +604,7 @@ gab_value parse_exp_lst(struct gab_triple gab, struct parser *parser,
     if (rhs == gab_undefined)
       return gab_undefined;
 
-    result = gab_reccat(gab, result, rhs);
+    result = gab_lstcat(gab, result, rhs);
 
     skip_newlines(gab, parser);
 
@@ -636,7 +636,7 @@ gab_value parse_exp_tup(struct gab_triple gab, struct parser *parser,
 
     // Problem - constant-nodes and send-nodes are both represented as records.
     // This concat just combines send nodes. OOps!
-    result = gab_reccat(gab, result, rhs);
+    result = gab_lstcat(gab, result, rhs);
 
     skip_newlines(gab, parser);
 
@@ -729,7 +729,7 @@ gab_value parse(struct gab_triple gab, struct parser *parser,
   return result;
 }
 
-gab_value gab_parse(struct gab_triple gab, struct gab_build_argt args) {
+struct gab_ast gab_parse(struct gab_triple gab, struct gab_build_argt args) {
   gab.flags = args.flags;
 
   args.name = args.name ? args.name : "__main__";
@@ -750,13 +750,14 @@ gab_value gab_parse(struct gab_triple gab, struct gab_build_argt args) {
 
   gab_value ast = parse(gab, &parser, args.len, vargv);
 
-  gab_value env = gab_listof(gab, gab_shapeof(gab, gab_message(gab, "self")));
+  gab_value env =
+      gab_listof(gab, gab_recordof(gab, gab_message(gab, "self"), gab_nil));
 
   gab_unquote(gab, ast, env);
 
   gab_gcunlock(gab);
 
-  return ast;
+  return (struct gab_ast){ast, src};
 }
 
 /*
@@ -778,9 +779,6 @@ struct bc {
 
   uint8_t prev_op;
   size_t prev_op_at;
-
-  uint8_t ncontext;
-  gab_value contexts[cGAB_FUNCTION_DEF_NESTING_MAX];
 };
 
 static inline void push_op(struct bc *bc, uint8_t op, size_t t) {
@@ -1039,51 +1037,157 @@ static inline void push_ret(struct bc *bc, gab_value tup, size_t t) {
   push_byte(bc, encode_arity(tup, gab_undefined), t);
 }
 
-struct var {
-  enum : uint8_t {
-    kVAR_LOCAL,
-    kVAR_UPVAL,
-    kVAR_NONE,
-  } k;
+size_t upvalues_in_env(gab_value env) {
+  size_t max = 0, len = gab_reclen(env);
 
-  uint16_t idx;
-};
-
-struct var env_lookup(gab_value env, gab_value node) {
-  assert(gab_valkind(env) == kGAB_RECORD);
-  printf("%V LOOKUP %V\n", env, node);
-
-  size_t len = gab_reclen(env);
   for (size_t i = 0; i < len; i++) {
-    gab_value scope = gab_uvrecat(env, len - i - 1);
+    gab_value num_or_undef = gab_uvrecat(env, i);
 
-    printf("| %V LOOKUP %V\n", scope, node);
-    if (gab_shphas(scope, node)) {
-      printf("FOUND\n");
-      return (struct var){
-          i == 0 ? kVAR_LOCAL : kVAR_UPVAL,
-          gab_shpfind(scope, node),
-      };
-    }
+    if (gab_valkind(num_or_undef) != kGAB_NUMBER)
+      continue;
 
-    printf("NOT FOUND\n");
+    size_t nth_upv = 1 + gab_valton(num_or_undef);
+
+    if (nth_upv > max)
+      max = nth_upv;
   }
 
-  return (struct var){kVAR_NONE};
+  return max;
+}
+
+gab_value peek_env(gab_value env, int depth) {
+  size_t nenv = gab_reclen(env);
+
+  if (depth + 1 > nenv)
+    return gab_undefined;
+
+  return gab_uvrecat(env, nenv - depth - 1);
+}
+
+gab_value put_env(struct gab_triple gab, gab_value env, int depth,
+                  gab_value new_ctx) {
+  size_t nenv = gab_reclen(env);
+
+  if (depth + 1 > nenv)
+    return env;
+
+  return gab_urecput(gab, env, nenv - depth - 1, new_ctx);
+}
+
+struct lookup_res {
+  gab_value env;
+
+  enum {
+    kLOOKUP_NONE,
+    kLOOKUP_UPV,
+    kLOOKUP_LOC,
+  } k;
+
+  int idx;
 };
+
+/*
+ * Modify the given environment to capture the message 'id'.
+ * If already captured, the environment is unchanged.
+ */
+static struct lookup_res add_upvalue(struct gab_triple gab, gab_value env,
+                                     gab_value id, int depth) {
+  gab_value ctx = peek_env(env, depth);
+
+  if (ctx == gab_undefined)
+    return (struct lookup_res){env, kLOOKUP_NONE};
+
+  // Don't pull redundant upvalues
+  gab_value current_upv_idx = gab_recat(ctx, id);
+
+  if (current_upv_idx != gab_undefined)
+    return (struct lookup_res){env, kLOOKUP_UPV, current_upv_idx};
+
+  uint16_t count = upvalues_in_env(ctx);
+
+  // Throw some sort of error here
+  if (count == GAB_UPVALUE_MAX)
+    return (struct lookup_res){env, kLOOKUP_NONE};
+
+  /*compiler_error(*/
+  /*    bc, GAB_TOO_MANY_UPVALUES,*/
+  /*    "For arbitrary reasons, blocks cannot capture more than 255 "*/
+  /*    "variables.");*/
+  ctx = gab_recput(gab, ctx, id, gab_number(count));
+  env = put_env(gab, env, depth, ctx);
+
+  return (struct lookup_res){env, kLOOKUP_UPV, count};
+}
+
+/*
+ * Find for an id in the env at depth.
+ */
+static int resolve_local(struct gab_triple gab, gab_value env, gab_value id,
+                         uint8_t depth) {
+  gab_value ctx = peek_env(env, depth);
+
+  if (ctx == gab_undefined)
+    return -1;
+
+  size_t i = gab_recfind(ctx, id);
+
+  if (i == (size_t)-1)
+    return -1;
+
+  return i;
+}
+
+/* Returns COMP_ERR if an error is encountered,
+ * COMP_UPVALUE_NOT_FOUND if no matching upvalue is found,
+ * and otherwise the offset of the upvalue.
+ */
+static struct lookup_res resolve_upvalue(struct gab_triple gab, gab_value env,
+                                         gab_value name, uint8_t depth) {
+  size_t nenvs = gab_reclen(env);
+
+  if (depth >= nenvs)
+    return (struct lookup_res){env, kLOOKUP_NONE};
+
+  int local = resolve_local(gab, env, name, depth + 1);
+
+  if (local >= 0)
+    return add_upvalue(gab, env, name, depth);
+
+  struct lookup_res res = resolve_upvalue(gab, env, name, depth + 1);
+
+  if (res.k) // This means we found either a local, or upvalue
+    return add_upvalue(gab, env, name, depth + 1);
+
+  return (struct lookup_res){env, kLOOKUP_NONE};
+}
+
+/* Returns COMP_ERR if an error is encountered,
+ * COMP_ID_NOT_FOUND if no matching local or upvalue is found,
+ * COMP_RESOLVED_TO_LOCAL if the id was a local, and
+ * COMP_RESOLVED_TO_UPVALUE if the id was an upvalue.
+ */
+static struct lookup_res resolve_id(struct gab_triple gab, struct bc *bc,
+                                    gab_value env, gab_value id) {
+  int idx = resolve_local(gab, env, id, 0);
+
+  if (idx == -1)
+    return resolve_upvalue(gab, env, id, 0);
+  else
+    return (struct lookup_res){env, kLOOKUP_LOC, idx};
+}
 
 gab_value unquote_message(struct gab_triple gab, struct bc *bc, gab_value node,
                           gab_value env) {
-  struct var res = env_lookup(env, node);
+  struct lookup_res res = resolve_id(gab, bc, env, node);
 
   switch (res.k) {
-  case kVAR_LOCAL:
+  case kLOOKUP_LOC:
     push_loadl(bc, res.idx, -1);
     break;
-  case kVAR_UPVAL:
+  case kLOOKUP_UPV:
     push_loadu(bc, res.idx, -1);
     break;
-  case kVAR_NONE:
+  case kLOOKUP_NONE:
     return gab_err;
   }
 
@@ -1098,7 +1202,6 @@ void unquote_record(struct gab_triple gab, struct bc *bc, gab_value node,
 
 void unquote_value(struct gab_triple gab, struct bc *bc, gab_value node,
                    gab_value env) {
-  printf("UNQUOTE VALUE: %V\n", node);
 
   switch (gab_valkind(node)) {
   case kGAB_SIGIL:
@@ -1139,14 +1242,14 @@ void unquote_envput(struct gab_triple gab, struct bc *bc, gab_value node,
     gab_value target = gab_uvrecat(lhs_node, ntargets - i - 1);
     switch (gab_valkind(target)) {
     case kGAB_MESSAGE: {
-      struct var res = env_lookup(env, target);
+      struct lookup_res res = resolve_id(gab, bc, env, target);
 
       switch (res.k) {
-      case kVAR_LOCAL:
+      case kLOOKUP_LOC:
         push_storel(bc, res.idx, -1);
         break;
-      case kVAR_UPVAL:
-      case kVAR_NONE:
+      case kLOOKUP_UPV:
+      case kLOOKUP_NONE:
         assert(false && "INVALID ASSIGNMENT TARGET");
         break;
       }
@@ -1165,9 +1268,6 @@ void unquote_specialform(struct gab_triple gab, struct bc *bc, gab_value node,
   gab_value lhs_node = gab_mrecat(gab, node, "gab.lhs");
   gab_value rhs_node = gab_mrecat(gab, node, "gab.rhs");
   gab_value msg = gab_mrecat(gab, node, "gab.msg");
-
-  printf("UNQUOTE_SPECIALSEND: %V\n %V .%V %V\n", node, lhs_node, msg,
-         rhs_node);
 
   if (msg == gab_message(gab, "gab.runtime.env.put!"))
     return unquote_envput(gab, bc, node, env);
@@ -1189,8 +1289,6 @@ void unquote_record(struct gab_triple gab, struct bc *bc, gab_value node,
     if (msg_is_specialform(gab, msg))
       return unquote_specialform(gab, bc, node, env);
 
-    printf("UNQUOTE_SEND: %V\n %V .%V %V\n", node, lhs_node, msg, rhs_node);
-
     unquote_tuple(gab, bc, lhs_node, env);
 
     if (node_ismulti(lhs_node) && !node_isempty(rhs_node))
@@ -1198,13 +1296,10 @@ void unquote_record(struct gab_triple gab, struct bc *bc, gab_value node,
 
     unquote_tuple(gab, bc, rhs_node, env);
 
-    printf("NODE: %V, LEN: %lu\n", lhs_node, node_len(lhs_node));
-
     push_send(gab, bc, msg, lhs_node, rhs_node, -1);
     break;
   }
   case kGAB_SHAPELIST: {
-    printf("UNQUOTE_BLOCK: %V\n", node);
     size_t len = gab_reclen(node);
     size_t last_node = len - 1;
 
@@ -1226,7 +1321,6 @@ void unquote_record(struct gab_triple gab, struct bc *bc, gab_value node,
 void unquote_tuple(struct gab_triple gab, struct bc *bc, gab_value node,
                    gab_value env) {
   size_t len = gab_reclen(node);
-  printf("UNQUOTE TUPLE: %V\n", node);
   for (size_t i = 0; i < len; i++)
     unquote_value(gab, bc, gab_uvrecat(node, i), env);
 }
@@ -1243,8 +1337,6 @@ struct expand_res expand_record(struct gab_triple gab, gab_value node,
 
 struct expand_res expand_value(struct gab_triple gab, gab_value node,
                                gab_value env) {
-  printf("EXPAND VALUE: %V\n", node);
-
   switch (gab_valkind(node)) {
   case kGAB_SIGIL:
   case kGAB_NUMBER:
@@ -1262,7 +1354,6 @@ struct expand_res expand_value(struct gab_triple gab, gab_value node,
 
 struct expand_res expand_tuple(struct gab_triple gab, gab_value node,
                                gab_value env) {
-  printf("EXPAND TUPLE: %V\n", node);
 
   gab_value res = node_empty(gab);
 
@@ -1273,7 +1364,7 @@ struct expand_res expand_tuple(struct gab_triple gab, gab_value node,
     if (val.node == gab_undefined)
       return EXPAND_NODE(gab_undefined);
 
-    res = gab_reccat(gab, res, val.node);
+    res = gab_lstcat(gab, res, val.node);
     env = val.env;
   }
 
@@ -1288,8 +1379,6 @@ struct expand_res expand_record(struct gab_triple gab, gab_value node,
     gab_value lhs_node = gab_mrecat(gab, node, "gab.lhs");
     gab_value rhs_node = gab_mrecat(gab, node, "gab.rhs");
     gab_value msg = gab_mrecat(gab, node, "gab.msg");
-
-    printf("EXPAND_SEND: %V\n %V .%V %V\n", node, lhs_node, msg, rhs_node);
 
     if (gab_reclen(lhs_node) == 0)
       return EXPAND_NODE(gab_undefined);
@@ -1319,8 +1408,6 @@ struct expand_res expand_record(struct gab_triple gab, gab_value node,
     gab_value result_node = result->len > 1 ? result->data[1] : gab_nil;
     gab_value result_env = result->len > 2 ? result->data[2] : gab_nil;
 
-    printf("MACRO RETURNED %V, %V\n", result_node, result_env);
-
     node = result_node == gab_nil ? node : result_node;
     env = result_env == gab_nil ? env : result_env;
 
@@ -1328,7 +1415,6 @@ struct expand_res expand_record(struct gab_triple gab, gab_value node,
     return EXPAND_NODE_ENV(node, env);
   }
   case kGAB_SHAPELIST: {
-    printf("EXPAND_BLOCK: %V\n", node);
     size_t len = gab_reclen(node);
 
     gab_value result = node_empty(gab);
@@ -1339,7 +1425,7 @@ struct expand_res expand_record(struct gab_triple gab, gab_value node,
       if (rhs.node == gab_undefined)
         return EXPAND_NODE(gab_undefined);
 
-      result = gab_reccat(gab, result, node_value(gab, rhs.node));
+      result = gab_lstcat(gab, result, node_value(gab, rhs.node));
       env = rhs.env;
     }
 
@@ -1600,18 +1686,54 @@ struct expand_res gab_expand(struct gab_triple gab, gab_value ast,
   return expand_tuple(gab, ast, env);
 }
 
+/*
+ *    *******
+ *    * ENV *
+ *    *******
+ *
+ *    The ENV argument is a stack of records.
+ *
+ *    [ { self {}, a {} }, { self {}, b {} } ]
+ *
+ *    Each variable has a record of attributes:
+ *      * captured? -> number - is the variable captured by a child scope? If
+ * so, whats its upv index?
+ *
+ *    Each scope needs to keep track of:
+ *     - local variables introduced in this scope
+ *     - local variables captured by child scopes
+ *     - update parent scopes whose variables it captures
+ */
 gab_value gab_unquote(struct gab_triple gab, gab_value ast, gab_value env) {
   assert(gab_valkind(ast) == kGAB_RECORD);
   assert(gab_valkind(env) == kGAB_RECORD);
 
-  struct bc bc = {0};
+  size_t nenvs = gab_reclen(env);
+  assert(nenvs > 0);
 
   struct expand_res res = gab_expand(gab, ast, env);
 
+  struct bc bc = {0};
+
   unquote_tuple(gab, &bc, res.node, res.env);
 
-  // nupvalues: need to track what upvalues are captured, all the way up callstack
-  //   - environments need to track which values are captured, and capture them as well.
+  size_t nargs = gab_reclen(gab_uvrecat(env, nenvs - 1));
+  assert(nargs < GAB_ARG_MAX);
+
+  size_t nlocals = gab_reclen(gab_uvrecat(res.env, nenvs - 1));
+  assert(nlocals < GAB_LOCAL_MAX);
+
+  size_t nupvalues = upvalues_in_env(gab_uvrecat(res.env, nenvs - 1));
+  assert(nupvalues < GAB_UPVALUE_MAX);
+
+  printf("nargs: %lu\n", nargs);
+  printf("nlocals: %lu\n", nlocals);
+  printf("nupvalues: %lu\n", nupvalues);
+
+  // nupvalues: need to track what upvalues are captured, all the way up
+  // callstack
+  //   - environments need to track which values are captured, and capture them
+  //   as well.
   // nslots:    need to track at compile time while unquoting, can just be on bc
   // nargs:     length of local env before expansion
   // nlocals:   length of local env after expansion
@@ -1628,15 +1750,21 @@ gab_value gab_unquote(struct gab_triple gab, gab_value ast, gab_value env) {
   //    * {a, b} should destructure a gab.record with messages a, b
   //    * [a, { b, c }] should be able to nest
   //    * (a, ..b, c) should collect all extras into b, with OP_PACK
-  //  * cfn          - macros for defining functions (a, b) => a + b is just a macro on '=>'
+  //   [*] simple assignment is now done, with a cmodule macro
+  //  * cfn          - macros for defining functions (a, b) => a + b is just a
+  //  macro on '=>'
   //    * => macro:
   //      1. push a *new* environemnt onto stack with arguments from LHS.
   //      2. unquote RHS (body) into a block with the new ENV stack.
+  //          Unfortunately, this means unquote would *modify* the environment,
+  //          because variables are only resolved at unquote-time. This is *not*
+  //          a clean solution.
   //      3. emit a send { [proto], gab.runtime.block, [] }
   //    * Arguments should apply same destructuring rules as in cassignment
   //
   // Update syntax
-  //  * '+' and 'plus' should be message literals in prefix, and message sends in infix.
+  //  * '+' and 'plus' should be message literals in prefix, and message sends
+  //  in infix.
   //  * commas are new lines, which can separate these
   //  * EG:
   //    (+  +  +) -> { [+], +, [+] }

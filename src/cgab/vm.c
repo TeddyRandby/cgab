@@ -124,7 +124,6 @@ static handler handlers[] = {
 #define MISS_CACHED_SEND(clause)                                               \
   ({                                                                           \
     IP() -= SEND_CACHE_DIST - 1;                                               \
-    printf("clause '%s' missed\n", #clause);                                   \
     return OP_SEND_HANDLER(DISPATCH_ARGS());                                   \
   })
 
@@ -755,6 +754,9 @@ a_gab_value *do_vmexecfiber(struct gab_triple gab, gab_value f,
   }
   case kGAB_NATIVE: {
     struct gab_vm *vm = &fiber->vm;
+
+    // TODO: Running jobs like this, haphazardly on the gc worker, is wrong.
+    // Refactor macro runner to go through main channel
     gab.eg->jobs[gab.wkid].fiber = f;
 
     uint8_t ip[] = {0, 0, 1, OP_RETURN, 1};
@@ -1036,8 +1038,6 @@ CASE_CODE(SEND_NATIVE) {
   uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   gab_value r = PEEK_N(have);
-
-  printf("have, var: %lu, %lu -  %V, %V\n", have, VAR(), r, ks[GAB_SEND_KTYPE]);
 
   SEND_GUARD_CACHED_MESSAGE_SPECS();
   SEND_GUARD_CACHED_RECEIVER_TYPE(r);

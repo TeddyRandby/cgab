@@ -697,7 +697,12 @@ struct gab_build_argt {
  */
 gab_value gab_build(struct gab_triple gab, struct gab_build_argt args);
 
-gab_value gab_parse(struct gab_triple gab, struct gab_build_argt args);
+struct gab_ast {
+  gab_value ast;
+  struct gab_src *src;
+};
+
+struct gab_ast gab_parse(struct gab_triple gab, struct gab_build_argt args);
 
 /**
  * @brief Compile an AST into a block.
@@ -1496,6 +1501,8 @@ gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key);
 gab_value gab_nshpcat(struct gab_triple gab, size_t len,
                       gab_value shapes[static len]);
 
+gab_value gab_shptorec(struct gab_triple gab, gab_value shape);
+
 gab_value gab_shpwithout(struct gab_triple gab, gab_value shp, gab_value key);
 
 /**
@@ -1764,20 +1771,39 @@ static inline gab_value gab_mrecat(struct gab_triple gab, gab_value rec,
 gab_value gab_recput(struct gab_triple gab, gab_value record, gab_value key,
                      gab_value value);
 
-#define gab_reccat(gab, ...)                                                   \
+#define gab_lstcat(gab, ...)                                                   \
   ({                                                                           \
     gab_value __recs[] = {__VA_ARGS__};                                        \
-    gab_nreccat(gab, sizeof(__recs) / sizeof(gab_value), __recs);              \
+    gab_nlstcat(gab, sizeof(__recs) / sizeof(gab_value), __recs);              \
   })
 
 /**
  * @brief Concatenate n records, left to rate
  *
  */
-gab_value gab_nreccat(struct gab_triple gab, size_t len,
+gab_value gab_nlstcat(struct gab_triple gab, size_t len,
                       gab_value records[static len]);
 
-static inline size_t gab_recislist(gab_value rec) {
+#define gab_lstpush(gab, list, ...)                                                   \
+  ({                                                                           \
+    gab_value __vals[] = {__VA_ARGS__};                                        \
+    gab_nlstpush(gab, list, sizeof(__vals) / sizeof(gab_value), __vals);              \
+  })
+
+/**
+ * @brief Push n values onto the end of a list-record
+ */
+gab_value gab_nlstpush(struct gab_triple gab, gab_value list, size_t len,
+                       gab_value values[static len]);
+
+/**
+ * @brief Pop the last value from a list, returning the new list.
+ *
+ * The popped value will be written to out_val, if it is not nullptr.
+ */
+gab_value gab_lstpop(struct gab_triple gab, gab_value list, gab_value* out_val);
+
+static inline size_t gab_recisl(gab_value rec) {
   gab_value shp = gab_recshp(rec);
   assert(gab_valkind(shp) == kGAB_SHAPE || gab_valkind(shp) == kGAB_SHAPELIST);
   struct gab_obj_shape *s = GAB_VAL_TO_SHAPE(shp);

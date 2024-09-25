@@ -730,6 +730,23 @@ gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
     return assoc(gab, reccpy(gab, rec, recneedsspace(rec, idx)), val, idx);
 }
 
+gab_value gab_nlstpush(struct gab_triple gab, gab_value list, size_t len,
+                       gab_value values[static len]) {
+  assert(gab_valkind(list) == kGAB_RECORD);
+
+  size_t start = gab_reclen(list);
+
+  gab_gclock(gab);
+  for (size_t i = 0; i < len; i++) {
+    gab_value key = gab_number(start + i);
+    gab_value val = values[i];
+    list = gab_recput(gab, list, key, val);
+  }
+  gab_gcunlock(gab);
+
+  return list;
+}
+
 gab_value gab_urecput(struct gab_triple gab, gab_value rec, size_t i,
                       gab_value v) {
   assert(gab_valkind(rec) == kGAB_RECORD);
@@ -786,6 +803,38 @@ size_t getshift(size_t n) {
   return shift;
 }
 
+gab_value gab_shptorec(struct gab_triple gab, gab_value shp) {
+  assert(gab_valkind(shp) == kGAB_SHAPE || gab_valkind(shp) == kGAB_SHAPELIST);
+
+  size_t len = gab_shplen(shp);
+
+  gab_gclock(gab);
+
+  size_t shift = getshift(len);
+
+  size_t rootlen = getlen(len, shift);
+
+  struct gab_obj_rec *self =
+      GAB_CREATE_FLEX_OBJ(gab_obj_rec, gab_value, rootlen, kGAB_RECORD);
+
+  self->shape = shp;
+  self->shift = shift;
+  self->len = rootlen;
+
+  gab_value res = __gab_obj(self);
+
+  if (len) {
+    recfillchildren(gab, res, shift, len, rootlen);
+
+    for (size_t i = 0; i < len; i++) {
+      massoc(gab, res, gab_nil, i);
+    }
+  }
+
+  gab_gcunlock(gab);
+  return res;
+}
+
 gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
                      gab_value keys[static len], gab_value vals[static len]) {
   gab_gclock(gab);
@@ -830,7 +879,7 @@ gab_value nth_amongst(size_t n, size_t len, gab_value records[static len]) {
   return gab_uvrecat(records[r], n - i);
 }
 
-gab_value gab_nreccat(struct gab_triple gab, size_t len,
+gab_value gab_nlstcat(struct gab_triple gab, size_t len,
                       gab_value records[static len]) {
   size_t total_len = 0;
 
@@ -966,8 +1015,8 @@ gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
 
 gab_value gab_shpwithout(struct gab_triple gab, gab_value shp, gab_value key);
 
-gab_value gab_fiber(struct gab_triple gab, gab_value receiver, gab_value message, size_t argc,
-                    gab_value argv[argc]) {
+gab_value gab_fiber(struct gab_triple gab, gab_value receiver,
+                    gab_value message, size_t argc, gab_value argv[argc]) {
   assert(gab_valkind(message) == kGAB_MESSAGE);
 
   struct gab_obj_fiber *self =
@@ -977,7 +1026,7 @@ gab_value gab_fiber(struct gab_triple gab, gab_value receiver, gab_value message
     self->messages = gab.eg->messages;
     self->macros = gab.eg->macros;
   } else {
-    struct gab_obj_fiber* parent = GAB_VAL_TO_FIBER(gab_thisfiber(gab));
+    struct gab_obj_fiber *parent = GAB_VAL_TO_FIBER(gab_thisfiber(gab));
     self->messages = parent->messages;
     self->macros = parent->macros;
   }
@@ -1001,9 +1050,9 @@ gab_value gab_fiber(struct gab_triple gab, gab_value receiver, gab_value message
   *self->vm.sp = argc + 1;
 
   // Setup the return frame
-  self->vm.fp[-1] = (uintptr_t)nullptr;
+  self->vm.fp[-1] = (uintptr_t) nullptr;
   self->vm.fp[-2] = 0;
-  self->vm.fp[-3] = (uintptr_t)nullptr;
+  self->vm.fp[-3] = (uintptr_t) nullptr;
 
   self->vm.ip = nullptr;
 
