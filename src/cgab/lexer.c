@@ -195,7 +195,7 @@ gab_token identifier(gab_lx *self) {
   if (can_end_identifier(peek(self)))
     advance(self);
 
-  return TOKEN_IDENTIFIER;
+  return TOKEN_SYMBOL;
 }
 
 gab_token integer(gab_lx *self) {
@@ -261,7 +261,34 @@ gab_token other(gab_lx *self) {
 
     return TOKEN_RBRACK;
 
-  case '.':
+  case '\\':
+    advance(self);
+
+    if (can_start_operator(peek(self))) {
+      advance(self);
+
+      enum gab_token t = operator(self);
+
+      if (t == TOKEN_OPERATOR)
+        return TOKEN_MESSAGE;
+
+      return lexer_error(self, GAB_MALFORMED_SEND);
+    }
+
+    if (can_start_identifier(peek(self))) {
+      advance(self);
+
+      enum gab_token t = identifier(self);
+
+      if (t == TOKEN_SYMBOL)
+        return TOKEN_MESSAGE;
+
+      return lexer_error(self, GAB_MALFORMED_TOKEN);
+    }
+
+    return TOKEN_MESSAGE;
+
+  case ':':
     advance(self);
 
     if (can_start_operator(peek(self))) {
@@ -280,7 +307,7 @@ gab_token other(gab_lx *self) {
 
       enum gab_token t = identifier(self);
 
-      if (t == TOKEN_IDENTIFIER)
+      if (t == TOKEN_SYMBOL)
         return TOKEN_SEND;
 
       return lexer_error(self, GAB_MALFORMED_SEND);
@@ -288,13 +315,13 @@ gab_token other(gab_lx *self) {
 
     return TOKEN_SEND;
 
-  case ':':
+  case '.':
     advance(self);
 
     if (can_continue_identifier(peek(self))) {
       enum gab_token t = identifier(self);
 
-      if (t == TOKEN_IDENTIFIER)
+      if (t == TOKEN_SYMBOL)
         return TOKEN_SIGIL;
 
       return lexer_error(self, GAB_MALFORMED_TOKEN);

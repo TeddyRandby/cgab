@@ -1,6 +1,7 @@
 #include "core.h"
 #include "engine.h"
 #include "gab.h"
+#include "colors.h"
 #include "lexer.h"
 #include <threads.h>
 
@@ -190,6 +191,7 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
     return fprintf(stream, "%lg", gab_valton(self));
   case kGAB_SIGIL:
     return fprintf(stream, ".%s", gab_strdata(&self));
+  case kGAB_SYMBOL:
   case kGAB_STRING:
     return fprintf(stream, "%s", gab_strdata(&self));
   case kGAB_MESSAGE: {
@@ -418,7 +420,7 @@ gab_value gab_prototype(struct gab_triple gab, struct gab_src *src,
 
   if (args.nupvalues > 0) {
     if (args.data) {
-      memcpy(self->data, args.data, args.nupvalues * 2 * sizeof(uint8_t));
+      memcpy(self->data, args.data, args.nupvalues * sizeof(uint8_t));
     } else if (args.flags && args.indexes) {
       for (uint8_t i = 0; i < args.nupvalues; i++) {
         bool is_local = args.flags[i] & fLOCAL_LOCAL;
@@ -460,18 +462,6 @@ gab_value gab_block(struct gab_triple gab, gab_value prototype) {
   for (uint8_t i = 0; i < self->nupvalues; i++) {
     self->upvalues[i] = gab_undefined;
   }
-
-  return __gab_obj(self);
-}
-
-gab_value gab_symbol(struct gab_triple gab) {
-  struct gab_obj_box *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_box, unsigned char, 0, kGAB_BOX);
-
-  self->type = __gab_obj(self);
-  self->do_destroy = nullptr;
-  self->do_visit = nullptr;
-  self->len = 0;
 
   return __gab_obj(self);
 }
@@ -747,6 +737,17 @@ gab_value gab_nlstpush(struct gab_triple gab, gab_value list, size_t len,
   return list;
 }
 
+gab_value gab_lstpop(struct gab_triple gab, gab_value list, gab_value *popped) {
+  assert(gab_valkind(list) == kGAB_RECORD);
+
+  gab_value shp =
+      gab_shpwithout(gab, gab_recshp(list), gab_number(gab_reclen(list) - 1));
+
+  //TODO: Actually pop the value from the record
+
+  return recsetshp(reccpy(gab, list, 0), shp);
+}
+
 gab_value gab_urecput(struct gab_triple gab, gab_value rec, size_t i,
                       gab_value v) {
   assert(gab_valkind(rec) == kGAB_RECORD);
@@ -970,6 +971,27 @@ gab_value __gab_shape(struct gab_triple gab, size_t len) {
   v_gab_value_create(&self->transitions, 16);
 
   return __gab_obj(self);
+}
+
+gab_value gab_shpwithout(struct gab_triple gab, gab_value shape, gab_value key) {
+  gab_value shp = gab.eg->shapes;
+
+  gab_gclock(gab);
+
+  size_t len = gab_shplen(shape);
+
+  for (size_t i = 0; i < len; i++) {
+    gab_value thiskey = gab_ushpat(shape, i);
+    if (key == thiskey)
+      continue;
+
+    shp = gab_shpwith(gab, shp, thiskey);
+  }
+
+  gab_gcunlock(gab);
+
+  assert(len - 1 == gab_shplen(shp));
+  return shp;
 }
 
 gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
@@ -1258,6 +1280,285 @@ gab_value gab_tchntake(struct gab_triple gab, gab_value c, size_t nms) {
 
   assert(false && "NOT A CHANNEL");
   return gab_undefined;
+}
+
+
+static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
+                                uint64_t offset);
+
+static uint64_t dumpSimpleInstruction(FILE *stream,
+                                      struct gab_obj_prototype *self,
+                                      uint64_t offset) {
+  const char *name =
+      gab_opcode_names[v_uint8_t_val_at(&self->src->bytecode, offset)];
+  fprintf(stream, "%-25s\n", name);
+  return offset + 1;
+}
+
+static uint64_t dumpSendInstruction(FILE *stream,
+                                    struct gab_obj_prototype *self,
+                                    uint64_t offset) {
+  const char *name =
+      gab_opcode_names[v_uint8_t_val_at(&self->src->bytecode, offset)];
+
+  uint16_t constant =
+      ((uint16_t)v_uint8_t_val_at(&self->src->bytecode, offset + 1)) << 8 |
+      v_uint8_t_val_at(&self->src->bytecode, offset + 2);
+
+  gab_value msg = v_gab_value_val_at(&self->src->constants, constant);
+
+  uint8_t have = v_uint8_t_val_at(&self->src->bytecode, offset + 3);
+
+  uint8_t var = have & fHAVE_VAR;
+  uint8_t tail = have & fHAVE_TAIL;
+  have = have >> 2;
+
+  fprintf(stream, "%-25s" GAB_BLUE, name);
+  gab_fvalinspect(stream, msg, 0);
+  fprintf(stream, GAB_RESET " (%d%s)%s\n", have, var ? " & more" : "",
+          tail ? " [TAILCALL]" : "");
+
+  return offset + 4;
+}
+
+static uint64_t dumpByteInstruction(FILE *stream,
+                                    struct gab_obj_prototype *self,
+                                    uint64_t offset) {
+  uint8_t operand = v_uint8_t_val_at(&self->src->bytecode, offset + 1);
+  const char *name =
+      gab_opcode_names[v_uint8_t_val_at(&self->src->bytecode, offset)];
+  fprintf(stream, "%-25s%hhx\n", name, operand);
+  return offset + 2;
+}
+
+static uint64_t dumpTrimInstruction(FILE *stream,
+                                    struct gab_obj_prototype *self,
+                                    uint64_t offset) {
+  uint8_t wantbyte = v_uint8_t_val_at(&self->src->bytecode, offset + 1);
+  const char *name =
+      gab_opcode_names[v_uint8_t_val_at(&self->src->bytecode, offset)];
+  fprintf(stream, "%-25s%hhx\n", name, wantbyte);
+  return offset + 2;
+}
+
+static uint64_t dumpReturnInstruction(FILE *stream,
+                                      struct gab_obj_prototype *self,
+                                      uint64_t offset) {
+  uint8_t havebyte = v_uint8_t_val_at(&self->src->bytecode, offset + 1);
+  uint8_t have = havebyte >> 2;
+  fprintf(stream, "%-25s%hhx%s\n", "RETURN", have,
+          havebyte & fHAVE_VAR ? " & more" : "");
+  return offset + 2;
+}
+
+static uint64_t dumpPackInstruction(FILE *stream,
+                                    struct gab_obj_prototype *self,
+                                    uint64_t offset) {
+  uint8_t havebyte = v_uint8_t_val_at(&self->src->bytecode, offset + 1);
+  uint8_t operandA = v_uint8_t_val_at(&self->src->bytecode, offset + 2);
+  uint8_t operandB = v_uint8_t_val_at(&self->src->bytecode, offset + 3);
+  const char *name =
+      gab_opcode_names[v_uint8_t_val_at(&self->src->bytecode, offset)];
+  uint8_t have = havebyte >> 2;
+  fprintf(stream, "%-25s(%hhx%s) -> %hhx %hhx\n", name, have,
+          havebyte & fHAVE_VAR ? " & more" : "", operandA, operandB);
+  return offset + 4;
+}
+
+static uint64_t dumpConstantInstruction(FILE *stream,
+                                        struct gab_obj_prototype *self,
+                                        uint64_t offset) {
+  uint16_t constant =
+      ((uint16_t)v_uint8_t_val_at(&self->src->bytecode, offset + 1)) << 8 |
+      v_uint8_t_val_at(&self->src->bytecode, offset + 2);
+  const char *name =
+      gab_opcode_names[v_uint8_t_val_at(&self->src->bytecode, offset)];
+  fprintf(stream, "%-25s", name);
+  gab_fvalinspect(stdout, v_gab_value_val_at(&self->src->constants, constant),
+                  0);
+  fprintf(stream, "\n");
+  return offset + 3;
+}
+
+static uint64_t dumpNConstantInstruction(FILE *stream,
+                                         struct gab_obj_prototype *self,
+                                         uint64_t offset) {
+  const char *name =
+      gab_opcode_names[v_uint8_t_val_at(&self->src->bytecode, offset)];
+  fprintf(stream, "%-25s", name);
+
+  uint8_t n = v_uint8_t_val_at(&self->src->bytecode, offset + 1);
+
+  for (int i = 0; i < n; i++) {
+    uint16_t constant =
+        ((uint16_t)v_uint8_t_val_at(&self->src->bytecode, offset + 2 + (2 * i)))
+            << 8 |
+        v_uint8_t_val_at(&self->src->bytecode, offset + 3 + (2 * i));
+
+    gab_fvalinspect(stdout, v_gab_value_val_at(&self->src->constants, constant),
+                    0);
+
+    if (i < n - 1)
+      fprintf(stream, ", ");
+  }
+
+  fprintf(stream, "\n");
+  return offset + 2 + (2 * n);
+}
+
+static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
+                                uint64_t offset) {
+  uint8_t op = v_uint8_t_val_at(&self->src->bytecode, offset);
+  switch (op) {
+  case OP_POP:
+  case OP_NOP:
+    return dumpSimpleInstruction(stream, self, offset);
+  case OP_PACK:
+    return dumpPackInstruction(stream, self, offset);
+  case OP_NCONSTANT:
+    return dumpNConstantInstruction(stream, self, offset);
+  case OP_CONSTANT:
+    return dumpConstantInstruction(stream, self, offset);
+  case OP_SEND:
+  case OP_SEND_BLOCK:
+  case OP_SEND_NATIVE:
+  case OP_SEND_PROPERTY:
+  case OP_SEND_PRIMITIVE_CONCAT:
+  case OP_SEND_PRIMITIVE_SPLAT:
+  case OP_SEND_PRIMITIVE_ADD:
+  case OP_SEND_PRIMITIVE_SUB:
+  case OP_SEND_PRIMITIVE_MUL:
+  case OP_SEND_PRIMITIVE_DIV:
+  case OP_SEND_PRIMITIVE_MOD:
+  case OP_SEND_PRIMITIVE_EQ:
+  case OP_SEND_PRIMITIVE_LT:
+  case OP_SEND_PRIMITIVE_LTE:
+  case OP_SEND_PRIMITIVE_GT:
+  case OP_SEND_PRIMITIVE_GTE:
+  case OP_SEND_PRIMITIVE_CALL_BLOCK:
+  case OP_SEND_PRIMITIVE_CALL_NATIVE:
+  case OP_SEND_PRIMITIVE_CALL_MESSAGE:
+  case OP_SEND_PRIMITIVE_CALL_MESSAGE_PRIMITIVE:
+  case OP_SEND_PRIMITIVE_CALL_MESSAGE_NATIVE:
+  case OP_SEND_PRIMITIVE_CALL_MESSAGE_CONSTANT:
+  case OP_SEND_PRIMITIVE_CALL_MESSAGE_BLOCK:
+  case OP_TAILSEND_PRIMITIVE_CALL_MESSAGE_BLOCK:
+  case OP_SEND_PRIMITIVE_CALL_MESSAGE_PROPERTY:
+  case OP_TAILSEND_BLOCK:
+  case OP_TAILSEND_PRIMITIVE_CALL_BLOCK:
+  case OP_LOCALSEND_BLOCK:
+  case OP_LOCALTAILSEND_BLOCK:
+  case OP_MATCHSEND_BLOCK:
+  case OP_MATCHTAILSEND_BLOCK:
+    return dumpSendInstruction(stream, self, offset);
+  case OP_POP_N:
+  case OP_STORE_LOCAL:
+  case OP_POPSTORE_LOCAL:
+  case OP_LOAD_UPVALUE:
+  case OP_INTERPOLATE:
+  case OP_LOAD_LOCAL:
+    return dumpByteInstruction(stream, self, offset);
+  case OP_NPOPSTORE_STORE_LOCAL:
+  case OP_NPOPSTORE_LOCAL:
+  case OP_NLOAD_UPVALUE:
+  case OP_NLOAD_LOCAL: {
+    const char *name =
+        gab_opcode_names[v_uint8_t_val_at(&self->src->bytecode, offset)];
+
+    uint8_t operand = v_uint8_t_val_at(&self->src->bytecode, offset + 1);
+
+    fprintf(stream, "%-25s%hhx: ", name, operand);
+
+    for (int i = 0; i < operand - 1; i++) {
+      fprintf(stream, "%hhx, ",
+              v_uint8_t_val_at(&self->src->bytecode, offset + 2 + i));
+    }
+
+    fprintf(stream, "%hhx\n",
+            v_uint8_t_val_at(&self->src->bytecode, offset + 1 + operand));
+
+    return offset + 2 + operand;
+  }
+  case OP_RETURN:
+    return dumpReturnInstruction(stream, self, offset);
+  case OP_BLOCK: {
+    offset++;
+
+    uint16_t proto_constant =
+        (((uint16_t)self->src->bytecode.data[offset] << 8) |
+         self->src->bytecode.data[offset + 1]);
+
+    offset += 2;
+
+    gab_value pval = v_gab_value_val_at(&self->src->constants, proto_constant);
+
+    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(pval);
+
+    printf("%-25s" GAB_CYAN "%-20s\n" GAB_RESET, "OP_BLOCK",
+           gab_strdata(&p->src->name));
+
+    for (int j = 0; j < p->nupvalues; j++) {
+      int isLocal = p->data[j] & fLOCAL_LOCAL;
+      uint8_t index = p->data[j] >> 1;
+      printf("      |                   %d %s\n", index,
+             isLocal ? "local" : "upvalue");
+    }
+    return offset;
+  }
+  case OP_TRIM_UP1:
+  case OP_TRIM_UP2:
+  case OP_TRIM_UP3:
+  case OP_TRIM_UP4:
+  case OP_TRIM_UP5:
+  case OP_TRIM_UP6:
+  case OP_TRIM_UP7:
+  case OP_TRIM_UP8:
+  case OP_TRIM_UP9:
+  case OP_TRIM_DOWN1:
+  case OP_TRIM_DOWN2:
+  case OP_TRIM_DOWN3:
+  case OP_TRIM_DOWN4:
+  case OP_TRIM_DOWN5:
+  case OP_TRIM_DOWN6:
+  case OP_TRIM_DOWN7:
+  case OP_TRIM_DOWN8:
+  case OP_TRIM_DOWN9:
+  case OP_TRIM_EXACTLY0:
+  case OP_TRIM_EXACTLY1:
+  case OP_TRIM_EXACTLY2:
+  case OP_TRIM_EXACTLY3:
+  case OP_TRIM_EXACTLY4:
+  case OP_TRIM_EXACTLY5:
+  case OP_TRIM_EXACTLY6:
+  case OP_TRIM_EXACTLY7:
+  case OP_TRIM_EXACTLY8:
+  case OP_TRIM_EXACTLY9:
+  case OP_TRIM: {
+    return dumpTrimInstruction(stream, self, offset);
+  }
+  default: {
+    uint8_t code = v_uint8_t_val_at(&self->src->bytecode, offset);
+    printf("Unknown opcode %d (%s?)\n", code, gab_opcode_names[code]);
+    return offset + 1;
+  }
+  }
+}
+
+int gab_fmodinspect(FILE *stream, struct gab_obj_prototype *proto) {
+  uint64_t offset = proto->offset;
+
+  uint64_t end = proto->offset + proto->len;
+
+  printf("     ");
+  gab_fvalinspect(stream, proto->src->name, 0);
+  printf("\n");
+
+  while (offset < end) {
+    fprintf(stream, GAB_YELLOW "%04lu " GAB_RESET, offset);
+    offset = dumpInstruction(stream, proto, offset);
+  }
+
+  return 0;
 }
 
 #undef CREATE_GAB_FLEX_OBJ

@@ -795,10 +795,9 @@ a_gab_value *gab_vmexecmacro(struct gab_triple gab, gab_value f) {
   assert(gab_valkind(f) == kGAB_FIBER);
   struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
 
-  gab_value receiver = fiber->data[1];
   gab_value message = fiber->data[0];
 
-  struct gab_impl_rest res = gab_implmacro(gab, message, receiver);
+  struct gab_impl_rest res = gab_implmacro(gab, message);
 
   return do_vmexecfiber(gab, f, res);
 };

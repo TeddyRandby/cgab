@@ -82,8 +82,7 @@
  Immediate values *don't* have the pointer bit set.
  They also store a tag in the 3 bits just below the NaN.
 
-                   kGAB_STRING, kGAB_SIGIL, kGAB_MESSAGE, kGAB_UNDEFINED,
- kGAB_PRIMITIVE
+      kGAB_SYMBOL, kGAB_STRING, kGAB_SIGIL, kGAB_MESSAGE, kGAB_UNDEFINED
                    |
  [0][....NaN....1][---][------------------------------------------------]
 
@@ -92,7 +91,7 @@
 
  The opcode is stored in the lowest byte
 
-                   kPRIMITIVE                                   Opcode
+                   kGAB_PRIMITIVE                               Opcode
                    |                                            |
  [0][....NaN....1][---]----------------------------------------[--------]
 
@@ -113,7 +112,7 @@
 
  This layout sneakily gives us an extra byte of storage in our small strings.
 
-                kSTRING Remaining Length                             <- Data
+            kGAB_STRING Remaining Length                             <- Data
                    |    |                                               |
  [0][....NaN....1][---][--------][----------------------------------------]
                        [...0....][...e.......p.......a........h......s....]
@@ -133,8 +132,9 @@ enum gab_kind {
   kGAB_STRING = 0, // MUST_STAY_ZERO
   kGAB_SIGIL = 1,
   kGAB_MESSAGE = 2,
-  kGAB_PRIMITIVE = 3,
-  kGAB_UNDEFINED = 4,
+  kGAB_SYMBOL = 3,
+  kGAB_PRIMITIVE = 4,
+  kGAB_UNDEFINED = 5,
   kGAB_NUMBER,
   kGAB_NATIVE,
   kGAB_PROTOTYPE,
@@ -567,8 +567,8 @@ struct gab_impl_rest {
 static inline struct gab_impl_rest
 gab_impl(struct gab_triple gab, gab_value message, gab_value receiver);
 
-static inline struct gab_impl_rest
-gab_implmacro(struct gab_triple gab, gab_value message, gab_value receiver);
+static inline struct gab_impl_rest gab_implmacro(struct gab_triple gab,
+                                                 gab_value message);
 
 /**
  * @brief Push any number of value onto the vm's internal stack.
@@ -697,17 +697,21 @@ struct gab_build_argt {
  */
 gab_value gab_build(struct gab_triple gab, struct gab_build_argt args);
 
-struct gab_ast {
-  gab_value ast;
-  struct gab_src *src;
-};
-
-struct gab_ast gab_parse(struct gab_triple gab, struct gab_build_argt args);
+gab_value gab_parse(struct gab_triple gab, struct gab_build_argt args);
 
 /**
  * @brief Compile an AST into a block.
  */
-gab_value gab_unquote(struct gab_triple gab, gab_value ast, gab_value ctx);
+union gab_value_pair {
+  gab_value data[2];
+
+  struct {
+    gab_value prototype;
+    gab_value environment;
+  };
+};
+
+union gab_value_pair gab_unquote(struct gab_triple gab, gab_value ast, gab_value env, gab_value mod);
 
 /**
  * @class gab_run_argt
@@ -915,11 +919,20 @@ struct gab_def_argt {
  */
 int gab_ndef(struct gab_triple gab, size_t len,
              struct gab_def_argt args[static len]);
+/**
+ * @brief Arguments for creating a specialization
+ */
+struct gab_defmacro_argt {
+  /**
+   * The reciever and value of the specialization.
+   */
+  gab_value message, specialization;
+};
 
 #define gab_defmacro(gab, ...)                                                 \
   ({                                                                           \
-    struct gab_def_argt defs[] = {__VA_ARGS__};                                \
-    gab_ndefmacro(gab, sizeof(defs) / sizeof(struct gab_def_argt), defs);      \
+    struct gab_defmacro_argt defs[] = {__VA_ARGS__};                           \
+    gab_ndefmacro(gab, sizeof(defs) / sizeof(struct gab_defmacro_argt), defs); \
   })
 
 /**
@@ -933,7 +946,7 @@ int gab_ndef(struct gab_triple gab, size_t len,
  * specialization that failed.
  */
 int gab_ndefmacro(struct gab_triple gab, size_t len,
-                  struct gab_def_argt args[static len]);
+                  struct gab_defmacro_argt args[static len]);
 
 /**
  * @brief Get the runtime value that corresponds to the given kind.
@@ -1230,7 +1243,7 @@ static inline size_t gab_strlen(gab_value str) {
  */
 static inline const char *gab_strdata(gab_value *str) {
   assert(gab_valkind(*str) == kGAB_STRING || gab_valkind(*str) == kGAB_SIGIL ||
-         gab_valkind(*str) == kGAB_MESSAGE);
+         gab_valkind(*str) == kGAB_MESSAGE || gab_valkind(*str) == kGAB_SYMBOL);
 
   if (gab_valiso(*str))
     return GAB_VAL_TO_STRING(*str)->data;
@@ -1278,6 +1291,15 @@ static inline gab_value gab_strtomsg(gab_value str) {
 }
 
 /**
+ * @brief Convert a string into a symbol. This is constant-time.
+ */
+static inline gab_value gab_strtosym(gab_value str) {
+  assert(gab_valkind(str) == kGAB_STRING);
+
+  return str | (uint64_t)kGAB_SYMBOL << __GAB_TAGOFFSET;
+}
+
+/**
  * @brief Create a new message object.
  *
  * @param gab The gab engine.
@@ -1311,6 +1333,16 @@ static inline gab_value gab_message(struct gab_triple gab,
 static inline gab_value gab_msgtostr(gab_value msg) {
   assert(gab_valkind(msg) == kGAB_MESSAGE);
   return msg & ~((uint64_t)kGAB_MESSAGE << __GAB_TAGOFFSET);
+}
+
+static inline gab_value gab_symbol(struct gab_triple gab,
+                                   const char data[static 1]) {
+  return gab_strtosym(gab_string(gab, data));
+}
+
+static inline gab_value gab_symtostr(gab_value sym) {
+  assert(gab_valkind(sym) == kGAB_SYMBOL);
+  return sym & ~((uint64_t)kGAB_SYMBOL << __GAB_TAGOFFSET);
 }
 
 /**
@@ -1784,10 +1816,10 @@ gab_value gab_recput(struct gab_triple gab, gab_value record, gab_value key,
 gab_value gab_nlstcat(struct gab_triple gab, size_t len,
                       gab_value records[static len]);
 
-#define gab_lstpush(gab, list, ...)                                                   \
+#define gab_lstpush(gab, list, ...)                                            \
   ({                                                                           \
     gab_value __vals[] = {__VA_ARGS__};                                        \
-    gab_nlstpush(gab, list, sizeof(__vals) / sizeof(gab_value), __vals);              \
+    gab_nlstpush(gab, list, sizeof(__vals) / sizeof(gab_value), __vals);       \
   })
 
 /**
@@ -1801,7 +1833,7 @@ gab_value gab_nlstpush(struct gab_triple gab, gab_value list, size_t len,
  *
  * The popped value will be written to out_val, if it is not nullptr.
  */
-gab_value gab_lstpop(struct gab_triple gab, gab_value list, gab_value* out_val);
+gab_value gab_lstpop(struct gab_triple gab, gab_value list, gab_value *out_val);
 
 static inline size_t gab_recisl(gab_value rec) {
   gab_value shp = gab_recshp(rec);
@@ -1902,10 +1934,6 @@ static inline gab_value gab_thisfiber(struct gab_triple gab);
  */
 static inline gab_value gab_thisfibmsgat(struct gab_triple gab,
                                          gab_value message, gab_value receiver);
-
-static inline gab_value gab_thisfibmacroat(struct gab_triple gab,
-                                           gab_value message,
-                                           gab_value receiver);
 
 static inline gab_value gab_thisfibmsgrec(struct gab_triple gab,
                                           gab_value message);
@@ -2177,7 +2205,7 @@ struct gab_prototype_argt {
  * @return The new block prototype object.
  */
 gab_value gab_prototype(struct gab_triple gab, struct gab_src *src,
-                        size_t begin, size_t end,
+                        size_t begin, size_t len,
                         struct gab_prototype_argt args);
 
 /**
@@ -2468,10 +2496,11 @@ static inline gab_value gab_thisfibmacrorec(struct gab_triple gab,
   gab_value fiber = gab_thisfiber(gab);
 
   if (fiber == gab_undefined)
-    return gab_recat(gab.eg->macros, message);
+    return gab.eg->macros;
 
   struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fiber);
-  return gab_recat(f->macros, message);
+
+  return f->macros;
 }
 
 static inline gab_value
@@ -2484,64 +2513,14 @@ gab_thisfibmsgat(struct gab_triple gab, gab_value message, gab_value receiver) {
   return gab_recat(spec_rec, receiver);
 }
 
-static inline gab_value gab_thisfibmacroat(struct gab_triple gab,
-                                           gab_value message,
-                                           gab_value receiver) {
-  gab_value spec_rec = gab_thisfibmacrorec(gab, message);
-
-  if (spec_rec == gab_undefined)
-    return gab_undefined;
-
-  return gab_recat(spec_rec, receiver);
-}
-
-static inline struct gab_impl_rest
-gab_implmacro(struct gab_triple gab, gab_value message, gab_value receiver) {
-  gab_value spec = gab_undefined;
-  gab_value type = receiver;
-
-  /* Check if the receiver has a supertype, and if that supertype implments the
-   * message. ie <gab.shape 0 1>*/
-  if (gab_valhast(receiver)) {
-    type = gab_valtype(gab, receiver);
-    spec = gab_thisfibmacroat(gab, message, type);
-    if (spec != gab_undefined)
-      return (struct gab_impl_rest){
-          type,
-          .as.spec = spec,
-          kGAB_IMPL_TYPE,
-      };
-  }
-
-  /* Check for the kind of the receiver. ie 'gab.record' */
-  type = gab_type(gab, gab_valkind(receiver));
-  spec = gab_thisfibmacroat(gab, message, type);
-  if (spec != gab_undefined)
-    return (struct gab_impl_rest){
-        type,
-        .as.spec = spec,
-        kGAB_IMPL_KIND,
-    };
-
-  /* Check if the receiver is a record and has a matching property */
-  if (gab_valkind(receiver) == kGAB_RECORD) {
-    type = gab_recshp(receiver);
-    if (gab_rechas(receiver, message))
-      return (struct gab_impl_rest){
-          type,
-          .as.offset = gab_recfind(receiver, message),
-          kGAB_IMPL_PROPERTY,
-      };
-  }
-
-  /* Lastly, check for a generic implmentation.*/
-  type = gab_undefined;
-  spec = gab_thisfibmacroat(gab, message, type);
+static inline struct gab_impl_rest gab_implmacro(struct gab_triple gab,
+                                                 gab_value message) {
+  gab_value specs = gab_thisfibmacrorec(gab, message);
+  gab_value spec = gab_recat(specs, message);
 
   return (struct gab_impl_rest){
-      type,
       .as.spec = spec,
-      spec == gab_undefined ? kGAB_IMPL_NONE : kGAB_IMPL_GENERAL,
+      .status = spec == gab_undefined ? kGAB_IMPL_NONE : kGAB_IMPL_GENERAL,
   };
 }
 

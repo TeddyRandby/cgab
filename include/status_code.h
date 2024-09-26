@@ -19,13 +19,11 @@ STATUS(TOO_MANY_EXPRESSIONS_IN_INITIALIZER,
        "Record literals cannot initialize more than 255 properties")
 STATUS(REFERENCE_BEFORE_INITIALIZE,
        "Uninitialized variable")
-STATUS(LOCAL_ALREADY_EXISTS, "A local with this name already exists")
+STATUS(UNBOUND_SYMBOL, "Symbols must be bound before they can be referenced")
 STATUS(MALFORMED_ASSIGNMENT,
        "Malformed assignment expression")
 STATUS(MISSING_END, "Block need a corresponding 'end'")
 STATUS(MISSING_INITIALIZER, "Variables must be initialized")
-STATUS(MISSING_IDENTIFIER, "Identifier could not be resolved")
-STATUS(MISSING_RECEIVER, "A message definition should specify a receiver")
 
 // Run-time errors
 STATUS(TYPE_MISMATCH, "Type mismatch")

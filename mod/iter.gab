@@ -1,14 +1,14 @@
-module :: .gab.iter
+module = .gab.iter
 
-\iter.apply :def!(.none, .nil, do x; x; end)
+\iter.apply :def!(.none, .nil,  x => x)
 
 \defiter! :def! ('gab.message', do cx, init
-  mod.t :: {
-    module: .nil,
-    self: .nil,
-    \state: init,
-    \continuation: .none,
-    \reducer: .nil,
+  mod.t = {
+    module .nil,
+    self .nil,
+    \state init,
+    \continuation .none,
+    \reducer .nil,
   }
 
   self :def!(module, do xs[]
@@ -29,7 +29,7 @@ module :: .gab.iter
       self:reducer . (self:continuation, acc, xs, self:state)
     end,
     \reduce.step: do acc, xs[]
-      s, cmd, c, acc :: self(acc, xs)
+      s, cmd, c, acc = self(acc, xs)
       (cmd, self:continuation c :state s, acc)
     end,
     \reduce.done: do acc
@@ -52,7 +52,7 @@ end)
     (s, r:reduce.step(acc, xs**))
   end,
   .false: do r, acc, xs, s
-    cmd, r, acc :: r:reduce.step(acc, xs**)
+    cmd, r, acc = r:reduce.step(acc, xs**)
     (s, .stop, r, acc)
   end,
 }
@@ -88,7 +88,7 @@ end
 
 \take :defiter!(do n
   do r, acc, xs, nth
-    nxth :: nth + 1
+    nxth = nth + 1
     (nxth < n) .
       :iter.stop_conditionally_inclusive(r, acc, xs, nxth)
   end
@@ -113,7 +113,7 @@ end, 0)
     (.true, r:reduce.step(acc, xs**))
   end,
   .false: do r, acc, xs, b, f
-    new_b :: b | f(xs**) !
+    new_b = b | f(xs**) !
     new_b:iter.conditionally(r, acc, xs, new_b)
   end,
 }
@@ -132,7 +132,7 @@ end, .false)
     (.true, .stop, r, acc)
   end,
   .true: do r, acc, xs, sep
-    cmd, r, acc :: r:reduce.step(acc, sep)
+    cmd, r, acc = r:reduce.step(acc, sep)
     cmd:iter.do_interpose(r, acc, xs)
   end,
   .false: do r, acc, xs

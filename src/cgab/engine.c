@@ -676,15 +676,20 @@ int gab_ndef(struct gab_triple gab, size_t len,
 }
 
 int gab_ndefmacro(struct gab_triple gab, size_t len,
-                  struct gab_def_argt args[static len]) {
+                  struct gab_defmacro_argt args[static len]) {
   gab_gclock(gab);
 
-  gab_value m = dodef(gab, gab.eg->macros, len, args);
+  for (size_t i = 0; i < len; i++) {
+    struct gab_defmacro_argt arg = args[i];
 
-  if (m == gab_undefined)
-    return false;
+    gab_value spec = gab_recat(gab.eg->macros, arg.message);
 
-  gab.eg->macros = m;
+    if (spec != gab_undefined)
+      return false;
+
+    gab.eg->macros =
+        gab_recput(gab, gab.eg->macros, arg.message, arg.specialization);
+  }
 
   gab_gcunlock(gab);
   return true;
@@ -1204,12 +1209,9 @@ gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
 a_gab_value *gab_sendmacro(struct gab_triple gab, struct gab_send_argt args) {
   gab.flags = args.flags;
 
-  struct gab_impl_rest res = gab_implmacro(gab, args.message, args.receiver);
+  struct gab_impl_rest res = gab_implmacro(gab, args.message);
 
   if (res.status == kGAB_IMPL_NONE)
-    return nullptr;
-
-  if (res.status == kGAB_IMPL_PROPERTY)
     return nullptr;
 
   gab_value fb =
