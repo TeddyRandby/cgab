@@ -9,17 +9,19 @@ a_gab_value *gab_lib_arrowfn(struct gab_triple gab, size_t argc,
   gab_value MOD = gab_arg(4);
 
   size_t len = gab_reclen(LHS);
-  gab_value ids[len];
-  for (size_t i = 0; i < len; i++) {
+  gab_value ids[len + 1];
+  ids[0] = gab_symbol(gab, "self");
+
+  for (size_t i = 1; i < len; i++) {
     gab_value id = gab_uvrecat(LHS, i);
 
     if (gab_valkind(id) != kGAB_SYMBOL)
       return gab_fpanic(gab, "Invalid parameter");
 
-    ids[i] = id;
+    ids[i + 1] = id;
   }
 
-  gab_value new_env = gab_shptorec(gab, gab_shape(gab, 1, len, ids));
+  gab_value new_env = gab_shptorec(gab, gab_shape(gab, 1, len + 1, ids));
 
   union gab_value_pair pair =
       gab_unquote(gab, RHS, gab_lstpush(gab, ENV, new_env), MOD);

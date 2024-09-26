@@ -180,7 +180,7 @@ gab_token operator(gab_lx *self) {
   return TOKEN_OPERATOR;
 }
 
-gab_token identifier(gab_lx *self) {
+gab_token symbol(gab_lx *self) {
   while (can_continue_identifier(peek(self)))
     advance(self);
 
@@ -278,7 +278,7 @@ gab_token other(gab_lx *self) {
     if (can_start_identifier(peek(self))) {
       advance(self);
 
-      enum gab_token t = identifier(self);
+      enum gab_token t = symbol(self);
 
       if (t == TOKEN_SYMBOL)
         return TOKEN_MESSAGE;
@@ -305,7 +305,7 @@ gab_token other(gab_lx *self) {
     if (can_start_identifier(peek(self))) {
       advance(self);
 
-      enum gab_token t = identifier(self);
+      enum gab_token t = symbol(self);
 
       if (t == TOKEN_SYMBOL)
         return TOKEN_SEND;
@@ -319,7 +319,7 @@ gab_token other(gab_lx *self) {
     advance(self);
 
     if (can_continue_identifier(peek(self))) {
-      enum gab_token t = identifier(self);
+      enum gab_token t = symbol(self);
 
       if (t == TOKEN_SYMBOL)
         return TOKEN_SIGIL;
@@ -379,7 +379,7 @@ gab_token gab_lexnext(gab_lx *self) {
   }
 
   if (is_alpha(peek(self))) {
-    tok = identifier(self);
+    tok = symbol(self);
     goto fin;
   }
 

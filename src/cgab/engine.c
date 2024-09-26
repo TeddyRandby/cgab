@@ -278,11 +278,6 @@ int32_t worker_thread(void *data) {
 
     a_gab_value *res = gab_vmexec(gab, fiber);
 
-    assert(res != nullptr);
-
-    GAB_VAL_TO_FIBER(fiber)->res = res;
-    GAB_VAL_TO_FIBER(fiber)->status = kGAB_FIBER_DONE;
-
     gab.eg->jobs[gab.wkid].fiber = gab_undefined;
 
     if (!res)
@@ -293,8 +288,7 @@ int32_t worker_thread(void *data) {
   gab.eg->jobs[gab.wkid].fiber = gab_undefined;
   gab.eg->njobs--;
 
-  /*while (gab.eg->njobs >= 0)*/
-  /*  gab_yield(gab);*/
+  assert(gab.eg->jobs[gab.wkid].locked == 0);
 
   free(g);
 

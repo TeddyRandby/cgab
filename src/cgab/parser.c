@@ -890,6 +890,8 @@ static inline void push_k(struct bc *bc, uint16_t k, size_t t) {
 
     v_uint8_t_pop(&bc->bc);
     v_uint8_t_pop(&bc->bc);
+    v_uint64_t_pop(&bc->bc_toks);
+    v_uint64_t_pop(&bc->bc_toks);
 
     bc->prev_op = OP_NCONSTANT;
     v_uint8_t_set(&bc->bc, bc->prev_op_at, OP_NCONSTANT);
@@ -1376,6 +1378,7 @@ gab_value unquote_envput(struct gab_triple gab, struct bc *bc, gab_value node,
   size_t ntargets = gab_reclen(lhs_node);
   for (size_t i = 0; i < ntargets; i++) {
     gab_value target = gab_uvrecat(lhs_node, ntargets - i - 1);
+
     switch (gab_valkind(target)) {
     case kGAB_SYMBOL: {
       struct lookup_res res = resolve_id(gab, bc, env, target);
@@ -1398,6 +1401,9 @@ gab_value unquote_envput(struct gab_triple gab, struct bc *bc, gab_value node,
       assert(false && "INVALID ASSIGNMENT TARGET");
       break;
     }
+
+    if (i + 1 < ntargets)
+      push_pop(bc, 1, 0);
   }
 
   return env;
@@ -1714,8 +1720,10 @@ union gab_value_pair gab_unquote(struct gab_triple gab, gab_value ast,
   assert(nargs < GAB_ARG_MAX);
 
   push_trim(&bc, 0, 0); // A trim to be patched later.
+  assert(bc.bc.len == bc.bc_toks.len);
 
   env = unquote_tuple(gab, &bc, res.node, res.env);
+  assert(bc.bc.len == bc.bc_toks.len);
 
   if (env == gab_undefined)
     return (union gab_value_pair){{gab_undefined, gab_undefined}};
@@ -1723,6 +1731,7 @@ union gab_value_pair gab_unquote(struct gab_triple gab, gab_value ast,
   assert(gab_reclen(env) == nenvs);
 
   gab_value local_env = gab_uvrecat(env, nenvs - 1);
+  assert(bc.bc.len == bc.bc_toks.len);
 
   push_ret(gab, &bc, res.node, 0);
 
@@ -1788,14 +1797,15 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
   if (src == nullptr)
     return gab_gcunlock(gab), gab_undefined;
 
-  gab_value vargv[args.len];
+  gab_value vargv[args.len + 1];
+  vargv[0] = gab_string(gab, "self");
 
   for (int i = 0; i < args.len; i++) {
-    vargv[i] = gab_string(gab, args.argv[i]);
+    vargv[i + 1] = gab_string(gab, args.argv[i]);
   }
 
   gab_value env =
-      gab_listof(gab, gab_shptorec(gab, gab_shape(gab, 1, args.len, vargv)));
+      gab_listof(gab, gab_shptorec(gab, gab_shape(gab, 1, args.len + 1, vargv)));
 
   union gab_value_pair res = gab_unquote(gab, ast, env, mod);
 

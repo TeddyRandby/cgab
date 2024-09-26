@@ -66,7 +66,7 @@ static handler handlers[] = {
 */
 #define GAB() (__gab)
 #define EG() (GAB().eg)
-#define FIBER() (gab_thisfiber(GAB()))
+#define FIBER() (GAB_VAL_TO_FIBER(gab_thisfiber(GAB())))
 #define GC() (GAB().eg->gc)
 #define VM() (gab_vm(GAB()))
 #define SET_BLOCK(b) (FB()[-3] = (uintptr_t)(b));
@@ -701,6 +701,9 @@ a_gab_value *error(OP_HANDLER_ARGS) {
 
   gab_niref(GAB(), 1, results->len, results->data);
 
+  FIBER()->res = results;
+  FIBER()->status = kGAB_FIBER_DONE;
+
   return results;
 }
 
@@ -716,6 +719,9 @@ a_gab_value *ok(OP_HANDLER_ARGS) {
 
   VM()->sp = VM()->sb;
 
+  FIBER()->res = results;
+  FIBER()->status = kGAB_FIBER_DONE;
+
   return results;
 }
 
@@ -728,10 +734,10 @@ a_gab_value *do_vmexecfiber(struct gab_triple gab, gab_value f,
   gab_value message = fiber->data[0];
 
   if (res.status == kGAB_IMPL_NONE)
-    return nullptr;
+    return fiber->status = kGAB_FIBER_DONE, nullptr;
 
   if (res.status == kGAB_IMPL_PROPERTY)
-    return nullptr;
+    return fiber->status = kGAB_FIBER_DONE, nullptr;
 
   switch (gab_valkind(res.as.spec)) {
   case kGAB_PRIMITIVE: {
@@ -748,6 +754,10 @@ a_gab_value *do_vmexecfiber(struct gab_triple gab, gab_value f,
         0,
         0,
     };
+
+    // BLOCK IS NULL, SO THIS FAKE FRAME HAS NOTHING TO RETURN TO
+    if (op == OP_SEND_PRIMITIVE_CALL_BLOCK)
+      op++;
 
     fiber->status = kGAB_FIBER_RUNNING;
     return handlers[op](gab, ip, ks, vm->fp, vm->sp);
@@ -787,7 +797,8 @@ a_gab_value *do_vmexecfiber(struct gab_triple gab, gab_value f,
     return handlers[op](gab, ip, p->src->constants.data, vm->fp, vm->sp);
   }
   default:
-    return a_gab_value_create((gab_value[]){gab_ok, res.as.spec}, 2);
+    return fiber->status = kGAB_FIBER_DONE,
+           a_gab_value_create((gab_value[]){gab_ok, res.as.spec}, 2);
   }
 };
 
@@ -1300,7 +1311,7 @@ CASE_CODE(RETURN) {
   gab_value *from = SP() - have;
   gab_value *to = FB() - 3;
 
-  if (__gab_unlikely(!RETURN_FB()))
+  if (__gab_unlikely(RETURN_FB() == nullptr))
     return STORE(), SET_VAR(have), ok(DISPATCH_ARGS());
 
   LOAD_FRAME();

@@ -2,7 +2,7 @@ module = .gab.iter
 
 \iter.apply :def!(.none, .nil,  x => x)
 
-\defiter! :def! ('gab.message', do cx, init
+\defiter! :def! ('gab.message', (cx, init) => do
   mod.t = {
     module .nil,
     self .nil,
@@ -11,59 +11,40 @@ module = .gab.iter
     \reducer .nil,
   }
 
-  self :def!(module, do xs[]
+  self :def!(module, xs[] => do
     mod.t :reducer cx(xs**)
   end)
 
   [mod.t ?] :defmodule! {
-    \|> : do iter
-      self:iter.compose iter
-    end,
-    \iter.compose: do second
-      self:iter.apply second
-    end,
-    \iter.apply: do c
-      self:continuation(self:continuation:iter.apply c)
-    end,
-    \: do acc, xs
-      self:reducer . (self:continuation, acc, xs, self:state)
-    end,
-    \reduce.step: do acc, xs[]
+    \|> iter => self:iter.compose iter,
+    \iter.compose second => self:iter.apply second,
+    \iter.apply c => self:continuation(self:continuation:iter.apply c),
+    \ (acc, xs) => self:reducer (self:continuation, acc, xs, self:state),
+    \reduce.step (acc, xs[]) => do
       s, cmd, c, acc = self(acc, xs)
+
       (cmd, self:continuation c :state s, acc)
     end,
-    \reduce.done: do acc
-      self:continuation:reduce.done acc
-    end,
+    \reduce.done (acc) => self:continuation:reduce.done acc,
   }
 end)
 
 \iter.conditionally :defcase! {
-  .true: do r, acc, xs, s
-    (s, r:reduce.step(acc, xs**))
-  end,
-  .false: do r, acc, xs, s
-    (s, .next, r, acc)
-  end,
+  .true (r, acc, xs, s) => (s, r:reduce.step(acc, xs**)),
+  .false (r, acc, xs, s) => (s, .next, r, acc),
 }
 
 \iter.stop_conditionally_inclusive :defcase! {
-  .true: do r, acc, xs, s
-    (s, r:reduce.step(acc, xs**))
-  end,
-  .false: do r, acc, xs, s
+  .true (r, acc, xs, s) => (s, r:reduce.step(acc, xs**)),
+  .false (r, acc, xs, s) => do
     cmd, r, acc = r:reduce.step(acc, xs**)
     (s, .stop, r, acc)
   end,
 }
 
 \iter.stop_conditionally :defcase! {
-  .true: do r, acc, xs, s
-    (s, r:reduce.step(acc, xs**))
-  end,
-  .false: do r, acc, xs, s
-    (s, .stop, r, acc)
-  end,
+  .true (r, acc, xs, s) => (s, r:reduce.step(acc, xs**)),
+  .false (r, acc, xs, s) => (s, .stop, r, acc),
 }
 
 \map :defiter! do f
