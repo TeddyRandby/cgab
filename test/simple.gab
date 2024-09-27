@@ -5,3 +5,18 @@
 #inc = (a => (a + 1))
 
 #inc : 1 :print
+
+\match :defmacro! lhs, rhs, env, mod => do
+  msg = .gab.message :generate.unique
+
+  cases = rhs :gab.unquote(env,mod)
+
+  msg :defcase! cases
+
+  { gab.lhs lhs, gab.msg msg, gab.rhs [] }
+end
+
+smth :match {
+  .ok x => x,
+  .err err => err:print,
+}

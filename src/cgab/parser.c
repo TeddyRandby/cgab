@@ -1078,6 +1078,15 @@ static inline void push_trim(struct bc *bc, uint8_t want, size_t t) {
   push_byte(bc, want, t);
 }
 
+static inline void push_listpack(struct gab_triple gab, struct bc *bc,
+                                 gab_value rhs, uint8_t below, uint8_t above,
+                                 size_t t) {
+  push_op(bc, OP_PACK, t);
+  push_byte(bc, encode_arity(gab, rhs, gab_undefined), 0);
+  push_byte(bc, below, t);
+  push_byte(bc, above, t);
+}
+
 static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
   if (n > 1) {
     push_op(bc, OP_POP_N, t);
@@ -1378,8 +1387,33 @@ gab_value unquote_envput(struct gab_triple gab, struct bc *bc, gab_value node,
     return gab_undefined;
 
   size_t ntargets = gab_reclen(lhs_node);
+
+  gab_value ids[ntargets];
+  int listpack_at_n = -1, recpack_at_n = -1;
+
   for (size_t i = 0; i < ntargets; i++) {
-    gab_value target = gab_uvrecat(lhs_node, ntargets - i - 1);
+    gab_value id = gab_uvrecat(lhs_node, i);
+
+    if (gab_valkind(id) != kGAB_SYMBOL)
+      return gab_undefined;
+
+    if (gab_sstrendswith(gab_symtostr(id), "[]", 0)) {
+      // Update the symbol to not have []
+      if (listpack_at_n >= 0 || recpack_at_n >= 0)
+        return gab_undefined;
+
+      listpack_at_n = i;
+    }
+
+    ids[i] = id;
+  }
+
+  if (listpack_at_n >= 0)
+    push_listpack(gab, bc, rhs_node, listpack_at_n,
+                  ntargets - listpack_at_n - 1, 0);
+
+  for (size_t i = 0; i < ntargets; i++) {
+    gab_value target = ids[i];
 
     switch (gab_valkind(target)) {
     case kGAB_SYMBOL: {

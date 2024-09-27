@@ -1270,6 +1270,20 @@ static inline size_t gab_strhash(gab_value str) {
   return str;
 }
 
+static inline size_t gab_sstrendswith(gab_value str, const char* pat, size_t offset) {
+  assert(gab_valkind(str) == kGAB_STRING);
+
+  const char* cstr = gab_strdata(&str);
+  size_t cstrlen = gab_strlen(str);
+
+  size_t len = strlen(pat);
+
+  if (cstrlen < offset + len)
+    return false;
+
+  return !memcmp(cstr + cstrlen - offset - len, pat, len);
+}
+
 /**
  * @brief Convert a string into it's corresponding sigil. This is constant-time.
  *
