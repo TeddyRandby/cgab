@@ -96,7 +96,7 @@ void queue_decrement(struct gab_triple gab, struct gab_obj *obj) {
       e = epochget(gab);
     }
 
-    thrd_yield();
+    gab_yield(gab);
   }
 
   bufpush(gab, kGAB_BUF_DEC, gab.wkid, e, obj);
@@ -508,6 +508,7 @@ void processepoch(struct gab_triple gab) {
 #endif
 
   if (wk->fiber == gab_undefined) {
+    assert(wk->locked == 0);
     assert(wk->lock_keep.len == 0);
     goto fin;
   }
@@ -615,6 +616,9 @@ void gab_gcdocollect(struct gab_triple gab) {
   if (gab_valiso(gab.eg->messages))
     inc_obj_ref(gab, gab_valtoo(gab.eg->messages));
 
+  if (gab_valiso(gab.eg->macros))
+    inc_obj_ref(gab, gab_valtoo(gab.eg->macros));
+
   if (gab_valiso(gab.eg->shapes))
     inc_obj_ref(gab, gab_valtoo(gab.eg->shapes));
 
@@ -628,6 +632,9 @@ void gab_gcdocollect(struct gab_triple gab) {
 
   if (gab_valiso(gab.eg->messages))
     queue_decrement(gab, gab_valtoo(gab.eg->messages));
+
+  if (gab_valiso(gab.eg->macros))
+    queue_decrement(gab, gab_valtoo(gab.eg->macros));
 
   if (gab_valiso(gab.eg->shapes))
     queue_decrement(gab, gab_valtoo(gab.eg->shapes));

@@ -1,1 +1,7 @@
-d = 'hi'
+'format' :use
+
+'hi':print
+
+#inc = (a => (a + 1))
+
+#inc : 1 :print

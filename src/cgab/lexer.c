@@ -12,13 +12,13 @@ bool is_alpha(uint8_t c) {
   return is_alpha_lower(c) || is_alpha_upper(c) || c == '_';
 }
 
-bool can_start_identifier(uint8_t c) { return is_alpha(c) || c == '_'; }
+bool can_start_symbol(uint8_t c) { return is_alpha(c) || c == '_'; }
 
-bool can_continue_identifier(uint8_t c) {
-  return can_start_identifier(c) || c == '.';
+bool can_continue_symbol(uint8_t c) { return can_start_symbol(c) || c == '.'; }
+
+bool can_end_symbol(uint8_t c) {
+  return c == '?' || c == '!' || c == '[' || c == '{';
 }
-
-bool can_end_identifier(uint8_t c) { return c == '?' || c == '!'; }
 
 bool can_start_operator(uint8_t c) {
   switch (c) {
@@ -137,6 +137,33 @@ const keyword keywords[] = {
     },
 };
 
+gab_token end_symbol(gab_lx *self) {
+  switch (peek(self)) {
+  case '?':
+  case '!':
+    advance(self);
+    return TOKEN_SYMBOL;
+
+  case '[':
+    advance(self);
+
+    if (peek(self) == ']')
+      return advance(self), TOKEN_SYMBOL;
+
+    break;
+
+  case '{':
+    advance(self);
+
+    if (peek(self) == '}')
+      return advance(self), TOKEN_SYMBOL;
+
+    break;
+  }
+
+  return lexer_error(self, GAB_MALFORMED_TOKEN);
+}
+
 gab_token string(gab_lx *self) {
   uint8_t start = peek(self);
   uint8_t stop = start == '"' ? '"' : '\'';
@@ -144,33 +171,17 @@ gab_token string(gab_lx *self) {
   do {
     advance(self);
 
-    if (peek(self) == '\0') {
+    if (peek(self) == '\0')
       return lexer_error(self, GAB_MALFORMED_STRING);
-    }
 
-    if (start != '"') {
-      if (peek(self) == '\n') {
+    if (start != '"')
+      if (peek(self) == '\n')
         return lexer_error(self, GAB_MALFORMED_STRING);
-      }
 
-      if (peek(self) == '\\' && peek_next(self) == '{') {
-        advance(self);
-        advance(self);
-      }
-
-      if (peek(self) == '{') {
-        advance(self);
-        self->nested_curly++;
-        return start == '}' ? TOKEN_INTERPOLATION_MIDDLE
-                            : TOKEN_INTERPOLATION_BEGIN;
-      }
-    }
   } while (peek(self) != stop);
 
-  // Eat the end
   advance(self);
-
-  return start == '}' ? TOKEN_INTERPOLATION_END : TOKEN_STRING;
+  return TOKEN_STRING;
 }
 
 gab_token operator(gab_lx *self) {
@@ -181,7 +192,7 @@ gab_token operator(gab_lx *self) {
 }
 
 gab_token symbol(gab_lx *self) {
-  while (can_continue_identifier(peek(self)))
+  while (can_continue_symbol(peek(self)))
     advance(self);
 
   for (int i = 0; i < sizeof(keywords) / sizeof(keyword); i++) {
@@ -192,8 +203,8 @@ gab_token symbol(gab_lx *self) {
     }
   }
 
-  if (can_end_identifier(peek(self)))
-    advance(self);
+  if (can_end_symbol(peek(self)))
+    return end_symbol(self);
 
   return TOKEN_SYMBOL;
 }
@@ -275,7 +286,7 @@ gab_token other(gab_lx *self) {
       return lexer_error(self, GAB_MALFORMED_SEND);
     }
 
-    if (can_start_identifier(peek(self))) {
+    if (can_start_symbol(peek(self))) {
       advance(self);
 
       enum gab_token t = symbol(self);
@@ -302,7 +313,7 @@ gab_token other(gab_lx *self) {
       return lexer_error(self, GAB_MALFORMED_SEND);
     }
 
-    if (can_start_identifier(peek(self))) {
+    if (can_start_symbol(peek(self))) {
       advance(self);
 
       enum gab_token t = symbol(self);
@@ -318,7 +329,7 @@ gab_token other(gab_lx *self) {
   case '.':
     advance(self);
 
-    if (can_continue_identifier(peek(self))) {
+    if (can_continue_symbol(peek(self))) {
       enum gab_token t = symbol(self);
 
       if (t == TOKEN_SYMBOL)

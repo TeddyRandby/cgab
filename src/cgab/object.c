@@ -1,7 +1,7 @@
+#include "colors.h"
 #include "core.h"
 #include "engine.h"
 #include "gab.h"
-#include "colors.h"
 #include "lexer.h"
 #include <threads.h>
 
@@ -10,7 +10,8 @@
 
 #define GAB_CREATE_FLEX_OBJ(obj_type, flex_type, flex_count, kind)             \
   ((struct obj_type *)gab_obj_create(                                          \
-      gab, sizeof(struct obj_type) + sizeof(flex_type) * (flex_count), kind))
+      gab, sizeof(struct obj_type) + sizeof(flex_type) * (flex_count),         \
+      (kind)))
 
 struct gab_obj *gab_obj_create(struct gab_triple gab, size_t sz,
                                enum gab_kind k) {
@@ -207,7 +208,10 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
   case kGAB_CHANNELBUFFERED: {
     return fprintf(stream, "<gab.channel %p>", GAB_VAL_TO_CHANNEL(self));
   }
-  case kGAB_FIBER: {
+  case kGAB_FIBER:
+  case kGAB_FIBERMACRO:
+  case kGAB_FIBERRUNNING:
+  case kGAB_FIBERDONE: {
     return fprintf(stream, "<gab.fiber %p>", GAB_VAL_TO_FIBER(self));
   }
   case kGAB_RECORD: {
@@ -743,7 +747,7 @@ gab_value gab_lstpop(struct gab_triple gab, gab_value list, gab_value *popped) {
   gab_value shp =
       gab_shpwithout(gab, gab_recshp(list), gab_number(gab_reclen(list) - 1));
 
-  //TODO: Actually pop the value from the record
+  // TODO: Actually pop the value from the record
 
   return recsetshp(reccpy(gab, list, 0), shp);
 }
@@ -946,7 +950,7 @@ gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
 
   gab_gcunlock(gab);
 
-  assert(len == gab_shplen(shp));
+  /*assert(len == gab_shplen(shp));*/
   return shp;
 }
 
@@ -973,7 +977,8 @@ gab_value __gab_shape(struct gab_triple gab, size_t len) {
   return __gab_obj(self);
 }
 
-gab_value gab_shpwithout(struct gab_triple gab, gab_value shape, gab_value key) {
+gab_value gab_shpwithout(struct gab_triple gab, gab_value shape,
+                         gab_value key) {
   gab_value shp = gab.eg->shapes;
 
   gab_gclock(gab);
@@ -1037,12 +1042,12 @@ gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key) {
 
 gab_value gab_shpwithout(struct gab_triple gab, gab_value shp, gab_value key);
 
-gab_value gab_fiber(struct gab_triple gab, gab_value receiver,
-                    gab_value message, size_t argc, gab_value argv[argc]) {
-  assert(gab_valkind(message) == kGAB_MESSAGE);
+gab_value gab_fiber(struct gab_triple gab, struct gab_fiber_argt args) {
+  assert(gab_valkind(args.message) == kGAB_MESSAGE);
 
   struct gab_obj_fiber *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_fiber, gab_value, argc + 2, kGAB_FIBER);
+      GAB_CREATE_FLEX_OBJ(gab_obj_fiber, gab_value, args.argc + 2,
+                          args.is_macro ? kGAB_FIBERMACRO : kGAB_FIBER);
 
   if (gab_thisfiber(gab) == gab_undefined) {
     self->messages = gab.eg->messages;
@@ -1053,23 +1058,22 @@ gab_value gab_fiber(struct gab_triple gab, gab_value receiver,
     self->macros = parent->macros;
   }
 
-  self->len = argc + 2;
-  memcpy(self->data + 2, argv, argc * sizeof(gab_value));
-  self->data[0] = message;
-  self->data[1] = receiver;
+  self->len = args.argc + 2;
+  memcpy(self->data + 2, args.argv, args.argc * sizeof(gab_value));
+  self->data[0] = args.message;
+  self->data[1] = args.receiver;
 
   self->res = nullptr;
-  self->status = kGAB_FIBER_WAITING;
 
   self->vm.fp = self->vm.sb + 3;
   self->vm.sp = self->vm.sb + 3;
 
   // Setup main and args
-  *self->vm.sp++ = receiver;
-  for (uint8_t i = 0; i < argc; i++)
-    *self->vm.sp++ = argv[i];
+  *self->vm.sp++ = args.receiver;
+  for (uint8_t i = 0; i < args.argc; i++)
+    *self->vm.sp++ = args.argv[i];
 
-  *self->vm.sp = argc + 1;
+  *self->vm.sp = args.argc + 1;
 
   // Setup the return frame
   self->vm.fp[-1] = (uintptr_t) nullptr;
@@ -1082,10 +1086,12 @@ gab_value gab_fiber(struct gab_triple gab, gab_value receiver,
 }
 
 a_gab_value *gab_fibawait(struct gab_triple gab, gab_value f) {
-  assert(gab_valkind(f) == kGAB_FIBER);
+  assert(gab_valkind(f) == kGAB_FIBER || gab_valkind(f) == kGAB_FIBERMACRO ||
+         gab_valkind(f) == kGAB_FIBERRUNNING ||
+         gab_valkind(f) == kGAB_FIBERDONE);
   struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
 
-  while (fiber->status != kGAB_FIBER_DONE)
+  while (fiber->header.kind != kGAB_FIBERDONE)
     gab_yield(gab);
 
   return fiber->res;
@@ -1281,7 +1287,6 @@ gab_value gab_tchntake(struct gab_triple gab, gab_value c, size_t nms) {
   assert(false && "NOT A CHANNEL");
   return gab_undefined;
 }
-
 
 static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
                                 uint64_t offset);

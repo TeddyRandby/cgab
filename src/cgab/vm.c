@@ -370,6 +370,7 @@ struct gab_err_argt vm_frame_build_err(struct gab_triple gab,
 
 a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
                        const char *fmt, va_list va) {
+  gab_value fiber = gab_thisfiber(gab);
   struct gab_vm *vm = gab_vm(gab);
   gab_value *f = vm->fp;
   uint8_t *ip = vm->ip;
@@ -396,7 +397,15 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
 
   gab_niref(gab, 1, 2, results);
 
-  return a_gab_value_create(results, sizeof(results) / sizeof(gab_value));
+  a_gab_value* res =  a_gab_value_create(results, sizeof(results) / sizeof(gab_value));
+
+  gab_niref(gab, 1, res->len, res->data);
+
+  assert(GAB_VAL_TO_FIBER(fiber)->header.kind = kGAB_FIBERRUNNING);
+  GAB_VAL_TO_FIBER(fiber)->res = res;
+  GAB_VAL_TO_FIBER(fiber)->header.kind = kGAB_FIBERDONE;
+
+  return res;
 }
 
 a_gab_value *vm_error(struct gab_triple gab, enum gab_status s, const char *fmt,
@@ -692,21 +701,6 @@ static inline gab_value block(struct gab_triple gab, gab_value p,
   return blk;
 }
 
-a_gab_value *error(OP_HANDLER_ARGS) {
-  uint64_t have = *VM()->sp;
-  gab_value *from = VM()->sp - have;
-
-  a_gab_value *results = a_gab_value_empty(have);
-  memcpy(results->data, from, have * sizeof(gab_value));
-
-  gab_niref(GAB(), 1, results->len, results->data);
-
-  FIBER()->res = results;
-  FIBER()->status = kGAB_FIBER_DONE;
-
-  return results;
-}
-
 a_gab_value *ok(OP_HANDLER_ARGS) {
   uint64_t have = *VM()->sp;
   gab_value *from = VM()->sp - have;
@@ -719,25 +713,28 @@ a_gab_value *ok(OP_HANDLER_ARGS) {
 
   VM()->sp = VM()->sb;
 
+  assert(FIBER()->header.kind = kGAB_FIBERRUNNING);
   FIBER()->res = results;
-  FIBER()->status = kGAB_FIBER_DONE;
+  FIBER()->header.kind = kGAB_FIBERDONE;
 
   return results;
 }
 
 a_gab_value *do_vmexecfiber(struct gab_triple gab, gab_value f,
                             struct gab_impl_rest res) {
-  assert(gab_valkind(f) == kGAB_FIBER);
+  assert(gab_valkind(f) == kGAB_FIBER || gab_valkind(f) == kGAB_FIBERMACRO);
   struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
 
-  gab_value receiver = fiber->data[1];
   gab_value message = fiber->data[0];
+  gab_value receiver = fiber->data[1];
 
+  assert(fiber->header.kind != kGAB_FIBERDONE);
   if (res.status == kGAB_IMPL_NONE)
-    return fiber->status = kGAB_FIBER_DONE, nullptr;
+    return fiber->header.kind = kGAB_FIBERDONE, nullptr;
 
+  assert(fiber->header.kind != kGAB_FIBERDONE);
   if (res.status == kGAB_IMPL_PROPERTY)
-    return fiber->status = kGAB_FIBER_DONE, nullptr;
+    return fiber->header.kind = kGAB_FIBERDONE, nullptr;
 
   switch (gab_valkind(res.as.spec)) {
   case kGAB_PRIMITIVE: {
@@ -759,15 +756,12 @@ a_gab_value *do_vmexecfiber(struct gab_triple gab, gab_value f,
     if (op == OP_SEND_PRIMITIVE_CALL_BLOCK)
       op++;
 
-    fiber->status = kGAB_FIBER_RUNNING;
+    assert(fiber->header.kind != kGAB_FIBERDONE);
+    fiber->header.kind = kGAB_FIBERRUNNING;
     return handlers[op](gab, ip, ks, vm->fp, vm->sp);
   }
   case kGAB_NATIVE: {
     struct gab_vm *vm = &fiber->vm;
-
-    // TODO: Running jobs like this, haphazardly on the gc worker, is wrong.
-    // Refactor macro runner to go through main channel
-    gab.eg->jobs[gab.wkid].fiber = f;
 
     uint8_t ip[] = {0, 0, 1, OP_RETURN, 1};
     gab_value ks[] = {
@@ -780,7 +774,8 @@ a_gab_value *do_vmexecfiber(struct gab_triple gab, gab_value f,
         0,
     };
 
-    fiber->status = kGAB_FIBER_RUNNING;
+    assert(fiber->header.kind != kGAB_FIBERDONE);
+    fiber->header.kind = kGAB_FIBERRUNNING;
     return OP_SEND_NATIVE_HANDLER(gab, ip, ks, vm->fp, vm->sp);
   }
   case kGAB_BLOCK: {
@@ -793,34 +788,34 @@ a_gab_value *do_vmexecfiber(struct gab_triple gab, gab_value f,
     uint8_t *ip = vm->ip;
     uint8_t op = *ip++;
 
-    fiber->status = kGAB_FIBER_RUNNING;
+    assert(fiber->header.kind != kGAB_FIBERDONE);
+    fiber->header.kind = kGAB_FIBERRUNNING;
     return handlers[op](gab, ip, p->src->constants.data, vm->fp, vm->sp);
   }
-  default:
-    return fiber->status = kGAB_FIBER_DONE,
-           a_gab_value_create((gab_value[]){gab_ok, res.as.spec}, 2);
+  default: {
+    a_gab_value *results =
+        a_gab_value_create((gab_value[]){gab_ok, res.as.spec}, 2);
+
+    fiber->res = results;
+
+    assert(fiber->header.kind != kGAB_FIBERDONE);
+    fiber->header.kind = kGAB_FIBERDONE;
+
+    return results;
   }
-};
-
-a_gab_value *gab_vmexecmacro(struct gab_triple gab, gab_value f) {
-  assert(gab_valkind(f) == kGAB_FIBER);
-  struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
-
-  gab_value message = fiber->data[0];
-
-  struct gab_impl_rest res = gab_implmacro(gab, message);
-
-  return do_vmexecfiber(gab, f, res);
+  }
 };
 
 a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
-  assert(gab_valkind(f) == kGAB_FIBER);
+  assert(gab_valkind(f) == kGAB_FIBER || gab_valkind(f) == kGAB_FIBERMACRO);
   struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
 
   gab_value receiver = fiber->data[1];
   gab_value message = fiber->data[0];
 
-  struct gab_impl_rest res = gab_impl(gab, message, receiver);
+  struct gab_impl_rest res = gab_valkind(f) == kGAB_FIBERMACRO
+                                 ? gab_implmacro(gab, message)
+                                 : gab_impl(gab, message, receiver);
 
   return do_vmexecfiber(gab, f, res);
 }

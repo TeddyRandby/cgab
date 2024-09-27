@@ -248,6 +248,8 @@ int32_t gc_job(void *data) {
   struct gab_triple gab = *g;
   gab.wkid = gab.eg->len - 1;
 
+  gab.eg->jobs[gab.wkid].fiber = gab_undefined;
+
   while (gab.eg->njobs >= 0) {
     if (gab.eg->gc->schedule == gab.wkid)
       gab_gcdocollect(gab);
@@ -257,7 +259,7 @@ int32_t gc_job(void *data) {
   return 0;
 }
 
-int32_t worker_thread(void *data) {
+int32_t worker_job(void *data) {
   struct gab_triple *g = data;
   struct gab_triple gab = *g;
   gab.wkid = wkid(gab.eg);
@@ -265,8 +267,7 @@ int32_t worker_thread(void *data) {
   gab.eg->njobs++;
 
   while (!gab_chnisclosed(gab.eg->work_channel)) {
-    gab_value fiber =
-        gab_tchntake(gab, gab.eg->work_channel, cGAB_WORKER_IDLEWAIT_MS);
+    gab_value fiber = gab_chntake(gab, gab.eg->work_channel);
 
     // we get undefined if:
     //  - the channel is closed
@@ -276,12 +277,9 @@ int32_t worker_thread(void *data) {
 
     gab.eg->jobs[gab.wkid].fiber = fiber;
 
-    a_gab_value *res = gab_vmexec(gab, fiber);
+    gab_vmexec(gab, fiber);
 
     gab.eg->jobs[gab.wkid].fiber = gab_undefined;
-
-    if (!res)
-      break;
   }
 
   gab.eg->jobs[gab.wkid].alive = false;
@@ -367,7 +365,6 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   gab_jbcreate(gab, gab.eg->jobs + njobs, gc_job);
 
   eg->shapes = __gab_shape(gab, 0);
-
   eg->messages = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
   eg->macros = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
   eg->work_channel = gab_channel(gab, 0);
@@ -478,7 +475,9 @@ void gab_destroy(struct gab_triple gab) {
 
   gab_dref(gab, gab.eg->work_channel);
   gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
+
   gab.eg->messages = gab_undefined;
+  gab.eg->macros = gab_undefined;
   gab.eg->shapes = gab_undefined;
 
   gab_collect(gab);
@@ -1184,14 +1183,18 @@ gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
   if (gab.flags & fGAB_BUILD_CHECK)
     return gab_undefined;
 
-  gab_value fb = gab_fiber(gab, args.main, gab_message(gab, mGAB_CALL),
-                           args.len, args.argv);
+  gab_value fb = gab_fiber(gab, (struct gab_fiber_argt){
+                                    .message = gab_message(gab, mGAB_CALL),
+                                    .receiver = args.main,
+                                    .argv = args.argv,
+                                    .argc = args.len,
+                                });
 
   gab_iref(gab, fb);
 
   // Somehow check if the put will block, and create a job in that case.
   // Should check to see if the channel has takers waiting already.
-  gab_jbcreate(gab, next_available_job(gab), worker_thread);
+  gab_jbcreate(gab, next_available_job(gab), worker_job);
 
   gab_chnput(gab, gab.eg->work_channel, fb);
 
@@ -1203,13 +1206,26 @@ gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
 a_gab_value *gab_sendmacro(struct gab_triple gab, struct gab_send_argt args) {
   gab.flags = args.flags;
 
-  struct gab_impl_rest res = gab_implmacro(gab, args.message);
+  gab_value fb = gab_fiber(gab, (struct gab_fiber_argt){
+                                    .message = args.message,
+                                    .receiver = args.receiver,
+                                    .argv = args.argv,
+                                    .argc = args.len,
+                                    .is_macro = true,
+                                });
 
-  if (res.status == kGAB_IMPL_NONE)
+  if (fb == gab_undefined)
     return nullptr;
 
-  gab_value fb =
-      gab_fiber(gab, args.receiver, args.message, args.len, args.argv);
+  gab_iref(gab, fb);
 
-  return gab_vmexecmacro(gab, fb);
+  gab_jbcreate(gab, next_available_job(gab), worker_job);
+
+  gab_chnput(gab, gab.eg->work_channel, fb);
+
+  a_gab_value *res = gab_fibawait(gab, fb);
+
+  gab_dref(gab, fb);
+
+  return res;
 };

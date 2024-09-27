@@ -43,7 +43,7 @@
 // will wait this long before exiting, if they haven't received work.
 // New workers are spawned as needed up until a maximum is reached (specified at runtime)
 #ifndef cGAB_WORKER_IDLEWAIT_MS
-#define cGAB_WORKER_IDLEWAIT_MS ((size_t) cGAB_CHANNEL_STEP_MS * 128)
+#define cGAB_WORKER_IDLEWAIT_MS ((size_t) cGAB_CHANNEL_STEP_MS * 256)
 #endif
 
 // A worker (os thread) may need to yield at an arbitrary point.

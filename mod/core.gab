@@ -1,22 +1,22 @@
-messages.t :: 'cmessages':use
-channels.t :: 'cchannels':use
-numbers.t  :: 'cnumbers':use
-records.t  :: 'crecords':use
-strings.t  :: 'cstrings':use
-sigils.t   :: 'csigils':use
-iter       :: 'iter':use
+messages.t = 'cmessages':use
+channels.t = 'cchannels':use
+numbers.t  = 'cnumbers':use
+records.t  = 'crecords':use
+strings.t  = 'cstrings':use
+sigils.t   = 'csigils':use
+iter       = 'iter':use
 
 'format':use
 
-\strings.into :def! do; '{self}'; end
+\strings.into :def! _ => '{self}'
 
-truthy_values :: []
-falsey_values :: [.nil, .false, .none, .err]
+truthy_values = []
+falsey_values = [.nil .false .none .err]
 
-\self :def! do; self; end
-\first :def! do x; x;end
-\second :def! do _, x; x; end
-\all :def! do xs[]; xs; end
+\self :def! _ => self
+\first :def! x => x
+\second :def! (_, x) => x
+\all :def! do xs[] => xs
 
 \is? :def! do other; self ? == other; end
 
@@ -75,7 +75,7 @@ end)
   ## The sequence continues
   .ok: do seq.i, seq.v, acc, r, xs
     # Apply the reducer
-    cmd, r, acc :: r:reduce.step(acc, xs**)
+    cmd, r, acc = r:reduce.step(acc, xs**)
     # proceed to the next sep
     cmd:doreduce(seq.i, seq.v, acc, r)
   end,
@@ -86,7 +86,7 @@ end)
   ## The reducer continues
   .next: do seq.i, seq.v, acc, r
     # Apply the producer, resolving new values for the next step
-    ok, seq.v, xs[] :: seq.i :seqs.next seq.v
+    ok, seq.v, xs[] = seq.i :seqs.next seq.v
     # Tailcall to the next step
     ok:doreduce(seq.i, seq.v, acc, r, xs)
   end,
@@ -99,7 +99,7 @@ end)
 \def.seq! :def! do
   [self] :defmodule! {
     \reduce: do acc, r
-      ok, seq.v, xs[] :: self :seqs.init
+      ok, seq.v, xs[] = self :seqs.init
       ok:doreduce(self, seq.v, acc, r, xs)
     end,
     \transduce: do acc, r, td
@@ -129,11 +129,11 @@ end
 # Forget about their values as soon as their taken
 [channels.t] :defmodule! {
   \seqs.init: do
-    ok, v :: self >!
+    ok, v = self >!
     (ok, v, v)
   end,
   \seqs.next: do
-    ok, v :: self >!
+    ok, v = self >!
     (ok, v, v)
   end,
 }
@@ -166,7 +166,7 @@ records.t :def.seq!
 end)
 
 
-range.t :: { \from: .nil, \to: .nil }?
+range.t = { \from: .nil, \to: .nil }?
 
 range.t :def.seq!
 
@@ -175,7 +175,7 @@ range.t :def.seq!
     (.ok, self:from, self:from)
   end,
   \seqs.next: do n
-    nx :: n + 1
+    nx = n + 1
     .gab.option (n < self:to, nx, nx)
   end,
 }

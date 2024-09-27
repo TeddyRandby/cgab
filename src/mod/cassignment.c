@@ -12,7 +12,7 @@ a_gab_value *gab_lib_arrowfn(struct gab_triple gab, size_t argc,
   gab_value ids[len + 1];
   ids[0] = gab_symbol(gab, "self");
 
-  for (size_t i = 1; i < len; i++) {
+  for (size_t i = 0; i < len; i++) {
     gab_value id = gab_uvrecat(LHS, i);
 
     if (gab_valkind(id) != kGAB_SYMBOL)

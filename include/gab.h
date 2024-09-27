@@ -145,6 +145,9 @@ enum gab_kind {
   kGAB_SHAPE,
   kGAB_SHAPELIST,
   kGAB_FIBER,
+  kGAB_FIBERMACRO,
+  kGAB_FIBERDONE,
+  kGAB_FIBERRUNNING,
   kGAB_CHANNEL,
   kGAB_CHANNELCLOSED,
   kGAB_CHANNELBUFFERED,
@@ -711,7 +714,8 @@ union gab_value_pair {
   };
 };
 
-union gab_value_pair gab_unquote(struct gab_triple gab, gab_value ast, gab_value env, gab_value mod);
+union gab_value_pair gab_unquote(struct gab_triple gab, gab_value ast,
+                                 gab_value env, gab_value mod);
 
 /**
  * @class gab_run_argt
@@ -1859,15 +1863,6 @@ struct gab_obj_fiber {
   struct gab_obj header;
 
   /**
-   * Status of the fiber - move into part of object type
-   */
-  enum {
-    kGAB_FIBER_WAITING,
-    kGAB_FIBER_RUNNING,
-    kGAB_FIBER_DONE,
-  } status;
-
-  /**
    * Structure used to actually execute bytecode
    */
   struct gab_vm {
@@ -1901,6 +1896,14 @@ struct gab_obj_fiber {
 
 #define GAB_VAL_TO_FIBER(value) ((struct gab_obj_fiber *)gab_valtoo(value))
 
+struct gab_fiber_argt {
+  bool is_macro;
+
+  size_t argc;
+
+  gab_value receiver, message, *argv;
+};
+
 /**
  * @brief Create a fiber.
  *
@@ -1911,8 +1914,7 @@ struct gab_obj_fiber {
  * @param argv The arguments to the block
  * @return A fiber, ready to be run
  */
-gab_value gab_fiber(struct gab_triple gab, gab_value receiver,
-                    gab_value message, size_t argc, gab_value argv[argc]);
+gab_value gab_fiber(struct gab_triple gab, struct gab_fiber_argt args);
 
 /**
  * @brief Block the caller until this fiber is completed.

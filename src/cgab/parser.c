@@ -601,6 +601,9 @@ gab_value parse_exp_rec(struct gab_triple gab, struct parser *parser,
 
   gab_value result = node_empty(gab);
 
+  if (match_and_eat_token(gab, parser, TOKEN_RBRACK))
+    goto fin;
+
   for (;;) {
     gab_value rhs = parse_expression(gab, parser, kASSIGNMENT);
 
@@ -622,13 +625,17 @@ gab_value parse_exp_rec(struct gab_triple gab, struct parser *parser,
   if (expect_token(gab, parser, TOKEN_RBRACK) < 0)
     return gab_undefined;
 
+fin:
   return node_send(gab, node_value(gab, gab_sigil(gab, "gab.record")),
-                   gab_message(gab, "make"), result);
+                   gab_message(gab, mGAB_CALL), result);
 }
 
 gab_value parse_exp_lst(struct gab_triple gab, struct parser *parser,
                         gab_value lhs) {
   gab_value result = node_empty(gab);
+
+  if (match_and_eat_token(gab, parser, TOKEN_RBRACE))
+    goto fin;
 
   for (;;) {
     gab_value rhs = parse_expression(gab, parser, kASSIGNMENT);
@@ -647,18 +654,19 @@ gab_value parse_exp_lst(struct gab_triple gab, struct parser *parser,
   if (expect_token(gab, parser, TOKEN_RBRACE) < 0)
     return gab_undefined;
 
+fin:
   return node_send(gab, node_value(gab, gab_sigil(gab, "gab.list")),
-                   gab_message(gab, "make"), result);
+                   gab_message(gab, mGAB_CALL), result);
 }
 
 gab_value parse_exp_tup(struct gab_triple gab, struct parser *parser,
                         gab_value lhs) {
   skip_newlines(gab, parser);
 
-  if (match_and_eat_token(gab, parser, TOKEN_RPAREN))
-    return node_empty(gab);
-
   gab_value result = node_empty(gab);
+
+  if (match_and_eat_token(gab, parser, TOKEN_RPAREN))
+    goto fin;
 
   for (;;) {
     gab_value rhs = parse_expression(gab, parser, kASSIGNMENT);
@@ -679,6 +687,7 @@ gab_value parse_exp_tup(struct gab_triple gab, struct parser *parser,
   if (expect_token(gab, parser, TOKEN_RPAREN) < 0)
     return gab_undefined;
 
+fin:
   return result;
 }
 
@@ -722,10 +731,6 @@ gab_value parse_exp_send_op(struct gab_triple gab, struct parser *parser,
 const struct parse_rule parse_rules[] = {
     {parse_exp_blk, nullptr, kNONE},     // DO
     {nullptr, nullptr, kNONE},           // END
-    {nullptr, nullptr, kNONE},           // DOT
-    {nullptr, nullptr, kNONE},           // COMMA
-    {nullptr, nullptr, kNONE},           // COLON
-    {nullptr, nullptr, kNONE},           // COLON_COLON
     {parse_exp_lst, nullptr, kNONE},     // LBRACE
     {nullptr, nullptr, kNONE},           // RBRACE
     {parse_exp_rec, nullptr, kNONE},     // LBRACK
@@ -738,9 +743,6 @@ const struct parse_rule parse_rules[] = {
     {parse_exp_sig, nullptr, kNONE},     // SIGIL
     {parse_exp_msg, nullptr, kNONE},     // MESSAGE
     {parse_exp_str, nullptr, kNONE},     // STRING
-    {nullptr, nullptr, kNONE},           // INTERPOLATION END
-    {nullptr, nullptr, kNONE},           // INTERPOLATION MIDDLE
-    {nullptr, nullptr, kNONE},           // INTERPOLATION END
     {parse_exp_num, nullptr, kNONE},     // NUMBER
     {nullptr, nullptr, kNONE},           // NEWLINE
     {nullptr, nullptr, kNONE},           // EOF
@@ -1543,6 +1545,10 @@ struct expand_res expand_record(struct gab_triple gab, gab_value parent_node,
     gab_value rhs_node = gab_mrecat(gab, node, "gab.rhs");
     gab_value msg = gab_mrecat(gab, node, "gab.msg");
 
+    /*
+     * When the gc worker is parsing:
+     *  * The worker is locked and accumulates allocations in its lock buffer.
+     */
     a_gab_value *result = gab_sendmacro(gab, (struct gab_send_argt){
                                                  .message = msg,
                                                  .len = 4,
@@ -1581,6 +1587,8 @@ struct expand_res expand_record(struct gab_triple gab, gab_value parent_node,
 
     gab_value result_node = result->len > 1 ? result->data[1] : gab_nil;
     gab_value result_env = result->len > 2 ? result->data[2] : gab_nil;
+
+    gab_negkeep(gab.eg, result->len - 1, result->data + 1);
 
     node = result_node == gab_nil ? node : result_node;
     env = result_env == gab_nil ? env : result_env;
@@ -1764,8 +1772,6 @@ union gab_value_pair gab_unquote(struct gab_triple gab, gab_value ast,
                                       .data = data,
                                   });
 
-  gab_fmodinspect(stdout, GAB_VAL_TO_PROTOTYPE(proto));
-
   // call srcappend to append bytecode to src module
   // actually track bc_tok offset
   // addk should add constant to source
@@ -1804,8 +1810,8 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
     vargv[i + 1] = gab_string(gab, args.argv[i]);
   }
 
-  gab_value env =
-      gab_listof(gab, gab_shptorec(gab, gab_shape(gab, 1, args.len + 1, vargv)));
+  gab_value env = gab_listof(
+      gab, gab_shptorec(gab, gab_shape(gab, 1, args.len + 1, vargv)));
 
   union gab_value_pair res = gab_unquote(gab, ast, env, mod);
 
