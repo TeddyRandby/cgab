@@ -604,6 +604,8 @@ gab_value parse_exp_rec(struct gab_triple gab, struct parser *parser,
   if (match_and_eat_token(gab, parser, TOKEN_RBRACK))
     goto fin;
 
+  skip_newlines(gab, parser);
+
   for (;;) {
     gab_value rhs = parse_expression(gab, parser, kASSIGNMENT);
 
@@ -637,6 +639,8 @@ gab_value parse_exp_lst(struct gab_triple gab, struct parser *parser,
   if (match_and_eat_token(gab, parser, TOKEN_RBRACE))
     goto fin;
 
+  skip_newlines(gab, parser);
+
   for (;;) {
     gab_value rhs = parse_expression(gab, parser, kASSIGNMENT);
 
@@ -667,6 +671,8 @@ gab_value parse_exp_tup(struct gab_triple gab, struct parser *parser,
 
   if (match_and_eat_token(gab, parser, TOKEN_RPAREN))
     goto fin;
+
+  skip_newlines(gab, parser);
 
   for (;;) {
     gab_value rhs = parse_expression(gab, parser, kASSIGNMENT);
@@ -1391,28 +1397,52 @@ gab_value unquote_envput(struct gab_triple gab, struct bc *bc, gab_value node,
   gab_value ids[ntargets];
   int listpack_at_n = -1, recpack_at_n = -1;
 
+  size_t actual_targets = 0; // May be less than we started with (destructuring
+                             // could make it more later)
   for (size_t i = 0; i < ntargets; i++) {
     gab_value id = gab_uvrecat(lhs_node, i);
+
+    if (gab_valkind(id) == kGAB_RECORD) {
+      if (gab_valkind(gab_recshp(id)) == kGAB_SHAPE) {
+        // Assume this is a send
+        gab_value lhs = gab_mrecat(gab, id, "gab.lhs");
+        gab_value rhs = gab_mrecat(gab, id, "gab.rhs");
+        gab_value m = gab_mrecat(gab, id, "gab.msg");
+
+        gab_value rec = gab_uvrecat(lhs, 0);
+
+        if (rec != gab_sigil(gab, "gab.list"))
+          return gab_undefined;
+
+        if (m != gab_message(gab, mGAB_CALL))
+          return gab_undefined;
+
+        if (!node_isempty(rhs))
+          return gab_undefined;
+
+        if (i == 0)
+          return gab_undefined;
+
+        if (listpack_at_n >= 0 || recpack_at_n >= 0)
+          return gab_undefined;
+
+        listpack_at_n = i - 1;
+
+        continue;
+      }
+    }
 
     if (gab_valkind(id) != kGAB_SYMBOL)
       return gab_undefined;
 
-    if (gab_sstrendswith(gab_symtostr(id), "[]", 0)) {
-      // Update the symbol to not have []
-      if (listpack_at_n >= 0 || recpack_at_n >= 0)
-        return gab_undefined;
-
-      listpack_at_n = i;
-    }
-
-    ids[i] = id;
+    ids[actual_targets++] = id;
   }
 
   if (listpack_at_n >= 0)
     push_listpack(gab, bc, rhs_node, listpack_at_n,
-                  ntargets - listpack_at_n - 1, 0);
+                  actual_targets - listpack_at_n - 1, 0);
 
-  for (size_t i = 0; i < ntargets; i++) {
+  for (size_t i = 0; i < actual_targets; i++) {
     gab_value target = ids[i];
 
     switch (gab_valkind(target)) {
@@ -1438,7 +1468,7 @@ gab_value unquote_envput(struct gab_triple gab, struct bc *bc, gab_value node,
       break;
     }
 
-    if (i + 1 < ntargets)
+    if (i + 1 < actual_targets)
       push_pop(bc, 1, 0);
   }
 
@@ -1668,13 +1698,14 @@ struct expand_res expand_record(struct gab_triple gab, gab_value parent_node,
  */
 struct expand_res gab_expand(struct gab_triple gab, gab_value ast,
                              gab_value env, gab_value mod) {
-  assert(gab_valkind(ast) == kGAB_RECORD);
-  assert(gab_valkind(env) == kGAB_RECORD);
-
   struct expand_res r = {ast, env};
 
   for (;;) {
     struct expand_res r_in = r;
+
+    assert(gab_valkind(ast) == kGAB_RECORD);
+    assert(gab_valkind(env) == kGAB_RECORD);
+
     r = expand_tuple(gab, r_in.node, r_in.env, mod);
 
     if (r.node == r_in.node && r.env == r_in.env)
@@ -1768,7 +1799,8 @@ union gab_value_pair gab_unquote(struct gab_triple gab, gab_value ast,
   assert(bc.bc.len == bc.bc_toks.len);
 
   if (env == gab_undefined)
-    return (union gab_value_pair){{gab_undefined, gab_undefined}};
+    return v_uint8_t_destroy(&bc.bc), v_uint64_t_destroy(&bc.bc_toks),
+           (union gab_value_pair){{gab_undefined, gab_undefined}};
 
   assert(gab_reclen(env) == nenvs);
 
@@ -1789,8 +1821,10 @@ union gab_value_pair gab_unquote(struct gab_triple gab, gab_value ast,
 
   size_t len = bc.bc.len;
   size_t end = gab_srcappend(src, len, bc.bc.data, bc.bc_toks.data);
+
   v_uint8_t_destroy(&bc.bc);
   v_uint64_t_destroy(&bc.bc_toks);
+
   size_t begin = end - len;
 
   char data[nupvalues];

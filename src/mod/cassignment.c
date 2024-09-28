@@ -56,10 +56,8 @@ a_gab_value *gab_lib_assign(struct gab_triple gab, size_t argc,
   for (size_t i = 0; i < len; i++) {
     gab_value id = gab_uvrecat(LHS, i);
 
-    if (gab_valkind(id) != kGAB_SYMBOL)
-      return gab_fpanic(gab, "Invalid assignment target");
-
-    local_env = gab_recput(gab, local_env, id, gab_nil);
+    if (gab_valkind(id) == kGAB_SYMBOL)
+      local_env = gab_recput(gab, local_env, id, gab_nil);
   }
 
   // We reshape this node into a send for :gab.runtime/env.put!

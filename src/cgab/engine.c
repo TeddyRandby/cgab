@@ -1159,6 +1159,8 @@ a_gab_value *gab_use(struct gab_triple gab, gab_value path) {
         a_char_destroy(path);
         return result;
       }
+
+      a_char_destroy(path);
     }
   }
 

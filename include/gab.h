@@ -1228,7 +1228,8 @@ gab_value gab_strcat(struct gab_triple gab, gab_value a, gab_value b);
  * @return The length of the string.
  */
 static inline size_t gab_strlen(gab_value str) {
-  assert(gab_valkind(str) == kGAB_STRING || gab_valkind(str) == kGAB_SIGIL);
+  assert(gab_valkind(str) == kGAB_STRING || gab_valkind(str) == kGAB_SYMBOL ||
+         gab_valkind(str) == kGAB_SIGIL);
 
   if (gab_valiso(str))
     return GAB_VAL_TO_STRING(str)->len;
@@ -1270,10 +1271,11 @@ static inline size_t gab_strhash(gab_value str) {
   return str;
 }
 
-static inline size_t gab_sstrendswith(gab_value str, const char* pat, size_t offset) {
+static inline size_t gab_sstrendswith(gab_value str, const char *pat,
+                                      size_t offset) {
   assert(gab_valkind(str) == kGAB_STRING);
 
-  const char* cstr = gab_strdata(&str);
+  const char *cstr = gab_strdata(&str);
   size_t cstrlen = gab_strlen(str);
 
   size_t len = strlen(pat);
@@ -1283,6 +1285,19 @@ static inline size_t gab_sstrendswith(gab_value str, const char* pat, size_t off
 
   return !memcmp(cstr + cstrlen - offset - len, pat, len);
 }
+
+static inline gab_value gab_strslice(struct gab_triple gab, gab_value str,
+                                     size_t offset, size_t len) {
+  assert(gab_valkind(str) == kGAB_STRING);
+
+  const char *cstr = gab_strdata(&str);
+  size_t cstrlen = gab_strlen(str);
+
+  offset = offset >= cstrlen ? cstrlen : offset;
+  len = offset + len > cstrlen ? cstrlen - offset : len;
+
+  return gab_nstring(gab, len, cstr + offset);
+};
 
 /**
  * @brief Convert a string into it's corresponding sigil. This is constant-time.

@@ -1,46 +1,39 @@
 iter = 'iter' :use
 
 \do_acc :defcase! {
-  .true : do acc; acc; end,
-  .false: do acc, n; [n, acc:acc(n - 1)**]; end, 
+  .true  (acc) => acc
+  .false (acc, n) => [n, acc:acc(n - 1)**]
 }
 
-\acc :def!('gab.record', do n
+\acc :def!('gab.record', n => do
   n :== 0 :do_acc (self, n)
 end)
 
-\go :def!('gab.block', do
-  blk :: self
-  .gab.fiber do; blk(); end
+\go :def!('gab.block', _ => do
+  .gab.fiber self
 end)
 
-in, out :: .gab.channel(), .gab.channel()
+in, out = .gab.channel(), .gab.channel()
 
-work :: do
-  n :: in >! :unwrap!
+work = _ => do
+  n = in >! :unwrap!
 
   out <! [] :acc n :len
 end
 
 # Insert 100 values into the channel 
-fib :: do
-  .gab.range      .
-  (100, 200)  .
-    :transduce(
-      100,
-      \first,
-      iter:tap do x
-        in <! x
-      end,
-    )
+fib = _ => do
+  .gab.range(100, 200):transduce(
+      100
+      \first
+      iter:tap x => in <! x)
 end :go
 
 { fib } :print
 
 # Take a hundred values from the out channel
-res :: do
-  xf :: iter:take 100    .
-    |> iter:tap \print
+res = _ => do
+  xf = iter:take 100 |> iter:tap \print
 
   out :transduce(.nil, \first, xf)
 end :go
@@ -48,12 +41,7 @@ end :go
 { res } :print
 
 # Spawn 100 workers
-.gab.range      .
-  (100,200) .
-  :transduce(
-    100,
-    \first,
-    iter:tap do
-      work:go
-    end,
-  )
+.gab.range(100,200):transduce(
+    100
+    \first
+    iter:tap _ => work:go)

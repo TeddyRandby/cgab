@@ -1,0 +1,5 @@
+tuple_t  = { \gab.tuple  [ .values ] } ?
+list_t   = { \gab.list   [ .values ] } ?
+block_t  = { \gab.block  [ .values ] } ?
+record_t = { \gab.record [ .values ] } ?
+send_t   = { \gab.send   [ [.lhs], [.msg], [.rhs] ] } ?

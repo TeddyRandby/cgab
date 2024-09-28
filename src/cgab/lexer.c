@@ -16,9 +16,7 @@ bool can_start_symbol(uint8_t c) { return is_alpha(c) || c == '_'; }
 
 bool can_continue_symbol(uint8_t c) { return can_start_symbol(c) || c == '.'; }
 
-bool can_end_symbol(uint8_t c) {
-  return c == '?' || c == '!' || c == '[' || c == '{';
-}
+bool can_end_symbol(uint8_t c) { return c == '?' || c == '!'; }
 
 bool can_start_operator(uint8_t c) {
   switch (c) {
@@ -338,7 +336,7 @@ gab_token other(gab_lx *self) {
       return lexer_error(self, GAB_MALFORMED_TOKEN);
     }
 
-    return TOKEN_NEWLINE;
+    return lexer_error(self, GAB_MALFORMED_TOKEN);
 
   default:
     if (can_start_operator(peek(self)))
@@ -446,8 +444,10 @@ void gab_srcdestroy(struct gab_src *self) {
   v_uint64_t_destroy(&self->bytecode_toks);
 
   for (size_t i = 0; i < self->len; i++) {
-    free(self->thread_bytecode[i].constants);
-    free(self->thread_bytecode[i].bytecode);
+    if (self->thread_bytecode[i].constants)
+      free(self->thread_bytecode[i].constants);
+    if (self->thread_bytecode[i].bytecode)
+      free(self->thread_bytecode[i].bytecode);
   }
 
   free(self);
@@ -465,9 +465,11 @@ struct gab_src *gab_src(struct gab_triple gab, gab_value name,
     return src;
   }
 
-  struct gab_src *src = malloc(sizeof(struct gab_src) +
-                               (gab.eg->len - 1) * sizeof(struct src_bytecode));
-  memset(src, 0, sizeof(struct gab_src));
+  size_t sz =
+      sizeof(struct gab_src) + (gab.eg->len - 1) * sizeof(struct src_bytecode);
+
+  struct gab_src *src = malloc(sz);
+  memset(src, 0, sz);
 
   src->len = gab.eg->len - 1;
   src->source = a_char_create(source, len);

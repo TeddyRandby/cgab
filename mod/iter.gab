@@ -47,84 +47,65 @@ end)
   .false (r, acc, xs, s) => (s, .stop, r, acc),
 }
 
-\map :defiter! do f
-  do r, acc, xs
-    (.nil, r:reduce.step(acc, f(xs**)))
-  end
+\map :defiter! f => do
+  (r, acc, xs) => (.nil, r:reduce.step(acc, f(xs**)))
 end
 
-\tap :defiter! do f
-  do r, acc, xs
+\tap :defiter! f => do
+  (r, acc, xs) => do
     f(xs**)
     (.nil, r:reduce.step(acc, xs**))
   end
 end
 
-\filter :defiter! do f
-  do r, acc, xs
-    f(xs**) .
-      :iter.conditionally(r, acc, xs)
+\filter :defiter! f => do
+  (r, acc, xs) => do
+    f(xs**):iter.conditionally(r, acc, xs)
   end
 end
 
-\take :defiter!(do n
-  do r, acc, xs, nth
+\take :defiter!(n => do
+  (r, acc, xs, nth) => do
     nxth = nth + 1
-    (nxth < n) .
-      :iter.stop_conditionally_inclusive(r, acc, xs, nxth)
+    (nxth < n):iter.stop_conditionally_inclusive(r, acc, xs, nxth)
   end
 end, 0)
 
 
-\take_while :defiter! do f
-  do r, acc, xs
-    f(xs**):iter.stop_conditionally(r, acc, xs)
-  end
+\take_while :defiter! f => do
+  (r, acc, xs) => f(xs**):iter.stop_conditionally(r, acc, xs)
 end
 
-\drop :defiter!(do n
-  do r, acc, xs, nth
-    (nth >= n) .
-      :iter.conditionally(r, acc, xs, nth + 1)
+\drop :defiter!(n => do
+  (r, acc, xs, nth) => do
+    (nth >= n):iter.conditionally(r, acc, xs, nth + 1)
   end
 end, 0)
 
 \iter.do_dropwhile :defcase! {
-  .true: do r, acc, xs, b, f
-    (.true, r:reduce.step(acc, xs**))
-  end,
-  .false: do r, acc, xs, b, f
+  .true (r, acc, xs, b, f) => (.true, r:reduce.step(acc, xs**))
+  .false (r, acc, xs, b, f) => do
     new_b = b | f(xs**) !
     new_b:iter.conditionally(r, acc, xs, new_b)
-  end,
+  end
 }
 
-\drop_while :defiter!(do f
-  do r, acc, xs, b
-    b:iter.do_dropwhile(r, acc, xs, b, f)
-  end
+\drop_while :defiter!(f => do
+  (r, acc, xs, b) => b:iter.do_dropwhile(r, acc, xs, b, f)
 end, .false)
 
 \iter.do_interpose :defcase! {
-  .next: do r, acc, xs
-    (.true, r:reduce.step(acc, xs**))
-  end,
-  .stop: do r, acc, xs
-    (.true, .stop, r, acc)
-  end,
-  .true: do r, acc, xs, sep
+  .next (r, acc, xs) => (.true, r:reduce.step(acc, xs**))
+  .stop (r, acc, xs) => (.true, .stop, r, acc)
+  .true (r, acc, xs, sep) => do
     cmd, r, acc = r:reduce.step(acc, sep)
     cmd:iter.do_interpose(r, acc, xs)
-  end,
-  .false: do r, acc, xs
-    (.true, r:reduce.step(acc, xs**))
-  end,
+  end
+  .false (r, acc, xs) => (.true, r:reduce.step(acc, xs**))
 }
 
-\interpose :defiter!(do sep
-  do r, acc, xs, started
-    started:iter.do_interpose(r,acc,xs,sep)
-  end
+\interpose :defiter!(sep => do
+  (r, acc, xs, started) => started:iter.do_interpose(r,acc,xs,sep)
 end, .false)
 
 module
