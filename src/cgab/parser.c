@@ -98,7 +98,7 @@
 
       - Blocks (more specifically, prototypes) are given a shape just like
  records have.
-      - gab_unquote() accepts a *shape* as an argument. This shape determines
+      - gab_compile() accepts a *shape* as an argument. This shape determines
  the environment available as the AST is compiled into a block.
           -> How does this handle nested scopes and chaining?
           -> How do we implement load_local/load_upvalue
@@ -360,10 +360,10 @@ static inline void skip_newlines(struct gab_triple gab, struct parser *parser) {
 }
 
 bool msg_is_specialform(struct gab_triple gab, gab_value msg) {
-  if (msg == gab_message(gab, "gab.runtime.env.put!"))
+  if (msg == gab_message(gab, mGAB_ASSIGN))
     return true;
 
-  if (msg == gab_message(gab, "gab.runtime.block"))
+  if (msg == gab_message(gab, mGAB_BLOCK))
     return true;
 
   return false;
@@ -1045,6 +1045,10 @@ static inline void push_storel(struct bc *bc, uint8_t local, size_t t) {
 
 static inline uint8_t encode_arity(struct gab_triple gab, gab_value lhs,
                                    gab_value rhs) {
+  if (rhs == gab_undefined && lhs == gab_undefined) {
+    return 1;
+  }
+
   if (rhs == gab_undefined || node_isempty(rhs)) {
     bool is_multi = node_ismulti(gab, lhs);
     size_t len = node_len(gab, lhs);
@@ -1323,7 +1327,7 @@ static struct lookup_res resolve_id(struct gab_triple gab, struct bc *bc,
     return (struct lookup_res){env, kLOOKUP_LOC, idx};
 }
 
-gab_value unquote_symbol(struct gab_triple gab, struct bc *bc, gab_value node,
+gab_value compile_symbol(struct gab_triple gab, struct bc *bc, gab_value node,
                          gab_value env) {
   struct lookup_res res = resolve_id(gab, bc, env, node);
 
@@ -1340,13 +1344,13 @@ gab_value unquote_symbol(struct gab_triple gab, struct bc *bc, gab_value node,
   }
 };
 
-gab_value unquote_tuple(struct gab_triple gab, struct bc *bc, gab_value node,
+gab_value compile_tuple(struct gab_triple gab, struct bc *bc, gab_value node,
                         gab_value env);
 
-gab_value unquote_record(struct gab_triple gab, struct bc *bc, gab_value node,
+gab_value compile_record(struct gab_triple gab, struct bc *bc, gab_value node,
                          gab_value env);
 
-gab_value unquote_value(struct gab_triple gab, struct bc *bc, gab_value node,
+gab_value compile_value(struct gab_triple gab, struct bc *bc, gab_value node,
                         gab_value env) {
 
   switch (gab_valkind(node)) {
@@ -1358,92 +1362,89 @@ gab_value unquote_value(struct gab_triple gab, struct bc *bc, gab_value node,
     return env;
 
   case kGAB_SYMBOL:
-    return unquote_symbol(gab, bc, node, env);
+    return compile_symbol(gab, bc, node, env);
 
   case kGAB_RECORD:
-    return unquote_record(gab, bc, node, env);
+    return compile_record(gab, bc, node, env);
 
   default:
     assert(false && "UN-UNQUOATABLE VALUE");
+    return gab_undefined;
   }
 }
 
-gab_value unquote_block(struct gab_triple gab, struct bc *bc, gab_value node,
-                        gab_value env) {
-  gab_value lhs_node = gab_mrecat(gab, node, "gab.lhs");
-  assert(gab_reclen(lhs_node) == 1);
+gab_value unpack_binding_into_env(struct gab_triple gab, struct bc *bc,
+                                  gab_value bindings, gab_value env,
+                                  gab_value values) {
+  size_t local_ctx = gab_reclen(env) - 1;
+  gab_value ctx = gab_uvrecat(env, local_ctx);
 
-  gab_value proto = gab_uvrecat(lhs_node, 0);
-  assert(gab_valkind(proto) == kGAB_PROTOTYPE);
-
-  push_op(bc, OP_BLOCK, 0);
-  push_short(bc, addk(gab, bc, proto), 0);
-
-  return env;
-}
-
-gab_value unquote_envput(struct gab_triple gab, struct bc *bc, gab_value node,
-                         gab_value env) {
-  gab_value lhs_node = gab_mrecat(gab, node, "gab.lhs");
-  gab_value rhs_node = gab_mrecat(gab, node, "gab.rhs");
-
-  env = unquote_tuple(gab, bc, rhs_node, env);
-
-  if (env == gab_undefined)
-    return gab_undefined;
-
-  size_t ntargets = gab_reclen(lhs_node);
-
-  gab_value ids[ntargets];
   int listpack_at_n = -1, recpack_at_n = -1;
 
+  size_t len = gab_reclen(bindings);
+  gab_value targets[len];
   size_t actual_targets = 0; // May be less than we started with (destructuring
-                             // could make it more later)
-  for (size_t i = 0; i < ntargets; i++) {
-    gab_value id = gab_uvrecat(lhs_node, i);
 
-    if (gab_valkind(id) == kGAB_RECORD) {
-      if (gab_valkind(gab_recshp(id)) == kGAB_SHAPE) {
+  for (size_t i = 0; i < len; i++) {
+    gab_value binding = gab_uvrecat(bindings, i);
+
+    switch (gab_valkind(binding)) {
+
+    case kGAB_SYMBOL:
+      ctx = gab_recput(gab, ctx, binding, gab_nil);
+      targets[actual_targets++] = binding;
+      break;
+
+    case kGAB_RECORD: {
+      if (gab_valkind(gab_recshp(binding)) == kGAB_SHAPE) {
         // Assume this is a send
-        gab_value lhs = gab_mrecat(gab, id, "gab.lhs");
-        gab_value rhs = gab_mrecat(gab, id, "gab.rhs");
-        gab_value m = gab_mrecat(gab, id, "gab.msg");
+        gab_value lhs = gab_mrecat(gab, binding, "gab.lhs");
+        gab_value rhs = gab_mrecat(gab, binding, "gab.rhs");
+        gab_value m = gab_mrecat(gab, binding, "gab.msg");
 
         gab_value rec = gab_uvrecat(lhs, 0);
 
         if (rec != gab_sigil(gab, "gab.list"))
-          return gab_undefined;
+          goto err;
 
         if (m != gab_message(gab, mGAB_CALL))
-          return gab_undefined;
+          goto err;
 
         if (!node_isempty(rhs))
-          return gab_undefined;
+          goto err;
 
         if (i == 0)
-          return gab_undefined;
+          goto err;
 
         if (listpack_at_n >= 0 || recpack_at_n >= 0)
-          return gab_undefined;
+          goto err;
 
         listpack_at_n = i - 1;
 
         continue;
+
+      err:
+        return bc_error(gab, bc, GAB_INVALID_REST_VARIABLE,
+                        "$ is invalid assignment", lhs),
+               gab_undefined;
       }
     }
 
-    if (gab_valkind(id) != kGAB_SYMBOL)
-      return gab_undefined;
-
-    ids[actual_targets++] = id;
+    default:
+      return bc_error(gab, bc, GAB_INVALID_REST_VARIABLE,
+                      "$ is invalid assignment", binding),
+             gab_undefined;
+    }
   }
 
   if (listpack_at_n >= 0)
-    push_listpack(gab, bc, rhs_node, listpack_at_n,
+    push_listpack(gab, bc, values, listpack_at_n,
                   actual_targets - listpack_at_n - 1, 0);
 
+  env = gab_urecput(gab, env, local_ctx, ctx);
+
   for (size_t i = 0; i < actual_targets; i++) {
-    gab_value target = ids[i];
+    gab_value target = targets[actual_targets - i - 1];
 
     switch (gab_valkind(target)) {
     case kGAB_SYMBOL: {
@@ -1454,18 +1455,17 @@ gab_value unquote_envput(struct gab_triple gab, struct bc *bc, gab_value node,
         push_storel(bc, res.idx, 0);
         break;
       case kLOOKUP_UPV:
-        assert(false && "INVALID ASSIGNMENT TARGET");
-        break;
       case kLOOKUP_NONE:
-        push_storel(bc, add_local(gab, env, target), 0);
+        assert(false && "INVALID ASSIGNMENT TARGET");
         break;
       }
 
       break;
     }
     default:
-      assert(false && "INVALID ASSIGNMENT TARGET");
-      break;
+      return bc_error(gab, bc, GAB_INVALID_REST_VARIABLE,
+                      "$ is invalid assignment", target),
+             gab_undefined;
     }
 
     if (i + 1 < actual_targets)
@@ -1475,23 +1475,65 @@ gab_value unquote_envput(struct gab_triple gab, struct bc *bc, gab_value node,
   return env;
 }
 
-gab_value unquote_specialform(struct gab_triple gab, struct bc *bc,
+gab_value compile_block(struct gab_triple gab, struct bc *bc, gab_value node,
+                        gab_value env) {
+  gab_value LHS = gab_mrecat(gab, node, "gab.lhs");
+  gab_value RHS = gab_mrecat(gab, node, "gab.rhs");
+
+  env = gab_lstpush(gab, env,
+                    gab_recordof(gab, gab_symbol(gab, "self"), gab_nil));
+
+  union gab_value_pair pair =
+      gab_compile(gab, RHS, env, LHS, RHS, bc->src->name);
+
+  if (pair.prototype == gab_undefined)
+    return gab_undefined;
+
+  env = gab_lstpop(gab, pair.environment, nullptr);
+
+  assert(gab_valkind(pair.prototype) == kGAB_PROTOTYPE);
+
+  push_op(bc, OP_BLOCK, 0);
+  push_short(bc, addk(gab, bc, pair.prototype), 0);
+
+  return env;
+}
+
+gab_value compile_assign(struct gab_triple gab, struct bc *bc, gab_value node,
+                         gab_value env) {
+  gab_value lhs_node = gab_mrecat(gab, node, "gab.lhs");
+  gab_value rhs_node = gab_mrecat(gab, node, "gab.rhs");
+
+  env = compile_tuple(gab, bc, rhs_node, env);
+
+  if (env == gab_undefined)
+    return gab_undefined;
+
+  env = unpack_binding_into_env(gab, bc, lhs_node, env, rhs_node);
+
+  if (env == gab_undefined)
+    return gab_undefined;
+
+  return env;
+}
+
+gab_value compile_specialform(struct gab_triple gab, struct bc *bc,
                               gab_value node, gab_value env) {
   gab_value msg = gab_mrecat(gab, node, "gab.msg");
 
-  if (msg == gab_message(gab, "gab.runtime.env.put!"))
-    return unquote_envput(gab, bc, node, env);
+  if (msg == gab_message(gab, mGAB_ASSIGN))
+    return compile_assign(gab, bc, node, env);
 
-  if (msg == gab_message(gab, "gab.runtime.block"))
-    return unquote_block(gab, bc, node, env);
+  if (msg == gab_message(gab, mGAB_BLOCK))
+    return compile_block(gab, bc, node, env);
 
   assert(false && "UNHANDLED SPECIAL FORM");
 };
 
-gab_value unquote_record(struct gab_triple gab, struct bc *bc, gab_value node,
+gab_value compile_record(struct gab_triple gab, struct bc *bc, gab_value node,
                          gab_value env) {
   // Unquoting a record can mean one of two things:
-  //  - This is a block, and each of the membres need to be unquoted and
+  //  - This is a block, and each of the membres need to be compiled and
   //  trimmed, except for the last.
   //  - This is a send, and the send needs to be emitted.
   switch (gab_valkind(gab_recshp(node))) {
@@ -1502,9 +1544,9 @@ gab_value unquote_record(struct gab_triple gab, struct bc *bc, gab_value node,
     gab_value msg = gab_mrecat(gab, node, "gab.msg");
 
     if (msg_is_specialform(gab, msg))
-      return unquote_specialform(gab, bc, node, env);
+      return compile_specialform(gab, bc, node, env);
 
-    env = unquote_tuple(gab, bc, lhs_node, env);
+    env = compile_tuple(gab, bc, lhs_node, env);
 
     if (env == gab_undefined)
       return gab_undefined;
@@ -1512,7 +1554,7 @@ gab_value unquote_record(struct gab_triple gab, struct bc *bc, gab_value node,
     if (node_ismulti(gab, lhs_node) && !node_isempty(rhs_node))
       push_trim(bc, 1, 0);
 
-    env = unquote_tuple(gab, bc, rhs_node, env);
+    env = compile_tuple(gab, bc, rhs_node, env);
 
     if (env == gab_undefined)
       return gab_undefined;
@@ -1527,7 +1569,7 @@ gab_value unquote_record(struct gab_triple gab, struct bc *bc, gab_value node,
     for (size_t i = 0; i < len; i++) {
       gab_value child_node = gab_uvrecat(node, i);
 
-      env = unquote_tuple(gab, bc, child_node, env);
+      env = compile_tuple(gab, bc, child_node, env);
 
       if (env == gab_undefined)
         return gab_undefined;
@@ -1544,175 +1586,18 @@ gab_value unquote_record(struct gab_triple gab, struct bc *bc, gab_value node,
   return env;
 }
 
-gab_value unquote_tuple(struct gab_triple gab, struct bc *bc, gab_value node,
+gab_value compile_tuple(struct gab_triple gab, struct bc *bc, gab_value node,
                         gab_value env) {
   size_t len = gab_reclen(node);
 
   for (size_t i = 0; i < len; i++) {
-    env = unquote_value(gab, bc, gab_uvrecat(node, i), env);
+    env = compile_value(gab, bc, gab_uvrecat(node, i), env);
 
     if (env == gab_undefined)
       return gab_undefined;
   }
 
   return env;
-}
-
-struct expand_res {
-  gab_value node, env;
-};
-
-#define EXPAND_NODE(n) ((struct expand_res){(n), env})
-#define EXPAND_NODE_ENV(n, env) ((struct expand_res){(n), env})
-
-struct expand_res expand_record(struct gab_triple gab, gab_value parent_node,
-                                size_t n, gab_value env, gab_value mod);
-
-struct expand_res expand_value(struct gab_triple gab, gab_value parent_node,
-                               size_t n, gab_value env, gab_value mod) {
-  gab_value node = gab_uvrecat(parent_node, n);
-
-  switch (gab_valkind(node)) {
-  case kGAB_RECORD:
-    return expand_record(gab, parent_node, n, env, mod);
-  default:
-    return EXPAND_NODE(parent_node);
-  }
-}
-
-struct expand_res expand_tuple(struct gab_triple gab, gab_value node,
-                               gab_value env, gab_value mod) {
-
-  size_t len = gab_reclen(node);
-
-  for (size_t i = 0; i < len; i++) {
-    struct expand_res val = expand_value(gab, node, i, env, mod);
-
-    if (val.node == gab_undefined)
-      return EXPAND_NODE(gab_undefined);
-
-    node = val.node;
-    env = val.env;
-  }
-
-  return EXPAND_NODE_ENV(node, env);
-}
-
-struct expand_res expand_record(struct gab_triple gab, gab_value parent_node,
-                                size_t n, gab_value env, gab_value mod) {
-  gab_value node = gab_uvrecat(parent_node, n);
-
-  switch (gab_valkind(gab_recshp(node))) {
-  case kGAB_SHAPE: {
-    // We have a send node!
-    gab_value lhs_node = gab_mrecat(gab, node, "gab.lhs");
-    gab_value rhs_node = gab_mrecat(gab, node, "gab.rhs");
-    gab_value msg = gab_mrecat(gab, node, "gab.msg");
-
-    /*
-     * When the gc worker is parsing:
-     *  * The worker is locked and accumulates allocations in its lock buffer.
-     */
-    a_gab_value *result = gab_sendmacro(gab, (struct gab_send_argt){
-                                                 .message = msg,
-                                                 .len = 4,
-                                                 .argv =
-                                                     (gab_value[]){
-                                                         lhs_node,
-                                                         rhs_node,
-                                                         env,
-                                                         mod,
-                                                     },
-                                             });
-
-    if (result == nullptr) {
-      // If i'm not a macro to expand, try to expand my lhs and rhs.
-      struct expand_res lhs_res = expand_tuple(gab, lhs_node, env, mod);
-      struct expand_res rhs_res = expand_tuple(gab, rhs_node, lhs_res.env, mod);
-
-      if (lhs_res.node == lhs_node && lhs_res.env == env)
-        if (rhs_res.node == rhs_node && rhs_res.env == env)
-          return EXPAND_NODE(parent_node);
-
-      if (lhs_res.node != lhs_node)
-        node = gab_recput(gab, node, gab_message(gab, "gab.lhs"), lhs_res.node);
-
-      if (rhs_res.node != rhs_node)
-        node = gab_recput(gab, node, gab_message(gab, "gab.rhs"), rhs_res.node);
-
-      parent_node = gab_urecput(gab, parent_node, n, node);
-      return EXPAND_NODE_ENV(parent_node, rhs_res.env);
-    }
-
-    gab_value ok = result->len > 0 ? result->data[0] : gab_nil;
-
-    if (ok != gab_ok)
-      return a_gab_value_destroy(result), EXPAND_NODE(gab_undefined);
-
-    gab_value result_node = result->len > 1 ? result->data[1] : gab_nil;
-    gab_value result_env = result->len > 2 ? result->data[2] : gab_nil;
-
-    gab_negkeep(gab.eg, result->len - 1, result->data + 1);
-
-    node = result_node == gab_nil ? node : result_node;
-    env = result_env == gab_nil ? env : result_env;
-
-    parent_node = gab_urecput(gab, parent_node, n, node);
-
-    // Return the node and env pair here
-    return a_gab_value_destroy(result), EXPAND_NODE_ENV(parent_node, env);
-  }
-  case kGAB_SHAPELIST: {
-    size_t len = gab_reclen(node);
-
-    gab_value result = node;
-
-    for (size_t i = 0; i < len; i++) {
-      gab_value in_node = gab_uvrecat(result, i);
-      struct expand_res rhs = expand_tuple(gab, in_node, env, mod);
-
-      if (rhs.node == gab_undefined)
-        return EXPAND_NODE(gab_undefined);
-
-      if (env != rhs.env)
-        env = rhs.env;
-
-      if (in_node != rhs.node)
-        result = gab_urecput(gab, result, i, rhs.node);
-    }
-
-    if (node != result)
-      parent_node = gab_urecput(gab, parent_node, n, result);
-
-    return EXPAND_NODE_ENV(parent_node, env);
-  }
-  default:
-    assert(false && "INVALID SHAPE KIND");
-  }
-
-  return EXPAND_NODE(gab_undefined);
-}
-
-/*
- * Expand all the macros in the ast
- */
-struct expand_res gab_expand(struct gab_triple gab, gab_value ast,
-                             gab_value env, gab_value mod) {
-  struct expand_res r = {ast, env};
-
-  for (;;) {
-    struct expand_res r_in = r;
-
-    assert(gab_valkind(ast) == kGAB_RECORD);
-    assert(gab_valkind(env) == kGAB_RECORD);
-
-    r = expand_tuple(gab, r_in.node, r_in.env, mod);
-
-    if (r.node == r_in.node && r.env == r_in.env)
-      break;
-  }
-
-  return r;
 }
 
 void build_upvdata(gab_value env, uint8_t len, char data[static len]) {
@@ -1769,33 +1654,30 @@ void build_upvdata(gab_value env, uint8_t len, char data[static len]) {
  *     - local variables captured by child scopes
  *     - update parent scopes whose variables it captures
  */
-union gab_value_pair gab_unquote(struct gab_triple gab, gab_value ast,
-                                 gab_value env, gab_value mod) {
+union gab_value_pair gab_compile(struct gab_triple gab, gab_value ast,
+                                 gab_value env, gab_value bindings,
+                                 gab_value values, gab_value mod) {
   assert(gab_valkind(ast) == kGAB_RECORD);
   assert(gab_valkind(env) == kGAB_RECORD);
-
-  size_t nenvs = gab_reclen(env);
-  assert(nenvs > 0);
 
   struct gab_src *src = d_gab_src_read(&gab.eg->sources, mod);
 
   if (src == nullptr)
     return (union gab_value_pair){{gab_undefined, gab_undefined}};
 
-  struct expand_res res = gab_expand(gab, ast, env, mod);
-
-  if (res.node == gab_undefined)
-    return (union gab_value_pair){{gab_undefined, gab_undefined}};
-
   struct bc bc = {.ks = &src->constants, .src = src};
+
+  env = unpack_binding_into_env(gab, &bc, bindings, env, values);
+
+  size_t nenvs = gab_reclen(env);
+  assert(nenvs > 0);
 
   size_t nargs = gab_reclen(gab_uvrecat(env, nenvs - 1));
   assert(nargs < GAB_ARG_MAX);
 
-  push_trim(&bc, 0, 0); // A trim to be patched later.
   assert(bc.bc.len == bc.bc_toks.len);
 
-  env = unquote_tuple(gab, &bc, res.node, res.env);
+  env = compile_tuple(gab, &bc, ast, env);
   assert(bc.bc.len == bc.bc_toks.len);
 
   if (env == gab_undefined)
@@ -1807,12 +1689,10 @@ union gab_value_pair gab_unquote(struct gab_triple gab, gab_value ast,
   gab_value local_env = gab_uvrecat(env, nenvs - 1);
   assert(bc.bc.len == bc.bc_toks.len);
 
-  push_ret(gab, &bc, res.node, 0);
+  push_ret(gab, &bc, ast, 0);
 
   size_t nlocals = locals_in_env(local_env);
   assert(nlocals < GAB_LOCAL_MAX);
-
-  v_uint8_t_set(&bc.bc, 1, nlocals); // Patch the initial trim
 
   size_t nupvalues = upvalues_in_env(local_env);
   assert(nupvalues < GAB_UPVALUE_MAX);
@@ -1839,6 +1719,9 @@ union gab_value_pair gab_unquote(struct gab_triple gab, gab_value ast,
                                       .nslots = 0,
                                       .data = data,
                                   });
+
+  if (gab.flags & fGAB_BUILD_DUMP)
+    gab_fmodinspect(stdout, GAB_VAL_TO_PROTOTYPE(proto));
 
   // call srcappend to append bytecode to src module
   // actually track bc_tok offset
@@ -1871,25 +1754,23 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
   if (src == nullptr)
     return gab_gcunlock(gab), gab_undefined;
 
-  gab_value vargv[args.len + 1];
-  vargv[0] = gab_string(gab, "self");
+  gab_value vargv[args.len];
+  for (int i = 0; i < args.len; i++)
+    vargv[i] = gab_symbol(gab, args.argv[i]);
 
-  for (int i = 0; i < args.len; i++) {
-    vargv[i + 1] = gab_string(gab, args.argv[i]);
-  }
+  gab_value env =
+      gab_listof(gab, gab_recordof(gab, gab_symbol(gab, "self"), gab_nil));
 
-  gab_value env = gab_listof(
-      gab, gab_shptorec(gab, gab_shape(gab, 1, args.len + 1, vargv)));
+  gab_value bindings = gab_list(gab, args.len, vargv);
 
-  union gab_value_pair res = gab_unquote(gab, ast, env, mod);
+  union gab_value_pair res = gab_compile(gab, ast, env, bindings, gab_undefined, mod);
+
+  assert(res.prototype != gab_undefined);
 
   if (res.prototype == gab_undefined)
     return gab_gcunlock(gab), gab_undefined;
 
   gab_srccomplete(gab, src);
-
-  if (gab.flags & fGAB_BUILD_DUMP)
-    gab_fmodinspect(stdout, GAB_VAL_TO_PROTOTYPE(res.prototype));
 
   gab_value main = gab_block(gab, res.prototype);
 
