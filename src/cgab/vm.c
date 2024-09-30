@@ -397,7 +397,8 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
 
   gab_niref(gab, 1, 2, results);
 
-  a_gab_value* res =  a_gab_value_create(results, sizeof(results) / sizeof(gab_value));
+  a_gab_value *res =
+      a_gab_value_create(results, sizeof(results) / sizeof(gab_value));
 
   gab_niref(gab, 1, res->len, res->data);
 
@@ -722,7 +723,7 @@ a_gab_value *ok(OP_HANDLER_ARGS) {
 
 a_gab_value *do_vmexecfiber(struct gab_triple gab, gab_value f,
                             struct gab_impl_rest res) {
-  assert(gab_valkind(f) == kGAB_FIBER || gab_valkind(f) == kGAB_FIBERMACRO);
+  assert(gab_valkind(f) == kGAB_FIBER);
   struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
 
   gab_value message = fiber->data[0];
@@ -807,15 +808,13 @@ a_gab_value *do_vmexecfiber(struct gab_triple gab, gab_value f,
 };
 
 a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
-  assert(gab_valkind(f) == kGAB_FIBER || gab_valkind(f) == kGAB_FIBERMACRO);
+  assert(gab_valkind(f) == kGAB_FIBER);
   struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
 
   gab_value receiver = fiber->data[1];
   gab_value message = fiber->data[0];
 
-  struct gab_impl_rest res = gab_valkind(f) == kGAB_FIBERMACRO
-                                 ? gab_implmacro(gab, message)
-                                 : gab_impl(gab, message, receiver);
+  struct gab_impl_rest res = gab_impl(gab, message, receiver);
 
   return do_vmexecfiber(gab, f, res);
 }

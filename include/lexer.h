@@ -32,6 +32,9 @@ struct gab_src {
   v_uint8_t bytecode;
   v_uint64_t bytecode_toks;
 
+  d_uint64_t node_begin_toks;
+  d_uint64_t node_end_toks;
+
   size_t len;
   /**
    * Each OS thread needs its own copy of the bytecode and constants.

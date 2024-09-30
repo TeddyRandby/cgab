@@ -209,7 +209,6 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
     return fprintf(stream, "<gab.channel %p>", GAB_VAL_TO_CHANNEL(self));
   }
   case kGAB_FIBER:
-  case kGAB_FIBERMACRO:
   case kGAB_FIBERRUNNING:
   case kGAB_FIBERDONE: {
     return fprintf(stream, "<gab.fiber %p>", GAB_VAL_TO_FIBER(self));
@@ -1046,16 +1045,13 @@ gab_value gab_fiber(struct gab_triple gab, struct gab_fiber_argt args) {
   assert(gab_valkind(args.message) == kGAB_MESSAGE);
 
   struct gab_obj_fiber *self =
-      GAB_CREATE_FLEX_OBJ(gab_obj_fiber, gab_value, args.argc + 2,
-                          args.is_macro ? kGAB_FIBERMACRO : kGAB_FIBER);
+      GAB_CREATE_FLEX_OBJ(gab_obj_fiber, gab_value, args.argc + 2, kGAB_FIBER);
 
   if (gab_thisfiber(gab) == gab_undefined) {
     self->messages = gab.eg->messages;
-    self->macros = gab.eg->macros;
   } else {
     struct gab_obj_fiber *parent = GAB_VAL_TO_FIBER(gab_thisfiber(gab));
     self->messages = parent->messages;
-    self->macros = parent->macros;
   }
 
   self->len = args.argc + 2;
@@ -1086,8 +1082,7 @@ gab_value gab_fiber(struct gab_triple gab, struct gab_fiber_argt args) {
 }
 
 a_gab_value *gab_fibawait(struct gab_triple gab, gab_value f) {
-  assert(gab_valkind(f) == kGAB_FIBER || gab_valkind(f) == kGAB_FIBERMACRO ||
-         gab_valkind(f) == kGAB_FIBERRUNNING ||
+  assert(gab_valkind(f) == kGAB_FIBER || gab_valkind(f) == kGAB_FIBERRUNNING ||
          gab_valkind(f) == kGAB_FIBERDONE);
   struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
 

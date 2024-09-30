@@ -11,7 +11,7 @@ module = .gab.iter
     \reducer .nil,
   }
 
-  self :def!(module, xs[] => do
+  self :def!(module, (xs[]) => do
     mod.t :reducer cx(xs**)
   end)
 
@@ -21,8 +21,7 @@ module = .gab.iter
     \iter.apply c => self:continuation(self:continuation:iter.apply c),
     \ (acc, xs) => self:reducer (self:continuation, acc, xs, self:state),
     \reduce.step (acc, xs[]) => do
-      s, cmd, c, acc = self(acc, xs)
-
+      (s, cmd, c, acc) = self(acc, xs)
       (cmd, self:continuation c :state s, acc)
     end,
     \reduce.done (acc) => self:continuation:reduce.done acc,
@@ -37,7 +36,7 @@ end)
 \iter.stop_conditionally_inclusive :defcase! {
   .true (r, acc, xs, s) => (s, r:reduce.step(acc, xs**)),
   .false (r, acc, xs, s) => do
-    cmd, r, acc = r:reduce.step(acc, xs**)
+    (cmd, r, acc) = r:reduce.step(acc, xs**)
     (s, .stop, r, acc)
   end,
 }
@@ -53,7 +52,7 @@ end
 
 \tap :defiter! f => do
   (r, acc, xs) => do
-    f(xs**)
+    f:(xs**)
     (.nil, r:reduce.step(acc, xs**))
   end
 end
@@ -73,7 +72,7 @@ end, 0)
 
 
 \take_while :defiter! f => do
-  (r, acc, xs) => f(xs**):iter.stop_conditionally(r, acc, xs)
+  (r, acc, xs) => f:(xs**):iter.stop_conditionally(r, acc, xs)
 end
 
 \drop :defiter!(n => do
@@ -98,7 +97,7 @@ end, .false)
   .next (r, acc, xs) => (.true, r:reduce.step(acc, xs**))
   .stop (r, acc, xs) => (.true, .stop, r, acc)
   .true (r, acc, xs, sep) => do
-    cmd, r, acc = r:reduce.step(acc, sep)
+    (cmd, r, acc) = r:reduce.step(acc, sep)
     cmd:iter.do_interpose(r, acc, xs)
   end
   .false (r, acc, xs) => (.true, r:reduce.step(acc, xs**))

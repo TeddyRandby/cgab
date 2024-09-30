@@ -520,11 +520,10 @@ void processepoch(struct gab_triple gab) {
 
   size_t stack_size = vm->sp - vm->sb;
 
-  assert(stack_size + wk->lock_keep.len + 3 < cGAB_GC_MOD_BUFF_MAX);
+  assert(stack_size + wk->lock_keep.len + 2 < cGAB_GC_MOD_BUFF_MAX);
 
   bufpush(gab, kGAB_BUF_STK, gab.wkid, e, gab_valtoo(wk->fiber));
   bufpush(gab, kGAB_BUF_STK, gab.wkid, e, gab_valtoo(fb->messages));
-  bufpush(gab, kGAB_BUF_STK, gab.wkid, e, gab_valtoo(fb->macros));
 
   for (size_t i = 0; i < stack_size; i++) {
     if (gab_valiso(vm->sb[i])) {
@@ -616,9 +615,6 @@ void gab_gcdocollect(struct gab_triple gab) {
   if (gab_valiso(gab.eg->messages))
     inc_obj_ref(gab, gab_valtoo(gab.eg->messages));
 
-  if (gab_valiso(gab.eg->macros))
-    inc_obj_ref(gab, gab_valtoo(gab.eg->macros));
-
   if (gab_valiso(gab.eg->shapes))
     inc_obj_ref(gab, gab_valtoo(gab.eg->shapes));
 
@@ -632,9 +628,6 @@ void gab_gcdocollect(struct gab_triple gab) {
 
   if (gab_valiso(gab.eg->messages))
     queue_decrement(gab, gab_valtoo(gab.eg->messages));
-
-  if (gab_valiso(gab.eg->macros))
-    queue_decrement(gab, gab_valtoo(gab.eg->macros));
 
   if (gab_valiso(gab.eg->shapes))
     queue_decrement(gab, gab_valtoo(gab.eg->shapes));

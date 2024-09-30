@@ -366,7 +366,6 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->shapes = __gab_shape(gab, 0);
   eg->messages = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
-  eg->macros = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
   eg->work_channel = gab_channel(gab, 0);
 
   gab_iref(gab, eg->work_channel);
@@ -459,8 +458,6 @@ struct gab_triple gab_create(struct gab_create_argt args) {
     }
   }
 
-  gab_suse(gab, "cassignment");
-
   if (!(gab.flags & fGAB_ENV_EMPTY))
     gab_suse(gab, "core");
 
@@ -477,7 +474,6 @@ void gab_destroy(struct gab_triple gab) {
   gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
 
   gab.eg->messages = gab_undefined;
-  gab.eg->macros = gab_undefined;
   gab.eg->shapes = gab_undefined;
 
   gab_collect(gab);
@@ -663,26 +659,6 @@ int gab_ndef(struct gab_triple gab, size_t len,
     return false;
 
   gab.eg->messages = m;
-
-  gab_gcunlock(gab);
-  return true;
-}
-
-int gab_ndefmacro(struct gab_triple gab, size_t len,
-                  struct gab_defmacro_argt args[static len]) {
-  gab_gclock(gab);
-
-  for (size_t i = 0; i < len; i++) {
-    struct gab_defmacro_argt arg = args[i];
-
-    gab_value spec = gab_recat(gab.eg->macros, arg.message);
-
-    if (spec != gab_undefined)
-      return false;
-
-    gab.eg->macros =
-        gab_recput(gab, gab.eg->macros, arg.message, arg.specialization);
-  }
 
   gab_gcunlock(gab);
   return true;
@@ -1024,11 +1000,9 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
 
   if (fbparent == gab_undefined) {
     gab.eg->messages = f->messages;
-    gab.eg->macros = f->macros;
   } else {
     struct gab_obj_fiber *parent = GAB_VAL_TO_FIBER(fbparent);
     parent->messages = f->messages;
-    parent->macros = f->macros;
   }
 
   if (res == nullptr) {
@@ -1205,7 +1179,7 @@ gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
   return fb;
 }
 
-a_gab_value *gab_sendmacro(struct gab_triple gab, struct gab_send_argt args) {
+a_gab_value *gab_send(struct gab_triple gab, struct gab_send_argt args) {
   gab.flags = args.flags;
 
   gab_value fb = gab_fiber(gab, (struct gab_fiber_argt){
@@ -1213,7 +1187,6 @@ a_gab_value *gab_sendmacro(struct gab_triple gab, struct gab_send_argt args) {
                                     .receiver = args.receiver,
                                     .argv = args.argv,
                                     .argc = args.len,
-                                    .is_macro = true,
                                 });
 
   if (fb == gab_undefined)

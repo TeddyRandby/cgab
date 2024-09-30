@@ -61,7 +61,7 @@ falsey_values :defmodule! {
   ## The sequence continues
   .ok (seq.i, seq.v, acc, r, xs) => do
     # Apply the reducer
-    cmd, r, acc = r:reduce.step(acc, xs**)
+    (cmd, r, acc) = r:reduce.step(acc, xs**)
     # proceed to the next sep
     cmd:doreduce(seq.i, seq.v, acc, r)
   end
@@ -72,7 +72,7 @@ falsey_values :defmodule! {
   ## The reducer continues
   .next (seq.i, seq.v, acc, r) => do
     # Apply the producer, resolving new values for the next step
-    ok, seq.v, xs[] = seq.i :seqs.next seq.v
+    (ok, seq.v, xs[]) = seq.i :seqs.next seq.v
     # Tailcall to the next step
     ok:doreduce(seq.i, seq.v, acc, r, xs)
   end
@@ -85,7 +85,7 @@ falsey_values :defmodule! {
 \def.seq! :def! _ => do
   [self] :defmodule! {
     \reduce (acc, r) => do
-      ok, seq.v, xs[] = self :seqs.init
+      (ok, seq.v, xs[]) = self :seqs.init
       ok:doreduce(self, seq.v, acc, r, xs)
     end,
     \transduce: (acc, r, td) => do
@@ -115,11 +115,11 @@ end
 # Forget about their values as soon as their taken
 [channels.t] :defmodule! {
   \seqs.init _ => do
-    ok, v = self >!
+    (ok, v) = self >!
     (ok, v, v)
   end
   \seqs.next _ => do
-    ok, v = self >!
+    (ok, v) = self >!
     (ok, v, v)
   end
 }
@@ -188,8 +188,8 @@ end)
   end, 
   \++ _ => self + 1
   \-- _ => self - 1
-  \even? _ => (self % 2):= 0
-  \odd? _ => self:even?:!
+  \even? _ => self :% 2 :== 0
+  \odd? _ => self :even? :!
   \pos? _ => self > 0
   \neg? _ => self < 0
   \numbers.into _ => self

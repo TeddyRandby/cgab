@@ -114,6 +114,9 @@ void gab_lexcreate(gab_lx *self, struct gab_src *src) {
   v_gab_value_push(&src->constants, gab_err);
   v_gab_value_push(&src->constants, gab_none);
 
+  d_uint64_t_create(&src->node_begin_toks, 64);
+  d_uint64_t_create(&src->node_end_toks, 64);
+
   start_row(self);
 }
 
@@ -450,6 +453,8 @@ void gab_srcdestroy(struct gab_src *self) {
 
   v_uint8_t_destroy(&self->bytecode);
   v_uint64_t_destroy(&self->bytecode_toks);
+  d_uint64_t_destroy(&self->node_begin_toks);
+  d_uint64_t_destroy(&self->node_end_toks);
 
   for (size_t i = 0; i < self->len; i++) {
     if (self->thread_bytecode[i].constants)

@@ -145,7 +145,6 @@ enum gab_kind {
   kGAB_SHAPE,
   kGAB_SHAPELIST,
   kGAB_FIBER,
-  kGAB_FIBERMACRO,
   kGAB_FIBERDONE,
   kGAB_FIBERRUNNING,
   kGAB_CHANNEL,
@@ -570,9 +569,6 @@ struct gab_impl_rest {
 static inline struct gab_impl_rest
 gab_impl(struct gab_triple gab, gab_value message, gab_value receiver);
 
-static inline struct gab_impl_rest gab_implmacro(struct gab_triple gab,
-                                                 gab_value message);
-
 /**
  * @brief Push any number of value onto the vm's internal stack.
  *
@@ -783,7 +779,7 @@ struct gab_send_argt {
   gab_value *argv;
 };
 
-a_gab_value *gab_sendmacro(struct gab_triple gab, struct gab_send_argt args);
+a_gab_value *gab_send(struct gab_triple gab, struct gab_send_argt args);
 
 /**
  * @class gab_exec_argt
@@ -924,34 +920,6 @@ struct gab_def_argt {
  */
 int gab_ndef(struct gab_triple gab, size_t len,
              struct gab_def_argt args[static len]);
-/**
- * @brief Arguments for creating a specialization
- */
-struct gab_defmacro_argt {
-  /**
-   * The reciever and value of the specialization.
-   */
-  gab_value message, specialization;
-};
-
-#define gab_defmacro(gab, ...)                                                 \
-  ({                                                                           \
-    struct gab_defmacro_argt defs[] = {__VA_ARGS__};                           \
-    gab_ndefmacro(gab, sizeof(defs) / sizeof(struct gab_defmacro_argt), defs); \
-  })
-
-/**
- * @brief Define a macro on the given message for the given receiver
- * @see struct gab_spec_argt
- *
- * @param gab The triple.
- * @param len The number of specializations to set.
- * @param args The specializations.
- * @return -1 on a success. Otherwise, returns the index in args of the first
- * specialization that failed.
- */
-int gab_ndefmacro(struct gab_triple gab, size_t len,
-                  struct gab_defmacro_argt args[static len]);
 
 /**
  * @brief Get the runtime value that corresponds to the given kind.
@@ -1906,7 +1874,7 @@ struct gab_obj_fiber {
   /**
    * The messages available to the fiber
    */
-  gab_value messages, macros;
+  gab_value messages;
 
   /**
    * Result of execution
@@ -1927,8 +1895,6 @@ struct gab_obj_fiber {
 #define GAB_VAL_TO_FIBER(value) ((struct gab_obj_fiber *)gab_valtoo(value))
 
 struct gab_fiber_argt {
-  bool is_macro;
-
   size_t argc;
 
   gab_value receiver, message, *argv;
@@ -1969,9 +1935,6 @@ static inline gab_value gab_thisfibmsgat(struct gab_triple gab,
 
 static inline gab_value gab_thisfibmsgrec(struct gab_triple gab,
                                           gab_value message);
-
-static inline gab_value gab_thisfibmacrorec(struct gab_triple gab,
-                                            gab_value message);
 
 /**
  * @brief A primitive for sending data between fibers.
@@ -2372,7 +2335,7 @@ struct gab_eg {
     } buffers[][kGAB_NBUF][GAB_GCNEPOCHS];
   } *gc;
 
-  gab_value messages, macros, work_channel;
+  gab_value messages, work_channel;
 
   mtx_t shapes_mtx;
   gab_value shapes;
@@ -2523,18 +2486,6 @@ static inline gab_value gab_thisfibmsgrec(struct gab_triple gab,
   return gab_recat(f->messages, message);
 }
 
-static inline gab_value gab_thisfibmacrorec(struct gab_triple gab,
-                                            gab_value message) {
-  gab_value fiber = gab_thisfiber(gab);
-
-  if (fiber == gab_undefined)
-    return gab.eg->macros;
-
-  struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fiber);
-
-  return f->macros;
-}
-
 static inline gab_value
 gab_thisfibmsgat(struct gab_triple gab, gab_value message, gab_value receiver) {
   gab_value spec_rec = gab_thisfibmsgrec(gab, message);
@@ -2543,17 +2494,6 @@ gab_thisfibmsgat(struct gab_triple gab, gab_value message, gab_value receiver) {
     return gab_undefined;
 
   return gab_recat(spec_rec, receiver);
-}
-
-static inline struct gab_impl_rest gab_implmacro(struct gab_triple gab,
-                                                 gab_value message) {
-  gab_value specs = gab_thisfibmacrorec(gab, message);
-  gab_value spec = gab_recat(specs, message);
-
-  return (struct gab_impl_rest){
-      .as.spec = spec,
-      .status = spec == gab_undefined ? kGAB_IMPL_NONE : kGAB_IMPL_GENERAL,
-  };
 }
 
 /**
