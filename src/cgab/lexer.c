@@ -1,5 +1,6 @@
 #include "lexer.h"
 #include "core.h"
+#include "gab.h"
 #include <threads.h>
 
 bool is_whitespace(uint8_t c) { return c == ' ' || c == '\t' || c == '\f'; }
@@ -105,6 +106,13 @@ void gab_lexcreate(gab_lx *self, struct gab_src *src) {
   self->source = src;
   self->cursor = src->source->data;
   self->row_start = src->source->data;
+
+  v_gab_value_push(&src->constants, gab_nil);
+  v_gab_value_push(&src->constants, gab_false);
+  v_gab_value_push(&src->constants, gab_true);
+  v_gab_value_push(&src->constants, gab_ok);
+  v_gab_value_push(&src->constants, gab_err);
+  v_gab_value_push(&src->constants, gab_none);
 
   start_row(self);
 }

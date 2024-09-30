@@ -716,7 +716,7 @@ union gab_value_pair {
 
 union gab_value_pair gab_compile(struct gab_triple gab, gab_value ast,
                                  gab_value env, gab_value bindings,
-                                 gab_value values, gab_value mod);
+                                 gab_value mod);
 
 /**
  * @class gab_run_argt

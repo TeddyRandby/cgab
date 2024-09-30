@@ -928,17 +928,23 @@ static inline void push_loadi(struct bc *bc, gab_value i, size_t t) {
   assert(i == gab_undefined || i == gab_true || i == gab_false || i == gab_nil);
 
   switch (i) {
-  case gab_undefined:
+  case gab_nil:
     push_k(bc, 0, t);
     break;
-  case gab_nil:
+  case gab_false:
     push_k(bc, 1, t);
     break;
-  case gab_false:
+  case gab_true:
     push_k(bc, 2, t);
     break;
-  case gab_true:
+  case gab_ok:
     push_k(bc, 3, t);
+    break;
+  case gab_err:
+    push_k(bc, 4, t);
+    break;
+  case gab_none:
+    push_k(bc, 5, t);
     break;
   default:
     assert(false && "Invalid constant");
@@ -1083,20 +1089,6 @@ static inline void push_send(struct gab_triple gab, struct bc *bc, gab_value m,
   push_byte(bc, encode_arity(gab, lhs, rhs), t);
 }
 
-static inline void push_trim(struct bc *bc, uint8_t want, size_t t) {
-  push_op(bc, OP_TRIM, t);
-  push_byte(bc, want, t);
-}
-
-static inline void push_listpack(struct gab_triple gab, struct bc *bc,
-                                 gab_value rhs, uint8_t below, uint8_t above,
-                                 size_t t) {
-  push_op(bc, OP_PACK, t);
-  push_byte(bc, encode_arity(gab, rhs, gab_undefined), 0);
-  push_byte(bc, below, t);
-  push_byte(bc, above, t);
-}
-
 static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
   if (n > 1) {
     push_op(bc, OP_POP_N, t);
@@ -1123,6 +1115,36 @@ static inline void push_pop(struct bc *bc, uint8_t n, size_t t) {
 #endif
 
   push_op(bc, OP_POP, t);
+}
+
+static inline void push_trim(struct gab_triple gab, struct bc *bc, uint8_t want,
+                             gab_value values, size_t t) {
+  if (values == gab_undefined || node_ismulti(gab, values)) {
+    push_op(bc, OP_TRIM, t);
+    push_byte(bc, want, t);
+    return;
+  }
+
+  size_t len = node_len(gab, values);
+
+  if (len > want) {
+    push_pop(bc, len - want, 0);
+    return;
+  }
+
+  if (len < want) {
+    push_loadni(bc, gab_nil, want - len, 0);
+    return;
+  }
+}
+
+static inline void push_listpack(struct gab_triple gab, struct bc *bc,
+                                 gab_value rhs, uint8_t below, uint8_t above,
+                                 size_t t) {
+  push_op(bc, OP_PACK, t);
+  push_byte(bc, encode_arity(gab, rhs, gab_undefined), 0);
+  push_byte(bc, below, t);
+  push_byte(bc, above, t);
 }
 
 static inline void push_ret(struct gab_triple gab, struct bc *bc, gab_value tup,
@@ -1158,6 +1180,21 @@ static inline void push_ret(struct gab_triple gab, struct bc *bc, gab_value tup,
 
   push_op(bc, OP_RETURN, t);
   push_byte(bc, encode_arity(gab, tup, gab_undefined), t);
+}
+
+void patch_init(struct bc *bc, uint8_t nlocals) {
+  switch (v_uint8_t_val_at(&bc->bc, 0)) {
+  case OP_TRIM:
+    v_uint8_t_set(&bc->bc, 1, nlocals);
+    break;
+  case OP_PACK: {
+    uint8_t below_arg = v_uint8_t_val_at(&bc->bc, 2);
+    v_uint8_t_set(&bc->bc, 3, nlocals - below_arg);
+    break;
+  }
+  default:
+    assert(false && "INVALID BLOCK ENTRYPOINT");
+  }
 }
 
 size_t locals_in_env(gab_value env) {
@@ -1246,17 +1283,6 @@ static struct lookup_res add_upvalue(struct gab_triple gab, gab_value env,
   env = put_env(gab, env, depth, ctx);
 
   return (struct lookup_res){env, kLOOKUP_UPV, count};
-}
-
-static int add_local(struct gab_triple gab, gab_value env, gab_value id) {
-  assert(gab_reclen(env) > 0);
-  size_t local_ctx = gab_reclen(env) - 1;
-  gab_value ctx = gab_uvrecat(env, local_ctx);
-
-  ctx = gab_recput(gab, ctx, id, gab_nil);
-  env = gab_recput(gab, env, local_ctx, ctx);
-
-  return env;
 }
 
 /*
@@ -1440,8 +1466,13 @@ gab_value unpack_binding_into_env(struct gab_triple gab, struct bc *bc,
   if (listpack_at_n >= 0)
     push_listpack(gab, bc, values, listpack_at_n,
                   actual_targets - listpack_at_n - 1, 0);
+  else
+    push_trim(gab, bc, actual_targets, values, 0);
 
   env = gab_urecput(gab, env, local_ctx, ctx);
+
+  if (values == gab_undefined)
+    return env;
 
   for (size_t i = 0; i < actual_targets; i++) {
     gab_value target = targets[actual_targets - i - 1];
@@ -1480,11 +1511,12 @@ gab_value compile_block(struct gab_triple gab, struct bc *bc, gab_value node,
   gab_value LHS = gab_mrecat(gab, node, "gab.lhs");
   gab_value RHS = gab_mrecat(gab, node, "gab.rhs");
 
-  env = gab_lstpush(gab, env,
-                    gab_recordof(gab, gab_symbol(gab, "self"), gab_nil));
+  gab_value lst = gab_listof(gab, gab_symbol(gab, "self"));
+
+  env = gab_lstpush(gab, env, gab_recordof(gab));
 
   union gab_value_pair pair =
-      gab_compile(gab, RHS, env, LHS, RHS, bc->src->name);
+      gab_compile(gab, RHS, env, gab_lstcat(gab, lst, LHS), bc->src->name);
 
   if (pair.prototype == gab_undefined)
     return gab_undefined;
@@ -1551,8 +1583,8 @@ gab_value compile_record(struct gab_triple gab, struct bc *bc, gab_value node,
     if (env == gab_undefined)
       return gab_undefined;
 
-    if (node_ismulti(gab, lhs_node) && !node_isempty(rhs_node))
-      push_trim(bc, 1, 0);
+    if (!node_isempty(rhs_node))
+      push_trim(gab, bc, 1, lhs_node, 0);
 
     env = compile_tuple(gab, bc, rhs_node, env);
 
@@ -1575,7 +1607,7 @@ gab_value compile_record(struct gab_triple gab, struct bc *bc, gab_value node,
         return gab_undefined;
 
       if (i != last_node)
-        push_pop(bc, 1, 0);
+        push_trim(gab, bc, 0, child_node, 0);
     }
     break;
   }
@@ -1656,7 +1688,7 @@ void build_upvdata(gab_value env, uint8_t len, char data[static len]) {
  */
 union gab_value_pair gab_compile(struct gab_triple gab, gab_value ast,
                                  gab_value env, gab_value bindings,
-                                 gab_value values, gab_value mod) {
+                                 gab_value mod) {
   assert(gab_valkind(ast) == kGAB_RECORD);
   assert(gab_valkind(env) == kGAB_RECORD);
 
@@ -1667,7 +1699,7 @@ union gab_value_pair gab_compile(struct gab_triple gab, gab_value ast,
 
   struct bc bc = {.ks = &src->constants, .src = src};
 
-  env = unpack_binding_into_env(gab, &bc, bindings, env, values);
+  env = unpack_binding_into_env(gab, &bc, bindings, env, gab_undefined);
 
   size_t nenvs = gab_reclen(env);
   assert(nenvs > 0);
@@ -1693,6 +1725,8 @@ union gab_value_pair gab_compile(struct gab_triple gab, gab_value ast,
 
   size_t nlocals = locals_in_env(local_env);
   assert(nlocals < GAB_LOCAL_MAX);
+
+  patch_init(&bc, nlocals);
 
   size_t nupvalues = upvalues_in_env(local_env);
   assert(nupvalues < GAB_UPVALUE_MAX);
@@ -1763,7 +1797,7 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
 
   gab_value bindings = gab_list(gab, args.len, vargv);
 
-  union gab_value_pair res = gab_compile(gab, ast, env, bindings, gab_undefined, mod);
+  union gab_value_pair res = gab_compile(gab, ast, env, bindings, mod);
 
   assert(res.prototype != gab_undefined);
 
