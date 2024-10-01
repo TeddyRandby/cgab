@@ -12,17 +12,16 @@ module = .gab.iter
   }
 
   self :def!(module, (xs[]) => do
-    mod.t :reducer cx(xs**)
+    mod.t:reducer(cx:(xs**))
   end)
 
   [mod.t ?] :defmodule! {
     \|> iter => self:iter.compose iter,
     \iter.compose second => self:iter.apply second,
     \iter.apply c => self:continuation(self:continuation:iter.apply c),
-    \ (acc, xs) => self:reducer (self:continuation, acc, xs, self:state),
     \reduce.step (acc, xs[]) => do
-      (s, cmd, c, acc) = self(acc, xs)
-      (cmd, self:continuation c :state s, acc)
+      (s, cmd, c, acc) = self:reducer:(self:continuation, acc, xs, self:state)
+      (cmd, (self:continuation c) :state s, acc)
     end,
     \reduce.done (acc) => self:continuation:reduce.done acc,
   }
@@ -47,7 +46,7 @@ end)
 }
 
 \map :defiter! f => do
-  (r, acc, xs) => (.nil, r:reduce.step(acc, f(xs**)))
+  (r, acc, xs) => (.nil, r:reduce.step(acc, f:(xs**)))
 end
 
 \tap :defiter! f => do
@@ -59,7 +58,8 @@ end
 
 \filter :defiter! f => do
   (r, acc, xs) => do
-    f(xs**):iter.conditionally(r, acc, xs)
+    '$ filter $ $ $\n':printf(f, r, acc, xs)
+    (f:(xs**)):iter.conditionally(r, acc, xs)
   end
 end
 
@@ -84,7 +84,7 @@ end, 0)
 \iter.do_dropwhile :defcase! {
   .true (r, acc, xs, b, f) => (.true, r:reduce.step(acc, xs**))
   .false (r, acc, xs, b, f) => do
-    new_b = b | f(xs**) !
+    new_b = b | (f:(xs**)) !
     new_b:iter.conditionally(r, acc, xs, new_b)
   end
 }

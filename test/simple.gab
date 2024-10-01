@@ -1,3 +1,9 @@
-(a b[] c) => b
+'cmessages':use
+'format':use
 
-(a b) => b
+\test :def! (acc, xs[]) => do
+  (.next, self, self:(acc, xs**)):print
+  (.next, self, self:(acc, xs**))
+end
+
+\print:test(.hello, 0 1 2 3)

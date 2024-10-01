@@ -233,7 +233,7 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
   case kGAB_BLOCK: {
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(self);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);
-    size_t line = gab_srcline(p->src, p->offset + 2);
+    size_t line = gab_srcline(p->src, p->offset);
     return fprintf(stream, "<gab.block ") +
            gab_fvalinspect(stream, gab_srcname(p->src), depth) +
            fprintf(stream, ":%lu>", line);
@@ -244,10 +244,11 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
            gab_fvalinspect(stream, n->name, depth) + fprintf(stream, ">");
   }
   case kGAB_PROTOTYPE: {
-    struct gab_obj_prototype *proto = GAB_VAL_TO_PROTOTYPE(self);
+    struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(self);
+    size_t line = gab_srcline(p->src, p->offset);
     return fprintf(stream, "<gab.prototype ") +
-           gab_fvalinspect(stream, gab_srcname(proto->src), depth) +
-           fprintf(stream, ">");
+           gab_fvalinspect(stream, gab_srcname(p->src), depth) +
+           fprintf(stream, ":%lu>", line);
   }
   default:
     break;
@@ -1047,13 +1048,7 @@ gab_value gab_fiber(struct gab_triple gab, struct gab_fiber_argt args) {
   struct gab_obj_fiber *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_fiber, gab_value, args.argc + 2, kGAB_FIBER);
 
-  if (gab_thisfiber(gab) == gab_undefined) {
-    self->messages = gab.eg->messages;
-  } else {
-    struct gab_obj_fiber *parent = GAB_VAL_TO_FIBER(gab_thisfiber(gab));
-    self->messages = parent->messages;
-  }
-
+  self->messages = gab_thisfibmsg(gab);
   self->len = args.argc + 2;
   memcpy(self->data + 2, args.argv, args.argc * sizeof(gab_value));
   self->data[0] = args.message;

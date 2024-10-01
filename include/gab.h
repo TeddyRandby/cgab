@@ -2475,15 +2475,19 @@ gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
   };
 }
 
-static inline gab_value gab_thisfibmsgrec(struct gab_triple gab,
-                                          gab_value message) {
+static inline gab_value gab_thisfibmsg(struct gab_triple gab) {
   gab_value fiber = gab_thisfiber(gab);
 
   if (fiber == gab_undefined)
-    return gab_recat(gab.eg->messages, message);
+    return gab.eg->messages;
 
   struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fiber);
-  return gab_recat(f->messages, message);
+  return f->messages;
+}
+
+static inline gab_value gab_thisfibmsgrec(struct gab_triple gab,
+                                          gab_value message) {
+  return gab_recat(gab_thisfibmsg(gab), message);
 }
 
 static inline gab_value

@@ -653,10 +653,19 @@ int gab_ndef(struct gab_triple gab, size_t len,
              struct gab_def_argt args[static len]) {
   gab_gclock(gab);
 
-  gab_value m = dodef(gab, gab.eg->messages, len, args);
+  gab_value m = dodef(gab, gab_thisfibmsg(gab), len, args);
 
   if (m == gab_undefined)
     return false;
+
+  gab_value parent = gab_thisfiber(gab);
+
+  if (parent == gab_undefined) {
+    gab.eg->messages = m;
+  } else {
+    struct gab_obj_fiber *p = GAB_VAL_TO_FIBER(parent);
+    p->messages = m;
+  }
 
   gab.eg->messages = m;
 

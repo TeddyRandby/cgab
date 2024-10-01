@@ -395,7 +395,7 @@ bool node_ismulti(struct gab_triple gab, gab_value node) {
     if (msg_is_specialform(gab, gab_mrecat(gab, node, "gab.msg")))
       return false;
     else
-      return 1;
+      return true;
   case kGAB_SHAPELIST: {
     size_t len = gab_reclen(node);
 
@@ -426,11 +426,6 @@ size_t node_valuelen(struct gab_triple gab, gab_value node) {
   if (gab_valkind(node) == kGAB_RECORD) {
     if (gab_valkind(gab_recshp(node)) == kGAB_SHAPELIST)
       return node_len(gab, node_tuple_lastnode(node));
-
-    gab_value msg = gab_mrecat(gab, node, "gab.msg");
-
-    if (msg_is_specialform(gab, msg))
-      return 1;
   }
 
   // Otherwise, values are 1 long
@@ -441,7 +436,6 @@ size_t node_len(struct gab_triple gab, gab_value node) {
   assert(gab_valkind(node) == kGAB_RECORD);
   assert(gab_valkind(gab_recshp(node)) == kGAB_SHAPELIST);
 
-  bool is_multi = node_ismulti(gab, node);
   size_t len = gab_reclen(node);
   size_t total_len = 0;
 
@@ -451,10 +445,7 @@ size_t node_len(struct gab_triple gab, gab_value node) {
   for (size_t i = 0; i < len; i++)
     total_len += node_valuelen(gab, gab_uvrecat(node, i));
 
-  if (total_len)
-    return total_len - is_multi;
-  else
-    return 0;
+  return total_len;
 }
 
 gab_value node_send(struct gab_triple gab, gab_value lhs, gab_value msg,
@@ -615,12 +606,15 @@ gab_value parse_exp_rec(struct gab_triple gab, struct parser *parser,
 
   gab_value result = node_empty(gab);
 
+  skip_newlines(gab, parser);
+
   if (match_and_eat_token(gab, parser, TOKEN_RBRACK))
     goto fin;
 
   skip_newlines(gab, parser);
 
   for (;;) {
+
     gab_value rhs = parse_expression(gab, parser, kASSIGNMENT);
 
     if (rhs == gab_undefined)
@@ -629,6 +623,8 @@ gab_value parse_exp_rec(struct gab_triple gab, struct parser *parser,
     result = gab_lstcat(gab, result, rhs);
 
     skip_newlines(gab, parser);
+
+    rhs = parse_expression(gab, parser, kASSIGNMENT);
 
     result = gab_lstcat(gab, result, rhs);
 
@@ -1125,12 +1121,20 @@ static inline uint8_t encode_arity(struct gab_triple gab, gab_value lhs,
   if (rhs == gab_undefined || node_isempty(rhs)) {
     bool is_multi = node_ismulti(gab, lhs);
     size_t len = node_len(gab, lhs);
+
+    if (len && is_multi)
+      len--;
+
     assert(len < 64);
     return ((uint8_t)len << 2) | is_multi;
   }
 
   bool is_multi = node_ismulti(gab, rhs);
   size_t len = node_len(gab, rhs) + 1; // The trimmed lhs
+
+  if (len && is_multi)
+    len--;
+
   assert(len < 64);
   return ((uint8_t)len << 2) | is_multi;
 }
@@ -1186,6 +1190,11 @@ static inline void push_pop(struct bc *bc, uint8_t n, gab_value node) {
 
 static inline void push_trim(struct gab_triple gab, struct bc *bc, uint8_t want,
                              gab_value values, gab_value node) {
+  if (bc->prev_op == OP_TRIM) {
+    v_uint8_t_set(&bc->bc, bc->prev_op_at + 1, want);
+    return;
+  }
+
   if (values == gab_undefined || node_ismulti(gab, values)) {
     push_op(bc, OP_TRIM, node);
     push_byte(bc, want, node);
@@ -1250,18 +1259,10 @@ static inline void push_ret(struct gab_triple gab, struct bc *bc, gab_value tup,
 }
 
 void patch_init(struct bc *bc, uint8_t nlocals) {
-  switch (v_uint8_t_val_at(&bc->bc, 0)) {
-  case OP_TRIM:
+  if (v_uint8_t_val_at(&bc->bc, 0) == OP_TRIM)
     v_uint8_t_set(&bc->bc, 1, nlocals);
-    break;
-  case OP_PACK: {
-    uint8_t below_arg = v_uint8_t_val_at(&bc->bc, 2);
-    v_uint8_t_set(&bc->bc, 3, nlocals - below_arg);
-    break;
-  }
-  default:
-    assert(false && "INVALID BLOCK ENTRYPOINT");
-  }
+  else if (v_uint8_t_val_at(&bc->bc, 4) == OP_TRIM)
+    v_uint8_t_set(&bc->bc, 5, nlocals);
 }
 
 size_t locals_in_env(gab_value env) {
@@ -1281,9 +1282,9 @@ size_t upvalues_in_env(gab_value env) {
   size_t n = 0, len = gab_reclen(env);
 
   for (size_t i = 0; i < len; i++) {
-    gab_value num_or_undef = gab_uvrecat(env, i);
+    gab_value num_or_nil = gab_uvrecat(env, i);
 
-    if (gab_valkind(num_or_undef) == kGAB_NUMBER)
+    if (gab_valkind(num_or_nil) == kGAB_NUMBER)
       n++;
   }
 
@@ -1352,16 +1353,7 @@ static struct lookup_res add_upvalue(struct gab_triple gab, gab_value env,
   return (struct lookup_res){env, kLOOKUP_UPV, count};
 }
 
-/*
- * Find for an id in the env at depth.
- */
-static int resolve_local(struct gab_triple gab, gab_value env, gab_value id,
-                         uint8_t depth) {
-  gab_value ctx = peek_env(env, depth);
-
-  if (ctx == gab_undefined)
-    return -1;
-
+static int lookup_local(gab_value ctx, gab_value id) {
   size_t idx = 0, len = gab_reclen(ctx);
 
   for (size_t i = 0; i < len; i++) {
@@ -1379,6 +1371,19 @@ static int resolve_local(struct gab_triple gab, gab_value env, gab_value id,
   }
 
   return -1;
+}
+
+/*
+ * Find for an id in the env at depth.
+ */
+static int resolve_local(struct gab_triple gab, gab_value env, gab_value id,
+                         uint8_t depth) {
+  gab_value ctx = peek_env(env, depth);
+
+  if (ctx == gab_undefined)
+    return -1;
+
+  return lookup_local(ctx, id);
 }
 
 /* Returns COMP_ERR if an error is encountered,
@@ -1400,7 +1405,7 @@ static struct lookup_res resolve_upvalue(struct gab_triple gab, gab_value env,
   struct lookup_res res = resolve_upvalue(gab, env, name, depth + 1);
 
   if (res.k) // This means we found either a local, or an upvalue
-    return add_upvalue(gab, env, name, depth + 1);
+    return add_upvalue(gab, res.env, name, depth);
 
   return (struct lookup_res){env, kLOOKUP_NONE};
 }
@@ -1701,6 +1706,9 @@ gab_value compile_tuple(struct gab_triple gab, struct bc *bc, gab_value node,
 }
 
 void build_upvdata(gab_value env, uint8_t len, char data[static len]) {
+  if (len == 0)
+    return;
+
   /*
    * Iterate through the env, and build out the data argument expected
    * by prototypes.
@@ -1717,20 +1725,29 @@ void build_upvdata(gab_value env, uint8_t len, char data[static len]) {
    *
    */
   size_t nenvs = gab_reclen(env);
-  size_t ctx = gab_uvrecat(env, nenvs - 1);
+
+  assert(nenvs >= 2);
+
+  gab_value ctx = gab_uvrecat(env, nenvs - 1);
+  gab_value parent = gab_uvrecat(env, nenvs - 2);
+
+  bool has_grandparent = nenvs >= 3;
+  gab_value grandparent =
+      has_grandparent ? gab_uvrecat(env, nenvs - 3) : gab_undefined;
+
   size_t nbindings = gab_reclen(ctx);
   size_t nth_upvalue = 0;
 
   for (size_t i = 0; i < nbindings; i++) {
+    gab_value k = gab_ukrecat(ctx, i);
     gab_value v = gab_uvrecat(ctx, i);
 
     if (v == gab_nil)
       continue;
 
-    size_t idx = gab_valton(v);
-    assert(idx < len);
+    bool is_local = has_grandparent ? !gab_rechas(grandparent, k) : true;
 
-    bool is_local = true;
+    size_t idx = is_local ? lookup_local(parent, k) : gab_valton(v);
 
     data[nth_upvalue++] = (idx << 1) | is_local;
   }
@@ -1775,8 +1792,9 @@ union gab_value_pair gab_compile(struct gab_triple gab, gab_value ast,
   size_t nargs = gab_reclen(gab_uvrecat(env, nenvs - 1));
   assert(nargs < GAB_ARG_MAX);
 
-  assert(bc.bc.len == bc.bc_toks.len);
+  push_trim(gab, &bc, nargs, gab_undefined, bindings);
 
+  assert(bc.bc.len == bc.bc_toks.len);
   env = compile_tuple(gab, &bc, ast, env);
   assert(bc.bc.len == bc.bc_toks.len);
 
@@ -1794,12 +1812,12 @@ union gab_value_pair gab_compile(struct gab_triple gab, gab_value ast,
   size_t nlocals = locals_in_env(local_env);
   assert(nlocals < GAB_LOCAL_MAX);
 
-  patch_init(&bc, nlocals);
-
   size_t nupvalues = upvalues_in_env(local_env);
   assert(nupvalues < GAB_UPVALUE_MAX);
 
   assert(bc.bc.len == bc.bc_toks.len);
+
+  patch_init(&bc, nlocals);
 
   size_t len = bc.bc.len;
   size_t end = gab_srcappend(src, len, bc.bc.data, bc.bc_toks.data);
@@ -1811,6 +1829,9 @@ union gab_value_pair gab_compile(struct gab_triple gab, gab_value ast,
   char data[nupvalues];
 
   build_upvdata(env, nupvalues, data);
+
+  size_t bco = d_uint64_t_read(&bc.src->node_begin_toks, ast);
+  v_uint64_t_set(&bc.src->bytecode_toks, begin, bco);
 
   gab_value proto = gab_prototype(gab, src, begin, len,
                                   (struct gab_prototype_argt){

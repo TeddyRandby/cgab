@@ -4,9 +4,9 @@ numbers.t  = 'cnumbers':use
 records.t  = 'crecords':use
 strings.t  = 'cstrings':use
 sigils.t   = 'csigils':use
-iter       = 'iter':use
-
 'format':use
+
+iter       = 'iter':use
 
 truthy_values = []
 falsey_values = [.nil .false .none .err]
@@ -20,7 +20,7 @@ falsey_values = [.nil .false .none .err]
 
 truthy_values :defmodule! {
   \and (alt []) => alt**
-  \then f => f(self)
+  \then f => f:(self)
   \or _ => self
   \else _ => self
   \assert! _ => self
@@ -30,7 +30,7 @@ falsey_values :defmodule! {
   \and _ => self
   \then _ => self
   \or (alt[]) => alt**
-  \else f => f(self)
+  \else f => f:(self)
   \assert! msg => ('Assert failed: ' + msg):panic
   \options.into .none,
   \results.into .err,
@@ -88,22 +88,22 @@ falsey_values :defmodule! {
       (ok, seq.v, xs[]) = self :seqs.init
       ok:doreduce(self, seq.v, acc, r, xs)
     end,
-    \transduce: (acc, r, td) => do
+    \transduce (acc, r, td) => do
       self:reduce(acc, td :iter.apply r)
     end,
-    \each: f => do
+    \each f => do
       self:transduce(.nil, \all, iter:tap f)
     end,
-    \map: f => do
+    \map f => do
       self:collect(iter:map f)
     end,
-    \filter: f => do
+    \filter f => do
       self:collect(iter:filter f)
     end,
-    \join: xf => do
+    \join xf => do
       self:transduce("", \+, xf)
     end,
-    \collect: xf => do
+    \collect xf => do
       self:transduce({}, \push, xf)
     end,
   }
@@ -129,7 +129,7 @@ channels.t :def.seq!
 # Implement the reducer protocol for blocks and messages
 ['gab.block', 'gab.message'] :defmodule! {
   \reduce.step (acc, xs[]) => do
-    (.next, self, self(acc, xs**))
+    (.next, self, self:(acc, xs**))
   end
   \reduce.done acc => acc
 }
@@ -146,7 +146,7 @@ channels.t :def.seq!
 records.t :def.seq!
 
 \ :def! (.int.between, (min, max) => do
-  .float.between (min,max) :floor
+  .float.between:(min,max) :floor
 end)
 
 
@@ -160,7 +160,7 @@ range.t :def.seq!
   end
   \seqs.next n => do
     nx = n + 1
-    .gab.option (n < self:to, nx, nx)
+    .gab.option:(n < self:to, nx, nx)
   end
 }
 

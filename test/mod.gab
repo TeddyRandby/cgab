@@ -105,10 +105,6 @@ end
   t:expect('hello world' \== 'hello' + ' world')
 end
 
-\strings.interpolate.test :def! t => do
-  t:expect('{'hi'} {'world'}' \== 'hi world')
-end
-
 \strings.dynamic_interpolate.test :def! t => do
   t:expect(\+('hi ' 'world') \== 'hi world')
   t:expect(\+('hi ' 'world' .ignore_me) \== 'hi world')
@@ -172,7 +168,7 @@ end
   varfunc:(onetwo:())
 end
 
-Point = { \x: .nil \y: .nil }?
+Point = { \x .nil, \y .nil }?
 
 \records.have_properties.test :def! t => do
   point = {
@@ -193,7 +189,7 @@ end
 
 \records.work_for_all_keys.test :def! t => do
   obj = {
-      {}? 3
+      ({}?) 3
       .hi 4
   }
 
@@ -219,7 +215,7 @@ end
   t:expect(tup:len \== 3)
 end
 
-vec.t = { \x : .nil \y: .nil }?
+vec.t = { \x .nil, \y .nil }?
 
 \+ :def! (vec.t other => {
   \x self:x + other:x
