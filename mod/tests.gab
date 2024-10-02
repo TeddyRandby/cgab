@@ -7,22 +7,27 @@ xf = (i:filter m => do
      end) |> (i:map (m, impls) => do
         (path[], _) = m:strings.into:split '.'
 
+        'm':print m
+        'PATH':print path
+
         path = path:transduce({}, \push, i:map \first)
 
-        (path, { \path: path, \impls: impls })
+
+        (path, { \path path, \impls impls })
      end)
 
 # Collect all the implementations into a giant, nested map.
 tests.all = implementations:transduce({}, (t, p, i) => do
+  'PUTVIA: $ $ $\n':printf(t i p)
   t:put_via(i, p**)
 end, xf)
 
 suites.all = tests.all :reduce({}, (suites, suite) => do
-  suites :put (suite, .gab.channel())
+  suites :put (suite, .gab.channel:())
 end)
 
 \test.compare :def! ('gab.block', 'gab.message', (lhs, rhs) => do
-  self (lhs, rhs)
+  self:(lhs, rhs)
 end)
 
 test.result.t = { \test.path .nil, \test.receiver .nil }?

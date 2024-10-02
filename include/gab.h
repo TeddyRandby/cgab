@@ -2525,6 +2525,8 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
     return gab_sigtostr(value);
   case kGAB_MESSAGE:
     return gab_msgtostr(value);
+  case kGAB_SYMBOL:
+    return gab_symtostr(value);
   case kGAB_STRING:
     return value;
   case kGAB_PRIMITIVE:
@@ -2533,7 +2535,9 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
     snprintf(buffer, 128, "%lg", gab_valton(value));
     return gab_string(gab, buffer);
   }
-  case kGAB_FIBER: {
+  case kGAB_FIBER:
+  case kGAB_FIBERRUNNING:
+  case kGAB_FIBERDONE: {
     struct gab_obj_fiber *m = GAB_VAL_TO_FIBER(value);
     snprintf(buffer, 128, "<gab.fiber %p>", m);
     return gab_string(gab, buffer);
@@ -2549,6 +2553,10 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
   case kGAB_SHAPELIST: {
     struct gab_obj_shape *m = GAB_VAL_TO_SHAPE(value);
     snprintf(buffer, 128, "<gab.shape %p>", m);
+    return gab_string(gab, buffer);
+  }
+  case kGAB_UNDEFINED: {
+    snprintf(buffer, 128, "undefined");
     return gab_string(gab, buffer);
   }
   case kGAB_RECORD: {

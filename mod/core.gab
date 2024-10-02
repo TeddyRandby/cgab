@@ -188,8 +188,8 @@ end)
   end, 
   \++ _ => self + 1
   \-- _ => self - 1
-  \even? _ => self :% 2 :== 0
-  \odd? _ => self :even? :!
+  \even? _ => (self :% 2) :== 0
+  \odd? _ => (self :even?) :!
   \pos? _ => self > 0
   \neg? _ => self < 0
   \numbers.into _ => self

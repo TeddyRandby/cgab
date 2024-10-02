@@ -1,0 +1,1218 @@
+<gab.block ./mod/core.gab:1>
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0mgab.message
+  [33m  10 [0m.nil
+  [33m   9 [0m.nil
+  [33m   8 [0m.nil
+  [33m   7 [0m.nil
+  [33m   6 [0m.nil
+  [33m   5 [0m.nil
+  [33m   4 [0m.nil
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0mgab.channel
+  [33m  10 [0m.nil
+  [33m   9 [0m.nil
+  [33m   8 [0m.nil
+  [33m   7 [0m.nil
+  [33m   6 [0m.nil
+  [33m   5 [0m.nil
+  [33m   4 [0m.nil
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0mgab.number
+  [33m  10 [0m.nil
+  [33m   9 [0m.nil
+  [33m   8 [0m.nil
+  [33m   7 [0m.nil
+  [33m   6 [0m.nil
+  [33m   5 [0m.nil
+  [33m   4 [0m.nil
+  [33m   3 [0m.nil
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0mgab.record
+  [33m  10 [0m.nil
+  [33m   9 [0m.nil
+  [33m   8 [0m.nil
+  [33m   7 [0m.nil
+  [33m   6 [0m.nil
+  [33m   5 [0m.nil
+  [33m   4 [0m.nil
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  10 [0m.nil
+  [33m   9 [0m.nil
+  [33m   8 [0m.nil
+  [33m   7 [0m.nil
+  [33m   6 [0m.nil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0mgab.sigil
+  [33m  10 [0m.nil
+  [33m   9 [0m.nil
+  [33m   8 [0m.nil
+  [33m   7 [0m.nil
+  [33m   6 [0m.nil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  10 [0m.nil
+  [33m   9 [0m.nil
+  [33m   8 [0m.nil
+  [33m   7 [0m.nil
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/iter.gab:1>
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:6>
+  [33m   1 [0m<gab.block ./mod/iter.gab:49>
+  [33m   0 [0m\map
+<gab.block ./mod/iter.gab:6>
+  [33m   4 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: .none, \reducer: .nil}
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m<gab.block ./mod/iter.gab:49>
+  [33m   0 [0m\map
+<gab.block ./mod/iter.gab:6>
+  [33m   4 [0m.nil
+  [33m   3 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: .none, \reducer: .nil}
+  [33m   2 [0m.nil
+  [33m   1 [0m<gab.block ./mod/iter.gab:49>
+  [33m   0 [0m\map
+<gab.block ./mod/iter.gab:6>
+  [33m   4 [0m[<gab.shape .gab.iter \map \state \continuation \reducer>]
+  [33m   3 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: .none, \reducer: .nil}
+  [33m   2 [0m.nil
+  [33m   1 [0m<gab.block ./mod/iter.gab:49>
+  [33m   0 [0m\map
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:6>
+  [33m   2 [0m0
+  [33m   1 [0m<gab.block ./mod/iter.gab:66>
+  [33m   0 [0m\take
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:6>
+  [33m   1 [0m<gab.block ./mod/iter.gab:74>
+  [33m   0 [0m\take_while
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:6>
+  [33m   2 [0m0
+  [33m   1 [0m<gab.block ./mod/iter.gab:78>
+  [33m   0 [0m\drop
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/iter.gab:1>
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/iter.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.gab.iter
+  [33m  10 [0m.nil
+  [33m   9 [0m.nil
+  [33m   8 [0m.nil
+  [33m   7 [0m.nil
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m[]
+  [33m  10 [0m.nil
+  [33m   9 [0m.nil
+  [33m   8 [0m.nil
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m[.nil, .false, .none, .err]
+  [33m  10 [0m.nil
+  [33m   9 [0m.nil
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m[]
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m[.ok]
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m[]
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m[gab.channel]
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:86>
+  [33m   0 [0mgab.channel
+<gab.block ./mod/core.gab:86>
+  [33m   2 [0m[gab.channel]
+  [33m   1 [0m.nil
+  [33m   0 [0mgab.channel
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m[gab.block, gab.message]
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m[gab.record]
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m<gab.shape \from \to>
+  [33m  10 [0m.nil
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m<gab.shape \from \to>
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m[<gab.shape \from \to>]
+  [33m  10 [0m<gab.shape \from \to>
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m<gab.shape \from \to>
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m<gab.shape \from \to>
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m<gab.shape \from \to>
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m<gab.shape \from \to>
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m<gab.shape \from \to>
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m.nil
+  [33m  10 [0m<gab.shape \from \to>
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./mod/core.gab:1>
+  [33m  11 [0m[gab.number]
+  [33m  10 [0m<gab.shape \from \to>
+  [33m   9 [0m[.nil, .false, .none, .err]
+  [33m   8 [0m[]
+  [33m   7 [0m.gab.iter
+  [33m   6 [0mgab.sigil
+  [33m   5 [0m.nil
+  [33m   4 [0mgab.record
+  [33m   3 [0mgab.number
+  [33m   2 [0mgab.channel
+  [33m   1 [0mgab.message
+  [33m   0 [0m<gab.block ./mod/core.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m<gab.shape \x \y>
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m<gab.shape \x \y>
+  [33m   2 [0m.nil
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m<gab.shape \x \y>
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m<gab.shape \x \y>
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m<gab.shape \x \y>
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m<gab.shape \x \y>
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m<gab.shape \x \y>
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m<gab.shape \x \y>
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m<gab.shape \x \y>
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m<gab.shape \x \y>
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m<gab.shape \x \y>
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m<gab.shape \x \y>
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m<gab.shape \x \y>
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m<gab.shape \x \y>
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./test/mod.gab:1>
+  [33m   3 [0m.nil
+  [33m   2 [0m<gab.shape \x \y>
+  [33m   1 [0m<gab.shape \x \y>
+  [33m   0 [0m<gab.block ./test/mod.gab:1>
+<gab.block ./mod/tests.gab:1>
+  [33m   0 [0m<gab.block ./mod/tests.gab:1>
+<gab.block ./mod/tests.gab:1>
+  [33m   9 [0m.gab.iter
+  [33m   8 [0m.nil
+  [33m   7 [0m.nil
+  [33m   6 [0m.nil
+  [33m   5 [0m.nil
+  [33m   4 [0m.nil
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.nil
+  [33m   0 [0m<gab.block ./mod/tests.gab:1>
+<gab.block ./mod/tests.gab:1>
+  [33m   9 [0m{ ... }
+  [33m   8 [0m.nil
+  [33m   7 [0m.nil
+  [33m   6 [0m.nil
+  [33m   5 [0m.nil
+  [33m   4 [0m.nil
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/tests.gab:1>
+<gab.block ./mod/iter.gab:15>
+  [33m   1 [0m[<gab.block ./mod/tests.gab:6>]
+  [33m   0 [0m.gab.iter
+<gab.block ./mod/iter.gab:60>
+  [33m   1 [0m<gab.block ./mod/tests.gab:6>
+  [33m   0 [0m<gab.block ./mod/iter.gab:60>
+<gab.block ./mod/tests.gab:1>
+  [33m   9 [0m{.gab.iter: .nil, \filter: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:61>}
+  [33m   8 [0m.nil
+  [33m   7 [0m.nil
+  [33m   6 [0m.nil
+  [33m   5 [0m.nil
+  [33m   4 [0m.nil
+  [33m   3 [0m.nil
+  [33m   2 [0m{ ... }
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/tests.gab:1>
+<gab.block ./mod/iter.gab:49>
+  [33m   1 [0m<gab.block ./mod/tests.gab:8>
+  [33m   0 [0m<gab.block ./mod/iter.gab:49>
+<gab.block ./mod/tests.gab:1>
+  [33m  10 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   9 [0m{.gab.iter: .nil, \filter: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:61>}
+  [33m   8 [0m.nil
+  [33m   7 [0m.nil
+  [33m   6 [0m.nil
+  [33m   5 [0m.nil
+  [33m   4 [0m.nil
+  [33m   3 [0m.nil
+  [33m   2 [0m{ ... }
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/tests.gab:1>
+<gab.block ./mod/iter.gab:53>
+  [33m   1 [0m\print
+  [33m   0 [0m<gab.block ./mod/iter.gab:53>
+<gab.block ./mod/iter.gab:19>
+  [33m   1 [0m{.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:54>}
+  [33m   0 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:49>}
+<gab.block ./mod/iter.gab:20>
+  [33m   1 [0m{.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:54>}
+  [33m   0 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:49>}
+<gab.block ./mod/iter.gab:21>
+  [33m   1 [0m{.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:54>}
+  [33m   0 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:49>}
+<gab.block ./mod/iter.gab:21>
+  [33m   3 [0m.none
+  [33m   2 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   1 [0m{.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:54>}
+  [33m   0 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:49>}
+<gab.block ./mod/iter.gab:3>
+  [33m   1 [0m{.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:54>}
+  [33m   0 [0m.none
+<gab.block ./mod/tests.gab:1>
+  [33m   9 [0m{.gab.iter: .nil, \filter: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}, \reducer: <gab.block ./mod/iter.gab:61>}
+  [33m   8 [0m.nil
+  [33m   7 [0m.nil
+  [33m   6 [0m.nil
+  [33m   5 [0m.nil
+  [33m   4 [0m.nil
+  [33m   3 [0m.nil
+  [33m   2 [0m{ ... }
+  [33m   1 [0m.gab.iter
+  [33m   0 [0m<gab.block ./mod/tests.gab:1>
+<gab.block ./mod/core.gab:92>
+  [33m   3 [0m{.gab.iter: .nil, \filter: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: .none, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}, \reducer: <gab.block ./mod/iter.gab:61>}
+  [33m   2 [0m<gab.block ./mod/tests.gab:17>
+  [33m   1 [0m[]
+  [33m   0 [0m{ ... }
+<gab.block ./mod/core.gab:88>
+  [33m   2 [0m{.gab.iter: .nil, \filter: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}, \reducer: <gab.block ./mod/iter.gab:61>}
+  [33m   1 [0m[]
+  [33m   0 [0m{ ... }
+<gab.block ./mod/core.gab:63>
+  [33m   5 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   4 [0m{.gab.iter: .nil, \filter: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}, \reducer: <gab.block ./mod/iter.gab:61>}
+  [33m   3 [0m[]
+  [33m   2 [0m\~
+  [33m   1 [0m{ ... }
+  [33m   0 [0m.ok
+<gab.block ./mod/iter.gab:23>
+  [33m   2 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   1 [0m[]
+  [33m   0 [0m{.gab.iter: .nil, \filter: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}, \reducer: <gab.block ./mod/iter.gab:61>}
+<gab.block ./mod/iter.gab:23>
+  [33m   6 [0m<gab.block ./mod/iter.gab:61>
+  [33m   5 [0m.nil
+  [33m   4 [0m.nil
+  [33m   3 [0m.nil
+  [33m   2 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   1 [0m[]
+  [33m   0 [0m{.gab.iter: .nil, \filter: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}, \reducer: <gab.block ./mod/iter.gab:61>}
+<gab.block ./mod/iter.gab:61>
+  [33m   4 [0m.nil
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m[]
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m<gab.block ./mod/iter.gab:61>
+<gab.block ./mod/tests.gab:6>
+  [33m   2 [0m{gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}
+  [33m   1 [0m\~
+  [33m   0 [0m<gab.block ./mod/tests.gab:6>
+<gab.block ./mod/tests.gab:6>
+  [33m   2 [0m~
+  [33m   1 [0m\~
+  [33m   0 [0m<gab.block ./mod/tests.gab:6>
+<gab.block ./mod/iter.gab:61>
+  [33m   4 [0m.false
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m[]
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m<gab.block ./mod/iter.gab:61>
+do_interpose
+<gab.block ./mod/iter.gab:32>
+  [33m   4 [0m.nil
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m[]
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m.false
+do_interpose
+<gab.block ./mod/iter.gab:32>
+  [33m   4 [0m.nil
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m[]
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m.false
+{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+<gab.block ./mod/iter.gab:32>
+  [33m   4 [0m.nil
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m[]
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m.false
+[]
+<gab.block ./mod/iter.gab:32>
+  [33m   4 [0m.nil
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m[]
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m.false
+[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+<gab.block ./mod/iter.gab:32>
+  [33m   4 [0m.nil
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m[]
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m.false
+.nil
+<gab.block ./mod/iter.gab:32>
+  [33m   4 [0m.nil
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m[]
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m.false
+<gab.block ./mod/iter.gab:49>
+  [33m   4 [0m.nil
+  [33m   3 [0m[{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}]
+  [33m   2 [0m[]
+  [33m   1 [0m{.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}
+  [33m   0 [0m<gab.block ./mod/iter.gab:49>
+<gab.block ./mod/tests.gab:8>
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m<gab.block ./mod/tests.gab:8>
+<gab.block ./mod/tests.gab:8>
+  [33m   5 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   4 [0m.nil
+  [33m   3 [0m.nil
+  [33m   2 [0m.nil
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m<gab.block ./mod/tests.gab:8>
+<gab.block ./mod/core.gab:16>
+  [33m   1 [0m{
+  [33m   0 [0m0
+<gab.block ./mod/core.gab:132>
+  [33m   2 [0m[{]
+  [33m   1 [0m[]
+  [33m   0 [0m\push
+<gab.block ./mod/iter.gab:23>
+  [33m   9 [0m[{]
+  [33m   8 [0m\push
+  [33m   7 [0m.next
+  [33m   6 [0m.nil
+  [33m   5 [0m.nil
+  [33m   4 [0m.nil
+  [33m   3 [0m.nil
+  [33m   2 [0m[0, {]
+  [33m   1 [0m[]
+  [33m   0 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: \push, \reducer: <gab.block ./mod/iter.gab:49>}
+<gab.block ./mod/iter.gab:23>
+  [33m   7 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: \push, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   6 [0m.next
+  [33m   5 [0m\push
+  [33m   4 [0m.next
+  [33m   3 [0m.nil
+  [33m   2 [0m[0, {]
+  [33m   1 [0m[{]
+  [33m   0 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: \push, \reducer: <gab.block ./mod/iter.gab:49>}
+<gab.block ./mod/core.gab:63>
+  [33m   9 [0m[{]
+  [33m   8 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: \push, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   7 [0m.next
+  [33m   6 [0m.nil
+  [33m   5 [0m[0, {]
+  [33m   4 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: \push, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   3 [0m[]
+  [33m   2 [0m0
+  [33m   1 [0m[ ... ]
+  [33m   0 [0m.ok
+<gab.block ./mod/core.gab:74>
+  [33m   4 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: \push, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   3 [0m[{]
+  [33m   2 [0m0
+  [33m   1 [0m[ ... ]
+  [33m   0 [0m.next
+<gab.block ./mod/core.gab:70>
+  [33m   5 [0m[]
+  [33m   4 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: \push, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   3 [0m[ ... ]
+  [33m   2 [0m.nil
+  [33m   1 [0m[ ... ]
+  [33m   0 [0m.none
+<gab.block ./mod/iter.gab:26>
+  [33m   1 [0m[ ... ]
+  [33m   0 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: \push, \reducer: <gab.block ./mod/iter.gab:49>}
+<gab.block ./mod/iter.gab:26>
+  [33m   2 [0m\push
+  [33m   1 [0m[ ... ]
+  [33m   0 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: \push, \reducer: <gab.block ./mod/iter.gab:49>}
+<gab.block ./mod/core.gab:135>
+  [33m   1 [0m[ ... ]
+  [33m   0 [0m\push
+<gab.block ./mod/tests.gab:8>
+  [33m   5 [0m[ ... ]
+  [33m   4 [0mgab:49>}
+  [33m   3 [0m[ ... ]
+  [33m   2 [0m.nil
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m<gab.block ./mod/tests.gab:8>
+<gab.block ./mod/iter.gab:54>
+  [33m   4 [0m.nil
+  [33m   3 [0m[[{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], {\path: [{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], \impls: .nil}]
+  [33m   2 [0m[]
+  [33m   1 [0m<gab.block ./mod/tests.gab:17>
+  [33m   0 [0m<gab.block ./mod/iter.gab:54>
+[ ... ], {\path: [{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], \impls: .nil}
+<gab.block ./mod/iter.gab:54>
+  [33m   4 [0m.nil
+  [33m   3 [0m[[{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], {\path: [{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], \impls: .nil}]
+  [33m   2 [0m[]
+  [33m   1 [0m<gab.block ./mod/tests.gab:17>
+  [33m   0 [0m<gab.block ./mod/iter.gab:54>
+<gab.block ./mod/tests.gab:17>
+  [33m   3 [0m{\path: [{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], \impls: .nil}
+  [33m   2 [0m[ ... ]
+  [33m   1 [0m[]
+  [33m   0 [0m<gab.block ./mod/tests.gab:17>
+PUTVIA: [36m[][0m [36m{\path: [ ... ], \impls: .nil}[0m [36m[ ... ][0m
+<gab.block ./mod/tests.gab:17>
+  [33m   4 [0m.nil
+  [33m   3 [0m{\path: [{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], \impls: .nil}
+  [33m   2 [0m[ ... ]
+  [33m   1 [0m[]
+  [33m   0 [0m<gab.block ./mod/tests.gab:17>
+<gab.block ./mod/iter.gab:32>
+  [33m   6 [0m{{: {gab: {iter: : {nil, \map: : {nil, \state: : {nil, \continuation: {: {gab: {iter: : {nil, \tap: : {nil, \state: : {nil, \continuation: <gab: {block : {/mod/tests: {gab:17>, \reducer: <gab: {block : {/mod/iter: {gab:54>}, \reducer: <gab: {block : {/mod/iter: {\path: [{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], \impls: .nil}}}}}}}}}}}}}}}}}}}}
+  [33m   5 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   4 [0m.next
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m[]
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m.false
+.next
+<gab.block ./mod/iter.gab:32>
+  [33m   4 [0m.nil
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m{{: {gab: {iter: : {nil, \map: : {nil, \state: : {nil, \continuation: {: {gab: {iter: : {nil, \tap: : {nil, \state: : {nil, \continuation: <gab: {block : {/mod/tests: {gab:17>, \reducer: <gab: {block : {/mod/iter: {gab:54>}, \reducer: <gab: {block : {/mod/iter: {\path: [{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], \impls: .nil}}}}}}}}}}}}}}}}}}}}
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m.false
+{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+<gab.block ./mod/iter.gab:32>
+  [33m   4 [0m.nil
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m{{: {gab: {iter: : {nil, \map: : {nil, \state: : {nil, \continuation: {: {gab: {iter: : {nil, \tap: : {nil, \state: : {nil, \continuation: <gab: {block : {/mod/tests: {gab:17>, \reducer: <gab: {block : {/mod/iter: {gab:54>}, \reducer: <gab: {block : {/mod/iter: {\path: [{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], \impls: .nil}}}}}}}}}}}}}}}}}}}}
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m.false
+{{: {gab: {iter: : {nil, \map: : {nil, \state: : {nil, \continuation: {: {gab: {iter: : {nil, \tap: : {nil, \state: : {nil, \continuation: <gab: {block : {/mod/tests: {gab:17>, \reducer: <gab: {block : {/mod/iter: {gab:54>}, \reducer: <gab: {block : {/mod/iter: {\path: [{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], \impls: .nil}}}}}}}}}}}}}}}}}}}}
+<gab.block ./mod/iter.gab:32>
+  [33m   4 [0m.nil
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m{{: {gab: {iter: : {nil, \map: : {nil, \state: : {nil, \continuation: {: {gab: {iter: : {nil, \tap: : {nil, \state: : {nil, \continuation: <gab: {block : {/mod/tests: {gab:17>, \reducer: <gab: {block : {/mod/iter: {gab:54>}, \reducer: <gab: {block : {/mod/iter: {\path: [{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], \impls: .nil}}}}}}}}}}}}}}}}}}}}
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m.false
+.nil
+<gab.block ./mod/iter.gab:32>
+  [33m   4 [0m.nil
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m{{: {gab: {iter: : {nil, \map: : {nil, \state: : {nil, \continuation: {: {gab: {iter: : {nil, \tap: : {nil, \state: : {nil, \continuation: <gab: {block : {/mod/tests: {gab:17>, \reducer: <gab: {block : {/mod/iter: {gab:54>}, \reducer: <gab: {block : {/mod/iter: {\path: [{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], \impls: .nil}}}}}}}}}}}}}}}}}}}}
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m.false
+DO_INTERPOSE: [32m4.94066e-324[0m [36m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}[0m [36m{{: {gab: {iter: : {nil, \map: : {nil, \state: : {nil, \continuation: {: {gab: {iter: : {nil, \tap: : {nil, \state: : {nil, \continuation: <gab: {block : {/mod/tests: {gab:17>, \reducer: <gab: {block : {/mod/iter: {gab:54>}, \reducer: <gab: {block : {/mod/iter: {\path: [{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], \impls: .nil}}}}}}}}}}}}}}}}}}}}[0m [32mDO_INTERPOSE: $ $ $ $[0m<gab.block ./mod/iter.gab:32>
+  [33m   4 [0m.nil
+  [33m   3 [0m[\~, {gab.number: <gab.primitive SEND_PRIMITIVE_BIN>}]
+  [33m   2 [0m{{: {gab: {iter: : {nil, \map: : {nil, \state: : {nil, \continuation: {: {gab: {iter: : {nil, \tap: : {nil, \state: : {nil, \continuation: <gab: {block : {/mod/tests: {gab:17>, \reducer: <gab: {block : {/mod/iter: {gab:54>}, \reducer: <gab: {block : {/mod/iter: {\path: [{, gab, iter: , nil, \map: , nil, \state: , nil, \continuation: {, gab, iter: , nil, \tap: , nil, \state: , nil, \continuation: <gab, block , /mod/tests, gab:17>, \reducer: <gab, block , /mod/iter, gab:54>}, \reducer: <gab, block , /mod/iter], \impls: .nil}}}}}}}}}}}}}}}}}}}}
+  [33m   1 [0m{.gab.iter: .nil, \map: .nil, \state: .nil, \continuation: {.gab.iter: .nil, \tap: .nil, \state: .nil, \continuation: <gab.block ./mod/tests.gab:17>, \reducer: <gab.block ./mod/iter.gab:54>}, \reducer: <gab.block ./mod/iter.gab:49>}
+  [33m   0 [0m.false

@@ -374,7 +374,7 @@ a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
 
 a_gab_value *gab_lib_string_into(struct gab_triple gab, size_t argc,
                                  gab_value argv[argc]) {
-  gab_vmpush(gab_vm(gab), gab_arg(0));
+  gab_vmpush(gab_vm(gab), gab_valintos(gab, gab_arg(0)));
   return nullptr;
 }
 
@@ -442,7 +442,7 @@ a_gab_value *gab_lib(struct gab_triple gab) {
           },
           {
               gab_message(gab, "strings.into"),
-              string_type,
+              gab_undefined,
               gab_snative(gab, "strings.into", gab_lib_string_into),
           },
           {

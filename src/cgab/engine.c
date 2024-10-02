@@ -378,6 +378,9 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->types[kGAB_STRING] = gab_string(gab, "gab.string");
   gab_iref(gab, eg->types[kGAB_STRING]);
 
+  eg->types[kGAB_SYMBOL] = gab_string(gab, "gab.symbol");
+  gab_iref(gab, eg->types[kGAB_SYMBOL]);
+
   eg->types[kGAB_SIGIL] = gab_string(gab, "gab.sigil");
   gab_iref(gab, eg->types[kGAB_SIGIL]);
 
@@ -401,12 +404,18 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->types[kGAB_RECORD] = gab_string(gab, "gab.record");
   gab_iref(gab, eg->types[kGAB_RECORD]);
+  eg->types[kGAB_RECORDNODE] = gab_string(gab, "gab.record");
+  gab_iref(gab, eg->types[kGAB_RECORDNODE]);
 
   eg->types[kGAB_BOX] = gab_string(gab, "gab.box");
   gab_iref(gab, eg->types[kGAB_BOX]);
 
   eg->types[kGAB_FIBER] = gab_string(gab, "gab.fiber");
   gab_iref(gab, eg->types[kGAB_FIBER]);
+  eg->types[kGAB_FIBERDONE] = gab_string(gab, "gab.fiber");
+  gab_iref(gab, eg->types[kGAB_FIBERDONE]);
+  eg->types[kGAB_FIBERRUNNING] = gab_string(gab, "gab.fiber");
+  gab_iref(gab, eg->types[kGAB_FIBERRUNNING]);
 
   eg->types[kGAB_CHANNEL] = gab_string(gab, "gab.channel");
   gab_iref(gab, eg->types[kGAB_CHANNEL]);

@@ -1419,6 +1419,11 @@ CASE_CODE(TRIM) {
   uint64_t have = VAR();
   uint64_t nulls = 0;
 
+  /*STORE_FP();*/
+  /*STORE_IP();*/
+  /*STORE_SP();*/
+  /*gab_fvminspect(stderr, VM(), 0);*/
+
   if (have == want && want < 10) {
     WRITE_BYTE(2, OP_TRIM_EXACTLY0 + want);
 

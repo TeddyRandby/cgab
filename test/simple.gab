@@ -1,9 +1,10 @@
-'cmessages':use
-'format':use
+\iter.conditionally :defcase! {
+  .true (r, acc, xs, s) => (s, r:reduce.step(acc, xs**)),
+  .false (r, acc, xs, s) => (s, .next, r, acc),
+}
 
-\test :def! (acc, xs[]) => do
-  (.next, self, self:(acc, xs**)):print
-  (.next, self, self:(acc, xs**))
+\filter :defiter! f => do
+  (r, acc, xs) => do
+    (f:(xs**)):iter.conditionally(r, acc, xs)
+  end
 end
-
-\print:test(.hello, 0 1 2 3)

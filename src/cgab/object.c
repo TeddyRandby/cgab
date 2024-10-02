@@ -222,8 +222,7 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
              fprintf(stream, "}");
   }
   case kGAB_RECORDNODE: {
-    return fprintf(stream, "[") + rec_dump_properties(stream, self, depth) +
-           fprintf(stream, "]");
+    return rec_dump_properties(stream, self, depth);
   }
   case kGAB_BOX: {
     struct gab_obj_box *con = GAB_VAL_TO_BOX(self);

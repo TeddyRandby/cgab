@@ -76,7 +76,7 @@
 
 // Log what is happening during execution.
 #ifndef cGAB_LOG_VM
-#define cGAB_LOG_VM 0
+#define cGAB_LOG_VM 1
 #endif
 
 // Define how many jobs should be used, default to 8.
