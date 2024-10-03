@@ -191,6 +191,12 @@ static struct command commands[] = {
         {
             {
                 "dump",
+                "Dump compiled ast to stdout",
+                'a',
+                .flag = fGAB_AST_DUMP,
+            },
+            {
+                "dump",
                 "Dump compiled bytecode to stdout",
                 'd',
                 .flag = fGAB_BUILD_DUMP,

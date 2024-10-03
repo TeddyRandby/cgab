@@ -1003,8 +1003,7 @@ a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
 
   gab_value fb = gab_arun(gab, (struct gab_run_argt){
                                    .main = pkg,
-                                   .flags = gab.flags | fGAB_ERR_EXIT,
-                                   .len = 0,
+                                   .flags = gab.flags,
                                });
 
   if (fb == gab_undefined)

@@ -1,9 +1,8 @@
 module = .gab.iter
-'pry':use
 
-\iter.apply :def!(.none, .nil,  x => x)
+\iter.apply :def! (.none .nil  x => x)
 
-\defiter! :def! ('gab.message', (cx, init) => do
+\defiter! :def! ('gab.message'  (cx  init) => do
   mod.t = {
     module .nil,
     self .nil,
@@ -29,8 +28,8 @@ module = .gab.iter
 end)
 
 \iter.conditionally :defcase! {
-  .true (r, acc, xs, s) => (s, r:reduce.step(acc, xs**)),
-  .false (r, acc, xs, s) => (s, .next, r, acc),
+  .true (r, acc, xs, s) => (s, r:reduce.step(acc, xs**))
+  .false (r, acc, xs, s) => (s, .next, r, acc)
 }
 
 \iter.stop_conditionally_inclusive :defcase! {
@@ -46,24 +45,24 @@ end)
   .false (r, acc, xs, s) => (s, .stop, r, acc),
 }
 
-\map :defiter! f => do
+\map :defiter! (f => do
   (r, acc, xs) => (.nil, r:reduce.step(acc, f:(xs**)))
-end
+end)
 
-\tap :defiter! f => do
+\tap :defiter! (f => do
   (r, acc, xs) => do
     f:(xs**)
     (.nil, r:reduce.step(acc, xs**))
   end
-end
+end)
 
-\filter :defiter! f => do
+\filter :defiter! (f => do
   (r, acc, xs) => do
-    (f:(xs**)):iter.conditionally(r, acc, xs)
+    f:(xs**):iter.conditionally(r, acc, xs)
   end
-end
+end)
 
-\take :defiter!(n => do
+\take :defiter! (n => do
   (r, acc, xs, nth) => do
     nxth = nth + 1
     (nxth < n):iter.stop_conditionally_inclusive(r, acc, xs, nxth)
@@ -71,11 +70,11 @@ end
 end, 0)
 
 
-\take_while :defiter! f => do
+\take_while :defiter! (f => do
   (r, acc, xs) => f:(xs**):iter.stop_conditionally(r, acc, xs)
-end
+end)
 
-\drop :defiter!(n => do
+\drop :defiter! (n => do
   (r, acc, xs, nth) => do
     (nth >= n):iter.conditionally(r, acc, xs, nth + 1)
   end
@@ -89,7 +88,7 @@ end, 0)
   end
 }
 
-\drop_while :defiter!(f => do
+\drop_while :defiter! (f => do
   (r, acc, xs, b) => b:iter.do_dropwhile(r, acc, xs, b, f)
 end, .false)
 
@@ -97,22 +96,13 @@ end, .false)
   .next (r, acc, xs) => (.true, r:reduce.step(acc, xs**))
   .stop (r, acc, xs) => (.true, .stop, r, acc)
   .true (r, acc, xs, sep) => do
-    'do_interpose':print
-    'do_interpose':print
-    .pry:break
-    'do_interpose':print
-    'do_interpose':print
-    r:print
-    acc:print
-    xs:print
-    sep:print
     (cmd, r, acc) = r:reduce.step(acc, sep)
     cmd:iter.do_interpose(r, acc, xs)
   end
   .false (r, acc, xs) => (.true, r:reduce.step(acc, xs**))
 }
 
-\interpose :defiter!(sep => do
+\interpose :defiter! (sep => do
   (r, acc, xs, started) => started:iter.do_interpose(r,acc,xs,sep)
 end, .false)
 

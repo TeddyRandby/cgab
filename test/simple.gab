@@ -1,10 +1,15 @@
-\iter.conditionally :defcase! {
-  .true (r, acc, xs, s) => (s, r:reduce.step(acc, xs**)),
-  .false (r, acc, xs, s) => (s, .next, r, acc),
-}
+\blocks.capture.test :def! (t => do
+  capture_me = 1
 
-\filter :defiter! f => do
-  (r, acc, xs) => do
-    (f:(xs**)):iter.conditionally(r, acc, xs)
+  t:expect(capture_me \== 1)
+
+  test = _ => do
+      t:expect(capture_me \== 1)
+      capture_me:print
+      capture_me  
   end
-end
+
+  t:expect(test:() \== 1)
+end)
+
+'tests':use

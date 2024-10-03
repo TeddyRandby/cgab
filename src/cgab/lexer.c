@@ -60,7 +60,6 @@ typedef struct gab_lx {
   size_t row;
   uint64_t col;
 
-  uint8_t nested_curly;
   uint8_t status;
 
   struct gab_src *source;
@@ -193,11 +192,21 @@ gab_token string(gab_lx *self) {
   return TOKEN_STRING;
 }
 
+gab_token check_special_operator(gab_lx *self) {
+  if (s_char_match(self->current_token_src, s_char_cstr("=")))
+    return TOKEN_SPECIAL_SEND;
+
+  if (s_char_match(self->current_token_src, s_char_cstr("=>")))
+    return TOKEN_SPECIAL_SEND;
+
+  return TOKEN_OPERATOR;
+}
+
 gab_token operator(gab_lx *self) {
   while (can_continue_operator(peek(self)))
     advance(self);
 
-  return TOKEN_OPERATOR;
+  return check_special_operator(self);
 }
 
 gab_token symbol(gab_lx *self) {
@@ -268,16 +277,10 @@ gab_token other(gab_lx *self) {
   case '{':
     advance(self);
 
-    if (self->nested_curly > 0)
-      self->nested_curly++;
-
     return TOKEN_LBRACK;
 
   case '}':
     advance(self);
-
-    if (self->nested_curly > 0)
-      self->nested_curly--;
 
     return TOKEN_RBRACK;
 
@@ -420,12 +423,6 @@ gab_token gab_lexnext(gab_lx *self) {
   }
 
   if (peek(self) == '\'') {
-    tok = string(self);
-    goto fin;
-  }
-
-  if (self->nested_curly == 1 && peek(self) == '}') {
-    self->nested_curly--;
     tok = string(self);
     goto fin;
   }

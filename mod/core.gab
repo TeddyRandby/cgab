@@ -11,12 +11,12 @@ iter       = 'iter':use
 truthy_values = []
 falsey_values = [.nil .false .none .err]
 
-\self :def! _ => self
-\first :def! x => x
-\second :def! (_, x) => x
-\all :def! (xs[]) => xs
+\self :def! do _ => self end
+\first :def! do x => x end
+\second :def! do (_, x) => x end
+\all :def! do (xs[]) => xs end
 
-\is? :def! other => self ? == other
+\is? :def! do other => self:?:== other end
 
 truthy_values :defmodule! {
   \and (alt []) => alt**
@@ -41,7 +41,9 @@ falsey_values :defmodule! {
   \results.into (args[]) => (.ok, self, args**)
 }
 
-\ :def! (.gab.option, (cond, data[]) => (cond:options.into, data**))
+\ :def! (.gab.option, (cond, data[]) => do
+  (cond:options.into, data**)
+end)
 
 \ :def! (.gab.result, (cond, data[]) => (cond:results.into, data**))
 
@@ -82,8 +84,8 @@ falsey_values :defmodule! {
   end,
 }
 
-\def.seq! :def! _ => do
-  [self] :defmodule! {
+\def.seq! :def! do
+  _ => [self] :defmodule! {
     \reduce (acc, r) => do
       (ok, seq.v, xs[]) = self :seqs.init
       ok:doreduce(self, seq.v, acc, r, xs)
@@ -173,8 +175,8 @@ range.t :def.seq!
   end
 }
 
-\ :def! (.gab.range, (from, to) => do
-  (to, from) :range.into
+\ :def! (.gab.range (from to) => do
+  (to from) :range.into
 end)
 
 \is_n? :def! .false
@@ -183,13 +185,11 @@ end)
 \numbers.into :def! (falsey_values, 0)
 
 [numbers.t] :defmodule! {
-  \-> to => do
-    (to, self) :range.into
-  end, 
+  \-> to => (to self) :range.into
   \++ _ => self + 1
   \-- _ => self - 1
-  \even? _ => (self :% 2) :== 0
-  \odd? _ => (self :even?) :!
+  \even? _ => self :% 2 :== 0
+  \odd? _ => self :even? :!
   \pos? _ => self > 0
   \neg? _ => self < 0
   \numbers.into _ => self

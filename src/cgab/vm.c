@@ -944,7 +944,9 @@ static inline bool try_setup_localmatch(struct gab_triple gab, gab_value m,
   if (gab_reclen(specs) > 4 || gab_reclen(specs) < 2)
     return false;
 
-  for (size_t i = 0; i < gab_reclen(specs); i++) {
+  size_t len = gab_reclen(specs);
+
+  for (size_t i = 0; i < len; i++) {
     gab_value spec = gab_uvrecat(specs, i);
 
     if (gab_valkind(spec) != kGAB_BLOCK)
@@ -964,7 +966,7 @@ static inline bool try_setup_localmatch(struct gab_triple gab, gab_value m,
     if (ks[GAB_SEND_KSPEC + idx] != gab_undefined)
       return false;
 
-    uint8_t *ip = proto_ip(gab, p) + spec_p->offset;
+    uint8_t *ip = proto_ip(gab, spec_p);
 
     ks[GAB_SEND_KTYPE + idx] = t;
     ks[GAB_SEND_KSPEC + idx] = (intptr_t)b;
@@ -1818,6 +1820,7 @@ CASE_CODE(SEND_PRIMITIVE_FIBER) {
 
   ERROR_GUARD_KIND(block, kGAB_BLOCK);
 
+  STORE_SP();
   gab_value fib = gab_arun(GAB(), (struct gab_run_argt){
                                       .main = block,
                                       .flags = GAB().flags,
@@ -1825,8 +1828,8 @@ CASE_CODE(SEND_PRIMITIVE_FIBER) {
 
   DROP_N(have);
   PUSH(fib);
+
   SET_VAR(1);
-  STORE_SP();
 
   NEXT();
 }
