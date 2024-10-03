@@ -20,7 +20,7 @@ falsey_values = [.nil .false .none .err]
 
 truthy_values :defmodule! {
   \and (alt []) => alt**
-  \then f => f:(self)
+  \then f => f: self
   \or _ => self
   \else _ => self
   \assert! _ => self
@@ -30,7 +30,7 @@ falsey_values :defmodule! {
   \and _ => self
   \then _ => self
   \or (alt[]) => alt**
-  \else f => f:(self)
+  \else f => f: self
   \assert! msg => ('Assert failed: ' + msg):panic
   \options.into .none,
   \results.into .err,

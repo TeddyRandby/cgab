@@ -397,7 +397,12 @@ gab_value node_value(struct gab_triple gab, gab_value node) {
   return gab_list(gab, 1, &node);
 }
 
-gab_value node_empty(struct gab_triple gab) { return gab_listof(gab); }
+gab_value node_empty(struct gab_triple gab, struct parser *parser) {
+  gab_value empty = gab_listof(gab);
+  node_storeinfo(parser->src, empty, parser->offset, parser->offset);
+  return empty;
+  ;
+}
 
 bool node_isempty(gab_value node) {
   return gab_valkind(node) == kGAB_RECORD && gab_reclen(node) == 0;
@@ -482,7 +487,7 @@ static gab_value parse_expressions_body(struct gab_triple gab,
 
   skip_newlines(gab, parser);
 
-  gab_value result = node_empty(gab);
+  gab_value result = node_empty(gab, parser);
 
   while (!match_terminator(parser) && !match_token(parser, TOKEN_EOF)) {
     gab_value rhs = parse_expression(gab, parser, kEXP);
@@ -526,8 +531,6 @@ gab_value parse_expression(struct gab_triple gab, struct parser *parser,
 
   size_t tok = prev_tok(parser);
 
-  size_t begin = parser->offset;
-
   struct parse_rule rule = get_parse_rule(tok);
 
   if (rule.prefix == nullptr)
@@ -535,9 +538,18 @@ gab_value parse_expression(struct gab_triple gab, struct parser *parser,
                         FMT_EXPECTED_EXPRESSION),
            gab_undefined;
 
+  size_t begin = parser->offset;
+
   gab_value node = rule.prefix(gab, parser, gab_undefined);
 
+  size_t end = parser->offset;
+
+  node_storeinfo(parser->src, node, begin, end);
+
+  skip_newlines(gab, parser);
+
   while (prec <= get_parse_rule(curr_tok(parser)).prec) {
+
     if (node == gab_undefined)
       return gab_undefined;
 
@@ -550,7 +562,7 @@ gab_value parse_expression(struct gab_triple gab, struct parser *parser,
       node = rule.infix(gab, parser, node);
   }
 
-  size_t end = parser->offset;
+  end = parser->offset;
 
   node_storeinfo(parser->src, node, begin, end);
 
@@ -560,8 +572,10 @@ gab_value parse_expression(struct gab_triple gab, struct parser *parser,
 static gab_value parse_optional_expression_prec(struct gab_triple gab,
                                                 struct parser *parser,
                                                 enum prec_k prec) {
-  if (!curr_prefix(parser))
-    return node_empty(gab);
+  if (!curr_prefix(parser)) {
+    gab_value empty = node_empty(gab, parser);
+    return empty;
+  }
 
   return parse_expression(gab, parser, prec);
 }
@@ -623,7 +637,7 @@ gab_value parse_exp_rec(struct gab_triple gab, struct parser *parser,
                         gab_value lhs) {
   size_t begin = parser->offset;
 
-  gab_value result = node_empty(gab);
+  gab_value result = node_empty(gab, parser);
 
   skip_newlines(gab, parser);
 
@@ -657,12 +671,17 @@ gab_value parse_exp_rec(struct gab_triple gab, struct parser *parser,
     return gab_undefined;
 
 fin:
-  gab_value node = node_send(gab, node_value(gab, gab_sigil(gab, "gab.record")),
-                             gab_message(gab, mGAB_CALL), result);
+  gab_value lhs_node = node_value(gab, gab_sigil(gab, "gab.record"));
+  gab_value msg_node = gab_message(gab, mGAB_CALL);
+
+  gab_value node = node_send(gab,lhs_node, msg_node, result);
 
   size_t end = parser->offset;
 
+  node_storeinfo(parser->src, result, begin, end);
   node_storeinfo(parser->src, node, begin, end);
+  node_storeinfo(parser->src, lhs_node, begin, end);
+  node_storeinfo(parser->src, gab_uvrecat(node, 0), begin, end);
 
   return node;
 }
@@ -671,7 +690,7 @@ gab_value parse_exp_lst(struct gab_triple gab, struct parser *parser,
                         gab_value lhs) {
   size_t begin = parser->offset;
 
-  gab_value result = node_empty(gab);
+  gab_value result = node_empty(gab, parser);
 
   if (match_and_eat_token(gab, parser, TOKEN_RBRACE))
     goto fin;
@@ -696,12 +715,17 @@ gab_value parse_exp_lst(struct gab_triple gab, struct parser *parser,
     return gab_undefined;
 
 fin:
-  gab_value node = node_send(gab, node_value(gab, gab_sigil(gab, "gab.list")),
-                             gab_message(gab, mGAB_CALL), result);
+  gab_value lhs_node = node_value(gab, gab_sigil(gab, "gab.list"));
+  gab_value msg_node = gab_message(gab, mGAB_CALL);
+
+  gab_value node = node_send(gab, lhs_node, msg_node, result);
 
   size_t end = parser->offset;
 
+  node_storeinfo(parser->src, result, begin, end);
   node_storeinfo(parser->src, node, begin, end);
+  node_storeinfo(parser->src, lhs_node, begin, end);
+  node_storeinfo(parser->src, gab_uvrecat(node, 0), begin, end);
 
   return node;
 }
@@ -712,7 +736,7 @@ gab_value parse_exp_tup(struct gab_triple gab, struct parser *parser,
 
   size_t begin = parser->offset;
 
-  gab_value result = node_empty(gab);
+  gab_value result = node_empty(gab, parser);
 
   if (match_and_eat_token(gab, parser, TOKEN_RPAREN))
     goto fin;
@@ -772,13 +796,14 @@ gab_value parse_exp_send(struct gab_triple gab, struct parser *parser,
   if (rhs == gab_undefined)
     return gab_undefined;
 
-  gab_value result = node_send(gab, lhs, gab_strtomsg(msg), rhs);
+  gab_value node = node_send(gab, lhs, gab_strtomsg(msg), rhs);
 
   size_t end = parser->offset;
 
-  node_storeinfo(parser->src, result, begin, end);
+  node_storeinfo(parser->src, node, begin, end);
+  node_storeinfo(parser->src, gab_uvrecat(node, 0), begin, end);
 
-  return result;
+  return node;
 }
 
 gab_value parse_exp_send_op(struct gab_triple gab, struct parser *parser,
@@ -792,13 +817,14 @@ gab_value parse_exp_send_op(struct gab_triple gab, struct parser *parser,
   if (rhs == gab_undefined)
     return gab_undefined;
 
-  gab_value result = node_send(gab, lhs, gab_strtomsg(msg), rhs);
+  gab_value node = node_send(gab, lhs, gab_strtomsg(msg), rhs);
 
   size_t end = parser->offset;
 
-  node_storeinfo(parser->src, result, begin, end);
+  node_storeinfo(parser->src, node, begin, end);
+  node_storeinfo(parser->src, gab_uvrecat(node, 0), begin, end);
 
-  return result;
+  return node;
 }
 
 gab_value parse_exp_send_special(struct gab_triple gab, struct parser *parser,
@@ -812,13 +838,14 @@ gab_value parse_exp_send_special(struct gab_triple gab, struct parser *parser,
   if (rhs == gab_undefined)
     return gab_undefined;
 
-  gab_value result = node_send(gab, lhs, gab_strtomsg(msg), rhs);
+  gab_value node = node_send(gab, lhs, gab_strtomsg(msg), rhs);
 
   size_t end = parser->offset;
 
-  node_storeinfo(parser->src, result, begin, end);
+  node_storeinfo(parser->src, node, begin, end);
+  node_storeinfo(parser->src, gab_uvrecat(node, 0), begin, end);
 
-  return result;
+  return node;
 }
 
 const struct parse_rule parse_rules[] = {
@@ -847,6 +874,8 @@ struct parse_rule get_parse_rule(gab_token k) { return parse_rules[k]; }
 
 gab_value parse(struct gab_triple gab, struct parser *parser,
                 uint8_t narguments, gab_value arguments[narguments]) {
+  size_t begin = parser->offset;
+
   if (curr_tok(parser) == TOKEN_EOF)
     return gab_undefined;
 
@@ -857,18 +886,22 @@ gab_value parse(struct gab_triple gab, struct parser *parser,
     return gab_undefined;
   }
 
-  gab_value result = parse_expressions_body(gab, parser);
+  gab_value ast = parse_expressions_body(gab, parser);
 
-  if (result == gab_undefined)
+  if (ast == gab_undefined)
     return gab_undefined;
 
   if (gab.flags & fGAB_AST_DUMP)
-    gab_fvalinspect(stdout, result, -1), printf("\n");
+    gab_fvalinspect(stdout, ast, -1), printf("\n");
 
-  gab_iref(gab, result);
-  gab_egkeep(gab.eg, result);
+  gab_iref(gab, ast);
+  gab_egkeep(gab.eg, ast);
 
-  return result;
+  size_t end = parser->offset;
+
+  node_storeinfo(parser->src, ast, begin, end);
+
+  return ast;
 }
 
 gab_value gab_parse(struct gab_triple gab, struct gab_build_argt args) {
@@ -948,12 +981,25 @@ static inline void push_op(struct bc *bc, uint8_t op, gab_value node) {
   bc->pprev_op = bc->prev_op;
   bc->prev_op = op;
 
+  if (!d_uint64_t_exists(&bc->src->node_begin_toks, node)) {
+    printf("no range for node: %V\n", node);
+  }
+
+  assert(d_uint64_t_exists(&bc->src->node_begin_toks, node));
+
   bc->prev_op_at = v_uint8_t_push(&bc->bc, op);
   size_t offset = d_uint64_t_read(&bc->src->node_begin_toks, node);
+
   v_uint64_t_push(&bc->bc_toks, offset - (offset != 0));
 }
 
 static inline void push_byte(struct bc *bc, uint8_t data, gab_value node) {
+  if (!d_uint64_t_exists(&bc->src->node_begin_toks, node)) {
+    printf("no range for node: %V\n", node);
+  }
+
+  assert(d_uint64_t_exists(&bc->src->node_begin_toks, node));
+
   v_uint8_t_push(&bc->bc, data);
   size_t offset = d_uint64_t_read(&bc->src->node_begin_toks, node);
   v_uint64_t_push(&bc->bc_toks, offset - (offset != 0));
@@ -1266,7 +1312,7 @@ static inline void push_listpack(struct gab_triple gab, struct bc *bc,
                                  gab_value rhs, uint8_t below, uint8_t above,
                                  gab_value node) {
   push_op(bc, OP_PACK, node);
-  push_byte(bc, encode_arity(gab, rhs, gab_undefined), 0);
+  push_byte(bc, encode_arity(gab, rhs, gab_undefined), node);
   push_byte(bc, below, node);
   push_byte(bc, above, node);
 }
@@ -1586,7 +1632,7 @@ gab_value unpack_binding_into_env(struct gab_triple gab, struct bc *bc,
 
   if (listpack_at_n >= 0)
     push_listpack(gab, bc, values, listpack_at_n,
-                  actual_targets - listpack_at_n - 1, values);
+                  actual_targets - listpack_at_n - 1, bindings);
   else if (!push_trim_node(gab, bc, actual_targets, values, bindings))
     return gab_undefined;
 
@@ -1649,8 +1695,8 @@ gab_value compile_block(struct gab_triple gab, struct bc *bc, gab_value node,
 
   assert(gab_valkind(pair.prototype) == kGAB_PROTOTYPE);
 
-  push_op(bc, OP_BLOCK, 0);
-  push_short(bc, addk(gab, bc, pair.prototype), 0);
+  push_op(bc, OP_BLOCK, RHS);
+  push_short(bc, addk(gab, bc, pair.prototype), RHS);
 
   return env;
 }
@@ -1955,6 +2001,8 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
       gab_listof(gab, gab_recordof(gab, gab_symbol(gab, "self"), gab_nil));
 
   gab_value bindings = gab_list(gab, args.len, vargv);
+
+  node_storeinfo(src, bindings, 0, 0);
 
   union gab_value_pair res = gab_compile(gab, ast, env, bindings, mod);
 
