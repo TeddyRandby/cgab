@@ -548,7 +548,6 @@ general_message.predicate = 'predicate:message' :sigils.into
                     end
                   end
                 end)            
-                |> i:tap(\print)
                 |> i:map(\options.into)
                 |> i:filter(\ok?)
                 |> i:map(\first)
@@ -564,8 +563,6 @@ general_message.predicate = 'predicate:message' :sigils.into
 
         args:message
       end)
-
-    "pry":use
 
     \spec.check:def!(
       pred
@@ -587,11 +584,7 @@ general_message.predicate = 'predicate:message' :sigils.into
           |> i:map((valid? spec value path) => .gab.option:(valid? !, spec value path))
           |> i:take(1)
 
-        'hi':print
-
-        res = .gab.range:(15):transduce([] \all iter)**
-
-        'hi':print
+        res = .gab.range:(100):transduce([] \all iter)**
 
         res
       end)

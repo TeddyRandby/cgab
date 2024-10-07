@@ -76,10 +76,4 @@ car.paint.spec = s:def! {
 # It generates receivers and inputs, sends the message,
 # And checks the output against the spec and semantics.
 # This code will run forever if the spec is always satisfied
-'hi':print
-
-a = car.paint.spec:spec.check
-
-'hi':print
-
-a:print
+car.paint.spec:spec.check:print

@@ -46,14 +46,6 @@ static handler handlers[] = {
   ({                                                                           \
     uint8_t o = (op);                                                          \
                                                                                \
-    if (RETURN_FB()) {                                                         \
-      if (GAB_VAL_TO_PROTOTYPE(                                                \
-              ((struct gab_obj_block *)(uintptr_t)RETURN_FB()[-3])->p)         \
-              ->header.kind != kGAB_PROTOTYPE) {                               \
-        printf("%s:%i\tINVALID RETURN DETECTED: %V\n", __PRETTY_FUNCTION__,    \
-               __LINE__, __gab_obj(BLOCK()));                                  \
-      }                                                                        \
-    }                                                                          \
     LOG(o)                                                                     \
     if (GC()->schedule == GAB().wkid) {                                        \
       STORE_SP();                                                              \
@@ -525,7 +517,7 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, int depth) {
 
   while (depth > 0) {
     if (frame_parent(f) > vm->sb) {
-      t = f - 3;
+      t = f - 4;
       f = frame_parent(f);
       depth--;
     } else {
@@ -538,7 +530,7 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, int depth) {
 
   while (t >= f) {
     fprintf(stream, "%2s" GAB_YELLOW "%4lu " GAB_RESET, vm->sp == t ? "->" : "",
-            t - f);
+            t - vm->sb);
     gab_fvalinspect(stream, *t, 0);
     fprintf(stream, "\n");
     t--;
@@ -1338,10 +1330,16 @@ CASE_CODE(RETURN) {
   if (__gab_unlikely(RETURN_FB() == nullptr))
     return STORE(), SET_VAR(have), ok(DISPATCH_ARGS());
 
+  assert(RETURN_IP() != nullptr);
+
   LOAD_FRAME();
   memmove(to, from, have * sizeof(gab_value));
   SP() = to + have;
   SET_VAR(have);
+
+  assert(FB() >= VM()->sb + 3);
+  assert(BLOCK()->header.kind == kGAB_BLOCK);
+  assert(BLOCK_PROTO()->header.kind == kGAB_PROTOTYPE);
 
   NEXT();
 }
@@ -1525,7 +1523,6 @@ CASE_CODE(PACK) {
 }
 
 CASE_CODE(SEND) {
-
   gab_value *ks = READ_CONSTANTS;
   uint8_t have_byte = READ_BYTE;
   uint64_t have = compute_arity(VAR(), have_byte);

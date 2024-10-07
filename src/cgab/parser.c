@@ -2006,7 +2006,9 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
   gab_value main = gab_block(gab, res.prototype);
 
   gab_iref(gab, main);
+  gab_iref(gab, res.prototype);
   gab_egkeep(gab.eg, main);
+  gab_egkeep(gab.eg, res.prototype);
 
   return gab_gcunlock(gab), main;
 }
