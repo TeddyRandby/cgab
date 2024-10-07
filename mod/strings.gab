@@ -1,7 +1,3 @@
-strings.t  :: 'cstrings':use
-
-[strings.t] :defmodule! {
-  \blank?: do
-    self:len == 0
-  end,
-}
+\:def!(
+  .gab.string
+  (values[]) => values:transduce('' \+ .gab.iter:map \strings.into))

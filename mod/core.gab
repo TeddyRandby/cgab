@@ -41,11 +41,15 @@ falsey_values :defmodule! {
   \results.into (args[]) => (.ok, self, args**)
 }
 
-\ :def! (.gab.option, (cond, data[]) => do
-  (cond:options.into, data**)
-end)
+\:def!(
+  .gab.option
+  (cond, data[]) => do
+    (cond:options.into, data**)
+  end)
 
-\ :def! (.gab.result, (cond, data[]) => (cond:results.into, data**))
+\:def!(
+  .gab.result
+  (cond, data[]) => (cond:results.into, data**))
 
 [.ok] :defmodule! {
   \ok? (args[]) => (.true, args**)

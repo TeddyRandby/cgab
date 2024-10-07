@@ -1,14 +1,10 @@
 \doacc :defcase! {
-  .true: do acc, n:
-    acc
-  end,
-  .false: do acc, n:
-    [n, acc:acc(n - 1)**]
-  end,
+  .true (acc n) => acc
+  .false (acc n) => [n, acc:acc(n - 1)**]
 }
 
-\acc :def!('gab.record', do n:
-  n :== 0 :doacc(self, n)
-end)
+\acc:def!(
+  'gab.record'
+  (n) => n :== 0 :doacc(self n))
 
-[] :acc 950 :len:print
+[] :acc 600 :len:print

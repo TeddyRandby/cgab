@@ -2250,9 +2250,6 @@ gab_value gab_list(struct gab_triple gab, size_t len,
  */
 static inline gab_value gab_valtype(struct gab_triple gab, gab_value value) {
   enum gab_kind k = gab_valkind(value);
-#if cGAB_LOG_GC
-  assert(!gab_valiso(value) || !(gab_valtoo(value)->flags & fGAB_OBJ_FREED));
-#endif
   switch (k) {
   /* These values have a runtime type of themselves */
   case kGAB_SIGIL:

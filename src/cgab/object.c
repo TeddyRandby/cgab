@@ -349,7 +349,6 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
   memcpy(self->data, str.data, str.len);
   self->len = str.len;
   self->hash = hash;
-  self->data[str.len] = '\0';
 
   d_strings_insert(&gab.eg->strings, self, 0);
 
@@ -493,7 +492,6 @@ gab_value __gab_record(struct gab_triple gab, size_t len, size_t space,
       GAB_CREATE_FLEX_OBJ(gab_obj_rec, gab_value, space + len, kGAB_RECORD);
 
   self->len = len + space;
-  self->shift = 0;
   self->shape = gab_undefined;
   memcpy(self->data, data, sizeof(gab_value) * len);
 
@@ -717,10 +715,17 @@ gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
 
   size_t idx = gab_recfind(rec, key);
 
-  if (idx == -1)
-    return cons(gab, rec, val, gab_shpwith(gab, gab_recshp(rec), key));
-  else
-    return assoc(gab, reccpy(gab, rec, recneedsspace(rec, idx)), val, idx);
+  gab_gclock(gab);
+
+  if (idx == -1) {
+    gab_value result =
+        cons(gab, rec, val, gab_shpwith(gab, gab_recshp(rec), key));
+    return gab_gcunlock(gab), result;
+  } else {
+    gab_value result =
+        assoc(gab, reccpy(gab, rec, recneedsspace(rec, idx)), val, idx);
+    return gab_gcunlock(gab), result;
+  }
 }
 
 gab_value gab_nlstpush(struct gab_triple gab, gab_value list, size_t len,
@@ -756,7 +761,11 @@ gab_value gab_urecput(struct gab_triple gab, gab_value rec, size_t i,
   assert(gab_valkind(rec) == kGAB_RECORD);
   assert(i < gab_reclen(rec));
 
-  return assoc(gab, reccpy(gab, rec, 0), v, i);
+  gab_gclock(gab);
+
+  gab_value result = assoc(gab, reccpy(gab, rec, 0), v, i);
+
+  return gab_gcunlock(gab), result;
 }
 
 gab_value gab_recdel(struct gab_triple gab, gab_value rec, gab_value key) {
@@ -1052,8 +1061,6 @@ gab_value gab_fiber(struct gab_triple gab, struct gab_fiber_argt args) {
   memcpy(self->data + 2, args.argv, args.argc * sizeof(gab_value));
   self->data[0] = args.message;
   self->data[1] = args.receiver;
-
-  self->res = nullptr;
 
   self->vm.fp = self->vm.sb + 3;
   self->vm.sp = self->vm.sb + 3;

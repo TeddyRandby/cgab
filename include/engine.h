@@ -68,7 +68,8 @@ if (size == 0) {
 
   assert(!obj);
 
-  return malloc(size);
+  // Use 'calloc' to zero-initialize all the memory.
+  return calloc(1, size);
 }
 
 struct gab_obj_string *gab_egstrfind(struct gab_eg *gab, s_char str,

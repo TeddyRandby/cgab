@@ -3,11 +3,9 @@ i = 'iter':use
 implementations = .gab.message :impls
 
 # Now the |> chain is being parsed as *part* of the filter's block.
-xf = i:filter(m => m:strings.into:ends? '.test')
-     |> i:map((m impls) => do
+xf = i:filter((_, m) => m:strings.into:ends? '.test')
+     |> i:map((impls m) => do
           (path[] _) = m:strings.into:split '.'
-
-          path = path:transduce({} \push i:map \first)
 
           (path, { \path path \impls impls })
      end)
@@ -21,7 +19,7 @@ tests.all = implementations:transduce(
 
 suites.all = tests.all:reduce(
   {}
-  (suites suite) => suites:put(suite .gab.channel:)
+  (suites _ suite) => suites:put(suite .gab.channel:)
 )
 
 \test.compare :def! (
@@ -56,22 +54,21 @@ test.result.fail.t = { \test.path .nil \test.receiver .nil \test.meta .nil .fals
 }
 
 .gab.fiber: _ => do
-  suites.all :each (s c) => do
+  suites.all :each (c s) => do
     "✔ $\n" :printf (s)
     c :each \test.result.display
   end
 end
 
-tests.all:each(suite behaviors) => do 
-  .gab.fiber: _ => do
-    behaviors:each(_ runnable) => do 
+tests.all:each(behaviors suite) => do 
+  #.gab.fiber: _ => do
+    behaviors:each(runnable) => do 
       (path body) = runnable**
-
-      body:each(r t) => do
+      body:each(t r) => do
         t: { \test.path path, \test.receiver r }
       end
     end
 
     suites.all :at! suite :close!
-  end
+  #end
 end

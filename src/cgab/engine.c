@@ -226,7 +226,7 @@ struct primitive kind_primitives[] = {
 static const struct timespec t = {.tv_nsec = GAB_YIELD_SLEEPTIME_NS};
 
 void gab_yield(struct gab_triple gab) {
-  if (gab.eg->gc->schedule == gab.wkid)
+  if (gab.wkid && gab.eg->gc->schedule == gab.wkid)
     gab_gcepochnext(gab);
 
   thrd_sleep(&t, nullptr);
@@ -246,7 +246,8 @@ int32_t wkid(struct gab_eg *eg) {
 int32_t gc_job(void *data) {
   struct gab_triple *g = data;
   struct gab_triple gab = *g;
-  gab.wkid = gab.eg->len - 1;
+  gab.wkid = wkid(gab.eg);
+  assert(gab.wkid == 0);
 
   gab.eg->jobs[gab.wkid].fiber = gab_undefined;
 
@@ -264,6 +265,7 @@ int32_t worker_job(void *data) {
   struct gab_triple gab = *g;
   gab.wkid = wkid(gab.eg);
 
+  assert(gab.wkid != 0);
   gab.eg->njobs++;
 
   while (!gab_chnisclosed(gab.eg->work_channel)) {
@@ -296,7 +298,7 @@ int32_t worker_job(void *data) {
 struct gab_jb *next_available_job(struct gab_triple gab) {
 
   // Try to reuse an existing job, thats exited after idling
-  for (size_t i = 0; i < gab.eg->len; i++) {
+  for (size_t i = 1; i < gab.eg->len; i++) {
     // If we have a dead thread, revive it
     if (!gab.eg->jobs[i].alive)
       return gab.eg->jobs + i;
@@ -310,7 +312,7 @@ bool gab_jbcreate(struct gab_triple gab, struct gab_jb *job, int(fn)(void *)) {
   if (!job)
     return false;
 
-  job->epoch = 0;
+  job->epoch = gab.eg->jobs[0].epoch;
   job->locked = 0;
   job->fiber = gab_undefined;
   job->alive = true;
@@ -353,16 +355,16 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   d_gab_src_create(&eg->sources, 8);
 
-  struct gab_triple gab = {.eg = eg, .flags = args.flags, .wkid = njobs};
+  struct gab_triple gab = {.eg = eg, .flags = args.flags};
 
   size_t gcsize =
       sizeof(struct gab_gc) +
-      sizeof(struct gab_gcbuf[kGAB_NBUF][GAB_GCNEPOCHS]) * (njobs + 1);
+      sizeof(struct gab_gcbuf[kGAB_NBUF][GAB_GCNEPOCHS]) * (eg->len);
 
   eg->gc = malloc(gcsize);
   gab_gccreate(gab);
 
-  gab_jbcreate(gab, gab.eg->jobs + njobs, gc_job);
+  gab_jbcreate(gab, gab.eg->jobs, gc_job);
 
   eg->shapes = __gab_shape(gab, 0);
   eg->messages = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
@@ -491,7 +493,7 @@ void gab_destroy(struct gab_triple gab) {
 
   gab.eg->njobs = -1;
 
-  thrd_join(gab.eg->jobs[gab.eg->len - 1].td, nullptr);
+  thrd_join(gab.eg->jobs[0].td, nullptr);
   gab_gcdestroy(gab);
   free(gab.eg->gc);
 
@@ -665,7 +667,7 @@ int gab_ndef(struct gab_triple gab, size_t len,
   gab_value m = dodef(gab, gab_thisfibmsg(gab), len, args);
 
   if (m == gab_undefined)
-    return false;
+    return gab_gcunlock(gab), false;
 
   gab_value parent = gab_thisfiber(gab);
 
@@ -678,8 +680,7 @@ int gab_ndef(struct gab_triple gab, size_t len,
 
   gab.eg->messages = m;
 
-  gab_gcunlock(gab);
-  return true;
+  return gab_gcunlock(gab), true;
 }
 
 struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
@@ -728,7 +729,7 @@ a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
 
   mtx_lock(&eg->modules_mtx);
 
-  if (d_gab_modules_exists(&eg->modules, hash))
+  if (d_gab_modules_read(&eg->modules, hash) != nullptr)
     return mtx_unlock(&eg->modules_mtx), nullptr;
 
   a_gab_value *module = a_gab_value_empty(len + 1);

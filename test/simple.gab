@@ -1,0 +1,13 @@
+'cmessages':use
+
+\test:def! () => do
+  a = .true :then () => do
+    .true :then () => do
+      () => []
+    end
+  end
+
+  a:()**
+end
+
+'hi':test

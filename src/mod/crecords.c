@@ -196,7 +196,7 @@ a_gab_value *gab_lib_init(struct gab_triple gab, size_t argc,
   gab_value key = gab_ukrecat(rec, 0);
   gab_value val = gab_uvrecat(rec, 0);
 
-  gab_vmpush(gab_vm(gab), gab_ok, key, key, val);
+  gab_vmpush(gab_vm(gab), gab_ok, key, val, key);
   return nullptr;
 }
 
@@ -221,7 +221,7 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
   gab_value key = gab_ukrecat(rec, i + 1);
   gab_value val = gab_uvrecat(rec, i + 1);
 
-  gab_vmpush(gab_vm(gab), gab_ok, key, key, val);
+  gab_vmpush(gab_vm(gab), gab_ok, key, val, key);
   return nullptr;
 
 fin:

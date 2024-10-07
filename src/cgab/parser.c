@@ -981,10 +981,6 @@ static inline void push_op(struct bc *bc, uint8_t op, gab_value node) {
   bc->pprev_op = bc->prev_op;
   bc->prev_op = op;
 
-  if (!d_uint64_t_exists(&bc->src->node_begin_toks, node)) {
-    printf("no range for node: %V\n", node);
-  }
-
   assert(d_uint64_t_exists(&bc->src->node_begin_toks, node));
 
   bc->prev_op_at = v_uint8_t_push(&bc->bc, op);
@@ -994,10 +990,6 @@ static inline void push_op(struct bc *bc, uint8_t op, gab_value node) {
 }
 
 static inline void push_byte(struct bc *bc, uint8_t data, gab_value node) {
-  if (!d_uint64_t_exists(&bc->src->node_begin_toks, node)) {
-    printf("no range for node: %V\n", node);
-  }
-
   assert(d_uint64_t_exists(&bc->src->node_begin_toks, node));
 
   v_uint8_t_push(&bc->bc, data);
@@ -1955,7 +1947,7 @@ union gab_value_pair gab_compile(struct gab_triple gab, gab_value ast,
                                       .nupvalues = nupvalues,
                                       .nlocals = nlocals,
                                       .narguments = nargs,
-                                      .nslots = 0,
+                                      .nslots = (nlocals + 3),
                                       .data = data,
                                   });
 

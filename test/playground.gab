@@ -1,71 +1,85 @@
-s :: 'specs' :use
+s = 'specs' :use
 
-Car :: { \car.make, \car.model, \car.year, \car.color }
-
-s:def! {
-  \name: .car.make,
-  \help: "The car's manufacturer, ie 'Ford'",
-  \spec:  s:any  ('Ford', 'Chevy', 'Toyota', 'Honda'),
-}
-
-car.color.spec :: s:def! {
-  \name: .car.color,
-  \spec:  s:any ('RED', 'BLUE', 'WHITE', 'BLACK')
+Car = {
+  \car.make .nil
+  \car.model .nil
+  \car.year .nil
+  \car.color .nil
 }
 
 s:def! {
-  \name: .car.model ,
-  \spec:  s:any ('Mustang', 'Civic', 'Camry', 'Prius')
+  \name .car.make
+  \help "The car's manufacturer, ie 'Ford'."
+  \spec s:any('Ford' 'Chevy' 'Toyota' 'Honda')
+}
+
+car.color.spec = s:def! {
+  \name .car.color
+  \help "The car's color"
+  \spec s:any('RED' 'BLUE' 'WHITE' 'BLACK')
 }
 
 s:def! {
-  \name: .car.year ,
-  \spec:  s:all ( s:int (),  s:gt 1950 )
+  \name .car.model
+  \help "The car's model"
+  \spec s:any ('Mustang' 'Civic' 'Camry' 'Prius')
 }
 
-car.spec :: s:def! {
-  \name: .car,
-  \spec:  s:protocol Car
+s:def! {
+  \name .car.year
+  \help "The year of the car's manufacturing."
+  \spec s:all(s:int, s:gt 1950)
 }
 
-car.paint.spec :: s:def! {
-  \name: .car.paint,
-  \help: "Paint the car the given color",
-  \spec: s:message {
+car.spec = s:def! {
+  \name .car
+  \help "A car"
+  \spec s:protocol Car
+}
+
+
+car.paint.spec = s:def! {
+  \name .car.paint
+  \help "Paint the car the given color"
+  \spec s:message {
     # The receiver's spec
-    \receiver:  car.spec,
+    \receiver  car.spec
     # The message we spec over
-    \message:   \car.paint,
+    \message   \car.paint
     # Fetch the spec 'car.color' for the input
-    \input:     car.color.spec,
+    \input     car.color.spec
     # Fetch the spec 'car.color' for the output
-    \output:    car.color.spec,
+    \output    car.spec
     # Validate the implementation
-    \semantics: do receiver, input, output
-      (input:at!(0) == receiver:car.color) & (input:at!(0) == output:at!(0))
-    end,
+    \semantics (input output) => do
+      output:car.color == input
+    end
   }
 }
 
 # Generate a mock car
-car.spec:spec.explain:print
-
-test_car :: car.spec :spec.gen
+#test_car = car.spec :spec.gen
 
 # Generate a mock implementation of car.paint for Car
-car.paint.spec:spec.gen(Car ?)
+#car.paint.spec:spec.gen(Car ?)
 
 # Test the mock coar with the mock implementation of car.paint
 #test_car :car.paint('BLUE'):print # => 'BLUE'
 
 # Define a faulty car.paint specialization
-#\car.paint :def! ([Car ?], do color:
-  #self:car.color 10
-#end)
+\car.paint:def!(
+  (Car ?)
+  color => self:car.color 10)
 
 # Check our faulty implementation
 # & spec.check yields a stream of predicate results.
 # It generates receivers and inputs, sends the message,
 # And checks the output against the spec and semantics.
 # This code will run forever if the spec is always satisfied
-car.paint.spec:spec.check:print
+'hi':print
+
+a = car.paint.spec:spec.check
+
+'hi':print
+
+a:print
