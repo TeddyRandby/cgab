@@ -229,6 +229,7 @@ static void got_command(char *line) {
   snprintf(unique_name, unique_name_len, "%s:%03i", MAIN_MODULE,
            state.iteration++);
 
+  // TODO: Handle this asynchronously
   h->result = gab_exec(state.gab, (struct gab_exec_argt){
                                       .name = unique_name,
                                       .source = (char *)h->source,
@@ -251,7 +252,7 @@ static void init_ncurses(void) {
   CHECK(noecho);
   CHECK(nonl);
   CHECK(intrflush, NULL, FALSE);
-  timeout(64);
+  timeout(50);
   // Do not enable keypad() since we want to pass unadulterated input to
   // readline
 
