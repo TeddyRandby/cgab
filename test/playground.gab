@@ -7,39 +7,35 @@ Car = {
   \car.color .nil
 }
 
-s:def! {
-  \name .car.make
+.car.make :defspec! {
   \help "The car's manufacturer, ie 'Ford'."
   \spec s:any('Ford' 'Chevy' 'Toyota' 'Honda')
 }
 
-car.color.spec = s:def! {
-  \name .car.color
+.car.color :defspec! {
   \help "The car's color"
   \spec s:any('RED' 'BLUE' 'WHITE' 'BLACK')
 }
 
-s:def! {
-  \name .car.model
+.car.model:defspec! {
   \help "The car's model"
   \spec s:any ('Mustang' 'Civic' 'Camry' 'Prius')
 }
 
-s:def! {
-  \name .car.year
+.car.year:defspec! {
   \help "The year of the car's manufacturing."
   \spec s:all(s:int, s:gt 1950)
 }
 
-car.spec = s:def! {
-  \name .car
+.car :defspec! {
   \help "A car"
   \spec s:protocol Car
 }
 
+car.spec = .car:spec
+car.color.spec = .car.color:spec
 
-car.paint.spec = s:def! {
-  \name .car.paint
+.car.paint :defspec! {
   \help "Paint the car the given color"
   \spec s:message {
     # The receiver's spec
@@ -52,28 +48,38 @@ car.paint.spec = s:def! {
     \output    car.spec
     # Validate the implementation
     \semantics (input output) => do
+      input = input :at! 0
+      output = output :at! 0
       output:car.color == input
     end
   }
 }
 
+car.paint.spec = .car.paint:spec
+
 # Generate a mock car
-#test_car = car.spec :spec.gen
+test_car = car.spec :spec.gen
 
 # Generate a mock implementation of car.paint for Car
 #car.paint.spec:spec.gen(Car ?)
-
-# Test the mock coar with the mock implementation of car.paint
-#test_car :car.paint('BLUE'):print # => 'BLUE'
 
 # Define a faulty car.paint specialization
 \car.paint:def!(
   (Car ?)
   color => self:car.color 10)
 
+# Test the mock coar with the mock implementation of car.paint
+#test_car:car.paint 'BLUE' :print # => 'BLUE'
+
 # Check our faulty implementation
 # & spec.check yields a stream of predicate results.
 # It generates receivers and inputs, sends the message,
 # And checks the output against the spec and semantics.
 # This code will run forever if the spec is always satisfied
-car.paint.spec:spec.check:print
+#car.paint.spec:spec.check:print
+
+car.paint.spec :spec.fits? (
+  test_car
+  ["BLUE"]
+  [test_car]
+):print

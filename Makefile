@@ -30,7 +30,7 @@ all: $(BUILD_PREFIX)/gab cmodules
 cmodules: $(CMOD_SHARED)
 
 $(BUILD_PREFIX)/gab: $(GAB_OBJ) $(BUILD_PREFIX)/libcgab.a
-	$(CC) $(CFLAGS) $(INCLUDE) $(GAB_OBJ) $(LD_CGAB) -o $@
+	$(CC) $(CFLAGS) $(INCLUDE) $(GAB_OBJ) $(LD_CGAB) -lncurses -lreadline -o $@
 
 $(BUILD_PREFIX)/libcgab.a: $(OS_OBJ) $(CGAB_OBJ)
 	ar rcs $@ $^

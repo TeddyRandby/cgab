@@ -1,23 +1,23 @@
 i = 'iter' :use
-spec.t = .spec
+spec.t = .gab.spec
 
-explain_specs = (specs, separator) => specs
+explain_specs = (specs separator) => specs
   :transduce(
     ''
     \+
-    i:map(\spec.explain)
-    |> i:interpose(separator))
+    i:map \spec.explain
+    |> i:interpose separator)
 
 explain_keys = (strings separator) => strings
   :transduce(
     ''
     \+
-    i:map(\first)
-    |> i:map(\strings.into)
-    |> i:interpose(separator))
+    i:map \first
+    |> i:map \strings.into
+    |> i:interpose separator)
 
-\def!:def!(
-  spec.t
+\defspec!:def!(
+  'gab.sigil'
   (opts) => do
     \spec.help:def!(
       opts:spec
@@ -25,13 +25,13 @@ explain_keys = (strings separator) => strings
 
     \spec.name:def!(
       opts:spec
-      opts:name:strings.into)
+      self:strings.into)
 
     \spec:def!(
-      opts:name
-      () => (.ok, opts:spec))
+      self
+      opts:spec)
 
-    opts:spec
+    self
   end)
 
 ['gab.sigil'] :defmodule! {
@@ -286,7 +286,7 @@ protocol.predicate = (protocol) => do
     end)
 
   genit = i:map (_ key) => do
-    found = key:sigils.into:spec:unwrap!
+    found = key:sigils.into:spec
     (key found:spec.gen)
   end
 
@@ -386,17 +386,13 @@ spec.block.Application = { \input .nil \output .nil \semantics .nil \in .nil \ou
   spec.block.Application
   () => self:output:spec.fits?(self:out**))
 
-\spec.semantic_fits?:def!(
+\spec.semantics_fits?:def!(
   .nil
   (input output) => (.true .nil [input output]))
 
 \spec.semantics_fits?:def!(
-  .gab.block
-  (input output) => (self:(input output) self [input output] .semantics))
-
-\spec.block.semantics_fits?:def!(
-  spec.block.Application
-  (input output) => self:at!(.semantics):spec.semantic_fits?(input output))
+  'gab.block'
+  (input output) => (self:(input output), self, [input output], .semantics))
 
 block.predicate = (args semantics) => do
   args:assert.is? spec.block.Args
@@ -491,7 +487,23 @@ general_message.predicate = 'predicate:message' :sigils.into
 
 \spec.message.semantics_fits?:def!(
   'gab.record'
-  (input, output) => self:at!('semantics'):spec.semantic_fits?(input, output))
+  () => self
+    :at \semantics
+    :unwrap ()
+    :spec.semantics_fits?(self:in, self:out))
+
+\dospec.apply :defcase! {
+  .true (v acc f) => [f : v]
+  .false (v acc f) => acc
+}
+
+\-!> :def! (fs[]) => do
+  me = self
+  fs:reduce([.true]
+    (so_far f) => so_far
+      :at! 0
+      :dospec.apply(me so_far f))**
+end
 
 \spec.message.define:defcase! {
   .nil general_message.predicate
@@ -501,22 +513,15 @@ general_message.predicate = 'predicate:message' :sigils.into
 
     \spec.fits?:def!(
       pred
-      (rec input output) => do 
-        v = args
-          :put(.input_value input)
-          :put(.output_value output)
-
-        v:first(
-          \apply,
-          [
-            \spec.message.input_fits?,
-            \spec.message.output_fits?,
-            \spec.message.receiver_fits?,
-            \spec.message.semantics_fits?,
-          ],
-          \options.into,
-        )
-      end)
+      (rec in out)
+        => args
+          :put(\rec rec)
+          :put(\in in)
+          :put(\out out)
+           -!>(\spec.message.receiver_fits?
+               \spec.message.input_fits?
+               \spec.message.output_fits?
+               \spec.message.semantics_fits?))
 
     \spec.gen:def!(
       pred
@@ -524,40 +529,42 @@ general_message.predicate = 'predicate:message' :sigils.into
         args:message:def!(
           receiver
           (input[]) => do
-            # TODO: Maybe have a better syntax to avoid situations like this?
-            # FIXME: Putting a comment after self here breaks things?
-            me = self
+            (ok pred value path) = args:receiver:spec.fits? self
 
-            args:input:spec.fits?(input**) :then () => do
-              iter = i:map(() => do
-                  (output[]) = args:output:spec.gen
+            (ok pred value path) = ok
+              :or (ok pred value path)
+              :then () => args:input:spec.fits?(input**)
 
-                  args:output:spec.fits?(output**) :then () => do
-                    # If there are no semantics to satisfy, just return this output
-                    (args:has? 'semantics' :else () => output**) :then () => do
-                      rec = args:receiver:spec.gen
+            ok
+              :or (ok pred value path)
+              :then () => do
+                (ok pred value path) = args:input:spec.fits?(input**)
+                (output[]) = args:output:spec.gen
+                iter = i:map(() => do
+                    (output[]) = args:output:spec.gen
 
-                      args:receiver:spec.fits?(rec) :then () => do
-                        # Otherwise, we need to continue generating until we
-                        # find a receiver and output which satisfy the semantics.
-                        args:semantics(input, output) :then () => do
-                          # Return the generated output
-                          output**
+                    args:output:spec.fits?(output**) :then () => do
+                      # If there are no semantics to satisfy, just return this output
+                      (args:has? \semantics :else () => output**) :then () => do
+                        rec = args:receiver:spec.gen
+
+                        args:receiver:spec.fits?(rec) :then () => do
+
+                          # Otherwise, we need to continue generating until we
+                          # find a receiver and output which satisfy the semantics.
+                          args:semantics:(input, output) :then () => do
+                            # Return the generated output
+                            (.ok output**)
+                          end
                         end
                       end
                     end
-                  end
-                end)            
-                |> i:map(\options.into)
-                |> i:filter(\ok?)
-                |> i:map(\first)
-                |> i:take(1)
+                  end)            
+                  |> i:filter \ok?
+                  |> i:map \unwrap
+                  |> i:take 1
 
-              .gab.range:(100):transduce(
-                0,
-                \first,
-                iter,
-              )
+                .gab.range:(100):transduce(.false \first iter)
           end
         end)
 
@@ -574,31 +581,39 @@ general_message.predicate = 'predicate:message' :sigils.into
               (input[]) = args:input:spec.gen
 
               args:input:spec.fits?(input**) :then () => do
-                (output[]) = args:message:(receiver, input**)
+                (output[]) = args:message:(receiver input**)
 
-                args:output:spec.fits?(output**)
+                (ok res[]) = args:output:spec.fits?(output**)
+                
+                 ok:then () => do
+                  args:has? \semantics
+                    :or (ok, res**)
+                    :then () => do
+                      args:semantics:(input output)
+                        :and(ok, res**)
+                        :or(.false, args:semantics, [input output], 'semantics')
+                    end
+                end
               end
             end
           end)
           |> i:filter((valid? spec value path) => valid? !)
           |> i:map((valid? spec value path) => .gab.option:(valid? !, spec value path))
-          |> i:take(1)
+          |> i:take 1
 
-        res = .gab.range:(100):transduce([] \all iter)**
-
-        res
+        .gab.range:(100):transduce([.none] \all iter)**
       end)
 
     \spec.explain:def!(
       pred
       () =>.gab.string:(
         args:receiver:spec.name
-        ' \\'
+        '\\'
         args:message
         ' '
-        args:input:spec.explain
+        args:input:spec.name
         ' => '
-        args:output:spec.explain))
+        args:output:spec.name))
 
     pred
   end
@@ -608,12 +623,17 @@ message.predicate = args => args:spec.message.define
 
 LabeledSpec = { \spec.label .nil \spec.spec .nil }?
 
-\spec.label:def! spec.label => { \spec.label spec.label \spec.spec self }
+\spec.label:def! spec.label => {
+  \spec.label spec.label
+  \spec.spec self
+}
 
-\spec.explain:def! LabeledSpec => .gab.string:(
+\spec.explain:def!(
+  LabeledSpec
+  () => .gab.string:(
     self:spec.label
     ': '
-    self:spec.spec:spec.explain)
+    self:spec.spec:spec.explain))
 
 \spec.gen:def!(
   LabeledSpec
@@ -627,19 +647,9 @@ LabeledSpec = { \spec.label .nil \spec.spec .nil }?
   LabeledSpec
   () => self:spec.spec:spec.check)
 
-\spec.modify!:def!(
-  LabeledSpec
-  () => self:spec.spec:spec.modify!)
-
-# A default gen implementation is the identity function
-\spec.gen:def! () => self
-
-# A default explain implementation
-\spec.explain:def! () => self:strings.into
-
-## FITS
-# Default spec.fits? specializfation is just good ol' equality
-\spec.fits?:def! (value) => (self == value, self, value)
+\spec.gen :def! () => self
+\spec.explain :def! () => self
+\spec.fits? :def! value => (self == value, self, value)
 
 # Since a spec is just a predicate, we can simply call it and return the result
 \spec.fits?:def!(

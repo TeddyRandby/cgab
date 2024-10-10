@@ -83,8 +83,8 @@ LINKAGE void METHOD(cap)(TYPENAME* self, size_t cap) {
 
 LINKAGE T *METHOD(emplace)(TYPENAME *self) {
   if (self->len >= self->cap) {
-    self->data = GROW(T, self->data, MAX(8, self->cap * 2));
-    self->cap = self->cap * 2;
+    self->cap = MAX(8, self->cap * 2);
+    self->data = GROW(T, self->data, self->cap);
   }
   return self->data + (self->len++);
 }

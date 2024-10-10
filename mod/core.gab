@@ -19,7 +19,7 @@ falsey_values = [.nil .false .none .err]
 \is? :def! do other => self:?:== other end
 
 truthy_values :defmodule! {
-  \and (alt []) => alt**
+  \and (alt[]) => alt**
   \then f => f: self
   \or _ => self
   \else _ => self

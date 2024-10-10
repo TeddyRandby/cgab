@@ -269,7 +269,7 @@ int32_t worker_job(void *data) {
   gab.eg->njobs++;
 
   while (!gab_chnisclosed(gab.eg->work_channel)) {
-    gab_value fiber = gab_chntake(gab, gab.eg->work_channel);
+    gab_value fiber = gab_tchntake(gab, gab.eg->work_channel, cGAB_WORKER_IDLEWAIT_MS);
 
     // we get undefined if:
     //  - the channel is closed

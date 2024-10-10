@@ -674,7 +674,7 @@ fin:
   gab_value lhs_node = node_value(gab, gab_sigil(gab, "gab.record"));
   gab_value msg_node = gab_message(gab, mGAB_CALL);
 
-  gab_value node = node_send(gab,lhs_node, msg_node, result);
+  gab_value node = node_send(gab, lhs_node, msg_node, result);
 
   size_t end = parser->offset;
 
@@ -1433,6 +1433,7 @@ static struct lookup_res add_upvalue(struct gab_triple gab, gab_value env,
   /*    bc, GAB_TOO_MANY_UPVALUES,*/
   /*    "For arbitrary reasons, blocks cannot capture more than 255 "*/
   /*    "variables.");*/
+  assert(!gab_rechas(ctx, id));
   ctx = gab_recput(gab, ctx, id, gab_number(count));
   env = put_env(gab, env, depth, ctx);
 
@@ -1440,6 +1441,7 @@ static struct lookup_res add_upvalue(struct gab_triple gab, gab_value env,
 }
 
 static int lookup_upv(gab_value ctx, gab_value id) {
+  assert(gab_valkind(gab_recat(ctx, id)) == kGAB_NUMBER);
   return gab_valton(gab_recat(ctx, id));
 }
 
@@ -1576,6 +1578,7 @@ gab_value unpack_binding_into_env(struct gab_triple gab, struct bc *bc,
     switch (gab_valkind(binding)) {
 
     case kGAB_SYMBOL:
+      assert(gab_valkind(gab_recat(ctx, binding)) != kGAB_NUMBER);
       ctx = gab_recput(gab, ctx, binding, gab_nil);
       targets[actual_targets++] = binding;
       break;
@@ -1845,7 +1848,7 @@ void build_upvdata(gab_value env, uint8_t len, char data[static len]) {
     if (v == gab_nil)
       continue;
 
-    bool is_local = has_grandparent ? !gab_rechas(grandparent, k) : true;
+    bool is_local = has_grandparent ? (gab_recat(parent, k) == gab_nil) : true;
 
     size_t idx = is_local ? lookup_local(parent, k) : lookup_upv(parent, k);
 

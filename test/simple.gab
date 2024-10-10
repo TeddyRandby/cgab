@@ -1,13 +1,13 @@
-'cmessages':use
+v = 'hi'
 
-\test:def! () => do
-  a = .true :then () => do
-    .true :then () => do
-      () => []
+() => do
+  v = 2
+  () => do
+    v = 2
+
+    () => do
+      () => v
     end
   end
-
-  a:()**
+  v:print
 end
-
-'hi':test
