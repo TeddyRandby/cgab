@@ -7,4 +7,4 @@
   'gab.record'
   (n) => n :== 0 :doacc(self n))
 
-[] :acc 600 :len:print
+[] :acc 950 :len:print

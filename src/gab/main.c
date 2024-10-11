@@ -50,7 +50,7 @@ void *dynsymbol(void *handle, const char *path) {
 struct history_entry {
   char *source;
   const char *name;
-  a_gab_value *result;
+  gab_value fiber;
 };
 
 #define T struct history_entry
@@ -79,8 +79,8 @@ enum repl_widget_flag {
 
 struct repl_widget {
   WINDOW *w;
-  int (*tick)(WINDOW *w, int key);
-  int (*curs)(WINDOW *w, int key);
+  int (*tick)(WINDOW *w, int key, int tick);
+  int (*curs)(WINDOW *w, int key, int tick);
   int min_height;
   float height;
   int flags;
@@ -219,8 +219,13 @@ static void got_command(char *line) {
     return;
   }
 
-  struct history_entry *h = v_history_emplace(&state.history);
   size_t len = strnwidth(rl_line_buffer, rl_point, 0);
+
+  if (len <= 1)
+    return;
+
+  struct history_entry *h = v_history_emplace(&state.history);
+
   h->source = malloc(len + 1);
   strncpy(h->source, rl_line_buffer, len + 1);
 
@@ -229,13 +234,19 @@ static void got_command(char *line) {
   snprintf(unique_name, unique_name_len, "%s:%03i", MAIN_MODULE,
            state.iteration++);
 
-  // TODO: Handle this asynchronously
-  h->result = gab_exec(state.gab, (struct gab_exec_argt){
-                                      .name = unique_name,
-                                      .source = (char *)h->source,
-                                  });
-
   h->name = unique_name;
+
+  // TODO: Handle this asynchronously
+  gab_value fiber = gab_aexec(state.gab, (struct gab_exec_argt){
+                                             .flags = fGAB_ERR_QUIET,
+                                             .name = unique_name,
+                                             .source = (char *)h->source,
+                                         });
+  if (fiber == gab_undefined)
+    return;
+
+  gab_iref(state.gab, fiber);
+  h->fiber = fiber;
 }
 
 static void init_ncurses(void) {
@@ -252,7 +263,7 @@ static void init_ncurses(void) {
   CHECK(noecho);
   CHECK(nonl);
   CHECK(intrflush, NULL, FALSE);
-  timeout(50);
+  timeout(32);
   // Do not enable keypad() since we want to pass unadulterated input to
   // readline
 
@@ -297,7 +308,7 @@ static void init_readline(void) {
 
 static void deinit_readline(void) { rl_callback_handler_remove(); }
 
-int tick_history(WINDOW *w, int key) {
+int tick_history(WINDOW *w, int key, int tick) {
   int maxy, maxx;
   getmaxyx(w, maxy, maxx);
 
@@ -311,25 +322,40 @@ int tick_history(WINDOW *w, int key) {
 
     mvwprintw(w, line, 1, "%s > %s", h->name, (char *)h->source);
 
-    if (!h->result)
+    if (gab_fibisdone(h->fiber)) {
+      a_gab_value *result = gab_fibawait(state.gab, h->fiber);
+
+      if (!result)
+        continue;
+
+      mvwprintw(w, i * 2 + 2, 1, " => ");
+
+      size_t vlen = result->len;
+      for (size_t j = 0; j < vlen; j++) {
+        gab_value vs = gab_valintos(state.gab, result->data[j]);
+        const char *cs = gab_strdata(&vs);
+
+        waddstr(w, cs);
+        if (j + 1 != vlen)
+          waddstr(w, ", ");
+      }
+
       continue;
+    }
 
-    mvwprintw(w, i * 2 + 2, 1, " => ");
-    size_t vlen = h->result->len;
-    for (size_t j = 0; j < vlen; j++) {
-      gab_value vs = gab_valintos(state.gab, h->result->data[j]);
-      const char *cs = gab_strdata(&vs);
-
-      waddstr(w, cs);
-      if (j + 1 != vlen)
-        waddstr(w, ", ");
+    if (gab_fibisrunning(h->fiber)) {
+      static const char spinner[] = {'\\', '|', '/', '-'};
+      size_t idx = tick % (sizeof(spinner) / sizeof(char));
+      assert(idx < (sizeof(spinner) / sizeof(char)));
+      char c = spinner[idx];
+      mvwprintw(w, i * 2 + 2, 1, " %c", c);
     }
   }
 
   return OK;
 }
 
-int curs_input(WINDOW *w, int key) {
+int curs_input(WINDOW *w, int key, int) {
   if (key != ERR && key < UINT8_MAX)
     forward_to_readline(key);
 
@@ -343,7 +369,7 @@ int curs_input(WINDOW *w, int key) {
   wrefresh(w);
 }
 
-int tick_fibers(WINDOW *w, int key) {
+int tick_fibers(WINDOW *w, int key, int) {
   const char *msg = "gab\\repl";
   mvwprintw(w, 0, COLS - 2 - strlen(msg), "%s", msg);
 
@@ -355,7 +381,7 @@ int tick_fibers(WINDOW *w, int key) {
   }
 }
 
-int tick_input(WINDOW *w, int key) {
+int tick_input(WINDOW *w, int key, int) {
   // Allow strings longer than the message window and show only the last part
   // if the string doesn't fit
   CHECK(scrollok, w, TRUE);
@@ -412,7 +438,7 @@ int getpos(struct repl_widget *wid) {
   return above;
 }
 
-int tick_widget(struct repl_widget *wid, int key) {
+int tick_widget(struct repl_widget *wid, int key, int tick) {
   int nlines = getheight(wid), npos = getpos(wid);
 
   if (wid->w == nullptr)
@@ -433,7 +459,7 @@ int tick_widget(struct repl_widget *wid, int key) {
     box(wid->w, 0, 0);
 
   if (wid->tick)
-    wid->tick(wid->w, key);
+    wid->tick(wid->w, key, tick);
 
   wnoutrefresh(wid->w);
 
@@ -455,6 +481,8 @@ void run_repl(int flags) {
   init_ncurses();
   init_readline();
 
+  int tick = 0;
+
   for (;;) {
     if (state.should_exit)
       break;
@@ -462,12 +490,14 @@ void run_repl(int flags) {
     int key = wgetch(stdscr);
 
     for (int wid = 0; wid < NWIDGETS; wid++)
-      tick_widget(layout + wid, key);
+      tick_widget(layout + wid, key, tick);
 
     if (layout[state.active_widget].w && layout[state.active_widget].curs)
-      layout[state.active_widget].curs(layout[state.active_widget].w, key);
+      layout[state.active_widget].curs(layout[state.active_widget].w, key,
+                                       tick);
 
     doupdate();
+    tick++;
   }
 
   deinit_ncurses();

@@ -836,7 +836,7 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args);
  * @param args The arguments.
  * @return A heap-allocated slice of values returned by the block.
  */
-struct gab_fb *gab_aexec(struct gab_triple gab, struct gab_exec_argt args);
+gab_value gab_aexec(struct gab_triple gab, struct gab_exec_argt args);
 
 /**
  * @brief Arguments and options for an interactive REPL.
@@ -1918,6 +1918,14 @@ gab_value gab_fiber(struct gab_triple gab, struct gab_fiber_argt args);
  * @param fiber The fiber
  */
 a_gab_value *gab_fibawait(struct gab_triple gab, gab_value fiber);
+
+static inline bool gab_fibisrunning(gab_value fiber) {
+  return gab_valkind(fiber) == kGAB_FIBERRUNNING;
+}
+
+static inline bool gab_fibisdone(gab_value fiber) {
+  return gab_valkind(fiber) == kGAB_FIBERDONE;
+}
 
 static inline gab_value gab_thisfiber(struct gab_triple gab);
 

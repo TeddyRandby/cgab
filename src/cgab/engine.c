@@ -269,7 +269,8 @@ int32_t worker_job(void *data) {
   gab.eg->njobs++;
 
   while (!gab_chnisclosed(gab.eg->work_channel)) {
-    gab_value fiber = gab_tchntake(gab, gab.eg->work_channel, cGAB_WORKER_IDLEWAIT_MS);
+    gab_value fiber =
+        gab_tchntake(gab, gab.eg->work_channel, cGAB_WORKER_IDLEWAIT_MS);
 
     // we get undefined if:
     //  - the channel is closed
@@ -636,6 +637,27 @@ a_gab_value *gab_exec(struct gab_triple gab, struct gab_exec_argt args) {
                           .len = args.len,
                           .argv = args.argv,
                       });
+}
+
+gab_value gab_aexec(struct gab_triple gab, struct gab_exec_argt args) {
+  gab_value main = gab_build(gab, (struct gab_build_argt){
+                                      .name = args.name,
+                                      .source = args.source,
+                                      .flags = args.flags,
+                                      .len = args.len,
+                                      .argv = args.sargv,
+                                  });
+
+  if (main == gab_undefined || args.flags & fGAB_BUILD_CHECK) {
+    return gab_undefined;
+  }
+
+  return gab_arun(gab, (struct gab_run_argt){
+                           .main = main,
+                           .flags = args.flags,
+                           .len = args.len,
+                           .argv = args.argv,
+                       });
 }
 
 gab_value dodef(struct gab_triple gab, gab_value messages, size_t len,
