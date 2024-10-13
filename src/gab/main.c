@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <stdnoreturn.h>
 #include <string.h>
+#include <threads.h>
 #include <wchar.h>
 #include <wctype.h>
 
@@ -70,7 +71,7 @@ struct repl_model {
   v_history history;
 };
 
-struct repl_model state;
+static struct repl_model state;
 
 enum repl_widget_flag {
   fREPL_WIDGET_FLEX_GROW = 1 << 0,
@@ -221,7 +222,7 @@ static void got_command(char *line) {
 
   size_t len = strnwidth(rl_line_buffer, rl_point, 0);
 
-  if (len <= 1)
+  if (len < 1)
     return;
 
   struct history_entry *h = v_history_emplace(&state.history);
@@ -236,7 +237,6 @@ static void got_command(char *line) {
 
   h->name = unique_name;
 
-  // TODO: Handle this asynchronously
   gab_value fiber = gab_aexec(state.gab, (struct gab_exec_argt){
                                              .flags = fGAB_ERR_QUIET,
                                              .name = unique_name,
@@ -249,6 +249,25 @@ static void got_command(char *line) {
   h->fiber = fiber;
 }
 
+enum {
+  REPL_NONE,
+  REPL_RED,
+  REPL_BLUE,
+  REPL_GREEN,
+  REPL_CYAN,
+  REPL_WHITE,
+  REPL_YELLOW,
+  REPL_MAGENTA,
+} REPL_COLORS;
+
+static int colors[] = {
+    [TOKEN_SYMBOL] = REPL_CYAN,    [TOKEN_DO] = REPL_WHITE,
+    [TOKEN_END] = REPL_WHITE,      [TOKEN_STRING] = REPL_GREEN,
+    [TOKEN_SIGIL] = REPL_GREEN,    [TOKEN_SEND] = REPL_CYAN,
+    [TOKEN_OPERATOR] = REPL_CYAN,  [TOKEN_SPECIAL_SEND] = REPL_CYAN,
+    [TOKEN_NUMBER] = REPL_MAGENTA, [TOKEN_ERROR] = REPL_RED,
+};
+
 static void init_ncurses(void) {
   if (!initscr())
     fail_exit("Failed to initialize ncurses");
@@ -257,13 +276,23 @@ static void init_ncurses(void) {
   if (has_colors()) {
     CHECK(start_color);
     CHECK(use_default_colors);
+
+    init_pair(REPL_RED, COLOR_RED, COLOR_BLACK);
+    init_pair(REPL_BLUE, COLOR_BLUE, COLOR_BLACK);
+    init_pair(REPL_GREEN, COLOR_GREEN, COLOR_BLACK);
+    init_pair(REPL_CYAN, COLOR_CYAN, COLOR_BLACK);
+    init_pair(REPL_WHITE, COLOR_WHITE, COLOR_BLACK);
+    init_pair(REPL_YELLOW, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(REPL_MAGENTA, COLOR_MAGENTA, COLOR_BLACK);
+
+    wbkgd(stdscr, COLOR_PAIR(REPL_WHITE));
   }
 
   CHECK(cbreak);
   CHECK(noecho);
   CHECK(nonl);
-  CHECK(intrflush, NULL, FALSE);
-  timeout(32);
+  CHECK(intrflush, NULL, false);
+  timeout(16); // Around 60fps
   // Do not enable keypad() since we want to pass unadulterated input to
   // readline
 
@@ -308,6 +337,45 @@ static void init_readline(void) {
 
 static void deinit_readline(void) { rl_callback_handler_remove(); }
 
+bool wprintmodule(WINDOW *w, const char *name) {
+  struct gab_src *src =
+      d_gab_src_read(&state.gab.eg->sources, gab_string(state.gab, name));
+
+  if (!src)
+    return false;
+
+  size_t srclen = src->source->len;
+  size_t tok = 0;
+  for (size_t i = 0; i < srclen;) {
+    enum gab_token t = v_gab_token_val_at(&src->tokens, tok);
+    s_char t_src = v_s_char_val_at(&src->token_srcs, tok);
+
+    wattron(w, COLOR_PAIR(colors[t]));
+    wprintw(w, "%.*s", (int)t_src.len, t_src.data);
+    wattroff(w, COLOR_PAIR(colors[t]));
+
+    tok++;
+
+    if (tok >= src->token_srcs.len)
+      break;
+
+    i += t_src.len;
+
+    s_char next_t_src = v_s_char_val_at(&src->token_srcs, tok);
+
+    while (src->source->data + i < next_t_src.data)
+      wprintw(w, "%c", src->source->data[i++]);
+  }
+
+  return true;
+}
+
+static const char spinner[] = {'\\', '\\', '\\', '\\', '\\', '\\', '\\', '\\',
+                               '|',  '|',  '|',  '|',  '|',  '|',  '|',  '|',
+                               '/',  '/',  '/',  '/',  '/',  '/',  '/',  '/',
+                               '-',  '-',  '-',  '-',  '-',  '-',  '-',  '-'};
+static const size_t nspinner = sizeof(spinner) / sizeof(char);
+
 int tick_history(WINDOW *w, int key, int tick) {
   int maxy, maxx;
   getmaxyx(w, maxy, maxx);
@@ -320,7 +388,8 @@ int tick_history(WINDOW *w, int key, int tick) {
     if (line + 2 >= maxy)
       break;
 
-    mvwprintw(w, line, 1, "%s > %s", h->name, (char *)h->source);
+    mvwprintw(w, line, 1, "%s > ", h->name);
+    wprintmodule(w, h->name);
 
     if (gab_fibisdone(h->fiber)) {
       a_gab_value *result = gab_fibawait(state.gab, h->fiber);
@@ -328,7 +397,7 @@ int tick_history(WINDOW *w, int key, int tick) {
       if (!result)
         continue;
 
-      mvwprintw(w, i * 2 + 2, 1, " => ");
+      mvwprintw(w, i * 2 + 2, 1, "   => ");
 
       size_t vlen = result->len;
       for (size_t j = 0; j < vlen; j++) {
@@ -344,11 +413,10 @@ int tick_history(WINDOW *w, int key, int tick) {
     }
 
     if (gab_fibisrunning(h->fiber)) {
-      static const char spinner[] = {'\\', '|', '/', '-'};
-      size_t idx = tick % (sizeof(spinner) / sizeof(char));
-      assert(idx < (sizeof(spinner) / sizeof(char)));
+      size_t idx = tick % nspinner;
+      assert(idx < nspinner);
       char c = spinner[idx];
-      mvwprintw(w, i * 2 + 2, 1, " %c", c);
+      mvwprintw(w, i * 2 + 2, 1, " %c =>", c);
     }
   }
 
@@ -362,23 +430,37 @@ int curs_input(WINDOW *w, int key, int) {
   size_t prompt_width = strwidth(rl_display_prompt, 0);
 
   size_t cursor_col =
-      prompt_width + strnwidth(rl_line_buffer, rl_point, prompt_width) + 1;
+      prompt_width + strnwidth(rl_line_buffer, rl_point, prompt_width) + 2;
 
   wmove(w, 1, cursor_col);
 
   wrefresh(w);
 }
 
-int tick_fibers(WINDOW *w, int key, int) {
+static const char fib_fmt[] = "%2i[%c]";
+static const size_t fib_fmtlen = sizeof(fib_fmt);
+
+static const char fib_blink[] = "***********************             ";
+static const size_t fib_blinklen = sizeof(fib_blink);
+
+int tick_fibers(WINDOW *w, int key, int tick) {
   const char *msg = "gab\\repl";
   mvwprintw(w, 0, COLS - 2 - strlen(msg), "%s", msg);
 
   wmove(w, 1, 1);
 
   int len = state.gab.eg->len;
+  size_t sofar = 1;
   for (int i = 0; i < len; i++) {
-    wprintw(w, "%i [%s] ", i, state.gab.eg->jobs[i].alive ? "•" : " ");
+    if (sofar > COLS - 2)
+      break;
+
+    wprintw(w, fib_fmt, i, state.gab.eg->jobs[i].alive ? '*' : ' ');
+
+    sofar += fib_fmtlen;
   }
+
+  return OK;
 }
 
 int tick_input(WINDOW *w, int key, int) {
@@ -386,7 +468,26 @@ int tick_input(WINDOW *w, int key, int) {
   // if the string doesn't fit
   CHECK(scrollok, w, TRUE);
 
-  mvwprintw(w, 1, 1, "%s%s", rl_display_prompt, rl_line_buffer);
+  size_t unique_name_len = strlen("typeahead") + 16;
+  char *unique_name = malloc(unique_name_len);
+  snprintf(unique_name, unique_name_len, "%s:%03i", "typeahead",
+           state.iteration++);
+
+  gab_value main = gab_build(state.gab, (struct gab_build_argt){
+                                            .name = unique_name,
+                                            .flags = fGAB_ERR_QUIET,
+                                            .source = rl_line_buffer,
+                                        });
+
+  struct gab_src *src = d_gab_src_read(&state.gab.eg->sources,
+                                       gab_string(state.gab, unique_name));
+  assert(src);
+
+  const char *prefix = main == gab_undefined ? "x" : " ";
+
+  mvwprintw(w, 1, 1, "%s%s", prefix, rl_display_prompt);
+
+  wprintmodule(w, unique_name);
 
   return OK;
 };
@@ -454,6 +555,7 @@ int tick_widget(struct repl_widget *wid, int key, int tick) {
     return delwin(wid->w), wid->w = nullptr, ERR;
 
   wclear(wid->w);
+  wbkgd(wid->w, COLOR_PAIR(REPL_WHITE));
 
   if (wid->flags & fREPL_WIDGET_BORDER)
     box(wid->w, 0, 0);
@@ -468,6 +570,7 @@ int tick_widget(struct repl_widget *wid, int key, int tick) {
 
 void run_repl(int flags) {
   state.active_widget = 1; // The input is active initially
+  state.iteration = 0;
 
   state.gab = gab_create((struct gab_create_argt){
       .os_dynopen = dynopen,
