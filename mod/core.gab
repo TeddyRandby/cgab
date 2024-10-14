@@ -68,6 +68,8 @@ falsey_values :defmodule! {
   .ok (seq.i, seq.v, acc, r, xs) => do
     # Apply the reducer
     (cmd, r, acc) = r:reduce.step(acc, xs**)
+
+    (cmd, r, acc):print
     # proceed to the next sep
     cmd:doreduce(seq.i, seq.v, acc, r)
   end
