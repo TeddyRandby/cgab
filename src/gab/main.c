@@ -64,6 +64,8 @@ struct repl_model {
 
   /* INPUT WIDGET STATE */
   int iteration;
+  char prefix;
+  bool input_is_dirty;
 
   int active_widget;
   bool should_exit;
@@ -360,7 +362,13 @@ bool wprintmodule(WINDOW *w, const char *name) {
 
   size_t srclen = src->source->len;
   size_t tok = 0;
+
   for (size_t i = 0; i < srclen;) {
+    s_char next_t_src = v_s_char_val_at(&src->token_srcs, tok);
+
+    while (src->source->data + i < next_t_src.data)
+      wprintw(w, "%c", src->source->data[i++]);
+
     enum gab_token t = v_gab_token_val_at(&src->tokens, tok);
     s_char t_src = v_s_char_val_at(&src->token_srcs, tok);
 
@@ -374,11 +382,6 @@ bool wprintmodule(WINDOW *w, const char *name) {
       break;
 
     i += t_src.len;
-
-    s_char next_t_src = v_s_char_val_at(&src->token_srcs, tok);
-
-    while (src->source->data + i < next_t_src.data)
-      wprintw(w, "%c", src->source->data[i++]);
   }
 
   return true;
@@ -439,7 +442,7 @@ int tick_history(WINDOW *w, int key, int tick) {
 
 int curs_input(WINDOW *w, int key, int) {
   if (key != ERR && key < UINT8_MAX)
-    forward_to_readline(key);
+    forward_to_readline(key), state.input_is_dirty = true;
 
   size_t prompt_width = strwidth(rl_display_prompt, 0);
 
@@ -511,27 +514,37 @@ int tick_input(WINDOW *w, int key, int) {
   // if the string doesn't fit
   CHECK(scrollok, w, TRUE);
 
-  size_t unique_name_len = strlen("typeahead") + 16;
-  char *unique_name = malloc(unique_name_len);
-  snprintf(unique_name, unique_name_len, "%s:%03i", "typeahead",
-           state.iteration++);
+  if (state.input_is_dirty) {
+    state.input_is_dirty = false;
+    state.iteration++;
 
-  // Doing this every frame without detecting change is bad
-  gab_value main = gab_build(state.gab, (struct gab_build_argt){
-                                            .flags = fGAB_ERR_QUIET,
-                                            .name = unique_name,
-                                            .source = rl_line_buffer,
-                                        });
+    size_t unique_name_len = strlen("typeahead") + 16;
+    char *unique_name = malloc(unique_name_len);
+    snprintf(unique_name, unique_name_len, "%s:%03i", "typeahead",
+             state.iteration);
 
-  struct gab_src *src = d_gab_src_read(&state.gab.eg->sources,
-                                       gab_string(state.gab, unique_name));
-  assert(src);
+    // Doing this every frame without detecting change is bad
+    gab_value main = gab_build(state.gab, (struct gab_build_argt){
+                                              .flags = fGAB_ERR_QUIET,
+                                              .name = unique_name,
+                                              .source = rl_line_buffer,
+                                          });
 
-  const char *prefix = main == gab_undefined ? "x" : " ";
+    struct gab_src *src = d_gab_src_read(&state.gab.eg->sources,
+                                         gab_string(state.gab, unique_name));
+    assert(src);
 
-  mvwprintw(w, 1, 1, "%s%s", prefix, rl_display_prompt);
+    state.prefix = main == gab_undefined ? 'x' : ' ';
+  }
 
-  wprintmodule(w, unique_name);
+    size_t unique_name_len = strlen("typeahead") + 16;
+    char *unique_name = malloc(unique_name_len);
+    snprintf(unique_name, unique_name_len, "%s:%03i", "typeahead",
+             state.iteration);
+
+    mvwprintw(w, 1, 1, "%c%s", state.prefix, rl_display_prompt);
+
+    wprintmodule(w, unique_name);
 
   return OK;
 };
@@ -621,7 +634,7 @@ int tick_widget(struct repl_widget *wid, int key, int tick) {
 
 void run_repl(int flags) {
   state.active_widget = 1; // The input is active initially
-  state.iteration = 0;
+  state.prefix = ' ';
 
   FILE *redir_out = tmpfile();
   assert(redir_out);

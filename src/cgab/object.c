@@ -1456,7 +1456,6 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_STORE_LOCAL:
   case OP_POPSTORE_LOCAL:
   case OP_LOAD_UPVALUE:
-  case OP_INTERPOLATE:
   case OP_LOAD_LOCAL:
     return dumpByteInstruction(stream, self, offset);
   case OP_NPOPSTORE_STORE_LOCAL:

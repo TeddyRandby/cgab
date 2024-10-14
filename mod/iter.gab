@@ -21,8 +21,6 @@ module = .gab.iter
     \iter.apply c => self:continuation(self:continuation:iter.apply c),
     \reduce.step (acc, xs[]) => do
       (s, cmd, c, acc) = self:reducer:(self:continuation, acc, xs, self:state)
-      (s, cmd, c, acc):print
-      (cmd, (self:continuation c) :state s, acc):print
       (cmd, (self:continuation c) :state s, acc)
     end,
     \reduce.done (acc) => self:continuation:reduce.done acc,
