@@ -397,6 +397,8 @@ size_t gab_obj_size(struct gab_obj *obj);
  */
 struct gab_create_argt {
   size_t flags, jobs;
+
+  FILE *stdin, *stdout, *stderr;
   /**
    * @brief A hook for loading dynamic libraries.
    * This is used to load native-c modules.
@@ -931,7 +933,7 @@ int gab_ndef(struct gab_triple gab, size_t len,
 static inline gab_value gab_type(struct gab_triple gab, enum gab_kind kind);
 
 /**
- * @brief If fGAB_SILENT is not set, print an error message to stderr.
+ * @brief If fGAB_SILENT is not set, print an error message to the engine's stderr.
  * If fGAB_EXIT_ON_PANIC is set, then exit the program.
  *
  * @param gab The triple.
@@ -941,7 +943,7 @@ static inline gab_value gab_type(struct gab_triple gab, enum gab_kind kind);
 a_gab_value *gab_fpanic(struct gab_triple gab, const char *fmt, ...);
 
 /**
- * @brief If fGAB_SILENT is not set, print an error message to stderr.
+ * @brief If fGAB_SILENT is not set, print an error message to the engine's stderr.
  * If fGAB_EXIT_ON_PANIC is set, then exit the program.
  *
  * @param gab The triple.
@@ -2353,6 +2355,8 @@ struct gab_eg {
 
   mtx_t modules_mtx;
   d_gab_modules modules;
+
+  FILE *stdin, *stdout, *stderr;
 
   void *(*os_dynopen)(const char *path);
 

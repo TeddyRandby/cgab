@@ -89,7 +89,7 @@ static handler handlers[] = {
 #define PUSH(value)                                                            \
   ({                                                                           \
     if (SP() > (FB() + BLOCK_PROTO()->nslots + 1)) {                           \
-      fprintf(stderr,                                                          \
+      fprintf(gab.eg->stderr,                                                          \
               "Stack exceeded frame "                                          \
               "(%d). %lu passed\n",                                            \
               BLOCK_PROTO()->nslots, SP() - FB() - BLOCK_PROTO()->nslots);     \
@@ -385,7 +385,7 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
   dont_exit.flags &= ~fGAB_ERR_EXIT;
 
   while (frame_parent(f) > vm->sb) {
-    gab_vfpanic(dont_exit, stderr, nullptr,
+    gab_vfpanic(dont_exit, gab.eg->stderr, nullptr,
                 vm_frame_build_err(gab, frame_block(f), ip,
                                    frame_parent(f) > vm->sb, GAB_NONE, ""));
 
@@ -393,7 +393,7 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
     f = frame_parent(f);
   }
 
-  gab_vfpanic(gab, stderr, va,
+  gab_vfpanic(gab, gab.eg->stderr, va,
               vm_frame_build_err(gab, frame_block(f), ip, false, s, fmt));
 
   gab_value results[] = {
@@ -1444,11 +1444,6 @@ CASE_CODE(TRIM) {
   uint8_t want = READ_BYTE;
   uint64_t have = VAR();
   uint64_t nulls = 0;
-
-  /*STORE_FP();*/
-  /*STORE_IP();*/
-  /*STORE_SP();*/
-  /*gab_fvminspect(stderr, VM(), 0);*/
 
   if (have == want && want < 10) {
     WRITE_BYTE(2, OP_TRIM_EXACTLY0 + want);

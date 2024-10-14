@@ -509,8 +509,6 @@ void processepoch(struct gab_triple gab) {
 #endif
 
   if (wk->fiber == gab_undefined) {
-    assert(wk->locked == 0);
-    assert(wk->lock_keep.len == 0);
     goto fin;
   }
 
@@ -538,6 +536,7 @@ void processepoch(struct gab_triple gab) {
     }
   }
 
+fin:
   for (size_t i = 0; i < wk->lock_keep.len; i++) {
     struct gab_obj *o = v_gab_obj_val_at(&wk->lock_keep, i);
 #if cGAB_LOG_GC
@@ -546,7 +545,6 @@ void processepoch(struct gab_triple gab) {
     bufpush(gab, kGAB_BUF_STK, gab.wkid, e, o);
   }
 
-fin:
   if (gab.wkid > 0)
     epochinc(gab);
 #if cGAB_LOG_GC

@@ -191,9 +191,9 @@ a_gab_value *gab_lib(struct gab_triple gab) {
 
   gab_value results[] = {
       gab_strtosig(iostream_t),
-      iostream(gab, stdin, false),
-      iostream(gab, stdout, false),
-      iostream(gab, stderr, false),
+      iostream(gab, gab.eg->stdin, false),
+      iostream(gab, gab.eg->stdout, false),
+      iostream(gab, gab.eg->stderr, false),
   };
 
   return a_gab_value_create(results, sizeof(results) / sizeof(results[0]));

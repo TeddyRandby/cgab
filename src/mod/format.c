@@ -22,21 +22,21 @@ a_gab_value *fmt_printf(struct gab_triple gab, size_t argc,
 
   const char *cfmt = gab_strdata(&fmt);
 
-  gab_nfprintf(stdout, cfmt, argc - 1, argv + 1);
+  gab_nfprintf(gab.eg->stdout, cfmt, argc - 1, argv + 1);
 
   return nullptr;
 }
 
 a_gab_value *fmt_print(struct gab_triple gab, size_t argc,
                        gab_value argv[argc]) {
-  gab_fvalinspect(stdout, gab_arg(0), 2);
+  gab_fvalinspect(gab.eg->stdout, gab_arg(0), 2);
 
   for (size_t i = 1; i < argc; i++) {
-    fprintf(stdout, ", ");
-    gab_fvalinspect(stdout, gab_arg(i), 0);
+    fprintf(gab.eg->stdout, ", ");
+    gab_fvalinspect(gab.eg->stdout, gab_arg(i), 0);
   }
 
-  fputc('\n', stdout);
+  fputc('\n', gab.eg->stdout);
 
   return nullptr;
 }

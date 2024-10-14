@@ -5,6 +5,7 @@
 #include <curses.h>
 #include <locale.h>
 #include <printf.h>
+#include <readline/history.h>
 #include <readline/readline.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -67,6 +68,9 @@ struct repl_model {
   int active_widget;
   bool should_exit;
 
+  long outpos;
+  long errpos;
+
   /* HISTORY WIDGET STATE */
   v_history history;
 };
@@ -76,6 +80,7 @@ static struct repl_model state;
 enum repl_widget_flag {
   fREPL_WIDGET_FLEX_GROW = 1 << 0,
   fREPL_WIDGET_BORDER = 1 << 1,
+  fREPL_WIDGET_BORDERTOP = 1 << 2,
 };
 
 struct repl_widget {
@@ -89,8 +94,12 @@ struct repl_widget {
     kREPL_WIDGET_FIBERS,
     kREPL_WIDGET_HISTORY,
     kREPL_WIDGET_INPUT,
+    kREPL_WIDGET_OUTPUT,
   } k;
 };
+
+int getheight(struct repl_widget *wid);
+int getpos(struct repl_widget *wid);
 
 void run_src(struct gab_triple gab, s_char src, int flags, size_t jobs) {
   a_gab_value *result = gab_exec(gab, (struct gab_exec_argt){
@@ -220,7 +229,7 @@ static void got_command(char *line) {
     return;
   }
 
-  size_t len = strnwidth(rl_line_buffer, rl_point, 0);
+  size_t len = strwidth(rl_line_buffer, 0);
 
   if (len < 1)
     return;
@@ -230,6 +239,10 @@ static void got_command(char *line) {
   h->source = malloc(len + 1);
   strncpy(h->source, rl_line_buffer, len + 1);
 
+  add_history(h->source);
+  state.outpos = ftell(state.gab.eg->stdout);
+  state.errpos = ftell(state.gab.eg->stderr);
+
   size_t unique_name_len = strlen(MAIN_MODULE) + 16;
   char *unique_name = malloc(unique_name_len);
   snprintf(unique_name, unique_name_len, "%s:%03i", MAIN_MODULE,
@@ -238,7 +251,6 @@ static void got_command(char *line) {
   h->name = unique_name;
 
   gab_value fiber = gab_aexec(state.gab, (struct gab_exec_argt){
-                                             .flags = fGAB_ERR_QUIET,
                                              .name = unique_name,
                                              .source = (char *)h->source,
                                          });
@@ -261,16 +273,18 @@ enum {
 } REPL_COLORS;
 
 static int colors[] = {
-    [TOKEN_SYMBOL] = REPL_CYAN,    [TOKEN_DO] = REPL_WHITE,
-    [TOKEN_END] = REPL_WHITE,      [TOKEN_STRING] = REPL_GREEN,
-    [TOKEN_SIGIL] = REPL_GREEN,    [TOKEN_SEND] = REPL_CYAN,
-    [TOKEN_OPERATOR] = REPL_CYAN,  [TOKEN_SPECIAL_SEND] = REPL_CYAN,
-    [TOKEN_NUMBER] = REPL_MAGENTA, [TOKEN_ERROR] = REPL_RED,
+    [TOKEN_SYMBOL] = REPL_WHITE,  [TOKEN_DO] = REPL_MAGENTA,
+    [TOKEN_END] = REPL_MAGENTA,   [TOKEN_STRING] = REPL_GREEN,
+    [TOKEN_SIGIL] = REPL_GREEN,   [TOKEN_SEND] = REPL_CYAN,
+    [TOKEN_OPERATOR] = REPL_CYAN, [TOKEN_SPECIAL_SEND] = REPL_MAGENTA,
+    [TOKEN_NUMBER] = REPL_YELLOW, [TOKEN_ERROR] = REPL_RED,
+    [TOKEN_MESSAGE] = REPL_BLUE,
 };
 
 static void init_ncurses(void) {
   if (!initscr())
     fail_exit("Failed to initialize ncurses");
+
   visual_mode = true;
 
   if (has_colors()) {
@@ -463,6 +477,35 @@ int tick_fibers(WINDOW *w, int key, int tick) {
   return OK;
 }
 
+bool fready(FILE *s) {
+  char c = fgetc(s);
+
+  if (c == EOF)
+    return false;
+
+  return ungetc(c, s), true;
+}
+
+int tick_output(WINDOW *w, int, int) {
+  CHECK(scrollok, w, TRUE);
+
+  fseek(state.gab.eg->stdout, state.outpos, SEEK_SET);
+  size_t lnum = 0;
+
+  while (fready(state.gab.eg->stdout)) {
+    a_char *l = gab_fosreadl(state.gab.eg->stdout);
+    mvwprintw(w, lnum, 1, "%.*s", (int)l->len, l->data), lnum++;
+  }
+
+  fseek(state.gab.eg->stderr, state.errpos, SEEK_SET);
+  while (fready(state.gab.eg->stderr)) {
+    a_char *l = gab_fosreadl(state.gab.eg->stderr);
+    mvwprintw(w, lnum, 1, "%.*s", (int)l->len, l->data), lnum++;
+  }
+
+  return OK;
+}
+
 int tick_input(WINDOW *w, int key, int) {
   // Allow strings longer than the message window and show only the last part
   // if the string doesn't fit
@@ -473,9 +516,10 @@ int tick_input(WINDOW *w, int key, int) {
   snprintf(unique_name, unique_name_len, "%s:%03i", "typeahead",
            state.iteration++);
 
+  // Doing this every frame without detecting change is bad
   gab_value main = gab_build(state.gab, (struct gab_build_argt){
-                                            .name = unique_name,
                                             .flags = fGAB_ERR_QUIET,
+                                            .name = unique_name,
                                             .source = rl_line_buffer,
                                         });
 
@@ -509,6 +553,12 @@ struct repl_widget layout[] = {
         .k = kREPL_WIDGET_INPUT,
     },
     {
+        .tick = tick_output,
+        .curs = nullptr,
+        .height = 0.5,
+        .k = kREPL_WIDGET_OUTPUT,
+    },
+    {
         .tick = tick_history,
         .curs = nullptr,
         .min_height = 4,
@@ -518,8 +568,6 @@ struct repl_widget layout[] = {
 };
 
 #define NWIDGETS (sizeof(layout) / sizeof(struct repl_widget))
-
-int getpos(struct repl_widget *wid);
 
 int getheight(struct repl_widget *wid) {
   if (wid->flags & fREPL_WIDGET_FLEX_GROW)
@@ -560,6 +608,9 @@ int tick_widget(struct repl_widget *wid, int key, int tick) {
   if (wid->flags & fREPL_WIDGET_BORDER)
     box(wid->w, 0, 0);
 
+  if (wid->flags & fREPL_WIDGET_BORDERTOP)
+    mvwhline(wid->w, 0, 1, ACS_HLINE, COLS - 2);
+
   if (wid->tick)
     wid->tick(wid->w, key, tick);
 
@@ -572,10 +623,18 @@ void run_repl(int flags) {
   state.active_widget = 1; // The input is active initially
   state.iteration = 0;
 
+  FILE *redir_out = tmpfile();
+  assert(redir_out);
+
+  FILE *redir_err = tmpfile();
+  assert(redir_err);
+
   state.gab = gab_create((struct gab_create_argt){
       .os_dynopen = dynopen,
       .os_dynsymbol = dynsymbol,
-      .flags = flags | fGAB_ERR_QUIET,
+      .stdout = redir_out,
+      .stderr = redir_err,
+      .flags = flags,
   });
 
   if (!setlocale(LC_ALL, ""))
@@ -693,7 +752,7 @@ static struct command commands[] = {
             },
             {
                 "quiet",
-                "Do not print errors to stderr",
+                "Do not print errors to the engine's stderr",
                 'q',
                 .flag = fGAB_ERR_QUIET,
             },
@@ -745,7 +804,7 @@ static struct command commands[] = {
             },
             {
                 "quiet",
-                "Do not print errors to stderr",
+                "Do not print errors to the engine's stderr",
                 'q',
                 .flag = fGAB_ERR_QUIET,
             },
