@@ -705,7 +705,12 @@ gab_value parse_exp_tup(struct gab_triple gab, struct parser *parser,
 
 gab_value parse_exp_blk(struct gab_triple gab, struct parser *parser,
                         gab_value lhs) {
-  return parse_expressions_until(gab, parser, TOKEN_END);
+  gab_value res = parse_expressions_body(gab, parser);
+
+  if (!expect_token(gab, parser, TOKEN_END))
+    return gab_undefined;
+
+  return res;
 }
 
 gab_value parse_exp_send(struct gab_triple gab, struct parser *parser,
