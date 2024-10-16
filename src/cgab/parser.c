@@ -309,7 +309,7 @@ static inline bool match_terminator(struct parser *parser) {
 
 static int vparser_error(struct gab_triple gab, struct parser *parser,
                          enum gab_status e, const char *fmt, va_list args) {
-  gab_vfpanic(gab, gab.eg->stderr, args,
+  gab_vfpanic(gab, gab.eg->serr, args,
               (struct gab_err_argt){
                   .src = parser->src,
                   .message = gab_nil,
@@ -820,7 +820,7 @@ gab_value parse(struct gab_triple gab, struct parser *parser,
     return gab_undefined;
 
   if (gab.flags & fGAB_AST_DUMP)
-    gab_fvalinspect(gab.eg->stdout, ast, -1), printf("\n");
+    gab_fvalinspect(gab.eg->sout, ast, -1), printf("\n");
 
   gab_iref(gab, ast);
   gab_egkeep(gab.eg, ast);
@@ -889,7 +889,7 @@ static int vbc_error(struct gab_triple gab, struct bc *bc, gab_value node,
   if (tok > 0)
     tok--;
 
-  gab_vfpanic(gab, gab.eg->stderr, args,
+  gab_vfpanic(gab, gab.eg->serr, args,
               (struct gab_err_argt){
                   .src = bc->src,
                   .message = gab_nil,
@@ -1892,7 +1892,7 @@ union gab_value_pair gab_compile(struct gab_triple gab, gab_value ast,
                                   });
 
   if (gab.flags & fGAB_BUILD_DUMP)
-    gab_fmodinspect(gab.eg->stdout, GAB_VAL_TO_PROTOTYPE(proto));
+    gab_fmodinspect(gab.eg->sout, GAB_VAL_TO_PROTOTYPE(proto));
 
   // call srcappend to append bytecode to src module
   // actually track bc_tok offset

@@ -385,7 +385,7 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
   dont_exit.flags &= ~fGAB_ERR_EXIT;
 
   while (frame_parent(f) > vm->sb) {
-    gab_vfpanic(dont_exit, gab.eg->stderr, nullptr,
+    gab_vfpanic(dont_exit, gab.eg->serr, nullptr,
                 vm_frame_build_err(gab, frame_block(f), ip,
                                    frame_parent(f) > vm->sb, GAB_NONE, ""));
 
@@ -393,7 +393,7 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
     f = frame_parent(f);
   }
 
-  gab_vfpanic(gab, gab.eg->stderr, va,
+  gab_vfpanic(gab, gab.eg->serr, va,
               vm_frame_build_err(gab, frame_block(f), ip, false, s, fmt));
 
   gab_value results[] = {

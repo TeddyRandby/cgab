@@ -342,14 +342,14 @@ struct gab_obj_fiber;
 typedef void (*gab_gcvisit_f)(struct gab_triple, struct gab_obj *obj);
 
 typedef a_gab_value *(*gab_native_f)(struct gab_triple, size_t argc,
-                                     gab_value argv[argc]);
+                                     gab_value *argv);
 
-typedef void (*gab_boxdestroy_f)(size_t len, char data[static len]);
+typedef void (*gab_boxdestroy_f)(size_t len, char *data);
 
-typedef void (*gab_boxcopy_f)(size_t len, char data[static len]);
+typedef void (*gab_boxcopy_f)(size_t len, char *data);
 
 typedef void (*gab_boxvisit_f)(struct gab_triple gab, gab_gcvisit_f visitor,
-                               size_t len, char data[static len]);
+                               size_t len, char *data);
 
 /**
  * @class gab_obj
@@ -398,7 +398,7 @@ size_t gab_obj_size(struct gab_obj *obj);
 struct gab_create_argt {
   size_t flags, jobs;
 
-  FILE *stdin, *stdout, *stderr;
+  FILE *sin, *sout, *serr;
   /**
    * @brief A hook for loading dynamic libraries.
    * This is used to load native-c modules.
@@ -511,7 +511,7 @@ size_t gab_egkeep(struct gab_eg *eg, gab_value value);
  * @param values The values.
  * @return The total number of values kept by the engine.
  */
-size_t gab_negkeep(struct gab_eg *eg, size_t len, gab_value argv[static len]);
+size_t gab_negkeep(struct gab_eg *eg, size_t len, gab_value *argv);
 
 /**
  * @enum The possible result states of a call to gab_egimpl.
@@ -594,7 +594,7 @@ gab_impl(struct gab_triple gab, gab_value message, gab_value receiver);
  * @param len The number of values.
  * @param argv The array of values.
  */
-size_t gab_nvmpush(struct gab_vm *vm, size_t len, gab_value argv[static len]);
+size_t gab_nvmpush(struct gab_vm *vm, size_t len, gab_value *argv);
 
 /**
  * @brief Inspect the vm at depth N in the callstack.
@@ -645,7 +645,7 @@ a_gab_value *gab_use(struct gab_triple gab, gab_value name);
  * @returns The module if it was added, nullptr otherwise.
  */
 a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
-                           size_t len, gab_value values[len]);
+                           size_t len, gab_value *values);
 
 /**
  * @brief Check if an engine has a module by name.
@@ -920,8 +920,7 @@ struct gab_def_argt {
  * @return -1 on a success. Otherwise, returns the index in args of the first
  * specialization that failed.
  */
-int gab_ndef(struct gab_triple gab, size_t len,
-             struct gab_def_argt args[static len]);
+int gab_ndef(struct gab_triple gab, size_t len, struct gab_def_argt *args);
 
 /**
  * @brief Get the runtime value that corresponds to the given kind.
@@ -1042,7 +1041,7 @@ gab_value gab_dref(struct gab_triple gab, gab_value value);
  * @param value The value.
  */
 void gab_niref(struct gab_triple gab, size_t stride, size_t len,
-               gab_value values[len]);
+               gab_value *values);
 
 /**
  * @brief Decrement the reference count of the value(s)
@@ -1051,7 +1050,7 @@ void gab_niref(struct gab_triple gab, size_t stride, size_t len,
  * @param value The value.
  */
 void gab_ndref(struct gab_triple gab, size_t stride, size_t len,
-               gab_value values[len]);
+               gab_value *values);
 
 #endif
 
@@ -1167,8 +1166,7 @@ struct gab_obj_string {
  * @param data The data.
  * @return The value.
  */
-gab_value gab_nstring(struct gab_triple gab, size_t len,
-                      const char data[static len]);
+gab_value gab_nstring(struct gab_triple gab, size_t len, const char *data);
 
 /**
  * @brief Create a gab_value from a c-string
@@ -1177,8 +1175,7 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
  * @param data The data.
  * @return The value.
  */
-static inline gab_value gab_string(struct gab_triple gab,
-                                   const char data[static 1]) {
+static inline gab_value gab_string(struct gab_triple gab, const char *data) {
   return gab_nstring(gab, strlen(data), data);
 }
 
@@ -1312,7 +1309,7 @@ static inline gab_value gab_strtosym(gab_value str) {
  * @return The new message object.
  */
 static inline gab_value gab_nmessage(struct gab_triple gab, size_t len,
-                                     const char data[static len]) {
+                                     const char *data) {
   return gab_strtomsg(gab_nstring(gab, len, data));
 }
 
@@ -1323,8 +1320,7 @@ static inline gab_value gab_nmessage(struct gab_triple gab, size_t len,
  * @param data The name of the message.
  * @return The new message object.
  */
-static inline gab_value gab_message(struct gab_triple gab,
-                                    const char data[static 1]) {
+static inline gab_value gab_message(struct gab_triple gab, const char *data) {
   return gab_strtomsg(gab_string(gab, data));
 }
 
@@ -1339,8 +1335,7 @@ static inline gab_value gab_msgtostr(gab_value msg) {
   return msg & ~((uint64_t)kGAB_MESSAGE << __GAB_TAGOFFSET);
 }
 
-static inline gab_value gab_symbol(struct gab_triple gab,
-                                   const char data[static 1]) {
+static inline gab_value gab_symbol(struct gab_triple gab, const char *data) {
   return gab_strtosym(gab_string(gab, data));
 }
 
@@ -1355,8 +1350,7 @@ static inline gab_value gab_symtostr(gab_value sym) {
  * @param data The cstring
  * @return The sigil
  */
-static inline gab_value gab_sigil(struct gab_triple gab,
-                                  const char data[static 1]) {
+static inline gab_value gab_sigil(struct gab_triple gab, const char *data) {
   return gab_strtosig(gab_string(gab, data));
 }
 
@@ -1368,7 +1362,7 @@ static inline gab_value gab_sigil(struct gab_triple gab,
  * @return The sigil
  */
 static inline gab_value gab_nsigil(struct gab_triple gab, size_t len,
-                                   const char data[static len]) {
+                                   const char *data) {
   return gab_strtosig(gab_nstring(gab, len, data));
 }
 
@@ -1468,7 +1462,7 @@ struct gab_obj_shape {
   })
 
 gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
-                    gab_value keys[static len]);
+                    gab_value *keys);
 
 gab_value __gab_shape(struct gab_triple gab, size_t len);
 
@@ -1534,8 +1528,7 @@ gab_value gab_shpwith(struct gab_triple gab, gab_value shp, gab_value key);
  * @brief Concatenate n shpords, left to rate
  *
  */
-gab_value gab_nshpcat(struct gab_triple gab, size_t len,
-                      gab_value shapes[static len]);
+gab_value gab_nshpcat(struct gab_triple gab, size_t len, gab_value *shapes);
 
 gab_value gab_shptorec(struct gab_triple gab, gab_value shape);
 
@@ -1646,8 +1639,7 @@ static inline gab_value gab_erecord(struct gab_triple gab) {
  * @return The new record
  */
 static inline gab_value gab_srecord(struct gab_triple gab, size_t len,
-                                    const char *keys[static len],
-                                    gab_value vals[static len]) {
+                                    const char **keys, gab_value *vals) {
   gab_value vkeys[len];
 
   gab_gclock(gab);
@@ -1821,8 +1813,7 @@ gab_value gab_recput(struct gab_triple gab, gab_value record, gab_value key,
  * @brief Concatenate n records, left to rate
  *
  */
-gab_value gab_nlstcat(struct gab_triple gab, size_t len,
-                      gab_value records[static len]);
+gab_value gab_nlstcat(struct gab_triple gab, size_t len, gab_value *records);
 
 #define gab_lstpush(gab, list, ...)                                            \
   ({                                                                           \
@@ -1834,7 +1825,7 @@ gab_value gab_nlstcat(struct gab_triple gab, size_t len,
  * @brief Push n values onto the end of a list-record
  */
 gab_value gab_nlstpush(struct gab_triple gab, gab_value list, size_t len,
-                       gab_value values[static len]);
+                       gab_value *values);
 
 /**
  * @brief Pop the last value from a list, returning the new list.
@@ -2360,7 +2351,7 @@ struct gab_eg {
   mtx_t modules_mtx;
   d_gab_modules modules;
 
-  FILE *stdin, *stdout, *stderr;
+  FILE *sin, *sout, *serr;
 
   void *(*os_dynopen)(const char *path);
 

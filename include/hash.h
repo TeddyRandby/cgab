@@ -14,7 +14,7 @@ static inline uint64_t FNV1a_64(const uint8_t* data, size_t size) {
     return h;
 }
 
-static inline uint64_t hash_bytes(uint64_t len, uint8_t bytes[len]) {
+static inline uint64_t hash_bytes(uint64_t len, uint8_t *bytes) {
   return FNV1a_64(bytes, len * sizeof(uint8_t));
 }
 #endif

@@ -337,9 +337,9 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   size_t egsize = sizeof(struct gab_eg) + sizeof(struct gab_jb) * (njobs + 1);
 
-  args.stdin = args.stdin != nullptr ? args.stdin : stdin;
-  args.stdout = args.stdout != nullptr ? args.stdout : stdout;
-  args.stderr = args.stderr != nullptr ? args.stderr : stderr;
+  args.sin = args.sin != nullptr ? args.sin : stdin;
+  args.sout = args.sout != nullptr ? args.sout : stdout;
+  args.serr = args.serr != nullptr ? args.serr : stderr;
 
   struct gab_eg *eg = malloc(egsize);
   memset(eg, 0, egsize);
@@ -349,13 +349,13 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->os_dynsymbol = args.os_dynsymbol;
   eg->os_dynopen = args.os_dynopen;
   eg->hash_seed = time(nullptr);
-  eg->stdin = args.stdin;
-  eg->stdout = args.stdout;
-  eg->stderr = args.stderr;
+  eg->sin = args.sin;
+  eg->sout = args.sout;
+  eg->serr = args.serr;
 
-  assert(eg->stdin);
-  assert(eg->stdout);
-  assert(eg->stderr);
+  assert(eg->sin);
+  assert(eg->sout);
+  assert(eg->serr);
 
   mtx_init(&eg->shapes_mtx, mtx_plain);
   mtx_init(&eg->sources_mtx, mtx_plain);
