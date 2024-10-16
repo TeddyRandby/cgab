@@ -933,8 +933,8 @@ int gab_ndef(struct gab_triple gab, size_t len,
 static inline gab_value gab_type(struct gab_triple gab, enum gab_kind kind);
 
 /**
- * @brief If fGAB_SILENT is not set, print an error message to the engine's stderr.
- * If fGAB_EXIT_ON_PANIC is set, then exit the program.
+ * @brief If fGAB_SILENT is not set, print an error message to the engine's
+ * stderr. If fGAB_EXIT_ON_PANIC is set, then exit the program.
  *
  * @param gab The triple.
  * @param fmt The format string.
@@ -943,8 +943,8 @@ static inline gab_value gab_type(struct gab_triple gab, enum gab_kind kind);
 a_gab_value *gab_fpanic(struct gab_triple gab, const char *fmt, ...);
 
 /**
- * @brief If fGAB_SILENT is not set, print an error message to the engine's stderr.
- * If fGAB_EXIT_ON_PANIC is set, then exit the program.
+ * @brief If fGAB_SILENT is not set, print an error message to the engine's
+ * stderr. If fGAB_EXIT_ON_PANIC is set, then exit the program.
  *
  * @param gab The triple.
  * @param fmt The format string.
@@ -1629,7 +1629,11 @@ struct gab_obj_rec {
  * @return The new record
  */
 gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
-                     gab_value keys[static len], gab_value vals[static len]);
+                     gab_value *keys, gab_value *vals);
+
+static inline gab_value gab_erecord(struct gab_triple gab) {
+  return gab_record(gab, 0, 0, nullptr, nullptr);
+}
 
 /**
  * @brief Create a record, with c-string keys..

@@ -134,9 +134,9 @@ struct parse_rule {
 
 struct parse_rule get_parse_rule(gab_token k);
 
-static size_t prev_line(struct parser *parser) {
-  return v_uint64_t_val_at(&parser->src->token_lines, parser->offset - 1);
-}
+/*static size_t prev_line(struct parser *parser) {*/
+/*  return v_uint64_t_val_at(&parser->src->token_lines, parser->offset - 1);*/
+/*}*/
 
 static gab_token curr_tok(struct parser *parser) {
   return v_gab_token_val_at(&parser->src->tokens, parser->offset);
@@ -628,7 +628,7 @@ gab_value parse_exp_str(struct gab_triple gab, struct parser *parser,
                         gab_value lhs) {
   a_char *parsed = parse_raw_str(parser, prev_src(parser));
 
-  if (parsed == NULL)
+  if (parsed == nullptr)
     return parser_error(
                gab, parser, GAB_MALFORMED_STRING,
                "Single quoted strings can contain interpolations.\n"
@@ -801,7 +801,7 @@ const struct parse_rule parse_rules[] = {
 struct parse_rule get_parse_rule(gab_token k) { return parse_rules[k]; }
 
 gab_value parse(struct gab_triple gab, struct parser *parser,
-                uint8_t narguments, gab_value arguments[narguments]) {
+                uint8_t narguments, gab_value *arguments) {
   size_t begin = parser->offset;
 
   if (curr_tok(parser) == TOKEN_EOF)
@@ -846,12 +846,18 @@ gab_value gab_parse(struct gab_triple gab, struct gab_build_argt args) {
 
   struct parser parser = {.src = src};
 
-  gab_value vargv[args.len];
+  gab_value *vargs = nullptr;
 
-  for (int i = 0; i < args.len; i++)
-    vargv[i] = gab_string(gab, args.argv[i]);
+  if (args.len) {
+    gab_value vargv[args.len];
 
-  gab_value ast = parse(gab, &parser, args.len, vargv);
+    for (int i = 0; i < args.len; i++)
+      vargv[i] = gab_string(gab, args.argv[i]);
+
+    vargs = vargv;
+  }
+
+  gab_value ast = parse(gab, &parser, args.len, vargs);
 
   gab_gcunlock(gab);
 
@@ -1497,6 +1503,10 @@ gab_value unpack_binding_into_env(struct gab_triple gab, struct bc *bc,
   int listpack_at_n = -1, recpack_at_n = -1;
 
   size_t len = gab_reclen(bindings);
+
+  if (!len)
+    return env;
+
   gab_value targets[len];
   size_t actual_targets = 0; // May be less than we started with (destructuring
 
@@ -1603,7 +1613,7 @@ gab_value compile_block(struct gab_triple gab, struct bc *bc, gab_value node,
 
   gab_value lst = gab_listof(gab, gab_symbol(gab, "self"));
 
-  env = gab_lstpush(gab, env, gab_recordof(gab));
+  env = gab_lstpush(gab, env, gab_erecord(gab));
 
   gab_value bindings = gab_lstcat(gab, lst, LHS);
   node_stealinfo(bc->src, LHS, bindings);
@@ -1734,7 +1744,7 @@ gab_value compile_tuple(struct gab_triple gab, struct bc *bc, gab_value node,
   return env;
 }
 
-void build_upvdata(gab_value env, uint8_t len, char data[static len]) {
+void build_upvdata(gab_value env, uint8_t len, char *data) {
   if (len == 0)
     return;
 
@@ -1761,8 +1771,6 @@ void build_upvdata(gab_value env, uint8_t len, char data[static len]) {
   gab_value parent = gab_uvrecat(env, nenvs - 2);
 
   bool has_grandparent = nenvs >= 3;
-  gab_value grandparent =
-      has_grandparent ? gab_uvrecat(env, nenvs - 3) : gab_undefined;
 
   size_t nbindings = gab_reclen(ctx);
 
@@ -1866,8 +1874,8 @@ union gab_value_pair gab_compile(struct gab_triple gab, gab_value ast,
 
   size_t begin = end - len;
 
-  char data[nupvalues];
-
+  char data[nupvalues +
+            1]; // It is undefined behavior for a VLA to have length 0.
   build_upvdata(env, nupvalues, data);
 
   size_t bco = d_uint64_t_read(&bc.src->node_begin_toks, ast);
@@ -1879,6 +1887,7 @@ union gab_value_pair gab_compile(struct gab_triple gab, gab_value ast,
                                       .nlocals = nlocals,
                                       .narguments = nargs,
                                       .nslots = (nlocals + 3),
+                                      /*.data = upvdata,*/
                                       .data = data,
                                   });
 
@@ -1916,14 +1925,20 @@ gab_value gab_build(struct gab_triple gab, struct gab_build_argt args) {
   if (src == nullptr)
     return gab_gcunlock(gab), gab_undefined;
 
-  gab_value vargv[args.len];
-  for (int i = 0; i < args.len; i++)
-    vargv[i] = gab_symbol(gab, args.argv[i]);
+  gab_value *vargs = nullptr;
+
+  if (args.len) {
+    gab_value vargv[args.len];
+    for (int i = 0; i < args.len; i++)
+      vargv[i] = gab_symbol(gab, args.argv[i]);
+
+    vargs = vargv;
+  }
 
   gab_value env =
       gab_listof(gab, gab_recordof(gab, gab_symbol(gab, "self"), gab_nil));
 
-  gab_value bindings = gab_list(gab, args.len, vargv);
+  gab_value bindings = gab_list(gab, args.len, vargs);
 
   node_storeinfo(src, bindings, 0, 0);
 

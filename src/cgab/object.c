@@ -287,7 +287,7 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
   }
 }
 
-gab_value gab_shorstr(size_t len, const char data[static len]) {
+gab_value gab_shorstr(size_t len, const char *data) {
   assert(len <= 5);
 
   gab_value v = 0;
@@ -327,8 +327,7 @@ gab_value gab_shortstrcat(gab_value _a, gab_value _b) {
   return v;
 }
 
-gab_value gab_nstring(struct gab_triple gab, size_t len,
-                      const char data[static len]) {
+gab_value gab_nstring(struct gab_triple gab, size_t len, const char *data) {
   if (len <= 5)
     return gab_shorstr(len, data);
 
@@ -336,7 +335,7 @@ gab_value gab_nstring(struct gab_triple gab, size_t len,
 
   s_char str = s_char_create(data, len);
 
-  uint64_t hash = s_char_hash(str, gab.eg->hash_seed);
+  uint64_t hash = s_char_hash(str);
 
   struct gab_obj_string *interned = gab_egstrfind(gab.eg, str, hash);
 
@@ -384,7 +383,7 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
 
   // Pre compute the hash
   s_char ref = s_char_create(buff->data, len);
-  size_t hash = s_char_hash(ref, gab.eg->hash_seed);
+  size_t hash = s_char_hash(ref);
 
   /*
     If this string was interned already, return.
@@ -493,7 +492,10 @@ gab_value __gab_record(struct gab_triple gab, size_t len, size_t space,
 
   self->len = len + space;
   self->shape = gab_undefined;
-  memcpy(self->data, data, sizeof(gab_value) * len);
+  if (len) {
+    assert(data);
+    memcpy(self->data, data, sizeof(gab_value) * len);
+  }
 
   for (size_t i = len; i < self->len; i++)
     self->data[i] = gab_undefined;
@@ -508,7 +510,11 @@ gab_value __gab_recordnode(struct gab_triple gab, size_t len, size_t space,
       gab_obj_recnode, gab_value, space + len, kGAB_RECORDNODE);
 
   self->len = len + space;
-  memcpy(self->data, data, sizeof(gab_value) * len);
+
+  if (len) {
+    assert(data);
+    memcpy(self->data, data, sizeof(gab_value) * len);
+  }
 
   for (size_t i = len; i < self->len; i++)
     self->data[i] = gab_undefined;
@@ -849,7 +855,7 @@ gab_value gab_shptorec(struct gab_triple gab, gab_value shp) {
 }
 
 gab_value gab_record(struct gab_triple gab, size_t stride, size_t len,
-                     gab_value keys[static len], gab_value vals[static len]) {
+                     gab_value *keys, gab_value *vals) {
   gab_gclock(gab);
 
   size_t shift = getshift(len);
@@ -933,9 +939,11 @@ gab_value gab_nlstcat(struct gab_triple gab, size_t len,
   return res;
 }
 
-gab_value gab_list(struct gab_triple gab, uint64_t size,
-                   gab_value values[size]) {
+gab_value gab_list(struct gab_triple gab, uint64_t size, gab_value *values) {
   gab_gclock(gab);
+
+  if (!size)
+    return gab_gcunlock(gab), gab_record(gab, 0, 0, nullptr, nullptr);
 
   gab_value keys[size];
   for (size_t i = 0; i < size; i++) {
@@ -948,7 +956,7 @@ gab_value gab_list(struct gab_triple gab, uint64_t size,
 }
 
 gab_value gab_shape(struct gab_triple gab, size_t stride, size_t len,
-                    gab_value keys[static len]) {
+                    gab_value *keys) {
   gab_value shp = gab.eg->shapes;
 
   gab_gclock(gab);
@@ -1058,7 +1066,12 @@ gab_value gab_fiber(struct gab_triple gab, struct gab_fiber_argt args) {
 
   self->messages = gab_thisfibmsg(gab);
   self->len = args.argc + 2;
-  memcpy(self->data + 2, args.argv, args.argc * sizeof(gab_value));
+
+  if (args.argc) {
+    assert(args.argv);
+    memcpy(self->data + 2, args.argv, args.argc * sizeof(gab_value));
+  }
+
   self->data[0] = args.message;
   self->data[1] = args.receiver;
 
@@ -1073,9 +1086,9 @@ gab_value gab_fiber(struct gab_triple gab, struct gab_fiber_argt args) {
   *self->vm.sp = args.argc + 1;
 
   // Setup the return frame
-  self->vm.fp[-1] = (uintptr_t) nullptr;
+  self->vm.fp[-1] = 0;
   self->vm.fp[-2] = 0;
-  self->vm.fp[-3] = (uintptr_t) nullptr;
+  self->vm.fp[-3] = 0;
 
   self->vm.ip = nullptr;
 

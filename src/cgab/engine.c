@@ -344,9 +344,6 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   struct gab_eg *eg = malloc(egsize);
   memset(eg, 0, egsize);
 
-  assert(args.os_dynsymbol);
-  assert(args.os_dynopen);
-
   eg->len = njobs + 1;
   eg->njobs = 0;
   eg->os_dynsymbol = args.os_dynsymbol;
@@ -379,7 +376,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   gab_jbcreate(gab, gab.eg->jobs, gc_job);
 
   eg->shapes = __gab_shape(gab, 0);
-  eg->messages = gab_record(gab, 0, 0, &eg->shapes, &eg->shapes);
+  eg->messages = gab_erecord(gab);
   eg->work_channel = gab_channel(gab, 0);
 
   gab_iref(gab, eg->work_channel);
@@ -543,8 +540,6 @@ void gab_destroy(struct gab_triple gab) {
 }
 
 void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
-  a_gab_value *prev = nullptr;
-
   size_t iterations = 0;
 
   for (;;) {
@@ -554,9 +549,6 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
     if (src->data[0] == EOF) {
       a_char_destroy(src);
 
-      if (prev)
-        a_gab_value_destroy(prev);
-
       return;
     }
 
@@ -565,47 +557,20 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
       continue;
     }
 
-    size_t prev_len = prev == nullptr ? 0 : prev->len;
-
     // Append the iterations number to the end of the given name
     char unique_name[strlen(args.name) + 16];
     snprintf(unique_name, sizeof(unique_name), "%s:%lu", args.name, iterations);
 
     iterations++;
 
-    /*
-     * Build a buffer holding the argument names.
-     * Arguments from the previous iteration should be empty strings.
-     */
-    const char *sargv[args.len + prev_len];
-
-    for (int i = 0; i < prev_len; i++) {
-      sargv[i] = "";
-    }
-
-    memcpy(sargv + prev_len, args.sargv, args.len * sizeof(char *));
-
-    gab_value argv[args.len + prev_len];
-
-    for (int i = 0; i < prev_len; i++) {
-      argv[i] = prev ? prev->data[i] : gab_nil;
-    }
-
-    memcpy(argv + prev_len, args.argv, args.len * sizeof(gab_value));
-
     a_gab_value *result = gab_exec(gab, (struct gab_exec_argt){
                                             .name = unique_name,
                                             .source = (char *)src->data,
                                             .flags = args.flags,
-                                            .len = args.len + prev_len,
-                                            .sargv = sargv,
-                                            .argv = argv,
                                         });
 
     if (result == nullptr)
       continue;
-
-    gab_negkeep(gab.eg, result->len, result->data);
 
     printf("%s", args.result_prefix);
     for (int32_t i = 0; i < result->len; i++) {
@@ -621,11 +586,7 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
 
     printf("\n");
 
-    if (prev)
-      a_gab_value_destroy(prev);
-
     a_char_destroy(src);
-    prev = result;
   }
 }
 
@@ -745,7 +706,7 @@ struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
 }
 
 a_gab_value *gab_segmodat(struct gab_eg *eg, const char *name) {
-  size_t hash = s_char_hash(s_char_cstr(name), eg->hash_seed);
+  size_t hash = s_char_hash(s_char_cstr(name));
 
   mtx_lock(&eg->modules_mtx);
 
@@ -757,8 +718,8 @@ a_gab_value *gab_segmodat(struct gab_eg *eg, const char *name) {
 }
 
 a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
-                           size_t len, gab_value values[len]) {
-  size_t hash = s_char_hash(s_char_cstr(name), eg->hash_seed);
+                           size_t len, gab_value *values) {
+  size_t hash = s_char_hash(s_char_cstr(name));
 
   mtx_lock(&eg->modules_mtx);
 
@@ -767,7 +728,11 @@ a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
 
   a_gab_value *module = a_gab_value_empty(len + 1);
   module->data[0] = mod;
-  memcpy(module->data + 1, values, len * sizeof(gab_value));
+
+  if (len) {
+    assert(values);
+    memcpy(module->data + 1, values, len * sizeof(gab_value));
+  }
 
   d_gab_modules_insert(&eg->modules, hash, module);
   return mtx_unlock(&eg->modules_mtx), module;
@@ -958,21 +923,21 @@ fin:
     exit(1);
 }
 
-int gab_val_printf_handler(FILE *stream, const struct printf_info *info,
-                           const void *const *args) {
-  const gab_value value = *(const gab_value *const)args[0];
-  return gab_fvalinspect(stream, value, -1);
-}
-
-int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,
-                           int *sizes) {
-  if (n > 0) {
-    argtypes[0] = PA_INT | PA_FLAG_LONG;
-    sizes[0] = sizeof(gab_value);
-  }
-
-  return 1;
-}
+/*int gab_val_printf_handler(FILE *stream, const struct printf_info *info,*/
+/*                           const void *const *args) {*/
+/*  const gab_value value = *(const gab_value *const)args[0];*/
+/*  return gab_fvalinspect(stream, value, -1);*/
+/*}*/
+/**/
+/*int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,*/
+/*                           int *sizes) {*/
+/*  if (n > 0) {*/
+/*    argtypes[0] = PA_INT | PA_FLAG_LONG;*/
+/*    sizes[0] = sizeof(gab_value);*/
+/*  }*/
+/**/
+/*  return 1;*/
+/*}*/
 
 #define MODULE_SYMBOL "gab_lib"
 
@@ -988,6 +953,9 @@ typedef struct {
 
 a_gab_value *gab_shared_object_handler(struct gab_triple gab,
                                        const char *path) {
+  if (!gab.eg->os_dynopen || !gab.eg->os_dynsymbol)
+    return nullptr;
+
   void *handle = gab.eg->os_dynopen(path);
 
   if (handle == nullptr) {

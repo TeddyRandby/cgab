@@ -54,7 +54,7 @@ static handler handlers[] = {
     assert(SP() < VM()->sb + cGAB_STACK_MAX);                                  \
     assert(SP() > FB());                                                       \
                                                                                \
-    return handlers[o](DISPATCH_ARGS());                                       \
+    [[clang::musttail]] return handlers[o](DISPATCH_ARGS());                                       \
   })
 
 #define NEXT() DISPATCH(*IP()++);

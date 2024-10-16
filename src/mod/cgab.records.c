@@ -158,7 +158,7 @@ a_gab_value *gab_lib_strings_into(struct gab_triple gab, size_t argc,
 
   FILE *tmp = tmpfile();
 
-  if (tmp == NULL)
+  if (tmp == nullptr)
     return gab_fpanic(gab, "Failed: $", gab_string(gab, strerror(errno)));
 
   int bytes = gab_fvalinspect(tmp, rec, 3);
