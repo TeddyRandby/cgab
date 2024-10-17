@@ -1,4 +1,3 @@
-
 CC 		 = zig cc
 CFLAGS = -std=c2x --target=$(TARGET) -fPIC -Wall -DGAB_PREFIX=\"${GAB_PREFIX}\" ${GAB_CCFLAGS}
 
@@ -72,7 +71,7 @@ clean:
 	rm -rf build-*/
 
 compile_commands:
-	make clean
-	bear -- make
+	mkdir -p $(BUILD_PREFIX)
+	bear -- make TARGET=$(TARGET)
 
 .PHONY: clean

@@ -398,6 +398,10 @@ void gab_obj_destroy(struct gab_eg *eg, struct gab_obj *obj);
  */
 uint64_t gab_obj_size(struct gab_obj *obj);
 
+#define GAB_DYNAMIC_MODULE_SYMBOL "gab_lib"
+typedef a_gab_value *(*gab_osdynmod_load)(struct gab_triple, const char* path);
+typedef a_gab_value *(*gab_osdynmod)(struct gab_triple);
+
 /**
  * @class gab_create_argt
  */
@@ -409,11 +413,7 @@ struct gab_create_argt {
    * @brief A hook for loading dynamic libraries.
    * This is used to load native-c modules.
    */
-  void *(*os_dynopen)(const char *path);
-  /**
-   * @brief A hook for pulling symbols out of dynamically loaded libraries.
-   */
-  void *(*os_dynsymbol)(void *os_dynhandle, const char *path);
+  gab_osdynmod_load os_dynmod;
 };
 
 /**
@@ -2359,9 +2359,7 @@ struct gab_eg {
 
   FILE *sin, *sout, *serr;
 
-  void *(*os_dynopen)(const char *path);
-
-  void *(*os_dynsymbol)(void *os_dynhandle, const char *path);
+  gab_osdynmod_load os_dynmod;
 
   struct gab_obj *(*os_objalloc)(struct gab_triple gab, struct gab_obj *,
                                  uint64_t new_size);

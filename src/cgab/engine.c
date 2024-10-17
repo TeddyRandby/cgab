@@ -334,8 +334,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->len = njobs + 1;
   eg->njobs = 0;
-  eg->os_dynsymbol = args.os_dynsymbol;
-  eg->os_dynopen = args.os_dynopen;
+  eg->os_dynmod = args.os_dynmod;
   eg->hash_seed = time(nullptr);
   eg->sin = args.sin;
   eg->sout = args.sout;
@@ -945,25 +944,11 @@ typedef struct {
 
 a_gab_value *gab_shared_object_handler(struct gab_triple gab,
                                        const char *path) {
-  if (!gab.eg->os_dynopen || !gab.eg->os_dynsymbol)
+  if (!gab.eg->os_dynmod)
     return nullptr;
-
-  void *handle = gab.eg->os_dynopen(path);
-
-  if (handle == nullptr) {
-    gab_fpanic(gab, "Couldn't open module");
-    return nullptr;
-  }
-
-  module_f symbol = gab.eg->os_dynsymbol(handle, MODULE_SYMBOL);
-
-  if (!symbol) {
-    gab_fpanic(gab, "Missing symbol " MODULE_SYMBOL);
-    return nullptr;
-  }
 
   gab_gclock(gab);
-  a_gab_value *res = symbol(gab);
+  a_gab_value *res = gab.eg->os_dynmod(gab, path);
   gab_gcunlock(gab);
 
   if (res) {
