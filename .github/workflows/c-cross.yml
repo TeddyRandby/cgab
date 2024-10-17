@@ -1,23 +1,24 @@
 # This starter workflow is for a CMake project running on multiple platforms. There is a different starter workflow if you just want a single platform.
 # See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-single-platform.yml
-name: Release cross-compiled static binaries
+name: Release static binaries
 
 on:
   push:
     branches: [ "main" ]
 
-env:
-  x86LM: x86_64-linux-musl
-  x86WG: x86_64-windows-gnu
-  x86MN: x86_64-macos-none
-  aarchLM: aarch64-linux-musl
-  aarchWG: aarch64-windows-gnu
-  aarchMN: aarch64-macos-none
-  TARGETS: "$x86LM $x86WG $x86MN $aarchLM $aarchWG $aarchMN"
-
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        target:
+          - x86_64-linux-musl
+          - x86_64-windows-gnu
+          - x86_64-macos-none
+          - aarch64-linux-musl
+          - aarch64-windows-gnu
+          - aarch64-macos-none
 
     steps:
     - uses: actions/checkout@v4
@@ -38,7 +39,7 @@ jobs:
       run: go install github.com/TeddyRandby/clide@latest
 
     - name: Configure
-      run: clide configure -b=release -t="$TARGETS"
+      run: clide configure -b=release -t='${{ matrix.target }}'
 
     - name: Build
       run: clide build
@@ -46,5 +47,5 @@ jobs:
     - name: Release
       uses: actions/upload-artifact@v4
       with:
-        name: "gab-${{ env.x86LM }}"
-        path: "build-${{ env.x86LM }}/gab"
+        name: 'gab-${{ matrix.target }}'
+        path: 'build-${{ matrix.target }}/gab'
