@@ -6,12 +6,26 @@ on:
   push:
     branches: [ "main" ]
 
+env:
+  x86LM: x86_64-linux-musl
+  x86WG: x86_64-windows-gnu
+  x86MN: x86_64-macos-none
+  aarchLM: aarch64-linux-musl
+  aarchWG: aarch64-windows-gnu
+  aarchMN: aarch64-macos-none
+  TARGETS: "$x86LM $x86WG $x86MN $aarchLM $aarchWG $aarchMN"
+
 jobs:
   build:
     runs-on: ubuntu/latest
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Set up Zig
+      uses: mlugg/setup-zig@v1
+      with:
+        version: 0.13.0
 
     - name: Set up Go
       uses: actions/setup-go@v4
@@ -22,7 +36,13 @@ jobs:
       run: go install github.com/TeddyRandby/clide@latest
 
     - name: Configure
-      run: clide configure -b=release -t="x86_64-linux-musl x86_64-windows-gnu x86_64-macos-none aarch64-linux-musl aarch64-windows-gnu aarch64-macos-none"
+      run: clide configure -b=release -t="$TARGETS"
 
     - name: Build
       run: clide build
+
+    - name: Release
+      uses: actions/upload-artifact@v4
+      with:
+        name: "gab-$x86LM"
+        path: "build-$x86LM/gab"
