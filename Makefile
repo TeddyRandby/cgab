@@ -69,9 +69,7 @@ test: $(BUILD_PREFIX)/gab modules
 	$(BUILD_PREFIX)/gab run test
 
 clean:
-	mv build/configuration .
-	rm build/*
-	mv configuration build/
+	rm -rf build-*/
 
 compile_commands:
 	make clean

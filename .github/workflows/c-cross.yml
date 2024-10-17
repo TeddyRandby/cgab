@@ -1,0 +1,28 @@
+# This starter workflow is for a CMake project running on multiple platforms. There is a different starter workflow if you just want a single platform.
+# See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-single-platform.yml
+name: Release cross-compiled static binaries
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu/latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.20'
+
+    - name: Install Clide
+      run: go install github.com/TeddyRandby/clide@latest
+
+    - name: Configure
+      run: clide configure -b=release -t="x86_64-linux-musl x86_64-windows-gnu x86_64-macos-none aarch64-linux-musl aarch64-windows-gnu aarch64-macos-none"
+
+    - name: Build
+      run: clide build
