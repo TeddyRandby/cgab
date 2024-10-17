@@ -2,7 +2,7 @@
 #include <errno.h>
 #include <stdio.h>
 
-a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_at(struct gab_triple gab, uint64_t argc,
                         gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value key = gab_arg(1);
@@ -20,7 +20,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_del(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_del(struct gab_triple gab, uint64_t argc,
                          gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value key = gab_arg(1);
@@ -35,16 +35,16 @@ a_gab_value *gab_lib_del(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_push(struct gab_triple gab, uint64_t argc,
                           gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
   if (gab_valkind(rec) != kGAB_RECORD)
     return gab_pktypemismatch(gab, rec, kGAB_RECORD);
 
-  size_t start = gab_reclen(rec) - 1;
+  uint64_t start = gab_reclen(rec) - 1;
 
-  for (size_t i = 1; i < argc; i++) {
+  for (uint64_t i = 1; i < argc; i++) {
     gab_value key = gab_number(start + i);
     gab_value val = gab_arg(i);
     rec = gab_recput(gab, rec, key, val);
@@ -55,7 +55,7 @@ a_gab_value *gab_lib_push(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_put(struct gab_triple gab, uint64_t argc,
                          gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value key = gab_arg(1);
@@ -69,7 +69,7 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_islist(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_islist(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
@@ -77,14 +77,14 @@ a_gab_value *gab_lib_islist(struct gab_triple gab, size_t argc,
     return gab_pktypemismatch(gab, rec, kGAB_RECORD);
 
   gab_value shp = gab_recshp(rec);
-  size_t len = gab_shplen(shp);
+  uint64_t len = gab_shplen(shp);
 
   if (len == 0) {
     gab_vmpush(gab_vm(gab), gab_false);
     return nullptr;
   }
 
-  for (size_t i = 0; i < len; i++) {
+  for (uint64_t i = 0; i < len; i++) {
     if (gab_valkind(gab_ushpat(shp, i)) != kGAB_NUMBER) {
       gab_vmpush(gab_vm(gab), gab_false);
       return nullptr;
@@ -96,7 +96,7 @@ a_gab_value *gab_lib_islist(struct gab_triple gab, size_t argc,
 }
 
 gab_value doputvia(struct gab_triple gab, gab_value rec, gab_value val,
-                   size_t len, gab_value path[len]) {
+                   uint64_t len, gab_value path[len]) {
   gab_value key = path[0];
 
   if (len == 1)
@@ -118,7 +118,7 @@ gab_value doputvia(struct gab_triple gab, gab_value rec, gab_value val,
   return gab_recput(gab, rec, key, subval);
 }
 
-a_gab_value *gab_lib_putvia(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_putvia(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value val = gab_arg(1);
@@ -137,7 +137,7 @@ a_gab_value *gab_lib_putvia(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_len(struct gab_triple gab, uint64_t argc,
                          gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
@@ -149,7 +149,7 @@ a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_strings_into(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_strings_into(struct gab_triple gab, uint64_t argc,
                                   gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
@@ -179,14 +179,14 @@ a_gab_value *gab_lib_strings_into(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_init(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_init(struct gab_triple gab, uint64_t argc,
                           gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
   if (gab_valkind(rec) != kGAB_RECORD)
     return gab_pktypemismatch(gab, rec, kGAB_RECORD);
 
-  size_t len = gab_reclen(rec);
+  uint64_t len = gab_reclen(rec);
 
   if (len == 0) {
     gab_vmpush(gab_vm(gab), gab_none);
@@ -200,7 +200,7 @@ a_gab_value *gab_lib_init(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_next(struct gab_triple gab, uint64_t argc,
                           gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value old_key = gab_arg(1);
@@ -208,12 +208,12 @@ a_gab_value *gab_lib_next(struct gab_triple gab, size_t argc,
   if (gab_valkind(rec) != kGAB_RECORD)
     return gab_pktypemismatch(gab, rec, kGAB_RECORD);
 
-  size_t len = gab_reclen(rec);
+  uint64_t len = gab_reclen(rec);
 
   if (len == 0)
     goto fin;
 
-  size_t i = gab_recfind(rec, old_key);
+  uint64_t i = gab_recfind(rec, old_key);
 
   if (i == -1 || i + 1 == len)
     goto fin;

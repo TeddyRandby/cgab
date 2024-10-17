@@ -4,7 +4,7 @@
 #include "gab.h"
 
 gab_value *push_value(struct gab_triple gab, const char *json, gab_value *sp,
-                      jsmntok_t *tokens, size_t *t) {
+                      jsmntok_t *tokens, uint64_t *t) {
   jsmntok_t tok = tokens[*t];
   switch (tok.type) {
   case JSMN_PRIMITIVE: {
@@ -76,7 +76,7 @@ gab_value *push_value(struct gab_triple gab, const char *json, gab_value *sp,
   return sp;
 }
 
-a_gab_value *gab_lib_json_decode(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_json_decode(struct gab_triple gab, uint64_t argc,
                                  gab_value argv[static argc]) {
   gab_value str = gab_arg(0);
 
@@ -84,7 +84,7 @@ a_gab_value *gab_lib_json_decode(struct gab_triple gab, size_t argc,
     return gab_pktypemismatch(gab, str, kGAB_STRING);
 
   const char *cstr = gab_strdata(&str);
-  size_t len = gab_strlen(str);
+  uint64_t len = gab_strlen(str);
 
   jsmn_parser jsmn;
   jsmntok_t tokens[len];
@@ -110,7 +110,7 @@ a_gab_value *gab_lib_json_decode(struct gab_triple gab, size_t argc,
     return nullptr;
   }
 
-  size_t token = 0;
+  uint64_t token = 0;
   gab_value stack[len];
 
   gab_value *sp = push_value(gab, cstr, stack, tokens, &token);
@@ -121,7 +121,7 @@ a_gab_value *gab_lib_json_decode(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_json_encode(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_json_encode(struct gab_triple gab, uint64_t argc,
                                  gab_value argv[static argc]) {
   gab_vmpush(gab_vm(gab), gab_sigtomsg(gab_arg(0)));
   return nullptr;

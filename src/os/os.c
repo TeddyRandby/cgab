@@ -4,7 +4,7 @@ a_char *gab_fosread(FILE *fd) {
   v_char buffer = {0};
 
   while (1) {
-    char c = fgetc(fd);
+    int c = fgetc(fd);
 
     if (c == EOF)
       break;
@@ -38,7 +38,7 @@ a_char *gab_fosreadl(FILE *fd) {
   v_char_create(&buffer, 1024);
 
   for (;;) {
-    char c = fgetc(fd);
+    int c = fgetc(fd);
 
     v_char_push(&buffer, c);
 

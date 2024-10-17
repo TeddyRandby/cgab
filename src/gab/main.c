@@ -641,7 +641,7 @@ void run_repl(int flags) {
                     .name = MAIN_MODULE,
                     .flags = flags,
                     .prompt_prefix =
-                        "gab:" GAB_VERSION_MAJOR "." GAB_VERSION_MINOR ">>",
+                        "gab:" GAB_VERSION_MAJOR "." GAB_VERSION_MINOR ">> ",
                     .result_prefix = "=>",
                 });
 

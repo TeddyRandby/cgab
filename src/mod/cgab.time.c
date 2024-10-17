@@ -1,7 +1,7 @@
 #include "gab.h"
 #include <time.h>
 
-a_gab_value *gab_lib_now(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_now(struct gab_triple gab, uint64_t argc,
                          gab_value argv[argc]) {
   if (argc != 1) {
     return gab_fpanic(gab, "Invalid call to gab_lib_clock");

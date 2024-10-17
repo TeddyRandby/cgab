@@ -1,8 +1,7 @@
-build/
+build*/
 bin/
 docs/
 .cache/
 .vscode/
 compile_commands.json
 .zig-cache
-zig-out/lib

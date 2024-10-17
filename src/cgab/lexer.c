@@ -1,7 +1,4 @@
-#include "lexer.h"
-#include "core.h"
 #include "gab.h"
-#include <threads.h>
 
 bool is_whitespace(uint8_t c) { return c == ' ' || c == '\t' || c == '\f'; }
 
@@ -57,7 +54,7 @@ bool is_comment(uint8_t c) { return c == '#'; }
 typedef struct gab_lx {
   char *cursor;
   char *row_start;
-  size_t row;
+  uint64_t row;
   uint64_t col;
 
   uint8_t status;
@@ -119,9 +116,9 @@ void gab_lexcreate(gab_lx *self, struct gab_src *src) {
   start_row(self);
 }
 
-static inline char peek(gab_lx *self) { return *self->cursor; }
+static inline int peek(gab_lx *self) { return *self->cursor; }
 
-static inline char peek_next(gab_lx *self) { return *(self->cursor + 1); }
+static inline int peek_next(gab_lx *self) { return *(self->cursor + 1); }
 
 static inline gab_token lexer_error(gab_lx *self, enum gab_status s) {
   self->status = s;
@@ -453,7 +450,7 @@ void gab_srcdestroy(struct gab_src *self) {
   d_uint64_t_destroy(&self->node_begin_toks);
   d_uint64_t_destroy(&self->node_end_toks);
 
-  for (size_t i = 0; i < self->len; i++) {
+  for (uint64_t i = 0; i < self->len; i++) {
     if (self->thread_bytecode[i].constants)
       free(self->thread_bytecode[i].constants);
     if (self->thread_bytecode[i].bytecode)
@@ -464,7 +461,7 @@ void gab_srcdestroy(struct gab_src *self) {
 }
 
 struct gab_src *gab_src(struct gab_triple gab, gab_value name,
-                        const char *source, size_t len) {
+                        const char *source, uint64_t len) {
   mtx_lock(&gab.eg->sources_mtx);
 
   if (d_gab_src_exists(&gab.eg->sources, name)) {
@@ -475,7 +472,7 @@ struct gab_src *gab_src(struct gab_triple gab, gab_value name,
     return src;
   }
 
-  size_t sz =
+  uint64_t sz =
       sizeof(struct gab_src) + (gab.eg->len - 1) * sizeof(struct src_bytecode);
 
   struct gab_src *src = malloc(sz);
@@ -507,12 +504,12 @@ fin:
   return src;
 }
 
-size_t gab_srcappend(struct gab_src *self, size_t len, uint8_t bc[static len],
+uint64_t gab_srcappend(struct gab_src *self, uint64_t len, uint8_t bc[static len],
                      uint64_t toks[static len]) {
   v_uint8_t_cap(&self->bytecode, self->bytecode.len + len);
   v_uint64_t_cap(&self->bytecode_toks, self->bytecode_toks.len + len);
 
-  for (size_t i = 0; i < len; i++) {
+  for (uint64_t i = 0; i < len; i++) {
     v_uint8_t_push(&self->bytecode, bc[i]);
     v_uint64_t_push(&self->bytecode_toks, toks[i]);
   }
@@ -524,8 +521,8 @@ size_t gab_srcappend(struct gab_src *self, size_t len, uint8_t bc[static len],
 
 gab_value gab_srcname(struct gab_src *src) { return src->name; }
 
-size_t gab_srcline(struct gab_src *src, size_t offset) {
-  size_t tok = v_uint64_t_val_at(&src->bytecode_toks, offset);
+uint64_t gab_srcline(struct gab_src *src, uint64_t offset) {
+  uint64_t tok = v_uint64_t_val_at(&src->bytecode_toks, offset);
   return v_uint64_t_val_at(&src->token_lines, tok);
 }
 

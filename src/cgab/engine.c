@@ -1,5 +1,4 @@
 #include <errno.h>
-#include <threads.h>
 #define GAB_STATUS_NAMES_IMPL
 #define GAB_TOKEN_NAMES_IMPL
 #include "engine.h"
@@ -233,20 +232,9 @@ void gab_yield(struct gab_triple gab) {
   thrd_yield();
 }
 
-int32_t wkid(struct gab_eg *eg) {
-  for (size_t i = 0; i < eg->len; i++) {
-    struct gab_jb *wk = &eg->jobs[i];
-    if (wk->td == thrd_current())
-      return i;
-  }
-
-  return -1;
-}
-
 int32_t gc_job(void *data) {
   struct gab_triple *g = data;
   struct gab_triple gab = *g;
-  gab.wkid = wkid(gab.eg);
   assert(gab.wkid == 0);
 
   gab.eg->jobs[gab.wkid].fiber = gab_undefined;
@@ -263,7 +251,6 @@ int32_t gc_job(void *data) {
 int32_t worker_job(void *data) {
   struct gab_triple *g = data;
   struct gab_triple gab = *g;
-  gab.wkid = wkid(gab.eg);
 
   assert(gab.wkid != 0);
   gab.eg->njobs++;
@@ -299,7 +286,7 @@ int32_t worker_job(void *data) {
 struct gab_jb *next_available_job(struct gab_triple gab) {
 
   // Try to reuse an existing job, thats exited after idling
-  for (size_t i = 1; i < gab.eg->len; i++) {
+  for (uint64_t i = 1; i < gab.eg->len; i++) {
     // If we have a dead thread, revive it
     if (!gab.eg->jobs[i].alive)
       return gab.eg->jobs + i;
@@ -321,8 +308,9 @@ bool gab_jbcreate(struct gab_triple gab, struct gab_jb *job, int(fn)(void *)) {
 
   struct gab_triple *gabcpy = malloc(sizeof(struct gab_triple));
   memcpy(gabcpy, &gab, sizeof(struct gab_triple));
+  gabcpy->wkid = job - gab.eg->jobs;
 
-  size_t res = thrd_create(&job->td, fn, gabcpy);
+  int res = thrd_create(&job->td, fn, gabcpy);
 
   if (res != thrd_success) {
     printf("UHOH\n");
@@ -333,9 +321,9 @@ bool gab_jbcreate(struct gab_triple gab, struct gab_jb *job, int(fn)(void *)) {
 }
 
 struct gab_triple gab_create(struct gab_create_argt args) {
-  size_t njobs = args.jobs ? args.jobs : 8;
+  uint64_t njobs = args.jobs ? args.jobs : 8;
 
-  size_t egsize = sizeof(struct gab_eg) + sizeof(struct gab_jb) * (njobs + 1);
+  uint64_t egsize = sizeof(struct gab_eg) + sizeof(struct gab_jb) * (njobs + 1);
 
   args.sin = args.sin != nullptr ? args.sin : stdin;
   args.sout = args.sout != nullptr ? args.sout : stdout;
@@ -366,7 +354,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   struct gab_triple gab = {.eg = eg, .flags = args.flags};
 
-  size_t gcsize =
+  uint64_t gcsize =
       sizeof(struct gab_gc) +
       sizeof(struct gab_gcbuf[kGAB_NBUF][GAB_GCNEPOCHS]) * (eg->len);
 
@@ -540,13 +528,14 @@ void gab_destroy(struct gab_triple gab) {
 }
 
 void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
-  size_t iterations = 0;
+  uint64_t iterations = 0;
 
   for (;;) {
     printf("%s", args.prompt_prefix);
+    fflush(stdout);
     a_char *src = gab_fosreadl(stdin);
 
-    if (src->data[0] == EOF) {
+    if ((int8_t)src->data[0] == EOF) {
       a_char_destroy(src);
 
       return;
@@ -559,7 +548,7 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
 
     // Append the iterations number to the end of the given name
     char unique_name[strlen(args.name) + 16];
-    snprintf(unique_name, sizeof(unique_name), "%s:%lu", args.name, iterations);
+    snprintf(unique_name, sizeof(unique_name), "%s:%"PRIu64"", args.name, iterations);
 
     iterations++;
 
@@ -584,7 +573,7 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
       }
     }
 
-    printf("\n");
+    putc('\n', stdout);
 
     a_char_destroy(src);
   }
@@ -632,12 +621,12 @@ gab_value gab_aexec(struct gab_triple gab, struct gab_exec_argt args) {
                        });
 }
 
-gab_value dodef(struct gab_triple gab, gab_value messages, size_t len,
+gab_value dodef(struct gab_triple gab, gab_value messages, uint64_t len,
                 struct gab_def_argt args[static len]) {
 
   gab_gclock(gab);
 
-  for (size_t i = 0; i < len; i++) {
+  for (uint64_t i = 0; i < len; i++) {
     struct gab_def_argt arg = args[i];
 
     gab_value specs = gab_recat(messages, arg.message);
@@ -654,7 +643,7 @@ gab_value dodef(struct gab_triple gab, gab_value messages, size_t len,
   return gab_gcunlock(gab), messages;
 }
 
-int gab_ndef(struct gab_triple gab, size_t len,
+int gab_ndef(struct gab_triple gab, uint64_t len,
              struct gab_def_argt args[static len]) {
   gab_gclock(gab);
 
@@ -706,7 +695,7 @@ struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
 }
 
 a_gab_value *gab_segmodat(struct gab_eg *eg, const char *name) {
-  size_t hash = s_char_hash(s_char_cstr(name));
+  uint64_t hash = s_char_hash(s_char_cstr(name));
 
   mtx_lock(&eg->modules_mtx);
 
@@ -718,8 +707,8 @@ a_gab_value *gab_segmodat(struct gab_eg *eg, const char *name) {
 }
 
 a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
-                           size_t len, gab_value *values) {
-  size_t hash = s_char_hash(s_char_cstr(name));
+                           uint64_t len, gab_value *values) {
+  uint64_t hash = s_char_hash(s_char_cstr(name));
 
   mtx_lock(&eg->modules_mtx);
 
@@ -738,12 +727,12 @@ a_gab_value *gab_segmodput(struct gab_eg *eg, const char *name, gab_value mod,
   return mtx_unlock(&eg->modules_mtx), module;
 }
 
-size_t gab_egkeep(struct gab_eg *gab, gab_value v) {
+uint64_t gab_egkeep(struct gab_eg *gab, gab_value v) {
   return gab_negkeep(gab, 1, &v);
 }
 
-size_t gab_negkeep(struct gab_eg *gab, size_t len,
-                   gab_value values[static len]) {
+uint64_t gab_negkeep(struct gab_eg *gab, uint64_t len,
+                     gab_value values[static len]) {
   for (uint64_t i = 0; i < len; i++)
     if (gab_valiso(values[i]))
       v_gab_value_push(&gab->scratch, values[i]);
@@ -763,11 +752,11 @@ int gab_fprintf(FILE *stream, const char *fmt, ...) {
 }
 
 // TODO: Bounds check this
-int gab_nfprintf(FILE *stream, const char *fmt, size_t argc,
+int gab_nfprintf(FILE *stream, const char *fmt, uint64_t argc,
                  gab_value argv[argc]) {
   const char *c = fmt;
   int bytes = 0;
-  size_t i = 0;
+  uint64_t i = 0;
 
   while (*c != '\0') {
     switch (*c) {
@@ -837,7 +826,7 @@ void dump_pretty_err(struct gab_triple gab, FILE *stream, va_list varargs,
     const char *tok_start = tok_src.data;
     const char *tok_end = tok_src.data + tok_src.len;
 
-    size_t line = v_uint64_t_val_at(&args.src->token_lines, args.tok);
+    uint64_t line = v_uint64_t_val_at(&args.src->token_lines, args.tok);
 
     s_char line_src = v_s_char_val_at(&args.src->lines, line - 1);
 
@@ -858,7 +847,7 @@ void dump_pretty_err(struct gab_triple gab, FILE *stream, va_list varargs,
     }
 
     fprintf(stream,
-            "\n\n" GAB_RED "%.4lu" GAB_RESET "| %.*s"
+            "\n\n" GAB_RED "%.4"PRIu64"" GAB_RESET "| %.*s"
             "\n      " GAB_YELLOW "%.*s" GAB_RESET "",
             line, (int)line_src.len, line_src.data, (int)under_src->len,
             under_src->data);
@@ -890,19 +879,21 @@ void dump_structured_err(struct gab_triple gab, FILE *stream, va_list varargs,
   fprintf(stream, "%s:%s:%s:%s", status_name, src_name, tok_name, msg_name);
 
   if (args.src) {
-    size_t line = v_uint64_t_val_at(&args.src->token_lines, args.tok);
+    uint64_t line = v_uint64_t_val_at(&args.src->token_lines, args.tok);
 
     s_char line_src = v_s_char_val_at(&args.src->lines, line - 1);
     s_char tok_src = v_s_char_val_at(&args.src->token_srcs, args.tok);
-    size_t line_relative_start = tok_src.data - line_src.data;
-    size_t line_relative_end = tok_src.data + tok_src.len - line_src.data;
+    uint64_t line_relative_start = tok_src.data - line_src.data;
+    uint64_t line_relative_end = tok_src.data + tok_src.len - line_src.data;
 
-    size_t src_relative_start = tok_src.data - args.src->source->data;
-    size_t src_relative_end =
+    uint64_t src_relative_start = tok_src.data - args.src->source->data;
+    uint64_t src_relative_end =
         tok_src.data + tok_src.len - args.src->source->data;
 
-    fprintf(stream, ":%lu:%lu:%lu:%lu:%lu", line, line_relative_start,
-            line_relative_end, src_relative_start, src_relative_end);
+    fprintf(stream,
+            ":%" PRIu64 ":%" PRIu64 ":%" PRIu64 ":%" PRIu64 ":%" PRIu64 "",
+            line, line_relative_start, line_relative_end, src_relative_start,
+            src_relative_end);
   }
 
   fputc('\n', stream);
@@ -929,7 +920,8 @@ fin:
 /*  return gab_fvalinspect(stream, value, -1);*/
 /*}*/
 /**/
-/*int gab_val_printf_arginfo(const struct printf_info *i, size_t n, int *argtypes,*/
+/*int gab_val_printf_arginfo(const struct printf_info *i, uint64_t n, int
+ * *argtypes,*/
 /*                           int *sizes) {*/
 /*  if (n > 0) {*/
 /*    argtypes[0] = PA_INT | PA_FLAG_LONG;*/

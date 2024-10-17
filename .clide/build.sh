@@ -8,11 +8,16 @@ if ! test -e "build/configuration"; then
   clide configure || exit 1
 fi
 
-export GAB_PREFIX=
-export GAB_INSTALLPREFIX=
 export GAB_BUILDTYPE=
+export GAB_TARGETS=
 source build/configuration || exit 1
 
-make || exit 1
+echo $GAB_TARGETS | tr ' ' '\n' | while read target || [[ -n $target ]]
+do
+  mkdir -p "build-$target" # Make the build folder if it doesn't exist
+  echo "Building target $target..."
+  make TARGET="$target" || exit 1
+  echo "Done."
+done
 
 echo "Success! "

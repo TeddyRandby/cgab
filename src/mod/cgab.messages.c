@@ -1,6 +1,6 @@
 #include "gab.h"
 
-a_gab_value *gab_lib_message(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_message(struct gab_triple gab, uint64_t argc,
                              gab_value argv[static argc]) {
   gab_value name = gab_arg(1);
 
@@ -14,7 +14,7 @@ a_gab_value *gab_lib_message(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_impls(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_impls(struct gab_triple gab, uint64_t argc,
                            gab_value argv[static argc]) {
   if (argc == 1) {
     gab_value rec = GAB_VAL_TO_FIBER(gab_thisfiber(gab))->messages;
@@ -36,7 +36,7 @@ a_gab_value *gab_lib_impls(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_has(struct gab_triple gab, uint64_t argc,
                          gab_value argv[static argc]) {
   switch (argc) {
   case 2: {
@@ -51,7 +51,7 @@ a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
   }
 }
 
-a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_at(struct gab_triple gab, uint64_t argc,
                         gab_value argv[static argc]) {
   gab_value m = gab_arg(0);
   gab_value k = gab_arg(1);
@@ -69,7 +69,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_sigil_into(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_sigil_into(struct gab_triple gab, uint64_t argc,
                                 gab_value argv[static argc]) {
   gab_value m = gab_arg(0);
 
@@ -78,7 +78,7 @@ a_gab_value *gab_lib_sigil_into(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_string_into(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_string_into(struct gab_triple gab, uint64_t argc,
                                  gab_value argv[static argc]) {
   gab_value m = gab_arg(0);
 
@@ -87,7 +87,7 @@ a_gab_value *gab_lib_string_into(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_put(struct gab_triple gab, uint64_t argc,
                          gab_value argv[static argc]) {
   gab_value msg = gab_arg(0);
   gab_value rec = gab_arg(1);
@@ -103,7 +103,7 @@ a_gab_value *gab_lib_put(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_def(struct gab_triple gab, uint64_t argc,
                          gab_value argv[static argc]) {
   gab_value msg = gab_arg(0);
   gab_value spec = gab_arg(argc - 1);
@@ -111,7 +111,7 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
   if (gab_valkind(msg) != kGAB_MESSAGE)
     return gab_pktypemismatch(gab, msg, kGAB_MESSAGE);
 
-  size_t len = argc - 2;
+  uint64_t len = argc - 2;
 
   if (len == 0) {
     gab_value t = gab_undefined;
@@ -122,7 +122,7 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
     return nullptr;
   }
 
-  for (size_t i = 0; i < len; i++) {
+  for (uint64_t i = 0; i < len; i++) {
     gab_value t = gab_arg(i + 1);
 
     if (!gab_def(gab, {msg, t, spec}))
@@ -132,7 +132,7 @@ a_gab_value *gab_lib_def(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_case(struct gab_triple gab, uint64_t argc,
                           gab_value argv[static argc]) {
   gab_value msg = gab_arg(0);
   gab_value cases = gab_arg(1);
@@ -154,7 +154,7 @@ a_gab_value *gab_lib_case(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_module(struct gab_triple gab, uint64_t argc,
                             gab_value argv[static argc]) {
   gab_value cases = gab_arg(0);
   gab_value messages = gab_arg(1);
@@ -168,7 +168,7 @@ a_gab_value *gab_lib_module(struct gab_triple gab, size_t argc,
   if (gab_reclen(cases) == 0) {
     gab_value type = gab_undefined;
 
-    for (size_t i = 0; i < gab_reclen(messages); i++) {
+    for (uint64_t i = 0; i < gab_reclen(messages); i++) {
       gab_value spec = gab_uvrecat(messages, i);
       gab_value msg = gab_ukrecat(messages, i);
 

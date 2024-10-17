@@ -1,7 +1,7 @@
 #include "gab.h"
 #include <stdio.h>
 
-a_gab_value *fmt_panicf(struct gab_triple gab, size_t argc,
+a_gab_value *fmt_panicf(struct gab_triple gab, uint64_t argc,
                         gab_value argv[argc]) {
   gab_value fmt = gab_arg(0);
 
@@ -13,7 +13,7 @@ a_gab_value *fmt_panicf(struct gab_triple gab, size_t argc,
   return gab_fpanic(gab, cfmt);
 }
 
-a_gab_value *fmt_printf(struct gab_triple gab, size_t argc,
+a_gab_value *fmt_printf(struct gab_triple gab, uint64_t argc,
                         gab_value argv[argc]) {
   gab_value fmt = gab_arg(0);
 
@@ -22,21 +22,21 @@ a_gab_value *fmt_printf(struct gab_triple gab, size_t argc,
 
   const char *cfmt = gab_strdata(&fmt);
 
-  gab_nfprintf(gab.eg->stdout, cfmt, argc - 1, argv + 1);
+  gab_nfprintf(gab.eg->sout, cfmt, argc - 1, argv + 1);
 
   return nullptr;
 }
 
-a_gab_value *fmt_print(struct gab_triple gab, size_t argc,
+a_gab_value *fmt_print(struct gab_triple gab, uint64_t argc,
                        gab_value argv[argc]) {
-  gab_fvalinspect(gab.eg->stdout, gab_arg(0), 2);
+  gab_fvalinspect(gab.eg->sout, gab_arg(0), 2);
 
-  for (size_t i = 1; i < argc; i++) {
-    fprintf(gab.eg->stdout, ", ");
-    gab_fvalinspect(gab.eg->stdout, gab_arg(i), 0);
+  for (uint64_t i = 1; i < argc; i++) {
+    fprintf(gab.eg->sout, ", ");
+    gab_fvalinspect(gab.eg->sout, gab_arg(i), 0);
   }
 
-  fputc('\n', gab.eg->stdout);
+  fputc('\n', gab.eg->sout);
 
   return nullptr;
 }

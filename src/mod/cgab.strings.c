@@ -9,14 +9,14 @@ static inline bool instr(char c, const char *set) {
   return false;
 }
 
-a_gab_value *gab_lib_trim(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_trim(struct gab_triple gab, uint64_t argc,
                           gab_value argv[argc]) {
   gab_value str = gab_arg(0);
   gab_value trimset = gab_arg(1);
 
   const char *cstr = gab_strdata(&str);
   const char *ctrimset = nullptr;
-  size_t cstrlen = gab_strlen(str);
+  uint64_t cstrlen = gab_strlen(str);
 
   if (trimset == gab_nil)
     trimset = gab_string(gab, "\n\t ");
@@ -40,13 +40,13 @@ a_gab_value *gab_lib_trim(struct gab_triple gab, size_t argc,
   while (instr(*back, ctrimset) && back > front)
     back--;
 
-  size_t result_len = back - front + 1;
+  uint64_t result_len = back - front + 1;
 
   gab_vmpush(gab_vm(gab), gab_nstring(gab, result_len, front));
   return nullptr;
 }
 
-a_gab_value *gab_lib_split(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_split(struct gab_triple gab, uint64_t argc,
                            gab_value argv[argc]) {
   gab_value str = gab_arg(0);
   gab_value sep = gab_arg(1);
@@ -54,8 +54,8 @@ a_gab_value *gab_lib_split(struct gab_triple gab, size_t argc,
   if (gab_valkind(sep) != kGAB_STRING)
     return gab_pktypemismatch(gab, sep, kGAB_STRING);
 
-  size_t cstr_len = gab_strlen(str);
-  size_t csep_len = gab_strlen(sep);
+  uint64_t cstr_len = gab_strlen(str);
+  uint64_t csep_len = gab_strlen(sep);
 
   if (cstr_len == 0 || csep_len == 0)
     return nullptr;
@@ -64,7 +64,7 @@ a_gab_value *gab_lib_split(struct gab_triple gab, size_t argc,
   const char *csep = gab_strdata(&sep);
   const char sepstart = csep[0];
 
-  size_t offset = 0, begin = 0;
+  uint64_t offset = 0, begin = 0;
   while (offset + csep_len < cstr_len) {
 
     // Quick check to see if we should try memcmp
@@ -86,7 +86,7 @@ a_gab_value *gab_lib_split(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_len(struct gab_triple gab, uint64_t argc,
                          gab_value argv[argc]) {
   if (argc != 1) {
     return gab_fpanic(gab, "&:len expects 1 argument");
@@ -98,9 +98,9 @@ a_gab_value *gab_lib_len(struct gab_triple gab, size_t argc,
   return nullptr;
 };
 
-static _Atomic size_t gab_eval_nth = -1;
+static _Atomic uint64_t gab_eval_nth = -1;
 
-a_gab_value *gab_lib_gabeval(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_gabeval(struct gab_triple gab, uint64_t argc,
                              gab_value argv[argc]) {
   gab_value source = gab_arg(0);
 
@@ -124,8 +124,8 @@ a_gab_value *gab_lib_gabeval(struct gab_triple gab, size_t argc,
   return nullptr;
 };
 
-static inline bool begins(const char *str, const char *pat, size_t offset) {
-  size_t len = strlen(pat);
+static inline bool begins(const char *str, const char *pat, uint64_t offset) {
+  uint64_t len = strlen(pat);
 
   if (strlen(str) < offset + len)
     return false;
@@ -133,8 +133,8 @@ static inline bool begins(const char *str, const char *pat, size_t offset) {
   return !memcmp(str + offset, pat, len);
 }
 
-static inline bool ends(const char *str, const char *pat, size_t offset) {
-  size_t len = strlen(pat);
+static inline bool ends(const char *str, const char *pat, uint64_t offset) {
+  uint64_t len = strlen(pat);
 
   if (strlen(str) < offset + len)
     return false;
@@ -142,7 +142,7 @@ static inline bool ends(const char *str, const char *pat, size_t offset) {
   return !memcmp(str + strlen(str) - offset - len, pat, len);
 }
 
-a_gab_value *gab_lib_blank(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_blank(struct gab_triple gab, uint64_t argc,
                            gab_value argv[argc]) {
   gab_value str = gab_arg(0);
 
@@ -164,7 +164,7 @@ a_gab_value *gab_lib_blank(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_ends(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_ends(struct gab_triple gab, uint64_t argc,
                           gab_value argv[argc]) {
   switch (argc) {
   case 2: {
@@ -198,7 +198,7 @@ a_gab_value *gab_lib_ends(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_begins(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_begins(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]) {
   switch (argc) {
   case 2: {
@@ -230,7 +230,7 @@ a_gab_value *gab_lib_begins(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_is_digit(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_is_digit(struct gab_triple gab, uint64_t argc,
                               gab_value argv[argc]) {
   if (argc != 1) {
     return gab_fpanic(gab, "&:is_digit? expects 0 arguments");
@@ -257,7 +257,7 @@ a_gab_value *gab_lib_is_digit(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_to_byte(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_to_byte(struct gab_triple gab, uint64_t argc,
                              gab_value argv[argc]) {
   if (argc != 1) {
     return gab_fpanic(gab, "&:to_byte expects 0 arguments");
@@ -284,7 +284,7 @@ a_gab_value *gab_lib_to_byte(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_at(struct gab_triple gab, uint64_t argc,
                         gab_value argv[argc]) {
   if (argc != 2 && gab_valkind(argv[1]) != kGAB_NUMBER) {
     return gab_fpanic(gab, "&:at expects 1 number argument");
@@ -311,7 +311,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, size_t argc,
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (MAX(0, MIN(a, b)))
 
-a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_slice(struct gab_triple gab, uint64_t argc,
                            gab_value argv[argc]) {
   const char *str = gab_strdata(argv + 0);
 
@@ -359,7 +359,7 @@ a_gab_value *gab_lib_slice(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_has(struct gab_triple gab, uint64_t argc,
                          gab_value argv[argc]) {
   if (argc < 2) {
     return gab_fpanic(gab, "&:has? expects one argument");
@@ -372,25 +372,25 @@ a_gab_value *gab_lib_has(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_string_into(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_string_into(struct gab_triple gab, uint64_t argc,
                                  gab_value argv[argc]) {
   gab_vmpush(gab_vm(gab), gab_valintos(gab, gab_arg(0)));
   return nullptr;
 }
 
-a_gab_value *gab_lib_sigil_into(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_sigil_into(struct gab_triple gab, uint64_t argc,
                                 gab_value argv[argc]) {
   gab_vmpush(gab_vm(gab), gab_strtosig(gab_arg(0)));
   return nullptr;
 }
 
-a_gab_value *gab_lib_messages_into(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_messages_into(struct gab_triple gab, uint64_t argc,
                                    gab_value argv[argc]) {
   gab_vmpush(gab_vm(gab), gab_strtomsg(gab_arg(0)));
   return nullptr;
 }
 
-a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_new(struct gab_triple gab, uint64_t argc,
                          gab_value argv[argc]) {
   if (argc < 2) {
     gab_vmpush(gab_vm(gab), gab_string(gab, ""));
@@ -416,7 +416,7 @@ a_gab_value *gab_lib_new(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_numbers_into(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_numbers_into(struct gab_triple gab, uint64_t argc,
                                   gab_value argv[argc]) {
   const char *str = gab_strdata(argv + 0);
 

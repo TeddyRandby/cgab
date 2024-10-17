@@ -35,7 +35,7 @@ static handler handlers[] = {
 #define LOG(op)
 #endif
 
-#define ATTRIBUTES [[gnu::hot, gnu::sysv_abi, gnu::flatten]]
+#define ATTRIBUTES [[gnu::hot, gnu::flatten]]
 
 #define CASE_CODE(name)                                                        \
   ATTRIBUTES a_gab_value *OP_##name##_HANDLER(OP_HANDLER_ARGS)
@@ -54,7 +54,7 @@ static handler handlers[] = {
     assert(SP() < VM()->sb + cGAB_STACK_MAX);                                  \
     assert(SP() > FB());                                                       \
                                                                                \
-    [[clang::musttail]] return handlers[o](DISPATCH_ARGS());                                       \
+    [[clang::musttail]] return handlers[o](DISPATCH_ARGS());                   \
   })
 
 #define NEXT() DISPATCH(*IP()++);
@@ -89,7 +89,7 @@ static handler handlers[] = {
 #define PUSH(value)                                                            \
   ({                                                                           \
     if (SP() > (FB() + BLOCK_PROTO()->nslots + 1)) {                           \
-      fprintf(gab.eg->stderr,                                                          \
+      fprintf(gab.eg->stderr,                                                  \
               "Stack exceeded frame "                                          \
               "(%d). %lu passed\n",                                            \
               BLOCK_PROTO()->nslots, SP() - FB() - BLOCK_PROTO()->nslots);     \
@@ -323,14 +323,14 @@ static inline struct gab_obj_block *frame_block(gab_value *f) {
 
 static inline uint8_t *frame_ip(gab_value *f) { return (void *)f[-2]; }
 
-static inline size_t compute_token_from_ip(struct gab_triple gab,
-                                           struct gab_obj_block *b,
-                                           uint8_t *ip) {
+static inline uint64_t compute_token_from_ip(struct gab_triple gab,
+                                             struct gab_obj_block *b,
+                                             uint8_t *ip) {
   struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
 
-  size_t offset = ip - proto_srcbegin(gab, p) - 1;
+  uint64_t offset = ip - proto_srcbegin(gab, p) - 1;
 
-  size_t token = v_uint64_t_val_at(&p->src->bytecode_toks, offset);
+  uint64_t token = v_uint64_t_val_at(&p->src->bytecode_toks, offset);
 
   return token;
 }
@@ -356,7 +356,7 @@ struct gab_err_argt vm_frame_build_err(struct gab_triple gab,
   if (b) {
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(b->p);
 
-    size_t tok = compute_token_from_ip(gab, b, ip);
+    uint64_t tok = compute_token_from_ip(gab, b, ip);
 
     return (struct gab_err_argt){
         .tok = tok,
@@ -385,7 +385,7 @@ a_gab_value *vvm_error(struct gab_triple gab, enum gab_status s,
   dont_exit.flags &= ~fGAB_ERR_EXIT;
 
   while (frame_parent(f) > vm->sb) {
-    gab_vfpanic(dont_exit, gab.eg->serr, nullptr,
+    gab_vfpanic(dont_exit, gab.eg->serr, va,
                 vm_frame_build_err(gab, frame_block(f), ip,
                                    frame_parent(f) > vm->sb, GAB_NONE, ""));
 
@@ -433,8 +433,8 @@ a_gab_value *vm_error(struct gab_triple gab, enum gab_status s, const char *fmt,
 #define FMT_MISSINGIMPL                                                        \
   "$ does not specialize for:\n\n >> $\n\nof type:\n\n >> $"
 
-/*a_gab_value *gab_nfpanic(struct gab_triple gab, const char *fmt, size_t argc,
- * gab_value argv[static argc]) {*/
+/*a_gab_value *gab_nfpanic(struct gab_triple gab, const char *fmt, uint64_t
+ * argc, gab_value argv[static argc]) {*/
 /*  if (!gab_vm(gab)) {*/
 /*}*/
 
@@ -484,7 +484,7 @@ gab_value gab_vmframe(struct gab_triple gab, uint64_t depth) {
   //
   // if (f->b) {
   //   struct gab_src *src = GAB_VAL_TO_PROTOTYPE(f->b->p)->src;
-  //   size_t tok = compute_token_from_ip(f);
+  //   uint64_t tok = compute_token_from_ip(f);
   //   line = gab_number(v_uint64_t_val_at(&src->token_lines, tok));
   // }
   //
@@ -492,7 +492,7 @@ gab_value gab_vmframe(struct gab_triple gab, uint64_t depth) {
   //     line,
   // };
   //
-  // size_t len = sizeof(keys) / sizeof(keys[0]);
+  // uint64_t len = sizeof(keys) / sizeof(keys[0]);
   //
   // return gab_srecord(gab, len, keys, values);
 }
@@ -529,8 +529,8 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, int depth) {
   fprintf(stream, "\n");
 
   while (t >= f) {
-    fprintf(stream, "%2s" GAB_YELLOW "%4lu " GAB_RESET, vm->sp == t ? "->" : "",
-            t - vm->sb);
+    fprintf(stream, "%2s" GAB_YELLOW "%4" PRIu64 " " GAB_RESET,
+            vm->sp == t ? "->" : "", (uint64_t)(t - vm->sb));
     gab_fvalinspect(stream, *t, 0);
     fprintf(stream, "\n");
     t--;
@@ -538,17 +538,17 @@ void gab_fvminspect(FILE *stream, struct gab_vm *vm, int depth) {
 }
 
 void gab_fvminspectall(FILE *stream, struct gab_vm *vm) {
-  for (size_t i = 0; i < 64; i++) {
+  for (uint64_t i = 0; i < 64; i++) {
     gab_fvminspect(stream, vm, i);
   }
 }
 
-static inline size_t compute_arity(size_t var, uint8_t have) {
+static inline uint64_t compute_arity(uint64_t var, uint8_t have) {
   return var * (have & fHAVE_VAR) + (have >> 2);
 }
 
 static inline bool has_callspace(gab_value *sp, gab_value *sb,
-                                 size_t space_needed) {
+                                 uint64_t space_needed) {
   if ((sp - sb) + space_needed + 3 >= cGAB_STACK_MAX) {
     return false;
   }
@@ -556,8 +556,8 @@ static inline bool has_callspace(gab_value *sp, gab_value *sb,
   return true;
 }
 
-inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
-                          gab_value argv[argc]) {
+inline uint64_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
+                            gab_value argv[argc]) {
   if (__gab_unlikely(argc == 0 || !has_callspace(vm->sp, vm->sb, argc))) {
     return 0;
   }
@@ -676,7 +676,7 @@ inline size_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
                                                                                \
     gab_value *before = SP();                                                  \
                                                                                \
-    size_t pass = message ? have : have - 1;                                   \
+    uint64_t pass = message ? have : have - 1;                                 \
                                                                                \
     a_gab_value *res = (*native->function)(GAB(), pass, SP() - pass);          \
                                                                                \
@@ -961,9 +961,9 @@ static inline bool try_setup_localmatch(struct gab_triple gab, gab_value m,
   if (gab_reclen(specs) > 4 || gab_reclen(specs) < 2)
     return false;
 
-  size_t len = gab_reclen(specs);
+  uint64_t len = gab_reclen(specs);
 
-  for (size_t i = 0; i < len; i++) {
+  for (uint64_t i = 0; i < len; i++) {
     gab_value spec = gab_uvrecat(specs, i);
 
     if (gab_valkind(spec) != kGAB_BLOCK)
@@ -1257,7 +1257,7 @@ CASE_CODE(SEND_PRIMITIVE_USE) {
   if (!mod)
     ERROR(GAB_PANIC, "Couldn't locate module $.", r);
 
-  for (size_t i = 1; i < mod->len; i++)
+  for (uint64_t i = 1; i < mod->len; i++)
     PUSH(mod->data[i]);
 
   SET_VAR(mod->len - 1);
@@ -1277,11 +1277,11 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
 
   DROP_N(have);
 
-  size_t len = gab_reclen(r);
+  uint64_t len = gab_reclen(r);
 
   assert(VM()->sp + len < VM()->sp + cGAB_STACK_MAX);
 
-  for (size_t i = 0; i < len; i++) {
+  for (uint64_t i = 0; i < len; i++) {
     PUSH(gab_uvrecat(r, i));
   }
 
@@ -1871,11 +1871,11 @@ CASE_CODE(SEND_PRIMITIVE_CHANNEL) {
 
 CASE_CODE(SEND_PRIMITIVE_RECORD) {
   gab_value *ks = READ_CONSTANTS;
-  size_t have = compute_arity(VAR(), READ_BYTE);
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
 
   SEND_GUARD_CACHED_RECEIVER_TYPE(PEEK_N(have));
 
-  size_t len = have - 1;
+  uint64_t len = have - 1;
 
   if (len % 2 == 1)
     PUSH(gab_nil), len++, have++;
@@ -1896,7 +1896,7 @@ CASE_CODE(SEND_PRIMITIVE_LIST) {
 
   SEND_GUARD_CACHED_RECEIVER_TYPE(PEEK_N(have));
 
-  size_t len = have - 1;
+  uint64_t len = have - 1;
 
   gab_value rec = gab_list(GAB(), len, SP() - len);
 

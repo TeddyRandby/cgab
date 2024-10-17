@@ -56,7 +56,7 @@ static double random_float() {
   return result;
 }
 
-a_gab_value *gab_lib_between(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_between(struct gab_triple gab, uint64_t argc,
                              gab_value argv[argc]) {
   double min = 0, max = 1;
 
@@ -98,7 +98,7 @@ a_gab_value *gab_lib_between(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_floor(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_floor(struct gab_triple gab, uint64_t argc,
                            gab_value argv[argc]) {
   if (argc != 1 || gab_valkind(argv[0]) != kGAB_NUMBER)
     return gab_fpanic(gab, "Invalid call to gab_lib_floor");

@@ -3,7 +3,6 @@
 
 #include "core.h"
 #include "gab.h"
-#include <threads.h>
 
 #ifdef GAB_STATUS_NAMES_IMPL
 static const char *gab_status_names[] = {
@@ -80,7 +79,7 @@ struct gab_err_argt {
   const char *note_fmt;
   struct gab_src *src;
   gab_value message;
-  size_t tok;
+  uint64_t tok;
 };
 
 void gab_vfpanic(struct gab_triple gab, FILE *stream, va_list vastruct,

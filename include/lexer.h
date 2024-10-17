@@ -7,10 +7,10 @@ struct gab_eg;
 struct gab_src;
 
 struct gab_src *gab_src(struct gab_triple gab, gab_value name, const char *src,
-                        size_t len);
+                        uint64_t len);
 
-size_t gab_srcappend(struct gab_src *self, size_t len, uint8_t bc[static len],
-                     uint64_t toks[static len]);
+uint64_t gab_srcappend(struct gab_src *self, uint64_t len,
+                       uint8_t bc[static len], uint64_t toks[static len]);
 
 static inline void gab_srccomplete(struct gab_triple gab,
                                    struct gab_src *self) {

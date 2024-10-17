@@ -1,0 +1,3 @@
+#!/usr/bin/bash
+
+zig targets | jq -r .libc.[]

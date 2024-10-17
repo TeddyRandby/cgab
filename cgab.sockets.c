@@ -15,14 +15,14 @@
 #define SOCKET_BOX_TYPE "gab.os.socket"
 #define CONNECTEDSOCKET_BOX_TYPE "gab.connected.socket"
 
-void gab_container_socket_cb(size_t len, char data[static len]) {
+void gab_container_socket_cb(uint64_t len, char data[static len]) {
   shutdown((int64_t)data, SHUT_RDWR);
   close((int64_t)data);
 }
 
 const char *sock_config_keys[] = {SOCKET_FAMILY, SOCKET_TYPE};
 
-a_gab_value *gab_lib_sock(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_sock(struct gab_triple gab, uint64_t argc,
                           gab_value argv[argc]) {
   int domain = AF_INET, type = SOCK_STREAM;
 
@@ -84,7 +84,7 @@ a_gab_value *gab_lib_sock(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_bind(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_bind(struct gab_triple gab, uint64_t argc,
                           gab_value argv[argc]) {
   int socket = *(int *)gab_boxdata(gab_arg(0));
 
@@ -136,7 +136,7 @@ a_gab_value *gab_lib_bind(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_listen(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_listen(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]) {
   gab_value port = gab_arg(1);
 
@@ -155,7 +155,7 @@ a_gab_value *gab_lib_listen(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_accept(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_accept(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]) {
   int socket = *(int *)gab_boxdata(gab_arg(0));
 
@@ -180,7 +180,7 @@ a_gab_value *gab_lib_accept(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_connect(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_connect(struct gab_triple gab, uint64_t argc,
                              gab_value argv[argc]) {
   gab_value host = gab_arg(1);
   gab_value port = gab_arg(2);
@@ -225,7 +225,7 @@ a_gab_value *gab_lib_connect(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_receive(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_receive(struct gab_triple gab, uint64_t argc,
                              gab_value argv[argc]) {
   char buffer[1024] = {0};
 
@@ -241,7 +241,7 @@ a_gab_value *gab_lib_receive(struct gab_triple gab, size_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_send(struct gab_triple gab, size_t argc,
+a_gab_value *gab_lib_send(struct gab_triple gab, uint64_t argc,
                           gab_value argv[argc]) {
   gab_value msg = gab_arg(1);
 
