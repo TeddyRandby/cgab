@@ -4,13 +4,13 @@ cd "$CLIDE_PATH/../" || exit 1
 
 echo "Beginning compilation."
 
-if ! test -e "build/configuration"; then
+if ! test -e "configuration"; then
   clide configure || exit 1
 fi
 
 export GAB_BUILDTYPE=
 export GAB_TARGETS=
-source build/configuration || exit 1
+source configuration || exit 1
 
 echo $GAB_TARGETS | tr ' ' '\n' | while read target || [[ -n $target ]]
 do

@@ -4,4 +4,5 @@ docs/
 .cache/
 .vscode/
 compile_commands.json
+configuration
 .zig-cache
