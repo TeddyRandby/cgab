@@ -46,5 +46,5 @@ jobs:
     - name: Release
       uses: actions/upload-artifact@v4
       with:
-        name: "gab-$x86LM"
-        path: "build-$x86LM/gab"
+        name: "gab-${{ env.x86LM }}"
+        path: "build-${{ env.x86LM }}/gab"
