@@ -6,13 +6,13 @@ Gab is a dynamic scripting language. It's goals are:
 ## Inspiration
 Gab is heavily inspired by [Clojure](https://clojure.org), [Self](https://selflanguage.org/), [Lua](https://www.lua.org/), and [Erlang](https://www.erlang.org/).
 ```gab
-spawn_task :: do i
-    .gab.fiber do
+spawn_task = (i) => do
+    .gab.fiber () => do
         'Hello from {i}' :print
     end
 end
 
-.gab.range(0,200000) :each spawn_task
+.gab.range :(0 200000) :each spawn_task
 ```
 # TOC
 - Language Tour
@@ -32,7 +32,7 @@ This code resembles Smalltalk somewhat, and can be transcribed in English as:
 ```
 Here is an alternative, equally valid syntax:
 ```gab
-    \print ('Hello world!')
+    \print :('Hello world!')
 ```
 This syntax might look more familiar to programmers in the c-family of languages (Besides the curious '\\'). Said programmers might transcribe this block as:
 ```
@@ -47,10 +47,10 @@ To make an analogy to traditional classes and OOP, think of this as a generic va
 Polymorphism works as you'd expect. \+ behaves differently depending on the receiver:
 ```gab
     1 + 1                       # => 2
-    \+ (1, 1)                   # => 2
+    \+ :(1, 1)                   # => 2
 
     'Hello ' + 'world!'         # => 'Hello world!'
-    \+ ('Hello ', 'world!')     # => 'Hello world!'
+    \+ :('Hello ', 'world!')     # => 'Hello world!'
 ```
 To peel back another layer, lets define Gab's syntax a little more clearly:
 #### Numbers
@@ -61,41 +61,40 @@ Numbers are represented as IEEE 64-bit floats.
     5.9
 ```
 #### Strings
-Strings are just byte arrays. Single-quoted strings support interpolation, and both support escape sequences.
+Strings are just arrays of bytes. They support some escape sequences.
 ```gab
     'Hello'
     "world!"
-    'My name is { 'Joe' }!'
     'Escape unicode: \u[2502]'
 ```
 #### Blocks
 Blocks are functions. They always include an implicit variable `self`.
 Depending on the context that the block is called in, `self` will have different values.
 ```gab
-    add :: do a, b
+    add = (a b) => do
         a + b
     end
 
-    add(1,2) # => 3
+    add :(1 2) # => 3
 ```
 #### Records
 Records are collections of key-value pairs. They are ordered, and structurally typed.
 ```gab
-    a_record :: { \work: 'value' }
+    a_record = { \work 'value' }
 
     a_record                    # => { work = 'value', more_complex_work = <gab.block ...> }
 
     a_record :work              # => 'value'
 
-    a_tuple :: [1, 2, 3]         # => A record as above, but the keys are ascending integers (starting from 0)
+    a_tuple = [1 2 3]           # => A record as above, but the keys are ascending integers (starting from 0)
 
     a_tuple                     # => { 0 = 1, 1 = 2, 2 = 3 }
 ```
 Records, like all values, are __immutable__. This means that setting values in records returns a *new record*.
 ```gab
-    a_record :: { \work: 'value' }
+    a_record = { \work 'value' }
 
-    a_record :: a_record :work 'another value'   # => When an argument is provided, this message serves as a 'set' instead of a 'get'.
+    a_record = a_record :work 'another value'   # => When an argument is provided, this message serves as a 'set' instead of a 'get'.
 
     a_record :print                             # => { work = 'another value' }
 ```
@@ -119,14 +118,14 @@ Because sigil's have a different type, you can define how an *individual sigil* 
 ```gab
 # Define the message 'then' for the .true and .false sigil.
 \then :defcase! {
-    .true = do callback
+    .true do callback
         # In the true path, we call the callback
         callback()
-    end,
-    .fase = do
+    end
+    .fase do
         # In the false path, we return false
         self
-    end,
+    end
 }
 ```
 #### Messages
@@ -136,24 +135,24 @@ Messages are the *only* mechanism for defining behavior or control flow in gab.
 
     1 :print                # => prints 1
 
-    \print (1, 2, 3)        # => prints 1, 2, 3
+    \print :(1 2 3)        # => prints 1, 2, 3
 ```
 The core library provides some messages for defining messages. This might feel a little lispy:
 ```gab
-\say_hello :def!('gab.string', 'gab.sigil', do: 'Hello, {self}!' :print end)
+\say_hello :def!('gab.string', 'gab.sigil', () => 'Hello, ' + self:strings.into :print)
 
 'Joe' :say_hello    # => Hello, Joe!
 
 .Rich :say_hello    # => Hello, Rich!
 
 \meet :defcase! {
-    .Joe:  do; 'Nice to meet you Joe!' :print; end,
-    .Rich: do; 'Its a pleasure, Rich!' :print; end, 
+    .Joe  () => 'Nice to meet you Joe!' :print
+    .Rich () => 'Its a pleasure, Rich!' :print 
 }
 
-.Joe  :meet         # => Nice to meet you Joe!
+.Joe:meet         # => Nice to meet you Joe!
 
-.Rich :meet         # => Its a pleasure, Rich!
+.Rich:meet         # => Its a pleasure, Rich!
 ```
 ### Behavior
 Behavior in Gab is dictated *exclusively* by polymorphic, infix messages. These infix messages always have one left-hand value and up to one right-hand value.
@@ -163,9 +162,9 @@ However, the tuple syntax (eg: `(3, 4)`) allows multiple values to be wrapped in
     1 + 1
 
     # Send \do_work to val with an argument of (2, 3, 4)
-    val :do_work (2, 3, 4)
+    val :do_work(2 3 4)
 
-    ok, result :: val :might_fail 'something'
+    (ok result) = val :might_fail 'something'
 ```
 ### Concurrency
 New programming languages that don't consider concurrency are boring! Everyones walking around with 8+ cores on them at all times, might as well use em!
@@ -193,30 +192,35 @@ This implementation has some problems, but it works well enough as an initial pr
 ```gab
 # Define a message for doing some work. This builds a list in a silly way.
 \do_acc :defcase! {
-  .true: do acc; acc; end,
-  .false: do acc, n; [n, acc:acc(n - 1)**]; end, 
+  .true (acc) => acc
+  .false (acc n) => [n acc:acc(n - 1)**]
 }
 
-\acc :def!('gab.record', do n
-  n :== 0 :do_acc (self, n)
-end)
+\acc :def!(
+    'gab.record'
+# Note the choice to use the send syntax ':==' as opposed to the operator syntax '=='.
+# The send syntax has _higher precedence_ than operators. Here is the expression annotated with parentheses
+#   ((n :== 0) :do_acc(self n)) vs (n == (0 :do_acc(self n)))
+    n => n :== 0 :do_acc(self n))
 
 # Define a message for launching blocks in a fiber.
 # This just calls the .gab.fiber constructer with
 #   a single argument - the block
-\go :def!('gab.block', do; .gab.fiber self; end)
+\go :def!(
+    'gab.block'
+    () => .gab.fiber :(self))
 
 # Define some input and output channels
-in, out :: .gab.channel(), .gab.channel()
+(in out) = (.gab.channel:() .gab.channel:())
 
 # Here is our block that will do the work.
 # Send \acc to the empty list [] with an
 # argument we pull from the in channel. Then
 # take the length of that result list, and put it
 # on the out channel.
-work :: do
-    n :: in >!
-    res :: [] :acc n :len
+work = () => do
+    n = in >!
+    res = [] :acc n :len
     out <! res
 end
 
@@ -226,7 +230,7 @@ work :go
 work :go
 
 # Dispatch a routine to add work on the in channel
-fib :: do
+fib = () => do
   in <! 400
   in <! 500
   in <! 600
@@ -234,6 +238,8 @@ end :go
 
 fib:print                       # => <gab.fiber 0x...>
 
+# Commas are treated as newlines, which serve _some_ syntactic purpose.
+# In this case, they end the expression so that `out >!` doesn't take the argument on the rhs.
 (out >!, out >!, out >!) :print # => 400, 500, 600
 ```
 A neat feature built on top of the concurrency model is *concurrent* garbage collection. There is a secret extra thread dedicated to garbage collection, which when triggered

@@ -1,5 +1,3 @@
-# This starter workflow is for a CMake project running on multiple platforms. There is a different starter workflow if you just want a single platform.
-# See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-single-platform.yml
 name: Release static binaries
 
 on:
@@ -25,16 +23,19 @@ jobs:
       with:
         submodules: 'true'
 
+      # Zig is the C compiler used by the build system
     - name: Setup Zig
       uses: mlugg/setup-zig@v1
       with:
         version: 0.13.0
 
+      # Build system depends on Go
     - name: Setup Go
       uses: actions/setup-go@v4
       with:
         go-version: '1.23'
 
+      # Build system tool
     - name: Install Clide
       run: go install github.com/TeddyRandby/clide@latest
 
