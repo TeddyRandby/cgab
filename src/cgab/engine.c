@@ -157,6 +157,33 @@ a_gab_value *gab_numlib_floor(struct gab_triple gab, uint64_t argc,
 a_gab_value *gab_numlib_between(struct gab_triple gab, uint64_t argc,
                                 gab_value argv[argc]);
 
+a_gab_value *gab_fmtlib_printf(struct gab_triple gab, uint64_t argc,
+                               gab_value argv[argc]) {
+  gab_value fmtstr = gab_arg(0);
+
+  if (gab_valkind(fmtstr) != kGAB_STRING)
+    return gab_pktypemismatch(gab, fmtstr, kGAB_STRING);
+
+  const char *fmt = gab_strdata(&fmtstr);
+
+  if (gab_nfprintf(stdout, fmt, argc - 1, argv + 1) < 0)
+    return gab_fpanic(gab,
+                      "Wrong number of format arguments to printf (expected $)",
+                      gab_number(argc - 1));
+
+  return nullptr;
+}
+
+a_gab_value *gab_fmtlib_println(struct gab_triple gab, uint64_t argc,
+                               gab_value argv[argc]) {
+  gab_value v = gab_arg(0);
+
+  gab_fvalinspect(stdout, v, 2);
+  fputc('\n', stdout);
+
+  return nullptr;
+}
+
 struct primitive {
   const char *name;
   union {
@@ -365,6 +392,16 @@ struct native {
 };
 
 struct native kind_natives[] = {
+    {
+        .name = "printf",
+        .kind = kGAB_STRING,
+        .native = gab_fmtlib_printf,
+    },
+    {
+        .name = "println",
+        .kind = kGAB_UNDEFINED,
+        .native = gab_fmtlib_println,
+    },
     {
         .name = "len",
         .kind = kGAB_STRING,
@@ -1173,21 +1210,25 @@ int gab_nfprintf(FILE *stream, const char *fmt, uint64_t argc,
   while (*c != '\0') {
     switch (*c) {
     case '$': {
-      if (i < argc) {
-        gab_value arg = argv[i++];
-        int idx = gab_valkind(arg) % GAB_COLORS_LEN;
-        const char *color = ANSI_COLORS[idx];
-        bytes += fprintf(stream, "%s", color);
-        bytes += gab_fvalinspect(stream, arg, 1);
-        bytes += fprintf(stream, GAB_RESET);
-        break;
-      }
+      if (i >= argc)
+        return -1;
+
+      gab_value arg = argv[i++];
+      int idx = gab_valkind(arg) % GAB_COLORS_LEN;
+      const char *color = ANSI_COLORS[idx];
+      bytes += fprintf(stream, "%s", color);
+      bytes += gab_fvalinspect(stream, arg, 1);
+      bytes += fprintf(stream, GAB_RESET);
+      break;
     }
     default:
       bytes += fputc(*c, stream);
     }
     c++;
   }
+
+  if (i != argc)
+    return -1;
 
   return bytes;
 }

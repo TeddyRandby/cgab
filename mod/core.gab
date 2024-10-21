@@ -55,30 +55,30 @@ falsey_values :defmodule! {
   \unwrap! msg => ('failed to unwrap' + self + ": " + msg):panic
 }
 
+## Can we refactor this and iter mod into tail calls?
 \doreduce :defcase! {
   ## The sequence continues
-  .ok (seq.i, seq.v, acc, r, xs) => do
+  .ok (seq.i seq.v acc r xs) => do
     # Apply the reducer
-    (cmd, r, acc) = r:reduce.step(acc, xs**)
-
+    (cmd r acc) = r:reduce.step(acc xs**)
     # proceed to the next sep
-    cmd:doreduce(seq.i, seq.v, acc, r)
+    cmd:doreduce(seq.i seq.v acc r)
   end
   ## The sequence is done
-  .none (seq.i, seq.v, acc, r) => do
+  .none (seq.i seq.v acc r) => do
     r:reduce.done(acc)
   end
   ## The reducer continues
-  .next (seq.i, seq.v, acc, r) => do
-    # Apply the producer, resolving new values for the next step
-    (ok, seq.v, xs[]) = seq.i :seqs.next seq.v
+  .next (seq.i seq.v acc r) => do
+    # Apply the producer resolving new values for the next step
+    (ok seq.v xs[]) = seq.i :seqs.next seq.v
     # Tailcall to the next step
-    ok:doreduce(seq.i, seq.v, acc, r, xs)
+    ok:doreduce(seq.i seq.v acc r xs)
   end
   ## The reducer is done
-  .stop (seq.i, seq.v, acc, r) => do
+  .stop (seq.i seq.v acc r) => do
     r:reduce.done(acc)
-  end,
+  end
 }
 
 \def.seq! :def! do
@@ -116,21 +116,21 @@ channels.t = 'gab.channel'
 # Forget about their values as soon as their taken
 [channels.t] :defmodule! {
   \seqs.init _ => do
-    (ok, v) = self >!
-    (ok, v, v)
+    (ok v) = self >!
+    (ok v v)
   end
   \seqs.next _ => do
-    (ok, v) = self >!
-    (ok, v, v)
+    (ok v) = self >!
+    (ok v v)
   end
 }
 
 channels.t :def.seq!
 
 # Implement the reducer protocol for blocks and messages
-['gab.block', 'gab.message'] :defmodule! {
+['gab.block' 'gab.message'] :defmodule! {
   \reduce.step (acc, xs[]) => do
-    (.next, self, self:(acc, xs**))
+    (.next self self:(acc xs**))
   end
   \reduce.done acc => acc
 }
