@@ -2,7 +2,7 @@
 #include <errno.h>
 #include <stdio.h>
 
-a_gab_value *gab_lib_at(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_reclib_at(struct gab_triple gab, uint64_t argc,
                         gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value key = gab_arg(1);
@@ -20,7 +20,7 @@ a_gab_value *gab_lib_at(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_del(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_reclib_del(struct gab_triple gab, uint64_t argc,
                          gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value key = gab_arg(1);
@@ -35,7 +35,7 @@ a_gab_value *gab_lib_del(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_push(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_reclib_push(struct gab_triple gab, uint64_t argc,
                           gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
@@ -55,7 +55,7 @@ a_gab_value *gab_lib_push(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_put(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_reclib_put(struct gab_triple gab, uint64_t argc,
                          gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value key = gab_arg(1);
@@ -69,7 +69,7 @@ a_gab_value *gab_lib_put(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_islist(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_reclib_is_list(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
@@ -118,7 +118,7 @@ gab_value doputvia(struct gab_triple gab, gab_value rec, gab_value val,
   return gab_recput(gab, rec, key, subval);
 }
 
-a_gab_value *gab_lib_putvia(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_reclib_putvia(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value val = gab_arg(1);
@@ -137,7 +137,7 @@ a_gab_value *gab_lib_putvia(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_len(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_reclib_len(struct gab_triple gab, uint64_t argc,
                          gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
@@ -149,7 +149,7 @@ a_gab_value *gab_lib_len(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_strings_into(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_reclib_strings_into(struct gab_triple gab, uint64_t argc,
                                   gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
@@ -179,7 +179,7 @@ a_gab_value *gab_lib_strings_into(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_init(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_reclib_seqinit(struct gab_triple gab, uint64_t argc,
                           gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
@@ -200,7 +200,7 @@ a_gab_value *gab_lib_init(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_next(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_reclib_seqnext(struct gab_triple gab, uint64_t argc,
                           gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value old_key = gab_arg(1);
@@ -227,62 +227,4 @@ a_gab_value *gab_lib_next(struct gab_triple gab, uint64_t argc,
 fin:
   gab_vmpush(gab_vm(gab), gab_none);
   return nullptr;
-}
-
-a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value rec_t = gab_type(gab, kGAB_RECORD);
-
-  gab_def(gab,
-          {
-              gab_message(gab, "list?"),
-              rec_t,
-              gab_snative(gab, "gab.list?", gab_lib_islist),
-          },
-          {
-              gab_message(gab, "put"),
-              rec_t,
-              gab_snative(gab, "gab.put", gab_lib_put),
-          },
-          {
-              gab_message(gab, "del"),
-              rec_t,
-              gab_snative(gab, "gab.del", gab_lib_del),
-          },
-          {
-              gab_message(gab, "at"),
-              rec_t,
-              gab_snative(gab, "gab.at", gab_lib_at),
-          },
-          {
-              gab_message(gab, "push"),
-              rec_t,
-              gab_snative(gab, "gab.push", gab_lib_push),
-          },
-          {
-              gab_message(gab, "seqs.next"),
-              rec_t,
-              gab_snative(gab, "gab.next", gab_lib_next),
-          },
-          {
-              gab_message(gab, "seqs.init"),
-              rec_t,
-              gab_snative(gab, "gab.init", gab_lib_init),
-          },
-          {
-              gab_message(gab, "len"),
-              rec_t,
-              gab_snative(gab, "gab.len", gab_lib_len),
-          },
-          {
-              gab_message(gab, "put_via"),
-              rec_t,
-              gab_snative(gab, "gab.put_via", gab_lib_putvia),
-          },
-          {
-              gab_message(gab, "strings.into"),
-              rec_t,
-              gab_snative(gab, "gab.strings.into", gab_lib_strings_into),
-          });
-
-  return a_gab_value_one(rec_t);
 }

@@ -9,8 +9,8 @@ static inline bool instr(char c, const char *set) {
   return false;
 }
 
-a_gab_value *gab_lib_trim(struct gab_triple gab, uint64_t argc,
-                          gab_value argv[argc]) {
+a_gab_value *gab_strlib_trim(struct gab_triple gab, uint64_t argc,
+                             gab_value argv[argc]) {
   gab_value str = gab_arg(0);
   gab_value trimset = gab_arg(1);
 
@@ -46,8 +46,8 @@ a_gab_value *gab_lib_trim(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_split(struct gab_triple gab, uint64_t argc,
-                           gab_value argv[argc]) {
+a_gab_value *gab_strlib_split(struct gab_triple gab, uint64_t argc,
+                              gab_value argv[argc]) {
   gab_value str = gab_arg(0);
   gab_value sep = gab_arg(1);
 
@@ -86,8 +86,8 @@ a_gab_value *gab_lib_split(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_len(struct gab_triple gab, uint64_t argc,
-                         gab_value argv[argc]) {
+a_gab_value *gab_strlib_len(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]) {
   if (argc != 1) {
     return gab_fpanic(gab, "&:len expects 1 argument");
   }
@@ -95,32 +95,6 @@ a_gab_value *gab_lib_len(struct gab_triple gab, uint64_t argc,
   gab_value result = gab_number(gab_strlen(argv[0]));
 
   gab_vmpush(gab_vm(gab), result);
-  return nullptr;
-};
-
-static _Atomic uint64_t gab_eval_nth = -1;
-
-a_gab_value *gab_lib_gabeval(struct gab_triple gab, uint64_t argc,
-                             gab_value argv[argc]) {
-  gab_value source = gab_arg(0);
-
-  gab_eval_nth++;
-
-  char buff[8];
-
-  snprintf(buff, 8, "eval:%lu", gab_eval_nth);
-
-  a_gab_value *result = gab_exec(gab, (struct gab_exec_argt){
-                                          .flags = gab.flags,
-                                          .source = gab_strdata(&source),
-                                          .name = buff,
-                                      });
-
-  if (!result)
-    gab_vmpush(gab_vm(gab), gab_err, gab_string(gab, "Failed to compile"));
-  else
-    gab_nvmpush(gab_vm(gab), result->len, result->data);
-
   return nullptr;
 };
 
@@ -142,8 +116,8 @@ static inline bool ends(const char *str, const char *pat, uint64_t offset) {
   return !memcmp(str + strlen(str) - offset - len, pat, len);
 }
 
-a_gab_value *gab_lib_blank(struct gab_triple gab, uint64_t argc,
-                           gab_value argv[argc]) {
+a_gab_value *gab_strlib_blank(struct gab_triple gab, uint64_t argc,
+                              gab_value argv[argc]) {
   gab_value str = gab_arg(0);
 
   if (gab_valkind(str) != kGAB_STRING)
@@ -164,8 +138,8 @@ a_gab_value *gab_lib_blank(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_ends(struct gab_triple gab, uint64_t argc,
-                          gab_value argv[argc]) {
+a_gab_value *gab_strlib_ends(struct gab_triple gab, uint64_t argc,
+                             gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     if (gab_valkind(argv[1]) != kGAB_STRING) {
@@ -198,8 +172,8 @@ a_gab_value *gab_lib_ends(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_begins(struct gab_triple gab, uint64_t argc,
-                            gab_value argv[argc]) {
+a_gab_value *gab_strlib_begins(struct gab_triple gab, uint64_t argc,
+                               gab_value argv[argc]) {
   switch (argc) {
   case 2: {
     if (gab_valkind(argv[1]) != kGAB_STRING) {
@@ -230,8 +204,8 @@ a_gab_value *gab_lib_begins(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_is_digit(struct gab_triple gab, uint64_t argc,
-                              gab_value argv[argc]) {
+a_gab_value *gab_strlib_number(struct gab_triple gab, uint64_t argc,
+                                 gab_value argv[argc]) {
   if (argc != 1) {
     return gab_fpanic(gab, "&:is_digit? expects 0 arguments");
   }
@@ -257,8 +231,8 @@ a_gab_value *gab_lib_is_digit(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_to_byte(struct gab_triple gab, uint64_t argc,
-                             gab_value argv[argc]) {
+a_gab_value *gab_strlib_to_byte(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]) {
   if (argc != 1) {
     return gab_fpanic(gab, "&:to_byte expects 0 arguments");
   }
@@ -284,8 +258,8 @@ a_gab_value *gab_lib_to_byte(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_at(struct gab_triple gab, uint64_t argc,
-                        gab_value argv[argc]) {
+a_gab_value *gab_strlib_at(struct gab_triple gab, uint64_t argc,
+                           gab_value argv[argc]) {
   if (argc != 2 && gab_valkind(argv[1]) != kGAB_NUMBER) {
     return gab_fpanic(gab, "&:at expects 1 number argument");
   }
@@ -311,8 +285,8 @@ a_gab_value *gab_lib_at(struct gab_triple gab, uint64_t argc,
 #define MAX(a, b) (a > b ? a : b)
 #define CLAMP(a, b) (MAX(0, MIN(a, b)))
 
-a_gab_value *gab_lib_slice(struct gab_triple gab, uint64_t argc,
-                           gab_value argv[argc]) {
+a_gab_value *gab_strlib_slice(struct gab_triple gab, uint64_t argc,
+                              gab_value argv[argc]) {
   const char *str = gab_strdata(argv + 0);
 
   uint64_t len = gab_strlen(argv[0]);
@@ -359,8 +333,8 @@ a_gab_value *gab_lib_slice(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_has(struct gab_triple gab, uint64_t argc,
-                         gab_value argv[argc]) {
+a_gab_value *gab_strlib_has(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]) {
   if (argc < 2) {
     return gab_fpanic(gab, "&:has? expects one argument");
   }
@@ -372,26 +346,26 @@ a_gab_value *gab_lib_has(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_string_into(struct gab_triple gab, uint64_t argc,
-                                 gab_value argv[argc]) {
+a_gab_value *gab_strlib_string_into(struct gab_triple gab, uint64_t argc,
+                                    gab_value argv[argc]) {
   gab_vmpush(gab_vm(gab), gab_valintos(gab, gab_arg(0)));
   return nullptr;
 }
 
-a_gab_value *gab_lib_sigil_into(struct gab_triple gab, uint64_t argc,
-                                gab_value argv[argc]) {
+a_gab_value *gab_strlib_sigil_into(struct gab_triple gab, uint64_t argc,
+                                   gab_value argv[argc]) {
   gab_vmpush(gab_vm(gab), gab_strtosig(gab_arg(0)));
   return nullptr;
 }
 
-a_gab_value *gab_lib_messages_into(struct gab_triple gab, uint64_t argc,
-                                   gab_value argv[argc]) {
+a_gab_value *gab_strlib_messages_into(struct gab_triple gab, uint64_t argc,
+                                      gab_value argv[argc]) {
   gab_vmpush(gab_vm(gab), gab_strtomsg(gab_arg(0)));
   return nullptr;
 }
 
-a_gab_value *gab_lib_new(struct gab_triple gab, uint64_t argc,
-                         gab_value argv[argc]) {
+a_gab_value *gab_strlib_new(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]) {
   if (argc < 2) {
     gab_vmpush(gab_vm(gab), gab_string(gab, ""));
     return nullptr;
@@ -416,8 +390,8 @@ a_gab_value *gab_lib_new(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_numbers_into(struct gab_triple gab, uint64_t argc,
-                                  gab_value argv[argc]) {
+a_gab_value *gab_strlib_numbers_into(struct gab_triple gab, uint64_t argc,
+                                     gab_value argv[argc]) {
   const char *str = gab_strdata(argv + 0);
 
   gab_value res = gab_number(strtod(str, nullptr));
@@ -425,96 +399,3 @@ a_gab_value *gab_lib_numbers_into(struct gab_triple gab, uint64_t argc,
   gab_vmpush(gab_vm(gab), res);
   return nullptr;
 };
-
-a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value string_type = gab_type(gab, kGAB_STRING);
-
-  gab_def(gab,
-          {
-              gab_message(gab, "slice"),
-              string_type,
-              gab_snative(gab, "slice", gab_lib_slice),
-          },
-          {
-              gab_message(gab, mGAB_CALL),
-              gab_strtosig(string_type),
-              gab_snative(gab, "strings.new", gab_lib_new),
-          },
-          {
-              gab_message(gab, "strings.into"),
-              gab_undefined,
-              gab_snative(gab, "strings.into", gab_lib_string_into),
-          },
-          {
-              gab_message(gab, "sigils.into"),
-              string_type,
-              gab_snative(gab, "sigils.into", gab_lib_sigil_into),
-          },
-          {
-              gab_message(gab, "messages.into"),
-              string_type,
-              gab_snative(gab, "messages.into", gab_lib_messages_into),
-          },
-          {
-              gab_message(gab, "numbers.into"),
-              string_type,
-              gab_snative(gab, "numbers.into", gab_lib_numbers_into),
-          },
-          {
-              gab_message(gab, "len"),
-              string_type,
-              gab_snative(gab, "len", gab_lib_len),
-          },
-          {
-              gab_message(gab, "at"),
-              string_type,
-              gab_snative(gab, "at", gab_lib_at),
-          },
-          {
-              gab_message(gab, "trim"),
-              string_type,
-              gab_snative(gab, "trim", gab_lib_trim),
-          },
-          {
-              gab_message(gab, "split"),
-              string_type,
-              gab_snative(gab, "split", gab_lib_split),
-          },
-          {
-              gab_message(gab, "blank?"),
-              string_type,
-              gab_snative(gab, "blank?", gab_lib_blank),
-          },
-          {
-              gab_message(gab, "ends?"),
-              string_type,
-              gab_snative(gab, "ends?", gab_lib_ends),
-          },
-          {
-              gab_message(gab, "begins?"),
-              string_type,
-              gab_snative(gab, "begins?", gab_lib_begins),
-          },
-          {
-              gab_message(gab, "to_byte"),
-              string_type,
-              gab_snative(gab, "to_byte", gab_lib_to_byte),
-          },
-          {
-              gab_message(gab, "is_digit?"),
-              string_type,
-              gab_snative(gab, "is_digit?", gab_lib_is_digit),
-          },
-          {
-              gab_message(gab, "has?"),
-              string_type,
-              gab_snative(gab, "has?", gab_lib_has),
-          },
-          {
-              gab_message(gab, "gab.eval"),
-              string_type,
-              gab_snative(gab, "gab.eval", gab_lib_gabeval),
-          });
-
-  return nullptr;
-}

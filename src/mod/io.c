@@ -16,10 +16,10 @@ gab_value iostream(struct gab_triple gab, FILE *stream, bool owning) {
                       });
 }
 
-a_gab_value *gab_lib_open(struct gab_triple gab, uint64_t argc,
-                          gab_value argv[argc]) {
-  gab_value path = gab_arg(1);
-  gab_value perm = gab_arg(2);
+a_gab_value *gab_iolib_open(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]) {
+  gab_value path = gab_arg(0);
+  gab_value perm = gab_arg(1);
 
   if (gab_valkind(path) != kGAB_STRING)
     return gab_pktypemismatch(gab, path, kGAB_STRING);
@@ -42,8 +42,8 @@ a_gab_value *gab_lib_open(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_until(struct gab_triple gab, uint64_t argc,
-                           gab_value argv[argc]) {
+a_gab_value *gab_iolib_until(struct gab_triple gab, uint64_t argc,
+                             gab_value argv[argc]) {
   gab_value iostream = gab_arg(0);
   gab_value delim = gab_arg(1);
 
@@ -75,8 +75,8 @@ a_gab_value *gab_lib_until(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_scan(struct gab_triple gab, uint64_t argc,
-                          gab_value argv[argc]) {
+a_gab_value *gab_iolib_scan(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]) {
   gab_value iostream = gab_arg(0);
   gab_value bytesToRead = gab_arg(1);
 
@@ -108,8 +108,8 @@ a_gab_value *gab_lib_scan(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_read(struct gab_triple gab, uint64_t argc,
-                          gab_value argv[argc]) {
+a_gab_value *gab_iolib_read(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]) {
   if (argc != 1 || gab_valkind(argv[0]) != kGAB_BOX)
     return gab_fpanic(gab, "&:read expects a file handle");
 
@@ -133,8 +133,8 @@ a_gab_value *gab_lib_read(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_write(struct gab_triple gab, uint64_t argc,
-                           gab_value argv[argc]) {
+a_gab_value *gab_iolib_write(struct gab_triple gab, uint64_t argc,
+                             gab_value argv[argc]) {
   gab_value stream = gab_arg(0);
 
   if (gab_valkind(stream) != kGAB_BOX)
@@ -157,44 +157,4 @@ a_gab_value *gab_lib_write(struct gab_triple gab, uint64_t argc,
     gab_vmpush(gab_vm(gab), gab_ok);
 
   return nullptr;
-}
-
-a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value iostream_t = gab_string(gab, GAB_IOSTREAM);
-
-  gab_def(gab,
-          {
-              gab_message(gab, mGAB_CALL),
-              gab_strtosig(iostream_t),
-              gab_snative(gab, "iostream.open", gab_lib_open),
-          },
-          {
-              gab_message(gab, "until"),
-              iostream_t,
-              gab_snative(gab, "until", gab_lib_until),
-          },
-          {
-              gab_message(gab, "scan"),
-              iostream_t,
-              gab_snative(gab, "scan", gab_lib_scan),
-          },
-          {
-              gab_message(gab, "read"),
-              iostream_t,
-              gab_snative(gab, "read", gab_lib_read),
-          },
-          {
-              gab_message(gab, "write"),
-              iostream_t,
-              gab_snative(gab, "write", gab_lib_write),
-          });
-
-  gab_value results[] = {
-      gab_strtosig(iostream_t),
-      iostream(gab, gab.eg->sin, false),
-      iostream(gab, gab.eg->sout, false),
-      iostream(gab, gab.eg->serr, false),
-  };
-
-  return a_gab_value_create(results, sizeof(results) / sizeof(results[0]));
 }

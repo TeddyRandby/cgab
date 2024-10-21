@@ -18,29 +18,24 @@ CGAB_OBJ = $(CGAB_SRC:src/cgab/%.c=$(BUILD_PREFIX)/%.o)
 GAB_SRC = $(wildcard src/gab/*.c)
 GAB_OBJ = $(GAB_SRC:src/gab/%.c=$(BUILD_PREFIX)/%.o)
 
-CMOD_SRC 	 = $(wildcard src/mod/*.c)
-CMOD_SHARED = $(CMOD_SRC:src/mod/%.c=$(BUILD_PREFIX)/libcgab%.so)
+CMOD_SRC = $(wildcard src/mod/*.c)
+CMOD_OBJ = $(CMOD_SRC:src/mod/%.c=$(BUILD_PREFIX)/%.o)
 
 GMOD_SRC = $(wildcard mod/*.gab)
 GABLSP_SRC = $(wildcard gab.lsp/*.gab)
 
-all: $(BUILD_PREFIX)/gab cmodules
+all: $(BUILD_PREFIX)/gab
 
 -include $(OS_OBJ:.o=.d) $(CGAB_OBJ:.o=.d) $(GAB_OBJ:.o=.d) $(CMOD_SHARED:.so=.d)
 
-cmodules: $(CMOD_SHARED)
-
-$(BUILD_PREFIX)/gab: $(GAB_OBJ) $(BUILD_PREFIX)/libcgab.a
-	$(CC) $(CFLAGS) $(INCLUDE) $(GAB_OBJ) $(LD_CGAB) -o $@
+$(BUILD_PREFIX)/gab: $(GAB_OBJ) $(CMOD_OBJ) $(BUILD_PREFIX)/libcgab.a
+	$(CC) $(CFLAGS) $(INCLUDE) $(GAB_OBJ) $(CMOD_OBJ) $(LD_CGAB) -o $@
 
 $(BUILD_PREFIX)/libcgab.a: $(OS_OBJ) $(CGAB_OBJ)
 	ar rcs $@ $^
 
 $(BUILD_PREFIX)/%.o: $(SRC_PREFIX)/%.c
 	$(CC) $(CFLAGS) $(INCLUDE) $< -c -o $@
-
-$(BUILD_PREFIX)/libcgab%.so: $(SRC_PREFIX)/%.c
-	$(CC) $(CFLAGS) $(INCLUDE) $< $(LD_CGAB) --shared -o $@
 
 INSTALL_PREFIX 	= ${GAB_INSTALLPREFIX}
 GAB_PATH 			= ${GAB_PREFIX}/gab

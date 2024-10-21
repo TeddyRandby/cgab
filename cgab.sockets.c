@@ -6,7 +6,6 @@
 #include <netinet/in.h>
 #include <poll.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <unistd.h>
 
 #define SOCKET_FAMILY "socket.family"

@@ -1,11 +1,3 @@
-messages.t = 'cmessages':use
-channels.t = 'cchannels':use
-numbers.t  = 'cnumbers':use
-records.t  = 'crecords':use
-strings.t  = 'cstrings':use
-sigils.t   = 'csigils':use
-'format':use
-
 iter       = 'iter':use
 
 truthy_values = []
@@ -116,6 +108,8 @@ falsey_values :defmodule! {
   }
 end
 
+channels.t = 'gab.channel'
+
 # Channel's implementation of the seq protocol.
 # It isn't totally true to the requirements - 
 # The keys aren't a pure function, because channels
@@ -140,6 +134,8 @@ channels.t :def.seq!
   end
   \reduce.done acc => acc
 }
+
+records.t = 'gab.record'
 
 [records.t] :defmodule! {
   \has? key => do
@@ -183,6 +179,8 @@ range.t :def.seq!
 \ :def! (.gab.range (from to) => do
   (to from) :range.into
 end)
+
+numbers.t = 'gab.number'
 
 \is_n? :def! .false
 \is_n? :def! (numbers.t, .true)

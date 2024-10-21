@@ -76,7 +76,7 @@ gab_value *push_value(struct gab_triple gab, const char *json, gab_value *sp,
   return sp;
 }
 
-a_gab_value *gab_lib_json_decode(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_jsonlib_decode(struct gab_triple gab, uint64_t argc,
                                  gab_value argv[static argc]) {
   gab_value str = gab_arg(0);
 
@@ -118,21 +118,5 @@ a_gab_value *gab_lib_json_decode(struct gab_triple gab, uint64_t argc,
   gab_value res = *(--sp);
 
   gab_vmpush(gab_vm(gab), gab_ok, res);
-  return nullptr;
-}
-
-a_gab_value *gab_lib_json_encode(struct gab_triple gab, uint64_t argc,
-                                 gab_value argv[static argc]) {
-  gab_vmpush(gab_vm(gab), gab_sigtomsg(gab_arg(0)));
-  return nullptr;
-}
-
-a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_def(gab, {
-                   gab_message(gab, "json.decode"),
-                   gab_type(gab, kGAB_STRING),
-                   gab_snative(gab, "json.decode", gab_lib_json_decode),
-               });
-
   return nullptr;
 }

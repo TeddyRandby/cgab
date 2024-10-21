@@ -111,21 +111,3 @@ a_gab_value *gab_lib_floor(struct gab_triple gab, uint64_t argc,
   gab_vmpush(gab_vm(gab), res);
   return nullptr;
 }
-
-a_gab_value *gab_lib(struct gab_triple gab) {
-  gab_value type = gab_type(gab, kGAB_NUMBER);
-
-  gab_def(gab,
-          {
-              gab_message(gab, mGAB_CALL),
-              gab_sigil(gab, "float.between"),
-              gab_snative(gab, "float.between", gab_lib_between),
-          },
-          {
-              gab_message(gab, "floor"),
-              type,
-              gab_snative(gab, "floor", gab_lib_floor),
-          });
-
-  return a_gab_value_one(type);
-}

@@ -15,6 +15,141 @@
 #include <stdio.h>
 #include <time.h>
 
+a_gab_value *gab_strlib_trim(struct gab_triple gab, uint64_t argc,
+                             gab_value argv[argc]);
+
+a_gab_value *gab_strlib_split(struct gab_triple gab, uint64_t argc,
+                              gab_value argv[argc]);
+
+a_gab_value *gab_strlib_len(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]);
+
+a_gab_value *gab_strlib_blank(struct gab_triple gab, uint64_t argc,
+                              gab_value argv[argc]);
+
+a_gab_value *gab_strlib_ends(struct gab_triple gab, uint64_t argc,
+                             gab_value argv[argc]);
+
+a_gab_value *gab_strlib_begins(struct gab_triple gab, uint64_t argc,
+                               gab_value argv[argc]);
+
+a_gab_value *gab_strlib_number(struct gab_triple gab, uint64_t argc,
+                               gab_value argv[argc]);
+
+a_gab_value *gab_strlib_to_byte(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]);
+
+a_gab_value *gab_strlib_at(struct gab_triple gab, uint64_t argc,
+                           gab_value argv[argc]);
+
+a_gab_value *gab_strlib_slice(struct gab_triple gab, uint64_t argc,
+                              gab_value argv[argc]);
+
+a_gab_value *gab_strlib_has(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]);
+
+a_gab_value *gab_strlib_strings_into(struct gab_triple gab, uint64_t argc,
+                                     gab_value argv[argc]);
+
+a_gab_value *gab_strlib_sigil_into(struct gab_triple gab, uint64_t argc,
+                                   gab_value argv[argc]);
+
+a_gab_value *gab_strlib_messages_into(struct gab_triple gab, uint64_t argc,
+                                      gab_value argv[argc]);
+
+a_gab_value *gab_strlib_new(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]);
+
+a_gab_value *gab_strlib_numbers_into(struct gab_triple gab, uint64_t argc,
+                                     gab_value argv[argc]);
+
+a_gab_value *gab_msglib_def(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]);
+
+a_gab_value *gab_msglib_case(struct gab_triple gab, uint64_t argc,
+                             gab_value argv[argc]);
+
+a_gab_value *gab_msglib_module(struct gab_triple gab, uint64_t argc,
+                               gab_value argv[argc]);
+
+a_gab_value *gab_msglib_at(struct gab_triple gab, uint64_t argc,
+                           gab_value argv[argc]);
+
+a_gab_value *gab_msglib_has(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]);
+
+a_gab_value *gab_msglib_string_into(struct gab_triple gab, uint64_t argc,
+                                    gab_value argv[argc]);
+
+a_gab_value *gab_msglib_sigil_into(struct gab_triple gab, uint64_t argc,
+                                   gab_value argv[argc]);
+
+a_gab_value *gab_msglib_impls(struct gab_triple gab, uint64_t argc,
+                              gab_value argv[argc]);
+
+a_gab_value *gab_msglib_message(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]);
+
+a_gab_value *gab_reclib_at(struct gab_triple gab, uint64_t argc,
+                           gab_value argv[argc]);
+
+a_gab_value *gab_reclib_del(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]);
+
+a_gab_value *gab_reclib_put(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]);
+
+a_gab_value *gab_reclib_push(struct gab_triple gab, uint64_t argc,
+                             gab_value argv[argc]);
+
+a_gab_value *gab_reclib_is_list(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]);
+
+a_gab_value *gab_reclib_putvia(struct gab_triple gab, uint64_t argc,
+                               gab_value argv[argc]);
+
+a_gab_value *gab_reclib_len(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]);
+
+a_gab_value *gab_reclib_strings_into(struct gab_triple gab, uint64_t argc,
+                                     gab_value argv[argc]);
+
+a_gab_value *gab_reclib_seqinit(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]);
+
+a_gab_value *gab_reclib_seqnext(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]);
+
+a_gab_value *gab_iolib_open(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]);
+
+a_gab_value *gab_iolib_read(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]);
+
+a_gab_value *gab_iolib_write(struct gab_triple gab, uint64_t argc,
+                             gab_value argv[argc]);
+
+a_gab_value *gab_iolib_scan(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]);
+
+a_gab_value *gab_iolib_until(struct gab_triple gab, uint64_t argc,
+                             gab_value argv[argc]);
+
+a_gab_value *gab_jsonlib_decode(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]);
+
+a_gab_value *gab_chnlib_close(struct gab_triple gab, uint64_t argc,
+                              gab_value argv[argc]);
+
+a_gab_value *gab_chnlib_is_closed(struct gab_triple gab, uint64_t argc,
+                                  gab_value argv[argc]);
+
+a_gab_value *gab_chnlib_is_full(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]);
+
+a_gab_value *gab_chnlib_is_empty(struct gab_triple gab, uint64_t argc,
+                                 gab_value argv[argc]);
+
 struct primitive {
   const char *name;
   union {
@@ -46,16 +181,6 @@ struct primitive sigil_primitives[] = {
         .name = mGAB_CALL,
         .sigil = "gab.record",
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_RECORD),
-    },
-    {
-        .name = mGAB_CALL,
-        .sigil = "gab.channel",
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CHANNEL),
-    },
-    {
-        .name = mGAB_CALL,
-        .sigil = "gab.channel",
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CHANNEL),
     },
     {
         .name = mGAB_CALL,
@@ -219,6 +344,232 @@ struct primitive kind_primitives[] = {
         .name = mGAB_TAKE,
         .kind = kGAB_CHANNEL,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_TAKE),
+    },
+};
+
+struct native {
+  const char *name;
+  union {
+    enum gab_kind kind;
+    const char *box_type;
+  };
+  gab_native_f native;
+};
+
+struct native kind_natives[] = {
+    {
+        .name = "len",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_len,
+    },
+    {
+        .name = "at",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_at,
+    },
+    {
+        .name = "trim",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_trim,
+    },
+    {
+        .name = "slice",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_slice,
+    },
+    {
+        .name = "split",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_split,
+    },
+    {
+        .name = "blank?",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_blank,
+    },
+    {
+        .name = "number?",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_number,
+    },
+    {
+        .name = "has?",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_has,
+    },
+    {
+        .name = "ends_with?",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_ends,
+    },
+    {
+        .name = "begins_with?",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_begins,
+    },
+    {
+        .name = "sigils.into",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_sigil_into,
+    },
+    {
+        .name = "messages.into",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_messages_into,
+    },
+    {
+        .name = "numbers.into",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_numbers_into,
+    },
+    {
+        .name = "def!",
+        .kind = kGAB_MESSAGE,
+        .native = gab_msglib_def,
+    },
+    {
+        .name = "defcase!",
+        .kind = kGAB_MESSAGE,
+        .native = gab_msglib_case,
+    },
+    {
+        .name = "defmodule!",
+        .kind = kGAB_RECORD,
+        .native = gab_msglib_module,
+    },
+    {
+        .name = "at",
+        .kind = kGAB_MESSAGE,
+        .native = gab_msglib_at,
+    },
+    {
+        .name = "has?",
+        .kind = kGAB_MESSAGE,
+        .native = gab_msglib_has,
+    },
+    {
+        .name = "strings.into",
+        .kind = kGAB_MESSAGE,
+        .native = gab_msglib_string_into,
+    },
+    {
+        .name = "sigils.into",
+        .kind = kGAB_MESSAGE,
+        .native = gab_msglib_sigil_into,
+    },
+    {
+        .name = "impls",
+        .kind = kGAB_MESSAGE,
+        .native = gab_msglib_impls,
+    },
+    {
+        .name = mGAB_CALL,
+        .kind = kGAB_MESSAGE,
+        .native = gab_msglib_message,
+    },
+    {
+        .name = "at",
+        .kind = kGAB_RECORD,
+        .native = gab_reclib_at,
+    },
+    {
+        .name = "del",
+        .kind = kGAB_RECORD,
+        .native = gab_reclib_del,
+    },
+    {
+        .name = "push",
+        .kind = kGAB_RECORD,
+        .native = gab_reclib_push,
+    },
+    {
+        .name = "put",
+        .kind = kGAB_RECORD,
+        .native = gab_reclib_put,
+    },
+    {
+        .name = "list?",
+        .kind = kGAB_RECORD,
+        .native = gab_reclib_is_list,
+    },
+    {
+        .name = "put_via",
+        .kind = kGAB_RECORD,
+        .native = gab_reclib_putvia,
+    },
+    {
+        .name = "len",
+        .kind = kGAB_RECORD,
+        .native = gab_reclib_len,
+    },
+    {
+        .name = "strings_into",
+        .kind = kGAB_RECORD,
+        .native = gab_reclib_strings_into,
+    },
+    {
+        .name = "seqs.init",
+        .kind = kGAB_RECORD,
+        .native = gab_reclib_seqinit,
+    },
+    {
+        .name = "seqs.next",
+        .kind = kGAB_RECORD,
+        .native = gab_reclib_seqnext,
+    },
+    {
+        .name = "io.open",
+        .kind = kGAB_STRING,
+        .native = gab_iolib_open,
+    },
+    {
+        .name = "json.decode",
+        .kind = kGAB_STRING,
+        .native = gab_jsonlib_decode,
+
+    },
+    {
+        .name = "close!",
+        .kind = kGAB_CHANNEL,
+        .native = gab_chnlib_close,
+    },
+    {
+        .name = "closed?",
+        .kind = kGAB_CHANNEL,
+        .native = gab_chnlib_is_closed,
+    },
+    {
+        .name = "full?",
+        .kind = kGAB_CHANNEL,
+        .native = gab_chnlib_is_full,
+    },
+    {
+        .name = "empty?",
+        .kind = kGAB_CHANNEL,
+        .native = gab_chnlib_is_empty,
+    },
+};
+
+struct native box_natives[] = {
+    {
+        .name = "read",
+        .box_type = "gab.io.stream",
+        .native = gab_iolib_read,
+    },
+    {
+        .name = "write",
+        .box_type = "gab.io.stream",
+        .native = gab_iolib_write,
+    },
+    {
+        .name = "scan",
+        .box_type = "gab.io.stream",
+        .native = gab_iolib_scan,
+    },
+    {
+        .name = "until",
+        .box_type = "gab.io.stream",
+        .native = gab_iolib_until,
     },
 };
 
@@ -429,6 +780,26 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   gab_negkeep(gab.eg, kGAB_NKINDS, eg->types);
 
+  for (int i = 0; i < LEN_CARRAY(kind_natives); i++) {
+    gab_egkeep(
+        gab.eg,
+        gab_iref(gab, gab_def(gab, (struct gab_def_argt){
+                                       gab_message(gab, kind_natives[i].name),
+                                       gab_type(gab, kind_natives[i].kind),
+                                       gab_snative(gab, kind_natives[i].name,
+                                                   kind_natives[i].native)})));
+  }
+
+  for (int i = 0; i < LEN_CARRAY(box_natives); i++) {
+    gab_egkeep(
+        gab.eg,
+        gab_iref(gab, gab_def(gab, (struct gab_def_argt){
+                                       gab_message(gab, box_natives[i].name),
+                                       gab_string(gab, box_natives[i].box_type),
+                                       gab_snative(gab, box_natives[i].name,
+                                                   box_natives[i].native)})));
+  }
+
   for (int i = 0; i < LEN_CARRAY(kind_primitives); i++) {
     gab_egkeep(
         gab.eg,
@@ -547,7 +918,8 @@ void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
 
     // Append the iterations number to the end of the given name
     char unique_name[strlen(args.name) + 16];
-    snprintf(unique_name, sizeof(unique_name), "%s:%"PRIu64"", args.name, iterations);
+    snprintf(unique_name, sizeof(unique_name), "%s:%" PRIu64 "", args.name,
+             iterations);
 
     iterations++;
 
@@ -846,7 +1218,7 @@ void dump_pretty_err(struct gab_triple gab, FILE *stream, va_list varargs,
     }
 
     fprintf(stream,
-            "\n\n" GAB_RED "%.4"PRIu64"" GAB_RESET "| %.*s"
+            "\n\n" GAB_RED "%.4" PRIu64 "" GAB_RESET "| %.*s"
             "\n      " GAB_YELLOW "%.*s" GAB_RESET "",
             line, (int)line_src.len, line_src.data, (int)under_src->len,
             under_src->data);
