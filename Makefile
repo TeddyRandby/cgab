@@ -40,19 +40,15 @@ $(BUILD_PREFIX)/%.o: $(SRC_PREFIX)/%.c
 INSTALL_PREFIX 	= ${GAB_INSTALLPREFIX}
 GAB_PATH 			= ${GAB_PREFIX}/gab
 
-# install_dev:
-# 	install -vCDt $(INSTALL_PREFIX)/include/gab $(INCLUDE_PREFIX)/*
+install_dev:
+	install -vCDt $(INSTALL_PREFIX)/include/gab $(INCLUDE_PREFIX)/*
 
-# install_gab: $(BUILD_PREFIX)/gab
-# 	install -vC $(BUILD_PREFIX)/gab $(INSTALL_PREFIX)/bin
-# 	install -vC $(BUILD_PREFIX)/libcgab.a $(INSTALL_PREFIX)/lib
+install_gab: $(BUILD_PREFIX)/gab
+	install -vC $(BUILD_PREFIX)/gab $(INSTALL_PREFIX)/bin
+	install -vC $(BUILD_PREFIX)/libcgab.a $(INSTALL_PREFIX)/lib
 
-# install_gab.lsp:
-# 	install -CDt $(GAB_PATH)/modules/gab.lsp $(GABLSP_SRC)
-
-# install_modules: cmodules
-# 	install -vCDt $(GAB_PATH)/modules $(CMOD_SHARED)
-# 	install -CDt $(GAB_PATH)/modules $(GMOD_SRC)
+install_gab.lsp:
+	install -CDt $(GAB_PATH)/modules/gab.lsp $(GABLSP_SRC)
 
 uninstall:
 	rm -rf $(INSTALL_PREFIX)/include/gab

@@ -1,6 +1,4 @@
-#include "core.h"
 #include "gab.h"
-#include <time.h>
 
 typedef struct {
   uint32_t state[16];
@@ -56,8 +54,8 @@ static double random_float() {
   return result;
 }
 
-a_gab_value *gab_lib_between(struct gab_triple gab, uint64_t argc,
-                             gab_value argv[argc]) {
+a_gab_value *gab_numlib_between(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]) {
   double min = 0, max = 1;
 
   switch (argc) {
@@ -66,7 +64,7 @@ a_gab_value *gab_lib_between(struct gab_triple gab, uint64_t argc,
 
   case 2: {
     if (gab_valkind(argv[1]) != kGAB_NUMBER)
-      return gab_fpanic(gab, "Invalid call to gab_lib_random");
+      return gab_fpanic(gab, "Invalid call to gab_numlib_random");
 
     max = gab_valton(argv[1]);
 
@@ -76,7 +74,7 @@ a_gab_value *gab_lib_between(struct gab_triple gab, uint64_t argc,
   case 3: {
     if (gab_valkind(argv[1]) != kGAB_NUMBER ||
         gab_valkind(argv[2]) != kGAB_NUMBER) {
-      return gab_fpanic(gab, "Invalid call to gab_lib_random");
+      return gab_fpanic(gab, "Invalid call to gab_numlib_random");
     }
 
     min = gab_valton(argv[1]);
@@ -85,7 +83,7 @@ a_gab_value *gab_lib_between(struct gab_triple gab, uint64_t argc,
   }
 
   default:
-    return gab_fpanic(gab, "Invalid call to gab_lib_random");
+    return gab_fpanic(gab, "Invalid call to gab_numlib_random");
   }
 
   double range = max - min;
@@ -98,10 +96,10 @@ a_gab_value *gab_lib_between(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_lib_floor(struct gab_triple gab, uint64_t argc,
-                           gab_value argv[argc]) {
+a_gab_value *gab_numlib_floor(struct gab_triple gab, uint64_t argc,
+                              gab_value argv[argc]) {
   if (argc != 1 || gab_valkind(argv[0]) != kGAB_NUMBER)
-    return gab_fpanic(gab, "Invalid call to gab_lib_floor");
+    return gab_fpanic(gab, "Invalid call to gab_numlib_floor");
 
   double float_num = gab_valton(argv[0]);
   int64_t int_num = gab_valton(argv[0]);

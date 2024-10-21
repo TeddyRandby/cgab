@@ -1,4 +1,3 @@
-#include <errno.h>
 #define GAB_STATUS_NAMES_IMPL
 #define GAB_TOKEN_NAMES_IMPL
 #include "engine.h"
@@ -10,10 +9,6 @@
 #include "gab.h"
 #include "lexer.h"
 #include "os.h"
-
-#include <stdarg.h>
-#include <stdio.h>
-#include <time.h>
 
 a_gab_value *gab_strlib_trim(struct gab_triple gab, uint64_t argc,
                              gab_value argv[argc]);
@@ -149,6 +144,18 @@ a_gab_value *gab_chnlib_is_full(struct gab_triple gab, uint64_t argc,
 
 a_gab_value *gab_chnlib_is_empty(struct gab_triple gab, uint64_t argc,
                                  gab_value argv[argc]);
+
+a_gab_value *gab_siglib_string_into(struct gab_triple gab, uint64_t argc,
+                                    gab_value argv[argc]);
+
+a_gab_value *gab_siglib_message_into(struct gab_triple gab, uint64_t argc,
+                                     gab_value argv[argc]);
+
+a_gab_value *gab_numlib_floor(struct gab_triple gab, uint64_t argc,
+                              gab_value argv[argc]);
+
+a_gab_value *gab_numlib_between(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]);
 
 struct primitive {
   const char *name;
@@ -351,6 +358,7 @@ struct native {
   const char *name;
   union {
     enum gab_kind kind;
+    const char *sigil;
     const char *box_type;
   };
   gab_native_f native;
@@ -463,11 +471,6 @@ struct native kind_natives[] = {
         .native = gab_msglib_impls,
     },
     {
-        .name = mGAB_CALL,
-        .kind = kGAB_MESSAGE,
-        .native = gab_msglib_message,
-    },
-    {
         .name = "at",
         .kind = kGAB_RECORD,
         .native = gab_reclib_at,
@@ -548,6 +551,21 @@ struct native kind_natives[] = {
         .kind = kGAB_CHANNEL,
         .native = gab_chnlib_is_empty,
     },
+    {
+        .name = "strings.into",
+        .kind = kGAB_SIGIL,
+        .native = gab_siglib_string_into,
+    },
+    {
+        .name = "messages.into",
+        .kind = kGAB_SIGIL,
+        .native = gab_siglib_message_into,
+    },
+    {
+        .name = "floor",
+        .kind = kGAB_NUMBER,
+        .native = gab_numlib_floor,
+    },
 };
 
 struct native box_natives[] = {
@@ -570,6 +588,19 @@ struct native box_natives[] = {
         .name = "until",
         .box_type = "gab.io.stream",
         .native = gab_iolib_until,
+    },
+};
+
+struct native sig_natives[] = {
+    {
+        .name = "between",
+        .sigil = "gab.number",
+        .native = gab_numlib_between,
+    },
+    {
+        .name = mGAB_CALL,
+        .sigil = "gab.message",
+        .native = gab_msglib_message,
     },
 };
 
@@ -798,6 +829,16 @@ struct gab_triple gab_create(struct gab_create_argt args) {
                                        gab_string(gab, box_natives[i].box_type),
                                        gab_snative(gab, box_natives[i].name,
                                                    box_natives[i].native)})));
+  }
+
+  for (int i = 0; i < LEN_CARRAY(sig_natives); i++) {
+    gab_egkeep(
+        gab.eg,
+        gab_iref(gab, gab_def(gab, (struct gab_def_argt){
+                                       gab_message(gab, sig_natives[i].name),
+                                       gab_sigil(gab, sig_natives[i].sigil),
+                                       gab_snative(gab, sig_natives[i].name,
+                                                   sig_natives[i].native)})));
   }
 
   for (int i = 0; i < LEN_CARRAY(kind_primitives); i++) {
@@ -1309,33 +1350,11 @@ typedef a_gab_value *(*handler_f)(struct gab_triple, const char *);
 typedef a_gab_value *(*module_f)(struct gab_triple);
 
 typedef struct {
-  handler_f handler;
   const char *prefix;
   const char *suffix;
 } resource;
 
-a_gab_value *gab_shared_object_handler(struct gab_triple gab,
-                                       const char *path) {
-  if (!gab.eg->os_dynmod)
-    return nullptr;
-
-  gab_gclock(gab);
-  a_gab_value *res = gab.eg->os_dynmod(gab, path);
-  gab_gcunlock(gab);
-
-  if (res) {
-    a_gab_value *final =
-        gab_segmodput(gab.eg, path, gab_nil, res->len, res->data);
-
-    free(res);
-
-    return final;
-  }
-
-  return gab_segmodput(gab.eg, path, gab_nil, 0, nullptr);
-}
-
-a_gab_value *gab_source_file_handler(struct gab_triple gab, const char *path) {
+a_gab_value *gab_use_file(struct gab_triple gab, const char *path) {
   a_char *src = gab_osread(path);
 
   if (src == nullptr) {
@@ -1402,53 +1421,31 @@ resource resources[] = {
     {
         .prefix = "./mod/",
         .suffix = ".gab",
-        .handler = gab_source_file_handler,
     },
     {
         .prefix = "./",
         .suffix = "/mod/mod.gab",
-        .handler = gab_source_file_handler,
     },
     {
         .prefix = "./",
         .suffix = ".gab",
-        .handler = gab_source_file_handler,
     },
     {
         .prefix = "./",
         .suffix = "/mod.gab",
-        .handler = gab_source_file_handler,
-    },
-    {
-        .prefix = "./libcgab",
-        .suffix = ".so",
-        .handler = gab_shared_object_handler,
-    },
-    {
-        .prefix = "./build/libcgab",
-        .suffix = ".so",
-        .handler = gab_shared_object_handler,
     },
     // Installed resources
     {
         .prefix = GAB_PREFIX "/gab/modules/",
         .suffix = ".gab",
-        .handler = gab_source_file_handler,
     },
     {
         .prefix = GAB_PREFIX "/gab/modules/",
         .suffix = "/mod.gab",
-        .handler = gab_source_file_handler,
     },
     {
         .prefix = GAB_PREFIX "/gab/modules/",
         .suffix = "/mod/mod.gab",
-        .handler = gab_source_file_handler,
-    },
-    {
-        .prefix = GAB_PREFIX "/gab/modules/libcgab",
-        .suffix = ".so",
-        .handler = gab_shared_object_handler,
     },
 };
 
@@ -1494,7 +1491,7 @@ a_gab_value *gab_use(struct gab_triple gab, gab_value path) {
         return cached;
       }
 
-      a_gab_value *result = res->handler(gab, (char *)path->data);
+      a_gab_value *result = gab_use_file(gab, (char *)path->data);
 
       if (result != nullptr) {
         /* Skip the first argument, which is the module's data */
