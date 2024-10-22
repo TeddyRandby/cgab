@@ -1,9 +1,9 @@
 i = 'iter':use
 
-implementations = .gab.message :impls
+implementations = .gab.message :specializations
 
 # Now the |> chain is being parsed as *part* of the filter's block.
-xf = i:filter((_, m) => m:strings.into:ends? '.test')
+xf = i:filter((_, m) => m:strings.into:ends_with? '.test')
      |> i:map((impls m) => do
           (path[] _) = m:strings.into:split '.'
 

@@ -24,6 +24,8 @@ static const char *gab_token_names[] = {
 
 a_gab_value *gab_vmexec(struct gab_triple gab, gab_value fiber);
 
+bool gab_wkspawn(struct gab_triple gab);
+
 void gab_gccreate(struct gab_triple gab);
 
 void gab_gcdestroy(struct gab_triple gab);

@@ -1096,10 +1096,12 @@ gab_value gab_fiber(struct gab_triple gab, struct gab_fiber_argt args) {
 a_gab_value *gab_fibawait(struct gab_triple gab, gab_value f) {
   assert(gab_valkind(f) == kGAB_FIBER || gab_valkind(f) == kGAB_FIBERRUNNING ||
          gab_valkind(f) == kGAB_FIBERDONE);
+
   struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
 
+  // This is a BAD solution. We create and destroy way too many threads this way
   while (fiber->header.kind != kGAB_FIBERDONE)
-    gab_yield(gab);
+    gab_yield(gab); // Try to spawn a worker to take this, if we need
 
   return fiber->res;
 }

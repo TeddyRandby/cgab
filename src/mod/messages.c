@@ -14,7 +14,7 @@ a_gab_value *gab_msglib_message(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_msglib_impls(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_msglib_specs(struct gab_triple gab, uint64_t argc,
                            gab_value argv[static argc]) {
   if (argc == 1) {
     gab_value rec = GAB_VAL_TO_FIBER(gab_thisfiber(gab))->messages;

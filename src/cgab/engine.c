@@ -79,7 +79,7 @@ a_gab_value *gab_msglib_string_into(struct gab_triple gab, uint64_t argc,
 a_gab_value *gab_msglib_sigil_into(struct gab_triple gab, uint64_t argc,
                                    gab_value argv[argc]);
 
-a_gab_value *gab_msglib_impls(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_msglib_specs(struct gab_triple gab, uint64_t argc,
                               gab_value argv[argc]);
 
 a_gab_value *gab_msglib_message(struct gab_triple gab, uint64_t argc,
@@ -175,7 +175,7 @@ a_gab_value *gab_fmtlib_printf(struct gab_triple gab, uint64_t argc,
 }
 
 a_gab_value *gab_fmtlib_println(struct gab_triple gab, uint64_t argc,
-                               gab_value argv[argc]) {
+                                gab_value argv[argc]) {
   gab_value v = gab_arg(0);
 
   gab_fvalinspect(stdout, v, 2);
@@ -503,11 +503,6 @@ struct native kind_natives[] = {
         .native = gab_msglib_sigil_into,
     },
     {
-        .name = "impls",
-        .kind = kGAB_MESSAGE,
-        .native = gab_msglib_impls,
-    },
-    {
         .name = "at",
         .kind = kGAB_RECORD,
         .native = gab_reclib_at,
@@ -639,6 +634,11 @@ struct native sig_natives[] = {
         .sigil = "gab.message",
         .native = gab_msglib_message,
     },
+    {
+        .name = "specializations",
+        .sigil = "gab.message",
+        .native = gab_msglib_specs,
+    },
 };
 
 static const struct timespec t = {.tv_nsec = GAB_YIELD_SLEEPTIME_NS};
@@ -675,8 +675,7 @@ int32_t worker_job(void *data) {
   gab.eg->njobs++;
 
   while (!gab_chnisclosed(gab.eg->work_channel)) {
-    gab_value fiber =
-        gab_tchntake(gab, gab.eg->work_channel, cGAB_WORKER_IDLEWAIT_MS);
+    gab_value fiber = gab_chntake(gab, gab.eg->work_channel);
 
     // we get undefined if:
     //  - the channel is closed
@@ -737,6 +736,10 @@ bool gab_jbcreate(struct gab_triple gab, struct gab_jb *job, int(fn)(void *)) {
   }
 
   return true;
+}
+
+bool gab_wkspawn(struct gab_triple gab) {
+  return gab_jbcreate(gab, next_available_job(gab), worker_job);
 }
 
 struct gab_triple gab_create(struct gab_create_argt args) {
@@ -1406,11 +1409,14 @@ a_gab_value *gab_use_file(struct gab_triple gab, const char *path) {
   gab_value pkg = gab_build(gab, (struct gab_build_argt){
                                      .name = path,
                                      .source = (const char *)src->data,
-                                     .flags = gab.flags | fGAB_ERR_EXIT,
+                                     .flags = gab.flags,
                                      .len = 0,
                                  });
 
   a_char_destroy(src);
+
+  if (pkg == gab_undefined)
+    return nullptr;
 
   gab_value fb = gab_arun(gab, (struct gab_run_argt){
                                    .main = pkg,
@@ -1420,10 +1426,17 @@ a_gab_value *gab_use_file(struct gab_triple gab, const char *path) {
   if (fb == gab_undefined)
     return nullptr;
 
-  struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fb);
-
   a_gab_value *res = gab_fibawait(gab, fb);
 
+  if (res == nullptr)
+    return gab_fpanic(gab, "Failed to load module: module did not run");
+
+  if (res->data[0] != gab_ok)
+    return gab_fpanic(gab,
+                      "Failed to load module: module returned $, expected $",
+                      res->data[0], gab_ok);
+
+  struct gab_obj_fiber *f = GAB_VAL_TO_FIBER(fb);
   gab_value fbparent = gab_thisfiber(gab);
 
   if (fbparent == gab_undefined) {
@@ -1431,16 +1444,6 @@ a_gab_value *gab_use_file(struct gab_triple gab, const char *path) {
   } else {
     struct gab_obj_fiber *parent = GAB_VAL_TO_FIBER(fbparent);
     parent->messages = f->messages;
-  }
-
-  if (res == nullptr) {
-    return gab_fpanic(gab, "Failed to load module: module did not run");
-  }
-
-  if (res->data[0] != gab_ok) {
-    return gab_fpanic(gab,
-                      "Failed to load module: module returned $, expected $",
-                      res->data[0], gab_ok);
   }
 
   gab_negkeep(gab.eg, res->len - 1, res->data + 1);
@@ -1576,7 +1579,7 @@ gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
 
   // Somehow check if the put will block, and create a job in that case.
   // Should check to see if the channel has takers waiting already.
-  gab_jbcreate(gab, next_available_job(gab), worker_job);
+  gab_wkspawn(gab);
 
   gab_chnput(gab, gab.eg->work_channel, fb);
 
