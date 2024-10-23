@@ -142,7 +142,7 @@ int rec_dump_properties(FILE *stream, gab_value rec, int depth) {
 
     for (uint64_t i = 0; i < len; i++) {
       bytes += gab_fvalinspect(stream, gab_ukrecat(rec, i), depth - 1);
-      bytes += fprintf(stream, ": ");
+      bytes += fprintf(stream, " ");
       bytes += gab_fvalinspect(stream, gab_uvrecat(rec, i), depth - 1);
 
       if (i + 1 < len)
