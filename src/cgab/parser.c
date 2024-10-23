@@ -429,6 +429,7 @@ bool node_ismulti(struct gab_triple gab, gab_value node) {
   }
   default:
     assert(false && "UNREACHABLE");
+    return false;
   }
 }
 
@@ -1663,6 +1664,7 @@ gab_value compile_specialform(struct gab_triple gab, struct bc *bc,
     return compile_block(gab, bc, node, env);
 
   assert(false && "UNHANDLED SPECIAL FORM");
+  return gab_undefined;
 };
 
 gab_value compile_record(struct gab_triple gab, struct bc *bc, gab_value tuple,

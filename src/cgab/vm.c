@@ -271,9 +271,9 @@ static handler handlers[] = {
   ({                                                                           \
     memmove(SP() - have + 3, SP() - have, have * sizeof(gab_value));           \
     SP() += 3;                                                                 \
-    SP()[-have - 1] = (uintptr_t)FB();                                         \
-    SP()[-have - 2] = (uintptr_t)IP();                                         \
-    SP()[-have - 3] = (uintptr_t)b;                                            \
+    SP()[-(int64_t)have - 1] = (uintptr_t)FB();                                \
+    SP()[-(int64_t)have - 2] = (uintptr_t)IP();                                \
+    SP()[-(int64_t)have - 3] = (uintptr_t)b;                                   \
   })
 
 #define PUSH_ERROR_FRAME(have) ({})
@@ -1498,7 +1498,8 @@ CASE_CODE(PACK) {
   while (have < want)
     PUSH(gab_nil), have++;
 
-  uint64_t len = have - want;
+  assert(have >= want);
+  int64_t len = have - want;
 
   gab_value *ap = SP() - above;
 

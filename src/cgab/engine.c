@@ -1,3 +1,5 @@
+#include <errno.h>
+
 #define GAB_STATUS_NAMES_IMPL
 #define GAB_TOKEN_NAMES_IMPL
 #include "engine.h"
@@ -178,7 +180,7 @@ a_gab_value *gab_fmtlib_println(struct gab_triple gab, uint64_t argc,
                                 gab_value argv[argc]) {
   gab_value v = gab_arg(0);
 
-  gab_fvalinspect(stdout, v, 2);
+  gab_fvalinspect(stdout, v, -1);
   fputc('\n', stdout);
 
   return nullptr;
@@ -661,6 +663,8 @@ int32_t gc_job(void *data) {
   while (gab.eg->njobs >= 0) {
     if (gab.eg->gc->schedule == gab.wkid)
       gab_gcdocollect(gab);
+
+    gab_yield(gab);
   }
 
   free(g);
@@ -674,8 +678,24 @@ int32_t worker_job(void *data) {
   assert(gab.wkid != 0);
   gab.eg->njobs++;
 
+#if cGAB_LOG_EG
+  fprintf(stdout, "[WORKER %i] SPAWNED\n", gab.wkid);
+#endif
+
   while (!gab_chnisclosed(gab.eg->work_channel)) {
-    gab_value fiber = gab_chntake(gab, gab.eg->work_channel);
+
+#if cGAB_LOG_EG
+    fprintf(stdout, "[WORKER %i] TAKING WITH TIMEOUT %lus\n", gab.wkid,
+            cGAB_WORKER_IDLEWAIT_MS / 1000);
+#endif
+
+    gab_value fiber =
+        gab_tchntake(gab, gab.eg->work_channel, cGAB_WORKER_IDLEWAIT_MS);
+
+#if cGAB_LOG_EG
+    fprintf(stdout, "[WORKER %i] chntake yielded: ", gab.wkid);
+    gab_fprintf(stdout, "$\n", fiber);
+#endif
 
     // we get undefined if:
     //  - the channel is closed
@@ -689,6 +709,10 @@ int32_t worker_job(void *data) {
 
     gab.eg->jobs[gab.wkid].fiber = gab_undefined;
   }
+
+#if cGAB_LOG_EG
+  fprintf(stdout, "[WORKER %i] CLOSING\n", gab.wkid);
+#endif
 
   gab.eg->jobs[gab.wkid].alive = false;
   gab.eg->jobs[gab.wkid].fiber = gab_undefined;
@@ -717,6 +741,10 @@ struct gab_jb *next_available_job(struct gab_triple gab) {
 bool gab_jbcreate(struct gab_triple gab, struct gab_jb *job, int(fn)(void *)) {
   if (!job)
     return false;
+
+#if cGAB_LOG_EG
+  fprintf(stdout, "[WORKER %i] spawning %lu\n", gab.wkid, job - gab.eg->jobs);
+#endif
 
   job->epoch = gab.eg->jobs[0].epoch;
   job->locked = 0;
@@ -924,6 +952,11 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 }
 
 void gab_destroy(struct gab_triple gab) {
+
+  // Wait until there is no work to be done
+  while (gab_chnisfull(gab.eg->work_channel))
+    ;
+
   gab_chnclose(gab.eg->work_channel);
 
   while (gab.eg->njobs > 0)
@@ -1576,6 +1609,11 @@ gab_value gab_arun(struct gab_triple gab, struct gab_run_argt args) {
                                 });
 
   gab_iref(gab, fb);
+
+#if cGAB_LOG_EG
+  fprintf(stdout, "[WORKER %i] chnput ", gab.wkid);
+  gab_fprintf(stdout, "$\n", fb);
+#endif
 
   // Somehow check if the put will block, and create a job in that case.
   // Should check to see if the channel has takers waiting already.

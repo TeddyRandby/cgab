@@ -9,7 +9,6 @@
 void run_repl(int flags) {
   struct gab_triple gab = gab_create((struct gab_create_argt){
       .flags = flags,
-      .os_dynmod = gab_osloaddynmod,
   });
 
   gab_repl(gab, (struct gab_repl_argt){

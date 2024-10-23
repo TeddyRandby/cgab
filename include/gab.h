@@ -7,17 +7,22 @@
 #ifndef GAB_H
 #define GAB_H
 
+#include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <inttypes.h>
 
-/*#ifdef __STDC_NO_THREADS_*/
+/**
+ * There is some issue with how I'm using the threads library.
+ *
+ * GNU C11 Threads work fine, but the cthread implementation AND MUSL C11 threads don't work.
+ */
+#ifdef __STDC_NO_THREADS__
 #include <cthreads.h>
-/*#else*/
-/*#include <threads.h>*/
-/*#endif*/
+#else
+#include <threads.h>
+#endif
 
 #include "core.h"
 
@@ -399,7 +404,7 @@ void gab_obj_destroy(struct gab_eg *eg, struct gab_obj *obj);
 uint64_t gab_obj_size(struct gab_obj *obj);
 
 #define GAB_DYNAMIC_MODULE_SYMBOL "gab_lib"
-typedef a_gab_value *(*gab_osdynmod_load)(struct gab_triple, const char* path);
+typedef a_gab_value *(*gab_osdynmod_load)(struct gab_triple, const char *path);
 typedef a_gab_value *(*gab_osdynmod)(struct gab_triple);
 
 /**
@@ -955,8 +960,8 @@ a_gab_value *gab_fpanic(struct gab_triple gab, const char *fmt, ...);
  * @param fmt The format string.
  * @returns An array of gab_values.
  */
-/*a_gab_value *gab_nfpanic(struct gab_triple gab, const char *fmt, uint64_t argc,
- * gab_value argv[static argc]);*/
+/*a_gab_value *gab_nfpanic(struct gab_triple gab, const char *fmt, uint64_t
+ * argc, gab_value argv[static argc]);*/
 
 /**
  * @brief Panic the triple with an 'unexpected type' message.
@@ -1246,7 +1251,7 @@ static inline uint64_t gab_strhash(gab_value str) {
 }
 
 static inline uint64_t gab_sstrendswith(gab_value str, const char *pat,
-                                      uint64_t offset) {
+                                        uint64_t offset) {
   assert(gab_valkind(str) == kGAB_STRING);
 
   const char *cstr = gab_strdata(&str);
@@ -1966,7 +1971,7 @@ struct gab_obj_channel {
   /**
    * @brief head and tail for tracking channel's queue
    */
-  _Atomic uint64_t head, tail;
+  _Atomic(uint64_t) head, tail;
 
   /**
    * @brief The channel's buffer.
@@ -2330,10 +2335,10 @@ struct gab_eg {
 
   gab_value types[kGAB_NKINDS];
 
-  _Atomic int8_t njobs;
+  _Atomic(int8_t) njobs;
 
   struct gab_gc {
-    _Atomic int8_t schedule;
+    _Atomic(int8_t) schedule;
     d_gab_obj overflow_rc;
     v_gab_obj dead;
 
@@ -2372,8 +2377,8 @@ struct gab_eg {
 
     gab_value fiber;
 
-    _Atomic uint32_t epoch;
-    _Atomic int32_t locked;
+    _Atomic(uint32_t) epoch;
+    _Atomic(int32_t) locked;
     v_gab_obj lock_keep;
   } jobs[];
 };
@@ -2420,6 +2425,7 @@ struct gab_src {
 };
 
 static inline gab_value gab_type(struct gab_triple gab, enum gab_kind k) {
+  assert(k < kGAB_NKINDS);
   return gab.eg->types[k];
 }
 
@@ -2502,6 +2508,14 @@ gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
         kGAB_IMPL_KIND,
     };
 
+  type = gab_undefined;
+  spec = gab_thisfibmsgat(gab, message, type);
+  if (spec != gab_undefined)
+    return (struct gab_impl_rest){
+        .as.spec = spec,
+        kGAB_IMPL_GENERAL,
+    };
+
   /* Check if the receiver is a record and has a matching property */
   if (gab_valkind(receiver) == kGAB_RECORD) {
     type = gab_recshp(receiver);
@@ -2513,15 +2527,7 @@ gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
       };
   }
 
-  /* Lastly, check for a generic implmentation.*/
-  type = gab_undefined;
-  spec = gab_thisfibmsgat(gab, message, type);
-
-  return (struct gab_impl_rest){
-      type,
-      .as.spec = spec,
-      spec == gab_undefined ? kGAB_IMPL_NONE : kGAB_IMPL_GENERAL,
-  };
+  return (struct gab_impl_rest){.status = kGAB_IMPL_NONE};
 }
 
 static inline gab_value gab_thisfibmsg(struct gab_triple gab) {
@@ -2617,14 +2623,14 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
     struct gab_obj_block *o = GAB_VAL_TO_BLOCK(value);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(o->p);
     gab_value str = gab_srcname(p->src);
-    snprintf(buffer, 128, "<Block %s:%"PRIu64">", gab_strdata(&str),
+    snprintf(buffer, 128, "<Block %s:%" PRIu64 ">", gab_strdata(&str),
              gab_srcline(p->src, p->offset));
     return gab_string(gab, buffer);
   }
   case kGAB_PROTOTYPE: {
     struct gab_obj_prototype *o = GAB_VAL_TO_PROTOTYPE(value);
     gab_value str = gab_srcname(o->src);
-    snprintf(buffer, 128, "<Prototype %s:%"PRIu64">", gab_strdata(&str),
+    snprintf(buffer, 128, "<Prototype %s:%" PRIu64 ">", gab_strdata(&str),
              gab_srcline(o->src, o->offset));
 
     return gab_string(gab, buffer);
@@ -2652,7 +2658,8 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
 /*int gab_val_printf_handler(FILE *stream, const struct printf_info *info,*/
 /*                           const void *const *args);*/
 /**/
-/*int gab_val_printf_arginfo(const struct printf_info *i, uint64_t n, int *argtypes,*/
+/*int gab_val_printf_arginfo(const struct printf_info *i, uint64_t n, int
+ * *argtypes,*/
 /*                           int *sizes);*/
 
 #endif

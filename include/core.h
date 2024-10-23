@@ -34,7 +34,7 @@
 // This is how long each *attempt* to put/take will last.
 // put/take are still blocking - this is basically the resolution of the check.
 #ifndef cGAB_CHANNEL_STEP_MS
-#define cGAB_CHANNEL_STEP_MS ((size_t)64)
+#define cGAB_CHANNEL_STEP_MS ((size_t)4)
 #endif
 
 #define GAB_CHANNEL_STEP_NS ((size_t)(cGAB_CHANNEL_STEP_MS * 1000000))
@@ -43,7 +43,7 @@
 // will wait this long before exiting, if they haven't received work.
 // New workers are spawned as needed up until a maximum is reached (specified at runtime)
 #ifndef cGAB_WORKER_IDLEWAIT_MS
-#define cGAB_WORKER_IDLEWAIT_MS ((size_t) cGAB_CHANNEL_STEP_MS * 256)
+#define cGAB_WORKER_IDLEWAIT_MS ((size_t) 8000)
 #endif
 
 // A worker (os thread) may need to yield at an arbitrary point.
@@ -53,7 +53,7 @@
 // A sleeptime of 0ms will result in *a lot* of context switching,
 // which is undesirable for the OS Scheduler. To help this, a small
 // amount of sleeping in the yield function is useful
-#define GAB_YIELD_SLEEPTIME_NS ((size_t) 1 << 12)
+#define GAB_YIELD_SLEEPTIME_NS ((size_t) 1 << 8)
 
 // Collect as frequently as possible (on every RC push)
 #ifndef cGAB_DEBUG_GC
@@ -72,6 +72,10 @@
 
 #ifndef cGAB_DEBUG_BC
 #define cGAB_DEBUG_BC 0
+#endif
+
+#ifndef cGAB_LOG_EG
+#define cGAB_LOG_EG 0
 #endif
 
 // Log what is happening during execution.

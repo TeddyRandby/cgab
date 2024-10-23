@@ -2,6 +2,7 @@
 #include "engine.h"
 #include "gab.h"
 #include "lexer.h"
+#include <time.h>
 
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \
   ((struct obj_type *)gab_obj_create(gab, sizeof(struct obj_type), kind))
@@ -1099,9 +1100,8 @@ a_gab_value *gab_fibawait(struct gab_triple gab, gab_value f) {
 
   struct gab_obj_fiber *fiber = GAB_VAL_TO_FIBER(f);
 
-  // This is a BAD solution. We create and destroy way too many threads this way
   while (fiber->header.kind != kGAB_FIBERDONE)
-    gab_yield(gab); // Try to spawn a worker to take this, if we need
+    gab_yield(gab);
 
   return fiber->res;
 }
@@ -1122,8 +1122,6 @@ gab_value gab_channel(struct gab_triple gab, uint64_t len) {
 
   return __gab_obj(self);
 }
-
-static const struct timespec t = {.tv_nsec = GAB_CHANNEL_STEP_NS};
 
 void gab_chnclose(gab_value c) {
   assert(gab_valkind(c) == kGAB_CHANNEL ||
@@ -1195,7 +1193,12 @@ void gab_chnput(struct gab_triple gab, gab_value c, gab_value value) {
     while (gab_chnisfull(c)) {
       gab_yield(gab);
 
-      cnd_timedwait(&channel->t_cnd, &channel->mtx, &t);
+      struct timespec t;
+      timespec_get(&t, TIME_UTC);
+      t.tv_nsec += GAB_CHANNEL_STEP_NS;
+
+      int res = cnd_timedwait(&channel->t_cnd, &channel->mtx, &t);
+      assert(res != thrd_error);
 
       if (gab_chnisclosed(c)) {
         mtx_unlock(&channel->mtx);
@@ -1210,6 +1213,7 @@ void gab_chnput(struct gab_triple gab, gab_value c, gab_value value) {
     mtx_unlock(&channel->mtx);
 
     break;
+  case kGAB_CHANNELCLOSED:
   default:
     break;
   }
@@ -1251,18 +1255,22 @@ gab_value gab_tchntake(struct gab_triple gab, gab_value c, uint64_t nms) {
     while (gab_chnisempty(c)) {
       gab_yield(gab);
 
-      if (cnd_timedwait(&channel->p_cnd, &channel->mtx, &t) == thrd_timedout)
+      struct timespec t;
+      timespec_get(&t, TIME_UTC);
+      t.tv_nsec += GAB_CHANNEL_STEP_NS;
+
+      int res = cnd_timedwait(&channel->p_cnd, &channel->mtx, &t);
+
+      assert(res != thrd_error);
+
+      if (res == thrd_timedout)
         timeout += cGAB_CHANNEL_STEP_MS;
 
-      if (gab_chnisclosed(c)) {
-        mtx_unlock(&channel->mtx);
-        return gab_undefined;
-      }
+      if (gab_chnisclosed(c))
+        return mtx_unlock(&channel->mtx), gab_undefined;
 
-      if (timeout > nms) {
-        mtx_unlock(&channel->mtx);
-        return gab_undefined;
-      }
+      if (timeout > nms)
+        return mtx_unlock(&channel->mtx), gab_undefined;
     }
 
     gab_value res = dotake(channel);
@@ -1276,10 +1284,8 @@ gab_value gab_tchntake(struct gab_triple gab, gab_value c, uint64_t nms) {
   case kGAB_CHANNELCLOSED: {
     mtx_lock(&channel->mtx);
 
-    if (gab_chnisempty(c)) {
-      mtx_unlock(&channel->mtx);
-      return gab_undefined;
-    }
+    if (gab_chnisempty(c))
+      return mtx_unlock(&channel->mtx), gab_undefined;
 
     gab_value res = dotake(channel);
 
@@ -1294,7 +1300,7 @@ gab_value gab_tchntake(struct gab_triple gab, gab_value c, uint64_t nms) {
   }
 
   assert(false && "NOT A CHANNEL");
-  return gab_undefined;
+  return mtx_unlock(&channel->mtx), gab_undefined;
 }
 
 static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
