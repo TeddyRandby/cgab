@@ -16,7 +16,8 @@
 /**
  * There is some issue with how I'm using the threads library.
  *
- * GNU C11 Threads work fine, but the cthread implementation AND MUSL C11 threads don't work.
+ * GNU C11 Threads work fine, but the cthread implementation AND MUSL C11
+ * threads don't work.
  */
 #ifdef __STDC_NO_THREADS__
 #include <cthreads.h>
@@ -159,8 +160,10 @@ enum gab_kind {
   kGAB_FIBERDONE,
   kGAB_FIBERRUNNING,
   kGAB_CHANNEL,
-  kGAB_CHANNELCLOSED,
   kGAB_CHANNELBUFFERED,
+  kGAB_CHANNELBUFFEREDSLIDING,
+  kGAB_CHANNELBUFFEREDDROPPING,
+  kGAB_CHANNELCLOSED,
   kGAB_NKINDS,
 };
 
@@ -1980,13 +1983,43 @@ struct gab_obj_channel {
 };
 
 /**
+ * Channels may have one of three policies:
+ * 
+ *  ** BLOCKING **
+ *   - A put on a blocking channel will block until
+ *    a taker is available.
+ *   - A take on a blocking channel will block until
+ *    a value is available.
+ *
+ *  NOTE: Blocking channels *are not implicitly buffered*.
+ *   A value of 0 for the length will create an *unbuffered* channel,
+ *   which can be used as a synchronization point.
+ *
+ *  ** SLIDING **
+ *   - A put on a sliding channel will *replace* the *oldest* value
+ *   if the buffer is full.
+ *   - Takes on a sliding channel are unchanged.
+ *
+ *  ** DROPPING **
+ *   - A put on a dropping channel will *ignore* *new* values if the
+ *    buffer is full.
+ *   - Takes on a dropping channel are unchanged.
+ */
+enum gab_chnpolicy_k {
+  kGAB_CHANNELPOLICY_BLOCKING = 0,
+  kGAB_CHANNELPOLICY_SLIDING = 1,
+  kGAB_CHANNELPOLICY_DROPPING = 2,
+};
+
+/**
  * @brief Create a channel with the given buffer capacity.
  *
  * @param gab The engine
  * @param len The length of the channel's buffer
  * @return The channel
  */
-gab_value gab_channel(struct gab_triple gab, uint64_t len);
+gab_value gab_channel(struct gab_triple gab, uint64_t len,
+                      enum gab_chnpolicy_k p);
 
 /**
  * @brief Put a value on the given channel.
@@ -1997,7 +2030,7 @@ gab_value gab_channel(struct gab_triple gab, uint64_t len);
  * @param channel The channel
  * @param value The value to put
  */
-void gab_chnput(struct gab_triple gab, gab_value channel, gab_value value);
+int gab_chnput(struct gab_triple gab, gab_value channel, gab_value value);
 
 /**
  * @brief Take a value from the given channel. This will block the caller until
@@ -2599,6 +2632,8 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
   }
   case kGAB_CHANNEL:
   case kGAB_CHANNELBUFFERED:
+  case kGAB_CHANNELBUFFEREDSLIDING:
+  case kGAB_CHANNELBUFFEREDDROPPING:
   case kGAB_CHANNELCLOSED: {
     struct gab_obj_channel *m = GAB_VAL_TO_CHANNEL(value);
     snprintf(buffer, 128, "<gab.channel %p>", m);
