@@ -1963,8 +1963,7 @@ struct gab_obj_channel {
 
   /* Synchronization primitives  */
   mtx_t mtx;
-  cnd_t t_cnd;
-  cnd_t p_cnd;
+  cnd_t t_cnd, p_cnd;
 
   /**
    * @brief Capacity of the channel's buffer.
@@ -1974,7 +1973,7 @@ struct gab_obj_channel {
   /**
    * @brief head and tail for tracking channel's queue
    */
-  _Atomic(uint64_t) head, tail;
+  int32_t head, tail;
 
   /**
    * @brief The channel's buffer.
@@ -1996,7 +1995,7 @@ struct gab_obj_channel {
  *   which can be used as a synchronization point.
  *
  *  ** SLIDING **
- *   - A put on a sliding channel will *replace* the *oldest* value
+ *   - A put on a sliding channel will slide out the *oldest* value
  *   if the buffer is full.
  *   - Takes on a sliding channel are unchanged.
  *
@@ -2368,10 +2367,10 @@ struct gab_eg {
 
   gab_value types[kGAB_NKINDS];
 
-  _Atomic(int8_t) njobs;
+  _Atomic int8_t  njobs;
 
   struct gab_gc {
-    _Atomic(int8_t) schedule;
+    _Atomic int8_t schedule;
     d_gab_obj overflow_rc;
     v_gab_obj dead;
 
@@ -2410,8 +2409,8 @@ struct gab_eg {
 
     gab_value fiber;
 
-    _Atomic(uint32_t) epoch;
-    _Atomic(int32_t) locked;
+    _Atomic uint32_t epoch;
+    _Atomic int32_t locked;
     v_gab_obj lock_keep;
   } jobs[];
 };

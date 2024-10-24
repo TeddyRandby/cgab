@@ -128,13 +128,13 @@ static handler handlers[] = {
 #define MISS_CACHED_SEND(clause)                                               \
   ({                                                                           \
     IP() -= SEND_CACHE_DIST - 1;                                               \
-    return OP_SEND_HANDLER(DISPATCH_ARGS());                                   \
+    [[clang::musttail]] return OP_SEND_HANDLER(DISPATCH_ARGS());               \
   })
 
 #define MISS_CACHED_TRIM()                                                     \
   ({                                                                           \
     IP()--;                                                                    \
-    return OP_TRIM_HANDLER(DISPATCH_ARGS());                                   \
+    [[clang::musttail]] return OP_TRIM_HANDLER(DISPATCH_ARGS());               \
   })
 
 #define IMPL_SEND_UNARY_NUMERIC(CODE, value_type, operation_type, operation)   \
@@ -872,9 +872,8 @@ a_gab_value *gab_vmexec(struct gab_triple gab, gab_value f) {
 #define SEND_GUARD_KIND(r, k) SEND_GUARD(gab_valkind(r) == k)
 
 #define SEND_GUARD_ISC(r)                                                      \
-  SEND_GUARD(gab_valkind(r) == kGAB_CHANNEL ||                                 \
-             gab_valkind(r) == kGAB_CHANNELCLOSED ||                           \
-             gab_valkind(r) == kGAB_CHANNELBUFFERED)
+  SEND_GUARD(gab_valkind(c) >= kGAB_CHANNEL &&                                 \
+             gab_valkind(c) <= kGAB_CHANNELCLOSED)
 
 #define SEND_GUARD_CACHED_MESSAGE_SPECS()                                      \
   SEND_GUARD(gab_valeq(gab_thisfibmsgrec(GAB(), ks[GAB_SEND_KMESSAGE]),        \
@@ -1796,15 +1795,15 @@ CASE_CODE(SEND_PRIMITIVE_TAKE) {
 
   DROP_N(have);
 
-  if (v == gab_undefined) {
+  if (__gab_unlikely(v == gab_undefined)) {
     PUSH(gab_none);
     SET_VAR(1);
-  } else {
-    PUSH(gab_ok);
-    PUSH(v);
-    SET_VAR(2);
+    NEXT();
   }
 
+  PUSH(gab_ok);
+  PUSH(v);
+  SET_VAR(2);
   NEXT();
 }
 
@@ -1860,7 +1859,40 @@ CASE_CODE(SEND_PRIMITIVE_CHANNEL) {
 
   SEND_GUARD_CACHED_RECEIVER_TYPE(PEEK_N(have));
 
-  gab_value chan = gab_channel(GAB(), 0, 0);
+  size_t len = 0;
+  enum gab_chnpolicy_k p = kGAB_CHANNELPOLICY_BLOCKING;
+
+  switch (have) {
+  case 1:
+    break;
+  case 2: {
+    gab_value vlen = PEEK();
+
+    ERROR_GUARD_ISN(vlen);
+    len = gab_valton(vlen);
+
+    break;
+  }
+  default: {
+    gab_value vlen = PEEK_N(have - 1);
+
+    ERROR_GUARD_ISN(vlen);
+    len = gab_valton(vlen);
+
+    gab_value strat = PEEK_N(have - 2);
+    ERROR_GUARD_ISS(strat);
+
+    if (strat == gab_sigil(GAB(), "sliding"))
+      p = kGAB_CHANNELPOLICY_SLIDING;
+
+    if (strat == gab_sigil(GAB(), "dropping"))
+      p = kGAB_CHANNELPOLICY_DROPPING;
+
+    break;
+  }
+  }
+
+  gab_value chan = gab_channel(GAB(), len, p);
 
   DROP_N(have);
   PUSH(chan);

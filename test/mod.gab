@@ -353,4 +353,146 @@ end)
   t:expect(result:hi, \== 4)
 end)
 
+\placeholder.smth.test :def! t => do
+  'placeholder':println
+end
+
+\channels.basic :def! t => do
+  ch = .gab.channel:
+
+  .gab.fiber: () => ch <! 'test'
+
+  (ok v) = ch >!
+
+  t:expect(ok \== .ok)
+  t:expect(v \== 'test')
+
+  ch:close!
+
+  ok = ch >!
+
+  t:expect(ok \== .none)
+end
+
+\channels.handle_multiple_blocking_puts :def! t => do
+  ch = .gab.channel:
+
+  blocking_put = (v) => .gab.fiber:() => ch <! v
+
+  blocking_put:(1)
+  blocking_put:(2)
+  blocking_put:(3)
+
+  took_lessthan_four = () => t:expect(ch:>!:unwrap!, \< 4)
+
+  took_lessthan_four:()
+  took_lessthan_four:()
+  took_lessthan_four:()
+end
+
+\channels.be_buffered :def! t => do
+  ch = .gab.channel:3
+
+  put_hi = () => ch <! 'hi'
+
+  .gab.fiber: put_hi
+  .gab.fiber: put_hi
+  .gab.fiber: put_hi
+
+  take_hi = () => do
+    (ok v) = ch >!
+
+    t:expect(ok \== .ok)
+    t:expect(v \== 'hi')
+  end
+
+  take_hi:()
+  take_hi:()
+
+  ch:close!
+
+# Take last hi
+  take_hi:()
+
+# Now we get none
+  ok = ch >!
+
+  t:expect(ok \== .none)
+end
+
+\channels.be_dropping.test :def! t => do
+  ch = .gab.channel:(2 .dropping)
+
+  put_val = (val) => ch <! val
+
+  take_val = (val) => do
+    (ok v) = ch >!
+
+    t:expect(ok \== .ok)
+    t:expect(v \== val)
+  end
+
+  put_val:('hello')
+  put_val:('world')
+
+  take_val:('hello')
+  take_val:'world'
+
+  put_val: 1
+  put_val: 2
+  put_val: 3
+  put_val: 4
+
+  take_val: 1
+  take_val: 2
+
+  put_val: 'again'
+
+  ch:close!
+  take_val: 'again'
+
+  ok = ch >!
+
+  t:expect(ok \== .none)
+end
+
+\channels.be_sliding.test :def! t => do
+  ch = .gab.channel:(2 .sliding)
+
+  put_val = (val) => ch <! val
+
+  took_lessthan_four = () => t:expect(ch:>!:unwrap!, \< 4)
+
+  take_val = (val) => do
+    (ok v) = ch >!
+
+    t:expect(ok \== .ok)
+    t:expect(v \== val)
+  end
+
+  put_val:('hello')
+  put_val:('world')
+
+  take_val:('hello')
+  take_val:'world'
+
+  put_val: 1
+  put_val: 2
+  put_val: 3
+  put_val: 4
+
+  take_val: 3
+  take_val: 4
+
+  put_val: 'again'
+
+  ch:close!
+
+  take_val:'again'
+
+  ok = ch >!
+
+  t:expect(ok \== .none)
+end
+
 'tests' :use

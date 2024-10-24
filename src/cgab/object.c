@@ -180,6 +180,14 @@ int rec_dump_properties(FILE *stream, gab_value rec, int depth) {
   return 0;
 }
 
+static const char *chan_strs[] = {
+    [kGAB_CHANNEL] = "",
+    [kGAB_CHANNELBUFFERED] = "",
+    [kGAB_CHANNELBUFFEREDDROPPING] = "dropping ",
+    [kGAB_CHANNELBUFFEREDSLIDING] = "sliding ",
+    [kGAB_CHANNELCLOSED] = "closed ",
+};
+
 int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
   switch (gab_valkind(self)) {
   case kGAB_PRIMITIVE:
@@ -205,7 +213,8 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
   case kGAB_CHANNELBUFFEREDSLIDING:
   case kGAB_CHANNELBUFFEREDDROPPING:
   case kGAB_CHANNELCLOSED:
-    return fprintf(stream, "<gab.channel %p>", GAB_VAL_TO_CHANNEL(self));
+    return fprintf(stream, "<gab.channel %s%lu>", chan_strs[gab_valkind(self)],
+                   GAB_VAL_TO_CHANNEL(self)->len);
   case kGAB_FIBER:
   case kGAB_FIBERRUNNING:
   case kGAB_FIBERDONE:
@@ -1105,6 +1114,9 @@ a_gab_value *gab_fibawait(struct gab_triple gab, gab_value f) {
 
 gab_value gab_channel(struct gab_triple gab, uint64_t len,
                       enum gab_chnpolicy_k p) {
+  if (p && !len)
+    len = 1;
+
   enum gab_kind k = len ? kGAB_CHANNELBUFFERED : kGAB_CHANNEL;
   len = len ? len : 1;
 
@@ -1181,19 +1193,95 @@ void channel_put(struct gab_obj_channel *channel, gab_value value) {
 }
 
 gab_value channel_take(struct gab_obj_channel *channel) {
+  assert(channel->head < channel->len);
+
   gab_value res = channel->data[channel->head];
 
   if (channel->head == channel->tail) {
     channel->head = -1;
     channel->tail = -1;
-  } else {
-    if (channel->head == channel->len)
-      channel->head = 0;
-    else
-      channel->head++;
+    return res;
   }
 
+  channel->head++;
+
+  if (channel->head == channel->len)
+    channel->head = 0;
+
   return res;
+}
+
+_Thread_local struct timespec t_put;
+bool channel_block_while_full(struct gab_triple gab,
+                              struct gab_obj_channel *channel, gab_value c,
+                              size_t nms) {
+  while (gab_chnisfull(c)) {
+    gab_yield(gab);
+
+    timespec_get(&t_put, TIME_UTC);
+    t_put.tv_nsec += GAB_CHANNEL_STEP_NS;
+
+    // Check for overflow into the next second
+    if (t_put.tv_nsec > 1000000000)
+      t_put.tv_nsec -= 1000000000, t_put.tv_sec += 1;
+
+    assert(t_put.tv_nsec < 1000000000);
+    int res = cnd_timedwait(&channel->t_cnd, &channel->mtx, &t_put);
+    assert(res != thrd_error);
+
+    if (gab_chnisclosed(c))
+      return mtx_unlock(&channel->mtx), false;
+  }
+
+  return true;
+}
+
+_Thread_local struct timespec t_take;
+bool channel_block_while_empty(struct gab_triple gab,
+                               struct gab_obj_channel *channel, gab_value c,
+                               size_t nms) {
+  uint64_t timeout = 0;
+
+  while (gab_chnisempty(c)) {
+    gab_yield(gab);
+
+    timespec_get(&t_take, TIME_UTC);
+    t_take.tv_nsec += GAB_CHANNEL_STEP_NS;
+
+    // Check for overflow into the next second
+    if (t_take.tv_nsec > 1000000000)
+      t_take.tv_nsec -= 1000000000, t_take.tv_sec += 1;
+
+    assert(t_take.tv_nsec < 1000000000);
+    int res = cnd_timedwait(&channel->p_cnd, &channel->mtx, &t_take);
+    assert(res != thrd_error);
+
+    if (res == thrd_timedout)
+      timeout += cGAB_CHANNEL_STEP_MS;
+
+    if (gab_chnisclosed(c))
+      return mtx_unlock(&channel->mtx), false;
+
+    if (timeout > nms)
+      return mtx_unlock(&channel->mtx), false;
+  }
+
+  return true;
+}
+
+gab_value channel_blocking_take(struct gab_triple gab,
+                                struct gab_obj_channel *channel, gab_value c,
+                                size_t nms) {
+  mtx_lock(&channel->mtx);
+
+  if (!channel_block_while_empty(gab, channel, c, nms))
+    return mtx_unlock(&channel->mtx), gab_undefined;
+
+  gab_value res = channel_take(channel);
+
+  cnd_signal(&channel->t_cnd);
+
+  return mtx_unlock(&channel->mtx), res;
 }
 
 int gab_chnput(struct gab_triple gab, gab_value c, gab_value value) {
@@ -1206,32 +1294,33 @@ int gab_chnput(struct gab_triple gab, gab_value c, gab_value value) {
   case kGAB_CHANNEL:
     mtx_lock(&channel->mtx);
 
-    while (gab_chnisfull(c)) {
-      gab_yield(gab);
-
-      struct timespec t;
-      timespec_get(&t, TIME_UTC);
-      t.tv_nsec += GAB_CHANNEL_STEP_NS;
-
-      // Check for overflow into the next second
-      if (t.tv_nsec > 1000000000)
-        t.tv_nsec -= 1000000000, t.tv_sec += 1;
-
-      assert(t.tv_nsec < 1000000000);
-      int res = cnd_timedwait(&channel->t_cnd, &channel->mtx, &t);
-      assert(res != thrd_error);
-
-      if (gab_chnisclosed(c))
-        return mtx_unlock(&channel->mtx);
-    }
+    if (!channel_block_while_full(gab, channel, c, -1))
+      return mtx_unlock(&channel->mtx);
 
     channel_put(channel, value);
 
     cnd_signal(&channel->p_cnd);
 
-    mtx_unlock(&channel->mtx);
+    // If a taker never arrives, we should remove our value as if our put
+    // failed.
+    if (!channel_block_while_full(gab, channel, c, -1))
+      channel_take(channel);
 
-    break;
+    return mtx_unlock(&channel->mtx);
+  case kGAB_CHANNELBUFFERED: {
+    mtx_lock(&channel->mtx);
+
+    if (!channel_block_while_full(gab, channel, c, -1))
+      return mtx_unlock(&channel->mtx);
+
+    gab_iref(gab, value);
+
+    channel_put(channel, value);
+
+    cnd_signal(&channel->p_cnd);
+
+    return mtx_unlock(&channel->mtx);
+  }
   case kGAB_CHANNELBUFFEREDSLIDING: {
     mtx_lock(&channel->mtx);
 
@@ -1274,47 +1363,6 @@ gab_value gab_chntake(struct gab_triple gab, gab_value c) {
   return gab_tchntake(gab, c, -1);
 }
 
-gab_value channel_blocking_take(struct gab_triple gab,
-                                struct gab_obj_channel *channel, gab_value c,
-                                size_t nms) {
-  uint64_t timeout = 0;
-
-  mtx_lock(&channel->mtx);
-
-  while (gab_chnisempty(c)) {
-    gab_yield(gab);
-
-    struct timespec t;
-    timespec_get(&t, TIME_UTC);
-    t.tv_nsec += GAB_CHANNEL_STEP_NS;
-
-    // Check for overflow into the next second
-    if (t.tv_nsec > 1000000000)
-      t.tv_nsec -= 1000000000, t.tv_sec += 1;
-
-    assert(t.tv_nsec < 1000000000);
-    int res = cnd_timedwait(&channel->p_cnd, &channel->mtx, &t);
-    assert(res != thrd_error);
-
-    if (res == thrd_timedout)
-      timeout += cGAB_CHANNEL_STEP_MS;
-
-    if (gab_chnisclosed(c))
-      return mtx_unlock(&channel->mtx), gab_undefined;
-
-    if (timeout > nms)
-      return mtx_unlock(&channel->mtx), gab_undefined;
-  }
-
-  gab_value res = channel_take(channel);
-
-  cnd_signal(&channel->t_cnd);
-
-  mtx_unlock(&channel->mtx);
-
-  return res;
-}
-
 gab_value gab_tchntake(struct gab_triple gab, gab_value c, uint64_t nms) {
   assert(gab_valkind(c) >= kGAB_CHANNEL &&
          gab_valkind(c) <= kGAB_CHANNELCLOSED);
@@ -1322,9 +1370,9 @@ gab_value gab_tchntake(struct gab_triple gab, gab_value c, uint64_t nms) {
   struct gab_obj_channel *channel = GAB_VAL_TO_CHANNEL(c);
 
   switch (channel->header.kind) {
+  case kGAB_CHANNELBUFFEREDDROPPING:
   case kGAB_CHANNELBUFFERED:
   case kGAB_CHANNELBUFFEREDSLIDING:
-  case kGAB_CHANNELBUFFEREDDROPPING:
     return gab_dref(gab, channel_blocking_take(gab, channel, c, nms));
   case kGAB_CHANNEL:
     return channel_blocking_take(gab, channel, c, nms);
@@ -1338,9 +1386,7 @@ gab_value gab_tchntake(struct gab_triple gab, gab_value c, uint64_t nms) {
 
     cnd_signal(&channel->t_cnd);
 
-    mtx_unlock(&channel->mtx);
-
-    return res;
+    return mtx_unlock(&channel->mtx), gab_dref(gab, res);
   }
   default:
     break;

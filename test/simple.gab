@@ -1,13 +1,22 @@
-v = 'hi'
+ch = .gab.channel:2 :<! 'hi' :<! 'world'
 
-() => do
-  v = 2
-  () => do
-    v = 2
+\join :def! (rest[]) => .gab.string:(self rest**)
 
-    () => do
-      () => v
-    end
-  end
-  v:print
-end
+ch:println
+
+ch :>! :join:println
+ch :>! :join:println
+
+ch = .gab.channel:(2 .sliding) :<! 'hi' :<! 'world' :<! 'hello' :<! 'world'
+
+ch:println
+
+ch :>! :join:println
+ch :>! :join:println
+
+ch = .gab.channel:(2 .dropping) :<! 'hi' :<! 'world' :<! 'hello' :<! 'world'
+
+ch:println
+
+ch :>! :join:println
+ch :>! :join:println

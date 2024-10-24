@@ -45,7 +45,7 @@ a_gab_value *gab_strlib_slice(struct gab_triple gab, uint64_t argc,
 a_gab_value *gab_strlib_has(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]);
 
-a_gab_value *gab_strlib_strings_into(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_strlib_string_into(struct gab_triple gab, uint64_t argc,
                                      gab_value argv[argc]);
 
 a_gab_value *gab_strlib_sigil_into(struct gab_triple gab, uint64_t argc,
@@ -377,8 +377,28 @@ struct primitive kind_primitives[] = {
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_PUT),
     },
     {
+        .name = mGAB_PUT,
+        .kind = kGAB_CHANNELBUFFEREDSLIDING,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_PUT),
+    },
+    {
+        .name = mGAB_PUT,
+        .kind = kGAB_CHANNELBUFFEREDDROPPING,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_PUT),
+    },
+    {
         .name = mGAB_TAKE,
         .kind = kGAB_CHANNEL,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_TAKE),
+    },
+    {
+        .name = mGAB_TAKE,
+        .kind = kGAB_CHANNELBUFFEREDSLIDING,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_TAKE),
+    },
+    {
+        .name = mGAB_TAKE,
+        .kind = kGAB_CHANNELBUFFEREDDROPPING,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_TAKE),
     },
 };
@@ -468,6 +488,11 @@ struct native kind_natives[] = {
         .name = "numbers.into",
         .kind = kGAB_STRING,
         .native = gab_strlib_numbers_into,
+    },
+    {
+        .name = "strings.into",
+        .kind = kGAB_UNDEFINED,
+        .native = gab_strlib_string_into,
     },
     {
         .name = "def!",
@@ -814,7 +839,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->shapes = __gab_shape(gab, 0);
   eg->messages = gab_erecord(gab);
-  eg->work_channel = gab_channel(gab, 0, 0);
+  eg->work_channel = gab_channel(gab, 10, 0);
 
   gab_iref(gab, eg->work_channel);
 
@@ -873,6 +898,10 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->types[kGAB_CHANNELBUFFERED] = gab_string(gab, "gab.channel");
   gab_iref(gab, eg->types[kGAB_CHANNELBUFFERED]);
+  eg->types[kGAB_CHANNELBUFFEREDSLIDING] = gab_string(gab, "gab.channel");
+  gab_iref(gab, eg->types[kGAB_CHANNELBUFFEREDSLIDING]);
+  eg->types[kGAB_CHANNELBUFFEREDDROPPING] = gab_string(gab, "gab.channel");
+  gab_iref(gab, eg->types[kGAB_CHANNELBUFFEREDDROPPING]);
 
   eg->types[kGAB_PRIMITIVE] = gab_string(gab, "gab.primitive");
   gab_iref(gab, eg->types[kGAB_PRIMITIVE]);

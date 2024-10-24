@@ -2,13 +2,12 @@ i = 'iter':use
 
 implementations = .gab.message :specializations
 
-# Now the |> chain is being parsed as *part* of the filter's block.
-xf = i:filter((_, m) => m:strings.into:ends_with? '.test')
-     |> i:map((impls m) => do
-          (path[] _) = m:strings.into:split '.'
+xf = i:filter((_ m) => m:strings.into:ends_with? '.test')
+  |> i:map((impls m) => do
+      (path[] _) = m:strings.into:split '.'
 
-          (path, { \path path \impls impls })
-     end)
+      (path { \path path, \impls impls })
+  end)
 
 # Collect all the implementations into a giant, nested map.
 tests.all = implementations:transduce(
@@ -61,7 +60,7 @@ test.result.fail.t = { \test.path .nil \test.receiver .nil \test.meta .nil .fals
 end
 
 tests.all:each(behaviors suite) => do 
-  #.gab.fiber: _ => do
+  .gab.fiber: _ => do
     behaviors:each(runnable) => do 
       (path body) = runnable**
       body:each(t r) => do
@@ -69,6 +68,12 @@ tests.all:each(behaviors suite) => do
       end
     end
 
+    .gab.string:(
+      "Suite: "
+      suite
+      " is done!"
+    ):println
+
     suites.all :at! suite :close!
-  #end
+  end
 end

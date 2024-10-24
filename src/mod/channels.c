@@ -4,6 +4,8 @@ a_gab_value *gab_chnlib_close(struct gab_triple gab, uint64_t argc,
                            gab_value argv[argc]) {
   gab_chnclose(gab_arg(0));
 
+  gab_vmpush(gab_vm(gab), gab_arg(0));
+
   return nullptr;
 }
 
