@@ -1860,7 +1860,7 @@ CASE_CODE(SEND_PRIMITIVE_CHANNEL) {
 
   SEND_GUARD_CACHED_RECEIVER_TYPE(PEEK_N(have));
 
-  gab_value chan = gab_channel(GAB(), 0);
+  gab_value chan = gab_channel(GAB(), 0, 0);
 
   DROP_N(have);
   PUSH(chan);

@@ -1,6 +1,5 @@
 CC 		 = zig cc
 CFLAGS = -std=c23 --target=$(TARGET) -fPIC -Wall -DGAB_PREFIX=\"${GAB_PREFIX}\" ${GAB_CCFLAGS}
-#CFLAGS = -std=c17 -fsanitize=undefined -fPIC -Wall -DGAB_PREFIX=\"${GAB_PREFIX}\" ${GAB_CCFLAGS}
 
 SRC_PREFIX 	 	 	= src/**
 BUILD_PREFIX 	 	= build-$(TARGET)
@@ -29,8 +28,8 @@ all: $(BUILD_PREFIX)/gab
 
 -include $(OS_OBJ:.o=.d) $(CGAB_OBJ:.o=.d) $(GAB_OBJ:.o=.d) $(CMOD_SHARED:.so=.d)
 
-$(BUILD_PREFIX)/gab: $(GAB_OBJ) $(CMOD_OBJ) $(BUILD_PREFIX)/libcgab.a
-	$(CC) $(CFLAGS) $(INCLUDE) $(GAB_OBJ) $(CMOD_OBJ) $(LD_CGAB) -o $@
+$(BUILD_PREFIX)/gab: $(GAB_OBJ) $(CMOD_OBJ) $(CGAB_OBJ)
+	$(CC) $(CFLAGS) $(INCLUDE) $(GAB_OBJ) $(CGAB_OBJ) $(CMOD_OBJ) -o $@
 
 $(BUILD_PREFIX)/libcgab.a: $(OS_OBJ) $(CGAB_OBJ)
 	zig ar rcs $@ $^

@@ -1213,6 +1213,11 @@ int gab_chnput(struct gab_triple gab, gab_value c, gab_value value) {
       timespec_get(&t, TIME_UTC);
       t.tv_nsec += GAB_CHANNEL_STEP_NS;
 
+      // Check for overflow into the next second
+      if (t.tv_nsec > 1000000000)
+        t.tv_nsec -= 1000000000, t.tv_sec += 1;
+
+      assert(t.tv_nsec < 1000000000);
       int res = cnd_timedwait(&channel->t_cnd, &channel->mtx, &t);
       assert(res != thrd_error);
 
@@ -1283,8 +1288,12 @@ gab_value channel_blocking_take(struct gab_triple gab,
     timespec_get(&t, TIME_UTC);
     t.tv_nsec += GAB_CHANNEL_STEP_NS;
 
-    int res = cnd_timedwait(&channel->p_cnd, &channel->mtx, &t);
+    // Check for overflow into the next second
+    if (t.tv_nsec > 1000000000)
+      t.tv_nsec -= 1000000000, t.tv_sec += 1;
 
+    assert(t.tv_nsec < 1000000000);
+    int res = cnd_timedwait(&channel->p_cnd, &channel->mtx, &t);
     assert(res != thrd_error);
 
     if (res == thrd_timedout)

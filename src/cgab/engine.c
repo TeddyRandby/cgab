@@ -814,7 +814,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->shapes = __gab_shape(gab, 0);
   eg->messages = gab_erecord(gab);
-  eg->work_channel = gab_channel(gab, 0);
+  eg->work_channel = gab_channel(gab, 0, 0);
 
   gab_iref(gab, eg->work_channel);
 
