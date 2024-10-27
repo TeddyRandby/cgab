@@ -46,7 +46,7 @@ a_gab_value *gab_strlib_has(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]);
 
 a_gab_value *gab_strlib_string_into(struct gab_triple gab, uint64_t argc,
-                                     gab_value argv[argc]);
+                                    gab_value argv[argc]);
 
 a_gab_value *gab_strlib_sigil_into(struct gab_triple gab, uint64_t argc,
                                    gab_value argv[argc]);
@@ -707,7 +707,8 @@ int32_t worker_job(void *data) {
   fprintf(stdout, "[WORKER %i] SPAWNED\n", gab.wkid);
 #endif
 
-  while (!gab_chnisclosed(gab.eg->work_channel)) {
+  while (!gab_chnisclosed(gab.eg->work_channel) ||
+         !gab_chnisempty(gab.eg->work_channel)) {
 
 #if cGAB_LOG_EG
     fprintf(stdout, "[WORKER %i] TAKING WITH TIMEOUT %lus\n", gab.wkid,
@@ -839,7 +840,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->shapes = __gab_shape(gab, 0);
   eg->messages = gab_erecord(gab);
-  eg->work_channel = gab_channel(gab, 10, 0);
+  eg->work_channel = gab_channel(gab, 0, 0);
 
   gab_iref(gab, eg->work_channel);
 
@@ -983,7 +984,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 void gab_destroy(struct gab_triple gab) {
 
   // Wait until there is no work to be done
-  while (gab_chnisfull(gab.eg->work_channel))
+  while (!gab_chnisempty(gab.eg->work_channel))
     ;
 
   gab_chnclose(gab.eg->work_channel);

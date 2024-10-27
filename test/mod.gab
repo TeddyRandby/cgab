@@ -353,10 +353,6 @@ end)
   t:expect(result:hi, \== 4)
 end)
 
-\placeholder.smth.test :def! t => do
-  'placeholder':println
-end
-
 \channels.basic :def! t => do
   ch = .gab.channel:
 
@@ -495,4 +491,4 @@ end
   t:expect(ok \== .none)
 end
 
-'tests' :use
+'tests' :use :()

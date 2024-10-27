@@ -1,22 +1,8 @@
-ch = .gab.channel:2 :<! 'hi' :<! 'world'
+ch = .gab.channel:()
 
-\join :def! (rest[]) => .gab.string:(self rest**)
+# There are 20 slots in the buffer, and 8 threads
+# So the runtime can handle spawning 27 fibers here
+1 :-> 27 :each () => .gab.fiber:() => ch >!
 
-ch:println
-
-ch :>! :join:println
-ch :>! :join:println
-
-ch = .gab.channel:(2 .sliding) :<! 'hi' :<! 'world' :<! 'hello' :<! 'world'
-
-ch:println
-
-ch :>! :join:println
-ch :>! :join:println
-
-ch = .gab.channel:(2 .dropping) :<! 'hi' :<! 'world' :<! 'hello' :<! 'world'
-
-ch:println
-
-ch :>! :join:println
-ch :>! :join:println
+# 28 fibers will clog this bad boy up, and we'll never get to this line
+1 :-> 27 :each () => ch <! 1 

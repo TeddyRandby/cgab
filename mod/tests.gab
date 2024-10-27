@@ -59,21 +59,17 @@ test.result.fail.t = { \test.path .nil \test.receiver .nil \test.meta .nil .fals
   end
 end
 
-tests.all:each(behaviors suite) => do 
+run = () => tests.all:each(behaviors suite) => do 
   .gab.fiber: _ => do
-    behaviors:each(runnable) => do 
+    behaviors:each (runnable) => do 
       (path body) = runnable**
       body:each(t r) => do
         t: { \test.path path, \test.receiver r }
       end
     end
 
-    .gab.string:(
-      "Suite: "
-      suite
-      " is done!"
-    ):println
-
     suites.all :at! suite :close!
   end
 end
+
+run
