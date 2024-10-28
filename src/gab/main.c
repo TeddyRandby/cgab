@@ -23,17 +23,11 @@ void run_repl(int flags) {
 }
 
 void run_src(struct gab_triple gab, s_char src, int flags, size_t jobs) {
-  a_gab_value *result = gab_exec(gab, (struct gab_exec_argt){
-                                          .name = MAIN_MODULE,
-                                          .source = (char *)src.data,
-                                          .flags = flags,
-                                      });
-
-  if (result) {
-    gab_negkeep(gab.eg, result->len, result->data);
-
-    a_gab_value_destroy(result);
-  }
+  gab_exec(gab, (struct gab_exec_argt){
+                    .name = MAIN_MODULE,
+                    .source = (char *)src.data,
+                    .flags = flags,
+                });
 }
 
 void run_string(const char *string, int flags, size_t jobs) {

@@ -728,6 +728,7 @@ a_gab_value *ok(OP_HANDLER_ARGS) {
   memcpy(results->data + 1, from, have * sizeof(gab_value));
 
   gab_niref(GAB(), 1, results->len, results->data);
+  gab_negkeep(EG(), results->len, results->data);
 
   VM()->sp = VM()->sb;
 

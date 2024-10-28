@@ -731,11 +731,9 @@ int32_t worker_job(void *data) {
 
     gab.eg->jobs[gab.wkid].fiber = fiber;
 
-    a_gab_value* res = gab_vmexec(gab, fiber);
+    gab_vmexec(gab, fiber);
 
     gab.eg->jobs[gab.wkid].fiber = gab_undefined;
-
-    gab_ndref(gab, 1, res->len, res->data);
   }
 
 #if cGAB_LOG_EG
@@ -1511,12 +1509,8 @@ a_gab_value *gab_use_file(struct gab_triple gab, const char *path) {
     parent->messages = f->messages;
   }
 
-  gab_negkeep(gab.eg, res->len - 1, res->data + 1);
-
   a_gab_value *final =
       gab_segmodput(gab.eg, path, pkg, res->len - 1, res->data + 1);
-
-  free(res);
 
   return final;
 }
