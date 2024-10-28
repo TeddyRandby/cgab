@@ -1,5 +1,7 @@
-CC 		 = zig cc
-CFLAGS = -std=c23 --target=$(TARGET) -fPIC -Wall -DGAB_PREFIX=\"${GAB_PREFIX}\" ${GAB_CCFLAGS}
+#CC 		 = zig cc
+#CFLAGS = -std=c23 --target=$(TARGET) -fPIC -Wall -DGAB_PREFIX=\"${GAB_PREFIX}\" ${GAB_CCFLAGS}
+CC 		 = clang
+CFLAGS = -std=c17 -fsanitize=address -fPIC -Wall -DGAB_PREFIX=\"${GAB_PREFIX}\" ${GAB_CCFLAGS}
 
 SRC_PREFIX 	 	 	= src/**
 BUILD_PREFIX 	 	= build-$(TARGET)

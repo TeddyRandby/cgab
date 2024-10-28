@@ -204,23 +204,23 @@ struct primitive all_primitives[] = {
 
 struct primitive sigil_primitives[] = {
     {
-        .name = mGAB_CALL,
-        .sigil = "gab.list",
+        .name = mGAB_MAKE,
+        .sigil = tGAB_LIST,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_LIST),
     },
     {
-        .name = mGAB_CALL,
-        .sigil = "gab.fiber",
+        .name = mGAB_MAKE,
+        .sigil = tGAB_FIBER,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_FIBER),
     },
     {
-        .name = mGAB_CALL,
-        .sigil = "gab.record",
+        .name = mGAB_MAKE,
+        .sigil = tGAB_RECORD,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_RECORD),
     },
     {
-        .name = mGAB_CALL,
-        .sigil = "gab.channel",
+        .name = mGAB_MAKE,
+        .sigil = tGAB_CHANNEL,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_CHANNEL),
     },
     {
@@ -630,22 +630,22 @@ struct native kind_natives[] = {
 struct native box_natives[] = {
     {
         .name = "read",
-        .box_type = "gab.io.stream",
+        .box_type = tGAB_IOSTREAM,
         .native = gab_iolib_read,
     },
     {
         .name = "write",
-        .box_type = "gab.io.stream",
+        .box_type = tGAB_IOSTREAM,
         .native = gab_iolib_write,
     },
     {
         .name = "scan",
-        .box_type = "gab.io.stream",
+        .box_type = tGAB_IOSTREAM,
         .native = gab_iolib_scan,
     },
     {
         .name = "until",
-        .box_type = "gab.io.stream",
+        .box_type = tGAB_IOSTREAM,
         .native = gab_iolib_until,
     },
 };
@@ -653,17 +653,17 @@ struct native box_natives[] = {
 struct native sig_natives[] = {
     {
         .name = "between",
-        .sigil = "gab.number",
+        .sigil = tGAB_NUMBER,
         .native = gab_numlib_between,
     },
     {
-        .name = mGAB_CALL,
-        .sigil = "gab.message",
+        .name = mGAB_MAKE,
+        .sigil = tGAB_MESSAGE,
         .native = gab_msglib_message,
     },
     {
         .name = "specializations",
-        .sigil = "gab.message",
+        .sigil = tGAB_MESSAGE,
         .native = gab_msglib_specs,
     },
 };
@@ -731,9 +731,11 @@ int32_t worker_job(void *data) {
 
     gab.eg->jobs[gab.wkid].fiber = fiber;
 
-    gab_vmexec(gab, fiber);
+    a_gab_value* res = gab_vmexec(gab, fiber);
 
     gab.eg->jobs[gab.wkid].fiber = gab_undefined;
+
+    gab_ndref(gab, 1, res->len, res->data);
   }
 
 #if cGAB_LOG_EG
@@ -846,65 +848,65 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->types[kGAB_UNDEFINED] = gab_undefined;
 
-  eg->types[kGAB_NUMBER] = gab_string(gab, "gab.number");
+  eg->types[kGAB_NUMBER] = gab_string(gab, tGAB_NUMBER);
   gab_iref(gab, eg->types[kGAB_NUMBER]);
 
-  eg->types[kGAB_STRING] = gab_string(gab, "gab.string");
+  eg->types[kGAB_STRING] = gab_string(gab, tGAB_STRING);
   gab_iref(gab, eg->types[kGAB_STRING]);
 
-  eg->types[kGAB_SYMBOL] = gab_string(gab, "gab.symbol");
+  eg->types[kGAB_SYMBOL] = gab_string(gab, tGAB_SYMBOL);
   gab_iref(gab, eg->types[kGAB_SYMBOL]);
 
-  eg->types[kGAB_SIGIL] = gab_string(gab, "gab.sigil");
+  eg->types[kGAB_SIGIL] = gab_string(gab, tGAB_SIGIL);
   gab_iref(gab, eg->types[kGAB_SIGIL]);
 
-  eg->types[kGAB_MESSAGE] = gab_string(gab, "gab.message");
+  eg->types[kGAB_MESSAGE] = gab_string(gab, tGAB_MESSAGE);
   gab_iref(gab, eg->types[kGAB_MESSAGE]);
 
-  eg->types[kGAB_PROTOTYPE] = gab_string(gab, "gab.prototype");
+  eg->types[kGAB_PROTOTYPE] = gab_string(gab, tGAB_PROTOTYPE);
   gab_iref(gab, eg->types[kGAB_PROTOTYPE]);
 
-  eg->types[kGAB_NATIVE] = gab_string(gab, "gab.native");
+  eg->types[kGAB_NATIVE] = gab_string(gab, tGAB_NATIVE);
   gab_iref(gab, eg->types[kGAB_NATIVE]);
 
-  eg->types[kGAB_BLOCK] = gab_string(gab, "gab.block");
+  eg->types[kGAB_BLOCK] = gab_string(gab, tGAB_BLOCK);
   gab_iref(gab, eg->types[kGAB_BLOCK]);
 
-  eg->types[kGAB_SHAPE] = gab_string(gab, "gab.shape");
+  eg->types[kGAB_SHAPE] = gab_string(gab, tGAB_SHAPE);
   gab_iref(gab, eg->types[kGAB_SHAPE]);
 
-  eg->types[kGAB_SHAPELIST] = gab_string(gab, "gab.shape");
+  eg->types[kGAB_SHAPELIST] = gab_string(gab, tGAB_SHAPE);
   gab_iref(gab, eg->types[kGAB_SHAPELIST]);
 
-  eg->types[kGAB_RECORD] = gab_string(gab, "gab.record");
+  eg->types[kGAB_RECORD] = gab_string(gab, tGAB_RECORD);
   gab_iref(gab, eg->types[kGAB_RECORD]);
-  eg->types[kGAB_RECORDNODE] = gab_string(gab, "gab.record");
+  eg->types[kGAB_RECORDNODE] = gab_string(gab, tGAB_RECORD);
   gab_iref(gab, eg->types[kGAB_RECORDNODE]);
 
-  eg->types[kGAB_BOX] = gab_string(gab, "gab.box");
+  eg->types[kGAB_BOX] = gab_string(gab, tGAB_BOX);
   gab_iref(gab, eg->types[kGAB_BOX]);
 
-  eg->types[kGAB_FIBER] = gab_string(gab, "gab.fiber");
+  eg->types[kGAB_FIBER] = gab_string(gab, tGAB_FIBER);
   gab_iref(gab, eg->types[kGAB_FIBER]);
-  eg->types[kGAB_FIBERDONE] = gab_string(gab, "gab.fiber");
+  eg->types[kGAB_FIBERDONE] = gab_string(gab, tGAB_FIBER);
   gab_iref(gab, eg->types[kGAB_FIBERDONE]);
-  eg->types[kGAB_FIBERRUNNING] = gab_string(gab, "gab.fiber");
+  eg->types[kGAB_FIBERRUNNING] = gab_string(gab, tGAB_FIBER);
   gab_iref(gab, eg->types[kGAB_FIBERRUNNING]);
 
-  eg->types[kGAB_CHANNEL] = gab_string(gab, "gab.channel");
+  eg->types[kGAB_CHANNEL] = gab_string(gab, tGAB_CHANNEL);
   gab_iref(gab, eg->types[kGAB_CHANNEL]);
 
-  eg->types[kGAB_CHANNELCLOSED] = gab_string(gab, "gab.channel");
+  eg->types[kGAB_CHANNELCLOSED] = gab_string(gab, tGAB_CHANNEL);
   gab_iref(gab, eg->types[kGAB_CHANNELCLOSED]);
 
-  eg->types[kGAB_CHANNELBUFFERED] = gab_string(gab, "gab.channel");
+  eg->types[kGAB_CHANNELBUFFERED] = gab_string(gab, tGAB_CHANNEL);
   gab_iref(gab, eg->types[kGAB_CHANNELBUFFERED]);
-  eg->types[kGAB_CHANNELBUFFEREDSLIDING] = gab_string(gab, "gab.channel");
+  eg->types[kGAB_CHANNELBUFFEREDSLIDING] = gab_string(gab, tGAB_CHANNEL);
   gab_iref(gab, eg->types[kGAB_CHANNELBUFFEREDSLIDING]);
-  eg->types[kGAB_CHANNELBUFFEREDDROPPING] = gab_string(gab, "gab.channel");
+  eg->types[kGAB_CHANNELBUFFEREDDROPPING] = gab_string(gab, tGAB_CHANNEL);
   gab_iref(gab, eg->types[kGAB_CHANNELBUFFEREDDROPPING]);
 
-  eg->types[kGAB_PRIMITIVE] = gab_string(gab, "gab.primitive");
+  eg->types[kGAB_PRIMITIVE] = gab_string(gab, tGAB_PRIMITIVE);
   gab_iref(gab, eg->types[kGAB_PRIMITIVE]);
 
   gab_negkeep(gab.eg, kGAB_NKINDS, eg->types);

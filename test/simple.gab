@@ -1,8 +1,10 @@
 ch = .gab.channel:()
 
+rg = 1 -> 27
+
 # There are 20 slots in the buffer, and 8 threads
 # So the runtime can handle spawning 27 fibers here
-1 :-> 27 :each () => .gab.fiber:() => ch >!
+rg :each () => .gab.fiber:() => ch >!
 
 # 28 fibers will clog this bad boy up, and we'll never get to this line
-1 :-> 27 :each () => ch <! 1 
+rg :each () => ch <! 1 

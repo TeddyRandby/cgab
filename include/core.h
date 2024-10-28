@@ -232,6 +232,25 @@ enum gab_flags {
 #define mGAB_PUT "<!"
 #define mGAB_ASSIGN "="
 #define mGAB_BLOCK "=>"
+#define mGAB_MAKE "make"
+
+#define tGAB_STRING "string"
+#define tGAB_SIGIL "sigil"
+#define tGAB_MESSAGE "message"
+#define tGAB_SYMBOL "symbol"
+#define tGAB_PRIMITIVE "primitive"
+#define tGAB_NUMBER "number"
+#define tGAB_NATIVE "native"
+#define tGAB_PROTOTYPE "prototype"
+#define tGAB_BLOCK "block"
+#define tGAB_RECORD "record"
+#define tGAB_LIST "list"
+#define tGAB_SHAPE "shape"
+#define tGAB_BOX "box"
+#define tGAB_FIBER "fiber"
+#define tGAB_CHANNEL "channel"
+
+#define tGAB_IOSTREAM "io.stream"
 
 #define T char
 #include "slice.h"

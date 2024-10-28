@@ -1,4 +1,4 @@
-iter       = 'iter':use
+'transducers':use
 'strings':use
 
 truthy_values = []
@@ -35,13 +35,13 @@ falsey_values :defmodule! {
 }
 
 \:def!(
-  .gab.option
+  .option
   (cond, data[]) => do
     (cond:options.into, data**)
   end)
 
 \:def!(
-  .gab.result
+  .result
   (cond, data[]) => (cond:results.into, data**))
 
 [.ok] :defmodule! {
@@ -92,13 +92,13 @@ falsey_values :defmodule! {
       self:reduce(acc, td :iter.apply r)
     end,
     \each f => do
-      self:transduce(.nil, \all, iter:tap f)
+      self:transduce(.nil, \all, .td:tap f)
     end,
     \map f => do
-      self:collect(iter:map f)
+      self:collect(.td:map f)
     end,
     \filter f => do
-      self:collect(iter:filter f)
+      self:collect(.td:filter f)
     end,
     \join xf => do
       self:transduce("", \+, xf)
@@ -109,7 +109,7 @@ falsey_values :defmodule! {
   }
 end
 
-channels.t = 'gab.channel'
+channels.t = 'channel'
 
 # Channel's implementation of the seq protocol.
 # It isn't totally true to the requirements - 
@@ -129,14 +129,14 @@ channels.t = 'gab.channel'
 channels.t :def.seq!
 
 # Implement the reducer protocol for blocks and messages
-['gab.block' 'gab.message'] :defmodule! {
+['block' 'message'] :defmodule! {
   \reduce.step (acc, xs[]) => do
     (.next self self:(acc xs**))
   end
   \reduce.done acc => acc
 }
 
-records.t = 'gab.record'
+records.t = 'record'
 
 [records.t] :defmodule! {
   \has? key => do
@@ -164,7 +164,7 @@ range.t :def.seq!
   end
   \seqs.next n => do
     nx = n + 1
-    .gab.option:(n < self:to, nx, nx)
+    .option:(n < self:to, nx, nx)
   end
 }
 
@@ -172,16 +172,16 @@ range.t :def.seq!
   .nil to => do
     { \from 0, \to to }
   end
-  'gab.number' from => do
+  'number' from => do
     { \from from, \to self }
   end
 }
 
-\ :def! (.gab.range (from to) => do
+\ :def! (.range (from to) => do
   (to from) :range.into
 end)
 
-numbers.t = 'gab.number'
+numbers.t = 'number'
 
 \is_n? :def! .false
 \is_n? :def! (numbers.t, .true)

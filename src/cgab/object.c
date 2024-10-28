@@ -191,7 +191,7 @@ static const char *chan_strs[] = {
 int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
   switch (gab_valkind(self)) {
   case kGAB_PRIMITIVE:
-    return fprintf(stream, "<gab.primitive %s>",
+    return fprintf(stream, "<" tGAB_PRIMITIVE " %s>",
                    gab_opcode_names[gab_valtop(self)]);
   case kGAB_UNDEFINED:
     return fprintf(stream, "undefined");
@@ -206,19 +206,19 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
     return fprintf(stream, "\\%s", gab_strdata(&self));
   case kGAB_SHAPE:
   case kGAB_SHAPELIST:
-    return fprintf(stream, "<gab.shape ") +
+    return fprintf(stream, "<" tGAB_SHAPE " ") +
            shape_dump_keys(stream, self, depth) + fprintf(stream, ">");
   case kGAB_CHANNEL:
   case kGAB_CHANNELBUFFERED:
   case kGAB_CHANNELBUFFEREDSLIDING:
   case kGAB_CHANNELBUFFEREDDROPPING:
   case kGAB_CHANNELCLOSED:
-    return fprintf(stream, "<gab.channel %s%lu>", chan_strs[gab_valkind(self)],
-                   GAB_VAL_TO_CHANNEL(self)->len);
+    return fprintf(stream, "<" tGAB_CHANNEL " %s%lu>",
+                   chan_strs[gab_valkind(self)], GAB_VAL_TO_CHANNEL(self)->len);
   case kGAB_FIBER:
   case kGAB_FIBERRUNNING:
   case kGAB_FIBERDONE:
-    return fprintf(stream, "<gab.fiber %p>", GAB_VAL_TO_FIBER(self));
+    return fprintf(stream, "<" tGAB_FIBER " %p>", GAB_VAL_TO_FIBER(self));
   case kGAB_RECORD:
     if (gab_valkind(gab_recshp(self)) == kGAB_SHAPELIST)
       return fprintf(stream, "[") + rec_dump_values(stream, self, depth) +
@@ -228,27 +228,29 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
              fprintf(stream, "}");
   case kGAB_RECORDNODE:
     return rec_dump_properties(stream, self, depth);
-  case kGAB_BOX:
+  case kGAB_BOX: {
     struct gab_obj_box *con = GAB_VAL_TO_BOX(self);
-    return fprintf(stream, "<") + gab_fvalinspect(stream, con->type, depth) +
+    return fprintf(stream, "<" tGAB_BOX " ") +
+           gab_fvalinspect(stream, con->type, depth) +
            fprintf(stream, " %p>", con->data);
+  }
   case kGAB_BLOCK: {
     struct gab_obj_block *blk = GAB_VAL_TO_BLOCK(self);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(blk->p);
     uint64_t line = gab_srcline(p->src, p->offset);
-    return fprintf(stream, "<gab.block ") +
+    return fprintf(stream, "<" tGAB_BLOCK " ") +
            gab_fvalinspect(stream, gab_srcname(p->src), depth) +
            fprintf(stream, ":%" PRIu64 ">", line);
   }
   case kGAB_NATIVE: {
     struct gab_obj_native *n = GAB_VAL_TO_NATIVE(self);
-    return fprintf(stream, "<gab.native ") +
+    return fprintf(stream, "<" tGAB_NATIVE " ") +
            gab_fvalinspect(stream, n->name, depth) + fprintf(stream, ">");
   }
   case kGAB_PROTOTYPE: {
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(self);
     uint64_t line = gab_srcline(p->src, p->offset);
-    return fprintf(stream, "<gab.prototype ") +
+    return fprintf(stream, "<" tGAB_PROTOTYPE " ") +
            gab_fvalinspect(stream, gab_srcname(p->src), depth) +
            fprintf(stream, ":%" PRIu64 ">", line);
   }
@@ -272,6 +274,12 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
     cnd_destroy(&chn->t_cnd);
     break;
   }
+  case kGAB_FIBERDONE: {
+    struct gab_obj_fiber *fib = (struct gab_obj_fiber *)self;
+    assert(fib->res);
+    a_gab_value_destroy(fib->res);
+    break;
+  };
   case kGAB_SHAPE:
   case kGAB_SHAPELIST: {
     struct gab_obj_shape *shp = (struct gab_obj_shape *)self;

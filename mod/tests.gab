@@ -1,9 +1,9 @@
-i = 'iter':use
+'transducers':use
 
-implementations = .gab.message :specializations
+implementations = .message :specializations
 
-xf = i:filter((_ m) => m:strings.into:ends_with? '.test')
-  |> i:map((impls m) => do
+xf = .td:filter((_ m) => m:strings.into:ends_with? '.test')
+  |> .td:map((impls m) => do
       (path[] _) = m:strings.into:split '.'
 
       (path { \path path, \impls impls })
@@ -18,11 +18,11 @@ tests.all = implementations:transduce(
 
 suites.all = tests.all:reduce(
   {}
-  (suites _ suite) => suites:put(suite .gab.channel:)
+  (suites _ suite) => suites:put(suite .channel:make)
 )
 
 \test.compare :def! (
-  'gab.block' 'gab.message'
+  'block' 'message'
   (lhs rhs) => self:(lhs, rhs)
 )
 
@@ -52,7 +52,7 @@ test.result.fail.t = { \test.path .nil \test.receiver .nil \test.meta .nil .fals
   end,
 }
 
-.gab.fiber: _ => do
+.fiber:make () => do
   suites.all :each (c s) => do
     "✔ $\n" :printf (s)
     c :each \test.result.display
@@ -60,7 +60,7 @@ test.result.fail.t = { \test.path .nil \test.receiver .nil \test.meta .nil .fals
 end
 
 run = () => tests.all:each(behaviors suite) => do 
-  .gab.fiber: _ => do
+  .fiber:make () => do
     behaviors:each (runnable) => do 
       (path body) = runnable**
       body:each(t r) => do

@@ -295,7 +295,7 @@ end)
 end)
 
 \messages.use_more_specific_spec.test :def! (t => do
-  \test :def! ('gab.number' _ => do
+  \test :def! ('number' _ => do
       self + 1
   end)
 
@@ -314,7 +314,7 @@ end)
 end)
 
 \messages.send_constants.test :def! (t => do
-  \hi :def! ('gab.number' .test)
+  \hi :def! ('number' .test)
 
   t:expect(1:hi, \== .test)
 end)
@@ -354,9 +354,9 @@ end)
 end)
 
 \channels.basic :def! t => do
-  ch = .gab.channel:
+  ch = .channel:make
 
-  .gab.fiber: () => ch <! 'test'
+  .fiber:make () => ch <! 'test'
 
   (ok v) = ch >!
 
@@ -371,9 +371,9 @@ end)
 end
 
 \channels.handle_multiple_blocking_puts :def! t => do
-  ch = .gab.channel:
+  ch = .channel:make
 
-  blocking_put = (v) => .gab.fiber:() => ch <! v
+  blocking_put = (v) => .fiber:make() => ch <! v
 
   blocking_put:(1)
   blocking_put:(2)
@@ -387,13 +387,13 @@ end
 end
 
 \channels.be_buffered :def! t => do
-  ch = .gab.channel:3
+  ch = .channel:make 3
 
   put_hi = () => ch <! 'hi'
 
-  .gab.fiber: put_hi
-  .gab.fiber: put_hi
-  .gab.fiber: put_hi
+  .fiber:make put_hi
+  .fiber:make put_hi
+  .fiber:make put_hi
 
   take_hi = () => do
     (ok v) = ch >!
@@ -417,7 +417,7 @@ end
 end
 
 \channels.be_dropping.test :def! t => do
-  ch = .gab.channel:(2 .dropping)
+  ch = .channel:make(2 .dropping)
 
   put_val = (val) => ch <! val
 
@@ -453,7 +453,7 @@ end
 end
 
 \channels.be_sliding.test :def! t => do
-  ch = .gab.channel:(2 .sliding)
+  ch = .channel:make(2 .sliding)
 
   put_val = (val) => ch <! val
 

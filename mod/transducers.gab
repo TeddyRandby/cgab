@@ -1,11 +1,11 @@
-module = .gab.iter
+module = .td
 
 \iter.apply:def!(
   .none .nil
   x => x)
 
 \defiter!:def!(
-  'gab.message'
+  'message'
   (cx init) => do
     mod.t = {
       module .nil

@@ -660,8 +660,8 @@ gab_value parse_exp_rec(struct gab_triple gab, struct parser *parser,
   if (result == gab_undefined)
     return gab_undefined;
 
-  gab_value lhs_node = node_value(gab, gab_sigil(gab, "gab.record"));
-  gab_value msg_node = gab_message(gab, mGAB_CALL);
+  gab_value lhs_node = node_value(gab, gab_sigil(gab, tGAB_RECORD));
+  gab_value msg_node = gab_message(gab, mGAB_MAKE);
 
   gab_value node = node_send(gab, lhs_node, msg_node, result);
 
@@ -684,8 +684,8 @@ gab_value parse_exp_lst(struct gab_triple gab, struct parser *parser,
   if (result == gab_undefined)
     return gab_undefined;
 
-  gab_value lhs_node = node_value(gab, gab_sigil(gab, "gab.list"));
-  gab_value msg_node = gab_message(gab, mGAB_CALL);
+  gab_value lhs_node = node_value(gab, gab_sigil(gab, tGAB_LIST));
+  gab_value msg_node = gab_message(gab, mGAB_MAKE);
 
   gab_value node = node_send(gab, lhs_node, msg_node, result);
 
@@ -1531,10 +1531,10 @@ gab_value unpack_binding_into_env(struct gab_triple gab, struct bc *bc,
 
         gab_value rec = gab_uvrecat(lhs, 0);
 
-        if (rec != gab_sigil(gab, "gab.list"))
+        if (rec != gab_sigil(gab, tGAB_LIST))
           goto err;
 
-        if (m != gab_message(gab, mGAB_CALL))
+        if (m != gab_message(gab, mGAB_MAKE))
           goto err;
 
         if (!node_isempty(rhs))
