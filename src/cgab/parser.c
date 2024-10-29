@@ -567,7 +567,6 @@ gab_value parse_expression(struct gab_triple gab, struct parser *parser,
   skip_newlines(gab, parser);
 
   while (prec <= get_parse_rule(curr_tok(parser)).prec) {
-
     if (node == gab_undefined)
       return gab_undefined;
 
@@ -578,6 +577,8 @@ gab_value parse_expression(struct gab_triple gab, struct parser *parser,
 
     if (rule.infix != nullptr)
       node = rule.infix(gab, parser, node);
+
+    skip_newlines(gab, parser);
   }
 
   end = parser->offset;
@@ -1114,9 +1115,8 @@ static inline void push_storel(struct bc *bc, uint8_t local, gab_value node) {
 
 static inline uint8_t encode_arity(struct gab_triple gab, gab_value lhs,
                                    gab_value rhs) {
-  if (rhs == gab_undefined && lhs == gab_undefined) {
+  if (rhs == gab_undefined && lhs == gab_undefined)
     return 1;
-  }
 
   if (rhs == gab_undefined || node_isempty(rhs)) {
     bool is_multi = node_ismulti(gab, lhs);
@@ -1248,8 +1248,14 @@ static inline void push_ret(struct gab_triple gab, struct bc *bc, gab_value tup,
                             gab_value node) {
   assert(node_len(gab, tup) < 16);
 
+  bool is_multi = node_ismulti(gab, tup);
+  size_t len = node_len(gab, tup);
+
+  if (len && is_multi)
+    len--;
+
 #if cGAB_TAILCALL
-  if (node_len(gab, tup) == 0) {
+  if (len == 0) {
     switch (bc->prev_op) {
     case OP_SEND: {
       uint8_t have_byte = v_uint8_t_val_at(&bc->bc, bc->bc.len - 1);

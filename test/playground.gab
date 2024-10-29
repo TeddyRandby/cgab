@@ -1,85 +1,203 @@
 s = 'specs' :use
 
-Car = {
-  \car.make .nil
-  \car.model .nil
-  \car.year .nil
-  \car.color .nil
+record.spec = .record:defspec! {
+  \help "An ordered, constant array of key-value pairs."
+  \spec s:protocol {}
 }
 
-.car.make :defspec! {
-  \help "The car's manufacturer, ie 'Ford'."
-  \spec s:any('Ford' 'Chevy' 'Toyota' 'Honda')
-}
+KEY   = s:unknown:spec.labeled "key"
+VALUE = s:unknown:spec.labeled "value"
+INDEX = s:int:spec.labeled "index"
 
-.car.color :defspec! {
-  \help "The car's color"
-  \spec s:any('RED' 'BLUE' 'WHITE' 'BLACK')
-}
-
-.car.model:defspec! {
-  \help "The car's model"
-  \spec s:any ('Mustang' 'Civic' 'Camry' 'Prius')
-}
-
-.car.year:defspec! {
-  \help "The year of the car's manufacturing."
-  \spec s:all(s:int, s:gt 1950)
-}
-
-.car :defspec! {
-  \help "A car"
-  \spec s:protocol Car
-}
-
-car.spec = .car:spec
-car.color.spec = .car.color:spec
-
-.car.paint :defspec! {
-  \help "Paint the car the given color"
+.record.len:defspec! {
+  \help "Return the number of key-value pairs in the record.",
   \spec s:message {
-    # The receiver's spec
-    \receiver  car.spec
-    # The message we spec over
-    \message   \car.paint
-    # Fetch the spec 'car.color' for the input
-    \input     car.color.spec
-    # Fetch the spec 'car.color' for the output
-    \output    car.spec
-    # Validate the implementation
-    \semantics (input output) => do
-      input = input :at! 0
-      output = output :at! 0
-      output:car.color == input
-    end
+    \receiver  record.spec
+    \message   \len
+    \input     s:values
+    \output    s:int
+    \semantics .nil
   }
 }
 
-car.paint.spec = .car.paint:spec
+.record.at:defspec! {
+  \help "Return the value at the given key, if it exists.",
+  \spec s:message {
+    \receiver   record.spec
+    \message    \at
+    \input      KEY
+    \output     s:option VALUE
+    \semantics  .nil
+  }
+}
 
-# Generate a mock car
-test_car = car.spec :spec.gen
+.record.at!:defspec! {
+  \help "Return the value at each of the given keys. Panics if any are missing.",
+  \spec s:message {
+    \receiver   record.spec
+    \message    \at!
+    \input      s:values KEY
+    \output     s:values VALUE
+    \semantics  .nil
+  }
+}
 
-# Generate a mock implementation of car.paint for Car
-#car.paint.spec:spec.gen(Car ?)
+.record.put:defspec! {
+  \help "Return a new record with the additional key-value pair, or an updated value for an existing key."
+  \spec s:message {
+    \receiver   record.spec
+    \message    \put
+    \input      s:values (KEY VALUE)
+    \output     record.spec
+    \semantics  .nil
+  }
+}
 
-# Define a faulty car.paint specialization
-\car.paint:def!(
-  (Car ?)
-  color => self:car.color 10)
+.record.put_via:defspec! {
+  \help "Replace a value along a path within nested records"
+  \spec s:message {
+    \receiver  record.spec
+    \message   \put_via
+    \input     s:values (VALUE KEY KEY)
+    \output    record.spec
+    \semantics .nil
+  }
+}
 
-# Test the mock coar with the mock implementation of car.paint
-#test_car:car.paint 'BLUE' :print # => 'BLUE'
+.record.list?:defspec! {
+  \help "Determine if this record is within the 'list' subset"
+  \spec s:message {
+    \receiver record.spec
+    \message  \list?
+    \input   s:values
+    \output   s:boolean
+    \semantics .nil
+  }
+}
 
-# Check our faulty implementation
-# & spec.check yields a stream of predicate results.
-# It generates receivers and inputs, sends the message,
-# And checks the output against the spec and semantics.
-# This code will run forever if the spec is always satisfied
-#car.paint.spec:spec.check:print
+seqable.spec = .seq:defspec! {
+  \help "A value which is 'seq-able', capable of producing values over time."
+  \spec s:protocol [ \seq.init \seq.next ]
+}
 
-car.paint.spec :spec.fits? (
-  test_car
-  ["BLUE"]
-  [test_car]
-):print
+callable.spec = .callable:defspec! {
+  \help "A value which may be 'called' (by sending the empty message)."
+  \spec s:protocol [ \ ]
+}
+
+reducer.spec = .reducer:defspec! {
+  \help "A value which serves as a reducing-function"
+  \spec s:protocol [ \reduce.step \reduce.done ]
+}
+
+transducer.spec = .transducer:defspec! {
+  \help "A value which can be used to modify the behavior of a reducer"
+  \spec s:protocol [ \td.apply ]
+}
+
+ACC = s:unknown:spec.labeled "accumulator"
+
+.seq.reduce:defspec! {
+  \help "Eagerly consume the sequence, applying the reducer to the accumulator"
+  \spec s:message {
+    \receiver  seqable.spec
+    \message   \reduce
+    \input     s:values(ACC reducer.spec)
+    \output    s:unknown
+    \semantics .nil
+  }
+}
+
+.seq.transduce:defspec! {
+  \help "Eagerly consume the sequence, applying the reducer to the accumulator. First, applies the transducer to the reducer."
+  \spec s:message {
+    \receiver  seqable.spec
+    \message   \transduce
+    \input     s:values(ACC reducer.spec transducer.spec)
+    \output    s:unknown
+    \semantics .nil
+  }
+}
+
+.seq.each:defspec! {
+  \help "Eagerly consume the sequence, sending \ to f with the values at each step."
+  \spec s:message {
+    \receiver  seqable.spec
+    \message   \each
+    \input     s:values(callable.spec :spec.labeled 'f')
+    \output    s:nil
+    \semantics .nil
+  }
+}
+
+.seq.map:defspec! {
+  \help "Eagerly consume the sequence, producing a list with the result of sending \ to f with each step of values."
+  \spec s:message {
+    \receiver  seqable.spec
+    \message   \map
+    \input     s:values(callable.spec :spec.labeled 'f')
+    \output    s:list(s:unknown)
+    \semantics .nil
+  }
+}
+
+.seq.filter:defspec! {
+  \help "Eagerly consume the sequence, producing a list with only the step-values for which sending \ to f produce .true"
+  \spec s:message {
+    \receiver  seqable.spec
+    \message   \filter
+    \input     s:values(callable.spec :spec.labeled 'f')
+    \output    s:list(s:unknown)
+    \semantics .nil
+  }
+}
+
+.seq.join:defspec! {
+  \help "Eagerly consume the sequence, producing a string which is the result of concatenating each step-value"
+  \spec s:message {
+    \receiver  seqable.spec
+    \message   \join
+    \input     s:values(s:nilable transducer.spec)
+    \output    s:string
+    \semantics .nil
+  }
+}
+
+.seq.collect:defspec! {
+  \help "Eagerly consume the sequence, producing a list of each step-value"
+  \spec s:message {
+    \receiver  seqable.spec
+    \message   \collect
+    \input     s:values(s:nilable transducer.spec)
+    \output    s:list(s:unknown)
+    \semantics .nil
+  }
+}
+
+.record.seq.next:defspec! {
+  \help "Return the key that appears after the given key in the record."
+  \spec s:message {
+    \receiver   record.spec
+    \message    \seq.next
+    \input      KEY
+    \output     s:option KEY
+    \semantics  .nil
+  }
+}
+
+.record.seq.init:defspec! {
+  \help "Return the first key in the record, if any."
+  \spec s:message {
+    \receiver   record.spec
+    \message    \seq.init
+    \input      s:values
+    \output     s:option KEY
+    \semantics  .nil
+  }
+}
+
+.record.at :spec.doc! :println
+
+.spec :doc .seq :println
+
+record.spec

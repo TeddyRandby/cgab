@@ -1,4 +1,5 @@
 #include "colors.h"
+#include "core.h"
 #include "engine.h"
 #include "gab.h"
 #include "lexer.h"
@@ -340,20 +341,9 @@ gab_value gab_shortstrcat(gab_value _a, gab_value _b) {
   return v;
 }
 
-gab_value gab_nstring(struct gab_triple gab, uint64_t len, const char *data) {
-  if (len <= 5)
-    return gab_shorstr(len, data);
-
-  mtx_lock(&gab.eg->strings_mtx);
-
+gab_value nstring(struct gab_triple gab, uint64_t hash, uint64_t len,
+                  const char *data) {
   s_char str = s_char_create(data, len);
-
-  uint64_t hash = s_char_hash(str);
-
-  struct gab_obj_string *interned = gab_egstrfind(gab.eg, str, hash);
-
-  if (interned)
-    return mtx_unlock(&gab.eg->strings_mtx), __gab_obj(interned);
 
   struct gab_obj_string *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_string, char, str.len + 1, kGAB_STRING);
@@ -364,7 +354,31 @@ gab_value gab_nstring(struct gab_triple gab, uint64_t len, const char *data) {
 
   d_strings_insert(&gab.eg->strings, self, 0);
 
-  return mtx_unlock(&gab.eg->strings_mtx), __gab_obj(self);
+  return __gab_obj(self);
+}
+
+gab_value gab_nstring(struct gab_triple gab, uint64_t len, const char *data) {
+  if (len <= 5)
+    return gab_shorstr(len, data);
+
+  mtx_lock(&gab.eg->strings_mtx);
+
+#if cGAB_STRING_HASHLEN > 0
+  uint64_t hash =
+      hash_bytes(len < cGAB_STRING_HASHLEN ? len : cGAB_STRING_HASHLEN,
+                 (unsigned char *)data);
+#else
+  uint64_t hash = hash_bytes(len, (unsigned char *)data);
+#endif
+
+  struct gab_obj_string *interned = gab_egstrfind(gab.eg, hash, len, data);
+
+  if (interned)
+    return mtx_unlock(&gab.eg->strings_mtx), __gab_obj(interned);
+
+  gab_value s = nstring(gab, hash, len, data);
+
+  return mtx_unlock(&gab.eg->strings_mtx), s;
 };
 
 /*
@@ -394,9 +408,14 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
   memcpy(buff->data, gab_strdata(&_a), alen);
   memcpy(buff->data + alen, gab_strdata(&_b), blen);
 
-  // Pre compute the hash
-  s_char ref = s_char_create(buff->data, len);
-  uint64_t hash = s_char_hash(ref);
+// Pre compute the hash
+#if cGAB_STRING_HASHLEN > 0
+  uint64_t hash =
+      hash_bytes(len < cGAB_STRING_HASHLEN ? len : cGAB_STRING_HASHLEN,
+                 (unsigned char *)buff->data);
+#else
+  uint64_t hash = hash_bytes(len, (unsigned char *)buff->data);
+#endif
 
   /*
     If this string was interned already, return.
@@ -404,16 +423,18 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
     Unfortunately, we can't check for this before copying and computing the
     hash.
   */
-  struct gab_obj_string *interned = gab_egstrfind(gab.eg, ref, hash);
+  mtx_lock(&gab.eg->strings_mtx);
 
-  if (interned) {
-    a_char_destroy(buff);
-    return __gab_obj(interned);
-  }
+  struct gab_obj_string *interned =
+      gab_egstrfind(gab.eg, hash, len, buff->data);
 
-  gab_value result = gab_nstring(gab, len, buff->data);
-  a_char_destroy(buff);
-  return result;
+  if (interned)
+    return a_char_destroy(buff), mtx_unlock(&gab.eg->strings_mtx),
+           __gab_obj(interned);
+
+  gab_value result = nstring(gab, hash, len, buff->data);
+
+  return a_char_destroy(buff), mtx_unlock(&gab.eg->strings_mtx), result;
 };
 
 gab_value gab_prototype(struct gab_triple gab, struct gab_src *src,
@@ -788,6 +809,7 @@ gab_value gab_urecput(struct gab_triple gab, gab_value rec, uint64_t i,
 }
 
 gab_value gab_recdel(struct gab_triple gab, gab_value rec, gab_value key) {
+  assert(false && "TODO NOT IMPLEMENTED");
   return rec;
 }
 

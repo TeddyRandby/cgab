@@ -28,6 +28,7 @@ LINKAGE TYPENAME METHOD(create)(const T *data, uint64_t len) {
 LINKAGE bool METHOD(match)(TYPENAME self, TYPENAME other) {
   if (self.len != other.len)
     return false;
+
   return memcmp(self.data, other.data, self.len) == 0;
 }
 

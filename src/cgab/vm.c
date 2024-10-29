@@ -1911,8 +1911,8 @@ CASE_CODE(SEND_PRIMITIVE_RECORD) {
 
   uint64_t len = have - 1;
 
-  if (len % 2 == 1)
-    PUSH(gab_nil), len++, have++;
+  if (__gab_unlikely(len % 2 == 1))
+    PUSH(gab_nil), len++, have++; // Should we just error here?
 
   gab_value map = gab_record(GAB(), 2, len / 2, SP() - len, SP() + 1 - len);
 

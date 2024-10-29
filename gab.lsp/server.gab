@@ -63,11 +63,11 @@ end
     msg
   end,
   # Implement the lazy-sequence protocol
-  \seqs.init: do
+  \seq.init: do
     msg :: self:_read_request
     (.ok, .nil, msg)
   end,
-  \seqs.next: do
+  \seq.next: do
     msg :: self:_read_request
     (.ok, .nil, msg)
   end,

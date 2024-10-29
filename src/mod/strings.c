@@ -174,14 +174,16 @@ a_gab_value *gab_strlib_ends(struct gab_triple gab, uint64_t argc,
 
 a_gab_value *gab_strlib_begins(struct gab_triple gab, uint64_t argc,
                                gab_value argv[argc]) {
+  gab_value vstr = gab_arg(0);
+  gab_value vpat = gab_arg(1);
   switch (argc) {
   case 2: {
     if (gab_valkind(argv[1]) != kGAB_STRING) {
       return gab_fpanic(gab, "&:begins? expects 1 string argument");
     }
 
-    const char *pat = gab_strdata(argv + 0);
-    const char *str = gab_strdata(argv + 1);
+    const char *pat = gab_strdata(&vpat);
+    const char *str = gab_strdata(&vstr);
 
     gab_vmpush(gab_vm(gab), gab_bool(begins(str, pat, 0)));
     return nullptr;
@@ -194,8 +196,8 @@ a_gab_value *gab_strlib_begins(struct gab_triple gab, uint64_t argc,
     if (gab_valkind(argv[2]) != kGAB_NUMBER) {
       return gab_fpanic(gab, "&:begins? expects an optinal number argument");
     }
-    const char *pat = gab_strdata(argv + 0);
-    const char *str = gab_strdata(argv + 1);
+    const char *pat = gab_strdata(&vpat);
+    const char *str = gab_strdata(&vstr);
 
     gab_vmpush(gab_vm(gab), gab_bool(begins(str, pat, gab_valton(argv[2]))));
     return nullptr;

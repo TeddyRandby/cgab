@@ -1,6 +1,10 @@
 'transducers':use
 'strings':use
 
+\int.between:def!(
+  .number
+  (floor ceil) => self:float.between(floor ceil):floor)
+
 truthy_values = []
 falsey_values = [.nil .false .none .err]
 
@@ -72,7 +76,7 @@ falsey_values :defmodule! {
   ## The reducer continues
   .next (seq.i seq.v acc r) => do
     # Apply the producer resolving new values for the next step
-    (ok seq.v xs[]) = seq.i :seqs.next seq.v
+    (ok seq.v xs[]) = seq.i :seq.next seq.v
     # Tailcall to the next step
     ok:doreduce(seq.i seq.v acc r xs)
   end
@@ -85,11 +89,11 @@ falsey_values :defmodule! {
 \def.seq! :def! do
   _ => [self] :defmodule! {
     \reduce (acc, r) => do
-      (ok, seq.v, xs[]) = self :seqs.init
+      (ok, seq.v, xs[]) = self :seq.init
       ok:doreduce(self, seq.v, acc, r, xs)
     end,
     \transduce (acc, r, td) => do
-      self:reduce(acc, td :iter.apply r)
+      self:reduce(acc, td :td.apply r)
     end,
     \each f => do
       self:transduce(.nil, \all, .td:tap f)
@@ -116,11 +120,11 @@ channels.t = 'channel'
 # The keys aren't a pure function, because channels
 # Forget about their values as soon as their taken
 [channels.t] :defmodule! {
-  \seqs.init _ => do
+  \seq.init _ => do
     (ok v) = self >!
     (ok v v)
   end
-  \seqs.next _ => do
+  \seq.next _ => do
     (ok v) = self >!
     (ok v v)
   end
@@ -149,20 +153,15 @@ records.t = 'record'
 
 records.t :def.seq!
 
-\ :def! (.int.between, (min, max) => do
-  .float.between:(min,max) :floor
-end)
-
-
 range.t = { \from .nil, \to .nil }?
 
 range.t :def.seq!
 
 [range.t] :defmodule! {
-  \seqs.init _ => do
+  \seq.init _ => do
     (.ok, self:from, self:from)
   end
-  \seqs.next n => do
+  \seq.next n => do
     nx = n + 1
     .option:(n < self:to, nx, nx)
   end
@@ -177,7 +176,7 @@ range.t :def.seq!
   end
 }
 
-\ :def! (.range (from to) => do
+\make :def! (.range (from to) => do
   (to from) :range.into
 end)
 

@@ -1,10 +1,10 @@
 module = .td
 
-\iter.apply:def!(
+\td.apply:def!(
   .none .nil
   x => x)
 
-\defiter!:def!(
+\deftransducer!:def!(
   'message'
   (cx init) => do
     mod.t = {
@@ -20,11 +20,10 @@ module = .td
       (xs[]) => mod.t:reducer(cx:(xs**)))
 
     [mod.t ?] :defmodule! {
-      \|> iter => self:iter.compose iter
 
-      \iter.compose second => self:iter.apply second
+      \|> o => self:td.apply o
 
-      \iter.apply c => self:continuation(self:continuation:iter.apply c)
+      \td.apply c => self:continuation(self:continuation:td.apply c)
 
       \reduce.step (acc xs[]) => do
         (s cmd c acc) = self:reducer:(self:continuation, acc xs self:state)
@@ -36,12 +35,12 @@ module = .td
     }
   end)
 
-\iter.conditionally :defcase! {
+\td.conditionally :defcase! {
   .true (r acc xs s) => (s r:reduce.step(acc xs**))
   .false (r acc xs s) => (s .next r acc)
 }
 
-\iter.stop_conditionally_inclusive :defcase! {
+\td.stop_conditionally_inclusive :defcase! {
   .true (r acc xs s) => (s r:reduce.step(acc xs**))
   .false (r acc xs s) => do
     (cmd r acc) = r:reduce.step(acc xs**)
@@ -49,70 +48,67 @@ module = .td
   end
 }
 
-\iter.stop_conditionally :defcase! {
-  .true (r, acc, xs, s) => (s, r:reduce.step(acc, xs**)),
-  .false (r, acc, xs, s) => (s, .stop, r, acc),
+\td.stop_conditionally :defcase! {
+  .true (r acc xs s) => (s r:reduce.step(acc xs**))
+  .false (r acc xs s) => (s .stop r acc)
 }
 
-\map:defiter!(
+\map:deftransducer!(
   f => (r acc xs) => (.nil r:reduce.step(acc f:(xs**))))
 
-\tap:defiter!(
-  f => do
-    (r acc xs) => do
-      f:(xs**)
-      (.nil r:reduce.step(acc xs**))
-    end
-  end)
+\tap:deftransducer!(
+  f
+    => (r acc xs)
+        => do
+          f:(xs**)
+          (.nil r:reduce.step(acc xs**))
+        end)
 
-\filter:defiter!(f => do
-  (r acc xs) => do
-    f:(xs**):iter.conditionally(r acc xs)
-  end
-end)
+\filter:deftransducer!(
+  f => (r acc xs) => f:(xs**):td.conditionally(r acc xs))
 
-\take :defiter! (n => do
-  (r, acc, xs, nth) => do
-    nxth = nth + 1
-    (nxth < n):iter.stop_conditionally_inclusive(r, acc, xs, nxth)
-  end
-end, 0)
+\take:deftransducer!(
+  n
+    => (r acc xs nth)
+      => do
+        nxth = nth + 1
+        (nxth < n):td.stop_conditionally_inclusive(r, acc, xs, nxth)
+      end
+  0)
 
 
-\take_while :defiter! (f => do
-  (r, acc, xs) => f:(xs**):iter.stop_conditionally(r, acc, xs)
-end)
+\take_while:deftransducer!(
+  f => (r acc xs) => f:(xs**):td.stop_conditionally(r acc xs)
+)
 
-\drop :defiter! (n => do
-  (r, acc, xs, nth) => do
-    (nth >= n):iter.conditionally(r, acc, xs, nth + 1)
-  end
-end, 0)
+\drop:deftransducer!(
+  n => (r acc xs nth) => (nth >= n):td.conditionally(r acc xs nth + 1)
+  0)
 
-\iter.do_dropwhile :defcase! {
-  .true (r, acc, xs, b, f) => (.true, r:reduce.step(acc, xs**))
-  .false (r, acc, xs, b, f) => do
-    new_b = b | (f:(xs**)) !
-    new_b:iter.conditionally(r, acc, xs, new_b)
+\td.do_dropwhile :defcase! {
+  .true (r acc xs b f) => (.true r:reduce.step(acc xs**))
+  .false (r acc xs b f) => do
+    new_b = b | f:(xs**) !
+    new_b:td.conditionally(r acc xs new_b)
   end
 }
 
-\drop_while :defiter! (f => do
-  (r, acc, xs, b) => b:iter.do_dropwhile(r, acc, xs, b, f)
-end, .false)
+\drop_while:deftransducer!(
+  f => (r acc xs b) => b:td.do_dropwhile(r acc xs b f)
+  .false)
 
-\iter.do_interpose :defcase! {
-  .next (r, acc, xs) => (.true, r:reduce.step(acc, xs**))
-  .stop (r, acc, xs) => (.true, .stop, r, acc)
-  .true (r, acc, xs, sep) => do
-    (cmd, r, acc) = r:reduce.step(acc, sep)
-    cmd:iter.do_interpose(r, acc, xs)
+\td.do_interpose :defcase! {
+  .next (r acc xs) => (.true r:reduce.step(acc xs**))
+  .stop (r acc xs) => (.true .stop r acc)
+  .true (r acc xs sep) => do
+    (cmd r acc) = r:reduce.step(acc sep)
+    cmd:td.do_interpose(r acc xs)
   end
-  .false (r, acc, xs) => (.true, r:reduce.step(acc, xs**))
+  .false (r acc xs) => (.true r:reduce.step(acc xs**))
 }
 
-\interpose :defiter! (sep => do
-  (r, acc, xs, started) => started:iter.do_interpose(r,acc,xs,sep)
-end, .false)
+\interpose:deftransducer!(
+  sep => (r acc xs started) => started:td.do_interpose(r acc xs sep)
+  .false)
 
 module

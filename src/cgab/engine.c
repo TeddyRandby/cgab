@@ -1,4 +1,5 @@
 #include <errno.h>
+#include <stdint.h>
 
 #define GAB_STATUS_NAMES_IMPL
 #define GAB_TOKEN_NAMES_IMPL
@@ -178,9 +179,13 @@ a_gab_value *gab_fmtlib_printf(struct gab_triple gab, uint64_t argc,
 
 a_gab_value *gab_fmtlib_println(struct gab_triple gab, uint64_t argc,
                                 gab_value argv[argc]) {
-  gab_value v = gab_arg(0);
 
-  gab_fvalinspect(stdout, v, -1);
+  for (uint64_t i = 0; i < argc; i++) {
+    gab_value v = gab_arg(i);
+    gab_fvalinspect(stdout, v, -1);
+    if (i + 1 < argc)
+      fputc(' ', stdout);
+  }
   fputc('\n', stdout);
 
   return nullptr;
@@ -570,12 +575,12 @@ struct native kind_natives[] = {
         .native = gab_reclib_strings_into,
     },
     {
-        .name = "seqs.init",
+        .name = "seq.init",
         .kind = kGAB_RECORD,
         .native = gab_reclib_seqinit,
     },
     {
-        .name = "seqs.next",
+        .name = "seq.next",
         .kind = kGAB_RECORD,
         .native = gab_reclib_seqnext,
     },
@@ -652,7 +657,7 @@ struct native box_natives[] = {
 
 struct native sig_natives[] = {
     {
-        .name = "between",
+        .name = "float.between",
         .sigil = tGAB_NUMBER,
         .native = gab_numlib_between,
     },
@@ -1008,12 +1013,12 @@ void gab_destroy(struct gab_triple gab) {
   gab_gcdestroy(gab);
   free(gab.eg->gc);
 
-  for (uint64_t i = 0; i < gab.eg->modules.cap; i++) {
-    if (d_gab_modules_iexists(&gab.eg->modules, i)) {
-      a_gab_value *module = d_gab_modules_ival(&gab.eg->modules, i);
-      free(module);
-    }
-  }
+  /*for (uint64_t i = 0; i < gab.eg->modules.cap; i++) {*/
+  /*  if (d_gab_modules_iexists(&gab.eg->modules, i)) {*/
+  /*    a_gab_value *module = d_gab_modules_ival(&gab.eg->modules, i);*/
+  /*    free(module);*/
+  /*  }*/
+  /*}*/
 
   for (uint64_t i = 0; i < gab.eg->sources.cap; i++) {
     if (d_gab_src_iexists(&gab.eg->sources, i)) {
@@ -1181,8 +1186,8 @@ int gab_ndef(struct gab_triple gab, uint64_t len,
   return gab_gcunlock(gab), true;
 }
 
-struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
-                                     uint64_t hash) {
+struct gab_obj_string *gab_egstrfind(struct gab_eg *self, uint64_t hash,
+                                     uint64_t len, const char *data) {
   if (self->strings.len == 0)
     return nullptr;
 
@@ -1198,10 +1203,7 @@ struct gab_obj_string *gab_egstrfind(struct gab_eg *self, s_char str,
     case D_EMPTY:
       return nullptr;
     case D_FULL:
-      if (key->hash == hash && s_char_match(str, (s_char){
-                                                     .data = key->data,
-                                                     .len = key->len,
-                                                 }))
+      if (key->len == len && key->hash == hash && !memcmp(key->data, data, len))
         return key;
     }
 

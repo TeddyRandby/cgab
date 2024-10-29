@@ -53,8 +53,8 @@ void run_file(const char *path, int flags, size_t jobs) {
 
   a_gab_value *result = gab_suse(gab, path);
 
-  if (!result)
-    fprintf(stdout, "[gab]: Module '%s' not found.\n", path);
+  if (result)
+    free(result);
 
   gab_destroy(gab);
   return;

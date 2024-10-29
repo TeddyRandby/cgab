@@ -1,10 +1,15 @@
-ch = .gab.channel:()
+'strings':use
 
-rg = 1 -> 27
+a = { \spec.label 2 }
 
-# There are 20 slots in the buffer, and 8 threads
-# So the runtime can handle spawning 27 fibers here
-rg :each () => .gab.fiber:() => ch >!
+.string:make(
+  a:spec.label
+  ': '
+  a:spec.label):println
 
-# 28 fibers will clog this bad boy up, and we'll never get to this line
-rg :each () => ch <! 1 
+\test :def! (a ?, () => .string :make(
+  self:spec.label
+  ': '
+  self:spec.label))
+
+a:test:println

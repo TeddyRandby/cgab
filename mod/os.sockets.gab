@@ -1,22 +1,22 @@
 socket.t, socket.connected.t, mod :: 'csockets' :use
 
 [socket.t] :defmodule! {
-  \seqs.init: do
+  \seq.init: do
     ok, cl :: self:accept
     (ok, .nil, cl)
   end,
-  \seqs.next: do
+  \seq.next: do
     ok, cl :: self:accept
     (ok, .nil, cl)
   end,
 }
 
 [socket.connected.type] :defmodule! {
-  \seqs.init: do
+  \seq.init: do
     ok, msg :: self:recv
     (ok, .nil, msg)
   end,
-  \seqs.next:  do
+  \seq.next:  do
     ok, msg :: self:recv
     (ok, .nil, msg)
   end,

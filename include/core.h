@@ -20,6 +20,17 @@
 #define cGAB_LIKELY 1
 #endif
 
+// Limit the prefix length of a string that gab will hash.
+// This means that strings with an identical prefix of length cGAB_STRING_HASHLEN
+// will hash to the same value - even if they are different *after* that prefix.
+// This puts a cap on how *much* time gab will spend hashing strings - but
+// it is a tradeoff, because all strings that share that prefix will basically
+// be in a linked-list. (hash-bucket-chaining, etc)
+// If this macro is 0, then gab will not limit hashing.
+#ifndef cGAB_STRING_HASHLEN
+#define cGAB_STRING_HASHLEN 0
+#endif
+
 // Combine common consecutive instruction patterns into one superinstruction
 #ifndef cGAB_SUPERINSTRUCTIONS
 #define cGAB_SUPERINSTRUCTIONS 1

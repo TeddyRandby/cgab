@@ -59,11 +59,11 @@ s:def! {
 }
 
 s:def! {
-  name = .gab.record.seqs.next,
+  name = .gab.record.seq.next,
   help = "Return the key that appears after the given key in the record.",
   spec = s:message {
     receiver   = record.spec,
-    message    = \seqs.next,
+    message    = \seq.next,
     input      = KEY,
     output     = s:option KEY,
     semantics  = .nil,
@@ -71,11 +71,11 @@ s:def! {
 }
 
 s:def! {
-  name = .gab.record.seqs.init,
+  name = .gab.record.seq.init,
   help = "Return the first key in the record, if any.",
   spec = s:message {
     receiver   = record.spec,
-    message    = \seqs.init,
+    message    = \seq.init,
     input      = s:values,
     output     = s:option KEY,
     semantics  = .nil,

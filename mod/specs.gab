@@ -1,23 +1,22 @@
-i = 'iter' :use
-spec.t = .gab.spec
+'transducers':use
+spec.t = .spec
 
 explain_specs = (specs separator) => specs
   :transduce(
     ''
     \+
-    i:map \spec.explain
-    |> i:interpose separator)
+    .td:map \spec.name
+    |> .td:interpose separator)
 
-explain_keys = (strings separator) => strings
+explain_values = (strings separator) => strings
   :transduce(
     ''
     \+
-    i:map \first
-    |> i:map \strings.into
-    |> i:interpose separator)
+    .td:map ((v) => .string:make('\\' v))
+    |> .td:interpose separator)
 
 \defspec!:def!(
-  'gab.sigil'
+  'sigil'
   (opts) => do
     \spec.help:def!(
       opts:spec
@@ -31,14 +30,14 @@ explain_keys = (strings separator) => strings
       self
       opts:spec)
 
-    self
+    opts:spec
   end)
 
-['gab.sigil'] :defmodule! {
+['sigil'] :defmodule! {
   \spec.doc!     () => (self:spec.help!, self:spec.explain!)
-  \spec.help!    () => self:spec:unwrap!:spec.help:unwrap!
-  \spec.gen!     () => self:spec:unwrap!:spec.gen
-  \spec.explain! () => self:spec:unwrap!:spec.explain
+  \spec.help!    () => self:spec:spec.help:unwrap!
+  \spec.gen!     () => self:spec:spec.gen
+  \spec.explain! () => self:spec:spec.explain
 }
 
 ## PREDICATES
@@ -69,20 +68,18 @@ nil.predicate = .predicate.nil
 # UNKNOWN PREDICATE
 unknown.predicate = .predicate.unknown
 
-\spec.fits?:def!(
-  unknown.predicate
-  value => (.true self value))
-
 unknown_values = [ .nil 0 1 'test' .true ]
 
-\spec.gen:def!(
-  unknown.predicate
-  () => do
-    idx = .int.between(0 unknown_values:len - 1)
-    unknown_values:at! idx
-  end)
+[unknown.predicate] :defmodule! {
+  \spec.fits? value => (.true self value)
 
-\spec.explain:def!(unknown.predicate 'unknown')
+  \spec.gen () => do
+    idx = .number:int.between(0 unknown_values:len - 1)
+    unknown_values:at! idx
+  end
+
+  \spec.explain 'unknown'
+}
 
 # INT PREDICATE
 int.predicate = .predicate.int
@@ -93,7 +90,7 @@ int.predicate = .predicate.int
 
 \spec.gen:def!(
   int.predicate
-  () => .int.between:(-10000 10000))
+  () => .number:int.between(-10000 10000))
 
 \spec.explain:def!(int.predicate 'int')
 
@@ -127,7 +124,7 @@ random.strings = ['vim-users' 'emacs-users']
 \spec.gen:def!(
   string.predicate
   () => do
-    idx  = .int.between:(0 random.strings:len - 1)
+    idx  = .number:int.between(0 random.strings:len - 1)
     random.strings :at! idx
   end)
 
@@ -169,7 +166,7 @@ boolean.predicate = .predicate.boolean
 and.predicate = (specs[]) => do
   (specs:len > 0):assert! 'Must have at least one spec for the and predicate'
 
-  pred = .gab.string:('predicate:and:' specs):sigils.into
+  pred = .string:make('predicate:and:' specs):sigils.into
   # Return a predicate which returns true iff the given value
   # fits all of the given specs
   \spec.fits?:def!(
@@ -183,21 +180,21 @@ and.predicate = (specs[]) => do
     () => do
       start = specs :at! 0
 
-      xf = i:map(() => do
+      xf = .td:map(() => do
             value = start:spec.gen
 
-            fits = specs:reduce(.true, (a _ s) => do
-              a:then () => s :spec.fits? value
-            end)
+            fits = specs:reduce(
+              .true
+              (a _ s) => a:then () => s :spec.fits? value)
 
-            (fits, value)
+            (fits value)
           end)
-          |> i:filter(\self)
-          |> i:map(\first)
-          |> i:take(1)
+          |> .td:filter \self
+          |> .td:map \first
+          |> .td:take 1
 
-      .gab.range
-        :(100)
+      .range
+        :make 100
         :transduce(0 \first xf)
         :assert!('Failed to generate a value for {specs}')
     end)
@@ -212,7 +209,7 @@ end
 or.predicate = (specs[]) => do
   (specs:len > 0):assert! "The or predicate expects more than zero specs"
   
-  pred = .gab.string:('predicate:or:' specs):sigils.into
+  pred = .string:make('predicate:any:' specs):sigils.into
   # Return a predicate which returns true if the given value
   # fits any of the given specs
   \spec.fits?:def!(
@@ -227,7 +224,7 @@ or.predicate = (specs[]) => do
 
   \spec.gen:def!(
     pred
-    () => specs:at!(.int.between:(0 specs:len - 1)):spec.gen)
+    () => specs:at!(.number:int.between(0 specs:len - 1)):spec.gen)
 
   \spec.explain:def!(
     pred
@@ -237,7 +234,7 @@ or.predicate = (specs[]) => do
 end
 
 values.predicate = (specs[]) => do
-  pred = .gab.string:('predicate:values:' specs:sigils.into)
+  pred = .string:make('predicate:values:' specs):sigils.into
 
   \spec.fits?:def!(
     pred
@@ -266,8 +263,7 @@ values.predicate = (specs[]) => do
 end
 
 protocol.predicate = (protocol) => do
-  protocol_shape = protocol ?
-  pred = .gab.string:('predicate:protocol:' protocol):sigils.into
+  pred = .string:make('predicate:protocol:' protocol):sigils.into
 # Return a predicate which returns true if the given value
 # has all the keys of the record
   \spec.fits?:def!(
@@ -285,7 +281,7 @@ protocol.predicate = (protocol) => do
       end):**
     end)
 
-  genit = i:map (_ key) => do
+  genit = .td:map (key) => do
     found = key:sigils.into:spec
     (key found:spec.gen)
   end
@@ -297,14 +293,14 @@ protocol.predicate = (protocol) => do
   \spec.explain:def!(
     pred
     () => (protocol:len == 0)
-      :and "{}"
-      :or ("{ " + explain_keys:(protocol, ', ') + " }"))
+      :and "[]"
+      :or ("[ " + explain_values:(protocol, ', ') + " ]"))
 
   pred
 end
 
 list.predicate = spec => do
-  pred = .gab.string:('predicate:list:' spec):sigils.into
+  pred = .string:make('predicate:list:' spec):sigils.into
 
   \spec.fits?:def!(
     pred
@@ -312,22 +308,22 @@ list.predicate = spec => do
 
   \spec.gen:def!(
     pred
-    () => .gab.list:():push(spec:spec.gen))
+    () => .list:make:push(spec:spec.gen))
 
   \spec.explain:def!(
     pred
-    () => .gab.string:('list[' spec:spec.explain() ']'))
+    () => .string:make('list[' spec:spec.explain() ']'))
 
   pred
 end
 
 record.predicate = (k_spec v_spec) => do
-  pred = .gab.string('predicate:map:' k_spec ':' v_spec):sigils.into
+  pred = .string:make('predicate:map:' k_spec ':' v_spec):sigils.into
 
   \spec.fits?:def!(
     pred
     value => do
-      (value ? == .gab.record)
+      (value ? == 'record')
         :then(() => (.false self value))
         :else(() => do
           value :reduce(
@@ -346,7 +342,7 @@ record.predicate = (k_spec v_spec) => do
 
   \spec.explain:def!(
     pred
-    () => .gab.string:('Map[' k_spec:spec.explain ', ' v_spec:spec.explain ']'))
+    () => .string:make('Map[' k_spec:spec.explain ', ' v_spec:spec.explain ']'))
 
   pred
 end
@@ -365,7 +361,7 @@ end
   .nil (alt[]) => do
     alt**
   end
-  'gab.record' (alt[]) => do
+  'record' (alt[]) => do
     (spec value) = self:head**
 
     (does_fit result[]) = spec:spec.fits? value
@@ -391,13 +387,13 @@ spec.block.Application = { \input .nil \output .nil \semantics .nil \in .nil \ou
   (input output) => (.true .nil [input output]))
 
 \spec.semantics_fits?:def!(
-  'gab.block'
+  'block'
   (input output) => (self:(input output), self, [input output], .semantics))
 
 block.predicate = (args semantics) => do
   args:assert.is? spec.block.Args
 
-  pred = .gab.string:('predicate:block:' args ':' semantics):sigils.into
+  pred = .string:make('predicate:block:' args ':' semantics):sigils.into
 
   \spec.fits?:def!(
     pred
@@ -421,7 +417,7 @@ block.predicate = (args semantics) => do
     pred
     () => do
       block.gen = (input[]) => do
-        .gab.range:(100):transduce(0, () => do
+        .range:make 100 :transduce(0, () => do
           # Generate an output
           (output[]) = args:output:spec.gen
 
@@ -445,7 +441,7 @@ block.predicate = (args semantics) => do
   \spec.check:def!(
     pred
     (block) => do
-      .gab.range:(100):transduce(() => do
+      .range:make 100 :transduce(() => do
         (input[]) = args:input:spec.gen
 
         args:input:spec.fits?(input**) :then do
@@ -474,19 +470,19 @@ general_message.predicate = 'predicate:message' :sigils.into
   'message')
 
 \spec.message.input_fits?:def!(
-  'gab.record'
+  'record'
   () => self:input:spec.fits?(self:in**))
 
 \spec.message.output_fits?:def!(
-  'gab.record'
+  'record'
   () => self:output:spec.fits?(self:out**))
 
 \spec.message.receiver_fits?:def!(
-  'gab.record'
+  'record'
   () => self:receiver:spec.fits?(self:rec**))
 
 \spec.message.semantics_fits?:def!(
-  'gab.record'
+  'record'
   () => self
     :at \semantics
     :unwrap ()
@@ -498,7 +494,7 @@ general_message.predicate = 'predicate:message' :sigils.into
 }
 
 \-!> :def! (fs[]) => do
-  me = self
+  me = self # I'd like doing this to be a little neater
   fs:reduce([.true]
     (so_far f) => so_far
       :at! 0
@@ -507,9 +503,9 @@ end
 
 \spec.message.define:defcase! {
   .nil general_message.predicate
-  'gab.record' () => do
+  'record' () => do
     args = self
-    pred = .gab.string:('predicate:message:' args):sigils.into
+    pred = .string:make('predicate:message:' args):sigils.into
 
     \spec.fits?:def!(
       pred
@@ -540,7 +536,7 @@ end
               :then () => do
                 (ok pred value path) = args:input:spec.fits?(input**)
                 (output[]) = args:output:spec.gen
-                iter = i:map(() => do
+                iter = .td:map(() => do
                     (output[]) = args:output:spec.gen
 
                     args:output:spec.fits?(output**) :then () => do
@@ -560,11 +556,11 @@ end
                       end
                     end
                   end)            
-                  |> i:filter \ok?
-                  |> i:map \unwrap
-                  |> i:take 1
+                  |> .td:filter \ok?
+                  |> .td:map \unwrap
+                  |> .td:take 1
 
-                .gab.range:(100):transduce(.false \first iter)
+                .range :make 100 :transduce (.false \first iter)
           end
         end)
 
@@ -574,7 +570,7 @@ end
     \spec.check:def!(
       pred
       () => do
-        iter = i:map(() => do
+        xf = .td:map(() => do
             receiver = args:receiver:spec.gen
 
             args:receiver:spec.fits?(receiver) :then () => do
@@ -597,18 +593,18 @@ end
               end
             end
           end)
-          |> i:filter((valid? spec value path) => valid? !)
-          |> i:map((valid? spec value path) => .gab.option:(valid? !, spec value path))
-          |> i:take 1
+          |> .td:filter((valid? spec value path) => valid? !)
+          |> .td:map((valid? spec value path) => .option:make(valid? !, spec value path))
+          |> .td:take 1
 
-        .gab.range:(100):transduce([.none] \all iter)**
+        .range:make(100):transduce([.none] \all xf)**
       end)
 
     \spec.explain:def!(
       pred
-      () =>.gab.string:(
+      () =>.string:make(
         args:receiver:spec.name
-        '\\'
+        '.'
         args:message
         ' '
         args:input:spec.name
@@ -623,37 +619,39 @@ message.predicate = args => args:spec.message.define
 
 LabeledSpec = { \spec.label .nil \spec.spec .nil }?
 
-\spec.label:def! spec.label => {
-  \spec.label spec.label
+\spec.labeled :def! label => {
+  \spec.label label
   \spec.spec self
 }
 
-\spec.explain:def!(
-  LabeledSpec
-  () => .gab.string:(
-    self:spec.label
-    ': '
-    self:spec.spec:spec.explain))
+[LabeledSpec] :defmodule! {
+  \spec.explain () => .string:make(
+      self:spec.label
+      ': '
+      self:spec.spec:spec.explain)
 
-\spec.gen:def!(
-  LabeledSpec
-  () => self:spec.spec:spec.gen)
+  \spec.name  () => do
+    .string:make(
+      self:spec.label
+      ': '
+      self:spec.spec:spec.name)
+  end
 
-\spec.fits?:def!(
-  LabeledSpec
-  () => self:spec.spec:spec.fits?)
+  \spec.gen   () => self:spec.spec:spec.gen
 
-\spec.check:def!(
-  LabeledSpec
-  () => self:spec.spec:spec.check)
+  \spec.fits? () => self:spec.spec:spec.fits?
 
-\spec.gen :def! () => self
+  \spec.check () => self:spec.spec:spec.check
+}
+
+\spec.name :def! () => self:spec.explain
 \spec.explain :def! () => self
-\spec.fits? :def! value => (self == value, self, value)
+\spec.gen :def! () => self
+\spec.fits? :def! value => (self == value self value)
 
 # Since a spec is just a predicate, we can simply call it and return the result
 \spec.fits?:def!(
-  'gab.block'
+  'block'
   (value) => self:(value))
 
 \spec.option.into:defcase! {
@@ -694,7 +692,7 @@ end
                       .none)
   \result  (value err) => value:spec.option.into err
   \gt (min) => do
-    gt.predicate = .gab.string:('predicate:gt:' min):sigils.into
+    gt.predicate = .string:make('predicate:gt:' min):sigils.into
 
     \spec.fits?:def!(
       gt.predicate
@@ -705,7 +703,7 @@ end
     gt.predicate
   end
   \lt max => do
-    lt.predicate = .gab.string:('predicate:lt:' max):sigils.into
+    lt.predicate = .string:make('predicate:lt:' max):sigils.into
 
     \spec.fits?:def!(
       lt.predicate
@@ -714,6 +712,26 @@ end
     \spec.explain:def!([lt.predicate] '< {max}')
 
     lt.predicate
+  end
+
+  \doc (mod) => do
+    xf = .td:map ((v k) => (
+          v
+          k :strings.into
+            :split '.'
+            :sigils.into,
+          k))
+      |> .td:filter ((_ k) => k == mod)
+      |> .td:map ((v m k) => do
+        (h e) = k:spec.doc!
+        .string:make(k '\n' h '\n\t' e)
+      end)
+      |> .td:interpose '\n\n'
+
+    .message
+      :specializations
+      :spec
+      :transduce("" \+ xf)
   end
 }
 
