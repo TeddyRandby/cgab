@@ -38,6 +38,29 @@ falsey_values :defmodule! {
   \results.into (args[]) => (.ok, self, args**)
 }
 
+\cond.check :defcase! {
+  'block'   (args[]) => self:(args**)
+  'message' (args[]) => self:(args**)
+  .else     .ok
+}
+
+\docond :def! (fs[]) => do
+  args = self
+  fs:reduce(
+    .nil
+    (acc f)
+      => acc:else ()
+        => f :cond.check(args**) :and f)
+end
+
+\cond :def! (vs[] branches) => do
+  args = [self vs**]
+
+  k = args:docond(branches:keys)
+
+  branches :at! k
+end
+
 \:def!(
   .option
   (cond, data[]) => do

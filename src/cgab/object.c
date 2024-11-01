@@ -3,6 +3,7 @@
 #include "engine.h"
 #include "gab.h"
 #include "lexer.h"
+#include <stdint.h>
 #include <time.h>
 
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \
@@ -203,6 +204,21 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
   case kGAB_SYMBOL:
   case kGAB_STRING:
     return fprintf(stream, "%s", gab_strdata(&self));
+  case kGAB_BINARY: {
+    const char *s = gab_strdata(&self);
+    int bytes = 0;
+
+    uint64_t len = gab_strlen(self);
+
+    while (len--) {
+      if (len == 0)
+        bytes += fprintf(stream, "0x%02x", (unsigned char)*s++);
+      else
+        bytes += fprintf(stream, "0x%02x, ", (unsigned char)*s++);
+    }
+
+    return bytes;
+  }
   case kGAB_MESSAGE:
     return fprintf(stream, "\\%s", gab_strdata(&self));
   case kGAB_SHAPE:
@@ -889,8 +905,8 @@ gab_value gab_shptorec(struct gab_triple gab, gab_value shp) {
   return res;
 }
 
-gab_value gab_record(struct gab_triple gab, uint64_t stride, uint64_t len,
-                     gab_value *keys, gab_value *vals) {
+gab_value gab_recordfrom(struct gab_triple gab, gab_value shape,
+                         uint64_t stride, uint64_t len, gab_value *vals) {
   gab_gclock(gab);
 
   uint64_t shift = getshift(len);
@@ -900,7 +916,7 @@ gab_value gab_record(struct gab_triple gab, uint64_t stride, uint64_t len,
   struct gab_obj_rec *self =
       GAB_CREATE_FLEX_OBJ(gab_obj_rec, gab_value, rootlen, kGAB_RECORD);
 
-  self->shape = gab_shape(gab, stride, len, keys);
+  self->shape = shape;
   self->shift = shift;
   self->len = rootlen;
 
@@ -919,6 +935,15 @@ gab_value gab_record(struct gab_triple gab, uint64_t stride, uint64_t len,
   gab_gcunlock(gab);
 
   return res;
+}
+
+gab_value gab_record(struct gab_triple gab, uint64_t stride, uint64_t len,
+                     gab_value *keys, gab_value *vals) {
+  gab_gclock(gab);
+  gab_value shp = gab_shape(gab, stride, len, keys);
+  gab_value rec = gab_recordfrom(gab, shp, stride, len, vals);
+  gab_gcunlock(gab);
+  return rec;
 }
 
 gab_value nth_amongst(uint64_t n, uint64_t len, gab_value records[static len]) {
@@ -1556,7 +1581,8 @@ static uint64_t dumpInstruction(FILE *stream, struct gab_obj_prototype *self,
   case OP_POP:
   case OP_NOP:
     return dumpSimpleInstruction(stream, self, offset);
-  case OP_PACK:
+  case OP_PACK_RECORD:
+  case OP_PACK_LIST:
     return dumpPackInstruction(stream, self, offset);
   case OP_NCONSTANT:
     return dumpNConstantInstruction(stream, self, offset);

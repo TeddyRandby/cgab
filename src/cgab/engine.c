@@ -91,7 +91,7 @@ a_gab_value *gab_msglib_message(struct gab_triple gab, uint64_t argc,
 a_gab_value *gab_reclib_at(struct gab_triple gab, uint64_t argc,
                            gab_value argv[argc]);
 
-a_gab_value *gab_reclib_del(struct gab_triple gab, uint64_t argc,
+a_gab_value *gab_reclib_slice(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]);
 
 a_gab_value *gab_reclib_put(struct gab_triple gab, uint64_t argc,
@@ -160,6 +160,18 @@ a_gab_value *gab_numlib_floor(struct gab_triple gab, uint64_t argc,
 a_gab_value *gab_numlib_between(struct gab_triple gab, uint64_t argc,
                                 gab_value argv[argc]);
 
+a_gab_value *gab_strlib_binary_into(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]);
+
+a_gab_value *gab_msglib_binary_into(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]);
+
+a_gab_value *gab_siglib_binary_into(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]);
+
+a_gab_value *gab_numlib_binary_into(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]);
+
 a_gab_value *gab_fmtlib_printf(struct gab_triple gab, uint64_t argc,
                                gab_value argv[argc]) {
   gab_value fmtstr = gab_arg(0);
@@ -222,6 +234,11 @@ struct primitive sigil_primitives[] = {
         .name = mGAB_MAKE,
         .sigil = tGAB_RECORD,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_RECORD),
+    },
+    {
+        .name = mGAB_MAKE,
+        .sigil = tGAB_SHAPE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_SHAPE),
     },
     {
         .name = mGAB_MAKE,
@@ -352,9 +369,19 @@ struct primitive kind_primitives[] = {
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
     },
     {
+        .name = mGAB_MAKE,
+        .kind = kGAB_SHAPE,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_MAKE_SHAPE),
+    },
+    {
         .name = mGAB_SPLAT,
         .kind = kGAB_RECORD,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_SPLAT),
+    },
+    {
+        .name = mGAB_SPLATKEYS,
+        .kind = kGAB_RECORD,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_SPLATKEYS),
     },
     {
         .name = mGAB_USE,
@@ -540,9 +567,9 @@ struct native kind_natives[] = {
         .native = gab_reclib_at,
     },
     {
-        .name = "del",
+        .name = "slice",
         .kind = kGAB_RECORD,
-        .native = gab_reclib_del,
+        .native = gab_reclib_slice,
     },
     {
         .name = "push",
@@ -629,6 +656,26 @@ struct native kind_natives[] = {
         .name = "floor",
         .kind = kGAB_NUMBER,
         .native = gab_numlib_floor,
+    },
+    {
+        .name = "binary.into",
+        .kind = kGAB_NUMBER,
+        .native = gab_numlib_binary_into,
+    },
+    {
+        .name = "binary.into",
+        .kind = kGAB_SIGIL,
+        .native = gab_siglib_binary_into,
+    },
+    {
+        .name = "binary.into",
+        .kind = kGAB_MESSAGE,
+        .native = gab_msglib_binary_into,
+    },
+    {
+        .name = "binary.into",
+        .kind = kGAB_STRING,
+        .native = gab_strlib_binary_into,
     },
 };
 
@@ -853,6 +900,9 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->types[kGAB_NUMBER] = gab_string(gab, tGAB_NUMBER);
   gab_iref(gab, eg->types[kGAB_NUMBER]);
+
+  eg->types[kGAB_BINARY] = gab_string(gab, tGAB_BINARY);
+  gab_iref(gab, eg->types[kGAB_BINARY]);
 
   eg->types[kGAB_STRING] = gab_string(gab, tGAB_STRING);
   gab_iref(gab, eg->types[kGAB_STRING]);

@@ -234,6 +234,7 @@ enum gab_flags {
 #define mGAB_LTE "<="
 #define mGAB_GTE ">="
 #define mGAB_SPLAT "**"
+#define mGAB_SPLATKEYS "keys"
 #define mGAB_TYPE "?"
 #define mGAB_BIN "~"
 #define mGAB_LIN "!"
@@ -246,6 +247,7 @@ enum gab_flags {
 #define mGAB_MAKE "make"
 
 #define tGAB_STRING "string"
+#define tGAB_BINARY "binary"
 #define tGAB_SIGIL "sigil"
 #define tGAB_MESSAGE "message"
 #define tGAB_SYMBOL "symbol"

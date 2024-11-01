@@ -142,11 +142,12 @@ typedef uint64_t gab_value;
 
 enum gab_kind {
   kGAB_STRING = 0, // MUST_STAY_ZERO
-  kGAB_SIGIL = 1,
-  kGAB_MESSAGE = 2,
-  kGAB_SYMBOL = 3,
-  kGAB_PRIMITIVE = 4,
-  kGAB_UNDEFINED = 5,
+  kGAB_BINARY = 1,
+  kGAB_SIGIL = 2,
+  kGAB_MESSAGE = 3,
+  kGAB_SYMBOL = 4,
+  kGAB_PRIMITIVE = 5,
+  kGAB_UNDEFINED = 6,
   kGAB_NUMBER,
   kGAB_NATIVE,
   kGAB_PROTOTYPE,
@@ -1301,7 +1302,6 @@ static inline gab_value gab_strtosig(gab_value str) {
  */
 static inline gab_value gab_strtomsg(gab_value str) {
   assert(gab_valkind(str) == kGAB_STRING);
-
   return str | (uint64_t)kGAB_MESSAGE << __GAB_TAGOFFSET;
 }
 
@@ -1310,8 +1310,15 @@ static inline gab_value gab_strtomsg(gab_value str) {
  */
 static inline gab_value gab_strtosym(gab_value str) {
   assert(gab_valkind(str) == kGAB_STRING);
-
   return str | (uint64_t)kGAB_SYMBOL << __GAB_TAGOFFSET;
+}
+
+/**
+ * @brief Convert a string into a binary. This is constant-time.
+ */
+static inline gab_value gab_strtobin(gab_value str) {
+  assert(gab_valkind(str) == kGAB_STRING);
+  return str | (uint64_t)kGAB_BINARY << __GAB_TAGOFFSET;
 }
 
 /**
@@ -1339,7 +1346,7 @@ static inline gab_value gab_message(struct gab_triple gab, const char *data) {
 }
 
 /**
- * @brief get the name of the message.
+ * @brief Convert a message into a string
  *
  * @param msg The message.
  * @return the name.
@@ -1349,13 +1356,50 @@ static inline gab_value gab_msgtostr(gab_value msg) {
   return msg & ~((uint64_t)kGAB_MESSAGE << __GAB_TAGOFFSET);
 }
 
+static inline gab_value gab_symtostr(gab_value sym) {
+  assert(gab_valkind(sym) == kGAB_SYMBOL);
+  return sym & ~((uint64_t)kGAB_SYMBOL << __GAB_TAGOFFSET);
+}
+
+static inline gab_value gab_bintostr(gab_value bin) {
+  assert(gab_valkind(bin) == kGAB_BINARY);
+  return bin & ~((uint64_t)kGAB_BINARY << __GAB_TAGOFFSET);
+}
+
+/**
+ * @brief Convert a sigil into it's corresponding string. This is constant-time.
+ *
+ * @param str The string
+ * @return The sigil
+ */
+static inline gab_value gab_sigtostr(gab_value sigil) {
+  assert(gab_valkind(sigil) == kGAB_SIGIL);
+  return sigil & ~((uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET);
+}
+
+/**
+ * @brief Create a symbol value from a cstring.
+ *
+ * @param data the cstring
+ * @return The symbol
+ */
 static inline gab_value gab_symbol(struct gab_triple gab, const char *data) {
   return gab_strtosym(gab_string(gab, data));
 }
 
-static inline gab_value gab_symtostr(gab_value sym) {
-  assert(gab_valkind(sym) == kGAB_SYMBOL);
-  return sym & ~((uint64_t)kGAB_SYMBOL << __GAB_TAGOFFSET);
+/**
+ * @brief Create a binary value from a cstring.
+ *
+ * @param data the cstring
+ * @return the binary
+ */
+static inline gab_value gab_binary(struct gab_triple gab, const char *data) {
+  return gab_strtobin(gab_string(gab, data));
+}
+
+static inline gab_value gab_nbinary(struct gab_triple gab, size_t len,
+                                    const char *data) {
+  return gab_strtobin(gab_nstring(gab, len, data));
 }
 
 /**
@@ -1378,17 +1422,6 @@ static inline gab_value gab_sigil(struct gab_triple gab, const char *data) {
 static inline gab_value gab_nsigil(struct gab_triple gab, uint64_t len,
                                    const char *data) {
   return gab_strtosig(gab_nstring(gab, len, data));
-}
-
-/**
- * @brief Convert a sigil into it's corresponding string. This is constant-time.
- *
- * @param str The string
- * @return The sigil
- */
-static inline gab_value gab_sigtostr(gab_value sigil) {
-  assert(gab_valkind(sigil) == kGAB_SIGIL);
-  return sigil & ~((uint64_t)kGAB_SIGIL << __GAB_TAGOFFSET);
 }
 
 /**
@@ -1637,6 +1670,9 @@ struct gab_obj_rec {
  */
 gab_value gab_record(struct gab_triple gab, uint64_t stride, uint64_t len,
                      gab_value *keys, gab_value *vals);
+
+gab_value gab_recordfrom(struct gab_triple gab, gab_value shape,
+                         uint64_t stride, uint64_t len, gab_value *vals);
 
 static inline gab_value gab_erecord(struct gab_triple gab) {
   return gab_record(gab, 0, 0, nullptr, nullptr);
@@ -1983,7 +2019,7 @@ struct gab_obj_channel {
 
 /**
  * Channels may have one of three policies:
- * 
+ *
  *  ** BLOCKING **
  *   - A put on a blocking channel will block until
  *    a taker is available.
@@ -2367,7 +2403,7 @@ struct gab_eg {
 
   gab_value types[kGAB_NKINDS];
 
-  _Atomic int8_t  njobs;
+  _Atomic int8_t njobs;
 
   struct gab_gc {
     _Atomic int8_t schedule;
@@ -2608,14 +2644,16 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
   char buffer[128];
 
   switch (gab_valkind(value)) {
+  case kGAB_STRING:
+    return value;
   case kGAB_SIGIL:
     return gab_sigtostr(value);
   case kGAB_MESSAGE:
     return gab_msgtostr(value);
   case kGAB_SYMBOL:
     return gab_symtostr(value);
-  case kGAB_STRING:
-    return value;
+  case kGAB_BINARY:
+    return gab_bintostr(value);
   case kGAB_PRIMITIVE:
     return gab_string(gab, gab_opcode_names[gab_valtop(value)]);
   case kGAB_NUMBER: {
@@ -2689,6 +2727,10 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
   }
 }
 
+/**
+ * Coerce a value into a bytestring
+ * returns undefined if the value isn't coercable.
+ */
 /*int gab_val_printf_handler(FILE *stream, const struct printf_info *info,*/
 /*                           const void *const *args);*/
 /**/

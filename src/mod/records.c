@@ -1,9 +1,10 @@
 #include "gab.h"
 #include <errno.h>
+#include <stdint.h>
 #include <stdio.h>
 
 a_gab_value *gab_reclib_at(struct gab_triple gab, uint64_t argc,
-                        gab_value argv[argc]) {
+                           gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value key = gab_arg(1);
 
@@ -20,23 +21,62 @@ a_gab_value *gab_reclib_at(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
-a_gab_value *gab_reclib_del(struct gab_triple gab, uint64_t argc,
-                         gab_value argv[argc]) {
+#define MIN(a, b) (a < b ? a : b)
+#define MAX(a, b) (a > b ? a : b)
+#define CLAMP(a, b) (MAX(0, MIN(a, b)))
+
+a_gab_value *gab_reclib_slice(struct gab_triple gab, uint64_t argc,
+                              gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
-  gab_value key = gab_arg(1);
+  uint64_t len = gab_reclen(argv[0]);
+  uint64_t start = 0, end = len;
 
-  if (gab_valkind(rec) != kGAB_RECORD)
-    return gab_pktypemismatch(gab, rec, kGAB_RECORD);
+  switch (argc) {
+  case 2: {
+    if (gab_valkind(argv[1]) != kGAB_NUMBER) {
+      return gab_fpanic(gab, "&:slice expects a number as the second argument");
+    }
 
-  gab_value new_rec = gab_recdel(gab, rec, key);
+    double a = gab_valton(argv[1]);
+    end = MIN(a, len);
+    break;
+  }
 
-  gab_vmpush(gab_vm(gab), new_rec);
+  case 3:
+    if (gab_valkind(argv[1]) == kGAB_NUMBER) {
+      start = MIN(gab_valton(argv[1]), len);
+    } else if (argv[1] == gab_nil) {
+      return gab_fpanic(gab, "&:slice expects a number as the second argument");
+    }
+
+    if (gab_valkind(argv[2]) == kGAB_NUMBER) {
+      end = MIN(gab_valton(argv[2]), len);
+    } else if (argv[2] == gab_nil) {
+      return gab_fpanic(gab, "&:slice expects a number as the third argument");
+    }
+    break;
+
+  default:
+    return gab_fpanic(gab, "&:slice expects 2 or 3 arguments");
+  }
+
+  if (start > end) {
+    return gab_fpanic(gab, "&:slice expects the start to be before the end");
+  }
+
+  uint64_t size = end - start;
+  gab_value vs[size];
+  for (uint64_t i = 0; i < size; i++) {
+    vs[i] = gab_uvrecat(rec, start + i);
+  }
+
+  gab_vmpush(gab_vm(gab), gab_list(gab, size, vs));
 
   return nullptr;
 }
 
 a_gab_value *gab_reclib_push(struct gab_triple gab, uint64_t argc,
-                          gab_value argv[argc]) {
+                             gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
   if (gab_valkind(rec) != kGAB_RECORD)
@@ -56,7 +96,7 @@ a_gab_value *gab_reclib_push(struct gab_triple gab, uint64_t argc,
 }
 
 a_gab_value *gab_reclib_put(struct gab_triple gab, uint64_t argc,
-                         gab_value argv[argc]) {
+                            gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value key = gab_arg(1);
   gab_value val = gab_arg(2);
@@ -70,7 +110,7 @@ a_gab_value *gab_reclib_put(struct gab_triple gab, uint64_t argc,
 }
 
 a_gab_value *gab_reclib_is_list(struct gab_triple gab, uint64_t argc,
-                            gab_value argv[argc]) {
+                                gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
   if (gab_valkind(rec) != kGAB_RECORD)
@@ -119,7 +159,7 @@ gab_value doputvia(struct gab_triple gab, gab_value rec, gab_value val,
 }
 
 a_gab_value *gab_reclib_putvia(struct gab_triple gab, uint64_t argc,
-                            gab_value argv[argc]) {
+                               gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value val = gab_arg(1);
 
@@ -138,7 +178,7 @@ a_gab_value *gab_reclib_putvia(struct gab_triple gab, uint64_t argc,
 }
 
 a_gab_value *gab_reclib_len(struct gab_triple gab, uint64_t argc,
-                         gab_value argv[argc]) {
+                            gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
   if (gab_valkind(rec) != kGAB_RECORD)
@@ -150,7 +190,7 @@ a_gab_value *gab_reclib_len(struct gab_triple gab, uint64_t argc,
 }
 
 a_gab_value *gab_reclib_strings_into(struct gab_triple gab, uint64_t argc,
-                                  gab_value argv[argc]) {
+                                     gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
   if (gab_valkind(rec) != kGAB_RECORD)
@@ -180,7 +220,7 @@ a_gab_value *gab_reclib_strings_into(struct gab_triple gab, uint64_t argc,
 }
 
 a_gab_value *gab_reclib_seqinit(struct gab_triple gab, uint64_t argc,
-                          gab_value argv[argc]) {
+                                gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
 
   if (gab_valkind(rec) != kGAB_RECORD)
@@ -201,7 +241,7 @@ a_gab_value *gab_reclib_seqinit(struct gab_triple gab, uint64_t argc,
 }
 
 a_gab_value *gab_reclib_seqnext(struct gab_triple gab, uint64_t argc,
-                          gab_value argv[argc]) {
+                                gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
   gab_value old_key = gab_arg(1);
 

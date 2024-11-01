@@ -1281,9 +1281,32 @@ CASE_CODE(SEND_PRIMITIVE_SPLAT) {
 
   assert(VM()->sp + len < VM()->sp + cGAB_STACK_MAX);
 
-  for (uint64_t i = 0; i < len; i++) {
+  for (uint64_t i = 0; i < len; i++)
     PUSH(gab_uvrecat(r, i));
-  }
+
+  SET_VAR(len);
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_SPLATKEYS) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value r = PEEK_N(have);
+
+  SEND_GUARD_CACHED_RECEIVER_TYPE(r);
+
+  SEND_GUARD_KIND(r, kGAB_RECORD);
+
+  DROP_N(have);
+
+  uint64_t len = gab_reclen(r);
+
+  assert(VM()->sp + len < VM()->sp + cGAB_STACK_MAX);
+
+  for (uint64_t i = 0; i < len; i++)
+    PUSH(gab_ukrecat(r, i));
 
   SET_VAR(len);
 
@@ -1488,7 +1511,36 @@ CASE_CODE(TRIM) {
   NEXT();
 }
 
-CASE_CODE(PACK) {
+CASE_CODE(PACK_RECORD) {
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+  uint8_t below = READ_BYTE;
+  uint8_t above = READ_BYTE;
+
+  uint64_t want = below + above;
+
+  while (have < want)
+    PUSH(gab_nil), have++;
+
+  assert(have >= want);
+  int64_t len = have - want;
+
+  gab_value *ap = SP() - above;
+
+  STORE_SP();
+
+  gab_value rec = gab_record(GAB(), 2, len / 2, ap - len, ap - len + 1);
+
+  DROP_N(len - 1);
+
+  memmove(ap - len + 1, ap, above * sizeof(gab_value));
+
+  PEEK_N(above + 1) = rec;
+
+  SET_VAR(want + 1);
+
+  NEXT();
+}
+CASE_CODE(PACK_LIST) {
   uint64_t have = compute_arity(VAR(), READ_BYTE);
   uint8_t below = READ_BYTE;
   uint8_t above = READ_BYTE;
@@ -1914,10 +1966,51 @@ CASE_CODE(SEND_PRIMITIVE_RECORD) {
   if (__gab_unlikely(len % 2 == 1))
     PUSH(gab_nil), len++, have++; // Should we just error here?
 
-  gab_value map = gab_record(GAB(), 2, len / 2, SP() - len, SP() + 1 - len);
+  gab_value record = gab_record(GAB(), 2, len / 2, SP() - len, SP() + 1 - len);
 
   DROP_N(have);
-  PUSH(map);
+  PUSH(record);
+  SET_VAR(1);
+  STORE_SP();
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_MAKE_SHAPE) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  SEND_GUARD_CACHED_RECEIVER_TYPE(PEEK_N(have));
+
+  gab_value shape = PEEK_N(have);
+  uint64_t len = have - 1;
+
+  if (__gab_unlikely(gab_shplen(shape) != len))
+    ERROR(GAB_PANIC, "Expected $ arguments, got $",
+          gab_number(gab_shplen(shape)), gab_number(have));
+
+  gab_value record = gab_recordfrom(GAB(), shape, 1, len, SP() - len);
+
+  DROP_N(have);
+  PUSH(record);
+  SET_VAR(1);
+  STORE_SP();
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_SHAPE) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  SEND_GUARD_CACHED_RECEIVER_TYPE(PEEK_N(have));
+
+  uint64_t len = have - 1;
+
+  gab_value shape = gab_shape(GAB(), 1, len, SP() - len);
+
+  DROP_N(have);
+  PUSH(shape);
   SET_VAR(1);
   STORE_SP();
 

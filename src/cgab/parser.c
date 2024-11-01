@@ -1130,7 +1130,7 @@ static inline uint8_t encode_arity(struct gab_triple gab, gab_value lhs,
   }
 
   bool is_multi = node_ismulti(gab, rhs);
-  size_t len = node_len(gab, rhs) + 1; // The trimmed lhs
+  size_t len = node_len(gab, rhs) + node_len(gab, lhs);
 
   if (len && is_multi)
     len--;
@@ -1238,7 +1238,16 @@ static inline bool push_trim_node(struct gab_triple gab, struct bc *bc,
 static inline void push_listpack(struct gab_triple gab, struct bc *bc,
                                  gab_value rhs, uint8_t below, uint8_t above,
                                  gab_value node) {
-  push_op(bc, OP_PACK, node);
+  push_op(bc, OP_PACK_LIST, node);
+  push_byte(bc, encode_arity(gab, rhs, gab_undefined), node);
+  push_byte(bc, below, node);
+  push_byte(bc, above, node);
+}
+
+static inline void push_recordpack(struct gab_triple gab, struct bc *bc,
+                                   gab_value rhs, uint8_t below, uint8_t above,
+                                   gab_value node) {
+  push_op(bc, OP_PACK_RECORD, node);
   push_byte(bc, encode_arity(gab, rhs, gab_undefined), node);
   push_byte(bc, below, node);
   push_byte(bc, above, node);
@@ -1537,24 +1546,41 @@ gab_value unpack_binding_into_env(struct gab_triple gab, struct bc *bc,
 
         gab_value rec = gab_uvrecat(lhs, 0);
 
-        if (rec != gab_sigil(gab, tGAB_LIST))
-          goto err;
+        if (rec == gab_sigil(gab, tGAB_LIST)) {
+          if (m != gab_message(gab, mGAB_MAKE))
+            goto err;
 
-        if (m != gab_message(gab, mGAB_MAKE))
-          goto err;
+          if (!node_isempty(rhs))
+            goto err;
 
-        if (!node_isempty(rhs))
-          goto err;
+          if (i == 0)
+            goto err;
 
-        if (i == 0)
-          goto err;
+          if (listpack_at_n >= 0 || recpack_at_n >= 0)
+            goto err;
 
-        if (listpack_at_n >= 0 || recpack_at_n >= 0)
-          goto err;
+          listpack_at_n = i - 1;
 
-        listpack_at_n = i - 1;
+          continue;
+        }
 
-        continue;
+        if (rec == gab_sigil(gab, tGAB_RECORD)) {
+          if (m != gab_message(gab, mGAB_MAKE))
+            goto err;
+
+          if (!node_isempty(rhs))
+            goto err;
+
+          if (i == 0)
+            goto err;
+
+          if (listpack_at_n >= 0 || recpack_at_n >= 0)
+            goto err;
+
+          recpack_at_n = i - 1;
+
+          continue;
+        }
 
       err:
         return bc_error(gab, bc, bindings, GAB_INVALID_REST_VARIABLE,
@@ -1573,6 +1599,9 @@ gab_value unpack_binding_into_env(struct gab_triple gab, struct bc *bc,
   if (listpack_at_n >= 0)
     push_listpack(gab, bc, values, listpack_at_n,
                   actual_targets - listpack_at_n - 1, bindings);
+  else if (recpack_at_n >= 0)
+    push_recordpack(gab, bc, values, recpack_at_n,
+                    actual_targets - recpack_at_n - 1, bindings);
   else if (!push_trim_node(gab, bc, actual_targets, values, bindings))
     return gab_undefined;
 
@@ -1694,7 +1723,7 @@ gab_value compile_record(struct gab_triple gab, struct bc *bc, gab_value tuple,
     if (env == gab_undefined)
       return gab_undefined;
 
-    if (!node_isempty(rhs_node))
+    if (!node_isempty(rhs_node) && node_ismulti(gab, lhs_node))
       if (!push_trim_node(gab, bc, 1, lhs_node, lhs_node))
         return gab_undefined;
 

@@ -1,15 +1,50 @@
-'strings':use
+s = 'specs':use
 
-a = { \spec.label 2 }
+#spec = s:cat(
+#  .status .ok
+#  .result s:any(1 2))
+#
+#spec:println
+#
+#spec:spec.fits?(.ok 2):println
+\string? :def! .false
+\string? :def! ('string' .true)
 
-.string:make(
-  a:spec.label
-  ': '
-  a:spec.label):println
+spec = s:cat(
+  .status  s:any(.ok .err)
+  .results s:*(.result \string?)
+  .final   'hi')
 
-\test :def! (a ?, () => .string :make(
-  self:spec.label
-  ': '
-  self:spec.label))
+spec:spec.fits?(.ok '1' '2' 'a' 'hi'):println
 
-a:test:println
+spec = s:cat(
+  .status  \string?
+  .method  s:any('GET' 'PUT' 'PATCH' 'DEL'))
+
+req = '200\nGET'
+
+[req:split '\n']:println
+
+spec:spec.fits?(req:split '\n') :println
+
+spec = s:cat(
+  .status  \string?
+  .method  s:any('GET' 'PUT' 'PATCH' 'DEL')
+  .headers s *(.header \string?))
+
+req = '200\nGET\nContent-Length:10'
+
+spec:spec.fits?(req:split '\n') :println
+
+spec = s:cat(
+  .status  \string?
+  .method  s:any('GET' 'PUT' 'PATCH' 'DEL')
+  .headers s +(.header \string?)
+  .empty_header ''
+  .body    \string?)
+
+req = '200\nGET\nContent-Length:10\nContent-Length:10\n\nHelloWorld'
+
+[req:split '\n']:println
+
+spec:spec.fits?(req:split '\n') :println

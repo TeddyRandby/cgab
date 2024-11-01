@@ -1,5 +1,6 @@
 #include "gab.h"
 #include <ctype.h>
+#include <stdint.h>
 
 static inline bool instr(char c, const char *set) {
   while (*set != '\0')
@@ -65,7 +66,7 @@ a_gab_value *gab_strlib_split(struct gab_triple gab, uint64_t argc,
   const char sepstart = csep[0];
 
   uint64_t offset = 0, begin = 0;
-  while (offset + csep_len < cstr_len) {
+  while (offset + csep_len <= cstr_len) {
 
     // Quick check to see if we should try memcmp
     if (cstr[offset] == sepstart) {
@@ -75,6 +76,7 @@ a_gab_value *gab_strlib_split(struct gab_triple gab, uint64_t argc,
         gab_vmpush(gab_vm(gab), gab_nstring(gab, offset - begin, cstr + begin));
         begin = offset + csep_len;
         offset = begin;
+        continue;
       }
     }
 
@@ -207,7 +209,7 @@ a_gab_value *gab_strlib_begins(struct gab_triple gab, uint64_t argc,
 }
 
 a_gab_value *gab_strlib_number(struct gab_triple gab, uint64_t argc,
-                                 gab_value argv[argc]) {
+                               gab_value argv[argc]) {
   if (argc != 1) {
     return gab_fpanic(gab, "&:is_digit? expects 0 arguments");
   }
@@ -323,7 +325,7 @@ a_gab_value *gab_strlib_slice(struct gab_triple gab, uint64_t argc,
     return gab_fpanic(gab, "&:slice expects 2 or 3 arguments");
   }
 
-  if (start >= end) {
+  if (start > end) {
     return gab_fpanic(gab, "&:slice expects the start to be before the end");
   }
 
@@ -351,6 +353,31 @@ a_gab_value *gab_strlib_has(struct gab_triple gab, uint64_t argc,
 a_gab_value *gab_strlib_string_into(struct gab_triple gab, uint64_t argc,
                                     gab_value argv[argc]) {
   gab_vmpush(gab_vm(gab), gab_valintos(gab, gab_arg(0)));
+  return nullptr;
+}
+
+a_gab_value *gab_siglib_binary_into(struct gab_triple gab, uint64_t argc,
+                                    gab_value argv[argc]) {
+  gab_vmpush(gab_vm(gab), gab_strtobin(gab_sigtostr(gab_arg(0))));
+  return nullptr;
+}
+
+a_gab_value *gab_strlib_binary_into(struct gab_triple gab, uint64_t argc,
+                                    gab_value argv[argc]) {
+  gab_vmpush(gab_vm(gab), gab_strtobin(gab_arg(0)));
+  return nullptr;
+}
+
+a_gab_value *gab_msglib_binary_into(struct gab_triple gab, uint64_t argc,
+                                    gab_value argv[argc]) {
+  gab_vmpush(gab_vm(gab), gab_strtobin(gab_msgtostr(gab_arg(0))));
+  return nullptr;
+}
+
+a_gab_value *gab_numlib_binary_into(struct gab_triple gab, uint64_t argc,
+                                    gab_value argv[argc]) {
+  uint64_t f = gab_valton(gab_arg(0));
+  gab_vmpush(gab_vm(gab), gab_nbinary(gab, sizeof(f), (void *)&f));
   return nullptr;
 }
 

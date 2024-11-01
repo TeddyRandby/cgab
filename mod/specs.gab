@@ -233,6 +233,190 @@ or.predicate = (specs[]) => do
   pred
 end
 
+#
+# COMPOSE WITH REGEX
+#
+regex.null  = .re.null
+regex.blank = .re.blank
+regex.empty = .true
+
+\re.null?:def!(regex.null .true)
+\re.null?:def!.false
+
+\re.blank?:def!(regex.blank .true)
+\re.blank?:def!.false
+
+\re.empty?:def!(regex.empty .true)
+\re.empty?:def!.false
+
+\re.either_null? :def! (other) => self:re.null? | other:re.null?
+
+\re.first_blank? :def! () => self:re.blank?
+\re.second_blank? :def! (other) => other:re.blank?
+
+\re.first_null? :def! () => self:re.null?
+\re.second_null? :def! (other) => other:re.null?
+
+re.seq.t = .shape:make(.re.seq \pat_a \pat_b)
+\re.seq?:def!(re.seq.t .true)
+\re.seq?:def!.false
+
+re.alt.t = .shape:make(.re.alt \pat_a \pat_b)
+\re.alt?:def!(re.alt.t .true)
+\re.alt?:def!.false
+\re.empty?:def!(re.alt.t ()
+  => self:pat_a:re.empty? | self:pat_b:re.empty?)
+
+re.rep.t = .shape:make(.re.rep \pat_a)
+\re.rep?:def!(re.rep.t .true)
+\re.rep?:def!.false
+
+# regex constructors
+[.re] :defmodule! {
+  \seq (pat_a pat_b) => (pat_a pat_b) :cond {
+        \re.either_null?  regex.null
+        \re.first_blank?  pat_b
+        \re.second_blank? pat_a
+        .else             re.seq.t:make(.nil pat_a pat_b)
+    }
+
+  \alt (pat_a pat_b) => (pat_a pat_b) :cond {
+          \re.first_null?  pat_b
+          \re.second_null? pat_a
+          .else            re.alt.t:make(.nil pat_a pat_b)
+    }
+
+  \rep pat => pat :cond {
+        \re.null?  regex.blank
+        \re.empty? regex.blank
+        .else      re.rep.t:make(.nil pat)
+    }
+}
+
+# Matching fns
+\re.empty :def! .false
+\re.empty :defcase! {
+  regex.blank .true
+  regex.empty .true
+  regex.null  .false
+  re.rep.t    .true
+  re.seq.t    () => .re:seq(
+          self:pat_a:re.empty,
+          self:pat_b:re.empty,
+        )
+
+  re.alt.t    () => .re:alt(
+          self:pat_a:re.empty,
+          self:pat_b:re.empty,
+        )
+}
+
+# Derivatives
+#\re.d :def! e => self :spec.fits? e :and regex.blank :or regex.null
+\re.d :def! e => do
+  self :spec.fits? e :and regex.blank :or regex.null
+end
+
+\re.d :defcase! {
+  regex.blank regex.null
+  regex.empty regex.null
+  regex.null  regex.null
+
+  re.seq.t    (e) => .re:alt(
+                      .re:seq(
+                        self:pat_a:re.d e
+                        self:pat_b)
+                      .re:seq(
+                        self:pat_a:re.empty
+                        self:pat_b:re.d e))
+
+ re.alt.t    (e) => .re:alt(
+                      self:pat_a:re.d e
+                      self:pat_b:re.d e)
+
+ re.rep.t    (e) => .re:seq(
+                      self:pat_a:re.d e
+                      self)
+}
+
+\re.head :defcase! {
+  'record' () => self:at! 0
+}
+
+\re.tail :defcase! {
+  'record' () => self:slice(1 self:len)
+}
+
+\domatch :defcase! {
+  .true (re d) => d:re.tail:match(re:re.d(d:re.head))
+  # Naturally this only succeeds if the match is empty
+  # But what if one of the alt paths is empty?
+  .false (re d) => re:re.empty:re.empty?
+}
+
+\match :def!(
+  'record'
+  (re) => (self:len > 0) :domatch (re self))
+
+\re.into:def! () => self
+\cat :def!(
+  spec.t
+  (specs{}) => do
+    (first rest[]) = specs**
+    pred = .string:make('predicate:values:' specs):sigils.into
+
+    re = rest:reduce(
+      first:re.into,
+      (re v) => .re:seq(re v:re.into))
+
+    \spec.fits?:def!(
+      pred
+      (values[]) => values :match re)
+
+    \re.into:def!(pred re)
+
+    pred
+  end)
+
+\alt :def!(
+  spec.t
+  (specs{}) => do
+    (first rest[]) = specs**
+    pred = .string:make('redicate:alt:' specs):sigils.into
+
+    re = rest:reduce(
+      first:re.into,
+      (re v) => .re:alt(re v:re.into))
+
+    \re.into:def!(pred re)
+
+    pred
+  end)
+
+\* :def!(
+  spec.t
+  (name spec) => do
+    pred = .string:make('predicate:*:' spec):sigils.into
+
+    re = .re:rep(spec:re.into)
+
+    \re.into:def!(pred re)
+
+    pred
+  end)
+
+\+ :def!(
+  spec.t
+  (name spec) => do
+    pred = .string:make('predicate:+:' spec):sigils.into
+
+    re = .re:seq(spec:re.into, .re:rep(spec:re.into))
+
+    \re.into:def!(pred re)
+
+    pred
+  end)
+
 values.predicate = (specs[]) => do
   pred = .string:make('predicate:values:' specs):sigils.into
 
@@ -653,6 +837,13 @@ LabeledSpec = { \spec.label .nil \spec.spec .nil }?
 \spec.fits?:def!(
   'block'
   (value) => self:(value))
+
+\spec.fits?:def!(
+  'message'
+  (value) => do
+    msg = self
+    msg :has? value :then () => msg:(value)
+  end)
 
 \spec.option.into:defcase! {
   .nil err => do
