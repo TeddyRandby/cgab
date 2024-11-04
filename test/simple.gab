@@ -1,25 +1,26 @@
 s = 'specs':use
 
-#spec = s:cat(
-#  .status .ok
-#  .result s:any(1 2))
-#
-#spec:println
-#
-#spec:spec.fits?(.ok 2):println
 \string? :def! .false
 \string? :def! ('string' .true)
 
-spec = s:cat(
-  .status  s:any(.ok .err)
-  .results s:*(.result \string?)
-  .final   'hi')
+.http.status :defspec! {
+  \help "The http status code"
+  \spec \string?
+}
 
-spec:spec.fits?(.ok '1' '2' 'a' 'hi'):println
+.http.method :defspec! {
+  \help "The http method of a request"
+  \spec s:any('GET' 'PUT' 'PATCH' 'DEL')
+}
+
+.http.headers :defspec! {
+  \help "The headers of an http req/res"
+  \spec s *(.header \string?)
+}
 
 spec = s:cat(
-  .status  \string?
-  .method  s:any('GET' 'PUT' 'PATCH' 'DEL'))
+  .status  .http.status
+  .method  .http.method)
 
 req = '200\nGET'
 
@@ -28,9 +29,9 @@ req = '200\nGET'
 spec:spec.fits?(req:split '\n') :println
 
 spec = s:cat(
-  .status  \string?
-  .method  s:any('GET' 'PUT' 'PATCH' 'DEL')
-  .headers s *(.header \string?))
+  .status  .http.status
+  .method  .http.method
+  .headers .http.headers)
 
 req = '200\nGET\nContent-Length:10'
 

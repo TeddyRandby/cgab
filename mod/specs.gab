@@ -20,7 +20,7 @@ explain_values = (strings separator) => strings
   (opts) => do
     \spec.help:def!(
       opts:spec
-      () => (opts:at \help))
+      () => opts:at \help)
 
     \spec.name:def!(
       opts:spec
@@ -38,7 +38,13 @@ explain_values = (strings separator) => strings
   \spec.help!    () => self:spec:spec.help:unwrap!
   \spec.gen!     () => self:spec:spec.gen
   \spec.explain! () => self:spec:spec.explain
+  \spec.into     () => do
+    spec = self
+    \spec :has? spec :then(() => spec:spec) :or spec
+  end
 }
+
+\spec.into :def! () => self
 
 ## PREDICATES
 # A spec predicate is a function which
@@ -167,41 +173,39 @@ and.predicate = (specs[]) => do
   (specs:len > 0):assert! 'Must have at least one spec for the and predicate'
 
   pred = .string:make('predicate:and:' specs):sigils.into
+
+  [pred] :defmodule! {
+    \spec.explain () => explain_specs:(specs ' & ')
+
+    \spec.fits? value => specs:reduce(
+          []
+          (acc  spec  key) => [spec:spec.fits?(value) :or (.false spec value key)])
+    
+    \spec.gen () => do
+        start = specs :at! 0
+
+        xf = .td:map(() => do
+              value = start:spec.gen
+
+              fits = specs:reduce(
+                .true
+                (a _ s) => a:then () => s :spec.fits? value)
+
+              (fits value)
+            end)
+            |> .td:filter \self
+            |> .td:map \first
+            |> .td:take 1
+
+        .range
+          :make 100
+          :transduce(0 \first xf)
+          :assert!('Failed to generate a value for {specs}')
+      end
+  }
+
   # Return a predicate which returns true iff the given value
   # fits all of the given specs
-  \spec.fits?:def!(
-    pred
-    value => specs:reduce(
-        []
-        (acc  spec  key) => [spec:spec.fits?(value) :or (.false spec value key)]))
-  
-  \spec.gen:def!(
-    pred
-    () => do
-      start = specs :at! 0
-
-      xf = .td:map(() => do
-            value = start:spec.gen
-
-            fits = specs:reduce(
-              .true
-              (a _ s) => a:then () => s :spec.fits? value)
-
-            (fits value)
-          end)
-          |> .td:filter \self
-          |> .td:map \first
-          |> .td:take 1
-
-      .range
-        :make 100
-        :transduce(0 \first xf)
-        :assert!('Failed to generate a value for {specs}')
-    end)
-
-  \spec.explain:def!(
-    pred
-    () => explain_specs:(specs ' & '))
 
   pred
 end
@@ -210,25 +214,22 @@ or.predicate = (specs[]) => do
   (specs:len > 0):assert! "The or predicate expects more than zero specs"
   
   pred = .string:make('predicate:any:' specs):sigils.into
+
+  [pred] :defmodule! {
+    \spec.fits? value => do
+        valid = specs:reduce(.false (acc s) => do
+          acc :else () => s :spec.fits? value
+        end)
+
+        (valid self value pred)
+      end
+
+    \spec.gen () => specs:at!(.number:int.between(0 specs:len - 1)):spec.gen
+
+    \spec.explain () => explain_specs:(specs ' | ')
+  }
   # Return a predicate which returns true if the given value
   # fits any of the given specs
-  \spec.fits?:def!(
-    pred
-    value => do
-      valid = specs:reduce(.false (acc s) => do
-        acc :else () => s :spec.fits? value
-      end)
-
-      (valid self value pred)
-    end)
-
-  \spec.gen:def!(
-    pred
-    () => specs:at!(.number:int.between(0 specs:len - 1)):spec.gen)
-
-  \spec.explain:def!(
-    pred
-    () => explain_specs:(specs ' | '))
 
   pred
 end
@@ -314,7 +315,7 @@ re.rep.t = .shape:make(.re.rep \pat_a)
 # Derivatives
 #\re.d :def! e => self :spec.fits? e :and regex.blank :or regex.null
 \re.d :def! e => do
-  self :spec.fits? e :and regex.blank :or regex.null
+  self :spec.into :spec.fits? e :and regex.blank :or regex.null
 end
 
 \re.d :defcase! {
@@ -388,6 +389,10 @@ end
       first:re.into,
       (re v) => .re:alt(re v:re.into))
 
+    \spec.fits?:def!(
+      pred
+      (values[]) => values :match re)
+
     \re.into:def!(pred re)
 
     pred
@@ -399,6 +404,10 @@ end
     pred = .string:make('predicate:*:' spec):sigils.into
 
     re = .re:rep(spec:re.into)
+
+    \spec.fits?:def!(
+      pred
+      (values[]) => values :match re)
 
     \re.into:def!(pred re)
 
@@ -412,48 +421,25 @@ end
 
     re = .re:seq(spec:re.into, .re:rep(spec:re.into))
 
+    \spec.fits?:def!(
+      pred
+      (values[]) => values :match re)
+
     \re.into:def!(pred re)
 
     pred
   end)
 
-values.predicate = (specs[]) => do
-  pred = .string:make('predicate:values:' specs):sigils.into
+slice.predicate = (slice) => do
+  protocol = self
+  keys = protocol:spec.protocol.keys
 
-  \spec.fits?:def!(
-    pred
-    (values[]) => specs:reduce(
-            [ .true pred values .nil ]
-            (a s i) => do
-              # Stop at the first failing spec
-              # a[0] or a
+  pred = .string:make('predicate:protocol:slice:' keys ':' slice):sigils.into
 
-              (success sp value path) = s:spec.fits?(values[i])
-
-              # If our spec fits, continue with the initial value.
-              # Otherwise, return the result from the failed spec
-              success:and([success sp value path] a)
-            end)**)
-
-  \spec.gen:def!(
-    pred
-    () => specs:map \spec.gen)
-
-  \spec.explain:def!(
-    pred
-    () => '(' + explain_specs:(specs, ', ') + ')')
-
-  pred
-end
-
-protocol.predicate = (protocol) => do
-  pred = .string:make('predicate:protocol:' protocol):sigils.into
-# Return a predicate which returns true if the given value
-# has all the keys of the record
   \spec.fits?:def!(
     pred
     value => do
-      protocol:reduce([.true self value] (acc m) => do
+      keys:reduce([.true self value] (acc m) => do
 # Check for a spec which corresponds to this message in the protocol
         acc:at! 0 :and acc :else () => do
           m :has? value :then () => do
@@ -465,20 +451,35 @@ protocol.predicate = (protocol) => do
       end):**
     end)
 
-  genit = .td:map (key) => do
-    found = key:sigils.into:spec
-    (key found:spec.gen)
+  genit = .td:map (v) => do
+    found = v:sigils.into:spec
+    (v found:spec.gen)
   end
 
   \spec.gen:def!(
     pred
-    () => protocol:transduce(protocol \put genit))
+    () => keys:transduce(protocol \put genit))
 
   \spec.explain:def!(
     pred
-    () => (protocol:len == 0)
-      :and "[]"
-      :or ("[ " + explain_values:(protocol, ', ') + " ]"))
+    () => protocol:spec.exlain)
+
+  pred
+end
+
+
+protocol.predicate = (protocol) => do
+  pred = .string:make('predicate:protocol:' protocol):sigils.into
+
+  [pred] :defmodule! {
+    \spec.explain () => (protocol:len == 0)
+        :and "[]"
+        :or ("[ " + explain_values:(protocol, ', ') + " ]")
+
+    \spec.protocol.keys [protocol**]
+
+    \spec.slice slice.predicate
+  }
 
   pred
 end
@@ -486,17 +487,13 @@ end
 list.predicate = spec => do
   pred = .string:make('predicate:list:' spec):sigils.into
 
-  \spec.fits?:def!(
-    pred
-    value => value:spec.fits_each? \values)
+  [pred] :defmodule! {
+    \spec.fits? value => value:spec.fits_each? \values
 
-  \spec.gen:def!(
-    pred
-    () => .list:make:push(spec:spec.gen))
+    \spec.gen () => .list:make:push(spec:spec.gen)
 
-  \spec.explain:def!(
-    pred
-    () => .string:make('list[' spec:spec.explain() ']'))
+    \spec.explain () => .string:make('list[' spec:spec.explain() ']')
+  }
 
   pred
 end
@@ -871,13 +868,9 @@ end
   \message  message.predicate,
   \list     list.predicate,
   \record   record.predicate,
-  \values   values.predicate,
   \protocol protocol.predicate,
   \all      and.predicate,
   \any      or.predicate,
-  \nilable  spec => spec.t:any(
-                      spec
-                      nil.predicate)
   \option  value => spec.t:any(
                       spec.t:values(.ok, value),
                       .none)
