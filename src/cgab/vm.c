@@ -1912,40 +1912,7 @@ CASE_CODE(SEND_PRIMITIVE_CHANNEL) {
 
   SEND_GUARD_CACHED_RECEIVER_TYPE(PEEK_N(have));
 
-  size_t len = 0;
-  enum gab_chnpolicy_k p = kGAB_CHANNELPOLICY_BLOCKING;
-
-  switch (have) {
-  case 1:
-    break;
-  case 2: {
-    gab_value vlen = PEEK();
-
-    ERROR_GUARD_ISN(vlen);
-    len = gab_valton(vlen);
-
-    break;
-  }
-  default: {
-    gab_value vlen = PEEK_N(have - 1);
-
-    ERROR_GUARD_ISN(vlen);
-    len = gab_valton(vlen);
-
-    gab_value strat = PEEK_N(have - 2);
-    ERROR_GUARD_ISS(strat);
-
-    if (strat == gab_sigil(GAB(), "sliding"))
-      p = kGAB_CHANNELPOLICY_SLIDING;
-
-    if (strat == gab_sigil(GAB(), "dropping"))
-      p = kGAB_CHANNELPOLICY_DROPPING;
-
-    break;
-  }
-  }
-
-  gab_value chan = gab_channel(GAB(), len, p);
+  gab_value chan = gab_channel(GAB());
 
   DROP_N(have);
   PUSH(chan);

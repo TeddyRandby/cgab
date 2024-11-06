@@ -156,12 +156,6 @@ static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
   default:
     break;
 
-  case kGAB_CHANNELCLOSED:
-  case kGAB_CHANNELBUFFERED:
-  case kGAB_CHANNELBUFFEREDSLIDING:
-  case kGAB_CHANNELBUFFEREDDROPPING:
-    break;
-
   case kGAB_FIBER: {
     struct gab_obj_fiber *fib = (struct gab_obj_fiber *)obj;
 

@@ -21,6 +21,7 @@
  */
 /*#ifdef __STDC_NO_THREADS__*/
 #include <cthreads.h>
+#include <stdatomic.h>
 /*#else*/
 /*#include <threads.h>*/
 /*#endif*/
@@ -161,9 +162,6 @@ enum gab_kind {
   kGAB_FIBERDONE,
   kGAB_FIBERRUNNING,
   kGAB_CHANNEL,
-  kGAB_CHANNELBUFFERED,
-  kGAB_CHANNELBUFFEREDSLIDING,
-  kGAB_CHANNELBUFFEREDDROPPING,
   kGAB_CHANNELCLOSED,
   kGAB_NKINDS,
 };
@@ -1997,53 +1995,10 @@ static inline gab_value gab_thisfibmsgrec(struct gab_triple gab,
 struct gab_obj_channel {
   struct gab_obj header;
 
-  /* Synchronization primitives  */
-  mtx_t mtx;
-  cnd_t t_cnd, p_cnd;
-
   /**
-   * @brief Capacity of the channel's buffer.
+   * The atomic channel for communicating data betwixt fibers
    */
-  uint64_t len;
-
-  /**
-   * @brief head and tail for tracking channel's queue
-   */
-  int32_t head, tail;
-
-  /**
-   * @brief The channel's buffer.
-   */
-  gab_value data[];
-};
-
-/**
- * Channels may have one of three policies:
- *
- *  ** BLOCKING **
- *   - A put on a blocking channel will block until
- *    a taker is available.
- *   - A take on a blocking channel will block until
- *    a value is available.
- *
- *  NOTE: Blocking channels *are not implicitly buffered*.
- *   A value of 0 for the length will create an *unbuffered* channel,
- *   which can be used as a synchronization point.
- *
- *  ** SLIDING **
- *   - A put on a sliding channel will slide out the *oldest* value
- *   if the buffer is full.
- *   - Takes on a sliding channel are unchanged.
- *
- *  ** DROPPING **
- *   - A put on a dropping channel will *ignore* *new* values if the
- *    buffer is full.
- *   - Takes on a dropping channel are unchanged.
- */
-enum gab_chnpolicy_k {
-  kGAB_CHANNELPOLICY_BLOCKING = 0,
-  kGAB_CHANNELPOLICY_SLIDING = 1,
-  kGAB_CHANNELPOLICY_DROPPING = 2,
+  _Atomic gab_value data;
 };
 
 /**
@@ -2053,8 +2008,7 @@ enum gab_chnpolicy_k {
  * @param len The length of the channel's buffer
  * @return The channel
  */
-gab_value gab_channel(struct gab_triple gab, uint64_t len,
-                      enum gab_chnpolicy_k p);
+gab_value gab_channel(struct gab_triple gab);
 
 /**
  * @brief Put a value on the given channel.
@@ -2065,7 +2019,7 @@ gab_value gab_channel(struct gab_triple gab, uint64_t len,
  * @param channel The channel
  * @param value The value to put
  */
-int gab_chnput(struct gab_triple gab, gab_value channel, gab_value value);
+bool gab_chnput(struct gab_triple gab, gab_value channel, gab_value value);
 
 /**
  * @brief Take a value from the given channel. This will block the caller until
@@ -2660,57 +2614,54 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
     snprintf(buffer, 128, "%lg", gab_valton(value));
     return gab_string(gab, buffer);
   }
+  case kGAB_UNDEFINED: {
+    snprintf(buffer, 128, "undefined");
+    return gab_string(gab, buffer);
+  }
   case kGAB_FIBER:
   case kGAB_FIBERRUNNING:
   case kGAB_FIBERDONE: {
     struct gab_obj_fiber *m = GAB_VAL_TO_FIBER(value);
-    snprintf(buffer, 128, "<gab.fiber %p>", m);
+    snprintf(buffer, 128, "<" tGAB_FIBER " %p>", m);
     return gab_string(gab, buffer);
   }
   case kGAB_CHANNEL:
-  case kGAB_CHANNELBUFFERED:
-  case kGAB_CHANNELBUFFEREDSLIDING:
-  case kGAB_CHANNELBUFFEREDDROPPING:
   case kGAB_CHANNELCLOSED: {
     struct gab_obj_channel *m = GAB_VAL_TO_CHANNEL(value);
-    snprintf(buffer, 128, "<gab.channel %p>", m);
+    snprintf(buffer, 128, "<" tGAB_CHANNEL " %p>", m);
     return gab_string(gab, buffer);
   }
   case kGAB_SHAPE:
   case kGAB_SHAPELIST: {
     struct gab_obj_shape *m = GAB_VAL_TO_SHAPE(value);
-    snprintf(buffer, 128, "<gab.shape %p>", m);
-    return gab_string(gab, buffer);
-  }
-  case kGAB_UNDEFINED: {
-    snprintf(buffer, 128, "undefined");
+    snprintf(buffer, 128, "<" tGAB_SHAPE " %p>", m);
     return gab_string(gab, buffer);
   }
   case kGAB_RECORD: {
     struct gab_obj_rec *m = GAB_VAL_TO_REC(value);
-    snprintf(buffer, 128, "<gab.record %p>", m);
+    snprintf(buffer, 128, "<" tGAB_RECORD " %p>", m);
     return gab_string(gab, buffer);
   }
   case kGAB_BLOCK: {
     struct gab_obj_block *o = GAB_VAL_TO_BLOCK(value);
     struct gab_obj_prototype *p = GAB_VAL_TO_PROTOTYPE(o->p);
     gab_value str = gab_srcname(p->src);
-    snprintf(buffer, 128, "<Block %s:%" PRIu64 ">", gab_strdata(&str),
+    snprintf(buffer, 128, "<" tGAB_BLOCK " %s:%" PRIu64 ">", gab_strdata(&str),
              gab_srcline(p->src, p->offset));
     return gab_string(gab, buffer);
   }
   case kGAB_PROTOTYPE: {
     struct gab_obj_prototype *o = GAB_VAL_TO_PROTOTYPE(value);
     gab_value str = gab_srcname(o->src);
-    snprintf(buffer, 128, "<Prototype %s:%" PRIu64 ">", gab_strdata(&str),
-             gab_srcline(o->src, o->offset));
+    snprintf(buffer, 128, "<" tGAB_PROTOTYPE " %s:%" PRIu64 ">",
+             gab_strdata(&str), gab_srcline(o->src, o->offset));
 
     return gab_string(gab, buffer);
   }
   case kGAB_NATIVE: {
     struct gab_obj_native *o = GAB_VAL_TO_NATIVE(value);
     gab_value str = o->name;
-    snprintf(buffer, 128, "<Native %s>", gab_strdata(&str));
+    snprintf(buffer, 128, "<" tGAB_NATIVE " %s>", gab_strdata(&str));
 
     return gab_string(gab, buffer);
   }
@@ -2726,16 +2677,5 @@ static inline gab_value gab_valintos(struct gab_triple gab, gab_value value) {
     return gab_undefined;
   }
 }
-
-/**
- * Coerce a value into a bytestring
- * returns undefined if the value isn't coercable.
- */
-/*int gab_val_printf_handler(FILE *stream, const struct printf_info *info,*/
-/*                           const void *const *args);*/
-/**/
-/*int gab_val_printf_arginfo(const struct printf_info *i, uint64_t n, int
- * *argtypes,*/
-/*                           int *sizes);*/
 
 #endif

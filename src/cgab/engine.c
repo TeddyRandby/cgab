@@ -92,7 +92,7 @@ a_gab_value *gab_reclib_at(struct gab_triple gab, uint64_t argc,
                            gab_value argv[argc]);
 
 a_gab_value *gab_reclib_slice(struct gab_triple gab, uint64_t argc,
-                            gab_value argv[argc]);
+                              gab_value argv[argc]);
 
 a_gab_value *gab_reclib_put(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]);
@@ -161,16 +161,16 @@ a_gab_value *gab_numlib_between(struct gab_triple gab, uint64_t argc,
                                 gab_value argv[argc]);
 
 a_gab_value *gab_strlib_binary_into(struct gab_triple gab, uint64_t argc,
-                                gab_value argv[argc]);
+                                    gab_value argv[argc]);
 
 a_gab_value *gab_msglib_binary_into(struct gab_triple gab, uint64_t argc,
-                                gab_value argv[argc]);
+                                    gab_value argv[argc]);
 
 a_gab_value *gab_siglib_binary_into(struct gab_triple gab, uint64_t argc,
-                                gab_value argv[argc]);
+                                    gab_value argv[argc]);
 
 a_gab_value *gab_numlib_binary_into(struct gab_triple gab, uint64_t argc,
-                                gab_value argv[argc]);
+                                    gab_value argv[argc]);
 
 a_gab_value *gab_fmtlib_printf(struct gab_triple gab, uint64_t argc,
                                gab_value argv[argc]) {
@@ -409,28 +409,8 @@ struct primitive kind_primitives[] = {
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_PUT),
     },
     {
-        .name = mGAB_PUT,
-        .kind = kGAB_CHANNELBUFFEREDSLIDING,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_PUT),
-    },
-    {
-        .name = mGAB_PUT,
-        .kind = kGAB_CHANNELBUFFEREDDROPPING,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_PUT),
-    },
-    {
         .name = mGAB_TAKE,
         .kind = kGAB_CHANNEL,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_TAKE),
-    },
-    {
-        .name = mGAB_TAKE,
-        .kind = kGAB_CHANNELBUFFEREDSLIDING,
-        .primitive = gab_primitive(OP_SEND_PRIMITIVE_TAKE),
-    },
-    {
-        .name = mGAB_TAKE,
-        .kind = kGAB_CHANNELBUFFEREDDROPPING,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_TAKE),
     },
 };
@@ -767,8 +747,7 @@ int32_t worker_job(void *data) {
             cGAB_WORKER_IDLEWAIT_MS / 1000);
 #endif
 
-    gab_value fiber =
-        gab_tchntake(gab, gab.eg->work_channel, cGAB_WORKER_IDLEWAIT_MS);
+    gab_value fiber = gab_chntake(gab, gab.eg->work_channel);
 
 #if cGAB_LOG_EG
     fprintf(stdout, "[WORKER %i] chntake yielded: ", gab.wkid);
@@ -892,7 +871,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->shapes = __gab_shape(gab, 0);
   eg->messages = gab_erecord(gab);
-  eg->work_channel = gab_channel(gab, 0, 0);
+  eg->work_channel = gab_channel(gab);
 
   gab_iref(gab, eg->work_channel);
 
@@ -951,13 +930,6 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   eg->types[kGAB_CHANNELCLOSED] = gab_string(gab, tGAB_CHANNEL);
   gab_iref(gab, eg->types[kGAB_CHANNELCLOSED]);
-
-  eg->types[kGAB_CHANNELBUFFERED] = gab_string(gab, tGAB_CHANNEL);
-  gab_iref(gab, eg->types[kGAB_CHANNELBUFFERED]);
-  eg->types[kGAB_CHANNELBUFFEREDSLIDING] = gab_string(gab, tGAB_CHANNEL);
-  gab_iref(gab, eg->types[kGAB_CHANNELBUFFEREDSLIDING]);
-  eg->types[kGAB_CHANNELBUFFEREDDROPPING] = gab_string(gab, tGAB_CHANNEL);
-  gab_iref(gab, eg->types[kGAB_CHANNELBUFFEREDDROPPING]);
 
   eg->types[kGAB_PRIMITIVE] = gab_string(gab, tGAB_PRIMITIVE);
   gab_iref(gab, eg->types[kGAB_PRIMITIVE]);
