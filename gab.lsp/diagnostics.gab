@@ -1,46 +1,42 @@
-log :: 'gab.lsp/logs':use
+log = 'gab.lsp/logs':use
 
-diag.jobs.in :: .gab.channel()
+diag.jobs.in = .channel()
 
-diag.job.t :: { \server, \uri, \text }?
+diag.job.t = .shape:make(\server \uri \text)
+lsp.server.t = .shape:make(\server.in \server.out \server.data)
 
-lsp.server.t :: {
-  \server.in,
-  \server.out,
-  \server.data,
-}?
+\diagnostics.queue_all:def!(
+  lsp.server.t
+  do
+    server = self
 
-(\diagnostics.queue_all, lsp.server.t) :def! do
-  server :: self
-
-  server :server.data :each do uri, text
-    log("Queing Diagnostics", uri)
-    diag.jobs.in <! { \server: server, \uri: uri, \text: text }        
-  end
-end
+    server :server.data :each (uri text) => do
+      log:("Queing Diagnostics" uri)
+      diag.jobs.in <! diag.job.t:make(server uri text)        
+    end
+  end)
 
 [diag.job.t] :defmodule! {
-  \notify.diagnostics!: do diagnostics
+  \notify.diagnostics! diagnostics => do
     (self:server, "textDocument/publishDiagnostics") :notify! {
-      "uri": self:uri,
-      "diagnostics": diagnostics,
+      "uri" self:uri
+      "diagnostics" diagnostics
     }
-  end,
-  \diag.check: do
-    text :: self:text
-
+  end
+  \diag.check () => do
+    text = self:text
     []
-  end,
-  \complete!: do
-    log("Diagnostics", self)
-    diagnostics :: self:diag.check
+  end
+  \complete! () => do
+    log:("Diagnostics" self)
+    diagnostics = self:diag.check
 
     self:notify.diagnostics! diagnostics
-  end,
+  end
 }
 
-diag.worker :: do
+diag.worker = do
   diag.jobs.in :each \complete!
 end
 
-.gab.fiber diag.worker
+.fiber :make diag.worker

@@ -794,6 +794,11 @@ struct gab_send_argt {
   gab_value *argv;
 };
 
+/*
+ * @brief Send a message to a receiving value.
+ *
+ * Performs this send in a new fiber - thus is potentially blocking.
+ */
 a_gab_value *gab_send(struct gab_triple gab, struct gab_send_argt args);
 
 /**
@@ -1850,6 +1855,12 @@ static inline gab_value gab_mrecat(struct gab_triple gab, gab_value rec,
  */
 gab_value gab_recput(struct gab_triple gab, gab_value record, gab_value key,
                      gab_value value);
+
+/**
+ * @brief Pop a value from a record
+ */
+gab_value gab_rectake(struct gab_triple gab, gab_value record, gab_value key,
+                      gab_value *value);
 
 #define gab_lstcat(gab, ...)                                                   \
   ({                                                                           \

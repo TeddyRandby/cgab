@@ -3,10 +3,7 @@
 #include "engine.h"
 #include "gab.h"
 #include "lexer.h"
-#include <stdatomic.h>
 #include <stdint.h>
-#include <sys/types.h>
-#include <time.h>
 
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \
   ((struct obj_type *)gab_obj_create(gab, sizeof(struct obj_type), kind))
@@ -536,13 +533,13 @@ gab_value __gab_record(struct gab_triple gab, uint64_t len, uint64_t space,
   return __gab_obj(self);
 }
 
-gab_value __gab_recordnode(struct gab_triple gab, uint64_t len, uint64_t space,
+gab_value __gab_recordnode(struct gab_triple gab, uint64_t len, uint64_t adjust,
                            gab_value *data) {
-  assert(space + len > 0);
+  assert(adjust + len > 0);
   struct gab_obj_recnode *self = GAB_CREATE_FLEX_OBJ(
-      gab_obj_recnode, gab_value, space + len, kGAB_RECORDNODE);
+      gab_obj_recnode, gab_value, adjust + len, kGAB_RECORDNODE);
 
-  self->len = len + space;
+  self->len = len + adjust;
 
   if (len) {
     assert(data);
@@ -555,13 +552,13 @@ gab_value __gab_recordnode(struct gab_triple gab, uint64_t len, uint64_t space,
   return __gab_obj(self);
 }
 
-gab_value reccpy(struct gab_triple gab, gab_value r, uint64_t space) {
+gab_value reccpy(struct gab_triple gab, gab_value r, int64_t adjust) {
   switch (gab_valkind(r)) {
   case kGAB_RECORD: {
     struct gab_obj_rec *n = GAB_VAL_TO_REC(r);
 
     struct gab_obj_rec *nm =
-        GAB_VAL_TO_REC(__gab_record(gab, n->len, space, n->data));
+        GAB_VAL_TO_REC(__gab_record(gab, n->len, adjust, n->data));
 
     nm->shift = n->shift;
     nm->shape = n->shape;
@@ -571,7 +568,7 @@ gab_value reccpy(struct gab_triple gab, gab_value r, uint64_t space) {
   case kGAB_RECORDNODE: {
     struct gab_obj_recnode *n = GAB_VAL_TO_RECNODE(r);
 
-    return __gab_recordnode(gab, n->len, space, n->data);
+    return __gab_recordnode(gab, n->len, adjust, n->data);
   }
   case kGAB_UNDEFINED: {
     return __gab_recordnode(gab, 0, 1, nullptr);
@@ -582,6 +579,25 @@ gab_value reccpy(struct gab_triple gab, gab_value r, uint64_t space) {
 
   assert(0 && "Only rec and recnodebranch cpy");
   return gab_undefined;
+}
+void recpop(gab_value rec) {
+  switch (gab_valkind(rec)) {
+  case kGAB_RECORDNODE: {
+    struct gab_obj_recnode *r = GAB_VAL_TO_RECNODE(rec);
+    assert(r->len > 0);
+    r->len--;
+    return;
+  }
+  case kGAB_RECORD: {
+    struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
+    assert(r->len > 0);
+    r->len--;
+    return;
+  }
+  default:
+    break;
+  }
+  assert(false && "UNREACHABLE");
 }
 
 void recassoc(gab_value rec, gab_value v, uint64_t i) {
@@ -677,6 +693,69 @@ gab_value recsetshp(gab_value rec, gab_value shp) {
   return rec;
 }
 
+/*
+ * Since order is always dictated by shape, we can do a cheeky optimization for
+ * dissoc.
+ *
+ * The bit-partitioned vector trie data structure used for records only supports
+ * push-and-pop operations.
+ *
+ * To do a dissoc from anywhere within the record, we need to swap the value at
+ * the end and of the record with the chosen value, and then perform the pop.
+ * This means we need to clone two paths through the trie -
+ *  1. one down to the chosen value
+ *  2. one down to the last node
+ *
+ * then, perform the swap and pop
+ *
+ * we can do this because shapes dictate order, not records themselves.
+ * this will create a new shape. (to account for the swapped value)
+ *
+ * There is a fast case, where the value popped is the last value.
+ */
+gab_value dissoc(struct gab_triple gab, gab_value rec, gab_value shp,
+                 uint64_t i) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+  struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
+
+  gab_value node = rec;
+  gab_value root = node;
+  gab_value path = root;
+
+  for (int64_t level = r->shift; level > 0; level -= GAB_PVEC_BITS) {
+    uint64_t idx = (i >> level) & GAB_PVEC_MASK;
+
+    assert(idx < reclen(node));
+
+    node = reccpy(gab, recnth(node, idx), 0);
+
+    recassoc(path, node, idx);
+    path = node;
+  }
+
+  gab_value chosen_node = node;
+
+  for (int64_t level = r->shift; level > 0; level -= GAB_PVEC_BITS) {
+    uint64_t idx = reclen(node) - 1;
+
+    assert(idx < reclen(node));
+
+    node = reccpy(gab, recnth(node, idx), 0);
+
+    recassoc(path, node, idx);
+    path = node;
+  }
+
+  gab_value rightmost_node = node;
+
+  assert(node != gab_undefined);
+  // Update the chosen node with the value we're popping
+  recassoc(chosen_node, recnth(rightmost_node, reclen(rightmost_node) - 1),
+           i & GAB_PVEC_MASK);
+  recpop(rightmost_node);
+  return root;
+}
+
 gab_value assoc(struct gab_triple gab, gab_value rec, gab_value v, uint64_t i) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
@@ -731,21 +810,21 @@ gab_value cons(struct gab_triple gab, gab_value rec, gab_value v,
   struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
 
   uint64_t i = gab_reclen(rec);
-  gab_value new_root;
 
   // overflow root
   if ((i >> GAB_PVEC_BITS) >= ((uint64_t)1 << r->shift)) {
-    new_root = __gab_record(gab, 1, 1, &rec);
+    gab_value new_root = __gab_record(gab, 1, 1, &rec);
+
     struct gab_obj_rec *new_r = GAB_VAL_TO_REC(new_root);
+
     new_r->shape = shp;
     new_r->shift = r->shift + 5;
-    new_root = assoc(gab, new_root, v, i);
-  } else {
-    new_root = recsetshp(
-        assoc(gab, reccpy(gab, rec, recneedsspace(rec, i)), v, i), shp);
+
+    return assoc(gab, new_root, v, i);
   }
 
-  return new_root;
+  return recsetshp(assoc(gab, reccpy(gab, rec, recneedsspace(rec, i)), v, i),
+                   shp);
 }
 
 gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
@@ -759,12 +838,31 @@ gab_value gab_recput(struct gab_triple gab, gab_value rec, gab_value key,
   if (idx == -1) {
     gab_value result =
         cons(gab, rec, val, gab_shpwith(gab, gab_recshp(rec), key));
-    return gab_gcunlock(gab), result;
-  } else {
-    gab_value result =
-        assoc(gab, reccpy(gab, rec, recneedsspace(rec, idx)), val, idx);
+
     return gab_gcunlock(gab), result;
   }
+
+  gab_value result =
+      assoc(gab, reccpy(gab, rec, recneedsspace(rec, idx)), val, idx);
+
+  return gab_gcunlock(gab), result;
+}
+
+gab_value gab_rectake(struct gab_triple gab, gab_value rec, gab_value key,
+                      gab_value *value) {
+  assert(gab_valkind(rec) == kGAB_RECORD);
+
+  uint64_t idx = gab_recfind(rec, key);
+
+  if (idx == -1)
+    return rec;
+
+  gab_gclock(gab);
+
+  gab_value result =
+      dissoc(gab, reccpy(gab, rec, 0), gab_shpwithout(gab, gab_recshp(rec), key), idx);
+
+  return gab_gcunlock(gab), result;
 }
 
 gab_value gab_nlstpush(struct gab_triple gab, gab_value list, uint64_t len,
@@ -805,11 +903,6 @@ gab_value gab_urecput(struct gab_triple gab, gab_value rec, uint64_t i,
   gab_value result = assoc(gab, reccpy(gab, rec, 0), v, i);
 
   return gab_gcunlock(gab), result;
-}
-
-gab_value gab_recdel(struct gab_triple gab, gab_value rec, gab_value key) {
-  assert(false && "TODO NOT IMPLEMENTED");
-  return rec;
 }
 
 uint64_t getlen(uint64_t n, uint64_t shift) {

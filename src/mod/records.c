@@ -95,6 +95,18 @@ a_gab_value *gab_reclib_push(struct gab_triple gab, uint64_t argc,
   return nullptr;
 }
 
+a_gab_value *gab_reclib_pop(struct gab_triple gab, uint64_t argc,
+                             gab_value argv[argc]) {
+  gab_value rec = gab_arg(0);
+
+  if (gab_valkind(rec) != kGAB_RECORD)
+    return gab_pktypemismatch(gab, rec, kGAB_RECORD);
+
+  gab_vmpush(gab_vm(gab), rec);
+
+  return nullptr;
+}
+
 a_gab_value *gab_reclib_put(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]) {
   gab_value rec = gab_arg(0);
@@ -105,6 +117,19 @@ a_gab_value *gab_reclib_put(struct gab_triple gab, uint64_t argc,
     return gab_pktypemismatch(gab, rec, kGAB_RECORD);
 
   gab_vmpush(gab_vm(gab), gab_recput(gab, rec, key, val));
+
+  return nullptr;
+}
+
+a_gab_value *gab_reclib_take(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]) {
+  gab_value rec = gab_arg(0);
+  gab_value key = gab_arg(1);
+
+  if (gab_valkind(rec) != kGAB_RECORD)
+    return gab_pktypemismatch(gab, rec, kGAB_RECORD);
+
+  gab_vmpush(gab_vm(gab), gab_rectake(gab, rec, key, nullptr));
 
   return nullptr;
 }

@@ -1,22 +1,22 @@
-log :: 'gab.lsp/logs':use
+log = 'gab.lsp/logs':use
 'gab.lsp/diagnostics':use
 
 (\lsp.messages.into, 'gab.record') :def! do
-  ok, method? :: self:at 'method'
+  (ok, method?) = self:at 'method'
 
-  ok :else do
+  ok :else () => do
     log:error("No Method", self)
   end
 
-  ok, params? :: self:at 'params'
+  (ok, params?) = self:at 'params'
 
-  ok :else do
+  ok :else () => do
     log:error("No Params", self)
   end
 
-  method :: method? :or "" :sigils.into
-  params :: params? :or ""
-  id     :: self :at 'id' :unwrap:or 1
+  method = method? :or "" :sigils.into
+  params = params? :or ""
+  id     = self :at 'id' :unwrap:or 1
 
   {
     method,
@@ -31,7 +31,7 @@ end
 
 # Dispatch a message into its handler, if we have one
 \lsp.dispatch :def! do server
-  message :: self
+  message = self
 
   \lsp.handle :at message :then do
       log("Dispatch", server)
@@ -44,7 +44,7 @@ end
 # INITIALIZATION
 #
 
-TEXTDOCUMENTSYNCKIND.FULL :: 1
+TEXTDOCUMENTSYNCKIND.FULL = 1
 
 'initialize' :def.lsp.handler! do server
   (server, self:id) :respond! {
@@ -75,14 +75,14 @@ end
 #
 
 'textDocument\/didOpen' :def.lsp.handler! do server
-  uri :: self:params:at! 'textDocument' :at! 'uri'
-  text:: self:params:at! 'textDocument' :at! 'text'
+  uri = self:params:at! 'textDocument' :at! 'uri'
+  text= self:params:at! 'textDocument' :at! 'text'
 
   log("Opened", uri)
 
-  data :: server :server.data :put (uri, text)
+  data = server :server.data :put (uri, text)
 
-  newserver :: server:server.data data
+  newserver = server:server.data data
 
   newserver :diagnostics.queue_all
 
@@ -90,14 +90,14 @@ end
 end
 
 'textDocument\/didSave' :def.lsp.handler! do server
-  uri :: self:params:at! 'textDocument' :at! 'uri'
-  ok, text? :: self:params:at 'text'
+  uri = self:params:at! 'textDocument' :at! 'uri'
+  ok, text? = self:params:at 'text'
 
   log("Saved", uri)
 
-  data? :: server :server.data :put (uri, text?)
+  data? = server :server.data :put (uri, text?)
 
-  updated_server? :: server:server.data data?
+  updated_server? = server:server.data data?
 
   updated_server? :diagnostics.queue_all
 

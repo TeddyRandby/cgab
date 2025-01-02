@@ -97,6 +97,9 @@ a_gab_value *gab_reclib_slice(struct gab_triple gab, uint64_t argc,
 a_gab_value *gab_reclib_put(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]);
 
+a_gab_value *gab_reclib_take(struct gab_triple gab, uint64_t argc,
+                            gab_value argv[argc]);
+
 a_gab_value *gab_reclib_push(struct gab_triple gab, uint64_t argc,
                              gab_value argv[argc]);
 
