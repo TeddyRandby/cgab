@@ -1,42 +1,18 @@
-\doquicksort_fold :defcase! {
-  .true (lists x) => do
-    lhs = lists :at! 0 :push x
+EMPTY = []?
 
-    [lhs, lists:at! 1]
-  end
+\sort :defcase! {
+  EMPTY    []
 
-  .false (lists x) => do
-    rhs = lists:at! 1 :push x
-    [lists:at! 0, rhs]
-  end
-}
+  'record' () => do
+    (tail head) = self:pop
 
-\doquicksort_empty :defcase! {
-  .true () => []
-  .false (seq) => do
-    pivot = seq :at! 0
-    halves = seq:reduce(
-      [ [] [] ],
-      (lists x) => do
-        x :< pivot :doquicksort_fold(lists x)
-      end)
+    smaller = tail:filter(a => a <= head):sort
+    bigger = tail:filter(a => a > head):sort
 
-    halves:println
-
-    halves:at! 0 :sort:push(halves:at! 1 :sort :**)
+    smaller:push(head, bigger**)
   end
 }
 
-\empty?:def!(
-  'record'
-  () => self:len == 0
-)
-
-\sort:def!(
-  'record'
-  () => do
-    self :empty? :doquicksort_empty self
-end)
-
-[1 2 3] :sort :println
-[3 2 1] :sort :println
+[1 2 3]:sort:println
+[3 1 2]:sort:println
+[3 2 1]:sort:println

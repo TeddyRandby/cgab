@@ -103,7 +103,13 @@ a_gab_value *gab_reclib_take(struct gab_triple gab, uint64_t argc,
 a_gab_value *gab_reclib_push(struct gab_triple gab, uint64_t argc,
                              gab_value argv[argc]);
 
+a_gab_value *gab_reclib_pop(struct gab_triple gab, uint64_t argc,
+                             gab_value argv[argc]);
+
 a_gab_value *gab_reclib_is_list(struct gab_triple gab, uint64_t argc,
+                                gab_value argv[argc]);
+
+a_gab_value *gab_reclib_is_empty(struct gab_triple gab, uint64_t argc,
                                 gab_value argv[argc]);
 
 a_gab_value *gab_reclib_putvia(struct gab_triple gab, uint64_t argc,
@@ -372,6 +378,11 @@ struct primitive kind_primitives[] = {
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_EQ),
     },
     {
+        .name = mGAB_CONS,
+        .kind = kGAB_UNDEFINED,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CONS),
+    },
+    {
         .name = mGAB_MAKE,
         .kind = kGAB_SHAPE,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_MAKE_SHAPE),
@@ -385,6 +396,11 @@ struct primitive kind_primitives[] = {
         .name = mGAB_SPLATKEYS,
         .kind = kGAB_RECORD,
         .primitive = gab_primitive(OP_SEND_PRIMITIVE_SPLATKEYS),
+    },
+    {
+        .name = mGAB_CONS,
+        .kind = kGAB_RECORD,
+        .primitive = gab_primitive(OP_SEND_PRIMITIVE_CONS_RECORD),
     },
     {
         .name = mGAB_USE,
@@ -560,14 +576,29 @@ struct native kind_natives[] = {
         .native = gab_reclib_push,
     },
     {
+        .name = "pop",
+        .kind = kGAB_RECORD,
+        .native = gab_reclib_pop,
+    },
+    {
         .name = "put",
         .kind = kGAB_RECORD,
         .native = gab_reclib_put,
     },
     {
+        .name = "take",
+        .kind = kGAB_RECORD,
+        .native = gab_reclib_take,
+    },
+    {
         .name = "list?",
         .kind = kGAB_RECORD,
         .native = gab_reclib_is_list,
+    },
+    {
+        .name = "empty?",
+        .kind = kGAB_RECORD,
+        .native = gab_reclib_is_empty,
     },
     {
         .name = "put_via",
@@ -1012,7 +1043,6 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 }
 
 void gab_destroy(struct gab_triple gab) {
-
   // Wait until there is no work to be done
   while (!gab_chnisempty(gab.eg->work_channel))
     ;
@@ -1177,7 +1207,7 @@ gab_value dodef(struct gab_triple gab, gab_value messages, uint64_t len,
     gab_value specs = gab_recat(messages, arg.message);
 
     if (specs == gab_undefined)
-      specs = gab_record(gab, 0, 0, &specs, &specs);
+      specs = gab_record(gab, 0, 0, nullptr, nullptr);
 
     gab_value newspecs =
         gab_recput(gab, specs, arg.receiver, arg.specialization);

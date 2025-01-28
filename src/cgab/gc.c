@@ -244,6 +244,7 @@ static inline void _destroy(struct gab_triple gab, struct gab_obj *obj,
 #else
 static inline void destroy(struct gab_triple gab, struct gab_obj *obj) {
 #endif
+
 #if cGAB_LOG_GC
   if (GAB_OBJ_IS_FREED(obj)) {
     printf("DFREE\t%p\t%s:%i\n", obj, func, line);
@@ -254,6 +255,7 @@ static inline void destroy(struct gab_triple gab, struct gab_obj *obj) {
   }
   gab_obj_destroy(gab.eg, obj);
   GAB_OBJ_FREED(obj);
+  gab_egalloc(gab, obj, 0);
 #else
   gab_obj_destroy(gab.eg, obj);
   gab_egalloc(gab, obj, 0);
@@ -383,6 +385,10 @@ gab_value gab_dref(struct gab_triple gab, gab_value value) {
 
   struct gab_obj *obj = gab_valtoo(value);
 
+#if cGAB_DEBUG_GC
+    gab_collect(gab);
+#endif
+
 #if cGAB_LOG_GC
   if (GAB_OBJ_IS_NEW(obj)) {
     printf("NEWDREF\t%i\t%p\t%d\t%s:%i\n", epochget(gab), obj, obj->references,
@@ -391,10 +397,6 @@ gab_value gab_dref(struct gab_triple gab, gab_value value) {
     printf("DREF\t%i\t%p\t%d\t%s:%i\n", epochget(gab), obj, obj->references,
            func, line);
   }
-#endif
-
-#if cGAB_DEBUG_GC
-  gab_collect(gab);
 #endif
 
 #if cGAB_LOG_GC

@@ -2541,14 +2541,6 @@ gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
         kGAB_IMPL_KIND,
     };
 
-  type = gab_undefined;
-  spec = gab_thisfibmsgat(gab, message, type);
-  if (spec != gab_undefined)
-    return (struct gab_impl_rest){
-        .as.spec = spec,
-        kGAB_IMPL_GENERAL,
-    };
-
   /* Check if the receiver is a record and has a matching property */
   if (gab_valkind(receiver) == kGAB_RECORD) {
     type = gab_recshp(receiver);
@@ -2559,6 +2551,18 @@ gab_impl(struct gab_triple gab, gab_value message, gab_value receiver) {
           kGAB_IMPL_PROPERTY,
       };
   }
+
+  /* Check for a default, generic implementation */
+  /* Previously, this had a higher priority than
+   * record properties - I don't remember why I made that change.
+   */
+  type = gab_undefined;
+  spec = gab_thisfibmsgat(gab, message, type);
+  if (spec != gab_undefined)
+    return (struct gab_impl_rest){
+        .as.spec = spec,
+        kGAB_IMPL_GENERAL,
+    };
 
   return (struct gab_impl_rest){.status = kGAB_IMPL_NONE};
 }

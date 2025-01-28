@@ -179,7 +179,7 @@ and.predicate = (specs[]) => do
 
     \spec.fits? value => specs:reduce(
           []
-          (acc  spec  key) => [spec:spec.fits?(value) :or (.false spec value key)])
+          (acc  spec  key) => [spec:spec.fits?(value) :or (.false spec value key)])**
     
     \spec.gen () => do
         start = specs :at! 0
@@ -237,142 +237,320 @@ end
 #
 # COMPOSE WITH REGEX
 #
-regex.null  = .re.null
-regex.blank = .re.blank
+regex.null  = { .re.null .nil \meta { \name 're.null' } \path .nil}
+regex.blank  = { .re.blank .nil \meta { \name 're.null' } \path .nil}
 regex.empty = .true
 
-\re.null?:def!(regex.null .true)
+re.null.t = regex.null ?
+re.blank.t = regex.blank ?
+
+\re.null?:def!(re.null.t, .true)
 \re.null?:def!.false
 
-\re.blank?:def!(regex.blank .true)
+\re.blank?:def!(re.blank.t, .true)
 \re.blank?:def!.false
 
 \re.empty?:def!(regex.empty .true)
+\re.empty?:def!(re.blank.t, .true)
 \re.empty?:def!.false
 
 \re.either_null? :def! (other) => self:re.null? | other:re.null?
 
+\re.first_empty? :def! () => self:re.empty?
+\re.second_empty? :def! (other) => other:re.empty?
+
 \re.first_blank? :def! () => self:re.blank?
 \re.second_blank? :def! (other) => other:re.blank?
+
+\re.both_empty? :def! (other) => self:re.empty? & other:re.empty?
 
 \re.first_null? :def! () => self:re.null?
 \re.second_null? :def! (other) => other:re.null?
 
-re.seq.t = .shape:make(.re.seq \pat_a \pat_b)
+re.atom.t = .shape:make(.re.atom \form \meta \path)
+
+re.seq.t = .shape:make(.re.seq \forms \meta \path)
 \re.seq?:def!(re.seq.t .true)
 \re.seq?:def!.false
 
-re.alt.t = .shape:make(.re.alt \pat_a \pat_b)
+re.alt.t = .shape:make(.re.alt \forms \meta \path)
 \re.alt?:def!(re.alt.t .true)
 \re.alt?:def!.false
-\re.empty?:def!(re.alt.t ()
-  => self:pat_a:re.empty? | self:pat_b:re.empty?)
+\re.empty?:def!(re.alt.t () => do
+  res = self:forms:collect(.td:filter \re.empty? |> .td:take 1)
+  res:empty?:!
+end)
 
-re.rep.t = .shape:make(.re.rep \pat_a)
+re.rep.t = .shape:make(.re.rep \form \meta \path)
 \re.rep?:def!(re.rep.t .true)
 \re.rep?:def!.false
 
+stringify_forms = (forms, sep) => .string
+  :make(
+    "("
+    forms:map \re.debug :join (.td:interpose sep)
+    ")")
+
 # regex constructors
+
 [.re] :defmodule! {
-  \seq (pat_a pat_b) => (pat_a pat_b) :cond {
-        \re.either_null?  regex.null
-        \re.first_blank?  pat_b
-        \re.second_blank? pat_a
-        .else             re.seq.t:make(.nil pat_a pat_b)
-    }
+  \atom (spec meta) => re.atom.t:make(.nil spec meta [])
 
-  \alt (pat_a pat_b) => (pat_a pat_b) :cond {
-          \re.first_null?  pat_b
-          \re.second_null? pat_a
-          .else            re.alt.t:make(.nil pat_a pat_b)
-    }
+  \seq (forms meta) => do
+    forms = forms:skip \re.blank?
 
-  \rep pat => pat :cond {
+    forms :cond {
+      f => f :any? \re.null? regex.null
+      \empty?                regex.blank
+      f => f :len == 1       forms :at 0 :unwrap
+      .else                  re.seq.t:make(.nil forms meta [])
+    }
+  end
+
+  \alt (forms meta) => do
+    forms = forms:skip \re.null?
+
+    forms :cond {
+      #f => f :all? \re.empty? regex.blank
+      f => f :len == 1        forms :at 0 :unwrap
+      .else                   re.alt.t:make(.nil forms meta [])
+    }
+  end
+
+  \rep (form meta) => form :cond {
         \re.null?  regex.blank
         \re.empty? regex.blank
-        .else      re.rep.t:make(.nil pat)
+        .else      re.rep.t:make(.nil form meta [])
     }
-}
-
-# Matching fns
-\re.empty :def! .false
-\re.empty :defcase! {
-  regex.blank .true
-  regex.empty .true
-  regex.null  .false
-  re.rep.t    .true
-  re.seq.t    () => .re:seq(
-          self:pat_a:re.empty,
-          self:pat_b:re.empty,
-        )
-
-  re.alt.t    () => .re:alt(
-          self:pat_a:re.empty,
-          self:pat_b:re.empty,
-        )
 }
 
 # Derivatives
-#\re.d :def! e => self :spec.fits? e :and regex.blank :or regex.null
-\re.d :def! e => do
-  self :spec.into :spec.fits? e :and regex.blank :or regex.null
-end
+
+\re.debug :defcase! {
+  regex.empty "re.internal.empty"
+  re.blank.t "re.internal.blank"
+  re.null.t "re.internal.null"
+  re.atom.t () => self:meta:name
+  re.seq.t () => stringify_forms:(self:forms, " > ")
+  re.alt.t () => stringify_forms:(self:forms, " | ")
+  re.rep.t () => .string:make('*', self:form:re.name)
+}
+\re.debug :def! () => self:spec.into:spec.name
+
+\re.name :defcase! {
+  re.atom.t () => self:meta:name
+  re.seq.t () =>  self:meta:name
+  re.alt.t () => self:meta:name
+  re.rep.t () => self:meta:name
+}
+\re.name :def! () => self:spec.into:spec.name
 
 \re.d :defcase! {
-  regex.blank regex.null
-  regex.empty regex.null
-  regex.null  regex.null
+  re.blank.t, e => regex.null  
+  re.null.t,  e => regex.null
+  regex.empty, e => regex.null
 
-  re.seq.t    (e) => .re:alt(
-                      .re:seq(
-                        self:pat_a:re.d e
-                        self:pat_b)
-                      .re:seq(
-                        self:pat_a:re.empty
-                        self:pat_b:re.d e))
+  re.atom.t e => do
+    (ok, rest[]) = self:form:spec.into:spec.fits? e
 
- re.alt.t    (e) => .re:alt(
-                      self:pat_a:re.d e
-                      self:pat_b:re.d e)
+    so_far = self:path
 
- re.rep.t    (e) => .re:seq(
-                      self:pat_a:re.d e
-                      self)
+    path = so_far:push [self:re.name, e]
+
+    (ok :and regex.blank :or regex.null :path(path), rest)
+  end
+
+ re.alt.t e => do
+    forms = self:forms:map f => f :re.d e
+
+    re = .re
+      :alt(forms, self:meta)
+      :path(self:path)
+
+    ("DERIVE ALT ", self:re.debug, "by ", e):println
+    ("\tFORMS BEFORE: ", stringify_forms:(self:forms, " | ")):println
+    ("\tFORMS AFTER: ", stringify_forms:(forms, " | ")):println
+    ("\tRE: ", re:re.debug):println
+    re
+  end
+
+  re.seq.t e => do
+    (a, rest) = (self:forms:at! 0, self:forms:slice(1, self:forms:len))
+    b = self:forms:at! 1
+
+    new_a = a:re.d e
+    new_b = b:re.d e
+
+    no_a = a:re.empty
+
+    so_far = self:path
+
+    left = .re:seq(self:forms:put(0, new_a), self:meta):path (so_far:push [a:re.name, e])
+
+    right = .re:seq(rest:put(0, new_b), self:meta):path (so_far:push [b:re.name, e])
+
+    re = .re
+      :alt(
+        [left no_a :re.empty? :and right :or regex.null]
+        self:meta)
+
+    ("DERIVE SEQ ", self:re.debug, "by ", e):println
+    ("\tSO FAR: ", so_far):println
+    ("\tHEAD: ", a:re.debug):println
+    ("\tREST: ", stringify_forms:(rest, ", ")):println
+    ("\tLEFT: " left:re.debug):println
+    ("\tLEFT PATH: ", left:path):println
+    ("\tLEFT EMPTY?: ", no_a:re.empty?):println
+    ("\tRIGHT: " right:re.debug):println
+    ("\tRIGHT PATH: ", right:path):println
+    ("\tRE: ", re:re.debug):println
+    ("\tRE PATH: ", re:path):println
+
+    re
+  end
+
+ re.rep.t e => do
+
+    a = self:form
+
+    new_a = a:re.d e
+
+    so_far = a:path
+    so_far = so_far:push(self:path:**)
+    path = so_far:push [self:re.name, e]
+
+    re = .re
+      :seq(
+        [new_a self],
+        self:meta)
+      :path(path)
+
+    #("DERIVE REP ", self:re.debug, "by ", e):println
+    #("\tRE: ", re:re.debug):println
+    re
+  end
 }
 
+# Types that can match up these re need to implement the head/tail interface
 \re.head :defcase! {
   'record' () => self:at! 0
+  'string' () => self:at 0
 }
 
 \re.tail :defcase! {
   'record' () => self:slice(1 self:len)
+  'string' () => self:slice(1 self:len)
 }
 
-\domatch :defcase! {
-  .true (re d) => d:re.tail:match(re:re.d(d:re.head))
-  # Naturally this only succeeds if the match is empty
-  # But what if one of the alt paths is empty?
-  .false (re d) => re:re.empty:re.empty?
+# Matching fns
+\re.empty :def! () => (regex.null, [])
+
+\re.empty :defcase! {
+  re.null.t   () => (regex.null, self:path)
+  re.blank.t  () => (regex.blank, self:path)
+  regex.empty () => (regex.blank, [])
+  re.rep.t    () => do
+    (regex.empty, self:path)
+  end
+  re.seq.t    () => do
+    forms = self:forms:map \re.empty
+
+    #("EMPTY SEQ:"):println
+    #("\tBEFORE: ", stringify_forms:(self:forms, ", ")):println
+    #("\tAFTER: ", stringify_forms:(forms, ", ")):println
+    #("\tPATH: ", self:path):println
+
+    (.re:seq(forms self:meta), self:path)
+  end
+  re.alt.t    () => do
+    forms = self:forms:map \re.empty
+
+    #("EMPTY ALT:"):println
+    #("\tBEFORE: ", stringify_forms:(self:forms, ", ")):println
+    #("\tAFTER: ", stringify_forms:(forms, ", ")):println
+    #("\tPATH: ", self:path):println
+
+    p = self:forms:collect(
+      .td:map \re.empty
+      |> .td:filter \re.empty?
+      |> .td:map \first
+      |> .td:take 1)
+
+    (.re:alt(forms, self:meta), p :at 0 :unwrap:or [])
+  end
 }
 
-\match :def!(
-  'record'
-  (re) => (self:len > 0) :domatch (re self))
+\match :defcase!{
+# Naturally this only succeeds if the match is empty
+# But what if one of the alt paths is empty?
+  []?, (re) => do
+    #("DONE: ", re:re.debug):println
+    (re, path) = re :re.empty
 
-\re.into:def! () => self
-\cat :def!(
+    (re:re.empty?, path)
+  end
+
+  'record' (re) => do
+    dre = re:re.d(self:re.head)
+
+    self:re.tail:match dre
+  end
+
+  .true (tail ddc re) => do
+    (re, path) = ddc :re.empty
+
+    (re:re.empty?, path)
+  end
+
+  .false (tail dre re) => do
+    tail:match dre
+  end
+
+  'string' re => do
+    dre = re:re.d(self:re.head)
+
+    tail = self:re.tail
+
+    tail:len :== 0 :match (tail dre re)
+  end
+}
+
+\re.into:def! () => .re:atom(self { \name self:spec.into:spec.name })
+
+\pat :def!(
   spec.t
   (specs{}) => do
-    (first rest[]) = specs**
     pred = .string:make('predicate:values:' specs):sigils.into
 
-    re = rest:reduce(
-      first:re.into,
-      (re v) => .re:seq(re v:re.into))
+    forms = specs:map (v k)
+      => (v:spec.into:re.into:put_via(k \meta \name))
+
+    re = .re:seq(forms {\name ""})
 
     \spec.fits?:def!(
       pred
-      (values[]) => values :match re)
+      (value) => value :match re)
+
+    \re.into:def!(pred re)
+
+    pred
+  end)
+
+\cat :def!(
+  spec.t
+  (specs{}) => do
+    pred = .string:make('predicate:values:' specs):sigils.into
+
+    forms = specs:map (v k)
+      => (v:spec.into:re.into:put_via(k \meta \name))
+
+    re = .re:seq(forms {\name ""})
+
+    \spec.fits?:def!(
+      pred
+      (values[]) => do
+        values :match re
+      end)
 
     \re.into:def!(pred re)
 
@@ -385,13 +563,16 @@ end
     (first rest[]) = specs**
     pred = .string:make('redicate:alt:' specs):sigils.into
 
-    re = rest:reduce(
-      first:re.into,
-      (re v) => .re:alt(re v:re.into))
+    forms = specs:map (v k)
+      => (v:spec.into:re.into:put_via(k \meta \name))
+
+    re = .re:alt(forms { \name "" })
 
     \spec.fits?:def!(
       pred
-      (values[]) => values :match re)
+      (values[]) => do
+        values :match re
+      end)
 
     \re.into:def!(pred re)
 
@@ -400,10 +581,10 @@ end
 
 \* :def!(
   spec.t
-  (name spec) => do
-    pred = .string:make('predicate:*:' spec):sigils.into
+  (spec) => do
+    pred = .string:make('predicate:*:' {} ':' spec):sigils.into
 
-    re = .re:rep(spec:re.into)
+    re = .re:rep(spec:spec.into:re.into, { \name "" })
 
     \spec.fits?:def!(
       pred
@@ -417,9 +598,9 @@ end
 \+ :def!(
   spec.t
   (name spec) => do
-    pred = .string:make('predicate:+:' spec):sigils.into
+    pred = .string:make('predicate:+:' name ':' spec):sigils.into
 
-    re = .re:seq(spec:re.into, .re:rep(spec:re.into))
+    re = .re:seq(spec:spec.into:re.into, .re:rep(spec:spec.into:re.into), { \name name })
 
     \spec.fits?:def!(
       pred

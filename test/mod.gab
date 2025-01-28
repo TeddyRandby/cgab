@@ -215,6 +215,42 @@ end)
   t:expect(tup:len, \== 3)
 end)
 
+\records.take_fields.test :def! (t => do
+  rec = { .a 1 .b 2 .c 3 }
+
+  (without_a, v) = rec :take .a
+
+  t:expect((without_a ?) \== { .c 1, .b 2 } ?)
+  t:expect(without_a :at! .b \== 2)
+  t:expect(without_a :at! .c \== 3)
+  t:expect(v \== 1)
+
+  (without_b, v) = rec :take .b
+
+  t:expect((without_b ?) \== { .a 1, .c 2 } ?)
+  t:expect(without_b :at! .a \== 1)
+  t:expect(without_b :at! .c \== 3)
+  t:expect(v \== 2)
+end)
+
+\records.big_take_fields.test :def! (t => do
+  list = [
+    0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+    17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32
+    33 34 35 36 37 38 39 40
+  ]
+
+  (popped, v) = list :take 40
+
+  t:expect(popped:len, \==, 40)
+  t:expect(v, \==, 40)
+
+  (popped, v) = list :take 10
+
+  t:expect(popped:len, \==, 40)
+  t:expect(v, \==, 10)
+end)
+
 vec.t = { \x .nil, \y .nil }?
 
 \+ :def! (vec.t other => {

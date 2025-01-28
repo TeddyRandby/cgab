@@ -13,39 +13,45 @@ s = 'specs':use
   \spec s:any('GET' 'PUT' 'PATCH' 'DEL')
 }
 
+.http.header :defspec! {
+  \help "A single header"
+  \spec s:pat(
+    .name s:*(\string?)
+    .colon ':'
+    .value s:*(\string?)
+    .end '\n')
+}
+
 .http.headers :defspec! {
   \help "The headers of an http req/res"
-  \spec s *(.header \string?)
+  \spec s:*(.http.header)
+}
+
+.http.body :defspec! {
+  \help "The body of an HTTP req/res"
+  \spec s:*(\string?)
 }
 
 spec = s:cat(
   .status  .http.status
-  .method  .http.method)
-
-req = '200\nGET'
-
-[req:split '\n']:println
-
-spec:spec.fits?(req:split '\n') :println
-
-spec = s:cat(
-  .status  .http.status
   .method  .http.method
-  .headers .http.headers)
+  .body    .http.body)
 
-req = '200\nGET\nContent-Length:10'
+#spec:re.into:println
 
-spec:spec.fits?(req:split '\n') :println
+req = '200\nGET\nHelloWorld\nTest'
 
-spec = s:cat(
-  .status  \string?
-  .method  s:any('GET' 'PUT' 'PATCH' 'DEL')
-  .headers s +(.header \string?)
-  .empty_header ''
-  .body    \string?)
+#spec:spec.fits?(req:split '\n') :println # => true
 
-req = '200\nGET\nContent-Length:10\nContent-Length:10\n\nHelloWorld'
+.http.header:spec.into:spec.fits? ("ContentLength:10\n") :println
 
-[req:split '\n']:println
+.test_repeat :defspec! {
+  \help "Simple test of repeat regex"
+  \spec s:cat(
+    .his s:*(\string?)
+    .test  'hi'
+    .a  'hi'
+  )
+}
 
-spec:spec.fits?(req:split '\n') :println
+.test_repeat:spec.into:spec.fits?('hi' 'hi' 'hi' 'hi'):println

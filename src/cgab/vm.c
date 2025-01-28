@@ -1,6 +1,7 @@
 #include "core.h"
 #include "gab.h"
 #include <stdint.h>
+#include <stdio.h>
 
 #define GAB_STATUS_NAMES_IMPL
 #include "engine.h"
@@ -656,6 +657,7 @@ inline uint64_t gab_nvmpush(struct gab_vm *vm, uint64_t argc,
     default:                                                                   \
       DROP_N((have) - 1);                                                      \
     case 2: {                                                                  \
+      STORE_SP();                                                              \
       gab_value value = gab_urecput(GAB(), r, ks[GAB_SEND_KSPEC], PEEK());     \
       DROP();                                                                  \
       PEEK() = value;                                                          \
@@ -1182,7 +1184,7 @@ IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_BND, gab_number, uint64_t, &);
 IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_LSH, gab_number, uint64_t, <<);
 IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_RSH, gab_number, uint64_t, >>);
 IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_LT, gab_bool, double, <);
-IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_LTE, gab_bool, double, >=);
+IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_LTE, gab_bool, double, <=);
 IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_GT, gab_bool, double, >);
 IMPL_SEND_BINARY_NUMERIC(PRIMITIVE_GTE, gab_bool, double, >=);
 IMPL_SEND_UNARY_BOOLEAN(PRIMITIVE_LIN, gab_bool, bool, !);
@@ -1224,10 +1226,10 @@ CASE_CODE(SEND_PRIMITIVE_CONCAT) {
   ERROR_GUARD_ISS(PEEK_N(have));
   ERROR_GUARD_ISS(PEEK_N(have - 1));
 
-  STORE_SP();
-
   gab_value val_a = PEEK_N(have);
   gab_value val_b = PEEK_N(have - 1);
+
+  STORE_SP();
   gab_value val_ab = gab_strcat(GAB(), val_a, val_b);
 
   DROP_N(have);
@@ -1261,6 +1263,56 @@ CASE_CODE(SEND_PRIMITIVE_USE) {
     PUSH(mod->data[i]);
 
   SET_VAR(mod->len - 1);
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_CONS) {
+  gab_value *ks = READ_CONSTANTS;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value r = PEEK_N(have);
+
+  SEND_GUARD_CACHED_MESSAGE_SPECS();
+  SEND_GUARD_CACHED_RECEIVER_TYPE(r);
+
+  if (__gab_unlikely(have < 2))
+    SET_VAR(1), NEXT();
+
+  gab_value a = PEEK_N(have);
+  gab_value b = PEEK_N(have - 1);
+
+  STORE_SP();
+  gab_value res = (gab_listof(GAB(), a, b));
+
+  DROP_N(have);
+  PUSH(res);
+
+  SET_VAR(1);
+
+  NEXT();
+}
+
+CASE_CODE(SEND_PRIMITIVE_CONS_RECORD) {
+  SKIP_SHORT;
+  uint64_t have = compute_arity(VAR(), READ_BYTE);
+
+  gab_value r = PEEK_N(have);
+
+  SEND_GUARD_KIND(r, kGAB_RECORD);
+
+  if (__gab_unlikely(have < 2))
+    SET_VAR(1), NEXT();
+
+  gab_value arg = PEEK_N(have - 1);
+
+  STORE_SP();
+  gab_value res = (gab_lstpush(GAB(), r, arg));
+
+  DROP_N(have);
+  PUSH(res);
+
+  SET_VAR(1);
 
   NEXT();
 }
@@ -1404,25 +1456,6 @@ CASE_CODE(POP) {
 
 CASE_CODE(POP_N) {
   DROP_N(READ_BYTE);
-
-  NEXT();
-}
-
-CASE_CODE(INTERPOLATE) {
-  uint8_t n = READ_BYTE;
-
-  STORE_SP();
-  gab_value str = gab_valintos(GAB(), PEEK_N(n));
-
-  // tODO: UHOH CAN THIS TAILCALL? STR takes addresses
-  for (uint8_t i = n - 1; i > 0; i--) {
-    gab_value curr = gab_valintos(GAB(), PEEK_N(i));
-    str = gab_strcat(GAB(), str, curr);
-  }
-
-  POP_N(n);
-
-  PUSH(str);
 
   NEXT();
 }
@@ -1844,6 +1877,7 @@ CASE_CODE(SEND_PRIMITIVE_TAKE) {
 
   SEND_GUARD_ISC(c);
 
+  STORE_SP();
   gab_value v = gab_chntake(GAB(), c);
 
   DROP_N(have);
@@ -1857,6 +1891,7 @@ CASE_CODE(SEND_PRIMITIVE_TAKE) {
   PUSH(gab_ok);
   PUSH(v);
   SET_VAR(2);
+
   NEXT();
 }
 
@@ -1873,6 +1908,7 @@ CASE_CODE(SEND_PRIMITIVE_PUT) {
 
   gab_value v = PEEK_N(have - 1);
 
+  STORE_SP();
   gab_chnput(GAB(), c, v);
 
   DROP_N(have - 1);
@@ -1912,12 +1948,12 @@ CASE_CODE(SEND_PRIMITIVE_CHANNEL) {
 
   SEND_GUARD_CACHED_RECEIVER_TYPE(PEEK_N(have));
 
+  STORE_SP();
   gab_value chan = gab_channel(GAB());
 
   DROP_N(have);
   PUSH(chan);
   SET_VAR(1);
-  STORE_SP();
 
   NEXT();
 }
@@ -1933,12 +1969,12 @@ CASE_CODE(SEND_PRIMITIVE_RECORD) {
   if (__gab_unlikely(len % 2 == 1))
     PUSH(gab_nil), len++, have++; // Should we just error here?
 
+  STORE_SP();
   gab_value record = gab_record(GAB(), 2, len / 2, SP() - len, SP() + 1 - len);
 
   DROP_N(have);
   PUSH(record);
   SET_VAR(1);
-  STORE_SP();
 
   NEXT();
 }
@@ -1954,14 +1990,14 @@ CASE_CODE(SEND_PRIMITIVE_MAKE_SHAPE) {
 
   if (__gab_unlikely(gab_shplen(shape) != len))
     ERROR(GAB_PANIC, "Expected $ arguments, got $",
-          gab_number(gab_shplen(shape)), gab_number(have));
+          gab_number(gab_shplen(shape)), gab_number(len));
 
+  STORE_SP();
   gab_value record = gab_recordfrom(GAB(), shape, 1, len, SP() - len);
 
   DROP_N(have);
   PUSH(record);
   SET_VAR(1);
-  STORE_SP();
 
   NEXT();
 }
@@ -1974,12 +2010,12 @@ CASE_CODE(SEND_PRIMITIVE_SHAPE) {
 
   uint64_t len = have - 1;
 
+  STORE_SP();
   gab_value shape = gab_shape(GAB(), 1, len, SP() - len);
 
   DROP_N(have);
   PUSH(shape);
   SET_VAR(1);
-  STORE_SP();
 
   NEXT();
 }
@@ -1992,12 +2028,12 @@ CASE_CODE(SEND_PRIMITIVE_LIST) {
 
   uint64_t len = have - 1;
 
+  STORE_SP();
   gab_value rec = gab_list(GAB(), len, SP() - len);
 
   DROP_N(have);
   PUSH(rec);
   SET_VAR(1);
-  STORE_SP();
 
   NEXT();
 }

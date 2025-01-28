@@ -334,6 +334,8 @@ gab_value gab_shortstrcat(gab_value _a, gab_value _b) {
     v |= (uint64_t)(0xff & gab_strdata(&_b)[i]) << ((i + alen) * 8);
   }
 
+  assert(gab_valkind(v) == kGAB_STRING);
+
   return v;
 }
 
@@ -429,6 +431,8 @@ gab_value gab_strcat(struct gab_triple gab, gab_value _a, gab_value _b) {
            __gab_obj(interned);
 
   gab_value result = nstring(gab, hash, len, buff->data);
+
+  assert(gab_valkind(result) == kGAB_STRING);
 
   return a_char_destroy(buff), mtx_unlock(&gab.eg->strings_mtx), result;
 };
@@ -676,7 +680,9 @@ gab_value gab_uvrecat(gab_value rec, uint64_t i) {
     node = next_node;
   }
 
-  return recnth(node, i & GAB_PVEC_MASK);
+  node = recnth(node, i & GAB_PVEC_MASK);
+
+  return node;
 }
 
 bool recneedsspace(gab_value rec, uint64_t i) {
@@ -709,49 +715,64 @@ gab_value recsetshp(gab_value rec, gab_value shp) {
  * then, perform the swap and pop
  *
  * we can do this because shapes dictate order, not records themselves.
- * this will create a new shape. (to account for the swapped value)
+ * this will create a new shape. (to account for the swapped value, not seen
+ * here)
  *
  * There is a fast case, where the value popped is the last value.
  */
-gab_value dissoc(struct gab_triple gab, gab_value rec, gab_value shp,
-                 uint64_t i) {
+gab_value dissoc(struct gab_triple gab, gab_value rec, uint64_t i) {
   assert(gab_valkind(rec) == kGAB_RECORD);
   struct gab_obj_rec *r = GAB_VAL_TO_REC(rec);
 
-  gab_value node = rec;
-  gab_value root = node;
-  gab_value path = root;
+  gab_value chosen_node = rec;
+  gab_value root = chosen_node;
+  gab_value chosen_path = root;
+  gab_value rightmost_node = rec;
+  gab_value rightmost_path = root;
+
+  bool diverged = false;
+
+  // Sometimes the chose node _is_ in the rightmost node, and this
+  // will copy the same path twice. This results in the second path
+  // overwriting the first.
 
   for (int64_t level = r->shift; level > 0; level -= GAB_PVEC_BITS) {
     uint64_t idx = (i >> level) & GAB_PVEC_MASK;
 
-    assert(idx < reclen(node));
+    assert(idx < reclen(chosen_node));
 
-    node = reccpy(gab, recnth(node, idx), 0);
+    chosen_node = reccpy(gab, recnth(chosen_node, idx), 0);
 
-    recassoc(path, node, idx);
-    path = node;
+    recassoc(chosen_path, chosen_node, idx);
+    chosen_path = chosen_node;
+
+    uint64_t rightmost_idx = reclen(rightmost_node) - 1;
+
+    if (!diverged && idx == rightmost_idx) {
+      rightmost_node = chosen_node;
+      rightmost_path = chosen_path;
+      continue;
+    }
+
+    diverged = true;
+
+    assert(rightmost_idx < reclen(rightmost_node));
+
+    // Improve this to trim this copy with negative space when necessary
+    // TODO: Account for popping out empty nodes
+    rightmost_node = reccpy(gab, recnth(rightmost_node, rightmost_idx), 0);
+
+    recassoc(rightmost_path, rightmost_node, rightmost_idx);
+    rightmost_path = rightmost_node;
   }
 
-  gab_value chosen_node = node;
-
-  for (int64_t level = r->shift; level > 0; level -= GAB_PVEC_BITS) {
-    uint64_t idx = reclen(node) - 1;
-
-    assert(idx < reclen(node));
-
-    node = reccpy(gab, recnth(node, idx), 0);
-
-    recassoc(path, node, idx);
-    path = node;
-  }
-
-  gab_value rightmost_node = node;
-
-  assert(node != gab_undefined);
+  assert(chosen_node != gab_undefined);
   // Update the chosen node with the value we're popping
   recassoc(chosen_node, recnth(rightmost_node, reclen(rightmost_node) - 1),
            i & GAB_PVEC_MASK);
+
+  // the rightmost node should have one less value. THis can be done more
+  // effieciently above.
   recpop(rightmost_node);
   return root;
 }
@@ -854,19 +875,26 @@ gab_value gab_rectake(struct gab_triple gab, gab_value rec, gab_value key,
 
   uint64_t idx = gab_recfind(rec, key);
 
-  if (idx == -1)
-    return rec;
+  if (idx == -1) {
+    if (value)
+      *value = gab_nil;
+
+    return  rec;
+  }
 
   gab_gclock(gab);
 
-  gab_value result =
-      dissoc(gab, reccpy(gab, rec, 0), gab_shpwithout(gab, gab_recshp(rec), key), idx);
+  if (value)
+    *value = gab_uvrecat(rec, idx);
+
+  gab_value result = recsetshp(dissoc(gab, reccpy(gab, rec, 0), idx),
+                               gab_shpwithout(gab, gab_recshp(rec), key));
 
   return gab_gcunlock(gab), result;
 }
 
 gab_value gab_nlstpush(struct gab_triple gab, gab_value list, uint64_t len,
-                       gab_value values[static len]) {
+                       gab_value *values) {
   assert(gab_valkind(list) == kGAB_RECORD);
 
   uint64_t start = gab_reclen(list);
@@ -883,14 +911,7 @@ gab_value gab_nlstpush(struct gab_triple gab, gab_value list, uint64_t len,
 }
 
 gab_value gab_lstpop(struct gab_triple gab, gab_value list, gab_value *popped) {
-  assert(gab_valkind(list) == kGAB_RECORD);
-
-  gab_value shp =
-      gab_shpwithout(gab, gab_recshp(list), gab_number(gab_reclen(list) - 1));
-
-  // TODO: Actually pop the value from the record
-
-  return recsetshp(reccpy(gab, list, 0), shp);
+  return gab_rectake(gab, list, gab_number(gab_reclen(list) - 1), popped);
 }
 
 gab_value gab_urecput(struct gab_triple gab, gab_value rec, uint64_t i,
@@ -1129,20 +1150,29 @@ gab_value __gab_shape(struct gab_triple gab, uint64_t len) {
   return __gab_obj(self);
 }
 
+/*
+ * This needs to mimic the swap-and-pop that records do to actually pop values
+ */
 gab_value gab_shpwithout(struct gab_triple gab, gab_value shape,
                          gab_value key) {
   gab_value shp = gab.eg->shapes;
+
+  assert(gab_shpfind(shape, key) != UINT64_MAX);
 
   gab_gclock(gab);
 
   uint64_t len = gab_shplen(shape);
 
-  for (uint64_t i = 0; i < len; i++) {
-    gab_value thiskey = gab_ushpat(shape, i);
-    if (key == thiskey)
-      continue;
+  gab_value last_key = gab_ushpat(shape, gab_shplen(shape) - 1);
 
-    shp = gab_shpwith(gab, shp, thiskey);
+  // Iterate through n - 1 keys
+  for (uint64_t i = 0; i < len - 1; i++) {
+    gab_value thiskey = gab_ushpat(shape, i);
+
+    if (key == thiskey) // This performs the swap
+      shp = gab_shpwith(gab, shp, last_key);
+    else
+      shp = gab_shpwith(gab, shp, thiskey);
   }
 
   gab_gcunlock(gab);

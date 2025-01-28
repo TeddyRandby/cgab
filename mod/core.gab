@@ -61,6 +61,14 @@ end
   branches :at! k
 end
 
+\put_by:def!(
+  'record'
+  (k v f) => do
+    x = self:at k :unwrap
+
+    self:put(k f: v)
+  end)
+
 \:def!(
   .option
   (cond, data[]) => do
@@ -127,11 +135,26 @@ end
     \filter f => do
       self:collect(.td:filter f)
     end,
-    \join xf => do
+    \skip f => do
+      self:collect(.td:skip f)
+    end,
+    \all? f => do
+      xf = .td:drop_while f
+        |> .td:take 1
+
+      self:collect(xf):empty?
+    end,
+    \any? f => do
+      xf = .td:filter f
+        |> .td:take 1
+
+      self:collect(xf):empty?:!
+    end,
+    \join (xf) => do
       self:transduce("", \+, xf)
     end,
     \collect xf => do
-      self:transduce({}, \push, xf)
+      self:transduce({}, \cons, xf)
     end,
   }
 end
@@ -141,7 +164,7 @@ channels.t = 'channel'
 # Channel's implementation of the seq protocol.
 # It isn't totally true to the requirements - 
 # The keys aren't a pure function, because channels
-# Forget about their values as soon as their taken
+# Forget about their values as soon as they're taken
 [channels.t] :defmodule! {
   \seq.init _ => do
     (ok v) = self >!
@@ -164,6 +187,10 @@ channels.t :def.seq!
 }
 
 records.t = 'record'
+
+\cons :def! (
+  .nil
+  (o) => [o])
 
 [records.t] :defmodule! {
   \has? key => do

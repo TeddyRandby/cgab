@@ -1,8 +1,9 @@
 module = .td
 
-\td.apply:def!(
-  .none .nil
-  x => x)
+\td.apply:defcase! {
+  .none x => x
+  .nil  x => x
+}
 
 \deftransducer!:def!(
   'message'
@@ -66,6 +67,9 @@ module = .td
 
 \filter:deftransducer!(
   f => (r acc xs) => f:(xs**):td.conditionally(r acc xs))
+
+\skip:deftransducer!(
+  f => (r acc xs) => f:(xs**):!:td.conditionally(r acc xs))
 
 \take:deftransducer!(
   n
