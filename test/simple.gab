@@ -16,42 +16,23 @@ s = 'specs':use
 .http.header :defspec! {
   \help "A single header"
   \spec s:pat(
-    .name s:*(\string?)
+    .name s *\string?
     .colon ':'
-    .value s:*(\string?)
-    .end '\n')
-}
-
-.http.headers :defspec! {
-  \help "The headers of an http req/res"
-  \spec s:*(.http.header)
+    .value s *\string?)
 }
 
 .http.body :defspec! {
   \help "The body of an HTTP req/res"
-  \spec s:*(\string?)
+  \spec s *\string?
 }
 
-spec = s:cat(
+http_spec = s:cat(
   .status  .http.status
   .method  .http.method
+  .headers s *.http.header
+  .empty_line ''
   .body    .http.body)
 
-#spec:re.into:println
+req = '200\nGET\nContentLength:10\nContentType:text\n\nHelloWorld\nTest'
 
-req = '200\nGET\nHelloWorld\nTest'
-
-#spec:spec.fits?(req:split '\n') :println # => true
-
-.http.header:spec.into:spec.fits? ("ContentLength:10\n") :println
-
-.test_repeat :defspec! {
-  \help "Simple test of repeat regex"
-  \spec s:cat(
-    .his s:*(\string?)
-    .test  'hi'
-    .a  'hi'
-  )
-}
-
-.test_repeat:spec.into:spec.fits?('hi' 'hi' 'hi' 'hi'):println
+http_spec:spec.fits?(req:split '\n') :println # => true

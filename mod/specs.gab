@@ -399,15 +399,11 @@ stringify_forms = (forms, sep) => .string
     so_far = so_far:push(self:path:**)
     path = so_far:push [self:re.name, e]
 
-    re = .re
+    .re
       :seq(
         [new_a self],
         self:meta)
       :path(path)
-
-    #("DERIVE REP ", self:re.debug, "by ", e):println
-    #("\tRE: ", re:re.debug):println
-    re
   end
 }
 
@@ -511,8 +507,6 @@ stringify_forms = (forms, sep) => .string
       pred
       (value) => value :match re)
 
-    \re.into:def!(pred re)
-
     pred
   end)
 
@@ -531,8 +525,6 @@ stringify_forms = (forms, sep) => .string
       (values[]) => do
         values :match re
       end)
-
-    \re.into:def!(pred re)
 
     pred
   end)
@@ -577,10 +569,12 @@ stringify_forms = (forms, sep) => .string
 
 \+ :def!(
   spec.t
-  (name spec) => do
-    pred = .string:make('predicate:+:' name ':' spec):sigils.into
+  (spec) => do
+    pred = .string:make('predicate:+:' {} ':' spec):sigils.into
 
-    re = .re:seq(spec:spec.into:re.into, .re:rep(spec:spec.into:re.into), { \name name })
+    re = spec:spec.into:re.into
+
+    re = .re:seq([re, .re:rep(re, { \name "" })], { \name "" })
 
     \spec.fits?:def!(
       pred

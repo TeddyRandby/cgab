@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdatomic.h>
 
 /**
  * There is some issue with how I'm using the threads library.
@@ -19,12 +20,11 @@
  * GNU C11 Threads work fine, but the cthread implementation AND MUSL C11
  * threads don't work.
  */
-/*#ifdef __STDC_NO_THREADS__*/
+#ifdef __STDC_NO_THREADS__
 #include <cthreads.h>
-#include <stdatomic.h>
-/*#else*/
-/*#include <threads.h>*/
-/*#endif*/
+#else
+#include <threads.h>
+#endif
 
 #include "core.h"
 
