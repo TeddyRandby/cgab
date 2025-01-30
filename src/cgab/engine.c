@@ -837,11 +837,10 @@ bool gab_jbcreate(struct gab_triple gab, struct gab_jb *job, int(fn)(void *)) {
   fprintf(stdout, "[WORKER %i] spawning %lu\n", gab.wkid, job - gab.eg->jobs);
 #endif
 
-  job->epoch = gab.eg->jobs[0].epoch;
   job->locked = 0;
   job->fiber = gab_undefined;
   job->alive = true;
-  v_gab_obj_create(&job->lock_keep, 8);
+  v_gab_value_create(&job->lock_keep, 8);
 
   struct gab_triple *gabcpy = malloc(sizeof(struct gab_triple));
   memcpy(gabcpy, &gab, sizeof(struct gab_triple));
@@ -903,71 +902,36 @@ struct gab_triple gab_create(struct gab_create_argt args) {
 
   gab_jbcreate(gab, gab.eg->jobs, gc_job);
 
+  gab_gclock(gab);
+
   eg->shapes = __gab_shape(gab, 0);
   eg->messages = gab_erecord(gab);
   eg->work_channel = gab_channel(gab);
-
   gab_iref(gab, eg->work_channel);
 
   eg->types[kGAB_UNDEFINED] = gab_undefined;
-
   eg->types[kGAB_NUMBER] = gab_string(gab, tGAB_NUMBER);
-  gab_iref(gab, eg->types[kGAB_NUMBER]);
-
   eg->types[kGAB_BINARY] = gab_string(gab, tGAB_BINARY);
-  gab_iref(gab, eg->types[kGAB_BINARY]);
-
   eg->types[kGAB_STRING] = gab_string(gab, tGAB_STRING);
-  gab_iref(gab, eg->types[kGAB_STRING]);
-
   eg->types[kGAB_SYMBOL] = gab_string(gab, tGAB_SYMBOL);
-  gab_iref(gab, eg->types[kGAB_SYMBOL]);
-
   eg->types[kGAB_SIGIL] = gab_string(gab, tGAB_SIGIL);
-  gab_iref(gab, eg->types[kGAB_SIGIL]);
-
   eg->types[kGAB_MESSAGE] = gab_string(gab, tGAB_MESSAGE);
-  gab_iref(gab, eg->types[kGAB_MESSAGE]);
-
   eg->types[kGAB_PROTOTYPE] = gab_string(gab, tGAB_PROTOTYPE);
-  gab_iref(gab, eg->types[kGAB_PROTOTYPE]);
-
   eg->types[kGAB_NATIVE] = gab_string(gab, tGAB_NATIVE);
-  gab_iref(gab, eg->types[kGAB_NATIVE]);
-
   eg->types[kGAB_BLOCK] = gab_string(gab, tGAB_BLOCK);
-  gab_iref(gab, eg->types[kGAB_BLOCK]);
-
   eg->types[kGAB_SHAPE] = gab_string(gab, tGAB_SHAPE);
-  gab_iref(gab, eg->types[kGAB_SHAPE]);
-
   eg->types[kGAB_SHAPELIST] = gab_string(gab, tGAB_SHAPE);
-  gab_iref(gab, eg->types[kGAB_SHAPELIST]);
-
   eg->types[kGAB_RECORD] = gab_string(gab, tGAB_RECORD);
-  gab_iref(gab, eg->types[kGAB_RECORD]);
   eg->types[kGAB_RECORDNODE] = gab_string(gab, tGAB_RECORD);
-  gab_iref(gab, eg->types[kGAB_RECORDNODE]);
-
   eg->types[kGAB_BOX] = gab_string(gab, tGAB_BOX);
-  gab_iref(gab, eg->types[kGAB_BOX]);
-
   eg->types[kGAB_FIBER] = gab_string(gab, tGAB_FIBER);
-  gab_iref(gab, eg->types[kGAB_FIBER]);
   eg->types[kGAB_FIBERDONE] = gab_string(gab, tGAB_FIBER);
-  gab_iref(gab, eg->types[kGAB_FIBERDONE]);
   eg->types[kGAB_FIBERRUNNING] = gab_string(gab, tGAB_FIBER);
-  gab_iref(gab, eg->types[kGAB_FIBERRUNNING]);
-
   eg->types[kGAB_CHANNEL] = gab_string(gab, tGAB_CHANNEL);
-  gab_iref(gab, eg->types[kGAB_CHANNEL]);
-
   eg->types[kGAB_CHANNELCLOSED] = gab_string(gab, tGAB_CHANNEL);
-  gab_iref(gab, eg->types[kGAB_CHANNELCLOSED]);
-
   eg->types[kGAB_PRIMITIVE] = gab_string(gab, tGAB_PRIMITIVE);
-  gab_iref(gab, eg->types[kGAB_PRIMITIVE]);
 
+  gab_niref(gab, 1, kGAB_NKINDS, eg->types);
   gab_negkeep(gab.eg, kGAB_NKINDS, eg->types);
 
   for (int i = 0; i < LEN_CARRAY(kind_natives); i++) {
@@ -1039,7 +1003,7 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   if (!(gab.flags & fGAB_ENV_EMPTY))
     gab_suse(gab, "core");
 
-  return gab;
+  return gab_gcunlock(gab), gab;
 }
 
 void gab_destroy(struct gab_triple gab) {

@@ -2412,7 +2412,7 @@ struct gab_eg {
 
     _Atomic uint32_t epoch;
     _Atomic int32_t locked;
-    v_gab_obj lock_keep;
+    v_gab_value lock_keep;
   } jobs[];
 };
 

@@ -363,15 +363,9 @@ stringify_forms = (forms, sep) => .string
  re.alt.t e => do
     forms = self:forms:map f => f :re.d e
 
-    re = .re
+    .re
       :alt(forms, self:meta)
       :path(self:path)
-
-    ("DERIVE ALT ", self:re.debug, "by ", e):println
-    ("\tFORMS BEFORE: ", stringify_forms:(self:forms, " | ")):println
-    ("\tFORMS AFTER: ", stringify_forms:(forms, " | ")):println
-    ("\tRE: ", re:re.debug):println
-    re
   end
 
   re.seq.t e => do
@@ -389,24 +383,10 @@ stringify_forms = (forms, sep) => .string
 
     right = .re:seq(rest:put(0, new_b), self:meta):path (so_far:push [b:re.name, e])
 
-    re = .re
+    .re
       :alt(
         [left no_a :re.empty? :and right :or regex.null]
         self:meta)
-
-    ("DERIVE SEQ ", self:re.debug, "by ", e):println
-    ("\tSO FAR: ", so_far):println
-    ("\tHEAD: ", a:re.debug):println
-    ("\tREST: ", stringify_forms:(rest, ", ")):println
-    ("\tLEFT: " left:re.debug):println
-    ("\tLEFT PATH: ", left:path):println
-    ("\tLEFT EMPTY?: ", no_a:re.empty?):println
-    ("\tRIGHT: " right:re.debug):println
-    ("\tRIGHT PATH: ", right:path):println
-    ("\tRE: ", re:re.debug):println
-    ("\tRE PATH: ", re:path):println
-
-    re
   end
 
  re.rep.t e => do

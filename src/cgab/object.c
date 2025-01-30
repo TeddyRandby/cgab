@@ -27,13 +27,14 @@ struct gab_obj *gab_obj_create(struct gab_triple gab, uint64_t sz,
 
   struct gab_jb *wk = gab.eg->jobs + gab.wkid;
   if (wk->locked) {
-    v_gab_obj_push(&wk->lock_keep, self);
+    v_gab_value_push(&wk->lock_keep, __gab_obj(self));
+    GAB_OBJ_BUFFERED(self);
 #if cGAB_LOG_GC
     printf("QLOCK\t%p\n", (void *)self);
 #endif
+  } else {
+    gab_dref(gab, __gab_obj(self));
   }
-
-  gab_dref(gab, __gab_obj(self));
 
   return self;
 }
@@ -280,6 +281,9 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
   case kGAB_SHAPE:
   case kGAB_SHAPELIST: {
     struct gab_obj_shape *shp = (struct gab_obj_shape *)self;
+#if cGAB_LOG_GC
+    printf("FREEDATA\t%p\n", shp->transitions.data);
+#endif
     v_gab_value_destroy(&shp->transitions);
     break;
   }
@@ -879,7 +883,7 @@ gab_value gab_rectake(struct gab_triple gab, gab_value rec, gab_value key,
     if (value)
       *value = gab_nil;
 
-    return  rec;
+    return rec;
   }
 
   gab_gclock(gab);
