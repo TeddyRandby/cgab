@@ -1048,7 +1048,7 @@ void gab_destroy(struct gab_triple gab) {
 
   for (int i = 0; i < gab.eg->len; i++) {
     struct gab_jb *wk = &gab.eg->jobs[i];
-    v_gab_obj_destroy(&wk->lock_keep);
+    v_gab_value_destroy(&wk->lock_keep);
   }
 
   d_strings_destroy(&gab.eg->strings);

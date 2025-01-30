@@ -2,7 +2,7 @@
 'strings':use
 
 \int.between:def!(
-  .number
+  .gab.number
   (floor ceil) => self:float.between(floor ceil):floor)
 
 truthy_values = []
@@ -39,8 +39,8 @@ falsey_values :defmodule! {
 }
 
 \cond.check :defcase! {
-  'block'   (args[]) => self:(args**)
-  'message' (args[]) => self:(args**)
+  'gab.block'   (args[]) => self:(args**)
+  'gab.message' (args[]) => self:(args**)
   .else     .ok
 }
 
@@ -62,7 +62,7 @@ end
 end
 
 \put_by:def!(
-  'record'
+  'gab.record'
   (k v f) => do
     x = self:at k :unwrap
 
@@ -159,7 +159,7 @@ end
   }
 end
 
-channels.t = 'channel'
+channels.t = 'gab.channel'
 
 # Channel's implementation of the seq protocol.
 # It isn't totally true to the requirements - 
@@ -179,14 +179,14 @@ channels.t = 'channel'
 channels.t :def.seq!
 
 # Implement the reducer protocol for blocks and messages
-['block' 'message'] :defmodule! {
+['gab.block' 'gab.message'] :defmodule! {
   \reduce.step (acc, xs[]) => do
     (.next self self:(acc xs**))
   end
   \reduce.done acc => acc
 }
 
-records.t = 'record'
+records.t = 'gab.record'
 
 \cons :def! (
   .nil
@@ -221,7 +221,7 @@ range.t :def.seq!
   .nil to => do
     { \from 0, \to to }
   end
-  'number' from => do
+  'gab.number' from => do
     { \from from, \to self }
   end
 }
@@ -230,7 +230,7 @@ range.t :def.seq!
   (to from) :range.into
 end)
 
-numbers.t = 'number'
+numbers.t = 'gab.number'
 
 \is_n? :def! .false
 \is_n? :def! (numbers.t, .true)

@@ -1,6 +1,6 @@
 'transducers':use
 
-implementations = .message :specializations
+implementations = .gab.message :specializations
 
 xf = .td:filter((_ m) => m:strings.into:ends_with? '.test')
   |> .td:map((impls m) => do
@@ -18,11 +18,11 @@ tests.all = implementations:transduce(
 
 suites.all = tests.all:reduce(
   {}
-  (suites _ suite) => suites:put(suite .channel:make)
+  (suites _ suite) => suites:put(suite .gab.channel:make)
 )
 
 \test.compare :def! (
-  'block' 'message'
+  'gab.block' 'gab.message'
   (lhs rhs) => self:(lhs, rhs)
 )
 
@@ -52,7 +52,7 @@ test.result.fail.t = { \test.path .nil \test.receiver .nil \test.meta .nil .fals
   end,
 }
 
-.fiber:make () => do
+.gab.fiber:make () => do
   suites.all :each (c s) => do
     "✔ $\n" :printf (s)
     c :each \test.result.display
@@ -60,7 +60,7 @@ test.result.fail.t = { \test.path .nil \test.receiver .nil \test.meta .nil .fals
 end
 
 run = () => tests.all:each(behaviors suite) => do 
-  .fiber:make () => do
+  .gab.fiber:make () => do
     behaviors:each (runnable) => do 
       (path body) = runnable**
       body:each(t r) => do

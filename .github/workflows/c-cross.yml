@@ -11,12 +11,15 @@ jobs:
     strategy:
       matrix:
         target:
-          - x86_64-linux-musl
+          - x86_64-linux-gnu
           - x86_64-windows-gnu
           - x86_64-macos-none
-          - aarch64-linux-musl
+          - aarch64-linux-gnu
           - aarch64-windows-gnu
           - aarch64-macos-none
+        build_type:
+          - release
+          - debug
 
     steps:
     - uses: actions/checkout@v4
@@ -40,7 +43,7 @@ jobs:
       run: go install github.com/TeddyRandby/clide@latest
 
     - name: Configure
-      run: clide configure -b=release -t='${{ matrix.target }}'
+      run: clide configure -b='${{ matrix.build_type }}' -t='${{ matrix.target }}'
 
     - name: Build
       run: clide build
@@ -48,5 +51,5 @@ jobs:
     - name: Release
       uses: actions/upload-artifact@v4
       with:
-        name: 'gab-${{ matrix.target }}'
+        name: 'gab-${{ matrix.build_type }}-${{ matrix.target }}'
         path: 'build-${{ matrix.target }}/gab'

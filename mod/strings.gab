@@ -1,5 +1,5 @@
 \make:def!(
-  .string
+  .gab.string
   (values[]) => values:transduce('' \+ .td:map \strings.into))
 
 \sigils.into:def! () => self:strings.into:sigils.into

@@ -6,7 +6,7 @@ module = .td
 }
 
 \deftransducer!:def!(
-  'message'
+  'gab.message'
   (cx init) => do
     mod.t = {
       module .nil

@@ -331,7 +331,7 @@ end)
 end)
 
 \messages.use_more_specific_spec.test :def! (t => do
-  \test :def! ('number' _ => do
+  \test :def! ('gab.number' _ => do
       self + 1
   end)
 
@@ -350,7 +350,7 @@ end)
 end)
 
 \messages.send_constants.test :def! (t => do
-  \hi :def! ('number' .test)
+  \hi :def! ('gab.number' .test)
 
   t:expect(1:hi, \== .test)
 end)
@@ -390,9 +390,9 @@ end)
 end)
 
 \channels.basic :def! t => do
-  ch = .channel:make
+  ch = .gab.channel:make
 
-  .fiber:make () => ch <! 'test'
+  .gab.fiber:make () => ch <! 'test'
 
   (ok v) = ch >!
 
