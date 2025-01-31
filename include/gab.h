@@ -24,6 +24,8 @@
  * a good 'ol __has_include.
  *
  * As of 2025, I believe only linux GNU is shipping this (at least in zig's cross compiling toolchain).
+ *
+ * In the other cases, use our vendored, cthreads submodule.
  */
 #if __has_include("threads.h")
 #include <threads.h>
