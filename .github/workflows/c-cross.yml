@@ -4,8 +4,11 @@ on:
   push:
     branches: [ "main" ]
 
+env:
+  version: 0.0.1
+
 jobs:
-  build:
+  build_artifacts:
     runs-on: ubuntu-latest
 
     strategy:
@@ -48,8 +51,43 @@ jobs:
     - name: Build
       run: clide build
 
-    - name: Release
+    - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
         name: 'gab-${{ matrix.build_type }}-${{ matrix.target }}'
         path: 'build-${{ matrix.target }}/gab'
+
+  create_release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Using the github cli, create a new release
+      - name: Create Release
+        run:  gh release create '${{ version }}' --generate-notes
+
+  release_artifacts:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        target:
+          - x86_64-linux-gnu
+          - x86_64-windows-gnu
+          - x86_64-macos-none
+          - aarch64-linux-gnu
+          - aarch64-windows-gnu
+          - aarch64-macos-none
+        build_type:
+          - release
+          - debug
+
+    steps:
+      # Download artifacts created by the build step
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          - name: 'gab-${{ matrix.build_type }}-${{ matrix.target }}'
+
+      # Attach these binaries to the release
+      - name: Attach artifact to release
+        run: gh release upload '${{ version }}' 'gab-${{ matrix.build_type }}-${{ matrix.target }}' --clobber
