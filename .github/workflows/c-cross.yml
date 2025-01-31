@@ -86,7 +86,7 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
-          - name: 'gab-${{ matrix.build_type }}-${{ matrix.target }}'
+          name: 'gab-${{ matrix.build_type }}-${{ matrix.target }}'
 
       # Attach these binaries to the release
       - name: Attach artifact to release
