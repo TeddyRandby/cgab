@@ -1,7 +1,20 @@
+ifneq (,$(findstring windows,$(TARGET)))
+	PLATFORM_CFLAGS =
+else
+	PLATFORM_CFLAGS = -D_POSIX_SOURCE
+endif
+
+# The zig c-compiler is useful for:
+# 	1) fast compilation which uses most recent instruction sets (popcnt, for example)
+# 	2) cross-compiling releases (otherwise impossible under clang)
 CC 		 = zig cc
 CFLAGS = -std=c23 --target=$(TARGET) -fPIC -Wall -DGAB_PREFIX=\"${GAB_PREFIX}\" ${GAB_CCFLAGS}
+
+# The clang c-compiler is useful for:
+# 	1) generating compile_commands.json via bear (zig cc isn't recognized)
+# 	3) Enabling sanitizations, for cleaner outputs than zig
 #CC 		 = clang
-#CFLAGS = -std=c17 -fsanitize=address -fPIC -Wall -DGAB_PREFIX=\"${GAB_PREFIX}\" ${GAB_CCFLAGS}
+#CFLAGS = $(PLATFORM_CFLAGS) -std=c17 -fsanitize=address -fPIC -Wall -DGAB_PREFIX=\"${GAB_PREFIX}\" ${GAB_CCFLAGS}
 
 SRC_PREFIX 	 	 	= src/**
 BUILD_PREFIX 	 	= build-$(TARGET)

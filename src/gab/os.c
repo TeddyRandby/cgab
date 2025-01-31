@@ -1,3 +1,4 @@
+#include "gab.h"
 #include "os.h"
 
 a_char *gab_fosread(FILE *fd) {

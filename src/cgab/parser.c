@@ -1,6 +1,5 @@
 #include "colors.h"
 #include "core.h"
-#include <stdio.h>
 #define GAB_TOKEN_NAMES_IMPL
 #include "engine.h"
 #include "gab.h"

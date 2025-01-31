@@ -1,7 +1,4 @@
 #include "gab.h"
-#include <errno.h>
-#include <stdint.h>
-#include <stdio.h>
 
 a_gab_value *gab_reclib_at(struct gab_triple gab, uint64_t argc,
                            gab_value argv[argc]) {

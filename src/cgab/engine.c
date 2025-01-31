@@ -98,19 +98,19 @@ a_gab_value *gab_reclib_put(struct gab_triple gab, uint64_t argc,
                             gab_value argv[argc]);
 
 a_gab_value *gab_reclib_take(struct gab_triple gab, uint64_t argc,
-                            gab_value argv[argc]);
+                             gab_value argv[argc]);
 
 a_gab_value *gab_reclib_push(struct gab_triple gab, uint64_t argc,
                              gab_value argv[argc]);
 
 a_gab_value *gab_reclib_pop(struct gab_triple gab, uint64_t argc,
-                             gab_value argv[argc]);
+                            gab_value argv[argc]);
 
 a_gab_value *gab_reclib_is_list(struct gab_triple gab, uint64_t argc,
                                 gab_value argv[argc]);
 
 a_gab_value *gab_reclib_is_empty(struct gab_triple gab, uint64_t argc,
-                                gab_value argv[argc]);
+                                 gab_value argv[argc]);
 
 a_gab_value *gab_reclib_putvia(struct gab_triple gab, uint64_t argc,
                                gab_value argv[argc]);
@@ -1301,6 +1301,7 @@ int gab_nfprintf(FILE *stream, const char *fmt, uint64_t argc,
         return -1;
 
       gab_value arg = argv[i++];
+
       int idx = gab_valkind(arg) % GAB_COLORS_LEN;
       const char *color = ANSI_COLORS[idx];
       bytes += fprintf(stream, "%s", color);

@@ -1,7 +1,5 @@
 #include "core.h"
 #include "gab.h"
-#include <stdint.h>
-#include <stdio.h>
 
 #define GAB_STATUS_NAMES_IMPL
 #include "engine.h"

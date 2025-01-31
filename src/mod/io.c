@@ -1,6 +1,4 @@
 #include "gab.h"
-#include <errno.h>
-#include <stdio.h>
 
 #define GAB_IOSTREAM "gab.io.stream"
 
