@@ -93,4 +93,4 @@ jobs:
 
       # Attach these binaries to the release
       - name: Attach artifact to release
-        run: gh release upload -R '${{ github.repository }}' '${{ env.version }}' 'gab#gab-${{ matrix.build_type }}-${{ matrix.target }}' --clobber
+        run: gh release upload -R '${{ github.repository }}' '${{ env.version }}' 'gab#gab-${{ matrix.build_type }}-${{ matrix.target }}'
