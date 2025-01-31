@@ -63,7 +63,7 @@ jobs:
     steps:
       # Using the github cli, create a new release
       - name: Create Release
-        run:  gh release create '${{ version }}' --generate-notes
+        run:  gh release create '${{ env.version }}' --generate-notes
 
   release_artifacts:
     runs-on: ubuntu-latest
@@ -90,4 +90,4 @@ jobs:
 
       # Attach these binaries to the release
       - name: Attach artifact to release
-        run: gh release upload '${{ version }}' 'gab-${{ matrix.build_type }}-${{ matrix.target }}' --clobber
+        run: gh release upload '${{ env.version }}' 'gab-${{ matrix.build_type }}-${{ matrix.target }}' --clobber
