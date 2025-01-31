@@ -92,7 +92,7 @@ jobs:
           name: 'gab-${{ matrix.build_type }}-${{ matrix.target }}'
 
       - name: Rename artifact
-        run: mv gab 'gab-${{ mmatrix.build_type }}-${{ matrix.target }}'
+        run: mv gab 'gab-${{ matrix.build_type }}-${{ matrix.target }}'
 
       # Attach these binaries to the release
       - name: Attach artifact to release
