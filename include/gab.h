@@ -15,15 +15,20 @@
 #include <stdatomic.h>
 
 /**
- * There is some issue with how I'm using the threads library.
+ * C11 Threads are not well supported cross-platforms.
  *
- * GNU C11 Threads work fine, but the cthread implementation AND MUSL C11
- * threads don't work.
+ * Even the c-standard-required feature macro __STDC_NOTHREADS__
+ * isn't well supported. 
+ *
+ * Instead of mucking about, just check for the standard threads with
+ * a good 'ol __has_include.
+ *
+ * As of 2025, I believe only linux GNU is shipping this (at least in zig's cross compiling toolchain).
  */
-#ifdef __STDC_NO_THREADS__
-#include <cthreads.h>
-#else
+#if __has_include("threads.h")
 #include <threads.h>
+#else
+#include <cthreads.h>
 #endif
 
 #include "core.h"
