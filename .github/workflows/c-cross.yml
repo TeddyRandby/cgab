@@ -60,15 +60,16 @@ jobs:
 
   create_release:
     runs-on: ubuntu-latest
+    needs: build_artifacts
 
     steps:
       # Using the github cli, create a new release
       - name: Create Release
-        run:  gh release create '${{ env.version }}' --generate-notes
+        run:  gh release create -R TeddyRandby/cgab '${{ env.version }}' --generate-notes
 
   release_artifacts:
     runs-on: ubuntu-latest
-    needs: build_artifacts
+    needs: create_release
 
     strategy:
       matrix:
