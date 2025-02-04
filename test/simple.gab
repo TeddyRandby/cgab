@@ -35,14 +35,9 @@ http_spec = s:cat(
 
 req = '200\nGET\nContentLength:10\nContentType:text\n\nHelloWorld\nTest'
 
-http_spec:println
+
 http_spec:spec.fits?(req:split '\n') :println # => true
-http_spec:spec.fits?(req:split '\n') :println # => true
-http_spec:spec.fits?(req:split '\n') :println # => true
-http_spec:spec.fits?(req:split '\n') :println # => true
-http_spec:spec.fits?(req:split '\n') :println # => true
-http_spec:spec.fits?(req:split '\n') :println # => true
-http_spec:spec.fits?(req:split '\n') :println # => true
-http_spec:spec.fits?(req:split '\n') :println # => true
+
+() => do 'hi' end :forever
 
 #.http.header:spec.into:spec.fits?("ContentLength:10"):println

@@ -279,9 +279,6 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
   case kGAB_SHAPE:
   case kGAB_SHAPELIST: {
     struct gab_obj_shape *shp = (struct gab_obj_shape *)self;
-#if cGAB_LOG_GC
-    printf("FREEDATA\t%p\n", shp->transitions.data);
-#endif
     v_gab_value_destroy(&shp->transitions);
     break;
   }

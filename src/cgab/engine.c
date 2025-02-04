@@ -881,6 +881,10 @@ struct gab_triple gab_create(struct gab_create_argt args) {
   eg->sout = args.sout;
   eg->serr = args.serr;
 
+  // The only non-zero initialization that jobs need is epoch = 1
+  for (uint64_t i = 0; i < eg->len; i++)
+    eg->jobs[i].epoch = 1;
+
   assert(eg->sin);
   assert(eg->sout);
   assert(eg->serr);

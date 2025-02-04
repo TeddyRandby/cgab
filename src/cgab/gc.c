@@ -145,6 +145,9 @@ static inline void for_buf_do(uint8_t b, uint8_t wkid, uint8_t epoch,
                               gab_gc_visitor fnc, struct gab_triple gab) {
   struct gab_obj **buf = bufdata(gab, b, wkid, epoch);
   uint64_t len = buflen(gab, b, wkid, epoch);
+#if cGAB_LOG_GC
+  printf("FORDO\t%i\t%i\t%lu\n", epoch, wkid, len);
+#endif
 
   for (uint64_t i = 0; i < len; i++) {
     struct gab_obj *obj = buf[i];
@@ -451,8 +454,9 @@ void gab_gclock(struct gab_triple gab) {
 }
 
 /*
- * There was a bug where objects were beging freed *while they were in the locke queue*.
- * This was resolved by marking locked objects as *buffered* until they are unlocked.
+ * There was a bug where objects were beging freed *while they were in the locke
+ * queue*. This was resolved by marking locked objects as *buffered* until they
+ * are unlocked.
  */
 void gab_gcunlock(struct gab_triple gab) {
   struct gab_jb *wk = gab.eg->jobs + gab.wkid;
@@ -460,10 +464,10 @@ void gab_gcunlock(struct gab_triple gab) {
   wk->locked -= 1;
 
   if (!wk->locked) {
+    gab_ndref(gab, 1, wk->lock_keep.len, wk->lock_keep.data);
+
     for (uint64_t i = 0; i < wk->lock_keep.len; i++)
       GAB_OBJ_NOT_BUFFERED(gab_valtoo(v_gab_value_val_at(&wk->lock_keep, i)));
-
-    gab_ndref(gab, 1, wk->lock_keep.len, wk->lock_keep.data);
 
     wk->lock_keep.len = 0;
   }
@@ -633,12 +637,14 @@ void gab_gcdocollect(struct gab_triple gab) {
   int32_t epoch = epochget(gab);
   int32_t last = epochgetlast(gab);
 
+  assert(epoch != last);
+
   processepoch(gab, epoch);
 
 #if cGAB_LOG_GC
-  printf("CEPOCH %i\n", epochget(gab));
   int32_t expected_e = (gab.eg->jobs[gab.wkid].epoch) % 3;
   assert_workers_have_epoch(gab, expected_e);
+  printf("CEPOCH %i (last: %i, raw: %i)\n", epoch, last, gab.eg->jobs[gab.wkid].epoch);
 #endif
 
   if (gab_valiso(gab.eg->messages))
