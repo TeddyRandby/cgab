@@ -7,6 +7,7 @@
 #ifndef GAB_H
 #define GAB_H
 
+#include <errno.h>
 #include <inttypes.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -14,32 +15,8 @@
 #include <stdio.h>
 #include <stdatomic.h>
 
-/**
- * C11 Threads are not well supported cross-platforms.
- *
- * Even the c-standard-required feature macro __STDC_NOTHREADS__
- * isn't well supported. 
- *
- * Instead of mucking about, just check for the standard threads with
- * a good 'ol __has_include.
- *
- * As of 2025, I believe only linux GNU is shipping this (at least in zig's cross compiling toolchain).
- *
- * In the other cases, use our vendored, cthreads submodule.
- */
-#if __has_include("threads.h")
-#include <threads.h>
-#else
-#include <cthreads.h>
-#endif
-
 #include "core.h"
-
-#if defined(_WIN32) || defined(_WIN64) || defined(Wint32_t)
-#define GAB_OS_UNIX 0
-#else
-#define GAB_OS_UNIX 1
-#endif
+#include "platform.h"
 
 #if cGAB_LIKELY
 #define __gab_likely(x) (__builtin_expect(!!(x), 1))

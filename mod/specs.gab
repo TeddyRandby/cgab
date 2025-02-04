@@ -375,13 +375,20 @@ stringify_forms = (forms, sep) => .gab.string
     new_a = a:re.d e
     new_b = b:re.d e
 
-    no_a = a:re.empty
+    (no_a, no_a_path) = a:re.empty
 
     so_far = self:path
 
     left = .re:seq(self:forms:put(0, new_a), self:meta):path (so_far:push [a:re.name, e])
 
     right = .re:seq(rest:put(0, new_b), self:meta):path (so_far:push [b:re.name, e])
+
+    ("DERIVE SEQ ", self:re.debug, " BY ", e):println
+    ("\tSO_FAR ", so_far):println
+    ("\tLEFT ", left:re.debug):println
+    ("\tRIGHT ", right:re.debug):println
+    ("\tNEW_A_PATH: ", new_a:path):println
+    ("\tNO_A_PATH: ", no_a_path):println
 
     .re
       :alt(
@@ -395,9 +402,12 @@ stringify_forms = (forms, sep) => .gab.string
 
     new_a = a:re.d e
 
-    so_far = a:path
-    so_far = so_far:push(self:path:**)
-    path = so_far:push [self:re.name, e]
+    ("DERIVE REP ", self:re.debug, " BY ", e):println
+    ("\tSO_FAR ", self:path):println
+    ("\NEW_A ", new_a:re.debug):println
+    ("\NEW_A_path ", new_a:path:re.debug):println
+
+    path = self:path:push [self:re.name, e]
 
     .re
       :seq(

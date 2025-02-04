@@ -252,12 +252,13 @@ Gab has an initial implementation of this, and actually uses a `gab.channel` of 
 - [ ] Instead of malloc/free, write a custom per-job allocator. This can function like a bump allocator, and can enable further optimizations:
     - allocate-as-dead. Objects that *survive* their first collection are *moved* out of the bump allocator, and into long term storage.
         This can work because we are __guaranteed__ to visit all the roots that kept this object alive in that first collection.
-    - Sometimes references are held to objects *outside* the scope of fibers. Source modules, for instance, hold values which will not be seen
-        during collections. If these objects are moved, then these modules will hold dangling pointers.
+    - Moving objects is not safe (we can't traverse all pointers in c-code). The allocate-as-dead strategy is still useful,
+        but will need to adjust how locking works (which right now, delays drefing objects until "unlock" is called)
     - Interestingly, it is known at object-creation time whether it is movable or not. Maybe this can be used to choose a specific allocation strategy.
-- [ ] Implement buffered channels.
+- [ ] Implement buffered channels. (come up with workaround)
     - Because channels are mutable and require locking, their ownership is a bit funky. To simplify, just *increment* all values that go into a channel, and decrement all that come out.
     - This means that when channels are destroyed that still have references to objects, we need to dref them.
+    - Channels actually *can't* be buffered because then they'd be mutable. There must always be a putter blocking on the channel until there is a taker.
 - [X] Fix memory leak of fibers
     - Currently we intenionally leak fiber objects, this was just a temporary hack
 - [X] Refine module system and some ergonomic things for defining messages

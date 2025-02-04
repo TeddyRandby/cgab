@@ -1,0 +1,18 @@
+
+[gab\main] .nil panicked near OPERATOR: Type mismatch.
+
+[31m0001[0m| 1 + 'hi'
+      [33m  ^     [0m
+
+found:
+
+ >> hi
+
+of type:
+
+ >> gab.string
+
+but expected type:
+
+ >> gab.number
+

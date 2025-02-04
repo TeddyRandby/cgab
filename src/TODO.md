@@ -6,10 +6,6 @@
 
 - Improve string/binary utils
   - Conveniences for _building_ up 
-    - "String \{25} interpolation for gab values"
-    - "String \b{32} interpolation for values *as bytes*"
-    - "String \b4{32} interpolation for values *as bytes*, with arbitrary bit-widths"
-    - "String \u{2502} interpolation for values *as unicode*"
 
 improve gab cli utility, reflect c-api more
 

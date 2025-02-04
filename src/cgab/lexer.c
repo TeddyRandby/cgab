@@ -365,9 +365,6 @@ static inline void parse_comment(gab_lx *self) {
     if (peek_next(self) == '\0' || peek_next(self) == EOF)
       break;
   }
-
-  advance(self);
-  finish_row(self);
 }
 
 gab_token gab_lexnext(gab_lx *self) {

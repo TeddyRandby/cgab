@@ -1,18 +1,13 @@
-EMPTY = []?
+# Message literal
+message:
++:
 
-\sort :defcase! {
-  EMPTY    []
+#message send
+1 .message 2
+1 + 2 
 
-  'record' () => do
-    (tail head) = self:pop
+test: .def! () => self + 2
 
-    smaller = tail:filter(a => a <= head):sort
-    bigger = tail:filter(a => a > head):sort
+{ test: 2 }
 
-    smaller:push(head, bigger**)
-  end
-}
-
-[1 2 3]:sort:println
-[3 1 2]:sort:println
-[3 2 1]:sort:println
+[1 2 3].filter even:

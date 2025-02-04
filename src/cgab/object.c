@@ -3,6 +3,7 @@
 #include "engine.h"
 #include "gab.h"
 #include "lexer.h"
+#include <threads.h>
 
 #define GAB_CREATE_OBJ(obj_type, kind)                                         \
   ((struct obj_type *)gab_obj_create(gab, sizeof(struct obj_type), kind))
@@ -200,16 +201,14 @@ int gab_fvalinspect(FILE *stream, gab_value self, int depth) {
     return fprintf(stream, "%s", gab_strdata(&self));
   case kGAB_BINARY: {
     const char *s = gab_strdata(&self);
-    int bytes = 0;
+    int bytes = fprintf(stream, "<" tGAB_BINARY " 0x");
 
     uint64_t len = gab_strlen(self);
 
-    while (len--) {
-      if (len == 0)
-        bytes += fprintf(stream, "0x%02x", (unsigned char)*s++);
-      else
-        bytes += fprintf(stream, "0x%02x, ", (unsigned char)*s++);
-    }
+    while (len--)
+      bytes += fprintf(stream, "%02x", (unsigned char)*s++);
+
+    bytes += fprintf(stream, ">");
 
     return bytes;
   }
@@ -293,7 +292,9 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
     break;
   }
   case kGAB_STRING:
+    mtx_lock(&gab->strings_mtx);
     d_strings_remove(&gab->strings, (struct gab_obj_string *)self);
+    mtx_unlock(&gab->strings_mtx);
     break;
   default:
     break;

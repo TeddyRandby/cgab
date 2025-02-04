@@ -1,3 +1,4 @@
+#include "platform.h"
 #include <errno.h>
 #include <stdint.h>
 
@@ -1287,7 +1288,6 @@ int gab_fprintf(FILE *stream, const char *fmt, ...) {
   return res;
 }
 
-// TODO: Bounds check this
 int gab_nfprintf(FILE *stream, const char *fmt, uint64_t argc,
                  gab_value argv[argc]) {
   const char *c = fmt;
@@ -1302,11 +1302,16 @@ int gab_nfprintf(FILE *stream, const char *fmt, uint64_t argc,
 
       gab_value arg = argv[i++];
 
-      int idx = gab_valkind(arg) % GAB_COLORS_LEN;
-      const char *color = ANSI_COLORS[idx];
-      bytes += fprintf(stream, "%s", color);
-      bytes += gab_fvalinspect(stream, arg, 1);
-      bytes += fprintf(stream, GAB_RESET);
+      if (gab_fisatty(stream)) {
+        int idx = gab_valkind(arg) % GAB_COLORS_LEN;
+        const char *color = ANSI_COLORS[idx];
+        bytes += fprintf(stream, "%s", color);
+        bytes += gab_fvalinspect(stream, arg, 1);
+        bytes += fprintf(stream, GAB_RESET);
+      } else {
+        bytes += gab_fvalinspect(stream, arg, 1);
+      }
+
       break;
     }
     default:
@@ -1320,6 +1325,7 @@ int gab_nfprintf(FILE *stream, const char *fmt, uint64_t argc,
 
   return bytes;
 }
+
 int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs) {
   const char *c = fmt;
   int bytes = 0;
@@ -1328,11 +1334,16 @@ int gab_vfprintf(FILE *stream, const char *fmt, va_list varargs) {
     switch (*c) {
     case '$': {
       gab_value arg = va_arg(varargs, gab_value);
-      int idx = gab_valkind(arg) % GAB_COLORS_LEN;
-      const char *color = ANSI_COLORS[idx];
-      bytes += fprintf(stream, "%s", color);
-      bytes += gab_fvalinspect(stream, arg, 1);
-      bytes += fprintf(stream, GAB_RESET);
+
+      if (gab_fisatty(stream)) {
+        int idx = gab_valkind(arg) % GAB_COLORS_LEN;
+        const char *color = ANSI_COLORS[idx];
+        bytes += fprintf(stream, "%s", color);
+        bytes += gab_fvalinspect(stream, arg, 1);
+        bytes += fprintf(stream, GAB_RESET);
+      } else {
+        bytes += gab_fvalinspect(stream, arg, 1);
+      }
       break;
     }
     default:
