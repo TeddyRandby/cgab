@@ -1024,6 +1024,10 @@ void gab_destroy(struct gab_triple gab) {
   gab_dref(gab, gab.eg->work_channel);
   gab_ndref(gab, 1, gab.eg->scratch.len, gab.eg->scratch.data);
 
+  for (uint64_t i = 0; i < gab.eg->strings.cap; i++)
+    if (d_strings_iexists(&gab.eg->strings, i))
+      gab_dref(gab, __gab_obj(d_strings_ikey(&gab.eg->strings, i)));
+
   gab.eg->messages = gab_undefined;
   gab.eg->shapes = gab_undefined;
 

@@ -290,6 +290,12 @@ void gab_obj_destroy(struct gab_eg *gab, struct gab_obj *self) {
   }
   case kGAB_STRING:
     mtx_lock(&gab->strings_mtx);
+    printf("STRFREE %p\n", self);
+    /*
+     * ASYNC ISSUE: Because collections happen asynchronously (and the strings intern table *doesn't hold references)
+     * Strings that are queued for removal *can* be re-used *right* before they are deleted. This requires a better, long-term
+     * solution.
+     */
     d_strings_remove(&gab->strings, (struct gab_obj_string *)self);
     mtx_unlock(&gab->strings_mtx);
     break;
@@ -351,7 +357,10 @@ gab_value nstring(struct gab_triple gab, uint64_t hash, uint64_t len,
   self->len = str.len;
   self->hash = hash;
 
+  /* The strings table should hold a reference to this string */
+  /* This does mean that strings will never die */
   d_strings_insert(&gab.eg->strings, self, 0);
+  gab_iref(gab, __gab_obj(self));
 
   return __gab_obj(self);
 }

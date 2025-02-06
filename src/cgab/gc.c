@@ -1,7 +1,9 @@
+#include "core.h"
 #include "engine.h"
 #include "gab.h"
 #include <stdatomic.h>
 #include <stdint.h>
+#include <threads.h>
 
 static inline int32_t epochget(struct gab_triple gab) {
   return gab.eg->jobs[gab.wkid].epoch % GAB_GCNEPOCHS;
@@ -136,8 +138,10 @@ void queue_destroy(struct gab_triple gab, struct gab_obj *obj) {
 
   v_gab_obj_push(&gab.eg->gc->dead, obj);
 
+  assert(obj->references == 0);
+
 #if cGAB_LOG_GC
-  printf("QDEAD\t%i\t%p\t%d\n", epochget(gab), obj, obj->references);
+  printf("QDEAD\t%i\t%i\t%p\t%d\n", epochget(gab), gab.wkid, obj, obj->references);
 #endif
 }
 
@@ -145,8 +149,10 @@ static inline void for_buf_do(uint8_t b, uint8_t wkid, uint8_t epoch,
                               gab_gc_visitor fnc, struct gab_triple gab) {
   struct gab_obj **buf = bufdata(gab, b, wkid, epoch);
   uint64_t len = buflen(gab, b, wkid, epoch);
+  assert(len <= cGAB_GC_MOD_BUFF_MAX);
+
 #if cGAB_LOG_GC
-  printf("FORDO\t%i\t%i\t%lu\n", epoch, wkid, len);
+  printf("FORDO\t%i\t%i\t(%lu / %i)\n", epoch, wkid, len, cGAB_GC_MOD_BUFF_MAX);
 #endif
 
   for (uint64_t i = 0; i < len; i++) {
@@ -161,6 +167,9 @@ static inline void for_buf_do(uint8_t b, uint8_t wkid, uint8_t epoch,
 
     fnc(gab, obj);
   }
+
+  // Sanity check that buffer hasn't been modified while operating over buffer
+  assert(len == buflen(gab, b, wkid, epoch));
 }
 
 static inline void for_child_do(struct gab_obj *obj, gab_gc_visitor fnc,
@@ -272,6 +281,7 @@ static inline void destroy(struct gab_triple gab, struct gab_obj *obj) {
   gab_obj_destroy(gab.eg, obj);
   GAB_OBJ_FREED(obj);
 #else
+  assert(obj->references == 0);
   gab_obj_destroy(gab.eg, obj);
   gab_egalloc(gab, obj, 0);
 #endif
@@ -634,6 +644,7 @@ bool gab_gctrigger(struct gab_triple gab) {
 
 void gab_gcdocollect(struct gab_triple gab) {
   assert(gab.wkid == 0);
+
   int32_t epoch = epochget(gab);
   int32_t last = epochgetlast(gab);
 
@@ -642,9 +653,10 @@ void gab_gcdocollect(struct gab_triple gab) {
   processepoch(gab, epoch);
 
 #if cGAB_LOG_GC
+  printf("CEPOCH %i (last: %i, raw: %i)\n", epoch, last,
+         gab.eg->jobs[gab.wkid].epoch);
   int32_t expected_e = (gab.eg->jobs[gab.wkid].epoch) % 3;
   assert_workers_have_epoch(gab, expected_e);
-  printf("CEPOCH %i (last: %i, raw: %i)\n", epoch, last, gab.eg->jobs[gab.wkid].epoch);
 #endif
 
   if (gab_valiso(gab.eg->messages))
@@ -660,7 +672,7 @@ void gab_gcdocollect(struct gab_triple gab) {
   collect_dead(gab);
 
 #if cGAB_LOG_GC
-  printf("CEPOCH! %i\n", epochget(gab));
+  printf("CEPOCH! %i\n", epoch);
   expected_e = (gab.eg->jobs[gab.wkid].epoch) % 3;
   assert_workers_have_epoch(gab, expected_e);
 #endif
