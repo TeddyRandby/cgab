@@ -63,9 +63,9 @@ jobs:
     needs: build_artifacts
 
     steps:
-      # Using the github cli, create a new release
-      - name: Create Release
-        run:  gh release create -R '${{ github.repository }}' '${{ env.version }}' --generate-notes
+      # Using the github cli, create a new release for this version's tag. (If it doesnt' exist)
+      - name: Create Release If Not Exists
+        run:  git ls-remote --tags origin | grep '${{ env.version }}' || gh release create -R '${{ github.repository }}' '${{ env.version }}' --generate-notes
 
   release_artifacts:
     runs-on: ubuntu-latest
