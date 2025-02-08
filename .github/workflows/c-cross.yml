@@ -85,7 +85,7 @@ jobs:
           name: 'gab-${{ matrix.build_type }}-${{ matrix.target }}'
 
       - name: Run tests
-        run: gab run test
+        run: ./gab run test
 
   create_release:
     runs-on: ubuntu-latest
