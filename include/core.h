@@ -53,8 +53,9 @@
 // Workers (os threads that can actually run gab code)
 // will wait this long before exiting, if they haven't received work.
 // New workers are spawned as needed up until a maximum is reached (specified at runtime)
+// Worker threads wait about half a second before spinning down.
 #ifndef cGAB_WORKER_IDLEWAIT_MS
-#define cGAB_WORKER_IDLEWAIT_MS ((size_t) 8000)
+#define cGAB_WORKER_IDLEWAIT_MS ((size_t) 496)
 #endif
 
 // A worker (os thread) may need to yield at an arbitrary point.

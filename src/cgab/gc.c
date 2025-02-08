@@ -1,9 +1,6 @@
 #include "core.h"
 #include "engine.h"
 #include "gab.h"
-#include <stdatomic.h>
-#include <stdint.h>
-#include <threads.h>
 
 static inline int32_t epochget(struct gab_triple gab) {
   return gab.eg->jobs[gab.wkid].epoch % GAB_GCNEPOCHS;

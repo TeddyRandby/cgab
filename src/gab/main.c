@@ -11,13 +11,14 @@ void run_repl(int flags) {
       .flags = flags,
   });
 
-  gab_repl(gab, (struct gab_repl_argt){
-                    .name = MAIN_MODULE,
-                    .flags = flags,
-                    .prompt_prefix =
-                        "gab:" GAB_VERSION_MAJOR "." GAB_VERSION_MINOR ">> ",
-                    .result_prefix = "=>",
-                });
+  gab_repl(
+      gab,
+      (struct gab_repl_argt){
+          .name = MAIN_MODULE,
+          .flags = flags,
+          .welcome_message = "Gab " GAB_VERSION_MAJOR "." GAB_VERSION_MINOR,
+          .prompt_prefix = " > ",
+      });
 
   gab_destroy(gab);
 }

@@ -782,7 +782,7 @@ int32_t worker_job(void *data) {
             cGAB_WORKER_IDLEWAIT_MS / 1000);
 #endif
 
-    gab_value fiber = gab_chntake(gab, gab.eg->work_channel);
+    gab_value fiber = gab_tchntake(gab, gab.eg->work_channel, cGAB_WORKER_IDLEWAIT_MS);
 
 #if cGAB_LOG_EG
     fprintf(stdout, "[WORKER %i] chntake yielded: ", gab.wkid);
@@ -1076,6 +1076,12 @@ void gab_destroy(struct gab_triple gab) {
 
 void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
   uint64_t iterations = 0;
+
+  args.welcome_message = args.welcome_message ? args.welcome_message : "";
+  args.prompt_prefix = args.prompt_prefix ? args.prompt_prefix : "";
+  args.result_prefix = args.result_prefix ? args.result_prefix : "";
+
+  printf("%s\n", args.welcome_message);
 
   for (;;) {
     printf("%s", args.prompt_prefix);

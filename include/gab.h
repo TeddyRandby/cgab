@@ -855,6 +855,10 @@ struct gab_repl_argt {
    */
   const char *result_prefix;
   /**
+   * The welcome message printed at the top of the REPL.
+   */
+  const char *welcome_message;
+  /**
    * The name of the module - defaults to "__main__".
    */
   const char *name;
@@ -2031,6 +2035,7 @@ gab_value gab_chntake(struct gab_triple gab, gab_value channel);
  *
  * @param gab The engine
  * @param channel The channel
+ * @param nms The number of milliseconds to wait before closing
  * @return The value taken
  */
 gab_value gab_tchntake(struct gab_triple gab, gab_value channel, uint64_t nms);
