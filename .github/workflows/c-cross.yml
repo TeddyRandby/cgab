@@ -84,6 +84,9 @@ jobs:
         with:
           name: 'gab-${{ matrix.build_type }}-${{ matrix.target }}'
 
+      - name: Make the binary executable
+        run: chmod +x gab
+
       - name: Run tests
         run: ./gab run test
 
