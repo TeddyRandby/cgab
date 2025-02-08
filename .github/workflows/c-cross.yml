@@ -58,9 +58,38 @@ jobs:
         name: 'gab-${{ matrix.build_type }}-${{ matrix.target }}'
         path: 'build-${{ matrix.target }}/gab'
 
+  run_tests:
+    strategy:
+      matrix:
+        build_type:
+          - release
+        os: 
+          -ubuntu-latest
+          -windows-latest
+          -macos-latest
+        include:
+          - os: ubuntu-latest
+            target: x86_64-linux-gnu
+          - os: windows-latest
+            target: x86_64-windows-gnu
+          - os: macos-latest
+            target: x86_64-macos-none
+
+    runs-on: ${{ matrix.os }}
+    needs: build_artifacts
+
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: 'gab-${{ matrix.build_type }}-${{ matrix.target }}'
+
+      - name: Run tests
+        run: gab run test
+
   create_release:
     runs-on: ubuntu-latest
-    needs: build_artifacts
+    needs: run_tests
 
     steps:
       # Using the github cli, create a new release for this version's tag. (If it doesnt' exist)
