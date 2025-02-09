@@ -100,7 +100,7 @@ jobs:
 
       - name: Check for existing tag
         id: tag_check
-        run: git tag | grep '${{ env.version }}' 
+        run: git ls-remote --tags | grep '${{ env.version }}' 
 
       - name: Create Release
         if: steps.tag_check.conclusion == 'failure'
