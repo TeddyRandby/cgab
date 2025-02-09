@@ -97,9 +97,14 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
-      # Using the github cli, create a new release for this version's tag. (If it doesnt' exist)
-      - name: Create Release If Not Exists
-        run:  git tag | grep '${{ env.version }}' || gh release create -R '${{ github.repository }}' '${{ env.version }}' --generate-notes
+
+      - name: Check for existing tag
+        id: tag_check
+        run: git tag | grep '${{ env.version }}' 
+
+      - name: Create Release
+        if: steps.tag_check.conclusion == 'failure'
+        run:  gh release create -R '${{ github.repository }}' '${{ env.version }}' --generate-notes
 
   release_artifacts:
     runs-on: ubuntu-latest
