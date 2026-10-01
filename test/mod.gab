@@ -693,6 +693,20 @@ channels\handle_multiple_values\test: .def t :: do
   t.expect(three ==: 3)
 end
 
+meta\parse_simple\test: .def t :: do
+  (ok, ast) := "1 + 1".as\gab
+
+  t.expect(ok ==: ok:)
+
+  (ok, block) := Blocks.make(\[], ast)
+
+  t.expect(ok ==: ok:)
+
+  two := block.()
+
+  t.expect(two ==: 2)
+end
+
 'github.com/gab-language/cgab@0.1.7' .use 'Json'
 
 json\parse_simple\test: .def t :: do

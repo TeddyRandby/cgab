@@ -214,10 +214,14 @@ bool putevent(struct gab_triple gab, struct ui *gui, const char *type,
   return false;
 }
 
-#define RGFW_KEY_CASE(keyname, str, up)                                        \
+#define RGFW_KEY_CASE(keyname, str)                                            \
   case RGFW_key##keyname:                                                      \
-    return putevent(gab, gui, "key", up, gab_string(gab, #str),                \
-                    gab_number(ev->key.mod), gab_cundefined);
+    return putevent(gab, gui, "key",                                           \
+                    ev->type == RGFW_keyPressed    ? "down"                    \
+                    : ev->type == RGFW_keyReleased ? "up"                      \
+                                                   : "char",                   \
+                    gab_string(gab, #str), gab_number(ev->key.mod),            \
+                    gab_cundefined);
 
 gab_value clayGetTopmostId(struct gab_triple gab) {
   Clay_ElementIdArray arr = Clay_GetPointerOverIds();
@@ -234,6 +238,68 @@ gab_value clayGetTopmostId(struct gab_triple gab) {
 
   return gab_cundefined;
 }
+
+/*
+ * EVENT UPDATING LOGIC:
+ *
+ * Terminal and GUI events need to be combined into an as-identical-as-possible
+ * stream.
+ *
+ * Unify modifiers such as ALT, SUPER, SHIFT, CTRL
+ *
+ * GUI has up/down key events.
+ * Terminal just has data events - bytes coming in.
+ *
+ * GUI has optinal keyChar event, which is more similar to bytes in.
+ * Using this however means that some keys don't get the up/down that you might
+ * expect. (Also doesn't carry modifiers)
+ *
+ * Terminal treats all as *UP* events?
+ *
+ * I could introduce different events - char events, which process data in.
+ *
+ * And key events, which is mostly specific to GUI.
+ *
+ */
+
+enum gab_cui_mod : uint8_t {
+  kGAB_CUI_MOD_ALT = 1 << 0,
+  kGAB_CUI_MOD_CTRL = 1 << 1,
+  kGAB_CUI_MOD_SHIFT = 1 << 2,
+  kGAB_CUI_MOD_SUPER = 1 << 3,
+  kGAB_CUI_MOD_CAPSLOCK = 1 << 4,
+  kGAB_CUI_MOD_NUMLOCK = 1 << 5,
+  kGAB_CUI_MOD_SCROLLLOCK = 1 << 6,
+};
+
+enum gab_cui_mod rgfw_mod_to_gab(RGFW_keymod mod) {
+  enum gab_cui_mod gmod = 0;
+
+  if (mod & RGFW_modCapsLock)
+    gmod |= kGAB_CUI_MOD_CAPSLOCK;
+
+  if (mod & RGFW_modNumLock)
+    gmod |= kGAB_CUI_MOD_NUMLOCK;
+
+  if (mod & RGFW_modControl)
+    gmod |= kGAB_CUI_MOD_CTRL;
+
+  if (mod & RGFW_modAlt)
+    gmod |= kGAB_CUI_MOD_ALT;
+
+  if (mod & RGFW_modShift)
+    gmod |= kGAB_CUI_MOD_SHIFT;
+
+  if (mod & RGFW_modSuper)
+    gmod |= kGAB_CUI_MOD_SUPER;
+
+  if (mod & RGFW_modScrollLock)
+    gmod |= kGAB_CUI_MOD_SCROLLLOCK;
+
+  return gmod;
+}
+
+enum gab_cui_mod tb_mod_to_gab(int mod) { return mod & ~TB_MOD_MOTION; };
 
 bool clay_RGFW_update(struct gab_triple gab, struct ui *gui, double deltaTime,
                       RGFW_event *ev) {
@@ -287,60 +353,53 @@ bool clay_RGFW_update(struct gab_triple gab, struct ui *gui, double deltaTime,
   case RGFW_keyPressed:
   case RGFW_keyReleased:
     switch (ev->key.value) {
-      RGFW_KEY_CASE(Enter, enter, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(Tab, tab, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(Escape, escape,
-                    ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(BackSpace, backspace,
-                    ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(CapsLock, capslock,
-                    ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(Insert, insert,
-                    ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(End, end, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(Home, home, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(Up, up, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(Down, down, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(Left, left, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(Right, right, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(PageUp, pageup,
-                    ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(PageDown, pagedown,
-                    ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(Space, space, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(F1, f1, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(F2, f2, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(F3, f3, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(F4, f4, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(F5, f5, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(F6, f6, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(F7, f7, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(F8, f8, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(F9, f9, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(F10, f10, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(F11, f11, ev->type == RGFW_keyPressed ? "down" : "up");
-      RGFW_KEY_CASE(F12, f12, ev->type == RGFW_keyPressed ? "down" : "up");
+      RGFW_KEY_CASE(Enter, enter);
+      RGFW_KEY_CASE(Tab, tab);
+      RGFW_KEY_CASE(Escape, escape);
+      RGFW_KEY_CASE(BackSpace, backspace);
+      RGFW_KEY_CASE(CapsLock, capslock);
+      RGFW_KEY_CASE(Insert, insert);
+      RGFW_KEY_CASE(End, end);
+      RGFW_KEY_CASE(Home, home);
+      RGFW_KEY_CASE(Up, up);
+      RGFW_KEY_CASE(Down, down);
+      RGFW_KEY_CASE(Left, left);
+      RGFW_KEY_CASE(Right, right);
+      RGFW_KEY_CASE(PageUp, pageup);
+      RGFW_KEY_CASE(PageDown, pagedown);
+      RGFW_KEY_CASE(Space, space);
+      RGFW_KEY_CASE(ShiftL, shiftl);
+      RGFW_KEY_CASE(ShiftR, shiftr);
+      RGFW_KEY_CASE(ControlL, ctrll);
+      RGFW_KEY_CASE(ControlR, ctrlr);
+      RGFW_KEY_CASE(AltL, altl);
+      RGFW_KEY_CASE(AltR, altr);
+      RGFW_KEY_CASE(SuperL, superl);
+      RGFW_KEY_CASE(SuperR, superr);
+      RGFW_KEY_CASE(F1, f1);
+      RGFW_KEY_CASE(F2, f2);
+      RGFW_KEY_CASE(F3, f3);
+      RGFW_KEY_CASE(F4, f4);
+      RGFW_KEY_CASE(F5, f5);
+      RGFW_KEY_CASE(F6, f6);
+      RGFW_KEY_CASE(F7, f7);
+      RGFW_KEY_CASE(F8, f8);
+      RGFW_KEY_CASE(F9, f9);
+      RGFW_KEY_CASE(F10, f10);
+      RGFW_KEY_CASE(F11, f11);
+      RGFW_KEY_CASE(F12, f12);
     default:
-      return false;
+      const char event[] = {ev->key.value, '\0'};
+      return putevent(
+          gab, gui, "key", ev->type == RGFW_keyPressed ? "down" : "up",
+          gab_string(gab, event), gab_number(ev->key.mod), gab_cundefined);
     }
-  case RGFW_keyChar:
-    switch (ev->keyChar.value) {
-    case RGFW_keyEnter:
-    case RGFW_keyEscape:
-    case RGFW_keySpace:
-    case RGFW_keyTab:
-    case RGFW_keyBackSpace:
-      return false;
-    case '\r':
-      return putevent(gab, gui, "key", "down", gab_string(gab, "return"),
-                      gab_cundefined, gab_cundefined);
-    default: {
-      const char event[] = {ev->keyChar.value, '\0'};
-      return putevent(gab, gui, "key", "up", gab_string(gab, event),
-                      gab_cundefined, gab_cundefined);
-    }
-    }
-
+  case RGFW_keyChar: {
+    char event[5] = {0};
+    memcpy(event, &ev->keyChar.value, 4);
+    return putevent(gab, gui, "key", "char", gab_string(gab, event),
+                    gab_number(ev->key.mod), gab_cundefined);
+  }
   default:
     return false;
   }
@@ -350,8 +409,8 @@ bool clay_RGFW_update(struct gab_triple gab, struct ui *gui, double deltaTime,
 
 #define TERMBOX_KEY_CASE(key, str)                                             \
   case TB_KEY_##key:                                                           \
-    return putevent(gab, gui, "key", "up", gab_string(gab, #str),              \
-                    gab_number(e->mod), gab_cundefined);
+    return putevent(gab, gui, "key", "char", gab_string(gab, #str),            \
+                    gab_number(e->mod & ~kGAB_CUI_MOD_CTRL), gab_cundefined);
 
 bool clay_termbox_update(struct gab_triple gab, struct ui *gui,
                          struct tb_event *e, double deltaTime) {
@@ -359,12 +418,18 @@ bool clay_termbox_update(struct gab_triple gab, struct ui *gui,
   case TB_EVENT_RESIZE:
     return false;
   case TB_EVENT_KEY:
+    if (e->ch) {
+      char ev[5] = {0};
+      memcpy(ev, &e->ch, 4);
+      return putevent(gab, gui, "key", "char", gab_string(gab, ev),
+                      gab_number(e->mod), gab_cundefined);
+    }
     switch (e->key) {
-    case TB_KEY_CTRL_C:
-      return true;
     case TB_KEY_BACKSPACE2:
       TERMBOX_KEY_CASE(BACKSPACE, backspace);
       TERMBOX_KEY_CASE(ENTER, enter);
+      TERMBOX_KEY_CASE(TAB, tab);
+      TERMBOX_KEY_CASE(BACK_TAB, backtab);
       TERMBOX_KEY_CASE(ESC, escape);
       // CAPSLOCK MISSING
       TERMBOX_KEY_CASE(INSERT, insert);
@@ -386,9 +451,7 @@ bool clay_termbox_update(struct gab_triple gab, struct ui *gui,
       TERMBOX_KEY_CASE(F11, f11);
       TERMBOX_KEY_CASE(F12, f12);
     default:
-      const char ev[] = {e->ch, '\0'};
-      return putevent(gab, gui, "key", "up", gab_string(gab, ev),
-                      gab_number(e->mod), gab_cundefined);
+      gab_unreachable("Unhandled key event: %i", e->key);
     }
   case TB_EVENT_MOUSE:
     switch (e->key) {
@@ -1058,12 +1121,12 @@ union gab_value_pair render_text(struct gab_triple gab, struct ui *gui,
     return gab_pktypemismatch(gab, vid, kGAB_MESSAGE);
 
   CLAY(UI_ID(vid), {
-                                   .border = parseBorder(gab, props),
-                                   .layout = parseLayout(gab, props),
-                                   .transition = parseTransition(gab, props),
-                                   .backgroundColor = packedToClayColor(vbg),
-                                   .cornerRadius = parseRadius(gab, props),
-                               }) {
+                       .border = parseBorder(gab, props),
+                       .layout = parseLayout(gab, props),
+                       .transition = parseTransition(gab, props),
+                       .backgroundColor = packedToClayColor(vbg),
+                       .cornerRadius = parseRadius(gab, props),
+                   }) {
 
     if (Clay_Hovered() && vhoverable == gab_true) {
       gui->mouse = RGFW_mousePointingHand;
@@ -1487,6 +1550,8 @@ GAB_DYNLIB_NATIVE_FN(ui, tui_render) {
     Clay_Termbox_Initialize(TB_OUTPUT_TRUECOLOR, CLAY_TB_BORDER_MODE_MINIMUM,
                             CLAY_TB_BORDER_CHARS_BLANK,
                             CLAY_TB_IMAGE_MODE_UNICODE, true);
+
+    tb_set_input_mode(TB_INPUT_ALT | TB_INPUT_MOUSE);
 
     uint64_t totalMemorySize = Clay_MinMemorySize();
     Clay_Arena clayMemory = Clay_CreateArenaWithCapacityAndMemory(

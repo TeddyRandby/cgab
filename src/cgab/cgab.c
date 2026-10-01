@@ -1235,6 +1235,8 @@ GAB_INTERNAL void __gab_lexskipcmt(gab_lx *self) {
 }
 
 GAB_INTERNAL enum gab_token __gab_lexnext(gab_lx *self) {
+  if (self->cursor - self->source->source->data >= self->source->source->len)
+    goto eof;
 
   while (isblank(__gab_lexpeek(self)) ||
          __gab_lexiscomment(__gab_lexpeek(self))) {
@@ -1404,20 +1406,18 @@ GAB_API struct gab_src *gab_source(struct gab_triple gab, gab_value name,
 
   gab_egkeep(gab.eg, gab_iref(gab, name));
 
-  if (!len)
-    goto fin;
+  if (src->source) {
+    gab_lx lex;
+    __gab_lexcreate(&lex, src);
 
-  gab_lx lex;
-  __gab_lexcreate(&lex, src);
+    for (;;) {
+      enum gab_token t = __gab_lexnext(&lex);
 
-  for (;;) {
-    enum gab_token t = __gab_lexnext(&lex);
-
-    if (t == TOKEN_EOF)
-      break;
+      if (t == TOKEN_EOF)
+        break;
+    }
   }
 
-fin:
   d_gab_src_insert(&gab.eg->sources, name, src);
 
   mtx_unlock(&gab.eg->sources_mtx);
@@ -3780,7 +3780,9 @@ GAB_API gab_value gab_vspanicf(struct gab_triple gab, va_list va,
     err.byte_end = tok_src.data + tok_src.len - args.src->source->data;
   }
 
-  err.src_name = args.src && gab_valkind(args.src->name) == kGAB_STRING ? gab_strdata(&args.src->name) : "C";
+  err.src_name = args.src && gab_valkind(args.src->name) == kGAB_STRING
+                     ? gab_strdata(&args.src->name)
+                     : "C";
 
   err.status = args.status;
 
@@ -9349,6 +9351,9 @@ GAB_INTERNAL a_char *__gab_prsstrraw(struct parser *parser, s_char raw_str) {
       switch (raw_str.data[i]) {
       case 'r':
         buffer[buf_end++] = '\r';
+        break;
+      case 'b':
+        buffer[buf_end++] = '\b';
         break;
       case 'n':
         buffer[buf_end++] = '\n';

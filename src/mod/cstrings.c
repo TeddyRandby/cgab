@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <math.h>
+#include <stdint.h>
 
 #define T char
 #include "slice.h"
@@ -507,6 +508,27 @@ GAB_DYNLIB_NATIVE_FN(string, tom) {
   return gab_union_cvalid(gab_nil);
 }
 
+GAB_DYNLIB_NATIVE_FN(string, asgab) {
+  gab_value vstr = gab_arg(0);
+
+  const char *source = gab_strdata(&vstr);
+  uint64_t len = gab_strlen(vstr);
+
+  struct gab_src *src = gab_source(gab, vstr, len, source);
+
+  union gab_value_pair res = gab_parse(gab, src,
+                                       (struct gab_parse_argt){
+                                           .flags = fGAB_WITHOLD_ERR,
+                                       });
+
+  if (res.status == gab_cvalid)
+    return gab_push(gab, gab_ok, res.vresult), gab_union_cvalid(gab_nil);
+  else if (res.status == gab_cinvalid)
+    return gab_push(gab, gab_err, res.vresult), gab_union_cvalid(gab_nil);
+  else
+    gab_unreachable("Impossible outcome");
+}
+
 GAB_DYNLIB_NATIVE_FN(string, asdouble) {
   const char *str = gab_strdata(argv + 0);
 
@@ -721,6 +743,11 @@ GAB_DYNLIB_MAIN_FN {
               gab_message(gab, "as\\string"),
               gab_type(gab, kGAB_BINARY),
               gab_snative(gab, "as\\string", gab_mod_binary_tos),
+          },
+          {
+              gab_message(gab, "as\\gab"),
+              gab_type(gab, kGAB_STRING),
+              gab_snative(gab, "as\\gab", gab_mod_string_asgab),
           },
           {
               gab_message(gab, "len"),
