@@ -15,12 +15,12 @@ make\from: .def (
 
   put_by: (k f) :: do
     (ok, v) := self.at k
-    self.put(k, f.(ok .and v .or nil:))
+    self.put(k, f.to\block.(ok .and v .or nil:))
   end
 
   put_via_by: (path*, f) :: do
     (ok, v) := self.at_via(path*)
-    self.put_via(path*, f.(ok .and v .or nil:))
+    self.put_via(path*, f.to\block.(ok .and v .or nil:))
   end
 
   is\record: true:

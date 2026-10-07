@@ -1,5 +1,7 @@
 Blocks := 'github.com/gab-language/cgab@0.1.7' .use 'cblocks'
 
+to\block: .def (Blocks.t, () :: self)
+
 is\block: .def false:
 is\block: .def (Blocks.t, true:)
 

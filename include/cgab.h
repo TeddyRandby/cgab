@@ -1103,8 +1103,8 @@ enum gab_kind {
   kGAB_SHAPELIST,
   kGAB_SHAPENODE,
   kGAB_FIBER,
-  kGAB_FIBERDONE,
-  kGAB_FIBERRUNNING,
+  kGAB_FIBERDONE_OK,
+  kGAB_FIBERDONE_KILLED,
   kGAB_CHANNEL,
   kGAB_CHANNELCLOSED,
   kGAB_NKINDS,
@@ -1416,7 +1416,7 @@ struct gab_obj {
    * Some objects do modify this field - Fibers notably change their
    * running/done state here.
    */
-  uint8_t kind;
+  _Atomic uint8_t kind;
 };
 
 /*
@@ -1544,7 +1544,7 @@ enum gab_flags {
   fGAB_SIGTERM_ON_ERR = 1 << 5,
 
   /*
-   * 
+   *
    */
   fGAB_WITHOLD_ERR = 1 << 6,
 };
@@ -2728,7 +2728,7 @@ GAB_API_INLINE bool gab_valischn(gab_value value) {
 
 GAB_API_INLINE bool gab_valisfib(gab_value value) {
   enum gab_kind k = gab_valkind(value);
-  return k == kGAB_FIBER | k == kGAB_FIBERDONE | k == kGAB_FIBERRUNNING;
+  return k == kGAB_FIBER | k == kGAB_FIBERDONE_OK | k == kGAB_FIBERDONE_KILLED;
 };
 
 /**
@@ -3515,10 +3515,36 @@ GAB_API_INLINE gab_value gab_lstat(gab_value lst, uint64_t n) {
 
 #define GAB_VAL_TO_FIBER(value) ((struct gab_ofiber *)gab_valtoo(value))
 
+/*
+ * TODO @cgab @feat: Handle linking fibers together somehow
+ *
+ * Links are established *mostly* such that fibers which crash
+ * can propagate crashes to other linked fibers.
+ *
+ * How can propagation work?
+ *
+ * Right now, we have a SIGTERM which sends to each *worker*, not really each
+ * process.
+ *
+ * We kinda need a fundamental way to have one process link to many others.
+ *
+ * What if we just had a parent link - and if you crash, you kill your parent.
+ *
+ * Then when the main parent crashes, we'll still term the whole program.
+ *
+ * Sending a kill signal, we only have 16 bits of room - everything else is
+ * accounted for.
+ *
+ * If we assigned each fiber a 16-bit id, that would leave us with very few
+ * availablie pids.
+ *
+ * Including any state *outside* of the signal struct is out of the question.
+ */
+
 struct gab_fiber_argt {
   uint64_t argc;
 
-  gab_value receiver, message, *argv;
+  gab_value parent, receiver, message, *argv;
 
   uint32_t flags;
 };
@@ -3530,6 +3556,9 @@ struct gab_fiber_argt {
  * this? It exposes surface area to the user which may complicate the runtime
  * and implementation. Neither go nor the BEAM allow users to do this sort of
  * thing - it makes me hesitant.
+ *
+ * I think maybe I should differentiate *making* a fiber from *scheduling* a
+ * fiber.
  *
  * @param gab The engine
  * @param receiver The receiver to send message to
@@ -3552,8 +3581,15 @@ GAB_API struct gab_vm *gab_fibvm(gab_value fiber);
  * @param fiber The fiber
  * @return The result of executing the fiber.
  */
-GAB_API union gab_value_pair gab_fibawait(struct gab_triple gab,
-                                          gab_value fiber);
+GAB_API gab_value gab_fibawait(struct gab_triple gab, gab_value fiber);
+
+/*
+ * @brief Kill the given fiber. Termination is not *immediate*, but will
+ * interrupt the fiber.
+ */
+GAB_API bool gab_fibkill(gab_value fiber);
+
+GAB_API gab_value gab_fibparent(gab_value fiber);
 
 /**
  * @brief Block the caller for some amount of 'tries', or until the fiber is
@@ -3564,8 +3600,8 @@ GAB_API union gab_value_pair gab_fibawait(struct gab_triple gab,
  * @param tries The number of tries
  * @return The result of executing the fiber.
  */
-GAB_API union gab_value_pair gab_tfibawait(struct gab_triple gab,
-                                           gab_value fiber, uint64_t tries);
+GAB_API gab_value gab_tfibawait(struct gab_triple gab, gab_value fiber,
+                                uint64_t tries);
 
 /*
  * @brief Return a value comprising the stacktrace of the fiber.
@@ -3647,7 +3683,7 @@ GAB_API void gab_fibclear(gab_value fiber);
  * @return bool
  */
 GAB_API_INLINE bool gab_fibisrunning(gab_value fiber) {
-  return gab_valkind(fiber) == kGAB_FIBERRUNNING;
+  return gab_valkind(fiber) == kGAB_FIBER;
 }
 
 /*
@@ -3657,7 +3693,7 @@ GAB_API_INLINE bool gab_fibisrunning(gab_value fiber) {
  * @return bool
  */
 GAB_API_INLINE bool gab_fibisdone(gab_value fiber) {
-  return gab_valkind(fiber) == kGAB_FIBERDONE;
+  return gab_valkind(fiber) != kGAB_FIBER;
 }
 
 /*
@@ -3695,6 +3731,8 @@ GAB_API gab_value gab_channel(struct gab_triple gab);
 /**
  * @brief Put a value on the given channel.
  *
+ * This function is *blocking*.
+ *
  * @param gab The engine
  * @param channel The channel
  * @param value The value to put
@@ -3703,24 +3741,34 @@ GAB_API gab_value gab_chnput(struct gab_triple gab, gab_value channel,
                              gab_value value);
 
 GAB_API gab_value gab_tchnput(struct gab_triple gab, gab_value channel,
-                              gab_value value, uint64_t tries);
+                             gab_value value, uint64_t tries);
 
+/**
+ * @brief Put a tuple of (len) values on the given channel.
+ *
+ * This function is *blocking*.
+ *
+ * @param gab The engine
+ * @param channel The channel
+ * @param len The number of values
+ * @param value The array of values to put
+ */
 GAB_API gab_value gab_nchnput(struct gab_triple gab, gab_value channel,
                               uint64_t len, gab_value *value);
 
 GAB_API gab_value gab_ntchnput(struct gab_triple gab, gab_value channel,
-                               uint64_t len, gab_value *value, uint64_t tries);
+                              uint64_t len, gab_value *value, uint64_t tries);
 
 /*
  * This is an unsafe version of channel put.
- * It is unsafe because it is *not atomic*. It will block for up to tries tries,
- * and try to put the slice of values in the channel.
- * It *will not* block until a taker arrives.
- * It *will not* atomically **undo** the put if a taker never arrives.
- * Because of this, it may mutate the channel (leave it with values inside).
+ * It is unsafe because it is *not atomic* in the way that puts usually are on
+ * channels.
+ *
+ * This function doesn't synchronize in the same way that the safe versions do.
+ *
  */
 GAB_API gab_value gab_untchnput(struct gab_triple gab, gab_value channel,
-                                uint64_t len, gab_value *value, uint64_t tries);
+                                uint64_t len, gab_value *value);
 
 /**
  * @brief Take a value from the given channel. This will block the caller
@@ -3735,11 +3783,10 @@ GAB_API gab_value gab_chntake(struct gab_triple gab, gab_value channel);
 GAB_API gab_value gab_nchntake(struct gab_triple gab, gab_value channel,
                                uint64_t len, gab_value *data);
 
-GAB_API gab_value gab_tchntake(struct gab_triple gab, gab_value channel,
-                               uint64_t tries);
+GAB_API gab_value gab_tchntake(struct gab_triple gab, gab_value channel);
 
 GAB_API gab_value gab_ntchntake(struct gab_triple gab, gab_value channel,
-                                uint64_t len, gab_value *data, uint64_t tries);
+                                uint64_t len, gab_value *data);
 
 /**
  * @brief Close the given channel. A closed channel cannot receive new values.

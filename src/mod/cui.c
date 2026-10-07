@@ -842,8 +842,8 @@ union gab_value_pair render_box(struct gab_triple gab, struct ui *gui,
     return gab_pktypemismatch(gab, vid, kGAB_MESSAGE);
 
   gab_value vhoverable = gab_mrecat(gab, props, "hoverable");
-  if (vhoverable != gab_cundefined && gab_valkind(vid) != kGAB_MESSAGE)
-    return gab_pktypemismatch(gab, vid, kGAB_MESSAGE);
+  if (vhoverable != gab_cundefined && gab_valkind(vhoverable) != kGAB_MESSAGE)
+    return gab_pktypemismatch(gab, vhoverable, kGAB_MESSAGE);
 
   Clay_LayoutConfig layout = parseLayout(gab, props);
 
@@ -1117,8 +1117,9 @@ union gab_value_pair render_text(struct gab_triple gab, struct ui *gui,
     return gab_pktypemismatch(gab, vid, kGAB_MESSAGE);
 
   gab_value vhoverable = gab_mrecat(gab, props, "hoverable");
-  if (vhoverable != gab_cundefined && gab_valkind(vid) != kGAB_MESSAGE)
-    return gab_pktypemismatch(gab, vid, kGAB_MESSAGE);
+
+  if (vhoverable != gab_cundefined && gab_valkind(vhoverable) != kGAB_MESSAGE)
+    return gab_pktypemismatch(gab, vhoverable, kGAB_MESSAGE);
 
   CLAY(UI_ID(vid), {
                        .border = parseBorder(gab, props),
