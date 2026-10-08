@@ -3581,15 +3581,7 @@ GAB_API struct gab_vm *gab_fibvm(gab_value fiber);
  * @param fiber The fiber
  * @return The result of executing the fiber.
  */
-GAB_API gab_value gab_fibawait(struct gab_triple gab, gab_value fiber);
-
-/*
- * @brief Kill the given fiber. Termination is not *immediate*, but will
- * interrupt the fiber.
- */
-GAB_API bool gab_fibkill(gab_value fiber);
-
-GAB_API gab_value gab_fibparent(gab_value fiber);
+GAB_API union gab_value_pair gab_fibawait(struct gab_triple gab, gab_value fiber);
 
 /**
  * @brief Block the caller for some amount of 'tries', or until the fiber is
@@ -3600,8 +3592,16 @@ GAB_API gab_value gab_fibparent(gab_value fiber);
  * @param tries The number of tries
  * @return The result of executing the fiber.
  */
-GAB_API gab_value gab_tfibawait(struct gab_triple gab, gab_value fiber,
+GAB_API union gab_value_pair gab_tfibawait(struct gab_triple gab, gab_value fiber,
                                 uint64_t tries);
+
+/*
+ * @brief Kill the given fiber. Termination is not *immediate*, but will
+ * interrupt the fiber.
+ */
+GAB_API bool gab_fibkill(gab_value fiber);
+
+GAB_API gab_value gab_fibparent(gab_value fiber);
 
 /*
  * @brief Return a value comprising the stacktrace of the fiber.

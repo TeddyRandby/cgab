@@ -2078,8 +2078,7 @@ GAB_INTERNAL enum __gab_jbstep_k __gab_jbstep(struct gab_triple gab,
   }
 
 #if cGAB_LOG_EG
-  gab_fprintf(stderr, "($) TAKING WITH $ tries\n", gab_number(gab.wkid),
-              gab_number(cGAB_JOB_IDLE_TRIES * workqempty));
+  gab_fprintf(stderr, "($) TAKING\n", gab_number(gab.wkid));
 #endif
 
   /*
@@ -2091,7 +2090,7 @@ GAB_INTERNAL enum __gab_jbstep_k __gab_jbstep(struct gab_triple gab,
   gab_value fiber = gab_tchntake(gab, job->work_channel);
 
 #if cGAB_LOG_EG
-  gab_fprintf(stderr, "($) local chntake result: $\n", gab_number(gab.wkid),
+  gab_fprintf(stdout, "\n($) local chntake result: $\n", gab_number(gab.wkid),
               fiber);
 #endif
 
@@ -2110,7 +2109,7 @@ GAB_INTERNAL enum __gab_jbstep_k __gab_jbstep(struct gab_triple gab,
     return kGAB_JBSTEP_BAIL;
 
 #if cGAB_LOG_EG
-  gab_fprintf(stderr, "($) global chntake result: $\n", gab_number(gab.wkid),
+  gab_fprintf(stderr, "\n($) global chntake result: $\n", gab_number(gab.wkid),
               fiber);
 #endif
 
@@ -2155,7 +2154,7 @@ GAB_INTERNAL enum __gab_jbstep_k __gab_jbstep(struct gab_triple gab,
       gab.wkid);
 
 #if cGAB_LOG_EG
-  gab_fprintf(stderr, "($) EXECUTING $\n", gab_number(gab.wkid), fiber);
+  gab_fprintf(stdout, "($) EXECUTING $\n", gab_number(gab.wkid), fiber);
 #endif
 
   // TODO @cgab @opt: Fibers should store their own backoff.
@@ -2169,7 +2168,7 @@ GAB_INTERNAL enum __gab_jbstep_k __gab_jbstep(struct gab_triple gab,
   union gab_value_pair res = __gab_vmexec(gab, fiber);
 
 #if cGAB_LOG_EG
-  gab_fprintf(stderr, "($) EXECUTED: $ -> $\n", gab_number(gab.wkid), fiber,
+  gab_fprintf(stdout, "($) EXECUTED: $ -> $\n", gab_number(gab.wkid), fiber,
               res.status);
 
   if (res.status == gab_ctimeout) {
@@ -4488,9 +4487,6 @@ GAB_API union gab_value_pair gab_asend(struct gab_triple gab,
                  ? (union gab_value_pair){{gab_cvalid, fb}}
                  : (union gab_value_pair){{gab_cinvalid, gab_cinvalid}};
 
-    // TODO @cgab @bug: This is certainly a race condition
-    // We are pushing to an arbitrary thread's worker queue,
-    // and don't have any locking surrounding it.
     if (gab.wkid == wkid)
       q_gab_value_dyn_push(&gab.eg->jobs[wkid].waiting_queue, fb);
     else
@@ -7682,8 +7678,8 @@ GAB_API struct gab_vm *gab_fibvm(gab_value fiber) {
   return &GAB_VAL_TO_FIBER(fiber)->vm;
 }
 
-GAB_API gab_value gab_tfibawait(struct gab_triple gab, gab_value f,
-                                uint64_t tries) {
+GAB_API union gab_value_pair gab_tfibawait(struct gab_triple gab, gab_value f,
+                                           uint64_t tries) {
   gab_precondition(gab_valkind(f) >= kGAB_FIBER &&
                        gab_valkind(f) <= kGAB_FIBERDONE_KILLED,
                    "Invalid kind");
@@ -7698,20 +7694,20 @@ GAB_API gab_value gab_tfibawait(struct gab_triple gab, gab_value f,
       gab_sigpropagate(gab);
       break;
     case sGAB_TERM:
-      return gab_cinvalid;
+      return (union gab_value_pair){{gab_cinvalid, f}};
     default:
       break;
     }
 
     sofar++;
     if (sofar > tries)
-      return gab_ctimeout;
+      return (union gab_value_pair){{gab_ctimeout, f}};
   }
 
-  return gab_cvalid;
+  return (union gab_value_pair){{gab_cvalid, f}};
 }
 
-GAB_API gab_value gab_fibawait(struct gab_triple gab, gab_value f) {
+GAB_API union gab_value_pair gab_fibawait(struct gab_triple gab, gab_value f) {
   // When not on the main thread, just block
   if (gab.wkid != 1)
     return gab_tfibawait(gab, f, -1);
@@ -7722,10 +7718,10 @@ GAB_API gab_value gab_fibawait(struct gab_triple gab, gab_value f) {
 
   // At this point, we are safe to do some work.
   for (;;) {
-    gab_value res = gab_tfibawait(gab, f, 1);
+    union gab_value_pair res = gab_tfibawait(gab, f, 1);
 
-    if (res != gab_ctimeout)
-      return res;
+    if (res.status != gab_ctimeout)
+      return (union gab_value_pair){{res.status, f}};
 
     if (gab_step(gab))
       return gab_tfibawait(gab, f, 1);
@@ -7955,6 +7951,28 @@ GAB_INTERNAL bool __gab_bchnabandon(struct gab_triple gab, gab_value c,
 }
 
 /*
+ * Can channel put/take be simplified by just atomically swapping the channel
+ * kind?
+ *
+ * CHANNEL_EMPTY_BUSY
+ * CHANNEL_EMPTY_READY
+ *
+ * CHANNEL_FULL_BUSY
+ * CHANNEL_FULL_READY
+ *
+ * CHANNEL_CLOSED
+ *
+ * for PUT:
+ *  if (cex CHANNEL_EMPTY_READY with CHANNEL_FULL_BUSY)
+ *    complete put
+ *    if (xg CHANNEL_FULL_READY == CHANNEL_CLOSED)
+ *      handle close
+ *
+ * for TAKE:
+ *  if (cex CHANNEL_FULL_READY with CHANNEL_EMTPYBUSY)
+ */
+
+/*
  * Try to put a slice into a channel.
  */
 GAB_INTERNAL uint32_t __gab_chnput(struct gab_ochannel *channel, uint64_t len,
@@ -8012,30 +8030,6 @@ GAB_INTERNAL gab_value __gab_chntake(struct gab_ochannel *channel, uint64_t n,
   return __gab_chnunlock(channel), gab_number(avail);
 }
 
-// Waits until the channel is empty
-GAB_INTERNAL gab_value __gab_chnwaitempty(struct gab_triple gab,
-                                          struct gab_ochannel *channel,
-                                          gab_value c) {
-  while (gab_chnisfull(c)) {
-    if (gab_chnisclosed(c))
-      return gab_cundefined;
-
-    switch (gab_yield(gab)) {
-    case sGAB_COLL:
-      gab_gcepochnext(gab);
-      gab_sigpropagate(gab);
-      break;
-    case sGAB_TERM:
-      return gab_cinvalid;
-    default:
-      gab_busywait(gab);
-      break;
-    }
-  }
-
-  return gab_cvalid;
-}
-
 GAB_INTERNAL gab_value __gab_chnwaitmatches(struct gab_triple gab, gab_value tk,
                                             gab_value c, uint64_t t) {
   for (uint64_t i = 0; i < t; i++) {
@@ -8059,31 +8053,6 @@ GAB_INTERNAL gab_value __gab_chnwaitmatches(struct gab_triple gab, gab_value tk,
   }
 
   return gab_ctimeout;
-}
-
-// Waits until the channel is full
-GAB_INTERNAL gab_value __gab_chnwaitfull(struct gab_triple gab,
-                                         struct gab_ochannel *channel,
-                                         gab_value c) {
-  while (gab_chnisempty(c)) {
-
-    if (gab_chnisclosed(c))
-      return gab_cundefined;
-
-    switch (gab_yield(gab)) {
-    case sGAB_COLL:
-      gab_gcepochnext(gab);
-      gab_sigpropagate(gab);
-      break;
-    case sGAB_TERM:
-      return gab_cinvalid;
-    default:
-      gab_busywait(gab);
-      break;
-    }
-  }
-
-  return gab_cvalid;
 }
 
 // Unsafe, non-blocking channel put. Returns the token if put succeeds.
@@ -8219,10 +8188,11 @@ GAB_API gab_value gab_ntchnput(struct gab_triple gab, gab_value c, uint64_t len,
     }
   }
 
-  return __gab_bchnabandon(gab, c, tk), gab_ctimeout;
+  return __gab_bchnabandon(gab, c, tk) ? gab_ctimeout : gab_cvalid;
 }
 
-GAB_INTERNAL gab_value __gab_nbchnput(struct gab_triple gab, gab_value c, uint64_t len, gab_value *vs){
+GAB_INTERNAL gab_value __gab_nbchnput(struct gab_triple gab, gab_value c,
+                                      uint64_t len, gab_value *vs) {
   gab_precondition(gab_valkind(c) >= kGAB_CHANNEL &&
                        gab_valkind(c) <= kGAB_CHANNELCLOSED,
                    "Invalid kind");
@@ -8301,14 +8271,15 @@ GAB_API gab_value gab_chnput(struct gab_triple gab, gab_value c,
     return __gab_nbchnput(gab, c, 1, &value);
 
   for (;;) {
-    gab_value res = gab_ntchnput(gab, c, 1, &value, 1);
+    gab_value res = gab_tchnput(gab, c, value, 1);
 
     if (res != gab_ctimeout)
       return res;
 
     if (gab_step(gab)) {
-      res  = gab_ntchnput(gab, c, 1, &value, 1);
-      gab_assert(res != gab_ctimeout, "Shall not return timeout from blocking put");
+      res = gab_tchnput(gab, c, value, 1);
+      gab_assert(res != gab_ctimeout,
+                 "Shall not return timeout from blocking put");
       return res;
     }
   }
@@ -8365,13 +8336,16 @@ GAB_API gab_value gab_nchntake(struct gab_triple gab, gab_value c, uint64_t len,
 
   // Else, we can actually step the engine on the main thread some.
   for (;;) {
-    gab_value res = gab_tchntake(gab, c);
+    gab_value res = gab_ntchntake(gab, c, len, data);
 
     if (res != gab_ctimeout)
       return res;
 
-    if (gab_step(gab))
-      return gab_tchntake(gab, c);
+    if (gab_step(gab)) {
+      gab_value res = gab_ntchntake(gab, c, len, data);
+      gab_assert(res != gab_ctimeout, "May not timeout from blocking take");
+      return res;
+    }
   }
 }
 
@@ -8386,7 +8360,8 @@ GAB_API gab_value gab_chntake(struct gab_triple gab, gab_value c) {
     return res;
   default:
     gab_assert(gab_valkind(res) == kGAB_NUMBER, "Should return number");
-    gab_assert(gab_valtou(res) == 1, "Should return one value");
+    gab_assert(gab_valtou(res) >= 1,
+               "Should return at least one value, not %lu", gab_valtou(res));
     return data[0];
   }
 }
@@ -13236,7 +13211,7 @@ GAB_INTERNAL union gab_value_pair __gab_vmyield(struct gab_triple gab,
   gab_value f = gab_thisfiber(gab);
   struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
   gab_precondition(value != 0, "Shall not yield 0");
-  gab_precondition(fiber->header.kind = kGAB_FIBER,
+  gab_precondition(fiber->header.kind == kGAB_FIBER,
                    "Shall only yield running fiber");
 
   fiber->reentrant = value;
