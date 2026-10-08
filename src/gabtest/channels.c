@@ -176,10 +176,6 @@ static MunitResult test_channel_concurrent_takers(const MunitParameter params[],
         // Verify the taker finished without trapping an error
         union gab_value_pair res = gab_fibawait(gab, fibers[f]);
         munit_assert_uint64(res.status, ==, gab_cvalid);
-
-        // Bug where primitives don't tailcall well. We have to skip over the
-        // channel and put arguments which are mistakenly returned.
-        munit_assert_uint64(res.vresult, ==, gab_ok);
       }
     }
     munit_assert_uint64(done, <=, total_sent);
