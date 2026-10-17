@@ -59,7 +59,7 @@ static MunitResult test_channel_send_closed(const MunitParameter params[],
                         .len = 1,
                     });
 
-  munit_assert_uint64(put_res.status, ==, gab_cvalid);
+  munit_assert_uint64(put_res.status, ==, gab_ok);
 
   return MUNIT_OK;
 }
@@ -126,9 +126,7 @@ test_channel_stress_concurrent_putters(const MunitParameter params[],
         // If a fiber is done, check that it didn't error.
         union gab_value_pair res = gab_fibawait(gab, fibers[f]);
 
-        munit_assert_uint64(res.status, !=, gab_cinvalid);
-
-        munit_assert_uint64(res.status, ==, gab_cvalid);
+        munit_assert_uint64(res.status, ==, gab_ok);
       }
     }
 
@@ -175,7 +173,7 @@ static MunitResult test_channel_concurrent_takers(const MunitParameter params[],
         done++;
         // Verify the taker finished without trapping an error
         union gab_value_pair res = gab_fibawait(gab, fibers[f]);
-        munit_assert_uint64(res.status, ==, gab_cvalid);
+        munit_assert_uint64(res.status, ==, gab_ok);
       }
     }
     munit_assert_uint64(done, <=, total_sent);
@@ -252,7 +250,7 @@ static MunitResult test_channel_stress_randomized(const MunitParameter params[],
     union gab_value_pair res = gab_fibawait(gab, fibers[i]);
 
     // Verify every single fiber resolved without error
-    munit_assert_uint64(res.status, ==, gab_cvalid);
+    munit_assert_uint64(res.status, ==, gab_ok);
   }
 
   // By the end, every Put must have matched with exactly one Take.

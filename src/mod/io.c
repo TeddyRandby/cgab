@@ -2093,9 +2093,9 @@ GAB_DYNLIB_MAIN_FN {
 
   assert(initialized == 1);
 
+  gab_value mod = gab_arg(0);
   gab_value file_t = gab_string(gab, tGAB_IOFILE);
   gab_value sock_t = gab_string(gab, tGAB_IOSOCK);
-  gab_value mod = gab_message(gab, tGAB_IO);
 
   gab_def(gab,
           {
@@ -2200,7 +2200,7 @@ GAB_DYNLIB_MAIN_FN {
           }, );
 
   return (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = gab_valarray(gab_ok, mod),
+      .status = gab_ok,
+      .vresult = mod,
   };
 }

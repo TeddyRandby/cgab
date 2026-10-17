@@ -322,6 +322,8 @@ GAB_DYNLIB_NATIVE_FN(row, source) {
 }
 
 GAB_DYNLIB_MAIN_FN {
+  gab_value mod = gab_arg(0);
+
   gab_value conn_type = gab_string(gab, cGAB_CSQLITE_TYPE);
   gab_value conn_mod = gab_strtomsg(conn_type);
 
@@ -362,7 +364,7 @@ GAB_DYNLIB_MAIN_FN {
           );
 
   return (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = gab_valarray(gab_ok, conn_mod),
+      .status = gab_ok,
+      .vresult = mod,
   };
 }

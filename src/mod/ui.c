@@ -1277,7 +1277,7 @@ GAB_DYNLIB_NATIVE_FN(ui, hui_event) {
       goto fin;
 
     // Try to put on the channel.
-    tk = gab_untchnput(gab, gui->evch, LEN_CARRAY(ev), ev, 1);
+    tk = gab_untchnput(gab, gui->evch, LEN_CARRAY(ev), ev);
 
     /* It is possible for the chisclosed to pass, and then we receive
      * termination while blocking */
@@ -1357,7 +1357,7 @@ GAB_DYNLIB_NATIVE_FN(ui, hui_render) {
     if (gab_chnisclosed(gui->evch))
       goto fin;
 
-    gab_value app = gab_tchntake(gab, gui->appch, CHNTAKE_WAITTIME);
+    gab_value app = gab_tchntake(gab, gui->appch);
 
     if (app == gab_cundefined)
       goto fin;
@@ -1498,7 +1498,7 @@ GAB_DYNLIB_NATIVE_FN(ui, tui_event) {
       // we know the put is on the channel.
       // we can do this by yielding a specific value, instead of just
       // undefined.
-      res = gab_untchnput(gab, gui->evch, len, ev, 1);
+      res = gab_untchnput(gab, gui->evch, len, ev);
 
       // Check for error and timeout
       if (res == gab_cundefined)
@@ -1577,7 +1577,7 @@ GAB_DYNLIB_NATIVE_FN(ui, tui_render) {
   union gab_value_pair res;
 
   for (;;) {
-    gab_value app = gab_tchntake(gab, gui->appch, CHNTAKE_WAITTIME);
+    gab_value app = gab_tchntake(gab, gui->appch);
 
     if (gab_chnisclosed(gui->appch))
       goto fin;
@@ -1734,7 +1734,7 @@ GAB_DYNLIB_NATIVE_FN(ui, gui_render) {
     if (gab_chnisclosed(gui->evch))
       goto fin;
 
-    gab_value app = gab_tchntake(gab, gui->appch, CHNTAKE_WAITTIME);
+    gab_value app = gab_tchntake(gab, gui->appch);
 
     if (app == gab_cundefined)
       goto fin;
@@ -1898,7 +1898,7 @@ GAB_DYNLIB_NATIVE_FN(ui, gui_event) {
         goto yield;
       }
 
-      res = gab_untchnput(gab, gui->evch, len, ev, 1);
+      res = gab_untchnput(gab, gui->evch, len, ev);
 
       // Check for error and timeout
       if (res == gab_cundefined)
@@ -2016,7 +2016,8 @@ GAB_DYNLIB_NATIVE_FN(ui, run) {
 }
 
 GAB_DYNLIB_MAIN_FN {
-  gab_value mod = gab_message(gab, "ui");
+  gab_value mod = gab_arg(0);
+
   gab_def(gab,
           {
               gab_message(gab, "run"),
@@ -2025,7 +2026,7 @@ GAB_DYNLIB_MAIN_FN {
           }, );
 
   return (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = gab_valarray(gab_ok, mod),
+      .status = gab_ok,
+      .vresult = mod,
   };
 }

@@ -494,8 +494,8 @@ struct gab_oprototype {
 
 #define NAME gab_modules
 #define K uint64_t
-#define V gab_value *
-#define DEF_V nullptr
+#define V gab_value
+#define DEF_V gab_cundefined
 #define HASH(a) (a)
 #define EQUAL(a, b) (a == b)
 #include "dict.h"
@@ -1928,8 +1928,10 @@ const char *kind_strs[] = {
     [kGAB_SHAPENODE] = "gab\\shapenode",
     [kGAB_SHAPELIST] = "gab\\shapelist",
     [kGAB_FIBER] = "gab\\fiber",
-    [kGAB_FIBERDONE_OK] = "gab\\fiberdone",
-    [kGAB_FIBERDONE_KILLED] = "gab\\fiberrunning",
+    [kGAB_FIBER_OK] = "gab\\fiberok",
+    [kGAB_FIBER_ERR] = "gab\\fibererr",
+    [kGAB_FIBER_KILLED] = "gab\\fiberkilled",
+    [kGAB_FIBER_TERMINATED] = "gab\\fiberterminated",
     [kGAB_CHANNEL] = "gab\\channel",
     [kGAB_CHANNELCLOSED] = "gab\\channelclosed",
     [kGAB_NKINDS] = "none",
@@ -2196,23 +2198,29 @@ GAB_INTERNAL enum __gab_jbstep_k __gab_jbstep(struct gab_triple gab,
           "There is guaranteed to be space for the fiber in this codepath.");
     break;
   // We completed the work. Nothing else to do.
-  case gab_cvalid:
-    gab_assert(gab_fibisdone(popped), "A valid fiber shall be done");
+  case gab_ok:
+  case gab_err:
+    gab_assert(gab_fibisdone(popped), "A valid fiber shall be done, not %d",
+               gab_valkind(popped));
 
     // We panicked. Crash the system.
-    if (res.aresult[0] != gab_ok) {
-      gab_fibkill(gab_fibparent(popped));
+    if (res.status != gab_ok) {
+      if (gab_fibparent(popped))
+        gab_fibkill(gab_fibparent(popped));
       // if (gab.flags & fGAB_SIGTERM_ON_ERR)
       //   gab_sigterm(gab);
     }
     break;
 
-  // The worker is bailing.
+  // The worker is killed.
+  case gab_cundefined:
+  // The worker is terminated.
   case gab_cinvalid:
     gab_assert(gab_fibisdone(popped), "A terminated fiber shall be done");
     return kGAB_JBSTEP_BAIL;
   default:
-    gab_unreachable("Unhandled result.status value");
+    gab_value str = gab_valintostr(gab, res.status);
+    gab_unreachable("Unhandled result.status value %s", gab_strdata(&str));
   }
 
   // We successfuly took a step towards progress
@@ -2496,8 +2504,10 @@ GAB_API union gab_value_pair gab_create(struct gab_create_argt args,
   eg->types[kGAB_RECORDNODE] = gab_string(gab, tGAB_RECORD);
   eg->types[kGAB_BOX] = gab_string(gab, tGAB_BOX);
   eg->types[kGAB_FIBER] = gab_string(gab, tGAB_FIBER);
-  eg->types[kGAB_FIBERDONE_OK] = gab_string(gab, tGAB_FIBER);
-  eg->types[kGAB_FIBERDONE_KILLED] = gab_string(gab, tGAB_FIBER);
+  eg->types[kGAB_FIBER_OK] = gab_string(gab, tGAB_FIBER);
+  eg->types[kGAB_FIBER_ERR] = gab_string(gab, tGAB_FIBER);
+  eg->types[kGAB_FIBER_KILLED] = gab_string(gab, tGAB_FIBER);
+  eg->types[kGAB_FIBER_TERMINATED] = gab_string(gab, tGAB_FIBER);
   eg->types[kGAB_CHANNEL] = gab_string(gab, tGAB_CHANNEL);
   eg->types[kGAB_CHANNELCLOSED] = gab_string(gab, tGAB_CHANNEL);
   eg->types[kGAB_PRIMITIVE] = gab_string(gab, tGAB_PRIMITIVE);
@@ -2585,10 +2595,6 @@ GAB_API union gab_value_pair gab_create(struct gab_create_argt args,
   const char *sargs[len + 1];
   gab_value vargs[len + 2];
 
-  sargs[nargs] = "";
-  vargs[nargs] = gab_ok;
-  nargs++;
-
   // Use each module that's asked for, in order.
   // Build up an array of names and values.
   for (int i = 0; i < len; i++) {
@@ -2605,24 +2611,18 @@ GAB_API union gab_value_pair gab_create(struct gab_create_argt args,
       res = gab_fibawait(gab, res.vresult);
 
     // If any of these uses fail, return the failure.
-    if (res.status != gab_cvalid)
+    if (res.status != gab_ok)
       return res;
 
-    if (res.aresult[0] != gab_ok)
-      return res;
-
-    vargs[nargs] = res.aresult[1];
     sargs[nargs] = pkg->module ? pkg->module : pkg->package;
+    vargs[nargs] = gab_message(gab, pkg->module ? pkg->module : pkg->package);
     nargs++;
   }
 
   vargs[nargs] = gab_cinvalid;
   nargs++;
 
-  return (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = gab_nvalarray(nargs, vargs),
-  };
+  return (union gab_value_pair){{gab_ok}};
 }
 
 GAB_INTERNAL bool __gab_gcisdone(struct gab_triple gab);
@@ -2737,261 +2737,6 @@ GAB_API void gab_destroy(struct gab_triple gab) {
   mtx_destroy(&gab.eg->modules_mtx);
 
   free(gab.eg);
-}
-
-GAB_INTERNAL bool __gab_replchkres(struct gab_triple gab,
-                                   union gab_value_pair res) {
-  gab_value *err = gab_egerrs(gab.eg);
-
-  while (gab_signaling(gab))
-    switch (gab_yield(gab)) {
-    case sGAB_TERM:
-      gab_sigpropagate(gab);
-      break;
-    case sGAB_COLL:
-      gab_gcepochnext(gab);
-      gab_sigpropagate(gab);
-      break;
-    default:
-      continue;
-    }
-
-  if (err) {
-    for (gab_value *thiserr = err; *thiserr != gab_nil; thiserr++) {
-      gab_assert(gab_valkind(*thiserr) == kGAB_RECORD,
-                 "An error value shall be a record");
-
-      if (*thiserr == res.vresult)
-        continue;
-
-      const char *errstr = gab_errtocs(gab, *thiserr);
-
-      if (errstr)
-        puts(errstr);
-
-      // TODO @cgab @bug: Do something else if errtocs fails
-      gab_assert(errstr, "gab_errtocs should not produce nil. This happens if "
-                         "you try to create strings while signalling.");
-    };
-
-    free(err);
-  }
-
-  if (res.status != gab_cvalid) {
-    gab_assert(gab_valkind(res.vresult) == kGAB_RECORD,
-               "An error value shall be a record");
-
-    const char *errstr = gab_errtocs(gab, res.vresult);
-
-    if (errstr)
-      puts(errstr);
-
-    return true;
-  }
-
-  return err != nullptr;
-}
-
-// TODO @bug: This has to pop all the errors, and check that the *only* one we
-// see is this EOF
-GAB_INTERNAL bool __gab_replchkmore(struct gab_triple gab,
-                                    union gab_value_pair res) {
-  if (res.status != gab_cinvalid)
-    return false;
-
-  gab_value err = res.vresult;
-  gab_assert(gab_valkind(res.vresult) == kGAB_RECORD, "Error must be a record");
-
-  if (gab_recisl(err)) {
-    gab_assert(gab_reclen(err) > 0,
-               "If a stacktrace, should have at least one element");
-    err = gab_uvrecat(err, 0);
-  }
-
-  gab_value status = gab_mrecat(gab, err, "status");
-
-  if (status == gab_cinvalid)
-    return false;
-
-  gab_assert(status != gab_cundefined,
-             "The error record shall have a status field");
-
-  gab_assert(gab_valkind(status) == kGAB_STRING,
-             "The status field shall be a string, not %d.",
-             gab_valkind(status));
-
-  const char *status_name = gab_strdata(&status);
-  if (!strcmp(status_name, "UNEXPECTED_EOF"))
-    return true;
-
-  return false;
-}
-
-/*
- * Should be able to take work here on 1st worker maybe.
- */
-GAB_INTERNAL void __gab_replwait(struct gab_triple gab,
-                                 struct gab_repl_argt *args, gab_value fib) {
-  while (!gab_fibisdone(fib)) {
-    switch (gab_yield(gab)) {
-    case sGAB_COLL:
-      gab_gcepochnext(gab);
-      // Fallthrough
-    case sGAB_TERM:
-      gab_sigpropagate(gab);
-      // Fallthrough
-    default:
-      gab_busywait(gab);
-      continue;
-    }
-  }
-}
-
-GAB_API void gab_repl(struct gab_triple gab, struct gab_repl_argt args) {
-  uint64_t iterations = 0;
-  gab_value env = gab_cinvalid;
-
-  args.welcome_message = args.welcome_message ? args.welcome_message : "";
-  args.result_prefix = args.result_prefix ? args.result_prefix : "";
-  args.prompt_prefix = args.prompt_prefix ? args.prompt_prefix : "";
-  args.promptmore_prefix =
-      args.promptmore_prefix ? args.promptmore_prefix : args.prompt_prefix;
-
-  printf("%s\n", args.welcome_message);
-
-  v_char source = {};
-
-  for (;;) {
-
-  readmore:
-    char *line;
-    if (source.len)
-      line = args.readline(args.promptmore_prefix);
-    else
-      line = args.readline(args.prompt_prefix);
-
-    if (!line)
-      return;
-
-    if (line[0] == '\0')
-      continue;
-
-    v_char_spush(&source, s_char_cstr(line));
-    v_char_push(&source, '\n');
-
-    iterations++;
-
-  retry:
-
-    // Skip self
-    uint64_t reclen = env == gab_cinvalid ? 0 : (gab_reclen(env) - 1);
-
-    uint64_t len = reclen + args.len;
-
-    // Allocate the maximum number of space we may need
-    const char *keys[len + 1];
-    gab_value keyvals[len + 1];
-    gab_value vals[len + 1];
-
-    // TODO @engine @bug: The calls to string below need to have signals handled
-    // This *kind* of works, but a fiber can signal us *after* we pass this
-    // point.
-    while (gab_signaling(gab))
-      switch (gab_yield(gab)) {
-      case sGAB_TERM:
-        gab_sigpropagate(gab);
-        break;
-      case sGAB_COLL:
-        gab_gcepochnext(gab);
-        gab_sigpropagate(gab);
-        break;
-      default:
-        continue;
-      }
-
-    // Insert local names from env
-    for (uint64_t i = 0; i < reclen; i++) {
-      uint64_t index = i + 1;
-      keyvals[i] = gab_ukrecat(env, index);
-      vals[i] = gab_uvrecat(env, index);
-      keys[i] = gab_strdata(keyvals + i);
-    }
-
-    // If there is a local name in the env, skip it from the args.
-    // otherwise, add an element for this.
-    uint64_t n = reclen;
-    for (uint64_t i = 0; i < args.len; i++) {
-      gab_value vkey = gab_string(gab, args.sargv[i]);
-      if (vkey == gab_cinvalid)
-        goto retry;
-
-      if (env != gab_cinvalid && gab_rechas(env, vkey))
-        continue;
-
-      keys[n] = args.sargv[i];
-      vals[n] = args.vargv[i];
-      n++;
-    }
-
-    // Append the iterations number to the end of the given name
-    char unique_name[strlen(args.name) + 16];
-    snprintf(unique_name, sizeof(unique_name), "%s:%" PRIu64 "", args.name,
-             iterations);
-
-    struct gab_src *src =
-        gab_source(gab, gab_string(gab, unique_name), source.len, source.data);
-
-    union gab_value_pair block = gab_build(gab, src,
-                                           (struct gab_parse_argt){
-                                               .flags = args.flags,
-                                               .len = n,
-                                               .argv = keys,
-                                           });
-    if (__gab_replchkmore(gab, block))
-      goto readmore;
-
-    gab_srccomplete(gab, src);
-
-    if (args.add_hist)
-      args.add_hist(source.data);
-
-    if (__gab_replchkres(gab, block))
-      goto fin;
-
-    union gab_value_pair fiber = gab_arun(gab, (struct gab_run_argt){
-                                                   .flags = args.flags,
-                                                   .len = n,
-                                                   .argv = vals,
-                                                   .main = block.vresult,
-                                               });
-
-    if (__gab_replchkres(gab, fiber))
-      goto fin;
-
-    __gab_replwait(gab, &args, fiber.vresult);
-
-    union gab_value_pair res = gab_fibawait(gab, fiber.vresult);
-
-    if (__gab_replchkres(gab, res))
-      goto fin;
-
-    for (int32_t i = 1; res.aresult[i] != gab_cinvalid; i++) {
-      gab_value arg = res.aresult[i];
-
-      if (res.aresult[i + 1] == gab_cinvalid) {
-        gab_fvalinspect(stdout, gab_pvalintos(gab, arg, ""), -1);
-      } else {
-        gab_fvalinspect(stdout, gab_pvalintos(gab, arg, ""), -1);
-        printf(" ");
-      }
-    }
-
-    putc('\n', stdout);
-
-  fin:
-
-    source.len = 0;
-  }
 }
 
 GAB_API union gab_value_pair gab_aexec(struct gab_triple gab,
@@ -3290,26 +3035,26 @@ GAB_INTERNAL struct gab_oshape *__gab_legshpfind(struct gab_eg *self,
   }
 }
 
-GAB_API gab_value *gab_segmodat(struct gab_eg *eg, const char *name) {
+GAB_API gab_value gab_segmodat(struct gab_eg *eg, const char *name) {
   uint64_t hash = s_char_hash(s_char_cstr(name));
 
   mtx_lock(&eg->modules_mtx);
 
-  gab_value *module = d_gab_modules_read(&eg->modules, hash);
+  gab_value module = d_gab_modules_read(&eg->modules, hash);
 
   mtx_unlock(&eg->modules_mtx);
 
   return module;
 }
 
-GAB_API gab_value *gab_segmodput(struct gab_eg *eg, const char *name,
-                                 gab_value *module) {
+GAB_API gab_value gab_segmodput(struct gab_eg *eg, const char *name,
+                                gab_value module) {
   uint64_t hash = s_char_hash(s_char_cstr(name));
 
   mtx_lock(&eg->modules_mtx);
 
-  if (d_gab_modules_read(&eg->modules, hash) != nullptr)
-    return mtx_unlock(&eg->modules_mtx), nullptr;
+  if (d_gab_modules_read(&eg->modules, hash) != gab_cundefined)
+    return mtx_unlock(&eg->modules_mtx), gab_cundefined;
 
   d_gab_modules_insert(&eg->modules, hash, module);
   return mtx_unlock(&eg->modules_mtx), module;
@@ -3895,11 +3640,7 @@ GAB_API gab_value gab_vspanicf(struct gab_triple gab, va_list va,
   gab_assert(gab_reclen(rec) == 11,
              "Error record shall be constructed correctly");
 
-  gab_iref(gab, rec);
-  gab_egkeep(gab.eg, rec);
-
-  if (!(gab.flags & fGAB_WITHOLD_ERR))
-    v_gab_value_thrd_push(&gab.eg->err, rec);
+  v_gab_value_thrd_push(&gab.eg->err, rec);
 
   gab_gcunlock(gab);
 
@@ -4194,13 +3935,11 @@ GAB_INTERNAL a_char *__gab_resmatch(const char **roots,
  *  - If MODULE is requested, try to resolve MODULE within PACKAGE via
  * resources.
  *  - If MODULE isn't requested, just try to resolve PACKAGE.
- *
  */
 
-GAB_API struct gab_module_res gab_mresolve(const char **roots,
-                                           const struct gab_resource *resources,
-                                           const char *package,
-                                           const char *module) {
+GAB_API struct gab_module_res *
+gab_mresolve(const char **roots, const struct gab_resource *resources,
+             const char *package, const char *module) {
 
   char *colon = strchr(package, ':');
   if (colon) {
@@ -4214,6 +3953,8 @@ GAB_API struct gab_module_res gab_mresolve(const char **roots,
     *colon = '\0';
   }
 
+  struct gab_module_res *rest = nullptr;
+
   for (int i = 0; resources[i].prefix != nullptr; i++) {
     const struct gab_resource *res = resources + i;
     const char *root = nullptr;
@@ -4221,7 +3962,8 @@ GAB_API struct gab_module_res gab_mresolve(const char **roots,
     a_char *module_path = __gab_resmatch(roots, res, package, module, &root);
 
     if (module_path) {
-      return (struct gab_module_res){
+      struct gab_module_res *curr = calloc(sizeof(struct gab_module_res), 1);
+      *curr = (struct gab_module_res){
           // TODO @cgab @bug: Fix leak
           .path = module_path->data,
           .resource = res,
@@ -4232,14 +3974,17 @@ GAB_API struct gab_module_res gab_mresolve(const char **roots,
           // Skip the root and package. This should resolve to the module path,
           // relative to the package.
           .module_path = module_path->data + strlen(root) + strlen(package) + 1,
+          .next = rest,
       };
+
+      rest = curr;
     }
   }
 
-  return (struct gab_module_res){0};
+  return rest;
 }
 
-GAB_API struct gab_module_res
+GAB_API struct gab_module_res *
 gab_resolve(struct gab_triple gab, const char *package, const char *module) {
   return gab_mresolve(gab.eg->resroots, gab.eg->res, package, module);
 }
@@ -4264,69 +4009,64 @@ GAB_API union gab_value_pair gab_use(struct gab_triple gab,
     args.len = gab_reclen(args.env);
   }
 
-  gab_precondition(args.len != 0, "Args must not be zero.");
+  args.len++;
+  const char *env_sargv[args.len];
+  gab_value env_vsargv[args.len];
+  gab_value env_vargv[args.len];
 
-  const char *env_sargv[args.len + 1];
-  gab_value env_vsargv[args.len + 1];
-  gab_value env_vargv[args.len + 1];
+  gab_value mmod = gab_message(gab, module ? module : package);
+
+  env_vsargv[0] = gab_binary(gab, (uint8_t *)"module");
+  env_sargv[0] = gab_strdata(env_vsargv);
+  env_vargv[0] = mmod;
 
   if (gab_valkind(args.env) == kGAB_RECORD) {
-    for (uint64_t i = 0; i < args.len; i++) {
-      env_vsargv[i] = gab_ukrecat(args.env, i);
+    for (uint64_t i = 0; i < args.len - 1; i++) {
+      uint64_t index = i + 1;
+      env_vsargv[index] = gab_ukrecat(args.env, i);
 
-      gab_precondition(gab_valkind(env_vsargv[i]) == kGAB_BINARY,
+      gab_precondition(gab_valkind(env_vsargv[index]) == kGAB_BINARY,
                        "Invalid kind %d. Expected a gab\\binary",
-                       gab_valkind(env_vsargv[i]));
+                       gab_valkind(env_vsargv[index]));
 
-      env_sargv[i] = gab_strdata(env_vsargv + i);
-      env_vargv[i] = gab_uvrecat(args.env, i);
+      env_sargv[index] = gab_strdata(env_vsargv + index);
+      env_vargv[index] = gab_uvrecat(args.env, i);
     }
 
     args.sargv = env_sargv;
     args.argv = env_vargv;
+  } else {
+    memcpy(env_sargv + 1, args.sargv, args.len * sizeof(args.sargv[0]));
+    memcpy(env_vargv + 1, args.argv, args.len * sizeof(args.argv[0]));
+    args.sargv = env_sargv;
+    args.argv = env_vargv;
   }
 
-  struct gab_module_res mod = gab_resolve(gab, package, module);
+  struct gab_module_res *mod = gab_resolve(gab, package, module);
 
-  if (mod.resource) {
-    if (!(gab.flags & fGAB_USE_RELOAD)) {
-      gab_value *cached = gab_segmodat(gab.eg, mod.path);
-
-      if (cached != nullptr) {
-        /* Skip the first argument, which is the module's data */
-
-        return (union gab_value_pair){
-            .status = gab_cvalid,
-            .aresult = cached,
-        };
-      }
-    }
-
-    gab_precondition(mod.resource->loader != nullptr,
-                     "Expected valid resource loader fn pointer");
-
-    union gab_value_pair result =
-        mod.resource->loader(gab, mod.path, args.len, args.sargv, args.argv);
-
-    if (result.status != gab_cvalid)
-      return result;
-
-    if (result.aresult[0] != gab_ok)
-      return result;
-
-    gab_segmodput(gab.eg, mod.path, result.aresult);
-
-    // TODO @cgab @bug: Fix leak
-    // return a_char_destroy(mod.path), result;
-    return result;
-  }
-
-  if (module)
-    return gab_panicf(gab, "Module @:@ could not be found",
-                      gab_string(gab, package), gab_string(gab, module));
-  else
+  if (!mod)
     return gab_panicf(gab, "Package @ could not be found",
                       gab_string(gab, package));
+
+  for (const struct gab_module_res *curr = mod; curr; curr = curr->next) {
+    gab_precondition(curr->resource->loader != nullptr,
+                     "Expected valid resource loader fn pointer");
+
+    printf("%lu args\n", args.len);
+    for (uint64_t i = 0; i < args.len; i++) {
+      printf("%li: %s\n", i, args.sargv[i]);
+    }
+
+    union gab_value_pair result = curr->resource->loader(
+        gab, curr->path, args.len, args.sargv, args.argv);
+
+    if (result.status != gab_ok)
+      return result;
+
+    gab_segmodput(gab.eg, curr->path, result.vresult);
+  }
+
+  return (union gab_value_pair){{gab_ok, mmod}};
 }
 
 gab_value __gab_zip(struct gab_triple gab, gab_value chn, gab_value fib) {
@@ -4375,6 +4115,7 @@ GAB_API union gab_value_pair gab_arun(struct gab_triple gab,
   return gab_tarun(gab, -1, args);
 }
 
+/* TODO @cgab @qol: Refactor this to a send */
 GAB_API union gab_value_pair gab_tarun(struct gab_triple gab, uint64_t tries,
                                        struct gab_run_argt args) {
   gab.flags |= args.flags;
@@ -4433,6 +4174,29 @@ GAB_API union gab_value_pair gab_tarun(struct gab_triple gab, uint64_t tries,
   return (union gab_value_pair){{gab_cvalid, fb}};
 }
 
+GAB_API union gab_value_pair gab_ssend(struct gab_triple gab,
+                                       struct gab_send_argt args) {
+  gab.flags |= args.flags;
+
+  gab_value fb = gab_fiber(gab, (struct gab_fiber_argt){
+                                    .message = args.message,
+                                    .receiver = args.receiver,
+                                    .argv = args.argv,
+                                    .argc = args.len,
+                                    .flags = gab.flags,
+                                });
+
+  if (fb == gab_cinvalid)
+    return (union gab_value_pair){{gab_cinvalid}};
+
+  gab_iref(gab, fb);
+  gab_egkeep(gab.eg, fb);
+
+  // TODO @cgab @bug: Prevent recursively vmexec with jbrunning check
+
+  return __gab_vmexec(gab, fb);
+};
+
 GAB_API union gab_value_pair gab_send(struct gab_triple gab,
                                       struct gab_send_argt args) {
   union gab_value_pair fb = gab_asend(gab, args);
@@ -4442,15 +4206,7 @@ GAB_API union gab_value_pair gab_send(struct gab_triple gab,
 
   union gab_value_pair res = gab_fibawait(gab, fb.vresult);
 
-  if (res.status != gab_cvalid)
-    return res;
-
-  // gab_dref(gab, fb.vresult);
-
-  return (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = res.aresult,
-  };
+  return res;
 };
 
 GAB_API union gab_value_pair gab_asend(struct gab_triple gab,
@@ -4479,13 +4235,12 @@ GAB_API union gab_value_pair gab_asend(struct gab_triple gab,
     int32_t mask = (s.mask) & args.pinmask;
     int32_t wkid = ctzl(mask) + 1;
     if (wkid > gab.eg->len)
-      return (union gab_value_pair){{gab_cinvalid, gab_cinvalid}};
+      return (union gab_value_pair){{gab_cinvalid}};
 
     // TODO @cgab @bug: Properly test & try all allowed workers in the pinmask.
     if (!__gab_jbisalive(gab, wkid))
-      return __gab_jbspawn(gab, fb)
-                 ? (union gab_value_pair){{gab_cvalid, fb}}
-                 : (union gab_value_pair){{gab_cinvalid, gab_cinvalid}};
+      return __gab_jbspawn(gab, fb) ? (union gab_value_pair){{gab_cvalid, fb}}
+                                    : (union gab_value_pair){{gab_cinvalid}};
 
     if (gab.wkid == wkid)
       q_gab_value_dyn_push(&gab.eg->jobs[wkid].waiting_queue, fb);
@@ -4931,8 +4686,10 @@ GAB_INTERNAL uint64_t __gab_objsize(struct gab_obj *obj) {
     return sizeof(struct gab_ostring) + (o->len + 1) * sizeof(char);
   }
   case kGAB_FIBER:
-  case kGAB_FIBERDONE_OK:
-  case kGAB_FIBERDONE_KILLED:
+  case kGAB_FIBER_OK:
+  case kGAB_FIBER_ERR:
+  case kGAB_FIBER_KILLED:
+  case kGAB_FIBER_TERMINATED:
     return sizeof(struct gab_ofiber);
   case kGAB_NATIVE:
     return sizeof(struct gab_onative);
@@ -5097,8 +4854,10 @@ GAB_INTERNAL int64_t __gab_svalinspect(char **dest, uint64_t *n, gab_value self,
     return __gab_snprintf_through(dest, n, "<" tGAB_CHANNEL " %p>",
                                   GAB_VAL_TO_CHANNEL(self));
   case kGAB_FIBER:
-  case kGAB_FIBERDONE_KILLED:
-  case kGAB_FIBERDONE_OK: {
+  case kGAB_FIBER_OK:
+  case kGAB_FIBER_ERR:
+  case kGAB_FIBER_KILLED:
+  case kGAB_FIBER_TERMINATED: {
     struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(self);
 
     return __gab_snprintf_through(dest, n, "<" tGAB_FIBER " %p ", fiber) +
@@ -5178,8 +4937,10 @@ GAB_API void __gab_objdestroy(struct gab_triple gab, struct gab_obj *self) {
 
   switch (self->kind) {
   case kGAB_FIBER:
-  case kGAB_FIBERDONE_KILLED:
-  case kGAB_FIBERDONE_OK: {
+  case kGAB_FIBER_OK:
+  case kGAB_FIBER_ERR:
+  case kGAB_FIBER_KILLED:
+  case kGAB_FIBER_TERMINATED: {
     struct gab_ofiber *fib = (struct gab_ofiber *)self;
 
     /*if (fib->res_values != nullptr)*/
@@ -7673,38 +7434,58 @@ GAB_API gab_value gab_fiber(struct gab_triple gab, struct gab_fiber_argt args) {
 
 GAB_API struct gab_vm *gab_fibvm(gab_value fiber) {
   gab_precondition(gab_valkind(fiber) >= kGAB_FIBER &&
-                       gab_valkind(fiber) <= kGAB_FIBERDONE_KILLED,
+                       gab_valkind(fiber) <= kGAB_FIBER_KILLED,
                    "Invalid Kind");
   return &GAB_VAL_TO_FIBER(fiber)->vm;
+}
+
+GAB_INTERNAL union gab_value_pair __gab_fibresult(gab_value fiber) {
+  gab_precondition(gab_valisfib(fiber), "Expected fiber, not %d\n",
+                   gab_valkind(fiber));
+
+  switch (gab_valkind(fiber)) {
+  case kGAB_FIBER_KILLED:
+    return (union gab_value_pair){{gab_cundefined, fiber}};
+  case kGAB_FIBER_TERMINATED:
+    return (union gab_value_pair){{gab_cinvalid, fiber}};
+  case kGAB_FIBER:
+    return (union gab_value_pair){{gab_ctimeout, fiber}};
+  case kGAB_FIBER_OK:
+    return (union gab_value_pair){{gab_ok, fiber}};
+  case kGAB_FIBER_ERR:
+    return (union gab_value_pair){{gab_err, fiber}};
+  default:
+    gab_unreachable("Must be finished fiber");
+  }
 }
 
 GAB_API union gab_value_pair gab_tfibawait(struct gab_triple gab, gab_value f,
                                            uint64_t tries) {
   gab_precondition(gab_valkind(f) >= kGAB_FIBER &&
-                       gab_valkind(f) <= kGAB_FIBERDONE_KILLED,
+                       gab_valkind(f) <= kGAB_FIBER_KILLED,
                    "Invalid kind");
 
   struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
   uint64_t sofar = 0;
 
-  while (fiber->header.kind != kGAB_FIBERDONE_OK) {
+  while (fiber->header.kind == kGAB_FIBER) {
     switch (gab_yield(gab)) {
     case sGAB_COLL:
       gab_gcepochnext(gab);
       gab_sigpropagate(gab);
       break;
     case sGAB_TERM:
-      return (union gab_value_pair){{gab_cinvalid, f}};
+      return (union gab_value_pair){{gab_cinvalid}};
     default:
       break;
     }
 
     sofar++;
     if (sofar > tries)
-      return (union gab_value_pair){{gab_ctimeout, f}};
+      return (union gab_value_pair){{gab_ctimeout}};
   }
 
-  return (union gab_value_pair){{gab_cvalid, f}};
+  return __gab_fibresult(f);
 }
 
 GAB_API union gab_value_pair gab_fibawait(struct gab_triple gab, gab_value f) {
@@ -7721,7 +7502,7 @@ GAB_API union gab_value_pair gab_fibawait(struct gab_triple gab, gab_value f) {
     union gab_value_pair res = gab_tfibawait(gab, f, 1);
 
     if (res.status != gab_ctimeout)
-      return (union gab_value_pair){{res.status, f}};
+      return __gab_fibresult(f);
 
     if (gab_step(gab))
       return gab_tfibawait(gab, f, 1);
@@ -7758,7 +7539,7 @@ GAB_API bool gab_step(struct gab_triple gab) {
 
 GAB_API void *gab_fibmalloc(gab_value f, uint64_t n) {
   gab_precondition(gab_valkind(f) >= kGAB_FIBER &&
-                       gab_valkind(f) <= kGAB_FIBERDONE_KILLED,
+                       gab_valkind(f) <= kGAB_FIBER_KILLED,
                    "Invalid kind");
   struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
 
@@ -7771,7 +7552,7 @@ GAB_API void *gab_fibmalloc(gab_value f, uint64_t n) {
 
 GAB_API gab_value gab_fibparent(gab_value f) {
   gab_precondition(gab_valkind(f) >= kGAB_FIBER &&
-                       gab_valkind(f) <= kGAB_FIBERDONE_KILLED,
+                       gab_valkind(f) <= kGAB_FIBER_KILLED,
                    "Invalid kind");
   struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
   return fiber->parent;
@@ -7779,17 +7560,17 @@ GAB_API gab_value gab_fibparent(gab_value f) {
 
 GAB_API bool gab_fibkill(gab_value f) {
   gab_precondition(gab_valkind(f) >= kGAB_FIBER &&
-                       gab_valkind(f) <= kGAB_FIBERDONE_KILLED,
+                       gab_valkind(f) <= kGAB_FIBER_KILLED,
                    "Invalid kind");
   struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
   uint8_t FIBER_KIND = kGAB_FIBER;
   return atomic_compare_exchange_strong(&fiber->header.kind, &FIBER_KIND,
-                                        kGAB_FIBERDONE_KILLED);
+                                        kGAB_FIBER_KILLED);
 }
 
 GAB_API uint64_t gab_fibpush(gab_value f, uint8_t b) {
   gab_precondition(gab_valkind(f) >= kGAB_FIBER &&
-                       gab_valkind(f) <= kGAB_FIBERDONE_KILLED,
+                       gab_valkind(f) <= kGAB_FIBER_KILLED,
                    "Invalid kind");
   struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
   return v_uint8_t_push(&fiber->allocator, b);
@@ -7797,7 +7578,7 @@ GAB_API uint64_t gab_fibpush(gab_value f, uint8_t b) {
 
 GAB_API uint64_t gab_wfibpush(gab_value f, uint64_t w) {
   gab_precondition(gab_valkind(f) >= kGAB_FIBER &&
-                       gab_valkind(f) <= kGAB_FIBERDONE_KILLED,
+                       gab_valkind(f) <= kGAB_FIBER_KILLED,
                    "Invalid kind");
   struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
   uint64_t idx = v_uint8_t_push(&fiber->allocator, w & 0xff);
@@ -7813,7 +7594,7 @@ GAB_API uint64_t gab_wfibpush(gab_value f, uint64_t w) {
 
 GAB_API void *gab_fibat(gab_value f, uint64_t n) {
   gab_precondition(gab_valkind(f) >= kGAB_FIBER &&
-                       gab_valkind(f) <= kGAB_FIBERDONE_KILLED,
+                       gab_valkind(f) <= kGAB_FIBER_KILLED,
                    "Invalid kind");
   struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
   return v_uint8_t_ref_at(&fiber->allocator, n);
@@ -7821,7 +7602,7 @@ GAB_API void *gab_fibat(gab_value f, uint64_t n) {
 
 GAB_API uint64_t gab_fibsize(gab_value f) {
   gab_precondition(gab_valkind(f) >= kGAB_FIBER &&
-                       gab_valkind(f) <= kGAB_FIBERDONE_KILLED,
+                       gab_valkind(f) <= kGAB_FIBER_KILLED,
                    "Invalid kind");
   struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
   return fiber->allocator.len;
@@ -7829,7 +7610,7 @@ GAB_API uint64_t gab_fibsize(gab_value f) {
 
 GAB_API void gab_fibclear(gab_value f) {
   gab_precondition(gab_valkind(f) >= kGAB_FIBER &&
-                       gab_valkind(f) <= kGAB_FIBERDONE_KILLED,
+                       gab_valkind(f) <= kGAB_FIBER_KILLED,
                    "Invalid kind");
   struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
   fiber->allocator.len = 0;
@@ -8778,8 +8559,10 @@ GAB_INTERNAL int64_t __gab_pprintw(gab_value val) {
   case kGAB_CHANNELCLOSED:
     return 13; // Hardcoded and never change
   case kGAB_FIBER:
-  case kGAB_FIBERDONE_OK:
-  case kGAB_FIBERDONE_KILLED:
+  case kGAB_FIBER_OK:
+  case kGAB_FIBER_ERR:
+  case kGAB_FIBER_KILLED:
+  case kGAB_FIBER_TERMINATED:
     return 11; // Needs to be updated to match
   default:
     gab_unreachable("Invalid kind %d", gab_valkind(val));
@@ -8876,7 +8659,7 @@ GAB_INTERNAL void __gab_pppushchn(v_gab_pprint *self, gab_value chan) {
 
 GAB_INTERNAL void __gab_pppushfib(v_gab_pprint *self, gab_value fib) {
   gab_precondition(gab_valkind(fib) >= kGAB_FIBER &&
-                       gab_valkind(fib) <= kGAB_FIBERDONE_KILLED,
+                       gab_valkind(fib) <= kGAB_FIBER_KILLED,
                    "Invalid kind");
 
   struct gab_ofiber *v = GAB_VAL_TO_FIBER(fib);
@@ -9004,8 +8787,10 @@ GAB_INTERNAL bool __gab_pptokify(v_gab_pprint *self, gab_value val) {
                             : __gab_pppushrec(self, val)),
            true;
   case kGAB_FIBER:
-  case kGAB_FIBERDONE_KILLED:
-  case kGAB_FIBERDONE_OK:
+  case kGAB_FIBER_OK:
+  case kGAB_FIBER_ERR:
+  case kGAB_FIBER_KILLED:
+  case kGAB_FIBER_TERMINATED:
     return __gab_pppushfib(self, val), false;
   case kGAB_CHANNEL:
   case kGAB_CHANNELCLOSED:
@@ -10434,10 +10219,15 @@ GAB_API union gab_value_pair gab_parse(struct gab_triple gab,
              "Shall either have an ast or an error");
 
   if (ast == gab_cinvalid)
-    return (union gab_value_pair){.status = gab_cinvalid,
-                                  .vresult = parser.err};
+    return (union gab_value_pair){
+        .status = gab_cinvalid,
+        .vresult = parser.err,
+    };
   else
-    return (union gab_value_pair){.status = gab_cvalid, .vresult = ast};
+    return (union gab_value_pair){
+        .status = gab_cvalid,
+        .vresult = ast,
+    };
 }
 
 /* ----------------------------------------
@@ -11843,7 +11633,7 @@ GAB_API union gab_value_pair gab_compile(struct gab_triple gab,
    */
 
   if (src == nullptr)
-    return (union gab_value_pair){{gab_cinvalid, gab_cinvalid}};
+    return (union gab_value_pair){{gab_cinvalid}};
 
   struct bc bc = {.ks = &src->constants, .src = src, .err = gab_cinvalid};
 
@@ -11958,8 +11748,9 @@ GAB_API union gab_value_pair gab_build(struct gab_triple gab,
     return ast;
 
   if (src == nullptr)
-    return (union gab_value_pair){.status = gab_cinvalid,
-                                  .vresult = gab_cundefined};
+    return (union gab_value_pair){
+        .status = gab_cinvalid,
+    };
 
   gab_gclock(gab);
 
@@ -12008,8 +11799,10 @@ GAB_API union gab_value_pair gab_build(struct gab_triple gab,
   gab_egkeep(gab.eg, main);
   gab_egkeep(gab.eg, res.vresult);
 
-  return gab_gcunlock(gab),
-         (union gab_value_pair){.status = gab_cvalid, .vresult = main};
+  return gab_gcunlock(gab), (union gab_value_pair){
+                                .status = gab_cvalid,
+                                .vresult = main,
+                            };
 }
 
 /* ----------------------------------------
@@ -12287,9 +12080,11 @@ GAB_INTERNAL void __gab_gcobjeachdo(struct gab_obj *obj,
     break;
   }
 
-  case kGAB_FIBERDONE_KILLED:
-  case kGAB_FIBERDONE_OK:
-  case kGAB_FIBER: {
+  case kGAB_FIBER:
+  case kGAB_FIBER_OK:
+  case kGAB_FIBER_ERR:
+  case kGAB_FIBER_KILLED:
+  case kGAB_FIBER_TERMINATED: {
     struct gab_ofiber *fib = (struct gab_ofiber *)obj;
 
     if (gab_valiso(fib->parent))
@@ -13219,58 +13014,36 @@ GAB_INTERNAL union gab_value_pair __gab_vmyield(struct gab_triple gab,
   return (union gab_value_pair){{gab_ctimeout, f}};
 }
 
-GAB_INTERNAL gab_value __gab_sprintstk(struct gab_triple gab, struct gab_vm *vm,
-                                       gab_value *f, uint8_t *ip, int s,
-                                       const char *fmt, va_list va) {
-  // TODO @cgab: Place reasonable limit on number of frames to sprint.
-  // Also, skip middle ones sometimes.
-  int nframes = 0;
-  gab_value vframes[1024] = {0};
+GAB_INTERNAL void __gab_panicstk(struct gab_triple gab, struct gab_vm *vm,
+                                 gab_value *f, uint8_t *ip, int s,
+                                 const char *fmt, va_list va) {
+  /* Publish all panicked frames */
 
   struct gab_err_argt frame =
       __gab_vmbuilderr(gab, __gab_vmframeblk(f), ip, s, fmt);
 
-  vframes[nframes] = gab_vspanicf(gab, va, frame);
-  if (vframes[nframes] != gab_cinvalid)
-    nframes++;
+  gab_vspanicf(gab, va, frame);
 
   ip = __gab_vmframeip(f);
   f = __gab_vmframeparent(f);
 
   while (f && __gab_vmframeparent(f) > vm->sb) {
     frame = __gab_vmbuilderr(gab, __gab_vmframeblk(f), ip, GAB_NONE, "");
-    vframes[nframes] = gab_vspanicf(gab, va, frame);
-    if (vframes[nframes] != gab_cinvalid)
-      nframes++;
+    gab_vspanicf(gab, va, frame);
 
     ip = __gab_vmframeip(f);
     f = __gab_vmframeparent(f);
   }
-
-  if (nframes)
-    return gab_list(gab, 1, nframes, vframes);
-  else
-    return gab_cinvalid;
-}
-
-GAB_API gab_value gab_fibstacktrace(struct gab_triple gab, gab_value fiber) {
-  struct gab_vm *vm = gab_fibvm(fiber);
-
-  gab_value *f = vm->fp;
-  uint8_t *ip = vm->ip;
-
-  va_list empty = {};
-  return __gab_sprintstk(gab, vm, f, ip, GAB_TERM, nullptr, empty);
 }
 
 GAB_INTERNAL bool __gab_fibxchg(gab_value fiber, enum gab_kind new_kind) {
   gab_assert(gab_valkind(fiber) >= kGAB_FIBER &&
-                 gab_valkind(fiber) <= kGAB_FIBERDONE_KILLED,
+                 gab_valkind(fiber) <= kGAB_FIBER_KILLED,
              "Invalid kind");
 
   uint8_t FIBER_KIND = kGAB_FIBER;
   return atomic_compare_exchange_strong(&GAB_VAL_TO_FIBER(fiber)->header.kind,
-                                        &FIBER_KIND, kGAB_FIBERDONE_OK);
+                                        &FIBER_KIND, new_kind);
 };
 
 GAB_INTERNAL union gab_value_pair __gab_vvmterm(struct gab_triple gab,
@@ -13278,13 +13051,6 @@ GAB_INTERNAL union gab_value_pair __gab_vvmterm(struct gab_triple gab,
   gab_precondition(gab.wkid != 0, "May not term from wkid 0");
 
   gab_value fiber = gab_thisfiber(gab);
-
-  if (!__gab_fibxchg(fiber, kGAB_FIBERDONE_OK))
-    return (union gab_value_pair){{gab_cinvalid, gab_cinvalid}};
-
-  gab_assert(gab_valkind(fiber) == kGAB_FIBER,
-             "(%i) Terminating fiber %p must be running, not: %d. Terminating.",
-             gab.wkid, GAB_VAL_TO_FIBER(fiber), gab_valkind(fiber));
 
   struct gab_vm *vm = gab_thisvm(gab);
 
@@ -13295,8 +13061,6 @@ GAB_INTERNAL union gab_value_pair __gab_vvmterm(struct gab_triple gab,
   //
   // gab_iref(gab, err);
   // gab_egkeep(gab.eg, err);
-
-  union gab_value_pair res = {{gab_cinvalid, gab_cinvalid}};
 
   struct gab_oblock *blk = __gab_vmframeblk(vm->fp);
   gab_value env;
@@ -13316,26 +13080,25 @@ GAB_INTERNAL union gab_value_pair __gab_vvmterm(struct gab_triple gab,
               __gab_obj(fiber));
 #endif
 
-  return res;
+  if (!__gab_fibxchg(fiber, kGAB_FIBER_TERMINATED))
+    return __gab_fibresult(fiber);
+
+  return __gab_fibresult(fiber);
 }
 
 GAB_INTERNAL union gab_value_pair
 __gab_vmgivenerror(struct gab_triple gab, union gab_value_pair given) {
   gab_value fiber = gab_thisfiber(gab);
 
-  if (!__gab_fibxchg(fiber, kGAB_FIBERDONE_OK))
-    return (union gab_value_pair){{gab_cinvalid, gab_cinvalid}};
-
-  gab_assert(gab_valkind(fiber) == kGAB_FIBER,
-             "Terminating fiber %p must be running, not: %d. Given err.",
-             GAB_VAL_TO_FIBER(fiber), gab_valkind(fiber));
-
 #if cGAB_LOG_EG
   gab_fprintf(stderr, "($) VVMGIVEN ERR finished fiber $.\n",
               gab_number(gab.wkid), __gab_obj(fiber));
 #endif
 
-  return given;
+  if (!__gab_fibxchg(fiber, kGAB_FIBER_ERR))
+    return __gab_fibresult(fiber);
+
+  return __gab_fibresult(fiber);
 }
 
 GAB_INTERNAL union gab_value_pair __gab_vvmerror(struct gab_triple gab,
@@ -13343,40 +13106,26 @@ GAB_INTERNAL union gab_value_pair __gab_vvmerror(struct gab_triple gab,
                                                  const char *fmt, va_list va) {
   gab_value fiber = gab_thisfiber(gab);
 
-  if (!__gab_fibxchg(fiber, kGAB_FIBERDONE_OK))
-    return (union gab_value_pair){{gab_cinvalid, gab_cinvalid}};
-
   struct gab_vm *vm = gab_thisvm(gab);
 
   gab_value *f = vm->fp;
   uint8_t *ip = vm->ip;
 
-  gab_value err = __gab_sprintstk(gab, vm, f, ip, s, fmt, va);
+  __gab_panicstk(gab, vm, f, ip, s, fmt, va);
 
-  if (err == gab_cinvalid)
-    return __gab_vvmterm(gab, "While executing $\n", va);
-
-  gab_iref(gab, err);
-  gab_egkeep(gab.eg, err);
-
-  gab_value vals[] = {gab_err, err, gab_cinvalid};
-  a_gab_value *results =
-      a_gab_value_create(vals, sizeof(vals) / sizeof(gab_value));
-
-  gab_niref(gab, 1, results->len, results->data);
-  gab_negkeep(gab.eg, results->len, results->data);
-
-  union gab_value_pair res = {.status = gab_cvalid, .aresult = results->data};
-
-  gab_assert(GAB_VAL_TO_FIBER(fiber)->header.kind = kGAB_FIBER,
-             "Shall only error running fiber");
+  // TODO @cgab @bug: Proper lifetime here.
+  // gab_iref(gab, err);
+  // gab_egkeep(gab.eg, err);
 
 #if cGAB_LOG_EG
   gab_fprintf(stderr, "($) VVMERR finished fiber $.\n", gab_number(gab.wkid),
               __gab_obj(fiber));
 #endif
 
-  return res;
+  if (!__gab_fibxchg(fiber, kGAB_FIBER_ERR))
+    return __gab_fibresult(fiber);
+
+  return __gab_fibresult(fiber);
 }
 
 GAB_INTERNAL union gab_value_pair __gab_vmterm(struct gab_triple gab,
@@ -13427,13 +13176,9 @@ GAB_API union gab_value_pair gab_vpanicf(struct gab_triple gab, const char *fmt,
                                      .wkid = gab.wkid,
                                  });
 
-    gab_value res[] = {gab_err, err, gab_cinvalid};
-    a_gab_value *results =
-        a_gab_value_create(res, sizeof(res) / sizeof(gab_value));
-
     return (union gab_value_pair){
-        .status = gab_cvalid,
-        .aresult = results->data,
+        .status = gab_err,
+        .vresult = err,
     };
   };
 
@@ -13641,31 +13386,9 @@ cGAB_VM_OPCODE_ATTRIBUTES union gab_value_pair __gab_vmeerror(OP_HANDLER_ARGS) {
 }
 
 cGAB_VM_OPCODE_ATTRIBUTES union gab_value_pair __gab_vmok(OP_HANDLER_ARGS) {
-  uint64_t have = *VM()->sp;
-  gab_value *from = VM()->sp - have;
+  gab_value fiber = gab_thisfiber(GAB());
 
-  // TODO @bug: When gab_sending just a send constant call, we hit a seg
-  // fault. This catches the issue - we overwrite the frame here without
-  // updating fb I think. assert(FB() < SP()); Once the fiber has returned,
-  // the local values have been overwritten with return values. This makes
-  // extracting new locals impossible.
-
-  a_gab_value *results = a_gab_value_empty(have + 2);
-  results->data[0] = gab_ok;
-  memcpy(results->data + 1, from, have * sizeof(gab_value));
-  results->data[have + 1] = gab_cinvalid;
-
-  gab_niref(GAB(), 1, results->len, results->data);
-  gab_negkeep(EG(), results->len, results->data);
-
-  union gab_value_pair res = (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = results->data,
-  };
-
-  VM()->sp = VM()->sb;
-
-  struct gab_ofiber *fiber = FIBER();
+  struct gab_ofiber *f = FIBER();
 
   // if (fiber->header.kind == kGAB_FIBERDONE) {
   //   gab_fprintf(stderr, "($) OK'd finished fiber $.\n",
@@ -13674,20 +13397,27 @@ cGAB_VM_OPCODE_ATTRIBUTES union gab_value_pair __gab_vmok(OP_HANDLER_ARGS) {
   //   gab_fprintf(stderr, "STATUS: $\n", fiber->res_values.status);
   //   gab_fprintf(stderr, "VRESULT: $\n", fiber->res_values.vresult);
   // }
-  gab_assert(fiber->header.kind == kGAB_FIBER,
+  gab_assert(f->header.kind == kGAB_FIBER,
              "(%i) Terminating fiber %p must be running, not: %d. OK!",
-             GAB().wkid, fiber, fiber->header.kind);
+             GAB().wkid, f, f->header.kind);
 
-  uint8_t FIBER_KIND = kGAB_FIBER;
-  atomic_compare_exchange_strong(&fiber->header.kind, &FIBER_KIND,
-                                 kGAB_FIBERDONE_OK);
+  // TODO @bug: When gab_sending just a send constant call, we hit a seg
+  // fault. This catches the issue - we overwrite the frame here without
+  // updating fb I think. assert(FB() < SP()); Once the fiber has returned,
+  // the local values have been overwritten with return values. This makes
+  // extracting new locals impossible.
+  if (!__gab_fibxchg(fiber, kGAB_FIBER_OK))
+    return __gab_fibresult(fiber);
+
+  /* Reset the stack before returning */
+  VM()->sp = VM()->sb;
 
 #if cGAB_LOG_EG
   gab_fprintf(stderr, "($) VMOK finished fiber $.\n", gab_number(GAB().wkid),
               __gab_obj(fiber));
 #endif
 
-  return res;
+  return __gab_fibresult(fiber);
 }
 
 GAB_INTERNAL union gab_value_pair __gab_vmexec(struct gab_triple gab,
@@ -13715,7 +13445,7 @@ GAB_INTERNAL union gab_value_pair __gab_vmexec(struct gab_triple gab,
   // But we *should* return here so that the environment returned
   // to the fiber is as expected
 
-  gab_assert(fiber->header.kind != kGAB_FIBERDONE_OK,
+  gab_assert(fiber->header.kind != kGAB_FIBER_OK,
              "Exec'd fiber shall not be done");
   fiber->header.kind = kGAB_FIBER;
 
@@ -14326,22 +14056,14 @@ GAB_API struct gab_ofiber *getthisfiber(struct gab_triple gab) {
       VM_YIELD(mod.vresult);                                                   \
     }                                                                          \
                                                                                \
-    if (mod.status != gab_cvalid)                                              \
-      VM_GIVEN(mod);                                                           \
-                                                                               \
-    if (mod.aresult[0] != gab_ok)                                              \
+    if (mod.status != gab_ok)                                              \
       VM_GIVEN(mod);                                                           \
                                                                                \
     DROP_N(have + FRAME_SIZE);                                                 \
                                                                                \
-    uint64_t len = gab_varrlen(mod.aresult) - 1;                               \
+    PUSH(mod.vresult);                                                         \
                                                                                \
-    PANIC_GUARD_STACKSPACE(len - 1);                                           \
-                                                                               \
-    for (uint64_t i = 1; mod.aresult[i] != gab_cinvalid; i++)                  \
-      PUSH(mod.aresult[i]);                                                    \
-                                                                               \
-    SET_HV(below_have + len);                                                  \
+    SET_HV(below_have + 1);                                                    \
   })
 
 #define MISS_CACHED_SEND(reason)                                               \

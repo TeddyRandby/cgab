@@ -359,7 +359,7 @@ GAB_DYNLIB_NATIVE_FN(uri, decode_pe) {
 }
 
 GAB_DYNLIB_MAIN_FN {
-  gab_value mod = gab_message(gab, "uri");
+  gab_value mod = gab_arg(0);
 
   gab_def(gab,
           {
@@ -385,7 +385,7 @@ GAB_DYNLIB_MAIN_FN {
           });
 
   return (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = gab_valarray(gab_ok, mod),
+      .status = gab_ok,
+      .vresult = mod,
   };
 }

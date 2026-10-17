@@ -17,17 +17,17 @@ ifeq ($(UNAME_OS), Darwin)
 GAB_DYNLIB_FILENDING ?=.dylib
 GAB_CCFLAGS          ?= -Os -DcGAB_THREADS_NATIVE -DNDEBUG -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE -D_GNU_SOURCE=1 -DGAB_PLATFORM_UNIX -DGAB_PLATFORM_MACOS
 GAB_TARGETS          ?= $(UNAME_ARCH)-macos-none
-cui_FLAGS            ?= -isystem vendor/xcode-frameworks/include -L vendor/xcode-frameworks/lib -F vendor/xcode-frameworks/Frameworks -framework Cocoa
-cio_FLAGS            ?= -lbearssl
-cxml_FLAGS					 ?= -lyxml
+ui_FLAGS            ?= -isystem vendor/xcode-frameworks/include -L vendor/xcode-frameworks/lib -F vendor/xcode-frameworks/Frameworks -framework Cocoa
+io_FLAGS            ?= -lbearssl
+xml_FLAGS					 ?= -lyxml
 else
 # Assume building on linux
 GAB_DYNLIB_FILENDING ?=.so
 GAB_CCFLAGS          ?= -Os -DcGAB_THREADS_NATIVE -DNDEBUG -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE -D_GNU_SOURCE=1 -DGAB_PLATFORM_UNIX -DGAB_PLATFORM_LINUX
 GAB_TARGETS          ?= $(UNAME_ARCH)-linux-gnu
-cui_FLAGS            ?= -isystem vendor/x11-headers
-cio_FLAGS            ?= -lbearssl
-cxml_FLAGS					 ?= -lyxml
+ui_FLAGS            ?= -isystem vendor/x11-headers
+io_FLAGS            ?= -lbearssl
+xml_FLAGS					 ?= -lyxml
 endif
 
 # Actual commands used by the rest of the makefile.
@@ -49,7 +49,7 @@ GAB_VERSION_TAG = 0.1.7
 
 GAB_ISWINDOWS   = $(findstring windows,$(GAB_TARGETS))
 
-INCLUDE		= -I$(INCLUDE_PREFIX) -I$(BUILD_PREFIX) -isystem$(VENDOR_PREFIX) -L$(BUILD_PREFIX)
+INCLUDE		= -I$(INCLUDE_PREFIX) -I$(BUILD_PREFIX) -isystem $(VENDOR_PREFIX) -L$(BUILD_PREFIX)
 
 CFLAGS = -std=c23 \
 				 -fPIC \

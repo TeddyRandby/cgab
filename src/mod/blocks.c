@@ -53,13 +53,14 @@ GAB_DYNLIB_NATIVE_FN(blk, make) {
   if (bindings == gab_cinvalid)
     return gab_union_ctimeout(gab_nil);
 
-  union gab_value_pair res = gab_compile(gab, src,
-                                         (struct gab_compile_argt){
-                                             .flags = fGAB_WITHOLD_ERR, // Prevent error from publishing
-                                             .env = env,
-                                             .ast = ast,
-                                             .bindings = bindings,
-                                         });
+  union gab_value_pair res = gab_compile(
+      gab, src,
+      (struct gab_compile_argt){
+          .flags = fGAB_WITHOLD_ERR, // Prevent error from publishing
+          .env = env,
+          .ast = ast,
+          .bindings = bindings,
+      });
 
   gab_srccomplete(gab, src);
 
@@ -71,7 +72,8 @@ GAB_DYNLIB_NATIVE_FN(blk, make) {
 }
 
 GAB_DYNLIB_MAIN_FN {
-  gab_value t = gab_type(gab, kGAB_BLOCK);
+  gab_value mod = gab_arg(0);
+  gab_value t = gab_msgtostr(mod);
 
   gab_def(gab,
           {
@@ -86,7 +88,7 @@ GAB_DYNLIB_MAIN_FN {
           });
 
   return (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = gab_valarray(gab_ok, gab_strtomsg(t)),
+      .status = gab_ok,
+      .vresult = mod,
   };
 }

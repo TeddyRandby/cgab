@@ -245,8 +245,10 @@ GAB_DYNLIB_NATIVE_FN(message, module) {
 }
 
 GAB_DYNLIB_MAIN_FN {
+  gab_value mod = gab_arg(0);
+
+  gab_fprintf(stdout, "$\n", mod);
   gab_value t = gab_type(gab, kGAB_MESSAGE);
-  gab_value mod = gab_strtomsg(t);
 
   gab_def(gab,
           {
@@ -311,7 +313,7 @@ GAB_DYNLIB_MAIN_FN {
           });
 
   return (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = gab_valarray(gab_ok, mod),
+      .status = gab_ok,
+      .vresult = mod,
   };
 }

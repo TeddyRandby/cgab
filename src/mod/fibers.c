@@ -24,40 +24,36 @@
 
 #include "cgab.h"
 
-GAB_DYNLIB_NATIVE_FN(channel, close) {
-  gab_chnclose(gab_arg(0));
+GAB_DYNLIB_NATIVE_FN(fib, await) {
+  gab_value fib = gab_arg(0);
 
-  gab_vmpush(gab_thisvm(gab), gab_arg(0));
+  union gab_value_pair res = gab_tfibawait(gab, fib, 0);
 
-  return gab_union_cvalid(gab_nil);
+  if (res.status == gab_ctimeout) {
+    return (union gab_value_pair){{gab_ctimeout, fib}};
+  }
+
+  if (res.status == gab_cvalid) {
+    gab_push(gab, res.vresult);
+    return gab_union_cvalid(gab_nil);
+  }
+
+  return res;
 }
 
-GAB_DYNLIB_NATIVE_FN(channel, is_closed) {
-  bool closed = gab_chnisclosed(gab_arg(0));
+GAB_DYNLIB_NATIVE_FN(fib, is_done) {
+  gab_value fib = gab_arg(0);
 
-  gab_vmpush(gab_thisvm(gab), gab_bool(closed));
+  bool is_done = gab_fibisdone(fib);
 
-  return gab_union_cvalid(gab_nil);
-}
-
-GAB_DYNLIB_NATIVE_FN(channel, is_full) {
-  bool full = gab_chnisfull(gab_arg(0));
-
-  gab_vmpush(gab_thisvm(gab), gab_bool(full));
-
-  return gab_union_cvalid(gab_nil);
-}
-
-GAB_DYNLIB_NATIVE_FN(channel, is_empty) {
-  bool empty = gab_chnisempty(gab_arg(0));
-
-  gab_vmpush(gab_thisvm(gab), gab_bool(empty));
+  gab_vmpush(gab_thisvm(gab), gab_bool(is_done));
 
   return gab_union_cvalid(gab_nil);
 }
 
 GAB_DYNLIB_MAIN_FN {
-  gab_value t = gab_type(gab, kGAB_CHANNEL);
+  gab_value mod = gab_arg(0);
+  gab_value t = gab_msgtostr(mod);
 
   gab_def(gab,
           {
@@ -66,28 +62,18 @@ GAB_DYNLIB_MAIN_FN {
               t,
           },
           {
-              gab_message(gab, "close"),
+              gab_message(gab, "await"),
               t,
-              gab_snative(gab, "close", gab_mod_channel_close),
+              gab_snative(gab, "await", gab_mod_fib_await),
           },
           {
-              gab_message(gab, "is\\closed"),
+              gab_message(gab, "is\\done"),
               t,
-              gab_snative(gab, "is\\closed", gab_mod_channel_is_closed),
-          },
-          {
-              gab_message(gab, "is\\full"),
-              t,
-              gab_snative(gab, "is\\full", gab_mod_channel_is_full),
-          },
-          {
-              gab_message(gab, "is\\empty"),
-              t,
-              gab_snative(gab, "is\\empty", gab_mod_channel_is_empty),
+              gab_snative(gab, "is\\done", gab_mod_fib_is_done),
           });
 
   return (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = gab_valarray(gab_ok, gab_strtomsg(t)),
+      .status = gab_ok,
+      .vresult = mod,
   };
 }

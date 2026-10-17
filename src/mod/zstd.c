@@ -97,6 +97,8 @@ GAB_DYNLIB_NATIVE_FN(zstd, encode) {
 }
 
 GAB_DYNLIB_MAIN_FN {
+  gab_value mod = gab_arg(0);
+
   gab_def(gab,
           {
               gab_message(gab, "to\\zstd"),
@@ -110,7 +112,7 @@ GAB_DYNLIB_MAIN_FN {
           }, );
 
   return (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = gab_valarray(gab_ok),
+      .status = gab_ok,
+      .vresult = mod,
   };
 }

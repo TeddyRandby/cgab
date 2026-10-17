@@ -336,7 +336,7 @@ GAB_DYNLIB_NATIVE_FN(http, decode) {
       },
 
 GAB_DYNLIB_MAIN_FN {
-  gab_value mod = gab_message(gab, "http");
+  gab_value mod = gab_arg(0);
 
   gab_def(gab, HTTP_STATUS_MAP(defstatus_impls){
                    gab_message(gab, "as\\http"),
@@ -345,7 +345,7 @@ GAB_DYNLIB_MAIN_FN {
                });
 
   return (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = gab_valarray(gab_ok, mod),
+      .status = gab_ok,
+      .vresult = mod,
   };
 }

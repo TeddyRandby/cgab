@@ -158,8 +158,8 @@ DEFINE_SINGLE_ARG_MATH_FN(isinf, isinf, gab_bool);
   }
 
 GAB_DYNLIB_MAIN_FN {
-  gab_value t = gab_type(gab, kGAB_NUMBER);
-  gab_value mod = gab_strtomsg(t);
+  gab_value mod = gab_arg(0);
+  gab_value t = gab_msgtostr(mod);
 
   gab_def(gab,
           {
@@ -209,7 +209,7 @@ GAB_DYNLIB_MAIN_FN {
           });
 
   return (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = gab_valarray(gab_ok, mod),
+      .status = gab_ok,
+      .vresult = mod,
   };
 }

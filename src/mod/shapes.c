@@ -231,7 +231,8 @@ GAB_DYNLIB_NATIVE_FN(shp, from_list) {
 };
 
 GAB_DYNLIB_MAIN_FN {
-  gab_value t = gab_type(gab, kGAB_SHAPE);
+  gab_value mod = gab_arg(0);
+  gab_value t = gab_msgtostr(mod);
 
   gab_def(gab,
           {
@@ -286,7 +287,7 @@ GAB_DYNLIB_MAIN_FN {
           });
 
   return (union gab_value_pair){
-      .status = gab_cvalid,
-      .aresult = gab_valarray(gab_ok, gab_strtomsg(t)),
+      .status = gab_ok,
+      .vresult = mod,
   };
 }
