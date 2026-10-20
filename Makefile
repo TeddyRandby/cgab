@@ -17,17 +17,21 @@ ifeq ($(UNAME_OS), Darwin)
 GAB_DYNLIB_FILENDING ?=.dylib
 GAB_CCFLAGS          ?= -Os -DcGAB_THREADS_NATIVE -DNDEBUG -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE -D_GNU_SOURCE=1 -DGAB_PLATFORM_UNIX -DGAB_PLATFORM_MACOS
 GAB_TARGETS          ?= $(UNAME_ARCH)-macos-none
-ui_FLAGS            ?= -isystem vendor/xcode-frameworks/include -L vendor/xcode-frameworks/lib -F vendor/xcode-frameworks/Frameworks -framework Cocoa
-io_FLAGS            ?= -lbearssl
-xml_FLAGS					 ?= -lyxml
+Ui_FLAGS             ?= -isystem vendor/xcode-frameworks/include -L vendor/xcode-frameworks/lib -F vendor/xcode-frameworks/Frameworks -framework Cocoa
+Io_FLAGS             ?= -lbearssl
+Xml_FLAGS					   ?= -lyxml
+Http_FLAGS					 ?= -lllhttp
+Strings_FLAGS        ?= -lgrapheme
 else
 # Assume building on linux
 GAB_DYNLIB_FILENDING ?=.so
 GAB_CCFLAGS          ?= -Os -DcGAB_THREADS_NATIVE -DNDEBUG -D_POSIX_C_SOURCE=200809L -D_DEFAULT_SOURCE -D_GNU_SOURCE=1 -DGAB_PLATFORM_UNIX -DGAB_PLATFORM_LINUX
 GAB_TARGETS          ?= $(UNAME_ARCH)-linux-gnu
-ui_FLAGS            ?= -isystem vendor/x11-headers
-io_FLAGS            ?= -lbearssl
-xml_FLAGS					 ?= -lyxml
+Ui_FLAGS             ?= -isystem vendor/x11-headers
+Io_FLAGS             ?= -lbearssl
+Xml_FLAGS					   ?= -lyxml
+Http_FLAGS					 ?= -lllhttp
+Strings_FLAGS        ?= -lgrapheme
 endif
 
 # Actual commands used by the rest of the makefile.

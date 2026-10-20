@@ -1,5 +1,3 @@
-Strings := 'github.com/gab-language/cgab@0.1.7' .use 'cstrings'
-
 String\Seq\Split := string\seq\split: .defclass (
   string\seq\split\source:
   string\seq\split\sep:
@@ -15,10 +13,8 @@ String\Seq\Split := string\seq\split: .defclass (
     end
   })
 
-[Strings.t].defmodule {
+[module.t].defmodule {
   is\empty:     ()    :: self.len == 0
   to\seq\split: (sep) :: String\Seq\Split.make(self sep)  
   split\all:    (sep) :: self.to\seq\split(sep).collect []
 }
-
-Strings

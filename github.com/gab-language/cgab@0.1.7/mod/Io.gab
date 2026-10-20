@@ -1,10 +1,10 @@
-eprintln:.def () :: Io.stderr.stream\send('$\n'.psprintf(self).to\binary)
-println:.def () :: Io.stdout.stream\send('$\n'.psprintf(self).to\binary)
+eprintln:.def () :: module.stderr.stream\send('$\n'.psprintf(self).to\binary)
+println:.def () :: module.stdout.stream\send('$\n'.psprintf(self).to\binary)
 
 printf:.def(
   Strings.t
   (args*) :: do
-    Io.stdout.stream\send(self.psprintf(args*).to\binary)
+    module.stdout.stream\send(self.psprintf(args*).to\binary)
   end)
 
 [module.Sockets.t, module.Files.t] .defmodule {
@@ -27,5 +27,3 @@ printf:.def(
 
 module.Sockets.t.defseq
 module.Files.t.defseq
-
-module

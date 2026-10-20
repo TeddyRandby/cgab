@@ -474,11 +474,6 @@ union gab_value_pair gab_use_source(struct gab_triple gab, const char *path,
     return gab_panicf(gab, "Failed to load module: @", reason);
   }
 
-  printf("%lu args\n", len);
-  for (uint64_t i = 0; i < len; i++) {
-    printf("%li: %s\n", i, sargs[i]);
-  }
-
   union gab_value_pair fiber =
       gab_exec(gab, (struct gab_exec_argt){
                         .name = path,

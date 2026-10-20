@@ -1,12 +1,10 @@
-Records := 'github.com/gab-language/cgab@0.1.7' .use 'crecords'
-
 make\from: .def (
-  Records,
+  module,
   (shape, f) :: do
     shape.reduce({}, (r, k) :: r.put(k, f.(k)))
   end)
 
-[Records.t] .defmodule {
+[module.t] .defmodule {
   has: key :: do
     self.at key .ok
   end
@@ -36,7 +34,7 @@ list\sort: .defcase {
   []?
   []
 
-  Records.t
+  module.t
   (f) :: do
     (tail head) := self.pop
 
@@ -50,13 +48,13 @@ list\sort: .defcase {
 }
 
 record\sort: .def(
-  Records.t,
+  module.t,
   (f) :: do
     keys := self.keys.sort f
 
     shp := Shapes.make(keys*)
 
-    Records.make\from(shp, self)
+    module.make\from(shp, self)
   end)
 
 dosort:.defcase {
@@ -70,7 +68,5 @@ to\sorter: .defcase {
 }
 
 sort:.def(
-  Records.t,
+  module.t,
   (f) :: self.is\list.dosort(self, f.to\sorter))
-
-Records

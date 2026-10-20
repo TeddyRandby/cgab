@@ -1,9 +1,7 @@
-Numbers := 'github.com/gab-language/cgab@0.1.7' .use'cnumbers'
-
-is\number:.def(Numbers.t, true:)
+is\number:.def(module.t, true:)
 is\number: .def false:
 
-[Numbers.t] .defmodule {
+[module.t] .defmodule {
   ->: to :: (to, self) .to\range
   ++: _ :: self + 1
   --: _ :: self - 1
@@ -14,8 +12,6 @@ is\number: .def false:
   to\n: _ :: self
 }
 
-[Numbers] .defmodule {
+[module] .defmodule {
   int\between: (floor, ceil) :: self.float\between(floor, ceil).floor
 }
-
-Numbers

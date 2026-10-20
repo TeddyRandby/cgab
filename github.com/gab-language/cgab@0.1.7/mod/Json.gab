@@ -1,6 +1,3 @@
-json := 'github.com/gab-language/cgab@0.1.7' .use 'cjson'
-Transducers := 'github.com/gab-language/cgab@0.1.7' .use 'Transducers'
-
 array_xf := Transducers.map(e :: e.to\json)
         |> Transducers.interpose ","
 
@@ -28,5 +25,3 @@ to\json: .defcase {
   Records.t
   () :: self.is\list.json\do_encode_record self
 }
-
-json

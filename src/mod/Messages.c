@@ -247,7 +247,6 @@ GAB_DYNLIB_NATIVE_FN(message, module) {
 GAB_DYNLIB_MAIN_FN {
   gab_value mod = gab_arg(0);
 
-  gab_fprintf(stdout, "$\n", mod);
   gab_value t = gab_type(gab, kGAB_MESSAGE);
 
   gab_def(gab,

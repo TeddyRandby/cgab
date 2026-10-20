@@ -616,6 +616,10 @@ struct gab_eg {
   const char *resroots[cGAB_RESOURCE_MAX];
   struct gab_resource res[cGAB_RESOURCE_MAX];
 
+  uint32_t ndefault_modules;
+  gab_value vdefault_modules[cGAB_DEFAULTMODULES_MAX];
+  const char *sdefault_modules[cGAB_DEFAULTMODULES_MAX];
+
   // Garbage Collection state
   struct gab_gc gc;
 
@@ -733,7 +737,7 @@ struct gab_err_argt {
  * @brief Construct a panic.
  */
 GAB_API gab_value gab_vspanicf(struct gab_triple gab, va_list vastruct,
-                               struct gab_err_argt args);
+                               gab_value fib, struct gab_err_argt args);
 
 /**
  * @brief Print the bytecode to the stream - useful for debugging.
@@ -2203,13 +2207,6 @@ GAB_INTERNAL enum __gab_jbstep_k __gab_jbstep(struct gab_triple gab,
     gab_assert(gab_fibisdone(popped), "A valid fiber shall be done, not %d",
                gab_valkind(popped));
 
-    // We panicked. Crash the system.
-    if (res.status != gab_ok) {
-      if (gab_fibparent(popped))
-        gab_fibkill(gab_fibparent(popped));
-      // if (gab.flags & fGAB_SIGTERM_ON_ERR)
-      //   gab_sigterm(gab);
-    }
     break;
 
   // The worker is killed.
@@ -2590,6 +2587,9 @@ GAB_API union gab_value_pair gab_create(struct gab_create_argt args,
   while (cursor && cursor->package)
     len++, cursor++;
 
+  gab_precondition(len < cGAB_DEFAULTMODULES_MAX,
+                   "Cannot have more than %u modules", cGAB_DEFAULTMODULES_MAX);
+
   uint64_t nargs = 0;
 
   const char *sargs[len + 1];
@@ -2619,8 +2619,9 @@ GAB_API union gab_value_pair gab_create(struct gab_create_argt args,
     nargs++;
   }
 
-  vargs[nargs] = gab_cinvalid;
-  nargs++;
+  memcpy(eg->sdefault_modules, sargs, nargs * sizeof(const char *));
+  memcpy(eg->vdefault_modules, vargs, nargs * sizeof(gab_value));
+  eg->ndefault_modules = nargs;
 
   return (union gab_value_pair){{gab_ok}};
 }
@@ -3539,7 +3540,7 @@ GAB_INTERNAL int64_t __gab_ssprinterr(struct gab_triple gab, char **buf,
   return __gab_snprintf_through(buf, len, "\n");
 }
 
-GAB_API gab_value gab_vspanicf(struct gab_triple gab, va_list va,
+GAB_API gab_value gab_vspanicf(struct gab_triple gab, va_list va, gab_value fib,
                                struct gab_err_argt args) {
   struct errdetails err = {
       .tok_name =
@@ -3640,7 +3641,13 @@ GAB_API gab_value gab_vspanicf(struct gab_triple gab, va_list va,
   gab_assert(gab_reclen(rec) == 11,
              "Error record shall be constructed correctly");
 
-  v_gab_value_thrd_push(&gab.eg->err, rec);
+  // gab_fprintf(stdout, "fib: $\nerr: $\n",fib, rec);
+  if (fib != gab_cundefined) {
+    v_gab_value_thrd_push(&gab.eg->err, rec);
+
+    if (gab_valisfib(fib) && gab_fibparent(fib))
+      gab_fibkill(gab_fibparent(fib));
+  }
 
   gab_gcunlock(gab);
 
@@ -3942,6 +3949,7 @@ gab_mresolve(const char **roots, const struct gab_resource *resources,
              const char *package, const char *module) {
 
   char *colon = strchr(package, ':');
+
   if (colon) {
     // In this case, the package name implies a module.
     gab_precondition(
@@ -3949,11 +3957,10 @@ gab_mresolve(const char **roots, const struct gab_resource *resources,
         "A package implied a module, but module was already specified.");
 
     module = colon + 1;
-
     *colon = '\0';
   }
 
-  struct gab_module_res *rest = nullptr;
+  struct gab_module_res *rest = nullptr, *head = nullptr;
 
   for (int i = 0; resources[i].prefix != nullptr; i++) {
     const struct gab_resource *res = resources + i;
@@ -3963,6 +3970,7 @@ gab_mresolve(const char **roots, const struct gab_resource *resources,
 
     if (module_path) {
       struct gab_module_res *curr = calloc(sizeof(struct gab_module_res), 1);
+
       *curr = (struct gab_module_res){
           // TODO @cgab @bug: Fix leak
           .path = module_path->data,
@@ -3974,14 +3982,19 @@ gab_mresolve(const char **roots, const struct gab_resource *resources,
           // Skip the root and package. This should resolve to the module path,
           // relative to the package.
           .module_path = module_path->data + strlen(root) + strlen(package) + 1,
-          .next = rest,
       };
 
+      if (rest)
+        rest->next = curr;
+
       rest = curr;
+
+      if (!head)
+        head = rest;
     }
   }
 
-  return rest;
+  return head;
 }
 
 GAB_API struct gab_module_res *
@@ -4051,11 +4064,6 @@ GAB_API union gab_value_pair gab_use(struct gab_triple gab,
   for (const struct gab_module_res *curr = mod; curr; curr = curr->next) {
     gab_precondition(curr->resource->loader != nullptr,
                      "Expected valid resource loader fn pointer");
-
-    printf("%lu args\n", args.len);
-    for (uint64_t i = 0; i < args.len; i++) {
-      printf("%li: %s\n", i, args.sargv[i]);
-    }
 
     union gab_value_pair result = curr->resource->loader(
         gab, curr->path, args.len, args.sargv, args.argv);
@@ -9372,14 +9380,15 @@ GAB_INTERNAL bool __gab_prstokmatch(struct parser *parser, enum gab_token tok) {
 GAB_INTERNAL int64_t __gab_vprserror(struct gab_triple gab,
                                      struct parser *parser, enum gab_status e,
                                      const char *fmt, va_list args) {
-  parser->err = gab_vspanicf(gab, args,
-                             (struct gab_err_argt){
-                                 .src = parser->src,
-                                 .status = e,
-                                 .tok = parser->offset ? parser->offset - 1 : 0,
-                                 .note_fmt = fmt,
-                                 .wkid = gab.wkid,
-                             });
+  parser->err = gab_vspanicf(
+      gab, args, (gab.flags & fGAB_WITHOLD_ERR) ? gab_cundefined : gab_cinvalid,
+      (struct gab_err_argt){
+          .src = parser->src,
+          .status = e,
+          .tok = parser->offset ? parser->offset - 1 : 0,
+          .note_fmt = fmt,
+          .wkid = gab.wkid,
+      });
 
   va_end(args);
 
@@ -10249,14 +10258,15 @@ GAB_INTERNAL int64_t __gab_vbcerror(struct gab_triple gab, struct bc *bc,
   if (tok > 0)
     tok--;
 
-  bc->err = gab_vspanicf(gab, args,
-                         (struct gab_err_argt){
-                             .src = bc->src,
-                             .status = e,
-                             .tok = tok,
-                             .note_fmt = fmt,
-                             .wkid = gab.wkid,
-                         });
+  bc->err = gab_vspanicf(
+      gab, args, (gab.flags & fGAB_WITHOLD_ERR) ? gab_cundefined : gab_cinvalid,
+      (struct gab_err_argt){
+          .src = bc->src,
+          .status = e,
+          .tok = tok,
+          .note_fmt = fmt,
+          .wkid = gab.wkid,
+      });
 
   va_end(args);
 
@@ -13022,14 +13032,14 @@ GAB_INTERNAL void __gab_panicstk(struct gab_triple gab, struct gab_vm *vm,
   struct gab_err_argt frame =
       __gab_vmbuilderr(gab, __gab_vmframeblk(f), ip, s, fmt);
 
-  gab_vspanicf(gab, va, frame);
+  gab_vspanicf(gab, va, __gab_obj(f), frame);
 
   ip = __gab_vmframeip(f);
   f = __gab_vmframeparent(f);
 
   while (f && __gab_vmframeparent(f) > vm->sb) {
     frame = __gab_vmbuilderr(gab, __gab_vmframeblk(f), ip, GAB_NONE, "");
-    gab_vspanicf(gab, va, frame);
+    gab_vspanicf(gab, va, __gab_obj(f), frame);
 
     ip = __gab_vmframeip(f);
     f = __gab_vmframeparent(f);
@@ -13169,12 +13179,14 @@ __gab_vmerror(struct gab_triple gab, enum gab_status s, const char *fmt, ...) {
 GAB_API union gab_value_pair gab_vpanicf(struct gab_triple gab, const char *fmt,
                                          va_list va) {
   if (gab_thisfiber(gab) == gab_cinvalid) {
-    gab_value err = gab_vspanicf(gab, va,
-                                 (struct gab_err_argt){
-                                     .status = GAB_PANIC,
-                                     .note_fmt = fmt,
-                                     .wkid = gab.wkid,
-                                 });
+    gab_value err = gab_vspanicf(
+        gab, va,
+        (gab.flags & fGAB_WITHOLD_ERR) ? gab_cundefined : gab_thisfiber(gab),
+        (struct gab_err_argt){
+            .status = GAB_PANIC,
+            .note_fmt = fmt,
+            .wkid = gab.wkid,
+        });
 
     return (union gab_value_pair){
         .status = gab_err,
@@ -14023,17 +14035,6 @@ GAB_API struct gab_ofiber *getthisfiber(struct gab_triple gab) {
                                                                                \
       RESET_REENTRANT();                                                       \
     } else {                                                                   \
-      /*                                                                       \
-       * TODO @cgab @api: Really fix this, Its rough in a lot of ways chief.   \
-       * This is a better way of pulling arguments, off the fiber itself.      \
-       * I don't see why *instead* of this I couldn't just store an            \
-       * environment on the fiber that I can forward instead.                  \
-       */                                                                      \
-      gab_value shp = gab_prtshp(BLOCK()->p);                                  \
-                                                                               \
-      gab_value rec =                                                          \
-          gab_recordfrom(GAB(), shp, 1, FIBER()->len - 2, FIBER()->data + 2);  \
-                                                                               \
       bool should_reload = have > 1 ? PEEK_N(have - 1) == gab_true : false;    \
                                                                                \
       gab_value module = have > 1 ? PEEK_N(have - 1) : 0;                      \
@@ -14047,7 +14048,9 @@ GAB_API struct gab_ofiber *getthisfiber(struct gab_triple gab) {
                                .flags = should_reload ? fGAB_USE_RELOAD : 0,   \
                                .vpackage_name = r,                             \
                                .vmodule_name = module,                         \
-                               .env = rec,                                     \
+                               .sargv = EG()->sdefault_modules,                \
+                               .argv = EG()->vdefault_modules,                 \
+                               .len = EG()->ndefault_modules,                  \
                            });                                                 \
     }                                                                          \
                                                                                \
@@ -14056,7 +14059,7 @@ GAB_API struct gab_ofiber *getthisfiber(struct gab_triple gab) {
       VM_YIELD(mod.vresult);                                                   \
     }                                                                          \
                                                                                \
-    if (mod.status != gab_ok)                                              \
+    if (mod.status != gab_ok)                                                  \
       VM_GIVEN(mod);                                                           \
                                                                                \
     DROP_N(have + FRAME_SIZE);                                                 \

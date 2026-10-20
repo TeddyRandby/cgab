@@ -1,18 +1,16 @@
-Blocks := 'github.com/gab-language/cgab@0.1.7' .use 'cblocks'
-
-to\block: .def (Blocks.t, () :: self)
+to\block: .def (module.t, () :: self)
 
 is\block: .def false:
-is\block: .def (Blocks.t, true:)
+is\block: .def (module.t, true:)
 
 |>: .def (
-  Blocks.t,
+  module.t,
   (second) :: do
     first := self
     (args*) :: second.(first.(args*))
   end)
 
-[Blocks.t] .defmodule {
+[module.t] .defmodule {
 # Implement the reducer protocol for blocks
   reduce\step: (acc, xs*) :: do
     (next:, self, self.(acc, xs*))
@@ -22,5 +20,3 @@ is\block: .def (Blocks.t, true:)
 # Implement the transducer protocol for blocks.
   transduce\step: (r acc xs s) :: self.(r acc xs s)
 }
-
-Blocks

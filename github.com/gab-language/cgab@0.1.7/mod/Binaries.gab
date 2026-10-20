@@ -1,7 +1,3 @@
-Binaries := gab\binary:
-
-[Binaries.t] .defmodule {
+[module.t] .defmodule {
   to\binary: () :: self
 }
-
-Binaries

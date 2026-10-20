@@ -345,6 +345,10 @@
 #define cGAB_RESOURCE_MAX 64
 #endif
 
+#ifndef cGAB_DEFAULTMODULES_MAX
+#define cGAB_DEFAULTMODULES_MAX 128
+#endif
+
 /*
  * The cutoff at which point cgab binaries will no longer print their bytes.
  */
@@ -542,20 +546,20 @@ enum gab_status {
 /*
  * Type string constants for builtin types.
  */
-#define tGAB_STRING "github.com/gab-language/cgab@"GAB_VERSION_TAG":String"
-#define tGAB_BINARY "github.com/gab-language/cgab@"GAB_VERSION_TAG":Binary"
-#define tGAB_MESSAGE "github.com/gab-language/cgab@"GAB_VERSION_TAG":Message"
-#define tGAB_PRIMITIVE "github.com/gab-language/cgab@"GAB_VERSION_TAG":Primitive"
-#define tGAB_NUMBER "github.com/gab-language/cgab@"GAB_VERSION_TAG":Number"
-#define tGAB_NATIVE "github.com/gab-language/cgab@"GAB_VERSION_TAG":Native"
-#define tGAB_PROTOTYPE "github.com/gab-language/cgab@"GAB_VERSION_TAG":Prototype"
-#define tGAB_BLOCK "github.com/gab-language/cgab@"GAB_VERSION_TAG":Block"
-#define tGAB_RECORD "github.com/gab-language/cgab@"GAB_VERSION_TAG":Record"
-#define tGAB_LIST "github.com/gab-language/cgab@"GAB_VERSION_TAG":List"
-#define tGAB_SHAPE "github.com/gab-language/cgab@"GAB_VERSION_TAG":Shape"
-#define tGAB_BOX "github.com/gab-language/cgab@"GAB_VERSION_TAG":Box"
-#define tGAB_FIBER "github.com/gab-language/cgab@"GAB_VERSION_TAG":Fiber"
-#define tGAB_CHANNEL "github.com/gab-language/cgab@"GAB_VERSION_TAG":Channel"
+#define tGAB_STRING "Strings"
+#define tGAB_BINARY "Binaries"
+#define tGAB_MESSAGE "Messagees"
+#define tGAB_PRIMITIVE "Primitives"
+#define tGAB_NUMBER "Numbers"
+#define tGAB_NATIVE "Natives"
+#define tGAB_PROTOTYPE "Prototypes"
+#define tGAB_BLOCK "Blocks"
+#define tGAB_RECORD "Records"
+#define tGAB_LIST "Lists"
+#define tGAB_SHAPE "Shapes"
+#define tGAB_BOX "Boxs"
+#define tGAB_FIBER "Fibers"
+#define tGAB_CHANNEL "Channels"
 
 /*
  * Corresponding names for the builtin type modules.
