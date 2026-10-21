@@ -5,9 +5,6 @@
 
 #include <stddef.h>
 
-#include "crossline/crossline.c"
-#include "crossline/crossline.h"
-
 #include <stdint.h>
 #include <stdio.h>
 
@@ -685,11 +682,6 @@ gab_value build_process_module(struct gab_triple gab, uint64_t nargs,
   free((void *)tmp);
 
   return SystemModule;
-}
-
-static char prompt_buffer[4096];
-char *readline(const char *prompt) {
-  return crossline_readline(prompt, prompt_buffer, sizeof(prompt_buffer));
 }
 
 void init_args(union gab_value_pair res, struct gab_module *modules,

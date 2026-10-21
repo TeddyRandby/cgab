@@ -13389,19 +13389,6 @@ cGAB_VM_OPCODE_ATTRIBUTES union gab_value_pair __gab_vmeerror(OP_HANDLER_ARGS) {
 cGAB_VM_OPCODE_ATTRIBUTES union gab_value_pair __gab_vmok(OP_HANDLER_ARGS) {
   gab_value fiber = gab_thisfiber(GAB());
 
-  // if (fiber->header.kind == kGAB_FIBERDONE) {
-  //   gab_fprintf(stderr, "($) OK'd finished fiber $.\n",
-  //   gab_number(GAB().wkid),
-  //               __gab_obj(fiber));
-  //   gab_fprintf(stderr, "STATUS: $\n", fiber->res_values.status);
-  //   gab_fprintf(stderr, "VRESULT: $\n", fiber->res_values.vresult);
-  // }
-
-  // TODO @bug: When gab_sending just a send constant call, we hit a seg
-  // fault. This catches the issue - we overwrite the frame here without
-  // updating fb I think. assert(FB() < SP()); Once the fiber has returned,
-  // the local values have been overwritten with return values. This makes
-  // extracting new locals impossible.
   if (!__gab_fibxchg(fiber, kGAB_FIBER_RUNNING, kGAB_FIBER_OK))
     return __gab_fibresult(fiber);
 
@@ -13425,7 +13412,6 @@ GAB_INTERNAL union gab_value_pair __gab_vmexec(struct gab_triple gab,
 
   if (!__gab_fibxchg(f, kGAB_FIBER, kGAB_FIBER_RUNNING))
     return __gab_fibresult(f);
-
 
   struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
 
