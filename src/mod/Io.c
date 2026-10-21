@@ -1659,6 +1659,7 @@ GAB_DYNLIB_NATIVE_FN(io, send) {
           complete_sslserversocksend(gab, (struct gab_ssl_sock *)io, data, len);
     break;
   default:
+    mtx_unlock(&io->mtx);
     return gab_panicf(gab, "$ may not send: $", vsock, gab_number(io->k));
   }
 

@@ -7477,7 +7477,7 @@ GAB_INTERNAL union gab_value_pair __gab_fibresult(gab_value fiber) {
   case kGAB_FIBER_ERR:
     return (union gab_value_pair){{gab_err, fiber}};
   default:
-    gab_unreachable("Must be finished fiber");
+    gab_unreachable("Must be finished fiber, not %u", gab_valkind(fiber));
   }
 }
 
@@ -7485,11 +7485,9 @@ GAB_API union gab_value_pair gab_tfibawait(struct gab_triple gab, gab_value f,
                                            uint64_t tries) {
   gab_precondition(gab_valisfib(f), "Invalid kind");
 
-  struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
   uint64_t sofar = 0;
 
-  while (fiber->header.kind == kGAB_FIBER ||
-         fiber->header.kind == kGAB_FIBER_RUNNING) {
+  while (!gab_fibisdone(f)) {
     switch (gab_yield(gab)) {
     case sGAB_COLL:
       gab_gcepochnext(gab);
