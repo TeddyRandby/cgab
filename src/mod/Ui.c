@@ -299,7 +299,9 @@ enum gab_cui_mod rgfw_mod_to_gab(RGFW_keymod mod) {
   return gmod;
 }
 
+#if HAS_TERMBOX
 enum gab_cui_mod tb_mod_to_gab(int mod) { return mod & ~TB_MOD_MOTION; };
+#endif
 
 bool clay_RGFW_update(struct gab_triple gab, struct ui *gui, double deltaTime,
                       RGFW_event *ev) {

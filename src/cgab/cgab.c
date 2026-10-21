@@ -4059,8 +4059,8 @@ GAB_API union gab_value_pair gab_use(struct gab_triple gab,
   struct gab_module_res *mod = gab_resolve(gab, package, module);
 
   if (!mod)
-    return gab_panicf(gab, "Package @ could not be found",
-                      gab_string(gab, package));
+    return gab_panicf(gab, "Package @:@ could not be found",
+                      gab_string(gab, package), gab_string(gab, module));
 
   for (const struct gab_module_res *curr = mod; curr; curr = curr->next) {
     gab_precondition(curr->resource->loader != nullptr,
@@ -7471,13 +7471,14 @@ GAB_INTERNAL union gab_value_pair __gab_fibresult(gab_value fiber) {
   case kGAB_FIBER_TERMINATED:
     return (union gab_value_pair){{gab_cinvalid, fiber}};
   case kGAB_FIBER:
+  case kGAB_FIBER_RUNNING:
     return (union gab_value_pair){{gab_ctimeout, fiber}};
   case kGAB_FIBER_OK:
     return (union gab_value_pair){{gab_ok, fiber}};
   case kGAB_FIBER_ERR:
     return (union gab_value_pair){{gab_err, fiber}};
   default:
-    gab_unreachable("Must be finished fiber, not %u", gab_valkind(fiber));
+    gab_unreachable("Must be a fiber, not %u", gab_valkind(fiber));
   }
 }
 
@@ -12458,7 +12459,7 @@ GAB_INTERNAL void __gab_gcdoepoch(struct gab_triple gab, int32_t e) {
     fprintf(stderr, "PFIBER\t%i\t%i\t%lu\n", e, gab.wkid, idx);
 #endif
 
-    gab_assert(gab_valkind(fiber) == kGAB_FIBER, "Invalid kind");
+    gab_assert(gab_valisfib(fiber), "Invalid kind");
 
     struct gab_ofiber *fb = GAB_VAL_TO_FIBER(fiber);
 
