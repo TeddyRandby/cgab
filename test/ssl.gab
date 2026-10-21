@@ -1,4 +1,5 @@
-'github.com/gab-language/cgab@0.1.7'.use'chttp'
+'github.com/gab-language/cgab@0.1.7'.use'Http'
+Io := 'github.com/gab-language/cgab@0.1.7'.use'Io'
 Socket := Io.Sockets
 
 cert := Io.Files.make("MyCertificate.crt" "r").unwrap

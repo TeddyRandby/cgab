@@ -901,12 +901,12 @@ PfnDliHook __pfnDliFailureHook2 = gab_delayload;
 #ifdef GAB_PLATFORM_WIN
 #define GAB_DYNLIB_MAIN_FN                                                     \
   __declspec(dllexport) GAB_PROMISE_CLINKAGE union gab_value_pair gab_lib(     \
-      struct gab_triple gab, uint64_t argc, const char *args[argc],             \
+      struct gab_triple gab, uint64_t argc, const char *args[argc],            \
       gab_value argv[argc])
 #else
 #define GAB_DYNLIB_MAIN_FN                                                     \
   GAB_PROMISE_CLINKAGE union gab_value_pair gab_lib(                           \
-      struct gab_triple gab, uint64_t argc, const char *args[argc],             \
+      struct gab_triple gab, uint64_t argc, const char *args[argc],            \
       gab_value argv[argc])
 #endif
 
@@ -1094,7 +1094,7 @@ typedef unsigned _BitInt(GAB_INTWIDTH) gab_uint;
 
 typedef double gab_float;
 
-enum gab_kind {
+enum gab_kind : uint8_t {
   kGAB_STRING = 0, // MUST_STAY_ZERO
   kGAB_BINARY = 1,
   kGAB_MESSAGE = 2,
@@ -1113,6 +1113,7 @@ enum gab_kind {
   kGAB_FIBER_OK,
   kGAB_FIBER_ERR,
   kGAB_FIBER_KILLED,
+  kGAB_FIBER_RUNNING,
   kGAB_FIBER_TERMINATED,
   kGAB_CHANNEL,
   kGAB_CHANNELCLOSED,
@@ -2741,8 +2742,7 @@ GAB_API_INLINE bool gab_valischn(gab_value value) {
 
 GAB_API_INLINE bool gab_valisfib(gab_value value) {
   enum gab_kind k = gab_valkind(value);
-  return k == kGAB_FIBER | k == kGAB_FIBER_OK | k == kGAB_FIBER_ERR |
-         k == kGAB_FIBER_KILLED | k == kGAB_FIBER_TERMINATED;
+  return k >= kGAB_FIBER && k <= kGAB_FIBER_TERMINATED;
 };
 
 /**

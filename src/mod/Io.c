@@ -23,7 +23,6 @@
  */
 
 #include "BearSSL/inc/bearssl.h"
-
 #include "BearSSL/inc/bearssl_ssl.h"
 #include "cgab.h"
 #include <stdio.h>
@@ -651,6 +650,7 @@ int sslio_flush(struct gab_ssl_sock *sock) {
 }
 
 union gab_value_pair complete_close(struct gab_triple gab, struct gab_io *io) {}
+
 union gab_value_pair resume_close(struct gab_triple gab, struct gab_io *io,
                                   uintptr_t reentrant);
 
@@ -1498,8 +1498,7 @@ GAB_DYNLIB_NATIVE_FN(io, open) {
       break;
     }
 
-  qfd_t qfd = qd_result(qd);
-  qd_destroy(qd);
+  qfd_t qfd = qd_destroy(qd);
 
   if (qfd < 0)
     gab_vmpush(gab_thisvm(gab), gab_err, gab_string(gab, strerror(-qfd)));
