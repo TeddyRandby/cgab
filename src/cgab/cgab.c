@@ -666,6 +666,8 @@ struct gab_eg {
     q_gab_value working_queue;
     q_gab_value_dyn waiting_queue;
 
+    uint32_t running;
+
     // GC epoch.
     uint32_t epoch;
 
@@ -2053,8 +2055,7 @@ GAB_INTERNAL bool __gab_jbisrunning(struct gab_triple gab,
   if (q_gab_value_is_empty(&job->working_queue))
     return false;
 
-  gab_value fiber = q_gab_value_peek(&job->working_queue);
-  return gab_valkind(fiber) == kGAB_FIBER_RUNNING;
+  return job->running;
 }
 
 static const char *gab_opcode_names[] = {
@@ -2169,9 +2170,13 @@ GAB_INTERNAL enum __gab_jbstep_k __gab_jbstep(struct gab_triple gab,
   // it may have other non-backed-off work to do.
   // Instead, we maybe send this fiber around through the queue again?
   // Is it better to maintain a second queue of timers?
-  //
+
+  job->running = true;
+
   // Run our fiber.
   union gab_value_pair res = __gab_vmexec(gab, fiber);
+
+  job->running = false;
 
 #if cGAB_LOG_EG
   gab_fprintf(stdout, "($) EXECUTED: $ -> $\n", gab_number(gab.wkid), fiber,
@@ -2504,7 +2509,6 @@ GAB_API union gab_value_pair gab_create(struct gab_create_argt args,
   eg->types[kGAB_FIBER_OK] = gab_string(gab, tGAB_FIBER);
   eg->types[kGAB_FIBER_ERR] = gab_string(gab, tGAB_FIBER);
   eg->types[kGAB_FIBER_KILLED] = gab_string(gab, tGAB_FIBER);
-  eg->types[kGAB_FIBER_RUNNING] = gab_string(gab, tGAB_FIBER);
   eg->types[kGAB_FIBER_TERMINATED] = gab_string(gab, tGAB_FIBER);
   eg->types[kGAB_CHANNEL] = gab_string(gab, tGAB_CHANNEL);
   eg->types[kGAB_CHANNELCLOSED] = gab_string(gab, tGAB_CHANNEL);
@@ -3646,7 +3650,7 @@ GAB_API gab_value gab_vspanicf(struct gab_triple gab, va_list va, gab_value fib,
   if (fib != gab_cundefined) {
     v_gab_value_thrd_push(&gab.eg->err, rec);
 
-    if (gab_valisfib(fib) && gab_fibparent(fib))
+    if (gab_valisfib(fib) && gab_valisfib(gab_fibparent(fib)))
       gab_fibkill(gab_fibparent(fib));
   }
 
@@ -4705,7 +4709,6 @@ GAB_INTERNAL uint64_t __gab_objsize(struct gab_obj *obj) {
   case kGAB_FIBER_OK:
   case kGAB_FIBER_ERR:
   case kGAB_FIBER_KILLED:
-  case kGAB_FIBER_RUNNING:
   case kGAB_FIBER_TERMINATED:
     return sizeof(struct gab_ofiber);
   case kGAB_NATIVE:
@@ -4874,7 +4877,6 @@ GAB_INTERNAL int64_t __gab_svalinspect(char **dest, uint64_t *n, gab_value self,
   case kGAB_FIBER_OK:
   case kGAB_FIBER_ERR:
   case kGAB_FIBER_KILLED:
-  case kGAB_FIBER_RUNNING:
   case kGAB_FIBER_TERMINATED: {
     struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(self);
 
@@ -4958,7 +4960,6 @@ GAB_API void __gab_objdestroy(struct gab_triple gab, struct gab_obj *self) {
   case kGAB_FIBER_OK:
   case kGAB_FIBER_ERR:
   case kGAB_FIBER_KILLED:
-  case kGAB_FIBER_RUNNING:
   case kGAB_FIBER_TERMINATED: {
     struct gab_ofiber *fib = (struct gab_ofiber *)self;
 
@@ -7378,10 +7379,11 @@ GAB_API gab_value gab_shpwith(struct gab_triple gab, gab_value shape,
   }
 }
 
-GAB_INTERNAL bool __gab_fibxchg(gab_value fiber, enum gab_kind old_kind,
+GAB_INTERNAL bool __gab_fibxchg(gab_value fiber,
                                 enum gab_kind new_kind) {
   gab_assert(gab_valisfib(fiber), "Invalid kind");
 
+  uint8_t old_kind = kGAB_FIBER;
   return atomic_compare_exchange_strong(&GAB_VAL_TO_FIBER(fiber)->header.kind,
                                         &old_kind, new_kind);
 };
@@ -7435,7 +7437,13 @@ GAB_API gab_value gab_fiber(struct gab_triple gab, struct gab_fiber_argt args) {
     memcpy(self->data + 2, args.argv, args.argc * sizeof(gab_value));
   }
 
-  self->parent = args.parent;
+  if (args.parent) {
+    gab_precondition(gab_valisfib(args.parent), "Expected fiber parent to be a fiber");
+    self->parent = args.parent;
+  } else {
+    self->parent = gab_cundefined;
+  }
+
   self->data[0] = args.message;
   self->data[1] = args.receiver;
 
@@ -7474,7 +7482,6 @@ GAB_INTERNAL union gab_value_pair __gab_fibresult(gab_value fiber) {
   case kGAB_FIBER_TERMINATED:
     return (union gab_value_pair){{gab_cinvalid, fiber}};
   case kGAB_FIBER:
-  case kGAB_FIBER_RUNNING:
     return (union gab_value_pair){{gab_ctimeout, fiber}};
   case kGAB_FIBER_OK:
     return (union gab_value_pair){{gab_ok, fiber}};
@@ -7579,10 +7586,7 @@ GAB_API gab_value gab_fibparent(gab_value f) {
 
 GAB_API bool gab_fibkill(gab_value f) {
   gab_precondition(gab_valisfib(f), "Invalid kind");
-  struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
-  uint8_t FIBER_KIND = kGAB_FIBER;
-  return atomic_compare_exchange_strong(&fiber->header.kind, &FIBER_KIND,
-                                        kGAB_FIBER_KILLED);
+  return __gab_fibxchg(f, kGAB_FIBER_KILLED);
 }
 
 GAB_API uint64_t gab_fibpush(gab_value f, uint8_t b) {
@@ -8569,7 +8573,6 @@ GAB_INTERNAL int64_t __gab_pprintw(gab_value val) {
   case kGAB_FIBER_OK:
   case kGAB_FIBER_ERR:
   case kGAB_FIBER_KILLED:
-  case kGAB_FIBER_RUNNING:
   case kGAB_FIBER_TERMINATED:
     return 11; // Needs to be updated to match
   default:
@@ -8798,7 +8801,6 @@ GAB_INTERNAL bool __gab_pptokify(v_gab_pprint *self, gab_value val) {
   case kGAB_FIBER_OK:
   case kGAB_FIBER_ERR:
   case kGAB_FIBER_KILLED:
-  case kGAB_FIBER_RUNNING:
   case kGAB_FIBER_TERMINATED:
     return __gab_pppushfib(self, val), false;
   case kGAB_CHANNEL:
@@ -12095,7 +12097,6 @@ GAB_INTERNAL void __gab_gcobjeachdo(struct gab_obj *obj,
   case kGAB_FIBER_OK:
   case kGAB_FIBER_ERR:
   case kGAB_FIBER_KILLED:
-  case kGAB_FIBER_RUNNING:
   case kGAB_FIBER_TERMINATED: {
     struct gab_ofiber *fib = (struct gab_ofiber *)obj;
 
@@ -13020,11 +13021,8 @@ GAB_INTERNAL union gab_value_pair __gab_vmyield(struct gab_triple gab,
   gab_value f = gab_thisfiber(gab);
   struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
 
-  if (!__gab_fibxchg(f, kGAB_FIBER_RUNNING, kGAB_FIBER))
-    return __gab_fibresult(f);
-
   fiber->reentrant = value;
-  return (union gab_value_pair){{gab_ctimeout, f}};
+  return __gab_fibresult(f);
 }
 
 GAB_INTERNAL void __gab_panicstk(struct gab_triple gab, struct gab_vm *vm,
@@ -13083,7 +13081,7 @@ GAB_INTERNAL union gab_value_pair __gab_vvmterm(struct gab_triple gab,
               __gab_obj(fiber));
 #endif
 
-  if (!__gab_fibxchg(fiber, kGAB_FIBER_RUNNING, kGAB_FIBER_TERMINATED))
+  if (!__gab_fibxchg(fiber, kGAB_FIBER_TERMINATED))
     return __gab_fibresult(fiber);
 
   return __gab_fibresult(fiber);
@@ -13098,7 +13096,7 @@ __gab_vmgivenerror(struct gab_triple gab, union gab_value_pair given) {
               gab_number(gab.wkid), __gab_obj(fiber));
 #endif
 
-  if (!__gab_fibxchg(fiber, kGAB_FIBER_RUNNING, kGAB_FIBER_ERR))
+  if (!__gab_fibxchg(fiber,  kGAB_FIBER_ERR))
     return __gab_fibresult(fiber);
 
   return __gab_fibresult(fiber);
@@ -13125,7 +13123,7 @@ GAB_INTERNAL union gab_value_pair __gab_vvmerror(struct gab_triple gab,
               __gab_obj(fiber));
 #endif
 
-  if (!__gab_fibxchg(fiber, kGAB_FIBER_RUNNING, kGAB_FIBER_ERR))
+  if (!__gab_fibxchg(fiber,  kGAB_FIBER_ERR))
     return __gab_fibresult(fiber);
 
   return __gab_fibresult(fiber);
@@ -13393,7 +13391,7 @@ cGAB_VM_OPCODE_ATTRIBUTES union gab_value_pair __gab_vmeerror(OP_HANDLER_ARGS) {
 cGAB_VM_OPCODE_ATTRIBUTES union gab_value_pair __gab_vmok(OP_HANDLER_ARGS) {
   gab_value fiber = gab_thisfiber(GAB());
 
-  if (!__gab_fibxchg(fiber, kGAB_FIBER_RUNNING, kGAB_FIBER_OK))
+  if (!__gab_fibxchg(fiber,  kGAB_FIBER_OK))
     return __gab_fibresult(fiber);
 
   /* Reset the stack before returning */
@@ -13413,9 +13411,6 @@ GAB_INTERNAL union gab_value_pair __gab_vmexec(struct gab_triple gab,
   gab_precondition(gab_valkind(f) == kGAB_FIBER,
                    "Only gab\\fiber shall be exec'd. Not a value of type: %d",
                    gab_valkind(f));
-
-  if (!__gab_fibxchg(f, kGAB_FIBER, kGAB_FIBER_RUNNING))
-    return __gab_fibresult(f);
 
   struct gab_ofiber *fiber = GAB_VAL_TO_FIBER(f);
 

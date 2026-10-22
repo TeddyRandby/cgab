@@ -1110,7 +1110,6 @@ enum gab_kind : uint8_t {
   kGAB_SHAPELIST,
   kGAB_SHAPENODE,
   kGAB_FIBER,
-  kGAB_FIBER_RUNNING,
   kGAB_FIBER_OK,
   kGAB_FIBER_ERR,
   kGAB_FIBER_KILLED,
@@ -3690,7 +3689,7 @@ GAB_API void gab_fibclear(gab_value fiber);
  */
 GAB_API_INLINE bool gab_fibisrunning(gab_value fiber) {
   gab_precondition(gab_valisfib(fiber), "Should be fiber");
-  return gab_valkind(fiber) == kGAB_FIBER_RUNNING;
+  return gab_valkind(fiber) == kGAB_FIBER;
 }
 
 /*
@@ -3701,7 +3700,7 @@ GAB_API_INLINE bool gab_fibisrunning(gab_value fiber) {
  */
 GAB_API_INLINE bool gab_fibisdone(gab_value fiber) {
   gab_precondition(gab_valisfib(fiber), "Should be fiber");
-  return gab_valkind(fiber) > kGAB_FIBER_RUNNING;
+  return gab_valkind(fiber) > kGAB_FIBER;
 }
 
 /*

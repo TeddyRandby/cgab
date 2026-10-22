@@ -409,6 +409,13 @@ bool clay_RGFW_update(struct gab_triple gab, struct ui *gui, double deltaTime,
 
 #if HAS_TERMBOX
 
+#define TERMBOX_CHAR_CASE(k)                                                   \
+  case TB_KEY_##k: {                                                           \
+    char ev[3] = {e->key};                                                     \
+    return putevent(gab, gui, "key", "char", gab_string(gab, ev),              \
+                    gab_number(e->mod & ~kGAB_CUI_MOD_CTRL), gab_cundefined);  \
+  }
+
 #define TERMBOX_KEY_CASE(key, str)                                             \
   case TB_KEY_##key:                                                           \
     return putevent(gab, gui, "key", "char", gab_string(gab, #str),            \
@@ -427,12 +434,16 @@ bool clay_termbox_update(struct gab_triple gab, struct ui *gui,
                       gab_number(e->mod), gab_cundefined);
     }
     switch (e->key) {
-    case TB_KEY_BACKSPACE2:
-      TERMBOX_KEY_CASE(BACKSPACE, backspace);
-      TERMBOX_KEY_CASE(ENTER, enter);
-      TERMBOX_KEY_CASE(TAB, tab);
-      TERMBOX_KEY_CASE(BACK_TAB, backtab);
-      TERMBOX_KEY_CASE(ESC, escape);
+    case TB_KEY_BACKSPACE2: {
+      char ev[3] = {TB_KEY_BACKSPACE};
+      return putevent(gab, gui, "key", "char", gab_string(gab, ev),
+                      gab_number(e->mod & ~kGAB_CUI_MOD_CTRL), gab_cundefined);
+    }
+      TERMBOX_CHAR_CASE(BACKSPACE);
+      TERMBOX_CHAR_CASE(ENTER);
+      TERMBOX_CHAR_CASE(TAB);
+      TERMBOX_CHAR_CASE(BACK_TAB);
+      TERMBOX_CHAR_CASE(ESC);
       // CAPSLOCK MISSING
       TERMBOX_KEY_CASE(INSERT, insert);
       TERMBOX_KEY_CASE(END, end);
@@ -1940,10 +1951,10 @@ GAB_DYNLIB_NATIVE_FN(ui, run) {
   gab_value evch = gab_arg(2);
   gab_value appch = gab_arg(3);
 
-  if (!gab_valischn(evch))
+  if (!gab_valischn(appch))
     return gab_pktypemismatch(gab, appch, kGAB_CHANNEL);
 
-  if (!gab_valischn(appch))
+  if (!gab_valischn(evch))
     return gab_pktypemismatch(gab, evch, kGAB_CHANNEL);
 
   const char *render_rec_name = nullptr;

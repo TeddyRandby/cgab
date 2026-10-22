@@ -426,7 +426,7 @@ App := test\app:.defclass(
                                   bg: Colors.bg
                                   transition\properties: [x: y:]
                                 }
-                                bhv.behavior\path.join("" Transducers.interpose "should" |> Streams.interpose " ")
+                                bhv.behavior\path.join("" Transducers.interpose "should" |> Transducers.interpose " ")
                               ]
                               bhv
                                 .behavior\assertions
@@ -464,7 +464,7 @@ App := test\app:.defclass(
                               fg: color
                               bg: Colors.bg
                             }
-                            bhv.behavior\path.join("" Transducers.interpose "should" |> Streams.interpose " ")
+                            bhv.behavior\path.join("" Transducers.interpose "should" |> Transducers.interpose " ")
                           ]
                         end)
                     end)
