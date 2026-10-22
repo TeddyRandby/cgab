@@ -862,7 +862,7 @@ bool add_package(mz_zip_archive *zip_o, const char **roots,
 
   *mod = gab_mresolve(roots, resources, cstr_package, nullptr);
 
-  if (!(*mod)->path)
+  if (!(*mod) ||!(*mod)->path)
     return false;
 
   /*
@@ -1208,7 +1208,7 @@ void elogstep(struct step *step, int i, int res) {
   case kSTEP_ARCHIVE_OPEN:
     return clierror("Failed to open '%s'.\n", step->as.archive_open.path);
   case kSTEP_ARCHIVE_ADD_PACKAGE:
-    if (!step->as.archive_add_package.mod_out->path)
+    if (!step->as.archive_add_package.mod_out || !step->as.archive_add_package.mod_out->path)
       return clierror("Failed to resolve module '%.*s'.\n",
                       step->as.archive_add_package.package.len,
                       step->as.archive_add_package.package.data);
