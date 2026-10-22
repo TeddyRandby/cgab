@@ -59,8 +59,7 @@ static MunitResult test_channel_send_closed(const MunitParameter params[],
                         .len = 1,
                     });
 
-  munit_assert_uint64(put_res.status, ==, gab_cvalid);
-  munit_assert_uint64(put_res.aresult[0], ==, gab_ok);
+  munit_assert_uint64(put_res.status, ==, gab_ok);
 
   return MUNIT_OK;
 }
@@ -68,21 +67,20 @@ static MunitResult test_channel_send_closed(const MunitParameter params[],
 static MunitResult test_channel_unsafe_put(const MunitParameter params[],
                                            void *data) {
   gab_value ch = gab_channel(gab);
-  uint64_t tries = 1;
 
   gab_value values_in[] = {gab_number(100)};
   uint64_t len = 1;
 
   // Perform unsafe put (will not block indefinitely)
   // Make sure the put happens.
-  while (!gab_untchnput(gab, ch, len, values_in, tries))
+  while (gab_untchnput(gab, ch, len, values_in) == gab_ctimeout)
     ;
 
   // Perform unsafe take to clear it
   gab_value values_out[1] = {0};
-  gab_ntchntake(gab, ch, len, values_out, tries);
+  gab_value res = gab_ntchntake(gab, ch, len, values_out);
 
-  munit_assert_uint64(values_out[0], ==, values_in[0]);
+  munit_assert_uint64(res, ==, gab_number(1));
 
   return MUNIT_OK;
 }
@@ -127,8 +125,8 @@ test_channel_stress_concurrent_putters(const MunitParameter params[],
         done++;
         // If a fiber is done, check that it didn't error.
         union gab_value_pair res = gab_fibawait(gab, fibers[f]);
-        munit_assert_uint64(res.status, ==, gab_cvalid);
-        munit_assert_uint64(res.aresult[0], ==, gab_ok);
+
+        munit_assert_uint64(res.status, ==, gab_ok);
       }
     }
 
@@ -175,13 +173,7 @@ static MunitResult test_channel_concurrent_takers(const MunitParameter params[],
         done++;
         // Verify the taker finished without trapping an error
         union gab_value_pair res = gab_fibawait(gab, fibers[f]);
-        munit_assert_uint64(res.status, ==, gab_cvalid);
-
-        // Bug where primitives don't tailcall well. We have to skip over the
-        // channel and put arguments which are mistakenly returned.
-        munit_assert_uint64(res.aresult[0], ==, gab_ok);
-        munit_assert_uint64(res.aresult[3], ==, gab_ok);
-        munit_assert_uint64(res.aresult[4], ==, gab_number(1));
+        munit_assert_uint64(res.status, ==, gab_ok);
       }
     }
     munit_assert_uint64(done, <=, total_sent);
@@ -258,7 +250,7 @@ static MunitResult test_channel_stress_randomized(const MunitParameter params[],
     union gab_value_pair res = gab_fibawait(gab, fibers[i]);
 
     // Verify every single fiber resolved without error
-    munit_assert_uint64(res.status, ==, gab_cvalid);
+    munit_assert_uint64(res.status, ==, gab_ok);
   }
 
   // By the end, every Put must have matched with exactly one Take.
@@ -277,7 +269,7 @@ MunitTest channel_tests[] = {
         NULL,
     },
     {
-        "/send_put_unbuffered",
+        "/send_put",
         test_channel_send_put,
         NULL,
         NULL,

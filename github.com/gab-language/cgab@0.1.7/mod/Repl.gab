@@ -1,0 +1,76 @@
+Ui      := 'github.com/gab-language/cgab@0.1.7' .use 'Ui'
+
+(events, app) := (Channels.make, Channels.make)
+
+Colors := {
+  cl: 0x00000000
+  fg: 0xff162227
+  bg: 0xffffffff
+  shadow: 0xffe8e9ed
+  pallete\2nd: 0xffd3dbe4
+  pallete\3rd: 0xff466267
+  bg\hl: 0xffc6c8d1
+}
+
+how := tui:
+
+repl\char\dispatch: .defcase {
+  ('\b'.to\message) model :: model.put(repl\input: model.repl\input.pop.unwrap_or '')
+  ('\t'.to\message) model :: model.put(repl\input: model.repl\input + '  ')
+  # How does windows do here when pressing enter?
+  ('\r'.to\message) model :: model.put(repl\input: model.repl\input + '\n')
+  ('\n'.to\message) model :: model.put(repl\input: model.repl\input + '\n')
+}
+
+repl\char\dispatch: .def (model) :: do
+  model.put(repl\input: model.repl\input + self.to\string)
+end
+
+repl\event\dispatch: .defcase {
+  tick: (model type data) :: model
+  mouse: (model type data) :: model
+  key:  (model type data) :: do
+    data := data.at 0 .unwrap
+    key := data.to\message
+
+    [type data.to\binary].eprintln
+
+    (type == char:)
+      .then(() :: key.repl\char\dispatch(model data))
+      .or model
+  end
+}
+
+module.defclass(
+  repl\history:
+  repl\input:
+  default:
+  {
+    repl\controller: (event type data) :: do
+      event.repl\event\dispatch(self type data)
+    end,
+    repl\view: (event type data) :: do
+      [
+        [text: { bg: Colors.bg } self.repl\input]
+      ]
+    end
+  })
+
+Ui
+  .run(how events app)
+  .unwrap
+
+events
+  .pipe(
+    app,
+    Transducers.take_until((e t key) :: do
+      (e == key:) & ((key == "escape"))
+    end)
+    |> Transducers.reduce(
+      module.make([] ""),
+      (model, event, type, data*) :: model.repl\controller(event type data))
+    |> Transducers.map(app :: [[text: {} "EVENT: $".sprintf(app)]])
+  )
+
+app.close
+events.close

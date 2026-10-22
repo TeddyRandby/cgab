@@ -5,13 +5,10 @@
 
 #include <stddef.h>
 
-#include "crossline/crossline.c"
-#include "crossline/crossline.h"
-
 #include <stdint.h>
 #include <stdio.h>
 
-#define T struct gab_package
+#define T struct gab_module
 #define NAME pkg
 #include "vector.h"
 
@@ -61,9 +58,13 @@ static inline void v_char_spush(v_char *self, s_char slice) {
 
 #define SECTION(x) SWAP(NONE, " " x " ")
 
-struct gab_triple gab;
+static struct gab_triple gab;
 
-mz_zip_archive zip = {0};
+static uint8_t _nargs;
+static gab_value _vargs[255];
+static const char *_sargs[255];
+
+static mz_zip_archive zip = {0};
 
 /*
  *  *----------------*
@@ -88,9 +89,9 @@ mz_zip_archive zip = {0};
  *  When installing a package, gab installs it in the appropriate directory
  *  for its cgab abi and platform.
  *
- *  For a package like github.com/gab-language/cgab@0.1.6, gab installs it at:
+ *  For a package like github.com/gab-language/cgab@0.1.7, gab installs it at:
  *
- *  ~/gab/0.1.6-x86_64-linux-gnu/github.com/gab-language/cgab@0.1.4
+ *  ~/gab/0.1.7-x86_64-linux-gnu/github.com/gab-language/cgab@0.1.4
  *        ^^^^^                                               ^^^^^
  *
  *  Note that the cgab-abi and the cgab library version here are there same.
@@ -216,13 +217,17 @@ bool check_and_printerr(union gab_value_pair *res) {
   if (!gab.eg)
     return false;
 
-  if (res->status == gab_cvalid && res->aresult[0] != gab_ok)
+  if (res->status == gab_err) {
+    // Signal shutdown
+    gab_sigterm(gab);
+
     while (!gab_step(gab))
       gab_busywait(gab);
+  }
 
   pop_and_printerr(gab);
 
-  return res->status == gab_cvalid && res->aresult[0] == gab_ok;
+  return res->status == gab_ok;
 }
 
 int copy_file(FILE *in, FILE *out) {
@@ -242,12 +247,6 @@ int copy_file(FILE *in, FILE *out) {
   return 0; // success
 }
 
-#ifdef GAB_PLATFORM_WIN
-typedef union gab_value_pair(WINAPI *dynlib_fn)(struct gab_triple);
-#else
-typedef union gab_value_pair (*dynlib_fn)(struct gab_triple);
-#endif
-
 union gab_value_pair gab_use_dynlib(struct gab_triple gab, const char *path,
                                     uint64_t len, const char **sargs,
                                     gab_value *vargs) {
@@ -255,8 +254,8 @@ union gab_value_pair gab_use_dynlib(struct gab_triple gab, const char *path,
 
   if (lib == nullptr) {
 #ifdef GAB_PLATFORM_UNIX
-    return gab_panicf(gab, "Failed to load module.\n\n@", gab_string(gab, path),
-                      gab_string(gab, dlerror()));
+    return gab_panicf(gab, "Failed to load module:\n\n$\n\n@",
+                      gab_string(gab, path), gab_string(gab, dlerror()));
 #elifdef GAB_PLATFORM_WASI
     return gab_panicf(gab, "Failed to load module '$'", gab_string(gab, path));
 #elifdef GAB_PLATFORM_WIN
@@ -275,7 +274,7 @@ union gab_value_pair gab_use_dynlib(struct gab_triple gab, const char *path,
 #endif
   }
 
-  dynlib_fn mod = gab_oslibfind(lib, GAB_DYNLIB_MAIN);
+  gab_dynlibmain_f mod = gab_oslibfind(lib, GAB_DYNLIB_MAIN);
 
   if (mod == nullptr)
 #ifdef GAB_PLATFORM_UNIX
@@ -297,19 +296,10 @@ union gab_value_pair gab_use_dynlib(struct gab_triple gab, const char *path,
   }
 #endif
 
-  union gab_value_pair res = mod(gab);
+  union gab_value_pair res = mod(gab, len, sargs, vargs);
 
   // At this point, mod should have reported any errors.
   /*gab.flags |= fGAB_ERR_QUIET;*/
-
-  if (res.status != gab_cvalid)
-    return res;
-
-  if (res.aresult[0] != gab_ok)
-    return res;
-
-  if (gab_segmodput(gab.eg, path, res.aresult) == nullptr)
-    return gab_panicf(gab, "Failed to cache c module.");
 
   return res;
 }
@@ -401,14 +391,14 @@ union gab_value_pair gab_use_zip_data(struct gab_triple gab, const char *path,
     return gab_panicf(gab, "Failed to load module: $", gab_string(gab, estr));
   }
 
-  gab_value *data = gab_valarray(gab_ok, gab_nbinary(gab, sz, (uint8_t *)src));
-  gab_niref(gab, 1, gab_varrlen(data), data);
-  gab_negkeep(gab.eg, gab_varrlen(data), data);
+  // gab_value *data = gab_valarray(gab_ok, gab_nbinary(gab, sz, (uint8_t *)src));
+  // gab_niref(gab, 1, gab_varrlen(data), data);
+  // gab_negkeep(gab.eg, gab_varrlen(data), data);
 
   // TODO @cgab @qol: fns for constructing these for convenience/users
   union gab_value_pair result = {
       .status = gab_cvalid,
-      .aresult = data,
+      .vresult = gab_ok,
   };
 
   free(src);
@@ -445,7 +435,7 @@ union gab_value_pair gab_use_zip_source(struct gab_triple gab, const char *path,
                                                  .flags = gab.flags,
                                                  .len = len,
                                                  .sargv = sargs,
-                                                 .argv = vargs,
+                                                 .vargv = vargs,
                                              });
   a_char_destroy(src);
 
@@ -457,14 +447,14 @@ union gab_value_pair gab_use_data(struct gab_triple gab, const char *path,
                                   gab_value *vargs) {
   a_char *src = gab_osread(path);
 
-  gab_value *data = gab_valarray(
-      gab_ok, gab_nbinary(gab, src->len, (uint8_t *)src->data), gab_cinvalid);
-  gab_niref(gab, 1, gab_varrlen(data), data);
-  gab_negkeep(gab.eg, gab_varrlen(data), data);
+  // gab_value *data = gab_valarray(
+  //     gab_ok, gab_nbinary(gab, src->len, (uint8_t *)src->data), gab_cinvalid);
+  // gab_niref(gab, 1, gab_varrlen(data), data);
+  // gab_negkeep(gab.eg, gab_varrlen(data), data);
 
   union gab_value_pair result = {
       .status = gab_cvalid,
-      .aresult = data,
+      .vresult = gab_ok,
   };
 
   a_char_destroy(src);
@@ -485,10 +475,11 @@ union gab_value_pair gab_use_source(struct gab_triple gab, const char *path,
       gab_exec(gab, (struct gab_exec_argt){
                         .name = path,
                         .source = (const char *)src->data,
+                        .source_len = src->len,
                         .flags = gab.flags,
                         .len = len,
                         .sargv = sargs,
-                        .argv = vargs,
+                        .vargv = vargs,
                     });
 
   a_char_destroy(src);
@@ -510,7 +501,7 @@ bool zip_exister(const char *path) {
   return res >= 0;
 }
 
-static struct gab_package default_modules[] = {
+static struct gab_module default_modules[] = {
     {"github.com/gab-language/cgab@" GAB_VERSION_TAG, "Shapes"},
     {"github.com/gab-language/cgab@" GAB_VERSION_TAG, "Messages"},
     {"github.com/gab-language/cgab@" GAB_VERSION_TAG, "Strings"},
@@ -564,22 +555,147 @@ static const struct gab_resource native_zip_resources[] = {
 
 static const char *roots[4] = {};
 
-gab_value build_process_module(struct gab_triple gab, uint64_t nargs,
-                               const char **args) {
-  gab_value ProcessModule = gab_message(gab, "gab\\process");
+GAB_DYNLIB_NATIVE_FN(system, use) {
+  union gab_value_pair mod;
 
-  gab_def(gab, {
-                   gab_message(gab, "args"),
-                   ProcessModule,
-                   gab_slist(gab, 1, nargs, args),
-               });
+  if (reentrant) {
+    gab_assert(gab_valisfib(reentrant), "Reentrant shall be fiber");
+    mod = gab_tfibawait(gab, reentrant, 0);
+  } else {
+    gab_value package = gab_arg(1);
+    if (gab_valkind(package) != kGAB_STRING)
+      return gab_pktypemismatch(gab, package, kGAB_STRING);
 
-  return ProcessModule;
+    mod = gab_use(gab, (struct gab_use_argt){
+                           .vpackage_name = package,
+                           .len = _nargs,
+                           .argv = _vargs,
+                           .sargv = _sargs,
+                       });
+  }
+
+  if (mod.status == gab_ctimeout) {
+    gab_assert(gab_valisfib(mod.vresult), "Reentrant shall be fiber");
+    return gab_union_ctimeout(mod.vresult);
+  }
+
+  if (mod.status != gab_cvalid)
+    return mod;
+
+  gab_push(gab, mod.vresult);
+
+  return gab_union_cvalid(gab_nil);
 }
 
-static char prompt_buffer[4096];
-char *readline(const char *prompt) {
-  return crossline_readline(prompt, prompt_buffer, sizeof(prompt_buffer));
+GAB_DYNLIB_NATIVE_FN(system, resolve) {
+  gab_value vpackage = gab_arg(1);
+
+  const char *package = nullptr;
+
+  if (gab_valkind(vpackage) != kGAB_STRING)
+    return gab_pktypemismatch(gab, vpackage, kGAB_STRING);
+
+  package = gab_strdata(&vpackage);
+
+  struct gab_module_res *res = gab_resolve(gab, package, nullptr);
+
+  /* TODO: HANDLE ALL RESOLVED */
+
+  if (res->path)
+    gab_push(gab, gab_ok, gab_string(gab, res->path));
+  else
+    gab_push(gab, gab_none);
+
+  return gab_union_cvalid(gab_nil);
+}
+
+// TODO @cgab @system: Fix System.cmd
+// There is a lot of sloppy error-checking,
+// and also this involves blocking on the child
+// sub process, which we can't allow to block the gab thread.
+GAB_DYNLIB_NATIVE_FN(system, cmd) {
+  if (argc <= 1) {
+    gab_push(gab, gab_err, gab_string(gab, "No command supplied"));
+    return gab_union_cvalid(gab_nil);
+  }
+
+  const char *args[argc];
+
+  for (uint64_t i = 1; i < argc; i++) {
+    gab_value *arg = argv + i;
+    if (gab_valkind(*arg) != kGAB_STRING)
+      return gab_pktypemismatch(gab, *arg, kGAB_STRING);
+
+    args[i - 1] = gab_strdata(arg);
+  }
+
+  int res = gab_nosproc(args[0], argc - 2, args + 1);
+
+  gab_push(gab, gab_ok, gab_number(res));
+  return gab_union_cvalid(gab_nil);
+}
+
+// GAB_DYNLIB_NATIVE_FN(system, cwd) {}
+
+GAB_DYNLIB_NATIVE_FN(system, dir_temp) {
+  const char *dir = gab_osprefix_temp("");
+  gab_push(gab, gab_string(gab, dir));
+  free((void *)dir);
+  return gab_union_cvalid(gab_nil);
+}
+
+// GAB_DYNLIB_NATIVE_FN(system, dir_home) {}
+
+gab_value build_process_module(struct gab_triple gab, uint64_t nargs,
+                               const char **args) {
+  gab_value SystemModule = gab_message(gab, "gab\\system");
+
+  const char *tmp = gab_osprefix_temp("");
+
+  gab_def(gab,
+          {
+              gab_message(gab, "args"),
+              SystemModule,
+              gab_slist(gab, 1, nargs, args),
+          },
+          {
+              gab_message(gab, "jobs"),
+              SystemModule,
+              gab_number(gab_eglen(gab.eg)),
+          },
+          {
+              gab_message(gab, "dir\\tmp"),
+              SystemModule,
+              gab_string(gab, tmp),
+          },
+          {
+              gab_message(gab, "resolve"),
+              SystemModule,
+              gab_snative(gab, "resolve", gab_mod_system_resolve),
+          },
+          {
+              gab_message(gab, "use"),
+              SystemModule,
+              gab_snative(gab, "ues", gab_mod_system_use),
+          }, );
+
+  free((void *)tmp);
+
+  return SystemModule;
+}
+
+void init_args(union gab_value_pair res, struct gab_module *modules,
+               uint64_t nmodules) {
+  _nargs = nmodules;
+  gab_assert(_nargs > 0, "Cannot have 0 args");
+
+  for (int i = 0; i < _nargs; i++)
+    _sargs[i] = modules[i].module ? modules[i].module : modules[i].package;
+  _sargs[_nargs - 1] = "System";
+
+  for (int i = 0; i < _nargs; i++)
+    _vargs[i] = gab_message(gab, modules[i].module ? modules[i].module : modules[i].package);
+  _vargs[_nargs - 1] = gab_message(gab, "System");
 }
 
 // clang-format off
@@ -590,63 +706,8 @@ const char *welcome_message =
    "\\___/_/ |_/____/  |  in: " CYAN(GAB_BUILDTYPE) "\n";
 // clang-format on
 
-int run_repl(uint64_t flags, uint32_t wait, uint64_t nmodules,
-             struct gab_package *packages, uint64_t nargs, const char **args) {
-  gab_ossignal(SIGINT, propagate_term);
-
-  union gab_value_pair res = gab_create(
-      (struct gab_create_argt){
-          .jobs = 8,
-          .wait = wait,
-          .packages = packages,
-          .roots = roots,
-          .resources = native_file_resources,
-          .flags = flags,
-      },
-      &gab);
-
-  if (!check_and_printerr(&res))
-    return gab_destroy(gab), 1;
-
-  uint64_t len = gab_varrlen(res.aresult);
-
-  gab_assert(len - 1 == nmodules, "Found %lu modules, expected %lu", len - 1,
-             nmodules);
-
-  const char *sargs[len];
-
-  for (int i = 0; i < len; i++)
-    sargs[i] = packages[i].alias    ? packages[i].alias
-               : packages[i].module ? packages[i].module
-                                    : packages[i].package;
-
-  sargs[len - 1] = "Process";
-
-  gab_value vargs[len];
-  memcpy(vargs, res.aresult + 1, (len - 1) * sizeof(gab_value));
-  vargs[len - 1] = build_process_module(gab, nargs, args);
-
-  gab_repl(gab, (struct gab_repl_argt){
-                    .name = MAIN_MODULE,
-                    .flags = flags,
-                    .welcome_message = welcome_message,
-                    .prompt_prefix = ">>> ",
-                    .promptmore_prefix = "|   ",
-                    .result_prefix = "",
-                    .readline = readline,
-                    .len = len,
-                    .sargv = sargs,
-                    .argv = vargs,
-                });
-
-  // TODO @gab @bug: fix leak
-  // a_gab_value_destroy(res.aresult);
-
-  return gab_destroy(gab), 0;
-}
-
 int run_string(const char *string, uint64_t flags, uint32_t wait, uint64_t jobs,
-               uint64_t nmodules, struct gab_package *packages, uint64_t nargs,
+               uint64_t nmodules, struct gab_module *modules, uint64_t nargs,
                const char **args) {
   gab_ossignal(SIGINT, propagate_term);
 
@@ -654,7 +715,7 @@ int run_string(const char *string, uint64_t flags, uint32_t wait, uint64_t jobs,
       (struct gab_create_argt){
           .wait = wait,
           .jobs = jobs,
-          .packages = packages,
+          .modules = modules,
           .roots = roots,
           .resources = native_file_resources,
           .flags = flags,
@@ -664,20 +725,7 @@ int run_string(const char *string, uint64_t flags, uint32_t wait, uint64_t jobs,
   if (!check_and_printerr(&res))
     return gab_destroy(gab), 0;
 
-  uint64_t len = gab_varrlen(res.aresult);
-  gab_assert(len - 1 == nmodules, "Found %lu modules, expected %lu", len - 1,
-             nmodules);
-
-  const char *sargs[len];
-  for (int i = 0; i < len; i++)
-    sargs[i] = packages[i].alias    ? packages[i].alias
-               : packages[i].module ? packages[i].module
-                                    : packages[i].package;
-  sargs[len - 1] = "Process";
-
-  gab_value vargs[len];
-  memcpy(vargs, res.aresult + 1, (len - 1) * sizeof(gab_value));
-  vargs[len - 1] = build_process_module(gab, nargs, args);
+  init_args(res, modules, nmodules);
 
   // This is a weird case where we actually want to include the null terminator
   s_char src = s_char_create(string, strlen(string) + 1);
@@ -685,19 +733,16 @@ int run_string(const char *string, uint64_t flags, uint32_t wait, uint64_t jobs,
   union gab_value_pair run_res = gab_exec(gab, (struct gab_exec_argt){
                                                    .name = MAIN_MODULE,
                                                    .source = (char *)src.data,
+                                                   .source_len = src.len,
                                                    .flags = flags,
-                                                   .len = len,
-                                                   .sargv = sargs,
-                                                   .argv = vargs,
+                                                   .len = _nargs,
+                                                   .sargv = _sargs,
+                                                   .vargv = _vargs,
                                                });
-
-  // TODO @gab @bug: Fix leak
-  // a_gab_value_destroy(res.aresult);
 
   if (!check_and_printerr(&run_res))
     return gab_destroy(gab), 1;
 
-  // a_gab_value_destroy(run_res.aresult)
   return gab_destroy(gab), 0;
 }
 
@@ -726,12 +771,12 @@ int run_bundle(const char *mod, uint64_t argc, const char **argv) {
   if (dash && dash - mod < modlen)
     modlen = dash - mod;
 
-  struct gab_package *packages = default_modules;
+  struct gab_module *modules = default_modules;
 
   union gab_value_pair res = gab_create(
       (struct gab_create_argt){
           .jobs = 8,
-          .packages = packages,
+          .modules = modules,
           /* Unique to bundled apps, the only root is for *within* the bundle.
            */
           .roots =
@@ -746,27 +791,14 @@ int run_bundle(const char *mod, uint64_t argc, const char **argv) {
   if (!check_and_printerr(&res))
     return gab_destroy(gab), 1;
 
-  uint64_t len = gab_varrlen(res.aresult);
-  gab_assert(len - 1 == ndefault_modules, "Found %lu modules, expected %lu",
-             len - 1, ndefault_modules);
-
-  const char *sargs[len];
-  for (int i = 0; i < len; i++)
-    sargs[i] = packages[i].alias    ? packages[i].alias
-               : packages[i].module ? packages[i].module
-                                    : packages[i].package;
-  sargs[len - 1] = "Process";
-
-  gab_value vargs[len];
-  memcpy(vargs, res.aresult + 1, (len - 1) * sizeof(gab_value));
-  vargs[len - 1] = build_process_module(gab, argc, argv);
+  init_args(res, modules, ndefault_modules);
 
   union gab_value_pair run_res =
       gab_use(gab, (struct gab_use_argt){
                        .vpackage_name = gab_nstring(gab, modlen, mod),
-                       .len = len,
-                       .sargv = sargs,
-                       .argv = vargs,
+                       .len = _nargs,
+                       .sargv = _sargs,
+                       .argv = _vargs,
                    });
 
   if (!check_and_printerr(&run_res))
@@ -781,7 +813,7 @@ int run_bundle(const char *mod, uint64_t argc, const char **argv) {
 }
 
 int run_file(const char *package, uint64_t flags, uint32_t wait, uint64_t jobs,
-             uint64_t nmodules, struct gab_package *packages, uint64_t nargs,
+             uint64_t nmodules, struct gab_module *modules, uint64_t nargs,
              const char **args) {
   gab_ossignal(SIGINT, propagate_term);
 
@@ -789,7 +821,7 @@ int run_file(const char *package, uint64_t flags, uint32_t wait, uint64_t jobs,
       (struct gab_create_argt){
           .wait = wait,
           .jobs = jobs,
-          .packages = packages,
+          .modules = modules,
           .roots = roots,
           .resources = native_file_resources,
           .flags = flags,
@@ -799,27 +831,14 @@ int run_file(const char *package, uint64_t flags, uint32_t wait, uint64_t jobs,
   if (!check_and_printerr(&res))
     return gab_destroy(gab), 1;
 
-  uint64_t len = gab_varrlen(res.aresult);
-  gab_assert(len - 1 == nmodules, "Found %lu modules, expected %lu", len - 1,
-             nmodules);
-
-  const char *sargs[len];
-  for (int i = 0; i < len; i++)
-    sargs[i] = packages[i].alias    ? packages[i].alias
-               : packages[i].module ? packages[i].module
-                                    : packages[i].package;
-  sargs[len - 1] = "Process";
-
-  gab_value vargs[len];
-  memcpy(vargs, res.aresult + 1, (len - 1) * sizeof(gab_value));
-  vargs[len - 1] = build_process_module(gab, nargs, args);
+  init_args(res, modules, nmodules);
 
   union gab_value_pair run_res = gab_use(gab, (struct gab_use_argt){
                                                   .flags = flags,
                                                   .spackage_name = package,
-                                                  .len = len,
-                                                  .sargv = sargs,
-                                                  .argv = vargs,
+                                                  .len = _nargs,
+                                                  .sargv = _sargs,
+                                                  .argv = _vargs,
                                               });
 
   // TODO @cgab: Fix leak
@@ -835,7 +854,7 @@ int run_file(const char *package, uint64_t flags, uint32_t wait, uint64_t jobs,
 
 bool add_package(mz_zip_archive *zip_o, const char **roots,
                  const struct gab_resource *resources, s_char package,
-                 struct gab_module_res *mod) {
+                 struct gab_module_res **mod) {
 
   char cstr_package[package.len + 1];
   memcpy(cstr_package, package.data, package.len);
@@ -843,7 +862,7 @@ bool add_package(mz_zip_archive *zip_o, const char **roots,
 
   *mod = gab_mresolve(roots, resources, cstr_package, nullptr);
 
-  if (!mod->path)
+  if (!(*mod) ||!(*mod)->path)
     return false;
 
   /*
@@ -851,7 +870,7 @@ bool add_package(mz_zip_archive *zip_o, const char **roots,
    * If it is, flatten it into this bundle.
    */
   mz_zip_archive zip_r = {0};
-  if (mz_zip_reader_init_file(&zip_r, mod->path, 0)) {
+  if (mz_zip_reader_init_file(&zip_r, (*mod)->path, 0)) {
     uint64_t files = mz_zip_reader_get_num_files(&zip_r);
 
     if (files) {
@@ -865,7 +884,7 @@ bool add_package(mz_zip_archive *zip_o, const char **roots,
 
   // TODO @cli @qol: Allow the user to configure the SPEED/COMPRESSION tradeoff
   // here.
-  return mz_zip_writer_add_file(zip_o, mod->package_path, mod->path, nullptr, 0,
+  return mz_zip_writer_add_file(zip_o, (*mod)->package_path, (*mod)->path, nullptr, 0,
                                 MZ_BEST_SPEED);
 }
 
@@ -896,7 +915,7 @@ struct step {
       const char **roots;
       const struct gab_resource *resources;
       s_char package;
-      struct gab_module_res mod_out;
+      struct gab_module_res* mod_out;
     } archive_add_package;
 
     struct {
@@ -1010,7 +1029,7 @@ int step(struct step *step) {
       /*
        * Each filename should begin with the same prefix as in *dst*.
        *
-       * For example, the package `github.com/gab-language/cgab@0.1.6`
+       * For example, the package `github.com/gab-language/cgab@0.1.7`
        *
        * will resolve to url, which will fetch a bundle `cgab-<gab
        * version>-<platform-triple>`
@@ -1020,7 +1039,7 @@ int step(struct step *step) {
        *
        * These modules should start with a path which matches the package name.
        *
-       * `github.com/gab-language/cgab@0.1.6/<module>`
+       * `github.com/gab-language/cgab@0.1.7/<module>`
        *
        * We should only do this if we are unzipping a package, and not a generic
        * zip we downloaded.
@@ -1189,7 +1208,7 @@ void elogstep(struct step *step, int i, int res) {
   case kSTEP_ARCHIVE_OPEN:
     return clierror("Failed to open '%s'.\n", step->as.archive_open.path);
   case kSTEP_ARCHIVE_ADD_PACKAGE:
-    if (!step->as.archive_add_package.mod_out.path)
+    if (!step->as.archive_add_package.mod_out || !step->as.archive_add_package.mod_out->path)
       return clierror("Failed to resolve module '%.*s'.\n",
                       step->as.archive_add_package.package.len,
                       step->as.archive_add_package.package.data);
@@ -1226,7 +1245,7 @@ void slogstep(struct step *step, int i) {
     return clisuccess(" %2i Added module %.*s (%s).\n", i,
                       step->as.archive_add_package.package.len,
                       step->as.archive_add_package.package.data,
-                      step->as.archive_add_package.mod_out.path);
+                      step->as.archive_add_package.mod_out->path);
   case kSTEP_ARCHIVE_FINALIZE:
     return clisuccess(" %2i Finalized bundle.\n", i);
   }
@@ -1327,7 +1346,6 @@ struct command {
 int get(struct command_arguments *args);
 int run(struct command_arguments *args);
 int exec(struct command_arguments *args);
-int repl(struct command_arguments *args);
 int help(struct command_arguments *args);
 int welcome(struct command_arguments *args);
 int build(struct command_arguments *args);
@@ -1712,26 +1730,6 @@ static struct command commands[] =
                 jobs_option,
             },
         },
-        {
-            "repl",
-            "Enter the REPL",
-            // clang-format off
-            "\tA REPL is a convenient tool for experimentation.\n"
-            "\tIt is useful for developement as well - set up with editor plugins to evaluate code in the REPL.",
-            // clang-format on
-            .example =
-                {
-                    GREEN("gab") " " YELLOW("repl") " -m Json",
-                },
-            .handler = repl,
-            {
-                dumpast_option,
-                dumpbytecode_option,
-                modules_option,
-                busywait_option,
-                jobs_option,
-            },
-        },
 };
 
 int checksteps(struct command_arguments *args, int len,
@@ -1941,7 +1939,6 @@ int get_package(v_step *steps, struct command_arguments *args, const char *pkg,
                 const char *tag, const char *res, const char *gab_target,
                 const char *gab_tag) {
   v_char bundle = {0};
-
 
   if (res) {
     v_char_spush(&bundle, s_char_cstr(res));
@@ -2235,11 +2232,11 @@ int init_modules(v_pkg *modules, struct command_arguments *args) {
     char *str = calloc(pkg.len + 1, 1);
     memcpy(str, pkg.data, pkg.len);
 
-    v_pkg_push(modules, (struct gab_package){str});
+    v_pkg_push(modules, (struct gab_module){str});
   }
 
   // Push a terminator module to the list
-  v_pkg_push(modules, (struct gab_package){});
+  v_pkg_push(modules, (struct gab_module){});
 
   uint64_t nmodules = modules->len;
   assert(nmodules > 0);
@@ -2282,18 +2279,6 @@ int exec(struct command_arguments *args) {
 
   int res = run_string(str, args->flags, args->wait, args->njobs, nmodules - 1,
                        modules.data, args->argc, args->argv);
-
-  v_pkg_destroy(&modules);
-
-  return res;
-}
-
-int repl(struct command_arguments *args) {
-  v_pkg modules = {0};
-  int nmodules = init_modules(&modules, args);
-
-  int res = run_repl(args->flags, args->wait, nmodules - 1, modules.data,
-                     args->argc, args->argv);
 
   v_pkg_destroy(&modules);
 
@@ -2664,7 +2649,7 @@ int build_lib(struct command_arguments *args) {
 
   /* Add an additional kind of resource for builds such as these:
    * A BUNDLE loading resource.
-   * cgab@0.1.6 -> gab-language/cgab/cgab-0.1.4-x86_64-linux-gnu
+   * cgab@0.1.7 -> gab-language/cgab/cgab-0.1.4-x86_64-linux-gnu
    */
   platform_file_resources[0] = (struct gab_resource){
       .prefix = "",
