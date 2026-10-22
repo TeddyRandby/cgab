@@ -1,0 +1,25 @@
+Ui      := 'github.com/gab-language/cgab@0.1.7' .use 'Ui'
+
+(events, app) := (Channels.make, Channels.make)
+
+how := tui:
+
+Ui
+  .run(how events app)
+  .unwrap
+
+events
+  .pipe(
+    app,
+    Transducers.take_until((e t key) :: do
+      (e == key:) & ((key == "escape") | (key == "q"))
+    end)
+#|> Transducers.tap((args*) :: args.eprintln)
+    |> Transducers.reduce(
+      []
+      (model, args*) :: args)
+    |> Transducers.map(app :: [[text: {} "EVENT: $".sprintf(app)]])
+  )
+
+app.close
+events.close

@@ -4059,8 +4059,11 @@ GAB_API union gab_value_pair gab_use(struct gab_triple gab,
   struct gab_module_res *mod = gab_resolve(gab, package, module);
 
   if (!mod)
-    return gab_panicf(gab, "Package @:@ could not be found",
-                      gab_string(gab, package), gab_string(gab, module));
+    return module
+               ? gab_panicf(gab, "Package @:@ could not be found",
+                            gab_string(gab, package), gab_string(gab, module))
+               : gab_panicf(gab, "Package @ could not be found",
+                            gab_string(gab, package));
 
   for (const struct gab_module_res *curr = mod; curr; curr = curr->next) {
     gab_precondition(curr->resource->loader != nullptr,

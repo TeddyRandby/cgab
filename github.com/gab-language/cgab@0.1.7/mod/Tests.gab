@@ -1,6 +1,5 @@
 Ui      := 'github.com/gab-language/cgab@0.1.7' .use 'Ui'
 Atoms   := 'github.com/gab-language/cgab@0.1.7' .use 'Atoms'
-Streams := 'github.com/gab-language/cgab@0.1.7' .use 'Transducers'
 
 (events, app) := (Channels.make, Channels.make)
 
@@ -34,8 +33,8 @@ is\unittest:.def(
 
 implementations := Messages.specializations
 
-xf := Streams.filter((_ m) :: m.is\unittest)
-  |> Streams.map((impls m) :: do
+xf := Transducers.filter((_ m) :: m.is\unittest)
+  |> Transducers.map((impls m) :: do
       (path*, _) := m
         .to\string
         .to\seq\split "\" 
@@ -137,7 +136,7 @@ Behavior := test\behavior:.defclass(
 
 queue_tests := (filter_by_suite) :: do
   Fibers.make () :: do
-    xf := Streams.map (behaviors suite) :: do
+    xf := Transducers.map (behaviors suite) :: do
         #events <! (suite: Suite.make([] suite))
 
         Fibers.make () :: do
@@ -162,7 +161,7 @@ queue_tests := (filter_by_suite) :: do
 
     xf := filter_by_suite.== nil: .!
         .then(() :: do
-          Streams.filter((_, suite) :: filter_by_suite == suite)
+          Transducers.filter((_, suite) :: filter_by_suite == suite)
           |> xf
         end)
         .or xf
@@ -330,7 +329,7 @@ App := test\app:.defclass(
                   .suite\behaviors
                   .join(
                     []
-                    Streams.map (b :: b.behavior\assertions))
+                    Transducers.map (b :: b.behavior\assertions))
 
                 pass_behaviors := assertions
                   .filter b :: b.assertion\outcome == true:
@@ -427,7 +426,7 @@ App := test\app:.defclass(
                                   bg: Colors.bg
                                   transition\properties: [x: y:]
                                 }
-                                bhv.behavior\path.join("" Streams.interpose "should" |> Streams.interpose " ")
+                                bhv.behavior\path.join("" Transducers.interpose "should" |> Streams.interpose " ")
                               ]
                               bhv
                                 .behavior\assertions
@@ -465,7 +464,7 @@ App := test\app:.defclass(
                               fg: color
                               bg: Colors.bg
                             }
-                            bhv.behavior\path.join("" Streams.interpose "should" |> Streams.interpose " ")
+                            bhv.behavior\path.join("" Transducers.interpose "should" |> Streams.interpose " ")
                           ]
                         end)
                     end)
@@ -485,17 +484,17 @@ queue_tests.()
 events
   .pipe(
     app,
-    Streams.take_until((e t key) :: do
+    Transducers.take_until((e t key) :: do
       (e == key:) & ((key == "escape") | (key == "q"))
     end)
-#|> Streams.tap((args*) :: args.eprintln)
-    |> Streams.reduce(
+#|> Transducers.tap((args*) :: args.eprintln)
+    |> Transducers.reduce(
       model
       (model, args*)
         :: model
             .put(test\suites: Suites.atom\deref)
             .app\controller (args*))
-    |> Streams.map(app :: app.app\view)
+    |> Transducers.map(app :: app.app\view)
   )
 
 app.close
